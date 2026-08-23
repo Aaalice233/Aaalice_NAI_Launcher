@@ -29,10 +29,8 @@ class ImageDetailCallbacks {
 
   /// 复用元数据回调
   /// 接收图像数据和用户选择的导入选项
-  final void Function(
-    ImageDetailData image,
-    MetadataImportOptions options,
-  )? onReuseMetadata;
+  final void Function(ImageDetailData image, MetadataImportOptions options)?
+  onReuseMetadata;
 
   /// 保存回调
   final Future<void> Function(ImageDetailData image)? onSave;
@@ -108,10 +106,12 @@ class ImageDetailViewer extends ConsumerStatefulWidget {
     String? heroTagPrefix,
   }) {
     final isWindows = Platform.isWindows;
-    final transitionDuration =
-        isWindows ? Duration.zero : const Duration(milliseconds: 300);
-    final reverseTransitionDuration =
-        isWindows ? Duration.zero : const Duration(milliseconds: 250);
+    final transitionDuration = isWindows
+        ? Duration.zero
+        : const Duration(milliseconds: 300);
+    final reverseTransitionDuration = isWindows
+        ? Duration.zero
+        : const Duration(milliseconds: 250);
 
     return Navigator.of(context).push(
       PageRouteBuilder(
@@ -135,10 +135,7 @@ class ImageDetailViewer extends ConsumerStatefulWidget {
             return viewer;
           }
           return FadeTransition(
-            opacity: CurvedAnimation(
-              parent: animation,
-              curve: Curves.easeOut,
-            ),
+            opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
             child: viewer,
           );
         },
@@ -230,6 +227,11 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeInOut,
     );
+  }
+
+  void _jumpToPage(int index) {
+    if (index < 0 || index >= widget.images.length) return;
+    _pageController.jumpToPage(index);
   }
 
   void _onPageChanged(int index) {
@@ -474,9 +476,7 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
           body: isDesktop && widget.showMetadataPanel
               ? Row(
                   children: [
-                    Expanded(
-                      child: _buildMainContent(),
-                    ),
+                    Expanded(child: _buildMainContent()),
                     DetailMetadataPanel(
                       currentImage: _currentImage,
                       initialExpanded: true,
@@ -504,8 +504,8 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
             final data = widget.images[index];
             final heroTag =
                 widget.heroTagPrefix != null && index == _currentIndex
-                    ? '${widget.heroTagPrefix}_${data.identifier}'
-                    : null;
+                ? '${widget.heroTagPrefix}_${data.identifier}'
+                : null;
             // 确保每个页面都有 TransformationController
             if (!_transformationControllers.containsKey(index)) {
               _transformationControllers[index] = TransformationController();
@@ -546,10 +546,8 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
                 : null,
             onSendToReversePrompt:
                 widget.callbacks?.onSendToReversePrompt != null
-                    ? () => widget.callbacks!.onSendToReversePrompt!(
-                          _currentImage,
-                        )
-                    : null,
+                ? () => widget.callbacks!.onSendToReversePrompt!(_currentImage)
+                : null,
           ),
         ),
 
@@ -557,7 +555,7 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
         if (showThumbnails)
           AnimatedPositioned(
             duration: const Duration(milliseconds: 200),
-            bottom: _showControls ? 0 : -140,
+            bottom: _showControls ? 0 : -100,
             left: 0,
             right: 0,
             child: _buildBottomBar(),
@@ -595,73 +593,21 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
   }
 
   Widget _buildBottomBar() {
-    final metadata = _currentImage.metadata;
-
     return Container(
-      height: 140,
+      height: 100,
+      alignment: Alignment.bottomCenter,
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.bottomCenter,
           end: Alignment.topCenter,
-          colors: [
-            Colors.black.withValues(alpha: 0.8),
-            Colors.transparent,
-          ],
+          colors: [Colors.black.withValues(alpha: 0.8), Colors.transparent],
         ),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // 元数据信息
-          if (metadata != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: _buildMetadataInfo(metadata),
-            ),
-
-          // 缩略图条
-          DetailThumbnailBar(
-            images: widget.images,
-            currentIndex: _currentIndex,
-            scrollController: _thumbnailController,
-            onTap: _goToPage,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMetadataInfo(dynamic metadata) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          if (metadata.seed != null) _buildInfoChip('Seed: ${metadata.seed}'),
-          if (metadata.steps != null) _buildInfoChip('${metadata.steps} steps'),
-          if (metadata.scale != null) _buildInfoChip('CFG: ${metadata.scale}'),
-          if (metadata.sampler != null) _buildInfoChip(metadata.displaySampler),
-          if (metadata.width != null && metadata.height != null)
-            _buildInfoChip('${metadata.width}×${metadata.height}'),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoChip(String text) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Text(
-        text,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 12,
-        ),
+      child: DetailThumbnailBar(
+        images: widget.images,
+        currentIndex: _currentIndex,
+        scrollController: _thumbnailController,
+        onTap: _jumpToPage,
       ),
     );
   }
@@ -739,10 +685,7 @@ class _NavigationButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onPressed;
 
-  const _NavigationButton({
-    required this.icon,
-    required this.onPressed,
-  });
+  const _NavigationButton({required this.icon, required this.onPressed});
 
   @override
   Widget build(BuildContext context) {
@@ -754,11 +697,7 @@ class _NavigationButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
         child: Padding(
           padding: const EdgeInsets.all(12),
-          child: Icon(
-            icon,
-            color: Colors.white,
-            size: 32,
-          ),
+          child: Icon(icon, color: Colors.white, size: 32),
         ),
       ),
     );

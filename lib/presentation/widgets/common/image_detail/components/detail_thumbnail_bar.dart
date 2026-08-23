@@ -33,7 +33,7 @@ class DetailThumbnailBar extends StatelessWidget {
     ) {
       final scrollEvent = resolvedEvent as PointerScrollEvent;
       final position = scrollController.position;
-      final target = (position.pixels + scrollEvent.scrollDelta.dy).clamp(
+      final target = (position.pixels + scrollEvent.scrollDelta.dy * 2).clamp(
         position.minScrollExtent,
         position.maxScrollExtent,
       );
