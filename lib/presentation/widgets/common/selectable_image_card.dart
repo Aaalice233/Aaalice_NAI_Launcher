@@ -1061,7 +1061,7 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
                   Positioned(top: 8, left: 8, child: _buildCheckbox(theme)),
 
                 // 5.5 右上角：本地画廊收藏按钮
-                if (widget.onFavoriteToggle != null)
+                if (_isHovering && widget.onFavoriteToggle != null)
                   Positioned(top: 8, right: 8, child: _buildFavoriteButton()),
 
                 // 6. 操作按钮（悬浮时显示）
