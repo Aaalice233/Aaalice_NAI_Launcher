@@ -71,6 +71,23 @@ class AppRoutes {
   static const String preciseRefLibrary = '/precise-ref-library';
 }
 
+String? resolveAuthRedirect({
+  required AuthStatus status,
+  required bool isAuthenticated,
+  required String matchedLocation,
+}) {
+  final isLoading =
+      status == AuthStatus.loading || status == AuthStatus.initial;
+  if (isLoading) return null;
+
+  final isLoggingIn = matchedLocation == AppRoutes.login;
+  if (isAuthenticated && isLoggingIn) {
+    return AppRoutes.home;
+  }
+
+  return null;
+}
+
 /// 应用路由 Provider
 ///
 /// 使用 ref.listen 监听认证状态变化并通知 GoRouter
@@ -106,28 +123,11 @@ GoRouter appRouter(Ref ref) {
     redirect: (context, state) {
       // 在 redirect 内部使用 ref.read 获取最新状态
       final authState = ref.read(authNotifierProvider);
-      final isLoading =
-          authState.status == AuthStatus.loading ||
-          authState.status == AuthStatus.initial;
-      final isLoggedIn = authState.isAuthenticated;
-      final isLoggingIn = state.matchedLocation == AppRoutes.login;
-
-      // 正在加载中（检查自动登录），不重定向，等待认证状态确定
-      if (isLoading) {
-        return null;
-      }
-
-      // 未登录且不在登录页，重定向到登录页
-      if (!isLoggedIn && !isLoggingIn) {
-        return AppRoutes.login;
-      }
-
-      // 已登录且在登录页，重定向到首页
-      if (isLoggedIn && isLoggingIn) {
-        return AppRoutes.home;
-      }
-
-      return null;
+      return resolveAuthRedirect(
+        status: authState.status,
+        isAuthenticated: authState.isAuthenticated,
+        matchedLocation: state.matchedLocation,
+      );
     },
 
     // 路由配置
