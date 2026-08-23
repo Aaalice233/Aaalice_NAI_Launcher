@@ -35,6 +35,7 @@ NAI Launcher is a third-party client for NovelAI built with Flutter. It integrat
 | 🌐 Online Gallery | Supports Danbooru / Safebooru / Gelbooru / AI TAG search, native rankings, multi-image details, metadata reuse, and batch downloads. |
 | 📦 Generation Queue | Supports task sorting, batch generation, pause/resume, failure handling strategies, progress statistics, and queue import/export. |
 | 🔌 External Integration | Supports local Krita integration, local ComfyUI workflows, system proxy, cross-platform image copying, and file location. |
+| 🌏 Interface Languages | Supports Simplified Chinese, Traditional Chinese, English, and Japanese. Traditional Chinese queries can use the optional Simplified Chinese tag translation dictionary. |
 
 ### Online Gallery Sources
 
@@ -100,7 +101,7 @@ You can log in for the first time using your NovelAI account credentials or an A
 - The complete base Danbooru/e621 tag and alias catalog ships with the app and is queried locally without a network connection.
 - The local related-tag co-occurrence data is built by this project from a pinned revision of [newtextdoc1111/danbooru-tag-csv](https://huggingface.co/datasets/newtextdoc1111/danbooru-tag-csv) and published as a separate optional data pack. When related tags are enabled, the app downloads about 30.3 MiB in the background after the home screen opens; installation uses about 78.7 MiB and never blocks startup or base autocomplete.
 - If the pack is unavailable, downloading, disabled, or has failed, the related-tag popup can still show Danbooru online results. Under Settings → Data Sources & Cache you can pause, retry, repair, or remove the pack and disable automatic downloads; removal can also opt out of future automatic downloads.
-- The Simplified Chinese translation dictionary is optional. It is downloaded directly from the [ffdkj/ComfyUI_Danbooru_Tag_Assistant](https://github.com/ffdkj/ComfyUI_Danbooru_Tag_Assistant) upstream only after user confirmation; this project does not redistribute that database.
+- The Simplified Chinese translation dictionary is optional. Traditional Chinese UI and tag queries can use the same dictionary; queries are converted locally for matching and are not uploaded. It is downloaded directly from the [ffdkj/ComfyUI_Danbooru_Tag_Assistant](https://github.com/ffdkj/ComfyUI_Danbooru_Tag_Assistant) upstream only after user confirmation; this project does not redistribute that database.
 - The Danbooru online supplement is enabled by default. It sends only the current English token under the cursor, never the complete prompt; it can be disabled and its cache cleared separately under Settings → Data Sources & Cache.
 - AI translation for missing entries is disabled by default. When enabled, it reuses the Prompt Assistant `Translate` route and sends at most 8 untranslated tags to the model service selected by the user, which may incur API charges. Its cache can be cleared separately.
 

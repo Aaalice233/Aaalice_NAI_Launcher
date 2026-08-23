@@ -506,7 +506,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settings_language => '语言';
 
   @override
-  String get settings_languageChinese => '中文';
+  String get settings_languageChinese => '简体中文';
+
+  @override
+  String get settings_languageTraditionalChinese => '繁體中文';
 
   @override
   String get settings_languageEnglish => 'English';
@@ -11656,4 +11659,11661 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get autocomplete_openSettings => '打开补全与数据源设置';
+}
+
+/// The translations for Chinese, using the Han script (`zh_Hant`).
+class AppLocalizationsZhHant extends AppLocalizationsZh {
+  AppLocalizationsZhHant() : super('zh_Hant');
+
+  @override
+  String get app_title => 'NAI 啟動器';
+
+  @override
+  String get app_subtitle => 'NovelAI 第三方客戶端';
+
+  @override
+  String get common_cancel => '取消';
+
+  @override
+  String get common_confirm => '確定';
+
+  @override
+  String get common_continue => '繼續';
+
+  @override
+  String get common_selectAll => '全選';
+
+  @override
+  String get common_deselectAll => '全不選';
+
+  @override
+  String get common_collapseAll => '收起全部';
+
+  @override
+  String get common_save => '儲存';
+
+  @override
+  String get common_delete => '刪除';
+
+  @override
+  String get common_edit => '編輯';
+
+  @override
+  String get common_close => '關閉';
+
+  @override
+  String get common_clear => '清除';
+
+  @override
+  String get common_copy => '複製';
+
+  @override
+  String get common_copied => '已複製';
+
+  @override
+  String get common_export => '匯出';
+
+  @override
+  String get common_import => '匯入';
+
+  @override
+  String get common_loading => '載入中...';
+
+  @override
+  String get common_error => '錯誤';
+
+  @override
+  String get common_success => '成功';
+
+  @override
+  String get common_retry => '重試';
+
+  @override
+  String get common_select => '選擇';
+
+  @override
+  String get common_reset => '重置';
+
+  @override
+  String get common_search => '搜尋';
+
+  @override
+  String get common_add => '新增';
+
+  @override
+  String get common_added => '已新增';
+
+  @override
+  String get common_new => '新建';
+
+  @override
+  String get common_confirmDelete => '確認刪除';
+
+  @override
+  String get common_confirmClear => '確認清空';
+
+  @override
+  String get common_gotIt => '知道了';
+
+  @override
+  String common_deleteItemConfirm(Object itemName) {
+    return '確定要刪除「$itemName」嗎？此操作不可撤銷。';
+  }
+
+  @override
+  String common_clearAllItemsConfirm(Object count, Object itemType) {
+    return '確定要清空所有 $count 個$itemType嗎？此操作不可撤銷。';
+  }
+
+  @override
+  String get common_clearInputConfirm => '確定要清空輸入內容嗎？';
+
+  @override
+  String get common_today => '今天';
+
+  @override
+  String get common_yesterday => '昨天';
+
+  @override
+  String common_daysAgo(Object days) {
+    return '$days天前';
+  }
+
+  @override
+  String get common_undo => '撤銷';
+
+  @override
+  String get common_redo => '重做';
+
+  @override
+  String get common_refresh => '重新整理';
+
+  @override
+  String get common_download => '下載';
+
+  @override
+  String get common_apply => '應用';
+
+  @override
+  String get common_move => '移動';
+
+  @override
+  String get common_favorite => '收藏';
+
+  @override
+  String get common_unfavorite => '取消收藏';
+
+  @override
+  String get common_ok => '確定';
+
+  @override
+  String get common_replace => '替換';
+
+  @override
+  String get common_skip => '跳過';
+
+  @override
+  String get common_exit => '退出';
+
+  @override
+  String get common_folder => '資料夾';
+
+  @override
+  String get common_filter => '篩選';
+
+  @override
+  String get common_grid => '網格';
+
+  @override
+  String get common_date => '日期';
+
+  @override
+  String get common_pack => '打包';
+
+  @override
+  String get common_multiSelect => '多選';
+
+  @override
+  String get common_category => '分類';
+
+  @override
+  String get common_categories => '分類';
+
+  @override
+  String get common_items => '項';
+
+  @override
+  String get networkError_connectionTimeout => '連線超時，請檢查網路連線。';
+
+  @override
+  String get networkError_sendTimeout => '傳送超時，請重試。';
+
+  @override
+  String get networkError_receiveTimeout => '接收超時，影象生成可能需要更長時間。';
+
+  @override
+  String get networkError_requestCancelled => '請求已取消';
+
+  @override
+  String get networkError_connection => '網路連線錯誤，請檢查網路連線。';
+
+  @override
+  String get networkError_unknown => '未知錯誤';
+
+  @override
+  String get networkError_noResponse => '伺服器無響應';
+
+  @override
+  String get networkError_badRequest => '請求引數錯誤';
+
+  @override
+  String get networkError_authFailed => '認證失敗，請重新登入。';
+
+  @override
+  String get networkError_insufficientAnlas => 'Anlas 不足';
+
+  @override
+  String get networkError_forbidden => '無許可權訪問該資源';
+
+  @override
+  String get networkError_notFound => '請求的資源不存在';
+
+  @override
+  String get networkError_conflict => '請求與當前狀態衝突';
+
+  @override
+  String get networkError_rateLimited => '請求過於頻繁，請稍後重試。';
+
+  @override
+  String get networkError_serverInternal => '伺服器內部錯誤';
+
+  @override
+  String get networkError_badGateway => '伺服器閘道器錯誤';
+
+  @override
+  String get networkError_unavailable => '服務暫時不可用';
+
+  @override
+  String networkError_requestFailed(int code) {
+    return '請求失敗（$code）';
+  }
+
+  @override
+  String get nav_canvas => '畫布';
+
+  @override
+  String get nav_onlineGallery => '畫廊';
+
+  @override
+  String get nav_randomConfig => '隨機配置';
+
+  @override
+  String get nav_dictionary => '詞庫';
+
+  @override
+  String get nav_discordCommunity => 'Discord 社群';
+
+  @override
+  String get nav_githubRepo => 'GitHub 倉庫';
+
+  @override
+  String get nav_expandSidebar => '展開側邊欄';
+
+  @override
+  String get nav_collapseSidebar => '收起側邊欄';
+
+  @override
+  String get auth_login => '登入';
+
+  @override
+  String get auth_logout => '退出登入';
+
+  @override
+  String get auth_email => '郵箱';
+
+  @override
+  String get auth_password => '密碼';
+
+  @override
+  String get auth_loginButton => '登入';
+
+  @override
+  String get auth_loginFailed => '登入失敗';
+
+  @override
+  String get auth_loginTip => '使用你的 NovelAI 賬戶登入\n所有資料僅儲存在本地裝置';
+
+  @override
+  String get auth_loggedIn => '已登入';
+
+  @override
+  String get auth_emailRequired => '請輸入郵箱';
+
+  @override
+  String get auth_emailInvalid => '請輸入有效的郵箱地址';
+
+  @override
+  String get auth_passwordRequired => '請輸入密碼';
+
+  @override
+  String get auth_tokenLogin => 'API Token 登入';
+
+  @override
+  String get auth_tokenLoginRecommended => 'API Token 登入（推薦）';
+
+  @override
+  String get auth_credentialsLogin => '郵箱密碼登入';
+
+  @override
+  String get auth_credentialsLoginUnavailable => '賬號密碼登入當前不可用，請使用 Token 登入';
+
+  @override
+  String get auth_tokenHint => '請輸入您的 Persistent API Token';
+
+  @override
+  String get auth_tokenRequired => '請輸入 Token';
+
+  @override
+  String get auth_tokenInvalid => 'Token 格式無效，應以 pst- 開頭';
+
+  @override
+  String get auth_nicknameOptional => '暱稱（可選）';
+
+  @override
+  String get auth_nicknameHint => '為此賬號設定一個便於識別的名稱';
+
+  @override
+  String get auth_thirdPartyLogin => '第三方站點';
+
+  @override
+  String get auth_thirdPartyApiSite => '第三方 API 站點';
+
+  @override
+  String get auth_imageApiSiteOptional => '影象 API 站點（可選）';
+
+  @override
+  String get auth_imageApiSiteHint => '留空則使用同一個第三方 API 站點';
+
+  @override
+  String get auth_thirdPartyNicknameHint => '例如：自建站點 / 映象站點';
+
+  @override
+  String get auth_thirdPartyTokenHint => '請輸入第三方站點提供的 API Token';
+
+  @override
+  String get auth_thirdPartyCompatibilityHint =>
+      '第三方站點需相容 NovelAI 的 /user/subscription 與影象生成相關 API；Token 將按 Bearer 方式傳送。';
+
+  @override
+  String get auth_thirdPartyApiSiteRequired => '請輸入第三方 API 站點地址';
+
+  @override
+  String get auth_validateAndLogin => '驗證並登入';
+
+  @override
+  String get auth_tokenGuide => '從 NovelAI 賬戶設定獲取 Token';
+
+  @override
+  String get auth_savedAccounts => '已儲存的賬號';
+
+  @override
+  String get auth_addAccount => '新增賬號';
+
+  @override
+  String get auth_manageAccounts => '管理';
+
+  @override
+  String auth_moreAccounts(Object count) {
+    return '還有 $count 個賬號';
+  }
+
+  @override
+  String get auth_tokenNotFound => '未找到此賬號的 Token';
+
+  @override
+  String get auth_switchAccount => '切換賬號';
+
+  @override
+  String get auth_currentAccount => '當前賬號';
+
+  @override
+  String get auth_selectAccount => '選擇賬號';
+
+  @override
+  String get auth_deleteAccount => '刪除賬號';
+
+  @override
+  String auth_deleteAccountConfirm(Object name) {
+    return '確定要刪除賬號 \"$name\" 嗎？此操作不可撤銷。';
+  }
+
+  @override
+  String get auth_removeAvatar => '移除頭像';
+
+  @override
+  String get auth_selectFromGallery => '從相簿選擇';
+
+  @override
+  String get auth_takePhoto => '拍攝照片';
+
+  @override
+  String get auth_quickLogin => '一鍵登入';
+
+  @override
+  String get auth_nicknameRequired => '請輸入暱稱';
+
+  @override
+  String auth_createdAt(Object date) {
+    return '建立於 $date';
+  }
+
+  @override
+  String get auth_error_networkTimeout => '連線超時，請檢查網路';
+
+  @override
+  String get auth_error_networkError => '網路連線錯誤';
+
+  @override
+  String get auth_error_authFailed => '認證失敗';
+
+  @override
+  String get auth_error_credentialsLoginUnavailable => '賬號密碼登入當前不可用';
+
+  @override
+  String get auth_error_credentialsLoginUnavailable_hint =>
+      'NovelAI 官網賬號密碼登入需要網頁安全驗證，客戶端無法完成，請改用 Persistent API Token。';
+
+  @override
+  String get auth_error_serverError => '伺服器錯誤';
+
+  @override
+  String get auth_error_unknown => '未知錯誤';
+
+  @override
+  String get auth_autoLogin => '自動登入';
+
+  @override
+  String get auth_forgotPassword => '忘記密碼？';
+
+  @override
+  String get auth_passwordTooShort => '密碼長度至少6位';
+
+  @override
+  String get auth_loggingIn => '登入中...';
+
+  @override
+  String get auth_pleaseWait => '請稍候';
+
+  @override
+  String get auth_viewTroubleshootingTips => '檢視故障排除提示';
+
+  @override
+  String get auth_troubleshoot_checkConnection_title => '檢查網路連線';
+
+  @override
+  String get auth_troubleshoot_checkConnection_desc => '確保您的裝置已連線到網際網路';
+
+  @override
+  String get auth_troubleshoot_retry_title => '重試';
+
+  @override
+  String get auth_troubleshoot_retry_desc => '網路問題可能是暫時的，請重試';
+
+  @override
+  String get auth_troubleshoot_proxy_title => '檢查代理設定';
+
+  @override
+  String get auth_troubleshoot_proxy_desc => '如果使用代理，請確認配置正確';
+
+  @override
+  String get auth_troubleshoot_firewall_title => '檢查防火牆設定';
+
+  @override
+  String get auth_troubleshoot_firewall_desc => '確保防火牆允許連線到 NovelAI 伺服器';
+
+  @override
+  String get auth_troubleshoot_serverStatus_title => '檢查伺服器狀態';
+
+  @override
+  String get auth_troubleshoot_serverStatus_desc =>
+      '訪問 NovelAI 狀態頁面或社群檢視服務中斷情況';
+
+  @override
+  String get common_paste => '貼上';
+
+  @override
+  String get common_default => '預設';
+
+  @override
+  String get settings_title => '設定';
+
+  @override
+  String get settings_account => '賬戶';
+
+  @override
+  String get settings_appearance => '外觀';
+
+  @override
+  String get settings_style => '風格';
+
+  @override
+  String get settings_font => '字型';
+
+  @override
+  String get settings_language => '語言';
+
+  @override
+  String get settings_languageChinese => '簡體中文';
+
+  @override
+  String get settings_languageTraditionalChinese => '繁體中文';
+
+  @override
+  String get settings_languageEnglish => 'English';
+
+  @override
+  String get settings_languageJapanese => '日本語';
+
+  @override
+  String get settings_shortcuts => '快捷鍵';
+
+  @override
+  String get settings_generation => '生成';
+
+  @override
+  String get settings_dataStorage => '資料與儲存';
+
+  @override
+  String get settings_privacySharing => '安全與分享';
+
+  @override
+  String get settings_integrations => '整合';
+
+  @override
+  String get settings_generationInputSection => '輸入';
+
+  @override
+  String get settings_generationOutputSection => '影象輸出';
+
+  @override
+  String get settings_generationRetrySection => '失敗重試';
+
+  @override
+  String get settings_generationFeedbackSection => '完成提醒';
+
+  @override
+  String get settings_alphaModeTitle => '透明影象 Alpha 模式';
+
+  @override
+  String get settings_alphaModeStraight => '直通（Straight）';
+
+  @override
+  String get settings_alphaModePremultiplied => '預乘（Premultiplied）';
+
+  @override
+  String get settings_alphaModeStraightDescription =>
+      '保留未乘 Alpha 的 RGB，適合繼續編輯，也是 NovelAI 官網預設值。';
+
+  @override
+  String get settings_alphaModePremultipliedDescription =>
+      'RGB 已乘 Alpha，適合要求預乘輸入的合成與渲染流程。';
+
+  @override
+  String get settings_promptAssistant => '提示詞助手';
+
+  @override
+  String get settings_selectStyle => '選擇風格';
+
+  @override
+  String get settings_defaultPreset => '預設';
+
+  @override
+  String get settings_selectFont => '選擇字型';
+
+  @override
+  String get settings_selectLanguage => '選擇語言';
+
+  @override
+  String settings_loadFailed(Object error) {
+    return '載入失敗: $error';
+  }
+
+  @override
+  String get settings_imageSavePath => '圖片儲存位置';
+
+  @override
+  String get settings_autoSave => '自動儲存';
+
+  @override
+  String get settings_autoSaveSubtitle => '生成後自動儲存圖片';
+
+  @override
+  String get settings_about => '關於';
+
+  @override
+  String settings_version(Object version) {
+    return '版本 $version';
+  }
+
+  @override
+  String get settings_openSource => '開源專案';
+
+  @override
+  String get settings_openSourceSubtitle => '檢視原始碼和文件';
+
+  @override
+  String get settings_fileLogging => '記錄應用日誌';
+
+  @override
+  String get settings_fileLoggingSubtitle =>
+      '預設關閉；僅在排查問題時開啟。開啟後會寫入 Documents/NAI_Launcher/logs，關閉後不再建立或寫入日誌檔案。';
+
+  @override
+  String get settings_pathReset => '已重置為預設路徑';
+
+  @override
+  String get settings_pathSaved => '儲存路徑已更新';
+
+  @override
+  String get settings_selectFolder => '選擇儲存資料夾';
+
+  @override
+  String get settings_vibeLibraryPath => 'Vibe庫路徑';
+
+  @override
+  String get settings_hiveStoragePath => '資料儲存路徑';
+
+  @override
+  String get settings_selectVibeLibraryFolder => '選擇Vibe庫資料夾';
+
+  @override
+  String get settings_selectHiveFolder => '選擇資料儲存資料夾';
+
+  @override
+  String get settings_pathSavedRestartRequired => '路徑已更新，重啟後生效';
+
+  @override
+  String get settings_accountType => '賬號型別';
+
+  @override
+  String get settings_thirdPartyApiAccount => '第三方站點 API';
+
+  @override
+  String get settings_apiSite => 'API 站點';
+
+  @override
+  String get settings_notLoggedIn => '登入後可設定頭像和暱稱';
+
+  @override
+  String get settings_goToLogin => '去登入';
+
+  @override
+  String get settings_tapToChangeAvatar => '點選更換頭像';
+
+  @override
+  String get settings_changeAvatar => '更換頭像';
+
+  @override
+  String get settings_removeAvatar => '移除頭像';
+
+  @override
+  String get settings_accountEmail => '賬號郵箱';
+
+  @override
+  String get settings_emailAccount => '郵箱登入';
+
+  @override
+  String get settings_tokenAccount => 'Token登入';
+
+  @override
+  String get settings_setAsDefault => '設為預設';
+
+  @override
+  String get settings_defaultAccount => '預設';
+
+  @override
+  String get settings_editNickname => '編輯暱稱';
+
+  @override
+  String get settings_nickname => '暱稱';
+
+  @override
+  String get settings_nicknameHint => '輸入2-32個字元';
+
+  @override
+  String get settings_nicknameEmpty => '請輸入暱稱';
+
+  @override
+  String settings_nicknameTooLong(int maxLength) {
+    return '暱稱不能超過$maxLength個字元';
+  }
+
+  @override
+  String get settings_nicknameUpdated => '暱稱已更新';
+
+  @override
+  String get settings_avatarUpdated => '頭像已更新';
+
+  @override
+  String get settings_avatarRemoved => '頭像已移除';
+
+  @override
+  String get settings_setAsDefaultSuccess => '已設為預設賬號';
+
+  @override
+  String get generation_title => '生成';
+
+  @override
+  String get generation_generate => '生成';
+
+  @override
+  String generation_cooldownRemaining(Object seconds) {
+    return '等待 $seconds 秒';
+  }
+
+  @override
+  String get generation_generating => '生成中...';
+
+  @override
+  String get generation_cancelGeneration => '取消生成';
+
+  @override
+  String get generation_skipCurrentBatch => '跳過當前批次';
+
+  @override
+  String get generation_stopAllGeneration => '停止全部';
+
+  @override
+  String get generation_pleaseInputPrompt => '請輸入提示詞';
+
+  @override
+  String get generation_emptyPromptHint => '輸入提示詞並點選生成';
+
+  @override
+  String get generation_imageWillShowHere => '影象將在這裡顯示';
+
+  @override
+  String get generation_generationFailed => '生成失敗';
+
+  @override
+  String generation_progress(Object progress) {
+    return '生成中... $progress%';
+  }
+
+  @override
+  String get generation_params => '引數';
+
+  @override
+  String get generation_paramsSettings => '生成引數';
+
+  @override
+  String get generation_history => '歷史';
+
+  @override
+  String get generation_historyRecord => '歷史記錄';
+
+  @override
+  String get generation_failedStreamSnapshot => '失敗快照';
+
+  @override
+  String get generation_failedStreamSnapshotHint =>
+      '生成未完成，僅保留最後一幀預覽；不可儲存、收藏或用於圖生圖';
+
+  @override
+  String get generation_noHistory => '暫無歷史記錄';
+
+  @override
+  String get generation_clearHistory => '清除歷史記錄';
+
+  @override
+  String get generation_clearHistoryConfirm => '確定要清除所有歷史記錄嗎？此操作不可撤銷。';
+
+  @override
+  String get generation_model => '模型';
+
+  @override
+  String generation_opusUsageRemaining(Object percent) {
+    return 'Opus 免費生成剩餘 $percent%';
+  }
+
+  @override
+  String generation_opusUsageEstimate(Object count) {
+    return '約可再生成 $count 張';
+  }
+
+  @override
+  String get generation_opusUsageRefill => '額度會隨時間自動恢復';
+
+  @override
+  String get generation_opusUsageExhausted =>
+      'Opus 免費額度已用完，V5 生成將消耗 Anlas，額度會隨時間自動恢復';
+
+  @override
+  String get generation_imageSize => '影象尺寸';
+
+  @override
+  String get generation_transparentBackground => '透明背景';
+
+  @override
+  String generation_e2eUpscaleHint(Object size) {
+    return '服務端輸出 $size';
+  }
+
+  @override
+  String get generation_sampler => '取樣器';
+
+  @override
+  String generation_steps(Object steps) {
+    return '步數: $steps';
+  }
+
+  @override
+  String generation_cfgScale(Object scale) {
+    return 'CFG 強度：$scale';
+  }
+
+  @override
+  String get generation_seed => '種子';
+
+  @override
+  String get generation_previewApplySeed => '使用當前圖片的種子';
+
+  @override
+  String get generation_transparencyBackgroundTitle => '透明部分顯示';
+
+  @override
+  String get generation_transparencyChecker => '跟隨主題棋盤格';
+
+  @override
+  String get generation_transparencyCheckerLight => '淺色棋盤格';
+
+  @override
+  String get generation_transparencyCheckerDark => '深色棋盤格';
+
+  @override
+  String get generation_transparencyNone => '無';
+
+  @override
+  String get generation_transparencyBlack => '黑色';
+
+  @override
+  String get generation_transparencyWhite => '白色';
+
+  @override
+  String get generation_transparencyGray => '灰色';
+
+  @override
+  String get generation_transparencyRed => '紅色';
+
+  @override
+  String get generation_transparencyGreen => '綠色';
+
+  @override
+  String get generation_transparencyBlue => '藍色';
+
+  @override
+  String get generation_transparencyCustom => '自定義顏色';
+
+  @override
+  String get generation_seedRandom => '隨機';
+
+  @override
+  String get generation_seedLock => '固定種子';
+
+  @override
+  String get generation_seedUnlock => '解鎖種子';
+
+  @override
+  String get generation_advancedOptions => '高階選項';
+
+  @override
+  String get generation_smea => 'SMEA';
+
+  @override
+  String get generation_smeaSubtitle => '改善大影象的生成質量';
+
+  @override
+  String get generation_smeaDyn => 'SMEA DYN';
+
+  @override
+  String get generation_smeaDescription => '高解析度取樣器會在超過一定影象尺寸時自動使用';
+
+  @override
+  String generation_cfgRescale(Object value) {
+    return 'CFG 重縮放：$value';
+  }
+
+  @override
+  String get generation_noiseSchedule => '噪聲排程';
+
+  @override
+  String get prompt_positive => '正面';
+
+  @override
+  String get prompt_negative => '負面';
+
+  @override
+  String get prompt_positivePrompt => '正向提示詞';
+
+  @override
+  String get prompt_negativePrompt => '負向提示詞';
+
+  @override
+  String get prompt_mainPositive => '主提示詞（正面）';
+
+  @override
+  String get prompt_mainNegative => '主提示詞（負面）';
+
+  @override
+  String get prompt_characterPrompts => '多角色提示詞';
+
+  @override
+  String get prompt_finalPrompt => '最終生效提示詞';
+
+  @override
+  String get prompt_finalNegative => '最終生效負面詞';
+
+  @override
+  String prompt_importedCharacters(int count) {
+    return '已匯入 $count 個角色';
+  }
+
+  @override
+  String get prompt_characterPromptReplaced => '已替換角色提示詞';
+
+  @override
+  String prompt_characterPromptAppended(Object count) {
+    return '已追加角色提示詞 ($count 個角色)';
+  }
+
+  @override
+  String prompt_smartDecomposedWithCharacters(Object count) {
+    return '已分解：主提示詞 + $count 個角色';
+  }
+
+  @override
+  String get prompt_appliedToMainPrompt => '已應用到主提示詞';
+
+  @override
+  String get prompt_inputPrompt => '輸入提示詞...';
+
+  @override
+  String get prompt_describeImage => '描述你想要生成的影象...';
+
+  @override
+  String get prompt_describeImageWithHint => '輸入提示詞描述畫面，輸入 < 引用詞庫，支援自動補全標籤';
+
+  @override
+  String get prompt_searchHint => '搜尋提示詞';
+
+  @override
+  String prompt_searchMatchCount(Object current, Object total) {
+    return '$current / $total';
+  }
+
+  @override
+  String get prompt_searchPrevious => '上一個命中';
+
+  @override
+  String get prompt_searchNext => '下一個命中';
+
+  @override
+  String get prompt_searchClose => '關閉搜尋';
+
+  @override
+  String get prompt_replaceHint => '替換為';
+
+  @override
+  String get prompt_replaceToggle => '顯示/隱藏替換';
+
+  @override
+  String get prompt_replaceCurrent => '替換當前命中（Enter）';
+
+  @override
+  String get prompt_replaceAll => '全部替換（Ctrl+Enter）';
+
+  @override
+  String prompt_replaceAllDone(Object count) {
+    return '已替換 $count 處';
+  }
+
+  @override
+  String get promptAssistant_needPrompt => '請輸入提示詞後再操作';
+
+  @override
+  String promptAssistant_requestFailed(Object error) {
+    return '助手請求失敗: $error';
+  }
+
+  @override
+  String get promptAssistant_enableAssistant => '啟用提示詞助手';
+
+  @override
+  String get promptAssistant_desktopOverlay => '桌面右下角浮層';
+
+  @override
+  String get kritaBridge_busyGenerating => 'Krita Bridge 正在生成，請等待當前任務結束';
+
+  @override
+  String get prompt_negativeFixedTagPrefix => '負向固定詞字首';
+
+  @override
+  String get prompt_negativeFixedTagSuffix => '負向固定詞字尾';
+
+  @override
+  String get prompt_unwantedContent => '不想出現在影象中的內容...';
+
+  @override
+  String get prompt_smartAutocomplete => '智慧補全';
+
+  @override
+  String get prompt_smartAutocompleteSubtitle => '輸入時顯示標籤建議';
+
+  @override
+  String get prompt_autoFormat => '自動格式化';
+
+  @override
+  String get prompt_autoFormatSubtitle => '中文逗號轉英文、標籤內空格轉下劃線（保留換行）';
+
+  @override
+  String get prompt_highlightEmphasis => '高亮強調';
+
+  @override
+  String get prompt_highlightEmphasisSubtitle => '括號和權重語法高亮顯示';
+
+  @override
+  String get prompt_sdSyntaxAutoConvert => 'SD語法自動轉換';
+
+  @override
+  String get prompt_sdSyntaxAutoConvertSubtitle => '失焦時將SD權重語法轉換為NAI格式';
+
+  @override
+  String get prompt_resolveAliasOnCopy => '複製時展開詞庫';
+
+  @override
+  String get prompt_resolveAliasOnCopySubtitle => '複製或剪下時把 <詞庫名> 替換為詞庫內容';
+
+  @override
+  String get prompt_cooccurrenceRecommendation => '共現標籤推薦';
+
+  @override
+  String get prompt_cooccurrenceRecommendationSubtitle =>
+      '選中標籤後自動推薦，也可按 Ctrl+Shift+Space 或 Ctrl+單擊';
+
+  @override
+  String get prompt_regexRulesManage => '正則替換規則…';
+
+  @override
+  String prompt_regexRulesCount(int count) {
+    return '已配置 $count 條規則';
+  }
+
+  @override
+  String prompt_regexReplaceApplied(int count) {
+    return '正則替換 $count 條';
+  }
+
+  @override
+  String prompt_regexInvalidRules(Object names) {
+    return '已跳過無效的正則規則：$names';
+  }
+
+  @override
+  String get regexRules_title => '正則替換規則';
+
+  @override
+  String get regexRules_hint =>
+      '規則按順序作用於整段提示詞，早於 SD 轉換和自動格式化執行。替換內容裡可用 \$1、\$2 引用捕獲組。';
+
+  @override
+  String get regexRules_empty => '還沒有規則，點下面的按鈕新建一條';
+
+  @override
+  String get regexRules_add => '新建規則';
+
+  @override
+  String get regexRules_unnamed => '未命名規則';
+
+  @override
+  String get regexRules_invalidBadge => '無效';
+
+  @override
+  String get regexRules_deleteConfirmTitle => '刪除規則';
+
+  @override
+  String regexRules_deleteConfirmMessage(Object name) {
+    return '確定刪除「$name」嗎？此操作不可撤銷。';
+  }
+
+  @override
+  String get regexRules_newTitle => '新建規則';
+
+  @override
+  String get regexRules_editTitle => '編輯規則';
+
+  @override
+  String get regexRules_nameLabel => '規則名稱（可選）';
+
+  @override
+  String get regexRules_nameHint => '例如：統一發色寫法';
+
+  @override
+  String get regexRules_patternLabel => '匹配（正規表示式）';
+
+  @override
+  String get regexRules_patternHint => '例如：\\bblue[ _]hair\\b';
+
+  @override
+  String get regexRules_replacementLabel => '替換為';
+
+  @override
+  String get regexRules_replacementHint => '例如：aqua hair';
+
+  @override
+  String get regexRules_caseSensitive => '區分大小寫';
+
+  @override
+  String get regexRules_patternRequired => '匹配內容不能為空';
+
+  @override
+  String regexRules_patternInvalid(Object error) {
+    return '正規表示式無效：$error';
+  }
+
+  @override
+  String get regexRules_testTitle => '測試';
+
+  @override
+  String get regexRules_testInputHint => '貼上一段提示詞看看替換效果';
+
+  @override
+  String get regexRules_testNoChange => '無變化';
+
+  @override
+  String get regexRules_testNoRules => '沒有啟用中的規則';
+
+  @override
+  String get prompt_formatted => '已格式化';
+
+  @override
+  String get image_save => '儲存';
+
+  @override
+  String get image_copy => '複製';
+
+  @override
+  String get image_upscale => '放大';
+
+  @override
+  String get image_saveToLibrary => '儲存到詞庫';
+
+  @override
+  String image_imageSaved(Object path) {
+    return '圖片已儲存到: $path';
+  }
+
+  @override
+  String image_saveFailed(Object error) {
+    return '儲存失敗: $error';
+  }
+
+  @override
+  String get image_copiedToClipboard => '已複製到剪貼簿';
+
+  @override
+  String image_copyFailed(Object error) {
+    return '複製失敗: $error';
+  }
+
+  @override
+  String get config_newPreset => '新建預設';
+
+  @override
+  String get config_deletePreset => '刪除預設';
+
+  @override
+  String get img2img_title => '圖生圖';
+
+  @override
+  String get img2img_enabled => '已啟用';
+
+  @override
+  String get img2img_sourceImage => '源影象';
+
+  @override
+  String get img2img_strength => '變化強度';
+
+  @override
+  String get img2img_strengthHint => '值越高，生成的影象與原圖差異越大';
+
+  @override
+  String get img2img_noise => '噪聲量';
+
+  @override
+  String get img2img_noiseHint => '新增額外噪聲以增加變化';
+
+  @override
+  String get img2img_clearSettings => '清除圖生圖設定';
+
+  @override
+  String get img2img_changeImage => '更換圖片';
+
+  @override
+  String get img2img_removeImage => '移除圖片';
+
+  @override
+  String img2img_selectFailed(Object error) {
+    return '選擇圖片失敗: $error';
+  }
+
+  @override
+  String get img2img_editImage => '編輯影象';
+
+  @override
+  String get img2img_editApplied => '已將編輯結果設為新的源圖';
+
+  @override
+  String get img2img_uploadImage => '上傳圖片';
+
+  @override
+  String get img2img_drawSketch => '繪製草圖';
+
+  @override
+  String get img2img_inpaint => '區域性重繪';
+
+  @override
+  String get img2img_inpaintStrength => '重繪強度';
+
+  @override
+  String get img2img_inpaintStrengthHint => '值越高，蒙版區域與當前源圖差異越大';
+
+  @override
+  String get img2img_inpaintPendingHint =>
+      '點選“區域性重繪”進入畫布，用畫筆、橡皮或選區工具標出需要重繪的區域。返回這裡後，點選主生成按鈕即可只重繪蒙版區域。';
+
+  @override
+  String get img2img_inpaintReadyHint => '遮罩已載入。當前會按區域性重繪方式提交，只有蒙版區域會被重新生成。';
+
+  @override
+  String get img2img_inpaintMaskReady => '區域性重繪遮罩已準備好';
+
+  @override
+  String get img2img_generateVariations => '生成變體';
+
+  @override
+  String get img2img_directorTools => '導演工具';
+
+  @override
+  String get img2img_directorToolsHint =>
+      '將當前源圖送入導演工具處理。處理完成後，可以把結果回填為新的源圖繼續生成。';
+
+  @override
+  String get img2img_directorPrompt => '附加提示詞';
+
+  @override
+  String get img2img_directorPromptHint => '需要時補充描述，例如目標情緒或上色方向';
+
+  @override
+  String img2img_directorRun(Object tool) {
+    return '執行 $tool';
+  }
+
+  @override
+  String get img2img_directorRunning => '正在處理...';
+
+  @override
+  String get img2img_directorResult => '處理結果';
+
+  @override
+  String img2img_directorResultReady(Object tool) {
+    return '$tool 處理完成';
+  }
+
+  @override
+  String get img2img_directorApplied => '已將導演工具結果設為新的源圖';
+
+  @override
+  String get img2img_directorDefry => 'Defry';
+
+  @override
+  String get img2img_directorDefryHint => '降低結果中的噪聲或過飽和程度（0 = 關閉，5 = 最強）';
+
+  @override
+  String get img2img_directorEmotionLevel => '表情強度';
+
+  @override
+  String get img2img_directorEmotionLevelHint => 'AI 改變表情的力度（0 = 輕微，5 = 強烈）';
+
+  @override
+  String get img2img_directorEmotionPresets => '快速預設';
+
+  @override
+  String get img2img_directorApplyAsSource => '設為源圖';
+
+  @override
+  String get img2img_directorSourceImage => '源圖';
+
+  @override
+  String get img2img_variationsStarted => '正在生成變體...';
+
+  @override
+  String get img2img_directorRemoveBackground => '背景移除';
+
+  @override
+  String get img2img_directorLineArt => '線稿提取';
+
+  @override
+  String get img2img_directorSketch => '草圖化';
+
+  @override
+  String get img2img_directorColorize => '上色';
+
+  @override
+  String get img2img_directorEmotion => '表情修復';
+
+  @override
+  String get img2img_directorDeclutter => '雜線清理';
+
+  @override
+  String get img2img_enhance => '增強';
+
+  @override
+  String get img2img_enhanceHint => '增強會繼續參考當前提示詞，對源圖進行潛空間放大與再生成。';
+
+  @override
+  String get img2img_enhanceMagnitude => '幅度';
+
+  @override
+  String get img2img_enhanceShowIndividualSettings => '顯示單獨設定';
+
+  @override
+  String get img2img_enhanceUpscaleAmount => '放大倍數';
+
+  @override
+  String get img2img_enhanceScaleMax => '最大';
+
+  @override
+  String get img2img_focusedInpaint => 'Focused Inpainting（聚焦重繪）';
+
+  @override
+  String get img2img_focusedInpaintEnabledHint =>
+      '已啟用。請在重繪編輯器左上角按鈕裡調整聚焦區域與 Minimum Context Area。';
+
+  @override
+  String get img2img_focusedInpaintDisabledHint =>
+      '預設是普通重繪；如需聚焦重繪，請在重繪編輯器左上角按鈕中開啟並框選區域。';
+
+  @override
+  String get img2img_disabled => '未啟用';
+
+  @override
+  String get img2img_novelAiCloudUpscale => 'NovelAI 雲端超分 (固定 4x 放大)';
+
+  @override
+  String get img2img_comfyuiEnableHint => '請先在「設定 > ComfyUI」中啟用並連線伺服器。';
+
+  @override
+  String get img2img_upscaleMode => '放大方式';
+
+  @override
+  String get img2img_upscaleRegularModel => '普通模型';
+
+  @override
+  String get img2img_upscaleModel => '超分模型';
+
+  @override
+  String get img2img_noSeedvr2Models =>
+      '未發現可用的 SeedVR2 模型，請重新整理模型列表，並檢查 ComfyUI 原生 models/diffusion_models、models/vae 或 SeedVR2 自定義節點模型目錄。';
+
+  @override
+  String get img2img_noRegularUpscaleModels =>
+      '未發現普通超分模型，請重新整理模型列表或檢查 models/upscale_models。';
+
+  @override
+  String get img2img_useNativeSeedvr2Workflow =>
+      '將使用 ComfyUI 原生 SeedVR2 一步超分流程。';
+
+  @override
+  String get img2img_useSeedvr2TiledWorkflow =>
+      '將使用 SeedVR2TilingUpscaler 分塊超分流程。';
+
+  @override
+  String get img2img_useSeedvr2Workflow => '將使用 SeedVR2VideoUpscaler 流程。';
+
+  @override
+  String get img2img_useRegularUpscaleWorkflow =>
+      '將使用 UpscaleModelLoader + ImageUpscaleWithModel 流程，並用 Lanczos 修正到目標倍率。';
+
+  @override
+  String get img2img_useRtxUpscaleWorkflow =>
+      '將使用 RTX Video Super Resolution 流程，無需選擇模型。';
+
+  @override
+  String get img2img_refreshModelList => '重新整理模型列表';
+
+  @override
+  String get img2img_startUpscale => '開始超分';
+
+  @override
+  String get img2img_novelAiUpscaleComplete => 'NovelAI 超分完成';
+
+  @override
+  String img2img_upscaleComplete(Object width, Object height) {
+    return '超分完成 (${width}x$height)';
+  }
+
+  @override
+  String img2img_regularUpscaleComplete(Object width, Object height) {
+    return '普通模型超分完成 (${width}x$height)';
+  }
+
+  @override
+  String img2img_rtxUpscaleComplete(Object width, Object height) {
+    return 'RTX 超分完成 (${width}x$height)';
+  }
+
+  @override
+  String get img2img_noAvailableSeedvr2Model => '未選擇可用的 SeedVR2 模型';
+
+  @override
+  String get img2img_noAvailableRegularUpscaleModel => '未選擇可用的普通超分模型';
+
+  @override
+  String get img2img_decodeSourceFailed => '無法解碼源影象';
+
+  @override
+  String get img2img_metricSpeed => '速度';
+
+  @override
+  String get img2img_metricVram => '視訊記憶體';
+
+  @override
+  String get img2img_metricQuality => '效果';
+
+  @override
+  String get img2img_seedvr2Engine => 'SeedVR2 引擎';
+
+  @override
+  String get img2img_seedvr2EngineAuto => '自動';
+
+  @override
+  String get img2img_seedvr2EngineNative => '原生';
+
+  @override
+  String get img2img_seedvr2EngineLegacy => '相容節點';
+
+  @override
+  String get img2img_seedvr2EngineResolvedNative => '當前使用 ComfyUI 原生 SeedVR2。';
+
+  @override
+  String get img2img_seedvr2EngineResolvedLegacy => '當前使用已安裝的 SeedVR2 自定義節點。';
+
+  @override
+  String get img2img_seedvr2EngineUnavailable =>
+      '當前選擇的 SeedVR2 引擎或所需模型不可用，請重新整理模型列表或切換引擎。';
+
+  @override
+  String get img2img_seedvr2VaeTileHint => '設定 SeedVR2 VAE 編碼與解碼的分塊尺寸。';
+
+  @override
+  String get img2img_seedvr2UseTiledUpscale => '使用分塊放大';
+
+  @override
+  String get img2img_seedvr2UseTiledUpscaleHint =>
+      '啟用後改用 SeedVR2TilingUpscaler，適合大圖或視訊記憶體壓力較高的場景。';
+
+  @override
+  String get settings_comfyUiSeedvr2EmbedNaiMetadata =>
+      '在 SeedVR2 結果中寫入 NAI 生成引數';
+
+  @override
+  String get settings_comfyUiSeedvr2EmbedNaiMetadataHint =>
+      '預設關閉。開啟後會寫入啟動器當前的提示詞和生成引數；關閉時保留 ComfyUI 返回的原始 PNG 後設資料。';
+
+  @override
+  String get img2img_seedvr2TileSize => '分塊圖塊大小';
+
+  @override
+  String get img2img_seedvr2TileSizeHint =>
+      '同時控制 SeedVR2TilingUpscaler 的 tile_width / tile_height。';
+
+  @override
+  String get img2img_seedvr2BlocksToSwap => '記憶體解除安裝層數';
+
+  @override
+  String get img2img_seedvr2BlocksToSwapHint =>
+      '把多少 DiT 層放在記憶體裡、推理時再逐層送入視訊記憶體。調高更省視訊記憶體但更吃記憶體也更慢；視訊記憶體充裕可調低甚至設為 0。視訊記憶體不足報錯時請調高。';
+
+  @override
+  String get img2img_upscalePanelOpened => '已開啟圖生圖超分面板';
+
+  @override
+  String get editor_done => '完成';
+
+  @override
+  String get editor_tolerance => '容差';
+
+  @override
+  String get editor_intensity => '強度';
+
+  @override
+  String get editor_sourcePoint => 'Alt+點選設定源點';
+
+  @override
+  String get editor_brushPresets => '筆刷預設';
+
+  @override
+  String get editor_size => '大小';
+
+  @override
+  String get editor_opacity => '不透明度';
+
+  @override
+  String get editor_hardness => '硬度';
+
+  @override
+  String get editor_undo => '撤銷';
+
+  @override
+  String get editor_redo => '重做';
+
+  @override
+  String get editor_clearLayer => '清除圖層';
+
+  @override
+  String get editor_clearSelection => '清除選區';
+
+  @override
+  String get editor_resetView => '重置檢視';
+
+  @override
+  String get editor_zoom => '縮放';
+
+  @override
+  String get editor_toolBrush => '畫筆';
+
+  @override
+  String get editor_toolEraser => '橡皮擦';
+
+  @override
+  String get editor_toolFill => '填充';
+
+  @override
+  String get editor_toolMagicWand => '魔棒';
+
+  @override
+  String get editor_magicWandMode => '選擇方式';
+
+  @override
+  String get editor_magicWandSmartObject => '智慧物件（EfficientViT）';
+
+  @override
+  String get editor_magicWandColorArea => '顏色區域（洪水填充）';
+
+  @override
+  String get editor_magicWandSmartHelp =>
+      '點選要選擇的物件。首次使用會從 MIT Han Lab 下載約 133 MiB 的 EfficientViT-SAM L0 模型（Apache-2.0），之後儲存在本地。';
+
+  @override
+  String get editor_magicWandColorHelp => '點選顏色相近的連續區域。適合邊界清晰的純色影象，無需下載模型。';
+
+  @override
+  String get editor_magicWandInvert => '反選結果';
+
+  @override
+  String get editor_toolLine => '直線';
+
+  @override
+  String get editor_toolRectSelect => '矩形選框';
+
+  @override
+  String get editor_toolEllipseSelect => '橢圓選框';
+
+  @override
+  String get editor_toolLassoSelect => '套索選區';
+
+  @override
+  String get editor_toolColorPicker => '吸管取色';
+
+  @override
+  String get editor_toolCloneStamp => '仿製圖章';
+
+  @override
+  String get editor_toolBlur => '模糊';
+
+  @override
+  String get editor_shortcutUndo => '撤銷 (Ctrl+Z)';
+
+  @override
+  String get editor_shortcutRedo => '重做 (Ctrl+Y)';
+
+  @override
+  String get editor_back => '返回';
+
+  @override
+  String get editor_layers => '圖層';
+
+  @override
+  String get editor_loadMask => '載入蒙版';
+
+  @override
+  String get editor_togglePanels => '切換面板';
+
+  @override
+  String get editor_fillClosedRegion => '填充封閉區域';
+
+  @override
+  String get editor_resetMask => '重置蒙版';
+
+  @override
+  String get editor_zoomIn => '放大';
+
+  @override
+  String get editor_zoomOut => '縮小';
+
+  @override
+  String get editor_fitToWindow => '適應視窗';
+
+  @override
+  String get editor_tempColorPickerShortcut => 'Alt+點選: 臨時取色';
+
+  @override
+  String get editor_shortcutHelpTitle => '快捷鍵幫助';
+
+  @override
+  String get editor_shortcutPaintTools => '繪畫工具';
+
+  @override
+  String get editor_shortcutSelectionTools => '選區工具';
+
+  @override
+  String get editor_shortcutCanvasView => '畫布檢視';
+
+  @override
+  String get editor_shortcutBrushAdjust => '筆刷調整';
+
+  @override
+  String get editor_shortcutColors => '顏色';
+
+  @override
+  String get editor_shortcutCanvasActions => '畫布操作';
+
+  @override
+  String get editor_shortcutHistoryActions => '歷史操作';
+
+  @override
+  String get editor_shortcutSelectionActions => '選區操作';
+
+  @override
+  String get editor_shortcutTemporaryColorPicker => '臨時拾色器';
+
+  @override
+  String get editor_shortcutRectSelection => '矩形選區';
+
+  @override
+  String get editor_shortcutEllipseSelection => '橢圓選區';
+
+  @override
+  String get editor_shortcutLassoSelection => '套索選區';
+
+  @override
+  String get editor_shortcut100Zoom => '100% 縮放';
+
+  @override
+  String get editor_shortcutFitHeight => '適應高度';
+
+  @override
+  String get editor_shortcutFitWidth => '適應寬度';
+
+  @override
+  String get editor_shortcutRotateLeft15 => '向左旋轉 15°';
+
+  @override
+  String get editor_shortcutResetRotation => '重置旋轉';
+
+  @override
+  String get editor_shortcutRotateRight15 => '向右旋轉 15°';
+
+  @override
+  String get editor_shortcutFlipHorizontal => '水平映象';
+
+  @override
+  String get editor_shortcutWheel => '滾輪';
+
+  @override
+  String get editor_shortcutBrushSmaller => '減小筆刷';
+
+  @override
+  String get editor_shortcutBrushLarger => '增大筆刷';
+
+  @override
+  String get editor_shortcutOpacityLower => '降低透明度';
+
+  @override
+  String get editor_shortcutOpacityHigher => '提高透明度';
+
+  @override
+  String get editor_shortcutDragBrushSize => '調整筆刷大小';
+
+  @override
+  String get editor_shortcutSwapColors => '交換前景/背景色';
+
+  @override
+  String get editor_shortcutPanCanvas => '平移畫布';
+
+  @override
+  String get editor_shortcutClearSelectionContent => '清除選區內容';
+
+  @override
+  String get editor_shortcutCancelCurrentAction => '取消當前操作';
+
+  @override
+  String get editor_selectUnlockedLayerWithContent => '請選擇一個非鎖定且有內容的圖層';
+
+  @override
+  String get editor_readCurrentLayerFailed => '無法讀取當前圖層';
+
+  @override
+  String get editor_localEffects => '本地後處理 / Effects';
+
+  @override
+  String get editor_basicAdjustments => '基礎調整';
+
+  @override
+  String get editor_styleAndRepair => '風格與修復';
+
+  @override
+  String get editor_transformCrop => '旋轉 / 翻轉 / 裁剪';
+
+  @override
+  String get editor_transformCropDescription =>
+      '幾何操作已經獨立出來，點選後會先生成預覽，確認應用後才寫回圖層。';
+
+  @override
+  String get editor_effectPreviewHint => '預覽不會修改原圖；點選應用後才會把結果寫入當前活動圖層和撤銷歷史。';
+
+  @override
+  String get editor_applyToCurrentLayer => '應用到當前圖層';
+
+  @override
+  String editor_oneShotEffectHint(Object effect) {
+    return '$effect 是一次性操作，沒有強度滑條。';
+  }
+
+  @override
+  String editor_effectIntensity(Object effect) {
+    return '$effect 強度';
+  }
+
+  @override
+  String get editor_original => '原圖';
+
+  @override
+  String get editor_effectPreview => '效果預覽';
+
+  @override
+  String get editor_effectBrightness => '亮度';
+
+  @override
+  String get editor_effectContrast => '對比度';
+
+  @override
+  String get editor_effectSaturation => '飽和度';
+
+  @override
+  String get editor_effectTemperature => '色溫';
+
+  @override
+  String get editor_effectGamma => '伽馬';
+
+  @override
+  String get editor_effectGrayscale => '灰度';
+
+  @override
+  String get editor_effectInvert => '反相';
+
+  @override
+  String get editor_effectSepia => '復古棕褐';
+
+  @override
+  String get editor_effectDenoise => '降噪';
+
+  @override
+  String get editor_effectBlur => '高斯模糊';
+
+  @override
+  String get editor_effectSharpen => '銳化';
+
+  @override
+  String get editor_effectCropToSelection => '裁剪到選區';
+
+  @override
+  String get editor_effectRotateLeft => '向左旋轉 90°';
+
+  @override
+  String get editor_effectRotateRight => '向右旋轉 90°';
+
+  @override
+  String get editor_effectFlipHorizontal => '水平翻轉';
+
+  @override
+  String get editor_effectFlipVertical => '垂直翻轉';
+
+  @override
+  String editor_effectApplied(Object effect) {
+    return '已應用 $effect';
+  }
+
+  @override
+  String editor_applyEffectFailed(Object error) {
+    return '應用效果失敗: $error';
+  }
+
+  @override
+  String get editor_changeCanvasSize => '更改畫布尺寸';
+
+  @override
+  String editor_canvasTooSmall(Object width, Object height) {
+    return '畫布尺寸太小，最小尺寸為 $width x $height 畫素';
+  }
+
+  @override
+  String editor_canvasTooLarge(Object width, Object height) {
+    return '畫布尺寸太大，最大尺寸為 $width x $height 畫素';
+  }
+
+  @override
+  String editor_canvasResized(Object width, Object height) {
+    return '畫布已調整為 $width x $height';
+  }
+
+  @override
+  String editor_canvasResizeFailed(Object error) {
+    return '調整畫布尺寸失敗: $error';
+  }
+
+  @override
+  String get editor_confirmExitTitle => '確認退出';
+
+  @override
+  String get editor_confirmExitContent => '有未儲存的修改，確定要退出嗎？';
+
+  @override
+  String get editor_exit => '退出';
+
+  @override
+  String get editor_saveAndExit => '儲存並退出';
+
+  @override
+  String editor_exportFailed(Object error) {
+    return '匯出失敗: $error';
+  }
+
+  @override
+  String get editor_clickInsideClosedRegion => '請點選封閉區域內部進行填充。';
+
+  @override
+  String get editor_drawClosedMaskOutlineFirst => '請先繪製封閉的蒙版輪廓。';
+
+  @override
+  String get editor_noClosedRegionAtPosition => '該位置沒有可填充的封閉區域。';
+
+  @override
+  String get editor_generateMaskOverlayFailed => '無法生成蒙版覆蓋層';
+
+  @override
+  String get editor_maskLayerName => '蒙版';
+
+  @override
+  String get editor_updateMaskLayerFailed => '無法更新蒙版圖層';
+
+  @override
+  String get editor_closedRegionFilled => '封閉區域已填充為蒙版。';
+
+  @override
+  String editor_fillMaskFailed(Object error) {
+    return '填充蒙版失敗: $error';
+  }
+
+  @override
+  String get editor_magicWandNoSource => '沒有可供魔棒取樣的影象圖層。';
+
+  @override
+  String get editor_magicWandNothingChanged => '選中的區域已經透明或已在蒙版中。';
+
+  @override
+  String get editor_magicWandModelPreparing => '正在檢查 EfficientViT-SAM 模型…';
+
+  @override
+  String editor_magicWandModelDownloading(int percent) {
+    return '正在下載 EfficientViT-SAM 模型：$percent%';
+  }
+
+  @override
+  String get editor_magicWandModelLoading => '正在載入 EfficientViT-SAM 模型…';
+
+  @override
+  String get editor_magicWandEncoding => '正在分析影象物件…';
+
+  @override
+  String get editor_magicWandSegmenting => '正在根據點選位置分割物件…';
+
+  @override
+  String get editor_magicWandPostprocessing => '正在生成選區…';
+
+  @override
+  String editor_magicWandFailed(Object error) {
+    return '魔棒處理失敗: $error';
+  }
+
+  @override
+  String get editor_focusInactiveHint => '點選按鈕後進入聚焦模式，再框選區域並繪製蒙版。';
+
+  @override
+  String get editor_focusReadyHint => '已選定聚焦區域，可繼續用畫筆編輯蒙版。';
+
+  @override
+  String get editor_focusNeedsSelectionHint => '先框選聚焦區域，再切換畫筆繪製蒙版。';
+
+  @override
+  String get editor_focusSelection => '選區';
+
+  @override
+  String get editor_focusBrush => '畫筆';
+
+  @override
+  String get editor_focusContextHint =>
+      '外框是實際送去 Focused Inpaint 的區域，內框是主要重繪區域；兩框之間的頻寬就是 Minimum Context Area。';
+
+  @override
+  String get editor_compressionTitle => '輸出解析度';
+
+  @override
+  String get editor_compressionTooltip => '選擇輸出解析度';
+
+  @override
+  String get editor_compressionUncompressed => '保持編輯工作尺寸，不執行壓縮。';
+
+  @override
+  String get editor_compressionApplyOnDone =>
+      '工作畫布保持原樣；點選“完成”時使用 Pica Lanczos3 執行一次壓縮。';
+
+  @override
+  String editor_compressionSizeSummary(
+    int workWidth,
+    int workHeight,
+    int targetWidth,
+    int targetHeight,
+  ) {
+    return '工作尺寸 $workWidth×$workHeight → 輸出尺寸 $targetWidth×$targetHeight';
+  }
+
+  @override
+  String editor_compressionNormalSummary(
+    int normalWidth,
+    int normalHeight,
+    int minimumWidth,
+    int minimumHeight,
+  ) {
+    return 'Normal（約 1MP）為 $normalWidth×$normalHeight；最低檔為 $minimumWidth×$minimumHeight。';
+  }
+
+  @override
+  String get editor_compressionUnavailable => '當前工作畫布已經低於最低壓縮檔，不能繼續降低解析度。';
+
+  @override
+  String get editor_compressionFocusLimited =>
+      '當前 Focused Inpaint 選區在更高解析度下會超過請求面積上限，因此滑條上限已收緊。';
+
+  @override
+  String editor_focusRequestSummary(
+    int outerWidth,
+    int outerHeight,
+    int requestWidth,
+    int requestHeight,
+    int cost,
+  ) {
+    return '外層裁剪 $outerWidth×$outerHeight，實際傳送 $requestWidth×$requestHeight，預計 $cost Anlas。';
+  }
+
+  @override
+  String editor_unsupportedImageFormat(Object extension) {
+    return '不支援的檔案格式: .$extension\n請選擇影象檔案（PNG、JPG、WEBP 等）';
+  }
+
+  @override
+  String editor_readFileFailed(Object error) {
+    return '無法讀取檔案: $error';
+  }
+
+  @override
+  String get editor_noFileData => '無法獲取檔案資料';
+
+  @override
+  String get editor_emptyImageFile => '檔案為空，請選擇有效的影象檔案';
+
+  @override
+  String editor_fileTooLarge(Object sizeMB) {
+    return '檔案過大（$sizeMB MB），請選擇小於 50MB 的影象';
+  }
+
+  @override
+  String get editor_maskLayerAdded => '蒙版圖層已新增';
+
+  @override
+  String get editor_parseImageFailed => '無法解析影象檔案\n請確保檔案未損壞且格式受支援';
+
+  @override
+  String editor_loadMaskFailed(Object error) {
+    return '載入蒙版時發生錯誤: $error';
+  }
+
+  @override
+  String get editor_defaultTitle => '畫板';
+
+  @override
+  String get editor_baseLayerName => '底圖';
+
+  @override
+  String get editor_existingMaskLayerName => '已有蒙版';
+
+  @override
+  String get editor_defaultDrawingLayerName => '圖層 1';
+
+  @override
+  String editor_layerName(Object count) {
+    return '圖層 $count';
+  }
+
+  @override
+  String editor_statusZoom(Object value) {
+    return '縮放: $value%';
+  }
+
+  @override
+  String editor_statusCanvas(Object width, Object height) {
+    return '畫布: $width x $height';
+  }
+
+  @override
+  String editor_statusLayers(Object count) {
+    return '圖層: $count';
+  }
+
+  @override
+  String get editor_statusHasSelection => '有選區';
+
+  @override
+  String editor_statusRotation(Object degrees) {
+    return '旋轉: $degrees°';
+  }
+
+  @override
+  String get editor_statusMirrored => '映象';
+
+  @override
+  String editor_focusMinimumContextArea(Object value) {
+    return '最小上下文區域：$value';
+  }
+
+  @override
+  String get editor_canvasSizeTitle => '畫布尺寸';
+
+  @override
+  String get editor_presetSize => '預設尺寸';
+
+  @override
+  String get editor_customSize => '自定義';
+
+  @override
+  String get editor_contentHandling => '內容處理';
+
+  @override
+  String get editor_contentCrop => '裁剪';
+
+  @override
+  String get editor_contentPad => '填充';
+
+  @override
+  String get editor_contentStretch => '拉伸';
+
+  @override
+  String get editor_width => '寬度';
+
+  @override
+  String get editor_height => '高度';
+
+  @override
+  String get editor_lockAspectRatio => '鎖定比例';
+
+  @override
+  String get editor_unlockAspectRatio => '取消鎖定比例';
+
+  @override
+  String get editor_sizePreview => '尺寸預覽';
+
+  @override
+  String get editor_originalSize => '原始';
+
+  @override
+  String get editor_newSize => '新尺寸';
+
+  @override
+  String get editor_cropModeDescription => '裁剪模式 - 保持比例裁剪';
+
+  @override
+  String get editor_padModeDescription => '填充模式 - 保持比例填充';
+
+  @override
+  String get editor_stretchModeDescription => '拉伸模式 - 拉伸至填滿';
+
+  @override
+  String editor_canvasPresetSquare(Object size) {
+    return '方形 $size';
+  }
+
+  @override
+  String editor_canvasPresetLandscape(Object ratio) {
+    return '橫向 $ratio';
+  }
+
+  @override
+  String editor_canvasPresetPortrait(Object ratio) {
+    return '縱向 $ratio';
+  }
+
+  @override
+  String get editor_canvasPresetNaiPortrait => 'NAI 縱向';
+
+  @override
+  String get editor_canvasPresetNaiLandscape => 'NAI 橫向';
+
+  @override
+  String get editor_canvasPresetFullHd => '全高畫質 16:9';
+
+  @override
+  String get editor_colorPanelTitle => '顏色';
+
+  @override
+  String get editor_colorPickerTitle => '選擇顏色';
+
+  @override
+  String get editor_brushSettings => '畫筆設定';
+
+  @override
+  String get editor_eraserSettings => '橡皮擦設定';
+
+  @override
+  String get editor_colorPickerHint => '點選畫布任意位置取色，鬆開後自動切回上一工具';
+
+  @override
+  String get editor_sample => '取樣';
+
+  @override
+  String get editor_samplePoint => '單點';
+
+  @override
+  String get editor_sampleArea => '區域';
+
+  @override
+  String get editor_source => '來源';
+
+  @override
+  String get editor_sourceCurrentLayer => '當前圖層';
+
+  @override
+  String get editor_sourceAllLayers => '所有圖層';
+
+  @override
+  String get editor_lassoSelectionHelp => '按住滑鼠拖動繪製自由形狀選區，鬆開自動閉合';
+
+  @override
+  String get layer_empty => '無圖層';
+
+  @override
+  String get layer_add => '新增圖層';
+
+  @override
+  String get layer_mergeDown => '向下合併';
+
+  @override
+  String get layer_duplicate => '複製圖層';
+
+  @override
+  String get layer_delete => '刪除圖層';
+
+  @override
+  String get layer_merge => '合併圖層';
+
+  @override
+  String get layer_visibility => '顯示/隱藏';
+
+  @override
+  String get layer_lock => '鎖定';
+
+  @override
+  String get layer_rename => '重新命名';
+
+  @override
+  String get layer_moveUp => '上移';
+
+  @override
+  String get layer_moveDown => '下移';
+
+  @override
+  String get vibe_title => '風格遷移';
+
+  @override
+  String get vibe_description => '改變影象，保留視覺風格';
+
+  @override
+  String get vibe_addFromFileTitle => '從檔案新增';
+
+  @override
+  String get vibe_addFromFileSubtitle => 'PNG、JPG、Vibe 檔案';
+
+  @override
+  String get vibe_addFromLibraryTitle => '從庫匯入';
+
+  @override
+  String get vibe_addFromLibrarySubtitle => '從 Vibe 庫中選擇';
+
+  @override
+  String get vibe_addReference => '新增參考圖';
+
+  @override
+  String get vibe_clearAll => '清除全部';
+
+  @override
+  String vibe_cleared(int count) {
+    return '已清除 $count 個 vibes';
+  }
+
+  @override
+  String get vibe_referenceStrength => '參考強度';
+
+  @override
+  String get vibe_infoExtraction => '資訊提取';
+
+  @override
+  String get vibe_remove => '移除';
+
+  @override
+  String get reference_enabled => '啟用';
+
+  @override
+  String get reference_enable => '啟用參考';
+
+  @override
+  String get reference_disable => '禁用參考';
+
+  @override
+  String get vibe_normalize => '標準化參考強度值';
+
+  @override
+  String get vibe_sourceType_png => 'PNG';
+
+  @override
+  String get vibe_sourceType_v4vibe => 'Vibe 檔案';
+
+  @override
+  String get vibe_sourceType_bundle => '組合包';
+
+  @override
+  String get vibe_sourceType_image => '圖片';
+
+  @override
+  String get vibe_sourceType => '資料來源';
+
+  @override
+  String get vibe_reuseButton => '一鍵複用';
+
+  @override
+  String get vibe_info => 'Vibe 資訊';
+
+  @override
+  String get vibe_name => '名稱';
+
+  @override
+  String get vibe_strength => '強度';
+
+  @override
+  String get vibe_infoExtracted => '資訊提取';
+
+  @override
+  String get vibe_shiftReplaceHint => 'Shift+點選 替換';
+
+  @override
+  String get character_buttonLabel => '角色';
+
+  @override
+  String get character_addCharacter => '新增角色';
+
+  @override
+  String character_limitReached(Object limit) {
+    return '已達當前模型的角色上限（$limit 個）';
+  }
+
+  @override
+  String character_number(Object index) {
+    return '角色 $index';
+  }
+
+  @override
+  String get gallery_generationParams => '生成引數';
+
+  @override
+  String get gallery_metaModel => '模型';
+
+  @override
+  String get gallery_metaResolution => '解析度';
+
+  @override
+  String get gallery_metaSteps => '步數';
+
+  @override
+  String get gallery_metaSampler => '取樣器';
+
+  @override
+  String get gallery_metaCfgScale => 'CFG 強度';
+
+  @override
+  String get gallery_metaSeed => '種子';
+
+  @override
+  String get gallery_metaSmea => 'SMEA';
+
+  @override
+  String get gallery_promptCopied => '已複製提示詞';
+
+  @override
+  String get gallery_seedCopied => '已複製 Seed';
+
+  @override
+  String get gallery_sendToKritaAction => '傳送到 Krita';
+
+  @override
+  String get gallery_upscalePanelLoaded => '已載入圖生圖超分面板';
+
+  @override
+  String gallery_readImageFailed(Object error) {
+    return '讀取影象失敗: $error';
+  }
+
+  @override
+  String get gallery_fileMissing => '檔案不存在';
+
+  @override
+  String get gallery_copiedToClipboard => '已複製到剪貼簿';
+
+  @override
+  String gallery_copyFailed(Object error) {
+    return '複製失敗: $error';
+  }
+
+  @override
+  String get gallery_upscale => '放大';
+
+  @override
+  String get gallery_sentToImg2Img => '圖片已傳送到圖生圖';
+
+  @override
+  String get gallery_sentToReversePrompt => '圖片已傳送到反推模組';
+
+  @override
+  String gallery_sendFailed(Object error) {
+    return '傳送失敗: $error';
+  }
+
+  @override
+  String get preset_presetName => '預設名稱';
+
+  @override
+  String get onlineGallery_search => '搜尋';
+
+  @override
+  String get onlineGallery_popular => '熱門';
+
+  @override
+  String get onlineGallery_favorites => '收藏';
+
+  @override
+  String get onlineGallery_searchTags => '搜尋標籤...';
+
+  @override
+  String get onlineGallery_refresh => '重新整理';
+
+  @override
+  String get onlineGallery_random => '隨機';
+
+  @override
+  String get onlineGallery_randomRedraw => '再抽一組';
+
+  @override
+  String get onlineGallery_randomDrawing => '抽取中…';
+
+  @override
+  String get onlineGallery_randomExhausted => '當前範圍暫無更多未見圖片';
+
+  @override
+  String get onlineGallery_randomRestart => '重新開始';
+
+  @override
+  String get onlineGallery_originalRetry => '原圖載入失敗，重試';
+
+  @override
+  String get onlineGallery_login => '登入';
+
+  @override
+  String get onlineGallery_logout => '退出登入';
+
+  @override
+  String get onlineGallery_dayRank => '日榜';
+
+  @override
+  String get onlineGallery_weekRank => '周榜';
+
+  @override
+  String get onlineGallery_monthRank => '月榜';
+
+  @override
+  String get onlineGallery_today => '今天';
+
+  @override
+  String onlineGallery_imageCount(Object count) {
+    return '$count 張';
+  }
+
+  @override
+  String get onlineGallery_loadFailed => '載入失敗';
+
+  @override
+  String get onlineGallery_favoritesEmpty => '收藏夾為空';
+
+  @override
+  String get onlineGallery_noResults => '沒有找到圖片';
+
+  @override
+  String get onlineGallery_pleaseLogin => '請先登入';
+
+  @override
+  String get onlineGallery_size => '尺寸';
+
+  @override
+  String get onlineGallery_score => '評分';
+
+  @override
+  String get onlineGallery_favCount => '收藏';
+
+  @override
+  String get onlineGallery_type => '型別';
+
+  @override
+  String get mediaType_video => '影片';
+
+  @override
+  String get mediaType_gif => '動圖';
+
+  @override
+  String get onlineGallery_tags => '標籤';
+
+  @override
+  String get onlineGallery_artists => '藝術家';
+
+  @override
+  String get onlineGallery_characters => '角色';
+
+  @override
+  String get onlineGallery_copyrights => '作品';
+
+  @override
+  String get onlineGallery_general => '通用';
+
+  @override
+  String get onlineGallery_copied => '已複製';
+
+  @override
+  String get onlineGallery_copyTags => '複製標籤';
+
+  @override
+  String get onlineGallery_promptTagCategories => '提示詞類別';
+
+  @override
+  String get onlineGallery_promptTagCategoriesTooltip => '選擇複製、傳送或加入佇列時包含的標籤類別';
+
+  @override
+  String get onlineGallery_keepOnePromptTagCategory => '至少保留一個提示詞類別';
+
+  @override
+  String get onlineGallery_open => '開啟';
+
+  @override
+  String get onlineGallery_send => '傳送';
+
+  @override
+  String get onlineGallery_addToQueue => '加入佇列';
+
+  @override
+  String get onlineGallery_sendToTextToImage => '傳送到文生圖';
+
+  @override
+  String get onlineGallery_sentToTextToImage => '已傳送到文生圖';
+
+  @override
+  String get onlineGallery_sendToReversePrompt => '傳送到反推';
+
+  @override
+  String get onlineGallery_sentToReversePrompt => '已傳送到反推模組';
+
+  @override
+  String onlineGallery_reversePromptSendFailed(Object error) {
+    return '傳送反推失敗: $error';
+  }
+
+  @override
+  String get onlineGallery_noTagInfo => '此圖片沒有標籤資訊';
+
+  @override
+  String get onlineGallery_promptSentToGeneration => '提示詞已傳送到生成頁面';
+
+  @override
+  String get onlineGallery_noImageUrl => '此圖片沒有可用地址';
+
+  @override
+  String get onlineGallery_gifLoadFailed => 'GIF載入失敗';
+
+  @override
+  String get onlineGallery_pinchToZoom => '雙指縮放';
+
+  @override
+  String get onlineGallery_metadata => '後設資料';
+
+  @override
+  String get onlineGallery_addedToQueue => '已加入佇列';
+
+  @override
+  String get onlineGallery_queueFullMax => '佇列已滿（最多50項）';
+
+  @override
+  String get onlineGallery_chooseDownloadDirectory => '選擇下載目錄';
+
+  @override
+  String get onlineGallery_downloadStarted => '開始下載...';
+
+  @override
+  String onlineGallery_savedToPath(Object path) {
+    return '已儲存到: $path';
+  }
+
+  @override
+  String onlineGallery_downloadFailed(Object error) {
+    return '下載失敗: $error';
+  }
+
+  @override
+  String get onlineGallery_downloadOriginal => '下載原圖';
+
+  @override
+  String get onlineGallery_all => '全部';
+
+  @override
+  String get onlineGallery_ratingGeneral => '全年齡';
+
+  @override
+  String get onlineGallery_ratingSensitive => '敏感';
+
+  @override
+  String get onlineGallery_ratingQuestionable => '可疑';
+
+  @override
+  String get onlineGallery_ratingExplicit => '限制級';
+
+  @override
+  String get onlineGallery_clear => '清除';
+
+  @override
+  String get onlineGallery_previousPage => '上一頁';
+
+  @override
+  String get onlineGallery_nextPage => '下一頁';
+
+  @override
+  String onlineGallery_pageN(Object page) {
+    return '第 $page 頁';
+  }
+
+  @override
+  String get onlineGallery_dateRange => '日期範圍';
+
+  @override
+  String get onlineGallery_fuzzySearch => '模糊匹配';
+
+  @override
+  String get onlineGallery_fuzzySearchTooltip =>
+      '開啟後使用 *tag* 匹配相近標籤；關閉時按 Danbooru 精確標籤搜尋';
+
+  @override
+  String get onlineGallery_blacklistTags => '黑名單標籤';
+
+  @override
+  String get onlineGallery_outputFilter => '輸出過濾';
+
+  @override
+  String get onlineGallery_outputFilterTooltip => '管理複製、傳送和加入佇列時自動剔除的標籤';
+
+  @override
+  String get onlineGallery_outputFilterTitle => '輸出過濾標籤';
+
+  @override
+  String get onlineGallery_outputFilterSubtitle =>
+      '圖片仍會正常顯示；這些標籤只會從複製、傳送和佇列提示詞中精確剔除。';
+
+  @override
+  String get onlineGallery_outputFilterAddHint => '新增需要從輸出中剔除的標籤';
+
+  @override
+  String get onlineGallery_outputFilterInputHint => '支援逗號、中文逗號、頓號或換行分隔';
+
+  @override
+  String get onlineGallery_outputFilterEmpty => '暫未設定輸出過濾標籤';
+
+  @override
+  String get onlineGallery_outputFilterRestoreDefaults => '恢復預設過濾詞';
+
+  @override
+  String get onlineGallery_outputFilterClearTitle => '清空輸出過濾？';
+
+  @override
+  String get onlineGallery_outputFilterClearConfirm =>
+      '清空後，水印和馬賽克等標籤也會重新出現在複製與傳送的提示詞中。';
+
+  @override
+  String get onlineGallery_addTagToOutputFilter => '加入輸出過濾';
+
+  @override
+  String get onlineGallery_outputFilterAlreadyAdded => '已在輸出過濾中';
+
+  @override
+  String get onlineGallery_outputFilterMenuHint => '保留圖片，只從輸出提示詞中剔除此標籤';
+
+  @override
+  String get onlineGallery_addTagToBlacklist => '加入黑名單';
+
+  @override
+  String get onlineGallery_blacklistAlreadyAdded => '已在黑名單中';
+
+  @override
+  String get onlineGallery_blacklistMenuHint => '隱藏包含此標籤的畫廊圖片';
+
+  @override
+  String get onlineGallery_outputFilteredTagTooltip =>
+      '此標籤會在複製、傳送和加入佇列時被剔除；右鍵可管理';
+
+  @override
+  String get onlineGallery_tagContextMenuTooltip => '右鍵可加入黑名單或輸出過濾';
+
+  @override
+  String onlineGallery_outputFilterTagAdded(Object tag) {
+    return '已將 $tag 加入輸出過濾';
+  }
+
+  @override
+  String onlineGallery_blacklistTagAdded(Object tag) {
+    return '已將 $tag 加入黑名單';
+  }
+
+  @override
+  String get onlineGallery_blacklistTitle => '線上畫廊黑名單';
+
+  @override
+  String get onlineGallery_blacklistSubtitle => '包含黑名單標籤的圖片會在線上畫廊中直接隱藏。';
+
+  @override
+  String get onlineGallery_addBlacklistTagHint => '新增黑名單標籤';
+
+  @override
+  String get onlineGallery_noLocalBlacklistTags => '暫無本地黑名單標籤';
+
+  @override
+  String get onlineGallery_autoSyncOnStartup => '啟動時自動同步';
+
+  @override
+  String get onlineGallery_autoSyncOnStartupSubtitle => '預設開啟，可隨時關閉';
+
+  @override
+  String onlineGallery_lastSyncFailed(Object error) {
+    return '上次同步失敗: $error';
+  }
+
+  @override
+  String get onlineGallery_neverSyncedBlacklist => '尚未同步過 Danbooru 黑名單';
+
+  @override
+  String onlineGallery_lastSync(Object time) {
+    return '上次同步: $time';
+  }
+
+  @override
+  String get onlineGallery_blacklistSettingsTitle => '線上畫廊黑名單設定';
+
+  @override
+  String get onlineGallery_blacklistLoginHint =>
+      '未登入 Danbooru，仍可使用本地黑名單；同步需要先登入。';
+
+  @override
+  String get onlineGallery_bulkFavorite => '批次收藏';
+
+  @override
+  String get onlineGallery_bulkDownload => '批次下載';
+
+  @override
+  String onlineGallery_addedTasksToQueue(Object count) {
+    return '已新增 $count 個任務到佇列';
+  }
+
+  @override
+  String get onlineGallery_unfavorited => '已取消收藏';
+
+  @override
+  String get onlineGallery_favorited => '已收藏';
+
+  @override
+  String onlineGallery_favoritedImages(Object count) {
+    return '已收藏 $count 張圖片';
+  }
+
+  @override
+  String onlineGallery_selectDownloadDirectoryFailed(Object error) {
+    return '選擇下載目錄失敗: $error';
+  }
+
+  @override
+  String onlineGallery_downloadSelectedStarted(Object count) {
+    return '開始下載 $count 張圖片...';
+  }
+
+  @override
+  String onlineGallery_downloadSelectedCompleted(
+    Object success,
+    Object failed,
+  ) {
+    return '下載完成: 成功 $success, 失敗 $failed';
+  }
+
+  @override
+  String get onlineGallery_startDate => '開始日期';
+
+  @override
+  String get onlineGallery_endDate => '結束日期';
+
+  @override
+  String get onlineGallery_invalidDateFormat => '日期格式無效';
+
+  @override
+  String get onlineGallery_dateOutOfRange => '日期超出範圍';
+
+  @override
+  String get onlineGallery_last30Days => '最近30天';
+
+  @override
+  String get onlineGallery_configureGelbooruApi => '配置 Gelbooru API';
+
+  @override
+  String get onlineGallery_gelbooruApiReady => 'Gelbooru API 已驗證';
+
+  @override
+  String get onlineGallery_gelbooruApiInvalid => 'Gelbooru 憑據已失效';
+
+  @override
+  String get onlineGallery_gelbooruCredentialsRequired =>
+      '請先配置 Gelbooru User ID 和 API Key 以檢視網站收藏。';
+
+  @override
+  String get onlineGallery_gelbooruCredentialsInvalid =>
+      'Gelbooru 憑據已失效，請重新配置。';
+
+  @override
+  String get onlineGallery_gelbooruRateLimited => 'Gelbooru 請求過於頻繁，請稍後再試。';
+
+  @override
+  String get onlineGallery_gelbooruTimeout => 'Gelbooru 請求超時，請檢查網路連線。';
+
+  @override
+  String get onlineGallery_gelbooruServerError => 'Gelbooru 伺服器暫時不可用，請稍後再試。';
+
+  @override
+  String get onlineGallery_gelbooruNetworkError =>
+      '無法連線 Gelbooru，請檢查網路設定或代理配置。';
+
+  @override
+  String get onlineGallery_gelbooruMalformedResponse => 'Gelbooru 返回了無法解析的資料。';
+
+  @override
+  String get onlineGallery_gelbooruRequestFailed => 'Gelbooru 請求失敗，請稍後重試。';
+
+  @override
+  String get onlineGallery_aiTagQuery => '搜尋作品、作者、標題、標籤或模型';
+
+  @override
+  String get onlineGallery_aiTagPromptQuery =>
+      'AI Prompt 搜尋（可搜尋 artist: 等 Prompt 原文）';
+
+  @override
+  String get onlineGallery_artistHunt => '僅畫師串';
+
+  @override
+  String get onlineGallery_artistHuntTooltip =>
+      '只顯示正向 Prompt 中明確包含 artist: 標籤的圖片';
+
+  @override
+  String get onlineGallery_artistChain => '畫師串';
+
+  @override
+  String get onlineGallery_copyArtistChain => '複製畫師串';
+
+  @override
+  String get onlineGallery_copyFullPrompt => '複製完整 Prompt';
+
+  @override
+  String get onlineGallery_copyRawArtistFragments => '複製原始畫師片段';
+
+  @override
+  String get onlineGallery_noArtistChain => '無可複製畫師串';
+
+  @override
+  String onlineGallery_artistCount(Object count) {
+    return '$count 位畫師';
+  }
+
+  @override
+  String get onlineGallery_artistHuntNoExactResults => '候選作品中沒有精確畫師串';
+
+  @override
+  String onlineGallery_artistHuntPartialFailure(Object count) {
+    return '有 $count 個作品解析失敗，可重試再次檢查。';
+  }
+
+  @override
+  String get onlineGallery_artistHuntDetailFailed => '候選作品詳情全部解析失敗，請重試。';
+
+  @override
+  String get onlineGallery_aiTagTimeRange => '時間範圍';
+
+  @override
+  String get onlineGallery_aiTagAllTime => '全部';
+
+  @override
+  String get onlineGallery_aiTagCurrentMonthly => '實時月榜';
+
+  @override
+  String get onlineGallery_aiTagOlderMonthly => '更早歸檔';
+
+  @override
+  String get onlineGallery_aiTagRankingProcessing => '排行榜生成中，請稍後重試。';
+
+  @override
+  String get onlineGallery_sourceConfigUnavailable => '無法獲取來源配置，請檢查網路後重試。';
+
+  @override
+  String get onlineGallery_sourceRateLimited => '請求過於頻繁，請稍後重試。';
+
+  @override
+  String get onlineGallery_sourceTimeout => '請求超時，請檢查網路連線。';
+
+  @override
+  String get onlineGallery_sourceNetworkError => '無法連線當前畫廊來源，請檢查網路或代理。';
+
+  @override
+  String get onlineGallery_sourceMalformedResponse => '來源返回的資料結構已變化，暫時無法解析。';
+
+  @override
+  String get onlineGallery_detailNotFound => '作品不存在或已被刪除。';
+
+  @override
+  String get onlineGallery_imageUnavailable => '圖片當前不可用。';
+
+  @override
+  String get onlineGallery_loadedAll => '已載入全部';
+
+  @override
+  String get onlineGallery_retryAppend => '載入失敗，點選重試';
+
+  @override
+  String onlineGallery_rankNumber(Object rank) {
+    return '第 $rank 名';
+  }
+
+  @override
+  String onlineGallery_multipleImages(Object count) {
+    return '$count 張圖片';
+  }
+
+  @override
+  String get onlineGallery_views => '瀏覽';
+
+  @override
+  String get onlineGallery_downloadAllMedia => '下載作品全部圖片';
+
+  @override
+  String get onlineGallery_copyFullMetadata => '複製完整後設資料';
+
+  @override
+  String get onlineGallery_metadataParseFailed => '後設資料解析失敗，原始內容已保留，可直接複製。';
+
+  @override
+  String get onlineGallery_gelbooruReadOnly => '只讀收藏';
+
+  @override
+  String get onlineGallery_gelbooruFavoritesSortHint =>
+      '按帖子 ID 從新到舊排列，不保證與網站收藏時間順序一致。';
+
+  @override
+  String get tooltip_fullscreenEdit => '全屏編輯';
+
+  @override
+  String get tooltip_decreaseWeight => '減少權重 [-5%]';
+
+  @override
+  String get tooltip_increaseWeight => '增加權重 [+5%]';
+
+  @override
+  String get tooltip_edit => '編輯';
+
+  @override
+  String get tooltip_copy => '複製';
+
+  @override
+  String get tooltip_delete => '刪除';
+
+  @override
+  String get tooltip_enable => '啟用';
+
+  @override
+  String get tooltip_disable => '禁用';
+
+  @override
+  String get tooltip_resetWeight => '點選重置為100%';
+
+  @override
+  String get upscale_scale => '放大倍數';
+
+  @override
+  String get danbooru_loginTitle => '登入 Danbooru';
+
+  @override
+  String get danbooru_loginHint => '使用使用者名稱和 API Key 登入以使用收藏夾功能';
+
+  @override
+  String get danbooru_username => '使用者名稱';
+
+  @override
+  String get danbooru_usernameHint => '輸入 Danbooru 使用者名稱';
+
+  @override
+  String get danbooru_usernameRequired => '請輸入使用者名稱';
+
+  @override
+  String get danbooru_apiKeyHint => '輸入 API Key';
+
+  @override
+  String get danbooru_apiKeyRequired => '請輸入 API Key';
+
+  @override
+  String get danbooru_howToGetApiKey => '如何獲取 API Key?';
+
+  @override
+  String get danbooru_loginSuccess => '登入成功';
+
+  @override
+  String get gelbooru_configureTitle => '配置 Gelbooru API';
+
+  @override
+  String get gelbooru_configureHint =>
+      '輸入 Gelbooru 賬戶設定頁提供的 User ID 和 API Key。應用不會收集密碼或瀏覽器 Cookie。';
+
+  @override
+  String get gelbooru_userId => 'User ID';
+
+  @override
+  String get gelbooru_userIdHint => '輸入正整數 User ID';
+
+  @override
+  String get gelbooru_userIdRequired => '請輸入有效的正整數 User ID';
+
+  @override
+  String get gelbooru_apiKeyHint => '輸入 API Key';
+
+  @override
+  String get gelbooru_apiKeyRequired => '請輸入 API Key';
+
+  @override
+  String get gelbooru_openAccountSettings => '開啟 Gelbooru 賬戶設定';
+
+  @override
+  String get gelbooru_save => '驗證並儲存';
+
+  @override
+  String get gelbooru_saved => 'Gelbooru 憑據已儲存';
+
+  @override
+  String get gelbooru_removeCredentials => '移除憑據';
+
+  @override
+  String get gelbooru_invalidInput => '請輸入有效的 User ID 和 API Key。';
+
+  @override
+  String get gelbooru_invalidCredentials =>
+      'Gelbooru 拒絕了這些憑據，請檢查 User ID 和 API Key。';
+
+  @override
+  String get gelbooru_rateLimited => '請求過於頻繁，請稍後再試。';
+
+  @override
+  String get gelbooru_timeout => '驗證超時，請檢查網路連線。';
+
+  @override
+  String get gelbooru_serverError => 'Gelbooru 伺服器暫時不可用。';
+
+  @override
+  String get gelbooru_networkError => '無法連線 Gelbooru，請檢查網路設定或代理配置。';
+
+  @override
+  String get gelbooru_malformedResponse => 'Gelbooru 返回了無法解析的資料。';
+
+  @override
+  String get gelbooru_storageError => '無法安全儲存或讀取 Gelbooru 憑據。';
+
+  @override
+  String get gelbooru_unknownError => 'Gelbooru 驗證失敗，請稍後重試。';
+
+  @override
+  String get weight_title => '權重';
+
+  @override
+  String get weight_reset => '重置';
+
+  @override
+  String get weight_done => '完成';
+
+  @override
+  String get weight_noBrackets => '無括號';
+
+  @override
+  String get weight_editTag => '編輯標籤';
+
+  @override
+  String get weight_tagName => '標籤名稱';
+
+  @override
+  String get weight_tagNameHint => '輸入標籤名稱...';
+
+  @override
+  String tag_selected(Object count) {
+    return '已選 $count';
+  }
+
+  @override
+  String get tag_enable => '啟用';
+
+  @override
+  String get tag_disable => '禁用';
+
+  @override
+  String get tag_delete => '刪除';
+
+  @override
+  String get tag_addTag => '新增標籤';
+
+  @override
+  String get tag_add => '新增';
+
+  @override
+  String get tag_inputHint => '輸入標籤...';
+
+  @override
+  String get tag_copiedToClipboard => '已複製到剪貼簿';
+
+  @override
+  String get tag_emptyHint => '新增標籤來描述你想要的畫面';
+
+  @override
+  String get tag_emptyHintSub => '你可以瀏覽、搜尋或手動新增標籤';
+
+  @override
+  String get tagCategory_artist => '藝術家';
+
+  @override
+  String get tagCategory_copyright => '版權';
+
+  @override
+  String get tagCategory_character => '角色';
+
+  @override
+  String get tagCategory_meta => '後設資料';
+
+  @override
+  String get tagCategory_general => '通用';
+
+  @override
+  String get qualityTags_label => '質量詞';
+
+  @override
+  String get qualityTags_positive => '質量詞（正面）';
+
+  @override
+  String get qualityTags_negative => '質量詞（負面）';
+
+  @override
+  String get qualityTags_disabled => '質量標籤已關閉\n點選開啟';
+
+  @override
+  String get qualityTags_addToEnd => '新增到提示詞末尾:';
+
+  @override
+  String get qualityTags_naiDefault => 'NAI 預設';
+
+  @override
+  String get qualityTags_naiDefaultStandard => 'NAI 預設（標準）';
+
+  @override
+  String get qualityTags_naiDefaultLight => 'NAI 預設（輕量）';
+
+  @override
+  String get qualityTags_none => '無';
+
+  @override
+  String get qualityTags_addFromLibrary => '從詞庫新增';
+
+  @override
+  String get qualityTags_selectFromLibrary => '選擇質量詞條目';
+
+  @override
+  String get ucPreset_label => '負面預設';
+
+  @override
+  String get ucPreset_heavy => '重度';
+
+  @override
+  String get ucPreset_light => '輕度';
+
+  @override
+  String get ucPreset_furryFocus => '獸人';
+
+  @override
+  String get ucPreset_humanFocus => '人物';
+
+  @override
+  String get ucPreset_none => '無';
+
+  @override
+  String get ucPreset_disabled => '負面提示詞預設已關閉';
+
+  @override
+  String get ucPreset_addToNegative => '新增到負面提示詞開頭:';
+
+  @override
+  String get ucPreset_nsfwHint =>
+      '💡 如需生成成人內容，請在正面提示詞中新增 nsfw，負面提示詞中的 nsfw 將自動移除';
+
+  @override
+  String get ucPreset_addFromLibrary => '從詞庫新增';
+
+  @override
+  String get ucPreset_selectFromLibrary => '選擇負面詞條目';
+
+  @override
+  String get randomMode_enabledTip => '抽卡模式已開啟\n每次生成後自動隨機新提示詞';
+
+  @override
+  String get randomMode_disabledTip => '抽卡模式\n點選開啟後每次生成自動隨機提示詞';
+
+  @override
+  String get batchSize_title => '批次大小';
+
+  @override
+  String batchSize_tooltip(int count) {
+    return '每次請求生成 $count 張';
+  }
+
+  @override
+  String get batchSize_description => '每次 API 請求生成的圖片數量';
+
+  @override
+  String batchSize_formula(int batchCount, int batchSize, int total) {
+    return '總影象數 = $batchCount × $batchSize = $total 張';
+  }
+
+  @override
+  String get batchSize_hint => '較大的批次可減少請求次數，但單次等待時間更長';
+
+  @override
+  String get batchSize_costWarning => '⚠️ 批次大小 > 1 時會額外消耗 Anlas 點數';
+
+  @override
+  String get warmup_networkCheck => '檢測網路連線...';
+
+  @override
+  String get warmup_networkCheck_noProxy => '無法連線到 NovelAI，請開啟VPN或啟用代理設定';
+
+  @override
+  String get warmup_networkCheck_noSystemProxy => '已啟用代理但未檢測到系統代理，請開啟VPN';
+
+  @override
+  String get warmup_networkCheck_manualIncomplete => '手動代理配置不完整，請檢查設定';
+
+  @override
+  String get warmup_networkCheck_testing => '正在檢測網路連線...';
+
+  @override
+  String get warmup_networkCheck_testingProxy => '正在透過代理檢測網路...';
+
+  @override
+  String warmup_networkCheck_success(Object latency) {
+    return '網路連線正常 (${latency}ms)';
+  }
+
+  @override
+  String get warmup_networkCheck_timeout => '網路檢測超時，繼續離線啟動';
+
+  @override
+  String warmup_networkCheck_attempt(Object attempt, Object maxAttempts) {
+    return '正在檢測網路連線... (嘗試 $attempt/$maxAttempts)';
+  }
+
+  @override
+  String get warmup_preparing => '準備中...';
+
+  @override
+  String get warmup_complete => '完成';
+
+  @override
+  String get warmup_danbooruAuth => '初始化 Danbooru 認證...';
+
+  @override
+  String get warmup_loadingTranslation => '載入翻譯資料...';
+
+  @override
+  String get warmup_initUnifiedDatabase => '初始化標籤資料庫...';
+
+  @override
+  String get warmup_initTagSystem => '初始化標籤系統...';
+
+  @override
+  String get warmup_loadingPromptConfig => '載入提示詞配置...';
+
+  @override
+  String get warmup_imageEditor => '初始化影象編輯器...';
+
+  @override
+  String get warmup_database => '載入最近歷史記錄...';
+
+  @override
+  String get warmup_network => '檢查網路連線...';
+
+  @override
+  String get warmup_fonts => '預載入字型...';
+
+  @override
+  String get warmup_imageCache => '預熱影象快取...';
+
+  @override
+  String get warmup_statistics => '載入統計資料...';
+
+  @override
+  String get warmup_artistsSync => '同步畫師資料...';
+
+  @override
+  String get warmup_subscription => '載入訂閱資訊...';
+
+  @override
+  String get warmup_dataSourceCache => '初始化資料來源快取...';
+
+  @override
+  String get warmup_galleryFileCount => '掃描相簿檔案...';
+
+  @override
+  String get warmup_cooccurrenceData => '載入標籤共現資料...';
+
+  @override
+  String get warmup_group_basicUI => '初始化基礎 UI 服務...';
+
+  @override
+  String get warmup_group_basicUI_complete => '基礎 UI 服務就緒';
+
+  @override
+  String get warmup_group_dataServices => '初始化資料服務...';
+
+  @override
+  String get warmup_group_dataServices_complete => '資料服務就緒';
+
+  @override
+  String get warmup_group_networkServices => '初始化網路服務...';
+
+  @override
+  String get warmup_group_networkServices_complete => '網路服務就緒';
+
+  @override
+  String get warmup_group_cacheServices => '初始化快取服務...';
+
+  @override
+  String get warmup_group_cacheServices_complete => '快取服務就緒';
+
+  @override
+  String get warmup_cooccurrenceInit => '初始化共現資料...';
+
+  @override
+  String get warmup_translationInit => '初始化翻譯資料...';
+
+  @override
+  String get warmup_danbooruTagsInit => '初始化 Danbooru 標籤...';
+
+  @override
+  String get warmup_dataMigration => '遷移 Hive / Vibe / 圖片資料...';
+
+  @override
+  String warmup_dataMigrationFailed(Object details) {
+    return '資料遷移失敗：$details';
+  }
+
+  @override
+  String get warmup_galleryDataSource => '初始化畫廊索引...';
+
+  @override
+  String get warmup_checkAndRecoverData => '檢查資料完整性...';
+
+  @override
+  String get warmup_group_dataSourceInitialization => '初始化資料來源服務...';
+
+  @override
+  String get warmup_group_dataSourceInitialization_complete => '資料來源服務就緒';
+
+  @override
+  String warmup_fetchingTags(Object message) {
+    return '正在同步標籤：$message';
+  }
+
+  @override
+  String get warmup_fetchingTagDataFromServer => '正在從伺服器拉取標籤資料...';
+
+  @override
+  String get warmup_fetchingGeneralTags => '正在拉取通用標籤...';
+
+  @override
+  String get warmup_fetchingCharacterTags => '正在拉取角色標籤...';
+
+  @override
+  String get warmup_fetchingCopyrightTags => '正在拉取版權標籤...';
+
+  @override
+  String get warmup_fetchingMetaTags => '正在拉取元標籤...';
+
+  @override
+  String get resolution_groupNormal => '常規';
+
+  @override
+  String get resolution_groupLarge => '大尺寸';
+
+  @override
+  String get resolution_groupWallpaper => '桌布';
+
+  @override
+  String get resolution_groupSmall => '小尺寸';
+
+  @override
+  String get resolution_groupCustom => '自定義';
+
+  @override
+  String get resolution_typePortrait => '豎屏';
+
+  @override
+  String get resolution_typeLandscape => '橫屏';
+
+  @override
+  String get resolution_typeSquare => '方形';
+
+  @override
+  String get resolution_typeCustom => '自定義';
+
+  @override
+  String get resolution_width => '寬度';
+
+  @override
+  String get resolution_height => '高度';
+
+  @override
+  String get generation_invalidResolution => '解析度無效';
+
+  @override
+  String generation_invalidResolutionHint(
+    int width,
+    int height,
+    int suggestedWidth,
+    int suggestedHeight,
+  ) {
+    return '$width×$height 無法用於生成。寬度和高度必須是 64 的倍數、單邊不能超過 4096，且總畫素不能超過 3,145,728。最接近的可用尺寸是 $suggestedWidth×$suggestedHeight。';
+  }
+
+  @override
+  String get api_error_429 => '併發限制';
+
+  @override
+  String get api_error_429_hint => '請求過於頻繁，請稍後重試（常見於合租賬號）';
+
+  @override
+  String get api_error_401 => '認證失敗';
+
+  @override
+  String get api_error_401_hint => 'Token 無效或已過期，請重新登入';
+
+  @override
+  String get api_error_402 => '餘額不足';
+
+  @override
+  String get api_error_402_hint => 'Anlas 餘額不足，請充值後重試';
+
+  @override
+  String get api_error_500 => '伺服器錯誤';
+
+  @override
+  String get api_error_500_hint => 'NovelAI 伺服器出現問題，請稍後重試';
+
+  @override
+  String get api_error_503 => '服務不可用';
+
+  @override
+  String get api_error_503_hint => '伺服器正在維護或過載，請稍後重試';
+
+  @override
+  String get api_error_timeout => '請求超時';
+
+  @override
+  String get api_error_timeout_hint => '網路連線超時，請檢查網路後重試';
+
+  @override
+  String get api_error_network => '網路錯誤';
+
+  @override
+  String get api_error_network_hint => '無法連線到伺服器，請檢查網路';
+
+  @override
+  String get drop_processing => '正在解析圖片...';
+
+  @override
+  String get characterEditor_close => '關閉';
+
+  @override
+  String get characterEditor_clearAll => '清空所有';
+
+  @override
+  String get characterEditor_clearAllTitle => '清空所有角色';
+
+  @override
+  String get characterEditor_clearAllConfirm => '確定要刪除所有角色嗎？此操作無法撤銷。';
+
+  @override
+  String get characterEditor_nameHint => '輸入角色名稱';
+
+  @override
+  String get characterEditor_enabled => '啟用';
+
+  @override
+  String get characterEditor_promptHint => '輸入角色的正向提示詞...';
+
+  @override
+  String get characterEditor_negativePromptHint => '輸入角色的負面提示詞...';
+
+  @override
+  String get characterCanvas_title => '角色位置';
+
+  @override
+  String get characterCanvas_aiChoice => 'AI 選擇';
+
+  @override
+  String get characterCanvas_custom => '自定義';
+
+  @override
+  String get characterCanvas_aiHint => 'AI 將自動安排角色位置';
+
+  @override
+  String get characterCanvas_dragHint => '拖動錨點設定角色位置，鬆開即生效';
+
+  @override
+  String get characterEditor_genderFemale => '女性';
+
+  @override
+  String get characterEditor_genderMale => '男性';
+
+  @override
+  String get characterEditor_genderOther => '其他';
+
+  @override
+  String get characterEditor_addFemale => '女';
+
+  @override
+  String get characterEditor_addMale => '男';
+
+  @override
+  String get characterEditor_addOther => '其他';
+
+  @override
+  String get characterEditor_addFromLibrary => '詞庫';
+
+  @override
+  String get characterEditor_moveUp => '上移';
+
+  @override
+  String get characterEditor_moveDown => '下移';
+
+  @override
+  String get toolbar_randomPrompt => '隨機提示詞';
+
+  @override
+  String get randomPromptToolsHiddenHint => '隨機提示詞工具已在設定中隱藏';
+
+  @override
+  String get toolbar_fullscreenEdit => '全屏編輯';
+
+  @override
+  String get toolbar_clear => '清空';
+
+  @override
+  String get toolbar_confirmClear => '確認清空';
+
+  @override
+  String get toolbar_settings => '設定';
+
+  @override
+  String get characterTooltip_noCharacters => '未配置角色';
+
+  @override
+  String get characterTooltip_clickToConfig => '點選按鈕開始配置多人角色';
+
+  @override
+  String get characterTooltip_globalAiLabel => '全域性 AI 位置:';
+
+  @override
+  String get characterTooltip_enabled => '啟用';
+
+  @override
+  String get characterTooltip_disabled => '禁用';
+
+  @override
+  String get characterTooltip_positionAi => 'AI';
+
+  @override
+  String get characterTooltip_disabledLabel => '已禁用';
+
+  @override
+  String get characterTooltip_promptLabel => '正向';
+
+  @override
+  String get characterTooltip_negativeLabel => '負面';
+
+  @override
+  String get characterTooltip_notSet => '未設定';
+
+  @override
+  String characterTooltip_summary(Object total, Object enabled) {
+    return '共 $total 個角色 ($enabled 個啟用)';
+  }
+
+  @override
+  String get characterTooltip_viewFullConfig => '點選檢視完整配置';
+
+  @override
+  String tagLibrary_generatedCharacters(Object count) {
+    return '已生成 $count 個角色';
+  }
+
+  @override
+  String tagLibrary_generateFailed(Object error) {
+    return '生成失敗: $error';
+  }
+
+  @override
+  String get randomMode_title => '選擇隨機模式';
+
+  @override
+  String get randomMode_naiOfficial => '官網模式';
+
+  @override
+  String get randomMode_custom => '自定義模式';
+
+  @override
+  String get randomMode_hybrid => '混合模式';
+
+  @override
+  String get randomMode_naiOfficialDesc => '復刻 NovelAI 官方隨機演算法';
+
+  @override
+  String get randomMode_customDesc => '使用自定義預設生成';
+
+  @override
+  String get randomMode_hybridDesc => '結合官方演算法和自定義預設';
+
+  @override
+  String get randomMode_naiIndicator => 'NAI';
+
+  @override
+  String get randomMode_customIndicator => '自定義';
+
+  @override
+  String get naiMode_noTags => '暫無標籤';
+
+  @override
+  String get naiAlgorithm_characterCount => '角色數量分佈';
+
+  @override
+  String get naiAlgorithm_mainPrompt => '主提示詞';
+
+  @override
+  String tagGroup_tagCount(Object count) {
+    return '$count 標籤';
+  }
+
+  @override
+  String get addGroup_tagGroupTab => '標籤詞庫';
+
+  @override
+  String get addGroup_displayNameLabel => '顯示名稱（可選）';
+
+  @override
+  String get addGroup_targetCategoryLabel => '目標分類';
+
+  @override
+  String get addGroup_poolTab => '圖集';
+
+  @override
+  String globalSettings_saveFailed(Object error) {
+    return '儲存失敗: $error';
+  }
+
+  @override
+  String get globalSettings_category_hairColor => '髮色';
+
+  @override
+  String get globalSettings_category_eyeColor => '瞳色';
+
+  @override
+  String get globalSettings_category_hairStyle => '髮型';
+
+  @override
+  String get globalSettings_category_expression => '表情';
+
+  @override
+  String get globalSettings_category_pose => '姿勢';
+
+  @override
+  String get globalSettings_category_clothing => '服裝';
+
+  @override
+  String get globalSettings_category_accessory => '配飾';
+
+  @override
+  String get globalSettings_category_bodyFeature => '身體特徵';
+
+  @override
+  String get globalSettings_category_background => '背景';
+
+  @override
+  String get globalSettings_category_scene => '場景';
+
+  @override
+  String get globalSettings_category_style => '風格';
+
+  @override
+  String get nav_generate => '生成';
+
+  @override
+  String get nav_gallery => '畫廊';
+
+  @override
+  String get nav_settings => '設定';
+
+  @override
+  String download_completed(Object name) {
+    return '$name下載完成';
+  }
+
+  @override
+  String download_failed(Object name) {
+    return '$name下載失敗';
+  }
+
+  @override
+  String get sync_preparing => '準備同步...';
+
+  @override
+  String sync_fetching(Object category) {
+    return '正在獲取 $category...';
+  }
+
+  @override
+  String get sync_processing => '正在處理資料...';
+
+  @override
+  String get sync_saving => '正在儲存...';
+
+  @override
+  String sync_completed(Object count) {
+    return '同步完成，共 $count 個標籤';
+  }
+
+  @override
+  String sync_failed(Object error) {
+    return '同步失敗: $error';
+  }
+
+  @override
+  String sync_extracting(Object poolName) {
+    return '正在提取 $poolName 標籤...';
+  }
+
+  @override
+  String get sync_merging => '正在合併標籤...';
+
+  @override
+  String sync_fetching_tags(Object groupName) {
+    return '正在獲取 $groupName 標籤熱度...';
+  }
+
+  @override
+  String get sync_filtering => '正在篩選標籤...';
+
+  @override
+  String get sync_done => '同步完成';
+
+  @override
+  String get download_tags_data => '正在下載標籤資料...';
+
+  @override
+  String get download_cooccurrence_data => '正在下載共現標籤資料...';
+
+  @override
+  String get download_parsing_data => '正在解析資料...';
+
+  @override
+  String get download_readingFile => '正在讀取檔案...';
+
+  @override
+  String get download_mergingData => '正在合併資料...';
+
+  @override
+  String get download_loadComplete => '載入完成';
+
+  @override
+  String get time_just_now => '剛剛';
+
+  @override
+  String time_minutes_ago(Object n) {
+    return '$n分鐘前';
+  }
+
+  @override
+  String time_hours_ago(Object n) {
+    return '$n小時前';
+  }
+
+  @override
+  String time_days_ago(Object n) {
+    return '$n天前';
+  }
+
+  @override
+  String get time_never_synced => '從未同步';
+
+  @override
+  String get preset_resetToDefault => '重置為預設';
+
+  @override
+  String get newPresetDialog_title => '建立新預設';
+
+  @override
+  String get newPresetDialog_blank => '完全空白';
+
+  @override
+  String get newPresetDialog_blankDesc => '從頭開始建立預設，不包含任何預設內容';
+
+  @override
+  String get newPresetDialog_template => '基於預設預設';
+
+  @override
+  String get newPresetDialog_templateDesc => '複製預設預設的所有設定作為起點';
+
+  @override
+  String get category_dialogTitle => '建立新類別';
+
+  @override
+  String get category_nameHint => '輸入類別名稱';
+
+  @override
+  String get category_nameRequired => '請輸入類別名稱';
+
+  @override
+  String get category_selectEmoji => '選擇 Emoji';
+
+  @override
+  String get category_noRecentEmoji => '暫無最近使用的 Emoji';
+
+  @override
+  String get category_searchEmoji => '搜尋 Emoji';
+
+  @override
+  String get characterCountConfig_title => '人數類別配置';
+
+  @override
+  String get characterCountConfig_weight => '權重';
+
+  @override
+  String get characterCountConfig_solo => '單人';
+
+  @override
+  String get characterCountConfig_duo => '雙人';
+
+  @override
+  String get characterCountConfig_trio => '三人';
+
+  @override
+  String get characterCountConfig_noHumans => '無人';
+
+  @override
+  String get characterCountConfig_multiPerson => '多人';
+
+  @override
+  String get characterCountConfig_customizable => '可自定義';
+
+  @override
+  String get characterCountConfig_mainPrompt => '主提示詞';
+
+  @override
+  String get characterCountConfig_characterPrompt => '角色提示詞';
+
+  @override
+  String get characterCountConfig_addTagOption => '新增角色標籤';
+
+  @override
+  String get characterCountConfig_addMultiPersonCombo => '新增多人組合';
+
+  @override
+  String get characterCountConfig_displayName => '顯示名稱';
+
+  @override
+  String get characterCountConfig_displayNameHint => '例如：偽娘';
+
+  @override
+  String get characterCountConfig_mainPromptLabel => '主提示詞標籤';
+
+  @override
+  String get characterCountConfig_mainPromptHint =>
+      '例如：solo, 2girls, 1girl 1boy';
+
+  @override
+  String get characterCountConfig_personCount => '人數：';
+
+  @override
+  String get characterCountConfig_slotConfig => '角色槽位配置';
+
+  @override
+  String get characterCountConfig_slot => '槽位';
+
+  @override
+  String get characterCountConfig_customSlots => '自定義槽位';
+
+  @override
+  String get characterCountConfig_customSlotsTitle => '角色槽位管理';
+
+  @override
+  String get characterCountConfig_customSlotsDesc => '新增或刪除可用的角色槽位選項';
+
+  @override
+  String get characterCountConfig_addSlotHint => '例如：1trap, 1futanari';
+
+  @override
+  String get characterCountConfig_slotExists => '該槽位已存在';
+
+  @override
+  String get randomManager_algorithmConfig => '演算法配置';
+
+  @override
+  String get randomManager_characterCountWeight => '角色數量權重';
+
+  @override
+  String get randomManager_genderWeight => '性別權重';
+
+  @override
+  String get randomManager_globalSettings => '全域性設定';
+
+  @override
+  String get randomManager_enableSeasonalWordlists => '啟用季節性詞庫';
+
+  @override
+  String get randomManager_enableSeasonalWordlistsDesc => '聖誕節、萬聖節等特殊日期詞庫';
+
+  @override
+  String get randomManager_globalEmphasisProbability => '全域性強調機率';
+
+  @override
+  String get randomManager_soloGenderOptions => '單人性別選項';
+
+  @override
+  String get randomManager_femaleShort => '女';
+
+  @override
+  String get randomManager_maleShort => '男';
+
+  @override
+  String get randomManager_other => '其他';
+
+  @override
+  String get randomManager_tagGroupList => '片語列表';
+
+  @override
+  String get randomManager_deleteTagGroupTitle => '刪除片語';
+
+  @override
+  String randomManager_deleteTagGroupConfirm(Object name) {
+    return '確定要刪除片語「$name」嗎？此操作不可撤銷。';
+  }
+
+  @override
+  String randomManager_tagGroupCount(Object count) {
+    return '$count 個片語';
+  }
+
+  @override
+  String get randomManager_categories => '類別';
+
+  @override
+  String get randomManager_tagGroups => '片語';
+
+  @override
+  String get randomManager_tags => '標籤';
+
+  @override
+  String get randomManager_addTagGroup => '新增片語';
+
+  @override
+  String get randomManager_locked => '已鎖定';
+
+  @override
+  String get randomManager_addCategory => '新增類別';
+
+  @override
+  String get randomManager_noCategories => '暫無類別';
+
+  @override
+  String get randomManager_noCategoriesHint => '點選“新增類別”開始配置';
+
+  @override
+  String get randomManager_globalPeopleSettings => '全域性人數設定';
+
+  @override
+  String get randomManager_closePreview => '關閉預覽';
+
+  @override
+  String get randomManager_importPreset => '匯入預設';
+
+  @override
+  String get randomManager_importPresetSubtitle => '從 JSON 文字匯入隨機配置預設';
+
+  @override
+  String get randomManager_exportCurrentPreset => '匯出當前預設';
+
+  @override
+  String get randomManager_noPresetSelected => '未選擇預設';
+
+  @override
+  String get randomManager_selectPresetFirst => '請先選擇預設';
+
+  @override
+  String get randomManager_defaultPresetReadonly => '預設預設為只讀，請先新建或複製為自定義預設';
+
+  @override
+  String randomManager_presetImported(Object name) {
+    return '已匯入預設 \"$name\"';
+  }
+
+  @override
+  String get randomManager_defaultPresetV4 => '預設模式 (V4)';
+
+  @override
+  String get randomManager_defaultPresetLegacy => '預設模式 (Legacy)';
+
+  @override
+  String get randomManager_defaultPresetFurry => '預設模式 (Furry)';
+
+  @override
+  String get randomManager_defaultPresetV4Description =>
+      '基於 NAI V4 模型的隨機演算法配置，支援多角色';
+
+  @override
+  String get randomManager_defaultPresetLegacyDescription =>
+      '基於 NAI Legacy 模型的隨機演算法配置';
+
+  @override
+  String get randomManager_defaultPresetFurryDescription =>
+      '基於 NAI Furry 模型的隨機演算法配置';
+
+  @override
+  String get randomManager_defaultPresetOfficialDescription =>
+      '基於 NAI 官網的隨機演算法配置';
+
+  @override
+  String get randomManager_femaleClothing => '女性服裝';
+
+  @override
+  String get randomManager_maleClothing => '男性服裝';
+
+  @override
+  String get randomManager_generalClothing => '通用服裝';
+
+  @override
+  String get randomManager_femaleBodyType => '女性體型';
+
+  @override
+  String get randomManager_maleBodyType => '男性體型';
+
+  @override
+  String get randomManager_generalBodyType => '通用體型';
+
+  @override
+  String get randomManager_soloFemale => '女性';
+
+  @override
+  String get randomManager_soloMale => '男性';
+
+  @override
+  String get randomManager_duoGirls => '雙女';
+
+  @override
+  String get randomManager_duoMixed => '一女一男';
+
+  @override
+  String get randomManager_duoBoys => '雙男';
+
+  @override
+  String get randomManager_trioGirls => '三女';
+
+  @override
+  String get randomManager_trioTwoGirlsOneBoy => '二女一男';
+
+  @override
+  String get randomManager_trioOneGirlTwoBoys => '一女二男';
+
+  @override
+  String get randomManager_trioBoys => '三男';
+
+  @override
+  String get randomManager_noHumanScene => '無人場景';
+
+  @override
+  String randomManager_presetCreated(Object name) {
+    return '已建立預設 \"$name\"';
+  }
+
+  @override
+  String randomManager_deletePresetConfirm(Object name) {
+    return '確定要刪除 \"$name\" 嗎？此操作不可撤銷。';
+  }
+
+  @override
+  String get randomManager_syncCompleted => 'Danbooru 標籤同步完成';
+
+  @override
+  String randomManager_syncFailed(Object error) {
+    return '同步失敗: $error';
+  }
+
+  @override
+  String get randomManager_resetDefaultTitle => '重置為預設配置';
+
+  @override
+  String get randomManager_resetDefaultContent =>
+      '將恢復官方預設配置。\n您新增的自定義片語會被保留但禁用。';
+
+  @override
+  String get randomManager_resetDefaultConfirm => '確認重置';
+
+  @override
+  String get randomManager_resetDefaultDone => '已重置為預設配置';
+
+  @override
+  String get randomManager_generatePreview => '生成預覽';
+
+  @override
+  String get randomManager_importExport => '匯入/匯出';
+
+  @override
+  String get randomManager_syncing => '同步中';
+
+  @override
+  String get randomManager_syncingWithEllipsis => '同步中...';
+
+  @override
+  String get randomManager_syncDanbooruTags => '同步 Danbooru 標籤';
+
+  @override
+  String get randomManager_unknownError => '未知錯誤';
+
+  @override
+  String get randomManager_readOnlyMode => '只讀模式';
+
+  @override
+  String get randomManager_readOnlyTooltip => '當前預設為預設預設，所有配置項已鎖定';
+
+  @override
+  String get randomManager_searchCategoryOrTagGroup => '搜尋類別或標籤組...';
+
+  @override
+  String get randomManager_scope => '作用域';
+
+  @override
+  String get randomManager_global => '全域性';
+
+  @override
+  String get randomManager_private => '私有';
+
+  @override
+  String get randomManager_status => '狀態';
+
+  @override
+  String get randomManager_enabledOnly => '僅啟用';
+
+  @override
+  String get randomManager_diyCapable => '有 DIY 能力';
+
+  @override
+  String randomManager_addTagGroupSubtitle(Object category) {
+    return '新增到 \"$category\"';
+  }
+
+  @override
+  String get randomManager_tagGroupName => '片語名稱';
+
+  @override
+  String get randomManager_tagGroupNameHint => '輸入片語名稱';
+
+  @override
+  String get randomManager_tagGroupNameRequired => '請輸入片語名稱';
+
+  @override
+  String get randomManager_customTab => '自定義';
+
+  @override
+  String get randomManager_tagList => '標籤列表';
+
+  @override
+  String get randomManager_tagListHelp => '每行一個標籤，支援格式: tag 或 tag:weight';
+
+  @override
+  String get randomManager_searchTagGroup => '搜尋 Tag Group...';
+
+  @override
+  String get randomManager_searchPool => '搜尋 Pool...';
+
+  @override
+  String randomManager_itemCount(Object count) {
+    return '$count 個';
+  }
+
+  @override
+  String get randomManager_noMatchingTagGroup => '未找到匹配的 Tag Group';
+
+  @override
+  String get randomManager_noMatchingPool => '未找到匹配的 Pool';
+
+  @override
+  String get randomManager_cannotLoadPreview => '無法載入預覽';
+
+  @override
+  String get randomManager_openInDanbooru => '在 Danbooru 中檢視';
+
+  @override
+  String get randomManager_editTagGroup => '編輯片語';
+
+  @override
+  String get randomManager_basicTab => '基礎';
+
+  @override
+  String randomManager_tagsTab(Object count) {
+    return '標籤 ($count)';
+  }
+
+  @override
+  String get randomManager_diyAbilitiesTab => 'DIY 能力';
+
+  @override
+  String get randomManager_selectionSingle => '單選';
+
+  @override
+  String get randomManager_selectionSingleDesc => '加權隨機選擇一個';
+
+  @override
+  String get randomManager_selectionAll => '全選';
+
+  @override
+  String get randomManager_selectionAllDesc => '選擇所有標籤';
+
+  @override
+  String get randomManager_selectionMultipleCount => '多選數量';
+
+  @override
+  String get randomManager_selectionMultipleCountDesc => '選擇指定數量';
+
+  @override
+  String get randomManager_selectionMultipleProbability => '多選機率';
+
+  @override
+  String get randomManager_selectionMultipleProbabilityDesc => '每個獨立判斷';
+
+  @override
+  String get randomManager_selectionSequential => '順序輪替';
+
+  @override
+  String get randomManager_selectionSequentialDesc => '跨批次保持狀態';
+
+  @override
+  String get randomManager_noTags => '暫無標籤';
+
+  @override
+  String get randomManager_conditionalBranch => '條件分支';
+
+  @override
+  String get randomManager_conditionalBranchDesc => '根據變數值選擇不同的標籤子集';
+
+  @override
+  String get randomManager_dependencyConfig => '依賴配置';
+
+  @override
+  String get randomManager_dependencyConfigDesc => '選擇數量依賴其他類別的值';
+
+  @override
+  String get randomManager_visibilityRules => '可見性規則';
+
+  @override
+  String get randomManager_visibilityRulesDesc => '根據構圖決定是否生成';
+
+  @override
+  String get randomManager_timeCondition => '時間條件';
+
+  @override
+  String get randomManager_timeConditionDesc => '特定日期範圍啟用';
+
+  @override
+  String get randomManager_postProcessRules => '後處理規則';
+
+  @override
+  String get randomManager_postProcessRulesDesc => '根據已選標籤移除衝突';
+
+  @override
+  String get randomManager_emphasisProbability => '強調機率';
+
+  @override
+  String get randomManager_probability => '機率';
+
+  @override
+  String get randomManager_selectionMode => '選擇模式';
+
+  @override
+  String randomManager_editHint(Object name) {
+    return '$name (點選編輯)';
+  }
+
+  @override
+  String randomManager_emphasisProbabilityValue(Object percent) {
+    return '強調機率: $percent%';
+  }
+
+  @override
+  String get randomManager_previewGeneration => '預覽生成';
+
+  @override
+  String get randomManager_generating => '生成中';
+
+  @override
+  String get randomManager_generate => '生成';
+
+  @override
+  String get randomManager_generationFailed => '生成失敗';
+
+  @override
+  String get randomManager_copy => '複製';
+
+  @override
+  String get randomManager_regenerate => '重新生成';
+
+  @override
+  String get randomManager_copiedToClipboard => '已複製到剪貼簿';
+
+  @override
+  String get randomManager_selectPresetRequired => '請選擇一個預設';
+
+  @override
+  String randomManager_characterCountLabel(Object count) {
+    return '$count人';
+  }
+
+  @override
+  String randomManager_tagCountLabel(Object count) {
+    return '$count標籤';
+  }
+
+  @override
+  String get randomManager_previewHint => '點選\"生成\"預覽隨機標籤';
+
+  @override
+  String get randomManager_generateNow => '立即生成';
+
+  @override
+  String get randomManager_batchOperations => '批次操作';
+
+  @override
+  String randomManager_selectedItems(Object count) {
+    return '已選擇 $count 項';
+  }
+
+  @override
+  String randomManager_totalItems(Object count) {
+    return '共 $count 項';
+  }
+
+  @override
+  String randomManager_enabledItems(Object count) {
+    return '已啟用 $count 個專案';
+  }
+
+  @override
+  String randomManager_disabledItems(Object count) {
+    return '已禁用 $count 個專案';
+  }
+
+  @override
+  String get randomManager_batchDeleteTitle => '批次刪除';
+
+  @override
+  String randomManager_batchDeleteContent(Object count) {
+    return '確定要刪除選中的 $count 個專案嗎？此操作不可撤銷。';
+  }
+
+  @override
+  String randomManager_deletedItems(Object count) {
+    return '已刪除 $count 個專案';
+  }
+
+  @override
+  String get randomManager_invertSelection => '反選';
+
+  @override
+  String get randomManager_moreActions => '更多操作';
+
+  @override
+  String get randomManager_enableSelected => '啟用選中';
+
+  @override
+  String get randomManager_disableSelected => '禁用選中';
+
+  @override
+  String get randomManager_deleteSelected => '刪除選中';
+
+  @override
+  String get randomManager_noHistory => '無歷史記錄';
+
+  @override
+  String get randomManager_operationHistory => '操作歷史';
+
+  @override
+  String get randomManager_keyboardShortcuts => '鍵盤快捷鍵';
+
+  @override
+  String get randomManager_generalShortcuts => '通用';
+
+  @override
+  String get randomManager_presetActions => '預設操作';
+
+  @override
+  String get randomManager_selectionActions => '選擇操作';
+
+  @override
+  String get randomManager_closeWindow => '關閉視窗';
+
+  @override
+  String get randomManager_refreshOrSync => '重新整理/同步';
+
+  @override
+  String get gender_female => '女性';
+
+  @override
+  String get gender_male => '男性';
+
+  @override
+  String get scope_global => '主提示詞';
+
+  @override
+  String get scope_globalTooltip => '提示詞將出現在主提示詞區域\n適合：背景、場景、畫面風格等';
+
+  @override
+  String get scope_character => '角色';
+
+  @override
+  String get scope_characterTooltip =>
+      '提示詞將只出現在角色提示詞內\n每個角色單獨生成\n適合：髮色、眵色、服裝、表情等';
+
+  @override
+  String get scope_all => '通用';
+
+  @override
+  String get scope_allTooltip => '提示詞同時出現在主提示詞和角色提示詞\n適合：姿勢、互動等通用標籤';
+
+  @override
+  String get vibeParseFailed => '無法解析 Vibe 檔案';
+
+  @override
+  String get tagGroupBrowser_searchHint => '搜尋標籤...';
+
+  @override
+  String tagGroupBrowser_tagCount(Object count) {
+    return '$count個標籤';
+  }
+
+  @override
+  String tagGroupBrowser_filteredTagCount(Object filtered, Object total) {
+    return '顯示 $filtered 個，共 $total 個標籤';
+  }
+
+  @override
+  String get tagGroupBrowser_noTags => '暫無標籤';
+
+  @override
+  String get tagGroupBrowser_noLibrary => '詞庫未載入';
+
+  @override
+  String get tagGroupBrowser_importLibraryHint => '請先匯入標籤詞庫';
+
+  @override
+  String get tagGroupBrowser_noCategories => '沒有啟用的標籤分類';
+
+  @override
+  String get tagGroupBrowser_enableCategoriesHint => '請在設定中啟用標籤分類';
+
+  @override
+  String get tagGroupBrowser_danbooruSuggestions => 'Danbooru 建議';
+
+  @override
+  String get tag_favoritesTitle => '收藏標籤';
+
+  @override
+  String get tag_favoritesEmpty => '暫無收藏標籤';
+
+  @override
+  String get tag_favoritesEmptyHint => '長按標籤即可新增到收藏';
+
+  @override
+  String get tag_alreadyAdded => '該標籤已在當前提示詞中';
+
+  @override
+  String get tag_removeFavoriteTitle => '移除收藏';
+
+  @override
+  String tag_removeFavoriteMessage(Object tag) {
+    return '確定要移除收藏的標籤「$tag」嗎？';
+  }
+
+  @override
+  String get tag_templatesTitle => '標籤模板';
+
+  @override
+  String get tag_templatesEmpty => '暫無標籤模板';
+
+  @override
+  String get tag_templatesEmptyHint => '選擇標籤後點選右上角的 + 按鈕建立模板';
+
+  @override
+  String get tag_templateCreate => '建立模板';
+
+  @override
+  String get tag_templateNameLabel => '模板名稱';
+
+  @override
+  String get tag_templateNameHint => '輸入模板名稱';
+
+  @override
+  String get tag_templateNameRequired => '請輸入模板名稱';
+
+  @override
+  String get tag_templateDescLabel => '模板描述（可選）';
+
+  @override
+  String get tag_templateDescHint => '輸入模板描述';
+
+  @override
+  String get tag_templatePreview => '標籤預覽';
+
+  @override
+  String tag_templateTagCount(Object count) {
+    return '$count 個標籤';
+  }
+
+  @override
+  String tag_templateMoreTags(Object count) {
+    return '還有 $count 個標籤...';
+  }
+
+  @override
+  String tag_templateInserted(Object name) {
+    return '已插入模板「$name」';
+  }
+
+  @override
+  String get tag_templateNoTags => '沒有可儲存的標籤';
+
+  @override
+  String get tag_templateSaved => '模板已儲存';
+
+  @override
+  String get tag_templateNameExists => '模板名稱已存在';
+
+  @override
+  String get tag_templateDeleteTitle => '刪除模板';
+
+  @override
+  String tag_templateDeleteMessage(Object name) {
+    return '確定要刪除模板「$name」嗎？';
+  }
+
+  @override
+  String get tag_categoryGeneral => '通用';
+
+  @override
+  String get tag_categoryArtist => '畫師';
+
+  @override
+  String get tag_categoryCopyright => '版權';
+
+  @override
+  String get tag_categoryCharacter => '角色';
+
+  @override
+  String get tag_categoryMeta => '後設資料';
+
+  @override
+  String get tag_countBadgeBreakdown => '標籤分類統計';
+
+  @override
+  String get localGallery_progressiveLoadError => '圖片載入失敗';
+
+  @override
+  String get localGallery_noImagesFound => '未找到圖片';
+
+  @override
+  String get localGallery_unknownError => '未知錯誤';
+
+  @override
+  String localGallery_loadFailed(Object error) {
+    return '載入失敗: $error';
+  }
+
+  @override
+  String get localGallery_indexingLocalImages => '索引本地圖片中...';
+
+  @override
+  String get localGallery_emptyTitle => '暫無本地圖片';
+
+  @override
+  String get localGallery_emptySubtitle => '生成的圖片將儲存在此處';
+
+  @override
+  String get localGallery_noMatchingResults => '無匹配結果';
+
+  @override
+  String get localGallery_loadingGroupedImages => '載入分組圖片中...';
+
+  @override
+  String localGallery_jumpedToMonth(Object year, Object month) {
+    return '已跳轉到 $year-$month';
+  }
+
+  @override
+  String get localGallery_title => '本地畫廊';
+
+  @override
+  String get localGallery_allImages => '全部圖片';
+
+  @override
+  String get localGallery_categoryPanelTitle => '分類';
+
+  @override
+  String get localGallery_searchFilenamePromptPlaceholder =>
+      '搜尋檔名/Prompt，逗號分隔交集搜尋...';
+
+  @override
+  String get localGallery_selectCurrentPage => '選擇本頁';
+
+  @override
+  String get localGallery_deselectCurrentPage => '取消本頁';
+
+  @override
+  String get localGallery_selectAllResults => '選擇全部';
+
+  @override
+  String get localGallery_deselectAllResults => '取消全部';
+
+  @override
+  String get localGallery_moveSelected => '移動';
+
+  @override
+  String get localGallery_packSelected => '打包';
+
+  @override
+  String get localGallery_editMetadata => '編輯';
+
+  @override
+  String get localGallery_addToCollection => '收藏';
+
+  @override
+  String get localGallery_switchToGridView => '切換到網格檢視';
+
+  @override
+  String get localGallery_switchToDateGroupedView => '切換到日期分組檢視';
+
+  @override
+  String get localGallery_openFilterPanel => '開啟篩選面板';
+
+  @override
+  String get localGallery_hideCategoryPanel => '隱藏分類面板';
+
+  @override
+  String get localGallery_showCategoryPanel => '顯示分類面板';
+
+  @override
+  String get localGallery_enterSelectionMode => '進入選擇模式';
+
+  @override
+  String get localGallery_refreshTooltip => '重新整理畫廊\n\n自動檢測新增/修改的圖片並更新索引';
+
+  @override
+  String get localGallery_tagIntersection => '標籤交集';
+
+  @override
+  String get localGallery_createCategoryTitle => '新建分類';
+
+  @override
+  String get localGallery_createCategoryHint => '請輸入分類名稱';
+
+  @override
+  String get localGallery_createCategoryConfirm => '建立';
+
+  @override
+  String get localGallery_createSubCategoryTitle => '新建子分類';
+
+  @override
+  String get localGallery_showInFolder => '在資料夾中顯示';
+
+  @override
+  String get localGallery_promptCopied => 'Prompt 已複製';
+
+  @override
+  String get localGallery_seedCopied => 'Seed 已複製';
+
+  @override
+  String localGallery_confirmDeleteImageContent(Object name) {
+    return '確定要刪除圖片「$name」嗎？\n\n此操作無法撤銷。';
+  }
+
+  @override
+  String get localGallery_imageDeleted => '圖片已刪除';
+
+  @override
+  String localGallery_deleteFailed(Object error) {
+    return '刪除失敗: $error';
+  }
+
+  @override
+  String get localGallery_categoryDeleteContent => '確定要刪除此分類嗎？資料夾及其內容將被保留。';
+
+  @override
+  String get localGallery_protectedDeleteCategoryTitle => '保護模式：確認刪除分類';
+
+  @override
+  String get localGallery_protectedDeleteCategoryContent =>
+      '將刪除此分類記錄，資料夾及內容會保留。請再次確認。';
+
+  @override
+  String get localGallery_confirmDelete => '確認刪除';
+
+  @override
+  String get localGallery_confirmMoveImageTitle => '保護模式：確認移動圖片';
+
+  @override
+  String get localGallery_confirmMoveImageContent => '將把圖片移動到目標分類資料夾。請確認不是誤拖拽。';
+
+  @override
+  String get localGallery_confirmMove => '確認移動';
+
+  @override
+  String get localGallery_imageMovedToCategory => '圖片已移動到分類';
+
+  @override
+  String get localGallery_categoriesSynced => '分類已與資料夾同步';
+
+  @override
+  String get localGallery_saveDirectoryNotSet => '未設定儲存目錄';
+
+  @override
+  String get localGallery_folderNotFound => '資料夾不存在';
+
+  @override
+  String localGallery_openFolderFailed(Object error) {
+    return '開啟資料夾失敗: $error';
+  }
+
+  @override
+  String get localGallery_protectedDeleteTitle => '保護模式：再次確認刪除';
+
+  @override
+  String localGallery_protectedDeleteImagesContent(Object count) {
+    return '將永久刪除 $count 張本地圖片檔案。此操作無法撤銷。';
+  }
+
+  @override
+  String get localGallery_protectedBulkMoveTitle => '保護模式：確認批次移動';
+
+  @override
+  String localGallery_protectedBulkMoveContent(Object count) {
+    return '將移動 $count 張本地圖片檔案到目標資料夾。請確認不是誤操作。';
+  }
+
+  @override
+  String localGallery_importParamsFailed(Object error) {
+    return '匯入引數失敗: $error';
+  }
+
+  @override
+  String localGallery_protectedDeleteImageContent(Object name) {
+    return '將永久刪除圖片「$name」。此操作無法撤銷。';
+  }
+
+  @override
+  String get localGallery_saveZipArchive => '儲存壓縮包';
+
+  @override
+  String localGallery_packingImages(Object count) {
+    return '正在打包 $count 張圖片...';
+  }
+
+  @override
+  String localGallery_packedImages(Object count) {
+    return '已打包 $count 張圖片';
+  }
+
+  @override
+  String get localGallery_packFailed => '打包失敗';
+
+  @override
+  String get localGallery_imageFileMissing => '圖片檔案不存在';
+
+  @override
+  String get localGallery_sentToImageToImage => '圖片已傳送到圖生圖';
+
+  @override
+  String localGallery_sendFailed(Object error) {
+    return '傳送失敗: $error';
+  }
+
+  @override
+  String get localGallery_sentToReversePrompt => '圖片已傳送到反推模組';
+
+  @override
+  String localGallery_sendToKritaFailed(Object error) {
+    return '傳送到 Krita 失敗: $error';
+  }
+
+  @override
+  String get localGallery_sendToImg2Img => '傳送到圖生圖';
+
+  @override
+  String get localGallery_sendToReversePrompt => '傳送到反推';
+
+  @override
+  String get localGallery_sendToStyleTransfer => '傳送到風格遷移';
+
+  @override
+  String get localGallery_sendToPreciseReference => '傳送到精準參考';
+
+  @override
+  String get localGallery_sendToKrita => '傳送到 Krita';
+
+  @override
+  String get localGallery_importImageMetadata => '匯入圖片後設資料';
+
+  @override
+  String get localGallery_copyPrompt => '複製 Prompt';
+
+  @override
+  String get localGallery_copySeed => '複製 Seed';
+
+  @override
+  String get localGallery_dragToShare => '拖拽以分享';
+
+  @override
+  String get localGallery_moveToRoot => '移至根目錄';
+
+  @override
+  String get localGallery_folderName => '資料夾名稱';
+
+  @override
+  String get localGallery_newFolderName => '新名稱';
+
+  @override
+  String get localGallery_folderNameHint => '輸入資料夾名稱';
+
+  @override
+  String get localGallery_folderCreated => '資料夾建立成功';
+
+  @override
+  String get localGallery_folderCreateFailed => '資料夾建立失敗';
+
+  @override
+  String get localGallery_renameFolderTitle => '重新命名資料夾';
+
+  @override
+  String get localGallery_renameSuccess => '重新命名成功';
+
+  @override
+  String get localGallery_renameFailed => '重新命名失敗';
+
+  @override
+  String get localGallery_deleteFolderTitle => '刪除資料夾';
+
+  @override
+  String localGallery_deleteFolderWithImagesContent(Object name, Object count) {
+    return '資料夾「$name」包含 $count 張圖片，確定要刪除嗎？\n\n注意：此操作會刪除資料夾及其中的所有圖片，無法恢復。';
+  }
+
+  @override
+  String localGallery_deleteEmptyFolderContent(Object name) {
+    return '確定要刪除空資料夾「$name」嗎？';
+  }
+
+  @override
+  String get localGallery_folderDeleted => '資料夾已刪除';
+
+  @override
+  String get localGallery_folderDeleteFailed => '刪除資料夾失敗';
+
+  @override
+  String get localGallery_cachingMetadata => '正在快取後設資料...';
+
+  @override
+  String get localGallery_metadataCacheStats => '後設資料快取統計';
+
+  @override
+  String get localGallery_totalImages => '總圖片';
+
+  @override
+  String get localGallery_withMetadata => '有後設資料';
+
+  @override
+  String get localGallery_skipped => '跳過';
+
+  @override
+  String get localGallery_remaining => '剩餘';
+
+  @override
+  String get localGallery_cacheMonitor => '快取監控';
+
+  @override
+  String get localGallery_threeLayerCacheStats => '三層快取統計';
+
+  @override
+  String localGallery_updatedAt(Object time) {
+    return '更新: $time';
+  }
+
+  @override
+  String get localGallery_memoryCache => '記憶體快取';
+
+  @override
+  String get localGallery_hiveCache => 'Hive 快取';
+
+  @override
+  String get localGallery_sqliteDatabase => 'SQLite 資料庫';
+
+  @override
+  String get localGallery_imageUnit => '圖片';
+
+  @override
+  String get localGallery_metadataUnit => '後設資料';
+
+  @override
+  String get localGallery_entriesUnit => '條目';
+
+  @override
+  String get localGallery_hitRate => '命中率';
+
+  @override
+  String get localGallery_performanceStats => '效能監控統計';
+
+  @override
+  String get localGallery_cacheHit => '命中';
+
+  @override
+  String get localGallery_cacheMiss => '未命中';
+
+  @override
+  String get localGallery_clearL1 => '清除 L1';
+
+  @override
+  String get localGallery_clearL2 => '清除 L2';
+
+  @override
+  String get localGallery_clearAll => '清除全部';
+
+  @override
+  String get localGallery_resetStats => '重置統計';
+
+  @override
+  String get localGallery_confirmClearCache => '確認清除';
+
+  @override
+  String get localGallery_confirmClearCacheContent => '確定要清除所有快取嗎？這將重新掃描所有圖片。';
+
+  @override
+  String get localGallery_clearFilters => '清除篩選';
+
+  @override
+  String get slideshow_of => '/';
+
+  @override
+  String get slideshow_play => '播放';
+
+  @override
+  String get slideshow_pause => '暫停';
+
+  @override
+  String get slideshow_previous => '上一張';
+
+  @override
+  String get slideshow_next => '下一張';
+
+  @override
+  String get slideshow_exit => '退出 (Esc)';
+
+  @override
+  String get slideshow_noImages => '沒有可顯示的圖片';
+
+  @override
+  String get slideshow_keyboardHint => '使用 ← → 導航，空格鍵播放/暫停，Esc 退出';
+
+  @override
+  String get comparison_noImages => '沒有可顯示的圖片';
+
+  @override
+  String get comparison_tooManyImages => '圖片數量過多';
+
+  @override
+  String get comparison_maxImages => '最多支援對比4張圖片';
+
+  @override
+  String get comparison_close => '關閉對比';
+
+  @override
+  String get comparison_zoomHint => '捏合或滾動可獨立縮放';
+
+  @override
+  String get comparison_loadError => '載入圖片失敗';
+
+  @override
+  String get statistics_title => '統計儀表盤';
+
+  @override
+  String get statistics_noData => '暫無統計資料';
+
+  @override
+  String get statistics_generatedCount => '生成數量';
+
+  @override
+  String get statistics_favoriteCount => '收藏數';
+
+  @override
+  String statistics_tooltipGenerated(Object count) {
+    return '生成數量: $count';
+  }
+
+  @override
+  String statistics_tooltipFavorite(Object count) {
+    return '收藏數: $count';
+  }
+
+  @override
+  String get statistics_noTagData => '暫無標籤資料';
+
+  @override
+  String get statistics_generateFirst => '先生成一些圖片吧';
+
+  @override
+  String get statistics_totalImages => '總圖片數';
+
+  @override
+  String get statistics_totalSize => '總大小';
+
+  @override
+  String get statistics_favorites => '收藏';
+
+  @override
+  String get statistics_samplerDistribution => '取樣器分佈';
+
+  @override
+  String get statistics_additionalStats => '其他統計';
+
+  @override
+  String get statistics_averageFileSize => '平均檔案大小';
+
+  @override
+  String get statistics_withMetadata => '有後設資料的圖片';
+
+  @override
+  String get statistics_justNow => '剛剛';
+
+  @override
+  String statistics_minutesAgo(Object count) {
+    return '$count 分鐘前';
+  }
+
+  @override
+  String statistics_hoursAgo(Object count) {
+    return '$count 小時前';
+  }
+
+  @override
+  String statistics_daysAgo(Object count) {
+    return '$count 天前';
+  }
+
+  @override
+  String get statistics_anlasCost => '點數消耗';
+
+  @override
+  String get statistics_totalAnlasCost => '總消耗';
+
+  @override
+  String get statistics_avgDailyCost => '日均消耗';
+
+  @override
+  String get statistics_noAnlasData => '暫無點數消耗資料';
+
+  @override
+  String get statistics_peakActivity => '活躍高峰';
+
+  @override
+  String get statistics_timeMorning => '上午';
+
+  @override
+  String get statistics_timeAfternoon => '下午';
+
+  @override
+  String get statistics_timeEvening => '傍晚';
+
+  @override
+  String get statistics_timeNight => '深夜';
+
+  @override
+  String get localGallery_advancedFilters => '高階篩選';
+
+  @override
+  String get localGallery_filterByModel => '按模型篩選';
+
+  @override
+  String get localGallery_filterBySampler => '按取樣器篩選';
+
+  @override
+  String get localGallery_filterBySteps => '按步數篩選';
+
+  @override
+  String get localGallery_filterByCfg => '按 CFG 篩選';
+
+  @override
+  String get localGallery_filterByResolution => '按解析度篩選';
+
+  @override
+  String get localGallery_filterSubtitle => '精確篩選您的圖片集合';
+
+  @override
+  String get localGallery_modelHint => '輸入模型名稱...';
+
+  @override
+  String get localGallery_samplerHint => '輸入取樣器名稱...';
+
+  @override
+  String get localGallery_resolutionHint => '寬度x高度 (如: 1024x1024)';
+
+  @override
+  String get localGallery_activeFiltersSet => '已設定篩選';
+
+  @override
+  String get localGallery_applyFilters => '應用篩選';
+
+  @override
+  String get localGallery_resetAdvancedFilters => '重置高階篩選';
+
+  @override
+  String get localGallery_exportFailed => '匯出失敗';
+
+  @override
+  String get bulkExport_format => '匯出格式';
+
+  @override
+  String get bulkExport_jsonFormat => 'JSON';
+
+  @override
+  String get bulkExport_csvFormat => 'CSV';
+
+  @override
+  String get bulkExport_includeMetadataHint => '匯出生成引數等資訊';
+
+  @override
+  String get localGallery_group_today => '今天';
+
+  @override
+  String get localGallery_group_yesterday => '昨天';
+
+  @override
+  String get localGallery_group_thisWeek => '本週';
+
+  @override
+  String get localGallery_group_earlier => '更早';
+
+  @override
+  String localGallery_cannotOpenFolder(Object error) {
+    return '無法開啟資料夾: $error';
+  }
+
+  @override
+  String get localGallery_permissionRequiredTitle => '需要儲存許可權';
+
+  @override
+  String get localGallery_permissionRequiredContent =>
+      '本地畫廊需要訪問儲存許可權才能掃描您生成的圖片。\n\n請在設定中授予許可權後重試。';
+
+  @override
+  String get localGallery_openSettings => '開啟設定';
+
+  @override
+  String get localGallery_firstTimeTipTitle => '💡 使用提示';
+
+  @override
+  String get localGallery_firstTimeTipContent =>
+      '右鍵點選（桌面端）或長按（移動端）圖片可以：\n\n• 複製 Prompt\n• 複製 Seed\n• 檢視完整後設資料';
+
+  @override
+  String get localGallery_gotIt => '知道了';
+
+  @override
+  String get localGallery_undone => '已撤銷';
+
+  @override
+  String get localGallery_redone => '已重做';
+
+  @override
+  String get localGallery_confirmBulkDelete => '確認批次刪除';
+
+  @override
+  String localGallery_confirmBulkDeleteContent(Object count) {
+    return '確定要刪除選中的 $count 張圖片嗎？\n\n此操作將從檔案系統中永久刪除這些圖片，無法恢復。';
+  }
+
+  @override
+  String localGallery_deletedImages(Object count) {
+    return '已刪除 $count 張圖片';
+  }
+
+  @override
+  String get localGallery_noFoldersAvailable => '暫無可用資料夾，請先建立資料夾';
+
+  @override
+  String get localGallery_moveToFolder => '移動到資料夾';
+
+  @override
+  String localGallery_imageCount(Object count) {
+    return '$count 張圖片';
+  }
+
+  @override
+  String localGallery_movedImages(Object count) {
+    return '已移動 $count 張圖片';
+  }
+
+  @override
+  String get localGallery_moveImagesFailed => '移動圖片失敗';
+
+  @override
+  String localGallery_addedToCollection(Object count, Object name) {
+    return '已新增 $count 張圖片到集合「$name」';
+  }
+
+  @override
+  String get localGallery_addToCollectionFailed => '新增圖片到集合失敗';
+
+  @override
+  String get brushPreset_selectHint => '雙擊選擇此筆刷預設';
+
+  @override
+  String get brushPreset_pencil => '鉛筆';
+
+  @override
+  String get brushPreset_fine => '細筆';
+
+  @override
+  String get brushPreset_standard => '標準筆刷';
+
+  @override
+  String get brushPreset_soft => '軟筆刷';
+
+  @override
+  String get brushPreset_airbrush => '噴槍';
+
+  @override
+  String get brushPreset_marker => '馬克筆';
+
+  @override
+  String get brushPreset_thick => '粗筆刷';
+
+  @override
+  String get brushPreset_smudge => '塗抹筆刷';
+
+  @override
+  String bulkProgress_progress(Object current, Object total) {
+    return '正在處理 $current/$total';
+  }
+
+  @override
+  String bulkProgress_success(Object count) {
+    return '$count 項成功';
+  }
+
+  @override
+  String bulkProgress_failed(Object count) {
+    return '$count 項失敗';
+  }
+
+  @override
+  String get bulkProgress_errors => '錯誤：';
+
+  @override
+  String bulkProgress_moreErrors(Object count) {
+    return '...還有 $count 個錯誤';
+  }
+
+  @override
+  String bulkProgress_completed(Object count) {
+    return '已完成 $count 項';
+  }
+
+  @override
+  String bulkProgress_completedWithErrors(Object success, Object failed) {
+    return '$success 項成功，$failed 項失敗';
+  }
+
+  @override
+  String get bulkProgress_title_delete => '刪除圖片中';
+
+  @override
+  String get bulkProgress_title_export => '匯出後設資料中';
+
+  @override
+  String get bulkProgress_title_metadataEdit => '編輯後設資料中';
+
+  @override
+  String get bulkProgress_title_addToCollection => '新增到收集中';
+
+  @override
+  String get bulkProgress_title_removeFromCollection => '從集合中移除';
+
+  @override
+  String get bulkProgress_title_toggleFavorite => '更新收藏中';
+
+  @override
+  String get bulkProgress_title_default => '處理中';
+
+  @override
+  String bulkProgress_errorDeleteFailed(String error) {
+    return '刪除圖片失敗：$error';
+  }
+
+  @override
+  String get bulkProgress_errorNoImagesToExport => '沒有可匯出的圖片';
+
+  @override
+  String get bulkProgress_errorExportFailed => '匯出失敗';
+
+  @override
+  String bulkProgress_errorExportFailedWithDetails(String error) {
+    return '匯出失敗：$error';
+  }
+
+  @override
+  String get bulkProgress_errorNoMetadataChanges => '請至少輸入一個要新增或移除的標籤';
+
+  @override
+  String bulkProgress_errorMetadataEditFailed(String error) {
+    return '編輯圖片後設資料失敗：$error';
+  }
+
+  @override
+  String bulkProgress_errorFavoriteFailed(String error) {
+    return '更新收藏狀態失敗：$error';
+  }
+
+  @override
+  String get bulkProgress_errorNoImagesForCollection => '沒有可新增到集合的圖片';
+
+  @override
+  String bulkProgress_errorAddToCollectionFailed(String error) {
+    return '將圖片新增到集合失敗：$error';
+  }
+
+  @override
+  String get bulkProgress_errorNothingToUndo => '沒有可撤銷的操作';
+
+  @override
+  String bulkProgress_errorUndoFailed(String error) {
+    return '撤銷失敗：$error';
+  }
+
+  @override
+  String get bulkProgress_errorNothingToRedo => '沒有可重做的操作';
+
+  @override
+  String bulkProgress_errorRedoFailed(String error) {
+    return '重做失敗：$error';
+  }
+
+  @override
+  String get collectionSelect_dialogTitle => '選擇集合';
+
+  @override
+  String get collectionSelect_filterHint => '搜尋集合...';
+
+  @override
+  String get collectionSelect_noCollections => '暫無集合';
+
+  @override
+  String get collectionSelect_createCollectionHint => '請先建立一個集合';
+
+  @override
+  String get collectionSelect_noFilterResults => '沒有找到匹配的集合';
+
+  @override
+  String collectionSelect_imageCount(int count) {
+    return '$count 張圖片';
+  }
+
+  @override
+  String get statistics_chartTopTags => '熱門標籤';
+
+  @override
+  String get statistics_chartAspectRatio => '寬高比分佈';
+
+  @override
+  String get statistics_chartActivityHeatmap => '活動熱力圖';
+
+  @override
+  String get statistics_chartHourlyDistribution => '小時分佈';
+
+  @override
+  String get statistics_chartWeekdayDistribution => '星期分佈';
+
+  @override
+  String get statistics_aspectSquare => '方形';
+
+  @override
+  String get statistics_aspectLandscape => '橫屏';
+
+  @override
+  String get statistics_aspectPortrait => '豎屏';
+
+  @override
+  String get statistics_aspectOther => '其他';
+
+  @override
+  String get statistics_refresh => '重新整理';
+
+  @override
+  String get statistics_retry => '重試';
+
+  @override
+  String statistics_error(Object error) {
+    return '錯誤: $error';
+  }
+
+  @override
+  String get statistics_mostActiveDay => '最活躍日';
+
+  @override
+  String get statistics_leastActiveDay => '最不活躍日';
+
+  @override
+  String get statistics_sunday => '週日';
+
+  @override
+  String get statistics_monday => '週一';
+
+  @override
+  String get statistics_tuesday => '週二';
+
+  @override
+  String get statistics_wednesday => '週三';
+
+  @override
+  String get statistics_thursday => '週四';
+
+  @override
+  String get statistics_friday => '週五';
+
+  @override
+  String get statistics_saturday => '週六';
+
+  @override
+  String get fixedTags_label => '固定詞';
+
+  @override
+  String get fixedTags_enabled => '已啟用';
+
+  @override
+  String get fixedTags_empty => '暫無固定詞';
+
+  @override
+  String get fixedTags_emptyHint => '點選下方按鈕新增固定詞，它們會自動應用到你的提示詞中';
+
+  @override
+  String get fixedTags_manage => '管理固定詞';
+
+  @override
+  String get fixedTags_add => '新增';
+
+  @override
+  String get fixedTags_edit => '編輯固定詞';
+
+  @override
+  String get fixedTags_openLibrary => '開啟詞庫';
+
+  @override
+  String get fixedTags_prefix => '字首';
+
+  @override
+  String get fixedTags_suffix => '字尾';
+
+  @override
+  String get fixedTags_disabled => '已禁用';
+
+  @override
+  String get fixedTags_weight => '權重';
+
+  @override
+  String get fixedTags_position => '位置';
+
+  @override
+  String get fixedTags_name => '名稱';
+
+  @override
+  String get fixedTags_nameHint => '輸入備註名稱（可選）';
+
+  @override
+  String get fixedTags_content => '內容';
+
+  @override
+  String get fixedTags_contentHint => '輸入提示詞內容，支援 NAI 語法';
+
+  @override
+  String get fixedTags_syntaxHelp => '支援 NAI 語法增強/減弱權重、標籤交替等';
+
+  @override
+  String get fixedTags_linkedFromLibrary => '關聯自詞庫（雙向同步）';
+
+  @override
+  String get fixedTags_scope => '作用範圍';
+
+  @override
+  String get fixedTags_positive => '正向';
+
+  @override
+  String get fixedTags_negative => '負向';
+
+  @override
+  String get fixedTags_resetWeight => '重置為 1.0';
+
+  @override
+  String get fixedTags_weightPreview => '權重預覽:';
+
+  @override
+  String get fixedTags_deleteTitle => '刪除固定詞';
+
+  @override
+  String fixedTags_deleteConfirm(Object name) {
+    return '確定要刪除固定詞 \"$name\" 嗎？';
+  }
+
+  @override
+  String fixedTags_enabledCount(Object enabled, Object total) {
+    return '$enabled/$total 已啟用';
+  }
+
+  @override
+  String get fixedTags_saveToLibrary => '同時儲存到詞庫';
+
+  @override
+  String get fixedTags_saveToLibraryHint => '方便日後在詞庫中重複使用';
+
+  @override
+  String get fixedTags_saveToCategory => '儲存到類別';
+
+  @override
+  String get fixedTags_clearAll => '清空';
+
+  @override
+  String get fixedTags_clearAllTitle => '清空所有固定詞';
+
+  @override
+  String fixedTags_clearAllConfirm(Object count) {
+    return '確定要清空所有 $count 個固定詞嗎？此操作不可撤銷。';
+  }
+
+  @override
+  String get fixedTags_clearedSuccess => '已清空所有固定詞';
+
+  @override
+  String get fixedTags_sidebarTitle => '固定詞側欄';
+
+  @override
+  String get fixedTags_switchGridView => '切換網格檢視';
+
+  @override
+  String get fixedTags_switchListView => '切換列表檢視';
+
+  @override
+  String get fixedTags_addPositive => '新增正向固定詞';
+
+  @override
+  String get fixedTags_addNegative => '新增負向固定詞';
+
+  @override
+  String get fixedTags_addPositiveFromLibrary => '從詞庫新增正向';
+
+  @override
+  String get fixedTags_addNegativeFromLibrary => '從詞庫新增負向';
+
+  @override
+  String get fixedTags_searchNameOrContent => '搜尋名稱或內容';
+
+  @override
+  String get fixedTags_clearSearch => '清空搜尋';
+
+  @override
+  String get fixedTags_enabledPositive => '已啟用正向';
+
+  @override
+  String get fixedTags_emptyEnabledPositive => '暫無啟用的正向固定詞';
+
+  @override
+  String get fixedTags_noMatchingEnabled => '沒有匹配的啟用固定詞';
+
+  @override
+  String get fixedTags_negativeTitle => '負向固定詞';
+
+  @override
+  String get fixedTags_emptyNegative => '暫無負向固定詞';
+
+  @override
+  String get fixedTags_noMatchingNegative => '沒有匹配的負向固定詞';
+
+  @override
+  String get fixedTags_addedToSidebar => '已新增到固定詞側欄';
+
+  @override
+  String get fixedTags_unknownCategory => '未知分類';
+
+  @override
+  String get fixedTags_uncategorized => '未分類';
+
+  @override
+  String get fixedTags_clickManageLongPressSidebar => '點選管理，長按開啟側欄';
+
+  @override
+  String get fixedTags_clickManageLongPressCompact => '點選管理，長按側欄';
+
+  @override
+  String get fixedTags_linked => '聯動';
+
+  @override
+  String fixedTags_linkCount(Object count) {
+    return '$count 個聯動';
+  }
+
+  @override
+  String get fixedTags_expandNegative => '展開負向';
+
+  @override
+  String get fixedTags_collapseNegative => '收起負向';
+
+  @override
+  String get fixedTags_undoTooltip => '撤銷固定詞操作';
+
+  @override
+  String get fixedTags_redoTooltip => '重做固定詞操作';
+
+  @override
+  String get fixedTags_positiveTitle => '正向固定詞';
+
+  @override
+  String fixedTags_columnCount(Object enabled, Object total) {
+    return '$enabled/$total';
+  }
+
+  @override
+  String fixedTags_columnFilteredCount(
+    Object enabled,
+    Object total,
+    Object shown,
+  ) {
+    return '$enabled/$total · 顯示 $shown';
+  }
+
+  @override
+  String get fixedTags_new => '新建';
+
+  @override
+  String fixedTags_newTarget(Object target) {
+    return '新建$target';
+  }
+
+  @override
+  String get fixedTags_library => '詞庫';
+
+  @override
+  String fixedTags_addFromLibraryToTarget(Object target) {
+    return '從詞庫新增到$target';
+  }
+
+  @override
+  String get fixedTags_enableAll => '全開';
+
+  @override
+  String get fixedTags_disableAll => '全關';
+
+  @override
+  String fixedTags_searchTarget(Object target) {
+    return '搜尋 $target...';
+  }
+
+  @override
+  String get fixedTags_noMatching => '無匹配固定詞';
+
+  @override
+  String fixedTags_emptyTarget(Object target) {
+    return '暫無$target';
+  }
+
+  @override
+  String get fixedTags_dragToLink => '拖拽建立聯動';
+
+  @override
+  String fixedTags_linkedToNames(Object names) {
+    return '已聯動：$names';
+  }
+
+  @override
+  String get fixedTags_linkInstruction => '拖拽正向固定詞的關聯圖示到負向固定詞即可建立聯動';
+
+  @override
+  String get fixedTags_manageLinks => '管理聯動';
+
+  @override
+  String fixedTags_removeLink(Object name) {
+    return '取消聯動：$name';
+  }
+
+  @override
+  String get fixedTags_footerExpandedHint => '在各列頂部新建或從詞庫新增';
+
+  @override
+  String get fixedTags_newPositive => '新建正向';
+
+  @override
+  String get fixedTags_addPositiveFromLibraryShort => '詞庫新增正向';
+
+  @override
+  String get fixedTags_libraryEmpty => '詞庫為空，請先新增條目';
+
+  @override
+  String get fixedTags_addFromLibrary => '從詞庫新增';
+
+  @override
+  String get fixedTags_searchLibraryEntries => '搜尋詞庫條目...';
+
+  @override
+  String get fixedTags_noMatchingResults => '無匹配結果';
+
+  @override
+  String get reversePrompt_title => '反推';
+
+  @override
+  String get reversePrompt_pending => '待新增';
+
+  @override
+  String reversePrompt_imageCount(Object count) {
+    return '$count 張';
+  }
+
+  @override
+  String get reversePrompt_llmReverse => 'LLM 反推';
+
+  @override
+  String get reversePrompt_characterReplace => '角色替換';
+
+  @override
+  String get reversePrompt_finalResult => '最終結果';
+
+  @override
+  String get reversePrompt_dropToAdd => '鬆開後新增到反推';
+
+  @override
+  String get reversePrompt_addOrDropImages => '增加圖片 / 拖入圖片';
+
+  @override
+  String get reversePrompt_localTaggerModel => '本地 tagger 模型';
+
+  @override
+  String get reversePrompt_localTaggerModelHint => '請在設定中配置模型資料夾';
+
+  @override
+  String get reversePrompt_generalThreshold => '通用標籤閾值';
+
+  @override
+  String get reversePrompt_characterThreshold => '角色標籤閾值';
+
+  @override
+  String get reversePrompt_taggerFilterHint =>
+      '只輸出 General / Character 分類標籤；Rating、Artist、Copyright、Meta 等分類會被過濾。';
+
+  @override
+  String get reversePrompt_replacementEmptyHint =>
+      '替換目標角色為空。這裡從詞庫選擇一個角色作為替換目標，不會注入到正向提示詞。';
+
+  @override
+  String get reversePrompt_selectReplacementCharacter => '從詞庫選擇替換目標角色';
+
+  @override
+  String get reversePrompt_selectReplacementTargetTitle => '選擇替換目標角色';
+
+  @override
+  String get reversePrompt_change => '更換';
+
+  @override
+  String get reversePrompt_start => '開始反推';
+
+  @override
+  String get reversePrompt_sentToPrompt => '已傳送到提示詞';
+
+  @override
+  String get reversePrompt_sendToPrompt => '傳送到提示詞';
+
+  @override
+  String get reversePrompt_externalTarget => '多模態 LLM 反推服務';
+
+  @override
+  String get reversePrompt_dropUnreadable => '拖入源未提供可讀取的圖片檔案或圖片連結';
+
+  @override
+  String get reversePrompt_needImageAndMethod =>
+      '請先新增圖片，並至少啟用 ONNX tagger 或 LLM 反推';
+
+  @override
+  String get reversePrompt_stagePreparing => '準備反推';
+
+  @override
+  String get reversePrompt_stageOnnxTagger => 'ONNX tagger 反推中';
+
+  @override
+  String get reversePrompt_stageLlmReverse => 'LLM 讀圖反推中';
+
+  @override
+  String get reversePrompt_stageCharacterReplace => '角色替換中';
+
+  @override
+  String get reversePrompt_needReplacementCharacter => '請先在反推角色庫中選擇一個有效角色';
+
+  @override
+  String get reversePrompt_needPromptForCharacterReplace => '角色替換需要先獲得反推提示詞';
+
+  @override
+  String get reversePrompt_noOnnxModel => '未找到 ONNX tagger 模型，請先在設定中配置模型資料夾';
+
+  @override
+  String get promptAssistant_translateProcessing => '翻譯中';
+
+  @override
+  String get promptAssistant_optimizeProcessing => '最佳化中';
+
+  @override
+  String get promptAssistant_characterReplaceProcessing => '角色替換中';
+
+  @override
+  String get promptAssistant_customProcessing => '自定義處理中';
+
+  @override
+  String get promptAssistant_imageInputDisabled => '當前自定義任務服務商未啟用圖片輸入';
+
+  @override
+  String get promptAssistant_needCharacter => '請先在反推角色庫中新增有效角色';
+
+  @override
+  String get promptAssistant_assistantSettings => '助手設定';
+
+  @override
+  String get promptAssistant_serviceSettings => '服務設定';
+
+  @override
+  String get promptAssistant_ruleSettings => '規則設定';
+
+  @override
+  String get promptAssistant_cancelCurrentTask => '取消當前任務';
+
+  @override
+  String get promptAssistant_collapseAssistant => '收起助手';
+
+  @override
+  String get promptAssistant_expandAssistant => '展開助手';
+
+  @override
+  String get promptAssistant_history => '歷史';
+
+  @override
+  String get promptAssistant_undo => '撤銷';
+
+  @override
+  String get promptAssistant_redo => '重做';
+
+  @override
+  String get promptAssistant_translate => '翻譯';
+
+  @override
+  String get promptAssistant_optimize => '最佳化';
+
+  @override
+  String get promptAssistant_custom => '自定義';
+
+  @override
+  String get promptAssistant_characterReplace => '角色替換';
+
+  @override
+  String get promptAssistant_cancelTask => '取消任務';
+
+  @override
+  String get promptAssistant_menu => '選單';
+
+  @override
+  String get promptAssistant_customDialogTitle => '自定義提示詞助手';
+
+  @override
+  String get promptAssistant_currentPrompt => '當前提示詞';
+
+  @override
+  String get promptAssistant_currentPromptEmpty => '（當前提示詞為空）';
+
+  @override
+  String get promptAssistant_customRequestLabel => '你的修改需求';
+
+  @override
+  String get promptAssistant_customRequestHint =>
+      '例如：更陰森、增加雨夜街道背景、讓動作更有張力，只返回最終提示詞';
+
+  @override
+  String get promptAssistant_addReferenceImage => '新增參考圖';
+
+  @override
+  String get promptAssistant_execute => '執行';
+
+  @override
+  String promptAssistant_maxReferenceImages(Object count) {
+    return '最多新增 $count 張參考圖片';
+  }
+
+  @override
+  String promptAssistant_unsupportedImageFormat(Object fileName) {
+    return '不支援的圖片格式: $fileName';
+  }
+
+  @override
+  String get promptAssistant_needCustomRequestOrImage => '請輸入自定義需求或新增參考圖片';
+
+  @override
+  String get promptAssistant_taskOptimize => '最佳化';
+
+  @override
+  String get promptAssistant_taskTranslate => '翻譯';
+
+  @override
+  String get promptAssistant_taskReverse => '反推';
+
+  @override
+  String get promptAssistant_taskCharacterReplace => '角色替換';
+
+  @override
+  String get promptAssistant_taskCustom => '自定義';
+
+  @override
+  String get promptAssistant_settingsInputSwitchSubtitle => '輸入框右下角助手開關';
+
+  @override
+  String get promptAssistant_desktopOverlayTitle => '桌面浮層互動';
+
+  @override
+  String get promptAssistant_desktopOverlaySubtitle => '啟用 hover / 右鍵 / 快捷鍵行為';
+
+  @override
+  String get promptAssistant_taskRouting => '任務路由';
+
+  @override
+  String get promptAssistant_taskRoutingSubtitle => '最佳化、翻譯、反推、角色替換可繫結不同服務商和模型';
+
+  @override
+  String promptAssistant_taskRouteTitle(Object title) {
+    return '$title任務';
+  }
+
+  @override
+  String get promptAssistant_provider => '服務商';
+
+  @override
+  String get promptAssistant_model => '模型';
+
+  @override
+  String get promptAssistant_noModelsPullFirst => '暫無模型，請先拉取';
+
+  @override
+  String get promptAssistant_providerManagement => '服務商管理';
+
+  @override
+  String get promptAssistant_providerManagementSubtitle =>
+      '支援 OpenAI Chat / Responses、Anthropic、Gemini、DeepSeek、LM Studio、Ollama、Pollinations 和自定義相容端點';
+
+  @override
+  String get promptAssistant_apiKeyConfigured => 'API Key: 已配置';
+
+  @override
+  String get promptAssistant_apiKeyNotConfigured => 'API Key: 未配置';
+
+  @override
+  String get promptAssistant_supportsImageInput => '支援圖片輸入';
+
+  @override
+  String get promptAssistant_textOnly => '僅文字';
+
+  @override
+  String get promptAssistant_connectionConfig => '連線配置';
+
+  @override
+  String get promptAssistant_pullModelList => '拉取模型列表';
+
+  @override
+  String get promptAssistant_editProvider => '編輯服務商';
+
+  @override
+  String get promptAssistant_deleteProvider => '刪除服務商';
+
+  @override
+  String get promptAssistant_pullingModels => '正在拉取模型列表...';
+
+  @override
+  String get promptAssistant_emptyModelList => '服務返回空模型列表';
+
+  @override
+  String promptAssistant_modelsSynced(Object count) {
+    return '已同步 $count 個模型';
+  }
+
+  @override
+  String promptAssistant_pullModelsFailed(Object error) {
+    return '拉取模型失敗: $error';
+  }
+
+  @override
+  String get promptAssistant_ruleTemplates => '規則模板';
+
+  @override
+  String get promptAssistant_ruleTemplatesSubtitle =>
+      '系統提示詞按“規則 + 使用者輸入 + 任務引數”組裝';
+
+  @override
+  String get promptAssistant_addRule => '新增規則';
+
+  @override
+  String get promptAssistant_addProvider => '新增服務商';
+
+  @override
+  String get promptAssistant_editProviderTitle => '編輯服務商';
+
+  @override
+  String get promptAssistant_name => '名稱';
+
+  @override
+  String get promptAssistant_protocol => '協議';
+
+  @override
+  String get promptAssistant_allowImageInput => '允許傳送圖片輸入';
+
+  @override
+  String get promptAssistant_allowImageInputSubtitle => '僅在模型和服務商實際支援視覺輸入時啟用';
+
+  @override
+  String get promptAssistant_apiKeyLeaveEmpty => 'API Key (留空不改)';
+
+  @override
+  String promptAssistant_connectionTitle(Object name) {
+    return '$name 連線配置';
+  }
+
+  @override
+  String get promptAssistant_baseUrlHint => '例如: https://api.openai.com/v1';
+
+  @override
+  String get promptAssistant_clearCurrentApiKey => '清空當前 API Key';
+
+  @override
+  String get promptAssistant_protocolSupportsImagePayload =>
+      '當前協議支援圖片載荷，仍需模型本身支援視覺輸入';
+
+  @override
+  String get promptAssistant_protocolTextOnlyWarning =>
+      '當前協議預設僅文字，開啟後也可能被服務端拒絕';
+
+  @override
+  String get promptAssistant_addRuleTitle => '新增規則';
+
+  @override
+  String get promptAssistant_editRuleTitle => '編輯規則';
+
+  @override
+  String get promptAssistant_taskType => '任務型別';
+
+  @override
+  String get promptAssistant_ruleContent => '規則內容';
+
+  @override
+  String get promptAssistant_newRule => '新規則';
+
+  @override
+  String autocomplete_resultsCount(Object count) {
+    return '$count 個結果';
+  }
+
+  @override
+  String get autocomplete_keyNavigate => '↑↓/滾輪';
+
+  @override
+  String get autocomplete_actionSelect => '選擇';
+
+  @override
+  String get autocomplete_actionConfirm => '確認';
+
+  @override
+  String get autocomplete_actionClose => '關閉';
+
+  @override
+  String get autocomplete_categoryRecommended => '推薦';
+
+  @override
+  String get autocomplete_categoryCharacter => '角色';
+
+  @override
+  String get autocomplete_categoryCopyright => '版權';
+
+  @override
+  String get autocomplete_categoryArtist => '藝術家';
+
+  @override
+  String get autocomplete_categoryMeta => '後設資料';
+
+  @override
+  String get autocomplete_categoryContributor => '貢獻者';
+
+  @override
+  String get autocomplete_categorySpecies => '物種';
+
+  @override
+  String get autocomplete_categoryLore => '設定';
+
+  @override
+  String get autocomplete_categoryLibrary => '詞庫';
+
+  @override
+  String get autocomplete_categoryGeneral => '通用';
+
+  @override
+  String get promptToken_webCalibration => '網頁端校準';
+
+  @override
+  String get promptToken_prompt => '提示詞';
+
+  @override
+  String get promptToken_fixedTags => '固定詞';
+
+  @override
+  String get promptToken_qualityPreset => '質量預設';
+
+  @override
+  String get promptToken_character => '角色';
+
+  @override
+  String get promptToken_negativePrompt => '負面提示詞';
+
+  @override
+  String get promptToken_negativeFixedTags => '負面固定詞';
+
+  @override
+  String get promptToken_negativePreset => '負面預設';
+
+  @override
+  String get promptToken_characterNegative => '角色負面';
+
+  @override
+  String get common_rename => '重新命名';
+
+  @override
+  String get common_create => '建立';
+
+  @override
+  String get tagLibrary_categories => '分類';
+
+  @override
+  String get tagLibrary_newCategory => '新建分類';
+
+  @override
+  String get tagLibrary_addEntry => '新增條目';
+
+  @override
+  String get tagLibrary_editEntry => '編輯條目';
+
+  @override
+  String get tagLibrary_searchHint => '搜尋條目...';
+
+  @override
+  String get tagLibrary_import => '匯入';
+
+  @override
+  String get tagLibrary_export => '匯出';
+
+  @override
+  String get tagLibrary_sortCustom => '自定義排序';
+
+  @override
+  String get tagLibrary_sortName => '名稱';
+
+  @override
+  String get tagLibrary_sortUseCount => '使用頻率';
+
+  @override
+  String get tagLibrary_sortUpdatedAt => '更新時間';
+
+  @override
+  String get tagLibrary_transferCategory => '轉移分類';
+
+  @override
+  String get tagLibrary_copyContent => '複製內容';
+
+  @override
+  String get tagLibrary_moveToCategoryTitle => '移動到分類';
+
+  @override
+  String get tagLibrary_selectTargetCategory => '選擇目標分類：';
+
+  @override
+  String get tagLibrary_includeThumbnails => '包含預覽圖';
+
+  @override
+  String get tagLibrary_includeThumbnailsSubtitle => '將增加檔案大小';
+
+  @override
+  String tagLibrary_selectedExportCount(Object count) {
+    return '匯出 ($count 項)';
+  }
+
+  @override
+  String tagLibrary_selectedImportCount(Object count) {
+    return '匯入 ($count 項)';
+  }
+
+  @override
+  String get tagLibrary_entriesLabel => '條目';
+
+  @override
+  String get tagLibrary_categoriesLabel => '分類';
+
+  @override
+  String get tagLibrary_selectExportContent => '選擇要匯出的內容';
+
+  @override
+  String get tagLibrary_selectImportContent => '選擇要匯入的內容';
+
+  @override
+  String get tagLibrary_selectSaveLocation => '選擇儲存位置';
+
+  @override
+  String get tagLibrary_preparingExport => '準備匯出...';
+
+  @override
+  String get tagLibrary_exportSuccess => '匯出成功';
+
+  @override
+  String tagLibrary_exportFailedWithError(Object error) {
+    return '匯出失敗: $error';
+  }
+
+  @override
+  String get tagLibrary_selectZipFile => '點選選擇 ZIP 檔案';
+
+  @override
+  String get tagLibrary_zipFileHint => '支援從本應用匯出的詞庫檔案';
+
+  @override
+  String get tagLibrary_reselect => '重新選擇';
+
+  @override
+  String get tagLibrary_fileInfo => '檔案資訊';
+
+  @override
+  String get tagLibrary_entryCountLabel => '條目數';
+
+  @override
+  String get tagLibrary_categoryCountLabel => '分類數';
+
+  @override
+  String get tagLibrary_exportDateLabel => '匯出時間';
+
+  @override
+  String tagLibrary_importConflictsHint(Object count) {
+    return '發現 $count 個衝突項，請點選下方衝突項選擇處理方式';
+  }
+
+  @override
+  String tagLibrary_categoriesSection(Object count) {
+    return '分類 ($count)';
+  }
+
+  @override
+  String tagLibrary_entriesSection(Object count) {
+    return '條目 ($count)';
+  }
+
+  @override
+  String get tagLibrary_conflictResolutionTooltip => '選擇衝突處理方式';
+
+  @override
+  String get tagLibrary_conflictSkip => '衝突 - 將跳過';
+
+  @override
+  String get tagLibrary_conflictRename => '衝突 - 將重新命名匯入';
+
+  @override
+  String get tagLibrary_conflictOverwrite => '衝突 - 將替換現有';
+
+  @override
+  String tagLibrary_parseFileFailed(Object error) {
+    return '無法解析檔案: $error';
+  }
+
+  @override
+  String get tagLibrary_preparingImport => '準備匯入...';
+
+  @override
+  String get tagLibrary_importCompleted => '匯入完成';
+
+  @override
+  String tagLibrary_importSuccessSummary(Object summary) {
+    return '匯入成功: $summary';
+  }
+
+  @override
+  String tagLibrary_importFailedWithError(Object error) {
+    return '匯入失敗: $error';
+  }
+
+  @override
+  String tagLibrary_importedEntriesCount(Object count) {
+    return '$count 條目';
+  }
+
+  @override
+  String tagLibrary_importedCategoriesCount(Object count) {
+    return '$count 分類';
+  }
+
+  @override
+  String tagLibrary_renamedCount(Object count) {
+    return '$count 重新命名';
+  }
+
+  @override
+  String tagLibrary_overwrittenCount(Object count) {
+    return '$count 替換';
+  }
+
+  @override
+  String tagLibrary_skippedCount(Object count) {
+    return '$count 跳過';
+  }
+
+  @override
+  String get tagLibrary_dragToCategoryHint => '拖到左側分類歸檔';
+
+  @override
+  String get tagLibrary_unknownCategory => '未知分類';
+
+  @override
+  String get tagLibrary_selectEntryToUpdate => '選擇要更新的詞條';
+
+  @override
+  String get tagLibrary_updatePreview => '更新預覽圖';
+
+  @override
+  String get tagLibrary_replaceThumbnailHint => '將替換現有預覽圖';
+
+  @override
+  String tagLibrary_sentEntriesToMainPrompt(Object count) {
+    return '已傳送 $count 個詞條到主提示詞';
+  }
+
+  @override
+  String tagLibrary_confirmDeleteSelectedEntries(Object count) {
+    return '確定要刪除選中的 $count 個詞條嗎？此操作不可撤銷。';
+  }
+
+  @override
+  String tagLibrary_deletedEntries(Object count) {
+    return '已刪除 $count 個詞條';
+  }
+
+  @override
+  String tagLibrary_movedEntries(Object count) {
+    return '已移動 $count 個詞條';
+  }
+
+  @override
+  String tagLibrary_favoritedEntries(Object count) {
+    return '已收藏 $count 個詞條';
+  }
+
+  @override
+  String tagLibrary_unfavoritedEntries(Object count) {
+    return '已取消收藏 $count 個詞條';
+  }
+
+  @override
+  String tagLibrary_copiedEntriesContent(Object count) {
+    return '已複製 $count 個詞條的內容';
+  }
+
+  @override
+  String get tagLibrary_droppedImage => '拖入圖片';
+
+  @override
+  String get tagLibrary_createEntryFromImage => '建立新詞條';
+
+  @override
+  String tagLibrary_promptExtracted(Object prompt) {
+    return '提示詞已提取: \"$prompt\"';
+  }
+
+  @override
+  String get tagLibrary_createEntryFromImageSubtitle => '從圖片建立新詞條';
+
+  @override
+  String get tagLibrary_updateExistingThumbnail => '更新現有詞條預覽圖';
+
+  @override
+  String get tagLibrary_updateExistingThumbnailSubtitle => '選擇詞條並替換其預覽圖';
+
+  @override
+  String get tagLibrary_allEntries => '全部';
+
+  @override
+  String get tagLibrary_favorites => '收藏';
+
+  @override
+  String get tagLibrary_addSubCategory => '新增子分類';
+
+  @override
+  String get tagLibrary_moveToRoot => '移動到根目錄';
+
+  @override
+  String get tagLibrary_categoryNameHint => '輸入分類名稱';
+
+  @override
+  String get tagLibrary_deleteCategoryTitle => '刪除分類';
+
+  @override
+  String tagLibrary_deleteCategoryConfirm(Object name, Object count) {
+    return '確定要刪除分類 \"$name\" 嗎？該分類下的 $count 個條目將移至根目錄。';
+  }
+
+  @override
+  String get tagLibrary_deleteEntryTitle => '刪除條目';
+
+  @override
+  String tagLibrary_deleteEntryConfirm(Object name) {
+    return '確定要刪除條目 \"$name\" 嗎？';
+  }
+
+  @override
+  String get tagLibrary_noSearchResults => '沒有找到匹配的條目';
+
+  @override
+  String get tagLibrary_tryDifferentSearch => '嘗試使用其他關鍵詞搜尋';
+
+  @override
+  String get tagLibrary_categoryEmpty => '該分類暫無條目';
+
+  @override
+  String get tagLibrary_empty => '詞庫為空';
+
+  @override
+  String get tagLibrary_addFirstEntry => '點選上方按鈕新增第一個條目';
+
+  @override
+  String get tagLibraryPicker_title => '選擇詞條';
+
+  @override
+  String get tagLibraryPicker_searchHint => '搜尋詞條...';
+
+  @override
+  String get tagLibraryPicker_allCategories => '全部分類';
+
+  @override
+  String get tagLibrary_addedToFixed => '已新增到固定詞';
+
+  @override
+  String get tagLibrary_entryMoved => '條目已移動到目標分類';
+
+  @override
+  String get tagLibrary_addFavorite => '新增收藏';
+
+  @override
+  String get tagLibrary_thumbnail => '預覽圖';
+
+  @override
+  String get tagLibrary_selectImage => '選擇圖片';
+
+  @override
+  String get tagLibrary_thumbnailHint => '支援 PNG、JPG、WEBP、GIF、BMP、TIFF 等格式';
+
+  @override
+  String get tagLibrary_name => '名稱';
+
+  @override
+  String get tagLibrary_nameHint => '輸入條目名稱';
+
+  @override
+  String get tagLibrary_category => '分類';
+
+  @override
+  String get tagLibrary_rootCategory => '根目錄';
+
+  @override
+  String get tagLibrary_tags => '標籤';
+
+  @override
+  String get tagLibrary_tagsHint => '輸入標籤，用逗號分隔';
+
+  @override
+  String get tagLibrary_tagsHelper => '標籤用於篩選和搜尋';
+
+  @override
+  String get tagLibrary_content => '提示詞內容';
+
+  @override
+  String get tagLibrary_contentHint => '輸入提示詞內容，支援智慧補全';
+
+  @override
+  String get settings_network => '網路';
+
+  @override
+  String get settings_enableProxy => '啟用代理';
+
+  @override
+  String get settings_proxyEnabled => '已啟用';
+
+  @override
+  String get settings_proxyDisabled => '直接連線網路';
+
+  @override
+  String get settings_proxyTrafficDisclosure =>
+      '代理啟用後，NovelAI API 流量（包括認證請求）會透過系統代理或手動代理傳送。只使用你信任的代理。';
+
+  @override
+  String get settings_proxyMode => '代理模式';
+
+  @override
+  String get settings_proxyModeAuto => '自動檢測系統代理';
+
+  @override
+  String get settings_proxyModeManual => '手動配置';
+
+  @override
+  String get settings_auto => '自動';
+
+  @override
+  String get settings_manual => '手動';
+
+  @override
+  String get settings_proxyHost => '代理地址';
+
+  @override
+  String get settings_proxyPort => '埠';
+
+  @override
+  String get settings_proxyNotDetected => '未檢測到系統代理';
+
+  @override
+  String get settings_testConnection => '測試連線';
+
+  @override
+  String get settings_testConnectionHint => '點選測試代理是否可用';
+
+  @override
+  String settings_testSuccess(Object latency) {
+    return '連線成功 (${latency}ms)';
+  }
+
+  @override
+  String settings_testFailed(Object error) {
+    return '連線失敗: $error';
+  }
+
+  @override
+  String get settings_proxyRestartHint => '代理設定已更改，建議重啟應用';
+
+  @override
+  String get tagLibrary_categoryNameExists => '該分類名稱已存在';
+
+  @override
+  String get tagLibrary_addToLibrary => '收藏到詞庫';
+
+  @override
+  String get tagLibrary_saveToLibrary => '儲存到詞庫';
+
+  @override
+  String get tagLibrary_entrySaved => '收藏成功';
+
+  @override
+  String get tagLibrary_entryUpdated => '條目已更新';
+
+  @override
+  String get tagLibrary_uncategorized => '未分類';
+
+  @override
+  String get tagLibrary_contentPreview => '內容預覽';
+
+  @override
+  String get tagLibrary_confirmAdd => '確認收藏';
+
+  @override
+  String get tagLibrary_entryName => '名稱';
+
+  @override
+  String get tagLibrary_entryNameHint => '輸入條目名稱';
+
+  @override
+  String get tagLibrary_selectNewImage => '選擇新圖片';
+
+  @override
+  String get tagLibrary_adjustDisplayRange => '調整顯示範圍';
+
+  @override
+  String get tagLibrary_adjustThumbnailTitle => '調整預覽圖顯示範圍';
+
+  @override
+  String get tagLibrary_dragToMove => '拖拽移動，滾輪或雙指縮放';
+
+  @override
+  String get queue_management => '佇列管理';
+
+  @override
+  String get queue_empty => '佇列為空';
+
+  @override
+  String get queue_emptyHint => '沒有待執行的任務';
+
+  @override
+  String queue_taskCount(Object count) {
+    return '$count 個任務';
+  }
+
+  @override
+  String get queue_pending => '等待中';
+
+  @override
+  String get queue_running => '執行中';
+
+  @override
+  String get queue_completed => '已完成';
+
+  @override
+  String get queue_failed => '失敗';
+
+  @override
+  String get queue_paused => '已暫停';
+
+  @override
+  String get queue_idle => '空閒';
+
+  @override
+  String get queue_ready => '就緒';
+
+  @override
+  String get queue_clickToStart => '點選開始執行佇列';
+
+  @override
+  String get queue_clickToPause => '點選暫停佇列';
+
+  @override
+  String get queue_clickToResume => '點選繼續執行';
+
+  @override
+  String get queue_noTasksToStart => '佇列為空，無法開始';
+
+  @override
+  String get queue_allTasksCompleted => '所有任務已完成';
+
+  @override
+  String get queue_executionProgress => '執行進度';
+
+  @override
+  String get queue_totalTasks => '總數';
+
+  @override
+  String get queue_completedTasks => '已完成';
+
+  @override
+  String get queue_failedTasks => '失敗';
+
+  @override
+  String get queue_remainingTasks => '剩餘';
+
+  @override
+  String queue_estimatedTime(Object time) {
+    return '預計：約 $time';
+  }
+
+  @override
+  String queue_seconds(Object count) {
+    return '$count 秒';
+  }
+
+  @override
+  String queue_minutes(Object count) {
+    return '$count 分鐘';
+  }
+
+  @override
+  String queue_hours(Object hours, Object minutes) {
+    return '$hours 小時 $minutes 分鐘';
+  }
+
+  @override
+  String get queue_pause => '暫停';
+
+  @override
+  String get queue_resume => '繼續';
+
+  @override
+  String get queue_pauseExecution => '暫停執行';
+
+  @override
+  String get queue_resumeExecution => '繼續執行';
+
+  @override
+  String get queue_autoExecute => '自動執行';
+
+  @override
+  String get queue_autoExecuteOn => '完成後自動執行下一個任務';
+
+  @override
+  String get queue_autoExecuteOff => '需要手動點選生成';
+
+  @override
+  String get queue_clearQueue => '清空佇列';
+
+  @override
+  String get queue_closeFloatingButton => '關閉懸浮球';
+
+  @override
+  String get queue_clearQueueConfirm => '確定要清空所有佇列任務嗎？此操作不可撤銷。';
+
+  @override
+  String get queue_confirmClear => '確認清空';
+
+  @override
+  String queue_retryCount(Object current, Object max) {
+    return '重試 $current/$max';
+  }
+
+  @override
+  String get queue_retry => '重試';
+
+  @override
+  String get queue_requeue => '重新排隊';
+
+  @override
+  String get queue_clearFailedTasks => '清空全部';
+
+  @override
+  String get queue_noFailedTasks => '暫無失敗任務';
+
+  @override
+  String get queue_noCompletedTasks => '暫無完成記錄';
+
+  @override
+  String get queue_editTask => '編輯任務';
+
+  @override
+  String get queue_duplicateTask => '複製任務';
+
+  @override
+  String get queue_taskDuplicated => '任務已複製';
+
+  @override
+  String get queue_queueFull => '佇列已滿，無法複製';
+
+  @override
+  String get queue_positivePrompt => '正向提示詞';
+
+  @override
+  String get queue_enterPositivePrompt => '輸入正向提示詞...';
+
+  @override
+  String get queue_parametersPreview => '引數預覽';
+
+  @override
+  String get queue_model => '模型';
+
+  @override
+  String get queue_seed => '種子';
+
+  @override
+  String get queue_sampler => '取樣器';
+
+  @override
+  String get queue_steps => '步數';
+
+  @override
+  String get queue_cfg => 'CFG';
+
+  @override
+  String get queue_size => '尺寸';
+
+  @override
+  String get queue_addToQueue => '加入佇列';
+
+  @override
+  String get queue_taskAdded => '已加入佇列';
+
+  @override
+  String get queue_negativePromptFromMain => '負向提示詞將使用主介面設定';
+
+  @override
+  String get queue_pinToTop => '置頂';
+
+  @override
+  String get queue_delete => '刪除';
+
+  @override
+  String get queue_edit => '編輯';
+
+  @override
+  String get queue_selectAll => '全選';
+
+  @override
+  String get queue_invertSelection => '反選';
+
+  @override
+  String get queue_cancelSelection => '取消';
+
+  @override
+  String queue_selectedCount(Object count) {
+    return '已選 $count 個';
+  }
+
+  @override
+  String queue_confirmDeleteSelected(Object count) {
+    return '確定要刪除選中的 $count 個任務嗎？';
+  }
+
+  @override
+  String get queue_export => '匯出';
+
+  @override
+  String get queue_import => '匯入';
+
+  @override
+  String get queue_exportImport => '佇列匯入/匯出';
+
+  @override
+  String get queue_exportFormat => '匯出格式';
+
+  @override
+  String get queue_exportFormatJson => 'JSON';
+
+  @override
+  String get queue_exportFormatJsonDesc => '完整資料，包含所有引數';
+
+  @override
+  String get queue_exportFormatCsv => 'CSV';
+
+  @override
+  String get queue_exportFormatCsvDesc => '表格格式，含提示詞和基本資訊';
+
+  @override
+  String get queue_exportFormatText => '純文字';
+
+  @override
+  String get queue_exportFormatTextDesc => '僅提示詞，每行一個';
+
+  @override
+  String get queue_importStrategy => '匯入策略';
+
+  @override
+  String get queue_importStrategyMerge => '合併';
+
+  @override
+  String get queue_importStrategyMergeDesc => '將匯入的任務新增到現有佇列末尾';
+
+  @override
+  String get queue_importStrategyReplace => '替換';
+
+  @override
+  String get queue_importStrategyReplaceDesc => '清空現有佇列，使用匯入的任務替換';
+
+  @override
+  String get queue_supportedFormats => '支援的格式：';
+
+  @override
+  String get queue_supportedFormatJson => '• JSON 檔案 (.json)';
+
+  @override
+  String get queue_supportedFormatCsv => '• CSV 檔案 (.csv)';
+
+  @override
+  String get queue_supportedFormatText => '• 純文字檔案 (.txt) - 每行一個提示詞';
+
+  @override
+  String get queue_shareSubject => '佇列匯出';
+
+  @override
+  String queue_unsupportedFileFormat(Object extension) {
+    return '不支援的檔案格式: $extension';
+  }
+
+  @override
+  String get queue_exportSuccess => '匯出成功';
+
+  @override
+  String queue_exportFailed(Object error) {
+    return '匯出失敗：$error';
+  }
+
+  @override
+  String queue_importSuccess(Object count) {
+    return '成功匯入 $count 個任務';
+  }
+
+  @override
+  String queue_importFailed(Object error) {
+    return '匯入失敗：$error';
+  }
+
+  @override
+  String get queue_selectFile => '選擇要匯入的檔案';
+
+  @override
+  String get queue_noValidTasks => '檔案中沒有有效任務';
+
+  @override
+  String get settings_queueRetryCount => '重試次數';
+
+  @override
+  String get settings_queueRetryInterval => '重試間隔';
+
+  @override
+  String get settings_showRandomPromptTools => '顯示隨機提示詞工具';
+
+  @override
+  String get settings_showRandomPromptToolsSubtitle =>
+      '在生成頁顯示“隨機提示詞”按鈕和“抽卡模式”開關';
+
+  @override
+  String get settings_enablePromptWeightScroll => '滾輪調整提示詞權重';
+
+  @override
+  String get settings_enablePromptWeightScrollSubtitle =>
+      '選中提示詞時，滾輪僅調整權重，不再觸發頁面滾動等其他滾輪操作';
+
+  @override
+  String settings_queueRetryCountMax(Object count) {
+    return '最多 $count 次';
+  }
+
+  @override
+  String settings_queueRetryIntervalValue(Object seconds) {
+    return '$seconds 秒';
+  }
+
+  @override
+  String get unit_times => '次';
+
+  @override
+  String get unit_seconds => '秒';
+
+  @override
+  String get settings_floatingButtonBackground => '懸浮球背景';
+
+  @override
+  String get settings_floatingButtonBackgroundCustom => '已設定自定義背景';
+
+  @override
+  String get settings_floatingButtonBackgroundDefault => '預設樣式';
+
+  @override
+  String get settings_clearBackground => '清除背景';
+
+  @override
+  String get settings_selectImage => '選擇圖片';
+
+  @override
+  String queue_currentQueueInfo(Object count) {
+    return '當前佇列包含 $count 個任務';
+  }
+
+  @override
+  String queue_tooltipTasksTotal(Object count) {
+    return '任務數：$count';
+  }
+
+  @override
+  String queue_tooltipCompleted(Object count) {
+    return '已完成：$count';
+  }
+
+  @override
+  String queue_tooltipFailed(Object count) {
+    return '失敗：$count';
+  }
+
+  @override
+  String queue_tooltipCurrentTask(Object task) {
+    return '當前任務：$task';
+  }
+
+  @override
+  String get queue_tooltipNoTasks => '佇列中沒有任務';
+
+  @override
+  String get queue_tooltipDoubleClickToOpen => '雙擊開始/暫停';
+
+  @override
+  String get queue_tooltipClickToToggle => '單擊開啟佇列管理';
+
+  @override
+  String get queue_tooltipDragToMove => '拖拽調整位置';
+
+  @override
+  String get queue_statusIdle => '狀態：空閒';
+
+  @override
+  String get queue_statusReady => '狀態：就緒';
+
+  @override
+  String get queue_statusRunning => '狀態：執行中';
+
+  @override
+  String get queue_statusPaused => '狀態：已暫停';
+
+  @override
+  String get queue_statusCompleted => '狀態：已完成';
+
+  @override
+  String get settings_notificationSound => '完成音效';
+
+  @override
+  String get settings_notificationSoundSubtitle => '生成完成時播放提示音效';
+
+  @override
+  String get settings_notificationCustomSound => '自定義音效';
+
+  @override
+  String get settings_notificationSelectSound => '選擇音效';
+
+  @override
+  String get settings_notificationResetSound => '恢復預設';
+
+  @override
+  String get categoryConfiguration => '類別配置';
+
+  @override
+  String get resetToDefault => '重置為預設';
+
+  @override
+  String get resetToDefaultTooltip => '重置為預設配置';
+
+  @override
+  String get toggleGroupEnabled => '切換片語啟用狀態';
+
+  @override
+  String get diyNotAvailableForDefault => '預設預設不支援 DIY 配置';
+
+  @override
+  String get diyNotAvailableHint => '請複製為自定義預設後編輯';
+
+  @override
+  String get statistics_heatmapLess => '少';
+
+  @override
+  String get statistics_heatmapMore => '多';
+
+  @override
+  String statistics_heatmapActivities(Object count) {
+    return '$count 次活動';
+  }
+
+  @override
+  String get statistics_heatmapNoActivity => '無活動';
+
+  @override
+  String get sendToHome_dialogTitle => '傳送到主頁';
+
+  @override
+  String get sendToHome_send => '傳送';
+
+  @override
+  String get sendToHome_mainPrompt => '傳送到主提示詞';
+
+  @override
+  String get sendToHome_mainPromptSubtitle => '填充到主頁的正向提示詞輸入框';
+
+  @override
+  String get sendToHome_mainPromptPipeSubtitle => '傳送完整內容到主提示詞（包含豎線）';
+
+  @override
+  String get sendToHome_smartDecompose => '智慧分解';
+
+  @override
+  String sendToHome_smartDecomposeSubtitle(Object count) {
+    return '主提示詞 + $count個角色';
+  }
+
+  @override
+  String get sendToHome_replaceCharacter => '替換角色提示詞';
+
+  @override
+  String get sendToHome_replaceCharacterSubtitle => '清空現有角色，新增為新角色';
+
+  @override
+  String get sendToHome_appendCharacter => '追加角色提示詞';
+
+  @override
+  String get sendToHome_appendCharacterSubtitle => '保留現有角色，追加新角色';
+
+  @override
+  String get sendToHome_fixedTags => '傳送到固定詞';
+
+  @override
+  String get sendToHome_fixedTagsSubtitle => '追加到固定詞列表';
+
+  @override
+  String get sendToHome_sendAsAlias => '作為別名傳送';
+
+  @override
+  String sendToHome_sendAsAliasSubtitle(Object name) {
+    return '傳送到主頁時包裝為 <$name>';
+  }
+
+  @override
+  String get sendToHome_preview => '傳送預覽';
+
+  @override
+  String get sendToHome_characterPrompt => '角色提示詞';
+
+  @override
+  String sendToHome_characterPromptCount(Object count) {
+    return '角色提示詞 ($count個)';
+  }
+
+  @override
+  String sendToHome_characterIndex(Object index) {
+    return '角色 $index';
+  }
+
+  @override
+  String get sendToHome_recommended => '推薦';
+
+  @override
+  String get sendToHome_successMainPrompt => '已傳送到主提示詞';
+
+  @override
+  String get sendToHome_successReplaceCharacter => '已替換角色提示詞';
+
+  @override
+  String get sendToHome_successAppendCharacter => '已追加角色提示詞';
+
+  @override
+  String get metadataImport_title => '選擇要套用的引數';
+
+  @override
+  String get metadataImport_promptsSection => '提示詞';
+
+  @override
+  String get metadataImport_generationSection => '生成引數';
+
+  @override
+  String get metadataImport_selectAll => '全選';
+
+  @override
+  String get metadataImport_promptsOnly => '僅提示詞';
+
+  @override
+  String get metadataImport_generationOnly => '僅引數';
+
+  @override
+  String get metadataImport_clear => '清空';
+
+  @override
+  String get metadataImport_mainPrompt => '主提示詞';
+
+  @override
+  String get metadataImport_fixedTags => '固定詞';
+
+  @override
+  String metadataImport_fixedPrefix(Object text) {
+    return '字首: $text';
+  }
+
+  @override
+  String metadataImport_fixedSuffix(Object text) {
+    return '字尾: $text';
+  }
+
+  @override
+  String metadataImport_negativeFixedPrefix(Object text) {
+    return '負向字首: $text';
+  }
+
+  @override
+  String metadataImport_negativeFixedSuffix(Object text) {
+    return '負向字尾: $text';
+  }
+
+  @override
+  String metadataImport_qualityTagsCount(int count) {
+    return '質量詞 ($count個)';
+  }
+
+  @override
+  String get metadataImport_negativePrompt => '負向提示詞';
+
+  @override
+  String get metadataImport_characterPrompts => '多角色提示詞';
+
+  @override
+  String metadataImport_characterPromptsCount(int count) {
+    return '角色提示詞 ($count個)';
+  }
+
+  @override
+  String metadataImport_characterIndex(int index, Object text) {
+    return '角色$index: $text';
+  }
+
+  @override
+  String get metadataImport_referenceSection => '參考圖';
+
+  @override
+  String metadataImport_countUnit(int count) {
+    return '$count個';
+  }
+
+  @override
+  String metadataImport_preciseReferenceCount(int count) {
+    return '精準參考 ($count個)';
+  }
+
+  @override
+  String metadataImport_vibeDetail(Object name, Object strength, Object info) {
+    return '$name (強度 $strength%, 資訊提取 $info%)';
+  }
+
+  @override
+  String metadataImport_preciseReferenceDetail(
+    int index,
+    Object type,
+    Object strength,
+    Object fidelity,
+  ) {
+    return '參考$index: $type (強度 $strength%, 保真 $fidelity%)';
+  }
+
+  @override
+  String get metadataImport_noData => '（無資料）';
+
+  @override
+  String metadataImport_selectedCount(int count) {
+    return '已選擇 $count 項';
+  }
+
+  @override
+  String get metadataImport_noDataFound => '未找到 NovelAI 後設資料';
+
+  @override
+  String get metadataImport_noParamsSelected => '未選擇任何要應用的引數';
+
+  @override
+  String metadataImport_appliedCount(int count) {
+    return '已應用 $count 項引數';
+  }
+
+  @override
+  String get shortcut_context_global => '全域性';
+
+  @override
+  String get shortcut_context_generation => '生成頁面';
+
+  @override
+  String get shortcut_context_gallery => '畫廊列表';
+
+  @override
+  String get shortcut_context_viewer => '圖片檢視器';
+
+  @override
+  String get shortcut_context_tag_library => '詞庫';
+
+  @override
+  String get shortcut_context_random_config => '隨機配置';
+
+  @override
+  String get shortcut_context_settings => '設定';
+
+  @override
+  String get shortcut_context_input => '輸入框';
+
+  @override
+  String get shortcut_action_navigate_to_generation => '生成頁面';
+
+  @override
+  String get shortcut_action_navigate_to_local_gallery => '本地畫廊';
+
+  @override
+  String get shortcut_action_navigate_to_online_gallery => '線上畫廊';
+
+  @override
+  String get shortcut_action_navigate_to_random_config => '隨機配置';
+
+  @override
+  String get shortcut_action_navigate_to_tag_library => '詞庫頁面';
+
+  @override
+  String get shortcut_action_navigate_to_statistics => '統計頁面';
+
+  @override
+  String get shortcut_action_navigate_to_settings => '設定頁面';
+
+  @override
+  String get shortcut_action_generate_image => '生成影象';
+
+  @override
+  String get shortcut_action_generation_prev_image => '預覽上一張（歷史聯動）';
+
+  @override
+  String get shortcut_action_generation_next_image => '預覽下一張（歷史聯動）';
+
+  @override
+  String get shortcut_action_cancel_generation => '取消生成';
+
+  @override
+  String get shortcut_action_add_to_queue => '加入佇列';
+
+  @override
+  String get shortcut_action_random_prompt => '隨機提示詞';
+
+  @override
+  String get shortcut_action_clear_prompt => '清空提示詞';
+
+  @override
+  String get shortcut_action_toggle_prompt_mode => '切換正/負面模式';
+
+  @override
+  String get shortcut_action_open_tag_library => '開啟詞庫';
+
+  @override
+  String get shortcut_action_save_image => '儲存影象';
+
+  @override
+  String get shortcut_action_upscale_image => '放大影象';
+
+  @override
+  String get shortcut_action_copy_image => '複製影象';
+
+  @override
+  String get shortcut_action_fullscreen_preview => '全屏預覽';
+
+  @override
+  String get shortcut_action_open_params_panel => '開啟引數面板';
+
+  @override
+  String get shortcut_action_open_history_panel => '開啟歷史面板';
+
+  @override
+  String get shortcut_action_reuse_params => '複用引數';
+
+  @override
+  String get shortcut_action_previous_image => '上一張';
+
+  @override
+  String get shortcut_action_next_image => '下一張';
+
+  @override
+  String get shortcut_action_zoom_in => '放大';
+
+  @override
+  String get shortcut_action_zoom_out => '縮小';
+
+  @override
+  String get shortcut_action_reset_zoom => '重置縮放';
+
+  @override
+  String get shortcut_action_toggle_fullscreen => '全屏切換';
+
+  @override
+  String get shortcut_action_close_viewer => '關閉檢視器';
+
+  @override
+  String get shortcut_action_toggle_favorite => '收藏切換';
+
+  @override
+  String get shortcut_action_copy_prompt => '複製Prompt';
+
+  @override
+  String get shortcut_action_reuse_gallery_params => '複用引數';
+
+  @override
+  String get shortcut_action_delete_image => '刪除圖片';
+
+  @override
+  String get shortcut_action_previous_page => '上一頁';
+
+  @override
+  String get shortcut_action_next_page => '下一頁';
+
+  @override
+  String get shortcut_action_refresh_gallery => '重新整理';
+
+  @override
+  String get shortcut_action_focus_search => '搜尋聚焦';
+
+  @override
+  String get shortcut_action_enter_selection_mode => '進入選擇模式';
+
+  @override
+  String get shortcut_action_open_filter_panel => '開啟篩選面板';
+
+  @override
+  String get shortcut_action_clear_filter => '清除篩選';
+
+  @override
+  String get shortcut_action_toggle_category_panel => '切換分類面板';
+
+  @override
+  String get shortcut_action_jump_to_date => '跳轉到日期';
+
+  @override
+  String get shortcut_action_open_folder => '開啟資料夾';
+
+  @override
+  String get shortcut_action_select_all_tags => '全選標籤';
+
+  @override
+  String get shortcut_action_deselect_all_tags => '取消全選';
+
+  @override
+  String get shortcut_action_new_category => '新建分類';
+
+  @override
+  String get shortcut_action_new_tag => '新建標籤';
+
+  @override
+  String get shortcut_action_search_tags => '搜尋標籤';
+
+  @override
+  String get shortcut_action_batch_delete_tags => '批次刪除標籤';
+
+  @override
+  String get shortcut_action_batch_copy_tags => '批次複製標籤';
+
+  @override
+  String get shortcut_action_send_to_home => '傳送到首頁';
+
+  @override
+  String get shortcut_action_exit_selection_mode => '退出選擇模式';
+
+  @override
+  String get shortcut_action_sync_danbooru => '同步Danbooru';
+
+  @override
+  String get shortcut_action_generate_preview => '生成預覽';
+
+  @override
+  String get shortcut_action_search_presets => '搜尋預設';
+
+  @override
+  String get shortcut_action_new_preset => '新建預設';
+
+  @override
+  String get shortcut_action_duplicate_preset => '複製預設';
+
+  @override
+  String get shortcut_action_delete_preset => '刪除預設';
+
+  @override
+  String get shortcut_action_close_config => '關閉配置';
+
+  @override
+  String get shortcut_action_minimize_to_tray => '最小化到托盤';
+
+  @override
+  String get shortcut_action_quit_app => '退出應用';
+
+  @override
+  String get shortcut_action_show_shortcut_help => '顯示快捷鍵幫助';
+
+  @override
+  String get shortcut_action_toggle_queue => '切換佇列';
+
+  @override
+  String get shortcut_action_toggle_queue_pause => '暫停/繼續佇列';
+
+  @override
+  String get shortcut_action_toggle_theme => '切換主題';
+
+  @override
+  String get shortcut_settings_title => '鍵盤快捷鍵';
+
+  @override
+  String get shortcut_settings_enable => '啟用快捷鍵';
+
+  @override
+  String get shortcut_settings_show_badges => '顯示快捷鍵標識';
+
+  @override
+  String get shortcut_settings_show_in_tooltips => '在提示中顯示';
+
+  @override
+  String get shortcut_settings_reset_all => '重置全部為預設';
+
+  @override
+  String get shortcut_settings_search => '搜尋快捷鍵...';
+
+  @override
+  String get shortcut_settings_press_key => '按下按鍵組合...';
+
+  @override
+  String get shortcut_help_title => '快捷鍵幫助';
+
+  @override
+  String get shortcut_help_search => '搜尋快捷鍵...';
+
+  @override
+  String get shortcut_help_all => '全部';
+
+  @override
+  String get shortcut_help_tip => '提示：按 F1 或 ? 鍵可隨時開啟此幫助對話方塊';
+
+  @override
+  String get shortcut_help_fabTooltip => '快捷鍵幫助 (F1)';
+
+  @override
+  String get shortcut_editor_recordingInline => '按快捷鍵...';
+
+  @override
+  String get shortcut_editor_pressEscToCancel => '按 Esc 取消';
+
+  @override
+  String get shortcut_editor_clickToRecord => '點選開始錄製';
+
+  @override
+  String shortcut_editor_conflictWith(Object action) {
+    return '此快捷鍵與 \"$action\" 衝突';
+  }
+
+  @override
+  String get drop_dialogTitle => '如何使用這張圖片？';
+
+  @override
+  String get drop_hint => '拖拽圖片到這裡';
+
+  @override
+  String get drop_img2img => '圖生圖';
+
+  @override
+  String get drop_reversePrompt => '反推';
+
+  @override
+  String get drop_vibeTransfer => '風格遷移';
+
+  @override
+  String get drop_characterReference => '精準參考';
+
+  @override
+  String get drop_unsupportedFormat => '不支援的檔案格式';
+
+  @override
+  String get drop_addedToImg2Img => '已新增到圖生圖';
+
+  @override
+  String get drop_addedToReversePrompt => '已新增到反推';
+
+  @override
+  String get drop_addedToVibe => '已新增到風格遷移';
+
+  @override
+  String drop_addedMultipleToVibe(int count) {
+    return '已新增 $count 個風格參考';
+  }
+
+  @override
+  String get drop_addedToCharacterRef => '已新增到精準參考';
+
+  @override
+  String get drop_extractMetadata => '提取後設資料';
+
+  @override
+  String get drop_extractMetadataSubtitle => '讀取圖片中的 Prompt、Seed 等引數';
+
+  @override
+  String get drop_addToQueue => '加入佇列';
+
+  @override
+  String get drop_addToQueueSubtitle => '提取正面提示詞並加入生成佇列';
+
+  @override
+  String get drop_vibeDetected => '檢測到預編碼 Vibe（可節省 2 Anlas）';
+
+  @override
+  String drop_vibeStrength(Object value) {
+    return '強度: $value%';
+  }
+
+  @override
+  String drop_vibeInfoExtracted(Object value) {
+    return '資訊提取: $value%';
+  }
+
+  @override
+  String get drop_reuseVibe => '複用 Vibe';
+
+  @override
+  String get drop_reuseVibeSubtitle => '直接使用預編碼資料（免費）';
+
+  @override
+  String get drop_useAsRawImage => '作為原始圖片';
+
+  @override
+  String get drop_useAsRawImageSubtitle => '重新編碼（消耗 2 Anlas）';
+
+  @override
+  String get drop_dragToImg2ImgOrOther => '拖拽到圖生圖或其他區域';
+
+  @override
+  String get preciseRef_title => '精準參考';
+
+  @override
+  String get preciseRef_description => '新增參考圖並設定型別和引數，可同時使用多個參考。';
+
+  @override
+  String get preciseRef_addReference => '新增參考圖';
+
+  @override
+  String get preciseRef_clearAll => '清空全部';
+
+  @override
+  String get preciseRef_remove => '移除';
+
+  @override
+  String get preciseRef_referenceType => '參考型別';
+
+  @override
+  String get preciseRef_strength => '參考強度';
+
+  @override
+  String get preciseRef_fidelity => '保真度';
+
+  @override
+  String get preciseRef_v4Only => '此功能僅 V4.5 模型支援';
+
+  @override
+  String get preciseRef_typeCharacter => '角色';
+
+  @override
+  String get preciseRef_typeStyle => '風格';
+
+  @override
+  String get preciseRef_typeCharacterAndStyle => '角色+風格';
+
+  @override
+  String get preciseRef_costHint => '使用精準參考會消耗額外點數';
+
+  @override
+  String get preciseRef_costBadge => '消耗點數';
+
+  @override
+  String get preciseRef_dropToAdd => '鬆開後新增精準參考';
+
+  @override
+  String get preciseRef_dropNoReadableImage => '拖入源未提供可讀取的圖片檔案或圖片連結';
+
+  @override
+  String preciseRef_addedCount(int count) {
+    return '已新增 $count 個精準參考';
+  }
+
+  @override
+  String preciseRef_removedCount(int count) {
+    return '已刪除 $count 個精準參考';
+  }
+
+  @override
+  String get vibeLibrary_title => 'Vibe 庫';
+
+  @override
+  String get vibeLibrary_categories => '分類';
+
+  @override
+  String get vibeLibrary_createCategoryTitle => '新建分類';
+
+  @override
+  String get vibeLibrary_createSubCategoryTitle => '新建子分類';
+
+  @override
+  String get vibeLibrary_categoryNameHint => '請輸入分類名稱';
+
+  @override
+  String get vibeLibrary_createCategoryConfirm => '建立';
+
+  @override
+  String get vibeLibrary_deleteCategoryTitle => '確認刪除';
+
+  @override
+  String get vibeLibrary_deleteCategoryContent =>
+      '確定要刪除此分類嗎？分類下的 Vibe 將被移動到未分類。';
+
+  @override
+  String get vibeLibrary_sortTooltip => '排序方式';
+
+  @override
+  String get vibeLibrary_hideCategoryPanel => '隱藏分類面板';
+
+  @override
+  String get vibeLibrary_showCategoryPanel => '顯示分類面板';
+
+  @override
+  String get vibeLibrary_enterSelectionMode => '進入選擇模式';
+
+  @override
+  String get vibeLibrary_importTooltip =>
+      '匯入 Vibe 檔案或 PNG/JPG/JPEG/WEBP 圖片（右鍵檢視更多選項）';
+
+  @override
+  String get vibeLibrary_exportTooltip => '匯出 Vibe 到檔案';
+
+  @override
+  String get vibeLibrary_openFolderTooltip => '開啟 Vibe 庫資料夾';
+
+  @override
+  String get vibeLibrary_refresh => '重新整理';
+
+  @override
+  String get vibeLibrary_loading => '載入中...';
+
+  @override
+  String vibeLibrary_totalCount(Object count) {
+    return '共 $count 個 Vibe';
+  }
+
+  @override
+  String get vibeLibrary_noCategoriesAvailable => '沒有可用的分類';
+
+  @override
+  String get vibeLibrary_moveToCategory => '移動到分類';
+
+  @override
+  String get vibeLibrary_uncategorized => '未分類';
+
+  @override
+  String vibeLibrary_movedToCategory(Object count) {
+    return '已移動 $count 個 Vibe';
+  }
+
+  @override
+  String get vibeLibrary_favoriteStatusUpdated => '收藏狀態已更新';
+
+  @override
+  String get vibeLibrary_importFromFile => '從檔案匯入';
+
+  @override
+  String get vibeLibrary_importFromImage => '從圖片匯入';
+
+  @override
+  String get vibeLibrary_importFromClipboard => '從剪貼簿匯入編碼';
+
+  @override
+  String vibeLibrary_openFolderFailed(Object error) {
+    return '開啟資料夾失敗: $error';
+  }
+
+  @override
+  String get vibeLibrary_importFileDialogTitle => '選擇要匯入的 Vibe 檔案';
+
+  @override
+  String get vibeLibrary_preparingImport => '準備匯入...';
+
+  @override
+  String vibeLibrary_importSuccessCount(Object count) {
+    return '成功匯入 $count 個 Vibe';
+  }
+
+  @override
+  String vibeLibrary_importSummary(Object success, Object failed) {
+    return '匯入完成: $success 成功, $failed 失敗';
+  }
+
+  @override
+  String get vibeLibrary_dropImportHint =>
+      '拖拽 .naiv4vibe/.naiv4vibebundle/.png/.jpg/.jpeg/.webp 檔案或資料夾到此處匯入';
+
+  @override
+  String get vibeLibrary_importing => '正在匯入...';
+
+  @override
+  String vibeLibrary_pageIndicator(Object current, Object total) {
+    return '$current / $total 頁';
+  }
+
+  @override
+  String get vibeLibrary_itemsPerPage => '每頁:';
+
+  @override
+  String get vibeLibrary_tooManyTitle => 'Vibe數量過多';
+
+  @override
+  String vibeLibrary_tooManySelectedContent(Object count) {
+    return '選中了 $count 個Vibe，但最多隻能同時使用16個。\n\n請減少選擇數量後再試。';
+  }
+
+  @override
+  String vibeLibrary_tooManyExistingContent(Object current, Object remaining) {
+    return '當前生成頁面已有 $current 個Vibe，還可以新增 $remaining 個。\n\n請減少選擇數量後再試。';
+  }
+
+  @override
+  String vibeLibrary_sentToGenerationCount(Object count) {
+    return '已傳送 $count 個Vibe到生成頁面';
+  }
+
+  @override
+  String vibeLibrary_deleteSelectedContent(Object count) {
+    return '確定要刪除選中的 $count 個Vibe嗎？此操作無法撤銷。';
+  }
+
+  @override
+  String vibeLibrary_deletedCount(Object count) {
+    return '已刪除 $count 個Vibe';
+  }
+
+  @override
+  String get vibeLibrary_markEncodingModel => '標記編碼模型';
+
+  @override
+  String vibeLibrary_markEncodingModelContent(Object count, Object model) {
+    return '把選中的 $count 個 Vibe 標記為「$model」的編碼，並重寫庫檔案。\n\n適用於被錯誤標記成其它模型、導致每次生成都重新編碼扣 Anlas 的條目。如果這些編碼確實來自別的模型，標記後畫面效果可能與預期不符。';
+  }
+
+  @override
+  String vibeLibrary_encodingModelMarked(Object count) {
+    return '已標記 $count 個Vibe的編碼模型';
+  }
+
+  @override
+  String get vibeLibrary_importImageDialogTitle => '選擇包含 Vibe 的圖片';
+
+  @override
+  String get vibeLibrary_clipboardEmpty => '剪貼簿為空';
+
+  @override
+  String get vibeLibrary_encodeTimeout => '編碼超時，請檢查網路連線';
+
+  @override
+  String get vibeLibrary_unknownError => '未知錯誤';
+
+  @override
+  String get vibeLibrary_save => '儲存到庫';
+
+  @override
+  String get vibeLibrary_import => '匯入 Vibe';
+
+  @override
+  String get vibeLibrary_searchHint => '搜尋名稱、標籤...';
+
+  @override
+  String get vibeLibrary_empty => 'Vibe 庫為空';
+
+  @override
+  String get vibeLibrary_emptyHint => '先去 Vibe 庫新增一些條目吧';
+
+  @override
+  String get vibeLibrary_allVibes => '全部 Vibe';
+
+  @override
+  String get vibeLibrary_favorites => '收藏';
+
+  @override
+  String get vibeLibrary_sendToGeneration => '傳送到生成';
+
+  @override
+  String get vibeLibrary_export => '匯出';
+
+  @override
+  String get vibeLibrary_edit => '編輯';
+
+  @override
+  String get vibeLibrary_delete => '刪除';
+
+  @override
+  String get vibeLibrary_addToFavorites => '收藏';
+
+  @override
+  String get vibeLibrary_removeFromFavorites => '取消收藏';
+
+  @override
+  String get vibeLibrary_newSubCategory => '新建子分類';
+
+  @override
+  String get vibeLibrary_maxVibesReached => '已達到最大數量 (16張)';
+
+  @override
+  String get vibeLibrary_bundleReadFailed => '讀取 Bundle 檔案失敗，使用單檔案模式';
+
+  @override
+  String categoryError_loadFailed(String error) {
+    return '載入分類失敗：$error';
+  }
+
+  @override
+  String categoryError_syncFailed(String error) {
+    return '同步分類失敗：$error';
+  }
+
+  @override
+  String get categoryError_nameEmpty => '分類名稱不能為空';
+
+  @override
+  String get categoryError_parentNotFound => '父分類不存在';
+
+  @override
+  String categoryError_createFailed(String error) {
+    return '建立分類失敗：$error';
+  }
+
+  @override
+  String get categoryError_notFound => '分類不存在';
+
+  @override
+  String categoryError_renameFailed(String error) {
+    return '重新命名分類失敗：$error';
+  }
+
+  @override
+  String get categoryError_invalidMove => '不能將分類移動到它的子孫分類下';
+
+  @override
+  String categoryError_moveFailed(String error) {
+    return '移動分類失敗：$error';
+  }
+
+  @override
+  String get categoryError_hasSubcategories => '該分類包含子分類，請先刪除子分類。';
+
+  @override
+  String categoryError_deleteFailed(String error) {
+    return '刪除分類失敗：$error';
+  }
+
+  @override
+  String categoryError_moveImageFailed(String error) {
+    return '移動圖片失敗：$error';
+  }
+
+  @override
+  String categoryError_moveImagesFailed(String error) {
+    return '批次移動圖片失敗：$error';
+  }
+
+  @override
+  String categoryError_reorderFailed(String error) {
+    return '重新排序分類失敗：$error';
+  }
+
+  @override
+  String get vibeBulk_titleDelete => '批次刪除';
+
+  @override
+  String get vibeBulk_titleMove => '批次移動';
+
+  @override
+  String get vibeBulk_titleToggleFavorite => '批次更新收藏';
+
+  @override
+  String get vibeBulk_titleAddTags => '批次新增標籤';
+
+  @override
+  String get vibeBulk_titleRemoveTags => '批次移除標籤';
+
+  @override
+  String get vibeBulk_titleExport => '批次匯出';
+
+  @override
+  String get vibeBulk_titleImport => '批次匯入';
+
+  @override
+  String vibeBulk_processingProgress(int current, int total) {
+    return '正在處理：$current / $total';
+  }
+
+  @override
+  String get vibeBulk_completed => '操作完成';
+
+  @override
+  String get vibeBulk_completedWithFailures => '操作完成（部分失敗）';
+
+  @override
+  String get vibeBulk_successful => '成功';
+
+  @override
+  String get vibeBulk_failed => '失敗';
+
+  @override
+  String get vibeBulk_errorDetails => '錯誤詳情：';
+
+  @override
+  String vibeBulk_moreErrors(int count) {
+    return '……另有 $count 個錯誤';
+  }
+
+  @override
+  String get vibeBulk_operationFailed => '操作失敗';
+
+  @override
+  String get vibeBulk_operationFailedHint => '請檢查操作設定後重試。';
+
+  @override
+  String vibeBulk_errorEntryNotFoundOrDeleteFailed(String item) {
+    return '未找到 $item 或刪除失敗';
+  }
+
+  @override
+  String vibeBulk_errorDeleteFailed(String item, String error) {
+    return '刪除 $item 失敗：$error';
+  }
+
+  @override
+  String vibeBulk_errorEntryNotFound(String item) {
+    return '未找到條目：$item';
+  }
+
+  @override
+  String vibeBulk_errorMoveFailed(String item, String error) {
+    return '移動 $item 失敗：$error';
+  }
+
+  @override
+  String vibeBulk_errorFavoriteFailed(String item) {
+    return '更新收藏狀態失敗：$item';
+  }
+
+  @override
+  String vibeBulk_errorFavoriteFailedWithDetails(String item, String error) {
+    return '更新 $item 的收藏狀態失敗：$error';
+  }
+
+  @override
+  String vibeBulk_errorAddTagsFailed(String item) {
+    return '新增標籤失敗：$item';
+  }
+
+  @override
+  String vibeBulk_errorAddTagsFailedWithDetails(String item, String error) {
+    return '為 $item 新增標籤失敗：$error';
+  }
+
+  @override
+  String vibeBulk_errorRemoveTagsFailed(String item) {
+    return '移除標籤失敗：$item';
+  }
+
+  @override
+  String vibeBulk_errorRemoveTagsFailedWithDetails(String item, String error) {
+    return '從 $item 移除標籤失敗：$error';
+  }
+
+  @override
+  String get vibeBulk_errorExportNoFile => '匯出失敗：未建立檔案';
+
+  @override
+  String vibeBulk_errorExportFailed(String error) {
+    return '匯出失敗：$error';
+  }
+
+  @override
+  String vibeBulk_errorFileNotFound(String item) {
+    return '未找到檔案：$item';
+  }
+
+  @override
+  String vibeBulk_errorNoVibeData(String item) {
+    return '$item 中沒有有效的 Vibe 資料';
+  }
+
+  @override
+  String vibeBulk_errorImportFailed(String item, String error) {
+    return '從 $item 匯入 Vibe 失敗：$error';
+  }
+
+  @override
+  String vibeBulk_errorProcessFileFailed(String item, String error) {
+    return '處理 $item 失敗：$error';
+  }
+
+  @override
+  String get vibeBulkTag_title => '批次編輯標籤';
+
+  @override
+  String vibeBulkTag_selectedCount(int count) {
+    return '已選中 $count 個 Vibe';
+  }
+
+  @override
+  String get vibeBulkTag_inputHint => '輸入新標籤……';
+
+  @override
+  String get vibeBulkTag_noTags => '暫無標籤';
+
+  @override
+  String get vibeBulkTag_noTagsHint => '新增標籤以方便篩選和管理';
+
+  @override
+  String vibeBulkTag_currentTags(int count) {
+    return '當前標籤（$count）';
+  }
+
+  @override
+  String vibeBulkTag_pendingRemoval(int count) {
+    return '待移除標籤（$count）';
+  }
+
+  @override
+  String get vibeBulkTag_removeTag => '移除標籤';
+
+  @override
+  String get vibeBulkTag_actionPreview => '操作預覽';
+
+  @override
+  String vibeBulkTag_addTagsSummary(String tags) {
+    return '新增標籤：$tags';
+  }
+
+  @override
+  String vibeBulkTag_removeTagsSummary(String tags) {
+    return '移除標籤：$tags';
+  }
+
+  @override
+  String get vibeBulkTag_noChanges => '沒有要應用的更改';
+
+  @override
+  String get vibeBulkCategory_title => '選擇目標分類';
+
+  @override
+  String vibeBulkCategory_moveCount(int count) {
+    return '將 $count 個 Vibe 移動到：';
+  }
+
+  @override
+  String get vibeBulkCategory_cannotMoveToCurrent => '不能移動到當前所在分類';
+
+  @override
+  String get vibeDetail_strengthDescription => '控制 Vibe 對生成結果的影響強度';
+
+  @override
+  String get vibeDetail_infoExtractedDescription => '控制從原圖提取的資訊量（消耗 2 Anlas）';
+
+  @override
+  String get vibeDetail_statistics => '統計資訊';
+
+  @override
+  String get vibeDetail_usageCount => '使用次數';
+
+  @override
+  String vibeDetail_timesUsed(int count) {
+    return '$count 次';
+  }
+
+  @override
+  String get vibeDetail_lastUsed => '最後使用';
+
+  @override
+  String get vibeDetail_neverUsed => '從未使用';
+
+  @override
+  String get vibeDetail_createdAt => '建立時間';
+
+  @override
+  String get vibeDetail_saveParameters => '儲存引數';
+
+  @override
+  String get vibe_export_title => '匯出 Vibe';
+
+  @override
+  String get vibe_export_format => '匯出格式';
+
+  @override
+  String get vibe_selector_title => '選擇 Vibe';
+
+  @override
+  String get vibe_selector_recent => '最近使用';
+
+  @override
+  String get vibe_export_include_thumbnails => '包含縮圖';
+
+  @override
+  String get vibe_export_include_thumbnails_subtitle => '匯出檔案中包含縮圖預覽';
+
+  @override
+  String get vibe_export_singleFile => '單檔案 (.naiv4vibe)';
+
+  @override
+  String get vibe_export_singleFileDescription =>
+      '將每個 Vibe 匯出為單獨檔案，適合分享單個 Vibe';
+
+  @override
+  String get vibe_export_bundleFile => '打包檔案 (.naiv4vibebundle)';
+
+  @override
+  String get vibe_export_bundleFileDescription => '將多個 Vibe 打包到一個檔案中，適合批次備份';
+
+  @override
+  String get vibe_export_embedIntoPng => '嵌入到 PNG';
+
+  @override
+  String get vibe_export_embedIntoPngDescription => '透過寫入 PNG 後設資料匯出單個 Vibe';
+
+  @override
+  String get vibe_export_exportable => '可匯出';
+
+  @override
+  String get vibe_export_notExportable => '不可匯出';
+
+  @override
+  String get vibe_export_selectVibesToExport => '選擇要匯出的 Vibe';
+
+  @override
+  String vibe_export_exportSelected(int count) {
+    return '匯出 ($count)';
+  }
+
+  @override
+  String vibe_export_strengthPercent(int percent) {
+    return '強度: $percent%';
+  }
+
+  @override
+  String get vibe_export_pngCarrierImage => 'PNG 載體圖片';
+
+  @override
+  String get vibe_export_noUsablePngCarrier =>
+      '這個 Vibe 沒有可直接使用的 PNG 載體圖片。你可以選擇外部 PNG 圖片作為載體。';
+
+  @override
+  String get vibe_export_selectExternalPngImage => '選擇外部 PNG 圖片...';
+
+  @override
+  String get vibe_export_changeExternalPngImage => '更換外部 PNG 圖片...';
+
+  @override
+  String get vibe_export_useVibeImageInstead => '改用 Vibe 圖片';
+
+  @override
+  String vibe_export_usingExternalPng(String fileName) {
+    return '正在使用外部 PNG: $fileName';
+  }
+
+  @override
+  String get vibe_export_selectPngImage => '選擇 PNG 圖片';
+
+  @override
+  String get vibe_export_invalidPngImage => '所選檔案不是有效的 PNG 圖片';
+
+  @override
+  String vibe_export_selectPngImageFailed(String error) {
+    return '選擇 PNG 圖片失敗: $error';
+  }
+
+  @override
+  String vibe_export_embeddingPng(String name) {
+    return '正在嵌入 PNG: $name';
+  }
+
+  @override
+  String vibe_export_exportCompleteCounts(int successCount, int failCount) {
+    return '匯出完成: 成功 $successCount 個，失敗 $failCount 個';
+  }
+
+  @override
+  String vibe_export_exportCompletePath(String path) {
+    return '匯出完成: $path';
+  }
+
+  @override
+  String vibe_export_packingVibes(int count) {
+    return '正在打包 $count 個 Vibe...';
+  }
+
+  @override
+  String vibe_export_exportingName(String name) {
+    return '正在匯出: $name';
+  }
+
+  @override
+  String get vibe_export_selectExportFolder => '選擇匯出資料夾';
+
+  @override
+  String get vibe_export_generatingBundleFile => '正在生成打包檔案...';
+
+  @override
+  String vibe_export_bundleTitle(String name) {
+    return '匯出 Bundle: $name';
+  }
+
+  @override
+  String vibe_export_vibesTitle(int count) {
+    return '匯出 Vibe ($count 個已選)';
+  }
+
+  @override
+  String get vibe_export_method => '匯出方式';
+
+  @override
+  String get vibe_export_wholeBundle => '整個 Bundle';
+
+  @override
+  String get vibe_export_internalVibe => '內部 Vibe';
+
+  @override
+  String vibe_export_wholeBundleDescription(int count) {
+    return '匯出包含全部 $count 個 Vibe 的 .naiv4vibebundle 檔案';
+  }
+
+  @override
+  String vibe_export_internalVibeDescription(int count) {
+    return '選擇 Bundle 內部 Vibe，分別匯出為 .naiv4vibe 檔案 (共 $count 個)';
+  }
+
+  @override
+  String get vibe_export_exportBundle => '匯出 Bundle';
+
+  @override
+  String get vibe_export_exportAsFiles => '匯出為檔案';
+
+  @override
+  String get vibe_export_exportBundleDescription => '匯出為 .naiv4vibebundle 檔案';
+
+  @override
+  String get vibe_export_exportAsFilesDescription =>
+      '匯出為 .naiv4vibe 或 .naiv4vibebundle 檔案';
+
+  @override
+  String get vibe_export_exportAsZip => '匯出為 ZIP';
+
+  @override
+  String get vibe_export_exportAsZipDescription =>
+      '將選中的 Vibe 庫條目作為獨立檔案打包為 .zip';
+
+  @override
+  String get vibe_export_compressData => '壓縮資料';
+
+  @override
+  String get vibe_export_compressDataDescription => '使用壓縮以減小檔案大小 (推薦用於批次匯出)';
+
+  @override
+  String get vibe_export_zipCompressDescription => '壓縮 ZIP 內的檔案以減小體積';
+
+  @override
+  String get vibe_export_exportAsPng => '匯出為 PNG';
+
+  @override
+  String get vibe_export_pngInternalBundleUnsupported =>
+      '匯出單個 Bundle 內部 Vibe 時不支援嵌入圖片';
+
+  @override
+  String get vibe_export_embedVibeDataIntoPng => '將 Vibe 資料寫入 PNG 後設資料';
+
+  @override
+  String get vibe_export_batchPngUsesFirstImage =>
+      '批次匯出會使用每個 Vibe 的第一張可用圖片，沒有圖片的條目會自動跳過。';
+
+  @override
+  String get vibe_export_exportCarrierImage => '匯出載體圖片';
+
+  @override
+  String get vibe_export_usingExternalCarrierImage => '正在使用外部 PNG 作為匯出載體圖片';
+
+  @override
+  String get vibe_export_exportAsEncodings => '匯出為編碼';
+
+  @override
+  String get vibe_export_exportAsEncodingsDescription =>
+      '將資料匯出為編碼 (JSON 或 Base64)';
+
+  @override
+  String get vibe_export_jsonDescription => '匯出為格式化 JSON 檔案，便於閱讀和編輯';
+
+  @override
+  String get vibe_export_base64Description => '匯出為純 Base64，便於複製和分享';
+
+  @override
+  String get vibe_export_selectAtLeastOneMethod => '請選擇至少一種匯出方式';
+
+  @override
+  String get vibe_export_batchPngUnsupported =>
+      '批次 Vibe 匯出不支援嵌入 PNG。請使用單個 Vibe 匯出介面。';
+
+  @override
+  String get vibe_export_selectPngCarrier => '請選擇用於匯出的 PNG 載體圖片';
+
+  @override
+  String get vibe_export_selectAtLeastOneInternalVibe => '請選擇至少一個內部 Vibe';
+
+  @override
+  String get vibe_export_selectVibeExportFolder => '選擇 Vibe 匯出資料夾';
+
+  @override
+  String get vibe_export_saveEncodingFile => '儲存編碼檔案';
+
+  @override
+  String get vibe_export_preparingExport => '正在準備匯出...';
+
+  @override
+  String vibe_export_preparingVibeProgress(int current, int total) {
+    return '正在讀取 Vibe $current/$total...';
+  }
+
+  @override
+  String get vibe_export_exportingBundle => '正在匯出 Bundle...';
+
+  @override
+  String get vibe_export_exportingZip => '正在匯出 ZIP...';
+
+  @override
+  String get vibe_export_embeddingImage => '正在嵌入圖片...';
+
+  @override
+  String get vibe_export_exportingEncoding => '正在匯出編碼...';
+
+  @override
+  String vibe_export_exportFailedWithError(String error) {
+    return '匯出失敗: $error';
+  }
+
+  @override
+  String get vibe_export_noExportableEntries => '沒有可匯出的 Vibe 條目';
+
+  @override
+  String get vibe_export_bundleFilePathEmpty => 'Bundle 檔案路徑為空';
+
+  @override
+  String vibe_export_invalidImageFormatWithError(String error) {
+    return '無效的圖片格式: $error';
+  }
+
+  @override
+  String vibe_export_embedFailedWithError(String error) {
+    return '嵌入失敗: $error';
+  }
+
+  @override
+  String vibe_export_embedImageFailedWithError(String error) {
+    return '嵌入圖片失敗: $error';
+  }
+
+  @override
+  String vibe_export_extractingVibeProgress(int current, int total) {
+    return '正在提取 Vibe $current/$total...';
+  }
+
+  @override
+  String vibe_export_selectImageFailed(String error) {
+    return '選擇圖片失敗: $error';
+  }
+
+  @override
+  String vibe_export_dialogTitle(int count) {
+    return '匯出 $count 個 Vibes';
+  }
+
+  @override
+  String get vibe_export_chooseMethod => '選擇匯出方式';
+
+  @override
+  String get vibe_export_asBundle => '打包匯出';
+
+  @override
+  String get vibe_export_individually => '逐個匯出';
+
+  @override
+  String get vibe_export_noData => '沒有可匯出的資料';
+
+  @override
+  String get vibe_export_success => '匯出成功';
+
+  @override
+  String get vibe_export_failed => '匯出失敗';
+
+  @override
+  String vibe_export_skipped(int count) {
+    return '跳過了 $count 個無資料 vibes';
+  }
+
+  @override
+  String vibe_export_bundleSuccess(int count) {
+    return '已匯出 Bundle: $count 個 vibes';
+  }
+
+  @override
+  String get vibe_export_selectToEmbed => '選擇要嵌入的 vibes';
+
+  @override
+  String get vibe_export_pngRequired => '需要 PNG 檔案';
+
+  @override
+  String get vibe_export_noEmbeddableData => '沒有可嵌入的資料';
+
+  @override
+  String vibe_export_embedSuccess(int count) {
+    return '已嵌入 $count 個 vibes 到圖片';
+  }
+
+  @override
+  String get vibe_export_embedFailed => '嵌入失敗';
+
+  @override
+  String get vibe_embedToImage => '嵌入到圖片';
+
+  @override
+  String get vibe_import_skip => '跳過';
+
+  @override
+  String get vibe_import_confirm => '確認';
+
+  @override
+  String get vibe_import_encodingCost => '編碼將消耗 2 Anlas';
+
+  @override
+  String get vibe_import_encodingFailed => '編碼失敗';
+
+  @override
+  String get vibe_import_title => '從庫匯入';
+
+  @override
+  String vibe_import_result(int count) {
+    return '已匯入 $count 個 vibes';
+  }
+
+  @override
+  String get vibe_import_fileParseFailed => '解析檔案失敗';
+
+  @override
+  String get vibe_import_fileSelectionFailed => '檔案選擇失敗';
+
+  @override
+  String get vibe_import_importFailed => '匯入失敗';
+
+  @override
+  String vibe_import_failedWithError(String error) {
+    return '匯入失敗: $error';
+  }
+
+  @override
+  String get vibe_import_bundleTitle => '匯入 Vibe Bundle';
+
+  @override
+  String get vibe_import_bundleChooseMethod => '選擇匯入方式';
+
+  @override
+  String get vibe_import_bundleAsWhole => '作為整體匯入';
+
+  @override
+  String get vibe_import_bundleAsWholeDescription => '保留 Bundle 結構，並作為一個庫條目匯入';
+
+  @override
+  String get vibe_import_bundleSplitEntries => '拆分為獨立條目';
+
+  @override
+  String get vibe_import_bundleSplitEntriesDescription => '將每個 Vibe 作為獨立庫條目匯入';
+
+  @override
+  String get vibe_import_bundleSelectVibes => '選擇要匯入的 Vibe';
+
+  @override
+  String get vibe_import_bundleSelectVibesDescription => '僅匯入選中的 Vibe';
+
+  @override
+  String get vibe_import_bundleConfigureEachVibe => '配置每個 Vibe 的引數';
+
+  @override
+  String get vibe_import_bundleSelectAndConfigureEachVibe => '選擇並配置每個 Vibe 的引數';
+
+  @override
+  String vibe_import_bundleSelectedCount(int selected, int total) {
+    return '已選擇 $selected/$total';
+  }
+
+  @override
+  String get vibe_saveToLibrary_title => '儲存到庫';
+
+  @override
+  String get vibe_saveToLibrary_strength => '參考強度';
+
+  @override
+  String get vibe_saveToLibrary_infoExtracted => '資訊提取';
+
+  @override
+  String vibe_saveToLibrary_saving(int count) {
+    return '正在儲存 $count 個 vibes';
+  }
+
+  @override
+  String get vibe_saveToLibrary_saveFailed => '儲存到庫失敗';
+
+  @override
+  String vibe_saveToLibrary_savingCount(int count) {
+    return '正在儲存 $count 個 vibes';
+  }
+
+  @override
+  String get vibe_saveToLibrary_nameLabel => '名稱';
+
+  @override
+  String get vibe_saveToLibrary_nameHint => '輸入 vibe 名稱';
+
+  @override
+  String vibe_saveToLibrary_mixed(int saved, int reused) {
+    return '已儲存 $saved 個，複用 $reused 個';
+  }
+
+  @override
+  String vibe_saveToLibrary_saved(int count) {
+    return '已儲存 $count 個到庫';
+  }
+
+  @override
+  String vibe_saveToLibrary_reused(int count) {
+    return '從庫複用 $count 個';
+  }
+
+  @override
+  String get vibe_saveToLibrary_saveAsBundle => '儲存為 Bundle';
+
+  @override
+  String vibe_saveToLibrary_saveAsBundleDescription(int count) {
+    return '將 $count 個 Vibe 儲存為一個 Bundle';
+  }
+
+  @override
+  String get vibe_saveToLibrary_tagHint => '輸入標籤後點選新增';
+
+  @override
+  String get vibe_maxReached => '已達到最大數量 (16張)';
+
+  @override
+  String get vibe_maxReachedRemoveSome => '已達到最大數量 (16張)，請先移除一些 Vibe';
+
+  @override
+  String vibe_addedNamed(String name) {
+    return '已新增 Vibe: $name';
+  }
+
+  @override
+  String vibe_addedCount(int count) {
+    return '已新增 $count 個 vibes';
+  }
+
+  @override
+  String get vibe_statusEncoded => '已編碼';
+
+  @override
+  String get vibe_statusEncoding => '編碼中...';
+
+  @override
+  String get vibe_statusPendingEncode => '待編碼 (2 Anlas)';
+
+  @override
+  String get vibe_statusNeedsReencode => '需重新編碼 (2 Anlas)';
+
+  @override
+  String get vibe_statusSourceImageRequired => '缺少原圖';
+
+  @override
+  String get vibe_encodeDialogTitle => '確認編碼 Vibe';
+
+  @override
+  String get vibe_encodeDialogMessage => '是否編碼此圖片以供生成使用？';
+
+  @override
+  String get vibe_encodeCostWarning => '此操作將消耗 2 Anlas（點數）';
+
+  @override
+  String get vibe_encodeButton => '編碼';
+
+  @override
+  String get vibe_encodeSuccess => 'Vibe 編碼成功！';
+
+  @override
+  String get vibe_encodeFailed => 'Vibe 編碼失敗，請重試';
+
+  @override
+  String vibe_encodeError(String error) {
+    return '編碼失敗: $error';
+  }
+
+  @override
+  String get shortcuts_customize => '自定義快捷鍵';
+
+  @override
+  String get image_editor_select_tool => '選擇工具';
+
+  @override
+  String get selection_clear_selection => '清除選區';
+
+  @override
+  String get selection_invert_selection => '反轉選區';
+
+  @override
+  String get selection_cut_to_layer => '剪下到新圖層';
+
+  @override
+  String get search_results => '搜尋結果';
+
+  @override
+  String get search_noResults => '未找到匹配結果';
+
+  @override
+  String get addToCurrent => '新增到當前';
+
+  @override
+  String get replaceExisting => '替換現有';
+
+  @override
+  String get confirmSelection => '確認選擇';
+
+  @override
+  String get selectAll => '全選';
+
+  @override
+  String get clearSelection => '清空';
+
+  @override
+  String get clearFilters => '清除篩選';
+
+  @override
+  String get shortcut_context_vibe_detail => 'Vibe 詳情';
+
+  @override
+  String get shortcut_action_vibe_detail_rename => '重新命名';
+
+  @override
+  String get vibeSelectorFilterFavorites => '收藏';
+
+  @override
+  String get vibeSelectorFilterSourceAll => '全部型別';
+
+  @override
+  String get vibeSelectorSortCreated => '建立時間';
+
+  @override
+  String get vibeSelectorSortLastUsed => '最近使用';
+
+  @override
+  String get vibeSelectorSortUsedCount => '使用次數';
+
+  @override
+  String get vibeSelectorSortName => '名稱';
+
+  @override
+  String vibeSelectorItemsCount(int count) {
+    return '$count 項';
+  }
+
+  @override
+  String get tray_show => '顯示視窗';
+
+  @override
+  String get tray_exit => '退出';
+
+  @override
+  String get settings_shortcutsSubtitle => '自定義鍵盤快捷鍵';
+
+  @override
+  String get settings_openFolder => '開啟資料夾';
+
+  @override
+  String get settings_openFolderFailed => '開啟資料夾失敗';
+
+  @override
+  String get settings_pleaseLoginFirst => '請先登入';
+
+  @override
+  String get settings_accountNotFound => '未找到賬號資訊';
+
+  @override
+  String get settings_goToLoginPage => '請前往登入頁面';
+
+  @override
+  String get settings_vibePathSaved => 'Vibe 庫路徑已儲存';
+
+  @override
+  String get settings_selectFolderFailed => '選擇資料夾失敗';
+
+  @override
+  String get settings_hivePathSaved => '資料儲存路徑已儲存，重啟後生效';
+
+  @override
+  String get settings_restartRequiredTitle => '需要重啟應用';
+
+  @override
+  String get settings_changePathConfirm =>
+      '更改資料儲存路徑後，需要重啟應用才能生效。\\n\\n新路徑將在下次啟動時生效。是否繼續？';
+
+  @override
+  String get settings_resetPathConfirm =>
+      '重置資料儲存路徑後，需要重啟應用才能生效。\\n\\n預設路徑將在下次啟動時生效。是否繼續？';
+
+  @override
+  String get settings_kritaBridgeTitle => 'Krita Bridge';
+
+  @override
+  String get settings_kritaBridgeEnable => '啟用 Krita 本地橋接';
+
+  @override
+  String get settings_kritaBridgeDisabledText => '預設關閉；開啟後只監聽本機 127.0.0.1';
+
+  @override
+  String get settings_kritaBridgeStartingText => '正在啟動本地橋接服務...';
+
+  @override
+  String get settings_kritaBridgeListeningText => '等待 Krita 外掛連線';
+
+  @override
+  String get settings_kritaBridgeConnectedText => 'Krita 外掛已連線';
+
+  @override
+  String get settings_kritaBridgeErrorText => '啟動失敗，請檢視錯誤資訊';
+
+  @override
+  String get settings_kritaBridgeDisabled => '已關閉';
+
+  @override
+  String get settings_kritaBridgeStarting => '啟動中';
+
+  @override
+  String get settings_kritaBridgeListening => '監聽中';
+
+  @override
+  String get settings_kritaBridgeConnected => '已連線';
+
+  @override
+  String get settings_kritaBridgeError => '錯誤';
+
+  @override
+  String get settings_kritaBridgeRegenerateSession => '重生成會話';
+
+  @override
+  String get settings_kritaBridgeDiscoveryFile => '發現檔案';
+
+  @override
+  String get settings_kritaBridgeWaitingEndpoint => '等待本地 WebSocket 監聽';
+
+  @override
+  String settings_kritaBridgeClient(Object client) {
+    return '客戶端：$client';
+  }
+
+  @override
+  String get settings_fontScale => '字型大小';
+
+  @override
+  String get settings_fontScale_description => '調整應用全域性字型縮放比例';
+
+  @override
+  String get settings_fontScale_previewSmall => '落霞與孤鶩齊飛';
+
+  @override
+  String get settings_fontScale_previewMedium => '秋水共長天一色';
+
+  @override
+  String get settings_fontScale_previewLarge => '字型大小預覽';
+
+  @override
+  String get settings_fontScale_reset => '重置';
+
+  @override
+  String get settings_fontScale_done => '完成';
+
+  @override
+  String get settings_generationLayout => '生成頁佈局';
+
+  @override
+  String get settings_generationLayout_classic => '經典佈局';
+
+  @override
+  String get settings_generationLayout_classicDescription => '引數在左側，提示詞位於預覽區上方';
+
+  @override
+  String get settings_generationLayout_webStyle => '官網式佈局';
+
+  @override
+  String get settings_generationLayout_webStyleDescription =>
+      '提示詞與設定固定在最左欄，類似 NovelAI 官網';
+
+  @override
+  String get settings_historyClickBehavior => '歷史記錄點選行為';
+
+  @override
+  String get settings_historyClickBehavior_classic => '經典';
+
+  @override
+  String get settings_historyClickBehavior_classicDescription => '單擊歷史圖片直接開啟詳情';
+
+  @override
+  String get settings_historyClickBehavior_linked => '官網式聯動';
+
+  @override
+  String get settings_historyClickBehavior_linkedDescription =>
+      '單擊切換中央預覽，雙擊或長按開啟詳情，並支援左右方向鍵瀏覽';
+
+  @override
+  String get image_viewDetail => '檢視詳情';
+
+  @override
+  String get settings_defaultImagesPath =>
+      '預設 (Documents/NAI_Launcher/images/)';
+
+  @override
+  String settings_defaultVibePath(Object path) {
+    return '$path (預設)';
+  }
+
+  @override
+  String get settings_defaultHivePath => '預設 (%APPDATA%/NAI_Launcher/hive/)';
+
+  @override
+  String get settings_protectionMode => '保護模式';
+
+  @override
+  String get settings_protectionModeSubtitle =>
+      '開啟後按下方子項保護本地資產、分享副本、高消耗和高頻生圖操作；關閉時保留子項配置但不生效。';
+
+  @override
+  String get settings_protectionFeatures => '保護功能';
+
+  @override
+  String get settings_stripMetadataTitle => '複製/拖拽時移除全部後設資料';
+
+  @override
+  String get settings_stripMetadataSubtitle =>
+      '生成淨化副本，清除 PNG 文字塊、EXIF 與 NAI 隱寫水印，並避免拖拽暴露原始路徑。';
+
+  @override
+  String get settings_confirmDangerousActionsTitle => '危險資產操作二次確認';
+
+  @override
+  String get settings_confirmDangerousActionsSubtitle =>
+      '刪除、移動、批次移動等本地資產操作會額外彈出保護確認。';
+
+  @override
+  String get settings_warnExternalImageSendTitle => '傳送到外部服務前提示';
+
+  @override
+  String get settings_warnExternalImageSendSubtitle =>
+      '把本地圖片傳送到 LLM、NovelAI、ComfyUI 等外部邊界前進行確認。';
+
+  @override
+  String get settings_preventOverwriteTitle => '匯出時避免覆蓋已有檔案';
+
+  @override
+  String get settings_preventOverwriteSubtitle => '匯出/打包路徑重名時自動編號，避免誤覆蓋原有資產。';
+
+  @override
+  String get settings_warnHighAnlasCostTitle => 'Anlas 高消耗警告';
+
+  @override
+  String settings_warnHighAnlasCostSubtitle(Object threshold) {
+    return '單次生成預計消耗達到 $threshold Anlas 時，生成前彈出確認。';
+  }
+
+  @override
+  String get settings_highAnlasCostThresholdTitle => 'Anlas 警告閾值';
+
+  @override
+  String get settings_setHighAnlasCostThresholdTitle => '設定 Anlas 警告閾值';
+
+  @override
+  String get settings_threshold => '閾值';
+
+  @override
+  String get settings_highAnlasCostThresholdHelper => '當單次生成預計消耗達到或超過該值時彈出確認。';
+
+  @override
+  String get settings_limitGenerationIntervalTitle => '限制生圖頻率';
+
+  @override
+  String get settings_limitGenerationIntervalSubtitle =>
+      '開啟後，兩次生圖開始時間必須至少間隔設定秒數；冷卻期間生圖按鈕不可點選。';
+
+  @override
+  String get settings_generationIntervalTitle => '生圖間隔';
+
+  @override
+  String settings_generationIntervalValue(Object seconds) {
+    return '$seconds 秒';
+  }
+
+  @override
+  String get settings_setGenerationIntervalTitle => '設定生圖間隔';
+
+  @override
+  String get settings_generationIntervalHelper => '可設定 1–3600 秒，從開始執行生圖時計時。';
+
+  @override
+  String get settings_selectLocalOnnxTaggerFolder => '選擇 ONNX tagger 模型資料夾';
+
+  @override
+  String get settings_localOnnxTaggerFolderSaved => 'ONNX tagger 模型資料夾已儲存';
+
+  @override
+  String get settings_localOnnxTaggerFolder => '本地 ONNX tagger 模型資料夾';
+
+  @override
+  String get settings_notConfigured => '未配置';
+
+  @override
+  String get settings_confirmExternalSendTitle => '保護模式：確認外部傳送';
+
+  @override
+  String settings_confirmExternalSendContent(Object count, Object target) {
+    return '即將把 $count 張本地圖片傳送到 $target。圖片會離開本地應用邊界，請確認這符合你的預期。';
+  }
+
+  @override
+  String get settings_confirmExternalSend => '確認傳送';
+
+  @override
+  String get settings_highAnlasCostTitle => '保護模式：Anlas 消耗較高';
+
+  @override
+  String settings_highAnlasCostContent(Object cost, Object threshold) {
+    return '本次預計消耗 $cost Anlas，已達到或超過你設定的 $threshold Anlas 警告閾值。請確認是否繼續生成。';
+  }
+
+  @override
+  String get settings_continueGeneration => '繼續生成';
+
+  @override
+  String get dataSource_syncNow => '立即同步';
+
+  @override
+  String get settings_comfyUiEnable => '啟用 ComfyUI 整合';
+
+  @override
+  String get settings_comfyUiDisabledSubtitle => '關閉後將隱藏本地超分等 ComfyUI 功能';
+
+  @override
+  String get settings_comfyUiServerUrl => '伺服器地址';
+
+  @override
+  String get settings_comfyUiConnectionSuccess => '連線成功';
+
+  @override
+  String get settings_comfyUiConnectionSuccessFull => 'ComfyUI 連線成功';
+
+  @override
+  String settings_comfyUiConnectionFailed(Object error) {
+    return '連線失敗: $error';
+  }
+
+  @override
+  String get settings_comfyUiConnected => '已連線';
+
+  @override
+  String get settings_comfyUiDisconnect => '斷開';
+
+  @override
+  String get settings_comfyUiWorkflowManagement => '工作流管理';
+
+  @override
+  String get settings_comfyUiBuiltinWorkflows => '內建工作流';
+
+  @override
+  String get settings_comfyUiCustomWorkflows => '自定義工作流';
+
+  @override
+  String get settings_comfyUiNoCustomWorkflows =>
+      '暫無自定義工作流，點選“匯入”新增 ComfyUI 工作流';
+
+  @override
+  String settings_comfyUiSlotCount(Object count) {
+    return '$count 個槽位';
+  }
+
+  @override
+  String get settings_comfyUiBuiltin => '內建';
+
+  @override
+  String get settings_comfyUiDeleteWorkflowTitle => '刪除工作流';
+
+  @override
+  String settings_comfyUiDeleteWorkflowContent(Object name) {
+    return '確定要刪除工作流“$name”嗎？此操作不可撤銷。';
+  }
+
+  @override
+  String settings_comfyUiDeleted(Object name) {
+    return '已刪除: $name';
+  }
+
+  @override
+  String get settings_comfyUiNoResponse => '伺服器無響應';
+
+  @override
+  String get settings_comfyUiStatusDisconnected => '未連線';
+
+  @override
+  String get settings_comfyUiStatusConnecting => '正在連線...';
+
+  @override
+  String get settings_comfyUiStatusConnected => '已連線';
+
+  @override
+  String get settings_comfyUiStatusError => '連線異常';
+
+  @override
+  String get settings_comfyUiCategoryEnhance => '增強/超分';
+
+  @override
+  String get settings_comfyUiCategoryImg2Img => '圖生圖';
+
+  @override
+  String get settings_comfyUiCategoryInpaint => '重繪';
+
+  @override
+  String get settings_comfyUiCategoryTxt2Img => '文生圖';
+
+  @override
+  String get settings_comfyUiCategoryCustom => '自定義';
+
+  @override
+  String get comfyWorkflow_seedvr2UpscaleName => 'SeedVR2 超分';
+
+  @override
+  String get comfyWorkflow_seedvr2UpscaleDescription =>
+      '使用 SeedVR2 AI 模型進行超解析度放大，效果優秀';
+
+  @override
+  String get comfyWorkflow_seedvr2LegacyUpscaleName => 'SeedVR2 相容節點超分';
+
+  @override
+  String get comfyWorkflow_seedvr2LegacyUpscaleDescription =>
+      '使用已安裝的 SeedVR2VideoUpscaler 自定義節點進行超分';
+
+  @override
+  String get comfyWorkflow_seedvr2TiledUpscaleName => 'SeedVR2 分塊超分';
+
+  @override
+  String get comfyWorkflow_seedvr2TiledUpscaleDescription =>
+      '使用 SeedVR2TilingUpscaler 分塊放大，降低大圖視訊記憶體壓力';
+
+  @override
+  String get comfyWorkflow_modelUpscaleName => 'ComfyUI 普通超分模型';
+
+  @override
+  String get comfyWorkflow_modelUpscaleDescription =>
+      '使用 ComfyUI UpscaleModelLoader 載入普通超分模型，並用 Lanczos 修正最終倍率';
+
+  @override
+  String get comfyWorkflow_rtxUpscaleName => 'RTX 超分';
+
+  @override
+  String get comfyWorkflow_rtxUpscaleDescription =>
+      '使用 Nvidia RTX Video Super Resolution 節點進行本地放大';
+
+  @override
+  String get comfyWorkflowSlot_inputImage => '輸入影象';
+
+  @override
+  String get comfyWorkflowSlot_targetShortSide => '目標短邊';
+
+  @override
+  String get comfyWorkflowSlot_targetLongSide => '目標長邊';
+
+  @override
+  String get comfyWorkflowSlot_upscaleModel => '超分模型';
+
+  @override
+  String get comfyWorkflowSlot_randomSeed => '隨機種子';
+
+  @override
+  String get comfyWorkflowSlot_outputImage => '輸出影象';
+
+  @override
+  String get comfyWorkflowSlot_tileWidth => '圖塊寬度';
+
+  @override
+  String get comfyWorkflowSlot_tileHeight => '圖塊高度';
+
+  @override
+  String get comfyWorkflowSlot_tileUpscaleResolution => '圖塊超分解析度';
+
+  @override
+  String get comfyWorkflowSlot_targetWidth => '目標寬度';
+
+  @override
+  String get comfyWorkflowSlot_targetHeight => '目標高度';
+
+  @override
+  String get comfyWorkflowSlot_scale => '放大倍數';
+
+  @override
+  String get comfyWorkflow_parameters => '引數設定';
+
+  @override
+  String get comfyWorkflow_selectImage => '點選選擇影象';
+
+  @override
+  String comfyWorkflow_pickImageFailed(Object error) {
+    return '選擇影象失敗: $error';
+  }
+
+  @override
+  String get comfyWorkflow_useResult => '使用結果';
+
+  @override
+  String get comfyWorkflow_execute => '執行';
+
+  @override
+  String get comfyWorkflow_uploadingImage => '正在上傳影象...';
+
+  @override
+  String get comfyWorkflow_queued => '排隊中...';
+
+  @override
+  String comfyWorkflow_runningSteps(Object current, Object total) {
+    return '處理中 $current/$total';
+  }
+
+  @override
+  String get comfyWorkflow_processing => '處理中...';
+
+  @override
+  String get comfyWorkflow_complete => '執行完成';
+
+  @override
+  String comfyWorkflow_imageCount(Object count) {
+    return '$count 張影象';
+  }
+
+  @override
+  String get promptAssistant_defaultOptimizeRuleName => '預設最佳化規則';
+
+  @override
+  String get promptAssistant_defaultOptimizeRuleContent =>
+      '你是提示詞最佳化助手。保留使用者意圖，補充可執行的視覺細節，並只輸出一行可直接使用的逗號分隔提示詞。';
+
+  @override
+  String get promptAssistant_defaultTranslateRuleName => '預設翻譯規則';
+
+  @override
+  String get promptAssistant_defaultTranslateRuleContent =>
+      '你是翻譯助手。自動識別源語言，在中文和英文之間翻譯，並只返回譯文，不要解釋。';
+
+  @override
+  String get promptAssistant_defaultReverseRuleName => '預設反推規則';
+
+  @override
+  String get promptAssistant_defaultReverseRuleContent =>
+      '你是影象反推提示詞助手。根據影象和可選 tagger 結果，輸出適用於 NovelAI 的英文逗號分隔提示詞。保留主體、角色、風格、服裝、動作、構圖、光照和背景。不要解釋。';
+
+  @override
+  String get promptAssistant_defaultCharacterReplaceRuleName => '預設角色替換規則';
+
+  @override
+  String get promptAssistant_defaultCharacterReplaceRuleContent =>
+      '你是角色替換助手。將輸入提示詞中的原角色身份、髮型、服裝和外觀替換為目標角色，同時保留動作、構圖、背景、風格、鏡頭和質量標籤。只輸出替換後的一行提示詞。';
+
+  @override
+  String get promptAssistant_defaultCustomRuleName => '預設自定義規則';
+
+  @override
+  String get promptAssistant_defaultCustomRuleContent =>
+      '你是提示詞改寫助手。根據當前提示詞、使用者需求和可選參考圖修改提示詞。只輸出最終可直接使用的一行提示詞，不要解釋。';
+
+  @override
+  String get localGallery_dateFilterButton => '日期過濾';
+
+  @override
+  String get cacheStats_title => '快取統計';
+
+  @override
+  String cacheStats_autoRefreshUpdated(Object time) {
+    return '自動重新整理 · 上次更新: $time';
+  }
+
+  @override
+  String cacheStats_secondsAgo(Object seconds) {
+    return '$seconds秒前';
+  }
+
+  @override
+  String get cacheStats_refreshNow => '立即重新整理';
+
+  @override
+  String get cacheStats_refreshed => '已重新整理';
+
+  @override
+  String get cacheStats_resetStats => '重置統計';
+
+  @override
+  String get cacheStats_statsReset => '統計已重置';
+
+  @override
+  String get cacheStats_l1Memory => 'L1 記憶體快取';
+
+  @override
+  String get cacheStats_l2Hive => 'L2 Hive 快取';
+
+  @override
+  String get cacheStats_l3Sqlite => 'L3 SQLite 資料庫';
+
+  @override
+  String cacheStats_recordCount(Object count) {
+    return '$count 條記錄';
+  }
+
+  @override
+  String cacheStats_databaseValue(Object imageCount, Object metadataCount) {
+    return '$imageCount 張圖片 · $metadataCount 條後設資料';
+  }
+
+  @override
+  String get galleryCache_rescanTitle => '重新掃描畫廊';
+
+  @override
+  String get galleryCache_rescanContent =>
+      '這將執行以下操作：\n\n1. 檢查資料一致性（標記不存在的檔案）\n2. 掃描新檔案和變更的檔案\n3. 重新嘗試歷史上未提取成功的後設資料（含失敗記錄）\n\n此操作不會清空已有資料，也不會刪除圖片檔案。';
+
+  @override
+  String get galleryCache_startScan => '開始掃描';
+
+  @override
+  String get galleryCache_scanAlreadyRunning => '已有掃描任務在進行中，請等待完成後再試';
+
+  @override
+  String get galleryCache_preparing => '準備中...';
+
+  @override
+  String get galleryCache_noGalleryFolder => '未設定畫廊目錄';
+
+  @override
+  String get galleryCache_galleryFolderMissing => '畫廊目錄不存在';
+
+  @override
+  String galleryCache_scanningPhase(Object processed, Object total) {
+    return '正在掃描 $processed/$total...';
+  }
+
+  @override
+  String get galleryCache_scanComplete => '掃描完成';
+
+  @override
+  String galleryCache_scanFailed(Object error) {
+    return '掃描失敗: $error';
+  }
+
+  @override
+  String get galleryCache_rescan => '重新掃描';
+
+  @override
+  String get galleryCache_rescanSubtitle => '檢查資料一致性、查漏補缺、提取後設資料';
+
+  @override
+  String get galleryCache_scanning => '正在掃描...';
+
+  @override
+  String get galleryCache_scanAction => '掃描';
+
+  @override
+  String get workflowImport_title => '匯入 ComfyUI 工作流';
+
+  @override
+  String workflowImport_step(Object current, Object title) {
+    return '步驟 $current/4: $title';
+  }
+
+  @override
+  String get workflowImport_stepFile => '選擇工作流檔案';
+
+  @override
+  String get workflowImport_stepInfo => '工作流資訊';
+
+  @override
+  String get workflowImport_stepSlots => '確認槽位配置';
+
+  @override
+  String get workflowImport_stepDone => '完成匯入';
+
+  @override
+  String get workflowImport_previous => '上一步';
+
+  @override
+  String get workflowImport_next => '下一步';
+
+  @override
+  String get workflowImport_finish => '完成匯入';
+
+  @override
+  String get workflowImport_defaultName => '自定義工作流';
+
+  @override
+  String get workflowImport_fileInstructions =>
+      '請選擇 ComfyUI 匯出的 workflow_api.json 檔案。\n\n在 ComfyUI 中，點選選單 → 匯出 (API格式) 即可獲得此檔案。';
+
+  @override
+  String workflowImport_nodeCount(Object count) {
+    return '$count 個節點';
+  }
+
+  @override
+  String get workflowImport_reselect => '點選重新選擇';
+
+  @override
+  String get workflowImport_selectWorkflowApi => '點選選擇 workflow_api.json';
+
+  @override
+  String get workflowImport_invalidTopLevel => '檔案格式無效：頂層應為 JSON 物件';
+
+  @override
+  String get workflowImport_noComfyNodes => '未檢測到 ComfyUI 節點，請確認是 API 格式匯出';
+
+  @override
+  String workflowImport_readFailed(Object error) {
+    return '讀取檔案失敗: $error';
+  }
+
+  @override
+  String get workflowImport_analysisResult => '自動分析結果';
+
+  @override
+  String get workflowImport_inputImageNodes => '輸入影象節點';
+
+  @override
+  String get workflowImport_adjustableParams => '可調引數';
+
+  @override
+  String get workflowImport_outputNodes => '輸出節點';
+
+  @override
+  String get workflowImport_totalNodes => '總節點數';
+
+  @override
+  String workflowImport_countUnit(Object count) {
+    return '$count 個';
+  }
+
+  @override
+  String get workflowImport_workflowName => '工作流名稱 *';
+
+  @override
+  String get workflowImport_description => '描述';
+
+  @override
+  String get workflowImport_category => '分類';
+
+  @override
+  String get workflowImport_slotsHint =>
+      '勾選需要暴露給 UI 的槽位。輸入/輸出槽位建議保留；不需要使用者調整的引數可以取消勾選。';
+
+  @override
+  String get workflowImport_inputSection => '輸入';
+
+  @override
+  String get workflowImport_outputSection => '輸出';
+
+  @override
+  String get workflowImport_parameterSection => '引數';
+
+  @override
+  String get workflowImport_noSlotsWarning =>
+      '未檢測到任何可用槽位。該工作流可能無法正常整合。\n請確認工作流中包含 LoadImage 和 SaveImage/SaveImageWebsocket 節點。';
+
+  @override
+  String workflowImport_nodeRef(Object node) {
+    return '節點 $node';
+  }
+
+  @override
+  String get workflowImport_confirmTitle => '即將匯入以下工作流';
+
+  @override
+  String get workflowImport_name => '名稱';
+
+  @override
+  String get workflowImport_inputSlots => '輸入槽位';
+
+  @override
+  String get workflowImport_parameterSlots => '引數槽位';
+
+  @override
+  String get workflowImport_outputSlots => '輸出槽位';
+
+  @override
+  String get workflowImport_afterImportHint => '匯入後可在生成介面的 ComfyUI 工作流列表中使用。';
+
+  @override
+  String workflowImport_success(Object name) {
+    return '工作流“$name”匯入成功';
+  }
+
+  @override
+  String get shortcut_settings_help => '檢視快捷鍵幫助';
+
+  @override
+  String get shortcut_settings_show_in_menus => '在選單中顯示';
+
+  @override
+  String shortcut_settings_defaultShortcut(Object shortcut) {
+    return '預設: $shortcut';
+  }
+
+  @override
+  String get shortcut_settings_unassigned => '未設定';
+
+  @override
+  String get shortcut_settings_no_matches => '未找到匹配的快捷鍵';
+
+  @override
+  String get shortcut_settings_reset_all_title => '重置所有快捷鍵';
+
+  @override
+  String get shortcut_settings_reset_all_confirm =>
+      '確定要將所有快捷鍵重置為預設設定嗎？此操作不可撤銷。';
+
+  @override
+  String get shortcut_settings_reset_to_default => '重置為預設';
+
+  @override
+  String get toast_previewUpdated => '預覽圖已更新';
+
+  @override
+  String toast_styleReferenceLimit(Object max) {
+    return '風格參考已達上限 ($max 張)';
+  }
+
+  @override
+  String get toast_noValidPromptFound => '未找到有效的提示詞';
+
+  @override
+  String toast_addedToQueue(Object prompt) {
+    return '已加入佇列: $prompt';
+  }
+
+  @override
+  String get toast_noValidMaskIgnored => '沒有檢測到有效蒙版，儲存結果已忽略。';
+
+  @override
+  String get toast_kritaBusy => 'Krita Bridge 正在生成，請等待當前任務結束';
+
+  @override
+  String get toast_kritaNotConnected => 'Krita 未連線，請先在設定中啟用橋接並連線外掛';
+
+  @override
+  String get toast_sentToKrita => '圖片已傳送到 Krita';
+
+  @override
+  String get toast_kritaUnsupportedImageFormat => '圖片格式無法傳送到 Krita，請換用常見圖片格式';
+
+  @override
+  String toast_deletedNamed(Object name) {
+    return '已刪除: $name';
+  }
+
+  @override
+  String get toast_vibeParamSaveReencodeFailed => '儲存引數失敗，Vibe 重新編碼失敗';
+
+  @override
+  String get toast_exportSuccess => '匯出成功';
+
+  @override
+  String toast_exportFailed(Object error) {
+    return '匯出失敗: $error';
+  }
+
+  @override
+  String get toast_selectVibeToExport => '請先選擇要匯出的 Vibe';
+
+  @override
+  String get toast_embedPngSingleVibeOnly => '嵌入 PNG 僅支援單個 Vibe 匯出';
+
+  @override
+  String get toast_selectPngCarrier => '請選擇一個 PNG 載體圖用於匯出';
+
+  @override
+  String get toast_renameSuccess => '重新命名成功';
+
+  @override
+  String get toast_paramsSaved => '引數已儲存';
+
+  @override
+  String get toast_paramsSaveFailed => '儲存引數失敗';
+
+  @override
+  String get toast_dropNoReadableImageOrVibe => '拖入源未提供可讀取的圖片或 Vibe 檔案';
+
+  @override
+  String get toast_contentCannotBeEmpty => '內容不能為空';
+
+  @override
+  String get toast_addedToLibrary => '已新增到詞庫';
+
+  @override
+  String toast_addFailed(Object error) {
+    return '新增失敗: $error';
+  }
+
+  @override
+  String get toast_libraryNotLoaded => '詞庫未載入';
+
+  @override
+  String get toast_noValidTagContent => '沒有有效的標籤內容';
+
+  @override
+  String get toast_allTagsAlreadyExist => '所有標籤已存在於詞庫中';
+
+  @override
+  String get toast_noAddableTags => '沒有可新增的標籤';
+
+  @override
+  String toast_addedTagsSkippedDuplicates(Object added, Object skipped) {
+    return '已新增 $added 個標籤，跳過 $skipped 個重複標籤';
+  }
+
+  @override
+  String get toast_favorited => '已收藏';
+
+  @override
+  String get toast_unfavorited => '已取消收藏';
+
+  @override
+  String toast_favoriteUpdateFailed(Object error) {
+    return '收藏狀態更新失敗: $error';
+  }
+
+  @override
+  String toast_packingImages(Object count) {
+    return '正在打包 $count 張圖片...';
+  }
+
+  @override
+  String toast_packedImages(Object count) {
+    return '已打包 $count 張圖片';
+  }
+
+  @override
+  String get toast_packFailed => '打包失敗';
+
+  @override
+  String toast_packFailedWithError(Object error) {
+    return '打包失敗: $error';
+  }
+
+  @override
+  String get toast_saveDirNotSet => '未設定儲存目錄';
+
+  @override
+  String toast_savedTo(Object path) {
+    return '已儲存到 $path';
+  }
+
+  @override
+  String get toast_tagAlreadyExists => '標籤已存在';
+
+  @override
+  String get toast_nameRequired => '請輸入名稱';
+
+  @override
+  String get toast_savedToVibeLibrary => '已儲存到 Vibe 庫';
+
+  @override
+  String get toast_saveBundleFailed => '儲存組合失敗';
+
+  @override
+  String get toast_saveEntryFailed => '儲存條目失敗';
+
+  @override
+  String get toast_presetNameRequired => '請輸入預設名稱';
+
+  @override
+  String get toast_selectPresetContent => '請至少選擇一項要儲存的內容';
+
+  @override
+  String get toast_presetSaved => '預設儲存成功';
+
+  @override
+  String get toast_imagePromptCopied => '已複製 Prompt';
+
+  @override
+  String get toast_imageHasNoPrompt => '此圖片沒有 Prompt';
+
+  @override
+  String get toast_useDeleteButton => '請使用介面刪除按鈕';
+
+  @override
+  String get toast_imageHasNoMetadata => '此圖片沒有後設資料';
+
+  @override
+  String get toast_imageDataUnavailable => '影象資料不可用，無法複製';
+
+  @override
+  String get toast_vibeDataCopied => 'Vibe 資料已複製';
+
+  @override
+  String get toast_tagCopied => '標籤已複製';
+
+  @override
+  String get toast_characterPromptCopied => '角色提示詞已複製';
+
+  @override
+  String toast_copiedTitle(Object title) {
+    return '$title已複製';
+  }
+
+  @override
+  String toast_replacedVibesCount(Object count, Object name) {
+    return '已替換為 $count 個 Vibe: $name';
+  }
+
+  @override
+  String toast_sentVibesCount(Object count, Object name) {
+    return '已傳送 $count 個 Vibe 到生成頁面: $name';
+  }
+
+  @override
+  String toast_replacedVibe(Object name) {
+    return '已替換為: $name';
+  }
+
+  @override
+  String toast_sentVibeToGeneration(Object name) {
+    return '已傳送到生成頁面: $name';
+  }
+
+  @override
+  String get toast_unreadableDroppedImageSource => '拖入源未提供可讀取的圖片檔案或圖片連結';
+
+  @override
+  String toast_appendedStyleReferences(Object count) {
+    return '已追加 $count 個風格參考';
+  }
+
+  @override
+  String get toast_appendedPreencodedVibe => '已追加 1 個風格參考（複用預編碼 Vibe）';
+
+  @override
+  String get toast_addedPreencodedVibe => '已新增風格參考（複用預編碼 Vibe，節省 2 Anlas）';
+
+  @override
+  String toast_vibesMissingEncoding(Object count) {
+    return '$count 個 Vibe 缺少編碼資料，無法儲存';
+  }
+
+  @override
+  String toast_savedBundle(Object count) {
+    return '已儲存 Bundle ($count 個 Vibe)';
+  }
+
+  @override
+  String toast_extractMetadataFailed(Object error) {
+    return '提取後設資料失敗: $error';
+  }
+
+  @override
+  String toast_extractPromptFailed(Object error) {
+    return '提取提示詞失敗: $error';
+  }
+
+  @override
+  String get toast_smartDecomposeSent => '已智慧分解併傳送';
+
+  @override
+  String get toast_addedToFixedTags => '已新增到固定詞';
+
+  @override
+  String get toast_renameNameRequired => '名稱不能為空';
+
+  @override
+  String get toast_renameNameConflict => '名稱已存在，請使用其他名稱';
+
+  @override
+  String get toast_renameEntryNotFound => '條目不存在，可能已被刪除';
+
+  @override
+  String get toast_renameFilePathMissing => '該條目缺少檔案路徑，無法重新命名';
+
+  @override
+  String get toast_renameFileFailed => '重新命名檔案失敗，請稍後重試';
+
+  @override
+  String get toast_renameFailed => '重新命名失敗，請稍後重試';
+
+  @override
+  String toast_processImageFailed(Object error) {
+    return '處理圖片失敗: $error';
+  }
+
+  @override
+  String get toast_savePreviewFailed => '儲存預覽圖失敗';
+
+  @override
+  String get common_justNow => '剛剛';
+
+  @override
+  String common_minutesAgo(Object minutes) {
+    return '$minutes分鐘前';
+  }
+
+  @override
+  String common_hoursAgo(Object hours) {
+    return '$hours小時前';
+  }
+
+  @override
+  String get common_saving => '儲存中...';
+
+  @override
+  String get common_pleaseWait => '請稍候';
+
+  @override
+  String get common_change => '更換';
+
+  @override
+  String get common_expand => '展開';
+
+  @override
+  String get common_collapse => '收起';
+
+  @override
+  String get vibeLibrary_emptySearchTitle => '未找到匹配的 Vibe';
+
+  @override
+  String get vibeLibrary_emptySearchSubtitle => '嘗試其他關鍵詞';
+
+  @override
+  String get vibeLibrary_emptyFavoritesTitle => '暫無收藏的 Vibe';
+
+  @override
+  String get vibeLibrary_emptyFavoritesSubtitle => '點選心形圖示收藏 Vibe';
+
+  @override
+  String get vibeLibrary_emptyCategoryTitle => '該分類下暫無 Vibe';
+
+  @override
+  String get vibeLibrary_emptyCategorySubtitle => '嘗試切換到\"全部 Vibe\"檢視所有內容';
+
+  @override
+  String get vibeLibrary_emptyNoMatchesTitle => '無匹配結果';
+
+  @override
+  String get vibeLibrary_emptySaveFromGenerationHint => '從生成頁面儲存Vibe到庫中';
+
+  @override
+  String get vibe_nameRequired => '名稱不能為空';
+
+  @override
+  String get vibe_import_namingTitle => '命名 Vibe';
+
+  @override
+  String get vibe_import_nameConflictOverwrite => '該名稱已存在，將被覆蓋';
+
+  @override
+  String get vibe_previewLoadFailed => '預覽載入失敗';
+
+  @override
+  String get vibe_import_applyToRemainingFiles => '應用到後續所有檔案';
+
+  @override
+  String get vibe_import_applyNamingToRemainingFiles => '使用此命名規則處理剩餘檔案';
+
+  @override
+  String get vibe_encodeImageTitle => '編碼圖片為 Vibe';
+
+  @override
+  String get vibe_imagePreview => '圖片預覽';
+
+  @override
+  String get vibe_encodeStartButton => '開始編碼';
+
+  @override
+  String get vibe_encodeImageInProgress => '正在編碼圖片...';
+
+  @override
+  String vibe_encodeErrorImage(Object fileName) {
+    return '圖片: $fileName';
+  }
+
+  @override
+  String vibe_encodeErrorMessage(Object error) {
+    return '錯誤: $error';
+  }
+
+  @override
+  String get vibe_encodeSkipImage => '跳過此圖';
+
+  @override
+  String get detail_sendToImg2Img => '傳送到圖生圖';
+
+  @override
+  String get detail_sendToReversePrompt => '傳送到反推';
+
+  @override
+  String get detail_loadingImage => '載入圖片中...';
+
+  @override
+  String get detail_imageLoadFailed => '無法載入圖片';
+
+  @override
+  String get detail_noImage => '無圖片';
+
+  @override
+  String get detail_parsingMetadata => '正在解析後設資料...';
+
+  @override
+  String get detail_noMetadata => '此圖片無後設資料';
+
+  @override
+  String get detail_metadata => '後設資料';
+
+  @override
+  String get detail_imageDetails => '圖片詳情';
+
+  @override
+  String get detail_basicInfo => '基本資訊';
+
+  @override
+  String get detail_fileName => '檔名';
+
+  @override
+  String get detail_modifiedTime => '修改時間';
+
+  @override
+  String get detail_fileSize => '檔案大小';
+
+  @override
+  String get detail_noContent => '(無內容)';
+
+  @override
+  String get detail_savePreset => '儲存預設';
+
+  @override
+  String detail_copyLabel(Object label) {
+    return '複製$label';
+  }
+
+  @override
+  String get detail_copyCharacterPrompt => '複製角色提示詞';
+
+  @override
+  String get detail_copyAllVibeData => '複製全部 Vibe 資料';
+
+  @override
+  String get detail_saveToVibeLibrary => '儲存到 Vibe 庫';
+
+  @override
+  String get pagination_firstPage => '首頁';
+
+  @override
+  String get pagination_previousPage => '上一頁';
+
+  @override
+  String get pagination_nextPage => '下一頁';
+
+  @override
+  String get pagination_lastPage => '末頁';
+
+  @override
+  String get pagination_jumpToPage => '跳轉到頁面';
+
+  @override
+  String get pagination_jump => '跳轉';
+
+  @override
+  String get pagination_itemsPerPage => '每頁';
+
+  @override
+  String get pagination_itemUnit => '項';
+
+  @override
+  String get diyGuide_title => 'DIY 功能指南';
+
+  @override
+  String get diyGuide_subtitle => '瞭解高階功能，建立專屬詞庫';
+
+  @override
+  String get diyGuide_intro => '本指南介紹了 DIY 系統的核心概念和高階功能，幫助您構建強大的動態提示詞庫。';
+
+  @override
+  String get diyGuide_exampleLabel => '示例';
+
+  @override
+  String get diyGuide_hierarchyTitle => '層級結構 (Hierarchy)';
+
+  @override
+  String get diyGuide_hierarchyDescription => 'DIY 系統採用三級分類結構來組織提示詞，便於管理和檢索。';
+
+  @override
+  String get diyGuide_hierarchyExample =>
+      'Category (分類): 角色特徵\n  -> Group (分組): 髮型\n      -> Tag (標籤): 長髮, 短髮, 雙馬尾';
+
+  @override
+  String get diyGuide_selectionModeTitle => '選擇模式 (Selection Mode)';
+
+  @override
+  String get diyGuide_selectionModeDescription => '決定從一個分組(Group)中選取多少個標籤。';
+
+  @override
+  String get diyGuide_selectionModeExample =>
+      '• Random (隨機): 每次隨機選取一個 (如：隨機發色)\n• All (全選): 選取組內所有標籤 (如：固定特徵組合)';
+
+  @override
+  String get diyGuide_weightTitle => '權重控制 (Weight)';
+
+  @override
+  String get diyGuide_weightDescription => '調整特定提示詞在生成過程中的影響力。';
+
+  @override
+  String get diyGuide_weightExample =>
+      '• 增強: 用花括號包裹 masterpiece = 1.05 倍權重\n• 強力增強: 三層花括號包裹 masterpiece = 1.16 倍權重\n• 減弱: [bad hands] = 0.95 倍權重';
+
+  @override
+  String get diyGuide_genderTitle => '性別限制 (Gender)';
+
+  @override
+  String get diyGuide_genderDescription => '限制標籤僅對特定性別的角色生效，避免生成錯誤的特徵。';
+
+  @override
+  String get diyGuide_genderExample =>
+      '• Female: 僅女性角色可用 (如：裙子)\n• Male: 僅男性角色可用 (如：鬍鬚)\n• Any: 通用 (如：T恤)';
+
+  @override
+  String get diyGuide_scopeTitle => '作用域 (Scope)';
+
+  @override
+  String get diyGuide_scopeDescription => '定義標籤是作用於角色本身、背景環境還是全域性畫面。';
+
+  @override
+  String get diyGuide_scopeExample =>
+      '• Character: 角色特徵 (眼睛, 頭髮)\n• Background: 環境描述 (藍天, 室內)\n• Global: 畫風, 質量詞 (best quality)';
+
+  @override
+  String get diyGuide_conditionalTitle => '條件分支 (Conditional)';
+
+  @override
+  String get diyGuide_conditionalDescription => '基於已選標籤或其他條件來動態決定後續標籤。';
+
+  @override
+  String get diyGuide_conditionalExample =>
+      'IF (已選 \"下雨\")\n  THEN 新增 \"雨傘\", \"溼衣服\"\n  ELSE 新增 \"晴朗\"';
+
+  @override
+  String get diyGuide_dependenciesTitle => '依賴引用 (Dependencies)';
+
+  @override
+  String get diyGuide_dependenciesDescription =>
+      '建立標籤間的關聯，選中一個標籤時自動引入相關聯的其他標籤。';
+
+  @override
+  String get diyGuide_dependenciesExample =>
+      '選中 \"JK制服\" -> 自動引入 \"學校背景\", \"書包\"';
+
+  @override
+  String get diyGuide_visibilityTitle => '可見性規則 (Visibility)';
+
+  @override
+  String get diyGuide_visibilityDescription => '控制標籤在介面上的顯示條件，或在生成時的生效條件。';
+
+  @override
+  String get diyGuide_visibilityExample => '僅當選中 \"魔法少女\" 分類時，顯示 \"魔杖\" 選項組';
+
+  @override
+  String get diyGuide_timeTitle => '時間條件 (Time)';
+
+  @override
+  String get diyGuide_timeDescription => '根據現實時間或設定的模擬時間觸發特定標籤。';
+
+  @override
+  String get diyGuide_timeExample =>
+      '• 06:00-18:00 -> 新增 \"daylight\"\n• 18:00-06:00 -> 新增 \"night\"';
+
+  @override
+  String get diyGuide_postProcessingTitle => '後處理規則 (Post-processing)';
+
+  @override
+  String get diyGuide_postProcessingDescription => '在提示詞生成最後階段進行文字替換或清理。';
+
+  @override
+  String get diyGuide_postProcessingExample =>
+      '將所有 \"blue eyes\" 替換為 \"azure eyes\" 以獲得更獨特的描述';
+
+  @override
+  String get diyGuide_emphasisTitle => '強調機率 (Emphasis)';
+
+  @override
+  String get diyGuide_emphasisDescription => '為標籤隨機新增權重符號的機率，增加結果的多樣性。';
+
+  @override
+  String get diyGuide_emphasisExample =>
+      '設定 30% 機率: 約有 1/3 的機會輸出加權 tag，2/3 的機會輸出普通 tag';
+
+  @override
+  String get naiRules_title => 'NAI 隨機規則說明';
+
+  @override
+  String get naiRules_characterCountProbability => '角色數量機率';
+
+  @override
+  String get naiRules_solo => '1人 (Solo)';
+
+  @override
+  String get naiRules_duo => '2人 (Duo)';
+
+  @override
+  String get naiRules_trio => '3人 (Trio)';
+
+  @override
+  String get naiRules_group => '4人 (Group)';
+
+  @override
+  String get naiRules_genderRules => '性別規則';
+
+  @override
+  String get naiRules_female => '女性 (Female)';
+
+  @override
+  String get naiRules_male => '男性 (Male)';
+
+  @override
+  String get naiRules_mixed => '混合/其他 (Mixed)';
+
+  @override
+  String get naiRules_categoryProbability => '類別機率';
+
+  @override
+  String get naiRules_dynamicTagWeightTitle => '標籤權重動態調整';
+
+  @override
+  String get naiRules_dynamicTagWeightSubtitle =>
+      '包含動作、服飾、表情、背景等多個維度的隨機組合，根據畫面主題動態調整各類別的抽取權重';
+
+  @override
+  String get naiRules_specialMechanisms => '特殊機制';
+
+  @override
+  String get naiRules_tagStrengthening => '強調機制 (Tag Strengthening)';
+
+  @override
+  String get naiRules_seasonalLibraryTitle => '季節詞庫';
+
+  @override
+  String get naiRules_seasonalLibrarySubtitle =>
+      '自動匹配季節特徵，包含季節性服飾、天氣、光照效果和環境氛圍';
+
+  @override
+  String get naiRules_v4CharacterPositioning => 'V4 多角色位置';
+
+  @override
+  String get naiRules_smartPositionTitle => '智慧位置分配';
+
+  @override
+  String get naiRules_smartPositionSubtitle =>
+      '在 V4 模型下，使用 character positioning 語法精確控制多角色站位';
+
+  @override
+  String get comfyImport_detectedTitle => '檢測到 ComfyUI 多角色提示詞';
+
+  @override
+  String comfyImport_characterList(Object count) {
+    return '角色列表 ($count)';
+  }
+
+  @override
+  String get comfyImport_usePositionInfo => '使用位置資訊';
+
+  @override
+  String get comfyImport_usePositionInfoSubtitle => '將 ComfyUI 區域對映為 NAI 角色位置';
+
+  @override
+  String comfyImport_convertCharacters(Object count) {
+    return '轉換 $count 個角色';
+  }
+
+  @override
+  String get comfyImport_syntaxCouple => 'COUPLE 語法';
+
+  @override
+  String get comfyImport_syntaxAndMask => 'AND+MASK 語法';
+
+  @override
+  String get comfyImport_syntaxPipe => '豎線格式';
+
+  @override
+  String get comfyImport_syntaxUnknown => '未知語法';
+
+  @override
+  String get comfyImport_globalPrompt => '全域性提示詞';
+
+  @override
+  String get danbooruPreview_noTagData => '暫無標籤資料';
+
+  @override
+  String get danbooruPreview_noPoolData => '暫無 Pool 資料';
+
+  @override
+  String danbooruPreview_postCount(Object count) {
+    return '$count 個帖子';
+  }
+
+  @override
+  String get checkForUpdate => '檢查更新';
+
+  @override
+  String get neverChecked => '從未檢查';
+
+  @override
+  String lastCheckedAt(Object time) {
+    return '上次檢查: $time';
+  }
+
+  @override
+  String get includePrereleaseUpdates => '包含預釋出版本';
+
+  @override
+  String get includePrereleaseUpdatesDescription => '檢查更新時包含 beta/alpha 版本';
+
+  @override
+  String get updateAvailable => '發現新版本';
+
+  @override
+  String get updateChecking => '正在檢查更新...';
+
+  @override
+  String get updateDownloading => '正在下載更新...';
+
+  @override
+  String get updateInstalling => '正在啟動安裝器...';
+
+  @override
+  String get updateUpToDate => '已是最新版本';
+
+  @override
+  String get updateError => '檢查更新失敗';
+
+  @override
+  String get updateErrorNetwork => '無法連線更新伺服器，請檢查網路或代理設定後重試。';
+
+  @override
+  String get updateErrorServerBusy => '更新伺服器請求繁忙，請稍後重試。';
+
+  @override
+  String get updateErrorReleaseNotReady => '最新版本的釋出檔案尚未就緒，請稍後重試。';
+
+  @override
+  String get updateErrorServiceUnavailable => '更新伺服器暫時不可用，請稍後重試。';
+
+  @override
+  String get updateErrorInvalidMetadata => '更新資訊校驗失敗，請稍後重試或前往 Release 頁面下載。';
+
+  @override
+  String get updateErrorUnknown => '暫時無法檢查更新，請稍後重試。';
+
+  @override
+  String get currentVersion => '當前版本';
+
+  @override
+  String get latestVersion => '最新版本';
+
+  @override
+  String get releaseNotes => '更新日誌';
+
+  @override
+  String get updatePortableManualHint => '當前構建不支援應用內更新，請前往 Release 頁面手動下載新版。';
+
+  @override
+  String updateDownloadingProgress(Object percent) {
+    return '正在下載更新包：$percent%';
+  }
+
+  @override
+  String updateDownloadSizeSpeed(Object received, Object total, Object speed) {
+    return '$received / $total · $speed';
+  }
+
+  @override
+  String get updateDownloaded => '更新包已就緒';
+
+  @override
+  String updateDownloadedHint(Object version) {
+    return '新版本 v$version 已下載並透過校驗。安裝將關閉應用，完成後會自動重啟。';
+  }
+
+  @override
+  String get updateInstallAndRestart => '安裝並重啟';
+
+  @override
+  String get updateInstallNow => '立即安裝';
+
+  @override
+  String get updateInstallLater => '稍後安裝';
+
+  @override
+  String get updateDownload => '下載更新';
+
+  @override
+  String get updateDownloadCancelled => '已取消下載，稍後可繼續';
+
+  @override
+  String get updateDownloadFailed => '下載更新失敗';
+
+  @override
+  String get updateInstallFailed => '安裝更新失敗';
+
+  @override
+  String get updateInstallingHint => '安裝程式已啟動，應用即將關閉並自動完成更新。';
+
+  @override
+  String get updateInstallConfirmationTitle => '現在安裝更新？';
+
+  @override
+  String get updateInstallConfirmationBody =>
+      '應用將安全關閉並安裝更新，完成後自動重新啟動。進行中的生成和下載任務會停止，請先儲存必要內容。';
+
+  @override
+  String get updateActiveTasksWarning => '檢測到佇列任務仍在執行，安裝會停止當前任務。';
+
+  @override
+  String get remindMeLater => '4 小時後提醒';
+
+  @override
+  String get skipThisVersion => '忽略此版本';
+
+  @override
+  String updateNoticeAvailable(Object version) {
+    return '新版本 v$version 可用';
+  }
+
+  @override
+  String get updateNoticeAvailableSubtitle => '可在應用內下載並自動完成更新';
+
+  @override
+  String get updateNoticeManualSubtitle => '當前平臺需要前往 Release 頁面手動更新';
+
+  @override
+  String updateNoticeReady(Object version) {
+    return '新版本 v$version 已準備好';
+  }
+
+  @override
+  String get updateNoticeReadySubtitle => '更新包已校驗，重啟即可安裝';
+
+  @override
+  String get updateNoticeFailed => '上次更新沒有完成';
+
+  @override
+  String get updateViewDetails => '檢視更新';
+
+  @override
+  String updateSettingsAvailable(Object version) {
+    return '發現 v$version，點選檢視更新內容';
+  }
+
+  @override
+  String updateSettingsReady(Object version) {
+    return 'v$version 已下載，點選安裝';
+  }
+
+  @override
+  String get goToDownload => '前往下載';
+
+  @override
+  String get versionSkipped => '已忽略此版本';
+
+  @override
+  String get cannotOpenUrl => '無法開啟連結';
+
+  @override
+  String get model3d_editorTitle => '3D 模型圖層';
+
+  @override
+  String get model3d_addMannequin => '新增內建人偶';
+
+  @override
+  String get model3d_importModel => '匯入模型 (.glb/.gltf)';
+
+  @override
+  String get model3d_emptyHint => '場景為空，先新增人偶或匯入模型';
+
+  @override
+  String get model3d_apply => '應用到圖層';
+
+  @override
+  String get model3d_modeTransform => '變換';
+
+  @override
+  String get model3d_modePose => '姿勢';
+
+  @override
+  String get model3d_gizmoTranslate => '移動';
+
+  @override
+  String get model3d_gizmoRotate => '旋轉';
+
+  @override
+  String get model3d_gizmoScale => '縮放';
+
+  @override
+  String get model3d_undo => '撤銷';
+
+  @override
+  String get model3d_resetPose => '重置姿勢';
+
+  @override
+  String get model3d_replaceConfirm => '替換當前模型？未應用的姿勢將丟失。';
+
+  @override
+  String get model3d_discardConfirm => '放棄未應用的修改？';
+
+  @override
+  String get model3d_missingModel => '模型檔案已丟失，可重新匯入';
+
+  @override
+  String get model3d_loadError => '模型載入失敗';
+
+  @override
+  String get model3d_light => '光照';
+
+  @override
+  String get model3d_lightIntensity => '強度';
+
+  @override
+  String get model3d_lightAzimuth => '方位角';
+
+  @override
+  String get model3d_lightElevation => '仰角';
+
+  @override
+  String get model3d_addLayerTooltip => '新增 3D 模型圖層';
+
+  @override
+  String get model3d_webview2Missing =>
+      '3D 編輯器需要 Microsoft Edge WebView2 執行時。Windows 10/11 通常已自帶;若缺失請從微軟官網安裝 Evergreen 版本後重試。';
+
+  @override
+  String get nav_preciseRefLibrary => '精準參考庫';
+
+  @override
+  String get preciseRefLib_title => '精準參考庫';
+
+  @override
+  String get preciseRefLib_searchHint => '搜尋參考圖...';
+
+  @override
+  String get preciseRefLib_empty => '拖拽或貼上圖片到此處建立庫';
+
+  @override
+  String get preciseRefLib_emptyHint => '也可以在生成結果、歷史記錄或本地相簿中右鍵儲存';
+
+  @override
+  String get preciseRefLib_import => '匯入圖片';
+
+  @override
+  String preciseRefLib_entryCount(int count) {
+    return '$count 個條目';
+  }
+
+  @override
+  String get preciseRefLib_sendToPreciseRef => '傳送到精準參考';
+
+  @override
+  String get preciseRefLib_sendToImg2Img => '傳送到圖生圖';
+
+  @override
+  String get preciseRefLib_editEntry => '編輯引數';
+
+  @override
+  String get preciseRefLib_deleteEntry => '刪除';
+
+  @override
+  String get preciseRefLib_confirmDeleteTitle => '刪除條目';
+
+  @override
+  String preciseRefLib_confirmDelete(String name) {
+    return '確定刪除“$name”？圖片檔案將一併刪除。';
+  }
+
+  @override
+  String preciseRefLib_saved(String name) {
+    return '已存入精準參考庫：$name';
+  }
+
+  @override
+  String get preciseRefLib_savedHint => '可在精準參考庫中編輯引數';
+
+  @override
+  String preciseRefLib_sent(String name) {
+    return '已傳送到精準參考：$name';
+  }
+
+  @override
+  String preciseRefLib_sentToImg2Img(String name) {
+    return '已傳送到圖生圖：$name';
+  }
+
+  @override
+  String get preciseRefLib_imageMissing => '原圖檔案丟失';
+
+  @override
+  String get preciseRefLib_invalidImage => '無法識別圖片格式，或圖片檔案已經損壞';
+
+  @override
+  String get preciseRefLib_deleteFailed => '刪除失敗，條目與原圖已保留，請稍後重試';
+
+  @override
+  String get preciseRefLib_favoritesOnly => '只看收藏';
+
+  @override
+  String get preciseRefLib_sortBy => '排序方式';
+
+  @override
+  String get preciseRefLib_sortCreatedAt => '建立時間';
+
+  @override
+  String get preciseRefLib_sortLastUsed => '最近使用';
+
+  @override
+  String get preciseRefLib_sortUsedCount => '使用次數';
+
+  @override
+  String get preciseRefLib_sortName => '名稱';
+
+  @override
+  String preciseRefLib_importedCount(int count) {
+    return '已匯入 $count 張圖片';
+  }
+
+  @override
+  String preciseRefLib_loadFailed(String error) {
+    return '載入精準參考庫失敗：$error';
+  }
+
+  @override
+  String preciseRefLib_importFailed(String error) {
+    return '儲存到精準參考庫失敗：$error';
+  }
+
+  @override
+  String preciseRefLib_importFailedCount(int count) {
+    return '$count 張圖片未能匯入精準參考庫';
+  }
+
+  @override
+  String get preciseRefLib_fromLibrary => '從庫匯入';
+
+  @override
+  String get preciseRefLib_saveCurrentToLibrary => '儲存到庫';
+
+  @override
+  String preciseRefLib_saveCurrentCount(int count) {
+    return '已儲存 $count 張到精準參考庫';
+  }
+
+  @override
+  String get preciseRefLib_selectorTitle => '從精準參考庫選擇';
+
+  @override
+  String preciseRefLib_selectorConfirm(int count) {
+    return '新增所選 ($count)';
+  }
+
+  @override
+  String get preciseRefLib_nameLabel => '名稱';
+
+  @override
+  String get preciseRefLib_typeFilterAll => '全部';
+
+  @override
+  String get img2img_fromPreciseRefLibrary => '從精準參考庫匯入';
+
+  @override
+  String get localGallery_saveToPreciseRefLibrary => '儲存到精準參考庫';
+
+  @override
+  String get drop_saveToPreciseRefLibrary => '存入精準參考庫';
+
+  @override
+  String get common_enabled => '已啟用';
+
+  @override
+  String get common_disabled => '已禁用';
+
+  @override
+  String bulkAction_selectedCount(int count) {
+    return '已選擇 $count 項';
+  }
+
+  @override
+  String get comfyTask_errorConnectionFailed => '無法連線到 ComfyUI 伺服器';
+
+  @override
+  String get comfyTask_errorConnectionUnavailable => 'ComfyUI 連線不可用';
+
+  @override
+  String get comfyTask_errorExecutionFailedGeneric => 'ComfyUI 執行失敗';
+
+  @override
+  String comfyTask_errorExecutionFailed(String error) {
+    return 'ComfyUI 執行失敗：$error';
+  }
+
+  @override
+  String get comfyTask_errorTimeout => 'ComfyUI 任務已在 10 分鐘後超時';
+
+  @override
+  String comfyTask_errorWorkflowNotFound(String workflowId) {
+    return '未找到工作流：$workflowId';
+  }
+
+  @override
+  String get comfyWorkflowSlot_vaeEncodeTileSize => 'VAE 編碼分塊大小';
+
+  @override
+  String get comfyWorkflowSlot_vaeDecodeTileSize => 'VAE 解碼分塊大小';
+
+  @override
+  String get comfyWorkflowSlot_blocksToSwap => '換出塊數量';
+
+  @override
+  String get comfyWorkflowSlot_swapIoComponents => '換出輸入輸出元件';
+
+  @override
+  String localGallery_firstIndexHint(int count) {
+    return '檢測到 $count 張圖片。首次建立索引可能需要幾分鐘，期間仍可正常使用應用。';
+  }
+
+  @override
+  String get localGallery_errorPermissionDenied => '無法訪問圖片資料夾，請檢查資料夾許可權。';
+
+  @override
+  String localGallery_errorScanFailed(String error) {
+    return '掃描圖片失敗：$error';
+  }
+
+  @override
+  String localGallery_errorInitializationFailed(String error) {
+    return '初始化相簿失敗：$error';
+  }
+
+  @override
+  String get localGallery_errorServiceInitializing => '相簿服務正在初始化，請稍後重試。';
+
+  @override
+  String localGallery_errorDatabaseFailed(String error) {
+    return '相簿資料庫錯誤：$error';
+  }
+
+  @override
+  String localGallery_errorRefreshFailed(String error) {
+    return '重新整理相簿失敗：$error';
+  }
+
+  @override
+  String localGallery_errorFilterFailed(String error) {
+    return '應用相簿篩選條件失敗：$error';
+  }
+
+  @override
+  String localGallery_errorFavoriteFailed(String error) {
+    return '更新收藏狀態失敗：$error';
+  }
+
+  @override
+  String localGallery_errorRebuildFailed(String error) {
+    return '重建相簿索引失敗：$error';
+  }
+
+  @override
+  String get diy_editDependencyTitle => '編輯依賴配置';
+
+  @override
+  String get diy_dependencyTitle => '依賴配置';
+
+  @override
+  String get diy_dependencySubtitle => '配置標籤選擇之間的依賴關係';
+
+  @override
+  String get diy_dependencyType => '依賴型別';
+
+  @override
+  String get diy_sourceCategory => '源類別';
+
+  @override
+  String get diy_selectSourceCategory => '選擇源類別';
+
+  @override
+  String get diy_sourceCategoryId => '源類別 ID';
+
+  @override
+  String get diy_enterCategoryId => '輸入類別 ID';
+
+  @override
+  String get diy_mappingRules => '對映規則';
+
+  @override
+  String get diy_noMappingRules => '暫無對映規則';
+
+  @override
+  String get diy_deleteRule => '刪除規則';
+
+  @override
+  String get diy_defaultValue => '預設值';
+
+  @override
+  String get diy_defaultValueHint => '沒有匹配的對映規則時使用';
+
+  @override
+  String get diy_enableDependency => '啟用依賴配置';
+
+  @override
+  String get diy_enableDependencyHint => '禁用後將忽略此依賴配置';
+
+  @override
+  String get diy_addMappingRule => '新增對映規則';
+
+  @override
+  String get diy_sourceValue => '源值';
+
+  @override
+  String get diy_sourceValueHint => '例如：1, 2, 3';
+
+  @override
+  String get diy_resultValue => '結果值';
+
+  @override
+  String get diy_resultValueHint => '例如：0-3, 0-2, 0-1';
+
+  @override
+  String get diy_dependencyCount => '數量';
+
+  @override
+  String get diy_dependencyExists => '存在';
+
+  @override
+  String get diy_dependencyValue => '值';
+
+  @override
+  String get diy_dependencyExcludes => '排斥';
+
+  @override
+  String get diy_dependencyCountDescription => '根據源類別的已選數量決定結果數量';
+
+  @override
+  String get diy_dependencyExistsDescription => '僅在源類別中存在已選標籤時生效';
+
+  @override
+  String get diy_dependencyValueDescription => '依賴源類別中選定的特定標籤值';
+
+  @override
+  String get diy_dependencyExcludesDescription => '源類別中存在已選標籤時不生效';
+
+  @override
+  String get diy_editConditionalTitle => '編輯條件分支';
+
+  @override
+  String get diy_conditionalDefaultName => '條件分支配置';
+
+  @override
+  String diy_branchDefaultName(int index) {
+    return '分支 $index';
+  }
+
+  @override
+  String get diy_conditionalTitle => '條件分支配置';
+
+  @override
+  String get diy_conditionalSubtitle => '根據機率選擇不同分支';
+
+  @override
+  String diy_branchCount(int count) {
+    return '$count 個分支';
+  }
+
+  @override
+  String get diy_noConditionalBranches => '暫無條件分支';
+
+  @override
+  String get diy_noConditionalBranchesHint => '新增分支以實現條件選擇邏輯';
+
+  @override
+  String diy_conditionCount(int count) {
+    return '$count 個條件';
+  }
+
+  @override
+  String get diy_deleteBranch => '刪除分支';
+
+  @override
+  String get diy_addBranch => '新增分支';
+
+  @override
+  String diy_editBranch(String name) {
+    return '編輯：$name';
+  }
+
+  @override
+  String get diy_branchName => '分支名稱';
+
+  @override
+  String get diy_probability => '機率';
+
+  @override
+  String get diy_enableBranch => '啟用此分支';
+
+  @override
+  String diy_ruleDefaultName(int index) {
+    return '規則 $index';
+  }
+
+  @override
+  String diy_ruleCount(int count) {
+    return '$count 條規則';
+  }
+
+  @override
+  String get diy_addRule => '新增規則';
+
+  @override
+  String get diy_editRule => '編輯規則';
+
+  @override
+  String get diy_ruleName => '規則名稱';
+
+  @override
+  String get diy_enableRule => '啟用此規則';
+
+  @override
+  String get diy_postProcessTitle => '後處理規則';
+
+  @override
+  String get diy_postProcessSubtitle => '自動處理標籤衝突';
+
+  @override
+  String get diy_sleepingRule => '睡眠規則';
+
+  @override
+  String get diy_sleepingRuleDescription => '角色睡眠時移除眼睛顏色描述';
+
+  @override
+  String get diy_mermaidRule => '美人魚規則';
+
+  @override
+  String get diy_mermaidRuleDescription => '移除美人魚、半人馬、蛇女等角色的腿部服裝描述';
+
+  @override
+  String get diy_presetRules => '預設規則';
+
+  @override
+  String get diy_noPostProcessRules => '暫無後處理規則';
+
+  @override
+  String get diy_noPostProcessRulesHint => '新增規則以自動處理標籤衝突';
+
+  @override
+  String get diy_actionType => '操作型別';
+
+  @override
+  String get diy_triggerTags => '觸發標籤';
+
+  @override
+  String get diy_commaSeparatedTagsHint => '用逗號分隔標籤';
+
+  @override
+  String get diy_targetCategories => '目標類別';
+
+  @override
+  String get diy_commaSeparatedCategoryIdsHint => '用逗號分隔類別 ID';
+
+  @override
+  String get diy_targetTags => '目標標籤';
+
+  @override
+  String get diy_actionRemoveTags => '移除標籤';
+
+  @override
+  String get diy_actionReplaceTags => '替換標籤';
+
+  @override
+  String get diy_actionAddTags => '新增標籤';
+
+  @override
+  String get diy_actionRemoveCategories => '移除類別';
+
+  @override
+  String get diy_noTriggers => '無觸發條件';
+
+  @override
+  String diy_actionSummary(String triggers, String action) {
+    return '當 [$triggers] 匹配時：$action';
+  }
+
+  @override
+  String get diy_characterPositionTitle => '角色位置';
+
+  @override
+  String get diy_characterPositionSubtitle => '視覺化編輯角色位置';
+
+  @override
+  String get diy_addCharacterPosition => '新增角色位置';
+
+  @override
+  String get diy_addCharacterPositionHint => '點選下方按鈕新增角色位置';
+
+  @override
+  String diy_characterIndex(int index) {
+    return '角色 $index';
+  }
+
+  @override
+  String get diy_aiPositionChoice => 'AI 自動選擇';
+
+  @override
+  String diy_positionCoordinates(String row, String column) {
+    return '行：$row%，列：$column%';
+  }
+
+  @override
+  String get diy_customPosition => '自定義';
+
+  @override
+  String diy_emphasisPercent(String percent) {
+    return '強調 $percent%';
+  }
+
+  @override
+  String get diy_characterCountWeight => '角色數量權重';
+
+  @override
+  String diy_peopleCount(int count) {
+    return '$count 人';
+  }
+
+  @override
+  String get diy_genderProbability => '性別機率';
+
+  @override
+  String get diy_noWeightsConfigured => '未設定權重';
+
+  @override
+  String get diy_genderOther => '其他';
+
+  @override
+  String get diy_emphasisTitle => '全域性強調配置';
+
+  @override
+  String get diy_emphasisSubtitle => '調整標籤強調效果';
+
+  @override
+  String get diy_emphasisProbability => '強調機率';
+
+  @override
+  String diy_emphasisProbabilityHint(String percent) {
+    return '每個選中的標籤有 $percent% 的機率被新增強調括號';
+  }
+
+  @override
+  String get diy_bracketCount => '括號層數';
+
+  @override
+  String diy_bracketLayers(int count) {
+    return '$count 層';
+  }
+
+  @override
+  String get diy_effectPreview => '效果預覽';
+
+  @override
+  String get diy_exampleTag => '示例標籤';
+
+  @override
+  String get diy_emphasisExplanation => '強調括號會增加標籤的權重，層數越多權重越高';
+
+  @override
+  String diy_presetExportFailed(String error) {
+    return '匯出預設失敗：$error';
+  }
+
+  @override
+  String get diy_presetJsonRootObject => 'JSON 根節點必須是物件';
+
+  @override
+  String diy_presetInvalidData(String error) {
+    return '無效的預設資料：$error';
+  }
+
+  @override
+  String get diy_presetExportTitle => '匯出預設';
+
+  @override
+  String get diy_presetImportTitle => '匯入預設';
+
+  @override
+  String get diy_unknown => '未知';
+
+  @override
+  String get diy_presetShareHint => '複製以下內容分享給其他人';
+
+  @override
+  String get diy_presetPasteJsonHint => '在此貼上預設 JSON 資料……';
+
+  @override
+  String get diy_presetPreview => '預設預覽';
+
+  @override
+  String get diy_name => '名稱';
+
+  @override
+  String get diy_description => '描述';
+
+  @override
+  String get diy_categoryCount => '類別數';
+
+  @override
+  String get diy_totalTagCount => '總標籤數';
+
+  @override
+  String get diy_visibilityTitle => '可見性規則';
+
+  @override
+  String get diy_visibilitySubtitle => '根據條件控制類別可見性';
+
+  @override
+  String get diy_noVisibilityRules => '暫無可見性規則';
+
+  @override
+  String get diy_noVisibilityRulesHint => '新增規則以根據當前構圖控制類別可見性';
+
+  @override
+  String get diy_notSet => '未設定';
+
+  @override
+  String get diy_targetCategory => '目標類別';
+
+  @override
+  String get diy_conditionType => '條件型別';
+
+  @override
+  String get diy_conditionValue => '條件值';
+
+  @override
+  String get diy_conditionValueHint => '標籤名或值';
+
+  @override
+  String get diy_visibleWhenMatched => '條件匹配時可見';
+
+  @override
+  String get diy_conditionTagExists => '標籤存在';
+
+  @override
+  String get diy_conditionTagNotExists => '標籤不存在';
+
+  @override
+  String get diy_conditionValueEquals => '值等於';
+
+  @override
+  String get diy_conditionValueNotEquals => '值不等於';
+
+  @override
+  String get diy_conditionValueInList => '值在列表中';
+
+  @override
+  String get diy_conditionValueNotInList => '值不在列表中';
+
+  @override
+  String get diy_editTimeConditionTitle => '編輯時間條件';
+
+  @override
+  String get diy_timeDefaultName => '時間條件';
+
+  @override
+  String get diy_timeTitle => '時間條件';
+
+  @override
+  String get diy_timeSubtitle => '在指定日期範圍內啟用';
+
+  @override
+  String get diy_enableTimeCondition => '啟用時間條件';
+
+  @override
+  String get diy_enableTimeConditionHint => '僅在設定的日期範圍內生效';
+
+  @override
+  String get diy_christmas => '聖誕節';
+
+  @override
+  String get diy_christmasDescription => '聖誕節詞庫，在 12 月 1 日至 31 日啟用';
+
+  @override
+  String get diy_halloween => '萬聖節';
+
+  @override
+  String get diy_halloweenDescription => '萬聖節詞庫，在 10 月 1 日至 31 日啟用';
+
+  @override
+  String get diy_valentinesDay => '情人節';
+
+  @override
+  String get diy_valentinesDescription => '情人節詞庫，在 2 月 1 日至 14 日啟用';
+
+  @override
+  String get diy_presetTemplates => '預設模板';
+
+  @override
+  String get diy_dateRange => '日期範圍';
+
+  @override
+  String get diy_startDate => '開始日期';
+
+  @override
+  String get diy_endDate => '結束日期';
+
+  @override
+  String get diy_crossYearUnsupported => '暫不支援跨年的日期範圍';
+
+  @override
+  String get diy_month => '月';
+
+  @override
+  String get diy_day => '日';
+
+  @override
+  String get diy_conditionName => '條件名稱';
+
+  @override
+  String get diy_conditionNameHint => '輸入條件名稱';
+
+  @override
+  String get diy_repeatYearly => '每年重複';
+
+  @override
+  String get diy_repeatYearlyHint => '每年在相同日期範圍內自動啟用';
+
+  @override
+  String get diy_currentlyActive => '當前啟用';
+
+  @override
+  String get diy_inactive => '未啟用';
+
+  @override
+  String diy_daysRemaining(int count) {
+    return '剩餘 $count 天';
+  }
+
+  @override
+  String diy_timeRangeSummary(
+    String name,
+    int startMonth,
+    int startDay,
+    int endMonth,
+    int endDay,
+  ) {
+    return '$name（$startMonth 月 $startDay 日至 $endMonth 月 $endDay 日）';
+  }
+
+  @override
+  String get diy_activeBadge => '生效中';
+
+  @override
+  String get common_optional => '可選';
+
+  @override
+  String get common_emptyValue => '（空）';
+
+  @override
+  String get common_previewLoadFailed => '無法載入預覽';
+
+  @override
+  String get common_clickToRefresh => '點選重新整理';
+
+  @override
+  String get common_clickToRetry => '點選重試';
+
+  @override
+  String get common_opening => '正在開啟...';
+
+  @override
+  String get common_swap => '交換';
+
+  @override
+  String get common_prefix => '字首';
+
+  @override
+  String get common_suffix => '字尾';
+
+  @override
+  String get common_minimum => '最小值';
+
+  @override
+  String get common_maximum => '最大值';
+
+  @override
+  String get addToLibrary_displayNameHint => '輸入便於識別此條目的名稱';
+
+  @override
+  String get addToLibrary_tagHint => '輸入標籤並按 Enter 新增';
+
+  @override
+  String get newPresetDialog_nameRequired => '請輸入預設名稱';
+
+  @override
+  String get newPresetDialog_nameLabel => '預設名稱';
+
+  @override
+  String get newPresetDialog_nameHint => '輸入新預設的名稱';
+
+  @override
+  String get newPresetDialog_creationMode => '建立方式';
+
+  @override
+  String get drop_saveVibeBundle => '儲存 Vibe Bundle';
+
+  @override
+  String drop_saveVibeBundleSubtitle(String name) {
+    return '將 $name 等 Vibe 儲存到庫中';
+  }
+
+  @override
+  String get drop_saveEncodedVibeSubtitle => '將預編碼 Vibe 資料儲存到庫中';
+
+  @override
+  String get history_dragFilePreparationFailed => '拖拽檔案準備失敗，請稍後重試';
+
+  @override
+  String get history_dragFilePreparing => '正在準備拖拽檔案...';
+
+  @override
+  String get history_dragFileNotReady => '拖拽檔案尚未準備完成';
+
+  @override
+  String get vibe_import_overwriteOriginalParams => '直接替換原 Vibe 引數';
+
+  @override
+  String vibe_import_overwriteOriginalParamsHint(String name) {
+    return '僅覆蓋 $name 的庫內引數，預設不勾選';
+  }
+
+  @override
+  String vibe_import_reencodeFailed(String name) {
+    return 'Vibe 重新編碼失敗: $name';
+  }
+
+  @override
+  String get randomManager_releaseToDelete => '鬆開刪除';
+
+  @override
+  String get randomManager_dragHereToDelete => '拖到這裡刪除';
+
+  @override
+  String get randomManager_keyboardShortcutsHint => '鍵盤快捷鍵（按 ? 檢視）';
+
+  @override
+  String get localGallery_createFolder => '建立資料夾';
+
+  @override
+  String galleryScan_skipped(int count) {
+    return '跳過 $count';
+  }
+
+  @override
+  String galleryScan_withMetadata(int count) {
+    return '有後設資料 $count';
+  }
+
+  @override
+  String galleryScan_failed(int count) {
+    return '失敗 $count';
+  }
+
+  @override
+  String get galleryScan_processing => '處理中';
+
+  @override
+  String get galleryScan_pending => '待處理';
+
+  @override
+  String get vibeDetail_useAll => '使用全部';
+
+  @override
+  String get vibeDetail_longPressSetCover => '長按設為封面';
+
+  @override
+  String get vibeDetail_noPreviewImage => '無預覽影象';
+
+  @override
+  String get vibeDetail_dropPreviewImage => '拖拽圖片到此處設定預覽圖';
+
+  @override
+  String get vibeDetail_releasePreviewImage => '釋放以設定預覽圖';
+
+  @override
+  String imagePicker_dropReadFailed(String error) {
+    return '讀取拖入圖片失敗: $error';
+  }
+
+  @override
+  String get imagePicker_dropNoReadableImage => '拖入源未提供可讀取的圖片檔案或圖片連結';
+
+  @override
+  String get imagePicker_fileDataUnavailable => '無法讀取檔案資料';
+
+  @override
+  String imagePicker_fileSelectionFailed(String error) {
+    return '選擇檔案失敗: $error';
+  }
+
+  @override
+  String imagePicker_directorySelectionFailed(String error) {
+    return '選擇目錄失敗: $error';
+  }
+
+  @override
+  String get editor_effects => '效果';
+
+  @override
+  String get editor_shiftEdges => '擴充套件邊緣';
+
+  @override
+  String editor_currentSize(int width, int height) {
+    return '當前: $width x $height';
+  }
+
+  @override
+  String get editor_edgeLeft => '左';
+
+  @override
+  String get editor_edgeRight => '右';
+
+  @override
+  String get editor_edgeTop => '上';
+
+  @override
+  String get editor_edgeBottom => '下';
+
+  @override
+  String get editor_enterNumber => '請輸入數字';
+
+  @override
+  String get editor_nonNegativeNumber => '必須大於或等於 0';
+
+  @override
+  String editor_requestedSize(int width, int height) {
+    return '請求尺寸: $width x $height';
+  }
+
+  @override
+  String get editor_requestedSizeInvalid => '請求尺寸: 無效';
+
+  @override
+  String editor_appliedSize(int width, int height) {
+    return '應用尺寸: $width x $height';
+  }
+
+  @override
+  String get editor_appliedSizeInvalid => '應用尺寸: 無效';
+
+  @override
+  String editor_appliedEdges(int left, int top, int right, int bottom) {
+    return '應用邊緣: 左 $left、上 $top、右 $right、下 $bottom';
+  }
+
+  @override
+  String get editor_appliedEdgesInvalid => '應用邊緣: 無效';
+
+  @override
+  String editor_appliedDimensionLimit(int max) {
+    return '應用後的尺寸不能超過 $max。';
+  }
+
+  @override
+  String get savePreset_title => '另存為預設';
+
+  @override
+  String get savePreset_nameHint => '輸入預設名稱';
+
+  @override
+  String get savePreset_metadataDescription => '從圖片後設資料儲存';
+
+  @override
+  String savePreset_vibeData(int count) {
+    return 'Vibe 資料（$count）';
+  }
+
+  @override
+  String get onlineGallery_videoLoadFailed => '影片載入失敗';
+
+  @override
+  String get vibe_releaseToAddStyleReference => '鬆開後新增風格參考';
+
+  @override
+  String router_pageNotFound(String error) {
+    return '頁面未找到: $error';
+  }
+
+  @override
+  String get autocomplete_translating => '翻譯中…';
+
+  @override
+  String get autocomplete_missingTranslation => '未漢化';
+
+  @override
+  String autocomplete_translationCoverage(int translated, int total) {
+    return '漢化覆蓋：$translated/$total';
+  }
+
+  @override
+  String autocomplete_aliasMatch(String alias) {
+    return '別名：$alias';
+  }
+
+  @override
+  String get autocomplete_settingsTitle => '自動補全';
+
+  @override
+  String get autocomplete_enable => '啟用自動補全';
+
+  @override
+  String get autocomplete_resultLimit => '結果數量';
+
+  @override
+  String get autocomplete_allResults => '全部';
+
+  @override
+  String get autocomplete_showAliases => '顯示命中的別名';
+
+  @override
+  String get autocomplete_showTranslations => '顯示中文漢化';
+
+  @override
+  String get autocomplete_autoComma => '插入後自動新增逗號';
+
+  @override
+  String get autocomplete_openOnTagClick => '點選標籤時顯示補全';
+
+  @override
+  String get autocomplete_openOnTagClickSubtitle =>
+      '開啟後，點選已有標籤會開啟普通補全選單；Ctrl/Command + 點選仍顯示相關標籤';
+
+  @override
+  String get autocomplete_replaceUnderscores => '插入時將下劃線替換為空格';
+
+  @override
+  String get autocomplete_dataSourcesTitle => '資料來源與快取';
+
+  @override
+  String get autocomplete_relatedTagsTitle => '共現與相關標籤推薦';
+
+  @override
+  String get autocomplete_relatedTagsSubtitle =>
+      '選中補全後自動推薦；也可在標籤上按 Ctrl+Shift+Space 或 Ctrl+單擊';
+
+  @override
+  String get autocomplete_danbooruApi => 'Danbooru 線上補充';
+
+  @override
+  String get autocomplete_danbooruPrivacy => '僅傳送當前英文標籤，不會上傳完整提示詞';
+
+  @override
+  String get autocomplete_llmTranslation => '使用 Prompt Assistant 補譯缺失漢化';
+
+  @override
+  String get autocomplete_llmRouteMissing =>
+      '請先在 Prompt Assistant 中配置 Translate 路由';
+
+  @override
+  String autocomplete_llmRoute(String route) {
+    return '當前路由：$route。呼叫模型可能產生費用。';
+  }
+
+  @override
+  String get autocomplete_cooccurrence => '本地相關標籤資料';
+
+  @override
+  String autocomplete_entryCount(int count) {
+    return '$count 條記錄';
+  }
+
+  @override
+  String get autocomplete_cooccurrenceAutoDownload => '自動下載本地相關標籤資料';
+
+  @override
+  String get autocomplete_cooccurrenceAutoDownloadSubtitle =>
+      '相關標籤功能開啟時，在進入主頁後後臺下載安裝；不影響基礎補全';
+
+  @override
+  String get autocomplete_downloadNow => '立即下載';
+
+  @override
+  String autocomplete_cooccurrenceUnavailable(String size) {
+    return '尚未安裝 · 下載大小 $size。當前僅顯示線上相關標籤。';
+  }
+
+  @override
+  String get autocomplete_cooccurrenceChecking => '正在檢查本地資料…';
+
+  @override
+  String autocomplete_cooccurrenceDownloading(
+    String downloaded,
+    String total,
+    String speed,
+  ) {
+    return '正在下載 $downloaded / $total · $speed。當前仍可使用線上結果。';
+  }
+
+  @override
+  String get autocomplete_cooccurrenceVerifying => '下載完成，正在校驗資料包…';
+
+  @override
+  String get autocomplete_cooccurrenceInstalling => '正在安全安裝並切換資料庫…';
+
+  @override
+  String autocomplete_cooccurrenceReady(
+    String version,
+    int count,
+    String size,
+  ) {
+    return '版本 $version · $count 組關係 · 佔用 $size';
+  }
+
+  @override
+  String autocomplete_cooccurrenceUpdateAvailable(String version) {
+    return '發現資料版本 $version，可立即更新';
+  }
+
+  @override
+  String autocomplete_cooccurrenceFailed(String reason) {
+    return '本地資料不可用：$reason。基礎補全與線上相關標籤不受影響。';
+  }
+
+  @override
+  String get autocomplete_cooccurrenceErrorNetwork => '網路連線失敗，請稍後重試';
+
+  @override
+  String get autocomplete_cooccurrenceErrorDiskFull => '磁碟空間不足';
+
+  @override
+  String get autocomplete_cooccurrenceErrorArchive => '下載檔案不完整或校驗失敗';
+
+  @override
+  String get autocomplete_cooccurrenceErrorDatabase => '資料庫損壞或版本不匹配';
+
+  @override
+  String get autocomplete_cooccurrenceErrorManifest => '內建資料清單無效';
+
+  @override
+  String get autocomplete_cooccurrenceErrorInstall => '無法寫入或替換資料檔案';
+
+  @override
+  String get autocomplete_cooccurrenceRemoveTitle => '刪除本地相關標籤資料？';
+
+  @override
+  String get autocomplete_cooccurrenceRemoveConfirm =>
+      '刪除後將立即釋放磁碟空間，並繼續使用線上相關標籤。';
+
+  @override
+  String get autocomplete_cooccurrenceStopAutoDownload => '同時關閉自動下載，避免下次啟動重新安裝';
+
+  @override
+  String get autocomplete_cacheTitle => '線上與 AI 快取';
+
+  @override
+  String get autocomplete_clearDanbooruCache => '清除 Danbooru 快取';
+
+  @override
+  String get autocomplete_clearAiCache => '清除 AI 漢化快取';
+
+  @override
+  String autocomplete_cacheCleared(int count) {
+    return '已清除 $count 條快取';
+  }
+
+  @override
+  String get autocomplete_baseCatalog => '基礎 Danbooru 詞庫';
+
+  @override
+  String autocomplete_catalogStatus(String count, String version) {
+    return '$count 個標籤 · 資料版本 $version';
+  }
+
+  @override
+  String get autocomplete_zhDictionary => 'ffdkj 簡體中文漢化庫';
+
+  @override
+  String autocomplete_zhInstalled(int count, String version) {
+    return '已安裝 $count 條 · 版本 $version';
+  }
+
+  @override
+  String get autocomplete_zhNotInstalled => '未安裝；英文補全仍可正常使用';
+
+  @override
+  String get autocomplete_zhInstallPrompt =>
+      '可安裝 ffdkj 漢化庫以顯示中文並支援中文反查；詞庫將直接從上游下載。';
+
+  @override
+  String get autocomplete_checkUpdate => '檢查更新';
+
+  @override
+  String get autocomplete_update => '更新';
+
+  @override
+  String get autocomplete_repair => '修復';
+
+  @override
+  String get autocomplete_install => '安裝';
+
+  @override
+  String get autocomplete_remove => '移除';
+
+  @override
+  String get autocomplete_removeConfirm => '移除已安裝的中文漢化詞庫？之後仍可重新安裝。';
+
+  @override
+  String get autocomplete_sourceBase => '隨應用提供的基礎詞庫';
+
+  @override
+  String get autocomplete_sourceZh => 'ffdkj 中文漢化庫';
+
+  @override
+  String get autocomplete_sourceApi => 'Danbooru API';
+
+  @override
+  String get autocomplete_sourceRelated => '離線相關標籤';
+
+  @override
+  String get autocomplete_sourceAi => 'Prompt Assistant 漢化';
+
+  @override
+  String get autocomplete_headerTitle => '標籤補全';
+
+  @override
+  String get autocomplete_relatedHeaderTitle => '相關標籤';
+
+  @override
+  String get autocomplete_loading => '正在查詢本地詞庫與線上標籤…';
+
+  @override
+  String get autocomplete_empty => '沒有找到匹配的標籤';
+
+  @override
+  String get autocomplete_relatedLoading => '正在查詢本地共現庫與線上相關標籤…';
+
+  @override
+  String get autocomplete_relatedEmpty => '沒有找到可用的相關標籤';
+
+  @override
+  String autocomplete_relatedMetric(int count, String score) {
+    return '共現 $count 次 · Jaccard $score';
+  }
+
+  @override
+  String get autocomplete_relatedPin => '固定當前標籤，可連續插入相關標籤';
+
+  @override
+  String get autocomplete_relatedUnpin => '取消固定並繼續鏈式推薦';
+
+  @override
+  String get autocomplete_statusBase => '本地';
+
+  @override
+  String get autocomplete_statusRelated => '共現';
+
+  @override
+  String get autocomplete_statusOnlineOnly => '僅線上';
+
+  @override
+  String get autocomplete_statusOnlineOnlyTooltip =>
+      '本地相關標籤資料尚未就緒，當前只顯示 Danbooru 線上結果';
+
+  @override
+  String get autocomplete_statusDictionary => '漢化';
+
+  @override
+  String get autocomplete_statusOnline => '線上';
+
+  @override
+  String get autocomplete_statusAi => 'AI';
+
+  @override
+  String get autocomplete_statusReady => '就緒';
+
+  @override
+  String get autocomplete_statusNotInstalled => '未安裝';
+
+  @override
+  String autocomplete_statusDownloading(int progress) {
+    return '下載 $progress%';
+  }
+
+  @override
+  String get autocomplete_statusUpdateAvailable => '可更新';
+
+  @override
+  String get autocomplete_statusError => '異常';
+
+  @override
+  String get autocomplete_statusDisabled => '已關閉';
+
+  @override
+  String get autocomplete_statusSearching => '查詢中';
+
+  @override
+  String get autocomplete_statusTranslating => '翻譯中';
+
+  @override
+  String get autocomplete_openSettings => '開啟補全與資料來源設定';
 }

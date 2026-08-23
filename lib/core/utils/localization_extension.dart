@@ -2,6 +2,8 @@ import 'package:flutter/widgets.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 
+import 'app_locale.dart';
+
 /// BuildContext 扩展，简化多语言调用
 ///
 /// 使用示例：
@@ -14,7 +16,9 @@ extension LocalizationExtension on BuildContext {
 
   /// 获取 timeago 使用的本地化代码
   String get timeagoLocaleCode {
-    switch (Localizations.localeOf(this).languageCode) {
+    final locale = Localizations.localeOf(this);
+    if (isTraditionalChineseLocale(locale)) return traditionalChineseLocaleCode;
+    switch (locale.languageCode) {
       case 'zh':
         return 'zh';
       case 'ja':

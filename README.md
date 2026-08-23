@@ -35,6 +35,7 @@ NAI Launcher 是一个使用 Flutter 构建的 NovelAI 第三方客户端。它�
 | 🌐 在线图库 | 支持 Danbooru / Safebooru / Gelbooru / AI TAG 搜索、真实排行榜、多图详情、元数据复用和批量下载。 |
 | 📦 生成队列 | 支持任务排序、批量生成、暂停/继续、失败策略、进度统计和队列导入导出。 |
 | 🔌 外部联动 | 支持 Krita 本地联动、ComfyUI 本地工作流、系统代理、跨平台图片复制和文件定位。 |
+| 🌏 界面语言 | 支持简体中文、繁體中文、English 和日本語；繁体中文输入可继续检索可选的简中标签汉化词库。 |
 
 ### 在线画廊来源
 
@@ -100,7 +101,7 @@ NAI Launcher 是一个使用 Flutter 构建的 NovelAI 第三方客户端。它�
 - 完整的基础 Danbooru/e621 标签与别名 catalog 随应用提供，只在本机查询，不需要联网。
 - 本地相关标签共现数据由项目从固定版本的 [newtextdoc1111/danbooru-tag-csv](https://huggingface.co/datasets/newtextdoc1111/danbooru-tag-csv) 构建，并作为独立的可选数据包发布。相关标签功能开启时，应用默认在进入主页后后台下载约 30.3 MiB，安装后约占用 78.7 MiB；下载不会阻塞启动或基础补全。
 - 数据包未就绪、下载失败或被关闭时，相关标签弹层仍可显示 Danbooru 在线结果。可在“设置 → 数据源与缓存”暂停、重试、修复或删除数据包，也可以关闭自动下载；删除时可同时选择停止以后自动下载。
-- 简体中文汉化词库为可选组件。应用仅在用户确认后从 [ffdkj/ComfyUI_Danbooru_Tag_Assistant](https://github.com/ffdkj/ComfyUI_Danbooru_Tag_Assistant) 上游直接下载，项目不再分发该数据库。
+- 简体中文汉化词库为可选组件。繁体中文界面与繁体标签输入同样可以使用该词库，查询时会在本地转换后匹配，不会上传输入内容。应用仅在用户确认后从 [ffdkj/ComfyUI_Danbooru_Tag_Assistant](https://github.com/ffdkj/ComfyUI_Danbooru_Tag_Assistant) 上游直接下载，项目不再分发该数据库。
 - Danbooru 在线补充默认开启，只发送光标所在的当前英文 token，不发送完整提示词；可在“设置 → 数据源与缓存”关闭并单独清除缓存。
 - AI 缺失汉化默认关闭。开启后会复用 Prompt Assistant 的 `Translate` 路由，向用户选择的模型服务发送最多 8 个待翻译标签，可能产生 API 费用；AI 翻译缓存可单独清除。
 
