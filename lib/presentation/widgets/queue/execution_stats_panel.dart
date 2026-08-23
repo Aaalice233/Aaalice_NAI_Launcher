@@ -10,8 +10,13 @@ import '../common/app_toast.dart';
 /// 执行统计面板 - 紧凑精致的现代设计
 class ExecutionStatsPanel extends ConsumerStatefulWidget {
   final VoidCallback? onQueueStarted;
+  final VoidCallback? onAddCurrentTask;
 
-  const ExecutionStatsPanel({super.key, this.onQueueStarted});
+  const ExecutionStatsPanel({
+    super.key,
+    this.onQueueStarted,
+    this.onAddCurrentTask,
+  });
 
   @override
   ConsumerState<ExecutionStatsPanel> createState() =>
@@ -187,7 +192,26 @@ class _ExecutionStatsPanelState extends ConsumerState<ExecutionStatsPanel>
           ),
 
           const SizedBox(height: 12),
-          _buildExecutionButton(context, executionState, queueState),
+          Row(
+            children: [
+              Expanded(
+                child: _buildExecutionButton(
+                  context,
+                  executionState,
+                  queueState,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: FilledButton.tonalIcon(
+                  key: const Key('queue-add-current-task'),
+                  onPressed: widget.onAddCurrentTask,
+                  icon: const Icon(Icons.playlist_add_rounded, size: 19),
+                  label: Text(l10n.queue_addCurrentTask),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );

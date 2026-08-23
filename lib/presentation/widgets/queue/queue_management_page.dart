@@ -98,22 +98,11 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
       body: Column(
         children: [
           // 紧凑统计面板
-          ExecutionStatsPanel(onQueueStarted: widget.onQueueStarted),
-
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-            child: SizedBox(
-              width: double.infinity,
-              child: FilledButton.tonalIcon(
-                key: const Key('queue-add-current-task'),
-                onPressed: currentPrompt.trim().isEmpty || queueState.isFull
-                    ? null
-                    : _addCurrentTask,
-                icon: const Icon(Icons.playlist_add_rounded, size: 19),
-                label: Text(l10n.queue_addCurrentTask),
-                style: FilledButton.styleFrom(minimumSize: const Size(0, 42)),
-              ),
-            ),
+          ExecutionStatsPanel(
+            onQueueStarted: widget.onQueueStarted,
+            onAddCurrentTask: currentPrompt.trim().isEmpty || queueState.isFull
+                ? null
+                : _addCurrentTask,
           ),
 
           // 批量操作栏
