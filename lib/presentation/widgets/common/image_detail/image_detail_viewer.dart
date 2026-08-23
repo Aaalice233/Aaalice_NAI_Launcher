@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -55,9 +54,6 @@ class ImageDetailCallbacks {
   });
 }
 
-typedef ImageDetailPageLoader =
-    Future<List<ImageDetailData>> Function(int page);
-
 /// 通用图像详情查看器
 ///
 /// 支持两种使用模式:
@@ -89,13 +85,6 @@ class ImageDetailViewer extends ConsumerStatefulWidget {
   /// Hero 标签前缀
   final String? heroTagPrefix;
 
-  /// 当前传入列表所属页码及完整分页信息。
-  final int initialPage;
-  final int totalPages;
-  final int initialImageOffset;
-  final int? totalImageCount;
-  final ImageDetailPageLoader? pageLoader;
-
   const ImageDetailViewer({
     super.key,
     required this.images,
@@ -104,11 +93,6 @@ class ImageDetailViewer extends ConsumerStatefulWidget {
     this.showThumbnails = true,
     this.callbacks,
     this.heroTagPrefix,
-    this.initialPage = 0,
-    this.totalPages = 1,
-    this.initialImageOffset = 0,
-    this.totalImageCount,
-    this.pageLoader,
   });
 
   /// 打开图像详情查看器
@@ -120,11 +104,6 @@ class ImageDetailViewer extends ConsumerStatefulWidget {
     bool showThumbnails = true,
     ImageDetailCallbacks? callbacks,
     String? heroTagPrefix,
-    int initialPage = 0,
-    int totalPages = 1,
-    int initialImageOffset = 0,
-    int? totalImageCount,
-    ImageDetailPageLoader? pageLoader,
   }) {
     final isWindows = Platform.isWindows;
     final transitionDuration = isWindows
@@ -151,11 +130,6 @@ class ImageDetailViewer extends ConsumerStatefulWidget {
             showThumbnails: showThumbnails,
             callbacks: callbacks,
             heroTagPrefix: heroTagPrefix,
-            initialPage: initialPage,
-            totalPages: totalPages,
-            initialImageOffset: initialImageOffset,
-            totalImageCount: totalImageCount,
-            pageLoader: pageLoader,
           );
           if (isWindows) {
             return viewer;
@@ -199,31 +173,20 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
 
   late PageController _pageController;
   late ScrollController _thumbnailController;
-  late List<ImageDetailData> _images;
   late int _currentIndex;
-  late int _firstLoadedPage;
-  late int _lastLoadedPage;
-  late int _firstImageOffset;
   // 始终显示控制栏（不自动收起）
   final bool _showControls = true;
   final _focusNode = FocusNode();
   final Map<String, TransformationController> _transformationControllers = {};
-  bool _isLoadingPreviousPage = false;
-  bool _isLoadingNextPage = false;
   bool _isClosing = false;
   DateTime? _lastCloseRequestedAt;
 
   @override
   void initState() {
     super.initState();
-    _images = List<ImageDetailData>.of(widget.images);
     _currentIndex = widget.initialIndex;
-    _firstLoadedPage = widget.initialPage;
-    _lastLoadedPage = widget.initialPage;
-    _firstImageOffset = widget.initialImageOffset;
     _pageController = PageController(initialPage: _currentIndex);
-    _thumbnailController = ScrollController()
-      ..addListener(_handleThumbnailScroll);
+    _thumbnailController = ScrollController();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scrollToThumbnail(_currentIndex, animate: false);
@@ -256,88 +219,8 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
     }
   }
 
-  void _handleThumbnailScroll() {
-    if (!_thumbnailController.hasClients || widget.pageLoader == null) return;
-    final position = _thumbnailController.position;
-    if (position.extentAfter < 352) unawaited(_loadNextPage());
-    if (position.extentBefore < 352) unawaited(_loadPreviousPage());
-  }
-
-  Future<void> _loadNextPage() async {
-    final loader = widget.pageLoader;
-    if (loader == null ||
-        _isLoadingNextPage ||
-        _lastLoadedPage >= widget.totalPages - 1) {
-      return;
-    }
-
-    _isLoadingNextPage = true;
-    final page = _lastLoadedPage + 1;
-    try {
-      final loaded = await loader(page);
-      if (!mounted) return;
-      final existingIds = _images.map((image) => image.identifier).toSet();
-      final additions = loaded
-          .where((image) => existingIds.add(image.identifier))
-          .toList();
-      setState(() {
-        _lastLoadedPage = page;
-        _images.addAll(additions);
-      });
-    } catch (error, stackTrace) {
-      AppLogger.e(
-        'Failed to load detail thumbnail page $page',
-        error,
-        stackTrace,
-        'ImageDetailViewer',
-      );
-    } finally {
-      _isLoadingNextPage = false;
-    }
-  }
-
-  Future<void> _loadPreviousPage() async {
-    final loader = widget.pageLoader;
-    if (loader == null || _isLoadingPreviousPage || _firstLoadedPage <= 0) {
-      return;
-    }
-
-    _isLoadingPreviousPage = true;
-    final page = _firstLoadedPage - 1;
-    try {
-      final loaded = await loader(page);
-      if (!mounted) return;
-      final existingIds = _images.map((image) => image.identifier).toSet();
-      final additions = loaded
-          .where((image) => existingIds.add(image.identifier))
-          .toList();
-      setState(() {
-        _firstLoadedPage = page;
-        _firstImageOffset -= additions.length;
-        _images.insertAll(0, additions);
-        _currentIndex += additions.length;
-      });
-      if (additions.isNotEmpty) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted || !_pageController.hasClients) return;
-          _pageController.jumpToPage(_currentIndex);
-          _scrollToThumbnail(_currentIndex, animate: false);
-        });
-      }
-    } catch (error, stackTrace) {
-      AppLogger.e(
-        'Failed to load detail thumbnail page $page',
-        error,
-        stackTrace,
-        'ImageDetailViewer',
-      );
-    } finally {
-      _isLoadingPreviousPage = false;
-    }
-  }
-
   void _goToPage(int index) {
-    if (index < 0 || index >= _images.length) return;
+    if (index < 0 || index >= widget.images.length) return;
 
     _pageController.animateToPage(
       index,
@@ -347,15 +230,13 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
   }
 
   void _jumpToPage(int index) {
-    if (index < 0 || index >= _images.length) return;
+    if (index < 0 || index >= widget.images.length) return;
     _pageController.jumpToPage(index);
   }
 
   void _onPageChanged(int index) {
     setState(() => _currentIndex = index);
     _scrollToThumbnail(index);
-    if (index >= _images.length - 5) unawaited(_loadNextPage());
-    if (index <= 4) unawaited(_loadPreviousPage());
   }
 
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
@@ -375,7 +256,7 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
         _goToPage(0);
         return KeyEventResult.handled;
       case LogicalKeyboardKey.end:
-        _goToPage(_images.length - 1);
+        _goToPage(widget.images.length - 1);
         return KeyEventResult.handled;
       default:
         return KeyEventResult.ignored;
@@ -443,7 +324,7 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
     });
   }
 
-  ImageDetailData get _currentImage => _images[_currentIndex];
+  ImageDetailData get _currentImage => widget.images[_currentIndex];
 
   /// 获取当前图片的 TransformationController
   TransformationController get _currentTransformController {
@@ -610,7 +491,7 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
   }
 
   Widget _buildMainContent() {
-    final showThumbnails = widget.showThumbnails && _images.length > 1;
+    final showThumbnails = widget.showThumbnails && widget.images.length > 1;
 
     return Stack(
       children: [
@@ -618,10 +499,10 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
         // 注意：移除 onTap 切换控制栏，让顶部工具栏始终显示
         PageView.builder(
           controller: _pageController,
-          itemCount: _images.length,
+          itemCount: widget.images.length,
           onPageChanged: _onPageChanged,
           itemBuilder: (context, index) {
-            final data = _images[index];
+            final data = widget.images[index];
             final heroTag =
                 widget.heroTagPrefix != null && index == _currentIndex
                 ? '${widget.heroTagPrefix}_${data.identifier}'
@@ -644,8 +525,8 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
           left: 0,
           right: 0,
           child: DetailTopBar(
-            currentIndex: _firstImageOffset + _currentIndex,
-            totalImages: widget.totalImageCount ?? _images.length,
+            currentIndex: _currentIndex,
+            totalImages: widget.images.length,
             currentImage: _currentImage,
             onClose: () => _requestClose('top-bar-close'),
             onReuseMetadata: widget.callbacks?.onReuseMetadata != null
@@ -681,7 +562,7 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
           ),
 
         // 左右导航按钮
-        if (_showControls && _images.length > 1) ...[
+        if (_showControls && widget.images.length > 1) ...[
           if (_currentIndex > 0)
             Positioned(
               left: 16,
@@ -694,7 +575,7 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
                 ),
               ),
             ),
-          if (_currentIndex < _images.length - 1)
+          if (_currentIndex < widget.images.length - 1)
             Positioned(
               right: 16,
               top: 0,
@@ -723,7 +604,7 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
         ),
       ),
       child: DetailThumbnailBar(
-        images: _images,
+        images: widget.images,
         currentIndex: _currentIndex,
         scrollController: _thumbnailController,
         onTap: _jumpToPage,

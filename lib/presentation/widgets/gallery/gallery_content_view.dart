@@ -557,31 +557,6 @@ class LocalGalleryContentView extends ConsumerWidget {
         return image?.isFavorite ?? false;
       }
 
-      final supportsPagedLoading =
-          !state.isGroupedView &&
-          images.length == state.currentImages.length &&
-          images.indexed.every(
-            (entry) => entry.$2.path == state.currentImages[entry.$1].path,
-          );
-
-      Future<List<ImageDetailData>> loadDetailPage(int page) async {
-        final notifier = ref.read(localGalleryNotifierProvider.notifier);
-        final latestState = ref.read(localGalleryNotifierProvider);
-        final service = await notifier.getService();
-        final records = await service.getPage(
-          page,
-          pageSize: latestState.pageSize,
-        );
-        return records
-            .map(
-              (record) => LocalImageDetailData(
-                record,
-                getFavoriteStatus: getFavoriteStatus,
-              ),
-            )
-            .toList();
-      }
-
       ImageDetailOpener.showMultipleImmediate(
         context,
         images: images
@@ -593,15 +568,6 @@ class LocalGalleryContentView extends ConsumerWidget {
         initialIndex: initialIndex,
         showMetadataPanel: true,
         showThumbnails: images.length > 1,
-        initialPage: supportsPagedLoading ? state.currentPage : 0,
-        totalPages: supportsPagedLoading ? state.totalPages : 1,
-        initialImageOffset: supportsPagedLoading
-            ? state.currentPage * state.pageSize
-            : 0,
-        totalImageCount: supportsPagedLoading
-            ? (state.hasFilters ? state.filteredCount : state.totalCount)
-            : images.length,
-        pageLoader: supportsPagedLoading ? loadDetailPage : null,
         callbacks: ImageDetailCallbacks(
           onReuseMetadata: onReuseMetadata != null
               ? (data, _) =>

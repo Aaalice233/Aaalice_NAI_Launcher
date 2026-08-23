@@ -898,22 +898,43 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           ),
           borderRadius: BorderRadius.circular(18),
         ),
-        child: TextField(
-          controller: controller,
-          focusNode: focusNode,
-          style: theme.textTheme.bodyMedium,
-          decoration: InputDecoration(
-            hintText: hintText,
-            hintStyle: TextStyle(
-              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
-              fontSize: 13,
+        child: ValueListenableBuilder<TextEditingValue>(
+          valueListenable: controller,
+          builder: (context, value, _) => TextField(
+            controller: controller,
+            focusNode: focusNode,
+            style: theme.textTheme.bodyMedium,
+            decoration: InputDecoration(
+              hintText: hintText,
+              hintStyle: TextStyle(
+                color: theme.colorScheme.onSurfaceVariant.withValues(
+                  alpha: 0.5,
+                ),
+                fontSize: 13,
+              ),
+              prefixIcon: Icon(icon, size: 18),
+              suffixIcon: value.text.isEmpty
+                  ? null
+                  : IconButton(
+                      tooltip: context.l10n.common_clear,
+                      icon: Icon(
+                        Icons.close,
+                        size: 16,
+                        color: theme.colorScheme.onSurfaceVariant.withValues(
+                          alpha: 0.65,
+                        ),
+                      ),
+                      onPressed: () {
+                        controller.clear();
+                        focusNode.requestFocus();
+                      },
+                    ),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(vertical: 8),
+              isDense: true,
             ),
-            prefixIcon: Icon(icon, size: 18),
-            border: InputBorder.none,
-            contentPadding: const EdgeInsets.symmetric(vertical: 8),
-            isDense: true,
+            onSubmitted: (_) => onSubmitted(),
           ),
-          onSubmitted: (_) => onSubmitted(),
         ),
       ),
     );
@@ -1046,7 +1067,26 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             ),
     );
     void refreshAction() {
-      _galleryNotifier.refresh();
+      final isPopular = state.viewMode == GalleryViewMode.popular;
+      final activeSource = isPopular ? state.popularSourceId : state.sourceId;
+      if (activeSource == GallerySourceId.aiTag &&
+          state.viewMode == GalleryViewMode.search) {
+        unawaited(
+          _galleryNotifier.searchWithPrompt(
+            _searchController.text,
+            prompt: _promptSearchController.text,
+          ),
+        );
+      } else if (activeSource == GallerySourceId.aiTag && isPopular) {
+        unawaited(
+          _galleryNotifier.searchPopular(
+            query: _popularSearchController.text,
+            prompt: _popularPromptSearchController.text,
+          ),
+        );
+      } else {
+        unawaited(_galleryNotifier.refresh());
+      }
       if (state.randomEnabled && _scrollController.hasClients) {
         _scrollController.jumpTo(0);
       }

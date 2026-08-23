@@ -62,11 +62,6 @@ class ImageDetailOpener {
     bool showMetadataPanel = true,
     bool showThumbnails = true,
     ImageDetailCallbacks? callbacks,
-    int initialPage = 0,
-    int totalPages = 1,
-    int initialImageOffset = 0,
-    int? totalImageCount,
-    ImageDetailPageLoader? pageLoader,
   }) async {
     // 直接打开详情页，不再使用全局互锁
     await ImageDetailViewer.show(
@@ -76,11 +71,6 @@ class ImageDetailOpener {
       showMetadataPanel: showMetadataPanel,
       showThumbnails: showThumbnails && images.length > 1,
       callbacks: callbacks,
-      initialPage: initialPage,
-      totalPages: totalPages,
-      initialImageOffset: initialImageOffset,
-      totalImageCount: totalImageCount,
-      pageLoader: pageLoader,
     );
   }
 
@@ -118,11 +108,6 @@ class ImageDetailOpener {
     bool showMetadataPanel = true,
     bool showThumbnails = true,
     ImageDetailCallbacks? callbacks,
-    int initialPage = 0,
-    int totalPages = 1,
-    int initialImageOffset = 0,
-    int? totalImageCount,
-    ImageDetailPageLoader? pageLoader,
   }) {
     // 使用 microtask 确保不阻塞当前帧
     Future.microtask(() {
@@ -135,11 +120,6 @@ class ImageDetailOpener {
         showMetadataPanel: showMetadataPanel,
         showThumbnails: showThumbnails && images.length > 1,
         callbacks: callbacks,
-        initialPage: initialPage,
-        totalPages: totalPages,
-        initialImageOffset: initialImageOffset,
-        totalImageCount: totalImageCount,
-        pageLoader: pageLoader,
       );
     });
   }
