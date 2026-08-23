@@ -55,51 +55,84 @@ class GenerateButtonWithCost extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (showCancel) {
-      return SizedBox(
-        height: height,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (_canSkipCurrentBatch) ...[
-              ThemedButton(
-                onPressed: onSkipCurrent,
-                icon: const Icon(Icons.skip_next),
-                label: Text(
-                  '${context.l10n.generation_skipCurrentBatch} ${_progressText()}',
-                ),
-                style: ThemedButtonStyle.outlined,
-              ),
-              const SizedBox(width: 8),
-            ],
-            ThemedButton(
-              onPressed: onCancel,
-              icon: const Icon(Icons.stop_circle_outlined),
-              label: Text(context.l10n.generation_stopAllGeneration),
-              style: ThemedButtonStyle.outlined,
-            ),
-          ],
-        ),
-      );
-    }
+    final primaryButton = _buildPrimaryButton(context);
 
     return SizedBox(
       height: height,
+      child: _canSkipCurrentBatch
+          ? Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ThemedButton(
+                  onPressed: onSkipCurrent,
+                  icon: const Icon(Icons.skip_next),
+                  label: Text(
+                    '${context.l10n.generation_skipCurrentBatch} ${_progressText()}',
+                  ),
+                  style: ThemedButtonStyle.outlined,
+                ),
+                const SizedBox(width: 8),
+                primaryButton,
+              ],
+            )
+          : primaryButton,
+    );
+  }
+
+  Widget _buildPrimaryButton(BuildContext context) {
+    final theme = Theme.of(context);
+    final cancelTheme = theme.copyWith(
+      colorScheme: theme.colorScheme.copyWith(
+        primary: theme.colorScheme.errorContainer,
+        onPrimary: theme.colorScheme.onErrorContainer,
+        primaryContainer: theme.colorScheme.error,
+        onPrimaryContainer: theme.colorScheme.onError,
+      ),
+    );
+    final isLoading = isGenerating && !showCancel;
+
+    return AnimatedTheme(
+      data: showCancel ? cancelTheme : theme,
+      duration: const Duration(milliseconds: 160),
+      curve: Curves.easeOut,
       child: ThemedButton(
-        onPressed: isGenerating || cooldownRemainingSeconds > 0
+        onPressed: showCancel
+            ? onCancel
+            : isGenerating || cooldownRemainingSeconds > 0
             ? null
             : onGenerate,
-        icon: isGenerating
-            ? null
-            : cooldownRemainingSeconds > 0
-            ? const Icon(Icons.hourglass_bottom_outlined)
-            : const Icon(Icons.auto_awesome),
-        isLoading: isGenerating,
-        label: Row(
-          mainAxisSize: MainAxisSize.min,
+        isLoading: isLoading,
+        label: IndexedStack(
+          index: showCancel ? 1 : 0,
+          alignment: Alignment.center,
           children: [
-            Text(_generateLabelText(context)),
-            AnlasCostBadge(isGenerating: isGenerating),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (!isLoading) ...[
+                  Icon(
+                    cooldownRemainingSeconds > 0
+                        ? Icons.hourglass_bottom_outlined
+                        : Icons.auto_awesome,
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                Text(
+                  showCancel
+                      ? context.l10n.generation_generate
+                      : _generateLabelText(context),
+                ),
+                AnlasCostBadge(isGenerating: isLoading),
+              ],
+            ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.stop_circle_outlined),
+                const SizedBox(width: 8),
+                Text(context.l10n.common_cancel),
+              ],
+            ),
           ],
         ),
         style: ThemedButtonStyle.filled,
