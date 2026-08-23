@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '../image_detail_data.dart';
@@ -20,23 +21,48 @@ class DetailThumbnailBar extends StatelessWidget {
     required this.onTap,
   });
 
+  void _handlePointerSignal(PointerSignalEvent event) {
+    if (event is! PointerScrollEvent ||
+        event.scrollDelta.dy == 0 ||
+        !scrollController.hasClients) {
+      return;
+    }
+
+    GestureBinding.instance.pointerSignalResolver.register(event, (
+      resolvedEvent,
+    ) {
+      final scrollEvent = resolvedEvent as PointerScrollEvent;
+      final position = scrollController.position;
+      final target = (position.pixels + scrollEvent.scrollDelta.dy).clamp(
+        position.minScrollExtent,
+        position.maxScrollExtent,
+      );
+      scrollController.jumpTo(target);
+      scrollEvent.respond(allowPlatformDefault: false);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 84,
-      child: ListView.builder(
-        controller: scrollController,
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        itemCount: images.length,
-        itemBuilder: (context, index) {
-          return _ThumbnailItem(
-            image: images[index],
-            index: index,
-            isSelected: index == currentIndex,
-            onTap: () => onTap(index),
-          );
-        },
+    return Listener(
+      behavior: HitTestBehavior.opaque,
+      onPointerSignal: _handlePointerSignal,
+      child: SizedBox(
+        height: 84,
+        child: ListView.builder(
+          controller: scrollController,
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          itemCount: images.length,
+          itemBuilder: (context, index) {
+            return _ThumbnailItem(
+              image: images[index],
+              index: index,
+              isSelected: index == currentIndex,
+              onTap: () => onTap(index),
+            );
+          },
+        ),
       ),
     );
   }
@@ -88,8 +114,8 @@ class _ThumbnailItemState extends State<_ThumbnailItem> {
     final size = widget.isSelected
         ? selectedSize
         : _isHovered
-            ? hoveredSize
-            : baseSize;
+        ? hoveredSize
+        : baseSize;
 
     // 计算边距（保持总高度不变）
     const totalHeight = 84.0;
@@ -99,15 +125,15 @@ class _ThumbnailItemState extends State<_ThumbnailItem> {
     final borderColor = widget.isSelected
         ? primary
         : _isHovered
-            ? primary.withValues(alpha: 0.7)
-            : Colors.white.withValues(alpha: 0.2);
+        ? primary.withValues(alpha: 0.7)
+        : Colors.white.withValues(alpha: 0.2);
 
     // 边框宽度
     final borderWidth = widget.isSelected
         ? 2.5
         : _isHovered
-            ? 2.0
-            : 1.0;
+        ? 2.0
+        : 1.0;
 
     // 阴影
     final shadow = widget.isSelected || _isHovered
@@ -124,8 +150,8 @@ class _ThumbnailItemState extends State<_ThumbnailItem> {
     final opacity = widget.isSelected
         ? 1.0
         : _isHovered
-            ? 0.85
-            : 0.5;
+        ? 0.85
+        : 0.5;
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
@@ -145,10 +171,7 @@ class _ThumbnailItemState extends State<_ThumbnailItem> {
           ),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: borderColor,
-              width: borderWidth,
-            ),
+            border: Border.all(color: borderColor, width: borderWidth),
             boxShadow: shadow,
           ),
           child: ClipRRect(
