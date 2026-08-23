@@ -159,6 +159,8 @@ class StorageKeys {
   static const String discordShareTargetIds = 'discord_share_target_ids_v1';
   static const String discordShareIncludeMetadata =
       'discord_share_include_metadata_v1';
+  static const String discordSharePromptCategories =
+      'discord_share_prompt_categories_v1';
   static const String discordShareLongPromptAsFile =
       'discord_share_long_prompt_as_file_v1';
 

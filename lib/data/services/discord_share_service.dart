@@ -280,12 +280,19 @@ class DiscordShareService {
         ?.map((entry) => entry.toString())
         .where(available.contains)
         .toSet();
-    if (selected != null && selected.isNotEmpty) return selected;
+    if (selected != null) return selected;
     final defaults = targets
         .where((entry) => entry.selectedByDefault)
         .map((entry) => entry.id)
         .toSet();
     return defaults.isNotEmpty ? defaults : {targets.first.id};
+  }
+
+  Set<String>? loadPromptCategoryIds() {
+    final saved = _localStorage.getSetting<List<dynamic>>(
+      StorageKeys.discordSharePromptCategories,
+    );
+    return saved?.map((entry) => entry.toString()).toSet();
   }
 
   bool loadIncludeMetadataPreference() =>
@@ -304,6 +311,7 @@ class DiscordShareService {
 
   Future<void> savePreferences({
     required Set<String> targetIds,
+    required Set<String> promptCategoryIds,
     required bool includeMetadata,
     required bool longPromptAsFile,
   }) {
@@ -311,6 +319,10 @@ class DiscordShareService {
       _localStorage.setSetting(
         StorageKeys.discordShareTargetIds,
         targetIds.toList(growable: false),
+      ),
+      _localStorage.setSetting(
+        StorageKeys.discordSharePromptCategories,
+        promptCategoryIds.toList(growable: false),
       ),
       _localStorage.setSetting(
         StorageKeys.discordShareIncludeMetadata,

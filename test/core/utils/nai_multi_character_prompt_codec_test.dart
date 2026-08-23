@@ -23,10 +23,14 @@ void main() {
       final fenced = NaiMultiCharacterPromptCodec.tryDecode(
         '```text\nscene | character\n```',
       );
+      final unlabeledFence = NaiMultiCharacterPromptCodec.tryDecode(
+        '```\nmasterpiece | character\n```',
+      );
 
       expect(inline?.characterPrompts, ['first character', 'second character']);
       expect(fenced?.basePrompt, 'scene');
       expect(fenced?.characterPrompts, ['character']);
+      expect(unlabeledFence?.basePrompt, 'masterpiece');
     });
 
     test('does not treat double pipes or incomplete chunks as characters', () {

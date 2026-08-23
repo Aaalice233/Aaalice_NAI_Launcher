@@ -10,14 +10,11 @@ class NaiMultiCharacterPromptCodec {
   static NaiMultiCharacterPrompt? tryDecode(String source) {
     var text = source.trim();
     if (text.startsWith('```') && text.endsWith('```')) {
-      text = text.substring(3, text.length - 3).trim();
-      final firstLineBreak = text.indexOf('\n');
-      if (firstLineBreak >= 0) {
-        final fenceLanguage = text.substring(0, firstLineBreak).trim();
-        if (RegExp(r'^[a-zA-Z0-9_-]{1,20}$').hasMatch(fenceLanguage)) {
-          text = text.substring(firstLineBreak + 1).trim();
-        }
-      }
+      final closingFence = text.length - 3;
+      final openingLineBreak = text.indexOf('\n');
+      text = openingLineBreak >= 0 && openingLineBreak < closingFence
+          ? text.substring(openingLineBreak + 1, closingFence).trim()
+          : text.substring(3, closingFence).trim();
     }
 
     final chunks = _splitSinglePipes(text);

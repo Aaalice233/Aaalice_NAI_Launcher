@@ -18,8 +18,17 @@ void main() {
     tester,
   ) async {
     final service = _MockDiscordShareService();
+    when(() => service.loadPromptCategoryIds()).thenReturn(null);
     when(() => service.loadIncludeMetadataPreference()).thenReturn(false);
     when(() => service.loadLongPromptAsFilePreference()).thenReturn(true);
+    when(
+      () => service.savePreferences(
+        targetIds: any(named: 'targetIds'),
+        promptCategoryIds: any(named: 'promptCategoryIds'),
+        includeMetadata: any(named: 'includeMetadata'),
+        longPromptAsFile: any(named: 'longPromptAsFile'),
+      ),
+    ).thenAnswer((_) async {});
     when(() => service.loadSession()).thenAnswer((_) async => _session);
     when(
       () => service.verifySession(_session),
@@ -66,6 +75,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    final channelChip = tester.widget<FilterChip>(
+      find.widgetWithText(FilterChip, 'Showcase'),
+    );
+    expect(channelChip.showCheckmark, isFalse);
+
     final promptField = tester.widget<TextField>(
       find.widgetWithText(TextField, '发送的提示词'),
     );
@@ -85,6 +99,18 @@ void main() {
       promptField.controller!.text,
       'fixed pre, scene, fixed post, quality tag\n\n| alice\n\n| bob',
     );
+    await tester.pump();
+    verify(
+      () => service.savePreferences(
+        targetIds: any(named: 'targetIds', that: unorderedEquals(['showcase'])),
+        promptCategoryIds: any(
+          named: 'promptCategoryIds',
+          that: unorderedEquals(['main', 'characters', 'quality', 'fixed']),
+        ),
+        includeMetadata: false,
+        longPromptAsFile: true,
+      ),
+    ).called(greaterThanOrEqualTo(1));
   });
 }
 

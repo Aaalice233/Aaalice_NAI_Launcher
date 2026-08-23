@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/image_share_sanitizer.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/gallery/nai_image_metadata.dart';
@@ -70,20 +71,27 @@ class _DiscordShareDialogState extends ConsumerState<DiscordShareDialog> {
   bool _longPromptAsFile = true;
   Object? _error;
   CancelToken? _authenticationCancelToken;
+  Future<void> _preferenceWrite = Future<void>.value();
 
   late final Map<_PromptCategory, String> _categoryContent;
+  late final Set<_PromptCategory> _preferredCategories;
   late final Set<_PromptCategory> _selectedCategories;
 
   @override
   void initState() {
     super.initState();
     _categoryContent = _buildCategoryContent(widget.metadata);
-    _selectedCategories = {
-      if (_categoryContent[_PromptCategory.main]?.isNotEmpty == true)
-        _PromptCategory.main,
-      if (_categoryContent[_PromptCategory.characters]?.isNotEmpty == true)
-        _PromptCategory.characters,
-    };
+    final savedCategoryIds = ref
+        .read(discordShareServiceProvider)
+        .loadPromptCategoryIds();
+    _preferredCategories = savedCategoryIds == null
+        ? {_PromptCategory.main, _PromptCategory.characters}
+        : _PromptCategory.values
+              .where((category) => savedCategoryIds.contains(category.name))
+              .toSet();
+    _selectedCategories = _preferredCategories
+        .where((category) => _categoryContent[category]?.isNotEmpty == true)
+        .toSet();
     _rebuildPrompt();
     unawaited(_initialize());
   }
@@ -188,12 +196,60 @@ class _DiscordShareDialogState extends ConsumerState<DiscordShareDialog> {
   void _toggleCategory(_PromptCategory category, bool selected) {
     setState(() {
       if (selected) {
+        _preferredCategories.add(category);
         _selectedCategories.add(category);
       } else {
+        _preferredCategories.remove(category);
         _selectedCategories.remove(category);
       }
       _rebuildPrompt();
     });
+    _persistPreferences();
+  }
+
+  void _toggleTarget(String targetId, bool selected) {
+    setState(() {
+      if (selected) {
+        _selectedTargets.add(targetId);
+      } else {
+        _selectedTargets.remove(targetId);
+      }
+    });
+    _persistPreferences();
+  }
+
+  void _setIncludeMetadata(bool value) {
+    setState(() => _includeMetadata = value);
+    _persistPreferences();
+  }
+
+  void _persistPreferences() {
+    final service = ref.read(discordShareServiceProvider);
+    final targetIds = Set<String>.of(_selectedTargets);
+    final categoryIds = _preferredCategories
+        .map((category) => category.name)
+        .toSet();
+    final includeMetadata = _includeMetadata;
+    final longPromptAsFile = _longPromptAsFile;
+    final previousWrite = _preferenceWrite;
+    _preferenceWrite = () async {
+      await previousWrite;
+      try {
+        await service.savePreferences(
+          targetIds: targetIds,
+          promptCategoryIds: categoryIds,
+          includeMetadata: includeMetadata,
+          longPromptAsFile: longPromptAsFile,
+        );
+      } catch (error, stackTrace) {
+        AppLogger.e(
+          'Failed to persist Discord share preferences',
+          error,
+          stackTrace,
+          'DiscordShare',
+        );
+      }
+    }();
   }
 
   void _rebuildPrompt() {
@@ -233,11 +289,8 @@ class _DiscordShareDialogState extends ConsumerState<DiscordShareDialog> {
         fileName: widget.fileName,
         stripMetadata: !_includeMetadata,
       );
-      await service.savePreferences(
-        targetIds: _selectedTargets,
-        includeMetadata: _includeMetadata,
-        longPromptAsFile: _longPromptAsFile,
-      );
+      _persistPreferences();
+      await _preferenceWrite;
       final result = await service.share(
         session: session,
         image: image,
@@ -585,13 +638,7 @@ class _DiscordShareDialogState extends ConsumerState<DiscordShareDialog> {
                   label: Text(target.label),
                   onSelected: _sending
                       ? null
-                      : (value) => setState(() {
-                          if (value) {
-                            _selectedTargets.add(target.id);
-                          } else {
-                            _selectedTargets.remove(target.id);
-                          }
-                        }),
+                      : (value) => _toggleTarget(target.id, value),
                 );
               })
               .toList(growable: false),
@@ -673,9 +720,7 @@ class _DiscordShareDialogState extends ConsumerState<DiscordShareDialog> {
         SwitchListTile.adaptive(
           contentPadding: EdgeInsets.zero,
           value: _includeMetadata,
-          onChanged: _sending
-              ? null
-              : (value) => setState(() => _includeMetadata = value),
+          onChanged: _sending ? null : _setIncludeMetadata,
           title: Text(
             context.l10n.discordShare_keepMetadata,
             style: theme.textTheme.titleSmall,
