@@ -13,6 +13,7 @@ import '../../../core/cache/gallery_image_request.dart';
 import '../../../core/cache/online_gallery_image_cache_manager.dart';
 import '../../../core/cache/online_gallery_detail_coordinator.dart';
 import '../../../core/cache/online_gallery_prefetch_coordinator.dart';
+import '../../../core/cache/online_gallery_preload_policy.dart';
 import '../../../core/services/date_formatting_service.dart';
 import '../../../core/utils/file_picker_utils.dart';
 import '../../../data/datasources/remote/danbooru_api_service.dart';
@@ -83,6 +84,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
   double _pendingAnchorLocalOffset = 0;
   double _lastScrollOffset = 0;
   int _scrollDirection = 1;
+  int _lookaheadItemCount = 12;
   bool _isScrolling = false;
   bool _isEditingPage = false;
   GalleryViewMode? _lastViewMode;
@@ -178,11 +180,14 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         _scheduleVisiblePrefetch();
       });
     }
-    if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent - 200) {
+    if (_isWithinLoadAhead(_scrollController.position)) {
       _galleryNotifier.loadMore();
     }
   }
+
+  bool _isWithinLoadAhead(ScrollMetrics metrics) =>
+      metrics.extentAfter <=
+      OnlineGalleryPreloadPolicy.loadAheadDistance(metrics.viewportDimension);
 
   void _scheduleAutoLoadIfUnderfilled(OnlineGalleryState state) {
     final activeCache = state.randomEnabled
@@ -220,8 +225,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       final needsMore =
           latest.posts.isEmpty ||
           (_scrollController.hasClients &&
-              _scrollController.position.pixels >=
-                  _scrollController.position.maxScrollExtent - 200);
+              _isWithinLoadAhead(_scrollController.position));
       if (needsMore) {
         unawaited(_galleryNotifier.loadMore());
       }
@@ -1993,6 +1997,14 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     final screenWidth = MediaQuery.of(context).size.width - 60;
     final columnCount = (screenWidth / 200).floor().clamp(2, 8);
     final itemWidth = (screenWidth - 24 - (columnCount - 1) * 6) / columnCount;
+    final viewportHeight = _scrollController.hasClients
+        ? _scrollController.position.viewportDimension
+        : MediaQuery.sizeOf(context).height;
+    _lookaheadItemCount = OnlineGalleryPreloadPolicy.lookaheadItemCount(
+      viewportHeight: viewportHeight,
+      itemWidth: itemWidth,
+      columnCount: columnCount,
+    );
 
     final storageScope = state.randomEnabled
         ? 'random:${state.randomSession.scopeKey}'
@@ -2002,6 +2014,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         'online_gallery_$storageScope:${state.currentCacheKey}',
       ),
       controller: _scrollController,
+      cacheExtent: OnlineGalleryPreloadPolicy.cacheExtent(viewportHeight),
       padding: const EdgeInsets.all(12),
       crossAxisCount: columnCount,
       mainAxisSpacing: 6,
@@ -2410,28 +2423,13 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     final state = ref.read(onlineGalleryNotifierProvider);
     final visible = _visibleItems.entries.toList()
       ..sort((left, right) => left.key.compareTo(right.key));
-    for (final entry in visible.take(12)) {
-      final item = entry.value.item;
-      if (item.isVideo || item.isAnimated) continue;
-      final sampleUrl =
-          item.sampleUrl ?? item.largeFileUrl ?? item.cover.displayUrl;
-      if (sampleUrl.isEmpty) continue;
-      unawaited(
-        _prefetchCoordinator.submit(
-          _imageRequest(
-            item,
-            sampleUrl,
-            GalleryImageTier.sample,
-            entry.value.itemWidth,
-          ),
-          priority: GalleryImagePriority.visible,
-        ),
-      );
-    }
-
+    final itemWidth = visible.first.value.itemWidth;
     final edge = _scrollDirection >= 0 ? visible.last.key : visible.first.key;
     var aiDetailsQueued = 0;
-    for (var step = 1; step <= 8; step++) {
+
+    // 先把下一段网格缩略图放入队列，避免悬浮大图占满并发槽后，
+    // 用户滚到下一屏时仍要等待缩略图下载和解码。
+    for (var step = 1; step <= _lookaheadItemCount; step++) {
       final index = edge + step * _scrollDirection;
       if (index < 0 || index >= state.posts.length) continue;
       final item = state.posts[index];
@@ -2442,7 +2440,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
               item,
               item.previewUrl,
               GalleryImageTier.thumbnail,
-              visible.first.value.itemWidth,
+              itemWidth,
             ),
             priority: GalleryImagePriority.lookahead,
           ),
@@ -2457,6 +2455,34 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
               .catchError((_) {}),
         );
       }
+    }
+
+    // 与 ComfyUI 画廊一致，只预取真正独立的 Sample。AI TAG 的预览通常
+    // 就是原图；重复以更大尺寸解码只会挤占滚动所需的 IO 和解码时间。
+    for (final entry in visible.take(12)) {
+      final item = entry.value.item;
+      if (item.isVideo ||
+          item.isAnimated ||
+          item.sourceId == GallerySourceId.aiTag) {
+        continue;
+      }
+      final sampleUrl = item.sampleUrl ?? item.largeFileUrl;
+      if (sampleUrl == null ||
+          sampleUrl.isEmpty ||
+          sampleUrl == item.previewUrl) {
+        continue;
+      }
+      unawaited(
+        _prefetchCoordinator.submit(
+          _imageRequest(
+            item,
+            sampleUrl,
+            GalleryImageTier.sample,
+            entry.value.itemWidth,
+          ),
+          priority: GalleryImagePriority.lookahead,
+        ),
+      );
     }
   }
 
