@@ -4766,11 +4766,11 @@ abstract class AppLocalizations {
   /// **'Metadata'**
   String get onlineGallery_metadata;
 
-  /// No description provided for @onlineGallery_addedToQueue.
+  /// No description provided for @onlineGallery_addedToQueueWithCount.
   ///
   /// In en, this message translates to:
-  /// **'Added to queue'**
-  String get onlineGallery_addedToQueue;
+  /// **'Added to queue. {count} tasks are now pending'**
+  String onlineGallery_addedToQueueWithCount(Object count);
 
   /// No description provided for @onlineGallery_queueFullMax.
   ///
@@ -5089,6 +5089,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Added {count} tasks to queue'**
   String onlineGallery_addedTasksToQueue(Object count);
+
+  /// No description provided for @onlineGallery_partiallyAddedTasksToQueue.
+  ///
+  /// In en, this message translates to:
+  /// **'Added {added} tasks; {skipped} were skipped because the queue is full'**
+  String onlineGallery_partiallyAddedTasksToQueue(Object added, Object skipped);
 
   /// No description provided for @onlineGallery_unfavorited.
   ///
@@ -12179,12 +12185,6 @@ abstract class AppLocalizations {
   /// **'No tasks in the queue'**
   String get queue_emptyHint;
 
-  /// No description provided for @queue_taskCount.
-  ///
-  /// In en, this message translates to:
-  /// **'{count} tasks'**
-  String queue_taskCount(Object count);
-
   /// No description provided for @queue_pending.
   ///
   /// In en, this message translates to:
@@ -12227,35 +12227,11 @@ abstract class AppLocalizations {
   /// **'Ready'**
   String get queue_ready;
 
-  /// No description provided for @queue_clickToStart.
-  ///
-  /// In en, this message translates to:
-  /// **'Click to start queue execution'**
-  String get queue_clickToStart;
-
-  /// No description provided for @queue_clickToPause.
-  ///
-  /// In en, this message translates to:
-  /// **'Click to pause queue'**
-  String get queue_clickToPause;
-
-  /// No description provided for @queue_clickToResume.
-  ///
-  /// In en, this message translates to:
-  /// **'Click to resume execution'**
-  String get queue_clickToResume;
-
   /// No description provided for @queue_noTasksToStart.
   ///
   /// In en, this message translates to:
   /// **'Queue is empty, cannot start'**
   String get queue_noTasksToStart;
-
-  /// No description provided for @queue_allTasksCompleted.
-  ///
-  /// In en, this message translates to:
-  /// **'All tasks completed'**
-  String get queue_allTasksCompleted;
 
   /// No description provided for @queue_executionProgress.
   ///
@@ -12323,47 +12299,35 @@ abstract class AppLocalizations {
   /// **'Resume'**
   String get queue_resume;
 
+  /// No description provided for @queue_startExecution.
+  ///
+  /// In en, this message translates to:
+  /// **'Start Queue'**
+  String get queue_startExecution;
+
   /// No description provided for @queue_pauseExecution.
   ///
   /// In en, this message translates to:
-  /// **'Pause Execution'**
+  /// **'Pause Queue'**
   String get queue_pauseExecution;
 
   /// No description provided for @queue_resumeExecution.
   ///
   /// In en, this message translates to:
-  /// **'Resume Execution'**
+  /// **'Resume Queue'**
   String get queue_resumeExecution;
 
-  /// No description provided for @queue_autoExecute.
+  /// No description provided for @queue_generationBusy.
   ///
   /// In en, this message translates to:
-  /// **'Auto Execute'**
-  String get queue_autoExecute;
-
-  /// No description provided for @queue_autoExecuteOn.
-  ///
-  /// In en, this message translates to:
-  /// **'Auto execute next task when completed'**
-  String get queue_autoExecuteOn;
-
-  /// No description provided for @queue_autoExecuteOff.
-  ///
-  /// In en, this message translates to:
-  /// **'Manual click required to generate'**
-  String get queue_autoExecuteOff;
+  /// **'Another generation task is running. Start the queue after it finishes'**
+  String get queue_generationBusy;
 
   /// No description provided for @queue_clearQueue.
   ///
   /// In en, this message translates to:
   /// **'Clear Queue'**
   String get queue_clearQueue;
-
-  /// No description provided for @queue_closeFloatingButton.
-  ///
-  /// In en, this message translates to:
-  /// **'Close Floating Button'**
-  String get queue_closeFloatingButton;
 
   /// No description provided for @queue_clearQueueConfirm.
   ///
@@ -12779,119 +12743,11 @@ abstract class AppLocalizations {
   /// **'seconds'**
   String get unit_seconds;
 
-  /// No description provided for @settings_floatingButtonBackground.
-  ///
-  /// In en, this message translates to:
-  /// **'Floating Button Background'**
-  String get settings_floatingButtonBackground;
-
-  /// No description provided for @settings_floatingButtonBackgroundCustom.
-  ///
-  /// In en, this message translates to:
-  /// **'Custom background set'**
-  String get settings_floatingButtonBackgroundCustom;
-
-  /// No description provided for @settings_floatingButtonBackgroundDefault.
-  ///
-  /// In en, this message translates to:
-  /// **'Default style'**
-  String get settings_floatingButtonBackgroundDefault;
-
-  /// No description provided for @settings_clearBackground.
-  ///
-  /// In en, this message translates to:
-  /// **'Clear background'**
-  String get settings_clearBackground;
-
-  /// No description provided for @settings_selectImage.
-  ///
-  /// In en, this message translates to:
-  /// **'Select Image'**
-  String get settings_selectImage;
-
   /// No description provided for @queue_currentQueueInfo.
   ///
   /// In en, this message translates to:
   /// **'Current queue contains {count} tasks'**
   String queue_currentQueueInfo(Object count);
-
-  /// No description provided for @queue_tooltipTasksTotal.
-  ///
-  /// In en, this message translates to:
-  /// **'Tasks: {count}'**
-  String queue_tooltipTasksTotal(Object count);
-
-  /// No description provided for @queue_tooltipCompleted.
-  ///
-  /// In en, this message translates to:
-  /// **'Completed: {count}'**
-  String queue_tooltipCompleted(Object count);
-
-  /// No description provided for @queue_tooltipFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed: {count}'**
-  String queue_tooltipFailed(Object count);
-
-  /// No description provided for @queue_tooltipCurrentTask.
-  ///
-  /// In en, this message translates to:
-  /// **'Current: {task}'**
-  String queue_tooltipCurrentTask(Object task);
-
-  /// No description provided for @queue_tooltipNoTasks.
-  ///
-  /// In en, this message translates to:
-  /// **'No tasks in queue'**
-  String get queue_tooltipNoTasks;
-
-  /// No description provided for @queue_tooltipDoubleClickToOpen.
-  ///
-  /// In en, this message translates to:
-  /// **'Double-click to start/pause'**
-  String get queue_tooltipDoubleClickToOpen;
-
-  /// No description provided for @queue_tooltipClickToToggle.
-  ///
-  /// In en, this message translates to:
-  /// **'Click to open queue'**
-  String get queue_tooltipClickToToggle;
-
-  /// No description provided for @queue_tooltipDragToMove.
-  ///
-  /// In en, this message translates to:
-  /// **'Drag to reposition'**
-  String get queue_tooltipDragToMove;
-
-  /// No description provided for @queue_statusIdle.
-  ///
-  /// In en, this message translates to:
-  /// **'Status: Idle'**
-  String get queue_statusIdle;
-
-  /// No description provided for @queue_statusReady.
-  ///
-  /// In en, this message translates to:
-  /// **'Status: Ready'**
-  String get queue_statusReady;
-
-  /// No description provided for @queue_statusRunning.
-  ///
-  /// In en, this message translates to:
-  /// **'Status: Running'**
-  String get queue_statusRunning;
-
-  /// No description provided for @queue_statusPaused.
-  ///
-  /// In en, this message translates to:
-  /// **'Status: Paused'**
-  String get queue_statusPaused;
-
-  /// No description provided for @queue_statusCompleted.
-  ///
-  /// In en, this message translates to:
-  /// **'Status: Completed'**
-  String get queue_statusCompleted;
 
   /// No description provided for @settings_notificationSound.
   ///

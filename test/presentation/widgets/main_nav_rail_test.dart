@@ -3,11 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:nai_launcher/core/constants/app_version.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/account_manager_provider.dart';
 import 'package:nai_launcher/presentation/providers/auth_provider.dart';
+import 'package:nai_launcher/presentation/providers/queue_execution_provider.dart';
+import 'package:nai_launcher/presentation/providers/replication_queue_provider.dart';
 import 'package:nai_launcher/presentation/widgets/navigation/main_nav_rail.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 class _MockNavigationShell extends Mock implements StatefulNavigationShell {
   @override
@@ -25,6 +29,16 @@ class _FakeAccountManagerNotifier extends AccountManagerNotifier {
   AccountManagerState build() => const AccountManagerState();
 }
 
+class _FakeQueueExecutionNotifier extends QueueExecutionNotifier {
+  @override
+  QueueExecutionState build() => const QueueExecutionState();
+}
+
+class _FakeReplicationQueueNotifier extends ReplicationQueueNotifier {
+  @override
+  ReplicationQueueState build() => const ReplicationQueueState();
+}
+
 class _FakeMainNavStorage extends LocalStorageService {
   bool isExpanded = false;
 
@@ -38,6 +52,19 @@ class _FakeMainNavStorage extends LocalStorageService {
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUpAll(() async {
+    PackageInfo.setMockInitialValues(
+      appName: 'NAI Launcher',
+      packageName: 'nai_launcher',
+      version: '1.0.0',
+      buildNumber: '1',
+      buildSignature: '',
+    );
+    await AppVersion.initialize();
+  });
+
   testWidgets('600px 高度下主导航可滚动且不溢出', (tester) async {
     await tester.binding.setSurfaceSize(const Size(800, 600));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -53,6 +80,12 @@ void main() {
           authNotifierProvider.overrideWith(_FakeAuthNotifier.new),
           accountManagerNotifierProvider.overrideWith(
             _FakeAccountManagerNotifier.new,
+          ),
+          queueExecutionNotifierProvider.overrideWith(
+            _FakeQueueExecutionNotifier.new,
+          ),
+          replicationQueueNotifierProvider.overrideWith(
+            _FakeReplicationQueueNotifier.new,
           ),
         ],
         child: MaterialApp(
@@ -90,7 +123,9 @@ void main() {
     expect(find.text('本地画廊'), findsOneWidget);
     expect(find.text('Discord 社群'), findsOneWidget);
     expect(find.text('GitHub 仓库'), findsOneWidget);
+    expect(find.text('队列管理'), findsOneWidget);
     expect(find.text('收起侧边栏'), findsOneWidget);
+    expect(find.text('v${AppVersion.versionName}'), findsOneWidget);
     expect(find.byIcon(Icons.keyboard_double_arrow_left), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('main-nav-toggle')));

@@ -6,6 +6,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../core/utils/localization_extension.dart';
 import '../../core/shortcuts/default_shortcuts.dart';
 import '../providers/auth_provider.dart' show authNotifierProvider, AuthStatus;
+import '../providers/replication_queue_provider.dart';
 import '../providers/update_provider.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/generation/generation_screen.dart';
@@ -23,7 +24,6 @@ import '../widgets/app_branch_visibility.dart';
 import '../widgets/common/update_notice_banner.dart';
 import '../widgets/drop/global_drop_handler.dart';
 import '../widgets/navigation/main_nav_rail.dart';
-import '../widgets/queue/floating_queue_button.dart';
 import '../widgets/queue/queue_management_page.dart';
 
 import '../widgets/shortcuts/shortcut_aware_widget.dart';
@@ -34,12 +34,6 @@ part 'app_router.g.dart';
 
 /// 队列管理面板显示状态 Provider
 final queueManagementVisibleProvider = StateProvider<bool>((ref) => false);
-
-/// 悬浮球手动关闭状态 Provider
-///
-/// 当用户主动关闭悬浮球时设为 true，悬浮球将不再显示
-/// 当队列有新任务添加时自动重置为 false
-final floatingButtonClosedProvider = StateProvider<bool>((ref) => false);
 
 /// Navigator Keys for StatefulShellRoute branches
 final _homeKey = GlobalKey<NavigatorState>(debugLabel: 'home');
@@ -475,23 +469,11 @@ class DesktopShell extends ConsumerWidget {
                       right: 0,
                       child: UpdateNoticeBanner(),
                     ),
-                    // 队列悬浮球 - 传入实际可用区域大小
-                    FloatingQueueButton(
-                      onTap: () =>
-                          ref
-                                  .read(queueManagementVisibleProvider.notifier)
-                                  .state =
-                              !isQueueVisible,
-                      containerSize: Size(
-                        constraints.maxWidth,
-                        constraints.maxHeight,
-                      ),
-                    ),
-                    // 队列管理面板
                     _QueuePanel(
                       isVisible: isQueueVisible,
-                      maxWidth: 650,
-                      heightFactor: 0.85,
+                      desktop: true,
+                      onQueueStarted: () =>
+                          navigationShell.goBranch(AppBranch.generation.index),
                     ),
                   ],
                 );
@@ -521,6 +503,9 @@ class MobileShell extends ConsumerWidget {
     final showUpdateBadge = ref.watch(
       updateStateProvider.select((state) => state.hasNewVersion),
     );
+    final queueCount = ref.watch(
+      replicationQueueNotifierProvider.select((state) => state.count),
+    );
 
     return Scaffold(
       body: LayoutBuilder(
@@ -535,31 +520,22 @@ class MobileShell extends ConsumerWidget {
                 right: 0,
                 child: UpdateNoticeBanner(),
               ),
-              // 队列悬浮球 - 传入实际可用区域大小
-              FloatingQueueButton(
-                onTap: () =>
-                    ref.read(queueManagementVisibleProvider.notifier).state =
-                        !isQueueVisible,
-                containerSize: Size(
-                  constraints.maxWidth,
-                  constraints.maxHeight,
-                ),
-              ),
-              // 队列管理面板
               _QueuePanel(
                 isVisible: isQueueVisible,
-                maxWidth: double.infinity,
-                heightFactor: 0.85,
+                desktop: false,
+                onQueueStarted: () =>
+                    navigationShell.goBranch(AppBranch.generation.index),
               ),
             ],
           );
         },
       ),
       bottomNavigationBar: NavigationBar(
-        selectedIndex: mobileNavigationIndexForBranch(
-          navigationShell.currentIndex,
-        ),
-        onDestinationSelected: (index) => _onNavigate(index),
+        selectedIndex: isQueueVisible
+            ? 3
+            : mobileNavigationIndexForBranch(navigationShell.currentIndex),
+        onDestinationSelected: (index) =>
+            _onNavigate(index, ref, isQueueVisible),
         destinations: [
           NavigationDestination(
             icon: const Icon(Icons.auto_awesome_outlined),
@@ -584,13 +560,32 @@ class MobileShell extends ConsumerWidget {
             ),
             label: context.l10n.nav_settings,
           ),
+          NavigationDestination(
+            icon: Badge(
+              isLabelVisible: queueCount > 0,
+              label: Text(queueCount > 99 ? '99+' : queueCount.toString()),
+              child: const Icon(Icons.playlist_play_outlined),
+            ),
+            selectedIcon: Badge(
+              isLabelVisible: queueCount > 0,
+              label: Text(queueCount > 99 ? '99+' : queueCount.toString()),
+              child: const Icon(Icons.playlist_play_rounded),
+            ),
+            label: context.l10n.queue_management,
+          ),
         ],
       ),
     );
   }
 
-  /// 映射 mobile navigation index 到 branch index
-  void _onNavigate(int mobileIndex) {
+  /// 映射 mobile navigation index 到 branch index。
+  void _onNavigate(int mobileIndex, WidgetRef ref, bool isQueueVisible) {
+    if (mobileIndex == 3) {
+      ref.read(queueManagementVisibleProvider.notifier).state = !isQueueVisible;
+      return;
+    }
+
+    ref.read(queueManagementVisibleProvider.notifier).state = false;
     final branch =
         mobileIndex >= 0 && mobileIndex < mobileNavigationBranches.length
         ? mobileNavigationBranches[mobileIndex]
@@ -663,18 +658,19 @@ CustomTransitionPage<void> _buildFadeSlidePage({
 /// 带背景遮罩、滑动动画和队列管理页面
 class _QueuePanel extends ConsumerWidget {
   final bool isVisible;
-  final double maxWidth;
-  final double heightFactor;
+  final bool desktop;
+  final VoidCallback onQueueStarted;
 
   const _QueuePanel({
     required this.isVisible,
-    required this.maxWidth,
-    required this.heightFactor,
+    required this.desktop,
+    required this.onQueueStarted,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -687,20 +683,28 @@ class _QueuePanel extends ConsumerWidget {
                   onTap: () =>
                       ref.read(queueManagementVisibleProvider.notifier).state =
                           false,
-                  child: Container(color: Colors.black54),
+                  child: ColoredBox(
+                    color: theme.colorScheme.scrim.withValues(
+                      alpha: desktop ? 0.28 : 0.36,
+                    ),
+                  ),
                 ),
               ),
-            // 滑动面板
             TweenAnimationBuilder<Offset>(
               tween: Tween(
-                begin: const Offset(0, 1),
-                end: isVisible ? Offset.zero : const Offset(0, 1),
+                begin: desktop ? const Offset(1, 0) : const Offset(0, 1),
+                end: isVisible
+                    ? Offset.zero
+                    : (desktop ? const Offset(1, 0) : const Offset(0, 1)),
               ),
-              duration: const Duration(milliseconds: 200),
+              duration: reduceMotion
+                  ? Duration.zero
+                  : const Duration(milliseconds: 220),
               curve: Curves.easeOutCubic,
               builder: (context, offset, child) {
+                final hidden = desktop ? offset.dx >= 0.5 : offset.dy >= 0.5;
                 return IgnorePointer(
-                  ignoring: offset.dy >= 0.5,
+                  ignoring: hidden,
                   child: FractionalTranslation(
                     translation: offset,
                     child: child,
@@ -708,20 +712,37 @@ class _QueuePanel extends ConsumerWidget {
                 );
               },
               child: Align(
-                alignment: Alignment.bottomCenter,
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(maxWidth: maxWidth),
+                alignment: desktop
+                    ? Alignment.centerRight
+                    : Alignment.bottomCenter,
+                child: SizedBox(
+                  width: desktop ? 460 : constraints.maxWidth,
                   child: Material(
                     color: theme.scaffoldBackgroundColor,
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(16),
-                    ),
+                    elevation: 18,
+                    shadowColor: Colors.black.withValues(alpha: 0.28),
+                    borderRadius: desktop
+                        ? const BorderRadius.horizontal(
+                            left: Radius.circular(16),
+                          )
+                        : const BorderRadius.vertical(top: Radius.circular(16)),
                     clipBehavior: Clip.antiAlias,
                     child: SafeArea(
                       top: false,
                       child: SizedBox(
-                        height: constraints.maxHeight * heightFactor,
-                        child: const QueueManagementPage(),
+                        height: desktop
+                            ? constraints.maxHeight
+                            : constraints.maxHeight * 0.85,
+                        child: QueueManagementPage(
+                          onClose: () =>
+                              ref
+                                      .read(
+                                        queueManagementVisibleProvider.notifier,
+                                      )
+                                      .state =
+                                  false,
+                          onQueueStarted: onQueueStarted,
+                        ),
                       ),
                     ),
                   ),

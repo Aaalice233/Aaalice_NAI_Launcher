@@ -755,12 +755,20 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                                     .add(task);
                                 if (context.mounted) {
                                   if (success) {
-                                    AppToast.info(
+                                    final count = ref.read(
+                                      replicationQueueNotifierProvider.select(
+                                        (state) => state.count,
+                                      ),
+                                    );
+                                    AppToast.success(
                                       context,
-                                      context.l10n.onlineGallery_addedToQueue,
+                                      context.l10n
+                                          .onlineGallery_addedToQueueWithCount(
+                                            count,
+                                          ),
                                     );
                                   } else {
-                                    AppToast.info(
+                                    AppToast.warning(
                                       context,
                                       context.l10n.onlineGallery_queueFullMax,
                                     );

@@ -1175,7 +1175,12 @@
   "onlineGallery_gifLoadFailed": "GIFのロードに失敗しました",
   "onlineGallery_pinchToZoom": "ピンチしてズーム",
   "onlineGallery_metadata": "メタデータ",
-  "onlineGallery_addedToQueue": "キューに追加されました",
+  "onlineGallery_addedToQueueWithCount": "キューに追加しました。現在 {count} 件が実行待ちです",
+  "@onlineGallery_addedToQueueWithCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "onlineGallery_queueFullMax": "キューがいっぱいです (最大 50 項目)",
   "onlineGallery_chooseDownloadDirectory": "ダウンロード ディレクトリを選択してください",
   "onlineGallery_downloadStarted": "ダウンロードが開始されました...",
@@ -1267,6 +1272,13 @@
   "@onlineGallery_addedTasksToQueue": {
     "placeholders": {
       "count": {}
+    }
+  },
+  "onlineGallery_partiallyAddedTasksToQueue": "{added} 件を追加しました。キューがいっぱいのため {skipped} 件は追加されませんでした",
+  "@onlineGallery_partiallyAddedTasksToQueue": {
+    "placeholders": {
+      "added": {},
+      "skipped": {}
     }
   },
   "onlineGallery_unfavorited": "お気に入りから削除しました",
@@ -3188,12 +3200,6 @@
   "queue_management": "キュー管理",
   "queue_empty": "キューが空です",
   "queue_emptyHint": "キューにタスクがありません",
-  "queue_taskCount": "{count} タスク",
-  "@queue_taskCount": {
-    "placeholders": {
-      "count": {}
-    }
-  },
   "queue_pending": "保留中",
   "queue_running": "実行中",
   "queue_completed": "完了しました",
@@ -3201,11 +3207,7 @@
   "queue_paused": "一時停止しました",
   "queue_idle": "アイドル状態",
   "queue_ready": "準備完了",
-  "queue_clickToStart": "クリックしてキューの実行を開始します",
-  "queue_clickToPause": "クリックしてキューを一時停止します",
-  "queue_clickToResume": "クリックして実行を再開します",
   "queue_noTasksToStart": "キューが空のため開始できません",
-  "queue_allTasksCompleted": "すべてのタスクが完了しました",
   "queue_executionProgress": "実行の進行状況",
   "queue_totalTasks": "合計",
   "queue_completedTasks": "完了しました",
@@ -3238,13 +3240,11 @@
   },
   "queue_pause": "一時停止",
   "queue_resume": "再開",
-  "queue_pauseExecution": "実行を一時停止します",
-  "queue_resumeExecution": "実行を再開",
-  "queue_autoExecute": "自動実行",
-  "queue_autoExecuteOn": "完了時に次のタスクを自動的に実行",
-  "queue_autoExecuteOff": "生成するには手動でクリックする必要があります",
+  "queue_startExecution": "キューを開始",
+  "queue_pauseExecution": "キューを一時停止",
+  "queue_resumeExecution": "キューを再開",
+  "queue_generationBusy": "別の生成タスクが実行中です。完了後にキューを開始してください",
   "queue_clearQueue": "キューをクリアします",
-  "queue_closeFloatingButton": "フローティング ボタンを閉じる",
   "queue_clearQueueConfirm": "すべてのキュー タスクをクリアしてもよろしいですか?この操作は元に戻すことができません。",
   "queue_confirmClear": "クリアの確認",
   "queue_retryCount": "再試行 {current}/{max}",
@@ -3356,50 +3356,12 @@
   },
   "unit_times": "回",
   "unit_seconds": "秒",
-  "settings_floatingButtonBackground": "フローティング ボタンの背景",
-  "settings_floatingButtonBackgroundCustom": "カスタム背景を設定済み",
-  "settings_floatingButtonBackgroundDefault": "デフォルトのスタイル",
-  "settings_clearBackground": "背景をクリア",
-  "settings_selectImage": "画像を選択してください",
   "queue_currentQueueInfo": "現在のキューには {count} タスクが含まれています",
   "@queue_currentQueueInfo": {
     "placeholders": {
       "count": {}
     }
   },
-  "queue_tooltipTasksTotal": "タスク: {count}",
-  "@queue_tooltipTasksTotal": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "queue_tooltipCompleted": "完了: {count}",
-  "@queue_tooltipCompleted": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "queue_tooltipFailed": "失敗しました: {count}",
-  "@queue_tooltipFailed": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "queue_tooltipCurrentTask": "現在: {task}",
-  "@queue_tooltipCurrentTask": {
-    "placeholders": {
-      "task": {}
-    }
-  },
-  "queue_tooltipNoTasks": "キューにタスクがありません",
-  "queue_tooltipDoubleClickToOpen": "ダブルクリックして開始/一時停止します",
-  "queue_tooltipClickToToggle": "クリックしてキューを開きます",
-  "queue_tooltipDragToMove": "ドラッグして位置を変更します",
-  "queue_statusIdle": "ステータス: アイドル",
-  "queue_statusReady": "ステータス: 準備完了",
-  "queue_statusRunning": "ステータス: 実行中",
-  "queue_statusPaused": "ステータス: 一時停止中",
-  "queue_statusCompleted": "ステータス: 完了",
   "settings_notificationSound": "完了音",
   "settings_notificationSoundSubtitle": "生成完了時にサウンドを再生する",
   "settings_notificationCustomSound": "カスタムサウンド",

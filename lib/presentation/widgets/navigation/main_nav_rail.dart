@@ -5,13 +5,17 @@ import 'package:go_router/go_router.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/constants/app_version.dart';
 import '../../../data/models/auth/saved_account.dart';
 import '../../providers/account_manager_provider.dart';
 import '../../providers/auth_mode_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/layout_state_provider.dart';
+import '../../providers/queue_execution_provider.dart';
+import '../../providers/replication_queue_provider.dart';
 import '../../providers/update_provider.dart';
 import '../../router/app_branch.dart';
+import '../../router/app_router.dart';
 import '../auth/account_avatar.dart';
 import '../auth/login_form_container.dart';
 
@@ -47,6 +51,13 @@ class MainNavRail extends ConsumerWidget {
 
     final showUpdateBadge = ref.watch(
       updateStateProvider.select((state) => state.hasNewVersion),
+    );
+    final isQueueVisible = ref.watch(queueManagementVisibleProvider);
+    final queueCount = ref.watch(
+      replicationQueueNotifierProvider.select((state) => state.count),
+    );
+    final queueExecutionStatus = ref.watch(
+      queueExecutionNotifierProvider.select((state) => state.status),
     );
     final currentIndex = navigationShell.currentIndex;
     final selectedIndex = _railBranches.indexWhere(
@@ -173,6 +184,24 @@ class MainNavRail extends ConsumerWidget {
               label: context.l10n.nav_githubRepo,
             ),
 
+            _NavIcon(
+              key: const Key('queue-nav-item'),
+              icon: switch (queueExecutionStatus) {
+                QueueExecutionStatus.running => Icons.play_arrow_rounded,
+                QueueExecutionStatus.paused => Icons.pause_rounded,
+                _ => Icons.playlist_play_rounded,
+              },
+              label: context.l10n.queue_management,
+              isSelected: isQueueVisible,
+              badgeLabel: queueCount > 0
+                  ? (queueCount > 99 ? '99+' : queueCount.toString())
+                  : null,
+              onTap: () {
+                ref.read(queueManagementVisibleProvider.notifier).state =
+                    !isQueueVisible;
+              },
+            ),
+
             // Bottom Settings
             _NavIcon(
               icon: Icons.settings,
@@ -236,20 +265,36 @@ class _NavRailToggle extends StatelessWidget {
       height: 40,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 6),
-        child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 160),
-          transitionBuilder: (child, animation) =>
-              FadeTransition(opacity: animation, child: child),
-          child: isExpanded
-              ? Align(
-                  key: const ValueKey('expanded-nav-toggle'),
-                  alignment: Alignment.centerRight,
-                  child: TextButton.icon(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            // 侧栏宽度正在动画时提前切换为紧凑按钮，避免展开内容溢出。
+            if (isExpanded && constraints.maxWidth >= 170) {
+              return Row(
+                key: const ValueKey('expanded-nav-toggle'),
+                children: [
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 6, right: 4),
+                      child: Text(
+                        'v${AppVersion.versionName}',
+                        key: const Key('main-nav-version'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant.withValues(
+                            alpha: 0.72,
+                          ),
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                    ),
+                  ),
+                  TextButton.icon(
                     key: const Key('main-nav-toggle'),
                     onPressed: onTap,
                     style: TextButton.styleFrom(
                       foregroundColor: theme.colorScheme.onSurfaceVariant,
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
                       minimumSize: const Size(0, 36),
                       visualDensity: VisualDensity.compact,
                     ),
@@ -259,27 +304,33 @@ class _NavRailToggle extends StatelessWidget {
                     ),
                     label: Text(label),
                   ),
-                )
-              : Center(
-                  key: const ValueKey('collapsed-nav-toggle'),
-                  child: IconButton(
-                    key: const Key('main-nav-toggle'),
-                    onPressed: onTap,
-                    tooltip: label,
-                    visualDensity: VisualDensity.compact,
-                    style: IconButton.styleFrom(
-                      foregroundColor: theme.colorScheme.onSurfaceVariant,
-                      hoverColor: theme.colorScheme.surfaceContainerHighest,
-                      highlightColor: theme.colorScheme.primary.withValues(
-                        alpha: 0.1,
-                      ),
-                    ),
-                    icon: const Icon(
-                      Icons.keyboard_double_arrow_right,
-                      size: 20,
-                    ),
+                ],
+              );
+            }
+
+            return Center(
+              key: const ValueKey('collapsed-nav-toggle'),
+              child: IconButton(
+                key: const Key('main-nav-toggle'),
+                onPressed: onTap,
+                tooltip: label,
+                visualDensity: VisualDensity.compact,
+                style: IconButton.styleFrom(
+                  foregroundColor: theme.colorScheme.onSurfaceVariant,
+                  hoverColor: theme.colorScheme.surfaceContainerHighest,
+                  highlightColor: theme.colorScheme.primary.withValues(
+                    alpha: 0.1,
                   ),
                 ),
+                icon: Icon(
+                  isExpanded
+                      ? Icons.keyboard_double_arrow_left
+                      : Icons.keyboard_double_arrow_right,
+                  size: 20,
+                ),
+              ),
+            );
+          },
         ),
       ),
     );
@@ -713,13 +764,16 @@ class _NavIcon extends StatefulWidget {
   final bool isSelected;
   final VoidCallback onTap;
   final bool showBadge;
+  final String? badgeLabel;
 
   const _NavIcon({
+    super.key,
     required this.icon,
     required this.label,
     required this.isSelected,
     required this.onTap,
     this.showBadge = false,
+    this.badgeLabel,
   });
 
   @override
@@ -793,8 +847,12 @@ class _NavIconState extends State<_NavIcon> {
                           height: 48,
                           child: Center(
                             child: Badge(
-                              isLabelVisible: widget.showBadge,
+                              isLabelVisible:
+                                  widget.showBadge || widget.badgeLabel != null,
                               smallSize: 7,
+                              label: widget.badgeLabel == null
+                                  ? null
+                                  : Text(widget.badgeLabel!),
                               child: Icon(widget.icon, color: color, size: 24),
                             ),
                           ),

@@ -5,10 +5,13 @@ import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../providers/queue_execution_provider.dart';
 import '../../providers/replication_queue_provider.dart';
+import '../common/app_toast.dart';
 
 /// 执行统计面板 - 紧凑精致的现代设计
 class ExecutionStatsPanel extends ConsumerStatefulWidget {
-  const ExecutionStatsPanel({super.key});
+  final VoidCallback? onQueueStarted;
+
+  const ExecutionStatsPanel({super.key, this.onQueueStarted});
 
   @override
   ConsumerState<ExecutionStatsPanel> createState() =>
@@ -18,8 +21,6 @@ class ExecutionStatsPanel extends ConsumerStatefulWidget {
 class _ExecutionStatsPanelState extends ConsumerState<ExecutionStatsPanel>
     with SingleTickerProviderStateMixin {
   late AnimationController _animController;
-  bool _isHovered = false;
-  bool _isPressed = false;
 
   @override
   void initState() {
@@ -184,6 +185,9 @@ class _ExecutionStatsPanelState extends ConsumerState<ExecutionStatsPanel>
               ),
             ],
           ),
+
+          const SizedBox(height: 12),
+          _buildExecutionButton(context, executionState, queueState),
         ],
       ),
     );
@@ -234,196 +238,116 @@ class _ExecutionStatsPanelState extends ConsumerState<ExecutionStatsPanel>
     );
   }
 
-  /// 构建交互式状态按钮
+  /// 状态只负责展示；队列控制使用下方含义明确的主按钮。
   Widget _buildStatusChip(
     BuildContext context,
     AppLocalizations l10n,
     QueueExecutionState executionState,
   ) {
-    final queueState = ref.watch(replicationQueueNotifierProvider);
     final (label, color, icon) = _getStatusInfo(l10n, executionState.status);
-    final isClickable = _isStatusClickable(executionState.status, queueState);
-    final tooltip = _getStatusTooltip(l10n, executionState.status, queueState);
-
     _updateAnimationState(executionState);
 
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      cursor: isClickable ? SystemMouseCursors.click : SystemMouseCursors.basic,
-      child: GestureDetector(
-        onTapDown: (_) => setState(() => _isPressed = true),
-        onTapUp: (_) => setState(() => _isPressed = false),
-        onTapCancel: () => setState(() => _isPressed = false),
-        onTap: isClickable
-            ? () => _handleStatusTap(executionState.status, queueState)
-            : null,
-        child: Tooltip(
-          message: tooltip,
-          child: TweenAnimationBuilder<double>(
-            duration: const Duration(milliseconds: 150),
-            curve: Curves.easeOutCubic,
-            tween: Tween(
-              begin: 1.0,
-              end: _isPressed ? 0.97 : (_isHovered && isClickable ? 1.02 : 1.0),
-            ),
-            builder: (context, scale, child) =>
-                Transform.scale(scale: scale, child: child),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeOutCubic,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: _statusChipDecoration(color, isClickable),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _buildAnimatedIcon(icon, color, executionState.isRunning),
-                  const SizedBox(width: 6),
-                  Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: color,
-                    ),
-                  ),
-                  if (isClickable) ...[
-                    const SizedBox(width: 4),
-                    AnimatedOpacity(
-                      duration: const Duration(milliseconds: 200),
-                      opacity: _isHovered ? 1.0 : 0.5,
-                      child: Icon(
-                        Icons.touch_app_rounded,
-                        size: 12,
-                        color: color,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildAnimatedIcon(icon, color, executionState.isRunning),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: color,
             ),
           ),
-        ),
+        ],
       ),
     );
   }
 
-  /// 更新动画状态
   void _updateAnimationState(QueueExecutionState executionState) {
     final shouldAnimate = executionState.isRunning;
-    final isAnimating = _animController.isAnimating;
-
-    if (shouldAnimate && !isAnimating) {
+    if (shouldAnimate && !_animController.isAnimating) {
       _animController.repeat();
-    } else if (!shouldAnimate && isAnimating) {
-      _animController.stop();
-      _animController.reset();
+    } else if (!shouldAnimate && _animController.isAnimating) {
+      _animController
+        ..stop()
+        ..reset();
     }
   }
 
-  /// 状态按钮装饰
-  BoxDecoration _statusChipDecoration(Color color, bool isClickable) {
-    return BoxDecoration(
-      color: color.withValues(alpha: _isHovered && isClickable ? 0.2 : 0.12),
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(
-        color: color.withValues(alpha: _isHovered && isClickable ? 0.5 : 0.2),
-        width: 1.5,
+  Widget _buildAnimatedIcon(IconData icon, Color color, bool isRunning) {
+    if (!isRunning) return Icon(icon, size: 16, color: color);
+    return AnimatedBuilder(
+      animation: _animController,
+      builder: (context, child) => Transform.rotate(
+        angle: _animController.value * 2 * 3.14159,
+        child: child,
       ),
-      boxShadow: _isHovered && isClickable
-          ? [
-              BoxShadow(
-                color: color.withValues(alpha: 0.15),
-                blurRadius: 6,
-                offset: const Offset(0, 2),
-              ),
-            ]
-          : null,
+      child: Icon(icon, size: 16, color: color),
     );
   }
 
-  /// 构建动画图标
-  Widget _buildAnimatedIcon(IconData icon, Color color, bool isRunning) {
-    if (isRunning) {
-      return AnimatedBuilder(
-        animation: _animController,
-        builder: (context, child) {
-          return Transform.rotate(
-            angle: _animController.value * 2 * 3.14159,
-            child: child,
-          );
-        },
-        child: Icon(icon, size: 16, color: color),
-      );
-    }
-    return Icon(icon, size: 16, color: color);
-  }
-
-  /// 判断状态是否可点击
-  bool _isStatusClickable(
-    QueueExecutionStatus status,
+  Widget _buildExecutionButton(
+    BuildContext context,
+    QueueExecutionState executionState,
     ReplicationQueueState queueState,
   ) {
-    switch (status) {
-      case QueueExecutionStatus.idle:
-        return queueState.tasks.isNotEmpty; // 有任务才能开始
-      case QueueExecutionStatus.ready:
-        return true; // ready 状态可以暂停
-      case QueueExecutionStatus.running:
-        return true; // 运行中可以暂停
-      case QueueExecutionStatus.paused:
-        return true; // 暂停可以继续
-      case QueueExecutionStatus.completed:
-        return queueState.tasks.isNotEmpty; // 完成后如果有新任务可以重新开始
-    }
-  }
-
-  /// 获取状态提示
-  String _getStatusTooltip(
-    AppLocalizations l10n,
-    QueueExecutionStatus status,
-    ReplicationQueueState queueState,
-  ) {
-    switch (status) {
-      case QueueExecutionStatus.idle:
-        return queueState.tasks.isNotEmpty
-            ? l10n.queue_clickToStart
-            : l10n.queue_noTasksToStart;
-      case QueueExecutionStatus.ready:
-        return l10n.queue_clickToPause;
-      case QueueExecutionStatus.running:
-        return l10n.queue_clickToPause;
-      case QueueExecutionStatus.paused:
-        return l10n.queue_clickToResume;
-      case QueueExecutionStatus.completed:
-        return queueState.tasks.isNotEmpty
-            ? l10n.queue_clickToStart
-            : l10n.queue_allTasksCompleted;
-    }
-  }
-
-  /// 处理状态按钮点击
-  void _handleStatusTap(
-    QueueExecutionStatus status,
-    ReplicationQueueState queueState,
-  ) {
+    final l10n = context.l10n;
     final notifier = ref.read(queueExecutionNotifierProvider.notifier);
 
-    switch (status) {
-      case QueueExecutionStatus.idle:
-      case QueueExecutionStatus.completed:
-        if (queueState.tasks.isNotEmpty) {
-          notifier.prepareNextTask();
-        }
-        break;
-      case QueueExecutionStatus.ready:
-      case QueueExecutionStatus.running:
-        notifier.pause();
-        break;
-      case QueueExecutionStatus.paused:
-        notifier.resume();
-        break;
+    if (executionState.isRunning || executionState.isReady) {
+      return SizedBox(
+        width: double.infinity,
+        child: FilledButton.tonalIcon(
+          onPressed: notifier.pause,
+          icon: const Icon(Icons.pause_rounded),
+          label: Text(l10n.queue_pauseExecution),
+        ),
+      );
     }
+
+    if (executionState.isPaused) {
+      return SizedBox(
+        width: double.infinity,
+        child: FilledButton.icon(
+          onPressed: notifier.resume,
+          icon: const Icon(Icons.play_arrow_rounded),
+          label: Text(l10n.queue_resumeExecution),
+        ),
+      );
+    }
+
+    return SizedBox(
+      width: double.infinity,
+      child: FilledButton.icon(
+        onPressed: queueState.isEmpty
+            ? null
+            : () async {
+                final result = await notifier.startQueue();
+                if (!context.mounted) return;
+                switch (result) {
+                  case QueueStartResult.started:
+                    widget.onQueueStarted?.call();
+                    return;
+                  case QueueStartResult.empty:
+                    AppToast.warning(context, l10n.queue_noTasksToStart);
+                    return;
+                  case QueueStartResult.busy:
+                    AppToast.warning(context, l10n.queue_generationBusy);
+                    return;
+                }
+              },
+        icon: const Icon(Icons.play_arrow_rounded),
+        label: Text(l10n.queue_startExecution),
+      ),
+    );
   }
 
   /// 获取状态信息

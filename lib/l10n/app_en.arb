@@ -1187,7 +1187,12 @@
   "onlineGallery_gifLoadFailed": "Failed to load GIF",
   "onlineGallery_pinchToZoom": "Pinch to zoom",
   "onlineGallery_metadata": "Metadata",
-  "onlineGallery_addedToQueue": "Added to queue",
+  "onlineGallery_addedToQueueWithCount": "Added to queue. {count} tasks are now pending",
+  "@onlineGallery_addedToQueueWithCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "onlineGallery_queueFullMax": "Queue is full (maximum 50 items)",
   "onlineGallery_chooseDownloadDirectory": "Choose Download Directory",
   "onlineGallery_downloadStarted": "Download started...",
@@ -1279,6 +1284,13 @@
   "@onlineGallery_addedTasksToQueue": {
     "placeholders": {
       "count": {}
+    }
+  },
+  "onlineGallery_partiallyAddedTasksToQueue": "Added {added} tasks; {skipped} were skipped because the queue is full",
+  "@onlineGallery_partiallyAddedTasksToQueue": {
+    "placeholders": {
+      "added": {},
+      "skipped": {}
     }
   },
   "onlineGallery_unfavorited": "Unfavorited",
@@ -3245,12 +3257,6 @@
   "queue_management": "Queue Management",
   "queue_empty": "Queue is empty",
   "queue_emptyHint": "No tasks in the queue",
-  "queue_taskCount": "{count} tasks",
-  "@queue_taskCount": {
-    "placeholders": {
-      "count": {}
-    }
-  },
   "queue_pending": "Pending",
   "queue_running": "Running",
   "queue_completed": "Completed",
@@ -3258,11 +3264,7 @@
   "queue_paused": "Paused",
   "queue_idle": "Idle",
   "queue_ready": "Ready",
-  "queue_clickToStart": "Click to start queue execution",
-  "queue_clickToPause": "Click to pause queue",
-  "queue_clickToResume": "Click to resume execution",
   "queue_noTasksToStart": "Queue is empty, cannot start",
-  "queue_allTasksCompleted": "All tasks completed",
 
   "queue_executionProgress": "Execution Progress",
   "queue_totalTasks": "Total",
@@ -3297,13 +3299,11 @@
 
   "queue_pause": "Pause",
   "queue_resume": "Resume",
-  "queue_pauseExecution": "Pause Execution",
-  "queue_resumeExecution": "Resume Execution",
-  "queue_autoExecute": "Auto Execute",
-  "queue_autoExecuteOn": "Auto execute next task when completed",
-  "queue_autoExecuteOff": "Manual click required to generate",
+  "queue_startExecution": "Start Queue",
+  "queue_pauseExecution": "Pause Queue",
+  "queue_resumeExecution": "Resume Queue",
+  "queue_generationBusy": "Another generation task is running. Start the queue after it finishes",
   "queue_clearQueue": "Clear Queue",
-  "queue_closeFloatingButton": "Close Floating Button",
   "queue_clearQueueConfirm": "Are you sure you want to clear all queue tasks? This action cannot be undone.",
   "queue_confirmClear": "Confirm Clear",
 
@@ -3424,11 +3424,6 @@
   },
   "unit_times": "times",
   "unit_seconds": "seconds",
-  "settings_floatingButtonBackground": "Floating Button Background",
-  "settings_floatingButtonBackgroundCustom": "Custom background set",
-  "settings_floatingButtonBackgroundDefault": "Default style",
-  "settings_clearBackground": "Clear background",
-  "settings_selectImage": "Select Image",
   "queue_currentQueueInfo": "Current queue contains {count} tasks",
   "@queue_currentQueueInfo": {
     "placeholders": {
@@ -3436,39 +3431,6 @@
     }
   },
 
-  "queue_tooltipTasksTotal": "Tasks: {count}",
-  "@queue_tooltipTasksTotal": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "queue_tooltipCompleted": "Completed: {count}",
-  "@queue_tooltipCompleted": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "queue_tooltipFailed": "Failed: {count}",
-  "@queue_tooltipFailed": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "queue_tooltipCurrentTask": "Current: {task}",
-  "@queue_tooltipCurrentTask": {
-    "placeholders": {
-      "task": {}
-    }
-  },
-  "queue_tooltipNoTasks": "No tasks in queue",
-  "queue_tooltipDoubleClickToOpen": "Double-click to start/pause",
-  "queue_tooltipClickToToggle": "Click to open queue",
-  "queue_tooltipDragToMove": "Drag to reposition",
-  "queue_statusIdle": "Status: Idle",
-  "queue_statusReady": "Status: Ready",
-  "queue_statusRunning": "Status: Running",
-  "queue_statusPaused": "Status: Paused",
-  "queue_statusCompleted": "Status: Completed",
 
   "settings_notificationSound": "Completion Sound",
   "settings_notificationSoundSubtitle": "Play sound when generation completes",

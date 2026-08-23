@@ -7,9 +7,7 @@ import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:nai_launcher/data/models/queue/replication_task.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/providers/krita/krita_bridge_notifier.dart';
-import 'package:nai_launcher/presentation/providers/queue_execution_provider.dart';
 import 'package:nai_launcher/presentation/providers/replication_queue_provider.dart';
-import 'package:nai_launcher/presentation/router/app_router.dart';
 import 'package:nai_launcher/presentation/utils/asset_protection_guard.dart';
 import 'package:nai_launcher/presentation/widgets/common/app_toast.dart';
 import 'package:nai_launcher/presentation/widgets/common/draggable_number_input.dart';
@@ -35,7 +33,6 @@ class GenerationControls extends ConsumerStatefulWidget {
 
 class _GenerationControlsState extends ConsumerState<GenerationControls> {
   bool _showAddToQueueButton = false;
-  int _queueReadyGenerationRequestId = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -55,46 +52,6 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
     final randomMode = ref.watch(randomPromptModeProvider);
     final showRandomTools = ref.watch(randomPromptToolsVisibilityProvider);
 
-    // 监听队列执行状态
-    final queueExecutionState = ref.watch(queueExecutionNotifierProvider);
-    final queueState = ref.watch(replicationQueueNotifierProvider);
-
-    // 检查悬浮球是否被手动关闭
-    final isFloatingButtonClosed = ref.watch(floatingButtonClosedProvider);
-
-    // 判断悬浮球是否可见（队列有任务或正在执行，且未被手动关闭）
-    final shouldShowFloatingButton =
-        !isFloatingButtonClosed &&
-        !(queueState.isEmpty &&
-            queueState.failedTasks.isEmpty &&
-            queueExecutionState.isIdle &&
-            !queueExecutionState.hasFailedTasks);
-
-    // 监听队列状态变化，当变为 ready 时自动触发生成
-    ref.listen<QueueExecutionState>(queueExecutionNotifierProvider, (
-      previous,
-      next,
-    ) {
-      // 从非 ready 状态变为 ready 状态，且当前没有在生成
-      if (previous?.status != QueueExecutionStatus.ready &&
-          next.status == QueueExecutionStatus.ready) {
-        final currentGenerationState = ref.read(
-          imageGenerationNotifierProvider,
-        );
-        if (!currentGenerationState.isGenerating) {
-          final currentKritaBridgeState = ref.read(kritaBridgeNotifierProvider);
-          if (currentKritaBridgeState.isBridgeGenerating) {
-            return;
-          }
-          // 延迟一帧确保提示词已填充
-          final requestId = ++_queueReadyGenerationRequestId;
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            unawaited(_generateReadyQueueTaskWhenAvailable(requestId));
-          });
-        }
-      }
-    });
-
     // 快捷键已由父级 DesktopGenerationLayout 统一处理
     // 这里只负责布局
     return LayoutBuilder(
@@ -111,7 +68,7 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
           generationState: generationState,
           cooldownRemainingSeconds: cooldownState.remainingSeconds,
           randomMode: randomMode,
-          shouldShowFloatingButton: shouldShowFloatingButton,
+          showAddToQueueAction: true,
         );
 
         if (isNarrow) {
@@ -288,12 +245,12 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
     required ImageGenerationState generationState,
     required int cooldownRemainingSeconds,
     required bool randomMode,
-    required bool shouldShowFloatingButton,
+    required bool showAddToQueueAction,
   }) {
-    // 使用 Row + AnimatedSize 让"加入队列"按钮在布局内滑出
+    // 使用 Row + AnimatedSize 让“加入队列”按钮在布局内滑出
     return MouseRegion(
       onEnter: (_) {
-        if (!_showAddToQueueButton && shouldShowFloatingButton) {
+        if (!_showAddToQueueButton && showAddToQueueAction) {
           setState(() {
             _showAddToQueueButton = true;
           });
@@ -307,16 +264,17 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // 悬浮球存在 + hover时 → 左侧滑出仅图标的"加入队列"按钮
+          // Hover 时在生成按钮左侧显示加入队列入口。
           AnimatedSize(
             duration: const Duration(milliseconds: 200),
             curve: Curves.easeOut,
             alignment: Alignment.centerRight,
-            child: shouldShowFloatingButton && _showAddToQueueButton
+            child: showAddToQueueAction && _showAddToQueueButton
                 ? Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: AddToQueueIconButton(
-                      onPressed: () => _handleAddToQueue(context, ref),
+                      onPressed: () =>
+                          unawaited(_handleAddToQueue(context, ref)),
                     ),
                   )
                 : const SizedBox.shrink(),
@@ -340,30 +298,7 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
     );
   }
 
-  Future<void> _generateReadyQueueTaskWhenAvailable(int requestId) async {
-    await ref.read(generationCooldownProvider.notifier).waitUntilAvailable();
-    if (!mounted || requestId != _queueReadyGenerationRequestId) {
-      return;
-    }
-
-    final queueExecutionState = ref.read(queueExecutionNotifierProvider);
-    final generationState = ref.read(imageGenerationNotifierProvider);
-    final kritaBridgeState = ref.read(kritaBridgeNotifierProvider);
-    if (queueExecutionState.status != QueueExecutionStatus.ready ||
-        generationState.isGenerating ||
-        kritaBridgeState.isBridgeGenerating) {
-      return;
-    }
-
-    final currentParams = ref.read(generationParamsNotifierProvider);
-    if (currentParams.prompt.isNotEmpty) {
-      await ref
-          .read(imageGenerationNotifierProvider.notifier)
-          .generate(currentParams);
-    }
-  }
-
-  void _handleAddToQueue(BuildContext context, WidgetRef ref) {
+  Future<void> _handleAddToQueue(BuildContext context, WidgetRef ref) async {
     final params = ref.read(generationParamsNotifierProvider);
     if (ref.read(kritaBridgeNotifierProvider).isBridgeGenerating) {
       AppToast.warning(context, context.l10n.toast_kritaBusy);
@@ -377,8 +312,15 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
     // 创建任务并添加到队列
     final task = ReplicationTask.create(prompt: params.prompt);
 
-    ref.read(replicationQueueNotifierProvider.notifier).add(task);
-    AppToast.success(context, context.l10n.queue_taskAdded);
+    final added = await ref
+        .read(replicationQueueNotifierProvider.notifier)
+        .add(task);
+    if (!context.mounted) return;
+    if (added) {
+      AppToast.success(context, context.l10n.queue_taskAdded);
+    } else {
+      AppToast.warning(context, context.l10n.onlineGallery_queueFullMax);
+    }
   }
 
   Future<void> _handleGenerate(BuildContext context, WidgetRef ref) async {

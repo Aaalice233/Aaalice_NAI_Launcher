@@ -5,8 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../data/models/vibe/vibe_reference.dart';
-import '../../providers/queue_execution_provider.dart';
-import '../../providers/replication_queue_provider.dart';
 import '../../widgets/common/themed_divider.dart';
 
 /// 图片目标类型
@@ -92,15 +90,6 @@ class ImageDestinationDialog extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-
-    // 判断悬浮球是否可见（队列有任务或正在执行）
-    final queueState = ref.watch(replicationQueueNotifierProvider);
-    final queueExecutionState = ref.watch(queueExecutionNotifierProvider);
-    final shouldShowAddToQueue =
-        !(queueState.isEmpty &&
-            queueState.failedTasks.isEmpty &&
-            queueExecutionState.isIdle &&
-            !queueExecutionState.hasFailedTasks);
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
@@ -196,21 +185,18 @@ class ImageDestinationDialog extends ConsumerWidget {
                       ).pop(ImageDestination.extractMetadata),
                     ),
                     const SizedBox(height: 12),
-                    // 加入队列选项（仅在悬浮球可见且是PNG时显示）
-                    if (shouldShowAddToQueue)
-                      Tooltip(
-                        message: context.l10n.drop_addToQueueSubtitle,
-                        child: _DestinationButton(
-                          icon: Icons.playlist_add,
-                          label: context.l10n.drop_addToQueue,
-                          subtitle: context.l10n.drop_addToQueueSubtitle,
-                          onTap: () => Navigator.of(
-                            context,
-                          ).pop(ImageDestination.addToQueue),
-                        ),
+                    Tooltip(
+                      message: context.l10n.drop_addToQueueSubtitle,
+                      child: _DestinationButton(
+                        icon: Icons.playlist_add,
+                        label: context.l10n.drop_addToQueue,
+                        subtitle: context.l10n.drop_addToQueueSubtitle,
+                        onTap: () => Navigator.of(
+                          context,
+                        ).pop(ImageDestination.addToQueue),
                       ),
-                    if (shouldShowAddToQueue) const SizedBox(height: 16),
-                    if (!shouldShowAddToQueue) const SizedBox(height: 4),
+                    ),
+                    const SizedBox(height: 16),
                     const ThemedDivider(height: 1),
                     const SizedBox(height: 16),
                   ],

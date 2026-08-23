@@ -1089,7 +1089,12 @@
   "onlineGallery_gifLoadFailed": "GIF加载失败",
   "onlineGallery_pinchToZoom": "双指缩放",
   "onlineGallery_metadata": "元数据",
-  "onlineGallery_addedToQueue": "已加入队列",
+  "onlineGallery_addedToQueueWithCount": "已加入队列，当前共 {count} 个待执行任务",
+  "@onlineGallery_addedToQueueWithCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "onlineGallery_queueFullMax": "队列已满（最多50项）",
   "onlineGallery_chooseDownloadDirectory": "选择下载目录",
   "onlineGallery_downloadStarted": "开始下载...",
@@ -1181,6 +1186,13 @@
   "@onlineGallery_addedTasksToQueue": {
     "placeholders": {
       "count": {}
+    }
+  },
+  "onlineGallery_partiallyAddedTasksToQueue": "已加入 {added} 个任务，另有 {skipped} 个因队列已满未加入",
+  "@onlineGallery_partiallyAddedTasksToQueue": {
+    "placeholders": {
+      "added": {},
+      "skipped": {}
     }
   },
   "onlineGallery_unfavorited": "已取消收藏",
@@ -3219,12 +3231,6 @@
   "queue_management": "队列管理",
   "queue_empty": "队列为空",
   "queue_emptyHint": "没有待执行的任务",
-  "queue_taskCount": "{count} 个任务",
-  "@queue_taskCount": {
-    "placeholders": {
-      "count": {}
-    }
-  },
   "queue_pending": "等待中",
   "queue_running": "执行中",
   "queue_completed": "已完成",
@@ -3232,11 +3238,7 @@
   "queue_paused": "已暂停",
   "queue_idle": "空闲",
   "queue_ready": "就绪",
-  "queue_clickToStart": "点击开始执行队列",
-  "queue_clickToPause": "点击暂停队列",
-  "queue_clickToResume": "点击继续执行",
   "queue_noTasksToStart": "队列为空，无法开始",
-  "queue_allTasksCompleted": "所有任务已完成",
 
   "queue_executionProgress": "执行进度",
   "queue_totalTasks": "总数",
@@ -3271,13 +3273,11 @@
 
   "queue_pause": "暂停",
   "queue_resume": "继续",
-  "queue_pauseExecution": "暂停执行",
-  "queue_resumeExecution": "继续执行",
-  "queue_autoExecute": "自动执行",
-  "queue_autoExecuteOn": "完成后自动执行下一个任务",
-  "queue_autoExecuteOff": "需要手动点击生成",
+  "queue_startExecution": "开始队列",
+  "queue_pauseExecution": "暂停队列",
+  "queue_resumeExecution": "继续队列",
+  "queue_generationBusy": "当前有其他生成任务正在执行，请稍后再开始队列",
   "queue_clearQueue": "清空队列",
-  "queue_closeFloatingButton": "关闭悬浮球",
   "queue_clearQueueConfirm": "确定要清空所有队列任务吗？此操作不可撤销。",
   "queue_confirmClear": "确认清空",
 
@@ -3398,11 +3398,6 @@
   },
   "unit_times": "次",
   "unit_seconds": "秒",
-  "settings_floatingButtonBackground": "悬浮球背景",
-  "settings_floatingButtonBackgroundCustom": "已设置自定义背景",
-  "settings_floatingButtonBackgroundDefault": "默认样式",
-  "settings_clearBackground": "清除背景",
-  "settings_selectImage": "选择图片",
   "queue_currentQueueInfo": "当前队列包含 {count} 个任务",
   "@queue_currentQueueInfo": {
     "placeholders": {
@@ -3410,39 +3405,6 @@
     }
   },
 
-  "queue_tooltipTasksTotal": "任务数：{count}",
-  "@queue_tooltipTasksTotal": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "queue_tooltipCompleted": "已完成：{count}",
-  "@queue_tooltipCompleted": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "queue_tooltipFailed": "失败：{count}",
-  "@queue_tooltipFailed": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "queue_tooltipCurrentTask": "当前任务：{task}",
-  "@queue_tooltipCurrentTask": {
-    "placeholders": {
-      "task": {}
-    }
-  },
-  "queue_tooltipNoTasks": "队列中没有任务",
-  "queue_tooltipDoubleClickToOpen": "双击开始/暂停",
-  "queue_tooltipClickToToggle": "单击打开队列管理",
-  "queue_tooltipDragToMove": "拖拽调整位置",
-  "queue_statusIdle": "状态：空闲",
-  "queue_statusReady": "状态：就绪",
-  "queue_statusRunning": "状态：运行中",
-  "queue_statusPaused": "状态：已暂停",
-  "queue_statusCompleted": "状态：已完成",
 
   "settings_notificationSound": "完成音效",
   "settings_notificationSoundSubtitle": "生成完成时播放提示音效",
