@@ -17,6 +17,7 @@ import '../../../l10n/app_localizations.dart';
 import '../../providers/share_image_settings_provider.dart';
 import '../../themes/theme_extension.dart';
 import '../../utils/clipboard_image.dart';
+import 'animated_favorite_button.dart';
 import 'pro_context_menu.dart';
 import 'app_toast.dart';
 import 'decoded_memory_image.dart';
@@ -1061,11 +1062,7 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
 
                 // 5.5 右上角：本地画廊收藏按钮
                 if (widget.onFavoriteToggle != null)
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: _buildFavoriteButton(context),
-                  ),
+                  Positioned(top: 8, right: 8, child: _buildFavoriteButton()),
 
                 // 6. 操作按钮（悬浮时显示）
                 if (_isHovering && _hasHoverActions)
@@ -1224,45 +1221,12 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
     );
   }
 
-  Widget _buildFavoriteButton(BuildContext context) {
-    return Tooltip(
-      message: widget.isFavorite
-          ? context.l10n.common_unfavorite
-          : context.l10n.common_favorite,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: widget.onFavoriteToggle,
-          borderRadius: BorderRadius.circular(14),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
-            width: 28,
-            height: 28,
-            decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.55),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: widget.isFavorite
-                    ? Colors.redAccent.withValues(alpha: 0.9)
-                    : Colors.white.withValues(alpha: 0.65),
-                width: 1,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.25),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Icon(
-              widget.isFavorite ? Icons.favorite : Icons.favorite_border,
-              color: widget.isFavorite ? Colors.redAccent : Colors.white,
-              size: 17,
-            ),
-          ),
-        ),
-      ),
+  Widget _buildFavoriteButton() {
+    return CardFavoriteButton(
+      isFavorite: widget.isFavorite,
+      onToggle: widget.onFavoriteToggle,
+      size: 17,
+      borderRadius: 999,
     );
   }
 
