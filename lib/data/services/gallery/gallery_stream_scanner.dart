@@ -646,6 +646,11 @@ class GalleryStreamScanner {
 
         // 更新 ScanStateManager 的元数据计数
         _stateManager.incrementMetadataCacheCount();
+      } else {
+        // Keep progress classification aligned with the persisted failed
+        // metadata status. Otherwise each metadata-free image accumulates in
+        // the UI's transient "processing" segment after it has completed.
+        _stateManager.incrementFailedCount();
       }
 
       // 【修复】无论是否有元数据，都更新本地缓存，确保 lastScannedAt 被设置
