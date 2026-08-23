@@ -22,7 +22,7 @@ concurrency:
 
 env:
   FLUTTER_VERSION: "3.44.2"
-  PUB_HOSTED_URL: "https://pub.flutter-io.cn"
+  PUB_HOSTED_URL: "https://pub.dev"
   BUILD_MODE: ${{ inputs.build-mode || 'release' }}
   BUNDLE_PATH: build/windows/x64/runner/${{ inputs.build-mode == 'debug' && 'Debug' || 'Release' }}
 
