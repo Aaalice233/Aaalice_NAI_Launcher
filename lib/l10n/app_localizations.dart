@@ -8693,7 +8693,7 @@ abstract class AppLocalizations {
   /// No description provided for @localGallery_editMetadata.
   ///
   /// In en, this message translates to:
-  /// **'Edit'**
+  /// **'Edit Tags'**
   String get localGallery_editMetadata;
 
   /// No description provided for @localGallery_addToCollection.
@@ -8924,6 +8924,78 @@ abstract class AppLocalizations {
   /// **'Save ZIP Archive'**
   String get localGallery_saveZipArchive;
 
+  /// No description provided for @localGallery_zipMetadataTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Export ZIP'**
+  String get localGallery_zipMetadataTitle;
+
+  /// No description provided for @localGallery_zipMetadataDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose whether images in the ZIP keep their embedded metadata. Original files will not be changed.'**
+  String get localGallery_zipMetadataDescription;
+
+  /// No description provided for @localGallery_zipIncludeMetadata.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep metadata'**
+  String get localGallery_zipIncludeMetadata;
+
+  /// No description provided for @localGallery_zipIncludeMetadataDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Pack the original image files without changes.'**
+  String get localGallery_zipIncludeMetadataDescription;
+
+  /// No description provided for @localGallery_zipExcludeMetadata.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove all metadata'**
+  String get localGallery_zipExcludeMetadata;
+
+  /// No description provided for @localGallery_zipExcludeMetadataDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Create sanitized copies for the ZIP, removing PNG text chunks, EXIF, and NovelAI stealth watermark data.'**
+  String get localGallery_zipExcludeMetadataDescription;
+
+  /// No description provided for @bulkMetadataEdit_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Tags for {count} Images'**
+  String bulkMetadataEdit_title(Object count);
+
+  /// No description provided for @bulkMetadataEdit_tagsToAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Tags to Add'**
+  String get bulkMetadataEdit_tagsToAdd;
+
+  /// No description provided for @bulkMetadataEdit_tagsToAddHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter tags to add...'**
+  String get bulkMetadataEdit_tagsToAddHint;
+
+  /// No description provided for @bulkMetadataEdit_tagsToRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Tags to Remove'**
+  String get bulkMetadataEdit_tagsToRemove;
+
+  /// No description provided for @bulkMetadataEdit_tagsToRemoveHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter tags to remove...'**
+  String get bulkMetadataEdit_tagsToRemoveHint;
+
+  /// No description provided for @bulkMetadataEdit_noChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'Add at least one tag to add or remove'**
+  String get bulkMetadataEdit_noChanges;
+
   /// No description provided for @localGallery_packingImages.
   ///
   /// In en, this message translates to:
@@ -8936,11 +9008,41 @@ abstract class AppLocalizations {
   /// **'Packed {count} images'**
   String localGallery_packedImages(Object count);
 
+  /// No description provided for @localGallery_packingProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Packing {current} of {total} images...'**
+  String localGallery_packingProgress(Object current, Object total);
+
+  /// No description provided for @localGallery_packPartialTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Some images were not exported'**
+  String get localGallery_packPartialTitle;
+
+  /// No description provided for @localGallery_packedImagesWithFailures.
+  ///
+  /// In en, this message translates to:
+  /// **'ZIP created with {exported} images; {failed} images could not be included'**
+  String localGallery_packedImagesWithFailures(Object exported, Object failed);
+
   /// No description provided for @localGallery_packFailed.
   ///
   /// In en, this message translates to:
   /// **'Failed to pack images'**
   String get localGallery_packFailed;
+
+  /// No description provided for @localGallery_packFailedWithDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to create ZIP: {error}'**
+  String localGallery_packFailedWithDetails(Object error);
+
+  /// No description provided for @localGallery_packAlreadyInProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'A ZIP export is already in progress'**
+  String get localGallery_packAlreadyInProgress;
 
   /// No description provided for @localGallery_imageFileMissing.
   ///
@@ -9901,6 +10003,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Processing'**
   String get bulkProgress_title_default;
+
+  /// No description provided for @bulkProgress_continueInBackground.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue in background'**
+  String get bulkProgress_continueInBackground;
+
+  /// No description provided for @bulkProgress_operationAlreadyInProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Another batch operation is already in progress'**
+  String get bulkProgress_operationAlreadyInProgress;
 
   /// No description provided for @bulkProgress_errorDeleteFailed.
   ///

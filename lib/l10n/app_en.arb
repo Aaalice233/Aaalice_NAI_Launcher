@@ -2214,7 +2214,7 @@
   "localGallery_deselectAllResults": "Deselect All",
   "localGallery_moveSelected": "Move",
   "localGallery_packSelected": "Pack",
-  "localGallery_editMetadata": "Edit",
+  "localGallery_editMetadata": "Edit Tags",
   "localGallery_addToCollection": "Collect",
   "localGallery_switchToGridView": "Switch to grid view",
   "localGallery_switchToDateGroupedView": "Switch to date grouped view",
@@ -2288,6 +2288,23 @@
     }
   },
   "localGallery_saveZipArchive": "Save ZIP Archive",
+  "localGallery_zipMetadataTitle": "Export ZIP",
+  "localGallery_zipMetadataDescription": "Choose whether images in the ZIP keep their embedded metadata. Original files will not be changed.",
+  "localGallery_zipIncludeMetadata": "Keep metadata",
+  "localGallery_zipIncludeMetadataDescription": "Pack the original image files without changes.",
+  "localGallery_zipExcludeMetadata": "Remove all metadata",
+  "localGallery_zipExcludeMetadataDescription": "Create sanitized copies for the ZIP, removing PNG text chunks, EXIF, and NovelAI stealth watermark data.",
+  "bulkMetadataEdit_title": "Edit Tags for {count} Images",
+  "@bulkMetadataEdit_title": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "bulkMetadataEdit_tagsToAdd": "Tags to Add",
+  "bulkMetadataEdit_tagsToAddHint": "Enter tags to add...",
+  "bulkMetadataEdit_tagsToRemove": "Tags to Remove",
+  "bulkMetadataEdit_tagsToRemoveHint": "Enter tags to remove...",
+  "bulkMetadataEdit_noChanges": "Add at least one tag to add or remove",
   "localGallery_packingImages": "Packing {count} images...",
   "@localGallery_packingImages": {
     "placeholders": {
@@ -2300,7 +2317,29 @@
       "count": {}
     }
   },
+  "localGallery_packingProgress": "Packing {current} of {total} images...",
+  "@localGallery_packingProgress": {
+    "placeholders": {
+      "current": {},
+      "total": {}
+    }
+  },
+  "localGallery_packPartialTitle": "Some images were not exported",
+  "localGallery_packedImagesWithFailures": "ZIP created with {exported} images; {failed} images could not be included",
+  "@localGallery_packedImagesWithFailures": {
+    "placeholders": {
+      "exported": {},
+      "failed": {}
+    }
+  },
   "localGallery_packFailed": "Failed to pack images",
+  "localGallery_packFailedWithDetails": "Failed to create ZIP: {error}",
+  "@localGallery_packFailedWithDetails": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "localGallery_packAlreadyInProgress": "A ZIP export is already in progress",
   "localGallery_imageFileMissing": "Image file does not exist",
   "localGallery_sentToImageToImage": "Image sent to Image2Image",
   "localGallery_sendFailed": "Send failed: {error}",
@@ -2581,6 +2620,8 @@
   "bulkProgress_title_removeFromCollection": "Removing from Collection",
   "bulkProgress_title_toggleFavorite": "Updating Favorites",
   "bulkProgress_title_default": "Processing",
+  "bulkProgress_continueInBackground": "Continue in background",
+  "bulkProgress_operationAlreadyInProgress": "Another batch operation is already in progress",
   "bulkProgress_errorDeleteFailed": "Failed to delete images: {error}",
   "@bulkProgress_errorDeleteFailed": {
     "placeholders": {

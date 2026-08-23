@@ -4856,7 +4856,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get localGallery_packSelected => 'Pack';
 
   @override
-  String get localGallery_editMetadata => 'Edit';
+  String get localGallery_editMetadata => 'Edit Tags';
 
   @override
   String get localGallery_addToCollection => 'Collect';
@@ -4996,6 +4996,48 @@ class AppLocalizationsEn extends AppLocalizations {
   String get localGallery_saveZipArchive => 'Save ZIP Archive';
 
   @override
+  String get localGallery_zipMetadataTitle => 'Export ZIP';
+
+  @override
+  String get localGallery_zipMetadataDescription =>
+      'Choose whether images in the ZIP keep their embedded metadata. Original files will not be changed.';
+
+  @override
+  String get localGallery_zipIncludeMetadata => 'Keep metadata';
+
+  @override
+  String get localGallery_zipIncludeMetadataDescription =>
+      'Pack the original image files without changes.';
+
+  @override
+  String get localGallery_zipExcludeMetadata => 'Remove all metadata';
+
+  @override
+  String get localGallery_zipExcludeMetadataDescription =>
+      'Create sanitized copies for the ZIP, removing PNG text chunks, EXIF, and NovelAI stealth watermark data.';
+
+  @override
+  String bulkMetadataEdit_title(Object count) {
+    return 'Edit Tags for $count Images';
+  }
+
+  @override
+  String get bulkMetadataEdit_tagsToAdd => 'Tags to Add';
+
+  @override
+  String get bulkMetadataEdit_tagsToAddHint => 'Enter tags to add...';
+
+  @override
+  String get bulkMetadataEdit_tagsToRemove => 'Tags to Remove';
+
+  @override
+  String get bulkMetadataEdit_tagsToRemoveHint => 'Enter tags to remove...';
+
+  @override
+  String get bulkMetadataEdit_noChanges =>
+      'Add at least one tag to add or remove';
+
+  @override
   String localGallery_packingImages(Object count) {
     return 'Packing $count images...';
   }
@@ -5006,7 +5048,29 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String localGallery_packingProgress(Object current, Object total) {
+    return 'Packing $current of $total images...';
+  }
+
+  @override
+  String get localGallery_packPartialTitle => 'Some images were not exported';
+
+  @override
+  String localGallery_packedImagesWithFailures(Object exported, Object failed) {
+    return 'ZIP created with $exported images; $failed images could not be included';
+  }
+
+  @override
   String get localGallery_packFailed => 'Failed to pack images';
+
+  @override
+  String localGallery_packFailedWithDetails(Object error) {
+    return 'Failed to create ZIP: $error';
+  }
+
+  @override
+  String get localGallery_packAlreadyInProgress =>
+      'A ZIP export is already in progress';
 
   @override
   String get localGallery_imageFileMissing => 'Image file does not exist';
@@ -5541,6 +5605,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get bulkProgress_title_default => 'Processing';
+
+  @override
+  String get bulkProgress_continueInBackground => 'Continue in background';
+
+  @override
+  String get bulkProgress_operationAlreadyInProgress =>
+      'Another batch operation is already in progress';
 
   @override
   String bulkProgress_errorDeleteFailed(String error) {

@@ -51,6 +51,7 @@ import '../../widgets/gallery/gallery_content_view.dart';
 import '../../widgets/gallery/gallery_state_views.dart';
 import '../../widgets/gallery/local_image_context_menu.dart';
 import '../../widgets/gallery/local_gallery_toolbar.dart';
+import '../../widgets/gallery/zip_export_metadata_dialog.dart';
 import '../../widgets/gallery_filter_panel.dart';
 import '../../widgets/grouped_grid_view.dart'
     show GroupedGridViewState, ImageDateGroup;
@@ -71,6 +72,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
 
   final bool _use3DCardView = true;
   bool _showCategoryPanel = true;
+  bool _isPackingImages = false;
   AppLifecycleListener? _lifecycleListener;
 
   // 防抖计时器，防止频繁触发刷新
@@ -525,16 +527,12 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
           ref.read(localGallerySelectionNotifierProvider.notifier).enter(),
       canUndo: bulkOpState.canUndo,
       canRedo: bulkOpState.canRedo,
-      onUndo: bulkOpState.canUndo
-          ? () => ref.read(bulkOperationNotifierProvider.notifier).undo()
-          : null,
-      onRedo: bulkOpState.canRedo
-          ? () => ref.read(bulkOperationNotifierProvider.notifier).redo()
-          : null,
+      onUndo: bulkOpState.canUndo ? _undo : null,
+      onRedo: bulkOpState.canRedo ? _redo : null,
       groupedGridViewKey: _groupedGridViewKey,
       onAddToCollection: _addSelectedToCollection,
       onDeleteSelected: _deleteSelectedImages,
-      onPackSelected: _packSelectedImages,
+      onPackSelected: _isPackingImages ? null : _packSelectedImages,
       onEditMetadata: _editSelectedMetadata,
       onMoveToFolder: _moveSelectedToFolder,
       showCategoryPanel: _showCategoryPanel,
@@ -771,6 +769,22 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
   }
 
   Future<void> _packSelectedImages() async {
+    if (_isPackingImages) {
+      AppToast.info(context, context.l10n.localGallery_packAlreadyInProgress);
+      return;
+    }
+
+    setState(() => _isPackingImages = true);
+    try {
+      await _performPackSelectedImages();
+    } finally {
+      if (mounted && _isPackingImages) {
+        setState(() => _isPackingImages = false);
+      }
+    }
+  }
+
+  Future<void> _performPackSelectedImages() async {
     final selectionState = ref.read(localGallerySelectionNotifierProvider);
 
     // 从数据库获取所有选中项的完整记录（支持跨页）
@@ -782,6 +796,9 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     );
 
     if (selectedImages.isEmpty || !mounted) return;
+
+    final includeMetadata = await ZipExportMetadataDialog.show(context);
+    if (includeMetadata == null || !mounted) return;
 
     final defaultName = 'images_${DateTime.now().millisecondsSinceEpoch}';
     final outputPath = await FilePicker.platform.saveFile(
@@ -801,25 +818,124 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
         : requestedPath;
 
     if (!mounted) return;
-    AppToast.info(
+    final l10n = context.l10n;
+    final progressToast = AppToast.showProgress(
       context,
-      context.l10n.localGallery_packingImages(selectedImages.length),
+      l10n.localGallery_packingImages(selectedImages.length),
+      progress: 0,
     );
 
-    final imagePaths = selectedImages.map((img) => img.path).toList();
-    final success = await ZipUtils.createZipFromImages(imagePaths, finalPath);
+    try {
+      final imagePaths = selectedImages.map((img) => img.path).toList();
+      final result = await ZipUtils.createZipFromImagesDetailed(
+        imagePaths,
+        finalPath,
+        stripMetadata: !includeMetadata,
+        onProgress: (progress) {
+          progressToast.updateProgress(
+            progress.fraction,
+            message: l10n.localGallery_packingProgress(
+              progress.current,
+              progress.total,
+            ),
+            subtitle: progress.currentFileName,
+          );
+        },
+      );
 
-    if (mounted) {
-      if (success) {
-        AppToast.success(
-          context,
-          context.l10n.localGallery_packedImages(selectedImages.length),
+      if (!mounted) {
+        progressToast.dismiss();
+        return;
+      }
+      if (result.succeeded && !result.isPartial) {
+        progressToast.complete(
+          message: l10n.localGallery_packedImages(result.exportedCount),
         );
         ref.read(localGallerySelectionNotifierProvider.notifier).exit();
+      } else if (result.isPartial) {
+        progressToast.dismiss();
+        await _showZipPartialFailureDialog(result);
       } else {
-        AppToast.error(context, context.l10n.localGallery_packFailed);
+        final details = result.error ?? l10n.localGallery_packFailed;
+        progressToast.fail(
+          message: l10n.localGallery_packFailedWithDetails(details),
+        );
+        AppLogger.e(
+          'Local gallery ZIP export failed: $details',
+          null,
+          null,
+          'LocalGalleryScreen',
+        );
+      }
+    } finally {
+      if (mounted && _isPackingImages) {
+        setState(() => _isPackingImages = false);
       }
     }
+  }
+
+  Future<void> _showZipPartialFailureDialog(ZipCreationResult result) async {
+    if (!mounted) return;
+    final l10n = context.l10n;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        icon: Icon(
+          Icons.warning_amber_rounded,
+          color: Theme.of(dialogContext).colorScheme.tertiary,
+        ),
+        title: Text(l10n.localGallery_packPartialTitle),
+        content: SizedBox(
+          width: 520,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                l10n.localGallery_packedImagesWithFailures(
+                  result.exportedCount,
+                  result.failures.length,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Flexible(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 320),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: result.failures.length,
+                    separatorBuilder: (_, _) => const Divider(height: 16),
+                    itemBuilder: (context, index) {
+                      final failure = result.failures[index];
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            path.basename(failure.path),
+                            style: Theme.of(context).textTheme.labelLarge,
+                          ),
+                          const SizedBox(height: 4),
+                          SelectableText(
+                            failure.error,
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: Text(l10n.common_close),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _editSelectedMetadata() async {

@@ -4740,7 +4740,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get localGallery_packSelected => 'パック';
 
   @override
-  String get localGallery_editMetadata => '編集';
+  String get localGallery_editMetadata => 'タグを編集';
 
   @override
   String get localGallery_addToCollection => 'コレクションに追加';
@@ -4875,6 +4875,47 @@ class AppLocalizationsJa extends AppLocalizations {
   String get localGallery_saveZipArchive => 'ZIP アーカイブを保存';
 
   @override
+  String get localGallery_zipMetadataTitle => 'ZIP をエクスポート';
+
+  @override
+  String get localGallery_zipMetadataDescription =>
+      'ZIP 内の画像に埋め込みメタデータを残すか選択します。元の画像ファイルは変更されません。';
+
+  @override
+  String get localGallery_zipIncludeMetadata => 'メタデータを保持';
+
+  @override
+  String get localGallery_zipIncludeMetadataDescription =>
+      '元の画像ファイルを変更せずにパックします。';
+
+  @override
+  String get localGallery_zipExcludeMetadata => 'すべてのメタデータを削除';
+
+  @override
+  String get localGallery_zipExcludeMetadataDescription =>
+      'ZIP 専用のサニタイズ済みコピーを作成し、PNG テキストチャンク、EXIF、NovelAI ステルス透かしデータを削除します。';
+
+  @override
+  String bulkMetadataEdit_title(Object count) {
+    return '$count 枚の画像のタグを一括編集';
+  }
+
+  @override
+  String get bulkMetadataEdit_tagsToAdd => '追加するタグ';
+
+  @override
+  String get bulkMetadataEdit_tagsToAddHint => '追加するタグを入力...';
+
+  @override
+  String get bulkMetadataEdit_tagsToRemove => '削除するタグ';
+
+  @override
+  String get bulkMetadataEdit_tagsToRemoveHint => '削除するタグを入力...';
+
+  @override
+  String get bulkMetadataEdit_noChanges => '追加または削除するタグを1つ以上指定してください';
+
+  @override
   String localGallery_packingImages(Object count) {
     return '$count 個の画像をパッキングしています...';
   }
@@ -4885,7 +4926,28 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
+  String localGallery_packingProgress(Object current, Object total) {
+    return '$total 枚中 $current 枚目をパックしています...';
+  }
+
+  @override
+  String get localGallery_packPartialTitle => '一部の画像をエクスポートできませんでした';
+
+  @override
+  String localGallery_packedImagesWithFailures(Object exported, Object failed) {
+    return 'ZIP を作成しました：$exported 枚を追加、$failed 枚は追加できませんでした';
+  }
+
+  @override
   String get localGallery_packFailed => '画像のパックに失敗しました';
+
+  @override
+  String localGallery_packFailedWithDetails(Object error) {
+    return 'ZIP の作成に失敗しました：$error';
+  }
+
+  @override
+  String get localGallery_packAlreadyInProgress => '画像の ZIP エクスポートはすでに進行中です';
 
   @override
   String get localGallery_imageFileMissing => '画像ファイルが存在しません';
@@ -5415,6 +5477,12 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get bulkProgress_title_default => '処理中';
+
+  @override
+  String get bulkProgress_continueInBackground => 'バックグラウンドで続行';
+
+  @override
+  String get bulkProgress_operationAlreadyInProgress => '別の一括操作がすでに進行中です';
 
   @override
   String bulkProgress_errorDeleteFailed(String error) {

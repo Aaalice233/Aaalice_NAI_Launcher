@@ -8,24 +8,27 @@ import 'package:path_provider/path_provider.dart';
 import '../../core/database/database_providers.dart';
 import '../../core/database/datasources/gallery_data_source.dart';
 import '../../core/utils/app_logger.dart';
+import '../../core/utils/bulk_tag_edit_utils.dart';
 import '../models/gallery/local_image_record.dart';
 import '../models/gallery/nai_image_metadata.dart';
 
 part 'bulk_operation_service.g.dart';
 
 /// Progress callback for bulk operations
-typedef BulkProgressCallback = void Function({
-  required int current,
-  required int total,
-  required String currentItem,
-  required bool isComplete,
-});
+typedef BulkProgressCallback =
+    void Function({
+      required int current,
+      required int total,
+      required String currentItem,
+      required bool isComplete,
+    });
 
 /// Bulk operation result
 typedef BulkOperationResult = ({
   int success,
   int failed,
   List<String> errors,
+  List<String> successfulItems,
 });
 
 /// Bulk operation service for managing batch operations on local images
@@ -53,19 +56,32 @@ class BulkOperationService {
     var successCount = 0;
     var failedCount = 0;
     final errors = <String>[];
+    final successfulItems = <String>[];
 
-    AppLogger.i('Starting bulk delete: ${imagePaths.length} images', 'BulkOperationService');
+    AppLogger.i(
+      'Starting bulk delete: ${imagePaths.length} images',
+      'BulkOperationService',
+    );
 
     for (var i = 0; i < imagePaths.length; i++) {
       final imagePath = imagePaths[i];
-      onProgress?.call(current: i, total: imagePaths.length, currentItem: imagePath, isComplete: false);
+      onProgress?.call(
+        current: i,
+        total: imagePaths.length,
+        currentItem: imagePath,
+        isComplete: false,
+      );
 
       try {
         final file = File(imagePath);
         if (await file.exists()) {
           await file.delete();
           successCount++;
-          AppLogger.d('Deleted: $imagePath ($successCount/${imagePaths.length})', 'BulkOperationService');
+          successfulItems.add(imagePath);
+          AppLogger.d(
+            'Deleted: $imagePath ($successCount/${imagePaths.length})',
+            'BulkOperationService',
+          );
         } else {
           failedCount++;
           errors.add('File not found: $imagePath');
@@ -74,18 +90,33 @@ class BulkOperationService {
       } catch (e) {
         failedCount++;
         errors.add('Failed to delete $imagePath: $e');
-        AppLogger.e('Delete failed for $imagePath', e, null, 'BulkOperationService');
+        AppLogger.e(
+          'Delete failed for $imagePath',
+          e,
+          null,
+          'BulkOperationService',
+        );
       }
     }
 
-    onProgress?.call(current: imagePaths.length, total: imagePaths.length, currentItem: '', isComplete: true);
+    onProgress?.call(
+      current: imagePaths.length,
+      total: imagePaths.length,
+      currentItem: '',
+      isComplete: true,
+    );
     stopwatch.stop();
     AppLogger.i(
       'Bulk delete completed: $successCount succeeded, $failedCount failed in ${stopwatch.elapsedMilliseconds}ms',
       'BulkOperationService',
     );
 
-    return (success: successCount, failed: failedCount, errors: errors);
+    return (
+      success: successCount,
+      failed: failedCount,
+      errors: errors,
+      successfulItems: successfulItems,
+    );
   }
 
   /// 批量导出图片元数据到文件
@@ -97,17 +128,27 @@ class BulkOperationService {
   }) async {
     final stopwatch = Stopwatch()..start();
 
-    AppLogger.i('Starting bulk export: ${records.length} images as $outputFormat', 'BulkOperationService');
+    AppLogger.i(
+      'Starting bulk export: ${records.length} images as $outputFormat',
+      'BulkOperationService',
+    );
 
     try {
       final outputDir = await _getExportDirectory();
-      final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.')[0];
+      final timestamp = DateTime.now()
+          .toIso8601String()
+          .replaceAll(':', '-')
+          .split('.')[0];
       final extension = outputFormat.toLowerCase() == 'csv' ? 'csv' : 'json';
       final fileName = 'nai_bulk_export_$timestamp.$extension';
       final filePath = '${outputDir.path}${Platform.pathSeparator}$fileName';
       final file = File(filePath);
 
-      final exportData = await _prepareExportData(records, includeMetadata, onProgress);
+      final exportData = await _prepareExportData(
+        records,
+        includeMetadata,
+        onProgress,
+      );
 
       if (outputFormat.toLowerCase() == 'csv') {
         await _writeCsv(file, exportData, includeMetadata);
@@ -115,7 +156,12 @@ class BulkOperationService {
         await _writeJson(file, exportData, records.length, includeMetadata);
       }
 
-      onProgress?.call(current: records.length, total: records.length, currentItem: '', isComplete: true);
+      onProgress?.call(
+        current: records.length,
+        total: records.length,
+        currentItem: '',
+        isComplete: true,
+      );
       stopwatch.stop();
       AppLogger.i(
         'Bulk export completed: ${records.length} images exported to $fileName in ${stopwatch.elapsedMilliseconds}ms',
@@ -133,7 +179,10 @@ class BulkOperationService {
     try {
       return await getDownloadsDirectory() ?? Directory.systemTemp;
     } catch (e) {
-      AppLogger.w('Downloads directory not available: $e', 'BulkOperationService');
+      AppLogger.w(
+        'Downloads directory not available: $e',
+        'BulkOperationService',
+      );
       return Directory.systemTemp;
     }
   }
@@ -147,7 +196,12 @@ class BulkOperationService {
 
     for (var i = 0; i < records.length; i++) {
       final record = records[i];
-      onProgress?.call(current: i, total: records.length, currentItem: record.path, isComplete: false);
+      onProgress?.call(
+        current: i,
+        total: records.length,
+        currentItem: record.path,
+        isComplete: false,
+      );
 
       exportData.add(_buildExportMap(record, includeMetadata));
     }
@@ -155,7 +209,10 @@ class BulkOperationService {
     return exportData;
   }
 
-  Map<String, dynamic> _buildExportMap(LocalImageRecord record, bool includeMetadata) {
+  Map<String, dynamic> _buildExportMap(
+    LocalImageRecord record,
+    bool includeMetadata,
+  ) {
     final map = <String, dynamic>{
       'path': record.path,
       'fileName': record.path.split(Platform.pathSeparator).last,
@@ -213,7 +270,9 @@ class BulkOperationService {
       'includeMetadata': includeMetadata,
       'images': exportData,
     };
-    await file.writeAsString(const JsonEncoder.withIndent('  ').convert(jsonData));
+    await file.writeAsString(
+      const JsonEncoder.withIndent('  ').convert(jsonData),
+    );
   }
 
   /// 批量编辑元数据（添加/删除标签）
@@ -227,10 +286,19 @@ class BulkOperationService {
     var successCount = 0;
     var failedCount = 0;
     final errors = <String>[];
+    final successfulItems = <String>[];
 
     if (tagsToAdd.isEmpty && tagsToRemove.isEmpty) {
-      AppLogger.w('No tags to add or remove, skipping bulk metadata edit', 'BulkOperationService');
-      return (success: 0, failed: 0, errors: <String>[]);
+      AppLogger.w(
+        'No tags to add or remove, skipping bulk metadata edit',
+        'BulkOperationService',
+      );
+      return (
+        success: 0,
+        failed: 0,
+        errors: <String>[],
+        successfulItems: <String>[],
+      );
     }
 
     AppLogger.i(
@@ -242,7 +310,12 @@ class BulkOperationService {
 
     for (var i = 0; i < imagePaths.length; i++) {
       final imagePath = imagePaths[i];
-      onProgress?.call(current: i, total: imagePaths.length, currentItem: imagePath, isComplete: false);
+      onProgress?.call(
+        current: i,
+        total: imagePaths.length,
+        currentItem: imagePath,
+        isComplete: false,
+      );
 
       try {
         // 获取或创建图片ID
@@ -268,12 +341,15 @@ class BulkOperationService {
 
         // 获取当前标签
         final currentTags = await dataSource.getImageTags(imageId);
-        final updatedTags = List<String>.from(currentTags)
-          ..addAll(tagsToAdd.where((tag) => !currentTags.contains(tag)))
-          ..removeWhere((tag) => tagsToRemove.contains(tag));
+        final updatedTags = applyBulkTagChanges(
+          currentTags,
+          tagsToAdd: tagsToAdd,
+          tagsToRemove: tagsToRemove,
+        );
 
         await dataSource.setImageTags(imageId, updatedTags);
         successCount++;
+        successfulItems.add(imagePath);
         AppLogger.d(
           'Updated tags for $imagePath: ${currentTags.length} -> ${updatedTags.length} ($successCount/${imagePaths.length})',
           'BulkOperationService',
@@ -281,18 +357,33 @@ class BulkOperationService {
       } catch (e) {
         failedCount++;
         errors.add('Failed to edit metadata for $imagePath: $e');
-        AppLogger.e('Metadata edit failed for $imagePath', e, null, 'BulkOperationService');
+        AppLogger.e(
+          'Metadata edit failed for $imagePath',
+          e,
+          null,
+          'BulkOperationService',
+        );
       }
     }
 
-    onProgress?.call(current: imagePaths.length, total: imagePaths.length, currentItem: '', isComplete: true);
+    onProgress?.call(
+      current: imagePaths.length,
+      total: imagePaths.length,
+      currentItem: '',
+      isComplete: true,
+    );
     stopwatch.stop();
     AppLogger.i(
       'Bulk metadata edit completed: $successCount succeeded, $failedCount failed in ${stopwatch.elapsedMilliseconds}ms',
       'BulkOperationService',
     );
 
-    return (success: successCount, failed: failedCount, errors: errors);
+    return (
+      success: successCount,
+      failed: failedCount,
+      errors: errors,
+      successfulItems: successfulItems,
+    );
   }
 
   /// 批量切换收藏状态
@@ -305,6 +396,7 @@ class BulkOperationService {
     var successCount = 0;
     var failedCount = 0;
     final errors = <String>[];
+    final successfulItems = <String>[];
 
     AppLogger.i(
       'Starting bulk toggle favorite: ${imagePaths.length} images -> $isFavorite',
@@ -315,7 +407,12 @@ class BulkOperationService {
 
     for (var i = 0; i < imagePaths.length; i++) {
       final imagePath = imagePaths[i];
-      onProgress?.call(current: i, total: imagePaths.length, currentItem: imagePath, isComplete: false);
+      onProgress?.call(
+        current: i,
+        total: imagePaths.length,
+        currentItem: imagePath,
+        isComplete: false,
+      );
 
       try {
         // 获取或创建图片ID
@@ -348,6 +445,7 @@ class BulkOperationService {
         }
 
         successCount++;
+        successfulItems.add(imagePath);
         AppLogger.d(
           'Set favorite: $imagePath -> $isFavorite ($successCount/${imagePaths.length})',
           'BulkOperationService',
@@ -355,18 +453,33 @@ class BulkOperationService {
       } catch (e) {
         failedCount++;
         errors.add('Failed to toggle favorite for $imagePath: $e');
-        AppLogger.e('Toggle favorite failed for $imagePath', e, null, 'BulkOperationService');
+        AppLogger.e(
+          'Toggle favorite failed for $imagePath',
+          e,
+          null,
+          'BulkOperationService',
+        );
       }
     }
 
-    onProgress?.call(current: imagePaths.length, total: imagePaths.length, currentItem: '', isComplete: true);
+    onProgress?.call(
+      current: imagePaths.length,
+      total: imagePaths.length,
+      currentItem: '',
+      isComplete: true,
+    );
     stopwatch.stop();
     AppLogger.i(
       'Bulk toggle favorite completed: $successCount succeeded, $failedCount failed in ${stopwatch.elapsedMilliseconds}ms',
       'BulkOperationService',
     );
 
-    return (success: successCount, failed: failedCount, errors: errors);
+    return (
+      success: successCount,
+      failed: failedCount,
+      errors: errors,
+      successfulItems: successfulItems,
+    );
   }
 
   Future<void> _writeCsv(
@@ -375,10 +488,31 @@ class BulkOperationService {
     bool includeMetadata,
   ) async {
     final buffer = StringBuffer();
-    final baseHeaders = ['fileName', 'size', 'modifiedAt', 'isFavorite', 'tags', 'metadataStatus'];
-    final metaHeaders = ['prompt', 'negativePrompt', 'seed', 'sampler', 'steps', 'scale', 'width', 'height', 'model'];
+    final baseHeaders = [
+      'fileName',
+      'size',
+      'modifiedAt',
+      'isFavorite',
+      'tags',
+      'metadataStatus',
+    ];
+    final metaHeaders = [
+      'prompt',
+      'negativePrompt',
+      'seed',
+      'sampler',
+      'steps',
+      'scale',
+      'width',
+      'height',
+      'model',
+    ];
 
-    buffer.writeln((includeMetadata ? [...baseHeaders, ...metaHeaders] : baseHeaders).join(','));
+    buffer.writeln(
+      (includeMetadata ? [...baseHeaders, ...metaHeaders] : baseHeaders).join(
+        ',',
+      ),
+    );
 
     for (final row in data) {
       final values = [
@@ -412,7 +546,10 @@ class BulkOperationService {
   }
 
   String _escapeCsv(String value) {
-    if (value.contains(',') || value.contains('"') || value.contains('\n') || value.contains('\r')) {
+    if (value.contains(',') ||
+        value.contains('"') ||
+        value.contains('\n') ||
+        value.contains('\r')) {
       return '"${value.replaceAll('"', '""')}"';
     }
     return value;

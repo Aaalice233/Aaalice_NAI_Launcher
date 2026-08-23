@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/database/database_providers.dart';
 import '../../core/database/datasources/gallery_data_source.dart';
 import '../../core/utils/app_logger.dart';
+import '../../core/utils/bulk_tag_edit_utils.dart';
 import '../../data/models/gallery/local_image_record.dart';
 import '../../data/services/bulk_operation_service.dart';
 import '../../core/utils/undo_redo_history.dart';
@@ -15,6 +16,12 @@ import 'collection_provider.dart';
 
 part 'bulk_operation_provider.freezed.dart';
 part 'bulk_operation_provider.g.dart';
+
+typedef BulkOperationSummary = ({
+  int success,
+  int failed,
+  List<String> errors,
+});
 
 /// Bulk operation type
 enum BulkOperationType {
@@ -102,7 +109,7 @@ class BulkOperationState with _$BulkOperationState {
     String? currentItem,
 
     /// Last operation result
-    BulkOperationResult? lastResult,
+    BulkOperationSummary? lastResult,
 
     /// Whether operation completed successfully
     @Default(false) bool isCompleted,
@@ -130,37 +137,6 @@ class BulkOperationState with _$BulkOperationState {
 
   /// Whether can perform undo/redo
   bool get canPerformUndoRedo => canUndo || canRedo;
-}
-
-/// Bulk delete command for undo/redo
-class _BulkDeleteCommand extends HistoryCommand {
-  final List<String> _imagePaths;
-
-  _BulkDeleteCommand(super.description, this._imagePaths);
-
-  @override
-  Future<void> execute() async {
-    for (final path in _imagePaths) {
-      try {
-        final file = File(path);
-        if (await file.exists()) {
-          await file.delete();
-        }
-      } catch (e) {
-        AppLogger.e('Failed to delete $path', e, null, '_BulkDeleteCommand');
-      }
-    }
-  }
-
-  @override
-  Future<void> undo() async {
-    // Cannot undo file deletion - files are permanently deleted
-    // This is a limitation of the current implementation
-    AppLogger.w(
-      'Undo not supported for bulk delete - files are permanently deleted',
-      '_BulkDeleteCommand',
-    );
-  }
 }
 
 /// Bulk metadata edit command for undo/redo
@@ -217,19 +193,11 @@ class _BulkMetadataEditCommand extends HistoryCommand {
         }
 
         final currentTags = await dataSource.getImageTags(imageId);
-        final updatedTags = List<String>.from(currentTags);
-
-        // Add new tags
-        for (final tag in _tagsToAdd) {
-          if (!updatedTags.contains(tag)) {
-            updatedTags.add(tag);
-          }
-        }
-
-        // Remove tags
-        for (final tag in _tagsToRemove) {
-          updatedTags.remove(tag);
-        }
+        final updatedTags = applyBulkTagChanges(
+          currentTags,
+          tagsToAdd: _tagsToAdd,
+          tagsToRemove: _tagsToRemove,
+        );
 
         await dataSource.setImageTags(imageId, updatedTags);
       } catch (e) {
@@ -429,7 +397,12 @@ class BulkOperationNotifier extends _$BulkOperationNotifier {
   /// 返回操作结果（成功数、失败数、错误列表）
   Future<BulkOperationResult> bulkDelete(List<String> imagePaths) async {
     if (imagePaths.isEmpty) {
-      return (success: 0, failed: 0, errors: <String>[]);
+      return (
+        success: 0,
+        failed: 0,
+        errors: <String>[],
+        successfulItems: <String>[],
+      );
     }
 
     state = state.copyWith(
@@ -460,16 +433,13 @@ class BulkOperationNotifier extends _$BulkOperationNotifier {
             },
       );
 
-      // Add to history
-      final command = _BulkDeleteCommand(
-        'Delete ${imagePaths.length} images',
-        imagePaths,
-      );
-      _history.push(command);
-
       state = state.copyWith(
         isOperationInProgress: false,
-        lastResult: result,
+        lastResult: (
+          success: result.success,
+          failed: result.failed,
+          errors: result.errors,
+        ),
         isCompleted: true,
         canUndo: _history.canUndo,
         canRedo: _history.canRedo,
@@ -591,7 +561,12 @@ class BulkOperationNotifier extends _$BulkOperationNotifier {
     List<String> tagsToRemove = const [],
   }) async {
     if (imagePaths.isEmpty) {
-      return (success: 0, failed: 0, errors: <String>[]);
+      return (
+        success: 0,
+        failed: 0,
+        errors: <String>[],
+        successfulItems: <String>[],
+      );
     }
 
     if (tagsToAdd.isEmpty && tagsToRemove.isEmpty) {
@@ -600,7 +575,12 @@ class BulkOperationNotifier extends _$BulkOperationNotifier {
           BulkOperationErrorCode.noMetadataChanges,
         ),
       );
-      return (success: 0, failed: 0, errors: <String>[]);
+      return (
+        success: 0,
+        failed: 0,
+        errors: <String>[],
+        successfulItems: <String>[],
+      );
     }
 
     state = state.copyWith(
@@ -608,6 +588,8 @@ class BulkOperationNotifier extends _$BulkOperationNotifier {
       isOperationInProgress: true,
       currentProgress: 0,
       totalItems: imagePaths.length,
+      currentItem: null,
+      lastResult: null,
       error: null,
       isCompleted: false,
     );
@@ -645,20 +627,25 @@ class BulkOperationNotifier extends _$BulkOperationNotifier {
             },
       );
 
-      // Add to history
-      final command = _BulkMetadataEditCommand(
-        'Edit metadata for ${imagePaths.length} images',
-        ref,
-        imagePaths,
-        tagsToAdd,
-        tagsToRemove,
-        originalTags,
-      );
-      _history.push(command);
+      if (result.successfulItems.isNotEmpty) {
+        final command = _BulkMetadataEditCommand(
+          'Edit metadata for ${result.successfulItems.length} images',
+          ref,
+          result.successfulItems,
+          tagsToAdd,
+          tagsToRemove,
+          originalTags,
+        );
+        _history.push(command);
+      }
 
       state = state.copyWith(
         isOperationInProgress: false,
-        lastResult: result,
+        lastResult: (
+          success: result.success,
+          failed: result.failed,
+          errors: result.errors,
+        ),
         isCompleted: true,
         canUndo: _history.canUndo,
         canRedo: _history.canRedo,
@@ -701,7 +688,12 @@ class BulkOperationNotifier extends _$BulkOperationNotifier {
     required bool isFavorite,
   }) async {
     if (imagePaths.isEmpty) {
-      return (success: 0, failed: 0, errors: <String>[]);
+      return (
+        success: 0,
+        failed: 0,
+        errors: <String>[],
+        successfulItems: <String>[],
+      );
     }
 
     state = state.copyWith(
@@ -745,18 +737,27 @@ class BulkOperationNotifier extends _$BulkOperationNotifier {
             },
       );
 
-      // Add to history
-      final command = _BulkToggleFavoriteCommand(
-        'Toggle favorite for ${imagePaths.length} images to $isFavorite',
-        ref,
-        originalStates,
-        isFavorite,
-      );
-      _history.push(command);
+      if (result.successfulItems.isNotEmpty) {
+        final successfulOriginalStates = {
+          for (final path in result.successfulItems)
+            path: originalStates[path]!,
+        };
+        final command = _BulkToggleFavoriteCommand(
+          'Toggle favorite for ${result.successfulItems.length} images to $isFavorite',
+          ref,
+          successfulOriginalStates,
+          isFavorite,
+        );
+        _history.push(command);
+      }
 
       state = state.copyWith(
         isOperationInProgress: false,
-        lastResult: result,
+        lastResult: (
+          success: result.success,
+          failed: result.failed,
+          errors: result.errors,
+        ),
         isCompleted: true,
         canUndo: _history.canUndo,
         canRedo: _history.canRedo,

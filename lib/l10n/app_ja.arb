@@ -2177,7 +2177,7 @@
   "localGallery_deselectAllResults": "すべての選択を解除",
   "localGallery_moveSelected": "移動",
   "localGallery_packSelected": "パック",
-  "localGallery_editMetadata": "編集",
+  "localGallery_editMetadata": "タグを編集",
   "localGallery_addToCollection": "コレクションに追加",
   "localGallery_switchToGridView": "グリッド ビューに切り替える",
   "localGallery_switchToDateGroupedView": "日付グループ化ビューに切り替える",
@@ -2251,6 +2251,23 @@
     }
   },
   "localGallery_saveZipArchive": "ZIP アーカイブを保存",
+  "localGallery_zipMetadataTitle": "ZIP をエクスポート",
+  "localGallery_zipMetadataDescription": "ZIP 内の画像に埋め込みメタデータを残すか選択します。元の画像ファイルは変更されません。",
+  "localGallery_zipIncludeMetadata": "メタデータを保持",
+  "localGallery_zipIncludeMetadataDescription": "元の画像ファイルを変更せずにパックします。",
+  "localGallery_zipExcludeMetadata": "すべてのメタデータを削除",
+  "localGallery_zipExcludeMetadataDescription": "ZIP 専用のサニタイズ済みコピーを作成し、PNG テキストチャンク、EXIF、NovelAI ステルス透かしデータを削除します。",
+  "bulkMetadataEdit_title": "{count} 枚の画像のタグを一括編集",
+  "@bulkMetadataEdit_title": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "bulkMetadataEdit_tagsToAdd": "追加するタグ",
+  "bulkMetadataEdit_tagsToAddHint": "追加するタグを入力...",
+  "bulkMetadataEdit_tagsToRemove": "削除するタグ",
+  "bulkMetadataEdit_tagsToRemoveHint": "削除するタグを入力...",
+  "bulkMetadataEdit_noChanges": "追加または削除するタグを1つ以上指定してください",
   "localGallery_packingImages": "{count} 個の画像をパッキングしています...",
   "@localGallery_packingImages": {
     "placeholders": {
@@ -2263,7 +2280,29 @@
       "count": {}
     }
   },
+  "localGallery_packingProgress": "{total} 枚中 {current} 枚目をパックしています...",
+  "@localGallery_packingProgress": {
+    "placeholders": {
+      "current": {},
+      "total": {}
+    }
+  },
+  "localGallery_packPartialTitle": "一部の画像をエクスポートできませんでした",
+  "localGallery_packedImagesWithFailures": "ZIP を作成しました：{exported} 枚を追加、{failed} 枚は追加できませんでした",
+  "@localGallery_packedImagesWithFailures": {
+    "placeholders": {
+      "exported": {},
+      "failed": {}
+    }
+  },
   "localGallery_packFailed": "画像のパックに失敗しました",
+  "localGallery_packFailedWithDetails": "ZIP の作成に失敗しました：{error}",
+  "@localGallery_packFailedWithDetails": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "localGallery_packAlreadyInProgress": "画像の ZIP エクスポートはすでに進行中です",
   "localGallery_imageFileMissing": "画像ファイルが存在しません",
   "localGallery_sentToImageToImage": "画像を Image2Image に送信しました",
   "localGallery_sendFailed": "送信失敗: {error}",
@@ -2538,6 +2577,8 @@
   "bulkProgress_title_removeFromCollection": "コレクションから削除しています",
   "bulkProgress_title_toggleFavorite": "お気に入りを更新しています",
   "bulkProgress_title_default": "処理中",
+  "bulkProgress_continueInBackground": "バックグラウンドで続行",
+  "bulkProgress_operationAlreadyInProgress": "別の一括操作がすでに進行中です",
   "bulkProgress_errorDeleteFailed": "画像の削除に失敗しました: {error}",
   "@bulkProgress_errorDeleteFailed": {
     "placeholders": {
