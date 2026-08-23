@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/data/datasources/remote/online_gallery/gallery_source_adapter.dart';
 import 'package:nai_launcher/data/models/online_gallery/gallery_item.dart';
 import 'package:nai_launcher/data/models/online_gallery/gallery_source.dart';
@@ -391,6 +392,7 @@ ProviderContainer _container({
   );
   return ProviderContainer(
     overrides: [
+      localStorageServiceProvider.overrideWithValue(_MemoryStorage()),
       onlineGallerySourceAdaptersProvider.overrideWithValue({
         GallerySourceId.danbooru: danbooru,
         GallerySourceId.safebooru: safe,
@@ -399,6 +401,24 @@ ProviderContainer _container({
       }),
     ],
   );
+}
+
+class _MemoryStorage extends LocalStorageService {
+  final Map<String, Object?> _values = {};
+
+  @override
+  T? getSetting<T>(String key, {T? defaultValue}) =>
+      (_values[key] ?? defaultValue) as T?;
+
+  @override
+  Future<void> setSetting<T>(String key, T value) async {
+    _values[key] = value;
+  }
+
+  @override
+  Future<void> deleteSetting(String key) async {
+    _values.remove(key);
+  }
 }
 
 GalleryPage _page(

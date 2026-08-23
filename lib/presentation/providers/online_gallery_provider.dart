@@ -771,6 +771,8 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
   OnlineGalleryState? _normalRestorePoint;
   OnlineGalleryDetailCoordinator? _detailCoordinator;
   String? _lastPersistedBrowsingSession;
+  String? _pendingRestoredCacheKey;
+  int? _pendingRestoredPage;
   Future<void> _persistenceQueue = Future<void>.value();
 
   OnlineGalleryDetailCoordinator get _details =>
@@ -784,9 +786,16 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     ref.keepAlive();
     ref.onDispose(() => _detailCoordinator?.clear());
     final storage = ref.read(localStorageServiceProvider);
-    final restored = decodeOnlineGalleryBrowsingSession(
-      storage.getSetting<String>(StorageKeys.onlineGalleryBrowsingSessionV1),
+    final persistedSession = storage.getSetting<String>(
+      StorageKeys.onlineGalleryBrowsingSessionV1,
     );
+    final restored = decodeOnlineGalleryBrowsingSession(persistedSession);
+    if (!restored.randomEnabled &&
+        persistedSession != null &&
+        restored.currentCache.page > 1) {
+      _pendingRestoredCacheKey = restored.currentCacheKey;
+      _pendingRestoredPage = restored.currentCache.page;
+    }
     _lastPersistedBrowsingSession = encodeOnlineGalleryBrowsingSession(
       restored,
     );
@@ -1423,9 +1432,12 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
       return;
     }
     if (!refresh && (state.isLoading || state.isLoadingMore)) return;
-    final restoredPage = !refresh && state.currentCache.posts.isEmpty
-        ? state.currentCache.page
+    final restoredPage = !refresh &&
+            _pendingRestoredCacheKey == state.currentCacheKey
+        ? _pendingRestoredPage
         : null;
+    _pendingRestoredCacheKey = null;
+    _pendingRestoredPage = null;
     switch (state.viewMode) {
       case GalleryViewMode.search:
       case GalleryViewMode.popular:
