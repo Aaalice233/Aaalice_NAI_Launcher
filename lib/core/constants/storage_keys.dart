@@ -291,6 +291,8 @@ class StorageKeys {
       'online_gallery_prompt_tag_categories';
   static const String onlineGalleryOutputFilterTags =
       'online_gallery_output_filter_tags';
+  static const String onlineGalleryBrowsingSessionV1 =
+      'online_gallery_browsing_session_v1';
 
   // ComfyUI 设置
   static const String comfyuiEnabled = 'comfyui_enabled';

@@ -1,12 +1,15 @@
 import 'dart:async';
 import 'dart:collection';
+import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/cache/online_gallery_detail_coordinator.dart';
+import '../../core/constants/storage_keys.dart';
 import '../../core/network/online_gallery_retry_interceptor.dart';
+import '../../core/storage/local_storage_service.dart';
 import '../../core/utils/app_logger.dart';
 import '../../data/datasources/remote/danbooru_api_service.dart';
 import '../../data/datasources/remote/gelbooru_api_service.dart';
@@ -562,6 +565,202 @@ class OnlineGalleryState {
   }
 }
 
+/// Encodes only browsing intent and lightweight location metadata. Remote
+/// gallery rows are deliberately refreshed after restart so stale URLs and
+/// source-side favorite/ranking changes are not treated as durable data.
+String encodeOnlineGalleryBrowsingSession(OnlineGalleryState state) {
+  final positions = <String, dynamic>{};
+  for (final entry in state.caches.entries) {
+    positions[entry.key] = _encodeGalleryPosition(entry.value);
+  }
+  positions
+    ..remove(state.currentCacheKey)
+    ..[state.currentCacheKey] = _encodeGalleryPosition(state.currentCache);
+  while (positions.length > 12) {
+    positions.remove(positions.keys.first);
+  }
+
+  return jsonEncode({
+    'version': 1,
+    'viewMode': state.viewMode.name,
+    'sourceId': state.sourceId.key,
+    'popularSourceId': state.popularSourceId.key,
+    'favoritesSourceId': state.favoritesSourceId.key,
+    'searchQuery': state.searchQuery,
+    'promptQuery': state.promptQuery,
+    'popularQuery': state.popularQuery,
+    'popularPromptQuery': state.popularPromptQuery,
+    'fuzzySearchEnabled': state.fuzzySearchEnabled,
+    'selectedRatings': (state.selectedRatings.toList()..sort()),
+    'popularScale': state.popularScale.name,
+    'popularDate': state.popularDate?.toIso8601String(),
+    'aiTagTimeRange': state.aiTagTimeRange,
+    'aiTagPopularPeriod': state.aiTagPopularPeriod,
+    'dateRangeStart': state.dateRangeStart?.toIso8601String(),
+    'dateRangeEnd': state.dateRangeEnd?.toIso8601String(),
+    'randomEnabled': state.randomEnabled,
+    'randomPosition': _encodeGalleryPosition(state.randomSession.cache),
+    'artistHuntEnabled': state.artistHuntEnabled,
+    'positions': positions,
+  });
+}
+
+OnlineGalleryState decodeOnlineGalleryBrowsingSession(String? encoded) {
+  if (encoded == null || encoded.trim().isEmpty) {
+    return const OnlineGalleryState();
+  }
+  try {
+    final decoded = jsonDecode(encoded);
+    if (decoded is! Map || decoded['version'] != 1) {
+      return const OnlineGalleryState();
+    }
+    final json = Map<String, dynamic>.from(decoded);
+    final sourceId = _decodeGallerySource(json['sourceId']);
+    final popularSourceCandidate = _decodeGallerySource(
+      json['popularSourceId'],
+    );
+    final popularSourceId = popularSourceCandidate.capabilities.supportsRanking
+        ? popularSourceCandidate
+        : GallerySourceId.danbooru;
+    final favoritesSourceCandidate = _decodeGallerySource(
+      json['favoritesSourceId'],
+    );
+    final favoritesSourceId =
+        favoritesSourceCandidate == GallerySourceId.gelbooru
+        ? GallerySourceId.gelbooru
+        : GallerySourceId.danbooru;
+    final viewMode = _decodeEnumByName(
+      GalleryViewMode.values,
+      json['viewMode'],
+      GalleryViewMode.search,
+    );
+    final selectedRatings = _decodeRatings(json['selectedRatings']);
+    final base = OnlineGalleryState(
+      searchQuery: _decodeBoundedString(json['searchQuery']),
+      promptQuery: _decodeBoundedString(json['promptQuery']),
+      popularQuery: _decodeBoundedString(json['popularQuery']),
+      popularPromptQuery: _decodeBoundedString(json['popularPromptQuery']),
+      fuzzySearchEnabled: json['fuzzySearchEnabled'] == true,
+      sourceId: sourceId,
+      popularSourceId: popularSourceId,
+      favoritesSourceId: favoritesSourceId,
+      selectedRatings: selectedRatings,
+      viewMode: viewMode,
+      popularScale: _decodeEnumByName(
+        PopularScale.values,
+        json['popularScale'],
+        PopularScale.day,
+      ),
+      popularDate: _decodeDate(json['popularDate']),
+      aiTagTimeRange: _decodeBoundedString(
+        json['aiTagTimeRange'],
+        fallback: 'all',
+        maxLength: 100,
+      ),
+      aiTagPopularPeriod: _decodeBoundedString(
+        json['aiTagPopularPeriod'],
+        fallback: 'current',
+        maxLength: 100,
+      ),
+      dateRangeStart: _decodeDate(json['dateRangeStart']),
+      dateRangeEnd: _decodeDate(json['dateRangeEnd']),
+      artistHuntEnabled: json['artistHuntEnabled'] == true,
+    );
+
+    final caches = <String, ModeCache>{};
+    final rawPositions = json['positions'];
+    if (rawPositions is Map) {
+      for (final entry in rawPositions.entries.take(12)) {
+        final key = entry.key;
+        if (key is! String || key.isEmpty || key.length > 4096) continue;
+        final position = _decodeGalleryPosition(entry.value);
+        if (position != null) caches[key] = position;
+      }
+    }
+    var restored = base.copyWith(caches: caches);
+    final randomPosition =
+        _decodeGalleryPosition(json['randomPosition']) ?? const ModeCache();
+    final randomEnabled =
+        json['randomEnabled'] == true && restored.supportsRandom;
+    restored = restored.copyWith(
+      randomEnabled: randomEnabled,
+      randomSession: RandomGallerySession(cache: randomPosition),
+    );
+    return restored;
+  } catch (error, stack) {
+    AppLogger.w(
+      'Ignored invalid online gallery browsing session',
+      'OnlineGallery',
+    );
+    AppLogger.d('$error\n$stack', 'OnlineGallery');
+    return const OnlineGalleryState();
+  }
+}
+
+Map<String, dynamic> _encodeGalleryPosition(ModeCache cache) => {
+  'page': cache.page,
+  'scrollOffset': cache.scrollOffset,
+  if (cache.anchorStableKey != null) 'anchorStableKey': cache.anchorStableKey,
+  'anchorLocalOffset': cache.anchorLocalOffset,
+};
+
+ModeCache? _decodeGalleryPosition(Object? raw) {
+  if (raw is! Map) return null;
+  final pageValue = raw['page'];
+  final offsetValue = raw['scrollOffset'];
+  final localOffsetValue = raw['anchorLocalOffset'];
+  final page = pageValue is num
+      ? pageValue.toInt().clamp(1, 1000000).toInt()
+      : 1;
+  final offset = offsetValue is num && offsetValue.isFinite
+      ? offsetValue.toDouble().clamp(0, double.maxFinite).toDouble()
+      : 0.0;
+  final localOffset = localOffsetValue is num && localOffsetValue.isFinite
+      ? localOffsetValue.toDouble().clamp(0, double.maxFinite).toDouble()
+      : 0.0;
+  final anchor = raw['anchorStableKey'];
+  return ModeCache(
+    page: page,
+    nextCursor: '$page',
+    scrollOffset: offset,
+    anchorStableKey: anchor is String && anchor.length <= 256 ? anchor : null,
+    anchorLocalOffset: localOffset,
+  );
+}
+
+GallerySourceId _decodeGallerySource(Object? value) {
+  if (value is! String) return GallerySourceId.danbooru;
+  return GallerySourceId.fromKey(value);
+}
+
+T _decodeEnumByName<T extends Enum>(List<T> values, Object? value, T fallback) {
+  if (value is! String) return fallback;
+  return values.firstWhere(
+    (candidate) => candidate.name == value,
+    orElse: () => fallback,
+  );
+}
+
+Set<String> _decodeRatings(Object? value) {
+  if (value is! List) return kAllRatings;
+  final ratings = value.whereType<String>().where(kAllRatings.contains).toSet();
+  return ratings.isEmpty ? kAllRatings : ratings;
+}
+
+String _decodeBoundedString(
+  Object? value, {
+  String fallback = '',
+  int maxLength = 10000,
+}) {
+  if (value is! String || value.length > maxLength) return fallback;
+  return value;
+}
+
+DateTime? _decodeDate(Object? value) {
+  if (value is! String) return null;
+  return DateTime.tryParse(value);
+}
+
 @riverpod
 class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
   static const int _pageSize = 40;
@@ -571,6 +770,8 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
   int _requestGeneration = 0;
   OnlineGalleryState? _normalRestorePoint;
   OnlineGalleryDetailCoordinator? _detailCoordinator;
+  String? _lastPersistedBrowsingSession;
+  Future<void> _persistenceQueue = Future<void>.value();
 
   OnlineGalleryDetailCoordinator get _details =>
       _detailCoordinator ??= OnlineGalleryDetailCoordinator(
@@ -582,6 +783,17 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
   OnlineGalleryState build() {
     ref.keepAlive();
     ref.onDispose(() => _detailCoordinator?.clear());
+    final storage = ref.read(localStorageServiceProvider);
+    final restored = decodeOnlineGalleryBrowsingSession(
+      storage.getSetting<String>(StorageKeys.onlineGalleryBrowsingSessionV1),
+    );
+    _lastPersistedBrowsingSession = encodeOnlineGalleryBrowsingSession(
+      restored,
+    );
+    if (restored.randomEnabled) {
+      _normalRestorePoint = restored.copyWith(randomEnabled: false);
+    }
+    listenSelf((_, next) => _persistBrowsingSession(storage, next));
     ref.listen<String?>(
       danbooruAuthProvider.select((value) => value.user?.name),
       (_, _) => _handleRandomAccountIdentityChanged(GallerySourceId.danbooru),
@@ -599,7 +811,31 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
       }),
       (_, _) => _handleRandomScopeInputChanged(),
     );
-    return const OnlineGalleryState();
+    return restored;
+  }
+
+  void _persistBrowsingSession(
+    LocalStorageService storage,
+    OnlineGalleryState next,
+  ) {
+    final encoded = encodeOnlineGalleryBrowsingSession(next);
+    if (encoded == _lastPersistedBrowsingSession) return;
+    _lastPersistedBrowsingSession = encoded;
+    _persistenceQueue = _persistenceQueue.then((_) async {
+      try {
+        await storage.setSetting(
+          StorageKeys.onlineGalleryBrowsingSessionV1,
+          encoded,
+        );
+      } catch (error, stack) {
+        AppLogger.e(
+          'Failed to persist online gallery browsing session',
+          error,
+          stack,
+          'OnlineGallery',
+        );
+      }
+    });
   }
 
   void _handleRandomScopeInputChanged() {
@@ -942,7 +1178,13 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
       final scopeKey = _randomScopeKey(blacklist);
       var session = state.randomSession;
       if (restart || session.scopeKey != scopeKey) {
-        session = RandomGallerySession(scopeKey: scopeKey);
+        final restoredPosition = !restart && session.cache.posts.isEmpty
+            ? session.cache
+            : const ModeCache();
+        session = RandomGallerySession(
+          scopeKey: scopeKey,
+          cache: restoredPosition,
+        );
       }
       if (session.seenStableKeys.length >= 20000) {
         state = state.copyWith(
@@ -1181,13 +1423,19 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
       return;
     }
     if (!refresh && (state.isLoading || state.isLoadingMore)) return;
+    final restoredPage = !refresh && state.currentCache.posts.isEmpty
+        ? state.currentCache.page
+        : null;
     switch (state.viewMode) {
       case GalleryViewMode.search:
       case GalleryViewMode.popular:
-        await _loadAdapterPage(refresh: refresh);
+        await _loadAdapterPage(
+          refresh: refresh,
+          initialCursor: restoredPage == null ? null : '$restoredPage',
+        );
         return;
       case GalleryViewMode.favorites:
-        await _loadFavorites(refresh: refresh);
+        await _loadFavorites(refresh: refresh, targetPage: restoredPage);
         return;
     }
   }
