@@ -2705,7 +2705,25 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get onlineGallery_blacklistSubtitle =>
-      'ブラックリストに登録されたタグを含む画像は、オンライン ギャラリーで直接非表示になります。';
+      '画像の非表示に使用するリストを選択します。ローカルと Danbooru クラウドのリストは個別に保持されます。';
+
+  @override
+  String get onlineGallery_blacklistSourceLocal => 'ローカル';
+
+  @override
+  String get onlineGallery_blacklistSourceCloud => 'Danbooru クラウド';
+
+  @override
+  String get onlineGallery_blacklistLocalDescription =>
+      'このデバイスにのみ保存され、ログインせずに使用できます';
+
+  @override
+  String get onlineGallery_blacklistCloudDescription =>
+      'Danbooru アカウントのブラックリストを直接使用・編集します';
+
+  @override
+  String get onlineGallery_blacklistCloudLoginRequired =>
+      'クラウドブラックリストを使用するには Danbooru にログインしてください';
 
   @override
   String get onlineGallery_addBlacklistTagHint => 'ブラックリスト タグを追加';
@@ -2714,11 +2732,47 @@ class AppLocalizationsJa extends AppLocalizations {
   String get onlineGallery_noLocalBlacklistTags => 'ローカル ブラックリスト タグがありません';
 
   @override
-  String get onlineGallery_autoSyncOnStartup => '起動時に自動同期';
+  String get onlineGallery_noCloudBlacklistTags => 'クラウド ブラックリスト タグがありません';
+
+  @override
+  String get onlineGallery_pullBlacklist => 'クラウドを取得';
+
+  @override
+  String get onlineGallery_pullBlacklistTooltip =>
+      'ローカルを変更せず Danbooru クラウドのリストを更新します';
+
+  @override
+  String get onlineGallery_pushBlacklist => 'クラウドへ送信';
+
+  @override
+  String get onlineGallery_pushBlacklistTooltip =>
+      'ローカルのリストで Danbooru クラウドを置き換えます';
+
+  @override
+  String get onlineGallery_pushBlacklistConfirmTitle => 'ローカルでクラウドを置き換えますか？';
+
+  @override
+  String get onlineGallery_pushBlacklistConfirmBody =>
+      'Danbooru クラウドのブラックリストは現在のローカルリストで完全に置き換えられます。';
+
+  @override
+  String get onlineGallery_blacklistPullSucceeded =>
+      'Danbooru クラウドのブラックリストを更新しました';
+
+  @override
+  String get onlineGallery_blacklistPushSucceeded =>
+      'クラウドをローカルのブラックリストで置き換えました';
+
+  @override
+  String get onlineGallery_blacklistSyncFailedMessage =>
+      '同期に失敗しました。ログイン状態とネットワーク接続を確認してください。';
+
+  @override
+  String get onlineGallery_autoSyncOnStartup => '起動時にクラウドリストを更新';
 
   @override
   String get onlineGallery_autoSyncOnStartupSubtitle =>
-      'デフォルトで有効になります。いつでもオフにできます';
+      'クラウドキャッシュのみ更新し、ローカルのリストは上書きしません';
 
   @override
   String onlineGallery_lastSyncFailed(Object error) {

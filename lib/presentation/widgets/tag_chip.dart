@@ -17,6 +17,8 @@ class SimpleTagChip extends ConsumerStatefulWidget {
   final int? category;
   final bool isOutputFiltered;
   final String? tooltip;
+  final VoidCallback? onDeleted;
+  final String? deleteTooltip;
 
   const SimpleTagChip({
     super.key,
@@ -29,6 +31,8 @@ class SimpleTagChip extends ConsumerStatefulWidget {
     this.category,
     this.isOutputFiltered = false,
     this.tooltip,
+    this.onDeleted,
+    this.deleteTooltip,
   });
 
   @override
@@ -136,6 +140,26 @@ class _SimpleTagChipState extends ConsumerState<SimpleTagChip> {
                     ),
                     overflow: TextOverflow.ellipsis,
                     softWrap: false,
+                  ),
+                ),
+              ],
+              if (widget.onDeleted != null) ...[
+                const SizedBox(width: 3),
+                Tooltip(
+                  message: widget.deleteTooltip ?? '',
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: IconButton(
+                      onPressed: widget.onDeleted,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints.tightFor(
+                        width: 20,
+                        height: 20,
+                      ),
+                      visualDensity: VisualDensity.compact,
+                      icon: Icon(Icons.close, size: 13, color: stateColor),
+                    ),
                   ),
                 ),
               ],

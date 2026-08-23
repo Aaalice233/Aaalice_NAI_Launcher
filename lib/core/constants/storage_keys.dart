@@ -283,6 +283,8 @@ class StorageKeys {
       'online_gallery_remote_blacklist_tags';
   static const String onlineGalleryBlacklistAutoSync =
       'online_gallery_blacklist_auto_sync';
+  static const String onlineGalleryBlacklistSource =
+      'online_gallery_blacklist_source';
   static const String onlineGalleryBlacklistLastSyncAt =
       'online_gallery_blacklist_last_sync_at';
   static const String onlineGalleryBlacklistLastSyncError =

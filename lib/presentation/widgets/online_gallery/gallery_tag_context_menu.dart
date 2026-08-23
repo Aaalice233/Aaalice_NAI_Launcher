@@ -81,10 +81,10 @@ Future<OnlineGalleryTagContextAction?> showOnlineGalleryTagContextMenu({
       );
     }
   } else if (action == OnlineGalleryTagContextAction.blacklist) {
-    await ref
+    final added = await ref
         .read(onlineGalleryBlacklistNotifierProvider.notifier)
-        .addLocalTag(tag);
-    if (context.mounted) {
+        .addTag(tag);
+    if (added && context.mounted) {
       AppToast.success(
         context,
         context.l10n.onlineGallery_blacklistTagAdded(tag),

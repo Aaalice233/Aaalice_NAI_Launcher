@@ -8,9 +8,13 @@ import '../../core/utils/app_logger.dart';
 import '../../data/datasources/remote/danbooru_api_service.dart';
 import '../../data/services/danbooru_auth_service.dart';
 
+enum OnlineGalleryBlacklistSource { local, cloud }
+
 class OnlineGalleryBlacklistState {
   final Set<String> localTags;
   final Set<String> remoteTags;
+  final OnlineGalleryBlacklistSource selectedSource;
+  final bool isCloudAvailable;
   final bool autoSyncOnStartup;
   final bool isSyncing;
   final DateTime? lastSyncAt;
@@ -20,6 +24,8 @@ class OnlineGalleryBlacklistState {
   const OnlineGalleryBlacklistState({
     this.localTags = const {},
     this.remoteTags = const {},
+    this.selectedSource = OnlineGalleryBlacklistSource.local,
+    this.isCloudAvailable = false,
     this.autoSyncOnStartup = true,
     this.isSyncing = false,
     this.lastSyncAt,
@@ -27,11 +33,21 @@ class OnlineGalleryBlacklistState {
     this.isInitialized = false,
   });
 
-  Set<String> get effectiveTags => {...localTags, ...remoteTags};
+  OnlineGalleryBlacklistSource get effectiveSource =>
+      selectedSource == OnlineGalleryBlacklistSource.cloud && isCloudAvailable
+      ? OnlineGalleryBlacklistSource.cloud
+      : OnlineGalleryBlacklistSource.local;
+
+  Set<String> get effectiveTags =>
+      effectiveSource == OnlineGalleryBlacklistSource.cloud
+      ? remoteTags
+      : localTags;
 
   OnlineGalleryBlacklistState copyWith({
     Set<String>? localTags,
     Set<String>? remoteTags,
+    OnlineGalleryBlacklistSource? selectedSource,
+    bool? isCloudAvailable,
     bool? autoSyncOnStartup,
     bool? isSyncing,
     DateTime? lastSyncAt,
@@ -42,6 +58,8 @@ class OnlineGalleryBlacklistState {
     return OnlineGalleryBlacklistState(
       localTags: localTags ?? this.localTags,
       remoteTags: remoteTags ?? this.remoteTags,
+      selectedSource: selectedSource ?? this.selectedSource,
+      isCloudAvailable: isCloudAvailable ?? this.isCloudAvailable,
       autoSyncOnStartup: autoSyncOnStartup ?? this.autoSyncOnStartup,
       isSyncing: isSyncing ?? this.isSyncing,
       lastSyncAt: lastSyncAt ?? this.lastSyncAt,
@@ -64,7 +82,11 @@ class OnlineGalleryBlacklistNotifier
   late final Future<void> _initFuture;
 
   OnlineGalleryBlacklistNotifier(this._ref, this._storage)
-      : super(const OnlineGalleryBlacklistState()) {
+    : super(const OnlineGalleryBlacklistState()) {
+    _ref.listen<DanbooruAuthState>(danbooruAuthProvider, (previous, next) {
+      if (!mounted || state.isCloudAvailable == next.isLoggedIn) return;
+      state = state.copyWith(isCloudAvailable: next.isLoggedIn);
+    });
     _initFuture = _loadFromStorage();
   }
 
@@ -77,20 +99,31 @@ class OnlineGalleryBlacklistNotifier
       StorageKeys.onlineGalleryRemoteBlacklistTags,
       defaultValue: const <dynamic>[],
     );
-    final autoSync = _storage.getSetting<bool>(
+    final autoSync =
+        _storage.getSetting<bool>(
           StorageKeys.onlineGalleryBlacklistAutoSync,
           defaultValue: true,
         ) ??
         true;
-    final lastSyncAtMs =
-        _storage.getSetting<int>(StorageKeys.onlineGalleryBlacklistLastSyncAt);
+    final sourceRaw = _storage.getSetting<String>(
+      StorageKeys.onlineGalleryBlacklistSource,
+      defaultValue: OnlineGalleryBlacklistSource.local.name,
+    );
+    final lastSyncAtMs = _storage.getSetting<int>(
+      StorageKeys.onlineGalleryBlacklistLastSyncAt,
+    );
     final lastSyncError = _storage.getSetting<String>(
       StorageKeys.onlineGalleryBlacklistLastSyncError,
     );
 
     state = state.copyWith(
-      localTags: _normalizeTags((localRaw ?? const []).cast<String>()),
-      remoteTags: _normalizeTags((remoteRaw ?? const []).cast<String>()),
+      localTags: _normalizeTags((localRaw ?? const []).whereType<String>()),
+      remoteTags: _normalizeTags((remoteRaw ?? const []).whereType<String>()),
+      selectedSource: OnlineGalleryBlacklistSource.values.firstWhere(
+        (value) => value.name == sourceRaw,
+        orElse: () => OnlineGalleryBlacklistSource.local,
+      ),
+      isCloudAvailable: _ref.read(danbooruAuthProvider).isLoggedIn,
       autoSyncOnStartup: autoSync,
       lastSyncAt: lastSyncAtMs != null
           ? DateTime.fromMillisecondsSinceEpoch(lastSyncAtMs)
@@ -102,11 +135,57 @@ class OnlineGalleryBlacklistNotifier
 
   Future<void> ensureInitialized() => _initFuture;
 
+  Future<void> setSelectedSource(OnlineGalleryBlacklistSource source) async {
+    await ensureInitialized();
+    if (source == OnlineGalleryBlacklistSource.cloud &&
+        !state.isCloudAvailable) {
+      return;
+    }
+    await _storage.setSetting(
+      StorageKeys.onlineGalleryBlacklistSource,
+      source.name,
+    );
+    state = state.copyWith(selectedSource: source);
+  }
+
+  Future<bool> addTag(String input) async {
+    await ensureInitialized();
+    final normalized = _normalizeTag(input);
+    if (normalized == null) return false;
+
+    if (state.effectiveSource == OnlineGalleryBlacklistSource.cloud) {
+      if (state.remoteTags.contains(normalized)) return false;
+      return _replaceCloudTags({...state.remoteTags, normalized});
+    }
+
+    if (state.localTags.contains(normalized)) return false;
+    final next = {...state.localTags, normalized};
+    await _saveLocalTags(next);
+    state = state.copyWith(localTags: next);
+    return true;
+  }
+
+  Future<bool> removeTag(String tag) async {
+    await ensureInitialized();
+    final normalized = _normalizeTag(tag);
+    if (normalized == null) return false;
+
+    if (state.effectiveSource == OnlineGalleryBlacklistSource.cloud) {
+      if (!state.remoteTags.contains(normalized)) return false;
+      return _replaceCloudTags({...state.remoteTags}..remove(normalized));
+    }
+
+    if (!state.localTags.contains(normalized)) return false;
+    final next = {...state.localTags}..remove(normalized);
+    await _saveLocalTags(next);
+    state = state.copyWith(localTags: next);
+    return true;
+  }
+
   Future<void> addLocalTag(String input) async {
     await ensureInitialized();
     final normalized = _normalizeTag(input);
     if (normalized == null || state.localTags.contains(normalized)) return;
-
     final next = {...state.localTags, normalized};
     await _saveLocalTags(next);
     state = state.copyWith(localTags: next);
@@ -116,7 +195,6 @@ class OnlineGalleryBlacklistNotifier
     await ensureInitialized();
     final normalized = _normalizeTag(tag);
     if (normalized == null || !state.localTags.contains(normalized)) return;
-
     final next = {...state.localTags}..remove(normalized);
     await _saveLocalTags(next);
     state = state.copyWith(localTags: next);
@@ -130,7 +208,10 @@ class OnlineGalleryBlacklistNotifier
 
   Future<void> setAutoSyncOnStartup(bool value) async {
     await ensureInitialized();
-    await _storage.setSetting(StorageKeys.onlineGalleryBlacklistAutoSync, value);
+    await _storage.setSetting(
+      StorageKeys.onlineGalleryBlacklistAutoSync,
+      value,
+    );
     state = state.copyWith(autoSyncOnStartup: value);
   }
 
@@ -148,93 +229,117 @@ class OnlineGalleryBlacklistNotifier
       return;
     }
 
-    await syncNow(triggeredByStartup: true);
+    await pullFromCloud();
   }
 
   Future<DanbooruAuthState> _waitAuthReadyForStartup() async {
     var authState = _ref.read(danbooruAuthProvider);
     for (var i = 0; i < _authWaitMaxRounds; i++) {
-      if (!authState.isLoading) {
-        return authState;
-      }
+      if (!authState.isLoading) return authState;
       await Future<void>.delayed(_authWaitStep);
       authState = _ref.read(danbooruAuthProvider);
     }
     return authState;
   }
 
-  Future<void> syncNow({bool triggeredByStartup = false}) async {
+  /// Refreshes the cached cloud list without changing the independent local list.
+  Future<bool> pullFromCloud() async {
     await ensureInitialized();
-    if (state.isSyncing) return;
-
-    final authState = _ref.read(danbooruAuthProvider);
-    if (!authState.isLoggedIn) {
-      if (!triggeredByStartup) {
-        state = state.copyWith(lastSyncError: '请先登录 Danbooru 账号');
-        await _saveLastSyncError('请先登录 Danbooru 账号');
-      }
-      return;
+    if (state.isSyncing) return false;
+    if (!_ref.read(danbooruAuthProvider).isLoggedIn) {
+      await _setSyncError('Danbooru login required');
+      return false;
     }
 
     state = state.copyWith(isSyncing: true, clearLastSyncError: true);
-
     try {
       final api = _ref.read(danbooruApiServiceProvider);
-      final remoteTags = await api.fetchBlacklistedTags();
-      final remoteNormalized = _normalizeTags(remoteTags);
-      final merged = {...state.localTags, ...remoteNormalized};
-
-      final pushOk = await api.updateBlacklistedTags(merged.toList()..sort());
-      if (!pushOk) {
-        throw Exception('推送 Danbooru 黑名单失败');
-      }
-
+      final remoteTags = _normalizeTags(await api.fetchBlacklistedTags());
       final syncTime = DateTime.now();
-      await _saveLocalTags(merged);
-      await _saveRemoteTags(merged);
+      await _saveRemoteTags(remoteTags);
       await _saveLastSyncAt(syncTime);
       await _clearLastSyncError();
-
       state = state.copyWith(
-        localTags: merged,
-        remoteTags: merged,
+        remoteTags: remoteTags,
         isSyncing: false,
         lastSyncAt: syncTime,
         clearLastSyncError: true,
       );
-    } catch (e, stack) {
-      final message = '同步失败: $e';
-      AppLogger.w(message, 'OnlineGalleryBlacklist');
-      AppLogger.d('$stack', 'OnlineGalleryBlacklist');
-      await _saveLastSyncError(message);
-      state = state.copyWith(
-        isSyncing: false,
-        lastSyncError: message,
-      );
+      return true;
+    } catch (error, stack) {
+      await _handleSyncFailure('Pull failed', error, stack);
+      return false;
     }
   }
 
-  Set<String> _normalizeTags(Iterable<String> values) {
-    return values
-        .map(_normalizeTag)
-        .whereType<String>()
-        .toSet();
+  /// Replaces the Danbooru blacklist with the current local list.
+  Future<bool> pushLocalToCloud() async {
+    await ensureInitialized();
+    return _replaceCloudTags(state.localTags);
   }
+
+  Future<bool> _replaceCloudTags(Set<String> next) async {
+    if (state.isSyncing) return false;
+    if (!_ref.read(danbooruAuthProvider).isLoggedIn) {
+      await _setSyncError('Danbooru login required');
+      return false;
+    }
+
+    state = state.copyWith(isSyncing: true, clearLastSyncError: true);
+    try {
+      final normalized = _normalizeTags(next);
+      final api = _ref.read(danbooruApiServiceProvider);
+      final pushOk = await api.updateBlacklistedTags(
+        normalized.toList()..sort(),
+      );
+      if (!pushOk) throw StateError('Danbooru rejected the blacklist update');
+
+      final syncTime = DateTime.now();
+      await _saveRemoteTags(normalized);
+      await _saveLastSyncAt(syncTime);
+      await _clearLastSyncError();
+      state = state.copyWith(
+        remoteTags: normalized,
+        isSyncing: false,
+        lastSyncAt: syncTime,
+        clearLastSyncError: true,
+      );
+      return true;
+    } catch (error, stack) {
+      await _handleSyncFailure('Push failed', error, stack);
+      return false;
+    }
+  }
+
+  Future<void> _handleSyncFailure(
+    String operation,
+    Object error,
+    StackTrace stack,
+  ) async {
+    final message = '$operation: $error';
+    AppLogger.w(message, 'OnlineGalleryBlacklist');
+    AppLogger.d('$stack', 'OnlineGalleryBlacklist');
+    await _setSyncError(message);
+  }
+
+  Future<void> _setSyncError(String message) async {
+    await _saveLastSyncError(message);
+    state = state.copyWith(isSyncing: false, lastSyncError: message);
+  }
+
+  Set<String> _normalizeTags(Iterable<String> values) =>
+      values.map(_normalizeTag).whereType<String>().toSet();
 
   String? _normalizeTag(String value) {
     final trimmed = value.trim();
     if (trimmed.isEmpty) return null;
     var normalized = trimmed.toLowerCase().replaceAll(' ', '_');
 
-    // 兼容用户误输入 Danbooru 负号语法（如 -tag）
     while (normalized.startsWith('-')) {
       normalized = normalized.substring(1);
     }
 
-    // V1 仅支持“纯标签”黑名单，忽略 metatag 语法（如 rating:g / order:rank）。
-    if (normalized.contains(':')) return null;
-    if (normalized.startsWith('~')) return null;
-
+    if (normalized.contains(':') || normalized.startsWith('~')) return null;
     return normalized.isEmpty ? null : normalized;
   }
 
@@ -260,16 +365,24 @@ class OnlineGalleryBlacklistNotifier
   }
 
   Future<void> _saveLastSyncError(String message) async {
-    await _storage.setSetting(StorageKeys.onlineGalleryBlacklistLastSyncError, message);
+    await _storage.setSetting(
+      StorageKeys.onlineGalleryBlacklistLastSyncError,
+      message,
+    );
   }
 
   Future<void> _clearLastSyncError() async {
-    await _storage.deleteSetting(StorageKeys.onlineGalleryBlacklistLastSyncError);
+    await _storage.deleteSetting(
+      StorageKeys.onlineGalleryBlacklistLastSyncError,
+    );
   }
 }
 
-final onlineGalleryBlacklistNotifierProvider = StateNotifierProvider<
-    OnlineGalleryBlacklistNotifier, OnlineGalleryBlacklistState>((ref) {
-  final storage = ref.read(localStorageServiceProvider);
-  return OnlineGalleryBlacklistNotifier(ref, storage);
-});
+final onlineGalleryBlacklistNotifierProvider =
+    StateNotifierProvider<
+      OnlineGalleryBlacklistNotifier,
+      OnlineGalleryBlacklistState
+    >((ref) {
+      final storage = ref.read(localStorageServiceProvider);
+      return OnlineGalleryBlacklistNotifier(ref, storage);
+    });
