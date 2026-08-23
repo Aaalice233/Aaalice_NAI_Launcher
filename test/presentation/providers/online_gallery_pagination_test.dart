@@ -35,6 +35,7 @@ void main() {
 
       final state = container.read(onlineGalleryNotifierProvider);
       expect(adapter.searchCursors, ['1', '2']);
+      expect(adapter.searchPageSizes, [60, 60]);
       expect(state.posts.map((item) => item.id), [1, 2, 3]);
       expect(state.page, 2);
       expect(state.currentCache.nextCursor, '3');
@@ -448,6 +449,7 @@ class _FakeGalleryAdapter implements GallerySourceAdapter {
   )
   onSearch;
   final List<String> searchCursors = [];
+  final List<int> searchPageSizes = [];
 
   @override
   Random get randomGenerator => Random(1);
@@ -462,6 +464,7 @@ class _FakeGalleryAdapter implements GallerySourceAdapter {
     CancelToken? cancelToken,
   }) {
     searchCursors.add(request.cursor);
+    searchPageSizes.add(request.pageSize);
     return onSearch(request, cancelToken);
   }
 

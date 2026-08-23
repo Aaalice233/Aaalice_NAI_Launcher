@@ -564,7 +564,7 @@ class OnlineGalleryState {
 
 @riverpod
 class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
-  static const int _pageSize = 40;
+  static const int _pageSize = 60;
   static const int _maxFilteredEmptyPagesPerLoad = 5;
 
   CancelToken? _cancelToken;
