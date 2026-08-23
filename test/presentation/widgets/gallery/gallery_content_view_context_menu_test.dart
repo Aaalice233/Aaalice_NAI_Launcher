@@ -106,6 +106,16 @@ void main() {
 
     expect(selectedRecord, same(record));
     expect(selectedAction, LocalImageContextAction.sendToReversePrompt);
+
+    selectedAction = null;
+    await tester.tap(find.byIcon(Icons.text_snippet_outlined));
+    await tester.pump();
+    expect(selectedAction, LocalImageContextAction.copyPrompt);
+
+    selectedAction = null;
+    await tester.tap(find.byIcon(Icons.delete_outline));
+    await tester.pump();
+    expect(selectedAction, LocalImageContextAction.delete);
   });
 }
 

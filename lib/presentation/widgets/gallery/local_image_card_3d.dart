@@ -75,6 +75,8 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D>
   ThumbnailCacheService? _thumbnailService;
   _ImageLoadState _loadState = _ImageLoadState.idle;
   bool _isLoadingThumbnail = false;
+  bool _isCopyingImage = false;
+  bool _suppressCardTap = false;
 
   @override
   void initState() {
@@ -195,6 +197,9 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D>
   }
 
   Future<void> _copyImageToClipboard() async {
+    if (_isCopyingImage) return;
+    setState(() => _isCopyingImage = true);
+
     try {
       final sourceFile = File(widget.record.path);
       if (!await sourceFile.exists()) {
@@ -209,7 +214,8 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D>
       final sourceName =
           sourceParts.isNotEmpty ? sourceParts.last : 'shared.png';
       final originalBytes = await sourceFile.readAsBytes();
-      final shareImage = await ImageShareSanitizer.prepareForCopyOrDrag(
+      final shareImage =
+          await ImageShareSanitizer.prepareForCopyOrDragInBackground(
         originalBytes,
         fileName: sourceName,
         stripMetadata: stripMetadata,
@@ -227,7 +233,20 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D>
       if (mounted) {
         AppToast.error(context, context.l10n.gallery_copyFailed('$e'));
       }
+    } finally {
+      if (mounted) setState(() => _isCopyingImage = false);
     }
+  }
+
+  void _handleCardTap() {
+    if (_suppressCardTap || _isCopyingImage) return;
+    widget.onTap?.call();
+  }
+
+  void _releaseActionPointerAfterGesture() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _suppressCardTap = false;
+    });
   }
 
   (_EffectIntensity, Color) _getEffectConfig(BuildContext context) {
@@ -256,7 +275,7 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D>
     final (intensity, glowColor) = _getEffectConfig(context);
 
     Widget cardContent = GestureDetector(
-      onTap: widget.onTap,
+      onTap: widget.onTap == null ? null : _handleCardTap,
       onDoubleTap: widget.onDoubleTap,
       onLongPress: widget.onLongPress,
       onSecondaryTapDown: widget.onSecondaryTapDown,
@@ -503,26 +522,57 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D>
   }
 
   Widget _buildActionButtons() {
-    return FloatingActionButtons(
-      isVisible: _isHovered,
-      buttons: [
-        FloatingActionButtonData(
-          icon:
-              widget.record.isFavorite ? Icons.favorite : Icons.favorite_border,
-          onTap: widget.onFavoriteToggle,
-          iconColor: widget.record.isFavorite ? Colors.red : Colors.white,
-          visible: widget.onFavoriteToggle != null,
-        ),
-        FloatingActionButtonData(
-          icon: Icons.copy,
-          onTap: _copyImageToClipboard,
-        ),
-        FloatingActionButtonData(
-          icon: Icons.send,
-          onTap: () => unawaited(_showSendMenu(context)),
-          visible: widget.onSendAction != null,
-        ),
-      ],
+    return Listener(
+      behavior: HitTestBehavior.opaque,
+      onPointerDown: (_) => _suppressCardTap = true,
+      onPointerUp: (_) => _releaseActionPointerAfterGesture(),
+      onPointerCancel: (_) => _releaseActionPointerAfterGesture(),
+      child: FloatingActionButtons(
+        isVisible: _isHovered,
+        axis: Axis.horizontal,
+        spacing: 6,
+        padding: const EdgeInsets.all(4),
+        buttons: [
+          FloatingActionButtonData(
+            icon: widget.record.isFavorite
+                ? Icons.favorite
+                : Icons.favorite_border,
+            onTap: widget.onFavoriteToggle,
+            iconColor: widget.record.isFavorite ? Colors.red : Colors.white,
+            visible: widget.onFavoriteToggle != null,
+          ),
+          FloatingActionButtonData(
+            icon: Icons.copy,
+            onTap: _copyImageToClipboard,
+            isLoading: _isCopyingImage,
+            tooltip: context.l10n.shortcut_action_copy_image,
+          ),
+          FloatingActionButtonData(
+            icon: Icons.text_snippet_outlined,
+            onTap: () => unawaited(
+              widget.onSendAction?.call(LocalImageContextAction.copyPrompt),
+            ),
+            tooltip: context.l10n.localGallery_copyPrompt,
+            visible: widget.onSendAction != null,
+          ),
+          FloatingActionButtonData(
+            icon: Icons.delete_outline,
+            onTap: () => unawaited(
+              widget.onSendAction?.call(LocalImageContextAction.delete),
+            ),
+            hoverIconColor: Colors.white,
+            hoverBackgroundColor: Colors.red.shade700,
+            tooltip: context.l10n.common_delete,
+            visible: widget.onSendAction != null,
+          ),
+          FloatingActionButtonData(
+            icon: Icons.send,
+            onTap: () => unawaited(_showSendMenu(context)),
+            tooltip: context.l10n.detail_sendToImg2Img,
+            visible: widget.onSendAction != null,
+          ),
+        ],
+      ),
     );
   }
 

@@ -10236,6 +10236,49 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get detail_copyPromptTitle => 'Copy Positive Prompt';
+
+  @override
+  String get detail_copyPromptDescription =>
+      'Select the prompt categories to copy. Fixed tags may contain private strings or personal markers, so review them before sharing.';
+
+  @override
+  String get detail_promptCategoryMain => 'Subject prompt';
+
+  @override
+  String get detail_promptCategoryMainHint =>
+      'Subject, scene, and general descriptions';
+
+  @override
+  String get detail_promptCategoryCharacters => 'Character prompts';
+
+  @override
+  String get detail_promptCategoryCharactersHint =>
+      'Prompts assigned to individual characters';
+
+  @override
+  String get detail_promptCategoryQuality => 'Quality tags';
+
+  @override
+  String get detail_promptCategoryQualityHint =>
+      'Official quality preset and automatic transparent-background tag';
+
+  @override
+  String get detail_promptCategoryFixed => 'Fixed tags';
+
+  @override
+  String get detail_promptCategoryFixedHint =>
+      'Fixed prefixes and suffixes that may contain private content';
+
+  @override
+  String get detail_promptCategoryUnavailable =>
+      'This category is not stored in the image';
+
+  @override
+  String get detail_copyPromptDefaultHint =>
+      'Subject and character prompts are selected by default; quality and fixed tags are excluded.';
+
+  @override
   String get detail_copyCharacterPrompt => 'Copy Character Prompt';
 
   @override

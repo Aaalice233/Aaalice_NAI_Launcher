@@ -17,6 +17,7 @@ import '../app_toast.dart';
 import '../../metadata/metadata_import_dialog.dart';
 import 'components/detail_image_page.dart';
 import 'components/detail_metadata_panel.dart';
+import 'components/prompt_copy_dialog.dart';
 import 'components/detail_thumbnail_bar.dart';
 import 'components/detail_top_bar.dart';
 import 'image_detail_data.dart';
@@ -397,18 +398,21 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
   }
 
   /// 复制 Prompt
-  void _copyPrompt() {
+  Future<void> _copyPrompt() async {
     final metadata = _currentImage.metadata;
-    final prompt = metadata?.prompt;
-    if (prompt != null && prompt.isNotEmpty) {
-      Clipboard.setData(ClipboardData(text: prompt));
-      if (context.mounted) {
-        AppToast.success(context, context.l10n.toast_imagePromptCopied);
-      }
-    } else {
+    if (metadata == null || metadata.fullPrompt.isEmpty) {
       if (context.mounted) {
         AppToast.warning(context, context.l10n.toast_imageHasNoPrompt);
       }
+      return;
+    }
+
+    final prompt = await PromptCopyDialog.show(context, metadata: metadata);
+    if (prompt == null || !mounted) return;
+
+    await Clipboard.setData(ClipboardData(text: prompt));
+    if (mounted) {
+      AppToast.success(context, context.l10n.toast_imagePromptCopied);
     }
   }
 

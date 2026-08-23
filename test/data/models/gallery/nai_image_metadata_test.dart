@@ -56,7 +56,88 @@ void main() {
         metadata.displayNegativePrompt,
         equals('bad anatomy, plain_negative, text'),
       );
+      expect(metadata.negativePromptWithoutFixedTags, equals('plain_negative'));
     });
+
+    test('copy-safe prompt should remove only fixed tags', () {
+      const metadata = NaiImageMetadata(
+        prompt:
+            'private-prefix, 1girl, blue hair, private-suffix, very aesthetic, no text',
+        fixedPrefixTags: ['private-prefix'],
+        fixedSuffixTags: ['private-suffix'],
+        qualityTags: ['very aesthetic', 'no text'],
+        characterPrompts: ['cat ears, green eyes'],
+      );
+
+      expect(
+        metadata.promptWithoutFixedTags,
+        equals('1girl, blue hair, very aesthetic, no text'),
+      );
+      expect(
+        metadata.fullPromptWithoutFixedTags,
+        equals(
+          '1girl, blue hair, very aesthetic, no text\n\n| cat ears, green eyes',
+        ),
+      );
+      expect(
+        metadata.buildPositivePromptSelection(
+          includeMainPrompt: true,
+          includeCharacterPrompts: true,
+          includeQualityTags: false,
+          includeFixedTags: false,
+        ),
+        equals('1girl, blue hair\n\n| cat ears, green eyes'),
+      );
+      expect(
+        metadata.buildPositivePromptSelection(
+          includeMainPrompt: true,
+          includeCharacterPrompts: false,
+          includeQualityTags: true,
+          includeFixedTags: true,
+        ),
+        equals(
+          'private-prefix, 1girl, blue hair, private-suffix, very aesthetic, no text',
+        ),
+      );
+    });
+
+    test('copy categories preserve a recorded transparent background tag', () {
+      const metadata = NaiImageMetadata(
+        prompt:
+            'private-prefix, 1girl, private-suffix, transparent background, very aesthetic',
+        fixedPrefixTags: ['private-prefix'],
+        fixedSuffixTags: ['private-suffix'],
+        qualityTags: ['very aesthetic'],
+        transparentBackground: true,
+      );
+
+      expect(
+        metadata.buildPositivePromptSelection(
+          includeMainPrompt: true,
+          includeCharacterPrompts: false,
+          includeQualityTags: true,
+          includeFixedTags: false,
+        ),
+        equals('1girl, transparent background, very aesthetic'),
+      );
+    });
+
+    test(
+      'copy-safe prompt preserves matching text outside fixed boundaries',
+      () {
+        const metadata = NaiImageMetadata(
+          prompt: 'private, subject, private, quality',
+          fixedPrefixTags: ['private'],
+          fixedSuffixTags: ['missing'],
+          qualityTags: ['quality'],
+        );
+
+        expect(
+          metadata.promptWithoutFixedTags,
+          equals('subject, private, quality'),
+        );
+      },
+    );
 
     test(
       'fromNaiComment should map known V4.5 source fingerprint without inferring uc preset',

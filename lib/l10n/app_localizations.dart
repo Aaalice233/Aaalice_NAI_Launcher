@@ -17933,6 +17933,78 @@ abstract class AppLocalizations {
   /// **'Copy {label}'**
   String detail_copyLabel(Object label);
 
+  /// No description provided for @detail_copyPromptTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy Positive Prompt'**
+  String get detail_copyPromptTitle;
+
+  /// No description provided for @detail_copyPromptDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Select the prompt categories to copy. Fixed tags may contain private strings or personal markers, so review them before sharing.'**
+  String get detail_copyPromptDescription;
+
+  /// No description provided for @detail_promptCategoryMain.
+  ///
+  /// In en, this message translates to:
+  /// **'Subject prompt'**
+  String get detail_promptCategoryMain;
+
+  /// No description provided for @detail_promptCategoryMainHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Subject, scene, and general descriptions'**
+  String get detail_promptCategoryMainHint;
+
+  /// No description provided for @detail_promptCategoryCharacters.
+  ///
+  /// In en, this message translates to:
+  /// **'Character prompts'**
+  String get detail_promptCategoryCharacters;
+
+  /// No description provided for @detail_promptCategoryCharactersHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Prompts assigned to individual characters'**
+  String get detail_promptCategoryCharactersHint;
+
+  /// No description provided for @detail_promptCategoryQuality.
+  ///
+  /// In en, this message translates to:
+  /// **'Quality tags'**
+  String get detail_promptCategoryQuality;
+
+  /// No description provided for @detail_promptCategoryQualityHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Official quality preset and automatic transparent-background tag'**
+  String get detail_promptCategoryQualityHint;
+
+  /// No description provided for @detail_promptCategoryFixed.
+  ///
+  /// In en, this message translates to:
+  /// **'Fixed tags'**
+  String get detail_promptCategoryFixed;
+
+  /// No description provided for @detail_promptCategoryFixedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Fixed prefixes and suffixes that may contain private content'**
+  String get detail_promptCategoryFixedHint;
+
+  /// No description provided for @detail_promptCategoryUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'This category is not stored in the image'**
+  String get detail_promptCategoryUnavailable;
+
+  /// No description provided for @detail_copyPromptDefaultHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Subject and character prompts are selected by default; quality and fixed tags are excluded.'**
+  String get detail_copyPromptDefaultHint;
+
   /// No description provided for @detail_copyCharacterPrompt.
   ///
   /// In en, this message translates to:

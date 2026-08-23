@@ -10012,6 +10012,44 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
+  String get detail_copyPromptTitle => 'ポジティブプロンプトをコピー';
+
+  @override
+  String get detail_copyPromptDescription =>
+      'コピーするプロンプトのカテゴリを選択してください。固定タグには非公開文字列や個人用マーカーが含まれる場合があります。共有前に確認してください。';
+
+  @override
+  String get detail_promptCategoryMain => '主体プロンプト';
+
+  @override
+  String get detail_promptCategoryMainHint => '主体、シーン、一般的な説明';
+
+  @override
+  String get detail_promptCategoryCharacters => 'キャラクタープロンプト';
+
+  @override
+  String get detail_promptCategoryCharactersHint => '各キャラクターに割り当てられたプロンプト';
+
+  @override
+  String get detail_promptCategoryQuality => '品質タグ';
+
+  @override
+  String get detail_promptCategoryQualityHint => '公式品質プリセットと透明背景の自動タグ';
+
+  @override
+  String get detail_promptCategoryFixed => '固定タグ';
+
+  @override
+  String get detail_promptCategoryFixedHint => '非公開内容を含む可能性がある固定の接頭・接尾タグ';
+
+  @override
+  String get detail_promptCategoryUnavailable => 'このカテゴリは画像に記録されていません';
+
+  @override
+  String get detail_copyPromptDefaultHint =>
+      '主体とキャラクターは既定で選択され、品質タグと固定タグは除外されます。';
+
+  @override
   String get detail_copyCharacterPrompt => 'キャラクタープロンプトをコピー';
 
   @override

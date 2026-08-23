@@ -39,6 +39,9 @@ class FloatingActionButtons extends StatelessWidget {
   /// 动画持续时间
   final Duration duration;
 
+  /// 按钮排列方向
+  final Axis axis;
+
   /// 按钮位置（默认右上角）
   final Alignment alignment;
 
@@ -51,6 +54,7 @@ class FloatingActionButtons extends StatelessWidget {
     required this.buttons,
     this.spacing = 8.0,
     this.duration = const Duration(milliseconds: 150),
+    this.axis = Axis.vertical,
     this.alignment = Alignment.topRight,
     this.padding = const EdgeInsets.all(8.0),
   });
@@ -68,7 +72,8 @@ class FloatingActionButtons extends StatelessWidget {
       alwaysIncludeSemantics: true,
       child: Container(
         padding: padding,
-        child: Column(
+        child: Flex(
+          direction: axis,
           mainAxisSize: MainAxisSize.min,
           children: _buildButtonList(visibleButtons),
         ),
@@ -88,8 +93,11 @@ class FloatingActionButtons extends StatelessWidget {
           icon: button.icon,
           onTap: button.onTap,
           iconColor: button.iconColor,
+          hoverIconColor: button.hoverIconColor,
           backgroundColor: button.backgroundColor,
           hoverBackgroundColor: button.hoverBackgroundColor,
+          tooltip: button.tooltip,
+          isLoading: button.isLoading,
           size: button.size,
           duration: duration,
         ),
@@ -97,7 +105,12 @@ class FloatingActionButtons extends StatelessWidget {
 
       // 添加间距（最后一个按钮后不加）
       if (i < buttons.length - 1) {
-        result.add(SizedBox(height: spacing));
+        result.add(
+          SizedBox(
+            width: axis == Axis.horizontal ? spacing : 0,
+            height: axis == Axis.vertical ? spacing : 0,
+          ),
+        );
       }
     }
 
@@ -116,11 +129,20 @@ class FloatingActionButtonData {
   /// 图标颜色
   final Color? iconColor;
 
+  /// 悬浮时的图标颜色
+  final Color? hoverIconColor;
+
   /// 背景颜色（默认半透明黑）
   final Color? backgroundColor;
 
   /// 悬浮时的背景颜色
   final Color? hoverBackgroundColor;
+
+  /// 悬浮提示
+  final String? tooltip;
+
+  /// 是否显示加载状态并禁用点击
+  final bool isLoading;
 
   /// 按钮大小
   final double size;
@@ -132,8 +154,11 @@ class FloatingActionButtonData {
     required this.icon,
     this.onTap,
     this.iconColor,
+    this.hoverIconColor,
     this.backgroundColor,
     this.hoverBackgroundColor,
+    this.tooltip,
+    this.isLoading = false,
     this.size = 28.0,
     this.visible = true,
   });
@@ -144,8 +169,11 @@ class _FloatingActionButtonItem extends StatefulWidget {
   final IconData icon;
   final VoidCallback? onTap;
   final Color? iconColor;
+  final Color? hoverIconColor;
   final Color? backgroundColor;
   final Color? hoverBackgroundColor;
+  final String? tooltip;
+  final bool isLoading;
   final double size;
   final Duration duration;
 
@@ -153,8 +181,11 @@ class _FloatingActionButtonItem extends StatefulWidget {
     required this.icon,
     this.onTap,
     this.iconColor,
+    this.hoverIconColor,
     this.backgroundColor,
     this.hoverBackgroundColor,
+    this.tooltip,
+    required this.isLoading,
     required this.size,
     required this.duration,
   });
@@ -174,12 +205,15 @@ class _FloatingActionButtonItemState extends State<_FloatingActionButtonItem> {
     final hoverBgColor =
         widget.hoverBackgroundColor ?? Colors.black.withValues(alpha: 0.85);
 
-    return MouseRegion(
+    final button = MouseRegion(
       onEnter: (_) => setState(() => _isHovering = true),
       onExit: (_) => setState(() => _isHovering = false),
+      cursor: widget.isLoading
+          ? SystemMouseCursors.progress
+          : SystemMouseCursors.click,
       child: GestureDetector(
         // 执行回调，同时通过 opaque 行为阻止事件冒泡
-        onTap: widget.onTap,
+        onTap: widget.isLoading ? null : widget.onTap,
         behavior: HitTestBehavior.opaque,
         child: AnimatedScale(
           duration: widget.duration,
@@ -202,16 +236,33 @@ class _FloatingActionButtonItemState extends State<_FloatingActionButtonItem> {
                   : null,
             ),
             child: Center(
-              child: Icon(
-                widget.icon,
-                size: widget.size * 0.57, // 图标大小约为按钮的 57%
-                color: widget.iconColor ?? Colors.white,
-              ),
+              child: widget.isLoading
+                  ? SizedBox.square(
+                      dimension: widget.size * 0.48,
+                      child: const CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Icon(
+                      widget.icon,
+                      size: widget.size * 0.57,
+                      color: _isHovering
+                          ? widget.hoverIconColor ??
+                                widget.iconColor ??
+                                Colors.white
+                          : widget.iconColor ?? Colors.white,
+                    ),
             ),
           ),
         ),
       ),
     );
+
+    final tooltip = widget.tooltip;
+    return tooltip == null || tooltip.isEmpty
+        ? button
+        : Tooltip(message: tooltip, child: button);
   }
 }
 

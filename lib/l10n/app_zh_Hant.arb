@@ -5044,6 +5044,18 @@
       "label": {}
     }
   },
+  "detail_copyPromptTitle": "複製正面提示詞",
+  "detail_copyPromptDescription": "勾選需要複製的提示詞類別。固定詞可能包含私密字串或個人標記，請確認後再分享。",
+  "detail_promptCategoryMain": "主體提示詞",
+  "detail_promptCategoryMainHint": "畫面主體、場景和一般描述",
+  "detail_promptCategoryCharacters": "角色提示詞",
+  "detail_promptCategoryCharactersHint": "多角色專用提示詞",
+  "detail_promptCategoryQuality": "品質提示詞",
+  "detail_promptCategoryQualityHint": "官方品質預設與透明背景自動詞",
+  "detail_promptCategoryFixed": "固定詞",
+  "detail_promptCategoryFixedHint": "固定前綴和後綴，可能包含私密內容",
+  "detail_promptCategoryUnavailable": "此圖片未記錄該類別",
+  "detail_copyPromptDefaultHint": "預設複製主體和角色提示詞，不包含品質詞與固定詞。",
   "detail_copyCharacterPrompt": "複製角色提示詞",
   "detail_copyAllVibeData": "複製全部 Vibe 資料",
   "detail_saveToVibeLibrary": "儲存到 Vibe 庫",

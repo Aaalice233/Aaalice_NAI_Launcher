@@ -17,6 +17,7 @@ import '../../save_vibe_dialog.dart';
 import '../../themed_divider.dart';
 import '../file_image_detail_data.dart';
 import '../image_detail_data.dart';
+import 'prompt_copy_dialog.dart';
 import 'prompt_section.dart';
 import 'selection_copy_shortcuts.dart';
 import 'vibe_section.dart';
@@ -583,6 +584,7 @@ class _MetadataContent extends StatelessWidget {
               content: fixedTags.join(', '),
               tags: fixedTags,
               initiallyExpanded: false,
+              allTagsAreFixed: true,
             ),
           ],
           // 负向固定词（前缀+后缀合并）
@@ -594,9 +596,8 @@ class _MetadataContent extends StatelessWidget {
               content: fixedNegativeTags.join(', '),
               tags: fixedNegativeTags,
               initiallyExpanded: false,
-              contentColor: Theme.of(
-                context,
-              ).colorScheme.error.withValues(alpha: 0.8),
+              allTagsAreFixed: true,
+              isNegative: true,
               borderColor: Theme.of(context).colorScheme.error,
             ),
           ],
@@ -639,9 +640,8 @@ class _MetadataContent extends StatelessWidget {
               content: negativePrompt,
               tags: negativeTags,
               initiallyExpanded: false,
-              contentColor: Theme.of(
-                context,
-              ).colorScheme.error.withValues(alpha: 0.8),
+              fixedTags: fixedNegativeTags,
+              isNegative: true,
               borderColor: Theme.of(context).colorScheme.error,
             ),
           ],
@@ -679,9 +679,7 @@ class _MetadataContent extends StatelessWidget {
             content: negativePrompt,
             tags: negativeTags,
             initiallyExpanded: false,
-            contentColor: Theme.of(
-              context,
-            ).colorScheme.error.withValues(alpha: 0.8),
+            isNegative: true,
             borderColor: Theme.of(context).colorScheme.error,
           ),
         ],
@@ -898,6 +896,16 @@ class _ActionButtons extends StatelessWidget {
 
   const _ActionButtons({required this.metadata});
 
+  Future<void> _copyPositivePrompt(BuildContext context) async {
+    final prompt = await PromptCopyDialog.show(context, metadata: metadata);
+    if (prompt == null || !context.mounted) return;
+
+    await Clipboard.setData(ClipboardData(text: prompt));
+    if (context.mounted) {
+      AppToast.success(context, context.l10n.gallery_promptCopied);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -914,13 +922,7 @@ class _ActionButtons extends StatelessWidget {
                   label: context.l10n.detail_copyLabel(
                     context.l10n.prompt_positivePrompt,
                   ),
-                  onPressed: () {
-                    Clipboard.setData(ClipboardData(text: metadata.fullPrompt));
-                    AppToast.success(
-                      context,
-                      context.l10n.gallery_promptCopied,
-                    );
-                  },
+                  onPressed: () => _copyPositivePrompt(context),
                 ),
               ),
               const SizedBox(width: 8),
