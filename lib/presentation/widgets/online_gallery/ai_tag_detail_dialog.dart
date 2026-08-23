@@ -715,7 +715,11 @@ class _AiTagDetailDialogState extends ConsumerState<_AiTagDetailDialog> {
         );
     if (!mounted) return;
     if (added) {
-      AppToast.success(context, context.l10n.onlineGallery_addedToQueue);
+      final count = ref.read(replicationQueueNotifierProvider).count;
+      AppToast.success(
+        context,
+        context.l10n.onlineGallery_addedToQueueWithCount(count),
+      );
     } else {
       AppToast.warning(context, context.l10n.onlineGallery_queueFullMax);
     }

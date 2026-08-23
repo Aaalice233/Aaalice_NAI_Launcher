@@ -5,14 +5,16 @@ import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../providers/queue_execution_provider.dart';
 import '../../providers/replication_queue_provider.dart';
-import '../../router/app_router.dart';
 import 'execution_stats_panel.dart';
 import 'task_list_item.dart';
 import 'task_edit_dialog.dart';
 
 /// 队列管理页面 - 紧凑精致的现代化设计
 class QueueManagementPage extends ConsumerStatefulWidget {
-  const QueueManagementPage({super.key});
+  final VoidCallback? onClose;
+  final VoidCallback? onQueueStarted;
+
+  const QueueManagementPage({super.key, this.onClose, this.onQueueStarted});
 
   @override
   ConsumerState<QueueManagementPage> createState() =>
@@ -35,21 +37,12 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
     super.dispose();
   }
 
-  /// 安全获取执行状态
-  QueueExecutionState _watchExecutionState() {
-    try {
-      return ref.watch(queueExecutionNotifierProvider);
-    } catch (e) {
-      return const QueueExecutionState();
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final theme = Theme.of(context);
     final queueState = ref.watch(replicationQueueNotifierProvider);
-    final executionState = _watchExecutionState();
+    final executionState = ref.watch(queueExecutionNotifierProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -78,24 +71,17 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
               },
               isHighlighted: executionState.isPaused,
             ),
-          // 清空按钮 / 关闭悬浮球按钮
-          if (queueState.isEmpty && queueState.failedTasks.isEmpty)
-            // 队列为空时显示“关闭悬浮球”按钮
-            _buildActionButton(
-              icon: Icons.close_rounded,
-              tooltip: l10n.queue_closeFloatingButton,
-              onPressed: () {
-                ref.read(floatingButtonClosedProvider.notifier).state = true;
-                ref.read(queueManagementVisibleProvider.notifier).state = false;
-              },
-            )
-          else
-            // 队列非空时显示“清空队列”按钮
+          if (!queueState.isEmpty || queueState.failedTasks.isNotEmpty)
             _buildActionButton(
               icon: Icons.delete_sweep_rounded,
               tooltip: l10n.queue_clearQueue,
               onPressed: () => _confirmClearQueue(context),
             ),
+          _buildActionButton(
+            icon: Icons.close_rounded,
+            tooltip: l10n.common_close,
+            onPressed: widget.onClose,
+          ),
           const SizedBox(width: 4),
         ],
         bottom: PreferredSize(
@@ -106,7 +92,7 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
       body: Column(
         children: [
           // 紧凑统计面板
-          const ExecutionStatsPanel(),
+          ExecutionStatsPanel(onQueueStarted: widget.onQueueStarted),
 
           // 批量操作栏
           AnimatedSize(

@@ -2532,7 +2532,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onlineGallery_metadata => '元数据';
 
   @override
-  String get onlineGallery_addedToQueue => '已加入队列';
+  String onlineGallery_addedToQueueWithCount(Object count) {
+    return '已加入队列，当前共 $count 个待执行任务';
+  }
 
   @override
   String get onlineGallery_queueFullMax => '队列已满（最多50项）';
@@ -2761,6 +2763,14 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String onlineGallery_addedTasksToQueue(Object count) {
     return '已添加 $count 个任务到队列';
+  }
+
+  @override
+  String onlineGallery_partiallyAddedTasksToQueue(
+    Object added,
+    Object skipped,
+  ) {
+    return '已加入 $added 个任务，另有 $skipped 个因队列已满未加入';
   }
 
   @override
@@ -6635,11 +6645,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get queue_emptyHint => '没有待执行的任务';
 
   @override
-  String queue_taskCount(Object count) {
-    return '$count 个任务';
-  }
-
-  @override
   String get queue_pending => '等待中';
 
   @override
@@ -6661,19 +6666,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get queue_ready => '就绪';
 
   @override
-  String get queue_clickToStart => '点击开始执行队列';
-
-  @override
-  String get queue_clickToPause => '点击暂停队列';
-
-  @override
-  String get queue_clickToResume => '点击继续执行';
-
-  @override
   String get queue_noTasksToStart => '队列为空，无法开始';
-
-  @override
-  String get queue_allTasksCompleted => '所有任务已完成';
 
   @override
   String get queue_executionProgress => '执行进度';
@@ -6717,25 +6710,19 @@ class AppLocalizationsZh extends AppLocalizations {
   String get queue_resume => '继续';
 
   @override
-  String get queue_pauseExecution => '暂停执行';
+  String get queue_startExecution => '开始队列';
 
   @override
-  String get queue_resumeExecution => '继续执行';
+  String get queue_pauseExecution => '暂停队列';
 
   @override
-  String get queue_autoExecute => '自动执行';
+  String get queue_resumeExecution => '继续队列';
 
   @override
-  String get queue_autoExecuteOn => '完成后自动执行下一个任务';
-
-  @override
-  String get queue_autoExecuteOff => '需要手动点击生成';
+  String get queue_generationBusy => '当前有其他生成任务正在执行，请稍后再开始队列';
 
   @override
   String get queue_clearQueue => '清空队列';
-
-  @override
-  String get queue_closeFloatingButton => '关闭悬浮球';
 
   @override
   String get queue_clearQueueConfirm => '确定要清空所有队列任务吗？此操作不可撤销。';
@@ -6965,71 +6952,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get unit_seconds => '秒';
 
   @override
-  String get settings_floatingButtonBackground => '悬浮球背景';
-
-  @override
-  String get settings_floatingButtonBackgroundCustom => '已设置自定义背景';
-
-  @override
-  String get settings_floatingButtonBackgroundDefault => '默认样式';
-
-  @override
-  String get settings_clearBackground => '清除背景';
-
-  @override
-  String get settings_selectImage => '选择图片';
-
-  @override
   String queue_currentQueueInfo(Object count) {
     return '当前队列包含 $count 个任务';
   }
-
-  @override
-  String queue_tooltipTasksTotal(Object count) {
-    return '任务数：$count';
-  }
-
-  @override
-  String queue_tooltipCompleted(Object count) {
-    return '已完成：$count';
-  }
-
-  @override
-  String queue_tooltipFailed(Object count) {
-    return '失败：$count';
-  }
-
-  @override
-  String queue_tooltipCurrentTask(Object task) {
-    return '当前任务：$task';
-  }
-
-  @override
-  String get queue_tooltipNoTasks => '队列中没有任务';
-
-  @override
-  String get queue_tooltipDoubleClickToOpen => '双击开始/暂停';
-
-  @override
-  String get queue_tooltipClickToToggle => '单击打开队列管理';
-
-  @override
-  String get queue_tooltipDragToMove => '拖拽调整位置';
-
-  @override
-  String get queue_statusIdle => '状态：空闲';
-
-  @override
-  String get queue_statusReady => '状态：就绪';
-
-  @override
-  String get queue_statusRunning => '状态：运行中';
-
-  @override
-  String get queue_statusPaused => '状态：已暂停';
-
-  @override
-  String get queue_statusCompleted => '状态：已完成';
 
   @override
   String get settings_notificationSound => '完成音效';

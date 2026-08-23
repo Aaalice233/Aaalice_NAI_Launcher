@@ -2627,10 +2627,22 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         .addAll(tasks);
 
     if (mounted) {
-      AppToast.success(
-        context,
-        context.l10n.onlineGallery_addedTasksToQueue(addedCount),
-      );
+      if (addedCount == 0) {
+        AppToast.warning(context, context.l10n.onlineGallery_queueFullMax);
+      } else if (addedCount < tasks.length) {
+        AppToast.warning(
+          context,
+          context.l10n.onlineGallery_partiallyAddedTasksToQueue(
+            addedCount,
+            tasks.length - addedCount,
+          ),
+        );
+      } else {
+        AppToast.success(
+          context,
+          context.l10n.onlineGallery_addedTasksToQueue(addedCount),
+        );
+      }
       _selectionNotifier.exit();
     }
   }

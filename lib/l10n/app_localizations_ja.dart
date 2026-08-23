@@ -2568,7 +2568,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get onlineGallery_metadata => 'メタデータ';
 
   @override
-  String get onlineGallery_addedToQueue => 'キューに追加されました';
+  String onlineGallery_addedToQueueWithCount(Object count) {
+    return 'キューに追加しました。現在 $count 件が実行待ちです';
+  }
 
   @override
   String get onlineGallery_queueFullMax => 'キューがいっぱいです (最大 50 項目)';
@@ -2807,6 +2809,14 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String onlineGallery_addedTasksToQueue(Object count) {
     return '$count タスクをキューに追加しました';
+  }
+
+  @override
+  String onlineGallery_partiallyAddedTasksToQueue(
+    Object added,
+    Object skipped,
+  ) {
+    return '$added 件を追加しました。キューがいっぱいのため $skipped 件は追加されませんでした';
   }
 
   @override
@@ -6734,11 +6744,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get queue_emptyHint => 'キューにタスクがありません';
 
   @override
-  String queue_taskCount(Object count) {
-    return '$count タスク';
-  }
-
-  @override
   String get queue_pending => '保留中';
 
   @override
@@ -6760,19 +6765,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get queue_ready => '準備完了';
 
   @override
-  String get queue_clickToStart => 'クリックしてキューの実行を開始します';
-
-  @override
-  String get queue_clickToPause => 'クリックしてキューを一時停止します';
-
-  @override
-  String get queue_clickToResume => 'クリックして実行を再開します';
-
-  @override
   String get queue_noTasksToStart => 'キューが空のため開始できません';
-
-  @override
-  String get queue_allTasksCompleted => 'すべてのタスクが完了しました';
 
   @override
   String get queue_executionProgress => '実行の進行状況';
@@ -6816,25 +6809,19 @@ class AppLocalizationsJa extends AppLocalizations {
   String get queue_resume => '再開';
 
   @override
-  String get queue_pauseExecution => '実行を一時停止します';
+  String get queue_startExecution => 'キューを開始';
 
   @override
-  String get queue_resumeExecution => '実行を再開';
+  String get queue_pauseExecution => 'キューを一時停止';
 
   @override
-  String get queue_autoExecute => '自動実行';
+  String get queue_resumeExecution => 'キューを再開';
 
   @override
-  String get queue_autoExecuteOn => '完了時に次のタスクを自動的に実行';
-
-  @override
-  String get queue_autoExecuteOff => '生成するには手動でクリックする必要があります';
+  String get queue_generationBusy => '別の生成タスクが実行中です。完了後にキューを開始してください';
 
   @override
   String get queue_clearQueue => 'キューをクリアします';
-
-  @override
-  String get queue_closeFloatingButton => 'フローティング ボタンを閉じる';
 
   @override
   String get queue_clearQueueConfirm =>
@@ -7067,71 +7054,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get unit_seconds => '秒';
 
   @override
-  String get settings_floatingButtonBackground => 'フローティング ボタンの背景';
-
-  @override
-  String get settings_floatingButtonBackgroundCustom => 'カスタム背景を設定済み';
-
-  @override
-  String get settings_floatingButtonBackgroundDefault => 'デフォルトのスタイル';
-
-  @override
-  String get settings_clearBackground => '背景をクリア';
-
-  @override
-  String get settings_selectImage => '画像を選択してください';
-
-  @override
   String queue_currentQueueInfo(Object count) {
     return '現在のキューには $count タスクが含まれています';
   }
-
-  @override
-  String queue_tooltipTasksTotal(Object count) {
-    return 'タスク: $count';
-  }
-
-  @override
-  String queue_tooltipCompleted(Object count) {
-    return '完了: $count';
-  }
-
-  @override
-  String queue_tooltipFailed(Object count) {
-    return '失敗しました: $count';
-  }
-
-  @override
-  String queue_tooltipCurrentTask(Object task) {
-    return '現在: $task';
-  }
-
-  @override
-  String get queue_tooltipNoTasks => 'キューにタスクがありません';
-
-  @override
-  String get queue_tooltipDoubleClickToOpen => 'ダブルクリックして開始/一時停止します';
-
-  @override
-  String get queue_tooltipClickToToggle => 'クリックしてキューを開きます';
-
-  @override
-  String get queue_tooltipDragToMove => 'ドラッグして位置を変更します';
-
-  @override
-  String get queue_statusIdle => 'ステータス: アイドル';
-
-  @override
-  String get queue_statusReady => 'ステータス: 準備完了';
-
-  @override
-  String get queue_statusRunning => 'ステータス: 実行中';
-
-  @override
-  String get queue_statusPaused => 'ステータス: 一時停止中';
-
-  @override
-  String get queue_statusCompleted => 'ステータス: 完了';
 
   @override
   String get settings_notificationSound => '完了音';

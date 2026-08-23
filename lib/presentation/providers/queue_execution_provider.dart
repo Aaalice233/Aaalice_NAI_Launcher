@@ -10,6 +10,7 @@ import '../../data/models/queue/replication_task.dart';
 import '../../data/models/queue/replication_task_status.dart';
 import '../../data/models/queue/failure_handling_strategy.dart';
 import 'image_generation_provider.dart';
+import 'krita/krita_bridge_notifier.dart';
 import 'notification_settings_provider.dart';
 import 'replication_queue_provider.dart';
 import '../../core/services/notification_service.dart';
@@ -33,6 +34,8 @@ enum QueueExecutionStatus {
   /// 已完成
   completed,
 }
+
+enum QueueStartResult { started, empty, busy }
 
 /// 队列执行状态
 class QueueExecutionState {
@@ -70,6 +73,7 @@ class QueueExecutionState {
     int? failedCount,
     int? skippedCount,
     String? currentTaskId,
+    bool clearCurrentTaskId = false,
     int? retryCount,
     List<String>? failedTaskIds,
     bool? autoExecuteEnabled,
@@ -83,7 +87,9 @@ class QueueExecutionState {
       completedCount: completedCount ?? this.completedCount,
       failedCount: failedCount ?? this.failedCount,
       skippedCount: skippedCount ?? this.skippedCount,
-      currentTaskId: currentTaskId ?? this.currentTaskId,
+      currentTaskId: clearCurrentTaskId
+          ? null
+          : (currentTaskId ?? this.currentTaskId),
       retryCount: retryCount ?? this.retryCount,
       failedTaskIds: failedTaskIds ?? this.failedTaskIds,
       autoExecuteEnabled: autoExecuteEnabled ?? this.autoExecuteEnabled,
@@ -161,18 +167,19 @@ class QueueSettings {
 @Riverpod(keepAlive: true)
 class QueueExecutionNotifier extends _$QueueExecutionNotifier {
   late final QueueStateStorage _stateStorage;
+  bool _generationTriggerPending = false;
 
   @override
   QueueExecutionState build() {
     _stateStorage = ref.read(queueStateStorageProvider);
 
     // 使用 ref.listen 监听生成状态变化（不会触发 provider 重建，避免竞态条件）
-    ref.listen<ImageGenerationState>(
-      imageGenerationNotifierProvider,
-      (previous, next) {
-        _onGenerationStateChanged(previous, next);
-      },
-    );
+    ref.listen<ImageGenerationState>(imageGenerationNotifierProvider, (
+      previous,
+      next,
+    ) {
+      _onGenerationStateChanged(previous, next);
+    });
 
     // 同步加载持久化状态（Hive Box 已在 main.dart 中预先打开）
     return _loadFromStorageSync();
@@ -212,12 +219,14 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
   /// 获取队列设置
   QueueSettings _getSettings() {
     final storage = ref.read(localStorageServiceProvider);
-    final retryCount = storage.getSetting<int>(
+    final retryCount =
+        storage.getSetting<int>(
           StorageKeys.queueRetryCount,
           defaultValue: 10,
         ) ??
         10;
-    final retryInterval = storage.getSetting<double>(
+    final retryInterval =
+        storage.getSetting<double>(
           StorageKeys.queueRetryInterval,
           defaultValue: 1.0,
         ) ??
@@ -250,6 +259,8 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
   }
 
   /// 暂停执行
+  ///
+  /// 已经提交给 NovelAI 的当前任务不会被取消；暂停会在该任务完成后生效。
   Future<void> pause() async {
     if (state.status != QueueExecutionStatus.running &&
         state.status != QueueExecutionStatus.ready) {
@@ -265,18 +276,36 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
 
     final queueState = ref.read(replicationQueueNotifierProvider);
     if (queueState.isEmpty) {
-      state = state.copyWith(status: QueueExecutionStatus.idle);
+      state = state.copyWith(
+        status: QueueExecutionStatus.idle,
+        clearCurrentTaskId: true,
+      );
       return;
     }
 
-    // 恢复到 ready 状态，等待用户点击生成或自动执行
-    state = state.copyWith(status: QueueExecutionStatus.ready);
-    await _saveToStorage();
-
-    // 如果是自动执行模式，自动开始
-    if (state.autoExecuteEnabled) {
-      _triggerAutoGenerate();
+    if (state.currentTaskId == null) {
+      _processNextTask();
+    } else {
+      state = state.copyWith(status: QueueExecutionStatus.ready);
     }
+    await _saveToStorage();
+    _triggerAutoGenerate();
+  }
+
+  /// 从任意页面启动队列。
+  Future<QueueStartResult> startQueue() async {
+    final queueState = ref.read(replicationQueueNotifierProvider);
+    if (queueState.isEmpty) return QueueStartResult.empty;
+
+    final generationState = ref.read(imageGenerationNotifierProvider);
+    final kritaState = ref.read(kritaBridgeNotifierProvider);
+    if (generationState.isGenerating || kritaState.isBridgeGenerating) {
+      return QueueStartResult.busy;
+    }
+
+    prepareNextTask();
+    _triggerAutoGenerate();
+    return QueueStartResult.started;
   }
 
   /// 准备执行队列（填充第一项提示词）
@@ -296,16 +325,20 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
 
     final nextTask = queueState.tasks.first;
 
-    // 记录会话开始，先更新状态为 ready
-    // 重要：必须在 _fillPrompt 之前更新状态，
-    // 这样 prompt_input 才能检测到队列正在执行，从而跳过同步
-    final isNewSession = state.totalTasksInSession == 0;
+    // 记录会话开始，先更新状态为 ready。完成后的新一轮队列必须重置
+    // 统计，否则进度会继续沿用上一轮结果。
+    final isNewSession = state.isIdle || state.isCompleted;
     state = state.copyWith(
       status: QueueExecutionStatus.ready,
       currentTaskId: nextTask.id,
       retryCount: 0,
-      totalTasksInSession:
-          isNewSession ? queueState.count : state.totalTasksInSession,
+      completedCount: isNewSession ? 0 : state.completedCount,
+      failedCount: isNewSession ? 0 : state.failedCount,
+      skippedCount: isNewSession ? 0 : state.skippedCount,
+      failedTaskIds: isNewSession ? const [] : state.failedTaskIds,
+      totalTasksInSession: isNewSession
+          ? queueState.count
+          : state.totalTasksInSession,
       sessionStartTime: isNewSession ? DateTime.now() : state.sessionStartTime,
     );
 
@@ -321,16 +354,40 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
     // 队列任务只回填用户基础正向提示词。
     // 固定词、质量词和 UC 预设由生成链路统一组装，避免队列执行时重复拼接。
     // 负向提示词沿用主界面设置，符合任务编辑器“负面提示词从主界面读取”的语义。
-    ref.read(generationParamsNotifierProvider.notifier).updatePrompt(
-          task.prompt,
-        );
+    ref
+        .read(generationParamsNotifierProvider.notifier)
+        .updatePrompt(task.prompt);
   }
 
-  /// 触发自动生成（自动执行模式下使用）
+  /// 触发队列当前任务生成。
+  ///
+  /// 执行入口必须由队列引擎持有，不能依赖生成页 Widget 是否挂载。
   void _triggerAutoGenerate() {
-    // 这里需要通过生成按钮或其他方式触发生成
-    // 由于生成逻辑在 ImageGenerationNotifier 中，我们只需要设置状态
-    // 实际的触发需要在 UI 层监听 ready 状态并自动点击生成
+    if (_generationTriggerPending) return;
+    _generationTriggerPending = true;
+    unawaited(_generateReadyTask());
+  }
+
+  Future<void> _generateReadyTask() async {
+    try {
+      await ref.read(generationCooldownProvider.notifier).waitUntilAvailable();
+
+      if (state.status != QueueExecutionStatus.ready) return;
+      if (ref.read(imageGenerationNotifierProvider).isGenerating ||
+          ref.read(kritaBridgeNotifierProvider).isBridgeGenerating) {
+        return;
+      }
+
+      final params = ref.read(generationParamsNotifierProvider);
+      if (params.prompt.isEmpty) return;
+
+      // generate() 在首次异步让出前会把状态切到 generating；此后由生成状态
+      // 本身阻止重复提交，不要让该锁跨越整次生成而吞掉下一任务的触发。
+      _generationTriggerPending = false;
+      await ref.read(imageGenerationNotifierProvider.notifier).generate(params);
+    } finally {
+      _generationTriggerPending = false;
+    }
   }
 
   /// 开始执行队列
@@ -343,7 +400,9 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
 
     // 实际开始执行时，更新当前任务状态为 running
     if (state.currentTaskId != null) {
-      ref.read(replicationQueueNotifierProvider.notifier).updateTaskStatus(
+      ref
+          .read(replicationQueueNotifierProvider.notifier)
+          .updateTaskStatus(
             state.currentTaskId!,
             ReplicationTaskStatus.running,
           );
@@ -354,7 +413,7 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
   void stopExecution() {
     state = state.copyWith(
       status: QueueExecutionStatus.idle,
-      currentTaskId: null,
+      clearCurrentTaskId: true,
     );
     _saveToStorage();
   }
@@ -368,8 +427,11 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
     if (previous?.status == GenerationStatus.generating &&
         next.status == GenerationStatus.completed) {
       // 判断是否为队列模式
-      final isQueueMode = state.status == QueueExecutionStatus.running ||
-          state.status == QueueExecutionStatus.ready;
+      final isQueueMode =
+          state.currentTaskId != null &&
+          (state.status == QueueExecutionStatus.running ||
+              state.status == QueueExecutionStatus.ready ||
+              state.status == QueueExecutionStatus.paused);
 
       if (isQueueMode) {
         // 队列模式：不播放单张完成音效，等队列全部完成后播放
@@ -429,10 +491,9 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
 
     // 更新任务状态为 completed
     if (currentTaskId != null) {
-      ref.read(replicationQueueNotifierProvider.notifier).updateTaskStatus(
-            currentTaskId,
-            ReplicationTaskStatus.completed,
-          );
+      ref
+          .read(replicationQueueNotifierProvider.notifier)
+          .updateTaskStatus(currentTaskId, ReplicationTaskStatus.completed);
     }
 
     // 从队列移除已完成的任务
@@ -441,10 +502,11 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
     state = state.copyWith(
       completedCount: state.completedCount + 1,
       retryCount: 0,
+      clearCurrentTaskId: state.isPaused,
     );
     await _saveToStorage();
 
-    // 检查是否暂停
+    // 运行中点击暂停表示“当前任务完成后暂停”。
     if (state.isPaused) return;
 
     // 等待任务间隔
@@ -474,10 +536,7 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
       // 重新设置为 ready 状态，等待用户再次点击或自动执行
       state = state.copyWith(status: QueueExecutionStatus.ready);
 
-      // 自动执行模式下自动重试
-      if (state.autoExecuteEnabled) {
-        _triggerAutoGenerate();
-      }
+      _triggerAutoGenerate();
     } else {
       // 超过重试次数，根据策略处理
       await _handleFailedTask();
@@ -493,7 +552,10 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
     }
 
     final queueNotifier = ref.read(replicationQueueNotifierProvider.notifier);
-    final task = ref.read(replicationQueueNotifierProvider).tasks.firstWhere(
+    final task = ref
+        .read(replicationQueueNotifierProvider)
+        .tasks
+        .firstWhere(
           (t) => t.id == currentTaskId,
           orElse: () => ReplicationTask.create(prompt: ''),
         );
@@ -553,7 +615,7 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
       // 队列清空，执行完成
       state = state.copyWith(
         status: QueueExecutionStatus.completed,
-        currentTaskId: null,
+        clearCurrentTaskId: true,
       );
       _saveToStorage();
 
@@ -575,13 +637,9 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
     // 填充下一个任务的提示词（此时状态已是 ready）
     _fillPrompt(nextTask);
 
-    // 注意：这里不更新任务状态，任务保持 pending 状态
-    // 只有在自动执行模式下自动触发生成时才更新为 running
-
-    // 自动执行模式下自动触发
-    if (state.autoExecuteEnabled) {
-      _triggerAutoGenerate();
-    }
+    // 注意：这里不更新任务状态，任务保持 pending 状态；生成状态切换后
+    // startExecution() 会将当前任务标记为 running。
+    _triggerAutoGenerate();
   }
 
   /// 手动重试指定的失败任务
@@ -645,12 +703,14 @@ QueueSettings queueSettings(Ref ref) {
   final executionState = ref.watch(queueExecutionNotifierProvider);
 
   return QueueSettings(
-    retryCount: storage.getSetting<int>(
+    retryCount:
+        storage.getSetting<int>(
           StorageKeys.queueRetryCount,
           defaultValue: 10,
         ) ??
         10,
-    retryIntervalSeconds: storage.getSetting<double>(
+    retryIntervalSeconds:
+        storage.getSetting<double>(
           StorageKeys.queueRetryInterval,
           defaultValue: 1.0,
         ) ??

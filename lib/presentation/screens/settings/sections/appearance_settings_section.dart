@@ -1,10 +1,6 @@
-import 'dart:io';
-
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/storage/local_storage_service.dart';
 import '../../../../core/utils/app_locale.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../providers/font_provider.dart';
@@ -106,9 +102,6 @@ class _AppearanceSettingsSectionState
             onTap: () =>
                 _showHistoryClickBehaviorDialog(context, historyClickBehavior),
           ),
-
-          // 悬浮球背景图片（自原队列设置迁入）
-          const _FloatingButtonBackgroundTile(),
         ],
       ),
     );
@@ -632,135 +625,6 @@ class _AppearanceSettingsSectionState
           },
         );
       },
-    );
-  }
-}
-
-/// 悬浮球背景图片设置行
-class _FloatingButtonBackgroundTile extends ConsumerStatefulWidget {
-  const _FloatingButtonBackgroundTile();
-
-  @override
-  ConsumerState<_FloatingButtonBackgroundTile> createState() =>
-      _FloatingButtonBackgroundTileState();
-}
-
-class _FloatingButtonBackgroundTileState
-    extends ConsumerState<_FloatingButtonBackgroundTile> {
-  String? _backgroundImagePath;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        final storage = ref.read(localStorageServiceProvider);
-        setState(() {
-          _backgroundImagePath = storage.getFloatingButtonBackgroundImage();
-        });
-      }
-    });
-  }
-
-  Future<void> _selectBackgroundImage() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.image,
-      allowMultiple: false,
-    );
-
-    if (result != null && result.files.isNotEmpty) {
-      final path = result.files.first.path;
-      if (path != null) {
-        final storage = ref.read(localStorageServiceProvider);
-        await storage.setFloatingButtonBackgroundImage(path);
-        setState(() {
-          _backgroundImagePath = path;
-        });
-        ref.invalidate(localStorageServiceProvider);
-      }
-    }
-  }
-
-  Future<void> _clearBackgroundImage() async {
-    final storage = ref.read(localStorageServiceProvider);
-    await storage.setFloatingButtonBackgroundImage(null);
-    setState(() {
-      _backgroundImagePath = null;
-    });
-    ref.invalidate(localStorageServiceProvider);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final l10n = context.l10n;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(l10n.settings_floatingButtonBackground),
-                Text(
-                  _backgroundImagePath != null
-                      ? l10n.settings_floatingButtonBackgroundCustom
-                      : l10n.settings_floatingButtonBackgroundDefault,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.outline,
-                  ),
-                ),
-                if (_backgroundImagePath != null)
-                  Text(
-                    _backgroundImagePath!,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.outline,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          if (_backgroundImagePath != null)
-            Container(
-              width: 40,
-              height: 40,
-              margin: const EdgeInsets.only(right: 8),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: theme.colorScheme.outline.withValues(alpha: 0.3),
-                ),
-              ),
-              child: ClipOval(
-                child: Image.file(
-                  File(_backgroundImagePath!),
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Icon(
-                    Icons.broken_image,
-                    color: theme.colorScheme.outline,
-                  ),
-                ),
-              ),
-            ),
-          if (_backgroundImagePath != null)
-            IconButton(
-              icon: const Icon(Icons.clear),
-              tooltip: l10n.settings_clearBackground,
-              onPressed: _clearBackgroundImage,
-            ),
-          FilledButton.tonalIcon(
-            icon: const Icon(Icons.folder_open, size: 18),
-            label: Text(l10n.settings_selectImage),
-            onPressed: _selectBackgroundImage,
-          ),
-        ],
-      ),
     );
   }
 }

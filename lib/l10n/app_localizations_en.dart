@@ -2623,7 +2623,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get onlineGallery_metadata => 'Metadata';
 
   @override
-  String get onlineGallery_addedToQueue => 'Added to queue';
+  String onlineGallery_addedToQueueWithCount(Object count) {
+    return 'Added to queue. $count tasks are now pending';
+  }
 
   @override
   String get onlineGallery_queueFullMax => 'Queue is full (maximum 50 items)';
@@ -2871,6 +2873,14 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String onlineGallery_addedTasksToQueue(Object count) {
     return 'Added $count tasks to queue';
+  }
+
+  @override
+  String onlineGallery_partiallyAddedTasksToQueue(
+    Object added,
+    Object skipped,
+  ) {
+    return 'Added $added tasks; $skipped were skipped because the queue is full';
   }
 
   @override
@@ -6893,11 +6903,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get queue_emptyHint => 'No tasks in the queue';
 
   @override
-  String queue_taskCount(Object count) {
-    return '$count tasks';
-  }
-
-  @override
   String get queue_pending => 'Pending';
 
   @override
@@ -6919,19 +6924,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get queue_ready => 'Ready';
 
   @override
-  String get queue_clickToStart => 'Click to start queue execution';
-
-  @override
-  String get queue_clickToPause => 'Click to pause queue';
-
-  @override
-  String get queue_clickToResume => 'Click to resume execution';
-
-  @override
   String get queue_noTasksToStart => 'Queue is empty, cannot start';
-
-  @override
-  String get queue_allTasksCompleted => 'All tasks completed';
 
   @override
   String get queue_executionProgress => 'Execution Progress';
@@ -6975,25 +6968,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get queue_resume => 'Resume';
 
   @override
-  String get queue_pauseExecution => 'Pause Execution';
+  String get queue_startExecution => 'Start Queue';
 
   @override
-  String get queue_resumeExecution => 'Resume Execution';
+  String get queue_pauseExecution => 'Pause Queue';
 
   @override
-  String get queue_autoExecute => 'Auto Execute';
+  String get queue_resumeExecution => 'Resume Queue';
 
   @override
-  String get queue_autoExecuteOn => 'Auto execute next task when completed';
-
-  @override
-  String get queue_autoExecuteOff => 'Manual click required to generate';
+  String get queue_generationBusy =>
+      'Another generation task is running. Start the queue after it finishes';
 
   @override
   String get queue_clearQueue => 'Clear Queue';
-
-  @override
-  String get queue_closeFloatingButton => 'Close Floating Button';
 
   @override
   String get queue_clearQueueConfirm =>
@@ -7230,71 +7218,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get unit_seconds => 'seconds';
 
   @override
-  String get settings_floatingButtonBackground => 'Floating Button Background';
-
-  @override
-  String get settings_floatingButtonBackgroundCustom => 'Custom background set';
-
-  @override
-  String get settings_floatingButtonBackgroundDefault => 'Default style';
-
-  @override
-  String get settings_clearBackground => 'Clear background';
-
-  @override
-  String get settings_selectImage => 'Select Image';
-
-  @override
   String queue_currentQueueInfo(Object count) {
     return 'Current queue contains $count tasks';
   }
-
-  @override
-  String queue_tooltipTasksTotal(Object count) {
-    return 'Tasks: $count';
-  }
-
-  @override
-  String queue_tooltipCompleted(Object count) {
-    return 'Completed: $count';
-  }
-
-  @override
-  String queue_tooltipFailed(Object count) {
-    return 'Failed: $count';
-  }
-
-  @override
-  String queue_tooltipCurrentTask(Object task) {
-    return 'Current: $task';
-  }
-
-  @override
-  String get queue_tooltipNoTasks => 'No tasks in queue';
-
-  @override
-  String get queue_tooltipDoubleClickToOpen => 'Double-click to start/pause';
-
-  @override
-  String get queue_tooltipClickToToggle => 'Click to open queue';
-
-  @override
-  String get queue_tooltipDragToMove => 'Drag to reposition';
-
-  @override
-  String get queue_statusIdle => 'Status: Idle';
-
-  @override
-  String get queue_statusReady => 'Status: Ready';
-
-  @override
-  String get queue_statusRunning => 'Status: Running';
-
-  @override
-  String get queue_statusPaused => 'Status: Paused';
-
-  @override
-  String get queue_statusCompleted => 'Status: Completed';
 
   @override
   String get settings_notificationSound => 'Completion Sound';

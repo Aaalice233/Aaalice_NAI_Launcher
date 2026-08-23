@@ -4,7 +4,6 @@ import '../../core/storage/replication_queue_storage.dart';
 import '../../core/storage/queue_state_storage.dart';
 import '../../data/models/queue/replication_task.dart';
 import '../../data/models/queue/replication_task_status.dart';
-import '../router/app_router.dart';
 
 part 'replication_queue_provider.g.dart';
 
@@ -138,9 +137,6 @@ class ReplicationQueueNotifier extends _$ReplicationQueueNotifier {
     state = state.copyWith(tasks: [...state.tasks, task]);
     await _saveToStorage();
 
-    // 添加任务时重置悬浮球关闭状态，确保悬浮球可见
-    ref.read(floatingButtonClosedProvider.notifier).state = false;
-
     return true;
   }
 
@@ -156,9 +152,6 @@ class ReplicationQueueNotifier extends _$ReplicationQueueNotifier {
     final toAdd = tasks.take(remaining).toList();
     state = state.copyWith(tasks: [...state.tasks, ...toAdd]);
     await _saveToStorage();
-
-    // 添加任务时重置悬浮球关闭状态，确保悬浮球可见
-    ref.read(floatingButtonClosedProvider.notifier).state = false;
 
     return toAdd.length;
   }
