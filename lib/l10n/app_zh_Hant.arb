@@ -274,7 +274,6 @@
   "generation_generating": "生成中...",
   "generation_cancelGeneration": "取消生成",
   "generation_skipCurrentBatch": "跳過當前批次",
-  "generation_stopAllGeneration": "停止全部",
   "generation_pleaseInputPrompt": "請輸入提示詞",
   "generation_emptyPromptHint": "輸入提示詞並點選生成",
   "generation_imageWillShowHere": "影象將在這裡顯示",
@@ -1105,7 +1104,12 @@
   "onlineGallery_gifLoadFailed": "GIF載入失敗",
   "onlineGallery_pinchToZoom": "雙指縮放",
   "onlineGallery_metadata": "後設資料",
-  "onlineGallery_addedToQueue": "已加入佇列",
+  "onlineGallery_addedToQueueWithCount": "已加入佇列，目前共有 {count} 個待執行任務",
+  "@onlineGallery_addedToQueueWithCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "onlineGallery_queueFullMax": "佇列已滿（最多50項）",
   "onlineGallery_chooseDownloadDirectory": "選擇下載目錄",
   "onlineGallery_downloadStarted": "開始下載...",
@@ -1171,11 +1175,26 @@
     }
   },
   "onlineGallery_blacklistTitle": "線上畫廊黑名單",
-  "onlineGallery_blacklistSubtitle": "包含黑名單標籤的圖片會在線上畫廊中直接隱藏。",
+  "onlineGallery_blacklistSubtitle": "選擇實際用於隱藏圖片的黑名單；本機與 Danbooru 雲端清單彼此獨立。",
+  "onlineGallery_blacklistSourceLocal": "本機",
+  "onlineGallery_blacklistSourceCloud": "Danbooru 雲端",
+  "onlineGallery_blacklistLocalDescription": "只儲存在此裝置，無需登入即可使用",
+  "onlineGallery_blacklistCloudDescription": "直接使用並編輯 Danbooru 帳戶中的黑名單",
+  "onlineGallery_blacklistCloudLoginRequired": "登入 Danbooru 後即可切換至雲端黑名單",
   "onlineGallery_addBlacklistTagHint": "新增黑名單標籤",
-  "onlineGallery_noLocalBlacklistTags": "暫無本地黑名單標籤",
-  "onlineGallery_autoSyncOnStartup": "啟動時自動同步",
-  "onlineGallery_autoSyncOnStartupSubtitle": "預設開啟，可隨時關閉",
+  "onlineGallery_noLocalBlacklistTags": "暫無本機黑名單標籤",
+  "onlineGallery_noCloudBlacklistTags": "雲端暫無黑名單標籤",
+  "onlineGallery_pullBlacklist": "從雲端拉取",
+  "onlineGallery_pullBlacklistTooltip": "重新整理 Danbooru 雲端黑名單，不會修改本機清單",
+  "onlineGallery_pushBlacklist": "推送至雲端",
+  "onlineGallery_pushBlacklistTooltip": "使用本機黑名單覆寫 Danbooru 雲端清單",
+  "onlineGallery_pushBlacklistConfirmTitle": "使用本機清單覆寫雲端？",
+  "onlineGallery_pushBlacklistConfirmBody": "Danbooru 雲端黑名單將由目前的本機清單完整取代，請確認本機清單已整理完成。",
+  "onlineGallery_blacklistPullSucceeded": "已重新整理 Danbooru 雲端黑名單",
+  "onlineGallery_blacklistPushSucceeded": "已使用本機黑名單覆寫雲端清單",
+  "onlineGallery_blacklistSyncFailedMessage": "黑名單同步失敗，請檢查登入狀態與網路連線",
+  "onlineGallery_autoSyncOnStartup": "啟動時重新整理雲端清單",
+  "onlineGallery_autoSyncOnStartupSubtitle": "只會重新整理雲端快取，不會覆寫本機黑名單",
   "onlineGallery_lastSyncFailed": "上次同步失敗: {error}",
   "@onlineGallery_lastSyncFailed": {
     "placeholders": {
@@ -1197,6 +1216,13 @@
   "@onlineGallery_addedTasksToQueue": {
     "placeholders": {
       "count": {}
+    }
+  },
+  "onlineGallery_partiallyAddedTasksToQueue": "已加入 {added} 個任務，另有 {skipped} 個因佇列已滿而未加入",
+  "@onlineGallery_partiallyAddedTasksToQueue": {
+    "placeholders": {
+      "added": {},
+      "skipped": {}
     }
   },
   "onlineGallery_unfavorited": "已取消收藏",
@@ -3231,12 +3257,6 @@
   "queue_management": "佇列管理",
   "queue_empty": "佇列為空",
   "queue_emptyHint": "沒有待執行的任務",
-  "queue_taskCount": "{count} 個任務",
-  "@queue_taskCount": {
-    "placeholders": {
-      "count": {}
-    }
-  },
   "queue_pending": "等待中",
   "queue_running": "執行中",
   "queue_completed": "已完成",
@@ -3244,11 +3264,7 @@
   "queue_paused": "已暫停",
   "queue_idle": "空閒",
   "queue_ready": "就緒",
-  "queue_clickToStart": "點選開始執行佇列",
-  "queue_clickToPause": "點選暫停佇列",
-  "queue_clickToResume": "點選繼續執行",
   "queue_noTasksToStart": "佇列為空，無法開始",
-  "queue_allTasksCompleted": "所有任務已完成",
   "queue_executionProgress": "執行進度",
   "queue_totalTasks": "總數",
   "queue_completedTasks": "已完成",
@@ -3281,13 +3297,11 @@
   },
   "queue_pause": "暫停",
   "queue_resume": "繼續",
-  "queue_pauseExecution": "暫停執行",
-  "queue_resumeExecution": "繼續執行",
-  "queue_autoExecute": "自動執行",
-  "queue_autoExecuteOn": "完成後自動執行下一個任務",
-  "queue_autoExecuteOff": "需要手動點選生成",
+  "queue_startExecution": "開始佇列",
+  "queue_pauseExecution": "暫停佇列",
+  "queue_resumeExecution": "繼續佇列",
+  "queue_generationBusy": "目前有其他生成任務正在執行，請稍後再開始佇列",
   "queue_clearQueue": "清空佇列",
-  "queue_closeFloatingButton": "關閉懸浮球",
   "queue_clearQueueConfirm": "確定要清空所有佇列任務嗎？此操作不可撤銷。",
   "queue_confirmClear": "確認清空",
   "queue_retryCount": "重試 {current}/{max}",
@@ -3403,50 +3417,12 @@
   },
   "unit_times": "次",
   "unit_seconds": "秒",
-  "settings_floatingButtonBackground": "懸浮球背景",
-  "settings_floatingButtonBackgroundCustom": "已設定自定義背景",
-  "settings_floatingButtonBackgroundDefault": "預設樣式",
-  "settings_clearBackground": "清除背景",
-  "settings_selectImage": "選擇圖片",
   "queue_currentQueueInfo": "當前佇列包含 {count} 個任務",
   "@queue_currentQueueInfo": {
     "placeholders": {
       "count": {}
     }
   },
-  "queue_tooltipTasksTotal": "任務數：{count}",
-  "@queue_tooltipTasksTotal": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "queue_tooltipCompleted": "已完成：{count}",
-  "@queue_tooltipCompleted": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "queue_tooltipFailed": "失敗：{count}",
-  "@queue_tooltipFailed": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "queue_tooltipCurrentTask": "當前任務：{task}",
-  "@queue_tooltipCurrentTask": {
-    "placeholders": {
-      "task": {}
-    }
-  },
-  "queue_tooltipNoTasks": "佇列中沒有任務",
-  "queue_tooltipDoubleClickToOpen": "雙擊開始/暫停",
-  "queue_tooltipClickToToggle": "單擊開啟佇列管理",
-  "queue_tooltipDragToMove": "拖拽調整位置",
-  "queue_statusIdle": "狀態：空閒",
-  "queue_statusReady": "狀態：就緒",
-  "queue_statusRunning": "狀態：執行中",
-  "queue_statusPaused": "狀態：已暫停",
-  "queue_statusCompleted": "狀態：已完成",
   "settings_notificationSound": "完成音效",
   "settings_notificationSoundSubtitle": "生成完成時播放提示音效",
   "settings_notificationCustomSound": "自定義音效",
@@ -4561,7 +4537,6 @@
     }
   },
   "settings_continueGeneration": "繼續生成",
-  "dataSource_syncNow": "立即同步",
   "settings_comfyUiEnable": "啟用 ComfyUI 整合",
   "settings_comfyUiDisabledSubtitle": "關閉後將隱藏本地超分等 ComfyUI 功能",
   "settings_comfyUiServerUrl": "伺服器地址",

@@ -20,7 +20,7 @@ void main() {
       english = _readArb('lib/l10n/app_en.arb');
     });
 
-    for (final locale in const ['en', 'ja', 'zh']) {
+    for (final locale in const ['en', 'ja', 'zh', 'zh_Hant']) {
       test('$locale does not contain duplicate top-level keys', () {
         final keys = _topLevelKeys('lib/l10n/app_$locale.arb');
         final counts = <String, int>{};
@@ -36,7 +36,7 @@ void main() {
       });
     }
 
-    for (final locale in const ['ja', 'zh']) {
+    for (final locale in const ['ja', 'zh', 'zh_Hant']) {
       test('$locale matches the template keys and metadata', () {
         final localized = _readArb('lib/l10n/app_$locale.arb');
 
@@ -68,8 +68,12 @@ void main() {
 
   group('localized provider errors', () {
     final localizations = <String, AppLocalizations>{
-      for (final locale in AppLocalizations.supportedLocales)
-        locale.languageCode: lookupAppLocalizations(locale),
+      'en': lookupAppLocalizations(const Locale('en')),
+      'ja': lookupAppLocalizations(const Locale('ja')),
+      'zh': lookupAppLocalizations(const Locale('zh')),
+      'zh_Hant': lookupAppLocalizations(
+        const Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hant'),
+      ),
     };
 
     test('ComfyUI errors are localized at the UI boundary', () {

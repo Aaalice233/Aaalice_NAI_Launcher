@@ -1475,12 +1475,6 @@ abstract class AppLocalizations {
   /// **'Skip Current Batch'**
   String get generation_skipCurrentBatch;
 
-  /// No description provided for @generation_stopAllGeneration.
-  ///
-  /// In en, this message translates to:
-  /// **'Stop All'**
-  String get generation_stopAllGeneration;
-
   /// No description provided for @generation_pleaseInputPrompt.
   ///
   /// In en, this message translates to:
@@ -16348,12 +16342,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Continue Generation'**
   String get settings_continueGeneration;
-
-  /// No description provided for @dataSource_syncNow.
-  ///
-  /// In en, this message translates to:
-  /// **'Sync Now'**
-  String get dataSource_syncNow;
 
   /// No description provided for @settings_comfyUiEnable.
   ///

@@ -745,9 +745,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get generation_skipCurrentBatch => 'Skip Current Batch';
 
   @override
-  String get generation_stopAllGeneration => 'Stop All';
-
-  @override
   String get generation_pleaseInputPrompt => 'Please enter prompt';
 
   @override
@@ -9296,9 +9293,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settings_continueGeneration => 'Continue Generation';
-
-  @override
-  String get dataSource_syncNow => 'Sync Now';
 
   @override
   String get settings_comfyUiEnable => 'Enable ComfyUI Integration';

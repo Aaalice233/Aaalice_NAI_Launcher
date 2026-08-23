@@ -724,9 +724,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get generation_skipCurrentBatch => '跳过当前批次';
 
   @override
-  String get generation_stopAllGeneration => '停止全部';
-
-  @override
   String get generation_pleaseInputPrompt => '请输入提示词';
 
   @override
@@ -8958,9 +8955,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settings_continueGeneration => '继续生成';
 
   @override
-  String get dataSource_syncNow => '立即同步';
-
-  @override
   String get settings_comfyUiEnable => '启用 ComfyUI 集成';
 
   @override
@@ -12355,9 +12349,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get generation_skipCurrentBatch => '跳過當前批次';
 
   @override
-  String get generation_stopAllGeneration => '停止全部';
-
-  @override
   String get generation_pleaseInputPrompt => '請輸入提示詞';
 
   @override
@@ -14163,7 +14154,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get onlineGallery_metadata => '後設資料';
 
   @override
-  String get onlineGallery_addedToQueue => '已加入佇列';
+  String onlineGallery_addedToQueueWithCount(Object count) {
+    return '已加入佇列，目前共有 $count 個待執行任務';
+  }
 
   @override
   String get onlineGallery_queueFullMax => '佇列已滿（最多50項）';
@@ -14300,19 +14293,69 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get onlineGallery_blacklistTitle => '線上畫廊黑名單';
 
   @override
-  String get onlineGallery_blacklistSubtitle => '包含黑名單標籤的圖片會在線上畫廊中直接隱藏。';
+  String get onlineGallery_blacklistSubtitle =>
+      '選擇實際用於隱藏圖片的黑名單；本機與 Danbooru 雲端清單彼此獨立。';
+
+  @override
+  String get onlineGallery_blacklistSourceLocal => '本機';
+
+  @override
+  String get onlineGallery_blacklistSourceCloud => 'Danbooru 雲端';
+
+  @override
+  String get onlineGallery_blacklistLocalDescription => '只儲存在此裝置，無需登入即可使用';
+
+  @override
+  String get onlineGallery_blacklistCloudDescription =>
+      '直接使用並編輯 Danbooru 帳戶中的黑名單';
+
+  @override
+  String get onlineGallery_blacklistCloudLoginRequired =>
+      '登入 Danbooru 後即可切換至雲端黑名單';
 
   @override
   String get onlineGallery_addBlacklistTagHint => '新增黑名單標籤';
 
   @override
-  String get onlineGallery_noLocalBlacklistTags => '暫無本地黑名單標籤';
+  String get onlineGallery_noLocalBlacklistTags => '暫無本機黑名單標籤';
 
   @override
-  String get onlineGallery_autoSyncOnStartup => '啟動時自動同步';
+  String get onlineGallery_noCloudBlacklistTags => '雲端暫無黑名單標籤';
 
   @override
-  String get onlineGallery_autoSyncOnStartupSubtitle => '預設開啟，可隨時關閉';
+  String get onlineGallery_pullBlacklist => '從雲端拉取';
+
+  @override
+  String get onlineGallery_pullBlacklistTooltip =>
+      '重新整理 Danbooru 雲端黑名單，不會修改本機清單';
+
+  @override
+  String get onlineGallery_pushBlacklist => '推送至雲端';
+
+  @override
+  String get onlineGallery_pushBlacklistTooltip => '使用本機黑名單覆寫 Danbooru 雲端清單';
+
+  @override
+  String get onlineGallery_pushBlacklistConfirmTitle => '使用本機清單覆寫雲端？';
+
+  @override
+  String get onlineGallery_pushBlacklistConfirmBody =>
+      'Danbooru 雲端黑名單將由目前的本機清單完整取代，請確認本機清單已整理完成。';
+
+  @override
+  String get onlineGallery_blacklistPullSucceeded => '已重新整理 Danbooru 雲端黑名單';
+
+  @override
+  String get onlineGallery_blacklistPushSucceeded => '已使用本機黑名單覆寫雲端清單';
+
+  @override
+  String get onlineGallery_blacklistSyncFailedMessage => '黑名單同步失敗，請檢查登入狀態與網路連線';
+
+  @override
+  String get onlineGallery_autoSyncOnStartup => '啟動時重新整理雲端清單';
+
+  @override
+  String get onlineGallery_autoSyncOnStartupSubtitle => '只會重新整理雲端快取，不會覆寫本機黑名單';
 
   @override
   String onlineGallery_lastSyncFailed(Object error) {
@@ -14343,6 +14386,14 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String onlineGallery_addedTasksToQueue(Object count) {
     return '已新增 $count 個任務到佇列';
+  }
+
+  @override
+  String onlineGallery_partiallyAddedTasksToQueue(
+    Object added,
+    Object skipped,
+  ) {
+    return '已加入 $added 個任務，另有 $skipped 個因佇列已滿而未加入';
   }
 
   @override
@@ -18217,11 +18268,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get queue_emptyHint => '沒有待執行的任務';
 
   @override
-  String queue_taskCount(Object count) {
-    return '$count 個任務';
-  }
-
-  @override
   String get queue_pending => '等待中';
 
   @override
@@ -18243,19 +18289,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get queue_ready => '就緒';
 
   @override
-  String get queue_clickToStart => '點選開始執行佇列';
-
-  @override
-  String get queue_clickToPause => '點選暫停佇列';
-
-  @override
-  String get queue_clickToResume => '點選繼續執行';
-
-  @override
   String get queue_noTasksToStart => '佇列為空，無法開始';
-
-  @override
-  String get queue_allTasksCompleted => '所有任務已完成';
 
   @override
   String get queue_executionProgress => '執行進度';
@@ -18299,25 +18333,19 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get queue_resume => '繼續';
 
   @override
-  String get queue_pauseExecution => '暫停執行';
+  String get queue_startExecution => '開始佇列';
 
   @override
-  String get queue_resumeExecution => '繼續執行';
+  String get queue_pauseExecution => '暫停佇列';
 
   @override
-  String get queue_autoExecute => '自動執行';
+  String get queue_resumeExecution => '繼續佇列';
 
   @override
-  String get queue_autoExecuteOn => '完成後自動執行下一個任務';
-
-  @override
-  String get queue_autoExecuteOff => '需要手動點選生成';
+  String get queue_generationBusy => '目前有其他生成任務正在執行，請稍後再開始佇列';
 
   @override
   String get queue_clearQueue => '清空佇列';
-
-  @override
-  String get queue_closeFloatingButton => '關閉懸浮球';
 
   @override
   String get queue_clearQueueConfirm => '確定要清空所有佇列任務嗎？此操作不可撤銷。';
@@ -18547,71 +18575,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get unit_seconds => '秒';
 
   @override
-  String get settings_floatingButtonBackground => '懸浮球背景';
-
-  @override
-  String get settings_floatingButtonBackgroundCustom => '已設定自定義背景';
-
-  @override
-  String get settings_floatingButtonBackgroundDefault => '預設樣式';
-
-  @override
-  String get settings_clearBackground => '清除背景';
-
-  @override
-  String get settings_selectImage => '選擇圖片';
-
-  @override
   String queue_currentQueueInfo(Object count) {
     return '當前佇列包含 $count 個任務';
   }
-
-  @override
-  String queue_tooltipTasksTotal(Object count) {
-    return '任務數：$count';
-  }
-
-  @override
-  String queue_tooltipCompleted(Object count) {
-    return '已完成：$count';
-  }
-
-  @override
-  String queue_tooltipFailed(Object count) {
-    return '失敗：$count';
-  }
-
-  @override
-  String queue_tooltipCurrentTask(Object task) {
-    return '當前任務：$task';
-  }
-
-  @override
-  String get queue_tooltipNoTasks => '佇列中沒有任務';
-
-  @override
-  String get queue_tooltipDoubleClickToOpen => '雙擊開始/暫停';
-
-  @override
-  String get queue_tooltipClickToToggle => '單擊開啟佇列管理';
-
-  @override
-  String get queue_tooltipDragToMove => '拖拽調整位置';
-
-  @override
-  String get queue_statusIdle => '狀態：空閒';
-
-  @override
-  String get queue_statusReady => '狀態：就緒';
-
-  @override
-  String get queue_statusRunning => '狀態：執行中';
-
-  @override
-  String get queue_statusPaused => '狀態：已暫停';
-
-  @override
-  String get queue_statusCompleted => '狀態：已完成';
 
   @override
   String get settings_notificationSound => '完成音效';
@@ -20613,9 +20579,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get settings_continueGeneration => '繼續生成';
-
-  @override
-  String get dataSource_syncNow => '立即同步';
 
   @override
   String get settings_comfyUiEnable => '啟用 ComfyUI 整合';

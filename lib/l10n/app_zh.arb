@@ -278,7 +278,6 @@
   "generation_generating": "生成中...",
   "generation_cancelGeneration": "取消生成",
   "generation_skipCurrentBatch": "跳过当前批次",
-  "generation_stopAllGeneration": "停止全部",
   "generation_pleaseInputPrompt": "请输入提示词",
   "generation_emptyPromptHint": "输入提示词并点击生成",
   "generation_imageWillShowHere": "图像将在这里显示",
@@ -4419,7 +4418,6 @@
   },
   "settings_continueGeneration": "继续生成",
 
-  "dataSource_syncNow": "立即同步",
   "settings_comfyUiEnable": "启用 ComfyUI 集成",
   "settings_comfyUiDisabledSubtitle": "关闭后将隐藏本地超分等 ComfyUI 功能",
   "settings_comfyUiServerUrl": "服务器地址",

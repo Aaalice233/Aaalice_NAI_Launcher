@@ -286,7 +286,6 @@
   "generation_generating": "生成中...",
   "generation_cancelGeneration": "生成のキャンセル",
   "generation_skipCurrentBatch": "現在のバッチをスキップ",
-  "generation_stopAllGeneration": "すべて停止",
   "generation_pleaseInputPrompt": "プロンプトを入力してください",
   "generation_emptyPromptHint": "プロンプトを入力し、「生成」をクリックします",
   "generation_imageWillShowHere": "ここに画像が表示されます",
@@ -4664,7 +4663,6 @@
   },
   "settings_continueGeneration": "生成を続行",
 
-  "dataSource_syncNow": "今すぐ同期",
   "settings_comfyUiEnable": "ComfyUI 統合を有効にする",
   "settings_comfyUiDisabledSubtitle": "無効にすると、ローカル拡大およびその他の ComfyUI 機能が非表示になります",
   "settings_comfyUiServerUrl": "サーバー URL",

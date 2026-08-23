@@ -293,7 +293,6 @@
   "generation_generating": "Generating...",
   "generation_cancelGeneration": "Cancel Generation",
   "generation_skipCurrentBatch": "Skip Current Batch",
-  "generation_stopAllGeneration": "Stop All",
   "generation_pleaseInputPrompt": "Please enter prompt",
   "generation_emptyPromptHint": "Enter prompt and click generate",
   "generation_imageWillShowHere": "Image will be displayed here",
@@ -4636,7 +4635,6 @@
   },
   "settings_continueGeneration": "Continue Generation",
 
-  "dataSource_syncNow": "Sync Now",
   "settings_comfyUiEnable": "Enable ComfyUI Integration",
   "settings_comfyUiDisabledSubtitle": "When disabled, local upscale and other ComfyUI features are hidden",
   "settings_comfyUiServerUrl": "Server URL",

@@ -734,9 +734,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get generation_skipCurrentBatch => '現在のバッチをスキップ';
 
   @override
-  String get generation_stopAllGeneration => 'すべて停止';
-
-  @override
   String get generation_pleaseInputPrompt => 'プロンプトを入力してください';
 
   @override
@@ -9090,9 +9087,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get settings_continueGeneration => '生成を続行';
-
-  @override
-  String get dataSource_syncNow => '今すぐ同期';
 
   @override
   String get settings_comfyUiEnable => 'ComfyUI 統合を有効にする';
