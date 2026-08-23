@@ -170,6 +170,42 @@ void main() {
     },
   );
 
+  test(
+    'startup check bypasses the successful-check interval on every launch',
+    () async {
+      final service = buildService(
+        (current) async => VersionInfo(
+          version: '1.0.0+1',
+          currentVersion: current,
+          isNewer: false,
+        ),
+      );
+
+      storage.success = now.subtract(const Duration(minutes: 5));
+
+      expect(await service.shouldCheck(), isFalse);
+      expect(await service.shouldCheckOnStartup(), isTrue);
+    },
+  );
+
+  test('startup check still honors reminder and failure cooldown', () async {
+    final service = buildService(
+      (current) async =>
+          VersionInfo(version: '2.0.0', currentVersion: current, isNewer: true),
+    );
+
+    storage.remindAfter = now.add(const Duration(hours: 1));
+    expect(await service.shouldCheckOnStartup(), isFalse);
+
+    storage.remindAfter = null;
+    storage.attempt = now.subtract(const Duration(minutes: 5));
+    storage.success = now.subtract(const Duration(hours: 1));
+    expect(await service.shouldCheckOnStartup(), isFalse);
+
+    now = now.add(const Duration(minutes: 31));
+    expect(await service.shouldCheckOnStartup(), isTrue);
+  });
+
   test('remind later suppresses a known update until the deadline', () async {
     final service = buildService(
       (current) async =>

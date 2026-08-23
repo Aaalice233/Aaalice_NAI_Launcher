@@ -23,7 +23,7 @@ void main() {
     final installer = _MockUpdateInstallerService();
     when(installer.consumeExecutionResult).thenAnswer((_) async => null);
     when(installer.restorePendingUpdate).thenAnswer((_) async => null);
-    when(checkService.shouldCheck).thenAnswer((_) async => true);
+    when(checkService.shouldCheckOnStartup).thenAnswer((_) async => true);
     when(
       () => checkService.checkForUpdates(ignoreSkipped: false),
     ).thenAnswer((_) async => versionInfo);
@@ -38,13 +38,13 @@ void main() {
     );
     addTearDown(container.dispose);
 
-    await container.read(automaticUpdateCheckProvider.future);
+    await container.read(automaticUpdateCheckProvider(onStartup: true).future);
 
     final state = container.read(updateStateProvider);
     expect(state.status, UpdateStatus.available);
     expect(state.versionInfo, versionInfo);
     expect(state.notificationVisible, isTrue);
-    verify(checkService.shouldCheck).called(1);
+    verify(checkService.shouldCheckOnStartup).called(1);
     verify(() => checkService.checkForUpdates(ignoreSkipped: false)).called(1);
   });
 

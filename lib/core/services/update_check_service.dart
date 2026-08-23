@@ -264,25 +264,13 @@ class UpdateCheckService {
     _checkInterval = interval;
   }
 
-  /// 检查是否应该执行更新检查。
+  /// 检查是否应该执行周期更新检查。
   ///
   /// 成功检查使用常规 24 小时间隔；失败尝试只冷却 30 分钟。已经发现
   /// 新版本时，“稍后提醒”到期会绕过常规间隔，确保提示不会消失一天。
   Future<bool> shouldCheck() async {
     final now = _now();
-    final remindAfter = _storage.getUpdateRemindAfter();
-    if (remindAfter != null && now.isBefore(remindAfter)) {
-      return false;
-    }
-
-    final lastAttempt = _storage.getLastUpdateCheckAttemptTime();
-    if (lastAttempt != null &&
-        now.difference(lastAttempt) < failedCheckRetryInterval) {
-      final lastSuccess = _storage.getLastUpdateCheckTime();
-      if (lastSuccess == null || lastAttempt.isAfter(lastSuccess)) {
-        return false;
-      }
-    }
+    if (_isTemporarilySuppressed(now)) return false;
 
     final knownVersion = _storage.getLastKnownUpdateVersion();
     final skippedVersion = _storage.getSkippedUpdateVersion();
@@ -295,6 +283,27 @@ class UpdateCheckService {
     final lastCheckTime = _storage.getLastUpdateCheckTime();
     if (lastCheckTime == null) return true;
     return now.difference(lastCheckTime) >= _checkInterval;
+  }
+
+  /// 每次应用启动都检查一次，不受上次成功检查的 24 小时间隔影响。
+  ///
+  /// 用户明确选择“稍后提醒”或最近一次检查失败仍在冷却期时仍应保持安静。
+  Future<bool> shouldCheckOnStartup() async {
+    return !_isTemporarilySuppressed(_now());
+  }
+
+  bool _isTemporarilySuppressed(DateTime now) {
+    final remindAfter = _storage.getUpdateRemindAfter();
+    if (remindAfter != null && now.isBefore(remindAfter)) return true;
+
+    final lastAttempt = _storage.getLastUpdateCheckAttemptTime();
+    if (lastAttempt == null ||
+        now.difference(lastAttempt) >= failedCheckRetryInterval) {
+      return false;
+    }
+
+    final lastSuccess = _storage.getLastUpdateCheckTime();
+    return lastSuccess == null || lastAttempt.isAfter(lastSuccess);
   }
 
   /// 兼容性方法：检查是否应该检查更新（同 shouldCheck）

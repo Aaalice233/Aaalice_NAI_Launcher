@@ -137,6 +137,7 @@ class AutomaticUpdateCheck extends ConsumerStatefulWidget {
 
 class _AutomaticUpdateCheckState extends ConsumerState<AutomaticUpdateCheck> {
   Timer? _timer;
+  bool _startupCheckCompleted = false;
 
   @override
   void initState() {
@@ -158,8 +159,12 @@ class _AutomaticUpdateCheckState extends ConsumerState<AutomaticUpdateCheck> {
         return;
       }
 
-      ref.invalidate(automaticUpdateCheckProvider);
-      await ref.read(automaticUpdateCheckProvider.future);
+      final provider = automaticUpdateCheckProvider(
+        onStartup: !_startupCheckCompleted,
+      );
+      ref.invalidate(provider);
+      await ref.read(provider.future);
+      _startupCheckCompleted = true;
     } catch (error, stackTrace) {
       AppLogger.w('Auto update check failed: $error', 'AppBootstrap');
       AppLogger.d('$stackTrace', 'AppBootstrap');

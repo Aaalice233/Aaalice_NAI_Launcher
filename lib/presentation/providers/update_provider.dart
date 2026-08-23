@@ -400,13 +400,15 @@ VersionInfo? latestVersionInfo(Ref ref) {
 }
 
 @riverpod
-Future<void> automaticUpdateCheck(Ref ref) async {
-  await ref.read(updateCheckServiceReadyProvider.future);
+Future<void> automaticUpdateCheck(Ref ref, {bool onStartup = false}) async {
+  final service = await ref.read(updateCheckServiceReadyProvider.future);
   final notifier = ref.read(updateStateProvider.notifier);
   await notifier.initialize();
   final updateState = ref.read(updateStateProvider);
   if (updateState.hasDownloadedUpdate || updateState.hasNewVersion) return;
-  if (await notifier.shouldCheck()) {
-    await notifier.checkForUpdates();
-  }
+
+  final shouldCheck = onStartup
+      ? await service.shouldCheckOnStartup()
+      : await notifier.shouldCheck();
+  if (shouldCheck) await notifier.checkForUpdates();
 }

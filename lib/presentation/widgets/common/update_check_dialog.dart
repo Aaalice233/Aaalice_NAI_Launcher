@@ -93,6 +93,8 @@ class UpdateCheckDialog extends ConsumerWidget {
     final releaseNotes = extractInAppReleaseNotes(
       versionInfo.releaseNotes ?? '',
     );
+    final releaseNotesBackground = theme.colorScheme.surfaceContainerLowest;
+    final releaseNotesForeground = _readableForeground(releaseNotesBackground);
 
     return SingleChildScrollView(
       child: Column(
@@ -152,7 +154,7 @@ class UpdateCheckDialog extends ConsumerWidget {
               constraints: const BoxConstraints(maxHeight: 240),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerLowest,
+                color: releaseNotesBackground,
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
                   color: theme.colorScheme.outlineVariant.withValues(
@@ -161,7 +163,13 @@ class UpdateCheckDialog extends ConsumerWidget {
                 ),
               ),
               child: SingleChildScrollView(
-                child: _buildReleaseNotes(context, versionInfo, releaseNotes),
+                child: _buildReleaseNotes(
+                  context,
+                  versionInfo,
+                  releaseNotes,
+                  backgroundColor: releaseNotesBackground,
+                  foregroundColor: releaseNotesForeground,
+                ),
               ),
             ),
           ],
@@ -334,8 +342,10 @@ class UpdateCheckDialog extends ConsumerWidget {
   Widget _buildReleaseNotes(
     BuildContext context,
     VersionInfo versionInfo,
-    String releaseNotes,
-  ) {
+    String releaseNotes, {
+    required Color backgroundColor,
+    required Color foregroundColor,
+  }) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final versionTag = versionInfo.version.startsWith('v')
@@ -345,6 +355,15 @@ class UpdateCheckDialog extends ConsumerWidget {
       'https://raw.githubusercontent.com/Aaalice233/'
       'Aaalice_NAI_Launcher/$versionTag/',
     );
+    final codeBackground = colorScheme.surfaceContainerHighest;
+    final codeForeground = _readableForeground(codeBackground);
+    final quoteBackground = colorScheme.surfaceContainerHigh;
+    final quoteForeground = _readableForeground(quoteBackground);
+    final linkColor = _ensureContrast(
+      colorScheme.primary,
+      backgroundColor,
+      foregroundColor,
+    );
 
     return MarkdownBody(
       data: releaseNotes,
@@ -352,52 +371,68 @@ class UpdateCheckDialog extends ConsumerWidget {
       extensionSet: md.ExtensionSet.gitHubWeb,
       imageDirectory: rawContentBase.toString(),
       styleSheet: MarkdownStyleSheet.fromTheme(theme).copyWith(
-        p: theme.textTheme.bodyMedium?.copyWith(height: 1.55),
+        p: theme.textTheme.bodyMedium?.copyWith(
+          color: foregroundColor,
+          height: 1.55,
+        ),
         a: theme.textTheme.bodyMedium?.copyWith(
-          color: colorScheme.primary,
+          color: linkColor,
           decoration: TextDecoration.underline,
-          decorationColor: colorScheme.primary.withValues(alpha: 0.55),
+          decorationColor: linkColor.withValues(alpha: 0.55),
         ),
         h1: theme.textTheme.titleLarge?.copyWith(
+          color: foregroundColor,
           fontWeight: FontWeight.w700,
           height: 1.35,
         ),
         h2: theme.textTheme.titleMedium?.copyWith(
+          color: foregroundColor,
           fontWeight: FontWeight.w700,
           height: 1.4,
         ),
         h3: theme.textTheme.titleSmall?.copyWith(
+          color: foregroundColor,
           fontWeight: FontWeight.w700,
           height: 1.4,
         ),
+        h4: theme.textTheme.bodyLarge?.copyWith(color: foregroundColor),
+        h5: theme.textTheme.bodyLarge?.copyWith(color: foregroundColor),
+        h6: theme.textTheme.bodyLarge?.copyWith(color: foregroundColor),
         h1Padding: const EdgeInsets.only(top: 10, bottom: 6),
         h2Padding: const EdgeInsets.only(top: 9, bottom: 5),
         h3Padding: const EdgeInsets.only(top: 7, bottom: 4),
         blockSpacing: 10,
         listIndent: 22,
+        listBullet: theme.textTheme.bodyMedium?.copyWith(
+          color: foregroundColor,
+        ),
+        blockquote: theme.textTheme.bodyMedium?.copyWith(
+          color: quoteForeground,
+        ),
         code: theme.textTheme.bodySmall?.copyWith(
           fontFamily: 'monospace',
-          color: colorScheme.onSurface,
-          backgroundColor: colorScheme.surfaceContainerHighest,
+          color: codeForeground,
+          backgroundColor: codeBackground,
         ),
         codeblockPadding: const EdgeInsets.all(12),
         codeblockDecoration: BoxDecoration(
-          color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.72),
+          color: codeBackground,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: colorScheme.outlineVariant),
         ),
         blockquotePadding: const EdgeInsets.fromLTRB(12, 8, 10, 8),
         blockquoteDecoration: BoxDecoration(
-          color: colorScheme.surfaceContainerHigh.withValues(alpha: 0.65),
+          color: quoteBackground,
           borderRadius: BorderRadius.circular(6),
           border: Border(
             left: BorderSide(color: colorScheme.primary, width: 3),
           ),
         ),
         tableHead: theme.textTheme.bodyMedium?.copyWith(
+          color: foregroundColor,
           fontWeight: FontWeight.w700,
         ),
-        tableBody: theme.textTheme.bodyMedium,
+        tableBody: theme.textTheme.bodyMedium?.copyWith(color: foregroundColor),
         tableBorder: TableBorder.all(color: colorScheme.outlineVariant),
         tableCellsPadding: const EdgeInsets.symmetric(
           horizontal: 10,
@@ -418,6 +453,22 @@ class UpdateCheckDialog extends ConsumerWidget {
         }
       },
     );
+  }
+
+  Color _readableForeground(Color background) {
+    return ThemeData.estimateBrightnessForColor(background) == Brightness.dark
+        ? Colors.white
+        : Colors.black;
+  }
+
+  Color _ensureContrast(Color candidate, Color background, Color fallback) {
+    final lighter = candidate.computeLuminance() > background.computeLuminance()
+        ? candidate.computeLuminance()
+        : background.computeLuminance();
+    final darker = candidate.computeLuminance() > background.computeLuminance()
+        ? background.computeLuminance()
+        : candidate.computeLuminance();
+    return (lighter + 0.05) / (darker + 0.05) >= 4.5 ? candidate : fallback;
   }
 
   Uri? _resolveReleaseUri(String href, String versionTag) {

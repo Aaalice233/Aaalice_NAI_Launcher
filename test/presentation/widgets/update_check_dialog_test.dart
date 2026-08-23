@@ -84,6 +84,56 @@ print('updated');
     expect(find.text('Release details'), findsOneWidget);
   });
 
+  testWidgets('keeps release notes readable with a mismatched custom theme', (
+    tester,
+  ) async {
+    const info = VersionInfo(
+      version: '2.0.0',
+      currentVersion: '1.0.0',
+      isNewer: true,
+      releaseNotes: '# Visible heading\n\n- Visible body',
+    );
+    const state = UpdateState(
+      status: UpdateStatus.available,
+      versionInfo: info,
+      notificationVisible: true,
+    );
+    final colorScheme = const ColorScheme.dark().copyWith(
+      surfaceContainerLowest: Colors.white,
+      surfaceContainerHigh: const Color(0xFFF2F2F2),
+      surfaceContainerHighest: const Color(0xFFE8E8E8),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          updateStateNotifierProvider.overrideWith(
+            () => _DialogUpdateNotifier(state),
+          ),
+        ],
+        child: MaterialApp(
+          locale: const Locale('en'),
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          theme: ThemeData(
+            brightness: Brightness.dark,
+            colorScheme: colorScheme,
+            textTheme: ThemeData.dark().textTheme,
+          ),
+          home: const Scaffold(body: UpdateCheckDialog()),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final markdown = tester.widget<MarkdownBody>(find.byType(MarkdownBody));
+    expect(markdown.styleSheet?.p?.color, Colors.black);
+    expect(markdown.styleSheet?.h1?.color, Colors.black);
+    expect(markdown.styleSheet?.listBullet?.color, Colors.black);
+    expect(find.text('Visible heading'), findsOneWidget);
+    expect(find.text('Visible body'), findsOneWidget);
+  });
+
   testWidgets('shows a localized bounded error instead of raw exceptions', (
     tester,
   ) async {
