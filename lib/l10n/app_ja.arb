@@ -3523,7 +3523,6 @@
     }
   },
   "metadataImport_negativePrompt": "除外したい要素",
-  "metadataImport_characterPrompts": "キャラクタープロンプト",
   "metadataImport_characterPromptsCount": "キャラクタープロンプト ({count})",
   "@metadataImport_characterPromptsCount": {
     "placeholders": {

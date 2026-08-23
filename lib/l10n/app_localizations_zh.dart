@@ -7200,9 +7200,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get metadataImport_negativePrompt => '负向提示词';
 
   @override
-  String get metadataImport_characterPrompts => '多角色提示词';
-
-  @override
   String metadataImport_characterPromptsCount(int count) {
     return '角色提示词 ($count个)';
   }
@@ -19067,9 +19064,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get metadataImport_negativePrompt => '負向提示詞';
-
-  @override
-  String get metadataImport_characterPrompts => '多角色提示詞';
 
   @override
   String metadataImport_characterPromptsCount(int count) {

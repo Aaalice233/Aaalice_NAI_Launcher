@@ -7305,9 +7305,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get metadataImport_negativePrompt => '除外したい要素';
 
   @override
-  String get metadataImport_characterPrompts => 'キャラクタープロンプト';
-
-  @override
   String metadataImport_characterPromptsCount(int count) {
     return 'キャラクタープロンプト ($count)';
   }

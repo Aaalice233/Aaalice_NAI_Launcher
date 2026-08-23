@@ -13272,12 +13272,6 @@ abstract class AppLocalizations {
   /// **'Undesired Content'**
   String get metadataImport_negativePrompt;
 
-  /// No description provided for @metadataImport_characterPrompts.
-  ///
-  /// In en, this message translates to:
-  /// **'Character Prompts'**
-  String get metadataImport_characterPrompts;
-
   /// No description provided for @metadataImport_characterPromptsCount.
   ///
   /// In en, this message translates to:
