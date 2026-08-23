@@ -1,7 +1,7 @@
 name: nai_launcher
 description: NovelAI Universal Launcher - 跨平台第三方客户端
 publish_to: "none"
-version: 1.9.0+33
+version: 2.0.0+34
 
 environment:
   sdk: ">=3.10.7 <4.0.0"
