@@ -2102,7 +2102,7 @@
   "localGallery_deselectAllResults": "取消全部",
   "localGallery_moveSelected": "移动",
   "localGallery_packSelected": "打包",
-  "localGallery_editMetadata": "编辑",
+  "localGallery_editMetadata": "编辑标签",
   "localGallery_addToCollection": "收藏",
   "localGallery_switchToGridView": "切换到网格视图",
   "localGallery_switchToDateGroupedView": "切换到日期分组视图",
@@ -2176,6 +2176,23 @@
     }
   },
   "localGallery_saveZipArchive": "保存压缩包",
+  "localGallery_zipMetadataTitle": "导出 ZIP 压缩包",
+  "localGallery_zipMetadataDescription": "选择压缩包内的图片是否保留内嵌元数据。原始图片文件不会被修改。",
+  "localGallery_zipIncludeMetadata": "保留元数据",
+  "localGallery_zipIncludeMetadataDescription": "直接打包原始图片，不改变图片内容。",
+  "localGallery_zipExcludeMetadata": "移除全部元数据",
+  "localGallery_zipExcludeMetadataDescription": "仅为压缩包生成净化副本，清除 PNG 文本块、EXIF 和 NovelAI 隐写水印数据。",
+  "bulkMetadataEdit_title": "批量编辑 {count} 张图片的标签",
+  "@bulkMetadataEdit_title": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "bulkMetadataEdit_tagsToAdd": "要添加的标签",
+  "bulkMetadataEdit_tagsToAddHint": "输入要添加的标签...",
+  "bulkMetadataEdit_tagsToRemove": "要移除的标签",
+  "bulkMetadataEdit_tagsToRemoveHint": "输入要移除的标签...",
+  "bulkMetadataEdit_noChanges": "请至少添加一个要添加或移除的标签",
   "localGallery_packingImages": "正在打包 {count} 张图片...",
   "@localGallery_packingImages": {
     "placeholders": {
@@ -2188,7 +2205,29 @@
       "count": {}
     }
   },
+  "localGallery_packingProgress": "正在打包第 {current}/{total} 张图片...",
+  "@localGallery_packingProgress": {
+    "placeholders": {
+      "current": {},
+      "total": {}
+    }
+  },
+  "localGallery_packPartialTitle": "部分图片未导出",
+  "localGallery_packedImagesWithFailures": "压缩包已生成：成功加入 {exported} 张，{failed} 张未能加入",
+  "@localGallery_packedImagesWithFailures": {
+    "placeholders": {
+      "exported": {},
+      "failed": {}
+    }
+  },
   "localGallery_packFailed": "打包失败",
+  "localGallery_packFailedWithDetails": "创建压缩包失败：{error}",
+  "@localGallery_packFailedWithDetails": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "localGallery_packAlreadyInProgress": "已有图片压缩包正在导出",
   "localGallery_imageFileMissing": "图片文件不存在",
   "localGallery_sentToImageToImage": "图片已发送到图生图",
   "localGallery_sendFailed": "发送失败: {error}",
@@ -2555,6 +2594,8 @@
   "bulkProgress_title_removeFromCollection": "从集合中移除",
   "bulkProgress_title_toggleFavorite": "更新收藏中",
   "bulkProgress_title_default": "处理中",
+  "bulkProgress_continueInBackground": "转到后台继续",
+  "bulkProgress_operationAlreadyInProgress": "已有批量操作正在进行",
   "bulkProgress_errorDeleteFailed": "删除图片失败：{error}",
   "@bulkProgress_errorDeleteFailed": {
     "placeholders": {

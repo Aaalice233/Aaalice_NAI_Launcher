@@ -2,10 +2,12 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nai_launcher/core/utils/bulk_tag_edit_utils.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 
 import '../providers/bulk_operation_provider.dart';
+import '../providers/local_gallery_provider.dart';
 import '../providers/selection_mode_provider.dart';
 import 'bulk_progress_dialog.dart';
 import '../widgets/common/themed_divider.dart';
@@ -31,9 +33,6 @@ class _BulkMetadataEditDialogState
     extends ConsumerState<BulkMetadataEditDialog> {
   final TextEditingController _tagsToAddController = TextEditingController();
   final TextEditingController _tagsToRemoveController = TextEditingController();
-  final TextEditingController _promptController = TextEditingController();
-  final TextEditingController _negativePromptController =
-      TextEditingController();
 
   final FocusNode _tagsToAddFocus = FocusNode();
   final FocusNode _tagsToRemoveFocus = FocusNode();
@@ -45,101 +44,95 @@ class _BulkMetadataEditDialogState
   void dispose() {
     _tagsToAddController.dispose();
     _tagsToRemoveController.dispose();
-    _promptController.dispose();
-    _negativePromptController.dispose();
     _tagsToAddFocus.dispose();
     _tagsToRemoveFocus.dispose();
     super.dispose();
   }
 
-  /// Apply bulk metadata edit
-  void _applyEdit() async {
+  Future<void> _applyEdit() async {
+    _addTagToAdd();
+    _addTagToRemove();
+
     final selectionState = ref.read(localGallerySelectionNotifierProvider);
     final selectedIds = selectionState.selectedIds;
-
     if (selectedIds.isEmpty) {
       Navigator.of(context).pop();
       return;
     }
 
-    // Parse tags to add (comma or newline separated)
-    final tagsToAdd = _parseTagInput(_chipsToAdd);
-    final tagsToRemove = _parseTagInput(_chipsToRemove);
-
-    if (tagsToAdd.isEmpty && tagsToRemove.isEmpty) {
-      // Show error dialog if no changes
-      AppToast.warning(context, 'Please add tags to add or remove');
+    final operationState = ref.read(bulkOperationNotifierProvider);
+    if (operationState.isOperationInProgress) {
+      AppToast.warning(
+        context,
+        context.l10n.bulkProgress_operationAlreadyInProgress,
+      );
       return;
     }
 
-    // Close dialog
-    Navigator.of(context).pop();
+    final tagsToAdd = parseBulkTagInput(_chipsToAdd);
+    final tagsToRemove = parseBulkTagInput(_chipsToRemove);
+    if (tagsToAdd.isEmpty && tagsToRemove.isEmpty) {
+      AppToast.warning(context, context.l10n.bulkMetadataEdit_noChanges);
+      return;
+    }
 
-    if (!mounted) return;
+    final navigator = Navigator.of(context, rootNavigator: true);
+    final progressContext = navigator.context;
+    navigator.pop();
 
-    // Show progress dialog first (it will watch the operation state)
-    // 首先显示进度对话框（它将监听操作状态）
-    unawaited(BulkProgressDialog.show(context));
-
-    // Start bulk edit operation (the progress dialog will show the progress)
-    // 执行批量编辑操作（进度对话框将显示进度）
     final notifier = ref.read(bulkOperationNotifierProvider.notifier);
-    await notifier.bulkEditMetadata(
+    final operation = notifier.bulkEditMetadata(
       selectedIds.toList(),
       tagsToAdd: tagsToAdd,
       tagsToRemove: tagsToRemove,
     );
-  }
+    unawaited(BulkProgressDialog.show(progressContext));
 
-  /// Parse tag input from list of strings
-  List<String> _parseTagInput(List<String> input) {
-    final result = <String>[];
-    for (final item in input) {
-      // Split by comma or newline
-      final parts = item.split(RegExp(r'[,,\n]'));
-      for (final part in parts) {
-        final tag = part.trim();
-        if (tag.isNotEmpty && !result.contains(tag)) {
-          result.add(tag);
-        }
+    try {
+      final result = await operation;
+      if (result.success > 0) {
+        await ref
+            .read(localGalleryNotifierProvider.notifier)
+            .refresh(scan: false);
       }
+    } on Object {
+      // BulkOperationNotifier exposes the localized failure in progress state.
     }
-    return result;
   }
 
-  /// Add tag to "add" list
   void _addTagToAdd() {
-    final text = _tagsToAddController.text.trim();
-    if (text.isEmpty) return;
-
-    setState(() {
-      // Split by comma or newline and add all tags
-      final tags = text.split(RegExp(r'[,,\n]'));
-      for (final tag in tags) {
-        final trimmed = tag.trim();
-        if (trimmed.isNotEmpty && !_chipsToAdd.contains(trimmed)) {
-          _chipsToAdd.add(trimmed);
-        }
-      }
-      _tagsToAddController.clear();
-    });
+    _commitTags(
+      controller: _tagsToAddController,
+      target: _chipsToAdd,
+      opposite: _chipsToRemove,
+    );
   }
 
-  /// Add tag to "remove" list
   void _addTagToRemove() {
-    final text = _tagsToRemoveController.text.trim();
-    if (text.isEmpty) return;
+    _commitTags(
+      controller: _tagsToRemoveController,
+      target: _chipsToRemove,
+      opposite: _chipsToAdd,
+    );
+  }
+
+  void _commitTags({
+    required TextEditingController controller,
+    required List<String> target,
+    required List<String> opposite,
+  }) {
+    final tags = parseBulkTagInput([controller.text]);
+    if (tags.isEmpty) return;
 
     setState(() {
-      // Split by comma or newline and add all tags
-      final tags = text.split(RegExp(r'[,,\n]'));
       for (final tag in tags) {
-        final trimmed = tag.trim();
-        if (trimmed.isNotEmpty && !_chipsToRemove.contains(trimmed)) {
-          _chipsToRemove.add(trimmed);
+        final key = canonicalBulkTagKey(tag);
+        opposite.removeWhere((item) => canonicalBulkTagKey(item) == key);
+        if (!target.any((item) => canonicalBulkTagKey(item) == key)) {
+          target.add(tag);
         }
       }
-      _tagsToRemoveController.clear();
+      controller.clear();
     });
   }
 
@@ -195,7 +188,7 @@ class _BulkMetadataEditDialogState
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Bulk Edit Metadata ($selectedCount images)',
+                    l10n.bulkMetadataEdit_title(selectedCount),
                     style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
@@ -218,17 +211,16 @@ class _BulkMetadataEditDialogState
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Tags to Add section
                     _buildEditSection(
                       theme,
-                      'Tags to Add',
+                      l10n.bulkMetadataEdit_tagsToAdd,
                       Icons.add_circle_outline,
                       [
                         _buildTagInputField(
                           theme,
                           _tagsToAddController,
                           _tagsToAddFocus,
-                          'Enter tags to add...',
+                          l10n.bulkMetadataEdit_tagsToAddHint,
                           _addTagToAdd,
                         ),
                         const SizedBox(height: 8),
@@ -241,18 +233,16 @@ class _BulkMetadataEditDialogState
                       ],
                     ),
                     const SizedBox(height: 20),
-
-                    // Tags to Remove section
                     _buildEditSection(
                       theme,
-                      'Tags to Remove',
+                      l10n.bulkMetadataEdit_tagsToRemove,
                       Icons.remove_circle_outline,
                       [
                         _buildTagInputField(
                           theme,
                           _tagsToRemoveController,
                           _tagsToRemoveFocus,
-                          'Enter tags to remove...',
+                          l10n.bulkMetadataEdit_tagsToRemoveHint,
                           _addTagToRemove,
                         ),
                         const SizedBox(height: 8),
@@ -261,46 +251,6 @@ class _BulkMetadataEditDialogState
                           _chipsToRemove,
                           Colors.red,
                           _removeTagToRemove,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Prompt section (disabled for now)
-                    _buildEditSection(
-                      theme,
-                      'Prompt (Not Implemented)',
-                      Icons.edit_note_outlined,
-                      [
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.surfaceContainerHighest
-                                .withValues(alpha: 0.3),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: theme.dividerColor.withValues(alpha: 0.2),
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.info_outline,
-                                size: 16,
-                                color: theme.colorScheme.outline,
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  'Bulk prompt editing will be available in a future update',
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: theme.colorScheme.outline,
-                                    fontStyle: FontStyle.italic,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
                         ),
                       ],
                     ),

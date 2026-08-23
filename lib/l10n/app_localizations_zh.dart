@@ -4663,7 +4663,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get localGallery_packSelected => '打包';
 
   @override
-  String get localGallery_editMetadata => '编辑';
+  String get localGallery_editMetadata => '编辑标签';
 
   @override
   String get localGallery_addToCollection => '收藏';
@@ -4795,6 +4795,46 @@ class AppLocalizationsZh extends AppLocalizations {
   String get localGallery_saveZipArchive => '保存压缩包';
 
   @override
+  String get localGallery_zipMetadataTitle => '导出 ZIP 压缩包';
+
+  @override
+  String get localGallery_zipMetadataDescription =>
+      '选择压缩包内的图片是否保留内嵌元数据。原始图片文件不会被修改。';
+
+  @override
+  String get localGallery_zipIncludeMetadata => '保留元数据';
+
+  @override
+  String get localGallery_zipIncludeMetadataDescription => '直接打包原始图片，不改变图片内容。';
+
+  @override
+  String get localGallery_zipExcludeMetadata => '移除全部元数据';
+
+  @override
+  String get localGallery_zipExcludeMetadataDescription =>
+      '仅为压缩包生成净化副本，清除 PNG 文本块、EXIF 和 NovelAI 隐写水印数据。';
+
+  @override
+  String bulkMetadataEdit_title(Object count) {
+    return '批量编辑 $count 张图片的标签';
+  }
+
+  @override
+  String get bulkMetadataEdit_tagsToAdd => '要添加的标签';
+
+  @override
+  String get bulkMetadataEdit_tagsToAddHint => '输入要添加的标签...';
+
+  @override
+  String get bulkMetadataEdit_tagsToRemove => '要移除的标签';
+
+  @override
+  String get bulkMetadataEdit_tagsToRemoveHint => '输入要移除的标签...';
+
+  @override
+  String get bulkMetadataEdit_noChanges => '请至少添加一个要添加或移除的标签';
+
+  @override
   String localGallery_packingImages(Object count) {
     return '正在打包 $count 张图片...';
   }
@@ -4805,7 +4845,28 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String localGallery_packingProgress(Object current, Object total) {
+    return '正在打包第 $current/$total 张图片...';
+  }
+
+  @override
+  String get localGallery_packPartialTitle => '部分图片未导出';
+
+  @override
+  String localGallery_packedImagesWithFailures(Object exported, Object failed) {
+    return '压缩包已生成：成功加入 $exported 张，$failed 张未能加入';
+  }
+
+  @override
   String get localGallery_packFailed => '打包失败';
+
+  @override
+  String localGallery_packFailedWithDetails(Object error) {
+    return '创建压缩包失败：$error';
+  }
+
+  @override
+  String get localGallery_packAlreadyInProgress => '已有图片压缩包正在导出';
 
   @override
   String get localGallery_imageFileMissing => '图片文件不存在';
@@ -5332,6 +5393,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get bulkProgress_title_default => '处理中';
+
+  @override
+  String get bulkProgress_continueInBackground => '转到后台继续';
+
+  @override
+  String get bulkProgress_operationAlreadyInProgress => '已有批量操作正在进行';
 
   @override
   String bulkProgress_errorDeleteFailed(String error) {
@@ -16329,7 +16396,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get localGallery_packSelected => '打包';
 
   @override
-  String get localGallery_editMetadata => '編輯';
+  String get localGallery_editMetadata => '編輯標籤';
 
   @override
   String get localGallery_addToCollection => '收藏';
@@ -16461,6 +16528,46 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get localGallery_saveZipArchive => '儲存壓縮包';
 
   @override
+  String get localGallery_zipMetadataTitle => '匯出 ZIP 壓縮包';
+
+  @override
+  String get localGallery_zipMetadataDescription =>
+      '選擇壓縮包內的圖片是否保留內嵌後設資料。原始圖片檔案不會被修改。';
+
+  @override
+  String get localGallery_zipIncludeMetadata => '保留後設資料';
+
+  @override
+  String get localGallery_zipIncludeMetadataDescription => '直接打包原始圖片，不變更圖片內容。';
+
+  @override
+  String get localGallery_zipExcludeMetadata => '移除全部後設資料';
+
+  @override
+  String get localGallery_zipExcludeMetadataDescription =>
+      '僅為壓縮包產生淨化副本，清除 PNG 文字區塊、EXIF 和 NovelAI 隱寫浮水印資料。';
+
+  @override
+  String bulkMetadataEdit_title(Object count) {
+    return '批次編輯 $count 張圖片的標籤';
+  }
+
+  @override
+  String get bulkMetadataEdit_tagsToAdd => '要新增的標籤';
+
+  @override
+  String get bulkMetadataEdit_tagsToAddHint => '輸入要新增的標籤...';
+
+  @override
+  String get bulkMetadataEdit_tagsToRemove => '要移除的標籤';
+
+  @override
+  String get bulkMetadataEdit_tagsToRemoveHint => '輸入要移除的標籤...';
+
+  @override
+  String get bulkMetadataEdit_noChanges => '請至少新增一個要新增或移除的標籤';
+
+  @override
   String localGallery_packingImages(Object count) {
     return '正在打包 $count 張圖片...';
   }
@@ -16471,7 +16578,28 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
+  String localGallery_packingProgress(Object current, Object total) {
+    return '正在打包第 $current/$total 張圖片...';
+  }
+
+  @override
+  String get localGallery_packPartialTitle => '部分圖片未匯出';
+
+  @override
+  String localGallery_packedImagesWithFailures(Object exported, Object failed) {
+    return '壓縮包已產生：成功加入 $exported 張，$failed 張未能加入';
+  }
+
+  @override
   String get localGallery_packFailed => '打包失敗';
+
+  @override
+  String localGallery_packFailedWithDetails(Object error) {
+    return '建立壓縮包失敗：$error';
+  }
+
+  @override
+  String get localGallery_packAlreadyInProgress => '已有圖片壓縮包正在匯出';
 
   @override
   String get localGallery_imageFileMissing => '圖片檔案不存在';
@@ -16998,6 +17126,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get bulkProgress_title_default => '處理中';
+
+  @override
+  String get bulkProgress_continueInBackground => '轉到背景繼續';
+
+  @override
+  String get bulkProgress_operationAlreadyInProgress => '已有批次操作正在進行';
 
   @override
   String bulkProgress_errorDeleteFailed(String error) {

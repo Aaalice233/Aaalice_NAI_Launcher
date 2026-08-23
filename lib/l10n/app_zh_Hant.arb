@@ -2122,7 +2122,7 @@
   "localGallery_deselectAllResults": "取消全部",
   "localGallery_moveSelected": "移動",
   "localGallery_packSelected": "打包",
-  "localGallery_editMetadata": "編輯",
+  "localGallery_editMetadata": "編輯標籤",
   "localGallery_addToCollection": "收藏",
   "localGallery_switchToGridView": "切換到網格檢視",
   "localGallery_switchToDateGroupedView": "切換到日期分組檢視",
@@ -2196,6 +2196,23 @@
     }
   },
   "localGallery_saveZipArchive": "儲存壓縮包",
+  "localGallery_zipMetadataTitle": "匯出 ZIP 壓縮包",
+  "localGallery_zipMetadataDescription": "選擇壓縮包內的圖片是否保留內嵌後設資料。原始圖片檔案不會被修改。",
+  "localGallery_zipIncludeMetadata": "保留後設資料",
+  "localGallery_zipIncludeMetadataDescription": "直接打包原始圖片，不變更圖片內容。",
+  "localGallery_zipExcludeMetadata": "移除全部後設資料",
+  "localGallery_zipExcludeMetadataDescription": "僅為壓縮包產生淨化副本，清除 PNG 文字區塊、EXIF 和 NovelAI 隱寫浮水印資料。",
+  "bulkMetadataEdit_title": "批次編輯 {count} 張圖片的標籤",
+  "@bulkMetadataEdit_title": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "bulkMetadataEdit_tagsToAdd": "要新增的標籤",
+  "bulkMetadataEdit_tagsToAddHint": "輸入要新增的標籤...",
+  "bulkMetadataEdit_tagsToRemove": "要移除的標籤",
+  "bulkMetadataEdit_tagsToRemoveHint": "輸入要移除的標籤...",
+  "bulkMetadataEdit_noChanges": "請至少新增一個要新增或移除的標籤",
   "localGallery_packingImages": "正在打包 {count} 張圖片...",
   "@localGallery_packingImages": {
     "placeholders": {
@@ -2208,7 +2225,29 @@
       "count": {}
     }
   },
+  "localGallery_packingProgress": "正在打包第 {current}/{total} 張圖片...",
+  "@localGallery_packingProgress": {
+    "placeholders": {
+      "current": {},
+      "total": {}
+    }
+  },
+  "localGallery_packPartialTitle": "部分圖片未匯出",
+  "localGallery_packedImagesWithFailures": "壓縮包已產生：成功加入 {exported} 張，{failed} 張未能加入",
+  "@localGallery_packedImagesWithFailures": {
+    "placeholders": {
+      "exported": {},
+      "failed": {}
+    }
+  },
   "localGallery_packFailed": "打包失敗",
+  "localGallery_packFailedWithDetails": "建立壓縮包失敗：{error}",
+  "@localGallery_packFailedWithDetails": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "localGallery_packAlreadyInProgress": "已有圖片壓縮包正在匯出",
   "localGallery_imageFileMissing": "圖片檔案不存在",
   "localGallery_sentToImageToImage": "圖片已傳送到圖生圖",
   "localGallery_sendFailed": "傳送失敗: {error}",
@@ -2566,6 +2605,8 @@
   "bulkProgress_title_removeFromCollection": "從集合中移除",
   "bulkProgress_title_toggleFavorite": "更新收藏中",
   "bulkProgress_title_default": "處理中",
+  "bulkProgress_continueInBackground": "轉到背景繼續",
+  "bulkProgress_operationAlreadyInProgress": "已有批次操作正在進行",
   "bulkProgress_errorDeleteFailed": "刪除圖片失敗：{error}",
   "@bulkProgress_errorDeleteFailed": {
     "placeholders": {

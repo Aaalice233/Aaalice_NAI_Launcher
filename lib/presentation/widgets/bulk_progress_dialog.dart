@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 
-import '../../data/services/bulk_operation_service.dart';
 import '../providers/bulk_operation_provider.dart';
 
 /// Bulk operation progress dialog
@@ -42,6 +41,8 @@ class BulkProgressDialog extends ConsumerStatefulWidget {
 }
 
 class _BulkProgressDialogState extends ConsumerState<BulkProgressDialog> {
+  bool _closeScheduled = false;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -51,13 +52,16 @@ class _BulkProgressDialogState extends ConsumerState<BulkProgressDialog> {
     final operationState = ref.watch(bulkOperationNotifierProvider);
     final state = operationState;
 
-    // Auto-close when operation completes successfully
-    if (state.isCompleted && !state.isOperationInProgress) {
-      // Close dialog after a short delay to show completion
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          Navigator.of(context).pop(true);
-        }
+    final completedWithoutFailures =
+        state.isCompleted &&
+        !state.isOperationInProgress &&
+        !state.hasError &&
+        (state.lastResult?.failed ?? 0) == 0;
+    if (completedWithoutFailures && !_closeScheduled) {
+      _closeScheduled = true;
+      final navigator = Navigator.of(context);
+      Future<void>.delayed(const Duration(milliseconds: 600), () {
+        if (mounted && navigator.mounted) navigator.pop(true);
       });
     }
 
@@ -208,9 +212,10 @@ class _BulkProgressDialogState extends ConsumerState<BulkProgressDialog> {
       ),
       actions: [
         if (state.isOperationInProgress)
-          TextButton(
-            onPressed: () => _handleCancel(context),
-            child: Text(l10n.common_cancel),
+          TextButton.icon(
+            onPressed: () => _hideWhileRunning(context),
+            icon: const Icon(Icons.keyboard_arrow_down),
+            label: Text(l10n.bulkProgress_continueInBackground),
           )
         else if (state.hasError || state.isCompleted)
           FilledButton(
@@ -222,7 +227,7 @@ class _BulkProgressDialogState extends ConsumerState<BulkProgressDialog> {
   }
 
   /// Build result statistics widget
-  Widget _buildResultStats(BuildContext context, BulkOperationResult result) {
+  Widget _buildResultStats(BuildContext context, BulkOperationSummary result) {
     final theme = Theme.of(context);
     final l10n = context.l10n;
 
@@ -367,8 +372,7 @@ class _BulkProgressDialogState extends ConsumerState<BulkProgressDialog> {
     return l10n.bulkProgress_completed(0);
   }
 
-  /// Handle cancel operation
-  void _handleCancel(BuildContext context) {
+  void _hideWhileRunning(BuildContext context) {
     Navigator.of(context).pop(false);
   }
 }

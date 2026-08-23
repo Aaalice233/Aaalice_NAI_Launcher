@@ -493,8 +493,9 @@ class ImageShareSanitizer {
       throw const ImageSanitizeException('Image bytes could not be decoded');
     }
 
+    final oriented = img.bakeOrientation(decoded);
     return SanitizedShareImage(
-      bytes: Uint8List.fromList(img.encodePng(_clearStealthAlphaLsb(decoded))),
+      bytes: Uint8List.fromList(img.encodePng(_clearStealthAlphaLsb(oriented))),
       fileName: p.setExtension(p.basename(fileName), '.png'),
       mimeType: 'image/png',
     );
@@ -621,7 +622,7 @@ class ImageShareSanitizer {
       );
     }
     return SanitizedShareImage(
-      bytes: Uint8List.fromList(img.encodePng(decoded)),
+      bytes: Uint8List.fromList(img.encodePng(img.bakeOrientation(decoded))),
       fileName: p.setExtension(p.basename(fileName), '.png'),
       mimeType: 'image/png',
     );

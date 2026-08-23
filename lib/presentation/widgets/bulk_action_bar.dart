@@ -62,7 +62,12 @@ class BulkActionBar extends StatelessWidget {
       child: BackdropFilter(
         filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          padding: const EdgeInsets.only(
+            left: 16,
+            top: 10,
+            right: 8,
+            bottom: 10,
+          ),
           decoration: BoxDecoration(
             color: isDark
                 ? theme.colorScheme.surface.withValues(alpha: 0.9)
@@ -77,7 +82,8 @@ class BulkActionBar extends StatelessWidget {
           ),
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final compactActions = constraints.maxWidth < 900;
+              final showSelectionLabels = constraints.maxWidth >= 1180;
+              final compactActions = constraints.maxWidth < 1180;
 
               return Row(
                 children: [
@@ -91,7 +97,8 @@ class BulkActionBar extends StatelessWidget {
                   const SizedBox(width: 12),
 
                   // 选中数量徽章
-                  Flexible(
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 180),
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 12,
@@ -118,54 +125,69 @@ class BulkActionBar extends StatelessWidget {
 
                   // 全选/取消全选按钮
                   _ActionButton(
-                    icon: isAllSelected ? Icons.deselect : Icons.select_all,
+                    icon: isAllSelected
+                        ? Icons.indeterminate_check_box_outlined
+                        : Icons.check_box_outlined,
                     label: isAllSelected
                         ? deselectAllLabel ?? l10n.common_deselectAll
                         : selectAllLabel ?? l10n.common_selectAll,
                     onPressed: onSelectAll,
-                    compact: true,
+                    compact: !showSelectionLabels,
+                    isActive: isAllSelected,
                   ),
                   if (onSelectAllAvailable != null) ...[
                     const SizedBox(width: 8),
                     _ActionButton(
                       icon: isAllAvailableSelected
-                          ? Icons.deselect
-                          : Icons.library_add_check_outlined,
+                          ? Icons.remove_done
+                          : Icons.done_all,
                       label: isAllAvailableSelected
                           ? deselectAllAvailableLabel ?? l10n.common_deselectAll
                           : selectAllAvailableLabel ?? l10n.common_selectAll,
                       onPressed: onSelectAllAvailable,
-                      compact: true,
+                      compact: !showSelectionLabels,
+                      isActive: isAllAvailableSelected,
                     ),
                   ],
 
-                  const Spacer(),
+                  const SizedBox(width: 12),
 
-                  // 操作按钮组
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      for (int i = 0; i < actions.length; i++) ...[
-                        if (i > 0 && actions[i].showDividerBefore) ...[
-                          const SizedBox(width: 16),
-                          Container(
-                            width: 1,
-                            height: 28,
-                            color: theme.dividerColor.withValues(alpha: 0.3),
-                          ),
-                          const SizedBox(width: 16),
-                        ] else if (i > 0)
-                          const SizedBox(width: 8),
-                        _ActionButton(
-                          icon: actions[i].icon,
-                          label: actions[i].label,
-                          onPressed: hasSelection ? actions[i].onPressed : null,
-                          color: actions[i].color,
-                          isDanger: actions[i].isDanger,
-                          compact: compactActions,
-                        ),
-                      ],
-                    ],
+                  // Expanded + Align makes the action group meet the trailing
+                  // edge instead of inheriting spare space from the left group.
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          for (int i = 0; i < actions.length; i++) ...[
+                            if (i > 0 && actions[i].showDividerBefore) ...[
+                              const SizedBox(width: 12),
+                              Container(
+                                width: 1,
+                                height: 28,
+                                color: theme.dividerColor.withValues(
+                                  alpha: 0.3,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                            ] else if (i > 0)
+                              const SizedBox(width: 6),
+                            _ActionButton(
+                              icon: actions[i].icon,
+                              label: actions[i].label,
+                              onPressed: hasSelection
+                                  ? actions[i].onPressed
+                                  : null,
+                              color: actions[i].color,
+                              isDanger: actions[i].isDanger,
+                              compact: compactActions,
+                              prominent: true,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
                   ),
                 ],
               );
@@ -202,13 +224,15 @@ class BulkActionItem {
 
 /// Action button with icon and optional label
 /// 带图标和可选标签的操作按钮
-class _ActionButton extends StatefulWidget {
+class _ActionButton extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback? onPressed;
   final Color? color;
   final bool isDanger;
   final bool compact;
+  final bool prominent;
+  final bool isActive;
 
   const _ActionButton({
     required this.icon,
@@ -217,75 +241,96 @@ class _ActionButton extends StatefulWidget {
     this.color,
     this.isDanger = false,
     this.compact = false,
+    this.prominent = false,
+    this.isActive = false,
   });
-
-  @override
-  State<_ActionButton> createState() => _ActionButtonState();
-}
-
-class _ActionButtonState extends State<_ActionButton> {
-  bool _isHovered = false;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final isEnabled = widget.onPressed != null;
-    final effectiveColor = widget.color ?? theme.colorScheme.onSurface;
-    final displayColor = isEnabled
-        ? effectiveColor
-        : effectiveColor.withValues(alpha: 0.4);
+    final colorScheme = theme.colorScheme;
+    final accentColor = color ?? colorScheme.primary;
 
-    return MouseRegion(
-      onEnter: isEnabled ? (_) => setState(() => _isHovered = true) : null,
-      onExit: isEnabled ? (_) => setState(() => _isHovered = false) : null,
-      cursor: isEnabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
-      child: Tooltip(
-        message: widget.label,
-        child: GestureDetector(
-          onTap: widget.onPressed,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
-            curve: Curves.easeOut,
-            padding: EdgeInsets.symmetric(
-              horizontal: widget.compact ? 10 : 12,
-              vertical: 8,
+    Color foreground(Set<WidgetState> states) {
+      if (states.contains(WidgetState.disabled)) {
+        return colorScheme.onSurface.withValues(alpha: 0.38);
+      }
+      if (isDanger) return colorScheme.onErrorContainer;
+      if (isActive) return colorScheme.onPrimaryContainer;
+      return colorScheme.onSurface;
+    }
+
+    Color background(Set<WidgetState> states) {
+      if (states.contains(WidgetState.disabled)) {
+        return prominent
+            ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.35)
+            : Colors.transparent;
+      }
+      if (isDanger) {
+        return colorScheme.errorContainer.withValues(
+          alpha: states.contains(WidgetState.hovered) ? 1 : 0.72,
+        );
+      }
+      if (isActive) {
+        return colorScheme.primaryContainer.withValues(
+          alpha: states.contains(WidgetState.hovered) ? 1 : 0.82,
+        );
+      }
+      if (prominent) {
+        return states.contains(WidgetState.hovered)
+            ? colorScheme.surfaceContainerHigh
+            : colorScheme.surfaceContainerHighest.withValues(alpha: 0.72);
+      }
+      return states.contains(WidgetState.hovered)
+          ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.72)
+          : Colors.transparent;
+    }
+
+    final style = ButtonStyle(
+      minimumSize: const WidgetStatePropertyAll(Size(40, 40)),
+      padding: WidgetStatePropertyAll(
+        EdgeInsets.symmetric(horizontal: compact ? 10 : 12, vertical: 8),
+      ),
+      foregroundColor: WidgetStateProperty.resolveWith(foreground),
+      backgroundColor: WidgetStateProperty.resolveWith(background),
+      overlayColor: WidgetStatePropertyAll(
+        accentColor.withValues(alpha: isDanger ? 0.10 : 0.08),
+      ),
+      shape: WidgetStatePropertyAll(
+        RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+      side: WidgetStateProperty.resolveWith((states) {
+        if (!prominent && !isActive && !isDanger) {
+          return BorderSide.none;
+        }
+        final sideColor = isDanger
+            ? colorScheme.error.withValues(alpha: 0.24)
+            : isActive
+            ? colorScheme.primary.withValues(alpha: 0.24)
+            : colorScheme.outlineVariant.withValues(alpha: 0.48);
+        return BorderSide(color: sideColor);
+      }),
+      textStyle: WidgetStatePropertyAll(
+        theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w600),
+      ),
+      visualDensity: VisualDensity.standard,
+    );
+
+    return Tooltip(
+      message: label,
+      child: TextButton(
+        onPressed: onPressed,
+        style: style,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 18,
+              color: isDanger || isActive ? null : accentColor,
             ),
-            decoration: BoxDecoration(
-              color: _isHovered
-                  ? (widget.isDanger
-                        ? effectiveColor.withValues(alpha: isDark ? 0.2 : 0.12)
-                        : effectiveColor.withValues(
-                            alpha: isDark ? 0.15 : 0.08,
-                          ))
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(8),
-              border: _isHovered
-                  ? Border.all(
-                      color: effectiveColor.withValues(alpha: 0.3),
-                      width: 1,
-                    )
-                  : Border.all(color: Colors.transparent, width: 1),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(widget.icon, size: 18, color: displayColor),
-                if (!widget.compact) ...[
-                  const SizedBox(width: 6),
-                  Text(
-                    widget.label,
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      color: displayColor,
-                      fontWeight: _isHovered
-                          ? FontWeight.w600
-                          : FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
+            if (!compact) ...[const SizedBox(width: 7), Text(label)],
+          ],
         ),
       ),
     );
