@@ -35,6 +35,7 @@ class _AccountSettingsSectionState
         child: AccountDetailTile(
           onEdit: () => _showProfileSheet(context),
           onLogin: () => _navigateToLogin(context),
+          onLogout: _logout,
         ),
       ),
     );
@@ -67,5 +68,9 @@ class _AccountSettingsSectionState
   /// 导航到登录页面
   void _navigateToLogin(BuildContext context) {
     context.push(AppRoutes.login);
+  }
+
+  Future<void> _logout() async {
+    await ref.read(authNotifierProvider.notifier).logout();
   }
 }

@@ -19,10 +19,14 @@ class AccountDetailTile extends ConsumerWidget {
   /// 登录按钮点击回调（未登录状态）
   final VoidCallback? onLogin;
 
+  /// 退出登录按钮点击回调（已登录状态）
+  final VoidCallback? onLogout;
+
   const AccountDetailTile({
     super.key,
     this.onEdit,
     this.onLogin,
+    this.onLogout,
   });
 
   @override
@@ -113,6 +117,22 @@ class AccountDetailTile extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
+                if (onLogout != null) ...[
+                  TextButton.icon(
+                    key: const Key('account-settings-logout-button'),
+                    onPressed: onLogout,
+                    icon: const Icon(Icons.logout, size: 18),
+                    label: Text(context.l10n.auth_logout),
+                    style: TextButton.styleFrom(
+                      foregroundColor: theme.colorScheme.error,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                ],
                 // 编辑箭头
                 Icon(
                   Icons.chevron_right_rounded,
