@@ -616,7 +616,7 @@
   "img2img_focusedInpaintEnabledHint": "Enabled. Adjust the focus area and Minimum Context Area from the top-left control in the inpaint editor.",
   "img2img_focusedInpaintDisabledHint": "Regular inpaint is the default. To use Focused Inpaint, enable it from the top-left control in the inpaint editor and draw a focus area.",
   "img2img_disabled": "Disabled",
-  "img2img_novelAiCloudUpscale": "NovelAI cloud upscale (fixed 4x)",
+  "img2img_novelAiCloudUpscale": "NovelAI cloud upscale (fixed 2x)",
   "img2img_comfyuiEnableHint": "Enable and connect ComfyUI in Settings > ComfyUI first.",
   "img2img_upscaleMode": "Upscale Mode",
   "img2img_upscaleRegularModel": "Regular Model",

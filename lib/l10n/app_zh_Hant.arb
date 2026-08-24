@@ -535,7 +535,7 @@
   "img2img_focusedInpaintEnabledHint": "已啟用。請在重繪編輯器左上角按鈕裡調整聚焦區域與 Minimum Context Area。",
   "img2img_focusedInpaintDisabledHint": "預設是普通重繪；如需聚焦重繪，請在重繪編輯器左上角按鈕中開啟並框選區域。",
   "img2img_disabled": "未啟用",
-  "img2img_novelAiCloudUpscale": "NovelAI 雲端超分 (固定 4x 放大)",
+  "img2img_novelAiCloudUpscale": "NovelAI 雲端超分 (固定 2x 放大)",
   "img2img_comfyuiEnableHint": "請先在「設定 > ComfyUI」中啟用並連線伺服器。",
   "img2img_upscaleMode": "放大方式",
   "img2img_upscaleRegularModel": "普通模型",

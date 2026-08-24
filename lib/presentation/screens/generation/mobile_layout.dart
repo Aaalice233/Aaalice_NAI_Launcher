@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/localization_extension.dart';
+import '../../providers/generation/image_workflow_controller.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/krita/krita_bridge_notifier.dart';
 import '../../providers/prompt_maximize_provider.dart';
@@ -42,6 +43,9 @@ class _MobileGenerationLayoutState
     final isGenerating =
         isLauncherGenerating || kritaBridgeState.isBridgeGenerating;
     final showRandomTools = ref.watch(randomPromptToolsVisibilityProvider);
+    final isUpscaleMode = ref.watch(
+      imageWorkflowControllerProvider.select((workflow) => workflow.isUpscale),
+    );
 
     return ThemedScaffold(
       // 使用 GlobalKey 来控制 Drawer
@@ -165,6 +169,7 @@ class _MobileGenerationLayoutState
                   onSkipCurrent: () => ref
                       .read(imageGenerationNotifierProvider.notifier)
                       .skipCurrentRequest(),
+                  showCost: !isUpscaleMode,
                 ),
               ),
             ],
@@ -254,6 +259,7 @@ class _MobileGenerateButton extends ConsumerWidget {
   final VoidCallback onGenerate;
   final VoidCallback onCancel;
   final VoidCallback onSkipCurrent;
+  final bool showCost;
 
   const _MobileGenerateButton({
     required this.isGenerating,
@@ -263,6 +269,7 @@ class _MobileGenerateButton extends ConsumerWidget {
     required this.onGenerate,
     required this.onCancel,
     required this.onSkipCurrent,
+    this.showCost = true,
   });
 
   bool get _canSkipCurrentBatch =>
@@ -322,7 +329,7 @@ class _MobileGenerateButton extends ConsumerWidget {
                         )
                       : context.l10n.generation_generate,
                 ),
-                AnlasCostBadge(isGenerating: isLoading),
+                if (showCost) AnlasCostBadge(isGenerating: isLoading),
               ],
             ),
             Row(

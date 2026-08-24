@@ -607,7 +607,7 @@
   "img2img_focusedInpaintEnabledHint": "有効になりました。インペイント エディターの左上のコントロールからフォーカス エリアと最小コンテキスト エリアを調整します。",
   "img2img_focusedInpaintDisabledHint": "通常のインペイントがデフォルトです。Focused インペイントを使うには、インペイントエディター左上のコントロールから有効にし、フォーカスエリアを描画します。",
   "img2img_disabled": "無効",
-  "img2img_novelAiCloudUpscale": "NovelAI クラウド拡大 (4x 固定)",
+  "img2img_novelAiCloudUpscale": "NovelAI クラウド拡大 (2x 固定)",
   "img2img_comfyuiEnableHint": "まず、[設定] > [ComfyUI] で ComfyUI を有効にして接続します。",
   "img2img_upscaleMode": "拡大モード",
   "img2img_upscaleRegularModel": "レギュラーモデル",

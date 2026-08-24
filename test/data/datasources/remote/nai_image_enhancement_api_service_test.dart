@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
@@ -19,7 +20,7 @@ void main() {
       final dio = _MockDio();
       final sourceImage = _buildPng(width: 48, height: 32);
       final zipBytes = _buildZipWithSingleImage(sourceImage);
-      Map<String, dynamic>? capturedData;
+      FormData? capturedData;
       String? capturedUrl;
 
       when(
@@ -31,9 +32,7 @@ void main() {
         ),
       ).thenAnswer((invocation) async {
         capturedUrl = invocation.positionalArguments.first as String;
-        capturedData = Map<String, dynamic>.from(
-          invocation.namedArguments[#data] as Map,
-        );
+        capturedData = invocation.namedArguments[#data] as FormData;
         return Response<dynamic>(
           data: zipBytes,
           requestOptions: RequestOptions(path: '/ai/upscale'),
@@ -43,60 +42,78 @@ void main() {
       final service = NAIImageEnhancementApiService(dio);
       final result = await service.upscaleImage(sourceImage, scale: 2);
 
-      // V5 上线后的换代接口：{image, model, declared_blur_sigma} 发图像域。
+      final parts = {
+        for (final entry in capturedData!.files) entry.key: entry.value,
+      };
+      final request =
+          jsonDecode(utf8.decode(await _readMultipartFile(parts['request']!)))
+              as Map<String, dynamic>;
+
       expect(result, isNotEmpty);
       expect(capturedUrl, contains('image.novelai.net'));
-      expect(capturedData?['model'], equals('nai-diffusion-5-curated'));
-      expect(capturedData?['declared_blur_sigma'], equals(0));
-      expect(capturedData?.containsKey('scale'), isFalse);
-      expect(capturedData?.containsKey('width'), isFalse);
+      expect(parts.keys, unorderedEquals(['image', 'request']));
+      expect(parts['image']!.filename, 'blob');
+      expect(parts['image']!.contentType.toString(), 'image/png');
+      expect(await _readMultipartFile(parts['image']!), sourceImage);
+      expect(parts['request']!.filename, 'blob');
+      expect(parts['request']!.contentType.toString(), 'application/json');
+      expect(request['image'], equals('image'));
+      expect(request['model'], equals('nai-diffusion-5-curated'));
+      expect(request['declared_blur_sigma'], equals(0));
+      expect(request.containsKey('scale'), isFalse);
+      expect(request.containsKey('width'), isFalse);
     });
 
-    test('upscaleImage should fall back to the legacy body on 422', () async {
-      final dio = _MockDio();
-      final sourceImage = _buildPng(width: 48, height: 32);
-      final zipBytes = _buildZipWithSingleImage(sourceImage);
-      final capturedBodies = <Map<String, dynamic>>[];
-      final capturedUrls = <String>[];
+    test(
+      'upscaleImage should fall back with a 2x legacy body on 422',
+      () async {
+        final dio = _MockDio();
+        final sourceImage = _buildPng(width: 48, height: 32);
+        final zipBytes = _buildZipWithSingleImage(sourceImage);
+        final capturedBodies = <Object?>[];
+        final capturedUrls = <String>[];
 
-      when(
-        () => dio.post<dynamic>(
-          any(),
-          data: any(named: 'data'),
-          options: any(named: 'options'),
-          onReceiveProgress: any(named: 'onReceiveProgress'),
-        ),
-      ).thenAnswer((invocation) async {
-        capturedUrls.add(invocation.positionalArguments.first as String);
-        capturedBodies.add(
-          Map<String, dynamic>.from(invocation.namedArguments[#data] as Map),
-        );
-        if (capturedBodies.length == 1) {
-          throw DioException(
-            requestOptions: RequestOptions(path: '/ai/upscale'),
-            response: Response<dynamic>(
-              statusCode: 422,
+        when(
+          () => dio.post<dynamic>(
+            any(),
+            data: any(named: 'data'),
+            options: any(named: 'options'),
+            onReceiveProgress: any(named: 'onReceiveProgress'),
+          ),
+        ).thenAnswer((invocation) async {
+          capturedUrls.add(invocation.positionalArguments.first as String);
+          capturedBodies.add(invocation.namedArguments[#data]);
+          if (capturedBodies.length == 1) {
+            throw DioException(
               requestOptions: RequestOptions(path: '/ai/upscale'),
-            ),
-            type: DioExceptionType.badResponse,
+              response: Response<dynamic>(
+                statusCode: 422,
+                requestOptions: RequestOptions(path: '/ai/upscale'),
+              ),
+              type: DioExceptionType.badResponse,
+            );
+          }
+          return Response<dynamic>(
+            data: zipBytes,
+            requestOptions: RequestOptions(path: '/ai/upscale'),
           );
-        }
-        return Response<dynamic>(
-          data: zipBytes,
-          requestOptions: RequestOptions(path: '/ai/upscale'),
+        });
+
+        final service = NAIImageEnhancementApiService(dio);
+        final result = await service.upscaleImage(sourceImage);
+
+        expect(result, isNotEmpty);
+        expect(capturedBodies, hasLength(2));
+        expect(capturedBodies.first, isA<FormData>());
+        final legacyBody = Map<String, dynamic>.from(
+          capturedBodies.last! as Map,
         );
-      });
-
-      final service = NAIImageEnhancementApiService(dio);
-      final result = await service.upscaleImage(sourceImage, scale: 2);
-
-      expect(result, isNotEmpty);
-      expect(capturedBodies, hasLength(2));
-      expect(capturedBodies.last['scale'], equals(2));
-      expect(capturedBodies.last['width'], equals(48));
-      expect(capturedBodies.last['height'], equals(32));
-      expect(capturedUrls.last, contains('api.novelai.net'));
-    });
+        expect(legacyBody['scale'], equals(2));
+        expect(legacyBody['width'], equals(48));
+        expect(legacyBody['height'], equals(32));
+        expect(capturedUrls.last, contains('api.novelai.net'));
+      },
+    );
 
     test('upscaleImage should not retry on billing errors', () async {
       final dio = _MockDio();
@@ -213,4 +230,12 @@ Uint8List _buildZipWithSingleImage(Uint8List imageBytes) {
     ..addFile(ArchiveFile('result.png', imageBytes.length, imageBytes));
   final encoded = ZipEncoder().encode(archive);
   return Uint8List.fromList(encoded!);
+}
+
+Future<Uint8List> _readMultipartFile(MultipartFile file) async {
+  final builder = BytesBuilder(copy: false);
+  await for (final chunk in file.finalize()) {
+    builder.add(chunk);
+  }
+  return builder.takeBytes();
 }

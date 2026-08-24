@@ -2612,7 +2612,7 @@ abstract class AppLocalizations {
   /// No description provided for @img2img_novelAiCloudUpscale.
   ///
   /// In en, this message translates to:
-  /// **'NovelAI cloud upscale (fixed 4x)'**
+  /// **'NovelAI cloud upscale (fixed 2x)'**
   String get img2img_novelAiCloudUpscale;
 
   /// No description provided for @img2img_comfyuiEnableHint.

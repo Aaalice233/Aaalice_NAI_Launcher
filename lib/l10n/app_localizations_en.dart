@@ -1397,7 +1397,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get img2img_disabled => 'Disabled';
 
   @override
-  String get img2img_novelAiCloudUpscale => 'NovelAI cloud upscale (fixed 4x)';
+  String get img2img_novelAiCloudUpscale => 'NovelAI cloud upscale (fixed 2x)';
 
   @override
   String get img2img_comfyuiEnableHint =>

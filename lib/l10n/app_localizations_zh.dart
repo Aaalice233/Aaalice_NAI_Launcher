@@ -1347,7 +1347,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get img2img_disabled => '未启用';
 
   @override
-  String get img2img_novelAiCloudUpscale => 'NovelAI 云端超分 (固定 4x 放大)';
+  String get img2img_novelAiCloudUpscale => 'NovelAI 云端超分 (固定 2x 放大)';
 
   @override
   String get img2img_comfyuiEnableHint => '请先在「设置 > ComfyUI」中启用并连接服务器。';
@@ -13233,7 +13233,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get img2img_disabled => '未啟用';
 
   @override
-  String get img2img_novelAiCloudUpscale => 'NovelAI 雲端超分 (固定 4x 放大)';
+  String get img2img_novelAiCloudUpscale => 'NovelAI 雲端超分 (固定 2x 放大)';
 
   @override
   String get img2img_comfyuiEnableHint => '請先在「設定 > ComfyUI」中啟用並連線伺服器。';

@@ -15,20 +15,20 @@ import '../../../../core/constants/api_constants.dart';
 import '../../../../core/utils/focused_inpaint_utils.dart';
 import '../../../../core/utils/app_logger.dart';
 import '../../../../core/utils/localization_extension.dart';
-import '../../../../data/datasources/remote/nai_image_enhancement_api_service.dart';
 import '../../../../data/models/image/image_params.dart';
 import '../../../../data/services/precise_ref_library_storage_service.dart';
 import '../../../providers/comfyui/comfyui_provider.dart';
 import '../../../providers/cost_estimate_provider.dart';
 import '../../../providers/generation/generation_params_selectors.dart';
+import '../../../providers/generation/novel_ai_upscale_task_provider.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/image_save_settings_provider.dart';
 import '../../../providers/generation/image_workflow_controller.dart';
 import '../../../providers/precise_ref_library_provider.dart';
-import '../../../providers/subscription_provider.dart';
 import '../../../services/image_workflow_launcher.dart';
 import '../../../utils/comfyui_workflow_l10n.dart';
 import '../../../utils/precise_ref_library_import_helper.dart';
+import '../../../widgets/common/anlas_cost_badge.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/collapsible_image_panel.dart';
 import '../../../widgets/common/decoded_memory_image.dart';
@@ -99,10 +99,21 @@ class Img2ImgPanel extends ConsumerStatefulWidget {
 class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
   static const String _upscaleLogTag = 'Img2Img-Upscale';
 
-  bool _naiUpscaling = false;
-
   @override
   Widget build(BuildContext context) {
+    ref.listen<NovelAiUpscaleTaskState>(novelAiUpscaleTaskProvider, (
+      previous,
+      next,
+    ) {
+      if (previous?.isRunning != true) return;
+      if (next.status == NovelAiUpscaleTaskStatus.completed) {
+        AppToast.success(context, context.l10n.img2img_novelAiUpscaleComplete);
+      } else if (next.status == NovelAiUpscaleTaskStatus.failed) {
+        final errorMessage = next.errorMessage;
+        if (errorMessage != null) AppToast.error(context, errorMessage);
+      }
+    });
+
     final theme = Theme.of(context);
     final params = ref.watch(
       generationParamsNotifierProvider.select(selectImg2ImgPanelViewData),
@@ -760,6 +771,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
     );
     final taskState = ref.watch(comfyUITaskProvider);
     final taskError = taskState.localizedError(context.l10n);
+    final naiTaskState = ref.watch(novelAiUpscaleTaskProvider);
     final hasSourceImage = ref.watch(
       generationParamsNotifierProvider.select(
         (params) => params.sourceImage != null,
@@ -814,7 +826,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
 
     final bool canStart;
     if (isNai) {
-      canStart = hasSourceImage && !_naiUpscaling;
+      canStart = hasSourceImage && !naiTaskState.isRunning;
     } else {
       final hasRequiredComfyModel = isComfyRtx || resolvedComfyModel != null;
       canStart =
@@ -1045,15 +1057,35 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
                 ),
             ],
           ],
-          if (_naiUpscaling) ...[
+          if (naiTaskState.isRunning) ...[
             const SizedBox(height: 8),
             const LinearProgressIndicator(),
+          ] else if (isNai &&
+              naiTaskState.status == NovelAiUpscaleTaskStatus.failed &&
+              naiTaskState.errorMessage != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              naiTaskState.errorMessage!,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.error,
+              ),
+            ),
           ],
           const SizedBox(height: 8),
           FilledButton.icon(
             onPressed: canStart ? _runUpscale : null,
             icon: const Icon(Icons.play_arrow, size: 20),
-            label: Text(context.l10n.img2img_startUpscale),
+            label: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(context.l10n.img2img_startUpscale),
+                if (isNai)
+                  AnlasCostBadge(
+                    key: const ValueKey('upscale_anlas_cost_badge'),
+                    isGenerating: naiTaskState.isRunning,
+                  ),
+              ],
+            ),
           ),
         ],
       ),
@@ -1519,49 +1551,9 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
   }
 
   Future<void> _runNaiUpscale(ImageParams params, Uint8List src) async {
-    AppLogger.i(
-      'NovelAI upscale begin: ${_sourceLogSummary(params, src)}',
-      _upscaleLogTag,
-    );
-    final subscriptionNotifier = ref.read(
-      subscriptionNotifierProvider.notifier,
-    );
-    setState(() => _naiUpscaling = true);
-    try {
-      final apiService = ref.read(naiImageEnhancementApiServiceProvider);
-      AppLogger.d('NovelAI upscale API request start', _upscaleLogTag);
-      final result = await apiService.upscaleImage(src, scale: 4);
-      AppLogger.i(
-        'NovelAI upscale API returned: bytes=${result.length}',
-        _upscaleLogTag,
-      );
-      if (!mounted) return;
-
-      final saveSettings = ref.read(imageSaveSettingsNotifierProvider);
-      AppLogger.d(
-        'Registering NovelAI upscale result: autoSave=${saveSettings.autoSave}',
-        _upscaleLogTag,
-      );
-      await ref
-          .read(imageGenerationNotifierProvider.notifier)
-          .registerExternalImage(
-            result,
-            params: params,
-            saveToLocal: saveSettings.autoSave,
-            replaceCurrentDisplay: true,
-          );
-      AppLogger.i('NovelAI upscale result registered', _upscaleLogTag);
-      if (mounted) {
-        AppToast.success(context, context.l10n.img2img_novelAiUpscaleComplete);
-      }
-    } catch (e) {
-      AppLogger.w('NovelAI upscale failed: $e', _upscaleLogTag);
-      if (mounted) AppToast.error(context, e.toString());
-    } finally {
-      subscriptionNotifier.schedulePostBillingRefresh();
-      AppLogger.d('NovelAI upscale end', _upscaleLogTag);
-      if (mounted) setState(() => _naiUpscaling = false);
-    }
+    await ref
+        .read(novelAiUpscaleTaskProvider.notifier)
+        .execute(params: params, sourceImage: src);
   }
 
   Future<void> _runComfySeedvr2Upscale(
