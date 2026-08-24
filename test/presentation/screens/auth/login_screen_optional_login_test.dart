@@ -33,9 +33,7 @@ class _TestAuthModeNotifier extends AuthModeNotifier {
   AuthModeState build() => const AuthModeState();
 
   @override
-  void reset() {
-    state = const AuthModeState();
-  }
+  void reset() {}
 }
 
 Widget _buildApp(GoRouter router) {
