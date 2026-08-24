@@ -283,9 +283,61 @@ void main() {
     );
   });
 
-  group('GelbooruGallerySourceAdapter random', () {
+  group('GelbooruGallerySourceAdapter', () {
+    test('public HTML pagination uses Gelbooru fixed 42-item pages', () async {
+      final http = _RecordingHttpAdapter((request) {
+        final offset = request.queryParameters['pid'] as int;
+        final itemCount = offset < 84 ? 42 : 41;
+        return _RecordedResponse(
+          List.generate(itemCount, (index) {
+            final id = 100000 + offset + index;
+            return '''
+<article class="thumbnail-preview">
+  <a id="p$id" href="https://gelbooru.com/index.php?page=post&amp;s=view&amp;id=$id">
+    <img src="https://img3.gelbooru.com/thumb/$id.jpg" title="solo score:1 rating:general" />
+  </a>
+</article>
+''';
+          }).join(),
+          statusCode: 200,
+          raw: true,
+        );
+      });
+      final dio = Dio()..httpClientAdapter = http;
+      final adapter = GelbooruGallerySourceAdapter(
+        dio: dio,
+        apiService: GelbooruApiService(dio),
+        credentials: () async => null,
+        markCredentialsInvalid: () {},
+      );
+
+      final first = await adapter.search(
+        const GallerySearchRequest(cursor: '1', pageSize: 60),
+      );
+      final second = await adapter.search(
+        const GallerySearchRequest(cursor: '2', pageSize: 60),
+      );
+      final last = await adapter.search(
+        const GallerySearchRequest(cursor: '3', pageSize: 60),
+      );
+
+      expect(http.requests.map((request) => request.queryParameters['pid']), [
+        0,
+        42,
+        84,
+      ]);
+      expect(first.items, hasLength(42));
+      expect(first.hasMore, isTrue);
+      expect(first.nextCursor, '2');
+      expect(second.hasMore, isTrue);
+      expect(second.nextCursor, '3');
+      expect(last.items, hasLength(41));
+      expect(last.hasMore, isFalse);
+      expect(last.nextCursor, isNull);
+    });
+
     test(
-      'search and favorites use native sort:random without caching',
+      'random search and favorites use native sort:random without caching',
       () async {
         final http = _RecordingHttpAdapter((request) {
           expect(request.queryParameters['tags'], contains('sort:random'));
@@ -615,10 +667,15 @@ Map<String, Object?> _aiImage(String fileName) => {
 };
 
 class _RecordedResponse {
-  const _RecordedResponse(this.data, {required this.statusCode});
+  const _RecordedResponse(
+    this.data, {
+    required this.statusCode,
+    this.raw = false,
+  });
 
   final Object? data;
   final int statusCode;
+  final bool raw;
 }
 
 class _RecordingHttpAdapter implements HttpClientAdapter {
@@ -639,10 +696,12 @@ class _RecordingHttpAdapter implements HttpClientAdapter {
         ? value
         : _RecordedResponse(value, statusCode: 200);
     return ResponseBody.fromString(
-      jsonEncode(response.data),
+      response.raw ? response.data.toString() : jsonEncode(response.data),
       response.statusCode,
       headers: {
-        Headers.contentTypeHeader: [Headers.jsonContentType],
+        Headers.contentTypeHeader: [
+          response.raw ? Headers.textPlainContentType : Headers.jsonContentType,
+        ],
       },
     );
   }
