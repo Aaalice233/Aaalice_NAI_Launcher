@@ -137,7 +137,8 @@ class GalleryStreamScanner {
 
   final GalleryDataSource _dataSource;
   final ScanStateManager _stateManager = ScanStateManager.instance;
-  final _isolateMetadataService = IsolateMetadataService.instance;
+  final IsolateMetadataService _isolateMetadataService;
+  static const ScanConfig _scanConfig = ScanConfig();
 
   // 状态
   bool _isRunning = false;
@@ -158,7 +159,14 @@ class GalleryStreamScanner {
 
   /// 私有构造函数
   GalleryStreamScanner._internal({required GalleryDataSource dataSource})
-    : _dataSource = dataSource;
+    : _dataSource = dataSource,
+      _isolateMetadataService = IsolateMetadataService.instance;
+
+  GalleryStreamScanner.forTesting({
+    required GalleryDataSource dataSource,
+    required IsolateMetadataService metadataService,
+  }) : _dataSource = dataSource,
+       _isolateMetadataService = metadataService;
 
   /// @deprecated 使用 [instance] 代替
   ///
@@ -532,6 +540,12 @@ class GalleryStreamScanner {
                       'last scanned at $lastScannedAt',
             'GalleryStreamScanner',
           );
+        } else if (metadataStatus == MetadataStatus.transientFailure) {
+          needsUpdate = true;
+          AppLogger.d(
+            '[StreamScan] Retry transient metadata failure: $fileName',
+            'GalleryStreamScanner',
+          );
         } else {
           needsUpdate = false; // 无需处理
         }
@@ -623,6 +637,8 @@ class GalleryStreamScanner {
       final isNewFile = existing == null;
       final metadataStatus = metadata != null && metadata.hasData
           ? MetadataStatus.success
+          : parseResult.retryable
+          ? MetadataStatus.transientFailure
           : MetadataStatus.failed;
 
       final imageId = await _dataSource.upsertImage(
@@ -659,9 +675,7 @@ class GalleryStreamScanner {
         stat.size,
         stat.modified.millisecondsSinceEpoch,
         imageId,
-        metadata != null && metadata.hasData
-            ? MetadataStatus.success
-            : MetadataStatus.failed,
+        metadataStatus,
         DateTime.now(), // 关键：确保 lastScannedAt 被设置
       );
 
@@ -671,10 +685,13 @@ class GalleryStreamScanner {
       // 阶段4: 完成
       return FileProcessingResult(
         path: path,
-        stage: FileProcessingStage.completed,
+        stage: parseResult.retryable
+            ? FileProcessingStage.error
+            : FileProcessingStage.completed,
         metadata: metadata,
         isNewFile: isNewFile,
         metadataUpdated: metadata != null && metadata.hasData,
+        error: parseResult.retryable ? parseResult.error : null,
       );
     } catch (e) {
       AppLogger.w(
@@ -740,23 +757,24 @@ class GalleryStreamScanner {
     Directory rootDir, {
     List<String> priorityPaths = const [],
   }) async* {
-    const supportedExtensions = ['.png', '.jpg', '.jpeg', '.webp'];
     final emittedPaths = <String>{};
+    final rootPath = p.absolute(rootDir.path);
 
     for (final path in priorityPaths) {
       if (_shouldCancel) break;
 
-      final ext = p.extension(path).toLowerCase();
-      if (!supportedExtensions.contains(ext)) {
+      final absolutePath = p.absolute(path);
+      if (!p.isWithin(rootPath, absolutePath) ||
+          !_scanConfig.acceptsGalleryImagePath(absolutePath)) {
         continue;
       }
 
-      final file = File(path);
+      final file = File(absolutePath);
       if (!await file.exists()) {
         continue;
       }
 
-      emittedPaths.add(path);
+      emittedPaths.add(absolutePath);
       yield file;
     }
 
@@ -767,18 +785,10 @@ class GalleryStreamScanner {
       if (_shouldCancel) break;
 
       if (entity is File) {
-        // 跳过缩略图
-        if (entity.path.contains(
-              '${Platform.pathSeparator}.thumbs${Platform.pathSeparator}',
-            ) ||
-            entity.path.contains('.thumb.')) {
-          continue;
-        }
-
-        final ext = p.extension(entity.path).toLowerCase();
-        if (supportedExtensions.contains(ext) &&
-            !emittedPaths.contains(entity.path)) {
-          yield entity;
+        final absolutePath = p.absolute(entity.path);
+        if (_scanConfig.acceptsGalleryImagePath(absolutePath) &&
+            !emittedPaths.contains(absolutePath)) {
+          yield File(absolutePath);
         }
       }
     }
@@ -789,7 +799,6 @@ class GalleryStreamScanner {
   /// 在开始处理前先遍历一遍目录，统计总文件数
   /// 这样可以让用户看到固定的进度（如 0/8751 → 8751/8751）
   Future<int> _countTotalFiles(Directory rootDir) async {
-    const supportedExtensions = ['.png', '.jpg', '.jpeg', '.webp'];
     var count = 0;
 
     await for (final entity in rootDir.list(
@@ -799,16 +808,7 @@ class GalleryStreamScanner {
       if (_shouldCancel) break;
 
       if (entity is File) {
-        // 跳过缩略图
-        if (entity.path.contains(
-              '${Platform.pathSeparator}.thumbs${Platform.pathSeparator}',
-            ) ||
-            entity.path.contains('.thumb.')) {
-          continue;
-        }
-
-        final ext = p.extension(entity.path).toLowerCase();
-        if (supportedExtensions.contains(ext)) {
+        if (_scanConfig.acceptsGalleryImagePath(entity.path)) {
           count++;
         }
       }
@@ -844,7 +844,8 @@ List<String> buildRetryPriorityPaths(
   final candidates =
       existingMap.entries.where((entry) {
         final status = entry.value.$4;
-        return (retryMissingMetadata && status == MetadataStatus.none) ||
+        return status == MetadataStatus.transientFailure ||
+            (retryMissingMetadata && status == MetadataStatus.none) ||
             (retryFailedMetadata && status == MetadataStatus.failed);
       }).toList()..sort((a, b) {
         final aScannedAt = a.value.$5;

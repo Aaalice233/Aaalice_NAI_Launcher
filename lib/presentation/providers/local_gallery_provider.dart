@@ -12,6 +12,7 @@ import '../../data/models/gallery/local_image_record.dart';
 import '../../data/models/gallery/nai_image_metadata.dart';
 import '../../core/database/datasources/gallery_data_source.dart';
 import '../../data/repositories/gallery_folder_repository.dart';
+import '../../data/services/gallery/deferred_scan_work.dart';
 import '../../data/services/gallery/gallery_filter_service.dart';
 import '../../data/services/gallery/gallery_stream_scanner.dart';
 import '../../data/services/gallery/scan_state_manager.dart';
@@ -156,9 +157,23 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
   LocalGalleryState? _cachedState;
   LocalGalleryService? _service;
   int _filterRequestSerial = 0;
+  DeferredScanWork<_AdjacentPagePreloadRequest>? _adjacentPagePreload;
 
   @override
   LocalGalleryState build() {
+    _adjacentPagePreload ??= DeferredScanWork<_AdjacentPagePreloadRequest>(
+      isBlocked: () => ScanStateManager.instance.isScanning,
+      resumeSignals: ScanStateManager.instance.statusStream,
+      run: _runAdjacentPagePreload,
+    );
+    ref.onDispose(() {
+      final preload = _adjacentPagePreload;
+      _adjacentPagePreload = null;
+      if (preload != null) {
+        unawaited(preload.dispose());
+      }
+    });
+
     if (_cachedState != null) return _cachedState!;
 
     // 监听缓存清理事件
@@ -447,38 +462,48 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
     int pageSize,
     int totalPages,
   ) {
-    // Visible thumbnails load on demand. Defer speculative adjacent-page work
-    // while indexing so scanning cannot compete with the UI for CPU and memory.
-    if (ScanStateManager.instance.isScanning) return;
+    _adjacentPagePreload?.schedule(
+      _AdjacentPagePreloadRequest(
+        service: service,
+        page: page,
+        pageSize: pageSize,
+        totalPages: totalPages,
+      ),
+    );
+  }
 
+  Future<void> _runAdjacentPagePreload(
+    _AdjacentPagePreloadRequest request,
+  ) async {
     final pagesToPreload = <int>{
-      if (page + 1 < totalPages) page + 1,
-      if (page > 0) page - 1,
+      if (request.page + 1 < request.totalPages) request.page + 1,
+      if (request.page > 0) request.page - 1,
     };
     if (pagesToPreload.isEmpty) return;
 
-    unawaited(
-      () async {
-        final thumbnailService = ThumbnailService.instance;
-        await thumbnailService.initialize();
+    try {
+      final thumbnailService = ThumbnailService.instance;
+      await thumbnailService.initialize();
 
-        for (final targetPage in pagesToPreload) {
-          final records = await service.getPage(targetPage, pageSize: pageSize);
-          for (final record in records) {
-            thumbnailService.preloadThumbnail(
-              record.path,
-              size: ThumbnailSize.small,
-              priority: ThumbnailPriority.low,
-            );
-          }
-        }
-      }().catchError((Object error, StackTrace stack) {
-        AppLogger.w(
-          'Adjacent thumbnail preload failed: $error',
-          'LocalGalleryNotifier',
+      for (final targetPage in pagesToPreload) {
+        final records = await request.service.getPage(
+          targetPage,
+          pageSize: request.pageSize,
         );
-      }),
-    );
+        for (final record in records) {
+          thumbnailService.preloadThumbnail(
+            record.path,
+            size: ThumbnailSize.small,
+            priority: ThumbnailPriority.low,
+          );
+        }
+      }
+    } catch (error) {
+      AppLogger.w(
+        'Adjacent thumbnail preload failed: $error',
+        'LocalGalleryNotifier',
+      );
+    }
   }
 
   /// 加载下一页
@@ -1218,4 +1243,18 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
 
     return true;
   }
+}
+
+class _AdjacentPagePreloadRequest {
+  const _AdjacentPagePreloadRequest({
+    required this.service,
+    required this.page,
+    required this.pageSize,
+    required this.totalPages,
+  });
+
+  final LocalGalleryService service;
+  final int page;
+  final int pageSize;
+  final int totalPages;
 }

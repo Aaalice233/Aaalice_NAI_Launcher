@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -169,6 +170,7 @@ void main() {
         expect(queuedResult.success, isTrue);
         expect(queuedResult.metadata?.prompt, 'queued-prompt');
         expect(timedOutResults.every((result) => result.wasTimeout), isTrue);
+        expect(timedOutResults.every((result) => result.retryable), isTrue);
         expect(service.getStatistics()['restartedWorkers'], 2);
       },
     );
@@ -194,6 +196,102 @@ void main() {
       expect(result.bytesRead, lessThan(32 * 1024));
     });
 
+    test('bulk mode keeps compressed PNG text formats searchable', () async {
+      final comment = _novelAiComment(prompt: 'compressed-format-prompt');
+      final cases = <String, Uint8List>{
+        'ztxt': _pngWithInsertedChunk(
+          'zTXt',
+          Uint8List.fromList([
+            ...latin1.encode('Comment'),
+            0,
+            0,
+            ...const ZLibCodec().encode(latin1.encode(comment)),
+          ]),
+        ),
+        'compressed_itxt': _pngWithInsertedChunk(
+          'iTXt',
+          Uint8List.fromList([
+            ...latin1.encode('Comment'),
+            0,
+            1,
+            0,
+            0,
+            0,
+            ...const ZLibCodec().encode(utf8.encode(comment)),
+          ]),
+        ),
+      };
+
+      for (final entry in cases.entries) {
+        final file = File('${tempDir.path}/${entry.key}.png');
+        await file.writeAsBytes(entry.value);
+
+        final result = await service.parseMetadata(
+          file.path,
+          config: const IsolateParseConfig(
+            timeout: Duration(seconds: 2),
+            useGradualRead: false,
+            useCache: false,
+            textChunksOnly: true,
+          ),
+        );
+
+        expect(result.success, isTrue, reason: entry.key);
+        expect(result.metadata?.prompt, 'compressed-format-prompt');
+      }
+    });
+
+    test('bulk mode falls back to stealth_pngcomp metadata', () async {
+      final image = img.Image(width: 64, height: 64);
+      final basePng = Uint8List.fromList(img.encodePng(image));
+      final embedded = await UnifiedMetadataParser.embedMetadata(
+        basePng,
+        _novelAiComment(prompt: 'stealth-only-prompt'),
+        useStealth: true,
+      );
+      final file = File('${tempDir.path}/stealth_only.png');
+      await file.writeAsBytes(_withoutPngTextChunks(embedded));
+
+      final result = await service.parseMetadata(
+        file.path,
+        config: const IsolateParseConfig(
+          timeout: Duration(seconds: 2),
+          useGradualRead: false,
+          useCache: false,
+          textChunksOnly: true,
+        ),
+      );
+
+      expect(result.success, isTrue);
+      expect(result.metadata?.prompt, 'stealth-only-prompt');
+    });
+
+    test('coalesces concurrent first initialization', () async {
+      final gate = Completer<void>();
+      var workerInitializations = 0;
+      final concurrentService = IsolateMetadataService.forTesting(
+        workerInitializer: (_, initializeWorker) async {
+          workerInitializations++;
+          if (workerInitializations == 1) {
+            await gate.future;
+          }
+          await initializeWorker();
+        },
+      );
+      addTearDown(concurrentService.dispose);
+
+      final first = concurrentService.initialize();
+      final second = concurrentService.initialize();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(workerInitializations, 1);
+      gate.complete();
+      await Future.wait([first, second]);
+
+      expect(workerInitializations, 2);
+      expect(concurrentService.getStatistics()['workerCount'], 2);
+    });
+
     test('keeps parsing disabled when worker startup fails', () async {
       final unavailableService = IsolateMetadataService.forTesting(
         workerInitializer: (_, _) async {
@@ -215,8 +313,60 @@ void main() {
 
       expect(result.success, isFalse);
       expect(result.error, contains('Metadata worker unavailable'));
+      expect(result.retryable, isTrue);
     });
   });
+}
+
+String _novelAiComment({required String prompt}) {
+  return jsonEncode({
+    'prompt': prompt,
+    'uc': '',
+    'width': 64,
+    'height': 64,
+    'seed': 1,
+    'steps': 28,
+    'scale': 5.0,
+    'sampler': 'k_euler',
+  });
+}
+
+Uint8List _pngWithInsertedChunk(String type, Uint8List data) {
+  final image = img.Image(width: 8, height: 8);
+  final png = Uint8List.fromList(img.encodePng(image));
+  var offset = 8;
+  while (offset + 12 <= png.length) {
+    final length = ByteData.sublistView(png, offset, offset + 4).getUint32(0);
+    final chunkType = latin1.decode(png.sublist(offset + 4, offset + 8));
+    if (chunkType == 'IEND') break;
+    offset += 12 + length;
+  }
+
+  final lengthBytes = ByteData(4)..setUint32(0, data.length);
+  return (BytesBuilder(copy: false)
+        ..add(png.sublist(0, offset))
+        ..add(lengthBytes.buffer.asUint8List())
+        ..add(ascii.encode(type))
+        ..add(data)
+        ..add(Uint8List(4))
+        ..add(png.sublist(offset)))
+      .takeBytes();
+}
+
+Uint8List _withoutPngTextChunks(Uint8List png) {
+  final output = BytesBuilder(copy: false)..add(png.sublist(0, 8));
+  var offset = 8;
+  while (offset + 12 <= png.length) {
+    final length = ByteData.sublistView(png, offset, offset + 4).getUint32(0);
+    final end = offset + 12 + length;
+    if (end > png.length) break;
+    final type = latin1.decode(png.sublist(offset + 4, offset + 8));
+    if (type != 'tEXt' && type != 'zTXt' && type != 'iTXt') {
+      output.add(png.sublist(offset, end));
+    }
+    offset = end;
+  }
+  return output.takeBytes();
 }
 
 String _largeText(String char) => ''.padRight(6 * 1024 * 1024, char);

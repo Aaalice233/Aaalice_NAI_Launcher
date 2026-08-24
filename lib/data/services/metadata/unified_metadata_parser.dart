@@ -17,6 +17,7 @@ class MetadataParseResult {
   final String? errorMessage;
   final Duration? parseTime;
   final int? bytesRead;
+  final bool retryable;
 
   const MetadataParseResult({
     this.success = false,
@@ -27,6 +28,7 @@ class MetadataParseResult {
     this.errorMessage,
     this.parseTime,
     this.bytesRead,
+    this.retryable = false,
   });
 
   factory MetadataParseResult.failed(
@@ -34,6 +36,7 @@ class MetadataParseResult {
     String error, {
     Duration? parseTime,
     int? bytesRead,
+    bool retryable = false,
   }) {
     return MetadataParseResult(
       success: false,
@@ -41,6 +44,7 @@ class MetadataParseResult {
       errorMessage: error,
       parseTime: parseTime,
       bytesRead: bytesRead,
+      retryable: retryable,
     );
   }
 
@@ -232,6 +236,7 @@ class UnifiedMetadataParser {
           [],
           error,
           parseTime: stopwatch.elapsed,
+          retryable: true,
         );
       }
 
@@ -277,6 +282,7 @@ class UnifiedMetadataParser {
         [],
         error,
         parseTime: stopwatch.elapsed,
+        retryable: true,
       );
     } catch (e, stack) {
       final error = 'Unexpected error: $e';
@@ -292,9 +298,10 @@ class UnifiedMetadataParser {
   /// Parse textual PNG metadata without decoding image pixels.
   ///
   /// Gallery indexing uses this bounded-memory path. Image payload chunks are
-  /// skipped with file seeks, and only uncompressed tEXt/iTXt chunks are read
-  /// into memory. Stealth metadata remains available through the explicit
-  /// full parser used by detail and editing flows.
+  /// skipped with file seeks while tEXt, zTXt, and compressed or uncompressed
+  /// iTXt chunks are decoded directly. If textual parsing finds no supported
+  /// metadata, the full parser runs as a compatibility fallback for formats
+  /// such as stealth_pngcomp.
   static MetadataParseResult parseTextChunksFromFile(
     String filePath, {
     int maxTextBytes = 8 * 1024 * 1024,
@@ -310,6 +317,7 @@ class UnifiedMetadataParser {
           const [],
           'File not found: $filePath',
           parseTime: stopwatch.elapsed,
+          retryable: true,
         );
       }
 
@@ -337,6 +345,8 @@ class UnifiedMetadataParser {
       final textData = <String, String>{};
       var bytesRead = signature.length;
       var remainingTextBudget = maxTextBytes;
+      var mayContainStealth = false;
+      var requiresFullFallback = false;
 
       while (raf.positionSync() + 12 <= fileSize) {
         final chunkHeader = _readExactly(raf, 8);
@@ -363,28 +373,40 @@ class UnifiedMetadataParser {
         }
 
         (String, String)? entry;
-        final shouldReadTextChunk =
-            (chunkType == 'tEXt' || chunkType == 'iTXt') &&
-            chunkLength <= remainingTextBudget;
-        if (shouldReadTextChunk) {
+        final isTextChunk =
+            chunkType == 'tEXt' ||
+            chunkType == 'iTXt' ||
+            chunkType == 'zTXt';
+        if (chunkType == 'IHDR' && chunkLength == 13) {
+          final data = _readExactly(raf, chunkLength);
+          bytesRead += data.length;
+          if (data.length == chunkLength) {
+            final colorType = data[9];
+            mayContainStealth = colorType == 4 || colorType == 6;
+          }
+        } else if (isTextChunk && chunkLength <= remainingTextBudget) {
           final data = _readExactly(raf, chunkLength);
           bytesRead += data.length;
           remainingTextBudget -= data.length;
 
           if (data.length == chunkLength) {
-            if (chunkType == 'tEXt') {
-              entry = _decodeTextChunk(data);
-            } else {
-              final keywordEnd = data.indexOf(0);
-              final isUncompressed =
-                  keywordEnd > 0 &&
-                  keywordEnd + 1 < data.length &&
-                  data[keywordEnd + 1] == 0;
-              if (isUncompressed) {
-                entry = _decodeInternationalTextChunk(data);
-              }
+            try {
+              entry = switch (chunkType) {
+                'tEXt' => _decodeTextChunk(data),
+                'iTXt' => _decodeInternationalTextChunk(data),
+                'zTXt' => _decodeCompressedTextChunk(data),
+                _ => null,
+              };
+            } catch (e) {
+              requiresFullFallback = true;
+              PortableLogger.d(
+                'Failed to decode $chunkType metadata chunk: $e',
+                _tag,
+              );
             }
           }
+        } else if (isTextChunk) {
+          requiresFullFallback = true;
         }
 
         if (entry != null) {
@@ -395,12 +417,20 @@ class UnifiedMetadataParser {
         if (chunkType == 'IEND') break;
       }
 
-      final parsed = textData.isEmpty
+      var parsed = textData.isEmpty
           ? MetadataParseResult.failed(
               const [],
               'No textual PNG metadata found',
             )
           : parseFromTextData(textData);
+      var usedFullFallback = false;
+
+      if (!parsed.success && (mayContainStealth || requiresFullFallback)) {
+        raf.closeSync();
+        raf = null;
+        usedFullFallback = true;
+        parsed = _extractFullFile(file, filePath);
+      }
       stopwatch.stop();
 
       final result = parsed.success && parsed.metadata != null
@@ -410,13 +440,16 @@ class UnifiedMetadataParser {
               parsed.rawData ?? '',
               parsed.triedParsers,
               parseTime: stopwatch.elapsed,
-              bytesRead: bytesRead,
+              bytesRead: usedFullFallback
+                  ? (parsed.bytesRead ?? fileSize)
+                  : bytesRead,
             )
           : MetadataParseResult.failed(
               parsed.triedParsers,
               parsed.errorMessage ?? 'No supported textual metadata found',
               parseTime: stopwatch.elapsed,
-              bytesRead: bytesRead,
+              bytesRead: parsed.bytesRead ?? bytesRead,
+              retryable: parsed.retryable,
             );
       _updateStatistics(result, stopwatch.elapsed);
       return result;
@@ -426,6 +459,7 @@ class UnifiedMetadataParser {
         const [],
         'File system error: ${e.message}',
         parseTime: stopwatch.elapsed,
+        retryable: true,
       );
     } catch (e, stack) {
       stopwatch.stop();
@@ -833,6 +867,7 @@ class UnifiedMetadataParser {
         [],
         error,
         bytesRead: file.lengthSync(),
+        retryable: true,
       );
     }
   }

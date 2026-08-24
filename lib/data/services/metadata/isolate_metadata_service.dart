@@ -19,6 +19,8 @@ typedef MetadataWorkerInitializer =
       Future<void> Function() initializeWorker,
     );
 
+enum IsolateParseFailureKind { definitive, infrastructure, cancelled }
+
 /// Isolate 解析配置
 class IsolateParseConfig {
   final Duration timeout;
@@ -42,6 +44,7 @@ class IsolateParseResult {
   final int? bytesRead;
   final bool wasCancelled;
   final bool wasTimeout;
+  final IsolateParseFailureKind? failureKind;
 
   const IsolateParseResult({
     this.metadata,
@@ -50,9 +53,13 @@ class IsolateParseResult {
     this.bytesRead,
     this.wasCancelled = false,
     this.wasTimeout = false,
+    this.failureKind,
   });
 
   bool get success => metadata != null;
+  bool get retryable =>
+      failureKind == IsolateParseFailureKind.infrastructure ||
+      failureKind == IsolateParseFailureKind.cancelled;
 
   factory IsolateParseResult.success(
     NaiImageMetadata metadata, {
@@ -71,12 +78,15 @@ class IsolateParseResult {
     required Duration parseTime,
     bool wasCancelled = false,
     bool wasTimeout = false,
+    IsolateParseFailureKind failureKind =
+        IsolateParseFailureKind.definitive,
   }) {
     return IsolateParseResult(
       error: error,
       parseTime: parseTime,
       wasCancelled: wasCancelled,
       wasTimeout: wasTimeout,
+      failureKind: failureKind,
     );
   }
 }
@@ -116,6 +126,7 @@ class IsolateMetadataService {
 
   /// 是否已初始化
   bool _initialized = false;
+  Future<void>? _initializationFuture;
   String? _workerStartupError;
   int _restartingWorkers = 0;
   int _lifecycleGeneration = 0;
@@ -129,8 +140,23 @@ class IsolateMetadataService {
   int _restartedWorkers = 0;
 
   /// 初始化服务
-  Future<void> initialize() async {
-    if (_initialized) return;
+  Future<void> initialize() {
+    if (_initialized) return Future<void>.value();
+    final activeInitialization = _initializationFuture;
+    if (activeInitialization != null) return activeInitialization;
+
+    final generation = _lifecycleGeneration;
+    late final Future<void> initialization;
+    initialization = _initializeWorkers(generation).whenComplete(() {
+      if (identical(_initializationFuture, initialization)) {
+        _initializationFuture = null;
+      }
+    });
+    _initializationFuture = initialization;
+    return initialization;
+  }
+
+  Future<void> _initializeWorkers(int generation) async {
 
     AppLogger.i(
       '[IsolateMetadata] Initializing with $_maxWorkers workers',
@@ -158,7 +184,15 @@ class IsolateMetadataService {
         pendingWorker = null;
       }
 
+      if (generation != _lifecycleGeneration) {
+        for (final worker in initializedWorkers) {
+          worker.dispose();
+        }
+        return;
+      }
+
       _workers.addAll(initializedWorkers);
+      _initialized = true;
 
       AppLogger.i('[IsolateMetadata] Initialized', 'IsolateMetadataService');
     } catch (e, stackTrace) {
@@ -166,9 +200,12 @@ class IsolateMetadataService {
       for (final worker in initializedWorkers) {
         worker.dispose();
       }
-      _workers.clear();
-      _taskQueue.clear();
-      _workerStartupError = e.toString();
+      if (generation == _lifecycleGeneration) {
+        _workers.clear();
+        _taskQueue.clear();
+        _workerStartupError = e.toString();
+        _initialized = false;
+      }
 
       AppLogger.e(
         '[IsolateMetadata] Worker startup failed; parsing remains disabled',
@@ -178,7 +215,6 @@ class IsolateMetadataService {
       );
     }
 
-    _initialized = true;
   }
 
   /// 解析元数据（Isolate 中执行）
@@ -201,6 +237,7 @@ class IsolateMetadataService {
       return IsolateParseResult.error(
         'Metadata worker unavailable: ${_workerStartupError ?? 'not initialized'}',
         parseTime: stopwatch.elapsed,
+        failureKind: IsolateParseFailureKind.infrastructure,
       );
     }
 
@@ -351,6 +388,7 @@ class IsolateMetadataService {
           'Cancelled',
           parseTime: Duration.zero,
           wasCancelled: true,
+          failureKind: IsolateParseFailureKind.cancelled,
         ),
       );
     }
@@ -369,6 +407,7 @@ class IsolateMetadataService {
     'timeoutTasks': _timeoutTasks,
     'successRate': _totalTasks > 0 ? _successfulTasks / _totalTasks : 0.0,
     'activeWorkers': _workers.where((w) => w.isBusy).length,
+    'workerCount': _workers.length,
     'queuedTasks': _taskQueue.length,
     'restartedWorkers': _restartedWorkers,
     'fallbackToInlineParsing': false,
@@ -399,6 +438,7 @@ class IsolateMetadataService {
     _workers.clear();
     _lifecycleGeneration++;
     _initialized = false;
+    _initializationFuture = null;
     _workerStartupError = null;
     _restartingWorkers = 0;
   }
@@ -431,6 +471,7 @@ class IsolateMetadataService {
                 'Parse timeout after ${task.config.timeout.inSeconds}s',
                 parseTime: stopwatch.elapsed,
                 wasTimeout: true,
+                failureKind: IsolateParseFailureKind.infrastructure,
               );
             },
           );
@@ -464,6 +505,7 @@ class IsolateMetadataService {
       final result = IsolateParseResult.error(
         'Execution error: $e',
         parseTime: stopwatch.elapsed,
+        failureKind: IsolateParseFailureKind.infrastructure,
       );
       _completeTask(task, result);
 
@@ -520,6 +562,9 @@ class IsolateMetadataService {
     } catch (e, stackTrace) {
       replacement?.dispose();
       _workerStartupError = e.toString();
+      if (_workers.isEmpty && generation == _lifecycleGeneration) {
+        _initialized = false;
+      }
       AppLogger.e(
         '[IsolateMetadata] Failed to restart worker $workerId',
         e,
@@ -547,6 +592,7 @@ class IsolateMetadataService {
           'Queue timeout after ${task.config.timeout.inSeconds}s',
           parseTime: stopwatch.elapsed,
           wasTimeout: true,
+          failureKind: IsolateParseFailureKind.infrastructure,
         );
         _completeTask(task, result);
         return result;
@@ -663,6 +709,7 @@ class _ParseWorker {
         return IsolateParseResult.error(
           'File not found: ${task.filePath}',
           parseTime: Duration.zero,
+          failureKind: IsolateParseFailureKind.infrastructure,
         );
       }
 
@@ -696,6 +743,7 @@ class _ParseWorker {
           'Cancelled',
           parseTime: Duration.zero,
           wasCancelled: true,
+          failureKind: IsolateParseFailureKind.cancelled,
         ),
       );
     }
@@ -754,6 +802,7 @@ class _ParseWorker {
               message.error!,
               parseTime: message.parseTime,
               wasCancelled: message.wasCancelled,
+              failureKind: message.failureKind,
             ),
           );
         } else if (message.metadata != null) {
@@ -827,6 +876,9 @@ void _handleParseRequest(_ParseRequest request, SendPort sendPort) {
           error: result.errorMessage ?? 'Failed to parse metadata',
           parseTime: stopwatch.elapsed,
           wasCancelled: false,
+          failureKind: result.retryable
+              ? IsolateParseFailureKind.infrastructure
+              : IsolateParseFailureKind.definitive,
         ),
       );
     }
@@ -838,6 +890,7 @@ void _handleParseRequest(_ParseRequest request, SendPort sendPort) {
         error: 'Isolate parse error: $e',
         parseTime: stopwatch.elapsed,
         wasCancelled: false,
+        failureKind: IsolateParseFailureKind.infrastructure,
       ),
     );
   }
@@ -872,6 +925,7 @@ class _ParseResponse {
   final Duration parseTime;
   final int? bytesRead;
   final bool wasCancelled;
+  final IsolateParseFailureKind failureKind;
 
   // ignore: unused_element
   _ParseResponse({
@@ -881,5 +935,6 @@ class _ParseResponse {
     required this.parseTime,
     this.bytesRead,
     this.wasCancelled = false,
+    this.failureKind = IsolateParseFailureKind.definitive,
   });
 }

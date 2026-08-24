@@ -364,9 +364,6 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
     }
 
     var files = <File>[];
-    const supportedExtensions = {'.png', '.jpg', '.jpeg', '.webp'};
-
-    // 使用 ScanConfig 的缩略图检测配置
     const scanConfig = ScanConfig();
 
     try {
@@ -375,14 +372,7 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
         followLinks: false,
       )) {
         if (entity is File) {
-          // 排除缩略图目录和文件
-          if (scanConfig.isThumbnailPath(entity.path)) {
-            continue;
-          }
-
-          // 使用 path 包正确提取扩展名，避免多层扩展名问题
-          final ext = p.extension(entity.path).toLowerCase();
-          if (supportedExtensions.contains(ext)) {
+          if (scanConfig.acceptsGalleryImagePath(entity.path)) {
             files.add(entity);
           }
         }

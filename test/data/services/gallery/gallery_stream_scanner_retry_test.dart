@@ -196,8 +196,110 @@ void main() {
             '/gallery/failed.png',
           ],
         );
+
+        expect(
+          buildRetryPriorityPaths(
+            {
+              '/gallery/transient.png': (
+                1,
+                1,
+                5,
+                MetadataStatus.transientFailure,
+                DateTime(2026, 5, 1),
+              ),
+            },
+            retryMissingMetadata: false,
+            retryFailedMetadata: false,
+          ),
+          ['/gallery/transient.png'],
+        );
       },
     );
+
+    test(
+      'ordinary scans retry metadata after a temporary worker outage',
+      () async {
+        final file = await _createWrappedNovelAiPng(
+          tempDir,
+          'transient_worker.png',
+          prompt: 'artist:retryable, 1girl',
+        );
+        var startupCalls = 0;
+        final metadataService = IsolateMetadataService.forTesting(
+          workerInitializer: (_, initializeWorker) async {
+            startupCalls++;
+            if (startupCalls == 1) {
+              throw StateError('temporary spawn failure');
+            }
+            await initializeWorker();
+          },
+        );
+        addTearDown(metadataService.dispose);
+        final scanner = GalleryStreamScanner.forTesting(
+          dataSource: dataSource,
+          metadataService: metadataService,
+        );
+        addTearDown(scanner.dispose);
+
+        await scanner.startScanning(tempDir);
+        final imageId = await dataSource.getImageIdByPath(file.path);
+        expect(imageId, isNotNull);
+        final storedImageId = imageId!;
+        var imageRecord = await dataSource.getImageById(storedImageId);
+        expect(
+          imageRecord?.metadataStatus,
+          MetadataStatus.transientFailure,
+        );
+
+        await scanner.startScanning(tempDir);
+        imageRecord = await dataSource.getImageById(storedImageId);
+        final metadata = (await dataSource.getMetadataByImageIds([
+          storedImageId,
+        ]))[storedImageId];
+
+        expect(imageRecord?.metadataStatus, MetadataStatus.success);
+        expect(metadata?.prompt, contains('artist:retryable'));
+      },
+    );
+
+    test('counting and scanning share the gallery file policy', () async {
+      final cacheDir = Directory(p.join(tempDir.path, 'cache'));
+      await cacheDir.create();
+      final excluded = await _createWrappedNovelAiPng(
+        cacheDir,
+        'excluded_retry.png',
+        prompt: 'excluded',
+      );
+      final included = await _createWrappedNovelAiPng(
+        tempDir,
+        'included.png',
+        prompt: 'included',
+      );
+      await _seedStaleNoneRecord(dataSource, excluded);
+
+      final scanner = GalleryStreamScanner(dataSource: dataSource);
+      final progressValues = <double>[];
+      final subscription = scanner.statsStream.listen(
+        (stats) => progressValues.add(stats.progress),
+      );
+      addTearDown(subscription.cancel);
+
+      await scanner.startScanning(
+        tempDir,
+        retryMissingMetadata: true,
+        knownTotalFiles: 1,
+      );
+
+      expect(await dataSource.getImageIdByPath(included.path), isNotNull);
+      final excludedId = await dataSource.getImageIdByPath(excluded.path);
+      final excludedRecord = await dataSource.getImageById(excludedId!);
+      expect(excludedRecord?.metadataStatus, MetadataStatus.none);
+      expect(progressValues, isNotEmpty);
+      expect(
+        progressValues.reduce((a, b) => a > b ? a : b),
+        lessThanOrEqualTo(1),
+      );
+    });
   });
 }
 
