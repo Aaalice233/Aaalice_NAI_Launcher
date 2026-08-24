@@ -944,6 +944,7 @@ class _AccountAvatarButtonState extends State<_AccountAvatarButton> {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
+          key: const Key('main-nav-account-menu-button'),
           onTap: () => _showAccountMenu(context, currentAccount),
           onHover: (val) => setState(() => _isHovering = val),
           onTapDown: (_) => setState(() => _isPressed = true),
@@ -1021,8 +1022,13 @@ class _AccountAvatarButtonState extends State<_AccountAvatarButton> {
     SavedAccount? currentAccount,
   ) async {
     final theme = Theme.of(context);
-    final accounts = widget.ref.read(accountManagerNotifierProvider).accounts;
     final authState = widget.ref.read(authNotifierProvider);
+    final accounts = authState.isAuthenticated
+        ? widget.ref.read(accountManagerNotifierProvider).accounts
+        : const <SavedAccount>[];
+    final menuCurrentAccount = authState.isAuthenticated
+        ? currentAccount
+        : null;
 
     // 获取按钮的位置用于定位菜单
     final RenderBox button = context.findRenderObject() as RenderBox;
@@ -1045,13 +1051,25 @@ class _AccountAvatarButtonState extends State<_AccountAvatarButton> {
       position: RelativeRect.fromRect(menuAnchor, Offset.zero & screenSize),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       items: [
+        if (!authState.isAuthenticated)
+          PopupMenuItem<String>(
+            value: 'login',
+            child: Row(
+              children: [
+                Icon(Icons.login, color: theme.colorScheme.onSurface, size: 20),
+                const SizedBox(width: 12),
+                Text(context.l10n.auth_login),
+              ],
+            ),
+          ),
+
         // 当前账号标题
-        if (currentAccount != null)
+        if (menuCurrentAccount != null)
           PopupMenuItem<String>(
             enabled: false,
             height: 40,
             child: Text(
-              '${context.l10n.auth_currentAccount}: ${currentAccount.displayName}',
+              '${context.l10n.auth_currentAccount}: ${menuCurrentAccount.displayName}',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
               ),
@@ -1059,7 +1077,7 @@ class _AccountAvatarButtonState extends State<_AccountAvatarButton> {
           ),
 
         // 分割线
-        if (currentAccount != null && accounts.length > 1)
+        if (menuCurrentAccount != null && accounts.length > 1)
           const PopupMenuDivider(),
 
         // 账号列表
@@ -1083,19 +1101,20 @@ class _AccountAvatarButtonState extends State<_AccountAvatarButton> {
           ),
         ),
 
-        const PopupMenuDivider(),
+        if (authState.isAuthenticated) const PopupMenuDivider(),
 
         // 添加账号
-        PopupMenuItem<String>(
-          value: 'add',
-          child: Row(
-            children: [
-              Icon(Icons.add, color: theme.colorScheme.onSurface, size: 20),
-              const SizedBox(width: 12),
-              Text(context.l10n.auth_addAccount),
-            ],
+        if (authState.isAuthenticated)
+          PopupMenuItem<String>(
+            value: 'add',
+            child: Row(
+              children: [
+                Icon(Icons.add, color: theme.colorScheme.onSurface, size: 20),
+                const SizedBox(width: 12),
+                Text(context.l10n.auth_addAccount),
+              ],
+            ),
           ),
-        ),
 
         // 退出登录
         if (authState.isAuthenticated)
@@ -1117,7 +1136,10 @@ class _AccountAvatarButtonState extends State<_AccountAvatarButton> {
 
     if (value == null || !mounted) return;
 
-    if (value == 'add') {
+    if (value == 'login') {
+      // ignore: use_build_context_synchronously
+      context.push(AppRoutes.login);
+    } else if (value == 'add') {
       if (mounted) {
         // ignore: use_build_context_synchronously
         _showAddAccountDialog(context);

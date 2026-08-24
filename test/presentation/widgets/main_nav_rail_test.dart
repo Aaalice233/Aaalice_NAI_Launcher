@@ -153,7 +153,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('未认证时不把本地保存账号显示为当前账号', (tester) async {
+  testWidgets('未认证时侧栏及账号菜单不显示本地保存身份', (tester) async {
     await tester.binding.setSurfaceSize(const Size(1000, 760));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
@@ -188,5 +188,14 @@ void main() {
 
     expect(find.text('Saved Alice'), findsNothing);
     expect(find.text('登录'), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(const Key('main-nav-account-menu-button')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Saved Alice'), findsNothing);
+    expect(find.text('登录'), findsNWidgets(2));
+    expect(find.text('添加账号'), findsNothing);
   });
 }
