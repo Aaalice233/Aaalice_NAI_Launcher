@@ -205,7 +205,7 @@ void main() {
             ...latin1.encode('Comment'),
             0,
             0,
-            ...const ZLibCodec().encode(latin1.encode(comment)),
+            ...ZLibCodec().encode(latin1.encode(comment)),
           ]),
         ),
         'compressed_itxt': _pngWithInsertedChunk(
@@ -217,7 +217,7 @@ void main() {
             0,
             0,
             0,
-            ...const ZLibCodec().encode(utf8.encode(comment)),
+            ...ZLibCodec().encode(utf8.encode(comment)),
           ]),
         ),
       };
