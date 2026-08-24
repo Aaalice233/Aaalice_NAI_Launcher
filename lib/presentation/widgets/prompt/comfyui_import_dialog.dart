@@ -82,7 +82,11 @@ class _ComfyuiImportDialogState extends State<ComfyuiImportDialog> {
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: Text(l10n.comfyImport_detectedTitle),
+            child: Text(
+              widget.parseResult.syntaxType == ComfyuiSyntaxType.pipe
+                  ? l10n.prompt_characterPrompts
+                  : l10n.comfyImport_detectedTitle,
+            ),
           ),
         ],
       ),
