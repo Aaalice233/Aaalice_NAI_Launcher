@@ -5266,6 +5266,59 @@ class AppLocalizationsJa extends AppLocalizations {
   String get statistics_noAnlasData => 'Anlas 消費データがありません';
 
   @override
+  String get statistics_noAnlasInPeriod => '選択した期間に Anlas 消費はありません';
+
+  @override
+  String get statistics_periodSelectorTooltip => '集計期間を選択';
+
+  @override
+  String get statistics_periodWeek => '直近 1 週間';
+
+  @override
+  String get statistics_periodMonth => '直近 1 か月';
+
+  @override
+  String get statistics_periodThreeMonths => '直近 3 か月';
+
+  @override
+  String get statistics_periodYear => '直近 1 年';
+
+  @override
+  String get statistics_periodAll => '全期間';
+
+  @override
+  String get statistics_periodCustom => '日数を指定';
+
+  @override
+  String statistics_periodDays(int count) {
+    return '直近 $count 日';
+  }
+
+  @override
+  String statistics_periodSummary(String start, String end, int count) {
+    return '$start～$end・$count 日間';
+  }
+
+  @override
+  String statistics_partialCoverage(String date, int count) {
+    return '利用可能な記録は $date からです。1 日の平均は既存の $count 日間で計算されます';
+  }
+
+  @override
+  String get statistics_customPeriodTitle => '集計日数を指定';
+
+  @override
+  String get statistics_customDaysHint => '日数';
+
+  @override
+  String statistics_customDaysError(int max) {
+    return '1 から $max までの整数を入力してください';
+  }
+
+  @override
+  String get statistics_daysUnit => '日';
+
+  @override
   String get statistics_peakActivity => 'ピークアクティビティ';
 
   @override

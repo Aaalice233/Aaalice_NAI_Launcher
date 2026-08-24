@@ -2452,6 +2452,44 @@
   "statistics_totalAnlasCost": "総コスト",
   "statistics_avgDailyCost": "1 日の平均",
   "statistics_noAnlasData": "Anlas 消費データがありません",
+  "statistics_noAnlasInPeriod": "選択した期間に Anlas 消費はありません",
+  "statistics_periodSelectorTooltip": "集計期間を選択",
+  "statistics_periodWeek": "直近 1 週間",
+  "statistics_periodMonth": "直近 1 か月",
+  "statistics_periodThreeMonths": "直近 3 か月",
+  "statistics_periodYear": "直近 1 年",
+  "statistics_periodAll": "全期間",
+  "statistics_periodCustom": "日数を指定",
+  "statistics_periodDays": "直近 {count} 日",
+  "@statistics_periodDays": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "statistics_periodSummary": "{start}～{end}・{count} 日間",
+  "@statistics_periodSummary": {
+    "placeholders": {
+      "start": {"type": "String"},
+      "end": {"type": "String"},
+      "count": {"type": "int"}
+    }
+  },
+  "statistics_partialCoverage": "利用可能な記録は {date} からです。1 日の平均は既存の {count} 日間で計算されます",
+  "@statistics_partialCoverage": {
+    "placeholders": {
+      "date": {"type": "String"},
+      "count": {"type": "int"}
+    }
+  },
+  "statistics_customPeriodTitle": "集計日数を指定",
+  "statistics_customDaysHint": "日数",
+  "statistics_customDaysError": "1 から {max} までの整数を入力してください",
+  "@statistics_customDaysError": {
+    "placeholders": {
+      "max": {"type": "int"}
+    }
+  },
+  "statistics_daysUnit": "日",
   "statistics_peakActivity": "ピークアクティビティ",
   "statistics_timeMorning": "朝",
   "statistics_timeAfternoon": "午後",

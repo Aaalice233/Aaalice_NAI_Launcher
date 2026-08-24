@@ -5183,6 +5183,59 @@ class AppLocalizationsZh extends AppLocalizations {
   String get statistics_noAnlasData => '暂无点数消耗数据';
 
   @override
+  String get statistics_noAnlasInPeriod => '该周期暂无点数消耗';
+
+  @override
+  String get statistics_periodSelectorTooltip => '选择统计周期';
+
+  @override
+  String get statistics_periodWeek => '近一周';
+
+  @override
+  String get statistics_periodMonth => '近一个月';
+
+  @override
+  String get statistics_periodThreeMonths => '近三个月';
+
+  @override
+  String get statistics_periodYear => '近一年';
+
+  @override
+  String get statistics_periodAll => '全部';
+
+  @override
+  String get statistics_periodCustom => '自定义天数';
+
+  @override
+  String statistics_periodDays(int count) {
+    return '最近 $count 天';
+  }
+
+  @override
+  String statistics_periodSummary(String start, String end, int count) {
+    return '$start 至 $end · $count 天';
+  }
+
+  @override
+  String statistics_partialCoverage(String date, int count) {
+    return '现有记录始于 $date，日均按现有 $count 天计算';
+  }
+
+  @override
+  String get statistics_customPeriodTitle => '自定义统计周期';
+
+  @override
+  String get statistics_customDaysHint => '统计天数';
+
+  @override
+  String statistics_customDaysError(int max) {
+    return '请输入 1 至 $max 之间的整数';
+  }
+
+  @override
+  String get statistics_daysUnit => '天';
+
+  @override
   String get statistics_peakActivity => '活跃高峰';
 
   @override
@@ -17068,6 +17121,59 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get statistics_noAnlasData => '暫無點數消耗資料';
+
+  @override
+  String get statistics_noAnlasInPeriod => '該週期暫無點數消耗';
+
+  @override
+  String get statistics_periodSelectorTooltip => '選擇統計週期';
+
+  @override
+  String get statistics_periodWeek => '近一週';
+
+  @override
+  String get statistics_periodMonth => '近一個月';
+
+  @override
+  String get statistics_periodThreeMonths => '近三個月';
+
+  @override
+  String get statistics_periodYear => '近一年';
+
+  @override
+  String get statistics_periodAll => '全部';
+
+  @override
+  String get statistics_periodCustom => '自訂天數';
+
+  @override
+  String statistics_periodDays(int count) {
+    return '最近 $count 天';
+  }
+
+  @override
+  String statistics_periodSummary(String start, String end, int count) {
+    return '$start 至 $end · $count 天';
+  }
+
+  @override
+  String statistics_partialCoverage(String date, int count) {
+    return '現有記錄始於 $date，日均按現有 $count 天計算';
+  }
+
+  @override
+  String get statistics_customPeriodTitle => '自訂統計週期';
+
+  @override
+  String get statistics_customDaysHint => '統計天數';
+
+  @override
+  String statistics_customDaysError(int max) {
+    return '請輸入 1 至 $max 之間的整數';
+  }
+
+  @override
+  String get statistics_daysUnit => '天';
 
   @override
   String get statistics_peakActivity => '活躍高峰';

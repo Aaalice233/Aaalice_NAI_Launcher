@@ -5389,6 +5389,60 @@ class AppLocalizationsEn extends AppLocalizations {
   String get statistics_noAnlasData => 'No Anlas consumption data';
 
   @override
+  String get statistics_noAnlasInPeriod =>
+      'No Anlas consumption in this period';
+
+  @override
+  String get statistics_periodSelectorTooltip => 'Select statistics period';
+
+  @override
+  String get statistics_periodWeek => 'Last week';
+
+  @override
+  String get statistics_periodMonth => 'Last month';
+
+  @override
+  String get statistics_periodThreeMonths => 'Last 3 months';
+
+  @override
+  String get statistics_periodYear => 'Last year';
+
+  @override
+  String get statistics_periodAll => 'All time';
+
+  @override
+  String get statistics_periodCustom => 'Custom days';
+
+  @override
+  String statistics_periodDays(int count) {
+    return 'Last $count days';
+  }
+
+  @override
+  String statistics_periodSummary(String start, String end, int count) {
+    return '$start to $end · $count days';
+  }
+
+  @override
+  String statistics_partialCoverage(String date, int count) {
+    return 'Available records begin on $date. The daily average uses the available $count days.';
+  }
+
+  @override
+  String get statistics_customPeriodTitle => 'Custom statistics period';
+
+  @override
+  String get statistics_customDaysHint => 'Number of days';
+
+  @override
+  String statistics_customDaysError(int max) {
+    return 'Enter an integer from 1 to $max';
+  }
+
+  @override
+  String get statistics_daysUnit => 'days';
+
+  @override
   String get statistics_peakActivity => 'Peak Activity';
 
   @override

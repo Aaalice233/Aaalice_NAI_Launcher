@@ -2491,6 +2491,44 @@
   "statistics_totalAnlasCost": "Total Cost",
   "statistics_avgDailyCost": "Daily Average",
   "statistics_noAnlasData": "No Anlas consumption data",
+  "statistics_noAnlasInPeriod": "No Anlas consumption in this period",
+  "statistics_periodSelectorTooltip": "Select statistics period",
+  "statistics_periodWeek": "Last week",
+  "statistics_periodMonth": "Last month",
+  "statistics_periodThreeMonths": "Last 3 months",
+  "statistics_periodYear": "Last year",
+  "statistics_periodAll": "All time",
+  "statistics_periodCustom": "Custom days",
+  "statistics_periodDays": "Last {count} days",
+  "@statistics_periodDays": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "statistics_periodSummary": "{start} to {end} · {count} days",
+  "@statistics_periodSummary": {
+    "placeholders": {
+      "start": {"type": "String"},
+      "end": {"type": "String"},
+      "count": {"type": "int"}
+    }
+  },
+  "statistics_partialCoverage": "Available records begin on {date}. The daily average uses the available {count} days.",
+  "@statistics_partialCoverage": {
+    "placeholders": {
+      "date": {"type": "String"},
+      "count": {"type": "int"}
+    }
+  },
+  "statistics_customPeriodTitle": "Custom statistics period",
+  "statistics_customDaysHint": "Number of days",
+  "statistics_customDaysError": "Enter an integer from 1 to {max}",
+  "@statistics_customDaysError": {
+    "placeholders": {
+      "max": {"type": "int"}
+    }
+  },
+  "statistics_daysUnit": "days",
   "statistics_peakActivity": "Peak Activity",
   "statistics_timeMorning": "Morning",
   "statistics_timeAfternoon": "Afternoon",
