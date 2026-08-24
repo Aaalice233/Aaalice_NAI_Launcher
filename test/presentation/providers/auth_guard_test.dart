@@ -29,9 +29,7 @@ class _MemorySecureStorage extends SecureStorageService {
   }
 }
 
-final _queueAuthGateTestProvider = Provider<bool>(
-  (ref) => requireAuthenticatedAction(ref, AuthPromptReason.queueExecution),
-);
+final _authGateRefProvider = Provider<Ref>((ref) => ref);
 
 void main() {
   test('unauthenticated generation is blocked before changing parameters', () async {
@@ -72,7 +70,11 @@ void main() {
     addTearDown(container.dispose);
 
     container.read(authNotifierProvider);
-    expect(container.read(_queueAuthGateTestProvider), isFalse);
+    final ref = container.read(_authGateRefProvider);
+    expect(
+      requireAuthenticatedAction(ref, AuthPromptReason.queueExecution),
+      isFalse,
+    );
     expect(
       container.read(authPromptRequestProvider)?.reason,
       AuthPromptReason.queueExecution,
