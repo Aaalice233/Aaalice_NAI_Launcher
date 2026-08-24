@@ -110,6 +110,7 @@
 
   "auth_login": "Login",
   "auth_logout": "Logout",
+  "auth_continueWithoutLogin": "Continue without signing in",
   "auth_email": "Email",
   "auth_password": "Password",
   "auth_loginButton": "Sign In",

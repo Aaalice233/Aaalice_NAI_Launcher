@@ -105,6 +105,7 @@
   "nav_collapseSidebar": "サイドバーを折りたたむ",
   "auth_login": "ログイン",
   "auth_logout": "ログアウト",
+  "auth_continueWithoutLogin": "ログインせずにメイン画面へ",
   "auth_email": "電子メール",
   "auth_password": "パスワード",
   "auth_loginButton": "サインイン",

@@ -272,6 +272,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get auth_logout => '退出登录';
 
   @override
+  String get auth_continueWithoutLogin => '跳过登录，进入主界面';
+
+  @override
   String get auth_email => '邮箱';
 
   @override
@@ -12135,6 +12138,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get auth_logout => '退出登入';
+
+  @override
+  String get auth_continueWithoutLogin => '跳過登入，進入主畫面';
 
   @override
   String get auth_email => '郵箱';

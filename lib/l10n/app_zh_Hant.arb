@@ -108,6 +108,7 @@
   "nav_collapseSidebar": "收起側邊欄",
   "auth_login": "登入",
   "auth_logout": "退出登入",
+  "auth_continueWithoutLogin": "跳過登入，進入主畫面",
   "auth_email": "郵箱",
   "auth_password": "密碼",
   "auth_loginButton": "登入",

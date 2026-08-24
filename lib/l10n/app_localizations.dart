@@ -611,6 +611,12 @@ abstract class AppLocalizations {
   /// **'Logout'**
   String get auth_logout;
 
+  /// No description provided for @auth_continueWithoutLogin.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue without signing in'**
+  String get auth_continueWithoutLogin;
+
   /// No description provided for @auth_email.
   ///
   /// In en, this message translates to:

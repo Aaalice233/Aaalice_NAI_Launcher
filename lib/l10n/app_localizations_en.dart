@@ -278,6 +278,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get auth_logout => 'Logout';
 
   @override
+  String get auth_continueWithoutLogin => 'Continue without signing in';
+
+  @override
   String get auth_email => 'Email';
 
   @override

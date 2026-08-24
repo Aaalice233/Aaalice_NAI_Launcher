@@ -274,6 +274,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get auth_logout => 'ログアウト';
 
   @override
+  String get auth_continueWithoutLogin => 'ログインせずにメイン画面へ';
+
+  @override
   String get auth_email => '電子メール';
 
   @override
