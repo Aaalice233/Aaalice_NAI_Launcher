@@ -3537,6 +3537,27 @@ class AppLocalizationsZh extends AppLocalizations {
   String get characterCanvas_dragHint => '拖动锚点设置角色位置，松开即生效';
 
   @override
+  String get characterCanvas_guide => '构图参考线';
+
+  @override
+  String get characterCanvas_guideNone => '无';
+
+  @override
+  String get characterCanvas_guideThirds => '三分法';
+
+  @override
+  String get characterCanvas_guidePhi => '黄金比';
+
+  @override
+  String get characterCanvas_guideGrid => '网格';
+
+  @override
+  String get characterCanvas_guideColumns => '列';
+
+  @override
+  String get characterCanvas_guideRows => '行';
+
+  @override
   String get characterEditor_genderFemale => '女性';
 
   @override
@@ -15401,6 +15422,27 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get characterCanvas_dragHint => '拖動錨點設定角色位置，鬆開即生效';
+
+  @override
+  String get characterCanvas_guide => '構圖參考線';
+
+  @override
+  String get characterCanvas_guideNone => '無';
+
+  @override
+  String get characterCanvas_guideThirds => '三分法';
+
+  @override
+  String get characterCanvas_guidePhi => '黃金比';
+
+  @override
+  String get characterCanvas_guideGrid => '格線';
+
+  @override
+  String get characterCanvas_guideColumns => '欄';
+
+  @override
+  String get characterCanvas_guideRows => '列';
 
   @override
   String get characterEditor_genderFemale => '女性';

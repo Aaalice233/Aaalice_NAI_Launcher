@@ -6626,6 +6626,48 @@ abstract class AppLocalizations {
   /// **'Drag anchors to position characters; release to apply'**
   String get characterCanvas_dragHint;
 
+  /// No description provided for @characterCanvas_guide.
+  ///
+  /// In en, this message translates to:
+  /// **'Composition Guide'**
+  String get characterCanvas_guide;
+
+  /// No description provided for @characterCanvas_guideNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get characterCanvas_guideNone;
+
+  /// No description provided for @characterCanvas_guideThirds.
+  ///
+  /// In en, this message translates to:
+  /// **'Thirds'**
+  String get characterCanvas_guideThirds;
+
+  /// No description provided for @characterCanvas_guidePhi.
+  ///
+  /// In en, this message translates to:
+  /// **'Phi'**
+  String get characterCanvas_guidePhi;
+
+  /// No description provided for @characterCanvas_guideGrid.
+  ///
+  /// In en, this message translates to:
+  /// **'Grid'**
+  String get characterCanvas_guideGrid;
+
+  /// No description provided for @characterCanvas_guideColumns.
+  ///
+  /// In en, this message translates to:
+  /// **'Columns'**
+  String get characterCanvas_guideColumns;
+
+  /// No description provided for @characterCanvas_guideRows.
+  ///
+  /// In en, this message translates to:
+  /// **'Rows'**
+  String get characterCanvas_guideRows;
+
   /// No description provided for @characterEditor_genderFemale.
   ///
   /// In en, this message translates to:

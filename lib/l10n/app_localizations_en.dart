@@ -3694,6 +3694,27 @@ class AppLocalizationsEn extends AppLocalizations {
       'Drag anchors to position characters; release to apply';
 
   @override
+  String get characterCanvas_guide => 'Composition Guide';
+
+  @override
+  String get characterCanvas_guideNone => 'None';
+
+  @override
+  String get characterCanvas_guideThirds => 'Thirds';
+
+  @override
+  String get characterCanvas_guidePhi => 'Phi';
+
+  @override
+  String get characterCanvas_guideGrid => 'Grid';
+
+  @override
+  String get characterCanvas_guideColumns => 'Columns';
+
+  @override
+  String get characterCanvas_guideRows => 'Rows';
+
+  @override
   String get characterEditor_genderFemale => 'Female';
 
   @override

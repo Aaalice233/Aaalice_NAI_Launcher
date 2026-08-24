@@ -3606,6 +3606,27 @@ class AppLocalizationsJa extends AppLocalizations {
   String get characterCanvas_dragHint => 'アンカーをドラッグして位置を設定し、離すと反映されます';
 
   @override
+  String get characterCanvas_guide => '構図ガイド';
+
+  @override
+  String get characterCanvas_guideNone => 'なし';
+
+  @override
+  String get characterCanvas_guideThirds => '三分割';
+
+  @override
+  String get characterCanvas_guidePhi => '黄金比';
+
+  @override
+  String get characterCanvas_guideGrid => 'グリッド';
+
+  @override
+  String get characterCanvas_guideColumns => '列';
+
+  @override
+  String get characterCanvas_guideRows => '行';
+
+  @override
   String get characterEditor_genderFemale => '女性';
 
   @override
