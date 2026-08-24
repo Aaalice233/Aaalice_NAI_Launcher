@@ -4,8 +4,9 @@ import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/utils/localization_extension.dart';
+import '../../core/services/auth_error_service.dart';
 import '../../core/shortcuts/default_shortcuts.dart';
-import '../providers/auth_provider.dart' show authNotifierProvider, AuthStatus;
+import '../providers/auth_provider.dart';
 import '../providers/replication_queue_provider.dart';
 import '../providers/update_provider.dart';
 import '../screens/auth/login_screen.dart';
@@ -343,6 +344,7 @@ class MainShell extends ConsumerStatefulWidget {
 
 class _MainShellState extends ConsumerState<MainShell> {
   int? _previousIndex;
+  bool _authPromptVisible = false;
 
   @override
   void didUpdateWidget(MainShell oldWidget) {
@@ -358,6 +360,13 @@ class _MainShellState extends ConsumerState<MainShell> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<AuthPromptRequest?>(authPromptRequestProvider, (previous, next) {
+      if (next == null || next.id == previous?.id) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _showAuthPrompt(next);
+      });
+    });
+
     final currentIndex = widget.navigationShell.currentIndex;
 
     // 构建混合保活内容栈
@@ -432,6 +441,86 @@ class _MainShellState extends ConsumerState<MainShell> {
       },
     );
   }
+
+  Future<void> _showAuthPrompt(AuthPromptRequest request) async {
+    if (_authPromptVisible) return;
+    _authPromptVisible = true;
+    try {
+      final details = switch (request.reason) {
+        AuthPromptReason.sessionExpired => context.l10n.api_error_401_hint,
+        AuthPromptReason.imageGeneration ||
+        AuthPromptReason.queueExecution => context.l10n.settings_pleaseLoginFirst,
+      };
+      final openLogin = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(context.l10n.auth_login),
+          content: Text(details),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: Text(context.l10n.common_cancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: Text(context.l10n.settings_goToLogin),
+            ),
+          ],
+        ),
+      );
+      if (openLogin == true && mounted) {
+        context.push(AppRoutes.login);
+      }
+    } finally {
+      _authPromptVisible = false;
+    }
+  }
+}
+
+class _GlobalStatusBanners extends StatelessWidget {
+  const _GlobalStatusBanners();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [UpdateNoticeBanner(), _AuthRecoveryBanner()],
+    );
+  }
+}
+
+class _AuthRecoveryBanner extends ConsumerWidget {
+  const _AuthRecoveryBanner();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authNotifierProvider);
+    final errorCode = authState.errorCode;
+    if (authState.status != AuthStatus.error || errorCode == null) {
+      return const SizedBox.shrink();
+    }
+
+    final message = AuthErrorService().getErrorText(
+      context.l10n,
+      errorCode,
+      authState.httpStatusCode,
+    );
+    return MaterialBanner(
+      content: Text(message),
+      leading: const Icon(Icons.cloud_off_rounded),
+      actions: [
+        TextButton(
+          onPressed: () =>
+              ref.read(authNotifierProvider.notifier).retryAutoLogin(),
+          child: Text(context.l10n.common_retry),
+        ),
+        TextButton(
+          onPressed: () => context.push(AppRoutes.login),
+          child: Text(context.l10n.settings_goToLogin),
+        ),
+      ],
+    );
+  }
 }
 
 /// 桌面端布局
@@ -467,7 +556,7 @@ class DesktopShell extends ConsumerWidget {
                       top: 0,
                       left: 0,
                       right: 0,
-                      child: UpdateNoticeBanner(),
+                      child: _GlobalStatusBanners(),
                     ),
                     _QueuePanel(
                       isVisible: isQueueVisible,
@@ -518,7 +607,7 @@ class MobileShell extends ConsumerWidget {
                 top: 0,
                 left: 0,
                 right: 0,
-                child: UpdateNoticeBanner(),
+                child: _GlobalStatusBanners(),
               ),
               _QueuePanel(
                 isVisible: isQueueVisible,

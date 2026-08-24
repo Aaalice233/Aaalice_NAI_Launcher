@@ -366,6 +366,8 @@ class _ExecutionStatsPanelState extends ConsumerState<ExecutionStatsPanel>
                   case QueueStartResult.busy:
                     AppToast.warning(context, l10n.queue_generationBusy);
                     return;
+                  case QueueStartResult.authRequired:
+                    return;
                 }
               },
         icon: const Icon(Icons.play_arrow_rounded),

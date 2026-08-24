@@ -20,6 +20,37 @@ part 'auth_provider.g.dart';
 /// 认证状态
 enum AuthStatus { initial, loading, authenticated, unauthenticated, error }
 
+/// 需要认证后才能继续的在线操作。
+enum AuthPromptReason { imageGeneration, queueExecution, sessionExpired }
+
+/// 发给主界面的登录提示请求。
+///
+/// [id] 单调递增，确保连续点击在线操作时 Riverpod 仍会发出新事件。
+class AuthPromptRequest {
+  const AuthPromptRequest({required this.id, required this.reason});
+
+  final int id;
+  final AuthPromptReason reason;
+}
+
+final authPromptRequestProvider = StateProvider<AuthPromptRequest?>((ref) {
+  return null;
+});
+
+/// 在线操作的统一认证门禁。
+///
+/// 返回 false 时只发布登录提示，不修改用户正在编辑的生成参数或队列。
+bool requireAuthenticatedAction(Ref ref, AuthPromptReason reason) {
+  if (ref.read(authNotifierProvider).isAuthenticated) return true;
+
+  final previous = ref.read(authPromptRequestProvider);
+  ref.read(authPromptRequestProvider.notifier).state = AuthPromptRequest(
+    id: (previous?.id ?? 0) + 1,
+    reason: reason,
+  );
+  return false;
+}
+
 /// 认证错误码
 enum AuthErrorCode {
   networkTimeout,
@@ -139,6 +170,16 @@ class AuthState {
     }
     return 0;
   }
+}
+
+/// 把自动登录失败保留成可恢复状态，供主界面显示原因和重试入口。
+AuthState autoLoginFailureState(Object error) {
+  final (errorCode, httpStatusCode) = AuthState.parseError(error);
+  return AuthState(
+    status: AuthStatus.error,
+    errorCode: errorCode,
+    httpStatusCode: httpStatusCode,
+  );
 }
 
 /// 添加账号结果
@@ -391,25 +432,15 @@ class AuthNotifier extends _$AuthNotifier {
           AppLogger.w(
             'Auto-login failed for ${lastUsedAccount.displayName}: $e',
           );
-          // 自动登录失败，设置错误状态
-          final (errorCode, httpStatusCode) = AuthState.parseError(e);
-
-          // 如果是网络错误，设置为未认证而不是错误，允许后续手动登录或重试
-          if (errorCode == AuthErrorCode.networkTimeout ||
-              errorCode == AuthErrorCode.networkError) {
+          final failedState = autoLoginFailureState(e);
+          if (failedState.errorCode == AuthErrorCode.networkTimeout ||
+              failedState.errorCode == AuthErrorCode.networkError) {
             AppLogger.w(
-              'Auto-login failed due to network error, showing login page',
+              'Auto-login failed due to network error, showing recovery actions',
               'Auth',
             );
-            state = const AuthState(status: AuthStatus.unauthenticated);
-          } else {
-            // 非网络错误（如认证失败），显示错误状态
-            state = AuthState(
-              status: AuthStatus.error,
-              errorCode: errorCode,
-              httpStatusCode: httpStatusCode,
-            );
           }
+          state = failedState;
           return;
         }
       }
@@ -422,8 +453,9 @@ class AuthNotifier extends _$AuthNotifier {
   /// 重新尝试自动登录
   /// 在网络恢复后由外部调用
   Future<void> retryAutoLogin() async {
-    // 只在未认证状态下才尝试自动登录
-    if (state.status == AuthStatus.unauthenticated) {
+    // 未认证或上次自动登录失败时均可重试。
+    if (state.status == AuthStatus.unauthenticated ||
+        state.status == AuthStatus.error) {
       AppLogger.auth('Retrying auto-login...');
 
       // 短暂延迟，确保之前的请求已经超时完成
@@ -431,7 +463,8 @@ class AuthNotifier extends _$AuthNotifier {
       await Future.delayed(const Duration(milliseconds: 500));
 
       // 再次检查状态，可能延迟期间状态已改变
-      if (state.status != AuthStatus.unauthenticated) {
+      if (state.status != AuthStatus.unauthenticated &&
+          state.status != AuthStatus.error) {
         AppLogger.auth('Auth status changed during delay, skipping retry');
         return;
       }
@@ -973,6 +1006,15 @@ class AuthNotifier extends _$AuthNotifier {
         '[AuthNotifier] state set to error: errorCode=$errorCode',
         'AUTH',
       );
+      if (errorCode == AuthErrorCode.authFailed ||
+          errorCode == AuthErrorCode.tokenInvalid ||
+          httpStatusCode == 401) {
+        final previous = ref.read(authPromptRequestProvider);
+        ref.read(authPromptRequestProvider.notifier).state = AuthPromptRequest(
+          id: (previous?.id ?? 0) + 1,
+          reason: AuthPromptReason.sessionExpired,
+        );
+      }
     } else {
       state = const AuthState(status: AuthStatus.unauthenticated);
       AppLogger.w('[AuthNotifier] state set to unauthenticated', 'AUTH');

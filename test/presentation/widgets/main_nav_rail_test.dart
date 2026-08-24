@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:nai_launcher/core/constants/app_version.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
+import 'package:nai_launcher/data/models/auth/saved_account.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/account_manager_provider.dart';
 import 'package:nai_launcher/presentation/providers/auth_provider.dart';
@@ -27,6 +28,18 @@ class _FakeAuthNotifier extends AuthNotifier {
 class _FakeAccountManagerNotifier extends AccountManagerNotifier {
   @override
   AccountManagerState build() => const AccountManagerState();
+}
+
+class _SavedAccountManagerNotifier extends AccountManagerNotifier {
+  @override
+  AccountManagerState build() => AccountManagerState(
+    accounts: [
+      SavedAccount.create(
+        email: 'saved@example.com',
+        nickname: 'Saved Alice',
+      ),
+    ],
+  );
 }
 
 class _FakeQueueExecutionNotifier extends QueueExecutionNotifier {
@@ -138,5 +151,42 @@ void main() {
     );
     expect(find.text('画布'), findsNothing);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('未认证时不把本地保存账号显示为当前账号', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1000, 760));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final navigationShell = _MockNavigationShell();
+    final storage = _FakeMainNavStorage()..isExpanded = true;
+    when(() => navigationShell.currentIndex).thenReturn(0);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          localStorageServiceProvider.overrideWith((ref) => storage),
+          authNotifierProvider.overrideWith(_FakeAuthNotifier.new),
+          accountManagerNotifierProvider.overrideWith(
+            _SavedAccountManagerNotifier.new,
+          ),
+          queueExecutionNotifierProvider.overrideWith(
+            _FakeQueueExecutionNotifier.new,
+          ),
+          replicationQueueNotifierProvider.overrideWith(
+            _FakeReplicationQueueNotifier.new,
+          ),
+        ],
+        child: MaterialApp(
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: MainNavRail(navigationShell: navigationShell)),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Saved Alice'), findsNothing);
+    expect(find.text('登录'), findsOneWidget);
   });
 }

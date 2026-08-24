@@ -912,16 +912,14 @@ class _AccountAvatarButtonState extends State<_AccountAvatarButton> {
 
     // 获取当前账户
     SavedAccount? currentAccount;
-    if (authState.accountId != null) {
+    if (authState.isAuthenticated && authState.accountId != null) {
       try {
         currentAccount = accounts.firstWhere(
           (a) => a.id == authState.accountId,
         );
       } catch (_) {
-        currentAccount = accounts.isNotEmpty ? accounts.first : null;
+        currentAccount = null;
       }
-    } else if (accounts.isNotEmpty) {
-      currentAccount = accounts.first;
     }
 
     final avatar = currentAccount != null
@@ -987,7 +985,7 @@ class _AccountAvatarButtonState extends State<_AccountAvatarButton> {
                             opacity: labelOpacity,
                             child: Text(
                               currentAccount?.displayName ??
-                                  context.l10n.settings_account,
+                                  context.l10n.auth_login,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: theme.textTheme.bodyMedium?.copyWith(
@@ -1100,19 +1098,20 @@ class _AccountAvatarButtonState extends State<_AccountAvatarButton> {
         ),
 
         // 退出登录
-        PopupMenuItem<String>(
-          value: 'logout',
-          child: Row(
-            children: [
-              Icon(Icons.logout, color: theme.colorScheme.error, size: 20),
-              const SizedBox(width: 12),
-              Text(
-                context.l10n.auth_logout,
-                style: TextStyle(color: theme.colorScheme.error),
-              ),
-            ],
+        if (authState.isAuthenticated)
+          PopupMenuItem<String>(
+            value: 'logout',
+            child: Row(
+              children: [
+                Icon(Icons.logout, color: theme.colorScheme.error, size: 20),
+                const SizedBox(width: 12),
+                Text(
+                  context.l10n.auth_logout,
+                  style: TextStyle(color: theme.colorScheme.error),
+                ),
+              ],
+            ),
           ),
-        ),
       ],
     );
 

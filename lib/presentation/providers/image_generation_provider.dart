@@ -29,6 +29,7 @@ import '../../data/repositories/gallery_folder_repository.dart';
 import '../../data/services/statistics_cache_service.dart';
 import '../../data/services/alias_resolver_service.dart';
 import 'character_prompt_provider.dart';
+import 'auth_provider.dart';
 import 'fixed_tags_provider.dart';
 import 'image_save_settings_provider.dart';
 import 'local_gallery_provider.dart';
@@ -507,6 +508,18 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
   }
 
   Future<void> _generate(ImageParams params) async {
+    // App 主界面会先初始化认证 provider。独立测试和离线工具没有认证
+    // provider 时保持原有行为，避免为了本地状态操作启动平台存储。
+    if (ref.exists(authNotifierProvider) &&
+        !requireAuthenticatedAction(ref, AuthPromptReason.imageGeneration)) {
+      state = state.copyWith(
+        status: GenerationStatus.error,
+        errorMessage: 'AUTH_REQUIRED',
+        progress: 0,
+      );
+      return;
+    }
+
     final resolutionIssue = NaiResolutionAdapter.validateGenerationResolution(
       params.width,
       params.height,
