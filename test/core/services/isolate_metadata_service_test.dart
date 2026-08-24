@@ -242,7 +242,7 @@ void main() {
     });
 
     test('bulk mode falls back to stealth_pngcomp metadata', () async {
-      final image = img.Image(width: 64, height: 64);
+      final image = img.Image(width: 64, height: 64, numChannels: 4);
       final basePng = Uint8List.fromList(img.encodePng(image));
       final embedded = await UnifiedMetadataParser.embedMetadata(
         basePng,

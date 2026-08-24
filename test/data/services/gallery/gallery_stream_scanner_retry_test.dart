@@ -275,6 +275,9 @@ void main() {
         'included.png',
         prompt: 'included',
       );
+      await excluded.setLastModified(
+        DateTime.now().subtract(const Duration(days: 1)),
+      );
       await _seedStaleNoneRecord(dataSource, excluded);
 
       final scanner = GalleryStreamScanner(dataSource: dataSource);
