@@ -34,21 +34,24 @@ set `PUB_HOSTED_URL` to the hosted source recorded in that lockfile, preventing
 source URL normalization from dirtying `pubspec.lock` during CI.
 
 The maintainer-dispatched portable workflow also caches the completed bundle by
-build-input fingerprint, Flutter version, and build mode. Documentation,
-workflow, and test-only commits can therefore reuse an identical bundle. An
-exact hit skips Flutter setup and compilation, then uploads the verified bundle
-directly.
+build-input fingerprint, build-recipe version, Flutter version, build mode, and
+runner class. The fingerprint covers the workflow, this composite action, and
+the packaging and verification scripts. An exact hit skips Flutter setup and
+compilation, then the formal release packager regenerates and verifies the
+user-ready portable archive and `app_files_manifest.json`.
 
 ## Prewarmed runners
 
 Persistent runners can set `cache-flutter-sdk` and `cache-pub-dependencies` to
 `"false"` after the pinned SDK and Pub cache have been preloaded. The manual
-portable workflow and tagged release workflow expose this through repository
-variables. Pull-request jobs remain on GitHub-hosted runners so untrusted code
-does not execute on a persistent machine.
+portable workflow allows a configured persistent runner only for `main` and
+`v*` tag refs. Tagged releases already check out and verify their release tag.
+Hosted and persistent runners use disjoint Pub, codegen, CMake, and exact-bundle
+cache namespaces. Pull-request jobs remain on GitHub-hosted runners.
 
 The optional repository variables are:
 
-- `WINDOWS_FLUTTER_RUNNER`: trusted runner label, default `windows-2022`;
+- `WINDOWS_FLUTTER_RUNNER`: trusted persistent runner label; when unset,
+  workflows use `windows-2022`;
 - `WINDOWS_FLUTTER_SDK_CACHE`: set to `false` when Flutter is preinstalled;
 - `WINDOWS_PUB_CACHE`: set to `false` when the Pub cache persists locally.

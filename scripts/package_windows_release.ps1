@@ -1,6 +1,9 @@
 param(
   [string]$Version,
   [switch]$SkipFlutterBuild,
+  [ValidateSet("Debug", "Release")]
+  [string]$BuildMode = "Release",
+  [switch]$PortableOnly,
   [string]$DistDir = "dist"
 )
 
@@ -42,7 +45,7 @@ if ([string]::IsNullOrWhiteSpace($Version)) {
 }
 
 $distPath = Join-Path $root $DistDir
-$buildPath = Join-Path $root "build/windows/x64/runner/Release"
+$buildPath = Join-Path $root "build/windows/x64/runner/$BuildMode"
 $exePath = Join-Path $buildPath "nai_launcher.exe"
 $nsisScript = Join-Path $root "installer/windows/nai_launcher.nsi"
 $portablePath = Join-Path $distPath "NAI_Launcher_Windows_${Version}_Portable.zip"
@@ -53,7 +56,8 @@ if (-not $SkipFlutterBuild) {
   flutter pub get
   flutter gen-l10n
   dart run build_runner build --delete-conflicting-outputs
-  flutter build windows --release
+  $flutterBuildMode = $BuildMode.ToLowerInvariant()
+  flutter build windows --$flutterBuildMode
 }
 
 if (-not (Test-Path -LiteralPath $exePath)) {
@@ -89,6 +93,12 @@ Compress-Archive `
   -DestinationPath $portablePath `
   -Force
 
+Write-Host "Created Windows portable package: $portablePath"
+
+if ($PortableOnly) {
+  return
+}
+
 $makensis = Get-ToolPath `
   -Name "makensis.exe" `
   -FallbackPaths @(
@@ -109,4 +119,3 @@ if (-not (Test-Path -LiteralPath $installerPath)) {
 }
 
 Write-Host "Created Windows installer: $installerPath"
-Write-Host "Created Windows portable package: $portablePath"

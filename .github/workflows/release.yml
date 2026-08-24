@@ -97,6 +97,8 @@ jobs:
     # A trusted tag may use a prewarmed runner configured by repository vars.
     runs-on: ${{ vars.WINDOWS_FLUTTER_RUNNER || 'windows-2022' }}
     needs: prepare
+    env:
+      WINDOWS_CACHE_NAMESPACE: ${{ vars.WINDOWS_FLUTTER_RUNNER != '' && 'nai-self-hosted' || 'nai-hosted' }}
 
     steps:
       - name: Checkout
@@ -113,7 +115,7 @@ jobs:
           channel: stable
           cache: ${{ vars.WINDOWS_FLUTTER_SDK_CACHE || 'true' }}
           pub-cache: ${{ vars.WINDOWS_PUB_CACHE || 'true' }}
-          pub-cache-key: "nai-flutter-pub-:os:-:channel:-:version:-:arch:-:hash:"
+          pub-cache-key: "${{ env.WINDOWS_CACHE_NAMESPACE }}-flutter-pub-:os:-:channel:-:version:-:arch:-:hash:"
 
       - name: Restore generated-code cache
         uses: actions/cache@v6
@@ -122,9 +124,9 @@ jobs:
             .dart_tool/build
             lib/**/*.g.dart
             lib/**/*.freezed.dart
-          key: nai-codegen-${{ runner.os }}-${{ env.FLUTTER_VERSION }}-${{ hashFiles('pubspec.lock') }}-${{ hashFiles('pubspec.yaml', 'build.yaml', 'lib/**') }}
+          key: ${{ env.WINDOWS_CACHE_NAMESPACE }}-codegen-${{ runner.os }}-${{ env.FLUTTER_VERSION }}-${{ hashFiles('pubspec.lock') }}-${{ hashFiles('pubspec.yaml', 'build.yaml', 'lib/**') }}
           restore-keys: |
-            nai-codegen-${{ runner.os }}-${{ env.FLUTTER_VERSION }}-${{ hashFiles('pubspec.lock') }}-
+            ${{ env.WINDOWS_CACHE_NAMESPACE }}-codegen-${{ runner.os }}-${{ env.FLUTTER_VERSION }}-${{ hashFiles('pubspec.lock') }}-
 
       - name: Restore Flutter and native Windows build cache
         uses: actions/cache@v6
@@ -133,9 +135,9 @@ jobs:
             .dart_tool/flutter_build
             build/native_assets
             build/windows
-          key: nai-windows-build-${{ runner.os }}-${{ env.FLUTTER_VERSION }}-${{ hashFiles('pubspec.lock', 'windows/**') }}-${{ hashFiles('pubspec.yaml', 'l10n.yaml', 'lib/**', 'assets/**', 'fonts/**') }}
+          key: ${{ env.WINDOWS_CACHE_NAMESPACE }}-windows-build-${{ runner.os }}-${{ env.FLUTTER_VERSION }}-${{ hashFiles('pubspec.lock', 'windows/**') }}-${{ hashFiles('pubspec.yaml', 'l10n.yaml', 'lib/**', 'assets/**', 'fonts/**') }}
           restore-keys: |
-            nai-windows-build-${{ runner.os }}-${{ env.FLUTTER_VERSION }}-${{ hashFiles('pubspec.lock', 'windows/**') }}-
+            ${{ env.WINDOWS_CACHE_NAMESPACE }}-windows-build-${{ runner.os }}-${{ env.FLUTTER_VERSION }}-${{ hashFiles('pubspec.lock', 'windows/**') }}-
 
       - name: Setup NuGet
         uses: NuGet/setup-nuget@v4
@@ -232,6 +234,13 @@ jobs:
           ./scripts/package_windows_release.ps1 `
             -Version '${{ needs.prepare.outputs.version }}' `
             -SkipFlutterBuild
+
+      - name: Verify Windows portable package
+        shell: pwsh
+        run: |
+          ./scripts/verify_windows_portable_package.ps1 `
+            -ArchivePath 'dist/NAI_Launcher_Windows_${{ needs.prepare.outputs.version }}_Portable.zip' `
+            -ExpectedVersion '${{ needs.prepare.outputs.version }}'
 
       - name: Sign Windows installer
         shell: pwsh

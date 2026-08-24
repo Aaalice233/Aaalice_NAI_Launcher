@@ -71,6 +71,7 @@ jobs:
               - 'pubspec.lock'
               - 'pubspec.yaml'
               - 'scripts/package_windows_release.ps1'
+              - 'scripts/verify_windows_portable_package.ps1'
               - 'scripts/validate_windows_installer_process_handling.ps1'
               - 'windows/**'
 
@@ -87,6 +88,7 @@ jobs:
         uses: ./.github/actions/prepare-flutter-build
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache-namespace: nai-hosted
 
       - name: Verify generated files
         run: git diff --exit-code
@@ -109,6 +111,7 @@ jobs:
         uses: ./.github/actions/prepare-flutter-build
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache-namespace: nai-hosted
 
       - name: Validate bundled autocomplete databases
         run: dart run tool/tag_catalog/verify_bundled_databases.dart
@@ -136,6 +139,7 @@ jobs:
         uses: ./.github/actions/prepare-flutter-build
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache-namespace: nai-hosted
           cache-windows-build: "true"
 
       - name: Setup NuGet
@@ -169,6 +173,7 @@ jobs:
         uses: ./.github/actions/prepare-flutter-build
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache-namespace: nai-hosted
           cache-windows-build: "true"
 
       - name: Setup NuGet
@@ -222,6 +227,9 @@ jobs:
               throw "Missing packaged artifact: $path"
             }
           }
+          ./scripts/verify_windows_portable_package.ps1 `
+            -ArchivePath $required[1] `
+            -ExpectedVersion $version
 
   result:
     name: PR validation
