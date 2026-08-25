@@ -3,10 +3,8 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:uuid/uuid.dart';
-
 import '../../core/utils/app_logger.dart';
-import '../datasources/local/nai_tags_data_source.dart';
+import '../datasources/local/random_tag_library_data_source.dart';
 import '../models/prompt/category_filter_config.dart';
 import '../models/prompt/default_pool_mappings.dart';
 import '../models/prompt/default_tag_group_mappings.dart';
@@ -31,11 +29,11 @@ class TagLibraryService {
   static const String _poolSyncConfigKey = 'pool_sync_config';
   static const String _tagGroupSyncConfigKey = 'tag_group_sync_config';
 
-  final NaiTagsDataSource _naiTagsDataSource;
+  final RandomTagLibraryDataSource _randomTagLibraryDataSource;
   Box? _box;
   Future<void>? _initFuture;
 
-  TagLibraryService(this._naiTagsDataSource);
+  TagLibraryService(this._randomTagLibraryDataSource);
 
   /// 初始化
   Future<void> init() async {
@@ -63,14 +61,20 @@ class TagLibraryService {
     await _saveJson(
       _libraryKey,
       library.toJson(),
-      onSuccess: () => AppLogger.d('Library saved: ${library.totalTagCount} tags', 'TagLibrary'),
+      onSuccess: () => AppLogger.d(
+        'Library saved: ${library.totalTagCount} tags',
+        'TagLibrary',
+      ),
     );
   }
 
   /// 加载同步配置
   Future<TagLibrarySyncConfig> loadSyncConfig() async {
     await _ensureInit();
-    final result = await _loadJson<TagLibrarySyncConfig>(_syncConfigKey, TagLibrarySyncConfig.fromJson);
+    final result = await _loadJson<TagLibrarySyncConfig>(
+      _syncConfigKey,
+      TagLibrarySyncConfig.fromJson,
+    );
     return result ?? const TagLibrarySyncConfig();
   }
 
@@ -83,7 +87,10 @@ class TagLibraryService {
   /// 加载分类过滤配置
   Future<CategoryFilterConfig> loadCategoryFilterConfig() async {
     await _ensureInit();
-    final result = await _loadJson<CategoryFilterConfig>(_categoryFilterKey, CategoryFilterConfig.fromJson);
+    final result = await _loadJson<CategoryFilterConfig>(
+      _categoryFilterKey,
+      CategoryFilterConfig.fromJson,
+    );
     return result ?? const CategoryFilterConfig();
   }
 
@@ -124,49 +131,26 @@ class TagLibraryService {
     }
   }
 
-  /// 同步词库
+  /// 重新解析经过来源校验的离线 catalog 语义索引。
   ///
-  /// 仅加载 NAI 固定词库，Danbooru 补充标签由 Pool 同步机制独立处理
+  /// [range] 仅为旧设置兼容保留；本地数据始终完整加载，不按范围截断。
   Future<TagLibrary> syncLibrary({
     required DataRange range,
     void Function(SyncProgress progress)? onProgress,
   }) async {
     onProgress?.call(SyncProgress.initial());
 
-    // 加载 NAI 标签数据和同步配置
+    _randomTagLibraryDataSource.clearCache();
     final results = await Future.wait([
-      _naiTagsDataSource.loadData(),
+      _randomTagLibraryDataSource.loadData(),
       loadSyncConfig(),
     ]);
-
-    final naiTags = results[0] as NaiTagsData;
+    final data = results[0] as RandomTagLibraryData;
     final syncConfig = results[1] as TagLibrarySyncConfig;
-
-    // 构建 NAI 固定词库
-    final naiCategories = <String, List<WeightedTag>>{};
-    for (final categoryName in naiTags.categoryNames) {
-      final tags = naiTags.getCategory(categoryName);
-      if (tags.isNotEmpty) {
-        // NAI 固定标签使用较高的默认权重
-        naiCategories[categoryName] = tags.map((t) {
-          return WeightedTag.simple(t.replaceAll('_', ' '), 5);
-        }).toList();
-      }
-    }
 
     onProgress?.call(SyncProgress.saving());
 
-    // 创建词库（无 Danbooru 热度标签补充，Pool 标签由独立机制处理）
-    final library = TagLibrary(
-      id: const Uuid().v4(),
-      name: 'NAI 词库',
-      lastUpdated: DateTime.now(),
-      version: 1,
-      source: TagLibrarySource.nai,
-      hasDanbooruSupplement: false,
-      danbooruSupplementCount: 0,
-      categories: naiCategories,
-    );
+    final library = _libraryFromData(data);
 
     // 保存词库
     await saveLibrary(library);
@@ -183,7 +167,7 @@ class TagLibraryService {
     onProgress?.call(SyncProgress.completed(library.totalTagCount));
 
     AppLogger.i(
-      'Library synced: ${library.totalTagCount} NAI tags',
+      'Library indexed: ${library.totalTagCount} verified catalog tags',
       'TagLibrary',
     );
 
@@ -396,37 +380,30 @@ class TagLibraryService {
     );
   }
 
-  /// 获取内置词库（直接从 JSON 读取，不使用缓存）
+  /// 获取经过 hash、版本和完整记录数校验的内置离线词库。
+  ///
+  /// 校验失败会显式抛错，由状态层展示错误；不得静默切换到过期数据。
   Future<TagLibrary> getAvailableLibrary() async {
-    try {
-      final naiTags = await _naiTagsDataSource.loadData();
-      final naiCategories = <String, List<WeightedTag>>{};
+    final data = await _randomTagLibraryDataSource.loadData();
+    return _libraryFromData(data);
+  }
 
-      for (final categoryName in naiTags.categoryNames) {
-        final tags = naiTags.getCategory(categoryName);
-        if (tags.isNotEmpty) {
-          naiCategories[categoryName] = tags.map((t) {
-            return WeightedTag.simple(t.replaceAll('_', ' '), 5);
-          }).toList();
-        }
-      }
-
-      if (naiCategories.isNotEmpty) {
-        return TagLibrary(
-          id: 'nai_builtin',
-          name: 'NAI 内置词库',
-          lastUpdated: DateTime.now(),
-          version: 1,
-          source: TagLibrarySource.nai,
-          categories: naiCategories,
-        );
-      }
-    } catch (e) {
-      AppLogger.e('Failed to load from local JSON: $e', 'TagLibrary');
-    }
-
-    // 回退到硬编码的内置词库
-    return getBuiltinLibrary();
+  TagLibrary _libraryFromData(RandomTagLibraryData data) {
+    return TagLibrary(
+      id: 'catalog_${data.manifest.dataVersion}',
+      name: '离线标签词库',
+      lastUpdated: data.manifest.source.versionDate,
+      version: data.manifest.schemaVersion,
+      source: TagLibrarySource.catalog,
+      dataVersion: data.manifest.dataVersion,
+      sourceUrl: data.manifest.source.url,
+      sourceCommit: data.manifest.source.commit,
+      sourceLicense: data.manifest.source.license,
+      sourceVersionDate: data.manifest.source.versionDate,
+      sourceCatalogTagCount: data.manifest.source.catalogTagCount,
+      sourceCatalogAliasCount: data.manifest.source.catalogAliasCount,
+      categories: data.categories,
+    );
   }
 
   /// 检查是否需要同步
@@ -442,7 +419,10 @@ class TagLibraryService {
   /// 加载 Pool 同步配置
   Future<PoolSyncConfig> loadPoolSyncConfig() async {
     await _ensureInit();
-    final result = await _loadJson<PoolSyncConfig>(_poolSyncConfigKey, PoolSyncConfig.fromJson);
+    final result = await _loadJson<PoolSyncConfig>(
+      _poolSyncConfigKey,
+      PoolSyncConfig.fromJson,
+    );
     return result ?? DefaultPoolMappings.getDefaultConfig();
   }
 
@@ -476,7 +456,10 @@ class TagLibraryService {
   /// 加载 Tag Group 同步配置
   Future<TagGroupSyncConfig> loadTagGroupSyncConfig() async {
     await _ensureInit();
-    final result = await _loadJson<TagGroupSyncConfig>(_tagGroupSyncConfigKey, TagGroupSyncConfig.fromJson);
+    final result = await _loadJson<TagGroupSyncConfig>(
+      _tagGroupSyncConfigKey,
+      TagGroupSyncConfig.fromJson,
+    );
     return result ?? DefaultTagGroupMappings.getDefaultConfig();
   }
 
@@ -506,13 +489,17 @@ class TagLibraryService {
   }) {
     if (tags.isEmpty) return library;
 
-    final mergedCategories = Map<String, List<WeightedTag>>.from(library.categories);
+    final mergedCategories = Map<String, List<WeightedTag>>.from(
+      library.categories,
+    );
     var addedCount = 0;
 
     for (final entry in tags.entries) {
       final categoryName = entry.key.name;
       final existingTags = mergedCategories[categoryName] ?? [];
-      final existingNames = existingTags.map((t) => t.tag.toLowerCase()).toSet();
+      final existingNames = existingTags
+          .map((t) => t.tag.toLowerCase())
+          .toSet();
 
       for (final tag in entry.value) {
         if (!existingNames.contains(tag.tag.toLowerCase())) {
@@ -530,17 +517,19 @@ class TagLibraryService {
     return library.copyWith(
       categories: mergedCategories,
       lastUpdated: DateTime.now(),
-      hasDanbooruSupplement: updateSupplement ? true : library.hasDanbooruSupplement,
-      danbooruSupplementCount: updateSupplement ? addedCount : library.danbooruSupplementCount,
+      hasDanbooruSupplement: updateSupplement
+          ? true
+          : library.hasDanbooruSupplement,
+      danbooruSupplementCount: updateSupplement
+          ? addedCount
+          : library.danbooruSupplementCount,
     );
   }
 
   /// 从 TagGroupEntry 列表转换为 WeightedTag 列表
   ///
   /// [entries] TagGroupEntry 列表
-  List<WeightedTag> tagGroupEntriesToWeightedTags(
-    List<TagGroupEntry> entries,
-  ) {
+  List<WeightedTag> tagGroupEntriesToWeightedTags(List<TagGroupEntry> entries) {
     return entries.map((entry) {
       // 根据热度计算权重 (1-10)
       final weight = _calculateWeight(entry.postCount);
@@ -571,6 +560,6 @@ class TagLibraryService {
 /// Provider
 @Riverpod(keepAlive: true)
 TagLibraryService tagLibraryService(Ref ref) {
-  final naiTagsDataSource = ref.watch(naiTagsDataSourceProvider);
-  return TagLibraryService(naiTagsDataSource);
+  final dataSource = ref.watch(randomTagLibraryDataSourceProvider);
+  return TagLibraryService(dataSource);
 }

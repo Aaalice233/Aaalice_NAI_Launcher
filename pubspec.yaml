@@ -155,7 +155,6 @@ flutter:
     - assets/icons/
     - assets/data/
     - assets/data/opencc/
-    - assets/data/wordlists/
     - assets/data/tokenizers/
     - assets/sounds/
     - assets/databases/

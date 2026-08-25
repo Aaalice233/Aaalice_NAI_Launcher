@@ -3843,7 +3843,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get randomMode_title => '选择随机模式';
 
   @override
-  String get randomMode_naiOfficial => '官网模式';
+  String get randomMode_naiOfficial => '离线词库';
 
   @override
   String get randomMode_custom => '自定义模式';
@@ -3852,16 +3852,16 @@ class AppLocalizationsZh extends AppLocalizations {
   String get randomMode_hybrid => '混合模式';
 
   @override
-  String get randomMode_naiOfficialDesc => '复刻 NovelAI 官方随机算法';
+  String get randomMode_naiOfficialDesc => '使用已验证的完整离线标签 catalog';
 
   @override
   String get randomMode_customDesc => '使用自定义预设生成';
 
   @override
-  String get randomMode_hybridDesc => '结合官方算法和自定义预设';
+  String get randomMode_hybridDesc => '结合离线词库和自定义预设';
 
   @override
-  String get randomMode_naiIndicator => 'NAI';
+  String get randomMode_naiIndicator => '离线';
 
   @override
   String get randomMode_customIndicator => '自定义';
@@ -12082,6 +12082,46 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get autocomplete_openSettings => '打开补全与数据源设置';
+
+  @override
+  String get randomManager_searchCategories => '搜索类别、词组或标签（Ctrl+F）';
+
+  @override
+  String get randomManager_verifiedOfflineLibrary => '已验证的离线随机词库';
+
+  @override
+  String get randomManager_sourceDetails => '数据来源详情';
+
+  @override
+  String get randomManager_sourceUrl => '来源 URL';
+
+  @override
+  String get randomManager_sourceCommit => '来源提交';
+
+  @override
+  String get randomManager_sourceDate => '来源日期';
+
+  @override
+  String get randomManager_sourceLicense => '许可证';
+
+  @override
+  String randomManager_catalogCounts(Object tags, Object aliases) {
+    return '完整 catalog：$tags 个标签，$aliases 个别名';
+  }
+
+  @override
+  String randomManager_libraryVersion(String version, String count) {
+    return '规则 v$version · $count 个标签';
+  }
+
+  @override
+  String get randomManager_preview => '随机结果预览';
+
+  @override
+  String get randomManager_libraryUnavailable => '随机词库无法使用';
+
+  @override
+  String get randomManager_noCategoryResults => '没有匹配的类别、词组或标签';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -15924,7 +15964,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get randomMode_title => '選擇隨機模式';
 
   @override
-  String get randomMode_naiOfficial => '官網模式';
+  String get randomMode_naiOfficial => '離線詞庫';
 
   @override
   String get randomMode_custom => '自定義模式';
@@ -15933,16 +15973,16 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get randomMode_hybrid => '混合模式';
 
   @override
-  String get randomMode_naiOfficialDesc => '復刻 NovelAI 官方隨機演算法';
+  String get randomMode_naiOfficialDesc => '使用已驗證的完整離線標籤 catalog';
 
   @override
   String get randomMode_customDesc => '使用自定義預設生成';
 
   @override
-  String get randomMode_hybridDesc => '結合官方演算法和自定義預設';
+  String get randomMode_hybridDesc => '結合離線詞庫和自定義預設';
 
   @override
-  String get randomMode_naiIndicator => 'NAI';
+  String get randomMode_naiIndicator => '離線';
 
   @override
   String get randomMode_customIndicator => '自定義';
@@ -24163,4 +24203,44 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get autocomplete_openSettings => '開啟補全與資料來源設定';
+
+  @override
+  String get randomManager_searchCategories => '搜尋類別、詞組或標籤（Ctrl+F）';
+
+  @override
+  String get randomManager_verifiedOfflineLibrary => '已驗證的離線隨機詞庫';
+
+  @override
+  String get randomManager_sourceDetails => '資料來源詳情';
+
+  @override
+  String get randomManager_sourceUrl => '來源 URL';
+
+  @override
+  String get randomManager_sourceCommit => '來源提交';
+
+  @override
+  String get randomManager_sourceDate => '來源日期';
+
+  @override
+  String get randomManager_sourceLicense => '授權條款';
+
+  @override
+  String randomManager_catalogCounts(Object tags, Object aliases) {
+    return '完整 catalog：$tags 個標籤，$aliases 個別名';
+  }
+
+  @override
+  String randomManager_libraryVersion(String version, String count) {
+    return '規則 v$version · $count 個標籤';
+  }
+
+  @override
+  String get randomManager_preview => '隨機結果預覽';
+
+  @override
+  String get randomManager_libraryUnavailable => '隨機詞庫無法使用';
+
+  @override
+  String get randomManager_noCategoryResults => '沒有符合的類別、詞組或標籤';
 }

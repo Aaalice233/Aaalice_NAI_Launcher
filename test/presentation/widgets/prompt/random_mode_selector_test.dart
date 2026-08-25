@@ -17,7 +17,7 @@ void main() {
       ),
     );
 
-    expect(find.text('Official Mode'), findsOneWidget);
+    expect(find.text('Offline Library'), findsOneWidget);
     expect(find.text('Custom Mode'), findsOneWidget);
     expect(find.text('Hybrid Mode'), findsOneWidget);
   });
@@ -37,7 +37,7 @@ void main() {
     await tester.tap(find.text('mode menu'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Official Mode'), findsOneWidget);
+    expect(find.text('Offline Library'), findsOneWidget);
     expect(find.text('Custom Mode'), findsOneWidget);
     expect(find.text('Hybrid Mode'), findsOneWidget);
   });

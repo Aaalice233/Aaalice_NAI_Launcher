@@ -1733,13 +1733,13 @@
   },
 
   "randomMode_title": "选择随机模式",
-  "randomMode_naiOfficial": "官网模式",
+  "randomMode_naiOfficial": "离线词库",
   "randomMode_custom": "自定义模式",
   "randomMode_hybrid": "混合模式",
-  "randomMode_naiOfficialDesc": "复刻 NovelAI 官方随机算法",
+  "randomMode_naiOfficialDesc": "使用已验证的完整离线标签 catalog",
   "randomMode_customDesc": "使用自定义预设生成",
-  "randomMode_hybridDesc": "结合官方算法和自定义预设",
-  "randomMode_naiIndicator": "NAI",
+  "randomMode_hybridDesc": "结合离线词库和自定义预设",
+  "randomMode_naiIndicator": "离线",
   "randomMode_customIndicator": "自定义",
 
   "naiMode_noTags": "暂无标签",
@@ -6314,6 +6314,20 @@
   "autocomplete_statusDisabled": "已关闭",
   "autocomplete_statusSearching": "查询中",
   "autocomplete_statusTranslating": "翻译中",
-  "autocomplete_openSettings": "打开补全与数据源设置"
+  "autocomplete_openSettings": "打开补全与数据源设置",
+  "randomManager_searchCategories": "搜索类别、词组或标签（Ctrl+F）",
+  "randomManager_verifiedOfflineLibrary": "已验证的离线随机词库",
+  "randomManager_sourceDetails": "数据来源详情",
+  "randomManager_sourceUrl": "来源 URL",
+  "randomManager_sourceCommit": "来源提交",
+  "randomManager_sourceDate": "来源日期",
+  "randomManager_sourceLicense": "许可证",
+  "randomManager_catalogCounts": "完整 catalog：{tags} 个标签，{aliases} 个别名",
+  "@randomManager_catalogCounts": {"placeholders": {"tags": {}, "aliases": {}}},
+  "randomManager_libraryVersion": "规则 v{version} · {count} 个标签",
+  "@randomManager_libraryVersion": {"placeholders": {"version": {"type": "String"}, "count": {"type": "String"}}},
+  "randomManager_preview": "随机结果预览",
+  "randomManager_libraryUnavailable": "随机词库无法使用",
+  "randomManager_noCategoryResults": "没有匹配的类别、词组或标签"
 
 }

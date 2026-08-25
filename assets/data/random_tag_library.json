@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "dataVersion": "42f35be9d394",
+  "source": {
+    "name": "danbooru_e621_merged.csv",
+    "url": "https://raw.githubusercontent.com/willmiao/ComfyUI-Lora-Manager/42f35be9d394ff62fc9e9a39b8c500b8f9b67bfe/refs/danbooru_e621_merged.csv",
+    "commit": "42f35be9d394ff62fc9e9a39b8c500b8f9b67bfe",
+    "versionDate": "2026-01-26T05:51:45Z",
+    "sha256": "71297f7e4adaeae005cba1259b25a10374ed01e071cb4801a6195e709c32a9e5",
+    "license": "Unlicense",
+    "catalogTagCount": 221787,
+    "catalogAliasCount": 71504
+  },
+  "categories": {
+    "hairColor": {
+      "includeGlobs": ["*_hair"],
+      "includeTokens": ["aqua", "black", "blonde", "blue", "brown", "green", "grey", "gray", "orange", "pink", "purple", "red", "silver", "white", "yellow", "multicolored", "two-tone", "gradient", "streaked"]
+    },
+    "eyeColor": {
+      "includeGlobs": ["*_eyes"],
+      "includeTokens": ["aqua", "black", "blue", "brown", "green", "grey", "gray", "orange", "pink", "purple", "red", "silver", "white", "yellow", "amber", "gold", "heterochromia"]
+    },
+    "hairStyle": {
+      "includeGlobs": ["*_hair", "*_ponytail", "*_twintails", "*_braid", "*_bangs", "bob_cut", "hair_bun", "ahoge"],
+      "excludeTokens": ["aqua", "black", "blonde", "blue", "brown", "green", "grey", "gray", "orange", "pink", "purple", "red", "silver", "white", "yellow", "multicolored", "two-tone", "gradient", "streaked"]
+    },
+    "clothingFemale": {
+      "includeGlobs": ["*_dress", "*_skirt", "*_bikini", "*_swimsuit", "*_lingerie", "*_panties", "*_bra", "maid*", "female_*clothes"]
+    },
+    "clothingMale": {
+      "includeGlobs": ["*_suit", "male_*clothes", "tuxedo", "necktie", "bow_tie"]
+    },
+    "clothingGeneral": {
+      "includeGlobs": ["*_shirt", "*_jacket", "*_hoodie", "*_sweater", "*_coat", "*_pants", "*_shorts", "*_uniform", "*_kimono", "*_robe", "*_armor"]
+    },
+    "expression": {
+      "includeExact": ["angry", "blush", "crying", "embarrassed", "evil_grin", "expressionless", "frown", "grin", "happy", "laughing", "light_smile", "open_mouth", "parted_lips", "pout", "sad", "serious", "smile", "smirk", "surprised", "tears", "tongue_out", "wince"]
+    },
+    "pose": {
+      "includeGlobs": ["looking_at_viewer", "sitting", "standing", "kneeling", "lying", "walking", "running", "crouching", "jumping", "from_above", "from_below", "from_behind", "from_side", "dutch_angle", "upper_body", "cowboy_shot", "full_body", "portrait"]
+    },
+    "background": {
+      "includeGlobs": ["*_background"]
+    },
+    "scene": {
+      "includeGlobs": ["indoors", "outdoors", "scenery", "nature", "city", "cityscape", "landscape", "forest", "beach", "mountain", "ocean", "sky", "clouds", "sunset", "sunrise", "night", "rain", "snow", "underwater", "space", "room", "street"]
+    },
+    "style": {
+      "includeGlobs": ["*_style", "*_medium", "monochrome", "greyscale", "lineart", "watercolor_(medium)", "oil_painting_(medium)", "pixel_art", "photorealistic", "realistic", "anime_coloring", "flat_color", "sketch"]
+    },
+    "bodyFeatureFemale": {
+      "includeGlobs": ["*_breasts", "pregnant", "wide_hips", "narrow_waist", "female_pubic_hair"]
+    },
+    "bodyFeatureMale": {
+      "includeGlobs": ["muscular_male", "facial_hair", "beard", "mustache", "male_pubic_hair"]
+    },
+    "bodyFeatureGeneral": {
+      "includeGlobs": ["muscular", "slim", "fat", "tall", "short", "mature", "young", "freckles", "dark_skin", "pale_skin", "tan"]
+    },
+    "accessory": {
+      "includeGlobs": ["*_hat", "*_glasses", "*_earrings", "*_necklace", "*_bracelet", "*_ring", "*_ribbon", "*_bow", "*_hair_ornament", "*_headband", "*_crown", "*_tiara", "*_mask"]
+    },
+    "characterCount": {
+      "includeExact": ["solo", "1girl", "1boy", "2girls", "2boys", "3girls", "3boys", "multiple_girls", "multiple_boys", "group", "crowd", "no_humans"]
+    }
+  }
+}

@@ -4017,7 +4017,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get randomMode_title => 'Select Random Mode';
 
   @override
-  String get randomMode_naiOfficial => 'Official Mode';
+  String get randomMode_naiOfficial => 'Offline Library';
 
   @override
   String get randomMode_custom => 'Custom Mode';
@@ -4027,17 +4027,17 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get randomMode_naiOfficialDesc =>
-      'Replicate NovelAI official random algorithm';
+      'Use the verified complete offline tag catalog';
 
   @override
   String get randomMode_customDesc => 'Generate using custom presets';
 
   @override
   String get randomMode_hybridDesc =>
-      'Combine official algorithm with custom presets';
+      'Combine the offline library with custom presets';
 
   @override
-  String get randomMode_naiIndicator => 'NAI';
+  String get randomMode_naiIndicator => 'Offline';
 
   @override
   String get randomMode_customIndicator => 'Custom';
@@ -12599,4 +12599,47 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get autocomplete_openSettings =>
       'Open autocomplete and data source settings';
+
+  @override
+  String get randomManager_searchCategories =>
+      'Search categories, groups, or tags (Ctrl+F)';
+
+  @override
+  String get randomManager_verifiedOfflineLibrary =>
+      'Verified offline random library';
+
+  @override
+  String get randomManager_sourceDetails => 'Data source details';
+
+  @override
+  String get randomManager_sourceUrl => 'Source URL';
+
+  @override
+  String get randomManager_sourceCommit => 'Source commit';
+
+  @override
+  String get randomManager_sourceDate => 'Source date';
+
+  @override
+  String get randomManager_sourceLicense => 'License';
+
+  @override
+  String randomManager_catalogCounts(Object tags, Object aliases) {
+    return 'Complete catalog: $tags tags, $aliases aliases';
+  }
+
+  @override
+  String randomManager_libraryVersion(String version, String count) {
+    return 'Rules v$version · $count tags';
+  }
+
+  @override
+  String get randomManager_preview => 'Random result preview';
+
+  @override
+  String get randomManager_libraryUnavailable => 'Random library unavailable';
+
+  @override
+  String get randomManager_noCategoryResults =>
+      'No matching categories, groups, or tags';
 }

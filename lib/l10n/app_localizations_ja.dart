@@ -3921,7 +3921,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get randomMode_title => 'ランダム モードを選択';
 
   @override
-  String get randomMode_naiOfficial => '公式モード';
+  String get randomMode_naiOfficial => 'オフラインライブラリ';
 
   @override
   String get randomMode_custom => 'カスタムモード';
@@ -3930,16 +3930,16 @@ class AppLocalizationsJa extends AppLocalizations {
   String get randomMode_hybrid => 'ハイブリッド モード';
 
   @override
-  String get randomMode_naiOfficialDesc => 'NovelAI 公式ランダム アルゴリズムを複製する';
+  String get randomMode_naiOfficialDesc => '検証済みの完全なオフラインタグカタログを使用';
 
   @override
   String get randomMode_customDesc => 'カスタム プリセットを使用して生成';
 
   @override
-  String get randomMode_hybridDesc => '公式アルゴリズムとカスタム プリセットを組み合わせる';
+  String get randomMode_hybridDesc => 'オフラインライブラリとカスタムプリセットを組み合わせる';
 
   @override
-  String get randomMode_naiIndicator => 'NAI';
+  String get randomMode_naiIndicator => 'オフライン';
 
   @override
   String get randomMode_customIndicator => 'カスタム';
@@ -12281,4 +12281,44 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get autocomplete_openSettings => '補完とデータソース設定を開く';
+
+  @override
+  String get randomManager_searchCategories => 'カテゴリ、グループ、タグを検索（Ctrl+F）';
+
+  @override
+  String get randomManager_verifiedOfflineLibrary => '検証済みオフラインランダムライブラリ';
+
+  @override
+  String get randomManager_sourceDetails => 'データソースの詳細';
+
+  @override
+  String get randomManager_sourceUrl => 'ソース URL';
+
+  @override
+  String get randomManager_sourceCommit => 'ソースコミット';
+
+  @override
+  String get randomManager_sourceDate => 'ソース日付';
+
+  @override
+  String get randomManager_sourceLicense => 'ライセンス';
+
+  @override
+  String randomManager_catalogCounts(Object tags, Object aliases) {
+    return '完全なカタログ：$tags タグ、$aliases エイリアス';
+  }
+
+  @override
+  String randomManager_libraryVersion(String version, String count) {
+    return 'ルール v$version · $count タグ';
+  }
+
+  @override
+  String get randomManager_preview => 'ランダム結果のプレビュー';
+
+  @override
+  String get randomManager_libraryUnavailable => 'ランダムライブラリを利用できません';
+
+  @override
+  String get randomManager_noCategoryResults => '一致するカテゴリ、グループ、タグがありません';
 }

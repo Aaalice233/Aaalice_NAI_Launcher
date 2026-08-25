@@ -1767,13 +1767,13 @@
   },
 
   "randomMode_title": "Select Random Mode",
-  "randomMode_naiOfficial": "Official Mode",
+  "randomMode_naiOfficial": "Offline Library",
   "randomMode_custom": "Custom Mode",
   "randomMode_hybrid": "Hybrid Mode",
-  "randomMode_naiOfficialDesc": "Replicate NovelAI official random algorithm",
+  "randomMode_naiOfficialDesc": "Use the verified complete offline tag catalog",
   "randomMode_customDesc": "Generate using custom presets",
-  "randomMode_hybridDesc": "Combine official algorithm with custom presets",
-  "randomMode_naiIndicator": "NAI",
+  "randomMode_hybridDesc": "Combine the offline library with custom presets",
+  "randomMode_naiIndicator": "Offline",
   "randomMode_customIndicator": "Custom",
 
   "naiMode_noTags": "No tags",
@@ -6245,6 +6245,20 @@
   "autocomplete_statusDisabled": "Off",
   "autocomplete_statusSearching": "Searching",
   "autocomplete_statusTranslating": "Translating",
-  "autocomplete_openSettings": "Open autocomplete and data source settings"
+  "autocomplete_openSettings": "Open autocomplete and data source settings",
+  "randomManager_searchCategories": "Search categories, groups, or tags (Ctrl+F)",
+  "randomManager_verifiedOfflineLibrary": "Verified offline random library",
+  "randomManager_sourceDetails": "Data source details",
+  "randomManager_sourceUrl": "Source URL",
+  "randomManager_sourceCommit": "Source commit",
+  "randomManager_sourceDate": "Source date",
+  "randomManager_sourceLicense": "License",
+  "randomManager_catalogCounts": "Complete catalog: {tags} tags, {aliases} aliases",
+  "@randomManager_catalogCounts": {"placeholders": {"tags": {}, "aliases": {}}},
+  "randomManager_libraryVersion": "Rules v{version} · {count} tags",
+  "@randomManager_libraryVersion": {"placeholders": {"version": {"type": "String"}, "count": {"type": "String"}}},
+  "randomManager_preview": "Random result preview",
+  "randomManager_libraryUnavailable": "Random library unavailable",
+  "randomManager_noCategoryResults": "No matching categories, groups, or tags"
 
 }

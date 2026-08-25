@@ -7207,7 +7207,7 @@ abstract class AppLocalizations {
   /// No description provided for @randomMode_naiOfficial.
   ///
   /// In en, this message translates to:
-  /// **'Official Mode'**
+  /// **'Offline Library'**
   String get randomMode_naiOfficial;
 
   /// No description provided for @randomMode_custom.
@@ -7225,7 +7225,7 @@ abstract class AppLocalizations {
   /// No description provided for @randomMode_naiOfficialDesc.
   ///
   /// In en, this message translates to:
-  /// **'Replicate NovelAI official random algorithm'**
+  /// **'Use the verified complete offline tag catalog'**
   String get randomMode_naiOfficialDesc;
 
   /// No description provided for @randomMode_customDesc.
@@ -7237,13 +7237,13 @@ abstract class AppLocalizations {
   /// No description provided for @randomMode_hybridDesc.
   ///
   /// In en, this message translates to:
-  /// **'Combine official algorithm with custom presets'**
+  /// **'Combine the offline library with custom presets'**
   String get randomMode_hybridDesc;
 
   /// No description provided for @randomMode_naiIndicator.
   ///
   /// In en, this message translates to:
-  /// **'NAI'**
+  /// **'Offline'**
   String get randomMode_naiIndicator;
 
   /// No description provided for @randomMode_customIndicator.
@@ -21934,6 +21934,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Open autocomplete and data source settings'**
   String get autocomplete_openSettings;
+
+  /// No description provided for @randomManager_searchCategories.
+  ///
+  /// In en, this message translates to:
+  /// **'Search categories, groups, or tags (Ctrl+F)'**
+  String get randomManager_searchCategories;
+
+  /// No description provided for @randomManager_verifiedOfflineLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'Verified offline random library'**
+  String get randomManager_verifiedOfflineLibrary;
+
+  /// No description provided for @randomManager_sourceDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Data source details'**
+  String get randomManager_sourceDetails;
+
+  /// No description provided for @randomManager_sourceUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Source URL'**
+  String get randomManager_sourceUrl;
+
+  /// No description provided for @randomManager_sourceCommit.
+  ///
+  /// In en, this message translates to:
+  /// **'Source commit'**
+  String get randomManager_sourceCommit;
+
+  /// No description provided for @randomManager_sourceDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Source date'**
+  String get randomManager_sourceDate;
+
+  /// No description provided for @randomManager_sourceLicense.
+  ///
+  /// In en, this message translates to:
+  /// **'License'**
+  String get randomManager_sourceLicense;
+
+  /// No description provided for @randomManager_catalogCounts.
+  ///
+  /// In en, this message translates to:
+  /// **'Complete catalog: {tags} tags, {aliases} aliases'**
+  String randomManager_catalogCounts(Object tags, Object aliases);
+
+  /// No description provided for @randomManager_libraryVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Rules v{version} · {count} tags'**
+  String randomManager_libraryVersion(String version, String count);
+
+  /// No description provided for @randomManager_preview.
+  ///
+  /// In en, this message translates to:
+  /// **'Random result preview'**
+  String get randomManager_preview;
+
+  /// No description provided for @randomManager_libraryUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Random library unavailable'**
+  String get randomManager_libraryUnavailable;
+
+  /// No description provided for @randomManager_noCategoryResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No matching categories, groups, or tags'**
+  String get randomManager_noCategoryResults;
 }
 
 class _AppLocalizationsDelegate

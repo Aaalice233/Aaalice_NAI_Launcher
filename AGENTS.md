@@ -87,6 +87,8 @@ Windows 桌面开发优先使用 `scripts/dev_hot_reload_window.ps1`，它会打
 
 `assets/databases/tag_catalog.db` 是唯一通过 Git LFS 管理并随应用提供的数据库，发布前应确认它是真实 SQLite 数据库而不是 LFS pointer。原始标签/翻译/共现 CSV 不得放回 `assets/`；`assets/translations/` 已废弃。`assets/data/` 和 `assets/images/` 会随 Flutter assets 打包，移动或重命名后需要同步检查 `pubspec.yaml`。发布前确认 `CHANGELOG.md`、`dist/release_notes_<tag>.md`、`pubspec.yaml` 版本号和 Windows release build。
 
+随机词库只维护 `assets/data/random_tag_library.json` 中的声明式语义分类规则，候选标签必须来自完整的 `tag_catalog.db`，不得复制 NovelAI 网站脚本或词库内容。更新 taxonomy 或 catalog 版本时同步更新 `tool/random_tag_library/source_lock.json` 的 SHA-256、来源与完整分类计数，并运行 `dart run tool/random_tag_library/verify_random_tag_library.dart`；校验未通过不得提交。
+
 共现数据包只能通过 `tool/database/build_cooccurrence_only.dart` 从 `tool/database/cooccurrence_source_lock.json` 固定的完整源构建，产物写入 `tool/.tmp/cooccurrence/`，不得提交 `.db`、`.gz` 或源 CSV。完整构建必须通过哈希确定性、记录数、SQLite、查询计划、160 MiB 数据库和 80 MiB GZip 门槛；客户端只提交 `assets/data/cooccurrence_data_pack_manifest.json`。数据版本变化时手动运行 `.github/workflows/cooccurrence-data-pack.yml`，使用独立的 `autocomplete-data-cooccurrence-*` prerelease tag 发布，不得并入普通应用 Release 或设为 latest。
 
 ## Changelog 与 Release Notes 规范
