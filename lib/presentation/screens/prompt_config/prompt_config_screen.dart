@@ -280,7 +280,11 @@ class _Toolbar extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: colorScheme.surface,
-        border: Border(bottom: BorderSide(color: colorScheme.outlineVariant)),
+        border: Border(
+          bottom: BorderSide(
+            color: colorScheme.outlineVariant.withValues(alpha: 0.35),
+          ),
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -315,7 +319,7 @@ class _SettingsPanel extends StatelessWidget {
         const SizedBox(height: 10),
         Align(
           alignment: Alignment.centerLeft,
-          child: OutlinedButton.icon(
+          child: FilledButton.tonalIcon(
             onPressed: onGlobalSettings,
             icon: const Icon(Icons.tune_rounded),
             label: Text(context.l10n.randomManager_globalPeopleSettings),
@@ -355,12 +359,19 @@ class _LibraryPanel extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerLowest,
-        border: Border.all(color: colorScheme.outlineVariant),
-        borderRadius: BorderRadius.circular(12),
+        color: colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: colorScheme.shadow.withValues(alpha: 0.14),
+            blurRadius: 18,
+            spreadRadius: -8,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: expandList ? MainAxisSize.max : MainAxisSize.min,
@@ -389,8 +400,24 @@ class _LibraryPanel extends StatelessWidget {
                           },
                           icon: const Icon(Icons.close_rounded),
                         ),
+                  filled: true,
+                  fillColor: colorScheme.surfaceContainerHighest,
                   isDense: true,
-                  border: const OutlineInputBorder(),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide.none,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(
+                      color: colorScheme.primary.withValues(alpha: 0.55),
+                      width: 1.5,
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -417,8 +444,20 @@ class _LibrarySummary extends StatelessWidget {
     final library = libraryState.library!;
     return Row(
       children: [
-        Icon(Icons.offline_bolt_outlined, color: theme.colorScheme.primary),
-        const SizedBox(width: 10),
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(
+            Icons.offline_bolt_rounded,
+            size: 19,
+            color: theme.colorScheme.primary,
+          ),
+        ),
+        const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

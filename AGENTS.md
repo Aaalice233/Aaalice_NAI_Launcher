@@ -65,6 +65,10 @@ Windows 桌面开发优先使用 `scripts/dev_hot_reload_window.ps1`，它会打
 
 遵循 `analysis_options.yaml` 和 Dart 默认格式化规则，使用两个空格缩进。变量和方法使用 `lowerCamelCase`，类型使用 `UpperCamelCase`。Riverpod provider 命名应以 `Provider` 或 `NotifierProvider` 结尾。新增功能优先复用现有 service、provider、widget 和 utility，保持 `core`、`data`、`presentation` 的职责边界清晰。
 
+## UI 设计语言
+
+新增或修改界面必须遵循仓库根目录的 [`design.md`](design.md)。项目采用 Quiet Layered Utility（静谧层叠工具界面）：内容优先、无边框优先、细边框兜底，主要通过排版、留白和低对比色面建立层级。普通卡片、工具按钮、导航项与已填充控件不得默认添加完整描边；主题个性不得破坏统一的信息层级、交互状态、密度、响应式和可访问性规则。
+
 ## 在线画廊顶栏布局约束
 
 在线画廊顶栏按控件职责固定分行，不允许按站点自由重排。实现位于 `lib/presentation/screens/online_gallery/online_gallery_screen.dart`，布局回归测试位于 `test/presentation/screens/online_gallery/online_gallery_source_auth_test.dart`。

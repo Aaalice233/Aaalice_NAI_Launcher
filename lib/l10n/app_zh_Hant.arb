@@ -1660,6 +1660,7 @@
   "api_error_network": "網路錯誤",
   "api_error_network_hint": "無法連線到伺服器，請檢查網路",
   "drop_dialogTitle": "如何使用這張圖片？",
+  "drop_actions": "操作",
   "drop_hint": "拖拽圖片到這裡",
   "drop_processing": "正在解析圖片...",
   "drop_img2img": "圖生圖",
@@ -1819,6 +1820,20 @@
     "placeholders": {
       "total": {},
       "enabled": {}
+    }
+  },
+  "characterTooltip_previewTitle": "角色預覽",
+  "characterTooltip_enabledSummary": "{enabled} / {total} 啟用",
+  "@characterTooltip_enabledSummary": {
+    "placeholders": {
+      "enabled": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  },
+  "characterTooltip_more": "還有 {count} 個角色",
+  "@characterTooltip_more": {
+    "placeholders": {
+      "count": {"type": "int"}
     }
   },
   "characterTooltip_viewFullConfig": "點選檢視完整配置",

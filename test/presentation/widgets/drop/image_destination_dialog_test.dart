@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -118,8 +119,11 @@ void main() {
       ),
     );
 
-    expect(find.text('Character Prompts (1)'), findsOneWidget);
-    await tester.tap(find.text('Character Prompts (1)'));
+    final characterPrompts = find.text('Character Prompts (1)');
+    expect(characterPrompts, findsOneWidget);
+    await tester.ensureVisible(characterPrompts);
+    await tester.pumpAndSettle();
+    await tester.tap(characterPrompts);
     await tester.pumpAndSettle();
 
     expect(
@@ -150,7 +154,32 @@ void main() {
     );
     await tester.pump();
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Add to library').last);
+    final promptField = _promptFieldFinder('drop-positive-prompt-card');
+    await tester.ensureVisible(promptField);
+    await tester.pumpAndSettle();
+    tester.widget<TextField>(promptField).focusNode!.requestFocus();
+    controller.selection = TextSelection(
+      baseOffset: start,
+      extentOffset: start + selected.length,
+    );
+    await tester.pump();
+    final editableText = find.descendant(
+      of: promptField,
+      matching: find.byType(EditableText),
+    );
+    final editableState = tester.state<EditableTextState>(editableText);
+    final textField = tester.widget<TextField>(promptField);
+    final menuEntry = OverlayEntry(
+      builder: (context) =>
+          textField.contextMenuBuilder!(context, editableState),
+    );
+    Overlay.of(tester.element(promptField)).insert(menuEntry);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Add to library'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Add to library'), findsNothing);
+    await tester.tap(find.text('Add to library'));
+    menuEntry.remove();
     await tester.pumpAndSettle();
 
     final contentField = tester.widget<TextField>(
@@ -172,7 +201,16 @@ void main() {
       ],
     );
 
-    await tester.tap(find.text('Add full prompt to library').first);
+    final promptField = _promptFieldFinder('drop-positive-prompt-card');
+    await tester.ensureVisible(promptField);
+    await tester.pumpAndSettle();
+    await tester.tapAt(
+      tester.getCenter(promptField),
+      buttons: kSecondaryMouseButton,
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Add full prompt to library'));
     await tester.pumpAndSettle();
 
     expect(
@@ -225,10 +263,31 @@ void main() {
       tester.view.devicePixelRatio = 1;
       await _openMetadataDialog(tester, metadata: metadata);
 
+      final contentPane = find.byKey(
+        const ValueKey('drop-metadata-content-pane'),
+      );
+      final actionRail = find.byKey(
+        const ValueKey('drop-metadata-action-rail'),
+      );
       expect(find.byKey(const ValueKey('drop-positive-prompt-card')), findsOne);
       expect(find.byKey(const ValueKey('drop-negative-prompt-card')), findsOne);
+      expect(contentPane, findsOneWidget);
+      expect(actionRail, findsOneWidget);
+      expect(
+        tester.getTopRight(contentPane).dx,
+        lessThan(tester.getTopLeft(actionRail).dx),
+      );
+      expect(
+        tester.getSize(_promptFieldFinder('drop-positive-prompt-card')).height,
+        greaterThanOrEqualTo(170),
+      );
+      expect(find.text('Actions'), findsOneWidget);
       expect(find.text('Extract Metadata'), findsOneWidget);
       expect(find.text('Reverse Prompt'), findsOneWidget);
+      expect(
+        tester.getTopLeft(find.text('Extract Metadata')).dy,
+        lessThan(tester.getTopLeft(find.text('Reverse Prompt')).dy),
+      );
       expect(tester.takeException(), isNull, reason: 'width=$width');
 
       if (width == 700) {
@@ -313,13 +372,15 @@ Future<void> _openMetadataDialog(
   await tester.pumpAndSettle();
 }
 
-TextEditingController _promptController(WidgetTester tester, String cardKey) {
-  final textField = tester.widget<TextField>(
-    find.descendant(
-      of: find.byKey(ValueKey(cardKey)),
-      matching: find.byType(TextField),
-    ),
+Finder _promptFieldFinder(String cardKey) {
+  return find.descendant(
+    of: find.byKey(ValueKey(cardKey)),
+    matching: find.byType(TextField),
   );
+}
+
+TextEditingController _promptController(WidgetTester tester, String cardKey) {
+  final textField = tester.widget<TextField>(_promptFieldFinder(cardKey));
   return textField.controller!;
 }
 

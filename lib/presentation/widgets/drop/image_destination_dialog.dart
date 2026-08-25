@@ -331,99 +331,180 @@ class ImageDestinationDialog extends ConsumerWidget {
   ) {
     final theme = Theme.of(context);
     final viewport = MediaQuery.sizeOf(context);
+    final dialogWidth = math.min(1180.0, math.max(0.0, viewport.width - 48));
+    final dialogHeight = math.min(780.0, math.max(400.0, viewport.height - 48));
 
     return Dialog(
       insetPadding: const EdgeInsets.all(24),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: 900,
-          maxHeight: (viewport.height - 48).clamp(400, 780),
-        ),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final useSideBySide = constraints.maxWidth >= 800;
-              final preview = _buildImagePreview(
-                context,
-                maxSize: useSideBySide ? 280 : 156,
-              );
-              final promptPanel = _PromptMetadataPanel(
-                metadata: promptMetadata,
-              );
-
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      clipBehavior: Clip.antiAlias,
+      child: SizedBox(
+        width: dialogWidth,
+        height: dialogHeight,
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
                 children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.image_search_outlined,
-                        color: theme.colorScheme.primary,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          context.l10n.drop_dialogTitle,
-                          style: theme.textTheme.titleLarge,
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: () => Navigator.of(context).pop(),
-                        tooltip: context.l10n.common_close,
-                      ),
-                    ],
+                  Icon(
+                    Icons.image_search_outlined,
+                    color: theme.colorScheme.primary,
                   ),
-                  const SizedBox(height: 16),
-                  if (useSideBySide)
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        SizedBox(width: 280, child: preview),
-                        const SizedBox(width: 20),
-                        Expanded(child: promptPanel),
-                      ],
-                    )
-                  else ...[
-                    Center(child: preview),
-                    const SizedBox(height: 16),
-                    promptPanel,
-                  ],
-                  if (detectedVibe != null) ...[
-                    const SizedBox(height: 20),
-                    _buildVibeDetectedCard(context),
-                  ],
-                  const SizedBox(height: 20),
-                  const ThemedDivider(height: 1),
-                  const SizedBox(height: 16),
-                  _buildMetadataDestinationGrid(context),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      context.l10n.drop_dialogTitle,
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.of(context).pop(),
+                    tooltip: context.l10n.common_close,
+                  ),
                 ],
-              );
-            },
+              ),
+              const SizedBox(height: 14),
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final useActionRail = constraints.maxWidth >= 600;
+                    if (!useActionRail) {
+                      return SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            SizedBox(
+                              height: math.max(
+                                420.0,
+                                constraints.maxHeight * 0.72,
+                              ),
+                              child: _buildMetadataContent(
+                                context,
+                                promptMetadata,
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            _buildMetadataActionPanel(context),
+                          ],
+                        ),
+                      );
+                    }
+
+                    final railWidth = constraints.maxWidth >= 900
+                        ? 220.0
+                        : 190.0;
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(
+                          key: const ValueKey('drop-metadata-content-pane'),
+                          child: _buildMetadataContent(context, promptMetadata),
+                        ),
+                        const SizedBox(width: 16),
+                        VerticalDivider(
+                          width: 1,
+                          thickness: 1,
+                          color: theme.colorScheme.outlineVariant,
+                        ),
+                        const SizedBox(width: 16),
+                        SizedBox(
+                          key: const ValueKey('drop-metadata-action-rail'),
+                          width: railWidth,
+                          child: _buildMetadataActionPanel(
+                            context,
+                            fillHeight: true,
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _buildImagePreview(BuildContext context, {required double maxSize}) {
+  Widget _buildMetadataContent(
+    BuildContext context,
+    NaiImageMetadata promptMetadata,
+  ) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final placeImageBesidePrompts = constraints.maxWidth >= 720;
+        final imageWidth = placeImageBesidePrompts
+            ? math.min(280.0, constraints.maxWidth * 0.34)
+            : math.min(240.0, constraints.maxWidth);
+        final preview = _buildImagePreview(
+          context,
+          width: imageWidth,
+          height: placeImageBesidePrompts ? 430 : 240,
+        );
+        final promptPanel = _PromptMetadataPanel(metadata: promptMetadata);
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.only(right: 4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _MetadataSummary(metadata: promptMetadata),
+              const SizedBox(height: 14),
+              if (placeImageBesidePrompts)
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(width: imageWidth, child: preview),
+                    const SizedBox(width: 18),
+                    Expanded(child: promptPanel),
+                  ],
+                )
+              else ...[
+                Center(child: preview),
+                const SizedBox(height: 16),
+                promptPanel,
+              ],
+              if (detectedVibe != null) ...[
+                const SizedBox(height: 16),
+                _buildVibeDetectedCard(context),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildImagePreview(
+    BuildContext context, {
+    required double width,
+    required double height,
+  }) {
     final theme = Theme.of(context);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          constraints: BoxConstraints(maxWidth: maxSize, maxHeight: maxSize),
+          width: width,
+          height: height,
+          padding: const EdgeInsets.all(1),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: theme.colorScheme.outlineVariant),
+            color: theme.colorScheme.surfaceContainerLowest,
+            borderRadius: BorderRadius.circular(11),
+            border: Border.all(
+              color: theme.colorScheme.outlineVariant.withValues(alpha: 0.75),
+            ),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.16),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
               ),
             ],
           ),
@@ -432,35 +513,97 @@ class ImageDestinationDialog extends ConsumerWidget {
             child: Image.memory(
               imageBytes,
               fit: BoxFit.contain,
-              errorBuilder: (context, error, stackTrace) => SizedBox.square(
-                dimension: maxSize,
-                child: ColoredBox(
-                  color: theme.colorScheme.surfaceContainerHighest,
-                  child: Icon(
-                    Icons.broken_image_outlined,
-                    size: 64,
-                    color: theme.colorScheme.outline,
-                  ),
+              errorBuilder: (context, error, stackTrace) => ColoredBox(
+                color: theme.colorScheme.surfaceContainerHighest,
+                child: Icon(
+                  Icons.broken_image_outlined,
+                  size: 64,
+                  color: theme.colorScheme.outline,
                 ),
               ),
             ),
           ),
         ),
         const SizedBox(height: 8),
-        Text(
-          fileName,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
+        SizedBox(
+          width: width,
+          child: Text(
+            fileName,
+            maxLines: 1,
+            textAlign: TextAlign.center,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildMetadataDestinationGrid(BuildContext context) {
-    final actions = <Widget>[
+  Widget _buildMetadataActionPanel(
+    BuildContext context, {
+    bool fillHeight = false,
+  }) {
+    final theme = Theme.of(context);
+    final actions = _metadataDestinationActions(context);
+    final content = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var index = 0; index < actions.length; index++) ...[
+          if (index > 0) const SizedBox(height: 10),
+          actions[index],
+        ],
+      ],
+    );
+
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(11),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.7),
+        ),
+      ),
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        mainAxisSize: fillHeight ? MainAxisSize.max : MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.arrow_forward_rounded,
+                size: 18,
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(width: 7),
+              Text(
+                context.l10n.drop_actions,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Divider(
+            height: 1,
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.65),
+          ),
+          const SizedBox(height: 10),
+          if (fillHeight)
+            Expanded(child: SingleChildScrollView(child: content))
+          else
+            content,
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _metadataDestinationActions(BuildContext context) {
+    return <Widget>[
       if (showExtractMetadata)
         _DestinationButton(
           icon: Icons.data_object,
@@ -503,22 +646,6 @@ class ImageDestinationDialog extends ConsumerWidget {
             Navigator.of(context).pop(ImageDestination.characterReference),
       ),
     ];
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final columns = constraints.maxWidth >= 620 ? 2 : 1;
-        final itemWidth = columns == 2
-            ? (constraints.maxWidth - 12) / 2
-            : constraints.maxWidth;
-        return Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          children: actions
-              .map((action) => SizedBox(width: itemWidth, child: action))
-              .toList(),
-        );
-      },
-    );
   }
 
   /// 构建 Vibe 检测卡片
@@ -743,10 +870,10 @@ bool _isPromptBoundaryWhitespace(String character) {
       character == '\n';
 }
 
-class _PromptMetadataPanel extends StatelessWidget {
-  final NaiImageMetadata metadata;
+class _MetadataSummary extends StatelessWidget {
+  const _MetadataSummary({required this.metadata});
 
-  const _PromptMetadataPanel({required this.metadata});
+  final NaiImageMetadata metadata;
 
   @override
   Widget build(BuildContext context) {
@@ -762,7 +889,7 @@ class _PromptMetadataPanel extends StatelessWidget {
     ];
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
@@ -783,14 +910,30 @@ class _PromptMetadataPanel extends StatelessWidget {
           ],
         ),
         if (facts.isNotEmpty) ...[
-          const SizedBox(height: 10),
+          const SizedBox(height: 9),
           Wrap(
             spacing: 6,
             runSpacing: 6,
             children: facts.map((fact) => _MetadataPill(label: fact)).toList(),
           ),
         ],
-        const SizedBox(height: 14),
+      ],
+    );
+  }
+}
+
+class _PromptMetadataPanel extends StatelessWidget {
+  final NaiImageMetadata metadata;
+
+  const _PromptMetadataPanel({required this.metadata});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
         _PromptSelectionCard(
           key: const ValueKey('drop-positive-prompt-card'),
           title: context.l10n.drop_positivePrompt,
@@ -840,6 +983,7 @@ class _PromptMetadataPanel extends StatelessWidget {
                       fallbackName: context.l10n.drop_characterPositivePrompt(
                         index + 1,
                       ),
+                      height: 112,
                     ),
                   if (index < metadata.characterNegativePrompts.length) ...[
                     const SizedBox(height: 8),
@@ -854,6 +998,7 @@ class _PromptMetadataPanel extends StatelessWidget {
                       fallbackName: context.l10n.drop_characterNegativePrompt(
                         index + 1,
                       ),
+                      height: 112,
                     ),
                   ],
                   if (index + 1 <
@@ -901,12 +1046,14 @@ class _PromptSelectionCard extends StatefulWidget {
   final String title;
   final String content;
   final String fallbackName;
+  final double height;
 
   const _PromptSelectionCard({
     super.key,
     required this.title,
     required this.content,
     required this.fallbackName,
+    this.height = 180,
   });
 
   @override
@@ -953,9 +1100,7 @@ class _PromptSelectionCardState extends State<_PromptSelectionCard> {
       final end = selection.end.clamp(0, _controller.text.length);
       if (start < end) selectedText = _controller.text.substring(start, end);
     }
-    if (selectedText != _selectedText && mounted) {
-      setState(() => _selectedText = selectedText);
-    }
+    _selectedText = selectedText;
   }
 
   void _handlePointerDown(PointerDownEvent event) {
@@ -1019,30 +1164,12 @@ class _PromptSelectionCardState extends State<_PromptSelectionCard> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 6, 6),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    widget.title,
-                    style: theme.textTheme.labelLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                if (hasContent) ...[
-                  IconButton(
-                    visualDensity: VisualDensity.compact,
-                    tooltip: context.l10n.drop_promptCopy,
-                    onPressed: () => _copy(widget.content),
-                    icon: const Icon(Icons.copy_outlined, size: 18),
-                  ),
-                  TextButton(
-                    onPressed: () => _addToLibrary(widget.content),
-                    child: Text(context.l10n.drop_promptAddWhole),
-                  ),
-                ],
-              ],
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 7),
+            child: Text(
+              widget.title,
+              style: theme.textTheme.labelLarge?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
           if (!hasContent)
@@ -1057,7 +1184,7 @@ class _PromptSelectionCardState extends State<_PromptSelectionCard> {
             )
           else ...[
             Container(
-              height: 112,
+              height: widget.height,
               margin: const EdgeInsets.fromLTRB(10, 0, 10, 8),
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
@@ -1121,21 +1248,28 @@ class _PromptSelectionCardState extends State<_PromptSelectionCard> {
                                 selection.end <= value.text.length
                             ? selection.textInside(value.text)
                             : '';
+                        final hasSelection = selectedText.trim().isNotEmpty;
                         final items = [
-                          ...editableTextState.contextMenuButtonItems,
                           ContextMenuButtonItem(
-                            label: selectedText.trim().isNotEmpty
+                            label: hasSelection
                                 ? context.l10n.drop_promptAddSelection
                                 : context.l10n.drop_promptAddWhole,
                             onPressed: () {
                               editableTextState.hideToolbar();
                               _addToLibrary(
-                                selectedText.trim().isNotEmpty
-                                    ? selectedText
-                                    : widget.content,
+                                hasSelection ? selectedText : widget.content,
                               );
                             },
                           ),
+                          if (!hasSelection)
+                            ContextMenuButtonItem(
+                              label: context.l10n.drop_promptCopy,
+                              onPressed: () {
+                                editableTextState.hideToolbar();
+                                _copy(widget.content);
+                              },
+                            ),
+                          ...editableTextState.contextMenuButtonItems,
                         ];
                         return buildThemedTextSelectionToolbar(
                           context,
@@ -1148,26 +1282,6 @@ class _PromptSelectionCardState extends State<_PromptSelectionCard> {
                 ),
               ),
             ),
-            if (_selectedText.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton.icon(
-                      onPressed: () => _copy(_selectedText),
-                      icon: const Icon(Icons.copy_outlined, size: 17),
-                      label: Text(context.l10n.drop_promptCopy),
-                    ),
-                    const SizedBox(width: 6),
-                    FilledButton.tonalIcon(
-                      onPressed: () => _addToLibrary(_selectedText),
-                      icon: const Icon(Icons.library_add_outlined, size: 17),
-                      label: Text(context.l10n.drop_promptAddSelection),
-                    ),
-                  ],
-                ),
-              ),
           ],
         ],
       ),

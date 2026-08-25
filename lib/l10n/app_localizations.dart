@@ -7201,6 +7201,24 @@ abstract class AppLocalizations {
   /// **'{total} characters ({enabled} enabled)'**
   String characterTooltip_summary(Object total, Object enabled);
 
+  /// No description provided for @characterTooltip_previewTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Character preview'**
+  String get characterTooltip_previewTitle;
+
+  /// No description provided for @characterTooltip_enabledSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{enabled} / {total} enabled'**
+  String characterTooltip_enabledSummary(int enabled, int total);
+
+  /// No description provided for @characterTooltip_more.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} more characters'**
+  String characterTooltip_more(int count);
+
   /// No description provided for @characterTooltip_viewFullConfig.
   ///
   /// In en, this message translates to:
@@ -14307,6 +14325,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'How to use this image?'**
   String get drop_dialogTitle;
+
+  /// No description provided for @drop_actions.
+  ///
+  /// In en, this message translates to:
+  /// **'Actions'**
+  String get drop_actions;
 
   /// No description provided for @drop_hint.
   ///

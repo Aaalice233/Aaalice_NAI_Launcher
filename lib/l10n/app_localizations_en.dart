@@ -4030,6 +4030,19 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get characterTooltip_previewTitle => 'Character preview';
+
+  @override
+  String characterTooltip_enabledSummary(int enabled, int total) {
+    return '$enabled / $total enabled';
+  }
+
+  @override
+  String characterTooltip_more(int count) {
+    return '$count more characters';
+  }
+
+  @override
   String get characterTooltip_viewFullConfig => 'Click for full configuration';
 
   @override
@@ -8060,6 +8073,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get drop_dialogTitle => 'How to use this image?';
+
+  @override
+  String get drop_actions => 'Actions';
 
   @override
   String get drop_hint => 'Drop image here';

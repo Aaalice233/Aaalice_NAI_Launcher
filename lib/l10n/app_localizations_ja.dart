@@ -3934,6 +3934,19 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
+  String get characterTooltip_previewTitle => 'キャラクタープレビュー';
+
+  @override
+  String characterTooltip_enabledSummary(int enabled, int total) {
+    return '$enabled / $total 有効';
+  }
+
+  @override
+  String characterTooltip_more(int count) {
+    return '他 $count 人のキャラクター';
+  }
+
+  @override
   String get characterTooltip_viewFullConfig => 'クリックすると完全な構成が表示されます';
 
   @override
@@ -7881,6 +7894,9 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get drop_dialogTitle => 'この画像はどのように使用しますか?';
+
+  @override
+  String get drop_actions => '操作';
 
   @override
   String get drop_hint => 'ここに画像をドロップしてください';

@@ -133,21 +133,34 @@ class _InlineCharacterCardState extends ConsumerState<InlineCharacterCard> {
     final isEditing = _isEditing;
     final enabled = widget.character.enabled;
     final showInlineEditor = isEditing && widget.inlineEditor;
+    final genderColor = _genderColor(widget.character.effectiveGender);
 
-    // 边框恒宽只变色：宽度变化会挤动内容造成微抖，颜色用动画过渡
+    // 性别色只承担识别与层级，不大面积染色；选中态仍统一使用主题主色。
     final card = AnimatedContainer(
       duration: _animDuration,
       curve: _animCurve,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(8),
+        color: Color.alphaBlend(
+          genderColor.withValues(alpha: 0.035),
+          colorScheme.surface,
+        ),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(
           color: isEditing
               ? colorScheme.primary
-              : colorScheme.outline.withValues(alpha: 0.3),
+              : genderColor.withValues(alpha: 0.28),
           width: 1.5,
         ),
+        boxShadow: isEditing
+            ? [
+                BoxShadow(
+                  color: colorScheme.primary.withValues(alpha: 0.12),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ]
+            : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -214,7 +227,9 @@ class _InlineCharacterCardState extends ConsumerState<InlineCharacterCard> {
         character.thumbnailPath != null &&
         character.thumbnailPath!.isNotEmpty &&
         File(character.thumbnailPath!).existsSync();
-    final headerHeight = widget.compact ? 30.0 : 34.0;
+    final gender = character.effectiveGender;
+    final genderColor = _genderColor(gender);
+    final headerHeight = widget.compact ? 36.0 : 42.0;
     // 缩略图铺满头部时文字压图，统一转白色
     final onHeader = hasThumbnail ? Colors.white : colorScheme.onSurfaceVariant;
 
@@ -226,8 +241,15 @@ class _InlineCharacterCardState extends ConsumerState<InlineCharacterCard> {
           if (hasThumbnail)
             _HeaderThumbnail(path: character.thumbnailPath!)
           else
-            ColoredBox(
-              color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    genderColor.withValues(alpha: 0.13),
+                    colorScheme.surfaceContainerHighest.withValues(alpha: 0.32),
+                  ],
+                ),
+              ),
             ),
           Material(
             color: Colors.transparent,
@@ -237,17 +259,13 @@ class _InlineCharacterCardState extends ConsumerState<InlineCharacterCard> {
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 child: Row(
                   children: [
-                    if (!hasThumbnail) ...[
-                      Container(
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: _genderColor(character.effectiveGender),
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                    ],
+                    _GenderBadge(
+                      gender: gender,
+                      color: genderColor,
+                      onImage: hasThumbnail,
+                      compact: widget.compact,
+                    ),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: Builder(
                         builder: (context) {
@@ -283,9 +301,6 @@ class _InlineCharacterCardState extends ConsumerState<InlineCharacterCard> {
                         },
                       ),
                     ),
-                    // 操作全部平铺一排（两种布局一致：上移/下移/收藏词库），
-                    // 名字用 Expanded 省略号吸收宽度，窄卡不会溢出
-                    ..._buildFullActions(context, l10n, onHeader),
                     _HeaderIconButton(
                       icon: character.enabled
                           ? Icons.check_circle
@@ -297,11 +312,11 @@ class _InlineCharacterCardState extends ConsumerState<InlineCharacterCard> {
                       onTap: () =>
                           _notifier.toggleCharacterEnabled(character.id),
                     ),
-                    _HeaderIconButton(
-                      icon: Icons.delete_outline,
-                      color: hasThumbnail ? Colors.white : colorScheme.error,
-                      tooltip: l10n.common_delete,
-                      onTap: _deleteCharacter,
+                    _CharacterActionsMenu(
+                      onHeader: onHeader,
+                      canMoveUp: widget.index > 0,
+                      canMoveDown: widget.index < widget.total - 1,
+                      onSelected: (action) => _handleAction(context, action),
                     ),
                   ],
                 ),
@@ -313,39 +328,23 @@ class _InlineCharacterCardState extends ConsumerState<InlineCharacterCard> {
     );
   }
 
-  List<Widget> _buildFullActions(
-    BuildContext context,
-    AppLocalizations l10n,
-    Color onHeader,
-  ) {
-    return [
-      _HeaderIconButton(
-        icon: Icons.arrow_upward,
-        color: onHeader,
-        tooltip: l10n.characterEditor_moveUp,
-        enabled: widget.index > 0,
-        onTap: () => _notifier.moveCharacterUp(widget.index),
-      ),
-      _HeaderIconButton(
-        icon: Icons.arrow_downward,
-        color: onHeader,
-        tooltip: l10n.characterEditor_moveDown,
-        enabled: widget.index < widget.total - 1,
-        onTap: () => _notifier.moveCharacterDown(widget.index),
-      ),
-      _HeaderIconButton(
-        icon: Icons.library_add_outlined,
-        color: onHeader,
-        tooltip: l10n.tagLibrary_addToLibrary,
-        onTap: () => _openModal(
+  void _handleAction(BuildContext context, _CharacterCardAction action) {
+    switch (action) {
+      case _CharacterCardAction.moveUp:
+        _notifier.moveCharacterUp(widget.index);
+      case _CharacterCardAction.moveDown:
+        _notifier.moveCharacterDown(widget.index);
+      case _CharacterCardAction.addToLibrary:
+        _openModal(
           () => AddToLibraryDialog.show(
             context,
             name: widget.character.name,
             content: widget.character.prompt,
           ),
-        ),
-      ),
-    ];
+        );
+      case _CharacterCardAction.delete:
+        _deleteCharacter();
+    }
   }
 
   static Color _genderColor(CharacterGender gender) {
@@ -387,6 +386,160 @@ class _InlineCharacterCardState extends ConsumerState<InlineCharacterCard> {
           ),
         ),
       ),
+    );
+  }
+}
+
+enum _CharacterCardAction { moveUp, moveDown, addToLibrary, delete }
+
+class _GenderBadge extends StatelessWidget {
+  const _GenderBadge({
+    required this.gender,
+    required this.color,
+    required this.onImage,
+    required this.compact,
+  });
+
+  final CharacterGender gender;
+  final Color color;
+  final bool onImage;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final icon = switch (gender) {
+      CharacterGender.female => Icons.female,
+      CharacterGender.male => Icons.male,
+      CharacterGender.other => Icons.transgender,
+    };
+    final label = switch (gender) {
+      CharacterGender.female => l10n.characterEditor_genderFemale,
+      CharacterGender.male => l10n.characterEditor_genderMale,
+      CharacterGender.other => l10n.characterEditor_genderOther,
+    };
+
+    final badge = Container(
+      key: ValueKey('character-gender-${gender.name}'),
+      padding: EdgeInsets.symmetric(horizontal: compact ? 5 : 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: onImage
+            ? Colors.black.withValues(alpha: 0.34)
+            : color.withValues(alpha: 0.13),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: onImage
+              ? Colors.white.withValues(alpha: 0.35)
+              : color.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          if (!compact) ...[
+            const SizedBox(width: 3),
+            Text(
+              label,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: color,
+                fontWeight: FontWeight.w700,
+                height: 1,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+
+    if (!compact) return badge;
+    return Tooltip(message: label, child: badge);
+  }
+}
+
+class _CharacterActionsMenu extends StatelessWidget {
+  const _CharacterActionsMenu({
+    required this.onHeader,
+    required this.canMoveUp,
+    required this.canMoveDown,
+    required this.onSelected,
+  });
+
+  final Color onHeader;
+  final bool canMoveUp;
+  final bool canMoveDown;
+  final ValueChanged<_CharacterCardAction> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
+
+    return PopupMenuButton<_CharacterCardAction>(
+      key: const Key('character-actions-menu'),
+      tooltip: MaterialLocalizations.of(context).moreButtonTooltip,
+      onSelected: onSelected,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints.tightFor(width: 36, height: 36),
+      icon: Icon(Icons.more_horiz, size: 19, color: onHeader),
+      itemBuilder: (context) => [
+        PopupMenuItem(
+          value: _CharacterCardAction.moveUp,
+          enabled: canMoveUp,
+          child: _CharacterMenuLabel(
+            icon: Icons.arrow_upward,
+            label: l10n.characterEditor_moveUp,
+          ),
+        ),
+        PopupMenuItem(
+          value: _CharacterCardAction.moveDown,
+          enabled: canMoveDown,
+          child: _CharacterMenuLabel(
+            icon: Icons.arrow_downward,
+            label: l10n.characterEditor_moveDown,
+          ),
+        ),
+        PopupMenuItem(
+          value: _CharacterCardAction.addToLibrary,
+          child: _CharacterMenuLabel(
+            icon: Icons.library_add_outlined,
+            label: l10n.tagLibrary_addToLibrary,
+          ),
+        ),
+        const PopupMenuDivider(),
+        PopupMenuItem(
+          value: _CharacterCardAction.delete,
+          child: _CharacterMenuLabel(
+            icon: Icons.delete_outline,
+            label: l10n.common_delete,
+            color: theme.colorScheme.error,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _CharacterMenuLabel extends StatelessWidget {
+  const _CharacterMenuLabel({
+    required this.icon,
+    required this.label,
+    this.color,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final foreground = color ?? Theme.of(context).colorScheme.onSurface;
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: foreground),
+        const SizedBox(width: 10),
+        Text(label, style: TextStyle(color: foreground)),
+      ],
     );
   }
 }
@@ -436,14 +589,12 @@ class _HeaderIconButton extends StatelessWidget {
   final Color color;
   final String tooltip;
   final VoidCallback onTap;
-  final bool enabled;
 
   const _HeaderIconButton({
     required this.icon,
     required this.color,
     required this.tooltip,
     required this.onTap,
-    this.enabled = true,
   });
 
   @override
@@ -452,15 +603,12 @@ class _HeaderIconButton extends StatelessWidget {
       message: tooltip,
       waitDuration: const Duration(milliseconds: 500),
       child: InkWell(
-        onTap: enabled ? onTap : null,
-        borderRadius: BorderRadius.circular(4),
-        child: Padding(
-          padding: const EdgeInsets.all(4),
-          child: Icon(
-            icon,
-            size: 15,
-            color: enabled ? color : color.withValues(alpha: 0.3),
-          ),
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: SizedBox(
+          width: 34,
+          height: 34,
+          child: Icon(icon, size: 17, color: color),
         ),
       ),
     );

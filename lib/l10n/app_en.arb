@@ -1781,6 +1781,20 @@
       "enabled": {}
     }
   },
+  "characterTooltip_previewTitle": "Character preview",
+  "characterTooltip_enabledSummary": "{enabled} / {total} enabled",
+  "@characterTooltip_enabledSummary": {
+    "placeholders": {
+      "enabled": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  },
+  "characterTooltip_more": "{count} more characters",
+  "@characterTooltip_more": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
   "characterTooltip_viewFullConfig": "Click for full configuration",
 
   "tagLibrary_generatedCharacters": "Generated {count} characters",
@@ -3865,6 +3879,7 @@
   },
 
   "drop_dialogTitle": "How to use this image?",
+  "drop_actions": "Actions",
   "drop_hint": "Drop image here",
   "drop_img2img": "Image2Image",
   "drop_reversePrompt": "Reverse Prompt",

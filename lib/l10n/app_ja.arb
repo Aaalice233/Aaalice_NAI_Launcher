@@ -1762,6 +1762,20 @@
       "enabled": {}
     }
   },
+  "characterTooltip_previewTitle": "キャラクタープレビュー",
+  "characterTooltip_enabledSummary": "{enabled} / {total} 有効",
+  "@characterTooltip_enabledSummary": {
+    "placeholders": {
+      "enabled": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  },
+  "characterTooltip_more": "他 {count} 人のキャラクター",
+  "@characterTooltip_more": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
   "characterTooltip_viewFullConfig": "クリックすると完全な構成が表示されます",
   "tagLibrary_generatedCharacters": "{count} キャラクターを生成しました",
   "@tagLibrary_generatedCharacters": {
@@ -3809,6 +3823,7 @@
     }
   },
   "drop_dialogTitle": "この画像はどのように使用しますか?",
+  "drop_actions": "操作",
   "drop_hint": "ここに画像をドロップしてください",
   "drop_img2img": "Image2Image",
   "drop_reversePrompt": "逆プロンプト",

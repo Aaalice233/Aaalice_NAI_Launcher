@@ -47,6 +47,7 @@ class CategoryCard extends ConsumerStatefulWidget {
 
 class _CategoryCardState extends ConsumerState<CategoryCard> {
   bool _isExpanded = false;
+  bool _isHovered = false;
 
   /// 当前正在拖拽的词组（用于显示垃圾桶区域）
   RandomTagGroup? _draggingGroup;
@@ -58,6 +59,17 @@ class _CategoryCardState extends ConsumerState<CategoryCard> {
     final category = widget.category;
 
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final restingColor = colorScheme.surfaceContainer;
+    final raisedColor = colorScheme.surfaceContainerHigh;
+    final backgroundColor = _isExpanded
+        ? Color.alphaBlend(
+            colorScheme.primary.withValues(alpha: 0.055),
+            raisedColor,
+          )
+        : _isHovered
+        ? raisedColor
+        : restingColor;
+
     return Semantics(
       container: true,
       button: true,
@@ -66,37 +78,54 @@ class _CategoryCardState extends ConsumerState<CategoryCard> {
       label: context.l10n.randomCategoryName(category),
       child: Opacity(
         opacity: category.enabled ? 1 : 0.58,
-        child: Card(
-          margin: EdgeInsets.zero,
-          elevation: 0,
-          color: colorScheme.surface,
-          clipBehavior: Clip.antiAlias,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-            side: BorderSide(
-              color: _isExpanded
-                  ? colorScheme.primary.withValues(alpha: 0.55)
-                  : colorScheme.outlineVariant,
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          onEnter: (_) => setState(() => _isHovered = true),
+          onExit: (_) => setState(() => _isHovered = false),
+          child: AnimatedContainer(
+            duration: reduceMotion
+                ? Duration.zero
+                : const Duration(milliseconds: 140),
+            curve: Curves.easeOutCubic,
+            decoration: BoxDecoration(
+              color: backgroundColor,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: _isExpanded || _isHovered
+                  ? [
+                      BoxShadow(
+                        color: colorScheme.shadow.withValues(alpha: 0.12),
+                        blurRadius: 10,
+                        spreadRadius: -4,
+                        offset: const Offset(0, 4),
+                      ),
+                    ]
+                  : const [],
             ),
-          ),
-          child: InkWell(
-            onTap: () => setState(() => _isExpanded = !_isExpanded),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildHeader(context, category),
-                AnimatedCrossFade(
-                  duration: reduceMotion
-                      ? Duration.zero
-                      : const Duration(milliseconds: 180),
-                  sizeCurve: Curves.easeOutCubic,
-                  crossFadeState: _isExpanded
-                      ? CrossFadeState.showSecond
-                      : CrossFadeState.showFirst,
-                  firstChild: const SizedBox.shrink(),
-                  secondChild: _buildExpandedContent(context, category),
+            child: Material(
+              color: Colors.transparent,
+              borderRadius: BorderRadius.circular(12),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: () => setState(() => _isExpanded = !_isExpanded),
+                borderRadius: BorderRadius.circular(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildHeader(context, category),
+                    AnimatedCrossFade(
+                      duration: reduceMotion
+                          ? Duration.zero
+                          : const Duration(milliseconds: 180),
+                      sizeCurve: Curves.easeOutCubic,
+                      crossFadeState: _isExpanded
+                          ? CrossFadeState.showSecond
+                          : CrossFadeState.showFirst,
+                      firstChild: const SizedBox.shrink(),
+                      secondChild: _buildExpandedContent(context, category),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ),
@@ -212,7 +241,9 @@ class _CategoryCardState extends ConsumerState<CategoryCard> {
       children: [
         Divider(
           height: 1,
-          color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+          indent: 12,
+          endIndent: 12,
+          color: colorScheme.onSurface.withValues(alpha: 0.07),
         ),
         Padding(
           padding: const EdgeInsets.all(12),

@@ -3856,6 +3856,19 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get characterTooltip_previewTitle => '角色预览';
+
+  @override
+  String characterTooltip_enabledSummary(int enabled, int total) {
+    return '$enabled / $total 启用';
+  }
+
+  @override
+  String characterTooltip_more(int count) {
+    return '还有 $count 个角色';
+  }
+
+  @override
   String get characterTooltip_viewFullConfig => '点击查看完整配置';
 
   @override
@@ -7766,6 +7779,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get drop_dialogTitle => '如何使用这张图片？';
+
+  @override
+  String get drop_actions => '操作';
 
   @override
   String get drop_hint => '拖拽图片到这里';
@@ -16125,6 +16141,19 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
+  String get characterTooltip_previewTitle => '角色預覽';
+
+  @override
+  String characterTooltip_enabledSummary(int enabled, int total) {
+    return '$enabled / $total 啟用';
+  }
+
+  @override
+  String characterTooltip_more(int count) {
+    return '還有 $count 個角色';
+  }
+
+  @override
   String get characterTooltip_viewFullConfig => '點選檢視完整配置';
 
   @override
@@ -20035,6 +20064,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get drop_dialogTitle => '如何使用這張圖片？';
+
+  @override
+  String get drop_actions => '操作';
 
   @override
   String get drop_hint => '拖拽圖片到這裡';
