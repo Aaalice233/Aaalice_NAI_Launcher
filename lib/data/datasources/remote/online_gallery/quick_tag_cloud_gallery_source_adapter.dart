@@ -11,6 +11,7 @@ import '../../../services/online_gallery/quick_tag_cloud_access.dart';
 import '../../../services/online_gallery/quick_tag_cloud_media_resolver.dart';
 import '../../../services/online_gallery/quick_tag_cloud_remote_catalog_service.dart';
 import '../../../services/online_gallery/quick_tag_cloud_user_service.dart';
+import 'gallery_random_sampler.dart';
 import 'gallery_source_adapter.dart';
 
 enum QuickTagCloudBrowseScope { catalog, latest, recent }
@@ -313,17 +314,17 @@ class QuickTagCloudGallerySourceAdapter extends GallerySourceAdapter {
       searchText: searchText,
       selectedRatings: request.ratings,
       cancelToken: cancelToken,
+      sortByRelevance: false,
     );
-    final shuffled = List<_QuickTagCloudRecord>.of(records)
-      ..shuffle(Random(seed));
-    final pageRecords = offset >= shuffled.length
-        ? const <_QuickTagCloudRecord>[]
-        : shuffled.sublist(
-            offset,
-            min(offset + request.pageSize, shuffled.length),
-          );
+    _throwIfCancelled(cancelToken);
+    final pageRecords = GalleryRandomSampler().permutationSlice(
+      records,
+      seed: seed,
+      offset: offset,
+      count: request.pageSize,
+    );
     final nextOffset = offset + pageRecords.length;
-    final hasMore = nextOffset < shuffled.length;
+    final hasMore = nextOffset < records.length;
     for (final record in pageRecords) {
       _rememberRecord(record);
     }
@@ -468,35 +469,45 @@ class QuickTagCloudGallerySourceAdapter extends GallerySourceAdapter {
     required String searchText,
     required Set<String> selectedRatings,
     CancelToken? cancelToken,
+    bool sortByRelevance = true,
   }) async {
     _throwIfCancelled(cancelToken);
     await _userService.ensureInitialized();
+    _throwIfCancelled(cancelToken);
     final saved = query.favoritesOnly
         ? _userService.favorites
         : query.scope == QuickTagCloudBrowseScope.recent
         ? _userService.recent
         : null;
-    final records = saved != null
-        ? [
-            for (final item in saved)
-              _QuickTagCloudRecord(
-                item.meta,
-                item.codex,
-                item.entry,
-                item.media,
-              ),
-          ]
-        : await _loadCatalogRecords(query, cancelToken: cancelToken);
+    final List<_QuickTagCloudRecord> records;
+    if (saved == null) {
+      records = await _loadCatalogRecords(query, cancelToken: cancelToken);
+    } else {
+      records = <_QuickTagCloudRecord>[];
+      for (var index = 0; index < saved.length; index++) {
+        if (index > 0 && index % 256 == 0) {
+          await Future<void>.delayed(Duration.zero);
+          _throwIfCancelled(cancelToken);
+        }
+        final item = saved[index];
+        records.add(
+          _QuickTagCloudRecord(item.meta, item.codex, item.entry, item.media),
+        );
+      }
+    }
     final cacheRevision = _cacheRevision;
     final normalizedSearch = searchText.trim().toLowerCase();
     final ratingsKey = (selectedRatings.toList()..sort()).join();
     final matchingCacheKey = saved == null
-        ? '${_catalog?.release ?? ''}|${query.stableKey}|$ratingsKey|$normalizedSearch'
+        ? '${_catalog?.release ?? ''}|${query.stableKey}|$ratingsKey|$normalizedSearch|sort:$sortByRelevance'
         : null;
     final cachedMatches = matchingCacheKey == null
         ? null
         : _matchingRecordSets[matchingCacheKey];
-    if (cachedMatches != null) return cachedMatches;
+    if (cachedMatches != null) {
+      _throwIfCancelled(cancelToken);
+      return cachedMatches;
+    }
     final terms = normalizedSearch
         .split(RegExp(r'\s+'))
         .where((term) => term.isNotEmpty)
@@ -504,7 +515,11 @@ class QuickTagCloudGallerySourceAdapter extends GallerySourceAdapter {
     final filtered = <_QuickTagCloudRecord>[];
     final cacheSearchHaystacks = records.length <= 5000;
     for (var index = 0; index < records.length; index++) {
-      if (index % 256 == 0) _throwIfCancelled(cancelToken);
+      if (index % 256 == 0) {
+        _throwIfCancelled(cancelToken);
+        if (index > 0) await Future<void>.delayed(Duration.zero);
+        _throwIfCancelled(cancelToken);
+      }
       final record = records[index];
       if (!_isAccessible(record, query, selectedRatings)) continue;
       if (!_matchesCodex(record, query.codexId)) continue;
@@ -532,7 +547,7 @@ class QuickTagCloudGallerySourceAdapter extends GallerySourceAdapter {
       filtered.add(record);
     }
     _throwIfCancelled(cancelToken);
-    if (terms.isNotEmpty) {
+    if (sortByRelevance && terms.isNotEmpty) {
       filtered.sort((left, right) {
         final leftScore = _searchScore(left, normalizedSearch);
         final rightScore = _searchScore(right, normalizedSearch);

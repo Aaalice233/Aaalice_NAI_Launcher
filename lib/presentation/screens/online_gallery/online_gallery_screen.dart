@@ -1207,14 +1207,12 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       child: compact
           ? OutlinedButton(
               key: const ValueKey('online-gallery-random-toggle'),
-              onPressed: state.isLoading
-                  ? null
-                  : () {
-                      if (!state.randomEnabled) _saveScrollOffset();
-                      unawaited(
-                        _galleryNotifier.setRandomEnabled(!state.randomEnabled),
-                      );
-                    },
+              onPressed: () {
+                if (!state.randomEnabled) _saveScrollOffset();
+                unawaited(
+                  _galleryNotifier.setRandomEnabled(!state.randomEnabled),
+                );
+              },
               style: OutlinedButton.styleFrom(
                 backgroundColor: state.randomEnabled
                     ? theme.colorScheme.primaryContainer
@@ -1233,14 +1231,12 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             )
           : OutlinedButton.icon(
               key: const ValueKey('online-gallery-random-toggle'),
-              onPressed: state.isLoading
-                  ? null
-                  : () {
-                      if (!state.randomEnabled) _saveScrollOffset();
-                      unawaited(
-                        _galleryNotifier.setRandomEnabled(!state.randomEnabled),
-                      );
-                    },
+              onPressed: () {
+                if (!state.randomEnabled) _saveScrollOffset();
+                unawaited(
+                  _galleryNotifier.setRandomEnabled(!state.randomEnabled),
+                );
+              },
               icon: const Icon(Icons.shuffle, size: 17),
               label: Text(context.l10n.onlineGallery_random),
               style: OutlinedButton.styleFrom(
@@ -1318,7 +1314,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         if (compact)
           FilledButton.tonal(
             key: const ValueKey('online-gallery-refresh'),
-            onPressed: state.isLoading ? null : refreshAction,
+            onPressed: refreshAction,
             style: FilledButton.styleFrom(
               minimumSize: const Size(0, 40),
               padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -1338,7 +1334,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         else
           FilledButton.tonalIcon(
             key: const ValueKey('online-gallery-refresh'),
-            onPressed: state.isLoading ? null : refreshAction,
+            onPressed: refreshAction,
             icon: refreshIcon,
             label: Text(
               state.randomEnabled
@@ -1405,16 +1401,12 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         label: context.l10n.onlineGallery_artistHunt,
         child: OutlinedButton.icon(
           key: const ValueKey('online-gallery-artist-hunt-toggle'),
-          onPressed: state.isLoading
-              ? null
-              : () {
-                  _saveScrollOffset();
-                  unawaited(
-                    _galleryNotifier.setArtistHuntEnabled(
-                      !state.artistHuntEnabled,
-                    ),
-                  );
-                },
+          onPressed: () {
+            _saveScrollOffset();
+            unawaited(
+              _galleryNotifier.setArtistHuntEnabled(!state.artistHuntEnabled),
+            );
+          },
           icon: const Icon(Icons.brush_outlined, size: 17),
           label: Text(context.l10n.onlineGallery_artistHunt),
           style: OutlinedButton.styleFrom(

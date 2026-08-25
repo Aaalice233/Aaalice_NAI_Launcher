@@ -593,65 +593,28 @@ class AiTagGallerySourceAdapter implements GallerySourceAdapter {
     // Select random page
     final randomPage = randomGenerator.nextInt(totalInfo.totalPages) + 1;
 
-    try {
-      final searchRequest = GallerySearchRequest(
-        cursor: randomPage.toString(),
-        pageSize: request.pageSize,
-        query: request.query,
-        prompt: request.prompt,
-        timeRange: request.timeRange,
-        ratings: request.ratings,
-        blacklistTags: request.blacklistTags,
-      );
+    final searchRequest = GallerySearchRequest(
+      cursor: randomPage.toString(),
+      pageSize: request.pageSize,
+      query: request.query,
+      prompt: request.prompt,
+      timeRange: request.timeRange,
+      ratings: request.ratings,
+      blacklistTags: request.blacklistTags,
+    );
 
-      final pageResult = randomPage == 1 && totalInfo.probedPage != null
-          ? totalInfo.probedPage!
-          : await search(
-              searchRequest,
-              cancelToken: cancelToken,
-              noCache: true,
-            );
-      final shuffled = shuffleGalleryItems(pageResult.items, randomGenerator);
+    final pageResult = randomPage == 1 && totalInfo.probedPage != null
+        ? totalInfo.probedPage!
+        : await search(searchRequest, cancelToken: cancelToken, noCache: true);
+    final shuffled = shuffleGalleryItems(pageResult.items, randomGenerator);
 
-      return GalleryPage(
-        items: shuffled,
-        cursor: 'random',
-        nextCursor: null,
-        hasMore: false,
-        rawItemCount: pageResult.rawItemCount,
-      );
-    } catch (error) {
-      if (error is DioException && error.type == DioExceptionType.cancel) {
-        rethrow;
-      }
-      // Fallback to first page on error
-      final firstPageRequest = GallerySearchRequest(
-        cursor: '1',
-        pageSize: request.pageSize,
-        query: request.query,
-        prompt: request.prompt,
-        timeRange: request.timeRange,
-        ratings: request.ratings,
-        blacklistTags: request.blacklistTags,
-      );
-
-      final firstPage =
-          totalInfo.probedPage ??
-          await search(
-            firstPageRequest,
-            cancelToken: cancelToken,
-            noCache: true,
-          );
-      final shuffled = shuffleGalleryItems(firstPage.items, randomGenerator);
-
-      return GalleryPage(
-        items: shuffled,
-        cursor: 'random',
-        nextCursor: null,
-        hasMore: false,
-        rawItemCount: firstPage.rawItemCount,
-      );
-    }
+    return GalleryPage(
+      items: shuffled,
+      cursor: 'random',
+      nextCursor: null,
+      hasMore: false,
+      rawItemCount: pageResult.rawItemCount,
+    );
   }
 
   Future<GalleryPage> _randomRanking(
@@ -716,69 +679,34 @@ class AiTagGallerySourceAdapter implements GallerySourceAdapter {
     // Select random page
     final randomPage = randomGenerator.nextInt(totalInfo.totalPages) + 1;
 
-    try {
-      final rankingRequest = GalleryRankingRequest(
-        cursor: randomPage.toString(),
-        pageSize: request.pageSize,
-        kind: request.kind,
-        date: request.date,
-        period: request.period,
-        query: request.query,
-        prompt: request.prompt,
-        ratings: request.ratings,
-        blacklistTags: request.blacklistTags,
-      );
+    final rankingRequest = GalleryRankingRequest(
+      cursor: randomPage.toString(),
+      pageSize: request.pageSize,
+      kind: request.kind,
+      date: request.date,
+      period: request.period,
+      query: request.query,
+      prompt: request.prompt,
+      ratings: request.ratings,
+      blacklistTags: request.blacklistTags,
+    );
 
-      final pageResult = randomPage == 1 && totalInfo.probedPage != null
-          ? totalInfo.probedPage!
-          : await ranking(
-              rankingRequest,
-              cancelToken: cancelToken,
-              noCache: true,
-            );
-      final shuffled = shuffleGalleryItems(pageResult.items, randomGenerator);
-
-      return GalleryPage(
-        items: shuffled,
-        cursor: 'random',
-        nextCursor: null,
-        hasMore: false,
-        rawItemCount: pageResult.rawItemCount,
-      );
-    } catch (error) {
-      if (error is DioException && error.type == DioExceptionType.cancel) {
-        rethrow;
-      }
-      // Fallback to first page on error
-      final firstPageRequest = GalleryRankingRequest(
-        cursor: '1',
-        pageSize: request.pageSize,
-        kind: request.kind,
-        date: request.date,
-        period: request.period,
-        query: request.query,
-        prompt: request.prompt,
-        ratings: request.ratings,
-        blacklistTags: request.blacklistTags,
-      );
-
-      final firstPage =
-          totalInfo.probedPage ??
-          await ranking(
-            firstPageRequest,
+    final pageResult = randomPage == 1 && totalInfo.probedPage != null
+        ? totalInfo.probedPage!
+        : await ranking(
+            rankingRequest,
             cancelToken: cancelToken,
             noCache: true,
           );
-      final shuffled = shuffleGalleryItems(firstPage.items, randomGenerator);
+    final shuffled = shuffleGalleryItems(pageResult.items, randomGenerator);
 
-      return GalleryPage(
-        items: shuffled,
-        cursor: 'random',
-        nextCursor: null,
-        hasMore: false,
-        rawItemCount: firstPage.rawItemCount,
-      );
-    }
+    return GalleryPage(
+      items: shuffled,
+      cursor: 'random',
+      nextCursor: null,
+      hasMore: false,
+      rawItemCount: pageResult.rawItemCount,
+    );
   }
 
   Future<AiTagTotalInfo> _probeTotalCount(
@@ -786,70 +714,56 @@ class AiTagGallerySourceAdapter implements GallerySourceAdapter {
     AiTagSourceConfig config,
     CancelToken? cancelToken,
   ) async {
-    try {
-      final firstPageRequest = GallerySearchRequest(
-        cursor: '1',
-        pageSize: config.pageSize, // Use config page size for probe
-        query: request.query,
-        prompt: request.prompt,
-        timeRange: request.timeRange,
-        ratings: request.ratings,
-        blacklistTags: const {}, // Don't apply blacklist during probe
-      );
+    final firstPageRequest = GallerySearchRequest(
+      cursor: '1',
+      pageSize: config.pageSize,
+      query: request.query,
+      prompt: request.prompt,
+      timeRange: request.timeRange,
+      ratings: request.ratings,
+      blacklistTags: const {},
+    );
 
-      final firstPage = await search(
-        firstPageRequest,
-        cancelToken: cancelToken,
-        noCache: true,
-      );
+    final firstPage = await search(
+      firstPageRequest,
+      cancelToken: cancelToken,
+      noCache: true,
+    );
 
-      return AiTagTotalInfo(
-        totalCount: firstPage.total ?? firstPage.rawItemCount,
-        pageSize: config.pageSize,
-        probedPage: firstPage,
-      );
-    } on DioException catch (error) {
-      if (error.type == DioExceptionType.cancel) rethrow;
-      return const AiTagTotalInfo(totalCount: 0, pageSize: 0);
-    } catch (_) {
-      return const AiTagTotalInfo(totalCount: 0, pageSize: 0);
-    }
+    return AiTagTotalInfo(
+      totalCount: firstPage.total ?? firstPage.rawItemCount,
+      pageSize: config.pageSize,
+      probedPage: firstPage,
+    );
   }
 
   Future<AiTagTotalInfo> _probeRankingTotalCount(
     GalleryRandomRankingRequest request,
     CancelToken? cancelToken,
   ) async {
-    try {
-      final firstPageRequest = GalleryRankingRequest(
-        cursor: '1',
-        pageSize: 60, // Standard page size for probe
-        kind: request.kind,
-        date: request.date,
-        period: request.period,
-        query: request.query,
-        prompt: request.prompt,
-        ratings: request.ratings,
-        blacklistTags: const {}, // Don't apply blacklist during probe
-      );
+    final firstPageRequest = GalleryRankingRequest(
+      cursor: '1',
+      pageSize: 60,
+      kind: request.kind,
+      date: request.date,
+      period: request.period,
+      query: request.query,
+      prompt: request.prompt,
+      ratings: request.ratings,
+      blacklistTags: const {},
+    );
 
-      final firstPage = await ranking(
-        firstPageRequest,
-        cancelToken: cancelToken,
-        noCache: true,
-      );
+    final firstPage = await ranking(
+      firstPageRequest,
+      cancelToken: cancelToken,
+      noCache: true,
+    );
 
-      return AiTagTotalInfo(
-        totalCount: firstPage.total ?? firstPage.rawItemCount,
-        pageSize: 60,
-        probedPage: firstPage,
-      );
-    } on DioException catch (error) {
-      if (error.type == DioExceptionType.cancel) rethrow;
-      return const AiTagTotalInfo(totalCount: 0, pageSize: 0);
-    } catch (_) {
-      return const AiTagTotalInfo(totalCount: 0, pageSize: 0);
-    }
+    return AiTagTotalInfo(
+      totalCount: firstPage.total ?? firstPage.rawItemCount,
+      pageSize: 60,
+      probedPage: firstPage,
+    );
   }
 
   static List<String> _parseStringList(Object? value) {
