@@ -3,13 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/autocomplete/tag_translation_lookup.dart';
 import '../../../core/cache/gallery_image_request.dart';
 import '../../../core/cache/online_gallery_image_cache_manager.dart';
 import '../../../data/models/online_gallery/gallery_item.dart';
 import '../../../data/models/online_gallery/gallery_source.dart';
 import '../../providers/online_gallery_output_filter_provider.dart';
 import '../tag_chip.dart';
+import 'gallery_detail_overview_card.dart';
+import 'gallery_detail_text_section.dart';
 import 'gallery_tag_context_menu.dart';
 import 'video_player_widget.dart';
 
@@ -836,36 +837,50 @@ class _GalleryDetailDialogState extends ConsumerState<GalleryDetailDialog> {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
             children: [
-              _buildItemBadges(theme),
-              if (codexTitle.isNotEmpty || categoryPath.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                _buildCodexContext(
+              if (isQuickTagCloud)
+                _buildCodexOverview(
                   theme,
                   codexTitle: codexTitle,
                   categoryPath: categoryPath,
-                ),
+                  fileLabel: preferredFileLabel,
+                  fileName: preferredFile,
+                  author: author,
+                  declaredSource: showDeclaredSource ? declaredSource : '',
+                  includePrompt: showPromptCard,
+                  note: note,
+                )
+              else ...[
+                _buildItemBadges(theme),
+                if (codexTitle.isNotEmpty || categoryPath.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  _buildCodexContext(
+                    codexTitle: codexTitle,
+                    categoryPath: categoryPath,
+                  ),
+                ],
+                if (widget.detail.item.tags.isNotEmpty) ...[
+                  const SizedBox(height: 14),
+                  _buildTagSections(theme),
+                ],
               ],
-              if (widget.detail.item.tags.isNotEmpty) ...[
-                const SizedBox(height: 14),
-                _buildTagSections(theme),
-              ],
-              if (showPromptCard) ...[
+              if (!isQuickTagCloud && showPromptCard) ...[
                 const SizedBox(height: 16),
-                _DetailTextSection(
+                GalleryDetailTextSection(
                   title: widget.labels.positivePrompt,
                   content: widget.detail.prompt!.trim(),
                   accentColor: theme.colorScheme.primary,
                 ),
               ],
-              if (_hasNegativePrompt) ...[
+              if (!isQuickTagCloud && _hasNegativePrompt) ...[
                 const SizedBox(height: 12),
-                _DetailTextSection(
+                GalleryDetailTextSection(
                   title: widget.labels.negativePrompt,
                   content: widget.detail.negativePrompt!.trim(),
                   accentColor: theme.colorScheme.error,
                 ),
               ],
-              if (widget.detail.characterPrompts.isNotEmpty) ...[
+              if (!isQuickTagCloud &&
+                  widget.detail.characterPrompts.isNotEmpty) ...[
                 const SizedBox(height: 18),
                 Text(
                   widget.labels.characterPrompts,
@@ -888,24 +903,24 @@ class _GalleryDetailDialogState extends ConsumerState<GalleryDetailDialog> {
                     const SizedBox(height: 8),
                 ],
               ],
-              if (note.isNotEmpty) ...[
+              if (!isQuickTagCloud && note.isNotEmpty) ...[
                 const SizedBox(height: 12),
-                _DetailTextSection(
+                GalleryDetailTextSection(
                   title: widget.labels.note,
                   content: note,
                   accentColor: theme.colorScheme.tertiary,
                 ),
               ],
-              if (_currentRawTags.isNotEmpty) ...[
+              if (!isQuickTagCloud && _currentRawTags.isNotEmpty) ...[
                 const SizedBox(height: 12),
-                _DetailTextSection(
+                GalleryDetailTextSection(
                   title: widget.labels.rawTags,
                   content: _currentRawTags.join('\n'),
                   accentColor: theme.colorScheme.secondary,
                   monospace: true,
                 ),
               ],
-              if (preferredFile.isNotEmpty) ...[
+              if (!isQuickTagCloud && preferredFile.isNotEmpty) ...[
                 const SizedBox(height: 14),
                 _buildCompactMetadata(
                   theme,
@@ -914,7 +929,7 @@ class _GalleryDetailDialogState extends ConsumerState<GalleryDetailDialog> {
                   value: preferredFile,
                 ),
               ],
-              if (author.isNotEmpty) ...[
+              if (!isQuickTagCloud && author.isNotEmpty) ...[
                 const SizedBox(height: 10),
                 _buildCompactMetadata(
                   theme,
@@ -923,7 +938,7 @@ class _GalleryDetailDialogState extends ConsumerState<GalleryDetailDialog> {
                   value: author,
                 ),
               ],
-              if (showDeclaredSource) ...[
+              if (!isQuickTagCloud && showDeclaredSource) ...[
                 const SizedBox(height: 12),
                 _buildCompactMetadata(
                   theme,
@@ -932,7 +947,8 @@ class _GalleryDetailDialogState extends ConsumerState<GalleryDetailDialog> {
                   value: declaredSource,
                 ),
               ],
-              if (widget.detail.contributors.isNotEmpty) ...[
+              if (!isQuickTagCloud &&
+                  widget.detail.contributors.isNotEmpty) ...[
                 const SizedBox(height: 14),
                 _buildContributors(theme),
               ],
@@ -1084,58 +1100,68 @@ class _GalleryDetailDialogState extends ConsumerState<GalleryDetailDialog> {
     );
   }
 
-  Widget _buildTagSections(ThemeData theme) {
+  Widget _buildTagSections(ThemeData theme, {bool tonal = false}) {
     final item = widget.detail.item;
-    final categorized = <String>{
-      ...item.artistTags,
-      ...item.characterTags,
-      ...item.copyrightTags,
-      ...item.generalTags,
-      ...item.metaTags,
+    List<String> unique(Iterable<String> values) {
+      final seen = <String>{};
+      return [
+        for (final value in values)
+          if (value.trim().isNotEmpty && seen.add(value.trim().toLowerCase()))
+            value.trim(),
+      ];
+    }
+
+    final artists = unique(item.artistTags);
+    final characters = unique(item.characterTags);
+    final copyrights = unique(item.copyrightTags);
+    final general = unique(item.generalTags);
+    final metadata = unique(item.metaTags);
+    final categorized = {
+      for (final tag in [
+        ...artists,
+        ...characters,
+        ...copyrights,
+        ...general,
+        ...metadata,
+      ])
+        tag.toLowerCase(),
     };
-    final uncategorized = item.tags
-        .where((tag) => !categorized.contains(tag))
-        .toList(growable: false);
+    final uncategorized = unique(
+      item.tags.where((tag) => !categorized.contains(tag.trim().toLowerCase())),
+    );
     final groups = <({String label, List<String> tags, Color color})>[
-      if (item.artistTags.isNotEmpty)
-        (
-          label: widget.labels.artists,
-          tags: item.artistTags,
-          color: TagColors.artist,
-        ),
-      if (item.characterTags.isNotEmpty)
+      if (artists.isNotEmpty)
+        (label: widget.labels.artists, tags: artists, color: TagColors.artist),
+      if (characters.isNotEmpty)
         (
           label: widget.labels.characters,
-          tags: item.characterTags,
+          tags: characters,
           color: TagColors.character,
         ),
-      if (item.copyrightTags.isNotEmpty)
+      if (copyrights.isNotEmpty)
         (
           label: widget.labels.copyrights,
-          tags: item.copyrightTags,
+          tags: copyrights,
           color: TagColors.copyright,
         ),
       if (categorized.isNotEmpty &&
-          (item.generalTags.isNotEmpty || uncategorized.isNotEmpty))
+          (general.isNotEmpty || uncategorized.isNotEmpty))
         (
           label: widget.labels.general,
-          tags: [...item.generalTags, ...uncategorized],
+          tags: unique([...general, ...uncategorized]),
           color: TagColors.general,
         ),
-      if (item.metaTags.isNotEmpty)
-        (
-          label: widget.labels.metadata,
-          tags: item.metaTags,
-          color: TagColors.meta,
-        ),
-      if (categorized.isEmpty)
+      if (metadata.isNotEmpty)
+        (label: widget.labels.metadata, tags: metadata, color: TagColors.meta),
+      if (categorized.isEmpty && uncategorized.isNotEmpty)
         (
           label: widget.labels.rawTags,
-          tags: item.tags,
-          color: theme.colorScheme.primary,
+          tags: uncategorized,
+          color: tonal
+              ? theme.colorScheme.onSurfaceVariant
+              : theme.colorScheme.primary,
         ),
     ];
-    final translation = ref.watch(tagTranslationLookupProvider);
     final outputFilter = ref.watch(onlineGalleryOutputFilterProvider);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1154,19 +1180,16 @@ class _GalleryDetailDialogState extends ConsumerState<GalleryDetailDialog> {
             runSpacing: 6,
             children: [
               for (final tag in groups[groupIndex].tags)
-                FutureBuilder<String?>(
-                  future: translation.translate(tag),
-                  builder: (context, snapshot) => SimpleTagChip(
-                    tag: tag,
-                    color: groups[groupIndex].color,
-                    translation: snapshot.data,
-                    isOutputFiltered: outputFilter.contains(tag),
-                    tooltip: outputFilter.contains(tag)
-                        ? widget.labels.outputFilteredTagTooltip
-                        : widget.labels.tagContextMenuTooltip,
-                    onTap: () => _searchTag(tag),
-                    onSecondaryTapDown: (details) => _showTagMenu(tag, details),
-                  ),
+                SimpleTagChip(
+                  tag: tag,
+                  color: groups[groupIndex].color,
+                  isOutputFiltered: outputFilter.contains(tag),
+                  tonal: tonal,
+                  tooltip: outputFilter.contains(tag)
+                      ? widget.labels.outputFilteredTagTooltip
+                      : widget.labels.tagContextMenuTooltip,
+                  onTap: () => _searchTag(tag),
+                  onSecondaryTapDown: (details) => _showTagMenu(tag, details),
                 ),
             ],
           ),
@@ -1195,83 +1218,152 @@ class _GalleryDetailDialogState extends ConsumerState<GalleryDetailDialog> {
     widget.onBlacklistChanged();
   }
 
-  Widget _buildCodexContext(
+  Widget _buildCodexOverview(
     ThemeData theme, {
     required String codexTitle,
     required List<String> categoryPath,
+    required String fileLabel,
+    required String fileName,
+    required String author,
+    required String declaredSource,
+    required bool includePrompt,
+    required String note,
   }) {
-    final category = categoryPath.join(' / ');
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(11, 10, 12, 10),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
+    final item = widget.detail.item;
+    final rating = item.rating?.trim().toUpperCase() ?? '';
+    final content = <Widget>[];
+    void addContent(Widget child) {
+      if (content.isNotEmpty) content.add(const SizedBox(height: 12));
+      content.add(child);
+    }
+
+    if (item.tags.isNotEmpty) {
+      addContent(_buildTagSections(theme, tonal: true));
+    }
+    if (includePrompt) {
+      addContent(
+        GalleryDetailTextSection(
+          title: widget.labels.positivePrompt,
+          content: widget.detail.prompt!.trim(),
+          accentColor: theme.colorScheme.primary,
+        ),
+      );
+    }
+    if (_hasNegativePrompt) {
+      addContent(
+        GalleryDetailTextSection(
+          title: widget.labels.negativePrompt,
+          content: widget.detail.negativePrompt!.trim(),
+          accentColor: theme.colorScheme.error,
+        ),
+      );
+    }
+    if (widget.detail.characterPrompts.isNotEmpty) {
+      addContent(
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 34,
-              height: 34,
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primaryContainer.withValues(
-                  alpha: 0.65,
-                ),
-                borderRadius: BorderRadius.circular(9),
-              ),
-              child: Icon(
-                Icons.menu_book_rounded,
-                size: 18,
-                color: theme.colorScheme.onPrimaryContainer,
+            Text(
+              widget.labels.characterPrompts,
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w600,
               ),
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (codexTitle.isNotEmpty)
-                    Text(
-                      codexTitle,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        height: 1.2,
-                      ),
-                    ),
-                  if (category.isNotEmpty) ...[
-                    if (codexTitle.isNotEmpty) const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.account_tree_rounded,
-                          size: 14,
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                        const SizedBox(width: 5),
-                        Expanded(
-                          child: Text(
-                            category,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                              height: 1.25,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ],
+            const SizedBox(height: 8),
+            for (
+              var index = 0;
+              index < widget.detail.characterPrompts.length;
+              index++
+            ) ...[
+              _buildCharacterPrompt(
+                theme,
+                widget.detail.characterPrompts[index],
+                index,
               ),
-            ),
+              if (index + 1 < widget.detail.characterPrompts.length)
+                const SizedBox(height: 8),
+            ],
           ],
         ),
-      ),
+      );
+    }
+    if (note.isNotEmpty) {
+      addContent(
+        GalleryDetailTextSection(
+          title: widget.labels.note,
+          content: note,
+          accentColor: theme.colorScheme.tertiary,
+        ),
+      );
+    }
+    if (_currentRawTags.isNotEmpty) {
+      addContent(
+        GalleryDetailTextSection(
+          title: widget.labels.rawTags,
+          content: _currentRawTags.join('\n'),
+          accentColor: theme.colorScheme.secondary,
+          monospace: true,
+        ),
+      );
+    }
+
+    return GalleryDetailOverviewCard(
+      icon: Icons.auto_stories_rounded,
+      title: codexTitle.isEmpty ? widget.labels.codex : codexTitle,
+      subtitle: categoryPath.join(' / '),
+      badge: rating.isEmpty
+          ? null
+          : GalleryDetailOverviewBadgeData(
+              icon: Icons.shield_rounded,
+              label: rating,
+              tooltip: widget.labels.rating,
+            ),
+      content: content.isEmpty
+          ? null
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: content,
+            ),
+      metadata: [
+        if (fileName.isNotEmpty)
+          GalleryDetailOverviewMetadata(
+            icon: Icons.image_rounded,
+            label: fileLabel,
+            value: fileName,
+          ),
+        if (author.isNotEmpty)
+          GalleryDetailOverviewMetadata(
+            icon: Icons.person_rounded,
+            label: widget.labels.author,
+            value: author,
+          ),
+        if (declaredSource.isNotEmpty)
+          GalleryDetailOverviewMetadata(
+            icon: Icons.dataset_rounded,
+            label: widget.labels.declaredSource,
+            value: declaredSource,
+          ),
+        for (final contributor in widget.detail.contributors)
+          GalleryDetailOverviewMetadata(
+            icon: Icons.person_rounded,
+            value: contributor.role.trim().isEmpty
+                ? contributor.name
+                : '${contributor.name} · ${contributor.role.trim()}',
+          ),
+      ],
+    );
+  }
+
+  Widget _buildCodexContext({
+    required String codexTitle,
+    required List<String> categoryPath,
+  }) {
+    final hasTitle = codexTitle.isNotEmpty;
+    return GalleryDetailOverviewCard(
+      icon: Icons.menu_book_rounded,
+      title: hasTitle ? codexTitle : categoryPath.last,
+      subtitle: hasTitle ? categoryPath.join(' / ') : '',
     );
   }
 
@@ -1747,70 +1839,5 @@ class _GalleryDetailDialogState extends ConsumerState<GalleryDetailDialog> {
     } finally {
       if (mounted) setState(() => _downloadActionPending = false);
     }
-  }
-}
-
-class _DetailTextSection extends StatelessWidget {
-  const _DetailTextSection({
-    required this.title,
-    required this.content,
-    required this.accentColor,
-    this.monospace = false,
-  });
-
-  final String title;
-  final String content;
-  final Color accentColor;
-  final bool monospace;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      width: double.infinity,
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.35)),
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            left: 0,
-            top: 0,
-            bottom: 0,
-            child: ColoredBox(
-              color: accentColor,
-              child: const SizedBox(width: 3),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    color: accentColor,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 7),
-                SelectableText(
-                  content,
-                  style: monospace
-                      ? theme.textTheme.bodyMedium?.copyWith(
-                          fontFamily: 'monospace',
-                        )
-                      : theme.textTheme.bodyMedium,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }

@@ -6,6 +6,7 @@ import 'package:nai_launcher/data/models/online_gallery/gallery_item.dart';
 import 'package:nai_launcher/data/models/online_gallery/gallery_source.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/widgets/online_gallery/gallery_detail_dialog.dart';
+import 'package:nai_launcher/presentation/widgets/online_gallery/gallery_detail_overview_card.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -33,7 +34,7 @@ void main() {
         sampleUrl: '',
         fileUrl: '',
         tagString: 'positive prompt',
-        tags: const ['positive prompt'],
+        tags: const ['positive prompt', 'positive prompt'],
         createdAt: DateTime.utc(2025).toIso8601String(),
         rating: 'g',
         score: 0,
@@ -50,6 +51,7 @@ void main() {
         contributors: const [
           GalleryContributor(name: 'Contributor', role: 'maintainer'),
         ],
+        rawTags: const ['raw parameters'],
         characterPrompts: const [
           GalleryCharacterPrompt(
             label: 'Character',
@@ -97,6 +99,16 @@ void main() {
       expect(find.text('No image'), findsOneWidget);
       expect(find.text('positive prompt'), findsOneWidget);
       expect(find.text('negative prompt'), findsOneWidget);
+      expect(find.text('raw parameters'), findsOneWidget);
+      final overview = find.byType(GalleryDetailOverviewCard);
+      expect(
+        find.descendant(of: overview, matching: find.text('negative prompt')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: overview, matching: find.text('raw parameters')),
+        findsOneWidget,
+      );
       await tester.scrollUntilVisible(
         find.text('Contributor · maintainer'),
         180,
@@ -111,7 +123,7 @@ void main() {
         ),
         findsNothing,
       );
-      expect(find.byIcon(Icons.star_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.auto_stories_rounded), findsOneWidget);
       expect(find.byIcon(Icons.shield_rounded), findsOneWidget);
       expect(find.byIcon(Icons.favorite_border), findsOneWidget);
 
