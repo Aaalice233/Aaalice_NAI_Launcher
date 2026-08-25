@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:dio/dio.dart';
 import 'package:path/path.dart' as p;
 
+import '../../../../core/online_gallery/gallery_tag_query.dart';
 import '../../../../core/utils/prompt_tag_utils.dart';
 import '../../../models/online_gallery/gallery_item.dart';
 import '../../../models/online_gallery/gallery_source.dart';
@@ -508,9 +509,12 @@ class QuickTagCloudGallerySourceAdapter extends GallerySourceAdapter {
       _throwIfCancelled(cancelToken);
       return cachedMatches;
     }
-    final terms = normalizedSearch
-        .split(RegExp(r'\s+'))
-        .where((term) => term.isNotEmpty)
+    final localTagPlan = GalleryTagQueryPlanner.plan(
+      GalleryTagQueryParser.parse(normalizedSearch),
+      serverTagLimit: maxGallerySearchTags,
+    );
+    final terms = localTagPlan.query.ordinaryClauses
+        .map((clause) => clause.value)
         .toList(growable: false);
     final filtered = <_QuickTagCloudRecord>[];
     final cacheSearchHaystacks = records.length <= 5000;
@@ -540,9 +544,12 @@ class QuickTagCloudGallerySourceAdapter extends GallerySourceAdapter {
           record.entry.hasImage) {
         continue;
       }
-      if (terms.isNotEmpty) {
+      if (terms.length == 1) {
         final haystack = _searchHaystack(record, cache: cacheSearchHaystacks);
-        if (!terms.every(haystack.contains)) continue;
+        if (!haystack.contains(terms.single)) continue;
+      } else if (terms.length > 1 &&
+          !localTagPlan.matchesNormalizedTags(record.normalizedTags)) {
+        continue;
       }
       filtered.add(record);
     }
@@ -796,7 +803,8 @@ class QuickTagCloudGallerySourceAdapter extends GallerySourceAdapter {
       imageWidth: cover.width,
       imageHeight: cover.height,
       tagString: entry.tags,
-      tags: _promptTags(entry.tags),
+      tags: record.promptTags,
+      tagsComplete: true,
       fileExt: cover.extension,
       fileUrl: cover.downloadUrl.isEmpty ? null : cover.downloadUrl,
       largeFileUrl: cover.displayUrl.isEmpty ? null : cover.displayUrl,
@@ -977,9 +985,6 @@ class QuickTagCloudGallerySourceAdapter extends GallerySourceAdapter {
     }
   }
 
-  List<String> _promptTags(String prompt) =>
-      PromptTagUtils.parseForDisplay(prompt);
-
   int _stableNumericId(String value) {
     var hash = 0x811c9dc5;
     for (final unit in value.codeUnits) {
@@ -991,12 +996,19 @@ class QuickTagCloudGallerySourceAdapter extends GallerySourceAdapter {
 }
 
 class _QuickTagCloudRecord {
-  const _QuickTagCloudRecord(this.meta, this.codex, this.entry, this.media);
+  _QuickTagCloudRecord(this.meta, this.codex, this.entry, this.media);
 
   final QuickTagCloudCodexMeta meta;
   final QuickTagCloudCodex codex;
   final QuickTagCloudEntry entry;
   final QuickTagCloudMediaConfig media;
+
+  late final List<String> promptTags = List.unmodifiable(
+    PromptTagUtils.parseForDisplay(entry.tags),
+  );
+  late final Set<String> normalizedTags = Set.unmodifiable(
+    normalizeGalleryTagSet(promptTags),
+  );
 
   String get workId => quickTagCloudEntryWorkId(codex.id, entry.id);
 

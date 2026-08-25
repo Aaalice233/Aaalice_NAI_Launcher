@@ -1159,11 +1159,29 @@
     }
   },
   "onlineGallery_searchTags": "タグを検索...",
+  "onlineGallery_maxTagsExceeded": "一度に組み合わせて検索できるタグは最大 {max} 個です",
+  "@onlineGallery_maxTagsExceeded": {
+    "placeholders": {
+      "max": {"type": "int"}
+    }
+  },
+  "onlineGallery_tagDetailsIncomplete": "一部の作品で完全なタグ一覧を取得できませんでした。未確認の作品は除外されています。再試行してください。",
+  "onlineGallery_unsupportedMetatag": "このソースまたはモードではメタタグ構文を使用できません。通常のタグを使うか、ソース検索に切り替えてください。",
+  "onlineGallery_multiTagScanning": "タグを組み合わせて検索中：{requests} ページを取得し、{candidates} 件の候補を確認しました",
+  "onlineGallery_scanPaused": "複数ページの候補を確認しましたが、十分な結果が見つかりませんでした。後続ページの検索を続けられます。",
+  "onlineGallery_continueScanning": "検索を続ける",
+  "@onlineGallery_multiTagScanning": {
+    "placeholders": {
+      "requests": {"type": "int"},
+      "candidates": {"type": "int"}
+    }
+  },
   "onlineGallery_refresh": "更新",
   "onlineGallery_random": "ランダム",
   "onlineGallery_randomRedraw": "もう一度抽選",
   "onlineGallery_randomDrawing": "抽選中…",
   "onlineGallery_randomExhausted": "この範囲に未表示の画像はありません",
+  "onlineGallery_randomDrawNoMatch": "今回は条件に合う画像を取得できませんでした。続けて抽選できます。",
   "onlineGallery_randomRestart": "最初から",
   "onlineGallery_login": "ログイン",
   "onlineGallery_logout": "ログアウト",

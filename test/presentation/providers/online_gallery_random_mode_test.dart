@@ -76,9 +76,15 @@ void main() {
 
   test('random search preserves fuzzy matching and resets its scope', () async {
     final adapter = _RandomFakeAdapter([
-      [_item(1)],
-      [_item(2)],
-      [_item(3)],
+      [
+        _item(1).copyWith(tags: const ['cat', 'dog']),
+      ],
+      [
+        _item(2).copyWith(tags: const ['cat', 'dog']),
+      ],
+      [
+        _item(3).copyWith(tags: const ['cat', 'dog']),
+      ],
     ]);
     final container = _container(adapter);
     addTearDown(container.dispose);
@@ -141,7 +147,9 @@ void main() {
         const OnlineGalleryState(sourceId: GallerySourceId.quickTagCloud),
       ),
     );
-    final item = _quickItem('blocked').copyWith(tags: const []);
+    final item = _quickItem(
+      'blocked',
+    ).copyWith(tags: const [], tagsComplete: false);
     final adapter = _QueryRecordingAdapter(
       GallerySourceId.quickTagCloud,
       randomItems: [item],
@@ -169,6 +177,52 @@ void main() {
 
     final request = adapter.lastRandomRequest as GalleryRandomSearchRequest;
     expect(request.blacklistTags, {'blocked_tag'});
+    expect(container.read(onlineGalleryNotifierProvider).posts, isEmpty);
+  });
+
+  test('AI TAG random completes tags before applying the blacklist', () async {
+    final storage = _MemoryStorage();
+    await storage.setSetting(
+      StorageKeys.onlineGalleryBrowsingSessionV1,
+      encodeOnlineGalleryBrowsingSession(
+        const OnlineGalleryState(sourceId: GallerySourceId.aiTag),
+      ),
+    );
+    final incomplete = _quickItem('ai-blocked').copyWith(
+      sourceId: GallerySourceId.aiTag,
+      tags: const ['visible'],
+      tagsComplete: false,
+    );
+    final complete = incomplete.copyWith(
+      tags: const ['visible', 'blocked_tag'],
+      tagsComplete: true,
+    );
+    final adapter = _QueryRecordingAdapter(
+      GallerySourceId.aiTag,
+      randomItems: [incomplete],
+      detailItem: complete,
+    );
+    final container = ProviderContainer(
+      overrides: [
+        localStorageServiceProvider.overrideWithValue(storage),
+        onlineGallerySourceAdaptersProvider.overrideWithValue({
+          for (final source in GallerySourceId.values)
+            source: source == GallerySourceId.aiTag
+                ? adapter
+                : _EmptyAdapter(source),
+        }),
+      ],
+    );
+    addTearDown(container.dispose);
+    await container
+        .read(onlineGalleryBlacklistNotifierProvider.notifier)
+        .addLocalTag('blocked_tag');
+
+    await container
+        .read(onlineGalleryNotifierProvider.notifier)
+        .setRandomEnabled(true);
+
+    expect(adapter.detailRequests, 1);
     expect(container.read(onlineGalleryNotifierProvider).posts, isEmpty);
   });
 
@@ -369,35 +423,39 @@ void main() {
     expect(state.randomSession.exhausted, isTrue);
   });
 
-  test('four empty unique draws exhaust until explicit restart', () async {
-    final adapter = _RandomFakeAdapter([
-      const [],
-      const [],
-      const [],
-      const [],
-      [_item(7)],
-    ]);
-    final container = _container(adapter);
-    addTearDown(container.dispose);
-    final notifier = container.read(onlineGalleryNotifierProvider.notifier);
+  test(
+    'empty filtered draws remain retryable until the source exhausts',
+    () async {
+      final adapter = _RandomFakeAdapter([
+        const [],
+        const [],
+        const [],
+        const [],
+        [_item(7)],
+      ]);
+      final container = _container(adapter);
+      addTearDown(container.dispose);
+      final notifier = container.read(onlineGalleryNotifierProvider.notifier);
 
-    await notifier.setRandomEnabled(true);
-    for (var i = 0; i < 3; i++) {
+      await notifier.setRandomEnabled(true);
+      for (var i = 0; i < 3; i++) {
+        await notifier.loadMore();
+      }
+      var state = container.read(onlineGalleryNotifierProvider);
+      expect(state.randomSession.consecutiveMisses, 4);
+      expect(state.randomSession.exhausted, isFalse);
+      expect(state.notice, OnlineGalleryNotice.randomDrawNoMatch);
+      expect(state.randomSession.cache.queryScanPaused, isTrue);
+
       await notifier.loadMore();
-    }
-    var state = container.read(onlineGalleryNotifierProvider);
-    expect(state.randomSession.consecutiveMisses, 4);
-    expect(state.randomSession.exhausted, isTrue);
-
-    await notifier.loadMore();
-    expect(adapter.randomCalls, 4);
-
-    await notifier.restartRandom();
-    state = container.read(onlineGalleryNotifierProvider);
-    expect(state.posts.single.id, 7);
-    expect(state.randomSession.seenStableKeys, {'danbooru:7'});
-    expect(state.randomSession.exhausted, isFalse);
-  });
+      expect(adapter.randomCalls, 5);
+      state = container.read(onlineGalleryNotifierProvider);
+      expect(state.posts.single.id, 7);
+      expect(state.randomSession.seenStableKeys, {'danbooru:7'});
+      expect(state.randomSession.exhausted, isFalse);
+      expect(state.randomSession.cache.queryScanPaused, isFalse);
+    },
+  );
 
   test(
     'source switch starts the new random request without awaiting the old one',
@@ -731,15 +789,18 @@ class _QueryRecordingAdapter extends GallerySourceAdapter {
     this.sourceId, {
     this.randomItems = const [],
     this.detailTags = const [],
+    this.detailItem,
   });
 
   @override
   final GallerySourceId sourceId;
   final List<GalleryItem> randomItems;
   final List<String> detailTags;
+  final GalleryItem? detailItem;
 
   GallerySearchRequest? lastSearchRequest;
   GalleryRandomRequest? lastRandomRequest;
+  int detailRequests = 0;
 
   @override
   Future<GalleryPage> search(
@@ -763,10 +824,13 @@ class _QueryRecordingAdapter extends GallerySourceAdapter {
   Future<GalleryDetail> detail(
     GalleryItem item, {
     CancelToken? cancelToken,
-  }) async => GalleryDetail(
-    item: item.copyWith(tags: detailTags),
-    media: [item.cover],
-  );
+  }) async {
+    detailRequests++;
+    final resolved =
+        detailItem ??
+        item.copyWith(tags: detailTags, tagsComplete: detailTags.isNotEmpty);
+    return GalleryDetail(item: resolved, media: [resolved.cover]);
+  }
 }
 
 class _EmptyAdapter implements GallerySourceAdapter {

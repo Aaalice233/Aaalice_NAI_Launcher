@@ -1171,11 +1171,29 @@
     }
   },
   "onlineGallery_searchTags": "Search tags...",
+  "onlineGallery_maxTagsExceeded": "You can combine up to {max} tags in one search",
+  "@onlineGallery_maxTagsExceeded": {
+    "placeholders": {
+      "max": {"type": "int"}
+    }
+  },
+  "onlineGallery_tagDetailsIncomplete": "Some complete tag lists could not be loaded. Unverified works were excluded; retry to complete the results.",
+  "onlineGallery_unsupportedMetatag": "This source or mode does not support metatag syntax. Use ordinary tags or switch to the source search.",
+  "onlineGallery_multiTagScanning": "Combining tags: requested {requests} pages and checked {candidates} candidate works",
+  "onlineGallery_scanPaused": "Several candidate pages were checked without enough matches. You can continue scanning later pages.",
+  "onlineGallery_continueScanning": "Continue scanning",
+  "@onlineGallery_multiTagScanning": {
+    "placeholders": {
+      "requests": {"type": "int"},
+      "candidates": {"type": "int"}
+    }
+  },
   "onlineGallery_refresh": "Refresh",
   "onlineGallery_random": "Random",
   "onlineGallery_randomRedraw": "Draw again",
   "onlineGallery_randomDrawing": "Drawing…",
   "onlineGallery_randomExhausted": "No more unseen images in this range",
+  "onlineGallery_randomDrawNoMatch": "This draw found no matching images. You can draw again.",
   "onlineGallery_randomRestart": "Start over",
   "onlineGallery_login": "Login",
   "onlineGallery_logout": "Logout",

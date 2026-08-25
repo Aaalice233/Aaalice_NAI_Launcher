@@ -1078,11 +1078,29 @@
     }
   },
   "onlineGallery_searchTags": "搜索标签...",
+  "onlineGallery_maxTagsExceeded": "最多可组合搜索 {max} 个标签",
+  "@onlineGallery_maxTagsExceeded": {
+    "placeholders": {
+      "max": {"type": "int"}
+    }
+  },
+  "onlineGallery_tagDetailsIncomplete": "部分作品的完整标签获取失败，未验证的作品已排除；请重试以补全结果。",
+  "onlineGallery_unsupportedMetatag": "当前来源或模式不支持元标签语法，请改用普通标签或切换到来源搜索。",
+  "onlineGallery_multiTagScanning": "正在组合检索：已请求 {requests} 页，检查 {candidates} 个候选作品",
+  "onlineGallery_scanPaused": "已分批检查多页候选，尚未找到足够结果。可继续扫描后续页面。",
+  "onlineGallery_continueScanning": "继续扫描",
+  "@onlineGallery_multiTagScanning": {
+    "placeholders": {
+      "requests": {"type": "int"},
+      "candidates": {"type": "int"}
+    }
+  },
   "onlineGallery_refresh": "刷新",
   "onlineGallery_random": "随机",
   "onlineGallery_randomRedraw": "再抽一组",
   "onlineGallery_randomDrawing": "抽取中…",
   "onlineGallery_randomExhausted": "当前范围暂无更多未见图片",
+  "onlineGallery_randomDrawNoMatch": "本次未抽中符合条件的图片，可以继续抽取。",
   "onlineGallery_randomRestart": "重新开始",
   "onlineGallery_login": "登录",
   "onlineGallery_logout": "退出登录",

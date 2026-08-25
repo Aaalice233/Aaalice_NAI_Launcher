@@ -2433,6 +2433,30 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onlineGallery_searchTags => '搜索标签...';
 
   @override
+  String onlineGallery_maxTagsExceeded(int max) {
+    return '最多可组合搜索 $max 个标签';
+  }
+
+  @override
+  String get onlineGallery_tagDetailsIncomplete =>
+      '部分作品的完整标签获取失败，未验证的作品已排除；请重试以补全结果。';
+
+  @override
+  String get onlineGallery_unsupportedMetatag =>
+      '当前来源或模式不支持元标签语法，请改用普通标签或切换到来源搜索。';
+
+  @override
+  String onlineGallery_multiTagScanning(int requests, int candidates) {
+    return '正在组合检索：已请求 $requests 页，检查 $candidates 个候选作品';
+  }
+
+  @override
+  String get onlineGallery_scanPaused => '已分批检查多页候选，尚未找到足够结果。可继续扫描后续页面。';
+
+  @override
+  String get onlineGallery_continueScanning => '继续扫描';
+
+  @override
   String get onlineGallery_refresh => '刷新';
 
   @override
@@ -2446,6 +2470,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get onlineGallery_randomExhausted => '当前范围暂无更多未见图片';
+
+  @override
+  String get onlineGallery_randomDrawNoMatch => '本次未抽中符合条件的图片，可以继续抽取。';
 
   @override
   String get onlineGallery_randomRestart => '重新开始';
@@ -14675,6 +14702,30 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get onlineGallery_searchTags => '搜尋標籤...';
 
   @override
+  String onlineGallery_maxTagsExceeded(int max) {
+    return '最多可組合搜尋 $max 個標籤';
+  }
+
+  @override
+  String get onlineGallery_tagDetailsIncomplete =>
+      '部分作品的完整標籤取得失敗，未驗證的作品已排除；請重試以補齊結果。';
+
+  @override
+  String get onlineGallery_unsupportedMetatag =>
+      '目前來源或模式不支援元標籤語法，請改用一般標籤或切換至來源搜尋。';
+
+  @override
+  String onlineGallery_multiTagScanning(int requests, int candidates) {
+    return '正在組合搜尋：已請求 $requests 頁，檢查 $candidates 個候選作品';
+  }
+
+  @override
+  String get onlineGallery_scanPaused => '已分批檢查多頁候選，尚未找到足夠結果。可繼續掃描後續頁面。';
+
+  @override
+  String get onlineGallery_continueScanning => '繼續掃描';
+
+  @override
   String get onlineGallery_refresh => '重新整理';
 
   @override
@@ -14688,6 +14739,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get onlineGallery_randomExhausted => '當前範圍暫無更多未見圖片';
+
+  @override
+  String get onlineGallery_randomDrawNoMatch => '本次未抽中符合條件的圖片，可以繼續抽取。';
 
   @override
   String get onlineGallery_randomRestart => '重新開始';

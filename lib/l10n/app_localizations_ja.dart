@@ -2471,6 +2471,31 @@ class AppLocalizationsJa extends AppLocalizations {
   String get onlineGallery_searchTags => 'タグを検索...';
 
   @override
+  String onlineGallery_maxTagsExceeded(int max) {
+    return '一度に組み合わせて検索できるタグは最大 $max 個です';
+  }
+
+  @override
+  String get onlineGallery_tagDetailsIncomplete =>
+      '一部の作品で完全なタグ一覧を取得できませんでした。未確認の作品は除外されています。再試行してください。';
+
+  @override
+  String get onlineGallery_unsupportedMetatag =>
+      'このソースまたはモードではメタタグ構文を使用できません。通常のタグを使うか、ソース検索に切り替えてください。';
+
+  @override
+  String onlineGallery_multiTagScanning(int requests, int candidates) {
+    return 'タグを組み合わせて検索中：$requests ページを取得し、$candidates 件の候補を確認しました';
+  }
+
+  @override
+  String get onlineGallery_scanPaused =>
+      '複数ページの候補を確認しましたが、十分な結果が見つかりませんでした。後続ページの検索を続けられます。';
+
+  @override
+  String get onlineGallery_continueScanning => '検索を続ける';
+
+  @override
   String get onlineGallery_refresh => '更新';
 
   @override
@@ -2484,6 +2509,10 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get onlineGallery_randomExhausted => 'この範囲に未表示の画像はありません';
+
+  @override
+  String get onlineGallery_randomDrawNoMatch =>
+      '今回は条件に合う画像を取得できませんでした。続けて抽選できます。';
 
   @override
   String get onlineGallery_randomRestart => '最初から';

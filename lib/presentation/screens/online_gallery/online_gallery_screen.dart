@@ -15,6 +15,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/cache/gallery_image_request.dart';
 import '../../../core/cache/online_gallery_image_cache_manager.dart';
 import '../../../core/cache/online_gallery_detail_coordinator.dart';
+import '../../../core/online_gallery/gallery_tag_query.dart';
 import '../../../core/cache/online_gallery_prefetch_coordinator.dart';
 import '../../../core/cache/online_gallery_preload_policy.dart';
 import '../../../core/services/date_formatting_service.dart';
@@ -214,7 +215,12 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         _scheduleVisiblePrefetch();
       });
     }
-    if (_isWithinLoadAhead(_scrollController.position)) {
+    final galleryState = ref.read(onlineGalleryNotifierProvider);
+    final activeCache = galleryState.randomEnabled
+        ? galleryState.randomSession.cache
+        : galleryState.currentCache;
+    if (!activeCache.queryScanPaused &&
+        _isWithinLoadAhead(_scrollController.position)) {
       _galleryNotifier.loadMore();
     }
   }
@@ -232,6 +238,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         state.isLoadingMore ||
         state.hasError ||
         !state.hasMore ||
+        activeCache.queryScanPaused ||
         activeCache.appendErrorCode != null ||
         _scheduledAutoLoadCacheKey == state.currentCacheKey) {
       return;
@@ -254,6 +261,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           latest.isLoadingMore ||
           latest.hasError ||
           !latest.hasMore ||
+          latestCache.queryScanPaused ||
           latestCache.appendErrorCode != null) {
         return;
       }
@@ -426,6 +434,13 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             context,
             context.l10n.onlineGallery_gelbooruCredentialsInvalid,
           );
+        } else if (next == OnlineGalleryNotice.tagDetailsIncomplete) {
+          AppToast.warning(
+            context,
+            context.l10n.onlineGallery_tagDetailsIncomplete,
+          );
+        } else if (next == OnlineGalleryNotice.randomDrawNoMatch) {
+          AppToast.info(context, context.l10n.onlineGallery_randomDrawNoMatch);
         }
         _galleryNotifier.clearNotice();
       },
@@ -957,7 +972,19 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     if (activeSource == GallerySourceId.quickTagCloud) {
       return _buildCodexSearchField(theme);
     }
-    if (activeSource != GallerySourceId.aiTag) return _buildSearchField(theme);
+    if (activeSource != GallerySourceId.aiTag) {
+      return _buildSearchField(
+        theme,
+        controller: isPopular ? _popularSearchController : _searchController,
+        focusNode: isPopular ? _popularSearchFocusNode : _searchFocusNode,
+        onSubmitted: isPopular
+            ? (value) => _galleryNotifier.searchPopular(
+                query: value,
+                prompt: state.popularPromptQuery,
+              )
+            : _galleryNotifier.search,
+      );
+    }
     final queryController = isPopular
         ? _popularSearchController
         : _searchController;
@@ -969,6 +996,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         ? _popularPromptSearchFocusNode
         : _promptSearchFocusNode;
     void submit() {
+      if (!_validateTagQuery(queryController.text)) return;
       if (isPopular) {
         _galleryNotifier.searchPopular(
           query: queryController.text,
@@ -994,6 +1022,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
               hintText: context.l10n.onlineGallery_aiTagQuery,
               icon: Icons.manage_search,
               treatSpacesAsSeparators: true,
+              showTagCount: true,
               onSubmitted: submit,
             ),
           ),
@@ -1021,6 +1050,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     required IconData icon,
     required VoidCallback onSubmitted,
     bool treatSpacesAsSeparators = false,
+    bool showTagCount = false,
   }) {
     return AutocompleteWrapper(
       controller: controller,
@@ -1053,7 +1083,16 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
                 fontSize: 13,
               ),
               prefixIcon: Icon(icon, size: 18),
-              suffixIcon: value.text.isEmpty
+              suffixIcon: showTagCount
+                  ? _buildTagCountSuffix(
+                      theme,
+                      controller,
+                      onClear: () {
+                        controller.clear();
+                        focusNode.requestFocus();
+                      },
+                    )
+                  : value.text.isEmpty
                   ? null
                   : IconButton(
                       tooltip: context.l10n.common_clear,
@@ -1106,30 +1145,81 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
               size: 18,
               color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
             ),
-            suffixIcon: value.text.isEmpty
-                ? null
-                : IconButton(
-                    tooltip: context.l10n.common_clear,
-                    icon: const Icon(Icons.close, size: 16),
-                    onPressed: () {
-                      _searchController.clear();
-                      _galleryNotifier.search('');
-                    },
-                  ),
+            suffixIcon: _buildTagCountSuffix(
+              theme,
+              _searchController,
+              onClear: () {
+                _searchController.clear();
+                _galleryNotifier.search('');
+              },
+            ),
             border: InputBorder.none,
             contentPadding: const EdgeInsets.symmetric(vertical: 8),
             isDense: true,
           ),
-          onSubmitted: _galleryNotifier.search,
+          onSubmitted: (value) =>
+              _submitTagSearch(value, onValid: _galleryNotifier.search),
         ),
       ),
     );
   }
 
-  Widget _buildSearchField(ThemeData theme) {
+  bool _validateTagQuery(String value) {
+    if (GalleryTagQueryParser.parse(value).isValid) return true;
+    AppToast.warning(
+      context,
+      context.l10n.onlineGallery_maxTagsExceeded(maxGallerySearchTags),
+    );
+    return false;
+  }
+
+  void _submitTagSearch(String value, {required ValueChanged<String> onValid}) {
+    if (_validateTagQuery(value)) onValid(value);
+  }
+
+  Widget _buildTagCountSuffix(
+    ThemeData theme,
+    TextEditingController controller, {
+    required VoidCallback onClear,
+  }) {
+    final count = GalleryTagQueryParser.parse(controller.text).ordinaryTagCount;
+    final exceeded = count > maxGallerySearchTags;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          '$count/$maxGallerySearchTags',
+          key: const ValueKey('online-gallery-tag-count'),
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: exceeded
+                ? theme.colorScheme.error
+                : theme.colorScheme.onSurfaceVariant,
+            fontFeatures: const [FontFeature.tabularFigures()],
+          ),
+        ),
+        if (controller.text.isNotEmpty)
+          IconButton(
+            tooltip: context.l10n.common_clear,
+            icon: Icon(
+              Icons.close,
+              size: 16,
+              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+            ),
+            onPressed: onClear,
+          ),
+      ],
+    );
+  }
+
+  Widget _buildSearchField(
+    ThemeData theme, {
+    required TextEditingController controller,
+    required FocusNode focusNode,
+    required ValueChanged<String> onSubmitted,
+  }) {
     return AutocompleteWrapper(
-      controller: _searchController,
-      focusNode: _searchFocusNode,
+      controller: controller,
+      focusNode: focusNode,
       config: const AutocompleteConfig(
         autoInsertComma: false,
         treatSpacesAsSeparators: true,
@@ -1137,7 +1227,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       onSuggestionSelected: (value) {
         // 选择补全建议后立即触发搜索
         _searchDebounceTimer?.cancel();
-        _galleryNotifier.search(value);
+        _submitTagSearch(value, onValid: onSubmitted);
       },
       child: Container(
         height: 36,
@@ -1149,8 +1239,8 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           borderRadius: BorderRadius.circular(18),
         ),
         child: TextField(
-          controller: _searchController,
-          focusNode: _searchFocusNode,
+          controller: controller,
+          focusNode: focusNode,
           style: theme.textTheme.bodyMedium,
           decoration: InputDecoration(
             hintText: context.l10n.onlineGallery_searchTags,
@@ -1163,23 +1253,16 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
               size: 18,
               color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
             ),
-            suffixIcon: _searchController.text.isNotEmpty
-                ? IconButton(
-                    tooltip: context.l10n.common_clear,
-                    icon: Icon(
-                      Icons.close,
-                      size: 16,
-                      color: theme.colorScheme.onSurfaceVariant.withValues(
-                        alpha: 0.6,
-                      ),
-                    ),
-                    onPressed: () {
-                      _searchController.clear();
-                      _galleryNotifier.search('');
-                      setState(() {});
-                    },
-                  )
-                : null,
+            suffixIcon: _buildTagCountSuffix(
+              theme,
+              controller,
+              onClear: () {
+                controller.clear();
+                onSubmitted('');
+                setState(() {});
+              },
+            ),
+            suffixIconConstraints: const BoxConstraints(minWidth: 64),
             border: InputBorder.none,
             contentPadding: const EdgeInsets.symmetric(vertical: 8),
             isDense: true,
@@ -1187,7 +1270,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           onChanged: (value) {
             setState(() {}); // 仅更新清除按钮可见性，不触发搜索
           },
-          onSubmitted: _galleryNotifier.search,
+          onSubmitted: (value) => _submitTagSearch(value, onValid: onSubmitted),
         ),
       ),
     );
@@ -2519,6 +2602,12 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
 
   String _localizedError(OnlineGalleryErrorCode? errorCode) {
     switch (errorCode) {
+      case OnlineGalleryErrorCode.tooManySearchTags:
+        return context.l10n.onlineGallery_maxTagsExceeded(maxGallerySearchTags);
+      case OnlineGalleryErrorCode.tagDetailsIncomplete:
+        return context.l10n.onlineGallery_tagDetailsIncomplete;
+      case OnlineGalleryErrorCode.unsupportedMetatag:
+        return context.l10n.onlineGallery_unsupportedMetatag;
       case OnlineGalleryErrorCode.gelbooruCredentialsRequired:
         return context.l10n.onlineGallery_gelbooruCredentialsRequired;
       case OnlineGalleryErrorCode.gelbooruCredentialsInvalid:
@@ -2596,7 +2685,38 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           ),
           const SizedBox(height: 12),
           Text(message, style: theme.textTheme.titleMedium),
-          if (artistHuntEmpty && activeCache.artistHuntFailureCount > 0) ...[
+          if (activeCache.queryScanPaused) ...[
+            const SizedBox(height: 8),
+            Text(
+              context.l10n.onlineGallery_scanPaused,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            TextButton.icon(
+              onPressed: _galleryNotifier.loadMore,
+              icon: const Icon(Icons.manage_search, size: 18),
+              label: Text(context.l10n.onlineGallery_continueScanning),
+            ),
+          ] else if (activeCache.queryDetailFailureCount > 0) ...[
+            const SizedBox(height: 8),
+            Text(
+              context.l10n.onlineGallery_tagDetailsIncomplete,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.error,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            TextButton.icon(
+              onPressed: _galleryNotifier.refresh,
+              icon: const Icon(Icons.refresh, size: 18),
+              label: Text(context.l10n.common_retry),
+            ),
+          ] else if (artistHuntEmpty &&
+              activeCache.artistHuntFailureCount > 0) ...[
             const SizedBox(height: 8),
             Text(
               context.l10n.onlineGallery_artistHuntPartialFailure(
@@ -2935,6 +3055,27 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         ),
       );
     }
+    if (activeCache.queryScanPaused) {
+      return Center(
+        child: TextButton.icon(
+          onPressed: _galleryNotifier.loadMore,
+          icon: const Icon(Icons.manage_search),
+          label: Text(context.l10n.onlineGallery_continueScanning),
+        ),
+      );
+    }
+    if (activeCache.queryDetailFailureCount > 0) {
+      return Center(
+        child: TextButton.icon(
+          onPressed: _galleryNotifier.refresh,
+          icon: Icon(Icons.refresh, color: theme.colorScheme.error),
+          label: Text(
+            context.l10n.onlineGallery_tagDetailsIncomplete,
+            style: TextStyle(color: theme.colorScheme.error),
+          ),
+        ),
+      );
+    }
     if (!state.hasMore) {
       return Center(
         child: Padding(
@@ -2961,7 +3102,33 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
   /// 构建页面显示内容（加载中、错误、空状态、网格）
   Widget _buildPageContent(ThemeData theme, OnlineGalleryState state) {
     if (state.isLoading && state.posts.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      final cache = state.currentCache;
+      final tagCount = GalleryTagQueryParser.parse(
+        state.viewMode == GalleryViewMode.popular
+            ? state.popularQuery
+            : state.searchQuery,
+      ).ordinaryTagCount;
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(),
+            if (tagCount > 1 && cache.queryRequestCount > 0) ...[
+              const SizedBox(height: 12),
+              Text(
+                context.l10n.onlineGallery_multiTagScanning(
+                  cache.queryRequestCount,
+                  cache.queryCandidateCount,
+                ),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ],
+        ),
+      );
     }
     if (state.hasError && state.posts.isEmpty) {
       return _buildErrorState(theme, state);

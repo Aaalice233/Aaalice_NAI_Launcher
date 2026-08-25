@@ -1093,11 +1093,29 @@
     }
   },
   "onlineGallery_searchTags": "搜尋標籤...",
+  "onlineGallery_maxTagsExceeded": "最多可組合搜尋 {max} 個標籤",
+  "@onlineGallery_maxTagsExceeded": {
+    "placeholders": {
+      "max": {"type": "int"}
+    }
+  },
+  "onlineGallery_tagDetailsIncomplete": "部分作品的完整標籤取得失敗，未驗證的作品已排除；請重試以補齊結果。",
+  "onlineGallery_unsupportedMetatag": "目前來源或模式不支援元標籤語法，請改用一般標籤或切換至來源搜尋。",
+  "onlineGallery_multiTagScanning": "正在組合搜尋：已請求 {requests} 頁，檢查 {candidates} 個候選作品",
+  "onlineGallery_scanPaused": "已分批檢查多頁候選，尚未找到足夠結果。可繼續掃描後續頁面。",
+  "onlineGallery_continueScanning": "繼續掃描",
+  "@onlineGallery_multiTagScanning": {
+    "placeholders": {
+      "requests": {"type": "int"},
+      "candidates": {"type": "int"}
+    }
+  },
   "onlineGallery_refresh": "重新整理",
   "onlineGallery_random": "隨機",
   "onlineGallery_randomRedraw": "再抽一組",
   "onlineGallery_randomDrawing": "抽取中…",
   "onlineGallery_randomExhausted": "當前範圍暫無更多未見圖片",
+  "onlineGallery_randomDrawNoMatch": "本次未抽中符合條件的圖片，可以繼續抽取。",
   "onlineGallery_randomRestart": "重新開始",
   "onlineGallery_login": "登入",
   "onlineGallery_logout": "退出登入",
