@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -6,8 +7,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/enums/precise_ref_type.dart';
+import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/widgets/drop/global_drop_handler.dart';
+import 'package:nai_launcher/presentation/widgets/drop/image_destination_dialog.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -57,6 +60,90 @@ void main() {
       );
 
       expect(metadata, isNull);
+    });
+
+    test(
+      'reads metadata from an incomplete PNG prefix beside WebP display bytes',
+      () async {
+        var pngBytes = Uint8List.fromList(_transparentPngBytes);
+        pngBytes = UnifiedMetadataParser.embedTextChunkOnly(
+          pngBytes,
+          'Software',
+          'NovelAI',
+        );
+        pngBytes = UnifiedMetadataParser.embedTextChunkOnly(
+          pngBytes,
+          'Source',
+          'NovelAI Diffusion V4.5 4BDE2A90',
+        );
+        pngBytes = UnifiedMetadataParser.embedTextChunkOnly(
+          pngBytes,
+          'Description',
+          'discord metadata prompt',
+        );
+        pngBytes = UnifiedMetadataParser.embedTextChunkOnly(
+          pngBytes,
+          'Comment',
+          '{"prompt":"discord metadata prompt","uc":"bad hands",'
+              '"seed":123,"width":832,"height":1216}',
+        );
+        final idatTypeOffset = _indexOfBytes(pngBytes, const [
+          0x49,
+          0x44,
+          0x41,
+          0x54,
+        ]);
+        final metadataPrefix = Uint8List.fromList(
+          pngBytes.sublist(0, idatTypeOffset - 4),
+        );
+
+        final metadata = await detectImportableDroppedImageMetadata(
+          'opened_discord_image.webp',
+          Uint8List.fromList(const [0x52, 0x49, 0x46, 0x46]),
+          metadataBytes: metadataPrefix,
+        );
+
+        expect(metadata, isNotNull);
+        expect(metadata!.prompt, 'discord metadata prompt');
+        expect(metadata.negativePrompt, 'bad hands');
+        expect(metadata.seed, 123);
+      },
+    );
+
+    test(
+      'reads NovelAI stealth metadata directly from lossless WebP',
+      () async {
+        final metadata = await detectImportableDroppedImageMetadata(
+          'discord_image.webp',
+          base64Decode(_losslessStealthWebpBase64),
+          inspectNonPngStealth: true,
+        );
+
+        expect(metadata, isNotNull);
+        expect(metadata!.prompt, 'discord stealth prompt');
+        expect(metadata.negativePrompt, 'bad hands');
+        expect(metadata.seed, 987654321);
+      },
+    );
+
+    test('only image-consuming destinations require original bytes', () {
+      expect(
+        {
+          for (final destination in ImageDestination.values)
+            destination: imageDestinationRequiresOriginalBytes(destination),
+        },
+        {
+          ImageDestination.img2img: true,
+          ImageDestination.reversePrompt: true,
+          ImageDestination.vibeTransfer: true,
+          ImageDestination.vibeTransferReuse: false,
+          ImageDestination.vibeTransferRaw: true,
+          ImageDestination.saveToVibeLibrary: false,
+          ImageDestination.characterReference: true,
+          ImageDestination.extractMetadata: false,
+          ImageDestination.addToQueue: false,
+        },
+      );
     });
 
     test('only gallery internal drags bypass the global drop handler', () {
@@ -127,6 +214,29 @@ void main() {
       },
     );
   });
+}
+
+const _losslessStealthWebpBase64 =
+    'UklGRlwBAABXRUJQVlA4TFABAAAvP8APELkKRPQ/BkBC+H9ejQHvf+JeAamRJElSP5o/6eqZ'
+    'PYJAu7uCtA1YtJMREBAU+T/aBFzxpeqyy8vqtf9/Z93pvXW7mjn5vu/rbaqZrYioyEApSao0'
+    'cEYh5CIqoiQxcGYWhYOpBKLWAGgkCjLwTGXZQkdAKgOh5jMOooqVYgOJKoLKgKmRZrVgSqr'
+    'gIqgikSwoUmQ4WRmI2sRjmWQMgM/kZqqQKTbAYXjiYB0GYAugBpnBwGdCbaAQNNQYODOpcJd'
+    'EY4IjS6gB/AiGg3WglZOQluuAwESppGgTAGZqjhaIBi0kGCrlaJGpMlGimTgJaqC1oRKpOJq'
+    'hQmwElCUygSlI5WSZRkgtiCiRuZlShsgCaAIRLaiBRchCaipZLpJQpDKRliTaxImJSCOIZLiak'
+    'WIwgCJCSQ6mlSZu4jOWLKhgpjgbBFojqSTCCKqotQA=';
+
+int _indexOfBytes(Uint8List bytes, List<int> pattern) {
+  for (var offset = 0; offset <= bytes.length - pattern.length; offset++) {
+    var matches = true;
+    for (var index = 0; index < pattern.length; index++) {
+      if (bytes[offset + index] != pattern[index]) {
+        matches = false;
+        break;
+      }
+    }
+    if (matches) return offset;
+  }
+  throw StateError('Byte pattern not found');
 }
 
 const _transparentPngBytes = [

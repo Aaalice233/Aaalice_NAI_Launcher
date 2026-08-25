@@ -15,20 +15,27 @@ class DroppedFileData {
     required this.bytes,
     this.sourceUri,
     this.sourcePath,
+    this.metadataBytes,
+    this.imageBytesArePreview = false,
   });
 
   final String fileName;
   final Uint8List bytes;
   final Uri? sourceUri;
   final String? sourcePath;
+  final Uint8List? metadataBytes;
+  final bool imageBytesArePreview;
 }
 
 class DroppedFileReader {
   DroppedFileReader._();
 
   static const int maxRemoteRawImageBytes = 256 * 1024 * 1024;
+  static const int discordMetadataProbeBytes = 64 * 1024;
   static const Duration readTimeout = Duration(seconds: 10);
   static const Duration remoteTimeout = Duration(seconds: 30);
+  static const Duration discordMetadataTimeout = Duration(seconds: 5);
+  static const Duration discordPreviewTimeout = Duration(seconds: 10);
   static const Set<String> _imageExtensions = {
     'png',
     'jpg',
@@ -63,19 +70,94 @@ class DroppedFileReader {
       return localFile;
     }
 
-    final directImage = await _readDirectImageFile(reader, logTag: logTag);
-    if (directImage != null) {
-      return directImage;
-    }
+    final hasRealDirectImage = _hasNonSynthesizedDirectImage(reader);
+    final directImageFuture = hasRealDirectImage
+        ? _readDirectImageFile(reader, logTag: logTag)
+        : null;
+    final remoteUri = allowRemoteImages
+        ? await _readRemoteImageUri(reader, logTag: logTag)
+        : null;
+    final normalizedRemoteUri = remoteUri == null
+        ? null
+        : normalizeRemoteImageUri(remoteUri);
 
-    if (allowRemoteImages) {
-      final remoteUri = await _readRemoteImageUri(reader, logTag: logTag);
-      if (remoteUri != null) {
-        return _downloadRemoteImage(remoteUri, logTag: logTag);
+    if (normalizedRemoteUri != null &&
+        isDiscordAttachmentUri(normalizedRemoteUri)) {
+      final discordImage = await _readDiscordAttachment(
+        normalizedRemoteUri,
+        directImageFuture: directImageFuture,
+        logTag: logTag,
+      );
+      if (discordImage != null) {
+        return discordImage;
       }
     }
 
+    if (directImageFuture != null) {
+      final directImage = await directImageFuture;
+      if (directImage != null) {
+        return directImage;
+      }
+    }
+
+    var remoteLookupAttempted = false;
+    if (allowRemoteImages && _hasOnlySynthesizedDirectImages(reader)) {
+      remoteLookupAttempted = true;
+      AppLogger.d(
+        'Preferring the remote source over synthesized dropped image data',
+        logTag,
+      );
+      final remoteImage = await _readRemoteImage(
+        normalizedRemoteUri,
+        logTag: logTag,
+      );
+      if (remoteImage != null) {
+        return remoteImage;
+      }
+    }
+
+    if (!hasRealDirectImage) {
+      final directImage = await _readDirectImageFile(reader, logTag: logTag);
+      if (directImage != null) {
+        return directImage;
+      }
+    }
+
+    if (allowRemoteImages && !remoteLookupAttempted) {
+      return _readRemoteImage(normalizedRemoteUri, logTag: logTag);
+    }
+
     return null;
+  }
+
+  static bool _hasOnlySynthesizedDirectImages(DataReader reader) {
+    var foundDirectImage = false;
+    try {
+      for (final imageFormat in _imageFormats) {
+        if (!reader.canProvide(imageFormat.format)) {
+          continue;
+        }
+        foundDirectImage = true;
+        if (!reader.isSynthesized(imageFormat.format)) {
+          return false;
+        }
+      }
+    } catch (_) {
+      return false;
+    }
+    return foundDirectImage;
+  }
+
+  static bool _hasNonSynthesizedDirectImage(DataReader reader) {
+    try {
+      return _imageFormats.any(
+        (imageFormat) =>
+            reader.canProvide(imageFormat.format) &&
+            !reader.isSynthesized(imageFormat.format),
+      );
+    } catch (_) {
+      return false;
+    }
   }
 
   @visibleForTesting
@@ -294,21 +376,241 @@ class DroppedFileReader {
     return null;
   }
 
+  static Future<DroppedFileData?> _readRemoteImage(
+    Uri? remoteUri, {
+    required String logTag,
+  }) async {
+    if (remoteUri == null) {
+      return null;
+    }
+    return downloadRemoteImage(remoteUri, logTag: logTag);
+  }
+
+  static Future<DroppedFileData?> _readDiscordAttachment(
+    Uri originalUri, {
+    Future<DroppedFileData?>? directImageFuture,
+    required String logTag,
+  }) async {
+    if (directImageFuture != null) {
+      final directImage = await directImageFuture;
+      if (directImage != null) {
+        return DroppedFileData(
+          fileName: directImage.fileName,
+          bytes: directImage.bytes,
+          sourceUri: originalUri,
+          sourcePath: directImage.sourcePath,
+        );
+      }
+    }
+
+    final metadataFuture = downloadRemoteMetadataPrefix(
+      originalUri,
+      logTag: logTag,
+    );
+    final previewFuture = _downloadRemoteImage(
+      buildDiscordPreviewUri(originalUri),
+      logTag: logTag,
+      timeout: discordPreviewTimeout,
+    );
+    final previewImage = await previewFuture;
+    final metadataBytes = await metadataFuture;
+    if (previewImage != null) {
+      return DroppedFileData(
+        fileName: inferFileNameFromUri(originalUri),
+        bytes: previewImage.bytes,
+        sourceUri: originalUri,
+        metadataBytes: metadataBytes,
+        imageBytesArePreview: true,
+      );
+    }
+
+    final originalImage = await downloadRemoteImage(
+      originalUri,
+      logTag: logTag,
+    );
+    if (originalImage == null) {
+      return null;
+    }
+    return DroppedFileData(
+      fileName: originalImage.fileName,
+      bytes: originalImage.bytes,
+      sourceUri: originalUri,
+      metadataBytes: metadataBytes,
+    );
+  }
+
+  static Future<DroppedFileData?> downloadRemoteImage(
+    Uri uri, {
+    String logTag = 'DroppedFileReader',
+  }) {
+    return _downloadRemoteImage(normalizeRemoteImageUri(uri), logTag: logTag);
+  }
+
+  @visibleForTesting
+  static Uri normalizeRemoteImageUri(Uri uri) {
+    if (uri.host.toLowerCase() != 'media.discordapp.net' ||
+        uri.pathSegments.isEmpty ||
+        !_discordAttachmentPathPrefixes.contains(uri.pathSegments.first)) {
+      return uri;
+    }
+
+    final queryParameters = Map<String, String>.from(uri.queryParameters)
+      ..removeWhere(
+        (key, _) =>
+            key.isEmpty ||
+            _discordProxyTransformParameters.contains(key.toLowerCase()),
+      );
+    return uri.replace(
+      host: 'cdn.discordapp.com',
+      queryParameters: queryParameters,
+    );
+  }
+
+  @visibleForTesting
+  static Uri buildDiscordPreviewUri(Uri uri) {
+    final originalUri = normalizeRemoteImageUri(uri);
+    if (!isDiscordAttachmentUri(originalUri)) {
+      return uri;
+    }
+
+    final queryParameters =
+        Map<String, String>.from(originalUri.queryParameters)..removeWhere(
+          (key, _) =>
+              key.isEmpty ||
+              _discordProxyTransformParameters.contains(key.toLowerCase()),
+        );
+    queryParameters.addAll(const {
+      'format': 'webp',
+      'quality': 'lossless',
+      'width': '512',
+      'height': '512',
+    });
+    return originalUri.replace(
+      host: 'media.discordapp.net',
+      queryParameters: queryParameters,
+    );
+  }
+
+  static bool isDiscordAttachmentUri(Uri uri) {
+    final host = uri.host.toLowerCase();
+    return (host == 'cdn.discordapp.com' || host == 'media.discordapp.net') &&
+        uri.pathSegments.isNotEmpty &&
+        _discordAttachmentPathPrefixes.contains(uri.pathSegments.first);
+  }
+
+  static const Set<String> _discordAttachmentPathPrefixes = {
+    'attachments',
+    'ephemeral-attachments',
+  };
+
+  static const Set<String> _discordProxyTransformParameters = {
+    'animated',
+    'format',
+    'height',
+    'quality',
+    'width',
+  };
+
+  static Future<Uint8List?> downloadRemoteMetadataPrefix(
+    Uri uri, {
+    int maxBytes = discordMetadataProbeBytes,
+    String logTag = 'DroppedFileReader',
+  }) async {
+    if (maxBytes <= 0) {
+      throw ArgumentError.value(maxBytes, 'maxBytes', 'Must be positive');
+    }
+
+    final normalizedUri = normalizeRemoteImageUri(uri);
+    final client = HttpClient();
+    client.connectionTimeout = discordMetadataTimeout;
+    try {
+      final request = await client
+          .getUrl(normalizedUri)
+          .timeout(discordMetadataTimeout);
+      request.followRedirects = true;
+      request.headers.set(HttpHeaders.userAgentHeader, 'NAI-Launcher/1.0');
+      request.headers.set(HttpHeaders.rangeHeader, 'bytes=0-${maxBytes - 1}');
+      final response = await request.close().timeout(discordMetadataTimeout);
+      if (response.statusCode != HttpStatus.ok &&
+          response.statusCode != HttpStatus.partialContent) {
+        AppLogger.w(
+          'Dropped image metadata probe failed: '
+          '${_uriWithoutQuery(normalizedUri)} status=${response.statusCode}',
+          logTag,
+        );
+        await response.drain<void>();
+        return null;
+      }
+
+      final contentType = response.headers.contentType?.mimeType;
+      if (!_isImageResponse(normalizedUri, contentType, null)) {
+        AppLogger.w(
+          'Dropped image metadata probe returned non-image content: '
+          '${_uriWithoutQuery(normalizedUri)} contentType=$contentType',
+          logTag,
+        );
+        await response.drain<void>();
+        return null;
+      }
+
+      final builder = BytesBuilder(copy: false);
+      var totalBytes = 0;
+      await for (final chunk in response.timeout(discordMetadataTimeout)) {
+        final remaining = maxBytes - totalBytes;
+        if (remaining <= 0) {
+          break;
+        }
+        if (chunk.length <= remaining) {
+          builder.add(chunk);
+          totalBytes += chunk.length;
+        } else {
+          builder.add(chunk.sublist(0, remaining));
+          totalBytes += remaining;
+        }
+        if (totalBytes >= maxBytes) {
+          break;
+        }
+      }
+
+      final bytes = builder.takeBytes();
+      if (bytes.isEmpty) {
+        return null;
+      }
+      AppLogger.d(
+        'Read dropped image metadata prefix: bytes=${bytes.length}, '
+        'uri=${_uriWithoutQuery(normalizedUri)}',
+        logTag,
+      );
+      return bytes;
+    } catch (e) {
+      AppLogger.w(
+        'Failed to read dropped image metadata prefix: '
+        '${_uriWithoutQuery(normalizedUri)}, error=$e',
+        logTag,
+      );
+      return null;
+    } finally {
+      client.close(force: true);
+    }
+  }
+
   static Future<DroppedFileData?> _downloadRemoteImage(
     Uri uri, {
     required String logTag,
+    Duration timeout = remoteTimeout,
   }) async {
     final client = HttpClient();
-    client.connectionTimeout = remoteTimeout;
+    client.connectionTimeout = timeout;
     try {
-      final request = await client.getUrl(uri).timeout(remoteTimeout);
+      final request = await client.getUrl(uri).timeout(timeout);
       request.followRedirects = true;
       request.headers.set(HttpHeaders.userAgentHeader, 'NAI-Launcher/1.0');
-      final response = await request.close().timeout(remoteTimeout);
+      final response = await request.close().timeout(timeout);
 
       if (response.statusCode < 200 || response.statusCode >= 300) {
         AppLogger.w(
-          'Dropped remote image request failed: $uri status=${response.statusCode}',
+          'Dropped remote image request failed: ${_uriWithoutQuery(uri)} '
+          'status=${response.statusCode}',
           logTag,
         );
         await response.drain<void>();
@@ -322,7 +624,8 @@ class DroppedFileReader {
           : uri;
       if (!_isImageResponse(effectiveUri, contentType, contentDisposition)) {
         AppLogger.w(
-          'Dropped remote URL is not an image: $uri contentType=$contentType',
+          'Dropped remote URL is not an image: ${_uriWithoutQuery(uri)} '
+          'contentType=$contentType',
           logTag,
         );
         await response.drain<void>();
@@ -337,7 +640,7 @@ class DroppedFileReader {
 
       final builder = BytesBuilder(copy: false);
       var totalBytes = 0;
-      await for (final chunk in response.timeout(remoteTimeout)) {
+      await for (final chunk in response.timeout(timeout)) {
         totalBytes += chunk.length;
         if (totalBytes > maxRemoteRawImageBytes) {
           throw StateError(
@@ -349,18 +652,23 @@ class DroppedFileReader {
 
       final bytes = builder.takeBytes();
       if (bytes.isEmpty) {
-        AppLogger.w('Dropped remote image is empty: $uri', logTag);
+        AppLogger.w(
+          'Dropped remote image is empty: ${_uriWithoutQuery(uri)}',
+          logTag,
+        );
         return null;
       }
 
       AppLogger.i(
-        'Downloaded dropped remote image: $fileName, bytes=${bytes.length}, uri=$uri',
+        'Downloaded dropped remote image: $fileName, bytes=${bytes.length}, '
+        'uri=${_uriWithoutQuery(uri)}',
         logTag,
       );
       return DroppedFileData(fileName: fileName, bytes: bytes, sourceUri: uri);
     } catch (e) {
       AppLogger.w(
-        'Failed to download dropped remote image: $uri, error=$e',
+        'Failed to download dropped remote image: '
+        '${_uriWithoutQuery(uri)}, error=$e',
         logTag,
       );
       return null;
@@ -368,6 +676,8 @@ class DroppedFileReader {
       client.close(force: true);
     }
   }
+
+  static Uri _uriWithoutQuery(Uri uri) => uri.replace(query: null);
 
   static bool _isImageResponse(
     Uri uri,
