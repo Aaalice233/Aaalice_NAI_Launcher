@@ -444,7 +444,10 @@ void main() {
 class _MockTagLibraryService extends Mock implements TagLibraryService {}
 
 class _MockSequentialStateService extends Mock
-    implements SequentialStateService {}
+    implements SequentialStateService {
+  @override
+  Future<void> init() async {}
+}
 
 class _MockTagGroupCacheService extends Mock implements TagGroupCacheService {}
 

@@ -6,7 +6,6 @@ import '../../../providers/random_preset_provider.dart';
 import '../../../../data/models/prompt/algorithm_config.dart';
 import '../../../../data/models/prompt/character_count_config.dart';
 import '../../../../data/models/prompt/random_preset.dart';
-import '../../common/elevated_card.dart';
 import 'random_config_l10n.dart';
 import 'random_manager_widgets.dart';
 
@@ -14,10 +13,7 @@ import 'random_manager_widgets.dart';
 ///
 /// 显示和编辑角色数量权重、性别权重等核心算法配置
 class AlgorithmConfigCard extends ConsumerStatefulWidget {
-  const AlgorithmConfigCard({
-    super.key,
-    this.isPresetDefault = false,
-  });
+  const AlgorithmConfigCard({super.key, this.isPresetDefault = false});
 
   /// 是否为默认预设（只读模式）
   final bool isPresetDefault;
@@ -42,44 +38,42 @@ class _AlgorithmConfigCardState extends ConsumerState<AlgorithmConfigCard> {
     }
 
     final config = preset.algorithmConfig;
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
 
-    return ElevatedCard(
-      elevation: CardElevation.level2,
-      hoverElevation: CardElevation.level3,
-      enableHoverEffect: false,
-      borderRadius: 8,
-      gradientBorder: _isExpanded ? CardGradients.primary(colorScheme) : null,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOutCubic,
-        decoration: BoxDecoration(
-          color: colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 标题栏
-            _buildHeader(context, colorScheme),
-            // 主体内容 - 紧凑视图
-            Padding(
+    return AnimatedContainer(
+      duration: reduceMotion
+          ? Duration.zero
+          : const Duration(milliseconds: 180),
+      curve: Curves.easeOutCubic,
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 标题栏
+          _buildHeader(context, colorScheme),
+          // 主体内容 - 紧凑视图
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: _buildCompactView(context, config),
+          ),
+          // 展开的详细配置
+          AnimatedCrossFade(
+            duration: reduceMotion
+                ? Duration.zero
+                : const Duration(milliseconds: 180),
+            crossFadeState: _isExpanded
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
+            firstChild: const SizedBox.shrink(),
+            secondChild: Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              child: _buildCompactView(context, config),
+              child: _buildExpandedView(context, preset, config),
             ),
-            // 展开的详细配置
-            AnimatedCrossFade(
-              duration: const Duration(milliseconds: 250),
-              crossFadeState: _isExpanded
-                  ? CrossFadeState.showSecond
-                  : CrossFadeState.showFirst,
-              firstChild: const SizedBox.shrink(),
-              secondChild: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                child: _buildExpandedView(context, preset, config),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -95,61 +89,37 @@ class _AlgorithmConfigCardState extends ConsumerState<AlgorithmConfigCard> {
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            // 标题容器 - 统一样式
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              width: 32,
+              height: 32,
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    colorScheme.primary.withValues(alpha: 0.15),
-                    colorScheme.primary.withValues(alpha: 0.05),
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(6),
+                color: colorScheme.primaryContainer.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(9),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: colorScheme.primary.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Icon(
-                      Icons.tune,
-                      size: 14,
-                      color: colorScheme.primary,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    l10n.randomManager_algorithmConfig,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: colorScheme.primary,
-                    ),
-                  ),
-                ],
+              child: Icon(
+                Icons.tune_rounded,
+                size: 17,
+                color: colorScheme.primary,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              l10n.randomManager_algorithmConfig,
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w700,
               ),
             ),
             const Spacer(),
             // 展开/收起按钮
             AnimatedRotation(
-              duration: const Duration(milliseconds: 200),
+              duration: MediaQuery.disableAnimationsOf(context)
+                  ? Duration.zero
+                  : const Duration(milliseconds: 180),
               turns: _isExpanded ? 0.5 : 0,
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: colorScheme.surfaceContainerHighest
-                      .withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Icon(
-                  Icons.keyboard_arrow_down,
-                  size: 18,
-                  color: colorScheme.onSurfaceVariant,
-                ),
+              child: Icon(
+                Icons.keyboard_arrow_down_rounded,
+                size: 20,
+                color: colorScheme.onSurfaceVariant,
               ),
             ),
           ],
@@ -193,15 +163,8 @@ class _AlgorithmConfigCardState extends ConsumerState<AlgorithmConfigCard> {
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(8),
-            boxShadow: [
-              BoxShadow(
-                color: colorScheme.shadow.withValues(alpha: 0.04),
-                blurRadius: 4,
-                offset: const Offset(0, 1),
-              ),
-            ],
+            color: colorScheme.surfaceContainerHigh,
+            borderRadius: BorderRadius.circular(10),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -250,15 +213,8 @@ class _AlgorithmConfigCardState extends ConsumerState<AlgorithmConfigCard> {
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(8),
-            boxShadow: [
-              BoxShadow(
-                color: colorScheme.shadow.withValues(alpha: 0.04),
-                blurRadius: 4,
-                offset: const Offset(0, 1),
-              ),
-            ],
+            color: colorScheme.surfaceContainerHigh,
+            borderRadius: BorderRadius.circular(10),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -417,8 +373,8 @@ class _AlgorithmConfigCardState extends ConsumerState<AlgorithmConfigCard> {
             final color = option.mainPromptTags.contains('boy')
                 ? Colors.blue.shade400
                 : option.mainPromptTags.contains('other')
-                    ? Colors.purple.shade400
-                    : Colors.pink.shade400;
+                ? Colors.purple.shade400
+                : Colors.pink.shade400;
             return _WeightSlider(
               label: l10n.characterTagOptionLabel(option),
               value: option.weight,
@@ -467,8 +423,9 @@ class _AlgorithmConfigCardState extends ConsumerState<AlgorithmConfigCard> {
             onChanged: isReadOnly
                 ? null
                 : (value) {
-                    final newConfig =
-                        config.copyWith(enableSeasonalWordlists: value);
+                    final newConfig = config.copyWith(
+                      enableSeasonalWordlists: value,
+                    );
                     _updateConfig(preset, newConfig);
                   },
           ),
@@ -491,8 +448,9 @@ class _AlgorithmConfigCardState extends ConsumerState<AlgorithmConfigCard> {
                 onChanged: isReadOnly
                     ? null
                     : (value) {
-                        final newConfig =
-                            config.copyWith(globalEmphasisProbability: value);
+                        final newConfig = config.copyWith(
+                          globalEmphasisProbability: value,
+                        );
                         _updateConfig(preset, newConfig);
                       },
               ),
@@ -629,8 +587,9 @@ class _HorizontalBarState extends State<_HorizontalBar> {
                 widget.label,
                 style: theme.textTheme.labelSmall?.copyWith(
                   fontWeight: FontWeight.w500,
-                  color:
-                      _isHovered ? widget.color : colorScheme.onSurfaceVariant,
+                  color: _isHovered
+                      ? widget.color
+                      : colorScheme.onSurfaceVariant,
                 ),
               ),
             ),
@@ -864,15 +823,17 @@ class _WeightSliderState extends State<_WeightSlider> {
                       elevation: 2,
                       pressedElevation: 4,
                     ),
-                    overlayShape:
-                        const RoundSliderOverlayShape(overlayRadius: 16),
+                    overlayShape: const RoundSliderOverlayShape(
+                      overlayRadius: 16,
+                    ),
                   ),
                   child: Slider(
                     value: widget.value.toDouble(),
                     min: 0,
                     max: 100,
-                    onChanged:
-                        isEnabled ? (v) => widget.onChanged(v.round()) : null,
+                    onChanged: isEnabled
+                        ? (v) => widget.onChanged(v.round())
+                        : null,
                   ),
                 ),
               ),
@@ -952,11 +913,7 @@ class _SettingRowState extends State<_SettingRow> {
                 color: colorScheme.primaryContainer.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(
-                widget.icon,
-                size: 18,
-                color: colorScheme.primary,
-              ),
+              child: Icon(widget.icon, size: 18, color: colorScheme.primary),
             ),
             const SizedBox(width: 12),
             Expanded(

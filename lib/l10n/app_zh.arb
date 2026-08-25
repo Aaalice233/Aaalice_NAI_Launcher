@@ -995,6 +995,28 @@
   "character_addCharacter": "添加角色",
   "character_limitReached": "已达当前模型的角色上限（{limit} 个）",
   "character_number": "角色 {index}",
+  "character_summaryEmpty": "未添加角色",
+  "character_summaryEnabled": "已启用 {count} 个 · {name}",
+  "@character_summaryEnabled": {
+    "placeholders": {
+      "count": {"type": "int"},
+      "name": {"type": "String"}
+    }
+  },
+  "character_summaryMore": "已启用 {count} 个 · {name} +{additional}",
+  "@character_summaryMore": {
+    "placeholders": {
+      "count": {"type": "int"},
+      "name": {"type": "String"},
+      "additional": {"type": "int"}
+    }
+  },
+  "character_summaryAllDisabled": "已启用 0 个 · 已停用 {count} 个",
+  "@character_summaryAllDisabled": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
   "gallery_generationParams": "生成参数",
   "gallery_metaModel": "模型",
   "gallery_metaResolution": "分辨率",
@@ -1037,12 +1059,12 @@
   "onlineGallery_sourceDoesNotSupportPopular": "当前站点不支持热门榜单",
   "onlineGallery_favorites": "收藏",
   "onlineGallery_searchFavorites": "搜索收藏的标题、作者或标签…",
-  "onlineGallery_localFavorites": "本地收藏",
-  "onlineGallery_localFavoritesDescription": "保存在此设备，所有站点均可使用",
-  "onlineGallery_cloudFavorites": "云端收藏",
-  "onlineGallery_loginForCloudFavorites": "登录后可查看云端收藏",
+  "onlineGallery_savedLocally": "已保存在本地",
+  "onlineGallery_savedInCloud": "已保存在云端",
   "onlineGallery_saveVisibleLocally": "保存本页到本地",
   "onlineGallery_visibleFavoritesAlreadySaved": "本页内容已全部保存到本地收藏",
+  "onlineGallery_localFavoritesPartialFailure": "本地收藏加载失败，已保留云端结果",
+  "onlineGallery_cloudFavoritesPartialFailure": "云端收藏加载失败，已保留本地结果",
   "onlineGallery_visibleFavoritesSaved": "已保存 {count} 项到本地收藏",
   "@onlineGallery_visibleFavoritesSaved": {
     "placeholders": {
@@ -1056,11 +1078,29 @@
     }
   },
   "onlineGallery_searchTags": "搜索标签...",
+  "onlineGallery_maxTagsExceeded": "最多可组合搜索 {max} 个标签",
+  "@onlineGallery_maxTagsExceeded": {
+    "placeholders": {
+      "max": {"type": "int"}
+    }
+  },
+  "onlineGallery_tagDetailsIncomplete": "部分作品的完整标签获取失败，未验证的作品已排除；请重试以补全结果。",
+  "onlineGallery_unsupportedMetatag": "当前来源或模式不支持元标签语法，请改用普通标签或切换到来源搜索。",
+  "onlineGallery_multiTagScanning": "正在组合检索：已请求 {requests} 页，检查 {candidates} 个候选作品",
+  "onlineGallery_scanPaused": "已分批检查多页候选，尚未找到足够结果。可继续扫描后续页面。",
+  "onlineGallery_continueScanning": "继续扫描",
+  "@onlineGallery_multiTagScanning": {
+    "placeholders": {
+      "requests": {"type": "int"},
+      "candidates": {"type": "int"}
+    }
+  },
   "onlineGallery_refresh": "刷新",
   "onlineGallery_random": "随机",
   "onlineGallery_randomRedraw": "再抽一组",
   "onlineGallery_randomDrawing": "抽取中…",
   "onlineGallery_randomExhausted": "当前范围暂无更多未见图片",
+  "onlineGallery_randomDrawNoMatch": "本次未抽中符合条件的图片，可以继续抽取。",
   "onlineGallery_randomRestart": "重新开始",
   "onlineGallery_login": "登录",
   "onlineGallery_logout": "退出登录",
@@ -1179,26 +1219,24 @@
     }
   },
   "onlineGallery_blacklistTitle": "在线画廊黑名单",
-  "onlineGallery_blacklistSubtitle": "选择实际用于隐藏图片的黑名单；本地与 Danbooru 云端列表相互独立。",
-  "onlineGallery_blacklistSourceLocal": "本地",
-  "onlineGallery_blacklistSourceCloud": "Danbooru 云端",
-  "onlineGallery_blacklistLocalDescription": "仅保存在此设备，无需登录即可使用",
-  "onlineGallery_blacklistCloudDescription": "直接使用并编辑 Danbooru 账户中的黑名单",
-  "onlineGallery_blacklistCloudLoginRequired": "登录 Danbooru 后可切换到云端黑名单",
+  "onlineGallery_blacklistSubtitle": "所有在线画廊共用这份列表；离线时仍会正常屏蔽。",
+  "onlineGallery_blacklistCloudDescription": "已连接 Danbooru；本地修改会在安全合并后同步",
+  "onlineGallery_blacklistCloudLoginRequired": "本地黑名单仍然有效；登录 Danbooru 后可以同步",
+  "onlineGallery_blacklistCloudUnavailable": "本地黑名单仍然有效；验证 Danbooru 连接后会恢复云端同步",
   "onlineGallery_addBlacklistTagHint": "添加黑名单标签",
-  "onlineGallery_noLocalBlacklistTags": "暂无本地黑名单标签",
-  "onlineGallery_noCloudBlacklistTags": "云端暂无黑名单标签",
+  "onlineGallery_noLocalBlacklistTags": "暂无黑名单标签",
   "onlineGallery_pullBlacklist": "拉取云端",
-  "onlineGallery_pullBlacklistTooltip": "刷新 Danbooru 云端黑名单，不会修改本地列表",
   "onlineGallery_pushBlacklist": "推送到云端",
-  "onlineGallery_pushBlacklistTooltip": "用本地黑名单覆盖 Danbooru 云端列表",
-  "onlineGallery_pushBlacklistConfirmTitle": "用本地列表覆盖云端？",
-  "onlineGallery_pushBlacklistConfirmBody": "Danbooru 云端黑名单将被当前本地列表完整替换，请确认本地列表已经整理完成。",
-  "onlineGallery_blacklistPullSucceeded": "已刷新 Danbooru 云端黑名单",
+  "onlineGallery_pushBlacklistConfirmTitle": "用统一列表覆盖云端？",
+  "onlineGallery_pushBlacklistConfirmBody": "这会完整替换 Danbooru 云端黑名单。普通自动同步不会删除无法识别的高级规则，但本次全量推送会删除它们。",
   "onlineGallery_blacklistPushSucceeded": "已用本地黑名单覆盖云端",
   "onlineGallery_blacklistSyncFailedMessage": "黑名单同步失败，请检查登录状态与网络连接",
+  "onlineGallery_blacklistSaveFailed": "保存黑名单失败：{error}",
+  "@onlineGallery_blacklistSaveFailed": {
+    "placeholders": {"error": {"type": "String"}}
+  },
   "onlineGallery_autoSyncOnStartup": "启动时刷新云端列表",
-  "onlineGallery_autoSyncOnStartupSubtitle": "只刷新云端缓存，不会覆盖本地黑名单",
+  "onlineGallery_autoSyncOnStartupSubtitle": "安全合并云端新增标签，不删除本地标签",
   "onlineGallery_lastSyncFailed": "上次同步失败: {error}",
   "@onlineGallery_lastSyncFailed": {
     "placeholders": {
@@ -1213,7 +1251,18 @@
     }
   },
   "onlineGallery_blacklistSettingsTitle": "在线画廊黑名单设置",
-  "onlineGallery_blacklistLoginHint": "未登录 Danbooru，仍可使用本地黑名单；同步需要先登录。",
+  "onlineGallery_blacklistImportTitle": "批量导入标签",
+  "onlineGallery_blacklistImportHint": "每行或使用逗号分隔一个标签",
+  "onlineGallery_blacklistImported": "已新增 {count} 个标签",
+  "@onlineGallery_blacklistImported": {"placeholders": {"count": {}}},
+  "onlineGallery_blacklistClearTitle": "清空统一黑名单？",
+  "onlineGallery_blacklistClearBody": "画廊将立即停止使用这些标签过滤。云端不会自动清空，可以撤销本次操作。",
+  "onlineGallery_blacklistPullSummary": "已新增 {added} 项，已有 {existing} 项，跳过已删除 {skipped} 项；保留 {opaque} 条云端高级规则",
+  "@onlineGallery_blacklistPullSummary": {"placeholders": {"added": {}, "existing": {}, "skipped": {}, "opaque": {}}},
+  "onlineGallery_blacklistPushDiff": "云端将新增 {added} 项、删除 {removed} 项，并删除 {opaque} 条高级规则。",
+  "@onlineGallery_blacklistPushDiff": {"placeholders": {"added": {}, "removed": {}, "opaque": {}}},
+  "onlineGallery_blacklistCloudEmptyConfirm": "确认清空云端黑名单",
+  "onlineGallery_blacklistMigrationConfirm": "此列表包含旧版本中无法确认账号归属的云端标签；确认将它们同步到当前账号",
   "onlineGallery_bulkFavorite": "批量收藏",
   "onlineGallery_bulkDownload": "批量下载",
   "onlineGallery_addedTasksToQueue": "已添加 {count} 个任务到队列",
@@ -1583,6 +1632,7 @@
   "api_error_network": "网络错误",
   "api_error_network_hint": "无法连接到服务器，请检查网络",
   "drop_dialogTitle": "如何使用这张图片？",
+  "drop_actions": "操作",
   "drop_hint": "拖拽图片到这里",
   "drop_processing": "正在解析图片...",
   "drop_img2img": "图生图",
@@ -1622,6 +1672,49 @@
   "drop_useAsRawImage": "作为原始图片",
   "drop_useAsRawImageSubtitle": "重新编码（消耗 2 Anlas）",
   "drop_dragToImg2ImgOrOther": "拖拽到图生图或其他区域",
+  "drop_metadataDetected": "检测到 NovelAI 元数据",
+  "drop_metadataParseFailed": "元数据解析失败",
+  "drop_metadataParseFailedHint": "图片包含元数据字段，但当前无法读取。其他图片用途仍可正常使用。",
+  "drop_metadataErrorDetails": "查看错误详情",
+  "drop_positivePrompt": "正向 Prompt",
+  "drop_negativePrompt": "负向 Prompt",
+  "drop_characterPrompts": "角色 Prompt（{count}）",
+  "@drop_characterPrompts": {"placeholders": {"count": {"type": "int"}}},
+  "drop_characterPositivePrompt": "角色 {index} 正向 Prompt",
+  "@drop_characterPositivePrompt": {"placeholders": {"index": {"type": "int"}}},
+  "drop_characterNegativePrompt": "角色 {index} 负向 Prompt",
+  "@drop_characterNegativePrompt": {"placeholders": {"index": {"type": "int"}}},
+  "drop_promptNotRecorded": "未记录",
+  "drop_promptCopy": "复制",
+  "drop_promptAddWhole": "整段加入词库",
+  "drop_promptAddSelection": "加入词库",
+  "drop_promptLibraryTitle": "加入词库",
+  "drop_promptLibraryWriteMode": "写入方式",
+  "drop_promptLibraryCreate": "新建",
+  "drop_promptLibraryAppend": "追加",
+  "drop_promptLibraryOverwrite": "覆盖",
+  "drop_promptLibraryAliasHint": "该名称同时用于 <词库名称> 引用",
+  "drop_promptLibraryTarget": "目标条目",
+  "drop_promptLibrarySelectTarget": "选择要更新的条目",
+  "drop_promptLibrarySeparator": "连接方式",
+  "drop_promptLibrarySeparatorComma": "逗号 + 空格",
+  "drop_promptLibrarySeparatorNewline": "换行",
+  "drop_promptLibrarySeparatorNone": "不插入分隔符",
+  "drop_promptLibraryCharacterCount": "{count} 字符",
+  "@drop_promptLibraryCharacterCount": {"placeholders": {"count": {"type": "int"}}},
+  "drop_promptLibraryExactContentHint": "保存当前文本，不自动清洗、重排或补全",
+  "drop_promptLibraryResultPreview": "结果预览",
+  "drop_promptLibraryDuplicate": "相同内容已存在于“{name}”",
+  "@drop_promptLibraryDuplicate": {"placeholders": {"name": {}}},
+  "drop_promptLibraryNameConflict": "该名称已存在，请改名或选择追加/覆盖",
+  "drop_promptLibraryOverwriteWarning": "将完整替换“{name}”的提示词内容",
+  "@drop_promptLibraryOverwriteWarning": {"placeholders": {"name": {}}},
+  "drop_promptLibraryMore": "更多选项",
+  "drop_promptLibraryConfirmOverwrite": "确认覆盖",
+  "drop_promptLibrarySaved": "已保存到词库",
+  "drop_promptLibrarySaveFailed": "词库保存失败",
+  "drop_promptLibraryPositiveName": "正向提示词摘取",
+  "drop_promptLibraryNegativeName": "负向提示词摘取",
 
   "preciseRef_title": "精准参考",
   "preciseRef_description": "添加参考图并设置类型和参数，可同时使用多个参考。",
@@ -1688,24 +1781,22 @@
   "toolbar_confirmClear": "确认清空",
   "toolbar_settings": "设置",
 
-  "characterTooltip_noCharacters": "未配置角色",
-  "characterTooltip_clickToConfig": "点击按钮开始配置多人角色",
-  "characterTooltip_globalAiLabel": "全局 AI 位置:",
-  "characterTooltip_enabled": "启用",
-  "characterTooltip_disabled": "禁用",
-  "characterTooltip_positionAi": "AI",
   "characterTooltip_disabledLabel": "已禁用",
-  "characterTooltip_promptLabel": "正向",
-  "characterTooltip_negativeLabel": "负面",
   "characterTooltip_notSet": "未设置",
-  "characterTooltip_summary": "共 {total} 个角色 ({enabled} 个启用)",
-  "@characterTooltip_summary": {
+  "characterTooltip_previewTitle": "角色预览",
+  "characterTooltip_enabledSummary": "{enabled} / {total} 启用",
+  "@characterTooltip_enabledSummary": {
     "placeholders": {
-      "total": {},
-      "enabled": {}
+      "enabled": {"type": "int"},
+      "total": {"type": "int"}
     }
   },
-  "characterTooltip_viewFullConfig": "点击查看完整配置",
+  "characterTooltip_more": "还有 {count} 个角色",
+  "@characterTooltip_more": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
 
   "tagLibrary_generatedCharacters": "已生成 {count} 个角色",
   "@tagLibrary_generatedCharacters": {
@@ -1721,13 +1812,13 @@
   },
 
   "randomMode_title": "选择随机模式",
-  "randomMode_naiOfficial": "官网模式",
+  "randomMode_naiOfficial": "离线词库",
   "randomMode_custom": "自定义模式",
   "randomMode_hybrid": "混合模式",
-  "randomMode_naiOfficialDesc": "复刻 NovelAI 官方随机算法",
+  "randomMode_naiOfficialDesc": "使用已验证的完整离线标签 catalog",
   "randomMode_customDesc": "使用自定义预设生成",
-  "randomMode_hybridDesc": "结合官方算法和自定义预设",
-  "randomMode_naiIndicator": "NAI",
+  "randomMode_hybridDesc": "结合离线词库和自定义预设",
+  "randomMode_naiIndicator": "离线",
   "randomMode_customIndicator": "自定义",
 
   "naiMode_noTags": "暂无标签",
@@ -1978,7 +2069,6 @@
   "randomManager_generatePreview": "生成预览",
   "randomManager_importExport": "导入/导出",
   "randomManager_syncing": "同步中",
-  "randomManager_syncingWithEllipsis": "同步中...",
   "randomManager_syncDanbooruTags": "同步 Danbooru 标签",
   "randomManager_unknownError": "未知错误",
   "randomManager_readOnlyMode": "只读模式",
@@ -6339,6 +6429,20 @@
   "autocomplete_statusDisabled": "已关闭",
   "autocomplete_statusSearching": "查询中",
   "autocomplete_statusTranslating": "翻译中",
-  "autocomplete_openSettings": "打开补全与数据源设置"
+  "autocomplete_openSettings": "打开补全与数据源设置",
+  "randomManager_searchCategories": "搜索类别、词组或标签（Ctrl+F）",
+  "randomManager_verifiedOfflineLibrary": "已验证的离线随机词库",
+  "randomManager_sourceDetails": "数据来源详情",
+  "randomManager_sourceUrl": "来源 URL",
+  "randomManager_sourceCommit": "来源提交",
+  "randomManager_sourceDate": "来源日期",
+  "randomManager_sourceLicense": "许可证",
+  "randomManager_catalogCounts": "完整 catalog：{tags} 个标签，{aliases} 个别名",
+  "@randomManager_catalogCounts": {"placeholders": {"tags": {}, "aliases": {}}},
+  "randomManager_libraryVersion": "规则 v{version} · {count} 个标签",
+  "@randomManager_libraryVersion": {"placeholders": {"version": {"type": "String"}, "count": {"type": "String"}}},
+  "randomManager_preview": "随机结果预览",
+  "randomManager_libraryUnavailable": "随机词库无法使用",
+  "randomManager_noCategoryResults": "没有匹配的类别、词组或标签"
 
 }

@@ -53,11 +53,7 @@ void main() {
           body: SizedBox(
             width: 400,
             child: SingleChildScrollView(
-              child: InlineCharacterCard(
-                character: target,
-                index: 0,
-                total: 1,
-              ),
+              child: InlineCharacterCard(character: target, index: 0, total: 1),
             ),
           ),
         ),
@@ -71,6 +67,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Alice'), findsOneWidget);
+      expect(find.byKey(const Key('character-gender-female')), findsOneWidget);
+      expect(find.text('Female'), findsOneWidget);
       expect(find.text('girl, silver hair, maid dress'), findsOneWidget);
       // 未选中时不显示正/负切换标签
       expect(find.byType(TextField), findsNothing);
@@ -110,10 +108,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      expect(
-        capturedRef.read(selectedCharacterIdProvider),
-        equals('char-1'),
-      );
+      expect(capturedRef.read(selectedCharacterIdProvider), equals('char-1'));
       // 编辑态显示输入框
       expect(find.byType(TextField), findsWidgets);
     });

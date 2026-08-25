@@ -1,5 +1,3 @@
-import 'package:uuid/uuid.dart';
-
 import '../../services/wordlist_service.dart';
 import 'random_category.dart';
 import 'random_tag_group.dart';
@@ -8,15 +6,13 @@ import 'tag_scope.dart';
 
 /// 默认类别配置
 ///
-/// 为新用户提供预配置的类别和分组，使用 NAI 内置词库
-/// 各类别概率基于 NAI 官方逻辑设置
+/// 为新用户提供基于完整离线 catalog 的预配置类别和分组。
+/// 固定 ID 保证跨启动的顺序状态、预设迁移和 seeded 测试稳定。
 class DefaultCategories {
-  static const _uuid = Uuid();
-
   /// 创建默认类别列表
   ///
   /// 每个类别包含一个或多个内置词库分组，从 TagLibrary 动态获取标签
-  /// 类别概率基于 NAI 逻辑：
+  /// 类别概率采用适合通用角色构图的保守默认值：
   /// - 角色特征（发色、瞳色、服装）: 100%
   /// - 背景: 90%
   /// - 风格、身体特征: 30%
@@ -25,7 +21,7 @@ class DefaultCategories {
     return [
       // 发色 - 100% 概率（角色核心特征）
       RandomCategory(
-        id: _uuid.v4(),
+        id: 'default_hairColor',
         name: '发色',
         key: 'hairColor',
         emoji: '🎨',
@@ -42,7 +38,7 @@ class DefaultCategories {
       ),
       // 瞳色 - 100% 概率（角色核心特征）
       RandomCategory(
-        id: _uuid.v4(),
+        id: 'default_eyeColor',
         name: '瞳色',
         key: 'eyeColor',
         emoji: '👁️',
@@ -59,7 +55,7 @@ class DefaultCategories {
       ),
       // 发型 - 50% 概率
       RandomCategory(
-        id: _uuid.v4(),
+        id: 'default_hairStyle',
         name: '发型',
         key: 'hairStyle',
         emoji: '✂️',
@@ -76,7 +72,7 @@ class DefaultCategories {
       ),
       // 表情 - 50% 概率
       RandomCategory(
-        id: _uuid.v4(),
+        id: 'default_expression',
         name: '表情',
         key: 'expression',
         emoji: '😊',
@@ -93,7 +89,7 @@ class DefaultCategories {
       ),
       // 姿势 - 50% 概率
       RandomCategory(
-        id: _uuid.v4(),
+        id: 'default_pose',
         name: '姿势',
         key: 'pose',
         emoji: '🧘',
@@ -110,7 +106,7 @@ class DefaultCategories {
       ),
       // 服装 - 100% 概率（拆分为 3 个词组）
       RandomCategory(
-        id: _uuid.v4(),
+        id: 'default_clothing',
         name: '服装',
         key: 'clothing',
         emoji: '👗',
@@ -148,7 +144,7 @@ class DefaultCategories {
       ),
       // 配饰 - 50% 概率
       RandomCategory(
-        id: _uuid.v4(),
+        id: 'default_accessory',
         name: '配饰',
         key: 'accessory',
         emoji: '💍',
@@ -165,7 +161,7 @@ class DefaultCategories {
       ),
       // 身体特征 - 30% 概率（拆分为 3 个词组）
       RandomCategory(
-        id: _uuid.v4(),
+        id: 'default_bodyFeature',
         name: '身体特征',
         key: 'bodyFeature',
         emoji: '💃',
@@ -201,9 +197,9 @@ class DefaultCategories {
           ),
         ],
       ),
-      // 背景 - 90% 概率（NAI 使用 90%）
+      // 背景 - 90% 概率
       RandomCategory(
-        id: _uuid.v4(),
+        id: 'default_background',
         name: '背景',
         key: 'background',
         emoji: '🌄',
@@ -220,7 +216,7 @@ class DefaultCategories {
       ),
       // 场景 - 50% 概率
       RandomCategory(
-        id: _uuid.v4(),
+        id: 'default_scene',
         name: '场景',
         key: 'scene',
         emoji: '🏞️',
@@ -235,9 +231,9 @@ class DefaultCategories {
           ),
         ],
       ),
-      // 风格 - 30% 概率（NAI 使用 30%）
+      // 风格 - 30% 概率
       RandomCategory(
-        id: _uuid.v4(),
+        id: 'default_style',
         name: '风格',
         key: 'style',
         emoji: '🎭',

@@ -64,6 +64,35 @@ void main() {
       expect(metadata, isNull);
     });
 
+    test('ordinary PNG text is not reported as a parse failure', () async {
+      final bytes = UnifiedMetadataParser.embedTextChunkOnly(
+        Uint8List.fromList(_transparentPngBytes),
+        'Software',
+        'Example image editor',
+      );
+
+      final detection = await detectDroppedImageMetadata('edited.png', bytes);
+
+      expect(detection.metadata, isNull);
+      expect(detection.parseError, isNull);
+    });
+
+    test('malformed generation metadata reports a parse failure', () async {
+      final bytes = UnifiedMetadataParser.embedTextChunkOnly(
+        Uint8List.fromList(_transparentPngBytes),
+        'Comment',
+        'unparseable payload',
+      );
+
+      final detection = await detectDroppedImageMetadata(
+        'broken_metadata.png',
+        bytes,
+      );
+
+      expect(detection.metadata, isNull);
+      expect(detection.parseError, contains('from 1 fields'));
+    });
+
     test(
       'reads metadata from an incomplete PNG prefix beside WebP display bytes',
       () async {

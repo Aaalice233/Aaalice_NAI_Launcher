@@ -1011,6 +1011,28 @@
   "character_addCharacter": "新增角色",
   "character_limitReached": "已達當前模型的角色上限（{limit} 個）",
   "character_number": "角色 {index}",
+  "character_summaryEmpty": "未新增角色",
+  "character_summaryEnabled": "已啟用 {count} 個 · {name}",
+  "@character_summaryEnabled": {
+    "placeholders": {
+      "count": {"type": "int"},
+      "name": {"type": "String"}
+    }
+  },
+  "character_summaryMore": "已啟用 {count} 個 · {name} +{additional}",
+  "@character_summaryMore": {
+    "placeholders": {
+      "count": {"type": "int"},
+      "name": {"type": "String"},
+      "additional": {"type": "int"}
+    }
+  },
+  "character_summaryAllDisabled": "已啟用 0 個 · 已停用 {count} 個",
+  "@character_summaryAllDisabled": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
   "gallery_generationParams": "生成引數",
   "gallery_metaModel": "模型",
   "gallery_metaResolution": "解析度",
@@ -1052,12 +1074,12 @@
   "onlineGallery_sourceDoesNotSupportPopular": "目前站點不支援熱門榜單",
   "onlineGallery_favorites": "收藏",
   "onlineGallery_searchFavorites": "搜尋收藏的標題、作者或標籤…",
-  "onlineGallery_localFavorites": "本機收藏",
-  "onlineGallery_localFavoritesDescription": "儲存在此裝置，所有來源均可使用",
-  "onlineGallery_cloudFavorites": "雲端收藏",
-  "onlineGallery_loginForCloudFavorites": "登入後可檢視雲端收藏",
+  "onlineGallery_savedLocally": "已儲存在本機",
+  "onlineGallery_savedInCloud": "已儲存在雲端",
   "onlineGallery_saveVisibleLocally": "將本頁儲存至本機",
   "onlineGallery_visibleFavoritesAlreadySaved": "本頁內容已全部儲存至本機收藏",
+  "onlineGallery_localFavoritesPartialFailure": "本機收藏載入失敗，已保留雲端結果",
+  "onlineGallery_cloudFavoritesPartialFailure": "雲端收藏載入失敗，已保留本機結果",
   "onlineGallery_visibleFavoritesSaved": "已將 {count} 個項目儲存至本機收藏",
   "@onlineGallery_visibleFavoritesSaved": {
     "placeholders": {
@@ -1071,11 +1093,29 @@
     }
   },
   "onlineGallery_searchTags": "搜尋標籤...",
+  "onlineGallery_maxTagsExceeded": "最多可組合搜尋 {max} 個標籤",
+  "@onlineGallery_maxTagsExceeded": {
+    "placeholders": {
+      "max": {"type": "int"}
+    }
+  },
+  "onlineGallery_tagDetailsIncomplete": "部分作品的完整標籤取得失敗，未驗證的作品已排除；請重試以補齊結果。",
+  "onlineGallery_unsupportedMetatag": "目前來源或模式不支援元標籤語法，請改用一般標籤或切換至來源搜尋。",
+  "onlineGallery_multiTagScanning": "正在組合搜尋：已請求 {requests} 頁，檢查 {candidates} 個候選作品",
+  "onlineGallery_scanPaused": "已分批檢查多頁候選，尚未找到足夠結果。可繼續掃描後續頁面。",
+  "onlineGallery_continueScanning": "繼續掃描",
+  "@onlineGallery_multiTagScanning": {
+    "placeholders": {
+      "requests": {"type": "int"},
+      "candidates": {"type": "int"}
+    }
+  },
   "onlineGallery_refresh": "重新整理",
   "onlineGallery_random": "隨機",
   "onlineGallery_randomRedraw": "再抽一組",
   "onlineGallery_randomDrawing": "抽取中…",
   "onlineGallery_randomExhausted": "當前範圍暫無更多未見圖片",
+  "onlineGallery_randomDrawNoMatch": "本次未抽中符合條件的圖片，可以繼續抽取。",
   "onlineGallery_randomRestart": "重新開始",
   "onlineGallery_login": "登入",
   "onlineGallery_logout": "退出登入",
@@ -1194,26 +1234,24 @@
     }
   },
   "onlineGallery_blacklistTitle": "線上畫廊黑名單",
-  "onlineGallery_blacklistSubtitle": "選擇實際用於隱藏圖片的黑名單；本機與 Danbooru 雲端清單彼此獨立。",
-  "onlineGallery_blacklistSourceLocal": "本機",
-  "onlineGallery_blacklistSourceCloud": "Danbooru 雲端",
-  "onlineGallery_blacklistLocalDescription": "只儲存在此裝置，無需登入即可使用",
-  "onlineGallery_blacklistCloudDescription": "直接使用並編輯 Danbooru 帳戶中的黑名單",
-  "onlineGallery_blacklistCloudLoginRequired": "登入 Danbooru 後即可切換至雲端黑名單",
+  "onlineGallery_blacklistSubtitle": "所有線上畫廊共用這份清單；離線時仍會正常屏蔽。",
+  "onlineGallery_blacklistCloudDescription": "已連接 Danbooru；本機修改會在安全合併後同步",
+  "onlineGallery_blacklistCloudLoginRequired": "本機黑名單仍然有效；登入 Danbooru 後可以同步",
+  "onlineGallery_blacklistCloudUnavailable": "本機黑名單仍然有效；驗證 Danbooru 連線後會恢復雲端同步",
   "onlineGallery_addBlacklistTagHint": "新增黑名單標籤",
-  "onlineGallery_noLocalBlacklistTags": "暫無本機黑名單標籤",
-  "onlineGallery_noCloudBlacklistTags": "雲端暫無黑名單標籤",
+  "onlineGallery_noLocalBlacklistTags": "暫無黑名單標籤",
   "onlineGallery_pullBlacklist": "從雲端拉取",
-  "onlineGallery_pullBlacklistTooltip": "重新整理 Danbooru 雲端黑名單，不會修改本機清單",
   "onlineGallery_pushBlacklist": "推送至雲端",
-  "onlineGallery_pushBlacklistTooltip": "使用本機黑名單覆寫 Danbooru 雲端清單",
-  "onlineGallery_pushBlacklistConfirmTitle": "使用本機清單覆寫雲端？",
-  "onlineGallery_pushBlacklistConfirmBody": "Danbooru 雲端黑名單將由目前的本機清單完整取代，請確認本機清單已整理完成。",
-  "onlineGallery_blacklistPullSucceeded": "已重新整理 Danbooru 雲端黑名單",
+  "onlineGallery_pushBlacklistConfirmTitle": "使用統一清單覆寫雲端？",
+  "onlineGallery_pushBlacklistConfirmBody": "這會完整取代 Danbooru 雲端黑名單。一般自動同步會保留無法識別的進階規則，但本次完整推送會刪除它們。",
   "onlineGallery_blacklistPushSucceeded": "已使用本機黑名單覆寫雲端清單",
   "onlineGallery_blacklistSyncFailedMessage": "黑名單同步失敗，請檢查登入狀態與網路連線",
+  "onlineGallery_blacklistSaveFailed": "儲存黑名單失敗：{error}",
+  "@onlineGallery_blacklistSaveFailed": {
+    "placeholders": {"error": {"type": "String"}}
+  },
   "onlineGallery_autoSyncOnStartup": "啟動時重新整理雲端清單",
-  "onlineGallery_autoSyncOnStartupSubtitle": "只會重新整理雲端快取，不會覆寫本機黑名單",
+  "onlineGallery_autoSyncOnStartupSubtitle": "安全合併雲端新增標籤，不刪除本機標籤",
   "onlineGallery_lastSyncFailed": "上次同步失敗: {error}",
   "@onlineGallery_lastSyncFailed": {
     "placeholders": {
@@ -1228,7 +1266,18 @@
     }
   },
   "onlineGallery_blacklistSettingsTitle": "線上畫廊黑名單設定",
-  "onlineGallery_blacklistLoginHint": "未登入 Danbooru，仍可使用本地黑名單；同步需要先登入。",
+  "onlineGallery_blacklistImportTitle": "批次匯入標籤",
+  "onlineGallery_blacklistImportHint": "每行或使用逗號分隔一個標籤",
+  "onlineGallery_blacklistImported": "已新增 {count} 個標籤",
+  "@onlineGallery_blacklistImported": {"placeholders": {"count": {}}},
+  "onlineGallery_blacklistClearTitle": "清空統一黑名單？",
+  "onlineGallery_blacklistClearBody": "畫廊將立即停止使用這些標籤過濾。雲端不會自動清空，可以復原本次操作。",
+  "onlineGallery_blacklistPullSummary": "已新增 {added} 項，已有 {existing} 項，略過已刪除 {skipped} 項；保留 {opaque} 條雲端進階規則",
+  "@onlineGallery_blacklistPullSummary": {"placeholders": {"added": {}, "existing": {}, "skipped": {}, "opaque": {}}},
+  "onlineGallery_blacklistPushDiff": "雲端將新增 {added} 項、刪除 {removed} 項，並刪除 {opaque} 條進階規則。",
+  "@onlineGallery_blacklistPushDiff": {"placeholders": {"added": {}, "removed": {}, "opaque": {}}},
+  "onlineGallery_blacklistCloudEmptyConfirm": "確認清空雲端黑名單",
+  "onlineGallery_blacklistMigrationConfirm": "此清單包含舊版本中無法確認帳號歸屬的雲端標籤；確認將它們同步到目前帳號",
   "onlineGallery_bulkFavorite": "批次收藏",
   "onlineGallery_bulkDownload": "批次下載",
   "onlineGallery_addedTasksToQueue": "已新增 {count} 個任務到佇列",
@@ -1611,6 +1660,7 @@
   "api_error_network": "網路錯誤",
   "api_error_network_hint": "無法連線到伺服器，請檢查網路",
   "drop_dialogTitle": "如何使用這張圖片？",
+  "drop_actions": "操作",
   "drop_hint": "拖拽圖片到這裡",
   "drop_processing": "正在解析圖片...",
   "drop_img2img": "圖生圖",
@@ -1652,6 +1702,49 @@
   "drop_useAsRawImage": "作為原始圖片",
   "drop_useAsRawImageSubtitle": "重新編碼（消耗 2 Anlas）",
   "drop_dragToImg2ImgOrOther": "拖拽到圖生圖或其他區域",
+  "drop_metadataDetected": "檢測到 NovelAI 後設資料",
+  "drop_metadataParseFailed": "後設資料解析失敗",
+  "drop_metadataParseFailedHint": "圖片包含後設資料欄位，但目前無法讀取。其他圖片用途仍可正常使用。",
+  "drop_metadataErrorDetails": "檢視錯誤詳情",
+  "drop_positivePrompt": "正向 Prompt",
+  "drop_negativePrompt": "負向 Prompt",
+  "drop_characterPrompts": "角色 Prompt（{count}）",
+  "@drop_characterPrompts": {"placeholders": {"count": {"type": "int"}}},
+  "drop_characterPositivePrompt": "角色 {index} 正向 Prompt",
+  "@drop_characterPositivePrompt": {"placeholders": {"index": {"type": "int"}}},
+  "drop_characterNegativePrompt": "角色 {index} 負向 Prompt",
+  "@drop_characterNegativePrompt": {"placeholders": {"index": {"type": "int"}}},
+  "drop_promptNotRecorded": "未記錄",
+  "drop_promptCopy": "複製",
+  "drop_promptAddWhole": "整段加入詞庫",
+  "drop_promptAddSelection": "加入詞庫",
+  "drop_promptLibraryTitle": "加入詞庫",
+  "drop_promptLibraryWriteMode": "寫入方式",
+  "drop_promptLibraryCreate": "新建",
+  "drop_promptLibraryAppend": "追加",
+  "drop_promptLibraryOverwrite": "覆蓋",
+  "drop_promptLibraryAliasHint": "該名稱同時用於 <詞庫名稱> 引用",
+  "drop_promptLibraryTarget": "目標條目",
+  "drop_promptLibrarySelectTarget": "選擇要更新的條目",
+  "drop_promptLibrarySeparator": "連線方式",
+  "drop_promptLibrarySeparatorComma": "逗號 + 空格",
+  "drop_promptLibrarySeparatorNewline": "換行",
+  "drop_promptLibrarySeparatorNone": "不插入分隔符",
+  "drop_promptLibraryCharacterCount": "{count} 字元",
+  "@drop_promptLibraryCharacterCount": {"placeholders": {"count": {"type": "int"}}},
+  "drop_promptLibraryExactContentHint": "儲存當前文字，不自動清洗、重排或補全",
+  "drop_promptLibraryResultPreview": "結果預覽",
+  "drop_promptLibraryDuplicate": "相同內容已存在於「{name}」",
+  "@drop_promptLibraryDuplicate": {"placeholders": {"name": {}}},
+  "drop_promptLibraryNameConflict": "該名稱已存在，請改名或選擇追加/覆蓋",
+  "drop_promptLibraryOverwriteWarning": "將完整替換「{name}」的提示詞內容",
+  "@drop_promptLibraryOverwriteWarning": {"placeholders": {"name": {}}},
+  "drop_promptLibraryMore": "更多選項",
+  "drop_promptLibraryConfirmOverwrite": "確認覆蓋",
+  "drop_promptLibrarySaved": "已儲存到詞庫",
+  "drop_promptLibrarySaveFailed": "詞庫儲存失敗",
+  "drop_promptLibraryPositiveName": "正向提示詞摘取",
+  "drop_promptLibraryNegativeName": "負向提示詞摘取",
   "preciseRef_title": "精準參考",
   "preciseRef_description": "新增參考圖並設定型別和引數，可同時使用多個參考。",
   "preciseRef_addReference": "新增參考圖",
@@ -1719,24 +1812,22 @@
   "toolbar_clear": "清空",
   "toolbar_confirmClear": "確認清空",
   "toolbar_settings": "設定",
-  "characterTooltip_noCharacters": "未配置角色",
-  "characterTooltip_clickToConfig": "點選按鈕開始配置多人角色",
-  "characterTooltip_globalAiLabel": "全域性 AI 位置:",
-  "characterTooltip_enabled": "啟用",
-  "characterTooltip_disabled": "禁用",
-  "characterTooltip_positionAi": "AI",
   "characterTooltip_disabledLabel": "已禁用",
-  "characterTooltip_promptLabel": "正向",
-  "characterTooltip_negativeLabel": "負面",
   "characterTooltip_notSet": "未設定",
-  "characterTooltip_summary": "共 {total} 個角色 ({enabled} 個啟用)",
-  "@characterTooltip_summary": {
+  "characterTooltip_previewTitle": "角色預覽",
+  "characterTooltip_enabledSummary": "{enabled} / {total} 啟用",
+  "@characterTooltip_enabledSummary": {
     "placeholders": {
-      "total": {},
-      "enabled": {}
+      "enabled": {"type": "int"},
+      "total": {"type": "int"}
     }
   },
-  "characterTooltip_viewFullConfig": "點選檢視完整配置",
+  "characterTooltip_more": "還有 {count} 個角色",
+  "@characterTooltip_more": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
   "tagLibrary_generatedCharacters": "已生成 {count} 個角色",
   "@tagLibrary_generatedCharacters": {
     "placeholders": {
@@ -1750,13 +1841,13 @@
     }
   },
   "randomMode_title": "選擇隨機模式",
-  "randomMode_naiOfficial": "官網模式",
+  "randomMode_naiOfficial": "離線詞庫",
   "randomMode_custom": "自定義模式",
   "randomMode_hybrid": "混合模式",
-  "randomMode_naiOfficialDesc": "復刻 NovelAI 官方隨機演算法",
+  "randomMode_naiOfficialDesc": "使用已驗證的完整離線標籤 catalog",
   "randomMode_customDesc": "使用自定義預設生成",
-  "randomMode_hybridDesc": "結合官方演算法和自定義預設",
-  "randomMode_naiIndicator": "NAI",
+  "randomMode_hybridDesc": "結合離線詞庫和自定義預設",
+  "randomMode_naiIndicator": "離線",
   "randomMode_customIndicator": "自定義",
   "naiMode_noTags": "暫無標籤",
   "naiAlgorithm_characterCount": "角色數量分佈",
@@ -1997,7 +2088,6 @@
   "randomManager_generatePreview": "生成預覽",
   "randomManager_importExport": "匯入/匯出",
   "randomManager_syncing": "同步中",
-  "randomManager_syncingWithEllipsis": "同步中...",
   "randomManager_syncDanbooruTags": "同步 Danbooru 標籤",
   "randomManager_unknownError": "未知錯誤",
   "randomManager_readOnlyMode": "只讀模式",
@@ -6644,5 +6734,19 @@
   "autocomplete_statusDisabled": "已關閉",
   "autocomplete_statusSearching": "查詢中",
   "autocomplete_statusTranslating": "翻譯中",
-  "autocomplete_openSettings": "開啟補全與資料來源設定"
+  "autocomplete_openSettings": "開啟補全與資料來源設定",
+  "randomManager_searchCategories": "搜尋類別、詞組或標籤（Ctrl+F）",
+  "randomManager_verifiedOfflineLibrary": "已驗證的離線隨機詞庫",
+  "randomManager_sourceDetails": "資料來源詳情",
+  "randomManager_sourceUrl": "來源 URL",
+  "randomManager_sourceCommit": "來源提交",
+  "randomManager_sourceDate": "來源日期",
+  "randomManager_sourceLicense": "授權條款",
+  "randomManager_catalogCounts": "完整 catalog：{tags} 個標籤，{aliases} 個別名",
+  "@randomManager_catalogCounts": {"placeholders": {"tags": {}, "aliases": {}}},
+  "randomManager_libraryVersion": "規則 v{version} · {count} 個標籤",
+  "@randomManager_libraryVersion": {"placeholders": {"version": {"type": "String"}, "count": {"type": "String"}}},
+  "randomManager_preview": "隨機結果預覽",
+  "randomManager_libraryUnavailable": "隨機詞庫無法使用",
+  "randomManager_noCategoryResults": "沒有符合的類別、詞組或標籤"
 }

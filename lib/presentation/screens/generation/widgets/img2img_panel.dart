@@ -19,6 +19,7 @@ import '../../../../data/models/image/image_params.dart';
 import '../../../../data/services/precise_ref_library_storage_service.dart';
 import '../../../providers/comfyui/comfyui_provider.dart';
 import '../../../providers/cost_estimate_provider.dart';
+import '../../../providers/generation/generation_panel_expansion_provider.dart';
 import '../../../providers/generation/generation_params_selectors.dart';
 import '../../../providers/generation/novel_ai_upscale_task_provider.dart';
 import '../../../providers/image_generation_provider.dart';
@@ -119,16 +120,21 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
       generationParamsNotifierProvider.select(selectImg2ImgPanelViewData),
     );
     final workflow = ref.watch(imageWorkflowControllerProvider);
+    final isExpanded = ref.watch(
+      generationPanelExpansionProvider.select(
+        (value) => value.isExpanded(GenerationWorkbenchPanel.img2img),
+      ),
+    );
     final hasSourceImage = params.sourceImage != null;
-    final showBackground = hasSourceImage && !workflow.isPanelExpanded;
+    final showBackground = hasSourceImage && !isExpanded;
 
     return CollapsibleImagePanel(
       title: context.l10n.img2img_title,
       icon: Icons.image,
-      isExpanded: workflow.isPanelExpanded,
+      isExpanded: isExpanded,
       onToggle: () => ref
           .read(imageWorkflowControllerProvider.notifier)
-          .setPanelExpanded(!workflow.isPanelExpanded),
+          .setPanelExpanded(!isExpanded),
       hasData: hasSourceImage,
       backgroundImage: hasSourceImage
           ? DecodedMemoryImage(
@@ -154,7 +160,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
           ),
         ),
       ),
-      child: Padding(
+      childBuilder: (context) => Padding(
         padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,

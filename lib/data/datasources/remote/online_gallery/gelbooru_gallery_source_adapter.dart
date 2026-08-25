@@ -178,6 +178,7 @@ class GelbooruGallerySourceAdapter implements GallerySourceAdapter {
       nextCursor: hasMore ? '${page + 1}' : null,
       hasMore: hasMore,
       rawItemCount: rawCount,
+      rawPageIdentity: items.map((item) => item.stableKey).join(','),
     );
   }
 

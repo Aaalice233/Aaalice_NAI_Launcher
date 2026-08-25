@@ -56,25 +56,49 @@ Future<void> appendDroppedCharacterReference({
   return Future<void>.value();
 }
 
-Future<NaiImageMetadata?> detectImportableDroppedImageMetadata(
+class DroppedImageMetadataDetection {
+  final NaiImageMetadata? metadata;
+  final String? parseError;
+
+  const DroppedImageMetadataDetection({this.metadata, this.parseError});
+}
+
+Future<DroppedImageMetadataDetection> detectDroppedImageMetadata(
   String fileName,
   Uint8List bytes, {
   Uint8List? metadataBytes,
   bool inspectNonPngStealth = false,
 }) async {
   try {
+    String? parseError;
     NaiImageMetadata? metadata;
+
+    void recordParseFailure(MetadataParseResult result, Uint8List sourceBytes) {
+      if (parseError == null &&
+          _isDroppedMetadataParseFailure(result.errorMessage, sourceBytes)) {
+        parseError = result.errorMessage;
+      }
+    }
+
     if (metadataBytes != null &&
         UnifiedMetadataParser.isPngHeader(metadataBytes)) {
       final textData = UnifiedMetadataParser.extractPngTextData(metadataBytes);
       final result = UnifiedMetadataParser.parseFromTextData(textData);
-      metadata = result.metadata;
+      metadata = result.success ? result.metadata : null;
+      if (metadata == null || !metadata.hasData) {
+        recordParseFailure(result, metadataBytes);
+      }
     }
 
     // Parse complete bytes through the shared PNG/WebP metadata path before
     // attempting the more expensive pixel-level stealth fallback.
     if (metadata == null || !metadata.hasData) {
-      metadata = await ImageMetadataService().getMetadataFromBytes(bytes);
+      final result = await ImageMetadataService()
+          .getMetadataParseResultFromBytes(bytes);
+      metadata = result.success ? result.metadata : null;
+      if (metadata == null || !metadata.hasData) {
+        recordParseFailure(result, bytes);
+      }
     }
 
     if ((metadata == null || !metadata.hasData) && inspectNonPngStealth) {
@@ -89,12 +113,63 @@ Future<NaiImageMetadata?> detectImportableDroppedImageMetadata(
         'Detected NovelAI metadata in dropped image: $fileName',
         'DropHandler',
       );
-      return metadata;
+      return DroppedImageMetadataDetection(metadata: metadata);
     }
+
+    return DroppedImageMetadataDetection(parseError: parseError);
   } catch (e) {
     AppLogger.d('Failed to detect NovelAI metadata: $e', 'DropHandler');
+    return DroppedImageMetadataDetection(parseError: e.toString());
   }
-  return null;
+}
+
+Future<NaiImageMetadata?> detectImportableDroppedImageMetadata(
+  String fileName,
+  Uint8List bytes, {
+  Uint8List? metadataBytes,
+  bool inspectNonPngStealth = false,
+}) async {
+  return (await detectDroppedImageMetadata(
+    fileName,
+    bytes,
+    metadataBytes: metadataBytes,
+    inspectNonPngStealth: inspectNonPngStealth,
+  )).metadata;
+}
+
+bool _isDroppedMetadataParseFailure(String? errorMessage, Uint8List bytes) {
+  if (errorMessage == null || errorMessage.isEmpty) return false;
+  final fieldCount = RegExp(
+    r'from (\d+) fields',
+  ).firstMatch(errorMessage)?.group(1);
+  if (fieldCount != null) {
+    if (int.parse(fieldCount) == 0) return false;
+    final textData = UnifiedMetadataParser.extractPngTextData(bytes);
+    final normalizedData = {
+      for (final entry in textData.entries)
+        entry.key.toLowerCase(): entry.value,
+    };
+    const generationPayloadKeys = {
+      'comment',
+      'parameters',
+      'sd:parameters',
+      'prompt',
+      'workflow',
+      'nai',
+      'novelai',
+      'sd-metadata',
+      'fooocus',
+      'draw_things',
+      'drawthings',
+    };
+    if (normalizedData.keys.any(generationPayloadKeys.contains)) return true;
+    final description = normalizedData['description'];
+    return description != null &&
+        (description.contains('Steps:') || description.contains('Sampler:'));
+  }
+  if (errorMessage.startsWith('No EXIF UserComment metadata')) return false;
+  if (errorMessage.startsWith('Unsupported image container')) return false;
+  return true;
 }
 
 NaiImageMetadata? _parseStealthMetadataFromImageBytes(Uint8List bytes) {
@@ -498,13 +573,13 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
     final isDiscordAttachment =
         fileData.sourceUri != null &&
         DroppedFileReader.isDiscordAttachmentUri(fileData.sourceUri!);
-    var detectedMetadata = await detectImportableDroppedImageMetadata(
+    var metadataDetection = await detectDroppedImageMetadata(
       fileName,
       bytes,
       metadataBytes: fileData.metadataBytes,
       inspectNonPngStealth: isDiscordAttachment,
     );
-    if (detectedMetadata == null &&
+    if (metadataDetection.metadata == null &&
         fileData.metadataBytes == null &&
         isDiscordAttachment) {
       final metadataBytes =
@@ -513,13 +588,19 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
             logTag: 'DropHandler',
           );
       if (metadataBytes != null) {
-        detectedMetadata = await detectImportableDroppedImageMetadata(
+        final remoteDetection = await detectDroppedImageMetadata(
           fileName,
           bytes,
           metadataBytes: metadataBytes,
         );
+        metadataDetection = DroppedImageMetadataDetection(
+          metadata: remoteDetection.metadata,
+          parseError:
+              remoteDetection.parseError ?? metadataDetection.parseError,
+        );
       }
     }
+    final detectedMetadata = metadataDetection.metadata;
     final showExtractMetadata = detectedMetadata != null;
 
     // 检测是否包含 Vibe 元数据（仅 PNG）
@@ -540,6 +621,8 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
       imageBytes: bytes,
       fileName: fileName,
       showExtractMetadata: showExtractMetadata,
+      metadata: detectedMetadata,
+      metadataParseError: metadataDetection.parseError,
       detectedVibe: detectedVibe,
       isBundle: detectedVibes.length > 1,
     );

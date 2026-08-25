@@ -46,6 +46,8 @@ class DanbooruPostCard extends StatefulWidget {
   final bool isFavoriteLoading;
   final bool showFavoriteAction;
   final bool favoriteReadOnly;
+  final IconData? secondaryFavoriteIcon;
+  final String? secondaryFavoriteTooltip;
   final bool selectionMode;
   final bool isSelected;
   final bool canSelect;
@@ -75,6 +77,8 @@ class DanbooruPostCard extends StatefulWidget {
     this.isFavoriteLoading = false,
     this.showFavoriteAction = true,
     this.favoriteReadOnly = false,
+    this.secondaryFavoriteIcon,
+    this.secondaryFavoriteTooltip,
     this.selectionMode = false,
     this.isSelected = false,
     this.canSelect = true,
@@ -572,6 +576,28 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                                 ),
                               ),
                             ),
+                          if (widget.secondaryFavoriteIcon != null &&
+                              widget.secondaryFavoriteTooltip != null &&
+                              !_isHovering)
+                            Positioned(
+                              top: 4,
+                              right: widget.favoriteReadOnly ? 38 : 4,
+                              child: Tooltip(
+                                message: widget.secondaryFavoriteTooltip!,
+                                child: Container(
+                                  padding: const EdgeInsets.all(5),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withValues(alpha: 0.6),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    widget.secondaryFavoriteIcon,
+                                    size: 14,
+                                    color: Colors.redAccent,
+                                  ),
+                                ),
+                              ),
+                            ),
                           if (widget.post.rank != null)
                             Positioned(
                               top: 4,
@@ -815,9 +841,13 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                                 icon: widget.isFavorited
                                     ? Icons.favorite
                                     : Icons.favorite_border,
-                                tooltip: widget.isFavorited
-                                    ? context.l10n.common_unfavorite
-                                    : context.l10n.common_favorite,
+                                tooltip: [
+                                  widget.isFavorited
+                                      ? context.l10n.common_unfavorite
+                                      : context.l10n.common_favorite,
+                                  if (widget.secondaryFavoriteTooltip != null)
+                                    widget.secondaryFavoriteTooltip!,
+                                ].join(' · '),
                                 iconColor: widget.isFavorited
                                     ? Colors.red
                                     : Colors.white,

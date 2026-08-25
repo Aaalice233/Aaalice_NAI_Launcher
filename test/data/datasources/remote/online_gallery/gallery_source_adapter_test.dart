@@ -431,7 +431,7 @@ void main() {
         final http = _RecordingHttpAdapter((request) {
           if (request.uri.path == '/api/config') return _configJson;
           expect(request.uri.path, '/api/ai_works_search');
-          expect(request.queryParameters['q'], 'artist name');
+          expect(request.queryParameters['q'], 'artist::1 name::1');
           expect(request.queryParameters['prompt'], '::artist:');
           expect(request.queryParameters['time_range'], 'q2026Q2');
           expect(request.queryParameters['page'], 2);
@@ -473,6 +473,22 @@ void main() {
           containsAll(['all', 'y2026', 'q2026Q2', 'older']),
         );
         expect(page.items.map((item) => item.id), [100]);
+        expect(page.items.single.tags, ['tag one', 'tag_two']);
+        expect(
+          page.items.single.searchTerms,
+          containsAll([
+            'tag one',
+            'tag_two',
+            'Work 100',
+            'Work',
+            'Alice',
+            'Hello',
+            'World',
+            'SD',
+          ]),
+        );
+        expect(page.items.single.tags, isNot(containsAll(['Hello', 'World'])));
+        expect(page.items.single.tagsComplete, isFalse);
         expect(page.hasMore, isTrue);
         expect(page.nextCursor, '3');
       },
@@ -545,7 +561,7 @@ void main() {
         expect(rankRequests[1].queryParameters['month'], '2026-07');
         expect(rankRequests[2].queryParameters['month'], 'older');
         expect(
-          rankRequests.every((r) => r.queryParameters['q'] == 'NAI'),
+          rankRequests.every((r) => r.queryParameters['q'] == 'NAI::1'),
           isTrue,
         );
         expect(
@@ -637,7 +653,57 @@ void main() {
       expect(detail.media[2].prompt, 'comfy positive');
       expect(detail.media[2].negativePrompt, 'comfy negative');
       expect(detail.item.mediaCount, 4);
+      expect(detail.item.tags, containsAll(['tag one', 'tag_two', '1girl']));
+      expect(detail.item.tags, isNot(containsAll(['Hello', 'World'])));
+      expect(
+        detail.item.searchTerms,
+        containsAll(['Alice', 'Hello', 'World', '1girl']),
+      );
+      expect(detail.item.tagsComplete, isFalse);
     });
+
+    test(
+      'normalizes NovelAI and SD prompt weights into searchable tags',
+      () async {
+        final http = _RecordingHttpAdapter((request) {
+          if (request.uri.path == '/api/config') return _configJson;
+          if (request.uri.path == '/api/work/502') {
+            return {
+              'work': _aiWork(502),
+              'images': [_weightedAiImage('502_p0')],
+            };
+          }
+          throw StateError('Unexpected request ${request.uri}');
+        });
+        final adapter = AiTagGallerySourceAdapter(
+          dio: Dio()..httpClientAdapter = http,
+        );
+        const item = GalleryItem(
+          id: 502,
+          sourceId: GallerySourceId.aiTag,
+          createdAt: '',
+          uploaderId: 9,
+          cover: GalleryMedia(
+            id: 'pending',
+            previewUrl: '',
+            displayUrl: '',
+            downloadUrl: '',
+          ),
+        );
+
+        final detail = await adapter.detail(item);
+
+        expect(
+          detail.item.tags,
+          containsAll(['cat girl', 'blue hair', 'smile', 'fox_ears']),
+        );
+        expect(
+          detail.item.searchTerms,
+          containsAll(['blue hair', 'blue', 'hair']),
+        );
+        expect(detail.item.tagsComplete, isTrue);
+      },
+    );
   });
 }
 
@@ -709,6 +775,18 @@ Map<String, Object?> _comfyAiImage(String fileName) => {
       'class_type': 'CLIPTextEncode',
       'inputs': {'text': 'comfy negative'},
     },
+  }),
+};
+
+Map<String, Object?> _weightedAiImage(String fileName) => {
+  'id': fileName.hashCode,
+  'work_id': 502,
+  'author_id': 9,
+  'image_type': 'SD',
+  'file_name': fileName,
+  'ai_json': jsonEncode({
+    'parameters':
+        '1.5::cat girl::, (blue hair:0.8), {smile}, fox_ears::1.2\nNegative prompt: lowres\nSteps: 24, Sampler: Euler a, CFG scale: 6, Seed: 42, Size: 768x1152',
   }),
 };
 

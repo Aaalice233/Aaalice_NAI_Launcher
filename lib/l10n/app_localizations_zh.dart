@@ -2300,6 +2300,24 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get character_summaryEmpty => '未添加角色';
+
+  @override
+  String character_summaryEnabled(int count, String name) {
+    return '已启用 $count 个 · $name';
+  }
+
+  @override
+  String character_summaryMore(int count, String name, int additional) {
+    return '已启用 $count 个 · $name +$additional';
+  }
+
+  @override
+  String character_summaryAllDisabled(int count) {
+    return '已启用 0 个 · 已停用 $count 个';
+  }
+
+  @override
   String get gallery_generationParams => '生成参数';
 
   @override
@@ -2384,22 +2402,22 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onlineGallery_searchFavorites => '搜索收藏的标题、作者或标签…';
 
   @override
-  String get onlineGallery_localFavorites => '本地收藏';
+  String get onlineGallery_savedLocally => '已保存在本地';
 
   @override
-  String get onlineGallery_localFavoritesDescription => '保存在此设备，所有站点均可使用';
-
-  @override
-  String get onlineGallery_cloudFavorites => '云端收藏';
-
-  @override
-  String get onlineGallery_loginForCloudFavorites => '登录后可查看云端收藏';
+  String get onlineGallery_savedInCloud => '已保存在云端';
 
   @override
   String get onlineGallery_saveVisibleLocally => '保存本页到本地';
 
   @override
   String get onlineGallery_visibleFavoritesAlreadySaved => '本页内容已全部保存到本地收藏';
+
+  @override
+  String get onlineGallery_localFavoritesPartialFailure => '本地收藏加载失败，已保留云端结果';
+
+  @override
+  String get onlineGallery_cloudFavoritesPartialFailure => '云端收藏加载失败，已保留本地结果';
 
   @override
   String onlineGallery_visibleFavoritesSaved(int count) {
@@ -2415,6 +2433,30 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onlineGallery_searchTags => '搜索标签...';
 
   @override
+  String onlineGallery_maxTagsExceeded(int max) {
+    return '最多可组合搜索 $max 个标签';
+  }
+
+  @override
+  String get onlineGallery_tagDetailsIncomplete =>
+      '部分作品的完整标签获取失败，未验证的作品已排除；请重试以补全结果。';
+
+  @override
+  String get onlineGallery_unsupportedMetatag =>
+      '当前来源或模式不支持元标签语法，请改用普通标签或切换到来源搜索。';
+
+  @override
+  String onlineGallery_multiTagScanning(int requests, int candidates) {
+    return '正在组合检索：已请求 $requests 页，检查 $candidates 个候选作品';
+  }
+
+  @override
+  String get onlineGallery_scanPaused => '已分批检查多页候选，尚未找到足够结果。可继续扫描后续页面。';
+
+  @override
+  String get onlineGallery_continueScanning => '继续扫描';
+
+  @override
   String get onlineGallery_refresh => '刷新';
 
   @override
@@ -2428,6 +2470,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get onlineGallery_randomExhausted => '当前范围暂无更多未见图片';
+
+  @override
+  String get onlineGallery_randomDrawNoMatch => '本次未抽中符合条件的图片，可以继续抽取。';
 
   @override
   String get onlineGallery_randomRestart => '重新开始';
@@ -2699,56 +2744,38 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onlineGallery_blacklistTitle => '在线画廊黑名单';
 
   @override
-  String get onlineGallery_blacklistSubtitle =>
-      '选择实际用于隐藏图片的黑名单；本地与 Danbooru 云端列表相互独立。';
-
-  @override
-  String get onlineGallery_blacklistSourceLocal => '本地';
-
-  @override
-  String get onlineGallery_blacklistSourceCloud => 'Danbooru 云端';
-
-  @override
-  String get onlineGallery_blacklistLocalDescription => '仅保存在此设备，无需登录即可使用';
+  String get onlineGallery_blacklistSubtitle => '所有在线画廊共用这份列表；离线时仍会正常屏蔽。';
 
   @override
   String get onlineGallery_blacklistCloudDescription =>
-      '直接使用并编辑 Danbooru 账户中的黑名单';
+      '已连接 Danbooru；本地修改会在安全合并后同步';
 
   @override
   String get onlineGallery_blacklistCloudLoginRequired =>
-      '登录 Danbooru 后可切换到云端黑名单';
+      '本地黑名单仍然有效；登录 Danbooru 后可以同步';
+
+  @override
+  String get onlineGallery_blacklistCloudUnavailable =>
+      '本地黑名单仍然有效；验证 Danbooru 连接后会恢复云端同步';
 
   @override
   String get onlineGallery_addBlacklistTagHint => '添加黑名单标签';
 
   @override
-  String get onlineGallery_noLocalBlacklistTags => '暂无本地黑名单标签';
-
-  @override
-  String get onlineGallery_noCloudBlacklistTags => '云端暂无黑名单标签';
+  String get onlineGallery_noLocalBlacklistTags => '暂无黑名单标签';
 
   @override
   String get onlineGallery_pullBlacklist => '拉取云端';
 
   @override
-  String get onlineGallery_pullBlacklistTooltip => '刷新 Danbooru 云端黑名单，不会修改本地列表';
-
-  @override
   String get onlineGallery_pushBlacklist => '推送到云端';
 
   @override
-  String get onlineGallery_pushBlacklistTooltip => '用本地黑名单覆盖 Danbooru 云端列表';
-
-  @override
-  String get onlineGallery_pushBlacklistConfirmTitle => '用本地列表覆盖云端？';
+  String get onlineGallery_pushBlacklistConfirmTitle => '用统一列表覆盖云端？';
 
   @override
   String get onlineGallery_pushBlacklistConfirmBody =>
-      'Danbooru 云端黑名单将被当前本地列表完整替换，请确认本地列表已经整理完成。';
-
-  @override
-  String get onlineGallery_blacklistPullSucceeded => '已刷新 Danbooru 云端黑名单';
+      '这会完整替换 Danbooru 云端黑名单。普通自动同步不会删除无法识别的高级规则，但本次全量推送会删除它们。';
 
   @override
   String get onlineGallery_blacklistPushSucceeded => '已用本地黑名单覆盖云端';
@@ -2757,10 +2784,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onlineGallery_blacklistSyncFailedMessage => '黑名单同步失败，请检查登录状态与网络连接';
 
   @override
+  String onlineGallery_blacklistSaveFailed(String error) {
+    return '保存黑名单失败：$error';
+  }
+
+  @override
   String get onlineGallery_autoSyncOnStartup => '启动时刷新云端列表';
 
   @override
-  String get onlineGallery_autoSyncOnStartupSubtitle => '只刷新云端缓存，不会覆盖本地黑名单';
+  String get onlineGallery_autoSyncOnStartupSubtitle => '安全合并云端新增标签，不删除本地标签';
 
   @override
   String onlineGallery_lastSyncFailed(Object error) {
@@ -2779,8 +2811,48 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onlineGallery_blacklistSettingsTitle => '在线画廊黑名单设置';
 
   @override
-  String get onlineGallery_blacklistLoginHint =>
-      '未登录 Danbooru，仍可使用本地黑名单；同步需要先登录。';
+  String get onlineGallery_blacklistImportTitle => '批量导入标签';
+
+  @override
+  String get onlineGallery_blacklistImportHint => '每行或使用逗号分隔一个标签';
+
+  @override
+  String onlineGallery_blacklistImported(Object count) {
+    return '已新增 $count 个标签';
+  }
+
+  @override
+  String get onlineGallery_blacklistClearTitle => '清空统一黑名单？';
+
+  @override
+  String get onlineGallery_blacklistClearBody =>
+      '画廊将立即停止使用这些标签过滤。云端不会自动清空，可以撤销本次操作。';
+
+  @override
+  String onlineGallery_blacklistPullSummary(
+    Object added,
+    Object existing,
+    Object skipped,
+    Object opaque,
+  ) {
+    return '已新增 $added 项，已有 $existing 项，跳过已删除 $skipped 项；保留 $opaque 条云端高级规则';
+  }
+
+  @override
+  String onlineGallery_blacklistPushDiff(
+    Object added,
+    Object removed,
+    Object opaque,
+  ) {
+    return '云端将新增 $added 项、删除 $removed 项，并删除 $opaque 条高级规则。';
+  }
+
+  @override
+  String get onlineGallery_blacklistCloudEmptyConfirm => '确认清空云端黑名单';
+
+  @override
+  String get onlineGallery_blacklistMigrationConfirm =>
+      '此列表包含旧版本中无法确认账号归属的云端标签；确认将它们同步到当前账号';
 
   @override
   String get onlineGallery_bulkFavorite => '批量收藏';
@@ -3770,42 +3842,23 @@ class AppLocalizationsZh extends AppLocalizations {
   String get toolbar_settings => '设置';
 
   @override
-  String get characterTooltip_noCharacters => '未配置角色';
-
-  @override
-  String get characterTooltip_clickToConfig => '点击按钮开始配置多人角色';
-
-  @override
-  String get characterTooltip_globalAiLabel => '全局 AI 位置:';
-
-  @override
-  String get characterTooltip_enabled => '启用';
-
-  @override
-  String get characterTooltip_disabled => '禁用';
-
-  @override
-  String get characterTooltip_positionAi => 'AI';
-
-  @override
   String get characterTooltip_disabledLabel => '已禁用';
-
-  @override
-  String get characterTooltip_promptLabel => '正向';
-
-  @override
-  String get characterTooltip_negativeLabel => '负面';
 
   @override
   String get characterTooltip_notSet => '未设置';
 
   @override
-  String characterTooltip_summary(Object total, Object enabled) {
-    return '共 $total 个角色 ($enabled 个启用)';
+  String get characterTooltip_previewTitle => '角色预览';
+
+  @override
+  String characterTooltip_enabledSummary(int enabled, int total) {
+    return '$enabled / $total 启用';
   }
 
   @override
-  String get characterTooltip_viewFullConfig => '点击查看完整配置';
+  String characterTooltip_more(int count) {
+    return '还有 $count 个角色';
+  }
 
   @override
   String tagLibrary_generatedCharacters(Object count) {
@@ -3821,7 +3874,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get randomMode_title => '选择随机模式';
 
   @override
-  String get randomMode_naiOfficial => '官网模式';
+  String get randomMode_naiOfficial => '离线词库';
 
   @override
   String get randomMode_custom => '自定义模式';
@@ -3830,16 +3883,16 @@ class AppLocalizationsZh extends AppLocalizations {
   String get randomMode_hybrid => '混合模式';
 
   @override
-  String get randomMode_naiOfficialDesc => '复刻 NovelAI 官方随机算法';
+  String get randomMode_naiOfficialDesc => '使用已验证的完整离线标签 catalog';
 
   @override
   String get randomMode_customDesc => '使用自定义预设生成';
 
   @override
-  String get randomMode_hybridDesc => '结合官方算法和自定义预设';
+  String get randomMode_hybridDesc => '结合离线词库和自定义预设';
 
   @override
-  String get randomMode_naiIndicator => 'NAI';
+  String get randomMode_naiIndicator => '离线';
 
   @override
   String get randomMode_customIndicator => '自定义';
@@ -4332,9 +4385,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get randomManager_syncing => '同步中';
-
-  @override
-  String get randomManager_syncingWithEllipsis => '同步中...';
 
   @override
   String get randomManager_syncDanbooruTags => '同步 Danbooru 标签';
@@ -7770,6 +7820,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get drop_dialogTitle => '如何使用这张图片？';
 
   @override
+  String get drop_actions => '操作';
+
+  @override
   String get drop_hint => '拖拽图片到这里';
 
   @override
@@ -7843,6 +7896,129 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get drop_dragToImg2ImgOrOther => '拖拽到图生图或其他区域';
+
+  @override
+  String get drop_metadataDetected => '检测到 NovelAI 元数据';
+
+  @override
+  String get drop_metadataParseFailed => '元数据解析失败';
+
+  @override
+  String get drop_metadataParseFailedHint => '图片包含元数据字段，但当前无法读取。其他图片用途仍可正常使用。';
+
+  @override
+  String get drop_metadataErrorDetails => '查看错误详情';
+
+  @override
+  String get drop_positivePrompt => '正向 Prompt';
+
+  @override
+  String get drop_negativePrompt => '负向 Prompt';
+
+  @override
+  String drop_characterPrompts(int count) {
+    return '角色 Prompt（$count）';
+  }
+
+  @override
+  String drop_characterPositivePrompt(int index) {
+    return '角色 $index 正向 Prompt';
+  }
+
+  @override
+  String drop_characterNegativePrompt(int index) {
+    return '角色 $index 负向 Prompt';
+  }
+
+  @override
+  String get drop_promptNotRecorded => '未记录';
+
+  @override
+  String get drop_promptCopy => '复制';
+
+  @override
+  String get drop_promptAddWhole => '整段加入词库';
+
+  @override
+  String get drop_promptAddSelection => '加入词库';
+
+  @override
+  String get drop_promptLibraryTitle => '加入词库';
+
+  @override
+  String get drop_promptLibraryWriteMode => '写入方式';
+
+  @override
+  String get drop_promptLibraryCreate => '新建';
+
+  @override
+  String get drop_promptLibraryAppend => '追加';
+
+  @override
+  String get drop_promptLibraryOverwrite => '覆盖';
+
+  @override
+  String get drop_promptLibraryAliasHint => '该名称同时用于 <词库名称> 引用';
+
+  @override
+  String get drop_promptLibraryTarget => '目标条目';
+
+  @override
+  String get drop_promptLibrarySelectTarget => '选择要更新的条目';
+
+  @override
+  String get drop_promptLibrarySeparator => '连接方式';
+
+  @override
+  String get drop_promptLibrarySeparatorComma => '逗号 + 空格';
+
+  @override
+  String get drop_promptLibrarySeparatorNewline => '换行';
+
+  @override
+  String get drop_promptLibrarySeparatorNone => '不插入分隔符';
+
+  @override
+  String drop_promptLibraryCharacterCount(int count) {
+    return '$count 字符';
+  }
+
+  @override
+  String get drop_promptLibraryExactContentHint => '保存当前文本，不自动清洗、重排或补全';
+
+  @override
+  String get drop_promptLibraryResultPreview => '结果预览';
+
+  @override
+  String drop_promptLibraryDuplicate(Object name) {
+    return '相同内容已存在于“$name”';
+  }
+
+  @override
+  String get drop_promptLibraryNameConflict => '该名称已存在，请改名或选择追加/覆盖';
+
+  @override
+  String drop_promptLibraryOverwriteWarning(Object name) {
+    return '将完整替换“$name”的提示词内容';
+  }
+
+  @override
+  String get drop_promptLibraryMore => '更多选项';
+
+  @override
+  String get drop_promptLibraryConfirmOverwrite => '确认覆盖';
+
+  @override
+  String get drop_promptLibrarySaved => '已保存到词库';
+
+  @override
+  String get drop_promptLibrarySaveFailed => '词库保存失败';
+
+  @override
+  String get drop_promptLibraryPositiveName => '正向提示词摘取';
+
+  @override
+  String get drop_promptLibraryNegativeName => '负向提示词摘取';
 
   @override
   String get preciseRef_title => '精准参考';
@@ -12110,6 +12286,46 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get autocomplete_openSettings => '打开补全与数据源设置';
+
+  @override
+  String get randomManager_searchCategories => '搜索类别、词组或标签（Ctrl+F）';
+
+  @override
+  String get randomManager_verifiedOfflineLibrary => '已验证的离线随机词库';
+
+  @override
+  String get randomManager_sourceDetails => '数据来源详情';
+
+  @override
+  String get randomManager_sourceUrl => '来源 URL';
+
+  @override
+  String get randomManager_sourceCommit => '来源提交';
+
+  @override
+  String get randomManager_sourceDate => '来源日期';
+
+  @override
+  String get randomManager_sourceLicense => '许可证';
+
+  @override
+  String randomManager_catalogCounts(Object tags, Object aliases) {
+    return '完整 catalog：$tags 个标签，$aliases 个别名';
+  }
+
+  @override
+  String randomManager_libraryVersion(String version, String count) {
+    return '规则 v$version · $count 个标签';
+  }
+
+  @override
+  String get randomManager_preview => '随机结果预览';
+
+  @override
+  String get randomManager_libraryUnavailable => '随机词库无法使用';
+
+  @override
+  String get randomManager_noCategoryResults => '没有匹配的类别、词组或标签';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -14408,6 +14624,24 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
+  String get character_summaryEmpty => '未新增角色';
+
+  @override
+  String character_summaryEnabled(int count, String name) {
+    return '已啟用 $count 個 · $name';
+  }
+
+  @override
+  String character_summaryMore(int count, String name, int additional) {
+    return '已啟用 $count 個 · $name +$additional';
+  }
+
+  @override
+  String character_summaryAllDisabled(int count) {
+    return '已啟用 0 個 · 已停用 $count 個';
+  }
+
+  @override
   String get gallery_generationParams => '生成引數';
 
   @override
@@ -14492,22 +14726,22 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get onlineGallery_searchFavorites => '搜尋收藏的標題、作者或標籤…';
 
   @override
-  String get onlineGallery_localFavorites => '本機收藏';
+  String get onlineGallery_savedLocally => '已儲存在本機';
 
   @override
-  String get onlineGallery_localFavoritesDescription => '儲存在此裝置，所有來源均可使用';
-
-  @override
-  String get onlineGallery_cloudFavorites => '雲端收藏';
-
-  @override
-  String get onlineGallery_loginForCloudFavorites => '登入後可檢視雲端收藏';
+  String get onlineGallery_savedInCloud => '已儲存在雲端';
 
   @override
   String get onlineGallery_saveVisibleLocally => '將本頁儲存至本機';
 
   @override
   String get onlineGallery_visibleFavoritesAlreadySaved => '本頁內容已全部儲存至本機收藏';
+
+  @override
+  String get onlineGallery_localFavoritesPartialFailure => '本機收藏載入失敗，已保留雲端結果';
+
+  @override
+  String get onlineGallery_cloudFavoritesPartialFailure => '雲端收藏載入失敗，已保留本機結果';
 
   @override
   String onlineGallery_visibleFavoritesSaved(int count) {
@@ -14523,6 +14757,30 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get onlineGallery_searchTags => '搜尋標籤...';
 
   @override
+  String onlineGallery_maxTagsExceeded(int max) {
+    return '最多可組合搜尋 $max 個標籤';
+  }
+
+  @override
+  String get onlineGallery_tagDetailsIncomplete =>
+      '部分作品的完整標籤取得失敗，未驗證的作品已排除；請重試以補齊結果。';
+
+  @override
+  String get onlineGallery_unsupportedMetatag =>
+      '目前來源或模式不支援元標籤語法，請改用一般標籤或切換至來源搜尋。';
+
+  @override
+  String onlineGallery_multiTagScanning(int requests, int candidates) {
+    return '正在組合搜尋：已請求 $requests 頁，檢查 $candidates 個候選作品';
+  }
+
+  @override
+  String get onlineGallery_scanPaused => '已分批檢查多頁候選，尚未找到足夠結果。可繼續掃描後續頁面。';
+
+  @override
+  String get onlineGallery_continueScanning => '繼續掃描';
+
+  @override
   String get onlineGallery_refresh => '重新整理';
 
   @override
@@ -14536,6 +14794,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get onlineGallery_randomExhausted => '當前範圍暫無更多未見圖片';
+
+  @override
+  String get onlineGallery_randomDrawNoMatch => '本次未抽中符合條件的圖片，可以繼續抽取。';
 
   @override
   String get onlineGallery_randomRestart => '重新開始';
@@ -14807,57 +15068,38 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get onlineGallery_blacklistTitle => '線上畫廊黑名單';
 
   @override
-  String get onlineGallery_blacklistSubtitle =>
-      '選擇實際用於隱藏圖片的黑名單；本機與 Danbooru 雲端清單彼此獨立。';
-
-  @override
-  String get onlineGallery_blacklistSourceLocal => '本機';
-
-  @override
-  String get onlineGallery_blacklistSourceCloud => 'Danbooru 雲端';
-
-  @override
-  String get onlineGallery_blacklistLocalDescription => '只儲存在此裝置，無需登入即可使用';
+  String get onlineGallery_blacklistSubtitle => '所有線上畫廊共用這份清單；離線時仍會正常屏蔽。';
 
   @override
   String get onlineGallery_blacklistCloudDescription =>
-      '直接使用並編輯 Danbooru 帳戶中的黑名單';
+      '已連接 Danbooru；本機修改會在安全合併後同步';
 
   @override
   String get onlineGallery_blacklistCloudLoginRequired =>
-      '登入 Danbooru 後即可切換至雲端黑名單';
+      '本機黑名單仍然有效；登入 Danbooru 後可以同步';
+
+  @override
+  String get onlineGallery_blacklistCloudUnavailable =>
+      '本機黑名單仍然有效；驗證 Danbooru 連線後會恢復雲端同步';
 
   @override
   String get onlineGallery_addBlacklistTagHint => '新增黑名單標籤';
 
   @override
-  String get onlineGallery_noLocalBlacklistTags => '暫無本機黑名單標籤';
-
-  @override
-  String get onlineGallery_noCloudBlacklistTags => '雲端暫無黑名單標籤';
+  String get onlineGallery_noLocalBlacklistTags => '暫無黑名單標籤';
 
   @override
   String get onlineGallery_pullBlacklist => '從雲端拉取';
 
   @override
-  String get onlineGallery_pullBlacklistTooltip =>
-      '重新整理 Danbooru 雲端黑名單，不會修改本機清單';
-
-  @override
   String get onlineGallery_pushBlacklist => '推送至雲端';
 
   @override
-  String get onlineGallery_pushBlacklistTooltip => '使用本機黑名單覆寫 Danbooru 雲端清單';
-
-  @override
-  String get onlineGallery_pushBlacklistConfirmTitle => '使用本機清單覆寫雲端？';
+  String get onlineGallery_pushBlacklistConfirmTitle => '使用統一清單覆寫雲端？';
 
   @override
   String get onlineGallery_pushBlacklistConfirmBody =>
-      'Danbooru 雲端黑名單將由目前的本機清單完整取代，請確認本機清單已整理完成。';
-
-  @override
-  String get onlineGallery_blacklistPullSucceeded => '已重新整理 Danbooru 雲端黑名單';
+      '這會完整取代 Danbooru 雲端黑名單。一般自動同步會保留無法識別的進階規則，但本次完整推送會刪除它們。';
 
   @override
   String get onlineGallery_blacklistPushSucceeded => '已使用本機黑名單覆寫雲端清單';
@@ -14866,10 +15108,15 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get onlineGallery_blacklistSyncFailedMessage => '黑名單同步失敗，請檢查登入狀態與網路連線';
 
   @override
+  String onlineGallery_blacklistSaveFailed(String error) {
+    return '儲存黑名單失敗：$error';
+  }
+
+  @override
   String get onlineGallery_autoSyncOnStartup => '啟動時重新整理雲端清單';
 
   @override
-  String get onlineGallery_autoSyncOnStartupSubtitle => '只會重新整理雲端快取，不會覆寫本機黑名單';
+  String get onlineGallery_autoSyncOnStartupSubtitle => '安全合併雲端新增標籤，不刪除本機標籤';
 
   @override
   String onlineGallery_lastSyncFailed(Object error) {
@@ -14888,8 +15135,48 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get onlineGallery_blacklistSettingsTitle => '線上畫廊黑名單設定';
 
   @override
-  String get onlineGallery_blacklistLoginHint =>
-      '未登入 Danbooru，仍可使用本地黑名單；同步需要先登入。';
+  String get onlineGallery_blacklistImportTitle => '批次匯入標籤';
+
+  @override
+  String get onlineGallery_blacklistImportHint => '每行或使用逗號分隔一個標籤';
+
+  @override
+  String onlineGallery_blacklistImported(Object count) {
+    return '已新增 $count 個標籤';
+  }
+
+  @override
+  String get onlineGallery_blacklistClearTitle => '清空統一黑名單？';
+
+  @override
+  String get onlineGallery_blacklistClearBody =>
+      '畫廊將立即停止使用這些標籤過濾。雲端不會自動清空，可以復原本次操作。';
+
+  @override
+  String onlineGallery_blacklistPullSummary(
+    Object added,
+    Object existing,
+    Object skipped,
+    Object opaque,
+  ) {
+    return '已新增 $added 項，已有 $existing 項，略過已刪除 $skipped 項；保留 $opaque 條雲端進階規則';
+  }
+
+  @override
+  String onlineGallery_blacklistPushDiff(
+    Object added,
+    Object removed,
+    Object opaque,
+  ) {
+    return '雲端將新增 $added 項、刪除 $removed 項，並刪除 $opaque 條進階規則。';
+  }
+
+  @override
+  String get onlineGallery_blacklistCloudEmptyConfirm => '確認清空雲端黑名單';
+
+  @override
+  String get onlineGallery_blacklistMigrationConfirm =>
+      '此清單包含舊版本中無法確認帳號歸屬的雲端標籤；確認將它們同步到目前帳號';
 
   @override
   String get onlineGallery_bulkFavorite => '批次收藏';
@@ -15879,42 +16166,23 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get toolbar_settings => '設定';
 
   @override
-  String get characterTooltip_noCharacters => '未配置角色';
-
-  @override
-  String get characterTooltip_clickToConfig => '點選按鈕開始配置多人角色';
-
-  @override
-  String get characterTooltip_globalAiLabel => '全域性 AI 位置:';
-
-  @override
-  String get characterTooltip_enabled => '啟用';
-
-  @override
-  String get characterTooltip_disabled => '禁用';
-
-  @override
-  String get characterTooltip_positionAi => 'AI';
-
-  @override
   String get characterTooltip_disabledLabel => '已禁用';
-
-  @override
-  String get characterTooltip_promptLabel => '正向';
-
-  @override
-  String get characterTooltip_negativeLabel => '負面';
 
   @override
   String get characterTooltip_notSet => '未設定';
 
   @override
-  String characterTooltip_summary(Object total, Object enabled) {
-    return '共 $total 個角色 ($enabled 個啟用)';
+  String get characterTooltip_previewTitle => '角色預覽';
+
+  @override
+  String characterTooltip_enabledSummary(int enabled, int total) {
+    return '$enabled / $total 啟用';
   }
 
   @override
-  String get characterTooltip_viewFullConfig => '點選檢視完整配置';
+  String characterTooltip_more(int count) {
+    return '還有 $count 個角色';
+  }
 
   @override
   String tagLibrary_generatedCharacters(Object count) {
@@ -15930,7 +16198,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get randomMode_title => '選擇隨機模式';
 
   @override
-  String get randomMode_naiOfficial => '官網模式';
+  String get randomMode_naiOfficial => '離線詞庫';
 
   @override
   String get randomMode_custom => '自定義模式';
@@ -15939,16 +16207,16 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get randomMode_hybrid => '混合模式';
 
   @override
-  String get randomMode_naiOfficialDesc => '復刻 NovelAI 官方隨機演算法';
+  String get randomMode_naiOfficialDesc => '使用已驗證的完整離線標籤 catalog';
 
   @override
   String get randomMode_customDesc => '使用自定義預設生成';
 
   @override
-  String get randomMode_hybridDesc => '結合官方演算法和自定義預設';
+  String get randomMode_hybridDesc => '結合離線詞庫和自定義預設';
 
   @override
-  String get randomMode_naiIndicator => 'NAI';
+  String get randomMode_naiIndicator => '離線';
 
   @override
   String get randomMode_customIndicator => '自定義';
@@ -16441,9 +16709,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get randomManager_syncing => '同步中';
-
-  @override
-  String get randomManager_syncingWithEllipsis => '同步中...';
 
   @override
   String get randomManager_syncDanbooruTags => '同步 Danbooru 標籤';
@@ -19879,6 +20144,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get drop_dialogTitle => '如何使用這張圖片？';
 
   @override
+  String get drop_actions => '操作';
+
+  @override
   String get drop_hint => '拖拽圖片到這裡';
 
   @override
@@ -19952,6 +20220,129 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get drop_dragToImg2ImgOrOther => '拖拽到圖生圖或其他區域';
+
+  @override
+  String get drop_metadataDetected => '檢測到 NovelAI 後設資料';
+
+  @override
+  String get drop_metadataParseFailed => '後設資料解析失敗';
+
+  @override
+  String get drop_metadataParseFailedHint => '圖片包含後設資料欄位，但目前無法讀取。其他圖片用途仍可正常使用。';
+
+  @override
+  String get drop_metadataErrorDetails => '檢視錯誤詳情';
+
+  @override
+  String get drop_positivePrompt => '正向 Prompt';
+
+  @override
+  String get drop_negativePrompt => '負向 Prompt';
+
+  @override
+  String drop_characterPrompts(int count) {
+    return '角色 Prompt（$count）';
+  }
+
+  @override
+  String drop_characterPositivePrompt(int index) {
+    return '角色 $index 正向 Prompt';
+  }
+
+  @override
+  String drop_characterNegativePrompt(int index) {
+    return '角色 $index 負向 Prompt';
+  }
+
+  @override
+  String get drop_promptNotRecorded => '未記錄';
+
+  @override
+  String get drop_promptCopy => '複製';
+
+  @override
+  String get drop_promptAddWhole => '整段加入詞庫';
+
+  @override
+  String get drop_promptAddSelection => '加入詞庫';
+
+  @override
+  String get drop_promptLibraryTitle => '加入詞庫';
+
+  @override
+  String get drop_promptLibraryWriteMode => '寫入方式';
+
+  @override
+  String get drop_promptLibraryCreate => '新建';
+
+  @override
+  String get drop_promptLibraryAppend => '追加';
+
+  @override
+  String get drop_promptLibraryOverwrite => '覆蓋';
+
+  @override
+  String get drop_promptLibraryAliasHint => '該名稱同時用於 <詞庫名稱> 引用';
+
+  @override
+  String get drop_promptLibraryTarget => '目標條目';
+
+  @override
+  String get drop_promptLibrarySelectTarget => '選擇要更新的條目';
+
+  @override
+  String get drop_promptLibrarySeparator => '連線方式';
+
+  @override
+  String get drop_promptLibrarySeparatorComma => '逗號 + 空格';
+
+  @override
+  String get drop_promptLibrarySeparatorNewline => '換行';
+
+  @override
+  String get drop_promptLibrarySeparatorNone => '不插入分隔符';
+
+  @override
+  String drop_promptLibraryCharacterCount(int count) {
+    return '$count 字元';
+  }
+
+  @override
+  String get drop_promptLibraryExactContentHint => '儲存當前文字，不自動清洗、重排或補全';
+
+  @override
+  String get drop_promptLibraryResultPreview => '結果預覽';
+
+  @override
+  String drop_promptLibraryDuplicate(Object name) {
+    return '相同內容已存在於「$name」';
+  }
+
+  @override
+  String get drop_promptLibraryNameConflict => '該名稱已存在，請改名或選擇追加/覆蓋';
+
+  @override
+  String drop_promptLibraryOverwriteWarning(Object name) {
+    return '將完整替換「$name」的提示詞內容';
+  }
+
+  @override
+  String get drop_promptLibraryMore => '更多選項';
+
+  @override
+  String get drop_promptLibraryConfirmOverwrite => '確認覆蓋';
+
+  @override
+  String get drop_promptLibrarySaved => '已儲存到詞庫';
+
+  @override
+  String get drop_promptLibrarySaveFailed => '詞庫儲存失敗';
+
+  @override
+  String get drop_promptLibraryPositiveName => '正向提示詞摘取';
+
+  @override
+  String get drop_promptLibraryNegativeName => '負向提示詞摘取';
 
   @override
   String get preciseRef_title => '精準參考';
@@ -24219,4 +24610,44 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get autocomplete_openSettings => '開啟補全與資料來源設定';
+
+  @override
+  String get randomManager_searchCategories => '搜尋類別、詞組或標籤（Ctrl+F）';
+
+  @override
+  String get randomManager_verifiedOfflineLibrary => '已驗證的離線隨機詞庫';
+
+  @override
+  String get randomManager_sourceDetails => '資料來源詳情';
+
+  @override
+  String get randomManager_sourceUrl => '來源 URL';
+
+  @override
+  String get randomManager_sourceCommit => '來源提交';
+
+  @override
+  String get randomManager_sourceDate => '來源日期';
+
+  @override
+  String get randomManager_sourceLicense => '授權條款';
+
+  @override
+  String randomManager_catalogCounts(Object tags, Object aliases) {
+    return '完整 catalog：$tags 個標籤，$aliases 個別名';
+  }
+
+  @override
+  String randomManager_libraryVersion(String version, String count) {
+    return '規則 v$version · $count 個標籤';
+  }
+
+  @override
+  String get randomManager_preview => '隨機結果預覽';
+
+  @override
+  String get randomManager_libraryUnavailable => '隨機詞庫無法使用';
+
+  @override
+  String get randomManager_noCategoryResults => '沒有符合的類別、詞組或標籤';
 }

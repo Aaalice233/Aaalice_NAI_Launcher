@@ -621,6 +621,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
     final card = SelectableImageCard(
       imageBytes: imageBytes,
       sourceFilePath: image.filePath,
+      imageIdentity: image.id,
       index: index,
       showIndex: showIndex,
       // 透明像素透出所选底色（棋盘格/纯色），与官网结果区一致

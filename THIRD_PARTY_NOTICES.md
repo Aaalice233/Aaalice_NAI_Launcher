@@ -30,6 +30,12 @@ ComfyUI-Lora-Manager is GPL-3.0 licensed. Only its pinned copy of the
 Unlicense tag dataset is used here; no Python, JavaScript, or other GPL
 implementation code from that project is included in this application.
 
+The random tag library uses declarative semantic matching rules over this same
+complete bundled catalog. The rules, catalog version, source URL, source date,
+SHA256, complete counts, license, and resolved category counts are locked in
+`tool/random_tag_library/source_lock.json`; no NovelAI website bundle or
+wordlist content is included, downloaded, scraped, or redistributed.
+
 ## Danbooru Co-occurrence Data
 
 The optional local related-tag data pack published by this project is generated

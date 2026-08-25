@@ -349,6 +349,7 @@ void main() {
         _selectedModeColor(tester, 'online-gallery-mode-favorites'),
         const Color(0xFFBE185D),
       );
+      expect(find.byIcon(Icons.cloud_done), findsOneWidget);
       await tester.tap(
         find.byKey(const ValueKey('online-gallery-source-filters')),
       );
@@ -357,6 +358,8 @@ void main() {
 
       expect(find.text('Read-only favorites'), findsWidgets);
       expect(find.textContaining('Sorted by post ID'), findsOneWidget);
+      expect(find.text('Local favorites'), findsNothing);
+      expect(find.text('Cloud favorites'), findsNothing);
       final avatar = find.byKey(
         const ValueKey('online-gallery-account-avatar'),
       );
@@ -367,6 +370,56 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  for (final width in [700.0, 840.0, 1180.0, 1600.0]) {
+    testWidgets('unified favorites stay aligned at width $width', (
+      tester,
+    ) async {
+      await _setViewSize(tester, width);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            onlineGalleryNotifierProvider.overrideWith(
+              _GelbooruFavoritesGalleryNotifier.new,
+            ),
+            danbooruAuthProvider.overrideWith(_LoggedOutDanbooruAuth.new),
+            gelbooruAuthProvider.overrideWith(_AuthenticatedGelbooruAuth.new),
+            danbooruSuggestionNotifierProvider.overrideWith(
+              _EmptyDanbooruSuggestionNotifier.new,
+            ),
+          ],
+          child: const _TestApp(),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Local favorites'), findsNothing);
+      expect(find.text('Cloud favorites'), findsNothing);
+      final primaryRow = tester.getRect(
+        find.byKey(const ValueKey('online-gallery-toolbar-primary-row')),
+      );
+      for (final key in [
+        'online-gallery-source-selector',
+        'online-gallery-mode-favorites',
+        'online-gallery-rating-filter',
+        'online-gallery-primary-search',
+        'online-gallery-blacklist',
+        'online-gallery-output-filter',
+        'online-gallery-random-toggle',
+        'online-gallery-refresh',
+        'online-gallery-multi-select',
+        'online-gallery-account-avatar',
+      ]) {
+        final rect = tester.getRect(find.byKey(ValueKey(key)));
+        expect(
+          (rect.center.dy - primaryRow.center.dy).abs(),
+          lessThan(1),
+          reason: '$key must stay in the primary row at width $width',
+        );
+      }
+      expect(tester.takeException(), isNull);
+    });
+  }
 
   for (final width in [700.0, 840.0, 1180.0, 1600.0]) {
     testWidgets('AI TAG controls adapt without overflow at width $width', (
@@ -703,6 +756,38 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('paused random miss requires an explicit continue action', (
+    tester,
+  ) async {
+    _PausedRandomGalleryNotifier.loadMoreCalls = 0;
+    await _setViewSize(tester, 1200);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          onlineGalleryNotifierProvider.overrideWith(
+            _PausedRandomGalleryNotifier.new,
+          ),
+          danbooruAuthProvider.overrideWith(_LoggedOutDanbooruAuth.new),
+          gelbooruAuthProvider.overrideWith(_UnconfiguredGelbooruAuth.new),
+          danbooruSuggestionNotifierProvider.overrideWith(
+            _EmptyDanbooruSuggestionNotifier.new,
+          ),
+        ],
+        child: const _TestApp(),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    expect(_PausedRandomGalleryNotifier.loadMoreCalls, 0);
+    expect(find.text('Continue scanning'), findsOneWidget);
+
+    await tester.tap(find.text('Continue scanning'));
+    await tester.pump();
+    expect(_PausedRandomGalleryNotifier.loadMoreCalls, 1);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('page replacement renders the second page URL with stable keys', (
     tester,
   ) async {
@@ -881,64 +966,119 @@ void main() {
     );
   });
 
-  testWidgets(
-    'QuickTagCloud wide Chinese toolbar keeps icons and elastic search',
-    (tester) async {
-      await _setViewSize(tester, 1600);
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            onlineGalleryNotifierProvider.overrideWith(
-              _QuickTagCloudGalleryNotifier.new,
-            ),
-            quickTagCloudGallerySourceAdapterProvider.overrideWithValue(
-              _TrackingQuickTagCloudAdapter(),
-            ),
-            quickTagCloudCatalogProvider.overrideWith(
-              (ref) async => _quickTagCloudCatalog(),
-            ),
-            quickTagCloudFilterProvider.overrideWith(
-              _QuickTagCloudFilterNotifier.new,
-            ),
-            danbooruAuthProvider.overrideWith(_LoggedOutDanbooruAuth.new),
-            gelbooruAuthProvider.overrideWith(_UnconfiguredGelbooruAuth.new),
-            danbooruSuggestionNotifierProvider.overrideWith(
-              _EmptyDanbooruSuggestionNotifier.new,
-            ),
-          ],
-          child: const _TestApp(locale: Locale('zh')),
-        ),
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+  for (final width in [700.0, 840.0, 1180.0, 1600.0]) {
+    testWidgets(
+      'QuickTagCloud toolbar keeps every global control in row one at $width',
+      (tester) async {
+        await _setViewSize(tester, width);
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              onlineGalleryNotifierProvider.overrideWith(
+                _QuickTagCloudGalleryNotifier.new,
+              ),
+              quickTagCloudGallerySourceAdapterProvider.overrideWithValue(
+                _TrackingQuickTagCloudAdapter(),
+              ),
+              quickTagCloudCatalogProvider.overrideWith(
+                (ref) async => _quickTagCloudCatalog(),
+              ),
+              quickTagCloudFilterProvider.overrideWith(
+                _QuickTagCloudFilterNotifier.new,
+              ),
+              danbooruAuthProvider.overrideWith(_LoggedOutDanbooruAuth.new),
+              gelbooruAuthProvider.overrideWith(_UnconfiguredGelbooruAuth.new),
+              danbooruSuggestionNotifierProvider.overrideWith(
+                _EmptyDanbooruSuggestionNotifier.new,
+              ),
+            ],
+            child: const _TestApp(locale: Locale('zh')),
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
 
-      for (final icon in const [
-        Icons.shuffle,
-        Icons.refresh,
-        Icons.checklist,
-      ]) {
-        expect(find.byIcon(icon), findsOneWidget);
-      }
-      final searchRect = tester.getRect(
-        find.byKey(const ValueKey('online-gallery-primary-search')),
-      );
-      final blacklistRect = tester.getRect(
-        find.byKey(const ValueKey('online-gallery-blacklist')),
-      );
-      final accountRect = tester.getRect(
-        find.byKey(const ValueKey('online-gallery-account-avatar')),
-      );
-      final primaryRect = tester.getRect(
-        find.byKey(const ValueKey('online-gallery-toolbar-primary-row')),
-      );
-      expect(searchRect.width, greaterThan(280));
-      expect(blacklistRect.left - searchRect.right, closeTo(8, 0.1));
-      expect(accountRect.right, closeTo(primaryRect.right, 0.1));
-      expect(find.text('Leaf category'), findsOneWidget);
-      expect(find.text('Fallback codex title'), findsNothing);
-      expect(tester.takeException(), isNull);
-    },
-  );
+        if (width >= 1400) {
+          for (final icon in const [
+            Icons.shuffle,
+            Icons.refresh,
+            Icons.checklist,
+          ]) {
+            expect(find.byIcon(icon), findsOneWidget);
+          }
+        }
+        for (final key in const [
+          'online-gallery-source-selector',
+          'online-gallery-mode-search',
+          'online-gallery-rating-filter',
+          'online-gallery-primary-search',
+          'online-gallery-blacklist',
+          'online-gallery-output-filter',
+          'online-gallery-random-toggle',
+          'online-gallery-refresh',
+          'online-gallery-multi-select',
+          'online-gallery-account-avatar',
+        ]) {
+          expect(find.byKey(ValueKey(key)), findsOneWidget);
+        }
+        final searchRect = tester.getRect(
+          find.byKey(const ValueKey('online-gallery-primary-search')),
+        );
+        final counterRect = tester.getRect(
+          find.byKey(const ValueKey('online-gallery-tag-count')),
+        );
+        final blacklistRect = tester.getRect(
+          find.byKey(const ValueKey('online-gallery-blacklist')),
+        );
+        final accountRect = tester.getRect(
+          find.byKey(const ValueKey('online-gallery-account-avatar')),
+        );
+        final primaryRect = tester.getRect(
+          find.byKey(const ValueKey('online-gallery-toolbar-primary-row')),
+        );
+        expect(searchRect.width, greaterThanOrEqualTo(280));
+        expect(counterRect.center.dy, closeTo(searchRect.center.dy, 0.1));
+        expect(blacklistRect.left - searchRect.right, closeTo(8, 0.1));
+        expect(
+          accountRect.right,
+          greaterThanOrEqualTo(primaryRect.right - 0.1),
+        );
+        for (final key in const [
+          'online-gallery-primary-search',
+          'online-gallery-blacklist',
+          'online-gallery-output-filter',
+          'online-gallery-random-toggle',
+          'online-gallery-refresh',
+          'online-gallery-multi-select',
+          'online-gallery-account-avatar',
+        ]) {
+          final rect = tester.getRect(find.byKey(ValueKey(key)));
+          expect(
+            (rect.center.dy - primaryRect.center.dy).abs(),
+            lessThan(1),
+            reason: '$key must stay in the primary row at width $width',
+          );
+        }
+        if (width == 1600) {
+          expect(accountRect.right, closeTo(primaryRect.right, 0.1));
+          final searchField = find.descendant(
+            of: find.byKey(const ValueKey('online-gallery-primary-search')),
+            matching: find.byType(TextField),
+          );
+          await tester.enterText(searchField, 'a b c d e f g');
+          await tester.pump();
+          expect(find.text('7/6'), findsOneWidget);
+          await tester.testTextInput.receiveAction(TextInputAction.search);
+          await tester.pump();
+          expect(find.text('最多可组合搜索 6 个标签'), findsOneWidget);
+          await tester.pump(const Duration(seconds: 4));
+        }
+        expect(find.text('Leaf category'), findsOneWidget);
+        expect(find.text('Fallback codex title'), findsNothing);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
 
   testWidgets('QuickTagCloud reuses rating filter and refresh update check', (
     tester,
@@ -1487,6 +1627,32 @@ class _UnderfilledGalleryNotifier extends OnlineGalleryNotifier {
   }
 }
 
+class _PausedRandomGalleryNotifier extends OnlineGalleryNotifier {
+  static int loadMoreCalls = 0;
+
+  @override
+  OnlineGalleryState build() {
+    return const OnlineGalleryState(
+      randomEnabled: true,
+      randomSession: RandomGallerySession(
+        cache: ModeCache(
+          nextCursor: 'random',
+          hasMore: true,
+          queryScanPaused: true,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Future<void> loadPosts({bool refresh = false}) async {}
+
+  @override
+  Future<void> loadMore() async {
+    loadMoreCalls++;
+  }
+}
+
 class _PagedGalleryNotifier extends OnlineGalleryNotifier {
   @override
   OnlineGalleryState build() {
@@ -1549,8 +1715,11 @@ class _GelbooruFavoritesGalleryNotifier extends OnlineGalleryNotifier {
     return const OnlineGalleryState(
       viewMode: GalleryViewMode.favorites,
       favoritesSourceId: GallerySourceId.gelbooru,
-      gelbooruFavoritesCache: ModeCache(posts: [_gelbooruPost], hasMore: false),
       favoritedPostKeys: {'gelbooru:301'},
+      remoteFavoritedPostKeys: {'gelbooru:301'},
+    ).updateFavoritesCache(
+      GallerySourceId.gelbooru,
+      const ModeCache(posts: [_gelbooruPost], hasMore: false),
     );
   }
 }
@@ -1558,12 +1727,18 @@ class _GelbooruFavoritesGalleryNotifier extends OnlineGalleryNotifier {
 class _LoggedOutDanbooruAuth extends DanbooruAuth {
   @override
   DanbooruAuthState build() => const DanbooruAuthState();
+
+  @override
+  Future<void> ensureInitialized() async {}
 }
 
 class _UnconfiguredGelbooruAuth extends GelbooruAuth {
   @override
   GelbooruAuthState build() =>
       const GelbooruAuthState(status: GelbooruAuthStatus.unconfigured);
+
+  @override
+  Future<void> ensureInitialized() async {}
 }
 
 class _AuthenticatedGelbooruAuth extends GelbooruAuth {
@@ -1572,6 +1747,9 @@ class _AuthenticatedGelbooruAuth extends GelbooruAuth {
     credentials: GelbooruCredentials(userId: 99, apiKey: 'key'),
     status: GelbooruAuthStatus.authenticated,
   );
+
+  @override
+  Future<void> ensureInitialized() async {}
 }
 
 class _TestReplicationQueueNotifier extends ReplicationQueueNotifier {

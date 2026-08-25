@@ -5,7 +5,6 @@ import '../../../../core/utils/localization_extension.dart';
 import '../../../providers/random_preset_provider.dart';
 import '../../../../data/models/prompt/random_category.dart';
 import '../../../../data/models/prompt/random_tag_group.dart';
-import '../../common/elevated_card.dart';
 import '../../common/themed_confirm_dialog.dart';
 import 'add_tag_group_dialog.dart';
 import 'category_card_widgets.dart';
@@ -46,9 +45,9 @@ class CategoryCard extends ConsumerStatefulWidget {
   ConsumerState<CategoryCard> createState() => _CategoryCardState();
 }
 
-class _CategoryCardState extends ConsumerState<CategoryCard>
-    with SingleTickerProviderStateMixin {
+class _CategoryCardState extends ConsumerState<CategoryCard> {
   bool _isExpanded = false;
+  bool _isHovered = false;
 
   /// 当前正在拖拽的词组（用于显示垃圾桶区域）
   RandomTagGroup? _draggingGroup;
@@ -59,39 +58,76 @@ class _CategoryCardState extends ConsumerState<CategoryCard>
     final colorScheme = theme.colorScheme;
     final category = widget.category;
 
-    return Opacity(
-      opacity: category.enabled ? 1.0 : 0.5,
-      child: ElevatedCard(
-        elevation: _isExpanded ? CardElevation.level2 : CardElevation.level1,
-        hoverElevation: CardElevation.level2,
-        enableHoverEffect: category.enabled,
-        hoverTranslateY: -3,
-        borderRadius: 8,
-        gradientBorder: category.enabled && _isExpanded
-            ? LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  colorScheme.primary.withValues(alpha: 0.6),
-                  colorScheme.secondary.withValues(alpha: 0.4),
-                ],
-              )
-            : null,
-        gradientBorderWidth: 1.5,
-        onTap: () => setState(() => _isExpanded = !_isExpanded),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHeader(context, category),
-            AnimatedCrossFade(
-              duration: const Duration(milliseconds: 250),
-              crossFadeState: _isExpanded
-                  ? CrossFadeState.showSecond
-                  : CrossFadeState.showFirst,
-              firstChild: const SizedBox.shrink(),
-              secondChild: _buildExpandedContent(context, category),
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final restingColor = colorScheme.surfaceContainer;
+    final raisedColor = colorScheme.surfaceContainerHigh;
+    final backgroundColor = _isExpanded
+        ? Color.alphaBlend(
+            colorScheme.primary.withValues(alpha: 0.055),
+            raisedColor,
+          )
+        : _isHovered
+        ? raisedColor
+        : restingColor;
+
+    return Semantics(
+      container: true,
+      button: true,
+      expanded: _isExpanded,
+      enabled: category.enabled,
+      label: context.l10n.randomCategoryName(category),
+      child: Opacity(
+        opacity: category.enabled ? 1 : 0.58,
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          onEnter: (_) => setState(() => _isHovered = true),
+          onExit: (_) => setState(() => _isHovered = false),
+          child: AnimatedContainer(
+            duration: reduceMotion
+                ? Duration.zero
+                : const Duration(milliseconds: 140),
+            curve: Curves.easeOutCubic,
+            decoration: BoxDecoration(
+              color: backgroundColor,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: _isExpanded || _isHovered
+                  ? [
+                      BoxShadow(
+                        color: colorScheme.shadow.withValues(alpha: 0.12),
+                        blurRadius: 10,
+                        spreadRadius: -4,
+                        offset: const Offset(0, 4),
+                      ),
+                    ]
+                  : const [],
             ),
-          ],
+            child: Material(
+              color: Colors.transparent,
+              borderRadius: BorderRadius.circular(12),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: () => setState(() => _isExpanded = !_isExpanded),
+                borderRadius: BorderRadius.circular(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildHeader(context, category),
+                    AnimatedCrossFade(
+                      duration: reduceMotion
+                          ? Duration.zero
+                          : const Duration(milliseconds: 180),
+                      sizeCurve: Curves.easeOutCubic,
+                      crossFadeState: _isExpanded
+                          ? CrossFadeState.showSecond
+                          : CrossFadeState.showFirst,
+                      firstChild: const SizedBox.shrink(),
+                      secondChild: _buildExpandedContent(context, category),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -205,7 +241,9 @@ class _CategoryCardState extends ConsumerState<CategoryCard>
       children: [
         Divider(
           height: 1,
-          color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+          indent: 12,
+          endIndent: 12,
+          color: colorScheme.onSurface.withValues(alpha: 0.07),
         ),
         Padding(
           padding: const EdgeInsets.all(12),
@@ -386,60 +424,63 @@ class _TrashDropZoneState extends State<_TrashDropZone>
         widget.onAccept(details.data);
       },
       builder: (context, candidateData, rejectedData) {
-        return ScaleTransition(
-          scale: _scaleAnimation,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            width: 135,
-            height: 80,
-            decoration: BoxDecoration(
+        final reduceMotion = MediaQuery.disableAnimationsOf(context);
+        final dropZone = AnimatedContainer(
+          duration: reduceMotion
+              ? Duration.zero
+              : const Duration(milliseconds: 160),
+          width: 135,
+          height: 80,
+          decoration: BoxDecoration(
+            color: _isHovering
+                ? colorScheme.errorContainer
+                : colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
               color: _isHovering
-                  ? colorScheme.errorContainer
-                  : colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
+                  ? colorScheme.error
+                  : colorScheme.outline.withValues(alpha: 0.3),
+              width: _isHovering ? 2 : 1,
+              strokeAlign: BorderSide.strokeAlignInside,
+            ),
+            boxShadow: _isHovering
+                ? [
+                    BoxShadow(
+                      color: colorScheme.error.withValues(alpha: 0.3),
+                      blurRadius: 12,
+                      spreadRadius: 2,
+                    ),
+                  ]
+                : null,
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                _isHovering ? Icons.delete_forever : Icons.delete_outline,
+                size: _isHovering ? 32 : 28,
                 color: _isHovering
                     ? colorScheme.error
-                    : colorScheme.outline.withValues(alpha: 0.3),
-                width: _isHovering ? 2 : 1,
-                strokeAlign: BorderSide.strokeAlignInside,
+                    : colorScheme.onSurfaceVariant,
               ),
-              boxShadow: _isHovering
-                  ? [
-                      BoxShadow(
-                        color: colorScheme.error.withValues(alpha: 0.3),
-                        blurRadius: 12,
-                        spreadRadius: 2,
-                      ),
-                    ]
-                  : null,
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  _isHovering ? Icons.delete_forever : Icons.delete_outline,
-                  size: _isHovering ? 32 : 28,
+              const SizedBox(height: 4),
+              Text(
+                _isHovering
+                    ? context.l10n.randomManager_releaseToDelete
+                    : context.l10n.randomManager_dragHereToDelete,
+                style: theme.textTheme.labelSmall?.copyWith(
                   color: _isHovering
                       ? colorScheme.error
                       : colorScheme.onSurfaceVariant,
+                  fontWeight: _isHovering ? FontWeight.bold : null,
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  _isHovering
-                      ? context.l10n.randomManager_releaseToDelete
-                      : context.l10n.randomManager_dragHereToDelete,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: _isHovering
-                        ? colorScheme.error
-                        : colorScheme.onSurfaceVariant,
-                    fontWeight: _isHovering ? FontWeight.bold : null,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         );
+        return reduceMotion
+            ? dropZone
+            : ScaleTransition(scale: _scaleAnimation, child: dropZone);
       },
     );
   }

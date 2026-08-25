@@ -1,226 +1,213 @@
 import 'package:flutter/material.dart';
-import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/utils/localization_extension.dart';
+import '../../../../data/models/prompt/random_category.dart';
 import '../../../../data/models/prompt/random_preset.dart';
 import '../../../providers/random_preset_provider.dart';
-import '../../common/elevated_card.dart';
 import 'category_card.dart';
 
-/// 类别卡片垂直列表组件
-///
-/// 用于在仪表盘中显示所有类别卡片（垂直列表布局）
-/// 采用 Dimensional Layering 风格设计
 class CategoryCardList extends ConsumerWidget {
   const CategoryCardList({
     super.key,
     this.onAddCategory,
+    this.query = '',
+    this.shrinkWrap = false,
   });
 
   final VoidCallback? onAddCategory;
+  final String query;
+  final bool shrinkWrap;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final presetState = ref.watch(randomPresetNotifierProvider);
-    final preset = presetState.selectedPreset;
-
+    final preset = ref.watch(randomPresetNotifierProvider).selectedPreset;
     if (preset == null) {
       return Center(
-        child: Text(
-          AppLocalizations.of(context)!.randomManager_selectPresetRequired,
-        ),
+        child: Text(context.l10n.randomManager_selectPresetRequired),
       );
     }
 
-    return ElevatedCard(
-      elevation: CardElevation.level1,
-      enableHoverEffect: false,
-      borderRadius: 8,
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 标题栏
-          _CategoryHeader(
-            preset: preset,
-            onAddCategory: onAddCategory,
-          ),
-          const SizedBox(height: 16),
-          // 类别卡片垂直列表
-          if (preset.categories.isEmpty)
-            const EmptyCategoryPlaceholder()
-          else
-            Expanded(
-              child: ListView.separated(
-                clipBehavior: Clip.none,
-                itemCount: preset.categories.length,
-                separatorBuilder: (context, index) =>
-                    const SizedBox(height: 12),
-                itemBuilder: (context, index) {
-                  final category = preset.categories[index];
-                  return CategoryCard(
-                    category: category,
-                    presetId: preset.id,
-                    isPresetDefault: preset.isDefault,
-                  );
-                },
-              ),
-            ),
-        ],
-      ),
+    final categories = _filteredCategories(preset, query);
+    final list = categories.isEmpty
+        ? _NoCategoryResults(hasQuery: query.isNotEmpty)
+        : ListView.separated(
+            shrinkWrap: shrinkWrap,
+            physics: shrinkWrap
+                ? const NeverScrollableScrollPhysics()
+                : const ClampingScrollPhysics(),
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            padding: EdgeInsets.zero,
+            itemCount: categories.length,
+            separatorBuilder: (_, _) => const SizedBox(height: 10),
+            itemBuilder: (context, index) {
+              final category = categories[index];
+              return CategoryCard(
+                key: ValueKey(category.id),
+                category: category,
+                presetId: preset.id,
+                isPresetDefault: preset.isDefault,
+              );
+            },
+          );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: shrinkWrap ? MainAxisSize.min : MainAxisSize.max,
+      children: [
+        _CategoryHeader(
+          preset: preset,
+          visibleCount: categories.length,
+          onAddCategory: onAddCategory,
+        ),
+        const SizedBox(height: 12),
+        if (shrinkWrap) list else Expanded(child: list),
+      ],
     );
   }
-}
 
-/// 类别卡片网格组件
-///
-/// 用于在仪表盘中显示所有类别卡片
-/// 采用 Dimensional Layering 风格设计
-class CategoryCardGrid extends ConsumerWidget {
-  const CategoryCardGrid({
-    super.key,
-    this.onAddCategory,
-  });
-
-  final VoidCallback? onAddCategory;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final presetState = ref.watch(randomPresetNotifierProvider);
-    final preset = presetState.selectedPreset;
-
-    if (preset == null) {
-      return Center(
-        child: Text(
-          AppLocalizations.of(context)!.randomManager_selectPresetRequired,
-        ),
-      );
-    }
-
-    return ElevatedCard(
-      elevation: CardElevation.level1,
-      enableHoverEffect: false,
-      borderRadius: 8,
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 标题栏
-          _CategoryHeader(
-            preset: preset,
-            onAddCategory: onAddCategory,
-          ),
-          const SizedBox(height: 16),
-          // 类别卡片网格
-          if (preset.categories.isEmpty)
-            const EmptyCategoryPlaceholder()
-          else
-            LayoutBuilder(
-              builder: (context, constraints) {
-                const minCardWidth = 260.0;
-                const maxCardWidth = 320.0;
-                const spacing = 12.0;
-
-                final availableWidth = constraints.maxWidth;
-                final cardsPerRow =
-                    ((availableWidth + spacing) / (minCardWidth + spacing))
-                        .floor()
-                        .clamp(1, 4);
-                final cardWidth =
-                    (availableWidth - (cardsPerRow - 1) * spacing) /
-                        cardsPerRow;
-                final finalCardWidth =
-                    cardWidth.clamp(minCardWidth, maxCardWidth);
-
-                return Wrap(
-                  spacing: spacing,
-                  runSpacing: spacing,
-                  children: preset.categories.map((category) {
-                    return SizedBox(
-                      width: finalCardWidth,
-                      child: CategoryCard(
-                        category: category,
-                        presetId: preset.id,
-                        isPresetDefault: preset.isDefault,
-                      ),
-                    );
-                  }).toList(),
+  List<RandomCategory> _filteredCategories(
+    RandomPreset preset,
+    String normalizedQuery,
+  ) {
+    if (normalizedQuery.isEmpty) return preset.categories;
+    return preset.categories
+        .where((category) {
+          if (category.name.toLowerCase().contains(normalizedQuery) ||
+              category.key.toLowerCase().contains(normalizedQuery)) {
+            return true;
+          }
+          return category.groups.any((group) {
+            return group.name.toLowerCase().contains(normalizedQuery) ||
+                (group.sourceId?.toLowerCase().contains(normalizedQuery) ??
+                    false) ||
+                group.tags.any(
+                  (tag) => tag.tag.toLowerCase().contains(normalizedQuery),
                 );
-              },
-            ),
-        ],
-      ),
+          });
+        })
+        .toList(growable: false);
+  }
+}
+
+/// Compatibility wrapper retained for callers that previously requested a grid.
+/// A stable vertical list avoids narrow-card overflows and keeps expansion
+/// geometry predictable at every supported desktop width.
+class CategoryCardGrid extends StatelessWidget {
+  const CategoryCardGrid({super.key, this.onAddCategory, this.query = ''});
+
+  final VoidCallback? onAddCategory;
+  final String query;
+
+  @override
+  Widget build(BuildContext context) {
+    return CategoryCardList(
+      onAddCategory: onAddCategory,
+      query: query,
+      shrinkWrap: true,
     );
   }
 }
 
-/// 构建标题栏
 class _CategoryHeader extends ConsumerWidget {
   const _CategoryHeader({
     required this.preset,
+    required this.visibleCount,
     required this.onAddCategory,
   });
 
   final RandomPreset preset;
+  final int visibleCount;
   final VoidCallback? onAddCategory;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final l10n = AppLocalizations.of(context)!;
     final tagCount = ref.watch(presetTotalTagCountProvider);
+    final groupCount = preset.categories.fold<int>(
+      0,
+      (total, category) => total + category.groupCount,
+    );
 
-    return Row(
+    return Wrap(
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 10,
+      runSpacing: 8,
       children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                colorScheme.primary.withValues(alpha: 0.15),
-                colorScheme.primary.withValues(alpha: 0.05),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: colorScheme.primary.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Icon(
-                  Icons.category_outlined,
-                  size: 14,
-                  color: colorScheme.primary,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                l10n.categoryConfiguration,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: colorScheme.primary,
-                ),
-              ),
-            ],
+        Text(
+          context.l10n.categoryConfiguration,
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w600,
           ),
         ),
-        const SizedBox(width: 16),
-        // 统计信息
-        CategoryStats(
-          categoryCount: preset.categoryCount,
-          groupCount: preset.categories.fold(0, (sum, c) => sum + c.groupCount),
-          tagCount: tagCount,
+        _CountBadge(
+          icon: Icons.category_outlined,
+          value: '$visibleCount/${preset.categoryCount}',
         ),
-        const Spacer(),
-        // 添加类别按钮
-        AddCategoryButton(onPressed: onAddCategory),
+        _CountBadge(icon: Icons.layers_outlined, value: '$groupCount'),
+        _CountBadge(icon: Icons.sell_outlined, value: '$tagCount'),
+        if (onAddCategory != null && !preset.isDefault)
+          IconButton.filledTonal(
+            onPressed: onAddCategory,
+            tooltip: context.l10n.randomManager_addCategory,
+            icon: const Icon(Icons.add_rounded),
+          ),
       ],
+    );
+  }
+}
+
+class _CountBadge extends StatelessWidget {
+  const _CountBadge({required this.icon, required this.value});
+
+  final IconData icon;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Semantics(
+      label: value,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: colorScheme.onSurfaceVariant),
+            const SizedBox(width: 4),
+            Text(value, style: Theme.of(context).textTheme.labelSmall),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NoCategoryResults extends StatelessWidget {
+  const _NoCategoryResults({required this.hasQuery});
+
+  final bool hasQuery;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 40),
+      child: Column(
+        children: [
+          const Icon(Icons.search_off_rounded, size: 36),
+          const SizedBox(height: 10),
+          Text(
+            hasQuery
+                ? context.l10n.randomManager_noCategoryResults
+                : context.l10n.randomManager_noCategories,
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
     );
   }
 }

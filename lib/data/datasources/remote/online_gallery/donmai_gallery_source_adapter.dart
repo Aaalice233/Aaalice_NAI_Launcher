@@ -112,6 +112,9 @@ class DonmaiGallerySourceAdapter implements GallerySourceAdapter {
         nextCursor: nextCursor,
         hasMore: raw.length >= request.pageSize && nextCursor != null,
         rawItemCount: raw.length,
+        rawPageIdentity: raw
+            .map((value) => value is Map ? value['id'] : null)
+            .join(','),
       );
     } on GallerySourceException {
       rethrow;
@@ -190,6 +193,9 @@ class DonmaiGallerySourceAdapter implements GallerySourceAdapter {
         // conclusively means the end. Repeated pages are stopped by the provider.
         hasMore: raw.isNotEmpty,
         rawItemCount: raw.length,
+        rawPageIdentity: raw
+            .map((value) => value is Map ? value['id'] : null)
+            .join(','),
       );
     } on GallerySourceException {
       rethrow;

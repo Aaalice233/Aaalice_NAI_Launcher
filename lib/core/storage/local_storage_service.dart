@@ -38,6 +38,10 @@ class LocalStorageService {
     await _settingsBox.put(key, value);
   }
 
+  Future<void> setSettings(Map<String, Object?> values) async {
+    await _settingsBox.putAll(values);
+  }
+
   /// 删除设置
   Future<void> deleteSetting(String key) async {
     await _settingsBox.delete(key);

@@ -20,25 +20,15 @@ class PreviewGeneratorPanel extends ConsumerStatefulWidget {
       _PreviewGeneratorPanelState();
 }
 
-class _PreviewGeneratorPanelState extends ConsumerState<PreviewGeneratorPanel>
-    with SingleTickerProviderStateMixin {
+class _PreviewGeneratorPanelState extends ConsumerState<PreviewGeneratorPanel> {
   RandomPromptResult? _result;
   bool _isGenerating = false;
   String? _error;
-  late AnimationController _animController;
-
-  @override
-  void initState() {
-    super.initState();
-    _animController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 600),
-    );
-  }
+  int _generationRevision = 0;
 
   @override
   void dispose() {
-    _animController.dispose();
+    _generationRevision++;
     super.dispose();
   }
 
@@ -50,7 +40,7 @@ class _PreviewGeneratorPanelState extends ConsumerState<PreviewGeneratorPanel>
       _error = null;
     });
 
-    _animController.repeat();
+    final revision = ++_generationRevision;
 
     try {
       final generator = ref.read(randomPromptGeneratorProvider);
@@ -61,26 +51,24 @@ class _PreviewGeneratorPanelState extends ConsumerState<PreviewGeneratorPanel>
         throw Exception(context.l10n.randomManager_selectPresetRequired);
       }
 
-      final result = await generator.generateFromPreset(
-        preset: preset,
-      );
+      final result = await generator.generateFromPreset(preset: preset);
+      final selectedPresetId = ref
+          .read(randomPresetNotifierProvider)
+          .selectedPresetId;
 
-      if (mounted) {
+      if (mounted && revision == _generationRevision) {
         setState(() {
-          _result = result;
+          if (selectedPresetId == preset.id) _result = result;
           _isGenerating = false;
         });
       }
     } catch (e) {
-      if (mounted) {
+      if (mounted && revision == _generationRevision) {
         setState(() {
           _error = e.toString();
           _isGenerating = false;
         });
       }
-    } finally {
-      _animController.stop();
-      _animController.reset();
     }
   }
 
@@ -108,12 +96,7 @@ class _PreviewGeneratorPanelState extends ConsumerState<PreviewGeneratorPanel>
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      colorScheme.secondary.withValues(alpha: 0.2),
-                      colorScheme.secondary.withValues(alpha: 0.1),
-                    ],
-                  ),
+                  color: colorScheme.secondaryContainer,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
@@ -134,15 +117,12 @@ class _PreviewGeneratorPanelState extends ConsumerState<PreviewGeneratorPanel>
               _GenerateButton(
                 onPressed: _generate,
                 isGenerating: _isGenerating,
-                animController: _animController,
               ),
             ],
           ),
           const SizedBox(height: 16),
           // 结果区域
-          Expanded(
-            child: _buildResultArea(context),
-          ),
+          Expanded(child: _buildResultArea(context)),
         ],
       ),
     );
@@ -217,8 +197,9 @@ class _PreviewGeneratorPanelState extends ConsumerState<PreviewGeneratorPanel>
               iconSize: 18,
               tooltip: context.l10n.randomManager_copy,
               style: IconButton.styleFrom(
-                backgroundColor:
-                    colorScheme.primaryContainer.withValues(alpha: 0.3),
+                backgroundColor: colorScheme.primaryContainer.withValues(
+                  alpha: 0.3,
+                ),
               ),
             ),
             const SizedBox(width: 4),
@@ -229,8 +210,9 @@ class _PreviewGeneratorPanelState extends ConsumerState<PreviewGeneratorPanel>
               iconSize: 18,
               tooltip: context.l10n.randomManager_regenerate,
               style: IconButton.styleFrom(
-                backgroundColor:
-                    colorScheme.secondaryContainer.withValues(alpha: 0.3),
+                backgroundColor: colorScheme.secondaryContainer.withValues(
+                  alpha: 0.3,
+                ),
               ),
             ),
           ],
@@ -242,95 +224,30 @@ class _PreviewGeneratorPanelState extends ConsumerState<PreviewGeneratorPanel>
 
 /// 生成按钮组件
 class _GenerateButton extends StatefulWidget {
-  const _GenerateButton({
-    required this.onPressed,
-    required this.isGenerating,
-    required this.animController,
-  });
+  const _GenerateButton({required this.onPressed, required this.isGenerating});
 
   final VoidCallback onPressed;
   final bool isGenerating;
-  final AnimationController animController;
 
   @override
   State<_GenerateButton> createState() => _GenerateButtonState();
 }
 
 class _GenerateButtonState extends State<_GenerateButton> {
-  bool _isHovered = false;
-
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return MouseRegion(
-      cursor: widget.isGenerating
-          ? SystemMouseCursors.wait
-          : SystemMouseCursors.click,
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      child: GestureDetector(
-        onTap: widget.isGenerating ? null : widget.onPressed,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: _isHovered || widget.isGenerating
-                  ? [colorScheme.primary, colorScheme.secondary]
-                  : [
-                      colorScheme.primary.withValues(alpha: 0.9),
-                      colorScheme.secondary.withValues(alpha: 0.8),
-                    ],
-            ),
-            borderRadius: BorderRadius.circular(8),
-            boxShadow: _isHovered && !widget.isGenerating
-                ? [
-                    BoxShadow(
-                      color: colorScheme.primary.withValues(alpha: 0.35),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ]
-                : [
-                    BoxShadow(
-                      color: colorScheme.primary.withValues(alpha: 0.2),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              widget.isGenerating
-                  ? RotationTransition(
-                      turns: widget.animController,
-                      child: const Icon(
-                        Icons.sync,
-                        size: 16,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Icon(
-                      Icons.play_arrow_rounded,
-                      size: 18,
-                      color: Colors.white,
-                    ),
-              const SizedBox(width: 6),
-              Text(
-                widget.isGenerating
-                    ? context.l10n.randomManager_generating
-                    : context.l10n.randomManager_generate,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-              ),
-            ],
-          ),
-        ),
+    return FilledButton.icon(
+      onPressed: widget.isGenerating ? null : widget.onPressed,
+      icon: widget.isGenerating
+          ? const SizedBox.square(
+              dimension: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : const Icon(Icons.play_arrow_rounded, size: 18),
+      label: Text(
+        widget.isGenerating
+            ? context.l10n.randomManager_generating
+            : context.l10n.randomManager_generate,
       ),
     );
   }
@@ -403,11 +320,7 @@ class _ErrorDisplay extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.error_outline,
-              size: 32,
-              color: colorScheme.error,
-            ),
+            Icon(Icons.error_outline, size: 32, color: colorScheme.error),
             const SizedBox(height: 8),
             Text(
               context.l10n.randomManager_generationFailed,

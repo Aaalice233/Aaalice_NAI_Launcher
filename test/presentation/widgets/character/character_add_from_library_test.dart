@@ -95,10 +95,7 @@ void main() {
     await tester.pumpWidget(buildTestApp(const InlineCharacterRow()));
     await tester.pumpAndSettle();
 
-    final addMenu = find.byWidgetPredicate(
-      (widget) => widget is PopupMenuButton,
-      description: 'classic character row add menu',
-    );
+    final addMenu = find.byTooltip('Add Character');
     expect(addMenu, findsOneWidget);
     await tester.tap(addMenu);
     await tester.pumpAndSettle();

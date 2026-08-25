@@ -4329,6 +4329,30 @@ abstract class AppLocalizations {
   /// **'Character {index}'**
   String character_number(Object index);
 
+  /// No description provided for @character_summaryEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No characters added'**
+  String get character_summaryEmpty;
+
+  /// No description provided for @character_summaryEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} enabled · {name}'**
+  String character_summaryEnabled(int count, String name);
+
+  /// No description provided for @character_summaryMore.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} enabled · {name} +{additional}'**
+  String character_summaryMore(int count, String name, int additional);
+
+  /// No description provided for @character_summaryAllDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'0 enabled · {count} disabled'**
+  String character_summaryAllDisabled(int count);
+
   /// No description provided for @gallery_generationParams.
   ///
   /// In en, this message translates to:
@@ -4485,29 +4509,17 @@ abstract class AppLocalizations {
   /// **'Search favorites by title, author, or tag…'**
   String get onlineGallery_searchFavorites;
 
-  /// No description provided for @onlineGallery_localFavorites.
+  /// No description provided for @onlineGallery_savedLocally.
   ///
   /// In en, this message translates to:
-  /// **'Local favorites'**
-  String get onlineGallery_localFavorites;
+  /// **'Saved locally'**
+  String get onlineGallery_savedLocally;
 
-  /// No description provided for @onlineGallery_localFavoritesDescription.
+  /// No description provided for @onlineGallery_savedInCloud.
   ///
   /// In en, this message translates to:
-  /// **'Saved on this device and available for every source'**
-  String get onlineGallery_localFavoritesDescription;
-
-  /// No description provided for @onlineGallery_cloudFavorites.
-  ///
-  /// In en, this message translates to:
-  /// **'Cloud favorites'**
-  String get onlineGallery_cloudFavorites;
-
-  /// No description provided for @onlineGallery_loginForCloudFavorites.
-  ///
-  /// In en, this message translates to:
-  /// **'Sign in to view cloud favorites'**
-  String get onlineGallery_loginForCloudFavorites;
+  /// **'Saved in cloud'**
+  String get onlineGallery_savedInCloud;
 
   /// No description provided for @onlineGallery_saveVisibleLocally.
   ///
@@ -4520,6 +4532,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Everything on this page is already saved locally'**
   String get onlineGallery_visibleFavoritesAlreadySaved;
+
+  /// No description provided for @onlineGallery_localFavoritesPartialFailure.
+  ///
+  /// In en, this message translates to:
+  /// **'Local favorites failed to load; cloud results are still available'**
+  String get onlineGallery_localFavoritesPartialFailure;
+
+  /// No description provided for @onlineGallery_cloudFavoritesPartialFailure.
+  ///
+  /// In en, this message translates to:
+  /// **'Cloud favorites failed to load; local results are still available'**
+  String get onlineGallery_cloudFavoritesPartialFailure;
 
   /// No description provided for @onlineGallery_visibleFavoritesSaved.
   ///
@@ -4538,6 +4562,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Search tags...'**
   String get onlineGallery_searchTags;
+
+  /// No description provided for @onlineGallery_maxTagsExceeded.
+  ///
+  /// In en, this message translates to:
+  /// **'You can combine up to {max} tags in one search'**
+  String onlineGallery_maxTagsExceeded(int max);
+
+  /// No description provided for @onlineGallery_tagDetailsIncomplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Some complete tag lists could not be loaded. Unverified works were excluded; retry to complete the results.'**
+  String get onlineGallery_tagDetailsIncomplete;
+
+  /// No description provided for @onlineGallery_unsupportedMetatag.
+  ///
+  /// In en, this message translates to:
+  /// **'This source or mode does not support metatag syntax. Use ordinary tags or switch to the source search.'**
+  String get onlineGallery_unsupportedMetatag;
+
+  /// No description provided for @onlineGallery_multiTagScanning.
+  ///
+  /// In en, this message translates to:
+  /// **'Combining tags: requested {requests} pages and checked {candidates} candidate works'**
+  String onlineGallery_multiTagScanning(int requests, int candidates);
+
+  /// No description provided for @onlineGallery_scanPaused.
+  ///
+  /// In en, this message translates to:
+  /// **'Several candidate pages were checked without enough matches. You can continue scanning later pages.'**
+  String get onlineGallery_scanPaused;
+
+  /// No description provided for @onlineGallery_continueScanning.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue scanning'**
+  String get onlineGallery_continueScanning;
 
   /// No description provided for @onlineGallery_refresh.
   ///
@@ -4568,6 +4628,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No more unseen images in this range'**
   String get onlineGallery_randomExhausted;
+
+  /// No description provided for @onlineGallery_randomDrawNoMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'This draw found no matching images. You can draw again.'**
+  String get onlineGallery_randomDrawNoMatch;
 
   /// No description provided for @onlineGallery_randomRestart.
   ///
@@ -5070,38 +5136,26 @@ abstract class AppLocalizations {
   /// No description provided for @onlineGallery_blacklistSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Choose the blacklist used to hide images. Local and Danbooru cloud lists remain independent.'**
+  /// **'One list is shared by every online gallery and keeps filtering while offline.'**
   String get onlineGallery_blacklistSubtitle;
-
-  /// No description provided for @onlineGallery_blacklistSourceLocal.
-  ///
-  /// In en, this message translates to:
-  /// **'Local'**
-  String get onlineGallery_blacklistSourceLocal;
-
-  /// No description provided for @onlineGallery_blacklistSourceCloud.
-  ///
-  /// In en, this message translates to:
-  /// **'Danbooru Cloud'**
-  String get onlineGallery_blacklistSourceCloud;
-
-  /// No description provided for @onlineGallery_blacklistLocalDescription.
-  ///
-  /// In en, this message translates to:
-  /// **'Stored only on this device and works without signing in'**
-  String get onlineGallery_blacklistLocalDescription;
 
   /// No description provided for @onlineGallery_blacklistCloudDescription.
   ///
   /// In en, this message translates to:
-  /// **'Use and edit the blacklist stored in your Danbooru account'**
+  /// **'Danbooru is connected; local changes sync after a safe merge'**
   String get onlineGallery_blacklistCloudDescription;
 
   /// No description provided for @onlineGallery_blacklistCloudLoginRequired.
   ///
   /// In en, this message translates to:
-  /// **'Sign in to Danbooru to use the cloud blacklist'**
+  /// **'The local blacklist still works; sign in to Danbooru to sync'**
   String get onlineGallery_blacklistCloudLoginRequired;
+
+  /// No description provided for @onlineGallery_blacklistCloudUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'The local blacklist is active. Cloud sync will resume after Danbooru can be verified.'**
+  String get onlineGallery_blacklistCloudUnavailable;
 
   /// No description provided for @onlineGallery_addBlacklistTagHint.
   ///
@@ -5112,14 +5166,8 @@ abstract class AppLocalizations {
   /// No description provided for @onlineGallery_noLocalBlacklistTags.
   ///
   /// In en, this message translates to:
-  /// **'No local blacklist tags'**
+  /// **'No blacklist tags'**
   String get onlineGallery_noLocalBlacklistTags;
-
-  /// No description provided for @onlineGallery_noCloudBlacklistTags.
-  ///
-  /// In en, this message translates to:
-  /// **'No cloud blacklist tags'**
-  String get onlineGallery_noCloudBlacklistTags;
 
   /// No description provided for @onlineGallery_pullBlacklist.
   ///
@@ -5127,41 +5175,23 @@ abstract class AppLocalizations {
   /// **'Pull cloud'**
   String get onlineGallery_pullBlacklist;
 
-  /// No description provided for @onlineGallery_pullBlacklistTooltip.
-  ///
-  /// In en, this message translates to:
-  /// **'Refresh the Danbooru cloud blacklist without changing the local list'**
-  String get onlineGallery_pullBlacklistTooltip;
-
   /// No description provided for @onlineGallery_pushBlacklist.
   ///
   /// In en, this message translates to:
   /// **'Push to cloud'**
   String get onlineGallery_pushBlacklist;
 
-  /// No description provided for @onlineGallery_pushBlacklistTooltip.
-  ///
-  /// In en, this message translates to:
-  /// **'Replace the Danbooru cloud blacklist with the local list'**
-  String get onlineGallery_pushBlacklistTooltip;
-
   /// No description provided for @onlineGallery_pushBlacklistConfirmTitle.
   ///
   /// In en, this message translates to:
-  /// **'Replace cloud with local?'**
+  /// **'Replace cloud with the unified list?'**
   String get onlineGallery_pushBlacklistConfirmTitle;
 
   /// No description provided for @onlineGallery_pushBlacklistConfirmBody.
   ///
   /// In en, this message translates to:
-  /// **'The Danbooru cloud blacklist will be completely replaced by your current local list. Make sure the local list is ready.'**
+  /// **'This completely replaces the Danbooru cloud blacklist. Routine syncing preserves unrecognized advanced rules, but this full push removes them.'**
   String get onlineGallery_pushBlacklistConfirmBody;
-
-  /// No description provided for @onlineGallery_blacklistPullSucceeded.
-  ///
-  /// In en, this message translates to:
-  /// **'Danbooru cloud blacklist refreshed'**
-  String get onlineGallery_blacklistPullSucceeded;
 
   /// No description provided for @onlineGallery_blacklistPushSucceeded.
   ///
@@ -5175,6 +5205,12 @@ abstract class AppLocalizations {
   /// **'Blacklist sync failed. Check your sign-in and network connection.'**
   String get onlineGallery_blacklistSyncFailedMessage;
 
+  /// No description provided for @onlineGallery_blacklistSaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to save blacklist: {error}'**
+  String onlineGallery_blacklistSaveFailed(String error);
+
   /// No description provided for @onlineGallery_autoSyncOnStartup.
   ///
   /// In en, this message translates to:
@@ -5184,7 +5220,7 @@ abstract class AppLocalizations {
   /// No description provided for @onlineGallery_autoSyncOnStartupSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Refreshes only the cloud cache and never overwrites the local blacklist'**
+  /// **'Safely merges new cloud tags without deleting local tags'**
   String get onlineGallery_autoSyncOnStartupSubtitle;
 
   /// No description provided for @onlineGallery_lastSyncFailed.
@@ -5211,11 +5247,68 @@ abstract class AppLocalizations {
   /// **'Online Gallery Blacklist Settings'**
   String get onlineGallery_blacklistSettingsTitle;
 
-  /// No description provided for @onlineGallery_blacklistLoginHint.
+  /// No description provided for @onlineGallery_blacklistImportTitle.
   ///
   /// In en, this message translates to:
-  /// **'You are not logged in to Danbooru. The local blacklist still works, but syncing requires login.'**
-  String get onlineGallery_blacklistLoginHint;
+  /// **'Import tags'**
+  String get onlineGallery_blacklistImportTitle;
+
+  /// No description provided for @onlineGallery_blacklistImportHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter one tag per line or separate tags with commas'**
+  String get onlineGallery_blacklistImportHint;
+
+  /// No description provided for @onlineGallery_blacklistImported.
+  ///
+  /// In en, this message translates to:
+  /// **'Added {count} tags'**
+  String onlineGallery_blacklistImported(Object count);
+
+  /// No description provided for @onlineGallery_blacklistClearTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear the unified blacklist?'**
+  String get onlineGallery_blacklistClearTitle;
+
+  /// No description provided for @onlineGallery_blacklistClearBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The gallery will immediately stop filtering by these tags. The cloud list will not be cleared automatically, and this action can be undone.'**
+  String get onlineGallery_blacklistClearBody;
+
+  /// No description provided for @onlineGallery_blacklistPullSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Added {added}, already had {existing}, skipped {skipped} deleted tags; preserved {opaque} advanced cloud rules'**
+  String onlineGallery_blacklistPullSummary(
+    Object added,
+    Object existing,
+    Object skipped,
+    Object opaque,
+  );
+
+  /// No description provided for @onlineGallery_blacklistPushDiff.
+  ///
+  /// In en, this message translates to:
+  /// **'Cloud will add {added}, remove {removed}, and delete {opaque} advanced rules.'**
+  String onlineGallery_blacklistPushDiff(
+    Object added,
+    Object removed,
+    Object opaque,
+  );
+
+  /// No description provided for @onlineGallery_blacklistCloudEmptyConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm clearing the cloud blacklist'**
+  String get onlineGallery_blacklistCloudEmptyConfirm;
+
+  /// No description provided for @onlineGallery_blacklistMigrationConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'This list includes cloud tags migrated from an unknown account. Confirm syncing them to the current account'**
+  String get onlineGallery_blacklistMigrationConfirm;
 
   /// No description provided for @onlineGallery_bulkFavorite.
   ///
@@ -7084,59 +7177,11 @@ abstract class AppLocalizations {
   /// **'Settings'**
   String get toolbar_settings;
 
-  /// No description provided for @characterTooltip_noCharacters.
-  ///
-  /// In en, this message translates to:
-  /// **'No characters configured'**
-  String get characterTooltip_noCharacters;
-
-  /// No description provided for @characterTooltip_clickToConfig.
-  ///
-  /// In en, this message translates to:
-  /// **'Click to configure multi-character prompts'**
-  String get characterTooltip_clickToConfig;
-
-  /// No description provided for @characterTooltip_globalAiLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Global AI Position:'**
-  String get characterTooltip_globalAiLabel;
-
-  /// No description provided for @characterTooltip_enabled.
-  ///
-  /// In en, this message translates to:
-  /// **'Enabled'**
-  String get characterTooltip_enabled;
-
-  /// No description provided for @characterTooltip_disabled.
-  ///
-  /// In en, this message translates to:
-  /// **'Disabled'**
-  String get characterTooltip_disabled;
-
-  /// No description provided for @characterTooltip_positionAi.
-  ///
-  /// In en, this message translates to:
-  /// **'AI'**
-  String get characterTooltip_positionAi;
-
   /// No description provided for @characterTooltip_disabledLabel.
   ///
   /// In en, this message translates to:
   /// **'Disabled'**
   String get characterTooltip_disabledLabel;
-
-  /// No description provided for @characterTooltip_promptLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Prompt'**
-  String get characterTooltip_promptLabel;
-
-  /// No description provided for @characterTooltip_negativeLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Undesired Content'**
-  String get characterTooltip_negativeLabel;
 
   /// No description provided for @characterTooltip_notSet.
   ///
@@ -7144,17 +7189,23 @@ abstract class AppLocalizations {
   /// **'Not set'**
   String get characterTooltip_notSet;
 
-  /// No description provided for @characterTooltip_summary.
+  /// No description provided for @characterTooltip_previewTitle.
   ///
   /// In en, this message translates to:
-  /// **'{total} characters ({enabled} enabled)'**
-  String characterTooltip_summary(Object total, Object enabled);
+  /// **'Character preview'**
+  String get characterTooltip_previewTitle;
 
-  /// No description provided for @characterTooltip_viewFullConfig.
+  /// No description provided for @characterTooltip_enabledSummary.
   ///
   /// In en, this message translates to:
-  /// **'Click for full configuration'**
-  String get characterTooltip_viewFullConfig;
+  /// **'{enabled} / {total} enabled'**
+  String characterTooltip_enabledSummary(int enabled, int total);
+
+  /// No description provided for @characterTooltip_more.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} more characters'**
+  String characterTooltip_more(int count);
 
   /// No description provided for @tagLibrary_generatedCharacters.
   ///
@@ -7177,7 +7228,7 @@ abstract class AppLocalizations {
   /// No description provided for @randomMode_naiOfficial.
   ///
   /// In en, this message translates to:
-  /// **'Official Mode'**
+  /// **'Offline Library'**
   String get randomMode_naiOfficial;
 
   /// No description provided for @randomMode_custom.
@@ -7195,7 +7246,7 @@ abstract class AppLocalizations {
   /// No description provided for @randomMode_naiOfficialDesc.
   ///
   /// In en, this message translates to:
-  /// **'Replicate NovelAI official random algorithm'**
+  /// **'Use the verified complete offline tag catalog'**
   String get randomMode_naiOfficialDesc;
 
   /// No description provided for @randomMode_customDesc.
@@ -7207,13 +7258,13 @@ abstract class AppLocalizations {
   /// No description provided for @randomMode_hybridDesc.
   ///
   /// In en, this message translates to:
-  /// **'Combine official algorithm with custom presets'**
+  /// **'Combine the offline library with custom presets'**
   String get randomMode_hybridDesc;
 
   /// No description provided for @randomMode_naiIndicator.
   ///
   /// In en, this message translates to:
-  /// **'NAI'**
+  /// **'Offline'**
   String get randomMode_naiIndicator;
 
   /// No description provided for @randomMode_customIndicator.
@@ -8115,12 +8166,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Syncing'**
   String get randomManager_syncing;
-
-  /// No description provided for @randomManager_syncingWithEllipsis.
-  ///
-  /// In en, this message translates to:
-  /// **'Syncing...'**
-  String get randomManager_syncingWithEllipsis;
 
   /// No description provided for @randomManager_syncDanbooruTags.
   ///
@@ -14347,6 +14392,12 @@ abstract class AppLocalizations {
   /// **'How to use this image?'**
   String get drop_dialogTitle;
 
+  /// No description provided for @drop_actions.
+  ///
+  /// In en, this message translates to:
+  /// **'Actions'**
+  String get drop_actions;
+
   /// No description provided for @drop_hint.
   ///
   /// In en, this message translates to:
@@ -14484,6 +14535,228 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Drag to Image2Image or another target'**
   String get drop_dragToImg2ImgOrOther;
+
+  /// No description provided for @drop_metadataDetected.
+  ///
+  /// In en, this message translates to:
+  /// **'NovelAI metadata detected'**
+  String get drop_metadataDetected;
+
+  /// No description provided for @drop_metadataParseFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Metadata could not be parsed'**
+  String get drop_metadataParseFailed;
+
+  /// No description provided for @drop_metadataParseFailedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The image contains metadata fields that cannot currently be read. Other image actions remain available.'**
+  String get drop_metadataParseFailedHint;
+
+  /// No description provided for @drop_metadataErrorDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'View error details'**
+  String get drop_metadataErrorDetails;
+
+  /// No description provided for @drop_positivePrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Prompt'**
+  String get drop_positivePrompt;
+
+  /// No description provided for @drop_negativePrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Undesired Content'**
+  String get drop_negativePrompt;
+
+  /// No description provided for @drop_characterPrompts.
+  ///
+  /// In en, this message translates to:
+  /// **'Character Prompts ({count})'**
+  String drop_characterPrompts(int count);
+
+  /// No description provided for @drop_characterPositivePrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Character {index} Positive Prompt'**
+  String drop_characterPositivePrompt(int index);
+
+  /// No description provided for @drop_characterNegativePrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Character {index} Undesired Content'**
+  String drop_characterNegativePrompt(int index);
+
+  /// No description provided for @drop_promptNotRecorded.
+  ///
+  /// In en, this message translates to:
+  /// **'Not recorded'**
+  String get drop_promptNotRecorded;
+
+  /// No description provided for @drop_promptCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get drop_promptCopy;
+
+  /// No description provided for @drop_promptAddWhole.
+  ///
+  /// In en, this message translates to:
+  /// **'Add full prompt to library'**
+  String get drop_promptAddWhole;
+
+  /// No description provided for @drop_promptAddSelection.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to library'**
+  String get drop_promptAddSelection;
+
+  /// No description provided for @drop_promptLibraryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to Library'**
+  String get drop_promptLibraryTitle;
+
+  /// No description provided for @drop_promptLibraryWriteMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Write mode'**
+  String get drop_promptLibraryWriteMode;
+
+  /// No description provided for @drop_promptLibraryCreate.
+  ///
+  /// In en, this message translates to:
+  /// **'New'**
+  String get drop_promptLibraryCreate;
+
+  /// No description provided for @drop_promptLibraryAppend.
+  ///
+  /// In en, this message translates to:
+  /// **'Append'**
+  String get drop_promptLibraryAppend;
+
+  /// No description provided for @drop_promptLibraryOverwrite.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace'**
+  String get drop_promptLibraryOverwrite;
+
+  /// No description provided for @drop_promptLibraryAliasHint.
+  ///
+  /// In en, this message translates to:
+  /// **'This name is also used by <library name> references'**
+  String get drop_promptLibraryAliasHint;
+
+  /// No description provided for @drop_promptLibraryTarget.
+  ///
+  /// In en, this message translates to:
+  /// **'Target entry'**
+  String get drop_promptLibraryTarget;
+
+  /// No description provided for @drop_promptLibrarySelectTarget.
+  ///
+  /// In en, this message translates to:
+  /// **'Select an entry to update'**
+  String get drop_promptLibrarySelectTarget;
+
+  /// No description provided for @drop_promptLibrarySeparator.
+  ///
+  /// In en, this message translates to:
+  /// **'Separator'**
+  String get drop_promptLibrarySeparator;
+
+  /// No description provided for @drop_promptLibrarySeparatorComma.
+  ///
+  /// In en, this message translates to:
+  /// **'Comma + space'**
+  String get drop_promptLibrarySeparatorComma;
+
+  /// No description provided for @drop_promptLibrarySeparatorNewline.
+  ///
+  /// In en, this message translates to:
+  /// **'New line'**
+  String get drop_promptLibrarySeparatorNewline;
+
+  /// No description provided for @drop_promptLibrarySeparatorNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No separator'**
+  String get drop_promptLibrarySeparatorNone;
+
+  /// No description provided for @drop_promptLibraryCharacterCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} characters'**
+  String drop_promptLibraryCharacterCount(int count);
+
+  /// No description provided for @drop_promptLibraryExactContentHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Saves this text without cleaning, reordering, or completing it'**
+  String get drop_promptLibraryExactContentHint;
+
+  /// No description provided for @drop_promptLibraryResultPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Result preview'**
+  String get drop_promptLibraryResultPreview;
+
+  /// No description provided for @drop_promptLibraryDuplicate.
+  ///
+  /// In en, this message translates to:
+  /// **'The same content already exists in “{name}”'**
+  String drop_promptLibraryDuplicate(Object name);
+
+  /// No description provided for @drop_promptLibraryNameConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'This name already exists. Rename it, append, or replace'**
+  String get drop_promptLibraryNameConflict;
+
+  /// No description provided for @drop_promptLibraryOverwriteWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'This will replace all prompt content in “{name}”'**
+  String drop_promptLibraryOverwriteWarning(Object name);
+
+  /// No description provided for @drop_promptLibraryMore.
+  ///
+  /// In en, this message translates to:
+  /// **'More options'**
+  String get drop_promptLibraryMore;
+
+  /// No description provided for @drop_promptLibraryConfirmOverwrite.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace'**
+  String get drop_promptLibraryConfirmOverwrite;
+
+  /// No description provided for @drop_promptLibrarySaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved to library'**
+  String get drop_promptLibrarySaved;
+
+  /// No description provided for @drop_promptLibrarySaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to save the library entry'**
+  String get drop_promptLibrarySaveFailed;
+
+  /// No description provided for @drop_promptLibraryPositiveName.
+  ///
+  /// In en, this message translates to:
+  /// **'Prompt snippet'**
+  String get drop_promptLibraryPositiveName;
+
+  /// No description provided for @drop_promptLibraryNegativeName.
+  ///
+  /// In en, this message translates to:
+  /// **'Undesired content snippet'**
+  String get drop_promptLibraryNegativeName;
 
   /// No description provided for @preciseRef_title.
   ///
@@ -21988,6 +22261,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Open autocomplete and data source settings'**
   String get autocomplete_openSettings;
+
+  /// No description provided for @randomManager_searchCategories.
+  ///
+  /// In en, this message translates to:
+  /// **'Search categories, groups, or tags (Ctrl+F)'**
+  String get randomManager_searchCategories;
+
+  /// No description provided for @randomManager_verifiedOfflineLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'Verified offline random library'**
+  String get randomManager_verifiedOfflineLibrary;
+
+  /// No description provided for @randomManager_sourceDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Data source details'**
+  String get randomManager_sourceDetails;
+
+  /// No description provided for @randomManager_sourceUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Source URL'**
+  String get randomManager_sourceUrl;
+
+  /// No description provided for @randomManager_sourceCommit.
+  ///
+  /// In en, this message translates to:
+  /// **'Source commit'**
+  String get randomManager_sourceCommit;
+
+  /// No description provided for @randomManager_sourceDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Source date'**
+  String get randomManager_sourceDate;
+
+  /// No description provided for @randomManager_sourceLicense.
+  ///
+  /// In en, this message translates to:
+  /// **'License'**
+  String get randomManager_sourceLicense;
+
+  /// No description provided for @randomManager_catalogCounts.
+  ///
+  /// In en, this message translates to:
+  /// **'Complete catalog: {tags} tags, {aliases} aliases'**
+  String randomManager_catalogCounts(Object tags, Object aliases);
+
+  /// No description provided for @randomManager_libraryVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Rules v{version} · {count} tags'**
+  String randomManager_libraryVersion(String version, String count);
+
+  /// No description provided for @randomManager_preview.
+  ///
+  /// In en, this message translates to:
+  /// **'Random result preview'**
+  String get randomManager_preview;
+
+  /// No description provided for @randomManager_libraryUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Random library unavailable'**
+  String get randomManager_libraryUnavailable;
+
+  /// No description provided for @randomManager_noCategoryResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No matching categories, groups, or tags'**
+  String get randomManager_noCategoryResults;
 }
 
 class _AppLocalizationsDelegate

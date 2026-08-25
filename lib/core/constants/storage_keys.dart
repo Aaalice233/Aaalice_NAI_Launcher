@@ -64,8 +64,12 @@ class StorageKeys {
   static const String fixedTagsSidebarViewMode = 'fixed_tags_sidebar_view_mode';
   static const String fixedTagsNegativeHeight = 'fixed_tags_negative_height';
 
-  // Panel Expansion State Keys (面板展开状态)
+  // Generation Workbench Panel Expansion State Keys (生图工作台面板展开状态)
   static const String advancedOptionsExpanded = 'advanced_options_expanded';
+  static const String generationParamsMenuExpanded =
+      'generation_params_menu_expanded';
+  static const String characterPanelExpanded = 'character_panel_expanded';
+  static const String reversePromptExpanded = 'reverse_prompt_expanded';
   static const String img2imgExpanded = 'img2img_expanded';
   static const String vibeTransferExpanded = 'vibe_transfer_expanded';
   static const String preciseRefExpanded = 'precise_ref_expanded';
@@ -283,6 +287,9 @@ class StorageKeys {
   // 在线画廊黑名单设置
   static const String onlineGalleryBlacklistTags =
       'online_gallery_blacklist_tags';
+  static const String onlineGalleryBlacklistV2 = 'online_gallery_blacklist_v2';
+  static const String onlineGalleryBlacklistRollbackShadow =
+      'online_gallery_blacklist_rollback_shadow_v2';
   static const String onlineGalleryRemoteBlacklistTags =
       'online_gallery_remote_blacklist_tags';
   static const String onlineGalleryBlacklistAutoSync =
