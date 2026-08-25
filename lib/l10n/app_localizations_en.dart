@@ -12741,6 +12741,79 @@ class AppLocalizationsEn extends AppLocalizations {
       'Search categories, groups, or tags (Ctrl+F)';
 
   @override
+  String get randomManager_workspaceTitle => 'Random library';
+
+  @override
+  String get randomManager_workspaceSubtitle =>
+      'Build reusable recipes from the complete offline catalog';
+
+  @override
+  String get randomManager_recipeTitle => 'Generation recipe';
+
+  @override
+  String get randomManager_recipeSubtitle =>
+      'Each stage controls the chance and sampling range of one semantic tag group';
+
+  @override
+  String get randomManager_inspectorTitle => 'Generation setup';
+
+  @override
+  String get randomManager_inspectorSubtitle =>
+      'Adjust character distribution and global output behavior for this preset';
+
+  @override
+  String get randomManager_previewEmptyDescription =>
+      'Generate a sample to inspect the actual output of this recipe.';
+
+  @override
+  String get randomManager_category_composition => 'Composition';
+
+  @override
+  String get randomManager_category_camera => 'Camera angle';
+
+  @override
+  String get randomManager_category_framing => 'Framing';
+
+  @override
+  String get randomManager_category_focus => 'Focus';
+
+  @override
+  String get randomManager_category_eyeFeature => 'Eye features';
+
+  @override
+  String get randomManager_category_hairLength => 'Hair length';
+
+  @override
+  String get randomManager_category_hairTexture => 'Hair texture';
+
+  @override
+  String get randomManager_category_bangs => 'Bangs';
+
+  @override
+  String get randomManager_category_skinTone => 'Skin tone';
+
+  @override
+  String get randomManager_category_species => 'Species';
+
+  @override
+  String get randomManager_category_headwear => 'Headwear';
+
+  @override
+  String get randomManager_category_hairAccessory => 'Hair accessories';
+
+  @override
+  String get randomManager_category_prop => 'Props';
+
+  @override
+  String get randomManager_category_effect => 'Effects';
+
+  @override
+  String get randomManager_category_year => 'Era';
+
+  @override
+  String get randomManager_category_detail => 'Creative details';
+
+  @override
   String get randomManager_verifiedOfflineLibrary =>
       'Verified offline random library';
 

@@ -12220,6 +12220,75 @@ class AppLocalizationsZh extends AppLocalizations {
   String get randomManager_searchCategories => '搜索类别、词组或标签（Ctrl+F）';
 
   @override
+  String get randomManager_workspaceTitle => '随机词库';
+
+  @override
+  String get randomManager_workspaceSubtitle => '用完整离线 catalog 组合可复用的随机生成配方';
+
+  @override
+  String get randomManager_recipeTitle => '生成配方';
+
+  @override
+  String get randomManager_recipeSubtitle => '每个阶段独立控制一类语义标签的触发概率与抽取范围';
+
+  @override
+  String get randomManager_inspectorTitle => '生成设置';
+
+  @override
+  String get randomManager_inspectorSubtitle => '调整当前预设的角色分布与全局输出行为';
+
+  @override
+  String get randomManager_previewEmptyDescription => '生成一次样例，检查当前配方的实际输出。';
+
+  @override
+  String get randomManager_category_composition => '构图';
+
+  @override
+  String get randomManager_category_camera => '视角';
+
+  @override
+  String get randomManager_category_framing => '景别';
+
+  @override
+  String get randomManager_category_focus => '焦点';
+
+  @override
+  String get randomManager_category_eyeFeature => '眼睛特征';
+
+  @override
+  String get randomManager_category_hairLength => '发长';
+
+  @override
+  String get randomManager_category_hairTexture => '发质';
+
+  @override
+  String get randomManager_category_bangs => '刘海';
+
+  @override
+  String get randomManager_category_skinTone => '肤色';
+
+  @override
+  String get randomManager_category_species => '物种';
+
+  @override
+  String get randomManager_category_headwear => '帽子';
+
+  @override
+  String get randomManager_category_hairAccessory => '发饰';
+
+  @override
+  String get randomManager_category_prop => '道具';
+
+  @override
+  String get randomManager_category_effect => '特效';
+
+  @override
+  String get randomManager_category_year => '年代';
+
+  @override
+  String get randomManager_category_detail => '创意细节';
+
+  @override
   String get randomManager_verifiedOfflineLibrary => '已验证的离线随机词库';
 
   @override
@@ -24471,6 +24540,75 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get randomManager_searchCategories => '搜尋類別、詞組或標籤（Ctrl+F）';
+
+  @override
+  String get randomManager_workspaceTitle => '隨機詞庫';
+
+  @override
+  String get randomManager_workspaceSubtitle => '用完整離線 catalog 組合可重用的隨機生成配方';
+
+  @override
+  String get randomManager_recipeTitle => '生成配方';
+
+  @override
+  String get randomManager_recipeSubtitle => '每個階段獨立控制一類語義標籤的觸發機率與抽取範圍';
+
+  @override
+  String get randomManager_inspectorTitle => '生成設定';
+
+  @override
+  String get randomManager_inspectorSubtitle => '調整目前預設的角色分佈與全域輸出行為';
+
+  @override
+  String get randomManager_previewEmptyDescription => '生成一次範例，檢查目前配方的實際輸出。';
+
+  @override
+  String get randomManager_category_composition => '構圖';
+
+  @override
+  String get randomManager_category_camera => '視角';
+
+  @override
+  String get randomManager_category_framing => '景別';
+
+  @override
+  String get randomManager_category_focus => '焦點';
+
+  @override
+  String get randomManager_category_eyeFeature => '眼睛特徵';
+
+  @override
+  String get randomManager_category_hairLength => '髮長';
+
+  @override
+  String get randomManager_category_hairTexture => '髮質';
+
+  @override
+  String get randomManager_category_bangs => '瀏海';
+
+  @override
+  String get randomManager_category_skinTone => '膚色';
+
+  @override
+  String get randomManager_category_species => '物種';
+
+  @override
+  String get randomManager_category_headwear => '帽子';
+
+  @override
+  String get randomManager_category_hairAccessory => '髮飾';
+
+  @override
+  String get randomManager_category_prop => '道具';
+
+  @override
+  String get randomManager_category_effect => '特效';
+
+  @override
+  String get randomManager_category_year => '年代';
+
+  @override
+  String get randomManager_category_detail => '創意細節';
 
   @override
   String get randomManager_verifiedOfflineLibrary => '已驗證的離線隨機詞庫';

@@ -12421,6 +12421,77 @@ class AppLocalizationsJa extends AppLocalizations {
   String get randomManager_searchCategories => 'カテゴリ、グループ、タグを検索（Ctrl+F）';
 
   @override
+  String get randomManager_workspaceTitle => 'ランダムライブラリ';
+
+  @override
+  String get randomManager_workspaceSubtitle =>
+      '完全なオフラインカタログから再利用可能な生成レシピを構成します';
+
+  @override
+  String get randomManager_recipeTitle => '生成レシピ';
+
+  @override
+  String get randomManager_recipeSubtitle => '各ステージで意味カテゴリごとの発動確率と抽出範囲を設定します';
+
+  @override
+  String get randomManager_inspectorTitle => '生成設定';
+
+  @override
+  String get randomManager_inspectorSubtitle => '現在のプリセットのキャラクター分布と出力動作を調整します';
+
+  @override
+  String get randomManager_previewEmptyDescription =>
+      'サンプルを生成して、現在のレシピの出力を確認します。';
+
+  @override
+  String get randomManager_category_composition => '構図';
+
+  @override
+  String get randomManager_category_camera => 'カメラアングル';
+
+  @override
+  String get randomManager_category_framing => 'フレーミング';
+
+  @override
+  String get randomManager_category_focus => 'フォーカス';
+
+  @override
+  String get randomManager_category_eyeFeature => '目の特徴';
+
+  @override
+  String get randomManager_category_hairLength => '髪の長さ';
+
+  @override
+  String get randomManager_category_hairTexture => '髪質';
+
+  @override
+  String get randomManager_category_bangs => '前髪';
+
+  @override
+  String get randomManager_category_skinTone => '肌の色';
+
+  @override
+  String get randomManager_category_species => '種族';
+
+  @override
+  String get randomManager_category_headwear => '帽子';
+
+  @override
+  String get randomManager_category_hairAccessory => '髪飾り';
+
+  @override
+  String get randomManager_category_prop => '小道具';
+
+  @override
+  String get randomManager_category_effect => 'エフェクト';
+
+  @override
+  String get randomManager_category_year => '年代';
+
+  @override
+  String get randomManager_category_detail => 'クリエイティブ詳細';
+
+  @override
   String get randomManager_verifiedOfflineLibrary => '検証済みオフラインランダムライブラリ';
 
   @override

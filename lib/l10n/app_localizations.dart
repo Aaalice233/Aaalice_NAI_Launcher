@@ -22142,6 +22142,144 @@ abstract class AppLocalizations {
   /// **'Search categories, groups, or tags (Ctrl+F)'**
   String get randomManager_searchCategories;
 
+  /// No description provided for @randomManager_workspaceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Random library'**
+  String get randomManager_workspaceTitle;
+
+  /// No description provided for @randomManager_workspaceSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Build reusable recipes from the complete offline catalog'**
+  String get randomManager_workspaceSubtitle;
+
+  /// No description provided for @randomManager_recipeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Generation recipe'**
+  String get randomManager_recipeTitle;
+
+  /// No description provided for @randomManager_recipeSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Each stage controls the chance and sampling range of one semantic tag group'**
+  String get randomManager_recipeSubtitle;
+
+  /// No description provided for @randomManager_inspectorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Generation setup'**
+  String get randomManager_inspectorTitle;
+
+  /// No description provided for @randomManager_inspectorSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Adjust character distribution and global output behavior for this preset'**
+  String get randomManager_inspectorSubtitle;
+
+  /// No description provided for @randomManager_previewEmptyDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate a sample to inspect the actual output of this recipe.'**
+  String get randomManager_previewEmptyDescription;
+
+  /// No description provided for @randomManager_category_composition.
+  ///
+  /// In en, this message translates to:
+  /// **'Composition'**
+  String get randomManager_category_composition;
+
+  /// No description provided for @randomManager_category_camera.
+  ///
+  /// In en, this message translates to:
+  /// **'Camera angle'**
+  String get randomManager_category_camera;
+
+  /// No description provided for @randomManager_category_framing.
+  ///
+  /// In en, this message translates to:
+  /// **'Framing'**
+  String get randomManager_category_framing;
+
+  /// No description provided for @randomManager_category_focus.
+  ///
+  /// In en, this message translates to:
+  /// **'Focus'**
+  String get randomManager_category_focus;
+
+  /// No description provided for @randomManager_category_eyeFeature.
+  ///
+  /// In en, this message translates to:
+  /// **'Eye features'**
+  String get randomManager_category_eyeFeature;
+
+  /// No description provided for @randomManager_category_hairLength.
+  ///
+  /// In en, this message translates to:
+  /// **'Hair length'**
+  String get randomManager_category_hairLength;
+
+  /// No description provided for @randomManager_category_hairTexture.
+  ///
+  /// In en, this message translates to:
+  /// **'Hair texture'**
+  String get randomManager_category_hairTexture;
+
+  /// No description provided for @randomManager_category_bangs.
+  ///
+  /// In en, this message translates to:
+  /// **'Bangs'**
+  String get randomManager_category_bangs;
+
+  /// No description provided for @randomManager_category_skinTone.
+  ///
+  /// In en, this message translates to:
+  /// **'Skin tone'**
+  String get randomManager_category_skinTone;
+
+  /// No description provided for @randomManager_category_species.
+  ///
+  /// In en, this message translates to:
+  /// **'Species'**
+  String get randomManager_category_species;
+
+  /// No description provided for @randomManager_category_headwear.
+  ///
+  /// In en, this message translates to:
+  /// **'Headwear'**
+  String get randomManager_category_headwear;
+
+  /// No description provided for @randomManager_category_hairAccessory.
+  ///
+  /// In en, this message translates to:
+  /// **'Hair accessories'**
+  String get randomManager_category_hairAccessory;
+
+  /// No description provided for @randomManager_category_prop.
+  ///
+  /// In en, this message translates to:
+  /// **'Props'**
+  String get randomManager_category_prop;
+
+  /// No description provided for @randomManager_category_effect.
+  ///
+  /// In en, this message translates to:
+  /// **'Effects'**
+  String get randomManager_category_effect;
+
+  /// No description provided for @randomManager_category_year.
+  ///
+  /// In en, this message translates to:
+  /// **'Era'**
+  String get randomManager_category_year;
+
+  /// No description provided for @randomManager_category_detail.
+  ///
+  /// In en, this message translates to:
+  /// **'Creative details'**
+  String get randomManager_category_detail;
+
   /// No description provided for @randomManager_verifiedOfflineLibrary.
   ///
   /// In en, this message translates to:

@@ -135,31 +135,20 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
       final defaultPreset = RandomPreset.defaultPreset();
       presets.insert(0, defaultPreset);
       await _savePreset(defaultPreset);
-    } else {
-      // 迁移旧版默认预设
-      final defaultIndex = presets.indexWhere((p) => p.isDefault);
-      if (defaultIndex != -1) {
-        var needsUpdate = false;
-        var updatedDefault = presets[defaultIndex];
+    }
 
-        // v3 仅切换内置分组的数据来源；用户调整过的概率、启用状态、
-        // 算法设置和已有稳定 ID 必须原样保留。
-        if (updatedDefault.categories.isEmpty) {
-          updatedDefault = updatedDefault.copyWith(
-            categories: DefaultCategories.createDefault(),
-          );
-          needsUpdate = true;
-        }
-        if (updatedDefault.version < 3) {
-          updatedDefault = updatedDefault.copyWith(version: 3);
-          needsUpdate = true;
-        }
-
-        if (needsUpdate) {
-          presets[defaultIndex] = updatedDefault;
-          await _savePreset(updatedDefault);
-        }
-      }
+    // v4 expands the semantic stages while preserving every existing user
+    // setting and custom group. Only presets derived from the built-in recipe
+    // receive newly introduced stages.
+    for (var index = 0; index < presets.length; index++) {
+      final preset = presets[index];
+      if (preset.version >= 4) continue;
+      final categories = preset.isDefault || preset.isBasedOnDefault
+          ? DefaultCategories.mergeMissingBuiltins(preset.categories)
+          : preset.categories;
+      final migrated = preset.copyWith(version: 4, categories: categories);
+      presets[index] = migrated;
+      await _savePreset(migrated);
     }
 
     // 按创建时间排序，默认预设在最前

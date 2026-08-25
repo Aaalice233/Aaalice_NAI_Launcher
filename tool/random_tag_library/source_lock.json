@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "taxonomyVersion": 1,
+  "taxonomyVersion": 2,
   "taxonomyAsset": "assets/data/random_tag_library.json",
-  "taxonomySha256": "68037242690153cbf87e15d9bb54d4e263b0e3aac454015065bfb24c141ed09c",
+  "taxonomySha256": "1ca80896c4f2f25cece3db3dd49937a06e9c129be4bcd6fdac5915f086572270",
   "catalogSourceLock": "tool/tag_catalog/source_lock.json",
   "catalogManifest": "assets/databases/manifest.json",
   "catalogSchemaVersion": 2,
@@ -10,24 +10,77 @@
   "catalogSha256": "270538fc623bb1a88acf1f347372568d51bf55510c53e0fb700cb370e0da798d",
   "expectedCatalogTagCount": 221787,
   "expectedCatalogAliasCount": 71504,
+  "expectedEligibleTagCount": 58412,
   "expectedCategoryCounts": {
     "hairColor": 76,
     "eyeColor": 15,
-    "hairStyle": 373,
-    "clothingFemale": 890,
-    "clothingMale": 98,
-    "clothingGeneral": 1409,
-    "expression": 22,
-    "pose": 18,
-    "background": 180,
-    "scene": 20,
-    "style": 23,
-    "bodyFeatureFemale": 222,
-    "bodyFeatureMale": 5,
-    "bodyFeatureGeneral": 10,
-    "accessory": 1250,
-    "characterCount": 12
+    "eyeFeature": 274,
+    "hairLength": 8,
+    "hairStyle": 330,
+    "hairTexture": 9,
+    "bangs": 39,
+    "clothingFemale": 886,
+    "clothingMale": 97,
+    "clothingGeneral": 2310,
+    "expression": 345,
+    "pose": 817,
+    "camera": 12,
+    "framing": 6,
+    "focus": 88,
+    "background": 179,
+    "scene": 124,
+    "style": 38,
+    "skinTone": 71,
+    "bodyFeatureFemale": 298,
+    "bodyFeatureMale": 108,
+    "bodyFeatureGeneral": 245,
+    "species": 3533,
+    "headwear": 485,
+    "hairAccessory": 253,
+    "accessory": 2548,
+    "prop": 1617,
+    "effect": 236,
+    "year": 13,
+    "characterCount": 12,
+    "detail": 58412
+  },
+  "referenceAnalysis": {
+    "purpose": "Behavioral reference only; no source code, wordlist entries, exact weights, or per-entry dependency data are redistributed.",
+    "sourcePage": "https://novelai.net/image",
+    "fileName": "1741-909f971ef51889d8.js.下载",
+    "retrievedAt": "2026-08-25T17:04:38.5101477Z",
+    "size": 1404190,
+    "sha256": "e832224acd91d2aec14c9ebd705423b4b909a957a48121d847fe5fe3311317d8",
+    "generators": {
+      "legacyAnime": {
+        "arrayCount": 39,
+        "entryCount": 1865
+      },
+      "furryV3": {
+        "arrayCount": 40,
+        "entryCount": 1639
+      },
+      "characterPrompts": {
+        "arrayCount": 39,
+        "entryCount": 2456
+      }
+    },
+    "behavior": {
+      "stages": [
+        "characterCount",
+        "scene",
+        "composition",
+        "characterAppearance",
+        "props",
+        "effects",
+        "year",
+        "focus"
+      ],
+      "characterPromptModelsUseSeparateSlots": true,
+      "mainPromptDeduplication": "comma-delimited stable first occurrence",
+      "referenceHasKnownSelectionAndDependencyDefects": true
+    }
   },
   "license": "Unlicense",
-  "provenance": "The taxonomy contains only declarative semantic matching rules. Runtime candidates are read from the complete bundled tag catalog; no NovelAI website code or wordlist content is redistributed."
+  "provenance": "The taxonomy contains only declarative semantic matching rules. All 58,412 descriptive Danbooru general, e621 general, and e621 species rows remain available through the detail pool; artist, copyright, character, meta, contributor, and lore categories are explicitly ineligible. Runtime candidates come from the complete verified 221,787-row catalog; no NovelAI website code or wordlist content is redistributed."
 }

@@ -4,25 +4,49 @@ import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:sqlite3/sqlite3.dart';
 
-const _generalCategories = [0, 7, 8, 9, 10, 11, 12, 14, 15];
+Future<void> main(List<String> args) async {
+  await verifyRandomTagLibrary(updateLock: args.contains('--update-lock'));
+}
 
-Future<void> main() async {
+Future<void> verifyRandomTagLibrary({bool updateLock = false}) async {
   final lockFile = File('tool/random_tag_library/source_lock.json');
   final lock =
       jsonDecode(await lockFile.readAsString()) as Map<String, dynamic>;
+  final referenceAnalysis = Map<String, dynamic>.from(
+    lock['referenceAnalysis'] as Map,
+  );
+  _expect(
+    Uri.tryParse(referenceAnalysis['sourcePage'] as String)?.hasScheme == true,
+    'reference source page is invalid',
+  );
+  DateTime.parse(referenceAnalysis['retrievedAt'] as String);
+  _expect(
+    (referenceAnalysis['size'] as int) > 0,
+    'reference file size is invalid',
+  );
+  _expect(
+    RegExp(r'^[0-9a-f]{64}$').hasMatch(referenceAnalysis['sha256'] as String),
+    'reference SHA-256 is invalid',
+  );
+
   final taxonomyFile = File(lock['taxonomyAsset'] as String);
   final taxonomyBytes = await taxonomyFile.readAsBytes();
-  _expect(
-    sha256.convert(taxonomyBytes).toString() == lock['taxonomySha256'],
-    'taxonomy SHA-256 mismatch',
-  );
+  final taxonomySha256 = sha256.convert(taxonomyBytes).toString();
+  if (!updateLock) {
+    _expect(
+      taxonomySha256 == lock['taxonomySha256'],
+      'taxonomy SHA-256 mismatch',
+    );
+  }
 
   final taxonomy =
       jsonDecode(utf8.decode(taxonomyBytes)) as Map<String, dynamic>;
-  _expect(
-    taxonomy['schemaVersion'] == lock['taxonomyVersion'],
-    'taxonomy schema version mismatch',
-  );
+  if (!updateLock) {
+    _expect(
+      taxonomy['schemaVersion'] == lock['taxonomyVersion'],
+      'taxonomy schema version mismatch',
+    );
+  }
   final catalogSourceLock =
       jsonDecode(await File(lock['catalogSourceLock'] as String).readAsString())
           as Map<String, dynamic>;
@@ -104,6 +128,20 @@ Future<void> main() async {
       'catalog alias count mismatch',
     );
 
+    final eligibility = Map<String, dynamic>.from(
+      taxonomy['eligibility'] as Map,
+    );
+    final eligibleCategories = (eligibility['catalogCategories'] as List)
+        .cast<int>();
+    final eligibleCount = _countCatalogCategories(database, eligibleCategories);
+    if (!updateLock) {
+      _expect(
+        eligibleCount == lock['expectedEligibleTagCount'],
+        'eligible catalog count mismatch: '
+        '$eligibleCount != ${lock['expectedEligibleTagCount']}',
+      );
+    }
+
     final expectedCounts = Map<String, dynamic>.from(
       lock['expectedCategoryCounts'] as Map? ?? const {},
     );
@@ -115,7 +153,7 @@ Future<void> main() async {
         Map<String, dynamic>.from(entry.value as Map),
       );
       _expect(actualCounts[entry.key]! > 0, '${entry.key} resolved no tags');
-      if (expectedCounts.isNotEmpty) {
+      if (!updateLock && expectedCounts.isNotEmpty) {
         _expect(
           actualCounts[entry.key] == expectedCounts[entry.key],
           '${entry.key} count mismatch: ${actualCounts[entry.key]} != ${expectedCounts[entry.key]}',
@@ -123,11 +161,27 @@ Future<void> main() async {
       }
     }
     _expect(
-      expectedCounts.isEmpty || expectedCounts.length == actualCounts.length,
+      updateLock ||
+          expectedCounts.isEmpty ||
+          expectedCounts.length == actualCounts.length,
       'expected category set mismatch',
     );
 
+    if (updateLock) {
+      lock['taxonomyVersion'] = taxonomy['schemaVersion'];
+      lock['taxonomySha256'] = taxonomySha256;
+      lock['expectedEligibleTagCount'] = eligibleCount;
+      lock['expectedCategoryCounts'] = actualCounts;
+      await lockFile.writeAsString(
+        '${const JsonEncoder.withIndent('  ').convert(lock)}\n',
+      );
+      stdout.writeln('Updated ${lockFile.path}.');
+    }
+
     verificationStopwatch.stop();
+    stdout.writeln(
+      'Complete descriptive candidate coverage: $eligibleCount tags.',
+    );
     stdout.writeln(const JsonEncoder.withIndent('  ').convert(actualCounts));
     stdout.writeln(
       'Random tag library verification passed in '
@@ -152,8 +206,11 @@ int _countCategory(Database database, Map<String, dynamic> rule) {
     includes.add('name = ?');
     arguments.add(name);
   }
-  _expect(includes.isNotEmpty, 'category rule is empty');
-  where.add('(${includes.join(' OR ')})');
+  final includeAll = rule['includeAll'] == true;
+  _expect(includeAll || includes.isNotEmpty, 'category rule is empty');
+  if (!includeAll) {
+    where.add('(${includes.join(' OR ')})');
+  }
   final includeTokens = (rule['includeTokens'] as List? ?? const [])
       .cast<String>();
   final excludeTokens = (rule['excludeTokens'] as List? ?? const [])
@@ -164,14 +221,29 @@ int _countCategory(Database database, Map<String, dynamic> rule) {
   if (excludeTokens.isNotEmpty) {
     where.add('NOT ${_tokenClause(excludeTokens, arguments)}');
   }
-  final placeholders = List.filled(_generalCategories.length, '?').join(',');
-  arguments.addAll(_generalCategories);
+  final catalogCategories =
+      (rule['catalogCategories'] as List? ?? const [0, 7, 12]).cast<int>();
+  _expect(catalogCategories.isNotEmpty, 'catalogCategories is empty');
+  final placeholders = List.filled(catalogCategories.length, '?').join(',');
+  arguments.addAll(catalogCategories);
+  where.add('category IN ($placeholders)');
   final statement = database.prepare(
-    'SELECT COUNT(*) AS count FROM tags WHERE ${where.join(' AND ')} '
-    'AND category IN ($placeholders)',
+    'SELECT COUNT(*) AS count FROM tags WHERE ${where.join(' AND ')}',
   );
   try {
     return statement.select(arguments).first['count'] as int;
+  } finally {
+    statement.dispose();
+  }
+}
+
+int _countCatalogCategories(Database database, List<int> categories) {
+  final placeholders = List.filled(categories.length, '?').join(',');
+  final statement = database.prepare(
+    'SELECT COUNT(*) AS count FROM tags WHERE category IN ($placeholders)',
+  );
+  try {
+    return statement.select(categories).first['count'] as int;
   } finally {
     statement.dispose();
   }
