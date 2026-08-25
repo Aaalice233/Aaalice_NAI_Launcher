@@ -1529,6 +1529,144 @@ abstract class AppLocalizations {
   /// **'History Records'**
   String get generation_historyRecord;
 
+  /// No description provided for @agentChat_tab.
+  ///
+  /// In en, this message translates to:
+  /// **'Chat'**
+  String get agentChat_tab;
+
+  /// No description provided for @agentChat_inputHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Message the AI agent…'**
+  String get agentChat_inputHint;
+
+  /// No description provided for @agentChat_attachImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Attach images'**
+  String get agentChat_attachImage;
+
+  /// No description provided for @agentChat_unsupportedImageFormat.
+  ///
+  /// In en, this message translates to:
+  /// **'Unsupported image format: {fileName}'**
+  String agentChat_unsupportedImageFormat(Object fileName);
+
+  /// No description provided for @agentChat_newChat.
+  ///
+  /// In en, this message translates to:
+  /// **'New chat'**
+  String get agentChat_newChat;
+
+  /// No description provided for @agentChat_send.
+  ///
+  /// In en, this message translates to:
+  /// **'Send'**
+  String get agentChat_send;
+
+  /// No description provided for @agentChat_stop.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get agentChat_stop;
+
+  /// No description provided for @agentChat_queued.
+  ///
+  /// In en, this message translates to:
+  /// **'Queued'**
+  String get agentChat_queued;
+
+  /// No description provided for @agentChat_thinking.
+  ///
+  /// In en, this message translates to:
+  /// **'Thinking…'**
+  String get agentChat_thinking;
+
+  /// No description provided for @agentChat_toolRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Running tool'**
+  String get agentChat_toolRunning;
+
+  /// No description provided for @agentChat_needSetup.
+  ///
+  /// In en, this message translates to:
+  /// **'No chat model configured. Add a provider with tool-calling support in Settings first.'**
+  String get agentChat_needSetup;
+
+  /// No description provided for @agentChat_heroTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'AI Agent'**
+  String get agentChat_heroTitle;
+
+  /// No description provided for @agentChat_heroSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit prompts and characters through conversation'**
+  String get agentChat_heroSubtitle;
+
+  /// No description provided for @agentChat_moreActions.
+  ///
+  /// In en, this message translates to:
+  /// **'More actions'**
+  String get agentChat_moreActions;
+
+  /// No description provided for @agentChat_compact.
+  ///
+  /// In en, this message translates to:
+  /// **'Compact context'**
+  String get agentChat_compact;
+
+  /// No description provided for @agentChat_compacting.
+  ///
+  /// In en, this message translates to:
+  /// **'Compacting context…'**
+  String get agentChat_compacting;
+
+  /// No description provided for @agentChat_model.
+  ///
+  /// In en, this message translates to:
+  /// **'Select model'**
+  String get agentChat_model;
+
+  /// No description provided for @agentChat_noModel.
+  ///
+  /// In en, this message translates to:
+  /// **'No model'**
+  String get agentChat_noModel;
+
+  /// No description provided for @agentChat_untitled.
+  ///
+  /// In en, this message translates to:
+  /// **'New chat'**
+  String get agentChat_untitled;
+
+  /// No description provided for @agentChat_renameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Session name'**
+  String get agentChat_renameHint;
+
+  /// No description provided for @agentChat_suggestion1.
+  ///
+  /// In en, this message translates to:
+  /// **'Improve my current positive prompt'**
+  String get agentChat_suggestion1;
+
+  /// No description provided for @agentChat_suggestion2.
+  ///
+  /// In en, this message translates to:
+  /// **'Add two characters with distinct poses'**
+  String get agentChat_suggestion2;
+
+  /// No description provided for @agentChat_suggestion3.
+  ///
+  /// In en, this message translates to:
+  /// **'Rewrite the negative prompt for photorealistic style'**
+  String get agentChat_suggestion3;
+
   /// No description provided for @generation_failedStreamSnapshot.
   ///
   /// In en, this message translates to:

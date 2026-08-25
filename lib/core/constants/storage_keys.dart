@@ -73,6 +73,8 @@ class StorageKeys {
 
   // Panel Width Keys (面板宽度)
   static const String historyPanelWidth = 'history_panel_width';
+  static const String rightPanelTab = 'right_panel_tab';
+  static const String agentChatActiveSession = 'agent_chat_active_session';
   static const String defaultModel = 'default_model';
   static const String defaultSampler = 'default_sampler';
   static const String defaultSteps = 'default_steps';

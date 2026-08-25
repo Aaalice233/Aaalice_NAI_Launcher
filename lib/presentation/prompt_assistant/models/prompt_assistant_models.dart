@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-enum AssistantTaskType { llm, translate, reverse, characterReplace, custom }
+enum AssistantTaskType { llm, translate, reverse, characterReplace, custom, chat }
 
 extension AssistantTaskTypeLabel on AssistantTaskType {
   String get label {
@@ -15,6 +15,8 @@ extension AssistantTaskTypeLabel on AssistantTaskType {
         return 'Character Replace';
       case AssistantTaskType.custom:
         return 'Custom';
+      case AssistantTaskType.chat:
+        return 'Chat';
     }
   }
 }
@@ -547,6 +549,8 @@ class TaskRoutingConfig {
   final String characterReplaceModel;
   final String customProviderId;
   final String customModel;
+  final String chatProviderId;
+  final String chatModel;
 
   const TaskRoutingConfig({
     required this.llmProviderId,
@@ -559,6 +563,8 @@ class TaskRoutingConfig {
     required this.characterReplaceModel,
     this.customProviderId = '',
     this.customModel = '',
+    this.chatProviderId = '',
+    this.chatModel = '',
   });
 
   TaskRoutingConfig copyWith({
@@ -572,6 +578,8 @@ class TaskRoutingConfig {
     String? characterReplaceModel,
     String? customProviderId,
     String? customModel,
+    String? chatProviderId,
+    String? chatModel,
   }) {
     return TaskRoutingConfig(
       llmProviderId: llmProviderId ?? this.llmProviderId,
@@ -586,6 +594,8 @@ class TaskRoutingConfig {
           characterReplaceModel ?? this.characterReplaceModel,
       customProviderId: customProviderId ?? this.customProviderId,
       customModel: customModel ?? this.customModel,
+      chatProviderId: chatProviderId ?? this.chatProviderId,
+      chatModel: chatModel ?? this.chatModel,
     );
   }
 
@@ -601,6 +611,8 @@ class TaskRoutingConfig {
         return characterReplaceProviderId;
       case AssistantTaskType.custom:
         return customProviderId;
+      case AssistantTaskType.chat:
+        return chatProviderId;
     }
   }
 
@@ -616,6 +628,8 @@ class TaskRoutingConfig {
         return characterReplaceModel;
       case AssistantTaskType.custom:
         return customModel;
+      case AssistantTaskType.chat:
+        return chatModel;
     }
   }
 
@@ -641,6 +655,8 @@ class TaskRoutingConfig {
         );
       case AssistantTaskType.custom:
         return copyWith(customProviderId: providerId, customModel: model);
+      case AssistantTaskType.chat:
+        return copyWith(chatProviderId: providerId, chatModel: model);
     }
   }
 
@@ -655,6 +671,8 @@ class TaskRoutingConfig {
         'characterReplaceModel': characterReplaceModel,
         'customProviderId': customProviderId,
         'customModel': customModel,
+        'chatProviderId': chatProviderId,
+        'chatModel': chatModel,
       };
 
   factory TaskRoutingConfig.fromJson(Map<String, dynamic> json) {
@@ -687,6 +705,12 @@ class TaskRoutingConfig {
         fallback: llmProviderId,
       ),
       customModel: _routingString(json, 'customModel', fallback: llmModel),
+      chatProviderId: _routingString(
+        json,
+        'chatProviderId',
+        fallback: llmProviderId,
+      ),
+      chatModel: _routingString(json, 'chatModel', fallback: llmModel),
     );
   }
 }
@@ -867,6 +891,15 @@ class PromptAssistantConfigState {
           taskType: AssistantTaskType.custom,
           content:
               'You are a prompt rewriting assistant. Modify the prompt according to the current prompt, the user request, and optional reference images. Output only the final single-line prompt that can be used directly, without explanation.',
+          isDefault: true,
+        ),
+        PromptRuleTemplate(
+          id: 'chat_default',
+          name: 'Default Chat Rule',
+          taskType: AssistantTaskType.chat,
+          content:
+              'You are a helpful assistant embedded in a NovelAI image-generation client. '
+              'Answer concisely in the user\'s language and use tools to edit prompts when asked.',
           isDefault: true,
         ),
       ],
