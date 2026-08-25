@@ -5,6 +5,7 @@ import 'package:path/path.dart' as p;
 
 import '../../../../core/utils/app_logger.dart';
 import '../../agent_types.dart';
+import '../compaction/compaction.dart';
 import 'session.dart';
 
 /// 基于 JSONL 文件的会话存储。
@@ -129,18 +130,25 @@ class JsonlSessionStorage implements SessionStorage {
       'modelId': entry.modelId,
     },
     if (entry is ThinkingLevelEntry) 'thinkingLevel': entry.thinkingLevel,
-    if (entry is ActiveToolsEntry)
-      'activeToolNames': entry.activeToolNames,
+    if (entry is ActiveToolsEntry) 'activeToolNames': entry.activeToolNames,
     if (entry is CompactionEntry) ...{
       'summary': entry.summary,
       'tokensBefore': entry.tokensBefore,
       'retainedTail': [
         for (final message in entry.retainedTail) encodeMessage(message),
       ],
+      if (entry.details is CompactionDetails)
+        'details': {
+          'readFiles': (entry.details as CompactionDetails).readFiles,
+          'modifiedFiles': (entry.details as CompactionDetails).modifiedFiles,
+        },
+      if (entry.usage != null) 'usage': entry.usage!.toJson(),
     },
     if (entry is BranchSummaryEntry) ...{
       'fromId': entry.fromId,
       'summary': entry.summary,
+      'details': entry.details,
+      if (entry.usage != null) 'usage': entry.usage!.toJson(),
     },
     if (entry is CustomEntry) ...{
       'customType': entry.customType,
@@ -199,6 +207,7 @@ class JsonlSessionStorage implements SessionStorage {
           timestamp: timestamp,
         );
       case 'compaction':
+        final detailsJson = json['details'];
         return CompactionEntry(
           id: id,
           summary: json['summary'] as String? ?? '',
@@ -207,6 +216,13 @@ class JsonlSessionStorage implements SessionStorage {
               if (decodeMessage(m) != null) decodeMessage(m)!,
           ],
           tokensBefore: (json['tokensBefore'] as num?)?.toInt() ?? 0,
+          details: detailsJson is Map<String, dynamic>
+              ? CompactionDetails(
+                  readFiles: _stringList(detailsJson['readFiles']),
+                  modifiedFiles: _stringList(detailsJson['modifiedFiles']),
+                )
+              : null,
+          usage: _decodeUsage(json['usage']),
           seq: seq,
           parentId: parentId,
           timestamp: timestamp,
@@ -216,6 +232,8 @@ class JsonlSessionStorage implements SessionStorage {
           id: id,
           fromId: json['fromId'] as String? ?? '',
           summary: json['summary'] as String? ?? '',
+          details: json['details'],
+          usage: _decodeUsage(json['usage']),
           seq: seq,
           parentId: parentId,
           timestamp: timestamp,
@@ -299,8 +317,10 @@ class JsonlSessionStorage implements SessionStorage {
     }
     record.seq = _state.nextSequence;
     record.timestamp = DateTime.now().millisecondsSinceEpoch;
+    final encodedRecord = _encodeRecord(record);
+    jsonEncode(encodedRecord);
     _state.applyMutation(RecordMutation(record: record));
-    _append({'op': 'record', 'record': _encodeRecord(record)});
+    _append({'op': 'record', 'record': encodedRecord});
     return record;
   }
 
@@ -371,44 +391,326 @@ class JsonlSessionStorage implements SessionStorage {
   @override
   Future<SessionStats> getStats() async => _state.getStats();
 
-  // -- 记录编解码（只持久化恢复所需子集） ---------------------------------
+  // -- 记录编解码 ---------------------------------------------------------
 
-  Map<String, dynamic> _encodeRecord(LaneRecord record) => {
-    'type': record.type,
-    'id': record.id,
-    'seq': record.seq,
-    'lane': record.lane,
-    'timestamp': record.timestamp,
-  };
+  Map<String, dynamic> _encodeRecord(LaneRecord record) {
+    final common = <String, dynamic>{
+      'type': record.type,
+      'id': record.id,
+      'seq': record.seq,
+      'lane': record.lane,
+      'timestamp': record.timestamp,
+    };
+    if (record is OperationStartedRecord) {
+      return {
+        ...common,
+        'sourceLeafId': record.sourceLeafId,
+        'intent': _encodeRunIntent(record.intent),
+      };
+    }
+    if (record is AbortRequestedRecord) {
+      return {...common, 'runId': record.runId};
+    }
+    if (record is OperationFinishedRecord) {
+      return {
+        ...common,
+        'runId': record.runId,
+        'outcome': record.outcome.name,
+        if (record.error != null)
+          'error': {
+            'code': record.error!.code,
+            'message': record.error!.message,
+          },
+      };
+    }
+    if (record is StepAttemptRecord) {
+      return {
+        ...common,
+        'runId': record.runId,
+        'step': record.step,
+        'attempt': record.attempt,
+        'resultEntryId': record.resultEntryId,
+        'compactionReason': record.compactionReason?.name,
+      };
+    }
+    if (record is ToolStartedRecord) {
+      return {
+        ...common,
+        'runId': record.runId,
+        'assistantEntryId': record.assistantEntryId,
+        'toolIndex': record.toolIndex,
+        'toolCallId': record.toolCallId,
+        'toolName': record.toolName,
+        'effectiveArgs': record.effectiveArgs,
+        'resultEntryId': record.resultEntryId,
+        'replay': record.replay.name,
+      };
+    }
+    if (record is QueueEnqueuedRecord) {
+      return {
+        ...common,
+        'queue': record.queue.name,
+        'target': encodeEntry(record.target),
+        'runId': record.runId,
+      };
+    }
+    if (record is QueueCancelledRecord) {
+      return {...common, 'entryId': record.entryId, 'runId': record.runId};
+    }
+    if (record is WriteDeferredRecord) {
+      return {
+        ...common,
+        'runId': record.runId,
+        'target': encodeEntry(record.target),
+      };
+    }
+    if (record is UsageRecord) {
+      return {
+        ...common,
+        'usage': record.usage.toJson(),
+        'cause': record.cause.name,
+        'runId': record.runId,
+        'entryId': record.entryId,
+        'attempt': record.attempt,
+        'stopReason': record.stopReason,
+        'toolCallId': record.toolCallId,
+        'details': record.details,
+      };
+    }
+    throw SessionError(
+      SessionErrorCode.invalidPayload,
+      'Unsupported lane record type: ${record.runtimeType}',
+    );
+  }
 
   LaneRecord? _decodeRecord(Object? json) {
     if (json is! Map<String, dynamic>) {
       return null;
     }
     final type = json['type'] as String?;
+    final id = json['id'] as String? ?? '';
+    final lane = json['lane'] as String? ?? 'main';
+    final seq = (json['seq'] as num?)?.toInt() ?? 0;
+    final timestamp = (json['timestamp'] as num?)?.toInt() ?? 0;
     switch (type) {
       case 'operation_started':
         return OperationStartedRecord(
-          id: json['id'] as String? ?? '',
-          lane: json['lane'] as String? ?? 'main',
+          id: id,
+          lane: lane,
           sourceLeafId: json['sourceLeafId'] as String?,
-          intent: const RunIntent(kind: RunIntentKind.run),
-          seq: (json['seq'] as num?)?.toInt() ?? 0,
-          timestamp: (json['timestamp'] as num?)?.toInt() ?? 0,
+          intent: _decodeRunIntent(json['intent']),
+          seq: seq,
+          timestamp: timestamp,
+        );
+      case 'abort_requested':
+        return AbortRequestedRecord(
+          id: id,
+          lane: lane,
+          runId: json['runId'] as String? ?? '',
+          seq: seq,
+          timestamp: timestamp,
         );
       case 'operation_finished':
+        final errorJson = json['error'];
         return OperationFinishedRecord(
-          id: json['id'] as String? ?? '',
-          lane: json['lane'] as String? ?? 'main',
+          id: id,
+          lane: lane,
           runId: json['runId'] as String? ?? '',
-          outcome: OperationOutcomeKind.completed,
-          seq: (json['seq'] as num?)?.toInt() ?? 0,
-          timestamp: (json['timestamp'] as num?)?.toInt() ?? 0,
+          outcome: _enumByName(
+            OperationOutcomeKind.values,
+            json['outcome'],
+            OperationOutcomeKind.failed,
+          ),
+          error: errorJson is Map<String, dynamic>
+              ? (
+                  code: errorJson['code'] as String? ?? '',
+                  message: errorJson['message'] as String? ?? '',
+                )
+              : null,
+          seq: seq,
+          timestamp: timestamp,
+        );
+      case 'step_attempt':
+        return StepAttemptRecord(
+          id: id,
+          lane: lane,
+          runId: json['runId'] as String? ?? '',
+          step: json['step'] as String? ?? '',
+          attempt: (json['attempt'] as num?)?.toInt() ?? 0,
+          resultEntryId: json['resultEntryId'] as String? ?? '',
+          compactionReason: _nullableEnumByName(
+            CompactionReason.values,
+            json['compactionReason'],
+          ),
+          seq: seq,
+          timestamp: timestamp,
+        );
+      case 'tool_started':
+        return ToolStartedRecord(
+          id: id,
+          lane: lane,
+          runId: json['runId'] as String? ?? '',
+          assistantEntryId: json['assistantEntryId'] as String? ?? '',
+          toolIndex: (json['toolIndex'] as num?)?.toInt() ?? 0,
+          toolCallId: json['toolCallId'] as String? ?? '',
+          toolName: json['toolName'] as String? ?? '',
+          effectiveArgs:
+              (json['effectiveArgs'] as Map?)?.cast<String, dynamic>() ??
+              const {},
+          resultEntryId: json['resultEntryId'] as String? ?? '',
+          replay: _enumByName(
+            ReplayMode.values,
+            json['replay'],
+            ReplayMode.never,
+          ),
+          seq: seq,
+          timestamp: timestamp,
+        );
+      case 'queue_enqueued':
+        return QueueEnqueuedRecord(
+          id: id,
+          lane: lane,
+          queue: _enumByName(
+            QueueKind.values,
+            json['queue'],
+            QueueKind.nextRun,
+          ),
+          target: _decodeRequiredEntry(json['target']),
+          runId: json['runId'] as String?,
+          seq: seq,
+          timestamp: timestamp,
+        );
+      case 'queue_cancelled':
+        return QueueCancelledRecord(
+          id: id,
+          lane: lane,
+          entryId: json['entryId'] as String? ?? '',
+          runId: json['runId'] as String?,
+          seq: seq,
+          timestamp: timestamp,
+        );
+      case 'write_deferred':
+        return WriteDeferredRecord(
+          id: id,
+          lane: lane,
+          runId: json['runId'] as String? ?? '',
+          target: _decodeRequiredEntry(json['target']),
+          seq: seq,
+          timestamp: timestamp,
+        );
+      case 'usage':
+        return UsageRecord(
+          id: id,
+          lane: lane,
+          usage: _decodeUsage(json['usage']) ?? const Usage(),
+          cause: _enumByName(
+            UsageCause.values,
+            json['cause'],
+            UsageCause.adjustment,
+          ),
+          runId: json['runId'] as String?,
+          entryId: json['entryId'] as String?,
+          attempt: (json['attempt'] as num?)?.toInt(),
+          stopReason: json['stopReason'] as String?,
+          toolCallId: json['toolCallId'] as String?,
+          details: json['details'],
+          seq: seq,
+          timestamp: timestamp,
         );
       default:
-        // 其余记录类型与恢复无关，不持久化/不重放。
         return null;
     }
+  }
+
+  Map<String, dynamic> _encodeRunIntent(RunIntent intent) => {
+    'kind': intent.kind.name,
+    'originalPrompt': [
+      for (final message in intent.originalPrompt) encodeMessage(message),
+    ],
+    'initialMessages': [
+      for (final entry in intent.initialMessages) encodeEntry(entry),
+    ],
+    'systemPromptOverride': intent.systemPromptOverride,
+    'resumeData': intent.resumeData,
+    'customInstructions': intent.customInstructions,
+    'resultEntryId': intent.resultEntryId,
+    'targetId': intent.targetId,
+    'summarize': intent.summarize,
+    'label': intent.label,
+    'summaryEntryId': intent.summaryEntryId,
+  };
+
+  RunIntent _decodeRunIntent(Object? value) {
+    final json = value is Map<String, dynamic>
+        ? value
+        : const <String, dynamic>{};
+    return RunIntent(
+      kind: _enumByName(RunIntentKind.values, json['kind'], RunIntentKind.run),
+      originalPrompt: [
+        for (final item in json['originalPrompt'] as List? ?? const [])
+          if (decodeMessage(item) case final message?) message,
+      ],
+      initialMessages: [
+        for (final item in json['initialMessages'] as List? ?? const [])
+          _decodeRequiredEntry(item),
+      ],
+      systemPromptOverride: json['systemPromptOverride'] as String?,
+      resumeData: (json['resumeData'] as Map?)?.cast<String, dynamic>(),
+      customInstructions: json['customInstructions'] as String?,
+      resultEntryId: json['resultEntryId'] as String?,
+      targetId: json['targetId'] as String?,
+      summarize: json['summarize'] as bool?,
+      label: json['label'] as String?,
+      summaryEntryId: json['summaryEntryId'] as String?,
+    );
+  }
+
+  SessionEntry _decodeRequiredEntry(Object? value) {
+    final entry = decodeEntry(value);
+    if (entry == null) {
+      throw const FormatException('Invalid session entry in lane record');
+    }
+    return entry;
+  }
+
+  static T _enumByName<T extends Enum>(
+    List<T> values,
+    Object? name,
+    T fallback,
+  ) => values.firstWhere((value) => value.name == name, orElse: () => fallback);
+
+  static T? _nullableEnumByName<T extends Enum>(List<T> values, Object? name) =>
+      values.cast<T?>().firstWhere(
+        (value) => value?.name == name,
+        orElse: () => null,
+      );
+
+  static List<String> _stringList(Object? value) => [
+    for (final item in value as List? ?? const [])
+      if (item is String) item,
+  ];
+
+  static Usage? _decodeUsage(Object? value) {
+    if (value is! Map<String, dynamic>) {
+      return null;
+    }
+    final costJson = value['cost'];
+    return Usage(
+      input: (value['input'] as num?)?.toInt() ?? 0,
+      output: (value['output'] as num?)?.toInt() ?? 0,
+      cacheRead: (value['cacheRead'] as num?)?.toInt() ?? 0,
+      cacheWrite: (value['cacheWrite'] as num?)?.toInt() ?? 0,
+      totalTokens: (value['totalTokens'] as num?)?.toInt() ?? 0,
+      cost: costJson is Map<String, dynamic>
+          ? Cost(
+              input: (costJson['input'] as num?)?.toDouble() ?? 0,
+              output: (costJson['output'] as num?)?.toDouble() ?? 0,
+              cacheRead: (costJson['cacheRead'] as num?)?.toDouble() ?? 0,
+              cacheWrite: (costJson['cacheWrite'] as num?)?.toDouble() ?? 0,
+              total: (costJson['total'] as num?)?.toDouble() ?? 0,
+            )
+          : const Cost(),
+    );
   }
 }
 
@@ -420,7 +722,10 @@ Map<String, dynamic> encodeMessage(AgentMessage message) {
       'text': message.text,
       'images': [
         for (final image in message.images)
-          {'mimeType': image.source.mimeType, 'base64': image.source.base64Data},
+          {
+            'mimeType': image.source.mimeType,
+            'base64': image.source.base64Data,
+          },
       ],
       'timestamp': message.timestamp,
     };
@@ -463,7 +768,8 @@ AgentMessage? decodeMessage(Object? json) {
     return null;
   }
   final role = json['role'] as String?;
-  final timestamp = (json['timestamp'] as num?)?.toInt() ??
+  final timestamp =
+      (json['timestamp'] as num?)?.toInt() ??
       DateTime.now().millisecondsSinceEpoch;
   switch (role) {
     case 'user':
@@ -525,8 +831,7 @@ AgentMessage? decodeMessage(Object? json) {
         toolCallId: json['toolCallId'] as String? ?? '',
         toolName: json['toolName'] as String? ?? '',
         content: [
-          if (json['content'] case final String content
-              when content.isNotEmpty)
+          if (json['content'] case final String content when content.isNotEmpty)
             ToolResultTextContent(content),
         ],
         isError: json['isError'] as bool? ?? false,
@@ -543,9 +848,8 @@ class JsonlSessionRepo implements SessionRepo {
 
   final io.Directory baseDir;
 
-  io.File _fileFor(String id) => io.File(
-    p.join(baseDir.path, 'agent_chat', 'sessions', '$id.jsonl'),
-  );
+  io.File _fileFor(String id) =>
+      io.File(p.join(baseDir.path, 'agent_chat', 'sessions', '$id.jsonl'));
 
   Future<List<(SessionMetadata, io.File)>> _listAll() async {
     final dir = io.Directory(p.join(baseDir.path, 'agent_chat', 'sessions'));
@@ -553,12 +857,15 @@ class JsonlSessionRepo implements SessionRepo {
       return const [];
     }
     final result = <(SessionMetadata, io.File)>[];
-    final files = dir
-        .listSync()
-        .whereType<io.File>()
-        .where((f) => f.path.endsWith('.jsonl'))
-        .toList()
-      ..sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
+    final files =
+        dir
+            .listSync()
+            .whereType<io.File>()
+            .where((f) => f.path.endsWith('.jsonl'))
+            .toList()
+          ..sort(
+            (a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()),
+          );
     for (final file in files.take(30)) {
       final metadata = _readHeader(file);
       if (metadata != null) {
@@ -630,9 +937,9 @@ class JsonlSessionRepo implements SessionRepo {
   }
 
   /// 列出会话及 UI 列表名：优先 setName 持久化名，其次首条用户消息。
-  Future<List<(SessionMetadata, String)>> listWithNames() async {
+  Future<List<(SessionMetadata, String, DateTime)>> listWithNames() async {
     final all = await _listAll();
-    final result = <(SessionMetadata, String)>[];
+    final result = <(SessionMetadata, String, DateTime)>[];
     for (final (metadata, file) in all) {
       final session = Session(JsonlSessionStorage(file, metadata));
       var name = '';
@@ -654,7 +961,7 @@ class JsonlSessionRepo implements SessionRepo {
           }
         }
       }
-      result.add((metadata, name));
+      result.add((metadata, name, file.lastModifiedSync()));
     }
     return result;
   }
@@ -680,10 +987,7 @@ class JsonlSessionRepo implements SessionRepo {
   }
 
   @override
-  Future<Session> fork(
-    SessionMetadata source, [
-    ForkOptions? options,
-  ]) async {
+  Future<Session> fork(SessionMetadata source, [ForkOptions? options]) async {
     final sourceFile = _fileFor(source.id);
     if (!sourceFile.existsSync()) {
       throw SessionError(
@@ -691,9 +995,7 @@ class JsonlSessionRepo implements SessionRepo {
         'Session not found: ${source.id}',
       );
     }
-    final sourceSession = Session(
-      JsonlSessionStorage(sourceFile, source),
-    );
+    final sourceSession = Session(JsonlSessionStorage(sourceFile, source));
     final id = _shortId();
     final metadata = SessionMetadata(
       id: id,
@@ -718,8 +1020,10 @@ class JsonlSessionRepo implements SessionRepo {
   }
 
   SessionEntry _cloneEntry(SessionEntry entry) {
-    final json = JsonlSessionStorage(newFileDummy, dummyMetadata)
-        .encodeEntry(entry);
+    final json = JsonlSessionStorage(
+      newFileDummy,
+      dummyMetadata,
+    ).encodeEntry(entry);
     return JsonlSessionStorage(newFileDummy, dummyMetadata).decodeEntry(json)!;
   }
 
@@ -727,8 +1031,9 @@ class JsonlSessionRepo implements SessionRepo {
   static const dummyMetadata = SessionMetadata(id: 'dummy', createdAt: 0);
 }
 
-String _shortId() => DateTime.now().millisecondsSinceEpoch
-    .toRadixString(36)
-    .padLeft(8, '0')
-    .substring(0, 8) +
+String _shortId() =>
+    DateTime.now().millisecondsSinceEpoch
+        .toRadixString(36)
+        .padLeft(8, '0')
+        .substring(0, 8) +
     (DateTime.now().microsecondsSinceEpoch % 1000).toString().padLeft(3, '0');

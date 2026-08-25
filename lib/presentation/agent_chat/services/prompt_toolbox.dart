@@ -37,6 +37,7 @@ class DefinedAgentTool extends AgentTool {
            ((toolCallId, params) async => AgentToolResult(
              content: const [ToolResultTextContent('Tool not configured.')],
              details: const <String, dynamic>{},
+             isError: true,
            )),
        _executeWithControl = executeWithControl;
 
@@ -44,7 +45,8 @@ class DefinedAgentTool extends AgentTool {
   final Future<AgentToolResult> Function(
     String toolCallId,
     Map<String, dynamic> params,
-  ) _executeFn;
+  )
+  _executeFn;
 
   /// 需要中止信号 / 流式进度反馈的工具提供此实现；缺省走 [_executeFn]。
   final Future<AgentToolResult> Function(
@@ -52,7 +54,8 @@ class DefinedAgentTool extends AgentTool {
     Map<String, dynamic> params,
     AbortSignal? signal,
     AgentToolUpdateCallback? onUpdate,
-  )? _executeWithControl;
+  )?
+  _executeWithControl;
 
   @override
   ToolExecutionMode? get executionMode => executionModeOverride;
@@ -84,6 +87,7 @@ AgentToolResult _errorResult(String text) {
   return AgentToolResult(
     content: [ToolResultTextContent(text)],
     details: const <String, dynamic>{},
+    isError: true,
   );
 }
 
@@ -103,7 +107,8 @@ class PromptToolbox {
       DefinedAgentTool(
         name: 'get_prompt_state',
         label: 'Get Prompt State',
-        description: 'Read the current NovelAI workspace state: positive '
+        description:
+            'Read the current NovelAI workspace state: positive '
             'prompt, negative prompt, current model, and the full character '
             'prompt list (id, name, gender, enabled, prompt, negative '
             'prompt). Call this before editing anything.',
@@ -140,7 +145,8 @@ class PromptToolbox {
       DefinedAgentTool(
         name: 'set_positive_prompt',
         label: 'Set Positive Prompt',
-        description: 'Write the main positive prompt. mode: "replace" '
+        description:
+            'Write the main positive prompt. mode: "replace" '
             '(default), "append" (add at the end), or "prepend" (add at the '
             'beginning). Content should be English danbooru-style tags '
             'separated by commas. Use NovelAI emphasis syntax — {tag} / '
@@ -161,12 +167,14 @@ class PromptToolbox {
           },
           'required': ['text'],
         },
-        executeFn: (_, params) async => _setPrompt(positive: true, args: params),
+        executeFn: (_, params) async =>
+            _setPrompt(positive: true, args: params),
       ),
       DefinedAgentTool(
         name: 'set_negative_prompt',
         label: 'Set Negative Prompt',
-        description: 'Write the negative prompt (Undesired Content). mode: '
+        description:
+            'Write the negative prompt (Undesired Content). mode: '
             '"replace" (default), "append", or "prepend".',
         parameters: const {
           'type': 'object',
@@ -189,7 +197,8 @@ class PromptToolbox {
       DefinedAgentTool(
         name: 'update_character',
         label: 'Update Character',
-        description: 'Update an existing character prompt entry matched by id '
+        description:
+            'Update an existing character prompt entry matched by id '
             'or name (case-insensitive). Only provided fields are changed. '
             'Set "enabled" to false to temporarily exclude the character '
             'from generation while keeping it in the list, and true to '
@@ -208,7 +217,10 @@ class PromptToolbox {
               'type': 'string',
               'description': 'Rename the character.',
             },
-            'gender': {'type': 'string', 'enum': ['female', 'male', 'other']},
+            'gender': {
+              'type': 'string',
+              'enum': ['female', 'male', 'other'],
+            },
             'prompt': {
               'type': 'string',
               'description': 'New positive prompt for the character.',
@@ -219,7 +231,8 @@ class PromptToolbox {
             },
             'enabled': {
               'type': 'boolean',
-              'description': 'true to include the character in generation, '
+              'description':
+                  'true to include the character in generation, '
                   'false to disable it while keeping it in the list.',
             },
           },
@@ -230,12 +243,16 @@ class PromptToolbox {
       DefinedAgentTool(
         name: 'add_character',
         label: 'Add Character',
-        description: 'Add a new character prompt entry (V4+ models support '
+        description:
+            'Add a new character prompt entry (V4+ models support '
             'multiple characters; there is a model-dependent limit).',
         parameters: const {
           'type': 'object',
           'properties': {
-            'name': {'type': 'string', 'description': 'Character display name.'},
+            'name': {
+              'type': 'string',
+              'description': 'Character display name.',
+            },
             'gender': {
               'type': 'string',
               'enum': ['female', 'male', 'other'],
@@ -272,7 +289,8 @@ class PromptToolbox {
         DefinedAgentTool(
           name: 'read_skill',
           label: 'Read Skill',
-          description: 'Read the full instructions of an available skill '
+          description:
+              'Read the full instructions of an available skill '
               'listed in the system prompt. Returns the SKILL.md content.',
           parameters: const {
             'type': 'object',
@@ -312,8 +330,9 @@ class PromptToolbox {
     return _textResult(
       jsonEncode({
         'ok': true,
-        positive ? 'positive_prompt' : 'negative_prompt':
-            positive ? applied.prompt : applied.negativePrompt,
+        positive ? 'positive_prompt' : 'negative_prompt': positive
+            ? applied.prompt
+            : applied.negativePrompt,
       }),
     );
   }
@@ -420,10 +439,7 @@ class PromptToolbox {
     return _textResult(
       jsonEncode({
         'ok': true,
-        'character': {
-          if (created != null) 'id': created.id,
-          'name': name,
-        },
+        'character': {if (created != null) 'id': created.id, 'name': name},
       }),
     );
   }

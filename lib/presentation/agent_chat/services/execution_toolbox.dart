@@ -49,8 +49,11 @@ class ContextAgentTool extends AgentTool {
 /// AgentChatNotifier._init），相对路径在其下解析，Agent 因此能直接
 /// 读取导出的生成图片。
 class ExecutionToolbox {
-  ExecutionToolbox(String workspaceDir)
-    : _env = DartIoExecutionEnv(workingDirectory: workspaceDir);
+  ExecutionToolbox(String workspaceDir, {bool allowOutsideWorkspace = false})
+    : _env = DartIoExecutionEnv(
+        workingDirectory: workspaceDir,
+        allowOutsideWorkingDirectory: allowOutsideWorkspace,
+      );
 
   final ExecutionEnv _env;
 

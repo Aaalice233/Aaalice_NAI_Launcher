@@ -824,6 +824,41 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agentChat_suggestion3 => '把负向提示词改成适合写实风格的版本';
 
   @override
+  String get agentChat_permissionMode => 'Agent 权限';
+
+  @override
+  String get agentChat_permissionSafe => '安全模式';
+
+  @override
+  String get agentChat_permissionSafeDescription => '仅运行无副作用工具';
+
+  @override
+  String get agentChat_permissionAsk => '询问模式';
+
+  @override
+  String get agentChat_permissionAskDescription => '敏感操作执行前询问';
+
+  @override
+  String get agentChat_permissionFull => '完全访问';
+
+  @override
+  String get agentChat_permissionFullDescription => '不询问并允许访问工作区外文件';
+
+  @override
+  String agentChat_approvalTitle(Object toolName) {
+    return '允许执行 $toolName？';
+  }
+
+  @override
+  String get agentChat_approvalDescription => '此工具会读取本地数据、修改应用状态或产生费用。';
+
+  @override
+  String get agentChat_approvalAllow => '允许一次';
+
+  @override
+  String get agentChat_approvalDeny => '拒绝';
+
+  @override
   String get generation_failedStreamSnapshot => '失败快照';
 
   @override
@@ -13162,6 +13197,41 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get agentChat_suggestion3 => '把負向提示詞改成適合寫實風格的版本';
+
+  @override
+  String get agentChat_permissionMode => 'Agent 權限';
+
+  @override
+  String get agentChat_permissionSafe => '安全模式';
+
+  @override
+  String get agentChat_permissionSafeDescription => '僅執行無副作用工具';
+
+  @override
+  String get agentChat_permissionAsk => '詢問模式';
+
+  @override
+  String get agentChat_permissionAskDescription => '敏感操作執行前詢問';
+
+  @override
+  String get agentChat_permissionFull => '完全存取';
+
+  @override
+  String get agentChat_permissionFullDescription => '不詢問並允許存取工作區外檔案';
+
+  @override
+  String agentChat_approvalTitle(Object toolName) {
+    return '允許執行 $toolName？';
+  }
+
+  @override
+  String get agentChat_approvalDescription => '此工具會讀取本機資料、修改應用程式狀態或產生費用。';
+
+  @override
+  String get agentChat_approvalAllow => '允許一次';
+
+  @override
+  String get agentChat_approvalDeny => '拒絕';
 
   @override
   String get generation_failedStreamSnapshot => '失敗快照';

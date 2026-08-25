@@ -97,16 +97,21 @@ AssistantMessageEventStream _messageStream(AssistantMessage message) {
 
 /// 计数工具。
 class CountingTool extends AgentTool {
-  CountingTool(String name, this.results, {this.throwOnCall = false})
-    : super(
-        name: name,
-        description: 'test tool',
-        parameters: const {'type': 'object', 'properties': {}},
-        label: name,
-      );
+  CountingTool(
+    String name,
+    this.results, {
+    this.throwOnCall = false,
+    this.returnIsError = false,
+  }) : super(
+         name: name,
+         description: 'test tool',
+         parameters: const {'type': 'object', 'properties': {}},
+         label: name,
+       );
 
   final List<String> results;
   final bool throwOnCall;
+  final bool returnIsError;
   int calls = 0;
 
   @override
@@ -123,6 +128,7 @@ class CountingTool extends AgentTool {
     return AgentToolResult(
       content: [ToolResultTextContent(results[results.length - 1])],
       details: const {},
+      isError: returnIsError,
     );
   }
 }
@@ -144,11 +150,7 @@ void main() {
 
       final stream = agentLoop(
         [UserMessage.text('hi')],
-        const AgentContext(
-          systemPrompt: 'sys',
-          messages: [],
-          tools: [],
-        ),
+        const AgentContext(systemPrompt: 'sys', messages: [], tools: []),
         AgentLoopConfig(
           model: _testModel,
           convertToLlm: (messages) async => messages,
@@ -173,27 +175,62 @@ void main() {
       expect(types.last, AgentEventAgentEnd);
     });
 
-    test('tool call round-trip: assistant calls tool, loop continues once',
-        () async {
-      final tool = CountingTool('get_state', ['{"ok":true}']);
+    test(
+      'tool call round-trip: assistant calls tool, loop continues once',
+      () async {
+        final tool = CountingTool('get_state', ['{"ok":true}']);
+        final scripted = ScriptedStreamFn([
+          ScriptedResponse(
+            textChunks: ['checking'],
+            toolCalls: [
+              const ToolCallContent(id: 'c1', name: 'get_state', arguments: {}),
+            ],
+            stopReason: StopReason.toolUse,
+          ),
+          ScriptedResponse(textChunks: ['done']),
+        ]);
+
+        final stream = agentLoop(
+          [UserMessage.text('inspect')],
+          AgentContext(systemPrompt: '', messages: const [], tools: [tool]),
+          AgentLoopConfig(
+            model: _testModel,
+            convertToLlm: (messages) async => messages,
+          ),
+          null,
+          scripted.fn,
+        );
+        await stream.stream.drain();
+        final result = await stream.result();
+
+        expect(tool.calls, 1);
+        expect(scripted.callCount, 2);
+        // 第二次调用时上下文应包含 toolResult
+        final secondContext = scripted.receivedContexts[1];
+        expect(secondContext.messages.whereType<ToolResultMessage>().length, 1);
+        // 结果：user + assistant(toolCall) + toolResult + assistant
+        expect(result.length, 4);
+        expect((result.last as AssistantMessage).text, 'done');
+      },
+    );
+
+    test('tool-returned failures remain error tool results', () async {
+      final tool = CountingTool('validate', [
+        'invalid input',
+      ], returnIsError: true);
       final scripted = ScriptedStreamFn([
         ScriptedResponse(
-          textChunks: ['checking'],
-          toolCalls: [
-            const ToolCallContent(id: 'c1', name: 'get_state', arguments: {}),
+          toolCalls: const [
+            ToolCallContent(id: 'bad', name: 'validate', arguments: {}),
           ],
           stopReason: StopReason.toolUse,
         ),
-        ScriptedResponse(textChunks: ['done']),
+        ScriptedResponse(textChunks: ['recovered']),
       ]);
 
       final stream = agentLoop(
-        [UserMessage.text('inspect')],
-        AgentContext(
-          systemPrompt: '',
-          messages: const [],
-          tools: [tool],
-        ),
+        [UserMessage.text('go')],
+        AgentContext(systemPrompt: '', messages: const [], tools: [tool]),
         AgentLoopConfig(
           model: _testModel,
           convertToLlm: (messages) async => messages,
@@ -204,17 +241,9 @@ void main() {
       await stream.stream.drain();
       final result = await stream.result();
 
-      expect(tool.calls, 1);
-      expect(scripted.callCount, 2);
-      // 第二次调用时上下文应包含 toolResult
-      final secondContext = scripted.receivedContexts[1];
-      expect(
-        secondContext.messages.whereType<ToolResultMessage>().length,
-        1,
-      );
-      // 结果：user + assistant(toolCall) + toolResult + assistant
-      expect(result.length, 4);
-      expect((result.last as AssistantMessage).text, 'done');
+      final toolResult = result.whereType<ToolResultMessage>().single;
+      expect(toolResult.isError, isTrue);
+      expect(toolResult.text, 'invalid input');
     });
 
     test('length-truncated tool calls fail without executing', () async {
@@ -231,11 +260,7 @@ void main() {
 
       final stream = agentLoop(
         [UserMessage.text('go')],
-        AgentContext(
-          systemPrompt: '',
-          messages: const [],
-          tools: [tool],
-        ),
+        AgentContext(systemPrompt: '', messages: const [], tools: [tool]),
         AgentLoopConfig(
           model: _testModel,
           convertToLlm: (messages) async => messages,
@@ -249,8 +274,9 @@ void main() {
       expect(tool.calls, 0, reason: 'truncated calls must not execute');
       // 下一轮上下文里 toolResult 是 isError=true
       final secondContext = scripted.receivedContexts[1];
-      final results =
-          secondContext.messages.whereType<ToolResultMessage>().toList();
+      final results = secondContext.messages
+          .whereType<ToolResultMessage>()
+          .toList();
       expect(results.single.isError, true);
       expect(results.single.text, contains('not executed'));
     });
@@ -280,91 +306,96 @@ void main() {
       await stream.result();
 
       final secondContext = scripted.receivedContexts[1];
-      final results =
-          secondContext.messages.whereType<ToolResultMessage>().toList();
+      final results = secondContext.messages
+          .whereType<ToolResultMessage>()
+          .toList();
       expect(results.single.isError, true);
       expect(results.single.text, contains('not found'));
     });
 
-    test('steering messages injected after tool batch, before next LLM call',
-        () async {
-      final tool = CountingTool('work', ['ok']);
-      // drain 语义闭包（代理 契约：取走后清空）。
-      var steeringQueue = <AgentMessage>[
-        UserMessage.text('actually do it differently'),
-      ];
-      final scripted = ScriptedStreamFn([
-        ScriptedResponse(
-          toolCalls: [
-            const ToolCallContent(id: 'c1', name: 'work', arguments: {}),
-          ],
-          stopReason: StopReason.toolUse,
-        ),
-        ScriptedResponse(textChunks: ['final']),
-      ]);
+    test(
+      'steering messages injected after tool batch, before next LLM call',
+      () async {
+        final tool = CountingTool('work', ['ok']);
+        // drain 语义闭包（代理 契约：取走后清空）。
+        var steeringQueue = <AgentMessage>[
+          UserMessage.text('actually do it differently'),
+        ];
+        final scripted = ScriptedStreamFn([
+          ScriptedResponse(
+            toolCalls: [
+              const ToolCallContent(id: 'c1', name: 'work', arguments: {}),
+            ],
+            stopReason: StopReason.toolUse,
+          ),
+          ScriptedResponse(textChunks: ['final']),
+        ]);
 
-      final stream = agentLoop(
-        [UserMessage.text('start')],
-        AgentContext(systemPrompt: '', messages: const [], tools: [tool]),
-        AgentLoopConfig(
-          model: _testModel,
-          convertToLlm: (messages) async => messages,
-          getSteeringMessages: () async {
-            final drained = steeringQueue;
-            steeringQueue = const [];
-            return drained;
-          },
-        ),
-        null,
-        scripted.fn,
-      );
-      await stream.stream.drain();
-      final result = await stream.result();
+        final stream = agentLoop(
+          [UserMessage.text('start')],
+          AgentContext(systemPrompt: '', messages: const [], tools: [tool]),
+          AgentLoopConfig(
+            model: _testModel,
+            convertToLlm: (messages) async => messages,
+            getSteeringMessages: () async {
+              final drained = steeringQueue;
+              steeringQueue = const [];
+              return drained;
+            },
+          ),
+          null,
+          scripted.fn,
+        );
+        await stream.stream.drain();
+        final result = await stream.result();
 
-      // 第二次 LLM 调用的上下文：user + assistant + toolResult + steering
-      final secondContext = scripted.receivedContexts[1];
-      final users = secondContext.messages
-          .whereType<UserMessage>()
-          .map((m) => m.text)
-          .toList();
-      expect(users, ['start', 'actually do it differently']);
-      // steering 消息计入 newMessages
-      expect(
-        result.whereType<UserMessage>().map((m) => m.text),
-        contains('actually do it differently'),
-      );
-    });
+        // 第二次 LLM 调用的上下文：user + assistant + toolResult + steering
+        final secondContext = scripted.receivedContexts[1];
+        final users = secondContext.messages
+            .whereType<UserMessage>()
+            .map((m) => m.text)
+            .toList();
+        expect(users, ['start', 'actually do it differently']);
+        // steering 消息计入 newMessages
+        expect(
+          result.whereType<UserMessage>().map((m) => m.text),
+          contains('actually do it differently'),
+        );
+      },
+    );
 
-    test('follow-up messages restart the loop after agent would stop',
-        () async {
-      var followUps = <AgentMessage>[UserMessage.text('and then?')];
-      final scripted = ScriptedStreamFn([
-        ScriptedResponse(textChunks: ['first']),
-        ScriptedResponse(textChunks: ['second']),
-      ]);
+    test(
+      'follow-up messages restart the loop after agent would stop',
+      () async {
+        var followUps = <AgentMessage>[UserMessage.text('and then?')];
+        final scripted = ScriptedStreamFn([
+          ScriptedResponse(textChunks: ['first']),
+          ScriptedResponse(textChunks: ['second']),
+        ]);
 
-      final stream = agentLoop(
-        [UserMessage.text('begin')],
-        const AgentContext(systemPrompt: '', messages: [], tools: []),
-        AgentLoopConfig(
-          model: _testModel,
-          convertToLlm: (messages) async => messages,
-          getFollowUpMessages: () async {
-            final drained = followUps;
-            followUps = const [];
-            return drained;
-          },
-        ),
-        null,
-        scripted.fn,
-      );
-      await stream.stream.drain();
-      final result = await stream.result();
+        final stream = agentLoop(
+          [UserMessage.text('begin')],
+          const AgentContext(systemPrompt: '', messages: [], tools: []),
+          AgentLoopConfig(
+            model: _testModel,
+            convertToLlm: (messages) async => messages,
+            getFollowUpMessages: () async {
+              final drained = followUps;
+              followUps = const [];
+              return drained;
+            },
+          ),
+          null,
+          scripted.fn,
+        );
+        await stream.stream.drain();
+        final result = await stream.result();
 
-      expect(scripted.callCount, 2);
-      expect(result.whereType<UserMessage>().length, 2);
-      expect((result.last as AssistantMessage).text, 'second');
-    });
+        expect(scripted.callCount, 2);
+        expect(result.whereType<UserMessage>().length, 2);
+        expect((result.last as AssistantMessage).text, 'second');
+      },
+    );
 
     test('error stopReason ends loop immediately', () async {
       final scripted = ScriptedStreamFn([
@@ -421,40 +452,42 @@ void main() {
       expect((agent.state.messages.last as AssistantMessage).text, 'hi there');
     });
 
-    test('steer queues message delivered mid-run; followUp after stop',
-        () async {
-      final tool = CountingTool('slow', ['ok']);
-      final scripted = ScriptedStreamFn([
-        ScriptedResponse(
-          toolCalls: [
-            const ToolCallContent(id: 'c1', name: 'slow', arguments: {}),
-          ],
-          stopReason: StopReason.toolUse,
-        ),
-        // steering 注入后的响应
-        ScriptedResponse(textChunks: ['steered']),
-      ]);
-      final agent = Agent(
-        AgentOptions(
-          streamFn: scripted.fn,
-          initialModel: _testModel,
-          initialTools: [tool],
-        ),
-      );
+    test(
+      'steer queues message delivered mid-run; followUp after stop',
+      () async {
+        final tool = CountingTool('slow', ['ok']);
+        final scripted = ScriptedStreamFn([
+          ScriptedResponse(
+            toolCalls: [
+              const ToolCallContent(id: 'c1', name: 'slow', arguments: {}),
+            ],
+            stopReason: StopReason.toolUse,
+          ),
+          // steering 注入后的响应
+          ScriptedResponse(textChunks: ['steered']),
+        ]);
+        final agent = Agent(
+          AgentOptions(
+            streamFn: scripted.fn,
+            initialModel: _testModel,
+            initialTools: [tool],
+          ),
+        );
 
-      final running = agent.prompt('start');
-      // prompt 已在运行：排队 steering。
-      agent.steer(UserMessage.text('change direction'));
-      await running;
+        final running = agent.prompt('start');
+        // prompt 已在运行：排队 steering。
+        agent.steer(UserMessage.text('change direction'));
+        await running;
 
-      expect(scripted.callCount, 2);
-      final texts = agent.state.messages
-          .whereType<UserMessage>()
-          .map((m) => m.text)
-          .toList();
-      expect(texts, ['start', 'change direction']);
-      expect(agent.hasQueuedMessages(), false);
-    });
+        expect(scripted.callCount, 2);
+        final texts = agent.state.messages
+            .whereType<UserMessage>()
+            .map((m) => m.text)
+            .toList();
+        expect(texts, ['start', 'change direction']);
+        expect(agent.hasQueuedMessages(), false);
+      },
+    );
 
     test('prompt while running throws; steer is the escape hatch', () async {
       final scripted = ScriptedStreamFn([
@@ -470,8 +503,7 @@ void main() {
       await first;
     });
 
-    test('abort mid-tool stops loop and keeps partial transcript',
-        () async {
+    test('abort mid-tool stops loop and keeps partial transcript', () async {
       final slowTool = DefinedSlowTool();
       final scripted = ScriptedStreamFn([
         ScriptedResponse(
@@ -498,8 +530,53 @@ void main() {
       expect(agent.state.isStreaming, false);
     });
 
-    test('continueRun rejects from assistant tail without queues',
-        () async {
+    test('waitForIdle completes after an active run fully settles', () async {
+      final slowTool = DefinedSlowTool();
+      final scripted = ScriptedStreamFn([
+        ScriptedResponse(
+          toolCalls: const [
+            ToolCallContent(id: 'c1', name: 'slow', arguments: {}),
+          ],
+          stopReason: StopReason.toolUse,
+        ),
+      ]);
+      final agent = Agent(
+        AgentOptions(
+          streamFn: scripted.fn,
+          initialModel: _testModel,
+          initialTools: [slowTool],
+        ),
+      );
+
+      final running = agent.prompt('go');
+      await slowTool.startedCompleter.future;
+      var becameIdle = false;
+      final idle = agent.waitForIdle().then((_) => becameIdle = true);
+      await Future<void>.delayed(Duration.zero);
+      expect(becameIdle, isFalse);
+
+      agent.abort();
+      await idle.timeout(const Duration(seconds: 2));
+      await running;
+      expect(becameIdle, isTrue);
+      expect(agent.state.isStreaming, isFalse);
+    });
+
+    test('turn update can explicitly clear reasoning', () {
+      final config = AgentLoopConfig(
+        model: _testModel,
+        convertToLlm: (messages) async => messages,
+        reasoning: 'high',
+      );
+
+      expect(config.copyWithWithTurnUpdate().reasoning, 'high');
+      expect(
+        config.copyWithWithTurnUpdate(clearReasoning: true).reasoning,
+        isNull,
+      );
+    });
+
+    test('continueRun rejects from assistant tail without queues', () async {
       final scripted = ScriptedStreamFn([
         ScriptedResponse(textChunks: ['answer']),
       ]);
@@ -511,45 +588,47 @@ void main() {
       expect(agent.continueRun, throwsStateError);
     });
 
-    test('parallel tool batch executes all calls and emits results in order',
-        () async {
-      final toolA = CountingTool('tool_a', ['a']);
-      final toolB = CountingTool('tool_b', ['b']);
-      final scripted = ScriptedStreamFn([
-        ScriptedResponse(
-          toolCalls: [
-            const ToolCallContent(id: 'c1', name: 'tool_a', arguments: {}),
-            const ToolCallContent(id: 'c2', name: 'tool_b', arguments: {}),
-          ],
-          stopReason: StopReason.toolUse,
-        ),
-        ScriptedResponse(textChunks: ['both done']),
-      ]);
+    test(
+      'parallel tool batch executes all calls and emits results in order',
+      () async {
+        final toolA = CountingTool('tool_a', ['a']);
+        final toolB = CountingTool('tool_b', ['b']);
+        final scripted = ScriptedStreamFn([
+          ScriptedResponse(
+            toolCalls: [
+              const ToolCallContent(id: 'c1', name: 'tool_a', arguments: {}),
+              const ToolCallContent(id: 'c2', name: 'tool_b', arguments: {}),
+            ],
+            stopReason: StopReason.toolUse,
+          ),
+          ScriptedResponse(textChunks: ['both done']),
+        ]);
 
-      final stream = agentLoop(
-        [UserMessage.text('go')],
-        AgentContext(
-          systemPrompt: '',
-          messages: const [],
-          tools: [toolA, toolB],
-        ),
-        AgentLoopConfig(
-          model: _testModel,
-          convertToLlm: (messages) async => messages,
-        ),
-        null,
-        scripted.fn,
-      );
-      await stream.stream.drain();
-      final result = await stream.result();
+        final stream = agentLoop(
+          [UserMessage.text('go')],
+          AgentContext(
+            systemPrompt: '',
+            messages: const [],
+            tools: [toolA, toolB],
+          ),
+          AgentLoopConfig(
+            model: _testModel,
+            convertToLlm: (messages) async => messages,
+          ),
+          null,
+          scripted.fn,
+        );
+        await stream.stream.drain();
+        final result = await stream.result();
 
-      expect(toolA.calls, 1);
-      expect(toolB.calls, 1);
-      final toolResults = result.whereType<ToolResultMessage>().toList();
-      expect(toolResults.length, 2);
-      expect(toolResults[0].toolName, 'tool_a');
-      expect(toolResults[1].toolName, 'tool_b');
-    });
+        expect(toolA.calls, 1);
+        expect(toolB.calls, 1);
+        final toolResults = result.whereType<ToolResultMessage>().toList();
+        expect(toolResults.length, 2);
+        expect(toolResults[0].toolName, 'tool_a');
+        expect(toolResults[1].toolName, 'tool_b');
+      },
+    );
   });
 }
 

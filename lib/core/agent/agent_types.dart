@@ -5,16 +5,16 @@ export 'abort_signal.dart';
 export 'event_stream.dart';
 export 'llm_types.dart';
 
-
 /// StreamFn：loop 调用 LLM 的唯一入口。
 ///
 /// 契约：请求/模型/运行期失败不得抛出，必须以协议事件编码失败、并以
 /// stopReason 为 error/aborted（含 errorMessage）的最终 AssistantMessage 结束。
-typedef StreamFn = AssistantMessageEventStream Function(
-  Model model,
-  Context context, [
-  SimpleStreamOptions? options,
-]);
+typedef StreamFn =
+    AssistantMessageEventStream Function(
+      Model model,
+      Context context, [
+      SimpleStreamOptions? options,
+    ]);
 
 /// 单条助手消息内多个工具调用的执行模式。
 enum ToolExecutionMode { sequential, parallel }
@@ -152,9 +152,7 @@ class AgentLoopConfig extends SimpleStreamOptions {
   shouldStopAfterTurn;
 
   /// turn_end 后、下一次请求前替换 context/model/thinking。
-  final Future<AgentLoopTurnUpdate?> Function(
-    PrepareNextTurnContext context,
-  )?
+  final Future<AgentLoopTurnUpdate?> Function(PrepareNextTurnContext context)?
   prepareNextTurn;
 
   /// 当前助手 turn 的工具执行完毕后注入 steering 消息。
@@ -201,14 +199,18 @@ class AgentLoopConfig extends SimpleStreamOptions {
   }
 
   /// prepareNextTurn 快照的合并。
-  AgentLoopConfig copyWithWithTurnUpdate({Model? model, String? reasoning}) {
+  AgentLoopConfig copyWithWithTurnUpdate({
+    Model? model,
+    String? reasoning,
+    bool clearReasoning = false,
+  }) {
     return AgentLoopConfig(
       model: model ?? this.model,
       convertToLlm: convertToLlm,
       apiKey: apiKey,
       signal: signal,
       sessionId: sessionId,
-      reasoning: reasoning ?? this.reasoning,
+      reasoning: clearReasoning ? null : reasoning ?? this.reasoning,
       maxRetryDelayMs: maxRetryDelayMs,
       transformContext: transformContext,
       getApiKey: getApiKey,
@@ -268,6 +270,7 @@ class AgentToolResult {
   AgentToolResult({
     required this.content,
     required this.details,
+    this.isError = false,
     this.usage,
     this.addedToolNames,
     this.terminate,
@@ -275,6 +278,7 @@ class AgentToolResult {
 
   List<ToolResultContent> content;
   dynamic details;
+  bool isError;
   Usage? usage;
   List<String>? addedToolNames;
   bool? terminate;

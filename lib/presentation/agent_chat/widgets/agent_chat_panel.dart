@@ -397,6 +397,8 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
         ),
         if (state.error.isNotEmpty) _buildErrorBar(theme, state),
         if (state.compacting) _buildCompactingBar(theme, l10n),
+        if (state.approvalRequest != null)
+          _buildApprovalBar(theme, l10n, state.approvalRequest!),
         _buildInputContainer(theme, l10n, state),
       ],
     );
@@ -504,6 +506,102 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
       ),
     );
   }
+
+  Widget _buildPermissionModeButton(
+    ThemeData theme,
+    AppLocalizations l10n,
+    bool running,
+  ) {
+    final mode = ref.watch(promptAssistantConfigProvider).agentPermissionMode;
+    final icon = switch (mode) {
+      AgentPermissionMode.safe => Icons.shield_outlined,
+      AgentPermissionMode.askBeforeSensitiveActions => Icons.gpp_maybe_outlined,
+      AgentPermissionMode.fullAccess => Icons.lock_open_outlined,
+    };
+    return PopupMenuButton<AgentPermissionMode>(
+      enabled: !running,
+      tooltip:
+          '${l10n.agentChat_permissionMode}: '
+          '${_permissionModeLabel(l10n, mode)}',
+      onSelected: (value) =>
+          ref.read(agentChatNotifierProvider.notifier).setPermissionMode(value),
+      itemBuilder: (context) => [
+        for (final value in AgentPermissionMode.values)
+          PopupMenuItem(
+            value: value,
+            height: 52,
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 22,
+                  child: value == mode
+                      ? Icon(
+                          Icons.check,
+                          size: 16,
+                          color: theme.colorScheme.primary,
+                        )
+                      : null,
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _permissionModeLabel(l10n, value),
+                        style: theme.textTheme.bodySmall,
+                      ),
+                      Text(
+                        _permissionModeDescription(l10n, value),
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.55,
+                          ),
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+      child: SizedBox(
+        width: 30,
+        height: 30,
+        child: Icon(
+          icon,
+          size: 17,
+          color: theme.colorScheme.onSurface.withValues(
+            alpha: running ? 0.25 : 0.6,
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _permissionModeLabel(
+    AppLocalizations l10n,
+    AgentPermissionMode mode,
+  ) => switch (mode) {
+    AgentPermissionMode.safe => l10n.agentChat_permissionSafe,
+    AgentPermissionMode.askBeforeSensitiveActions =>
+      l10n.agentChat_permissionAsk,
+    AgentPermissionMode.fullAccess => l10n.agentChat_permissionFull,
+  };
+
+  String _permissionModeDescription(
+    AppLocalizations l10n,
+    AgentPermissionMode mode,
+  ) => switch (mode) {
+    AgentPermissionMode.safe => l10n.agentChat_permissionSafeDescription,
+    AgentPermissionMode.askBeforeSensitiveActions =>
+      l10n.agentChat_permissionAskDescription,
+    AgentPermissionMode.fullAccess => l10n.agentChat_permissionFullDescription,
+  };
 
   static const String _menuNewSession = '__new_session__';
   static const String _menuRenamePrefix = 'rename:';
@@ -1153,6 +1251,97 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
     );
   }
 
+  Widget _buildApprovalBar(
+    ThemeData theme,
+    AppLocalizations l10n,
+    AgentToolApprovalRequest request,
+  ) {
+    var args = const JsonEncoder.withIndent('  ').convert(request.args);
+    if (args.length > 1200) {
+      args = '${args.substring(0, 1200)}…';
+    }
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.tertiaryContainer.withValues(alpha: 0.45),
+        border: Border(
+          top: BorderSide(
+            color: theme.colorScheme.tertiary.withValues(alpha: 0.3),
+          ),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.gpp_maybe_outlined,
+                size: 17,
+                color: theme.colorScheme.onTertiaryContainer,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  l10n.agentChat_approvalTitle(request.toolName),
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: theme.colorScheme.onTertiaryContainer,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            l10n.agentChat_approvalDescription,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onTertiaryContainer.withValues(
+                alpha: 0.8,
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Container(
+            width: double.infinity,
+            constraints: const BoxConstraints(maxHeight: 96),
+            padding: const EdgeInsets.all(6),
+            color: theme.colorScheme.surface.withValues(alpha: 0.6),
+            child: SingleChildScrollView(
+              child: SelectableText(
+                args,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  fontFamily: 'monospace',
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton.icon(
+                onPressed: () => ref
+                    .read(agentChatNotifierProvider.notifier)
+                    .resolveToolApproval(false),
+                icon: const Icon(Icons.close, size: 16),
+                label: Text(l10n.agentChat_approvalDeny),
+              ),
+              const SizedBox(width: 6),
+              FilledButton.icon(
+                onPressed: () => ref
+                    .read(agentChatNotifierProvider.notifier)
+                    .resolveToolApproval(true),
+                icon: const Icon(Icons.check, size: 16),
+                label: Text(l10n.agentChat_approvalAllow),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   // -------------------------------------------------------------------------
   // 底部输入容器：参考图布局——文本区在上（最小 3 行），控制行在下；
   // 控制行左侧为「+」操作菜单（新会话/重命名/压缩/删除），右侧为
@@ -1224,13 +1413,15 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
                 ),
               ),
             ),
-            // 控制行：「+」操作菜单居左，排队提示随后；模型选择 + 发送居右
+            // 控制行：附件、「+」操作菜单与权限模式居左；模型选择 + 发送居右
             Padding(
               padding: const EdgeInsets.fromLTRB(4, 0, 8, 6),
               child: Row(
                 children: [
                   _buildAttachButton(theme, l10n, state),
                   _buildPlusMenu(theme, l10n, state),
+                  const SizedBox(width: 2),
+                  _buildPermissionModeButton(theme, l10n, running),
                   const SizedBox(width: 2),
                   if (state.queuedCount > 0)
                     Flexible(

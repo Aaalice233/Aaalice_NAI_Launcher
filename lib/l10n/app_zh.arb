@@ -315,6 +315,22 @@
   "agentChat_suggestion1": "帮我优化当前的正向提示词",
   "agentChat_suggestion2": "为画面添加两个角色并分别设定动作",
   "agentChat_suggestion3": "把负向提示词改成适合写实风格的版本",
+  "agentChat_permissionMode": "Agent 权限",
+  "agentChat_permissionSafe": "安全模式",
+  "agentChat_permissionSafeDescription": "仅运行无副作用工具",
+  "agentChat_permissionAsk": "询问模式",
+  "agentChat_permissionAskDescription": "敏感操作执行前询问",
+  "agentChat_permissionFull": "完全访问",
+  "agentChat_permissionFullDescription": "不询问并允许访问工作区外文件",
+  "agentChat_approvalTitle": "允许执行 {toolName}？",
+  "@agentChat_approvalTitle": {
+    "placeholders": {
+      "toolName": {}
+    }
+  },
+  "agentChat_approvalDescription": "此工具会读取本地数据、修改应用状态或产生费用。",
+  "agentChat_approvalAllow": "允许一次",
+  "agentChat_approvalDeny": "拒绝",
   "generation_failedStreamSnapshot": "失败快照",
   "generation_failedStreamSnapshotHint": "生成未完成，仅保留最后一帧预览；不可保存、收藏或用于图生图",
   "generation_noHistory": "暂无历史记录",

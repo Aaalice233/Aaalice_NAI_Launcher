@@ -21,6 +21,7 @@ AgentToolResult _errorResult(String text) {
   return AgentToolResult(
     content: [ToolResultTextContent(text)],
     details: const <String, dynamic>{},
+    isError: true,
   );
 }
 
@@ -41,7 +42,8 @@ class TagToolbox {
       DefinedAgentTool(
         name: 'search_tags',
         label: 'Search Tags',
-        description: 'Look up danbooru tags in the built-in databases as a '
+        description:
+            'Look up danbooru tags in the built-in databases as a '
             'reference. Modes: '
             '"search" (default for English input) fuzzy-matches canonical '
             'tags and aliases in the built-in catalog (always available); '
@@ -58,13 +60,15 @@ class TagToolbox {
           'properties': {
             'query': {
               'type': 'string',
-              'description': 'Search term. For suggest mode: comma-separated '
+              'description':
+                  'Search term. For suggest mode: comma-separated '
                   'existing tags.',
             },
             'mode': {
               'type': 'string',
               'enum': ['auto', 'search', 'translate', 'suggest'],
-              'description': 'auto (default) picks translate for Chinese '
+              'description':
+                  'auto (default) picks translate for Chinese '
                   'input, otherwise search.',
             },
             'limit': {
@@ -141,8 +145,7 @@ class TagToolbox {
                 'tag': candidate.canonicalTag,
                 'category': candidate.category.name,
                 'post_count': candidate.postCount,
-                if (candidate.aliases.isNotEmpty)
-                  'aliases': candidate.aliases,
+                if (candidate.aliases.isNotEmpty) 'aliases': candidate.aliases,
                 if (candidate.translation != null)
                   'chinese': candidate.translation,
               },
@@ -165,7 +168,8 @@ class TagToolbox {
           jsonEncode({
             'ok': true,
             'results': const <Map<String, dynamic>>[],
-            'note': 'No translation match for "$query". If Chinese input '
+            'note':
+                'No translation match for "$query". If Chinese input '
                 'keeps returning nothing, the Chinese dictionary may not be '
                 'installed yet (download it in Settings).',
           }),
@@ -197,8 +201,9 @@ class TagToolbox {
   /// 共现推荐：基于一个或多个已有标签推荐统计上强相关的标签。
   Future<AgentToolResult> _suggest(String query, int limit) async {
     try {
-      final service = await _ref
-          .read(smartTagRecommendationServiceProvider.future);
+      final service = await _ref.read(
+        smartTagRecommendationServiceProvider.future,
+      );
       final inputTags = [
         for (final part in query.split(','))
           if (part.trim().isNotEmpty) part.trim().replaceAll(' ', '_'),
@@ -215,7 +220,8 @@ class TagToolbox {
           jsonEncode({
             'ok': true,
             'results': const <Map<String, dynamic>>[],
-            'note': 'No suggestions. The co-occurrence data pack may not be '
+            'note':
+                'No suggestions. The co-occurrence data pack may not be '
                 'installed (download it in Settings).',
           }),
         );
@@ -229,9 +235,7 @@ class TagToolbox {
                 'tag': recommendation.tag,
                 if (recommendation.translation != null)
                   'chinese': recommendation.translation,
-                'score': double.parse(
-                  recommendation.score.toStringAsFixed(4),
-                ),
+                'score': double.parse(recommendation.score.toStringAsFixed(4)),
                 'cooccurrence': recommendation.cooccurrence,
               },
           ],

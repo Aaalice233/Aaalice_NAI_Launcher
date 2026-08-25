@@ -1,6 +1,26 @@
 import 'dart:convert';
 
-enum AssistantTaskType { llm, translate, reverse, characterReplace, custom, chat }
+enum AssistantTaskType {
+  llm,
+  translate,
+  reverse,
+  characterReplace,
+  custom,
+  chat,
+}
+
+/// Agent 工具权限。除 [fullAccess] 外，文件访问始终限制在 Agent 工作区内。
+enum AgentPermissionMode {
+  safe,
+  askBeforeSensitiveActions,
+  fullAccess;
+
+  static AgentPermissionMode fromName(String? value) =>
+      AgentPermissionMode.values.firstWhere(
+        (mode) => mode.name == value,
+        orElse: () => AgentPermissionMode.askBeforeSensitiveActions,
+      );
+}
 
 extension AssistantTaskTypeLabel on AssistantTaskType {
   String get label {
@@ -264,8 +284,9 @@ extension ProviderPresetDefaults on ProviderPreset {
   }
 
   ProviderConfig createConfig({String? id}) {
-    final resolvedId =
-        (id == null || id.trim().isEmpty) ? defaultId : id.trim();
+    final resolvedId = (id == null || id.trim().isEmpty)
+        ? defaultId
+        : id.trim();
     return ProviderConfig(
       id: resolvedId,
       name: defaultName,
@@ -343,15 +364,15 @@ class ProviderConfig {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'type': type.name,
-        'protocol': protocol.name,
-        'preset': preset?.name,
-        'baseUrl': baseUrl,
-        'enabled': enabled,
-        'allowImageInput': allowImageInput,
-      };
+    'id': id,
+    'name': name,
+    'type': type.name,
+    'protocol': protocol.name,
+    'preset': preset?.name,
+    'baseUrl': baseUrl,
+    'enabled': enabled,
+    'allowImageInput': allowImageInput,
+  };
 
   factory ProviderConfig.fromJson(Map<String, dynamic> json) {
     final type = ProviderType.values.firstWhere(
@@ -372,7 +393,8 @@ class ProviderConfig {
       preset: preset ?? _inferPreset(type, json['id'] as String?, protocol),
       baseUrl: json['baseUrl'] as String? ?? '',
       enabled: json['enabled'] as bool? ?? true,
-      allowImageInput: json['allowImageInput'] as bool? ??
+      allowImageInput:
+          json['allowImageInput'] as bool? ??
           (preset?.defaultAllowImageInput ?? protocol.supportsImagePayload),
     );
   }
@@ -380,9 +402,9 @@ class ProviderConfig {
   static ProviderPreset? _decodePreset(String? value) {
     if (value == null || value.isEmpty) return null;
     return ProviderPreset.values.cast<ProviderPreset?>().firstWhere(
-          (preset) => preset?.name == value,
-          orElse: () => null,
-        );
+      (preset) => preset?.name == value,
+      orElse: () => null,
+    );
   }
 
   static ProviderProtocol _decodeProtocol(
@@ -458,9 +480,9 @@ enum ModelSource {
   manual;
 
   static ModelSource fromName(String? value) => ModelSource.values.firstWhere(
-        (source) => source.name == value,
-        orElse: () => ModelSource.manual,
-      );
+    (source) => source.name == value,
+    orElse: () => ModelSource.manual,
+  );
 }
 
 class ModelConfig {
@@ -506,13 +528,13 @@ class ModelConfig {
   }
 
   Map<String, dynamic> toJson() => {
-        'providerId': providerId,
-        'name': name,
-        'displayName': displayName,
-        'forTask': forTask.name,
-        'isDefault': isDefault,
-        'source': source.name,
-      };
+    'providerId': providerId,
+    'name': name,
+    'displayName': displayName,
+    'forTask': forTask.name,
+    'isDefault': isDefault,
+    'source': source.name,
+  };
 
   factory ModelConfig.fromJson(Map<String, dynamic> json) {
     return ModelConfig(
@@ -532,8 +554,8 @@ class ModelConfig {
       source: json.containsKey('source')
           ? ModelSource.fromName(json['source'] as String?)
           : ((json['isDefault'] as bool? ?? false)
-              ? ModelSource.manual
-              : ModelSource.api),
+                ? ModelSource.manual
+                : ModelSource.api),
     );
   }
 }
@@ -642,10 +664,7 @@ class TaskRoutingConfig {
       case AssistantTaskType.llm:
         return copyWith(llmProviderId: providerId, llmModel: model);
       case AssistantTaskType.translate:
-        return copyWith(
-          translateProviderId: providerId,
-          translateModel: model,
-        );
+        return copyWith(translateProviderId: providerId, translateModel: model);
       case AssistantTaskType.reverse:
         return copyWith(reverseProviderId: providerId, reverseModel: model);
       case AssistantTaskType.characterReplace:
@@ -661,19 +680,19 @@ class TaskRoutingConfig {
   }
 
   Map<String, dynamic> toJson() => {
-        'llmProviderId': llmProviderId,
-        'llmModel': llmModel,
-        'translateProviderId': translateProviderId,
-        'translateModel': translateModel,
-        'reverseProviderId': reverseProviderId,
-        'reverseModel': reverseModel,
-        'characterReplaceProviderId': characterReplaceProviderId,
-        'characterReplaceModel': characterReplaceModel,
-        'customProviderId': customProviderId,
-        'customModel': customModel,
-        'chatProviderId': chatProviderId,
-        'chatModel': chatModel,
-      };
+    'llmProviderId': llmProviderId,
+    'llmModel': llmModel,
+    'translateProviderId': translateProviderId,
+    'translateModel': translateModel,
+    'reverseProviderId': reverseProviderId,
+    'reverseModel': reverseModel,
+    'characterReplaceProviderId': characterReplaceProviderId,
+    'characterReplaceModel': characterReplaceModel,
+    'customProviderId': customProviderId,
+    'customModel': customModel,
+    'chatProviderId': chatProviderId,
+    'chatModel': chatModel,
+  };
 
   factory TaskRoutingConfig.fromJson(Map<String, dynamic> json) {
     final llmProviderId = _routingString(json, 'llmProviderId');
@@ -768,14 +787,14 @@ class PromptRuleTemplate {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'taskType': taskType.name,
-        'content': content,
-        'enabled': enabled,
-        'isDefault': isDefault,
-        'order': order,
-      };
+    'id': id,
+    'name': name,
+    'taskType': taskType.name,
+    'content': content,
+    'enabled': enabled,
+    'isDefault': isDefault,
+    'order': order,
+  };
 
   factory PromptRuleTemplate.fromJson(Map<String, dynamic> json) {
     return PromptRuleTemplate(
@@ -816,6 +835,7 @@ class PromptAssistantConfigState {
   final bool enabled;
   final bool desktopOverlayEnabled;
   final bool streamOutput;
+  final AgentPermissionMode agentPermissionMode;
   final List<ProviderConfig> providers;
   final List<ModelConfig> models;
   final TaskRoutingConfig routing;
@@ -826,6 +846,7 @@ class PromptAssistantConfigState {
     required this.enabled,
     required this.desktopOverlayEnabled,
     required this.streamOutput,
+    this.agentPermissionMode = AgentPermissionMode.askBeforeSensitiveActions,
     required this.providers,
     required this.models,
     required this.routing,
@@ -838,6 +859,7 @@ class PromptAssistantConfigState {
       enabled: true,
       desktopOverlayEnabled: true,
       streamOutput: false,
+      agentPermissionMode: AgentPermissionMode.askBeforeSensitiveActions,
       providers: [],
       models: [],
       routing: TaskRoutingConfig(
@@ -911,6 +933,7 @@ class PromptAssistantConfigState {
     bool? enabled,
     bool? desktopOverlayEnabled,
     bool? streamOutput,
+    AgentPermissionMode? agentPermissionMode,
     List<ProviderConfig>? providers,
     List<ModelConfig>? models,
     TaskRoutingConfig? routing,
@@ -922,6 +945,7 @@ class PromptAssistantConfigState {
       desktopOverlayEnabled:
           desktopOverlayEnabled ?? this.desktopOverlayEnabled,
       streamOutput: false,
+      agentPermissionMode: agentPermissionMode ?? this.agentPermissionMode,
       providers: providers ?? this.providers,
       models: models ?? this.models,
       routing: routing ?? this.routing,
@@ -931,15 +955,16 @@ class PromptAssistantConfigState {
   }
 
   Map<String, dynamic> toJson() => {
-        'schemaVersion': 2,
-        'enabled': enabled,
-        'desktopOverlayEnabled': desktopOverlayEnabled,
-        'streamOutput': false,
-        'providers': providers.map((e) => e.toJson()).toList(),
-        'models': models.map((e) => e.toJson()).toList(),
-        'routing': routing.toJson(),
-        'rules': rules.map((e) => e.toJson()).toList(),
-      };
+    'schemaVersion': 2,
+    'enabled': enabled,
+    'desktopOverlayEnabled': desktopOverlayEnabled,
+    'streamOutput': false,
+    'agentPermissionMode': agentPermissionMode.name,
+    'providers': providers.map((e) => e.toJson()).toList(),
+    'models': models.map((e) => e.toJson()).toList(),
+    'routing': routing.toJson(),
+    'rules': rules.map((e) => e.toJson()).toList(),
+  };
 
   String encode() => jsonEncode(toJson());
 
@@ -961,15 +986,15 @@ class PromptAssistantConfigState {
     final providersRaw = json['providers'];
     var providers = providersRaw is List && providersRaw.isNotEmpty
         ? providersRaw
-            .map((e) => ProviderConfig.fromJson(e as Map<String, dynamic>))
-            .toList()
+              .map((e) => ProviderConfig.fromJson(e as Map<String, dynamic>))
+              .toList()
         : defaults.providers;
 
     final modelsRaw = json['models'];
     var decodedModels = modelsRaw is List && modelsRaw.isNotEmpty
         ? modelsRaw
-            .map((e) => ModelConfig.fromJson(e as Map<String, dynamic>))
-            .toList()
+              .map((e) => ModelConfig.fromJson(e as Map<String, dynamic>))
+              .toList()
         : defaults.models;
 
     var routing = TaskRoutingConfig.fromJson(
@@ -1012,8 +1037,10 @@ class PromptAssistantConfigState {
     final rulesRaw = json['rules'];
     final decodedRules = rulesRaw is List && rulesRaw.isNotEmpty
         ? rulesRaw
-            .map((e) => PromptRuleTemplate.fromJson(e as Map<String, dynamic>))
-            .toList()
+              .map(
+                (e) => PromptRuleTemplate.fromJson(e as Map<String, dynamic>),
+              )
+              .toList()
         : defaults.rules;
     final rules = _mergeDefaultRules(decodedRules, defaults.rules);
 
@@ -1021,6 +1048,9 @@ class PromptAssistantConfigState {
       enabled: json['enabled'] as bool? ?? true,
       desktopOverlayEnabled: json['desktopOverlayEnabled'] as bool? ?? true,
       streamOutput: false,
+      agentPermissionMode: AgentPermissionMode.fromName(
+        json['agentPermissionMode'] as String?,
+      ),
       providers: providers,
       models: models,
       routing: routing,
@@ -1039,7 +1069,8 @@ class PromptAssistantConfigState {
     final providerIds = providers.map((provider) => provider.id).toSet();
     final isSinglePollinationsDefault =
         providerIds.length == 1 && providerIds.contains('pollinations');
-    final isOldThreeProviderDefault = providerIds.length == 3 &&
+    final isOldThreeProviderDefault =
+        providerIds.length == 3 &&
         providerIds.contains('pollinations') &&
         providerIds.contains('openai_custom') &&
         providerIds.contains('ollama');
@@ -1158,11 +1189,13 @@ class PromptAssistantConfigState {
       }
 
       final routedModel = next.modelFor(taskType);
-      final hasRoutedModel =
-          candidates.any((candidate) => candidate.name == routedModel);
+      final hasRoutedModel = candidates.any(
+        (candidate) => candidate.name == routedModel,
+      );
       final isPlaceholderRoute =
           routedModel.trim().isEmpty || routedModel.trim() == 'default-model';
-      final shouldReplacePlaceholder = isPlaceholderRoute &&
+      final shouldReplacePlaceholder =
+          isPlaceholderRoute &&
           candidates.any((candidate) => !candidate.isPlaceholder);
 
       if (!hasRoutedModel || shouldReplacePlaceholder) {

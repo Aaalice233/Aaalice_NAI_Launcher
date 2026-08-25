@@ -53,6 +53,7 @@ class AgentChatState {
     this.routeError = '',
     this.error = '',
     this.compacting = false,
+    this.approvalRequest,
     this.totalUsage,
   });
 
@@ -72,6 +73,7 @@ class AgentChatState {
   final String routeError;
   final String error;
   final bool compacting;
+  final AgentToolApprovalRequest? approvalRequest;
   final Usage? totalUsage;
 
   AgentChatState copyWith({
@@ -89,6 +91,8 @@ class AgentChatState {
     String? routeError,
     String? error,
     bool? compacting,
+    AgentToolApprovalRequest? approvalRequest,
+    bool clearApprovalRequest = false,
     Usage? totalUsage,
   }) {
     return AgentChatState(
@@ -106,6 +110,9 @@ class AgentChatState {
       routeError: routeError ?? this.routeError,
       error: error ?? this.error,
       compacting: compacting ?? this.compacting,
+      approvalRequest: clearApprovalRequest
+          ? null
+          : approvalRequest ?? this.approvalRequest,
       totalUsage: totalUsage ?? this.totalUsage,
     );
   }
@@ -144,6 +151,18 @@ class AgentToolActivity {
 }
 
 enum AgentToolActivityStatus { running, succeeded, failed }
+
+class AgentToolApprovalRequest {
+  const AgentToolApprovalRequest({
+    required this.toolCallId,
+    required this.toolName,
+    required this.args,
+  });
+
+  final String toolCallId;
+  final String toolName;
+  final Map<String, dynamic> args;
+}
 
 /// Agent HTTP 请求分发。
 class AgentApiClient {
@@ -211,6 +230,22 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
   final Map<String, HarnessSkill> _skills = {};
   (ProviderConfig, String, String?)? _routeCache;
   Usage _usageTotal = const Usage();
+  Completer<bool>? _approvalCompleter;
+
+  static const Set<String> _sensitiveTools = {
+    'read',
+    'read_skill',
+    'interrogate_image',
+    'get_recent_images',
+    'set_positive_prompt',
+    'set_negative_prompt',
+    'update_character',
+    'add_character',
+    'remove_character',
+    'generate_image',
+    'queue_image_task',
+    'update_generation_settings',
+  };
 
   LocalStorageService get _local => _ref.read(localStorageServiceProvider);
 
@@ -255,7 +290,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       try {
         // 代理 目录发现规则：~/.pi/agent/skills、~/.agents/skills、
         // 项目 .pi/skills（cwd 向上至 git 根）+ 应用托管目录。
-        final env = DartIoExecutionEnv();
+        final env = DartIoExecutionEnv(allowOutsideWorkingDirectory: true);
         final home =
             Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'];
         final appSkills = Directory(
@@ -299,6 +334,10 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
   }
 
   Future<Agent> _buildAgent() async {
+    final permissionMode = _ref
+        .read(promptAssistantConfigProvider)
+        .agentPermissionMode;
+    final fullAccess = permissionMode == AgentPermissionMode.fullAccess;
     final agent = Agent(
       AgentOptions(
         streamFn: _streamFn,
@@ -307,56 +346,150 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
         // + 标签检索工具。
         initialTools: [
           ...PromptToolbox(_ref, skills: _skills).tools(),
-          ...ExecutionToolbox(_workspaceDir.path).tools(),
-          ...GenerationToolbox(_ref).tools(),
+          ...ExecutionToolbox(
+            _workspaceDir.path,
+            allowOutsideWorkspace: fullAccess,
+          ).tools(),
+          ...GenerationToolbox(
+            _ref,
+            workspaceDir: _workspaceDir.path,
+            allowOutsideWorkspace: fullAccess,
+          ).tools(),
           ...TagToolbox(_ref).tools(),
         ],
-        convertToLlm: (messages) async => messages
-            .where(
-              (m) =>
-                  m.role == 'user' ||
-                  m.role == 'assistant' ||
-                  m.role == 'toolResult' ||
-                  m.role == 'bashExecution' ||
-                  m.role == 'custom' ||
-                  m.role == 'branchSummary' ||
-                  m.role == 'compactionSummary',
-            )
-            .toList(),
+        convertToLlm: (messages) async => harnessConvertToLlm(messages),
         transformContext: (messages, signal) async =>
             await _maybeCompactContext(messages, signal) ?? messages,
+        beforeToolCall: _beforeToolCall,
+        toolExecution: ToolExecutionMode.sequential,
       ),
     );
     agent.subscribe(_handleEvent);
     return agent;
   }
 
+  Future<BeforeToolCallResult?> _beforeToolCall(
+    BeforeToolCallContext context,
+    AbortSignal? signal,
+  ) async {
+    if (!_sensitiveTools.contains(context.toolCall.name)) {
+      return null;
+    }
+    final mode = _ref.read(promptAssistantConfigProvider).agentPermissionMode;
+    if (mode == AgentPermissionMode.fullAccess) {
+      return null;
+    }
+    if (mode == AgentPermissionMode.safe) {
+      return const BeforeToolCallResult(
+        block: true,
+        reason:
+            'This tool is disabled in Safe mode. Ask the user to change '
+            'the Agent permission mode before retrying.',
+      );
+    }
+
+    final previousApproval = _approvalCompleter;
+    if (previousApproval != null && !previousApproval.isCompleted) {
+      previousApproval.complete(false);
+    }
+    final completer = Completer<bool>();
+    _approvalCompleter = completer;
+    final args = context.args is Map<String, dynamic>
+        ? Map<String, dynamic>.from(context.args as Map<String, dynamic>)
+        : const <String, dynamic>{};
+    state = state.copyWith(
+      approvalRequest: AgentToolApprovalRequest(
+        toolCallId: context.toolCall.id,
+        toolName: context.toolCall.name,
+        args: args,
+      ),
+    );
+
+    void onAbort(String? _) {
+      if (!completer.isCompleted) {
+        completer.complete(false);
+      }
+    }
+
+    signal?.addListener(onAbort);
+    final approved = await completer.future;
+    signal?.removeListener(onAbort);
+    if (identical(_approvalCompleter, completer)) {
+      _approvalCompleter = null;
+      if (mounted) {
+        state = state.copyWith(clearApprovalRequest: true);
+      }
+    }
+    return approved
+        ? null
+        : const BeforeToolCallResult(
+            block: true,
+            reason: 'The user declined this tool call.',
+          );
+  }
+
+  void resolveToolApproval(bool approved) {
+    final completer = _approvalCompleter;
+    if (completer != null && !completer.isCompleted) {
+      completer.complete(approved);
+    }
+  }
+
+  Future<void> setPermissionMode(AgentPermissionMode mode) async {
+    if (state.status == AgentChatRunStatus.running) {
+      return;
+    }
+    await _ref
+        .read(promptAssistantConfigProvider.notifier)
+        .setAgentPermissionMode(mode);
+    final agent = _agent;
+    if (agent == null) {
+      return;
+    }
+    final fullAccess = mode == AgentPermissionMode.fullAccess;
+    agent.state.tools = [
+      ...PromptToolbox(_ref, skills: _skills).tools(),
+      ...ExecutionToolbox(
+        _workspaceDir.path,
+        allowOutsideWorkspace: fullAccess,
+      ).tools(),
+      ...GenerationToolbox(
+        _ref,
+        workspaceDir: _workspaceDir.path,
+        allowOutsideWorkspace: fullAccess,
+      ).tools(),
+      ...TagToolbox(_ref).tools(),
+    ];
+    agent.setSystemPrompt(await _buildSystemPrompt());
+  }
+
   /// 代理 compaction：上下文超阈值时折叠旧消息为摘要消息
   /// （消息空间实现。
-  /// [returnResult] 为 true 时返回压缩结果而不只是变换列表。
+  /// [force] 为 true 时跳过 token 阈值检查，供用户手动压缩。
   Future<List<AgentMessage>?> _maybeCompactContext(
     List<AgentMessage> messages,
     AbortSignal? signal, {
-    bool returnResult = false,
+    bool force = false,
   }) async {
     try {
       final route = _routeCache ?? _resolveRoute();
-      if (route == null || messages.length <= 8) {
+      final session = _session;
+      if (route == null || session is! Session || messages.length <= 8) {
         return messages;
       }
       final contextWindow = _contextWindowFor(route.$1);
       final estimate = estimateContextTokens(messages);
       const settings = defaultCompactionSettings;
-      if (!shouldCompact(estimate.tokens, contextWindow, settings)) {
+      if (!force && !shouldCompact(estimate.tokens, contextWindow, settings)) {
         return messages;
       }
 
       state = state.copyWith(compacting: true);
-      // 消息空间 → 条目空间（compaction 需要会话条目）。
-      final entries = <session_types.SessionEntry>[
-        for (var i = 0; i < messages.length; i++)
-          session_types.MessageEntry(id: 'v$i', message: messages[i]),
-      ];
+      final entries = await session.findEntriesOnBranch(
+        const session_types.EntryQuery(
+          order: session_types.EntryOrder.oldestFirst,
+        ),
+      );
       final prep = prepareCompaction(entries, settings);
       final preparation = prep.valueOrNull;
       if (preparation == null) {
@@ -380,15 +513,40 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       if (compactResult == null) {
         return messages;
       }
-      // 摘要消息 + 保留尾部（消息空间）。
-      return [
-        CompactionSummaryMessage(
-          summary: compactResult.summary,
-          tokensBefore: compactResult.tokensBefore,
-          timestamp: DateTime.now().millisecondsSinceEpoch,
+
+      final entry =
+          await session.appendEntry(
+                session_types.CompactionEntry(
+                  id: session.idGenerator(),
+                  summary: compactResult.summary,
+                  retainedTail: compactResult.retainedTail,
+                  tokensBefore: compactResult.tokensBefore,
+                  details: compactResult.details,
+                  usage: compactResult.usage,
+                ),
+                'main',
+              )
+              as session_types.CompactionEntry;
+      final compressed = <AgentMessage>[
+        createCompactionSummaryMessage(
+          entry.summary,
+          entry.tokensBefore,
+          entry.timestamp,
         ),
         ...compactResult.retainedTail,
       ];
+      messages
+        ..clear()
+        ..addAll(compressed);
+      _agent?.state.messages = List.of(compressed);
+      if (compactResult.usage != null) {
+        _usageTotal = _usageTotal + compactResult.usage!;
+      }
+      state = state.copyWith(
+        messages: List.of(compressed),
+        totalUsage: _usageTotal,
+      );
+      return messages;
     } catch (e) {
       AppLogger.w('agent compaction skipped: $e', 'AgentChat');
       state = state.copyWith(compacting: false);
@@ -553,6 +711,8 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
           'auto-saved there in dated subfolders (e.g. 2026-08-25/), so you '
           'can read exported images by relative path; generate_image and '
           'get_generation_status also return absolute paths.',
+      '- Outside-workspace file paths are rejected unless the user has '
+          'explicitly selected Full Access mode.',
       '- Use it for prompt drafts, exports, and reading skill files when a '
           'skill references them.',
       '',
@@ -560,19 +720,22 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       '- interrogate_image reverse-engineers a prompt from an image file. '
           'It uses the chat model directly when image input is supported; '
           'the dedicated "reverse" vision model is only a fallback.',
-      '- generate_image is the default way to create images: count maps to '
-          'the app generation count (no upper limit), and source_image / '
-          'mask_image switch to img2img / inpaint. It returns saved file '
-          'paths plus thumbnails; when the generation page is busy it waits '
-          'and runs in order automatically.',
-      '- queue_image_task adds tasks to the generation queue; use it when '
-          'the user asks for queueing. Queue outputs do not appear '
-          'automatically — when the queue finishes, call get_recent_images '
-          'to show them in the chat.',
+      '- generate_image is the DEFAULT and is SYNCHRONOUS: it waits, then '
+          'shows the images in the chat. Its "count" generates N '
+          'variations of the SAME prompt (max '
+          '${GenerationToolbox.maxGenerateCount}); for several DIFFERENT '
+          'prompts, call it once per prompt. source_image / mask_image '
+          'switch to img2img / inpaint.',
+      '- queue_image_task is ASYNC: it enqueues N IDENTICAL tasks (same '
+          'prompt) and returns immediately with no images in the chat. '
+          'Only use it when the user explicitly asks to queue / background '
+          'batch. For DIFFERENT prompts, call it once per prompt.',
       '- get_generation_status reports generation progress, queue stats, '
-          'and recent output paths.',
+          'and recent output paths (read-only, safe).',
       '- get_recent_images shows recently generated images (including '
-          'queue results) as thumbnails in the conversation.',
+          'queue results) as thumbnails — use ONLY when the user asks to '
+          'review history / recent / queue results; never call it '
+          'proactively, or the chat floods with images.',
       '- get_generation_settings / update_generation_settings read and '
           'change model, sampler, steps, scale and other page settings. '
           'When the user names a model ("use V5", "switch to v4.5 '
@@ -674,11 +837,11 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     try {
       final raw = await _repo.listWithNames();
       return [
-        for (final (metadata, name) in raw)
+        for (final (metadata, name, updatedAt) in raw)
           AgentChatSessionSummary(
             metadata: metadata,
             name: name,
-            updatedAt: DateTime.fromMillisecondsSinceEpoch(metadata.createdAt),
+            updatedAt: updatedAt,
           ),
       ];
     } catch (e) {
@@ -829,8 +992,14 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
 
   Future<void> _sendMessage(UserMessage message) async {
     final agent = _agent;
-    if (agent == null || !state.routeReady) {
-      _refreshRoute();
+    if (agent == null) {
+      state = state.copyWith(
+        error: 'Agent chat is still initializing. Try again in a moment.',
+      );
+      return;
+    }
+    _refreshRoute();
+    if (!state.routeReady) {
       state = state.copyWith(
         error: state.routeError.isNotEmpty
             ? state.routeError
@@ -838,7 +1007,6 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       );
       return;
     }
-    _refreshRoute();
     agent.setSystemPrompt(await _buildSystemPrompt());
 
     if (state.status == AgentChatRunStatus.running) {
@@ -917,6 +1085,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       return;
     }
     agent.abort();
+    resolveToolApproval(false);
     _client.cancel('agent_chat');
     await agent.waitForIdle();
   }
@@ -930,7 +1099,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     final compressed = await _maybeCompactContext(
       List.of(agent.state.messages),
       null,
-      returnResult: true,
+      force: true,
     );
     if (compressed != null) {
       agent.state.messages = List.of(compressed);
@@ -1053,6 +1222,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
 
   @override
   void dispose() {
+    resolveToolApproval(false);
     _agent?.clearAllQueues();
     super.dispose();
   }

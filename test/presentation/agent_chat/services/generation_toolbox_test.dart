@@ -26,39 +26,79 @@ void main() {
   test('queue_image_task rejects empty prompt', () async {
     final container = ProviderContainer();
     addTearDown(container.dispose);
-    final tool = GenerationToolbox(_makeRef(container))
-        .tools()
-        .firstWhere((t) => t.name == 'queue_image_task');
+    final tool = GenerationToolbox(
+      _makeRef(container),
+    ).tools().firstWhere((t) => t.name == 'queue_image_task');
     final result = await tool.execute('t2', {});
     final text = result.content
         .whereType<ToolResultTextContent>()
         .map((c) => c.text)
         .join();
     expect(text, contains('prompt'));
+    expect(result.isError, isTrue);
   });
 
-  test('generate_image rejects empty prompt without touching providers',
-      () async {
+  test(
+    'generate_image rejects empty prompt without touching providers',
+    () async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final tool = GenerationToolbox(
+        _makeRef(container),
+      ).tools().firstWhere((t) => t.name == 'generate_image');
+      final result = await tool.execute('t1', {});
+      final text = result.content
+          .whereType<ToolResultTextContent>()
+          .map((c) => c.text)
+          .join();
+      expect(text, contains('prompt'));
+      expect(result.isError, isTrue);
+    },
+  );
+
+  test('generate_image rejects an excessive count before allocation', () async {
     final container = ProviderContainer();
     addTearDown(container.dispose);
-    final tool = GenerationToolbox(_makeRef(container))
-        .tools()
-        .firstWhere((t) => t.name == 'generate_image');
-    final result = await tool.execute('t1', {});
+    final tool = GenerationToolbox(
+      _makeRef(container),
+    ).tools().firstWhere((t) => t.name == 'generate_image');
+    final result = await tool.execute('t-count', {
+      'prompt': '1girl',
+      'count': 1000000000,
+    });
     final text = result.content
         .whereType<ToolResultTextContent>()
         .map((c) => c.text)
         .join();
-    expect(text, contains('prompt'));
+    expect(text, contains('${GenerationToolbox.maxGenerateCount}'));
   });
 
-  test('get_generation_status reports generation and queue sections',
-      () async {
+  test(
+    'queue_image_task rejects an excessive count before allocation',
+    () async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final tool = GenerationToolbox(
+        _makeRef(container),
+      ).tools().firstWhere((t) => t.name == 'queue_image_task');
+      final result = await tool.execute('t-queue-count', {
+        'prompt': '1girl',
+        'count': 1000000000,
+      });
+      final text = result.content
+          .whereType<ToolResultTextContent>()
+          .map((c) => c.text)
+          .join();
+      expect(text, contains('50'));
+    },
+  );
+
+  test('get_generation_status reports generation and queue sections', () async {
     final container = ProviderContainer();
     addTearDown(container.dispose);
-    final tool = GenerationToolbox(_makeRef(container))
-        .tools()
-        .firstWhere((t) => t.name == 'get_generation_status');
+    final tool = GenerationToolbox(
+      _makeRef(container),
+    ).tools().firstWhere((t) => t.name == 'get_generation_status');
     final result = await tool.execute('t3', {});
     final text = result.content
         .whereType<ToolResultTextContent>()
@@ -66,19 +106,20 @@ void main() {
         .join();
     expect(text, contains('"generation"'));
     expect(text, contains('"queue"'));
+    expect(result.isError, isFalse);
   });
 
-  test('interrogate_image reports missing file', () async {
+  test('interrogate_image rejects a path outside the workspace', () async {
     final container = ProviderContainer();
     addTearDown(container.dispose);
-    final tool = GenerationToolbox(_makeRef(container))
-        .tools()
-        .firstWhere((t) => t.name == 'interrogate_image');
+    final tool = GenerationToolbox(
+      _makeRef(container),
+    ).tools().firstWhere((t) => t.name == 'interrogate_image');
     final result = await tool.execute('t4', {'path': 'Z:/no_such.png'});
     final text = result.content
         .whereType<ToolResultTextContent>()
         .map((c) => c.text)
         .join();
-    expect(text, contains('not found'));
+    expect(text, contains('not permitted'));
   });
 }

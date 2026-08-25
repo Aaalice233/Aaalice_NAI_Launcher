@@ -311,6 +311,22 @@
   "agentChat_suggestion1": "幫我優化目前的正向提示詞",
   "agentChat_suggestion2": "為畫面加入兩個角色並分別設定動作",
   "agentChat_suggestion3": "把負向提示詞改成適合寫實風格的版本",
+  "agentChat_permissionMode": "Agent 權限",
+  "agentChat_permissionSafe": "安全模式",
+  "agentChat_permissionSafeDescription": "僅執行無副作用工具",
+  "agentChat_permissionAsk": "詢問模式",
+  "agentChat_permissionAskDescription": "敏感操作執行前詢問",
+  "agentChat_permissionFull": "完全存取",
+  "agentChat_permissionFullDescription": "不詢問並允許存取工作區外檔案",
+  "agentChat_approvalTitle": "允許執行 {toolName}？",
+  "@agentChat_approvalTitle": {
+    "placeholders": {
+      "toolName": {}
+    }
+  },
+  "agentChat_approvalDescription": "此工具會讀取本機資料、修改應用程式狀態或產生費用。",
+  "agentChat_approvalAllow": "允許一次",
+  "agentChat_approvalDeny": "拒絕",
   "generation_failedStreamSnapshot": "失敗快照",
   "generation_failedStreamSnapshotHint": "生成未完成，僅保留最後一幀預覽；不可儲存、收藏或用於圖生圖",
   "generation_noHistory": "暫無歷史記錄",

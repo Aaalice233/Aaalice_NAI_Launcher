@@ -835,6 +835,42 @@ class AppLocalizationsJa extends AppLocalizations {
   String get agentChat_suggestion3 => 'ネガティブプロンプトをリアル系に書き換えて';
 
   @override
+  String get agentChat_permissionMode => 'Agent 権限';
+
+  @override
+  String get agentChat_permissionSafe => 'セーフ';
+
+  @override
+  String get agentChat_permissionSafeDescription => '副作用のないツールのみ実行';
+
+  @override
+  String get agentChat_permissionAsk => '確認';
+
+  @override
+  String get agentChat_permissionAskDescription => '機密性の高い操作の前に確認';
+
+  @override
+  String get agentChat_permissionFull => 'フルアクセス';
+
+  @override
+  String get agentChat_permissionFullDescription => '確認なしで実行し、ワークスペース外のファイルも許可';
+
+  @override
+  String agentChat_approvalTitle(Object toolName) {
+    return '$toolName の実行を許可しますか？';
+  }
+
+  @override
+  String get agentChat_approvalDescription =>
+      'このツールはローカルデータの読み取り、アプリ状態の変更、または料金の発生を伴う可能性があります。';
+
+  @override
+  String get agentChat_approvalAllow => '今回のみ許可';
+
+  @override
+  String get agentChat_approvalDeny => '拒否';
+
+  @override
   String get generation_failedStreamSnapshot => 'スナップショットが失敗しました';
 
   @override

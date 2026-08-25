@@ -848,6 +848,45 @@ class AppLocalizationsEn extends AppLocalizations {
       'Rewrite the negative prompt for photorealistic style';
 
   @override
+  String get agentChat_permissionMode => 'Agent permissions';
+
+  @override
+  String get agentChat_permissionSafe => 'Safe';
+
+  @override
+  String get agentChat_permissionSafeDescription =>
+      'Only run tools without side effects';
+
+  @override
+  String get agentChat_permissionAsk => 'Ask';
+
+  @override
+  String get agentChat_permissionAskDescription =>
+      'Ask before sensitive actions';
+
+  @override
+  String get agentChat_permissionFull => 'Full access';
+
+  @override
+  String get agentChat_permissionFullDescription =>
+      'Run without prompts and allow files outside the workspace';
+
+  @override
+  String agentChat_approvalTitle(Object toolName) {
+    return 'Allow $toolName?';
+  }
+
+  @override
+  String get agentChat_approvalDescription =>
+      'This tool may read local data, change application state, or incur a charge.';
+
+  @override
+  String get agentChat_approvalAllow => 'Allow once';
+
+  @override
+  String get agentChat_approvalDeny => 'Deny';
+
+  @override
   String get generation_failedStreamSnapshot => 'Failed snapshot';
 
   @override

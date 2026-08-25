@@ -42,10 +42,7 @@ class AnthropicMessagesAdapter extends PromptAssistantProviderAdapter {
         'max_tokens': 2048,
         'system': request.systemPrompt,
         'messages': [
-          {
-            'role': 'user',
-            'content': _contentParts(request.userParts),
-          },
+          {'role': 'user', 'content': _contentParts(request.userParts)},
         ],
       },
       options: Options(
@@ -64,7 +61,7 @@ class AnthropicMessagesAdapter extends PromptAssistantProviderAdapter {
     required AgentChatRequest request,
     required CancelToken cancelToken,
   }) async* {
-    final payload = _buildAgentPayload(request);
+    final payload = buildAgentPayload(request);
     final pending = <AgentWireEvent>[];
 
     // Anthropic SSE：content_block_start/delta/stop 组装内容块，
@@ -91,7 +88,9 @@ class AnthropicMessagesAdapter extends PromptAssistantProviderAdapter {
             final message = error is Map<String, dynamic>
                 ? error['message'] as String? ?? 'unknown error'
                 : 'unknown error';
-            pending.add(AgentWireError('LLM service returned an error: $message'));
+            pending.add(
+              AgentWireError('LLM service returned an error: $message'),
+            );
           case 'message_start':
             final message = json['message'];
             if (message is Map<String, dynamic>) {
@@ -105,8 +104,7 @@ class AnthropicMessagesAdapter extends PromptAssistantProviderAdapter {
           case 'content_block_start':
             final index = (json['index'] as num?)?.toInt() ?? 0;
             final block = json['content_block'];
-            if (block is Map<String, dynamic> &&
-                block['type'] == 'tool_use') {
+            if (block is Map<String, dynamic> && block['type'] == 'tool_use') {
               blockOrder.add(index);
               blocks[index] = _AnthropicBlock()
                 ..id = block['id'] as String? ?? ''
@@ -217,7 +215,8 @@ class AnthropicMessagesAdapter extends PromptAssistantProviderAdapter {
     yield AgentWireFinish(stopReason: stopReason, usage: usage);
   }
 
-  Map<String, dynamic> _buildAgentPayload(AgentChatRequest request) {
+  /// Visible for payload regression tests.
+  Map<String, dynamic> buildAgentPayload(AgentChatRequest request) {
     // Anthropic 要求 user/assistant 交替；把相邻同角色的消息合并成一个
     // content 数组（tool_result 也归入 user 侧内容块）。
     final turns = <Map<String, dynamic>>[];
@@ -225,7 +224,10 @@ class AnthropicMessagesAdapter extends PromptAssistantProviderAdapter {
       if (turns.isNotEmpty && turns.last['role'] == role) {
         (turns.last['content'] as List<Map<String, dynamic>>).add(block);
       } else {
-        turns.add({'role': role, 'content': [block]});
+        turns.add({
+          'role': role,
+          'content': [block],
+        });
       }
     }
 
@@ -235,14 +237,16 @@ class AnthropicMessagesAdapter extends PromptAssistantProviderAdapter {
         if (images.isEmpty) {
           appendTurn('user', {'type': 'text', 'text': message.text});
         } else {
-          appendTurn('user', {
-            'type': 'image',
-            'source': {
-              'type': 'base64',
-              'media_type': images.first.mimeType,
-              'data': base64Encode(images.first.bytes),
-            },
-          });
+          for (final image in images) {
+            appendTurn('user', {
+              'type': 'image',
+              'source': {
+                'type': 'base64',
+                'media_type': image.mimeType,
+                'data': base64Encode(image.bytes),
+              },
+            });
+          }
           if (message.text.trim().isNotEmpty) {
             appendTurn('user', {'type': 'text', 'text': message.text});
           }
@@ -337,6 +341,7 @@ class AnthropicMessagesAdapter extends PromptAssistantProviderAdapter {
     }
     return '$base/v1/models';
   }
+
   String _extractResponseContent(dynamic raw) {
     if (raw is Map<String, dynamic>) {
       final error = extractErrorMessage(raw);

@@ -16,9 +16,17 @@ class EventStream<E, R> {
 
   /// 以既有事件序列构造（同步包装。
   EventStream.fromEvents(Stream<E> events, Future<R> Function() result) {
-    events.listen(push, onDone: () {
-      result().then(end, onError: endError);
-    });
+    events.listen(
+      push,
+      onError: (Object error, StackTrace stackTrace) {
+        endError(error, stackTrace);
+      },
+      onDone: () {
+        if (!_ended) {
+          result().then(end, onError: endError);
+        }
+      },
+    );
   }
 
   Stream<E> get stream => _events.stream;
@@ -39,12 +47,12 @@ class EventStream<E, R> {
     _events.close();
   }
 
-  void endError(Object error) {
+  void endError(Object error, [StackTrace? stackTrace]) {
     if (_ended) {
       return;
     }
     _ended = true;
-    _result.completeError(error);
+    _result.completeError(error, stackTrace);
     _events.close();
   }
 

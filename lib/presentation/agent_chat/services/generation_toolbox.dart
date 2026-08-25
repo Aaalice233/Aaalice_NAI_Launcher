@@ -7,6 +7,8 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/agent/agent_types.dart';
+import '../../../core/agent/harness/env/dart_io_execution_env.dart';
+import '../../../core/agent/harness/harness_result.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../data/models/image/image_params.dart';
@@ -30,6 +32,7 @@ AgentToolResult _errorResult(String text) {
   return AgentToolResult(
     content: [ToolResultTextContent(text)],
     details: const <String, dynamic>{},
+    isError: true,
   );
 }
 
@@ -38,23 +41,34 @@ AgentToolResult _errorResult(String text) {
 /// - `interrogate_image`：读本地图片反推提示词；对话模型支持图片输入时
 ///   直接解析，专用 reverse 模型仅作 fallback（不再强制配置）；
 /// - `generate_image`：以当前生成页参数为基底同步生成，`count` 直接映射
-///   应用原生的「生成数量」（nSamples，应用内逐批循环、无上限），支持
+///   应用原生的「生成数量」（nSamples，应用内逐批循环，最多 8 张），支持
 ///   source_image/mask 切 img2img/infill，返回保存路径与缩略图；
 /// - `queue_image_task`：批量写入生成队列并可选自动启动；
 /// - `get_generation_status`：生成进度 + 队列统计 + 最近产物；
 /// - `get/update_generation_settings`：读写模型/采样器/步数/CFG 等页面
 ///   设置（持久化，UI 即时生效）。
 class GenerationToolbox {
-  GenerationToolbox(this._ref);
+  GenerationToolbox(
+    this._ref, {
+    String? workspaceDir,
+    bool allowOutsideWorkspace = false,
+  }) : _fileEnv = DartIoExecutionEnv(
+         workingDirectory: workspaceDir,
+         allowOutsideWorkingDirectory: allowOutsideWorkspace,
+       );
+
+  static const int maxGenerateCount = 8;
 
   final Ref _ref;
+  final DartIoExecutionEnv _fileEnv;
 
   List<AgentTool> tools() {
     return [
       DefinedAgentTool(
         name: 'interrogate_image',
         label: 'Interrogate Image',
-        description: 'Reverse-engineer a NovelAI prompt from an image. '
+        description:
+            'Reverse-engineer a NovelAI prompt from an image. '
             'Returns English comma-separated tags. Routing: uses the '
             'current chat model directly when it supports image input; '
             'the dedicated "reverse" vision model (Settings > '
@@ -66,7 +80,8 @@ class GenerationToolbox {
           'properties': {
             'path': {
               'type': 'string',
-              'description': 'Image file path (workspace-relative or absolute).',
+              'description':
+                  'Image file path (workspace-relative or absolute).',
             },
           },
           'required': ['path'],
@@ -76,16 +91,22 @@ class GenerationToolbox {
       DefinedAgentTool(
         name: 'generate_image',
         label: 'Generate Image',
-        description: 'Generate images with NovelAI using the current '
-            'generation page settings, overriding prompt / negative_prompt / '
-            'width / height / count / seed. Requirements: '
-            '(1) "prompt" is required; write English danbooru-style tags. '
-            '(2) "count" = how many images to generate; minimum 1, NO upper '
-            'limit — it maps 1:1 to the app "generation count" setting and '
-            'runs on the app-native batch pipeline as sequential requests '
-            '(429 concurrency limits are retried automatically). Total '
-            'images = count x the "images per request" app setting '
-            '(default 1, so count usually equals total). '
+        description:
+            'SYNCHRONOUS image generation (the default): waits for the '
+            'images to finish and shows them as thumbnails in the chat. '
+            'Uses the current generation page settings, overriding prompt '
+            '/ negative_prompt / width / height / count / seed. '
+            'Important: "count" generates N variations of the SAME prompt '
+            '(e.g. count=3 -> three versions of one prompt). For several '
+            'DIFFERENT prompts, call this tool once per prompt instead. '
+            '"prompt" is required; write English danbooru-style tags. '
+            '(2) "count" = how many variations of the SAME prompt; minimum '
+            '1, maximum $maxGenerateCount. It maps 1:1 to the app '
+            '"generation count" setting and runs on the app-native batch '
+            'pipeline as sequential requests (429 concurrency limits are '
+            'retried automatically). Total images = count x the "images '
+            'per request" app setting (default 1, so count usually equals '
+            'total). '
             '(3) "width"/"height" must be valid NAI sizes (e.g. '
             '832/1024/1216); omit to reuse the generation page size. '
             '(4) "seed": omit or -1 for random. A fixed seed is honored '
@@ -100,9 +121,9 @@ class GenerationToolbox {
             'text-to-image regardless of the generation page img2img '
             'state. '
             'If a generation is already running, this waits up to 300s and '
-            'runs in order. Returns the saved file paths plus thumbnails. '
-            'For normal "draw/generate" requests always use this tool '
-            'instead of queue_image_task.',
+            'runs in order. Returns the saved file paths plus thumbnails, '
+            'which appear in the chat. For normal "draw/generate" requests '
+            'always use this tool instead of queue_image_task.',
         parameters: const {
           'type': 'object',
           'properties': {
@@ -112,7 +133,8 @@ class GenerationToolbox {
             },
             'negative_prompt': {
               'type': 'string',
-              'description': 'Omit to reuse the generation page negative '
+              'description':
+                  'Omit to reuse the generation page negative '
                   'prompt.',
             },
             'width': {
@@ -125,12 +147,17 @@ class GenerationToolbox {
             },
             'count': {
               'type': 'number',
-              'description': 'How many images to generate. Minimum 1, no '
-                  'upper limit. Default 1.',
+              'minimum': 1,
+              'maximum': maxGenerateCount,
+              'description':
+                  'How many variations of the SAME prompt to generate '
+                  '(max $maxGenerateCount). Default 1. For DIFFERENT '
+                  'prompts, call the tool once per prompt.',
             },
             'seed': {
               'type': 'number',
-              'description': 'Omit or -1 for random. A fixed seed only '
+              'description':
+                  'Omit or -1 for random. A fixed seed only '
                   'applies when count = 1.',
             },
             'source_image': {
@@ -139,12 +166,14 @@ class GenerationToolbox {
             },
             'mask_image': {
               'type': 'string',
-              'description': 'Local mask file path (white = redraw area, '
+              'description':
+                  'Local mask file path (white = redraw area, '
                   'same size as source) to switch to inpaint.',
             },
             'strength': {
               'type': 'number',
-              'description': 'img2img strength 0-0.99. Higher = further from '
+              'description':
+                  'img2img strength 0-0.99. Higher = further from '
                   'the source image.',
             },
             'noise': {
@@ -153,7 +182,8 @@ class GenerationToolbox {
             },
             'inpaint_strength': {
               'type': 'number',
-              'description': 'Inpaint strength 0-0.99 (only with '
+              'description':
+                  'Inpaint strength 0-0.99 (only with '
                   'mask_image).',
             },
           },
@@ -164,17 +194,20 @@ class GenerationToolbox {
       DefinedAgentTool(
         name: 'queue_image_task',
         label: 'Queue Image Task',
-        description: 'Add one or more tasks to the generation queue without '
-            'waiting for them to finish. ONLY use this when the user '
-            'explicitly asks to add tasks to the queue; for normal '
-            'image requests use generate_image instead. Requirements: '
-            '"prompt" is required; "count" = how many identical tasks to '
-            'enqueue (minimum 1, no fixed upper limit — the queue capacity '
-            'of 50 is the only limit and the tool reports an error when '
-            'full); "auto_start" starts the queue right after adding '
-            '(default true). Queue-produced images do NOT appear in the '
-            'chat automatically — when the queue finishes, call '
-            'get_recent_images to show them.',
+        description:
+            'ASYNCHRONOUS queueing: enqueues N IDENTICAL tasks (same '
+            'prompt) into the generation queue and returns immediately '
+            'WITHOUT producing images in the chat. "count" only creates '
+            'N copies of the SAME prompt; for DIFFERENT prompts call this '
+            'tool once per prompt (or use generate_image for synchronous '
+            'results). ONLY use this when the user explicitly asks to '
+            'add tasks to a queue / background batch; for normal image '
+            'requests use generate_image instead. Requirements: "prompt" '
+            'is required; "count" 1-50, capped by the queue\'s remaining '
+            'capacity (tool reports an error when full); "auto_start" '
+            'starts the queue after adding (default true). Queue outputs '
+            'do NOT appear automatically — only call get_recent_images '
+            'to show them if the user asks to review queue results.',
         parameters: const {
           'type': 'object',
           'properties': {
@@ -184,13 +217,17 @@ class GenerationToolbox {
             },
             'negative_prompt': {
               'type': 'string',
-              'description': 'Omit to reuse the generation page negative '
+              'description':
+                  'Omit to reuse the generation page negative '
                   'prompt.',
             },
             'count': {
               'type': 'number',
-              'description': 'How many identical tasks to enqueue. Default 1. '
-                  'Only limit is queue capacity (50).',
+              'minimum': 1,
+              'maximum': kMaxQueueCapacity,
+              'description':
+                  'How many identical tasks to enqueue. Default 1. '
+                  'Maximum 50 and capped by remaining queue capacity.',
             },
             'auto_start': {
               'type': 'boolean',
@@ -204,7 +241,8 @@ class GenerationToolbox {
       DefinedAgentTool(
         name: 'get_generation_status',
         label: 'Get Generation Status',
-        description: 'Report current generation progress, queue statistics, '
+        description:
+            'Report current generation progress, queue statistics, '
             'and the file paths of recently generated images.',
         parameters: const {
           'type': 'object',
@@ -216,11 +254,12 @@ class GenerationToolbox {
       DefinedAgentTool(
         name: 'get_recent_images',
         label: 'Get Recent Images',
-        description: 'Return the most recently generated images — including '
-            'ones produced by the generation queue — as chat thumbnails '
-            'plus file paths. Call this after a queued batch finishes so '
-            'its results become visible in the conversation '
-            '(generate_image already shows its own results).',
+        description:
+            'Return recently generated images (including queue outputs) '
+            'as chat thumbnails plus file paths. Use ONLY when the user '
+            'explicitly asks to review history / recent / queue results. '
+            'Do NOT call it proactively — it floods the conversation with '
+            'images. generate_image already shows its own results.',
         parameters: const {
           'type': 'object',
           'properties': {
@@ -236,7 +275,8 @@ class GenerationToolbox {
       DefinedAgentTool(
         name: 'get_generation_settings',
         label: 'Get Generation Settings',
-        description: 'Read all image generation settings: model, sampler, '
+        description:
+            'Read all image generation settings: model, sampler, '
             'steps, scale (CFG), cfg_rescale, noise_schedule, uc_preset, '
             'quality_toggle, variety_plus, decrisp, smea flags, '
             'transparent_background, width/height, seed, generation count, '
@@ -253,7 +293,8 @@ class GenerationToolbox {
       DefinedAgentTool(
         name: 'update_generation_settings',
         label: 'Update Generation Settings',
-        description: 'Persistently change generation page settings. Only '
+        description:
+            'Persistently change generation page settings. Only '
             'provided fields are changed. Requirements: "model" accepts an '
             'exact model id OR a friendly name like "v5", "v5 curated", '
             '"v4.5 full", "v3" (get_generation_settings lists all); '
@@ -285,10 +326,7 @@ class GenerationToolbox {
             'transparent_background': {'type': 'boolean'},
             'smea': {'type': 'boolean'},
             'smea_dyn': {'type': 'boolean'},
-            'seed': {
-              'type': 'number',
-              'description': '-1 for random.',
-            },
+            'seed': {'type': 'number', 'description': '-1 for random.'},
           },
           'required': <String>[],
         },
@@ -301,20 +339,33 @@ class GenerationToolbox {
   // interrogate_image
   // -------------------------------------------------------------------------
 
+  Future<String> _resolveLocalImagePath(String rawPath) async {
+    final result = await _fileEnv.absolutePath(rawPath);
+    final resolved = result.valueOrNull;
+    if (resolved == null) {
+      throw StateError(result.errorOrNull?.message ?? 'Invalid image path');
+    }
+    return resolved;
+  }
+
   Future<AgentToolResult> _interrogate(Map<String, dynamic> args) async {
     final path = (args['path'] as String?)?.trim() ?? '';
     if (path.isEmpty) {
       return _errorResult('Parameter "path" is required.');
     }
-    final file = File(path);
+    String resolvedPath;
+    try {
+      resolvedPath = await _resolveLocalImagePath(path);
+    } catch (e) {
+      return _errorResult('Image path is not permitted: $e');
+    }
+    final file = File(resolvedPath);
     if (!file.existsSync()) {
-      return _errorResult('Image not found: $path');
+      return _errorResult('Image not found: $resolvedPath');
     }
     // 路由优先级：支持图片输入的对话模型直读 > 专用 reverse 模型（fallback）。
     final config = _ref.read(promptAssistantConfigProvider);
-    final chatProviderId = config.routing.providerIdFor(
-      AssistantTaskType.chat,
-    );
+    final chatProviderId = config.routing.providerIdFor(AssistantTaskType.chat);
     final chatProvider = config.providers
         .where((p) => p.id == chatProviderId && p.enabled)
         .firstOrNull;
@@ -382,8 +433,11 @@ class GenerationToolbox {
     AssistantTaskType route,
   ) async {
     final buffer = StringBuffer();
-    await for (final chunk
-        in service.reverseImagePrompt(bytes, sessionId: 'agent_interrogate', taskType: route)) {
+    await for (final chunk in service.reverseImagePrompt(
+      bytes,
+      sessionId: 'agent_interrogate',
+      taskType: route,
+    )) {
       buffer.write(chunk.delta);
     }
     return buffer.toString().trim();
@@ -404,15 +458,19 @@ class GenerationToolbox {
       return _errorResult('Parameter "prompt" is required.');
     }
 
+    final requestedCount = (args['count'] as num?)?.toInt() ?? 1;
+    if (requestedCount < 1 || requestedCount > maxGenerateCount) {
+      return _errorResult(
+        'Parameter "count" must be between 1 and $maxGenerateCount.',
+      );
+    }
+    final count = requestedCount;
     final base = _ref.read(generationParamsNotifierProvider);
-    // count 直接映射应用原生「生成数量」（nSamples）：应用内逐批循环，
-    // 无上限；总图数 = count × 每请求张数设置。
-    final count = math.max(1, (args['count'] as num?)?.toInt() ?? 1);
     final requestedSeed = (args['seed'] as num?)?.toInt() ?? -1;
     final width = (args['width'] as num?)?.toInt() ?? base.width;
     final height = (args['height'] as num?)?.toInt() ?? base.height;
-    final negativePrompt = (args['negative_prompt'] as String?)?.trim() ??
-        base.negativePrompt;
+    final negativePrompt =
+        (args['negative_prompt'] as String?)?.trim() ?? base.negativePrompt;
 
     // img2img / inpaint：提供 source_image 才启用；未提供时强制纯文生图，
     // 不受生成页当前 img2img 状态影响（请求构建器按 action 门控源图）。
@@ -421,16 +479,28 @@ class GenerationToolbox {
     var action = ImageGenerationAction.generate;
     final sourceImagePath = (args['source_image'] as String?)?.trim() ?? '';
     if (sourceImagePath.isNotEmpty) {
-      final sourceFile = File(sourceImagePath);
+      String resolvedSourcePath;
+      try {
+        resolvedSourcePath = await _resolveLocalImagePath(sourceImagePath);
+      } catch (e) {
+        return _errorResult('Source image path is not permitted: $e');
+      }
+      final sourceFile = File(resolvedSourcePath);
       if (!sourceFile.existsSync()) {
-        return _errorResult('Source image not found: $sourceImagePath');
+        return _errorResult('Source image not found: $resolvedSourcePath');
       }
       sourceBytes = await sourceFile.readAsBytes();
       final maskImagePath = (args['mask_image'] as String?)?.trim() ?? '';
       if (maskImagePath.isNotEmpty) {
-        final maskFile = File(maskImagePath);
+        String resolvedMaskPath;
+        try {
+          resolvedMaskPath = await _resolveLocalImagePath(maskImagePath);
+        } catch (e) {
+          return _errorResult('Mask image path is not permitted: $e');
+        }
+        final maskFile = File(resolvedMaskPath);
         if (!maskFile.existsSync()) {
-          return _errorResult('Mask image not found: $maskImagePath');
+          return _errorResult('Mask image not found: $resolvedMaskPath');
         }
         maskBytes = await maskFile.readAsBytes();
         action = ImageGenerationAction.infill;
@@ -481,9 +551,7 @@ class GenerationToolbox {
           'Waiting for generation cooldown (${cooldown.remainingSeconds}s)...',
         ),
       );
-      await _ref
-          .read(generationCooldownProvider.notifier)
-          .waitUntilAvailable();
+      await _ref.read(generationCooldownProvider.notifier).waitUntilAvailable();
       throwIfAborted(signal);
     }
 
@@ -505,9 +573,7 @@ class GenerationToolbox {
         inpaintStrength: inpaintStrength ?? base.inpaintStrength,
       );
       unawaited(
-        _ref
-            .read(imageGenerationNotifierProvider.notifier)
-            .generate(params),
+        _ref.read(imageGenerationNotifierProvider.notifier).generate(params),
       );
       var lastProgress = -1;
       final finished = await _waitForCompletion(
@@ -564,9 +630,8 @@ class GenerationToolbox {
       }
       final files = <String>[];
       final report = <Map<String, dynamic>>[];
-      for (final image in _ref
-          .read(imageGenerationNotifierProvider)
-          .currentImages) {
+      for (final image
+          in _ref.read(imageGenerationNotifierProvider).currentImages) {
         report.add({
           'seed': image.metadata?.seed,
           'size': '${image.width}x${image.height}',
@@ -690,15 +755,28 @@ class GenerationToolbox {
     if (prompt.isEmpty) {
       return _errorResult('Parameter "prompt" is required.');
     }
-    // 数量不设上限，队列容量（50）是唯一约束，超容量时 addAll 会截断并在下方报错。
-    final count = math.max(1, (args['count'] as num?)?.toInt() ?? 1);
+    final requestedCount = (args['count'] as num?)?.toInt() ?? 1;
+    if (requestedCount < 1 || requestedCount > kMaxQueueCapacity) {
+      return _errorResult(
+        'Parameter "count" must be between 1 and $kMaxQueueCapacity.',
+      );
+    }
+    final remaining = _ref
+        .read(replicationQueueNotifierProvider)
+        .remainingCapacity;
+    if (remaining <= 0) {
+      return _errorResult(
+        'Queue is full (capacity $kMaxQueueCapacity). Clear or complete tasks first.',
+      );
+    }
+    final count = math.min(requestedCount, remaining);
     final autoStart = args['auto_start'] as bool? ?? true;
     final base = _ref.read(generationParamsNotifierProvider);
     final tasks = List.generate(count, (_) {
       return ReplicationTask.create(
         prompt: prompt,
-        negativePrompt: (args['negative_prompt'] as String?)?.trim() ??
-            base.negativePrompt,
+        negativePrompt:
+            (args['negative_prompt'] as String?)?.trim() ?? base.negativePrompt,
         source: ReplicationTaskSource.local,
         sampler: base.sampler,
         steps: base.steps,
@@ -714,7 +792,7 @@ class GenerationToolbox {
           .addAll(tasks);
       if (added == 0) {
         return _errorResult(
-          'Queue is full (capacity 50). Clear or complete tasks first.',
+          'Queue is full (capacity $kMaxQueueCapacity). Clear or complete tasks first.',
         );
       }
       String started = 'not started';
@@ -733,6 +811,7 @@ class GenerationToolbox {
         jsonEncode({
           'ok': true,
           'added': added,
+          if (added < requestedCount) 'requested': requestedCount,
           'queue_pending': queue.count,
           'queue_started': started,
         }),
@@ -757,8 +836,8 @@ class GenerationToolbox {
         'image': '${gen.currentImage}/${gen.totalImages}',
         if (gen.errorMessage != null) 'error': gen.errorMessage,
         'recent_files': [
-          for (final image in gen.history.take(5)) if (image.filePath != null)
-            image.filePath!,
+          for (final image in gen.history.take(5))
+            if (image.filePath != null) image.filePath!,
         ],
       },
       'queue': {
@@ -951,9 +1030,7 @@ class GenerationToolbox {
       for (final image in history)
         if (image.filePath != null) image,
     ].take(limit).toList();
-    final files = [
-      for (final image in images) image.filePath!,
-    ];
+    final files = [for (final image in images) image.filePath!];
     final report = [
       for (final image in images)
         {

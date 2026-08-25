@@ -102,7 +102,7 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
 
     final isOllama =
         request.provider.protocol == ProviderProtocol.ollamaChatCompletions ||
-            ollamaTagsFallback;
+        ollamaTagsFallback;
     if (isOllama) {
       yield* _completeAgentNonStream(
         dio: dio,
@@ -118,6 +118,7 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
     final toolOrder = <int>[];
     var finishReason = 'stop';
     Usage? usage;
+    var sawError = false;
     final pending = <AgentWireEvent>[];
 
     final parser = AgentSseParser(
@@ -131,6 +132,7 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
         }
         final error = extractErrorMessage(json);
         if (error != null) {
+          sawError = true;
           pending.add(AgentWireError('LLM service returned an error: $error'));
           return;
         }
@@ -217,6 +219,10 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
         yield* Stream.fromIterable(List.of(pending));
       }
       yield agentWireErrorFrom(error, request.provider);
+      return;
+    }
+
+    if (sawError) {
       return;
     }
 
@@ -368,7 +374,8 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
               {
                 'type': 'image_url',
                 'image_url': {
-                  'url': 'data:${image.mimeType};base64,'
+                  'url':
+                      'data:${image.mimeType};base64,'
                       '${base64Encode(image.bytes)}',
                 },
               },
@@ -423,9 +430,7 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
     required Map<String, dynamic> payload,
     required CancelToken cancelToken,
   }) async {
-    final headers = <String, dynamic>{
-      'Content-Type': 'application/json',
-    };
+    final headers = <String, dynamic>{'Content-Type': 'application/json'};
     if (request.apiKey != null && request.apiKey!.trim().isNotEmpty) {
       headers['Authorization'] = 'Bearer ${request.apiKey!.trim()}';
     }
@@ -445,8 +450,8 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
       final status = e.response?.statusCode;
       final shouldRetryDeepSeek =
           request.provider.preset == ProviderPreset.deepseek &&
-              (status == 400 || status == 404) &&
-              endpoint.endsWith('/v1/chat/completions');
+          (status == 400 || status == 404) &&
+          endpoint.endsWith('/v1/chat/completions');
       if (shouldRetryDeepSeek) {
         return dio.post<dynamic>(
           endpoint.replaceFirst('/v1/chat/completions', '/chat/completions'),
@@ -483,10 +488,7 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
     return [
       if (request.systemPrompt.trim().isNotEmpty)
         {'role': 'system', 'content': request.systemPrompt.trim()},
-      {
-        'role': 'user',
-        'content': _buildUserContent(request.userParts),
-      },
+      {'role': 'user', 'content': _buildUserContent(request.userParts)},
     ];
   }
 

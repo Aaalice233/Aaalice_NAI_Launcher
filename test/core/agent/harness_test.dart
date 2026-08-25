@@ -131,11 +131,7 @@ void main() {
         return _assistant('SUMMARY');
       }
 
-      final result = await compact(
-        prep,
-        completeSimple,
-        _model,
-      );
+      final result = await compact(prep, completeSimple, _model);
       final value = result.valueOrNull!;
       expect(value.summary, contains('SUMMARY'));
       expect(value.tokensBefore, greaterThan(0));
@@ -177,6 +173,151 @@ void main() {
       expect(await reopenedSession.getLeafId(), isNotNull);
     });
 
+    test('append/reopen round-trips every lane record type', () async {
+      final file = File('${tmp.path}${Platform.pathSeparator}records.jsonl');
+      const metadata = SessionMetadata(id: 'records', createdAt: 42);
+      final storage = await JsonlSessionStorage.create(file.path, metadata);
+      final session = Session(storage);
+      final queuedEntry = MessageEntry(
+        id: 'queued-entry',
+        message: UserMessage.text('queued'),
+      );
+      final deferredEntry = CustomEntry(
+        id: 'deferred-entry',
+        customType: 'deferred',
+        data: const {'ok': true},
+      );
+
+      await session.appendRecord(
+        OperationStartedRecord(
+          id: 'run-1',
+          lane: 'main',
+          sourceLeafId: null,
+          intent: RunIntent(
+            kind: RunIntentKind.run,
+            originalPrompt: [UserMessage.text('start')],
+            initialMessages: [
+              MessageEntry(
+                id: 'initial-entry',
+                message: UserMessage.text('initial'),
+              ),
+            ],
+            systemPromptOverride: 'system',
+            resumeData: const {'cursor': 3},
+          ),
+        ),
+      );
+      await session.appendRecord(
+        AbortRequestedRecord(id: 'abort-1', lane: 'main', runId: 'run-1'),
+      );
+      await session.appendRecord(
+        StepAttemptRecord(
+          id: 'step-1',
+          lane: 'main',
+          runId: 'run-1',
+          step: 'compaction',
+          attempt: 2,
+          resultEntryId: 'result-1',
+          compactionReason: CompactionReason.threshold,
+        ),
+      );
+      await session.appendRecord(
+        ToolStartedRecord(
+          id: 'tool-1',
+          lane: 'main',
+          runId: 'run-1',
+          assistantEntryId: 'assistant-1',
+          toolIndex: 4,
+          toolCallId: 'call-1',
+          toolName: 'read',
+          effectiveArgs: const {'path': 'image.png'},
+          resultEntryId: 'tool-result-1',
+          replay: ReplayMode.safe,
+        ),
+      );
+      await session.appendRecord(
+        QueueEnqueuedRecord(
+          id: 'queue-1',
+          lane: 'main',
+          queue: QueueKind.steer,
+          target: queuedEntry,
+          runId: 'run-1',
+        ),
+      );
+      await session.appendRecord(
+        QueueCancelledRecord(
+          id: 'cancel-1',
+          lane: 'main',
+          entryId: 'queued-entry',
+          runId: 'run-1',
+        ),
+      );
+      await session.appendRecord(
+        WriteDeferredRecord(
+          id: 'deferred-1',
+          lane: 'main',
+          runId: 'run-1',
+          target: deferredEntry,
+        ),
+      );
+      await session.appendRecord(
+        UsageRecord(
+          id: 'usage-1',
+          lane: 'main',
+          usage: const Usage(
+            input: 10,
+            output: 4,
+            totalTokens: 14,
+            cost: Cost(total: 0.25),
+          ),
+          cause: UsageCause.tool,
+          runId: 'run-1',
+          toolCallId: 'call-1',
+          details: const {'provider': 'test'},
+        ),
+      );
+      await session.appendRecord(
+        OperationFinishedRecord(
+          id: 'finish-1',
+          lane: 'main',
+          runId: 'run-1',
+          outcome: OperationOutcomeKind.failed,
+          error: (code: 'failed', message: 'expected failure'),
+        ),
+      );
+
+      final reopened = JsonlSessionStorage(file, metadata);
+      final records = await reopened.findRecords(
+        const RecordQuery(order: EntryOrder.oldestFirst),
+      );
+      expect(records.length, 9);
+      expect(records.map((record) => record.runtimeType), [
+        OperationStartedRecord,
+        AbortRequestedRecord,
+        StepAttemptRecord,
+        ToolStartedRecord,
+        QueueEnqueuedRecord,
+        QueueCancelledRecord,
+        WriteDeferredRecord,
+        UsageRecord,
+        OperationFinishedRecord,
+      ]);
+      final started = records.first as OperationStartedRecord;
+      expect(started.intent.originalPrompt.single, isA<UserMessage>());
+      expect(started.intent.initialMessages.single, isA<MessageEntry>());
+      expect(started.intent.resumeData, {'cursor': 3});
+      final tool = records[3] as ToolStartedRecord;
+      expect(tool.effectiveArgs, {'path': 'image.png'});
+      expect(tool.replay, ReplayMode.safe);
+      final usage = records[7] as UsageRecord;
+      expect(usage.usage.totalTokens, 14);
+      expect(usage.usage.cost.total, 0.25);
+      final finished = records.last as OperationFinishedRecord;
+      expect(finished.outcome, OperationOutcomeKind.failed);
+      expect(finished.error?.message, 'expected failure');
+      expect(await reopened.findOpenOperations('main'), isEmpty);
+    });
+
     test('buildSessionContext collapses after compaction entry', () async {
       final file = File('${tmp.path}${Platform.pathSeparator}s2.jsonl');
       const metadata = SessionMetadata(id: 's2', createdAt: 1);
@@ -192,6 +333,11 @@ void main() {
           summary: 'the old talk',
           retainedTail: [UserMessage.text('recent')],
           tokensBefore: 5000,
+          details: const CompactionDetails(
+            readFiles: ['old.txt'],
+            modifiedFiles: ['new.txt'],
+          ),
+          usage: const Usage(totalTokens: 12),
         ),
         'main',
       );
@@ -203,10 +349,7 @@ void main() {
       // compaction 条目折叠其上方历史 → 摘要消息 + 保留尾部。
       expect(context.messages.length, 2);
       expect(context.messages.first, isA<CompactionSummaryMessage>());
-      expect(
-        (context.messages.last as UserMessage).text,
-        'recent',
-      );
+      expect((context.messages.last as UserMessage).text, 'recent');
 
       // 重放后语义一致。
       final reopened = JsonlSessionStorage(file, metadata);
@@ -217,27 +360,47 @@ void main() {
       );
       final context2 = buildSessionContext(entries2);
       expect(context2.messages.length, 2);
+      final reopenedCompaction = entries2.whereType<CompactionEntry>().single;
+      expect(reopenedCompaction.usage?.totalTokens, 12);
+      final details = reopenedCompaction.details as CompactionDetails;
+      expect(details.readFiles, ['old.txt']);
+      expect(details.modifiedFiles, ['new.txt']);
     });
 
-    test('listWithNames prefers persisted name over first user message',
-        () async {
-      final repo = JsonlSessionRepo(Directory(tmp.path));
+    test(
+      'listWithNames prefers persisted name over first user message',
+      () async {
+        final repo = JsonlSessionRepo(Directory(tmp.path));
 
-      // 会话 A：setName 持久化名优先。
-      final a = await repo.create();
-      await a.appendMessage(UserMessage.text('first message text'));
-      await a.setName('custom name');
+        // 会话 A：setName 持久化名优先。
+        final a = await repo.create();
+        await a.appendMessage(UserMessage.text('first message text'));
+        await a.setName('custom name');
 
-      // 会话 B：未命名 → 回退首条用户消息。
-      final b = await repo.create();
-      await b.appendMessage(UserMessage.text('derive my name please'));
+        // 会话 B：未命名 → 回退首条用户消息。
+        final b = await repo.create();
+        await b.appendMessage(UserMessage.text('derive my name please'));
 
-      final aId = (await a.getMetadata()).id;
-      final bId = (await b.getMetadata()).id;
-      final named = await repo.listWithNames();
-      final names = {for (final (m, n) in named) m.id: n};
-      expect(names[aId], 'custom name');
-      expect(names[bId], 'derive my name please');
-    });
+        final aId = (await a.getMetadata()).id;
+        final bId = (await b.getMetadata()).id;
+        final expectedUpdatedAt = DateTime(2026, 1, 2, 3, 4, 5);
+        final aFile = File(
+          '${tmp.path}${Platform.pathSeparator}agent_chat'
+          '${Platform.pathSeparator}sessions${Platform.pathSeparator}$aId.jsonl',
+        );
+        await aFile.setLastModified(expectedUpdatedAt);
+        final named = await repo.listWithNames();
+        final names = {for (final (m, n, _) in named) m.id: n};
+        final updatedAt = {
+          for (final (metadata, _, modified) in named) metadata.id: modified,
+        };
+        expect(names[aId], 'custom name');
+        expect(names[bId], 'derive my name please');
+        expect(
+          updatedAt[aId]?.millisecondsSinceEpoch,
+          expectedUpdatedAt.millisecondsSinceEpoch,
+        );
+      },
+    );
   });
 }

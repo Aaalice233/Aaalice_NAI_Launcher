@@ -57,13 +57,22 @@ EventStream<AgentEvent, List<AgentMessage>> agentLoop(
   final stream = createAgentStream();
 
   // 后台驱动完整循环；结束时把新增消息作为流的最终结果交付。
-  runAgentLoop(prompts, context, config, (event) async {
-    stream.push(event);
-  }, signal, streamFn).then((messages) {
-    stream.end(messages);
-  }).catchError((Object error) {
-    stream.endError(error);
-  });
+  runAgentLoop(
+        prompts,
+        context,
+        config,
+        (event) async {
+          stream.push(event);
+        },
+        signal,
+        streamFn,
+      )
+      .then((messages) {
+        stream.end(messages);
+      })
+      .catchError((Object error) {
+        stream.endError(error);
+      });
 
   return stream;
 }
@@ -91,13 +100,21 @@ EventStream<AgentEvent, List<AgentMessage>> agentLoopContinue(
 
   final stream = createAgentStream();
 
-  runAgentLoopContinue(context, config, (event) async {
-    stream.push(event);
-  }, signal, streamFn).then((messages) {
-    stream.end(messages);
-  }).catchError((Object error) {
-    stream.endError(error);
-  });
+  runAgentLoopContinue(
+        context,
+        config,
+        (event) async {
+          stream.push(event);
+        },
+        signal,
+        streamFn,
+      )
+      .then((messages) {
+        stream.end(messages);
+      })
+      .catchError((Object error) {
+        stream.endError(error);
+      });
 
   return stream;
 }
@@ -222,17 +239,13 @@ Future<void> _runLoop(
 
       if (message.stopReason == StopReason.error ||
           message.stopReason == StopReason.aborted) {
-        await emit(
-          AgentEventTurnEnd(message: message, toolResults: const []),
-        );
+        await emit(AgentEventTurnEnd(message: message, toolResults: const []));
         await emit(AgentEventAgentEnd(messages: newMessages));
         return;
       }
 
       // 检查工具调用
-      final toolCalls = message.content
-          .whereType<ToolCallContent>()
-          .toList();
+      final toolCalls = message.content.whereType<ToolCallContent>().toList();
 
       final toolResults = <ToolResultMessage>[];
       hasMoreToolCalls = false;
@@ -277,6 +290,7 @@ Future<void> _runLoop(
               : nextTurnSnapshot.thinkingLevel == 'off'
               ? null
               : nextTurnSnapshot.thinkingLevel,
+          clearReasoning: nextTurnSnapshot.thinkingLevel == 'off',
         );
       }
 
@@ -345,7 +359,14 @@ Future<AssistantMessage> _streamAssistantResponse(
     messages: llmMessages,
     tools: context.tools == null
         ? null
-        : [for (final tool in context.tools!) Tool(name: tool.name, description: tool.description, parameters: tool.parameters)],
+        : [
+            for (final tool in context.tools!)
+              Tool(
+                name: tool.name,
+                description: tool.description,
+                parameters: tool.parameters,
+              ),
+          ],
   );
 
   // 解析 API Key（对会过期的 token 很重要）
@@ -369,9 +390,7 @@ Future<AssistantMessage> _streamAssistantResponse(
       partialMessage = event.partial;
       context.messages.add(partialMessage);
       addedPartial = true;
-      await emit(
-        AgentEventMessageStart(message: partialMessage.copyWith()),
-      );
+      await emit(AgentEventMessageStart(message: partialMessage.copyWith()));
     } else if (event is AmTextStart ||
         event is AmTextDelta ||
         event is AmTextEnd ||
@@ -462,7 +481,9 @@ Future<_ExecutedToolCallBatch> _executeToolCalls(
       .whereType<ToolCallContent>()
       .toList();
   final hasSequentialToolCall = toolCalls.any((tc) {
-    final tool = currentContext.tools?.where((t) => t.name == tc.name).firstOrNull;
+    final tool = currentContext.tools
+        ?.where((t) => t.name == tc.name)
+        .firstOrNull;
     return tool?.executionMode == ToolExecutionMode.sequential;
   });
   if (config.toolExecution == ToolExecutionMode.sequential ||
@@ -487,7 +508,10 @@ Future<_ExecutedToolCallBatch> _executeToolCalls(
 }
 
 class _ExecutedToolCallBatch {
-  const _ExecutedToolCallBatch({required this.messages, required this.terminate});
+  const _ExecutedToolCallBatch({
+    required this.messages,
+    required this.terminate,
+  });
 
   final List<ToolResultMessage> messages;
   final bool terminate;
@@ -521,7 +545,8 @@ Future<_ExecutedToolCallBatch> _executeToolCallsSequential(
       signal,
     );
     _FinalizedToolCallOutcome finalized;
-    if (preparation is _ImmediateToolCallOutcome) {      finalized = _FinalizedToolCallOutcome(
+    if (preparation is _ImmediateToolCallOutcome) {
+      finalized = _FinalizedToolCallOutcome(
         toolCall: toolCall,
         result: preparation.result,
         isError: preparation.isError,
@@ -763,7 +788,11 @@ Future<_ToolCallPreparation> _prepareToolCall(
         isError: true,
       );
     }
-    return _PreparedToolCall(toolCall: toolCall, tool: tool, args: validatedArgs);
+    return _PreparedToolCall(
+      toolCall: toolCall,
+      tool: tool,
+      args: validatedArgs,
+    );
   } catch (error) {
     return _ImmediateToolCallOutcome(
       result: _createErrorToolResult(error.toString()),
@@ -787,23 +816,21 @@ Future<_ExecutedToolCallOutcome> _executePreparedToolCall(
       signal,
       (partialResult) {
         if (!acceptingUpdates) return;
-        updateEvents.add(
-          () async {
-            await emit(
-              AgentEventToolExecutionUpdate(
-                toolCallId: prepared.toolCall.id,
-                toolName: prepared.toolCall.name,
-                args: prepared.toolCall.arguments,
-                partialResult: partialResult,
-              ),
-            );
-          }(),
-        );
+        updateEvents.add(() async {
+          await emit(
+            AgentEventToolExecutionUpdate(
+              toolCallId: prepared.toolCall.id,
+              toolName: prepared.toolCall.name,
+              args: prepared.toolCall.arguments,
+              partialResult: partialResult,
+            ),
+          );
+        }());
       },
     );
     acceptingUpdates = false;
     await Future.wait(updateEvents);
-    return _ExecutedToolCallOutcome(result: result, isError: false);
+    return _ExecutedToolCallOutcome(result: result, isError: result.isError);
   } catch (error) {
     acceptingUpdates = false;
     await Future.wait(updateEvents);
@@ -841,14 +868,15 @@ Future<_FinalizedToolCallOutcome> _finalizeExecutedToolCall(
         signal,
       );
       if (afterResult != null) {
+        isError = afterResult.isError ?? isError;
         result = AgentToolResult(
           content: afterResult.content ?? result.content,
           details: afterResult.details ?? result.details,
+          isError: isError,
           usage: afterResult.usage ?? result.usage,
           terminate: afterResult.terminate ?? result.terminate,
           addedToolNames: result.addedToolNames,
         );
-        isError = afterResult.isError ?? isError;
       }
     } catch (error) {
       result = _createErrorToolResult(error.toString());
@@ -867,6 +895,7 @@ AgentToolResult _createErrorToolResult(String message) {
   return AgentToolResult(
     content: [ToolResultTextContent(message)],
     details: <String, dynamic>{},
+    isError: true,
   );
 }
 
@@ -884,7 +913,9 @@ Future<void> _emitToolExecutionEnd(
   );
 }
 
-ToolResultMessage _createToolResultMessage(_FinalizedToolCallOutcome finalized) {
+ToolResultMessage _createToolResultMessage(
+  _FinalizedToolCallOutcome finalized,
+) {
   return ToolResultMessage(
     toolCallId: finalized.toolCall.id,
     toolName: finalized.toolCall.name,

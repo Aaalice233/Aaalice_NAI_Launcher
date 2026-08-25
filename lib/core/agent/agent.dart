@@ -5,7 +5,6 @@ import 'agent_types.dart';
 
 export 'agent_types.dart';
 
-
 Future<List<Message>> defaultConvertToLlm(List<AgentMessage> messages) async {
   return messages
       .where(
@@ -58,10 +57,12 @@ class _PendingMessageQueue {
 class _ActiveRun {
   const _ActiveRun({
     required this.promise,
+    required this.completer,
     required this.abortController,
   });
 
   final Future<void> promise;
+  final Completer<void> completer;
   final AbortController abortController;
 }
 
@@ -163,9 +164,8 @@ class Agent {
   }
 
   late final AgentState _state;
-  final List<
-      FutureOr<void> Function(AgentEvent event, AbortSignal signal)
-  > _listeners = [];
+  final List<FutureOr<void> Function(AgentEvent event, AbortSignal signal)>
+  _listeners = [];
   late final _PendingMessageQueue _steeringQueue;
   late final _PendingMessageQueue _followUpQueue;
   _ActiveRun? _activeRun;
@@ -307,8 +307,10 @@ class Agent {
   /// 从当前转录继续。最后一条消息必须是 user 或 toolResult。
   Future<void> continueRun() async {
     if (_activeRun != null) {
-      throw StateError('Agent is already processing. Wait for completion '
-          'before continuing.');
+      throw StateError(
+        'Agent is already processing. Wait for completion '
+        'before continuing.',
+      );
     }
 
     if (_state.messages.isEmpty) {
@@ -414,8 +416,8 @@ class Agent {
           : (context) async {
               return _shouldStopAfterTurnOption(context, signal);
             },
-      prepareNextTurn: (prepareNextTurnWithContext != null ||
-              _prepareNextTurnOption != null)
+      prepareNextTurn:
+          (prepareNextTurnWithContext != null || _prepareNextTurnOption != null)
           ? (context) async {
               if (prepareNextTurnWithContext != null) {
                 return prepareNextTurnWithContext!(context, signal);
@@ -448,6 +450,7 @@ class Agent {
     final runCompleter = Completer<void>();
     final run = _ActiveRun(
       promise: runCompleter.future,
+      completer: runCompleter,
       abortController: abortController,
     );
     _activeRun = run;
@@ -481,10 +484,14 @@ class Agent {
   }
 
   void _finishRun() {
+    final run = _activeRun;
     _state.isStreaming = false;
     _state.streamingMessage = null;
     _state.pendingToolCalls.clear();
     _activeRun = null;
+    if (run != null && !run.completer.isCompleted) {
+      run.completer.complete();
+    }
   }
 
   /// 对 loop 事件先做内部状态归约，再 await listener。

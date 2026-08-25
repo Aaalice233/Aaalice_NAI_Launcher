@@ -43,10 +43,7 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
           ],
         },
         'contents': [
-          {
-            'role': 'user',
-            'parts': _parts(request.userParts),
-          },
+          {'role': 'user', 'parts': _parts(request.userParts)},
         ],
       },
       options: Options(
@@ -120,10 +117,12 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
                   }
                   final functionCall = part['functionCall'];
                   if (functionCall is Map<String, dynamic>) {
+                    stopReason = StopReason.toolUse;
                     final args = functionCall['args'];
                     pending.add(
                       AgentWireToolCallDone(
-                        id: 'gemini_${pending.length}_'
+                        id:
+                            'gemini_${pending.length}_'
                             '${DateTime.now().microsecondsSinceEpoch}',
                         name: functionCall['name'] as String? ?? '',
                         arguments: args is Map<String, dynamic>
@@ -171,10 +170,7 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
     if (sawError) {
       return;
     }
-    yield AgentWireFinish(
-      stopReason: stopReason,
-      usage: usage,
-    );
+    yield AgentWireFinish(stopReason: stopReason, usage: usage);
   }
 
   Map<String, dynamic> _buildAgentPayload(AgentChatRequest request) {
@@ -184,7 +180,10 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
       if (turns.isNotEmpty && turns.last['role'] == role) {
         (turns.last['parts'] as List<Map<String, dynamic>>).add(part);
       } else {
-        turns.add({'role': role, 'parts': [part]});
+        turns.add({
+          'role': role,
+          'parts': [part],
+        });
       }
     }
 
@@ -266,8 +265,9 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
 
   String _resolveGenerateEndpoint(ProviderConfig provider, String model) {
     final base = _resolveGeminiRoot(provider);
-    final normalizedModel =
-        model.startsWith('models/') ? model : 'models/$model';
+    final normalizedModel = model.startsWith('models/')
+        ? model
+        : 'models/$model';
     return '$base/$normalizedModel:generateContent';
   }
 
@@ -322,8 +322,8 @@ Map<String, dynamic> sanitizeGeminiSchema(Map<String, dynamic> schema) {
     if (schema['required'] is List) 'required': schema['required'],
     if (schema['properties'] is Map<String, dynamic>)
       'properties': {
-        for (final entry in (schema['properties'] as Map<String, dynamic>)
-            .entries)
+        for (final entry
+            in (schema['properties'] as Map<String, dynamic>).entries)
           if (entry.value is Map<String, dynamic>)
             entry.key: sanitizeGeminiSchema(
               entry.value as Map<String, dynamic>,

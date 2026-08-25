@@ -1667,6 +1667,72 @@ abstract class AppLocalizations {
   /// **'Rewrite the negative prompt for photorealistic style'**
   String get agentChat_suggestion3;
 
+  /// No description provided for @agentChat_permissionMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Agent permissions'**
+  String get agentChat_permissionMode;
+
+  /// No description provided for @agentChat_permissionSafe.
+  ///
+  /// In en, this message translates to:
+  /// **'Safe'**
+  String get agentChat_permissionSafe;
+
+  /// No description provided for @agentChat_permissionSafeDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Only run tools without side effects'**
+  String get agentChat_permissionSafeDescription;
+
+  /// No description provided for @agentChat_permissionAsk.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask'**
+  String get agentChat_permissionAsk;
+
+  /// No description provided for @agentChat_permissionAskDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask before sensitive actions'**
+  String get agentChat_permissionAskDescription;
+
+  /// No description provided for @agentChat_permissionFull.
+  ///
+  /// In en, this message translates to:
+  /// **'Full access'**
+  String get agentChat_permissionFull;
+
+  /// No description provided for @agentChat_permissionFullDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Run without prompts and allow files outside the workspace'**
+  String get agentChat_permissionFullDescription;
+
+  /// No description provided for @agentChat_approvalTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow {toolName}?'**
+  String agentChat_approvalTitle(Object toolName);
+
+  /// No description provided for @agentChat_approvalDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'This tool may read local data, change application state, or incur a charge.'**
+  String get agentChat_approvalDescription;
+
+  /// No description provided for @agentChat_approvalAllow.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow once'**
+  String get agentChat_approvalAllow;
+
+  /// No description provided for @agentChat_approvalDeny.
+  ///
+  /// In en, this message translates to:
+  /// **'Deny'**
+  String get agentChat_approvalDeny;
+
   /// No description provided for @generation_failedStreamSnapshot.
   ///
   /// In en, this message translates to:

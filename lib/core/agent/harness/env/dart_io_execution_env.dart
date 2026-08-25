@@ -9,11 +9,16 @@ import '../harness_types.dart';
 
 /// 基于 dart:io 的默认 ExecutionEnv。
 class DartIoExecutionEnv implements ExecutionEnv {
-  DartIoExecutionEnv({String? workingDirectory})
-    : cwd = workingDirectory ?? io.Directory.current.path;
+  DartIoExecutionEnv({
+    String? workingDirectory,
+    this.allowOutsideWorkingDirectory = false,
+  }) : cwd = p.normalize(workingDirectory ?? io.Directory.current.path);
 
   @override
   final String cwd;
+
+  /// 仅供用户明确选择“完全访问”或应用内部技能发现使用。
+  final bool allowOutsideWorkingDirectory;
 
   FileError _fsError(io.FileSystemException e, String? path) {
     final osError = e.osError?.errorCode ?? 0;
@@ -34,6 +39,43 @@ class DartIoExecutionEnv implements ExecutionEnv {
     return p.normalize(normalized);
   }
 
+  bool _samePath(String left, String right) {
+    if (io.Platform.isWindows) {
+      return left.toLowerCase() == right.toLowerCase();
+    }
+    return left == right;
+  }
+
+  bool _isWithin(String root, String candidate) {
+    if (_samePath(root, candidate)) {
+      return true;
+    }
+    if (io.Platform.isWindows) {
+      return p.isWithin(root.toLowerCase(), candidate.toLowerCase());
+    }
+    return p.isWithin(root, candidate);
+  }
+
+  Future<String> _canonicalizeForBoundary(String path) async {
+    var existing = p.normalize(path);
+    final missingParts = <String>[];
+    while (io.FileSystemEntity.typeSync(existing, followLinks: false) ==
+        io.FileSystemEntityType.notFound) {
+      final parent = p.dirname(existing);
+      if (_samePath(parent, existing)) {
+        break;
+      }
+      missingParts.add(p.basename(existing));
+      existing = parent;
+    }
+
+    var canonical = await io.File(existing).resolveSymbolicLinks();
+    for (final part in missingParts.reversed) {
+      canonical = p.join(canonical, part);
+    }
+    return p.normalize(canonical);
+  }
+
   @override
   Future<HarnessResult<String, FileError>> absolutePath(
     String path, [
@@ -44,7 +86,21 @@ class DartIoExecutionEnv implements ExecutionEnv {
       final absolute = p.isAbsolute(normalized)
           ? normalized
           : _normalize('$cwd${io.Platform.pathSeparator}$normalized');
-      return ok(p.normalize(absolute));
+      final resolved = p.normalize(absolute);
+      if (!allowOutsideWorkingDirectory) {
+        final canonicalRoot = await _canonicalizeForBoundary(cwd);
+        final canonicalCandidate = await _canonicalizeForBoundary(resolved);
+        if (!_isWithin(canonicalRoot, canonicalCandidate)) {
+          return err(
+            FileError(
+              FileErrorCode.permissionDenied,
+              'Path is outside the configured workspace',
+              path,
+            ),
+          );
+        }
+      }
+      return ok(resolved);
     } catch (e) {
       return err(FileError(FileErrorCode.invalid, e.toString(), path));
     }
@@ -125,7 +181,9 @@ class DartIoExecutionEnv implements ExecutionEnv {
       } else if (content is List<int>) {
         await file.writeAsBytes(content);
       } else {
-        return err(FileError(FileErrorCode.invalid, 'Unsupported content', path));
+        return err(
+          FileError(FileErrorCode.invalid, 'Unsupported content', path),
+        );
       }
       return ok(null);
     } on io.FileSystemException catch (e) {
@@ -147,7 +205,9 @@ class DartIoExecutionEnv implements ExecutionEnv {
       } else if (content is List<int>) {
         await file.writeAsBytes(content, mode: io.FileMode.append);
       } else {
-        return err(FileError(FileErrorCode.invalid, 'Unsupported content', path));
+        return err(
+          FileError(FileErrorCode.invalid, 'Unsupported content', path),
+        );
       }
       return ok(null);
     } on io.FileSystemException catch (e) {
@@ -209,7 +269,10 @@ class DartIoExecutionEnv implements ExecutionEnv {
       final dir = io.Directory(path);
       final results = <FileInfo>[];
       await for (final entity in dir.list(followLinks: false)) {
-        final type = io.FileSystemEntity.typeSync(entity.path, followLinks: false);
+        final type = io.FileSystemEntity.typeSync(
+          entity.path,
+          followLinks: false,
+        );
         final kind = switch (type) {
           io.FileSystemEntityType.file => FileKind.file,
           io.FileSystemEntityType.directory => FileKind.directory,
@@ -260,8 +323,10 @@ class DartIoExecutionEnv implements ExecutionEnv {
     AbortSignal? abortSignal,
   ]) async {
     try {
-      return ok(io.FileSystemEntity.typeSync(path, followLinks: false) !=
-          io.FileSystemEntityType.notFound);
+      return ok(
+        io.FileSystemEntity.typeSync(path, followLinks: false) !=
+            io.FileSystemEntityType.notFound,
+      );
     } on io.FileSystemException catch (e) {
       return err(_fsError(e, path));
     }
@@ -328,7 +393,8 @@ class DartIoExecutionEnv implements ExecutionEnv {
   }) async {
     try {
       final dir = await io.Directory.systemTemp.createTemp(prefix ?? '');
-      final name = '${dir.path}${io.Platform.pathSeparator}output'
+      final name =
+          '${dir.path}${io.Platform.pathSeparator}output'
           '${suffix ?? ''}';
       await io.File(name).create();
       return ok(name);

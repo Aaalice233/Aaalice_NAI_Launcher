@@ -335,6 +335,22 @@
   "agentChat_suggestion1": "Improve my current positive prompt",
   "agentChat_suggestion2": "Add two characters with distinct poses",
   "agentChat_suggestion3": "Rewrite the negative prompt for photorealistic style",
+  "agentChat_permissionMode": "Agent permissions",
+  "agentChat_permissionSafe": "Safe",
+  "agentChat_permissionSafeDescription": "Only run tools without side effects",
+  "agentChat_permissionAsk": "Ask",
+  "agentChat_permissionAskDescription": "Ask before sensitive actions",
+  "agentChat_permissionFull": "Full access",
+  "agentChat_permissionFullDescription": "Run without prompts and allow files outside the workspace",
+  "agentChat_approvalTitle": "Allow {toolName}?",
+  "@agentChat_approvalTitle": {
+    "placeholders": {
+      "toolName": {}
+    }
+  },
+  "agentChat_approvalDescription": "This tool may read local data, change application state, or incur a charge.",
+  "agentChat_approvalAllow": "Allow once",
+  "agentChat_approvalDeny": "Deny",
   "generation_failedStreamSnapshot": "Failed snapshot",
   "generation_failedStreamSnapshotHint": "Generation did not finish; only the last preview frame is kept. It cannot be saved, favorited, or used for image workflows.",
   "generation_noHistory": "No history records",

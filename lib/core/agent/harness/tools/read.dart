@@ -7,6 +7,7 @@ import '../utils/truncate.dart';
 import 'image.dart';
 import 'path_utils.dart';
 
+const int defaultMaxReadFileBytes = 20 * 1024 * 1024;
 
 class ReadToolDetails {
   const ReadToolDetails({this.truncation});
@@ -34,20 +35,28 @@ class ReadImageProcessorResult {
   bool get ok => message == null;
 }
 
-typedef ReadImageProcessor = Future<ReadImageProcessorResult> Function(
-  List<int> bytes,
-  String mimeType,
-  ({bool autoResizeImages}) options,
-);
+typedef ReadImageProcessor =
+    Future<ReadImageProcessorResult> Function(
+      List<int> bytes,
+      String mimeType,
+      ({bool autoResizeImages}) options,
+    );
 
 class ReadToolOptions {
-  const ReadToolOptions({this.autoResizeImages = true, this.imageProcessor});
+  const ReadToolOptions({
+    this.autoResizeImages = true,
+    this.imageProcessor,
+    this.maxFileBytes = defaultMaxReadFileBytes,
+  });
 
   /// 注入的图片处理器是否应缩放图片。默认 true。
   final bool autoResizeImages;
 
   /// 可选的图片转换/缩放实现。
   final ReadImageProcessor? imageProcessor;
+
+  /// 单次读取的硬上限，避免在截断输出前把任意大的文件载入内存。
+  final int maxFileBytes;
 }
 
 class ReadHarnessTool extends AgentHarnessTool {
@@ -67,13 +76,11 @@ class ReadHarnessTool extends AgentHarnessTool {
           'properties': {
             'path': {
               'type': 'string',
-              'description':
-                  'Path to the file to read (relative or absolute)',
+              'description': 'Path to the file to read (relative or absolute)',
             },
             'offset': {
               'type': 'number',
-              'description':
-                  'Line number to start reading from (1-indexed)',
+              'description': 'Line number to start reading from (1-indexed)',
             },
             'limit': {
               'type': 'number',
@@ -100,6 +107,14 @@ class ReadHarnessTool extends AgentHarnessTool {
     final limit = (params['limit'] as num?)?.toInt();
 
     final absolutePath = await resolveReadToolPath(env, path, signal);
+    final maxFileBytes = options?.maxFileBytes ?? defaultMaxReadFileBytes;
+    final info = getOrThrow(await env.fileInfo(absolutePath, signal));
+    if (maxFileBytes > 0 && info.size > maxFileBytes) {
+      throw StateError(
+        'File is ${formatSize(info.size)}, exceeds the '
+        '${formatSize(maxFileBytes)} read limit.',
+      );
+    }
     final bytesResult = await env.readBinaryFile(absolutePath, signal);
     final bytes = Uint8List.fromList(getOrThrow(bytesResult));
     final mimeType = detectSupportedImageMimeType(bytes);
@@ -117,6 +132,7 @@ class ReadHarnessTool extends AgentHarnessTool {
               ),
             ],
             details: null,
+            isError: true,
           );
         }
         final hints = processed.hints.isNotEmpty
@@ -148,6 +164,7 @@ class ReadHarnessTool extends AgentHarnessTool {
             ),
           ],
           details: null,
+          isError: true,
         );
       }
       return AgentToolResult(
@@ -193,9 +210,7 @@ class ReadHarnessTool extends AgentHarnessTool {
     String outputText;
     ReadToolDetails? details;
     if (truncation.firstLineExceedsLimit) {
-      final firstLineSize = formatSize(
-        utf8.encode(allLines[startLine]).length,
-      );
+      final firstLineSize = formatSize(utf8.encode(allLines[startLine]).length);
       outputText =
           '[Line $startLineDisplay is $firstLineSize, exceeds '
           '${formatSize(defaultMaxBytes)} limit. Use bash: sed -n '
