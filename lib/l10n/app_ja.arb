@@ -1974,7 +1974,6 @@
   "randomManager_generatePreview": "プレビューの生成",
   "randomManager_importExport": "インポート / エクスポート",
   "randomManager_syncing": "同期中",
-  "randomManager_syncingWithEllipsis": "同期中...",
   "randomManager_syncDanbooruTags": "Danbooru タグを同期",
   "randomManager_unknownError": "不明なエラー",
   "randomManager_readOnlyMode": "読み取り専用モード",

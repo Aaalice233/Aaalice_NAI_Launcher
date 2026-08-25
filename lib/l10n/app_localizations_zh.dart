@@ -4313,9 +4313,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get randomManager_syncing => '同步中';
 
   @override
-  String get randomManager_syncingWithEllipsis => '同步中...';
-
-  @override
   String get randomManager_syncDanbooruTags => '同步 Danbooru 标签';
 
   @override
@@ -16389,9 +16386,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get randomManager_syncing => '同步中';
-
-  @override
-  String get randomManager_syncingWithEllipsis => '同步中...';
 
   @override
   String get randomManager_syncDanbooruTags => '同步 Danbooru 標籤';

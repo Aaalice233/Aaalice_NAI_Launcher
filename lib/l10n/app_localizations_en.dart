@@ -4498,9 +4498,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get randomManager_syncing => 'Syncing';
 
   @override
-  String get randomManager_syncingWithEllipsis => 'Syncing...';
-
-  @override
   String get randomManager_syncDanbooruTags => 'Sync Danbooru Tags';
 
   @override

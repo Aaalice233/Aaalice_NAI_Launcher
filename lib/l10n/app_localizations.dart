@@ -8074,12 +8074,6 @@ abstract class AppLocalizations {
   /// **'Syncing'**
   String get randomManager_syncing;
 
-  /// No description provided for @randomManager_syncingWithEllipsis.
-  ///
-  /// In en, this message translates to:
-  /// **'Syncing...'**
-  String get randomManager_syncingWithEllipsis;
-
   /// No description provided for @randomManager_syncDanbooruTags.
   ///
   /// In en, this message translates to:

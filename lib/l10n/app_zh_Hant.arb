@@ -1990,7 +1990,6 @@
   "randomManager_generatePreview": "生成預覽",
   "randomManager_importExport": "匯入/匯出",
   "randomManager_syncing": "同步中",
-  "randomManager_syncingWithEllipsis": "同步中...",
   "randomManager_syncDanbooruTags": "同步 Danbooru 標籤",
   "randomManager_unknownError": "未知錯誤",
   "randomManager_readOnlyMode": "只讀模式",

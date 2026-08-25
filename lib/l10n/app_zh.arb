@@ -1971,7 +1971,6 @@
   "randomManager_generatePreview": "生成预览",
   "randomManager_importExport": "导入/导出",
   "randomManager_syncing": "同步中",
-  "randomManager_syncingWithEllipsis": "同步中...",
   "randomManager_syncDanbooruTags": "同步 Danbooru 标签",
   "randomManager_unknownError": "未知错误",
   "randomManager_readOnlyMode": "只读模式",

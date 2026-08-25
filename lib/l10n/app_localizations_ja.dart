@@ -4394,9 +4394,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get randomManager_syncing => '同期中';
 
   @override
-  String get randomManager_syncingWithEllipsis => '同期中...';
-
-  @override
   String get randomManager_syncDanbooruTags => 'Danbooru タグを同期';
 
   @override

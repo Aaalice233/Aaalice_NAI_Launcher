@@ -2005,7 +2005,6 @@
   "randomManager_generatePreview": "Generate Preview",
   "randomManager_importExport": "Import / Export",
   "randomManager_syncing": "Syncing",
-  "randomManager_syncingWithEllipsis": "Syncing...",
   "randomManager_syncDanbooruTags": "Sync Danbooru Tags",
   "randomManager_unknownError": "Unknown error",
   "randomManager_readOnlyMode": "Read-only Mode",
