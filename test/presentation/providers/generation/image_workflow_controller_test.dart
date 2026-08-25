@@ -919,6 +919,13 @@ void main() {
       controller.setSourceImageDimensions(832, 1216);
       expect(controller.availableEnhanceFactors, [1.5, 1.0]);
       expect(controller.effectiveEnhanceFactor, 1.5);
+
+      controller.setSourceImageDimensions(1344, 768);
+      expect(controller.availableEnhanceFactors, [1.5, 1.0]);
+      controller.updateEnhanceUpscaleFactor(1.5);
+      final landscapeParams = container.read(generationParamsNotifierProvider);
+      expect(landscapeParams.width, 2048);
+      expect(landscapeParams.height, 1152);
     });
 
     test('enhance level should migrate the legacy magnitude key', () async {

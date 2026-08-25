@@ -662,7 +662,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
       sourceHeight: workflow.sourceHeight ?? workflow.baseHeight,
     );
     final useMaxScale = enhance.maxScale && maxEnhanceAvailable;
-    // 官网按源图尺寸决定可选倍率：面积超上限或算出来对不齐 64 的档位不给选
+    // 按归一化后的实际请求尺寸决定可选倍率，避免展示超过面积上限的档位。
     final availableFactors = controller.availableEnhanceFactors;
     final activeFactor = controller.effectiveEnhanceFactor;
 
@@ -720,7 +720,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
-            // 可用倍率按源图尺寸算：放大后超面积上限或对不齐 64 的档位不给选
+            // 宽高先归一化到 64-grid，实际请求面积未超上限的档位都可选。
             children: [
               ...availableFactors.reversed.map((factor) {
                 final label = factor == factor.roundToDouble()
