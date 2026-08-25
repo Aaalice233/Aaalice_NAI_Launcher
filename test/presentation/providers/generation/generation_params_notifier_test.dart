@@ -802,23 +802,26 @@ void main() {
       );
     });
 
-    test('should keep Variety+ on when switching between V4 and V4.5', () async {
-      final container = ProviderContainer();
-      addTearDown(container.dispose);
+    test(
+      'should keep Variety+ on when switching between V4 and V4.5',
+      () async {
+        final container = ProviderContainer();
+        addTearDown(container.dispose);
 
-      final notifier = container.read(
-        generationParamsNotifierProvider.notifier,
-      );
-      notifier.updateModel(ImageModels.animeDiffusionV4Full);
-      notifier.updateVarietyPlus(true);
+        final notifier = container.read(
+          generationParamsNotifierProvider.notifier,
+        );
+        notifier.updateModel(ImageModels.animeDiffusionV4Full);
+        notifier.updateVarietyPlus(true);
 
-      notifier.updateModel(ImageModels.animeDiffusionV45Full);
+        notifier.updateModel(ImageModels.animeDiffusionV45Full);
 
-      expect(
-        container.read(generationParamsNotifierProvider).varietyPlus,
-        isTrue,
-      );
-    });
+        expect(
+          container.read(generationParamsNotifierProvider).varietyPlus,
+          isTrue,
+        );
+      },
+    );
 
     test('should drop a stored Variety+ when restoring a V5 session', () async {
       // 恢复走的是 build 而不是 updateModel，存档里可能留着别的模型开的开关。
