@@ -862,6 +862,42 @@
   "img2img_directorColorize": "カラー化",
   "img2img_directorEmotion": "感情",
   "img2img_directorDeclutter": "デクラッター",
+  "img2img_directorPixelSnap": "ピクセルスナップ",
+  "img2img_directorPixelSnapHint": "すべてこの PC 上で処理します。Anlas も通信も不要です。大きな画像では数秒かかります。",
+  "img2img_directorPixelSnapPalette": "パレット化",
+  "img2img_directorPixelSnapPaletteOff": "オフ",
+  "img2img_directorPixelSnapPaletteAuto": "自動",
+  "img2img_directorPixelSnapPaletteCustom": "カスタム",
+  "img2img_directorPixelSnapColors": "色数",
+  "img2img_directorPixelSnapAvoidOverRefining": "細かくしすぎない",
+  "img2img_directorPixelSnapAvoidOverRefiningOn": "検出したピクセルサイズを常に維持します。",
+  "img2img_directorPixelSnapAvoidOverRefiningOff": "画像により適している場合、より細かいピクセルサイズを使用することがあります。",
+  "img2img_directorPixelSnapUpscale": "アップスケール",
+  "img2img_directorPixelSnapUpscaleOn": "結果を元の画像とほぼ同じサイズまで拡大し直します。",
+  "img2img_directorPixelSnapUpscaleOff": "結果をスナップ後のピクセルサイズのまま保持します。",
+  "img2img_directorPixelSnapSummary": "{width}×{height} ピクセル · {colors} 色",
+  "@img2img_directorPixelSnapSummary": {
+    "placeholders": {
+      "width": {"type": "int"},
+      "height": {"type": "int"},
+      "colors": {"type": "int"}
+    }
+  },
+  "img2img_directorPixelSnapSummaryNoPalette": "{width}×{height} ピクセル",
+  "@img2img_directorPixelSnapSummaryNoPalette": {
+    "placeholders": {
+      "width": {"type": "int"},
+      "height": {"type": "int"}
+    }
+  },
+  "img2img_directorPixelSnapNoGrid": "この画像には繰り返しのピクセルグリッドが見つかりませんでした。",
+  "img2img_directorPixelSnapBlank": "この画像は全体が透明です。",
+  "img2img_directorPixelSnapDownscaled": "サイズ上限を超えているため、縮小してから解析しました。",
+  "img2img_directorCancel": "キャンセル",
+  "img2img_directorStageAnalyzing": "画像を解析中",
+  "img2img_directorStageSearchingPitch": "ピクセルサイズを探索中",
+  "img2img_directorStageRefiningGrid": "グリッドを調整中",
+  "img2img_directorStageFinishing": "結果を生成中",
   "img2img_enhance": "品質向上",
   "img2img_enhanceHint": "品質向上は、潜在スペースでソース画像を拡大して再生成する間、現在のプロンプトを使用し続けます。",
   "img2img_enhanceMagnitude": "大きさ",

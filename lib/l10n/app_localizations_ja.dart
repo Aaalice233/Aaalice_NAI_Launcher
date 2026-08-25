@@ -2036,6 +2036,84 @@ class AppLocalizationsJa extends AppLocalizations {
   String get img2img_directorDeclutter => 'デクラッター';
 
   @override
+  String get img2img_directorPixelSnap => 'ピクセルスナップ';
+
+  @override
+  String get img2img_directorPixelSnapHint =>
+      'すべてこの PC 上で処理します。Anlas も通信も不要です。大きな画像では数秒かかります。';
+
+  @override
+  String get img2img_directorPixelSnapPalette => 'パレット化';
+
+  @override
+  String get img2img_directorPixelSnapPaletteOff => 'オフ';
+
+  @override
+  String get img2img_directorPixelSnapPaletteAuto => '自動';
+
+  @override
+  String get img2img_directorPixelSnapPaletteCustom => 'カスタム';
+
+  @override
+  String get img2img_directorPixelSnapColors => '色数';
+
+  @override
+  String get img2img_directorPixelSnapAvoidOverRefining => '細かくしすぎない';
+
+  @override
+  String get img2img_directorPixelSnapAvoidOverRefiningOn =>
+      '検出したピクセルサイズを常に維持します。';
+
+  @override
+  String get img2img_directorPixelSnapAvoidOverRefiningOff =>
+      '画像により適している場合、より細かいピクセルサイズを使用することがあります。';
+
+  @override
+  String get img2img_directorPixelSnapUpscale => 'アップスケール';
+
+  @override
+  String get img2img_directorPixelSnapUpscaleOn => '結果を元の画像とほぼ同じサイズまで拡大し直します。';
+
+  @override
+  String get img2img_directorPixelSnapUpscaleOff => '結果をスナップ後のピクセルサイズのまま保持します。';
+
+  @override
+  String img2img_directorPixelSnapSummary(int width, int height, int colors) {
+    return '$width×$height ピクセル · $colors 色';
+  }
+
+  @override
+  String img2img_directorPixelSnapSummaryNoPalette(int width, int height) {
+    return '$width×$height ピクセル';
+  }
+
+  @override
+  String get img2img_directorPixelSnapNoGrid =>
+      'この画像には繰り返しのピクセルグリッドが見つかりませんでした。';
+
+  @override
+  String get img2img_directorPixelSnapBlank => 'この画像は全体が透明です。';
+
+  @override
+  String get img2img_directorPixelSnapDownscaled =>
+      'サイズ上限を超えているため、縮小してから解析しました。';
+
+  @override
+  String get img2img_directorCancel => 'キャンセル';
+
+  @override
+  String get img2img_directorStageAnalyzing => '画像を解析中';
+
+  @override
+  String get img2img_directorStageSearchingPitch => 'ピクセルサイズを探索中';
+
+  @override
+  String get img2img_directorStageRefiningGrid => 'グリッドを調整中';
+
+  @override
+  String get img2img_directorStageFinishing => '結果を生成中';
+
+  @override
   String get img2img_enhance => '品質向上';
 
   @override
