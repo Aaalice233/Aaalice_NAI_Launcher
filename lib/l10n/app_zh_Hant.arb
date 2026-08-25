@@ -1011,6 +1011,28 @@
   "character_addCharacter": "新增角色",
   "character_limitReached": "已達當前模型的角色上限（{limit} 個）",
   "character_number": "角色 {index}",
+  "character_summaryEmpty": "未新增角色",
+  "character_summaryEnabled": "已啟用 {count} 個 · {name}",
+  "@character_summaryEnabled": {
+    "placeholders": {
+      "count": {"type": "int"},
+      "name": {"type": "String"}
+    }
+  },
+  "character_summaryMore": "已啟用 {count} 個 · {name} +{additional}",
+  "@character_summaryMore": {
+    "placeholders": {
+      "count": {"type": "int"},
+      "name": {"type": "String"},
+      "additional": {"type": "int"}
+    }
+  },
+  "character_summaryAllDisabled": "已啟用 0 個 · 已停用 {count} 個",
+  "@character_summaryAllDisabled": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
   "gallery_generationParams": "生成引數",
   "gallery_metaModel": "模型",
   "gallery_metaResolution": "解析度",

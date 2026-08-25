@@ -16,6 +16,7 @@ import '../../../widgets/common/themed_divider.dart';
 import '../../../../data/models/vibe/vibe_library_entry.dart';
 import '../../../../data/models/vibe/vibe_reference.dart';
 import '../../../../data/services/vibe_library_storage_service.dart';
+import '../../../providers/generation/generation_panel_expansion_provider.dart';
 import '../../../providers/generation/generation_params_selectors.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/vibe_library_provider.dart';
@@ -50,7 +51,8 @@ class UnifiedReferencePanel extends ConsumerStatefulWidget {
 }
 
 class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
-  bool _isExpanded = false;
+  static const _panel = GenerationWorkbenchPanel.vibeTransfer;
+
   bool _isRecentCollapsed = true;
   List<VibeLibraryEntry> _recentEntries = [];
 
@@ -332,14 +334,21 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
       generationParamsNotifierProvider.select(selectVibePanelViewData),
     );
     final vibes = panelData.vibes;
+    final isExpanded = ref.watch(
+      generationPanelExpansionProvider.select(
+        (value) => value.isExpanded(_panel),
+      ),
+    );
     final hasVibes = vibes.isNotEmpty;
-    final showBackground = hasVibes && !_isExpanded;
+    final showBackground = hasVibes && !isExpanded;
 
     return CollapsibleImagePanel(
       title: context.l10n.vibe_title,
       icon: Icons.auto_fix_high,
-      isExpanded: _isExpanded,
-      onToggle: () => setState(() => _isExpanded = !_isExpanded),
+      isExpanded: isExpanded,
+      onToggle: () => unawaited(
+        ref.read(generationPanelExpansionProvider.notifier).toggle(_panel),
+      ),
       hasData: hasVibes,
       backgroundImage: _buildBackgroundImage(vibes),
       headerActions: hasVibes
@@ -367,7 +376,7 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
           ),
         ),
       ),
-      child: Padding(
+      childBuilder: (context) => Padding(
         padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,

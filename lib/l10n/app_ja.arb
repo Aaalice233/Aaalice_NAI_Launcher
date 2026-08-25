@@ -1077,6 +1077,28 @@
       "index": {}
     }
   },
+  "character_summaryEmpty": "キャラクター未追加",
+  "character_summaryEnabled": "{count}人有効 · {name}",
+  "@character_summaryEnabled": {
+    "placeholders": {
+      "count": {"type": "int"},
+      "name": {"type": "String"}
+    }
+  },
+  "character_summaryMore": "{count}人有効 · {name} +{additional}",
+  "@character_summaryMore": {
+    "placeholders": {
+      "count": {"type": "int"},
+      "name": {"type": "String"},
+      "additional": {"type": "int"}
+    }
+  },
+  "character_summaryAllDisabled": "0人有効 · {count}人無効",
+  "@character_summaryAllDisabled": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
   "gallery_generationParams": "生成パラメータ",
   "gallery_metaModel": "モデル",
   "gallery_metaResolution": "解像度",
