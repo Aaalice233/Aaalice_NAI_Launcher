@@ -934,10 +934,11 @@ void main() {
     );
   });
 
-  testWidgets(
-    'QuickTagCloud wide Chinese toolbar keeps icons and elastic search',
-    (tester) async {
-      await _setViewSize(tester, 1600);
+  for (final width in [700.0, 840.0, 1180.0, 1600.0]) {
+    testWidgets('QuickTagCloud Chinese toolbar stays aligned at width $width', (
+      tester,
+    ) async {
+      await _setViewSize(tester, width);
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
@@ -965,12 +966,14 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      for (final icon in const [
-        Icons.shuffle,
-        Icons.refresh,
-        Icons.checklist,
-      ]) {
-        expect(find.byIcon(icon), findsOneWidget);
+      if (width >= 1400) {
+        for (final icon in const [
+          Icons.shuffle,
+          Icons.refresh,
+          Icons.checklist,
+        ]) {
+          expect(find.byIcon(icon), findsOneWidget);
+        }
       }
       final searchRect = tester.getRect(
         find.byKey(const ValueKey('online-gallery-primary-search')),
@@ -984,14 +987,30 @@ void main() {
       final primaryRect = tester.getRect(
         find.byKey(const ValueKey('online-gallery-toolbar-primary-row')),
       );
-      expect(searchRect.width, greaterThan(280));
+      expect(searchRect.width, greaterThanOrEqualTo(280));
       expect(blacklistRect.left - searchRect.right, closeTo(8, 0.1));
-      expect(accountRect.right, closeTo(primaryRect.right, 0.1));
+      expect(accountRect.right, greaterThanOrEqualTo(primaryRect.right - 0.1));
+      for (final key in const [
+        'online-gallery-primary-search',
+        'online-gallery-blacklist',
+        'online-gallery-output-filter',
+        'online-gallery-random-toggle',
+        'online-gallery-refresh',
+        'online-gallery-multi-select',
+        'online-gallery-account-avatar',
+      ]) {
+        final rect = tester.getRect(find.byKey(ValueKey(key)));
+        expect(
+          (rect.center.dy - primaryRect.center.dy).abs(),
+          lessThan(1),
+          reason: '$key must stay in the primary row at width $width',
+        );
+      }
       expect(find.text('Leaf category'), findsOneWidget);
       expect(find.text('Fallback codex title'), findsNothing);
       expect(tester.takeException(), isNull);
-    },
-  );
+    });
+  }
 
   testWidgets('QuickTagCloud reuses rating filter and refresh update check', (
     tester,

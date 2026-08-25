@@ -141,10 +141,11 @@ void main() {
         const OnlineGalleryState(sourceId: GallerySourceId.quickTagCloud),
       ),
     );
-    final item = _quickItem('blocked').copyWith(tags: const ['blocked_tag']);
+    final item = _quickItem('blocked').copyWith(tags: const []);
     final adapter = _QueryRecordingAdapter(
       GallerySourceId.quickTagCloud,
       randomItems: [item],
+      detailTags: const ['blocked_tag'],
     );
     final container = ProviderContainer(
       overrides: [
@@ -272,7 +273,7 @@ void main() {
                   .selectedRatings,
               blacklistTags: container
                   .read(onlineGalleryBlacklistNotifierProvider)
-                  .effectiveTags,
+                  .tags,
               codexId: activeFilter.codexId,
               categoryPath: activeFilter.categoryPath,
               mediaFilter: activeFilter.mediaFilter.name,
@@ -611,6 +612,11 @@ class _MemoryStorage extends LocalStorageService {
   }
 
   @override
+  Future<void> setSettings(Map<String, Object?> values) async {
+    _values.addAll(values);
+  }
+
+  @override
   Future<void> deleteSetting(String key) async {
     _values.remove(key);
   }
@@ -721,11 +727,16 @@ class _FavoriteQuickTagCloudAdapter extends QuickTagCloudGallerySourceAdapter {
 }
 
 class _QueryRecordingAdapter extends GallerySourceAdapter {
-  _QueryRecordingAdapter(this.sourceId, {this.randomItems = const []});
+  _QueryRecordingAdapter(
+    this.sourceId, {
+    this.randomItems = const [],
+    this.detailTags = const [],
+  });
 
   @override
   final GallerySourceId sourceId;
   final List<GalleryItem> randomItems;
+  final List<String> detailTags;
 
   GallerySearchRequest? lastSearchRequest;
   GalleryRandomRequest? lastRandomRequest;
@@ -747,6 +758,15 @@ class _QueryRecordingAdapter extends GallerySourceAdapter {
     lastRandomRequest = request;
     return _page(randomItems);
   }
+
+  @override
+  Future<GalleryDetail> detail(
+    GalleryItem item, {
+    CancelToken? cancelToken,
+  }) async => GalleryDetail(
+    item: item.copyWith(tags: detailTags),
+    media: [item.cover],
+  );
 }
 
 class _EmptyAdapter implements GallerySourceAdapter {

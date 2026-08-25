@@ -24,6 +24,8 @@ enum GalleryFeedKind { search, ranking, favorites }
 
 enum GalleryRemoteFavoritesCapability { none, readOnly, readWrite }
 
+enum GalleryRemoteBlacklistCapability { none, readWrite }
+
 class GallerySourceCapabilities {
   const GallerySourceCapabilities({
     required this.supportsSearch,
@@ -37,6 +39,7 @@ class GallerySourceCapabilities {
     required this.supportsWritableFavorites,
     this.supportsLocalFavorites = true,
     this.remoteFavorites = GalleryRemoteFavoritesCapability.none,
+    this.remoteBlacklist = GalleryRemoteBlacklistCapability.none,
     this.supportsCategorizedTags = false,
     required this.supportsDetails,
     required this.supportsMultipleMedia,
@@ -54,6 +57,7 @@ class GallerySourceCapabilities {
   final bool supportsWritableFavorites;
   final bool supportsLocalFavorites;
   final GalleryRemoteFavoritesCapability remoteFavorites;
+  final GalleryRemoteBlacklistCapability remoteBlacklist;
   final bool supportsCategorizedTags;
   final bool supportsDetails;
   final bool supportsMultipleMedia;
@@ -81,6 +85,7 @@ gallerySourceCapabilities = {
     supportsFavorites: true,
     supportsWritableFavorites: true,
     remoteFavorites: GalleryRemoteFavoritesCapability.readWrite,
+    remoteBlacklist: GalleryRemoteBlacklistCapability.readWrite,
     supportsCategorizedTags: true,
     supportsDetails: true,
     supportsMultipleMedia: false,

@@ -2761,59 +2761,38 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get onlineGallery_blacklistSubtitle =>
-      '画像の非表示に使用するリストを選択します。ローカルと Danbooru クラウドのリストは個別に保持されます。';
-
-  @override
-  String get onlineGallery_blacklistSourceLocal => 'ローカル';
-
-  @override
-  String get onlineGallery_blacklistSourceCloud => 'Danbooru クラウド';
-
-  @override
-  String get onlineGallery_blacklistLocalDescription =>
-      'このデバイスにのみ保存され、ログインせずに使用できます';
+      'すべてのオンラインギャラリーで共有され、オフラインでもフィルタリングします。';
 
   @override
   String get onlineGallery_blacklistCloudDescription =>
-      'Danbooru アカウントのブラックリストを直接使用・編集します';
+      'Danbooru に接続済みです。ローカルの変更は安全にマージして同期します';
 
   @override
   String get onlineGallery_blacklistCloudLoginRequired =>
-      'クラウドブラックリストを使用するには Danbooru にログインしてください';
+      'ローカルのブラックリストは有効です。Danbooru にログインすると同期できます';
+
+  @override
+  String get onlineGallery_blacklistCloudUnavailable =>
+      'ローカルのブラックリストは有効です。Danbooru の接続確認後にクラウド同期を再開します';
 
   @override
   String get onlineGallery_addBlacklistTagHint => 'ブラックリスト タグを追加';
 
   @override
-  String get onlineGallery_noLocalBlacklistTags => 'ローカル ブラックリスト タグがありません';
-
-  @override
-  String get onlineGallery_noCloudBlacklistTags => 'クラウド ブラックリスト タグがありません';
+  String get onlineGallery_noLocalBlacklistTags => 'ブラックリスト タグがありません';
 
   @override
   String get onlineGallery_pullBlacklist => 'クラウドを取得';
 
   @override
-  String get onlineGallery_pullBlacklistTooltip =>
-      'ローカルを変更せず Danbooru クラウドのリストを更新します';
-
-  @override
   String get onlineGallery_pushBlacklist => 'クラウドへ送信';
 
   @override
-  String get onlineGallery_pushBlacklistTooltip =>
-      'ローカルのリストで Danbooru クラウドを置き換えます';
-
-  @override
-  String get onlineGallery_pushBlacklistConfirmTitle => 'ローカルでクラウドを置き換えますか？';
+  String get onlineGallery_pushBlacklistConfirmTitle => '統一リストでクラウドを置き換えますか？';
 
   @override
   String get onlineGallery_pushBlacklistConfirmBody =>
-      'Danbooru クラウドのブラックリストは現在のローカルリストで完全に置き換えられます。';
-
-  @override
-  String get onlineGallery_blacklistPullSucceeded =>
-      'Danbooru クラウドのブラックリストを更新しました';
+      'Danbooru クラウドのブラックリストを完全に置き換えます。通常の同期では不明な高度なルールを保持しますが、今回の完全送信では削除されます。';
 
   @override
   String get onlineGallery_blacklistPushSucceeded =>
@@ -2824,11 +2803,16 @@ class AppLocalizationsJa extends AppLocalizations {
       '同期に失敗しました。ログイン状態とネットワーク接続を確認してください。';
 
   @override
+  String onlineGallery_blacklistSaveFailed(String error) {
+    return 'ブラックリストの保存に失敗しました：$error';
+  }
+
+  @override
   String get onlineGallery_autoSyncOnStartup => '起動時にクラウドリストを更新';
 
   @override
   String get onlineGallery_autoSyncOnStartupSubtitle =>
-      'クラウドキャッシュのみ更新し、ローカルのリストは上書きしません';
+      'ローカルタグを削除せず、クラウドの新しいタグを安全にマージします';
 
   @override
   String onlineGallery_lastSyncFailed(Object error) {
@@ -2848,8 +2832,49 @@ class AppLocalizationsJa extends AppLocalizations {
   String get onlineGallery_blacklistSettingsTitle => 'オンライン ギャラリーのブラックリスト設定';
 
   @override
-  String get onlineGallery_blacklistLoginHint =>
-      'Danbooru にログインしていません。ローカルのブラックリストは引き続き機能しますが、同期にはログインが必要です。';
+  String get onlineGallery_blacklistImportTitle => 'タグを一括インポート';
+
+  @override
+  String get onlineGallery_blacklistImportHint => '1 行に 1 タグ、またはカンマで区切って入力します';
+
+  @override
+  String onlineGallery_blacklistImported(Object count) {
+    return '$count 個のタグを追加しました';
+  }
+
+  @override
+  String get onlineGallery_blacklistClearTitle => '統一ブラックリストをクリアしますか？';
+
+  @override
+  String get onlineGallery_blacklistClearBody =>
+      'ギャラリーはこれらのタグによるフィルタリングを直ちに停止します。クラウドは自動的にクリアされず、この操作は元に戻せます。';
+
+  @override
+  String onlineGallery_blacklistPullSummary(
+    Object added,
+    Object existing,
+    Object skipped,
+    Object opaque,
+  ) {
+    return '$added 件追加、$existing 件は登録済み、削除済み $skipped 件をスキップし、高度なクラウドルール $opaque 件を保持しました';
+  }
+
+  @override
+  String onlineGallery_blacklistPushDiff(
+    Object added,
+    Object removed,
+    Object opaque,
+  ) {
+    return 'クラウドに $added 件追加、$removed 件削除し、高度なルール $opaque 件を削除します。';
+  }
+
+  @override
+  String get onlineGallery_blacklistCloudEmptyConfirm =>
+      'クラウドのブラックリストをクリアすることを確認';
+
+  @override
+  String get onlineGallery_blacklistMigrationConfirm =>
+      'このリストにはアカウントを特定できない旧バージョンのクラウドタグが含まれます。現在のアカウントへの同期を確認してください';
 
   @override
   String get onlineGallery_bulkFavorite => '選択項目をお気に入りに追加';

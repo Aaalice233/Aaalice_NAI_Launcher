@@ -2824,60 +2824,39 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get onlineGallery_blacklistSubtitle =>
-      'Choose the blacklist used to hide images. Local and Danbooru cloud lists remain independent.';
-
-  @override
-  String get onlineGallery_blacklistSourceLocal => 'Local';
-
-  @override
-  String get onlineGallery_blacklistSourceCloud => 'Danbooru Cloud';
-
-  @override
-  String get onlineGallery_blacklistLocalDescription =>
-      'Stored only on this device and works without signing in';
+      'One list is shared by every online gallery and keeps filtering while offline.';
 
   @override
   String get onlineGallery_blacklistCloudDescription =>
-      'Use and edit the blacklist stored in your Danbooru account';
+      'Danbooru is connected; local changes sync after a safe merge';
 
   @override
   String get onlineGallery_blacklistCloudLoginRequired =>
-      'Sign in to Danbooru to use the cloud blacklist';
+      'The local blacklist still works; sign in to Danbooru to sync';
+
+  @override
+  String get onlineGallery_blacklistCloudUnavailable =>
+      'The local blacklist is active. Cloud sync will resume after Danbooru can be verified.';
 
   @override
   String get onlineGallery_addBlacklistTagHint => 'Add blacklist tag';
 
   @override
-  String get onlineGallery_noLocalBlacklistTags => 'No local blacklist tags';
-
-  @override
-  String get onlineGallery_noCloudBlacklistTags => 'No cloud blacklist tags';
+  String get onlineGallery_noLocalBlacklistTags => 'No blacklist tags';
 
   @override
   String get onlineGallery_pullBlacklist => 'Pull cloud';
 
   @override
-  String get onlineGallery_pullBlacklistTooltip =>
-      'Refresh the Danbooru cloud blacklist without changing the local list';
-
-  @override
   String get onlineGallery_pushBlacklist => 'Push to cloud';
 
   @override
-  String get onlineGallery_pushBlacklistTooltip =>
-      'Replace the Danbooru cloud blacklist with the local list';
-
-  @override
   String get onlineGallery_pushBlacklistConfirmTitle =>
-      'Replace cloud with local?';
+      'Replace cloud with the unified list?';
 
   @override
   String get onlineGallery_pushBlacklistConfirmBody =>
-      'The Danbooru cloud blacklist will be completely replaced by your current local list. Make sure the local list is ready.';
-
-  @override
-  String get onlineGallery_blacklistPullSucceeded =>
-      'Danbooru cloud blacklist refreshed';
+      'This completely replaces the Danbooru cloud blacklist. Routine syncing preserves unrecognized advanced rules, but this full push removes them.';
 
   @override
   String get onlineGallery_blacklistPushSucceeded =>
@@ -2888,11 +2867,16 @@ class AppLocalizationsEn extends AppLocalizations {
       'Blacklist sync failed. Check your sign-in and network connection.';
 
   @override
+  String onlineGallery_blacklistSaveFailed(String error) {
+    return 'Failed to save blacklist: $error';
+  }
+
+  @override
   String get onlineGallery_autoSyncOnStartup => 'Refresh cloud list on startup';
 
   @override
   String get onlineGallery_autoSyncOnStartupSubtitle =>
-      'Refreshes only the cloud cache and never overwrites the local blacklist';
+      'Safely merges new cloud tags without deleting local tags';
 
   @override
   String onlineGallery_lastSyncFailed(Object error) {
@@ -2913,8 +2897,51 @@ class AppLocalizationsEn extends AppLocalizations {
       'Online Gallery Blacklist Settings';
 
   @override
-  String get onlineGallery_blacklistLoginHint =>
-      'You are not logged in to Danbooru. The local blacklist still works, but syncing requires login.';
+  String get onlineGallery_blacklistImportTitle => 'Import tags';
+
+  @override
+  String get onlineGallery_blacklistImportHint =>
+      'Enter one tag per line or separate tags with commas';
+
+  @override
+  String onlineGallery_blacklistImported(Object count) {
+    return 'Added $count tags';
+  }
+
+  @override
+  String get onlineGallery_blacklistClearTitle =>
+      'Clear the unified blacklist?';
+
+  @override
+  String get onlineGallery_blacklistClearBody =>
+      'The gallery will immediately stop filtering by these tags. The cloud list will not be cleared automatically, and this action can be undone.';
+
+  @override
+  String onlineGallery_blacklistPullSummary(
+    Object added,
+    Object existing,
+    Object skipped,
+    Object opaque,
+  ) {
+    return 'Added $added, already had $existing, skipped $skipped deleted tags; preserved $opaque advanced cloud rules';
+  }
+
+  @override
+  String onlineGallery_blacklistPushDiff(
+    Object added,
+    Object removed,
+    Object opaque,
+  ) {
+    return 'Cloud will add $added, remove $removed, and delete $opaque advanced rules.';
+  }
+
+  @override
+  String get onlineGallery_blacklistCloudEmptyConfirm =>
+      'Confirm clearing the cloud blacklist';
+
+  @override
+  String get onlineGallery_blacklistMigrationConfirm =>
+      'This list includes cloud tags migrated from an unknown account. Confirm syncing them to the current account';
 
   @override
   String get onlineGallery_bulkFavorite => 'Favorite Selected';

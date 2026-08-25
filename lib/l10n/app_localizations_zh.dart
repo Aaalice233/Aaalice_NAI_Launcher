@@ -2717,56 +2717,38 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onlineGallery_blacklistTitle => '在线画廊黑名单';
 
   @override
-  String get onlineGallery_blacklistSubtitle =>
-      '选择实际用于隐藏图片的黑名单；本地与 Danbooru 云端列表相互独立。';
-
-  @override
-  String get onlineGallery_blacklistSourceLocal => '本地';
-
-  @override
-  String get onlineGallery_blacklistSourceCloud => 'Danbooru 云端';
-
-  @override
-  String get onlineGallery_blacklistLocalDescription => '仅保存在此设备，无需登录即可使用';
+  String get onlineGallery_blacklistSubtitle => '所有在线画廊共用这份列表；离线时仍会正常屏蔽。';
 
   @override
   String get onlineGallery_blacklistCloudDescription =>
-      '直接使用并编辑 Danbooru 账户中的黑名单';
+      '已连接 Danbooru；本地修改会在安全合并后同步';
 
   @override
   String get onlineGallery_blacklistCloudLoginRequired =>
-      '登录 Danbooru 后可切换到云端黑名单';
+      '本地黑名单仍然有效；登录 Danbooru 后可以同步';
+
+  @override
+  String get onlineGallery_blacklistCloudUnavailable =>
+      '本地黑名单仍然有效；验证 Danbooru 连接后会恢复云端同步';
 
   @override
   String get onlineGallery_addBlacklistTagHint => '添加黑名单标签';
 
   @override
-  String get onlineGallery_noLocalBlacklistTags => '暂无本地黑名单标签';
-
-  @override
-  String get onlineGallery_noCloudBlacklistTags => '云端暂无黑名单标签';
+  String get onlineGallery_noLocalBlacklistTags => '暂无黑名单标签';
 
   @override
   String get onlineGallery_pullBlacklist => '拉取云端';
 
   @override
-  String get onlineGallery_pullBlacklistTooltip => '刷新 Danbooru 云端黑名单，不会修改本地列表';
-
-  @override
   String get onlineGallery_pushBlacklist => '推送到云端';
 
   @override
-  String get onlineGallery_pushBlacklistTooltip => '用本地黑名单覆盖 Danbooru 云端列表';
-
-  @override
-  String get onlineGallery_pushBlacklistConfirmTitle => '用本地列表覆盖云端？';
+  String get onlineGallery_pushBlacklistConfirmTitle => '用统一列表覆盖云端？';
 
   @override
   String get onlineGallery_pushBlacklistConfirmBody =>
-      'Danbooru 云端黑名单将被当前本地列表完整替换，请确认本地列表已经整理完成。';
-
-  @override
-  String get onlineGallery_blacklistPullSucceeded => '已刷新 Danbooru 云端黑名单';
+      '这会完整替换 Danbooru 云端黑名单。普通自动同步不会删除无法识别的高级规则，但本次全量推送会删除它们。';
 
   @override
   String get onlineGallery_blacklistPushSucceeded => '已用本地黑名单覆盖云端';
@@ -2775,10 +2757,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onlineGallery_blacklistSyncFailedMessage => '黑名单同步失败，请检查登录状态与网络连接';
 
   @override
+  String onlineGallery_blacklistSaveFailed(String error) {
+    return '保存黑名单失败：$error';
+  }
+
+  @override
   String get onlineGallery_autoSyncOnStartup => '启动时刷新云端列表';
 
   @override
-  String get onlineGallery_autoSyncOnStartupSubtitle => '只刷新云端缓存，不会覆盖本地黑名单';
+  String get onlineGallery_autoSyncOnStartupSubtitle => '安全合并云端新增标签，不删除本地标签';
 
   @override
   String onlineGallery_lastSyncFailed(Object error) {
@@ -2797,8 +2784,48 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onlineGallery_blacklistSettingsTitle => '在线画廊黑名单设置';
 
   @override
-  String get onlineGallery_blacklistLoginHint =>
-      '未登录 Danbooru，仍可使用本地黑名单；同步需要先登录。';
+  String get onlineGallery_blacklistImportTitle => '批量导入标签';
+
+  @override
+  String get onlineGallery_blacklistImportHint => '每行或使用逗号分隔一个标签';
+
+  @override
+  String onlineGallery_blacklistImported(Object count) {
+    return '已新增 $count 个标签';
+  }
+
+  @override
+  String get onlineGallery_blacklistClearTitle => '清空统一黑名单？';
+
+  @override
+  String get onlineGallery_blacklistClearBody =>
+      '画廊将立即停止使用这些标签过滤。云端不会自动清空，可以撤销本次操作。';
+
+  @override
+  String onlineGallery_blacklistPullSummary(
+    Object added,
+    Object existing,
+    Object skipped,
+    Object opaque,
+  ) {
+    return '已新增 $added 项，已有 $existing 项，跳过已删除 $skipped 项；保留 $opaque 条云端高级规则';
+  }
+
+  @override
+  String onlineGallery_blacklistPushDiff(
+    Object added,
+    Object removed,
+    Object opaque,
+  ) {
+    return '云端将新增 $added 项、删除 $removed 项，并删除 $opaque 条高级规则。';
+  }
+
+  @override
+  String get onlineGallery_blacklistCloudEmptyConfirm => '确认清空云端黑名单';
+
+  @override
+  String get onlineGallery_blacklistMigrationConfirm =>
+      '此列表包含旧版本中无法确认账号归属的云端标签；确认将它们同步到当前账号';
 
   @override
   String get onlineGallery_bulkFavorite => '批量收藏';
@@ -14932,57 +14959,38 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get onlineGallery_blacklistTitle => '線上畫廊黑名單';
 
   @override
-  String get onlineGallery_blacklistSubtitle =>
-      '選擇實際用於隱藏圖片的黑名單；本機與 Danbooru 雲端清單彼此獨立。';
-
-  @override
-  String get onlineGallery_blacklistSourceLocal => '本機';
-
-  @override
-  String get onlineGallery_blacklistSourceCloud => 'Danbooru 雲端';
-
-  @override
-  String get onlineGallery_blacklistLocalDescription => '只儲存在此裝置，無需登入即可使用';
+  String get onlineGallery_blacklistSubtitle => '所有線上畫廊共用這份清單；離線時仍會正常屏蔽。';
 
   @override
   String get onlineGallery_blacklistCloudDescription =>
-      '直接使用並編輯 Danbooru 帳戶中的黑名單';
+      '已連接 Danbooru；本機修改會在安全合併後同步';
 
   @override
   String get onlineGallery_blacklistCloudLoginRequired =>
-      '登入 Danbooru 後即可切換至雲端黑名單';
+      '本機黑名單仍然有效；登入 Danbooru 後可以同步';
+
+  @override
+  String get onlineGallery_blacklistCloudUnavailable =>
+      '本機黑名單仍然有效；驗證 Danbooru 連線後會恢復雲端同步';
 
   @override
   String get onlineGallery_addBlacklistTagHint => '新增黑名單標籤';
 
   @override
-  String get onlineGallery_noLocalBlacklistTags => '暫無本機黑名單標籤';
-
-  @override
-  String get onlineGallery_noCloudBlacklistTags => '雲端暫無黑名單標籤';
+  String get onlineGallery_noLocalBlacklistTags => '暫無黑名單標籤';
 
   @override
   String get onlineGallery_pullBlacklist => '從雲端拉取';
 
   @override
-  String get onlineGallery_pullBlacklistTooltip =>
-      '重新整理 Danbooru 雲端黑名單，不會修改本機清單';
-
-  @override
   String get onlineGallery_pushBlacklist => '推送至雲端';
 
   @override
-  String get onlineGallery_pushBlacklistTooltip => '使用本機黑名單覆寫 Danbooru 雲端清單';
-
-  @override
-  String get onlineGallery_pushBlacklistConfirmTitle => '使用本機清單覆寫雲端？';
+  String get onlineGallery_pushBlacklistConfirmTitle => '使用統一清單覆寫雲端？';
 
   @override
   String get onlineGallery_pushBlacklistConfirmBody =>
-      'Danbooru 雲端黑名單將由目前的本機清單完整取代，請確認本機清單已整理完成。';
-
-  @override
-  String get onlineGallery_blacklistPullSucceeded => '已重新整理 Danbooru 雲端黑名單';
+      '這會完整取代 Danbooru 雲端黑名單。一般自動同步會保留無法識別的進階規則，但本次完整推送會刪除它們。';
 
   @override
   String get onlineGallery_blacklistPushSucceeded => '已使用本機黑名單覆寫雲端清單';
@@ -14991,10 +14999,15 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get onlineGallery_blacklistSyncFailedMessage => '黑名單同步失敗，請檢查登入狀態與網路連線';
 
   @override
+  String onlineGallery_blacklistSaveFailed(String error) {
+    return '儲存黑名單失敗：$error';
+  }
+
+  @override
   String get onlineGallery_autoSyncOnStartup => '啟動時重新整理雲端清單';
 
   @override
-  String get onlineGallery_autoSyncOnStartupSubtitle => '只會重新整理雲端快取，不會覆寫本機黑名單';
+  String get onlineGallery_autoSyncOnStartupSubtitle => '安全合併雲端新增標籤，不刪除本機標籤';
 
   @override
   String onlineGallery_lastSyncFailed(Object error) {
@@ -15013,8 +15026,48 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get onlineGallery_blacklistSettingsTitle => '線上畫廊黑名單設定';
 
   @override
-  String get onlineGallery_blacklistLoginHint =>
-      '未登入 Danbooru，仍可使用本地黑名單；同步需要先登入。';
+  String get onlineGallery_blacklistImportTitle => '批次匯入標籤';
+
+  @override
+  String get onlineGallery_blacklistImportHint => '每行或使用逗號分隔一個標籤';
+
+  @override
+  String onlineGallery_blacklistImported(Object count) {
+    return '已新增 $count 個標籤';
+  }
+
+  @override
+  String get onlineGallery_blacklistClearTitle => '清空統一黑名單？';
+
+  @override
+  String get onlineGallery_blacklistClearBody =>
+      '畫廊將立即停止使用這些標籤過濾。雲端不會自動清空，可以復原本次操作。';
+
+  @override
+  String onlineGallery_blacklistPullSummary(
+    Object added,
+    Object existing,
+    Object skipped,
+    Object opaque,
+  ) {
+    return '已新增 $added 項，已有 $existing 項，略過已刪除 $skipped 項；保留 $opaque 條雲端進階規則';
+  }
+
+  @override
+  String onlineGallery_blacklistPushDiff(
+    Object added,
+    Object removed,
+    Object opaque,
+  ) {
+    return '雲端將新增 $added 項、刪除 $removed 項，並刪除 $opaque 條進階規則。';
+  }
+
+  @override
+  String get onlineGallery_blacklistCloudEmptyConfirm => '確認清空雲端黑名單';
+
+  @override
+  String get onlineGallery_blacklistMigrationConfirm =>
+      '此清單包含舊版本中無法確認帳號歸屬的雲端標籤；確認將它們同步到目前帳號';
 
   @override
   String get onlineGallery_bulkFavorite => '批次收藏';
