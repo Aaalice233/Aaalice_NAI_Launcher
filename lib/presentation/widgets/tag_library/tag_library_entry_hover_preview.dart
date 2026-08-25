@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -13,11 +15,13 @@ class TagLibraryEntryHoverPreview extends StatefulWidget {
     super.key,
     required this.entry,
     required this.child,
+    this.enabled = true,
     this.hoverDelay = const Duration(milliseconds: 500),
   });
 
   final TagLibraryEntry entry;
   final Widget child;
+  final bool enabled;
   final Duration hoverDelay;
 
   @override
@@ -55,7 +59,11 @@ class _TagLibraryEntryHoverPreviewState
     super.didUpdateWidget(oldWidget);
     if (oldWidget.entry.id != widget.entry.id) {
       _hoverController.dismissFor(oldWidget.entry.id);
-      if (_isHovering) _schedulePreviewOverlay();
+      if (_isHovering && widget.enabled) _schedulePreviewOverlay();
+    } else if (oldWidget.enabled != widget.enabled ||
+        oldWidget.hoverDelay != widget.hoverDelay) {
+      _hoverController.dismissFor(widget.entry.id);
+      if (_isHovering && widget.enabled) _schedulePreviewOverlay();
     } else if (oldWidget.entry != widget.entry) {
       _hoverController.markNeedsBuild();
     }
@@ -73,6 +81,7 @@ class _TagLibraryEntryHoverPreviewState
   }
 
   void _schedulePreviewOverlay() {
+    if (!widget.enabled) return;
     final renderObject = context.findRenderObject();
     if (renderObject is! RenderBox || !renderObject.hasSize) return;
 
@@ -116,122 +125,132 @@ class TagLibraryEntryPreviewOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    const previewWidth = 320.0;
-    const previewMaxHeight = 400.0;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const preferredWidth = 320.0;
+        const preferredMaxHeight = 400.0;
+        final previewWidth = math.min(preferredWidth, constraints.maxWidth);
+        final previewMaxHeight = math.min(
+          preferredMaxHeight,
+          constraints.maxHeight,
+        );
 
-    return Material(
-      key: const ValueKey('tag-library-entry-preview-overlay'),
-      elevation: 16,
-      borderRadius: BorderRadius.circular(16),
-      color: theme.colorScheme.surfaceContainerHigh,
-      child: Container(
-        width: previewWidth,
-        constraints: const BoxConstraints(maxHeight: previewMaxHeight),
-        decoration: BoxDecoration(
+        return Material(
+          key: const ValueKey('tag-library-entry-preview-overlay'),
+          elevation: 16,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.1),
-            width: 1,
-          ),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (entry.hasThumbnail && entry.thumbnail != null)
-                  ThumbnailDisplay(
-                    imagePath: entry.thumbnail!,
-                    offsetX: entry.thumbnailOffsetX,
-                    offsetY: entry.thumbnailOffsetY,
-                    scale: entry.thumbnailScale,
-                    width: previewWidth,
-                    height: 180,
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(16),
-                    ),
-                  ),
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        entry.displayName,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
+          color: theme.colorScheme.surfaceContainerHigh,
+          child: Container(
+            width: previewWidth,
+            constraints: BoxConstraints(maxHeight: previewMaxHeight),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.1),
+                width: 1,
+              ),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (entry.hasThumbnail && entry.thumbnail != null)
+                      ThumbnailDisplay(
+                        imagePath: entry.thumbnail!,
+                        offsetX: entry.thumbnailOffsetX,
+                        offsetY: entry.thumbnailOffsetY,
+                        scale: entry.thumbnailScale,
+                        width: previewWidth,
+                        height: math.min(180, previewMaxHeight),
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(16),
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      const ThemedDivider(height: 1),
-                      const SizedBox(height: 8),
-                      Text(
-                        entry.content,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          fontFamily: 'monospace',
-                          color: theme.colorScheme.onSurfaceVariant,
-                          height: 1.4,
-                        ),
-                        maxLines: 8,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      if (entry.tags.isNotEmpty) ...[
-                        const SizedBox(height: 12),
-                        Wrap(
-                          spacing: 4,
-                          runSpacing: 4,
-                          children: entry.tags.map((tag) {
-                            return Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: theme.colorScheme.primaryContainer
-                                    .withValues(alpha: 0.5),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Text(
-                                tag,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: theme.colorScheme.onPrimaryContainer,
-                                ),
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                      ],
-                      if (entry.lastUsedAt != null) ...[
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.access_time,
-                              size: 14,
-                              color: theme.colorScheme.outline,
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            entry.displayName,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
                             ),
-                            const SizedBox(width: 4),
-                            Text(
-                              _formatLastUsed(context, entry.lastUsedAt!),
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: theme.colorScheme.outline,
-                              ),
+                          ),
+                          const SizedBox(height: 8),
+                          const ThemedDivider(height: 1),
+                          const SizedBox(height: 8),
+                          Text(
+                            entry.content,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              fontFamily: 'monospace',
+                              color: theme.colorScheme.onSurfaceVariant,
+                              height: 1.4,
+                            ),
+                            maxLines: 8,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (entry.tags.isNotEmpty) ...[
+                            const SizedBox(height: 12),
+                            Wrap(
+                              spacing: 4,
+                              runSpacing: 4,
+                              children: entry.tags.map((tag) {
+                                return Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: theme.colorScheme.primaryContainer
+                                        .withValues(alpha: 0.5),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text(
+                                    tag,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color:
+                                          theme.colorScheme.onPrimaryContainer,
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
                             ),
                           ],
-                        ),
-                      ],
-                    ],
-                  ),
+                          if (entry.lastUsedAt != null) ...[
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.access_time,
+                                  size: 14,
+                                  color: theme.colorScheme.outline,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  _formatLastUsed(context, entry.lastUsedAt!),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: theme.colorScheme.outline,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 

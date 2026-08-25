@@ -58,55 +58,15 @@ class EntryCard extends StatefulWidget {
 class _EntryCardState extends State<EntryCard> {
   bool _isHovering = false;
   bool _isDragging = false;
-  OverlayEntry? _overlayEntry;
-  final _layerLink = LayerLink();
-
-  @override
-  void dispose() {
-    _hidePreviewOverlay();
-    super.dispose();
-  }
-
-  void _showPreviewOverlay() {
-    if (_overlayEntry != null) return;
-
-    final overlay = Overlay.of(context);
-    final renderBox = context.findRenderObject() as RenderBox;
-    final cardSize = renderBox.size;
-    final cardPosition = renderBox.localToGlobal(Offset.zero);
-
-    _overlayEntry = OverlayEntry(
-      builder: (context) => TagLibraryEntryPreviewOverlay(
-        entry: widget.entry,
-        layerLink: _layerLink,
-        cardSize: cardSize,
-        cardPosition: cardPosition,
-        onDismiss: _hidePreviewOverlay,
-      ),
-    );
-
-    overlay.insert(_overlayEntry!);
-  }
-
-  void _hidePreviewOverlay() {
-    _overlayEntry?.remove();
-    _overlayEntry = null;
-  }
 
   void _onEnter() {
     if (!_isDragging && !widget.isSelectionMode) {
       setState(() => _isHovering = true);
-      Future.delayed(const Duration(milliseconds: 500), () {
-        if (_isHovering && mounted && !_isDragging) {
-          _showPreviewOverlay();
-        }
-      });
     }
   }
 
   void _onExit() {
     setState(() => _isHovering = false);
-    _hidePreviewOverlay();
   }
 
   @override
@@ -187,78 +147,80 @@ class _EntryCardState extends State<EntryCard> {
     );
 
     // 外层包装：MouseRegion + 悬浮按钮层
-    final cardContent = CompositedTransformTarget(
-      link: _layerLink,
-      child: MouseRegion(
-        onEnter: (_) => _onEnter(),
-        onExit: (_) => _onExit(),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          curve: Curves.easeOut,
-          height: 80,
-          transform: Matrix4.identity()
-            ..translateByDouble(0, _isHovering ? -4 : 0, 0, 1)
-            ..scaleByDouble(
-              _isHovering ? 1.02 : 1,
-              _isHovering ? 1.02 : 1,
-              _isHovering ? 1.02 : 1,
-              1,
-            ),
-          transformAlignment: Alignment.center,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: _isHovering
-                ? [
-                    BoxShadow(
-                      color: theme.colorScheme.primary.withValues(alpha: 0.3),
-                      blurRadius: 16,
-                      offset: const Offset(0, 8),
-                      spreadRadius: 2,
-                    ),
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.15),
-                      blurRadius: 24,
-                      offset: const Offset(0, 12),
-                    ),
-                  ]
-                : [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.2),
-                      blurRadius: 4,
-                    ),
-                  ],
+    final cardVisual = MouseRegion(
+      onEnter: (_) => _onEnter(),
+      onExit: (_) => _onExit(),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        curve: Curves.easeOut,
+        height: 80,
+        transform: Matrix4.identity()
+          ..translateByDouble(0, _isHovering ? -4 : 0, 0, 1)
+          ..scaleByDouble(
+            _isHovering ? 1.02 : 1,
+            _isHovering ? 1.02 : 1,
+            _isHovering ? 1.02 : 1,
+            1,
           ),
-          foregroundDecoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: borderColor,
-              width: widget.isSelected ? 3 : (_isHovering ? 1.5 : 0),
-            ),
+        transformAlignment: Alignment.center,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: _isHovering
+              ? [
+                  BoxShadow(
+                    color: theme.colorScheme.primary.withValues(alpha: 0.3),
+                    blurRadius: 16,
+                    offset: const Offset(0, 8),
+                    spreadRadius: 2,
+                  ),
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.15),
+                    blurRadius: 24,
+                    offset: const Offset(0, 12),
+                  ),
+                ]
+              : [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.2),
+                    blurRadius: 4,
+                  ),
+                ],
+        ),
+        foregroundDecoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: borderColor,
+            width: widget.isSelected ? 3 : (_isHovering ? 1.5 : 0),
           ),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              cardBody,
-              if (!widget.isSelectionMode)
-                Positioned.fill(
-                  child: IgnorePointer(
-                    ignoring: !_isHovering,
-                    child: Opacity(
-                      opacity: _isHovering ? 1 : 0,
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: Container(
-                          color: Colors.black.withValues(alpha: 0.5),
-                          child: _buildFloatingButtons(theme, entry),
-                        ),
+        ),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            cardBody,
+            if (!widget.isSelectionMode)
+              Positioned.fill(
+                child: IgnorePointer(
+                  ignoring: !_isHovering,
+                  child: Opacity(
+                    opacity: _isHovering ? 1 : 0,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        color: Colors.black.withValues(alpha: 0.5),
+                        child: _buildFloatingButtons(theme, entry),
                       ),
                     ),
                   ),
                 ),
-            ],
-          ),
+              ),
+          ],
         ),
       ),
+    );
+    final cardContent = TagLibraryEntryHoverPreview(
+      entry: entry,
+      enabled: !widget.isSelectionMode && !_isDragging,
+      child: cardVisual,
     );
 
     // 保持根节点稳定，避免切换多选模式时重建缩略图子树。
@@ -271,7 +233,6 @@ class _EntryCardState extends State<EntryCard> {
       childWhenDragging: Opacity(opacity: 0.4, child: cardContent),
       onDragStarted: () {
         HapticFeedback.mediumImpact();
-        _hidePreviewOverlay();
         setState(() {
           _isDragging = true;
           _isHovering = false;
