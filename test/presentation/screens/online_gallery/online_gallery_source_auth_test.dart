@@ -94,6 +94,20 @@ void main() {
           find.byKey(const ValueKey('online-gallery-source-filters')),
           findsNothing,
         );
+        final searchRect = tester.getRect(
+          find.byKey(const ValueKey('online-gallery-primary-search')),
+        );
+        final blacklistRect = tester.getRect(
+          find.byKey(const ValueKey('online-gallery-blacklist')),
+        );
+        final accountRect = tester.getRect(
+          find.byKey(const ValueKey('online-gallery-account-avatar')),
+        );
+        final primaryRect = tester.getRect(
+          find.byKey(const ValueKey('online-gallery-toolbar-primary-row')),
+        );
+        expect(blacklistRect.left - searchRect.right, closeTo(8, 0.1));
+        expect(accountRect.right, closeTo(primaryRect.right, 0.1));
       }
       final collapsed = width < 1100;
       expect(
@@ -129,7 +143,7 @@ void main() {
       ];
       expect(
         find.byKey(const ValueKey('online-gallery-primary-controls-scroll')),
-        findsOneWidget,
+        width < 1400 ? findsOneWidget : findsNothing,
       );
       for (final key in visibleKeys) {
         final rect = tester.getRect(find.byKey(ValueKey(key)));
@@ -841,6 +855,63 @@ void main() {
     );
   });
 
+  testWidgets(
+    'QuickTagCloud wide Chinese toolbar keeps icons and elastic search',
+    (tester) async {
+      await _setViewSize(tester, 1600);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            onlineGalleryNotifierProvider.overrideWith(
+              _QuickTagCloudGalleryNotifier.new,
+            ),
+            quickTagCloudGallerySourceAdapterProvider.overrideWithValue(
+              _TrackingQuickTagCloudAdapter(),
+            ),
+            quickTagCloudCatalogProvider.overrideWith(
+              (ref) async => _quickTagCloudCatalog(),
+            ),
+            quickTagCloudFilterProvider.overrideWith(
+              _QuickTagCloudFilterNotifier.new,
+            ),
+            danbooruAuthProvider.overrideWith(_LoggedOutDanbooruAuth.new),
+            gelbooruAuthProvider.overrideWith(_UnconfiguredGelbooruAuth.new),
+            danbooruSuggestionNotifierProvider.overrideWith(
+              _EmptyDanbooruSuggestionNotifier.new,
+            ),
+          ],
+          child: const _TestApp(locale: Locale('zh')),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      for (final icon in const [
+        Icons.shuffle,
+        Icons.refresh,
+        Icons.checklist,
+      ]) {
+        expect(find.byIcon(icon), findsOneWidget);
+      }
+      final searchRect = tester.getRect(
+        find.byKey(const ValueKey('online-gallery-primary-search')),
+      );
+      final blacklistRect = tester.getRect(
+        find.byKey(const ValueKey('online-gallery-blacklist')),
+      );
+      final accountRect = tester.getRect(
+        find.byKey(const ValueKey('online-gallery-account-avatar')),
+      );
+      final primaryRect = tester.getRect(
+        find.byKey(const ValueKey('online-gallery-toolbar-primary-row')),
+      );
+      expect(searchRect.width, greaterThan(280));
+      expect(blacklistRect.left - searchRect.right, closeTo(8, 0.1));
+      expect(accountRect.right, closeTo(primaryRect.right, 0.1));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('QuickTagCloud reuses rating filter and refresh update check', (
     tester,
   ) async {
@@ -902,20 +973,6 @@ void main() {
         (tester.getCenter(find.byKey(key)).dy - primaryCenter).abs(),
         lessThan(1),
       );
-    }
-    expect(
-      tester
-          .getSize(find.byKey(const ValueKey('online-gallery-primary-search')))
-          .width,
-      lessThanOrEqualTo(360),
-    );
-    for (final icon in const [
-      Icons.search,
-      Icons.shuffle,
-      Icons.refresh,
-      Icons.checklist,
-    ]) {
-      expect(find.byIcon(icon), findsWidgets);
     }
     expect(
       tester
@@ -987,15 +1044,17 @@ Color? _selectedModeColor(WidgetTester tester, String key) {
 }
 
 class _TestApp extends StatelessWidget {
-  const _TestApp();
+  final Locale locale;
+
+  const _TestApp({this.locale = const Locale('en')});
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
-      locale: Locale('en'),
+    return MaterialApp(
+      locale: locale,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
-      home: OnlineGalleryScreen(),
+      home: const OnlineGalleryScreen(),
     );
   }
 }

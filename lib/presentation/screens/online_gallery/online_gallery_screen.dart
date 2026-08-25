@@ -720,12 +720,15 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
               MediaQuery.textScalerOf(context).scale(1) > 1.2;
           // 桌面宽度足够时优先保留文字。过早退化成一排纯图标会让工具栏
           // 看似简洁，却迫使用户逐个悬停才能知道操作含义。
+          final useScrollablePrimary = constraints.maxWidth < 1400;
+          final keepsDetailedLabels =
+              Localizations.localeOf(context).languageCode == 'zh';
           final compactPrimaryActions =
-              forceCompactForText || constraints.maxWidth < 1100;
-          final compactRating =
-              forceCompactForText || constraints.maxWidth < 1100;
-          final compactModes =
-              forceCompactForText || constraints.maxWidth < 1100;
+              forceCompactForText ||
+              useScrollablePrimary ||
+              !keepsDetailedLabels;
+          final compactRating = compactPrimaryActions;
+          final compactModes = compactPrimaryActions;
           final collapseSecondaryControls = constraints.maxWidth < 1100;
           final showQueryFields =
               state.viewMode == GalleryViewMode.search ||
@@ -734,39 +737,76 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
                   state.popularSourceId == GallerySourceId.aiTag);
           final queryFieldWidth = _activeSource(state) == GallerySourceId.aiTag
               ? 520.0
-              : 340.0;
+              : 280.0;
           final secondaryControls = _buildSecondaryControls(theme, state);
-          final primaryControls = <Widget>[
-            _buildSourceSelector(state),
-            const SizedBox(width: 8),
-            _buildModeSelector(
-              theme,
-              state,
-              authState,
-              gelbooruAuthState,
-              compact: compactModes,
-            ),
-            const SizedBox(width: 8),
-            _buildRatingControl(theme, state, compact: compactRating),
-            if (showQueryFields) ...[
-              const SizedBox(width: 12),
-              SizedBox(
-                key: const ValueKey('online-gallery-primary-search'),
-                width: queryFieldWidth,
-                child: _buildSearchFields(theme, state),
+          final leadingControls = Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildSourceSelector(state),
+              const SizedBox(width: 8),
+              _buildModeSelector(
+                theme,
+                state,
+                authState,
+                gelbooruAuthState,
+                compact: compactModes,
+              ),
+              const SizedBox(width: 8),
+              _buildRatingControl(theme, state, compact: compactRating),
+            ],
+          );
+          final trailingControls = Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildGalleryPolicyControls(theme, compact: true),
+              const SizedBox(width: 8),
+              _buildPrimaryActions(
+                theme,
+                state,
+                authState,
+                gelbooruAuthState,
+                compact: compactPrimaryActions,
               ),
             ],
-            const SizedBox(width: 8),
-            _buildGalleryPolicyControls(theme, compact: true),
-            const SizedBox(width: 8),
-            _buildPrimaryActions(
-              theme,
-              state,
-              authState,
-              gelbooruAuthState,
-              compact: compactPrimaryActions,
-            ),
-          ];
+          );
+          final primaryControls = useScrollablePrimary
+              ? SingleChildScrollView(
+                  key: const ValueKey('online-gallery-primary-controls-scroll'),
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      leadingControls,
+                      if (showQueryFields) ...[
+                        const SizedBox(width: 12),
+                        SizedBox(
+                          key: const ValueKey('online-gallery-primary-search'),
+                          width: queryFieldWidth,
+                          child: _buildSearchFields(theme, state),
+                        ),
+                      ],
+                      const SizedBox(width: 8),
+                      trailingControls,
+                    ],
+                  ),
+                )
+              : Row(
+                  children: [
+                    leadingControls,
+                    if (showQueryFields) ...[
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: SizedBox(
+                          key: const ValueKey('online-gallery-primary-search'),
+                          child: _buildSearchFields(theme, state),
+                        ),
+                      ),
+                    ] else
+                      const Spacer(),
+                    const SizedBox(width: 8),
+                    trailingControls,
+                  ],
+                );
 
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -774,14 +814,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
               SizedBox(
                 key: const ValueKey('online-gallery-toolbar-primary-row'),
                 height: 40,
-                child: SingleChildScrollView(
-                  key: const ValueKey('online-gallery-primary-controls-scroll'),
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: primaryControls,
-                  ),
-                ),
+                child: primaryControls,
               ),
               const SizedBox(height: 8),
               SizedBox(
