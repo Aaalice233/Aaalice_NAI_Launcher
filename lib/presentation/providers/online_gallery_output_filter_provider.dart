@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/constants/storage_keys.dart';
 import '../../core/storage/local_storage_service.dart';
+import '../../core/utils/prompt_tag_utils.dart';
 
 class OnlineGalleryOutputFilterSettings {
   const OnlineGalleryOutputFilterSettings({required this.tags});
@@ -57,13 +58,12 @@ class OnlineGalleryOutputFilterSettings {
     }
   }
 
-  /// Filters comma-separated prompt tags by exact normalized tag identity.
-  /// It deliberately never performs substring replacement, so filtering
-  /// `watermark` cannot damage unrelated tags or free-form prompt text.
+  /// Filters top-level comma-separated prompt tokens by exact normalized tag
+  /// identity. Commas inside NovelAI emphasis wrappers or numeric weights stay
+  /// within their token, and no substring replacement is ever performed.
   String filterPrompt(String prompt) {
     if (prompt.trim().isEmpty || tags.isEmpty) return prompt.trim();
-    return prompt
-        .split(',')
+    return PromptTagUtils.splitTopLevel(prompt)
         .map((part) => part.trim())
         .where((part) => part.isNotEmpty && !contains(part))
         .join(', ');
@@ -73,28 +73,64 @@ class OnlineGalleryOutputFilterSettings {
     var normalized = value.trim().toLowerCase();
     if (normalized.isEmpty) return null;
 
-    while (normalized.startsWith('-')) {
-      normalized = normalized.substring(1).trimLeft();
-    }
-
-    // Common NovelAI emphasis wrappers and numeric emphasis syntax should not
-    // prevent an otherwise exact configured tag from matching.
     var changed = true;
-    while (changed && normalized.length > 1) {
+    while (changed && normalized.isNotEmpty) {
       changed = false;
+      while (normalized.startsWith('-')) {
+        normalized = normalized.substring(1).trimLeft();
+        changed = true;
+      }
+
+      final weighted = RegExp(
+        r'^[+-]?(?:\d+(?:\.\d+)?|\.\d+)::([\s\S]+)::$',
+      ).firstMatch(normalized);
+      if (weighted != null) {
+        normalized = weighted.group(1)!.trim();
+        changed = true;
+        continue;
+      }
+
       for (final wrapper in const [('(', ')'), ('[', ']'), ('{', '}')]) {
-        if (normalized.startsWith(wrapper.$1) &&
-            normalized.endsWith(wrapper.$2)) {
+        if (_isFullyWrapped(normalized, wrapper.$1, wrapper.$2)) {
           normalized = normalized.substring(1, normalized.length - 1).trim();
           changed = true;
+          break;
         }
       }
     }
-    final weighted = RegExp(r'^\d+(?:\.\d+)?::(.+)::$').firstMatch(normalized);
-    if (weighted != null) normalized = weighted.group(1)!.trim();
 
     normalized = normalized.replaceAll(RegExp(r'\s+'), '_');
     return normalized.isEmpty ? null : normalized;
+  }
+
+  static bool _isFullyWrapped(String value, String opening, String closing) {
+    if (value.length < 2 ||
+        !value.startsWith(opening) ||
+        !value.endsWith(closing)) {
+      return false;
+    }
+
+    var depth = 0;
+    var escaped = false;
+    for (var index = 0; index < value.length; index++) {
+      final character = value[index];
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      if (character == r'\') {
+        escaped = true;
+        continue;
+      }
+      if (character == opening) {
+        depth++;
+      } else if (character == closing) {
+        depth--;
+        if (depth == 0 && index != value.length - 1) return false;
+        if (depth < 0) return false;
+      }
+    }
+    return depth == 0;
   }
 }
 

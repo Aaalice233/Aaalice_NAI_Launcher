@@ -14,6 +14,8 @@ import 'package:nai_launcher/presentation/widgets/drop/image_destination_dialog.
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../helpers/webp_metadata_fixture.dart';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -144,6 +146,45 @@ void main() {
           ImageDestination.addToQueue: false,
         },
       );
+    });
+
+    test(
+      'clipboard WebP bytes without a file path use shared metadata parsing',
+      () async {
+        final metadata = await detectImportableDroppedImageMetadata(
+          'clipboard_image',
+          buildNovelAiWebpFixture(
+            comment: const {
+              'prompt': 'clipboard webp',
+              'uc': '',
+              'seed': 11,
+              'steps': 28,
+              'scale': 5.0,
+              'sampler': 'k_euler',
+            },
+          ),
+        );
+
+        expect(metadata?.prompt, 'clipboard webp');
+      },
+    );
+
+    test('dropped uppercase WebP uses shared metadata parsing', () async {
+      final metadata = await detectImportableDroppedImageMetadata(
+        'dropped_image.WEBP',
+        buildNovelAiWebpFixture(
+          comment: const {
+            'prompt': 'dropped webp',
+            'uc': '',
+            'seed': 12,
+            'steps': 28,
+            'scale': 5.0,
+            'sampler': 'k_euler',
+          },
+        ),
+      );
+
+      expect(metadata?.prompt, 'dropped webp');
     });
 
     test('only gallery internal drags bypass the global drop handler', () {

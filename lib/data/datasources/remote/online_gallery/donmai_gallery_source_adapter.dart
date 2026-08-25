@@ -629,6 +629,15 @@ class DonmaiGallerySourceAdapter implements GallerySourceAdapter {
       if (boundary.isValid) _boundaryCache.put(cacheKey, boundary);
     }
     if (boundary?.isValid != true) {
+      if (boundary?.newestPageSize == 0) {
+        return const GalleryPage(
+          items: [],
+          cursor: 'random',
+          nextCursor: null,
+          hasMore: false,
+          rawItemCount: 0,
+        );
+      }
       return _fallbackToLatest(tags, request, cancelToken);
     }
 
@@ -660,63 +669,66 @@ class DonmaiGallerySourceAdapter implements GallerySourceAdapter {
       );
     }
 
-    for (var attempt = 0; attempt < 3; attempt++) {
-      final targetId =
-          randomGenerator.nextInt(
-            validBoundary.maxId - validBoundary.minId + 1,
-          ) +
-          validBoundary.minId;
-      final firstDirectionAfter = randomGenerator.nextBool();
-      for (final after in [firstDirectionAfter, !firstDirectionAfter]) {
-        final response = await _dio.get(
-          '$_baseUrl/posts.json',
-          queryParameters: {
-            'tags': tags,
-            'limit': request.pageSize,
-            'page': '${after ? 'a' : 'b'}$targetId',
+    final targetId =
+        randomGenerator.nextInt(validBoundary.maxId - validBoundary.minId + 1) +
+        validBoundary.minId;
+    final after = randomGenerator.nextBool();
+    Future<List<dynamic>> loadAroundTarget(bool useAfter) async {
+      final response = await _dio.get(
+        '$_baseUrl/posts.json',
+        queryParameters: {
+          'tags': tags,
+          'limit': request.pageSize,
+          'page': '${useAfter ? 'a' : 'b'}$targetId',
+        },
+        options: Options(
+          headers: {
+            ..._headers('$_baseUrl/posts.json'),
+            'Cache-Control': 'no-cache',
           },
-          options: Options(
-            headers: {
-              ..._headers('$_baseUrl/posts.json'),
-              'Cache-Control': 'no-cache',
-            },
-          ),
-          cancelToken: cancelToken,
-        );
-        final raw = response.data;
-        if (raw is! List) {
-          throw GallerySourceException(
-            GallerySourceErrorCode.malformedResponse,
-            source: sourceId,
-          );
-        }
-        if (raw.isEmpty) continue;
-        final parsed = raw
-            .whereType<Map>()
-            .map(
-              (value) => GalleryItem.fromDanbooruJson(
-                Map<String, dynamic>.from(value),
-                sourceId: sourceId,
-              ),
-            )
-            .where((item) => item.hasValidPreview)
-            .toList(growable: false);
-        final filtered = _filterLocally(
-          parsed,
-          request.ratings,
-          request.blacklistTags,
-        );
-        return GalleryPage(
-          items: shuffleGalleryItems(filtered, randomGenerator),
-          cursor: 'random',
-          nextCursor: null,
-          hasMore: false,
-          rawItemCount: raw.length,
+        ),
+        cancelToken: cancelToken,
+      );
+      final raw = response.data;
+      if (raw is! List) {
+        throw GallerySourceException(
+          GallerySourceErrorCode.malformedResponse,
+          source: sourceId,
         );
       }
+      return raw;
     }
 
-    return _fallbackToLatest(tags, request, cancelToken);
+    List<GalleryItem> usableItems(List<dynamic> raw) {
+      final parsed = raw
+          .whereType<Map>()
+          .map(
+            (value) => GalleryItem.fromDanbooruJson(
+              Map<String, dynamic>.from(value),
+              sourceId: sourceId,
+            ),
+          )
+          .where((item) => item.hasValidPreview)
+          .toList(growable: false);
+      return _filterLocally(parsed, request.ratings, request.blacklistTags);
+    }
+
+    var raw = await loadAroundTarget(after);
+    var filtered = usableItems(raw);
+    if (filtered.isEmpty) {
+      raw = await loadAroundTarget(!after);
+      filtered = usableItems(raw);
+    }
+    if (filtered.isEmpty) {
+      return _fallbackToLatest(tags, request, cancelToken);
+    }
+    return GalleryPage(
+      items: shuffleGalleryItems(filtered, randomGenerator),
+      cursor: 'random',
+      nextCursor: null,
+      hasMore: false,
+      rawItemCount: raw.length,
+    );
   }
 
   Future<DanbooruIdBoundary> _probeBoundary(
@@ -724,7 +736,6 @@ class DonmaiGallerySourceAdapter implements GallerySourceAdapter {
     GalleryRandomSearchRequest request,
     CancelToken? cancelToken,
   ) async {
-    // Probe newest 60 posts
     final newestResponse = await _dio.get(
       '$_baseUrl/posts.json',
       queryParameters: {'tags': tags, 'limit': 60},
@@ -736,7 +747,6 @@ class DonmaiGallerySourceAdapter implements GallerySourceAdapter {
       ),
       cancelToken: cancelToken,
     );
-
     final newestRaw = newestResponse.data as List;
     final newestItems = newestRaw
         .whereType<Map>()
@@ -753,7 +763,6 @@ class DonmaiGallerySourceAdapter implements GallerySourceAdapter {
       );
     }
 
-    // Probe oldest 60 posts
     final oldestResponse = await _dio.get(
       '$_baseUrl/posts.json',
       queryParameters: {'tags': tags, 'limit': 60, 'page': 'a0'},
@@ -765,20 +774,18 @@ class DonmaiGallerySourceAdapter implements GallerySourceAdapter {
       ),
       cancelToken: cancelToken,
     );
-
     final oldestRaw = oldestResponse.data as List;
     final oldestItems = oldestRaw
         .whereType<Map>()
         .map((value) => Map<String, dynamic>.from(value))
         .where((json) => json['id'] is int)
         .toList();
-
     if (oldestItems.isEmpty) {
-      return const DanbooruIdBoundary(
+      return DanbooruIdBoundary(
         minId: 0,
         maxId: 0,
         oldestPageSize: 0,
-        newestPageSize: 0,
+        newestPageSize: newestItems.length,
       );
     }
 

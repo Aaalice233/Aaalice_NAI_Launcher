@@ -71,10 +71,9 @@ Future<NaiImageMetadata?> detectImportableDroppedImageMetadata(
       metadata = result.metadata;
     }
 
-    // A complete PNG can still carry stealth-only metadata that is not
-    // available in a short remote prefix.
-    if ((metadata == null || !metadata.hasData) &&
-        UnifiedMetadataParser.isPngHeader(bytes)) {
+    // Parse complete bytes through the shared PNG/WebP metadata path before
+    // attempting the more expensive pixel-level stealth fallback.
+    if (metadata == null || !metadata.hasData) {
       metadata = await ImageMetadataService().getMetadataFromBytes(bytes);
     }
 

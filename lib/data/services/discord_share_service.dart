@@ -113,12 +113,14 @@ class DiscordShareException implements Exception {
     required this.message,
     this.status,
     this.communityUrl,
+    this.retryAfter,
   });
 
   final String code;
   final String message;
   final int? status;
   final String? communityUrl;
+  final Duration? retryAfter;
 
   bool get isUnauthorized => status == 401 || code == 'unauthorized';
   bool get isNotMember => code == 'not_member';
@@ -146,6 +148,7 @@ class DiscordShareService {
   final LocalStorageService _localStorage;
   final Dio _dio;
   final DiscordExternalUrlLauncher _externalUrlLauncher;
+  Future<DiscordShareResult>? _shareInFlight;
 
   Future<DiscordShareSession?> loadSession() async {
     final raw = await _secureStorage.read(StorageKeys.discordShareSession);
@@ -344,6 +347,45 @@ class DiscordShareService {
     required int? width,
     required int? height,
     required bool longPromptAsFile,
+  }) {
+    if (_shareInFlight != null) {
+      return Future<DiscordShareResult>.error(
+        const DiscordShareException(
+          code: 'share_in_progress',
+          message: 'A Discord share is already in progress.',
+        ),
+      );
+    }
+
+    late final Future<DiscordShareResult> operation;
+    operation =
+        _performShare(
+          session: session,
+          image: image,
+          targetIds: targetIds,
+          prompt: prompt,
+          caption: caption,
+          width: width,
+          height: height,
+          longPromptAsFile: longPromptAsFile,
+        ).whenComplete(() {
+          if (identical(_shareInFlight, operation)) {
+            _shareInFlight = null;
+          }
+        });
+    _shareInFlight = operation;
+    return operation;
+  }
+
+  Future<DiscordShareResult> _performShare({
+    required DiscordShareSession session,
+    required SanitizedShareImage image,
+    required Set<String> targetIds,
+    required String prompt,
+    required String caption,
+    required int? width,
+    required int? height,
+    required bool longPromptAsFile,
   }) async {
     final formData = FormData();
     formData.files.add(
@@ -420,7 +462,11 @@ class DiscordShareService {
         if (clearSessionOnAuthFailure && (status == 401 || status == 403)) {
           await clearSession();
         }
-        throw _exceptionFromPayload(payload, status);
+        throw _exceptionFromPayload(
+          payload,
+          status,
+          retryAfterHeader: response.headers.value('retry-after'),
+        );
       }
       return response.data as T;
     } on DiscordShareException {
@@ -438,6 +484,7 @@ class DiscordShareService {
         payload,
         status,
         fallback: error.message ?? 'Discord sharing failed.',
+        retryAfterHeader: response?.headers.value('retry-after'),
       );
     }
   }
@@ -446,6 +493,7 @@ class DiscordShareService {
     Map<String, dynamic> payload,
     int? status, {
     String fallback = 'Discord sharing failed.',
+    String? retryAfterHeader,
   }) {
     return DiscordShareException(
       code: '${payload['code'] ?? 'request_failed'}',
@@ -454,7 +502,18 @@ class DiscordShareService {
       communityUrl:
           payload['community_url']?.toString() ??
           (payload['code'] == 'not_member' ? discordCommunityUrl : null),
+      retryAfter: _retryAfter(
+        retryAfterHeader ??
+            payload['retry_after_seconds'] ??
+            payload['retry_after'],
+      ),
     );
+  }
+
+  Duration? _retryAfter(Object? raw) {
+    final seconds = raw is num ? raw.toDouble() : double.tryParse('$raw');
+    if (seconds == null || !seconds.isFinite || seconds <= 0) return null;
+    return Duration(milliseconds: (seconds * 1000).ceil());
   }
 
   String _randomBase64Url(int byteCount) {

@@ -6,15 +6,22 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/cache/online_gallery_detail_coordinator.dart';
+import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/data/datasources/remote/online_gallery/gallery_source_adapter.dart';
+import 'package:nai_launcher/data/datasources/remote/online_gallery/quick_tag_cloud_gallery_source_adapter.dart';
 import 'package:nai_launcher/data/models/online_gallery/artist_chain.dart';
 import 'package:nai_launcher/data/models/online_gallery/danbooru_post.dart';
 import 'package:nai_launcher/data/models/online_gallery/gelbooru_credentials.dart';
+import 'package:nai_launcher/data/models/queue/replication_task.dart';
 import 'package:nai_launcher/data/services/danbooru_auth_service.dart';
 import 'package:nai_launcher/data/services/gelbooru_auth_service.dart';
+import 'package:nai_launcher/data/services/online_gallery/quick_tag_cloud_remote_catalog_service.dart';
+import 'package:nai_launcher/data/services/online_gallery/quick_tag_cloud_user_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/danbooru_suggestion_provider.dart';
 import 'package:nai_launcher/presentation/providers/online_gallery_provider.dart';
+import 'package:nai_launcher/presentation/providers/quick_tag_cloud_gallery_provider.dart';
+import 'package:nai_launcher/presentation/providers/replication_queue_provider.dart';
 import 'package:nai_launcher/presentation/screens/online_gallery/online_gallery_screen.dart';
 import 'package:nai_launcher/presentation/widgets/app_branch_visibility.dart';
 import 'package:nai_launcher/presentation/widgets/danbooru_post_card.dart';
@@ -24,7 +31,7 @@ void main() {
   setUp(() {
     VisibilityDetectorController.instance.updateInterval = Duration.zero;
   });
-  for (final width in [1600.0, 700.0]) {
+  for (final width in [700.0, 840.0, 1180.0, 1600.0]) {
     testWidgets('Gelbooru search uses its API account entry at width $width', (
       tester,
     ) async {
@@ -46,6 +53,10 @@ void main() {
       );
       await tester.pump();
 
+      expect(
+        _selectedModeColor(tester, 'online-gallery-mode-search'),
+        const Color(0xFF2563EB),
+      );
       final avatar = find.byKey(
         const ValueKey('online-gallery-account-avatar'),
       );
@@ -55,13 +66,153 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('Login'), findsNothing);
+      if (width == 1600) {
+        expect(
+          find.byKey(const ValueKey('online-gallery-primary-search')),
+          findsOneWidget,
+        );
+        final primaryCenter = tester
+            .getCenter(
+              find.byKey(const ValueKey('online-gallery-toolbar-primary-row')),
+            )
+            .dy;
+        expect(
+          (tester
+                      .getCenter(
+                        find.byKey(
+                          const ValueKey('online-gallery-primary-search'),
+                        ),
+                      )
+                      .dy -
+                  primaryCenter)
+              .abs(),
+          lessThan(1),
+        );
+        expect(find.text('Refresh'), findsOneWidget);
+        expect(find.text('Multi-select'), findsOneWidget);
+        expect(
+          find.byKey(const ValueKey('online-gallery-source-filters')),
+          findsNothing,
+        );
+        final searchRect = tester.getRect(
+          find.byKey(const ValueKey('online-gallery-primary-search')),
+        );
+        final blacklistRect = tester.getRect(
+          find.byKey(const ValueKey('online-gallery-blacklist')),
+        );
+        final accountRect = tester.getRect(
+          find.byKey(const ValueKey('online-gallery-account-avatar')),
+        );
+        final primaryRect = tester.getRect(
+          find.byKey(const ValueKey('online-gallery-toolbar-primary-row')),
+        );
+        expect(blacklistRect.left - searchRect.right, closeTo(8, 0.1));
+        expect(accountRect.right, closeTo(primaryRect.right, 0.1));
+      }
+      final collapsed = width < 1100;
       expect(
-        find.widgetWithText(OutlinedButton, 'Blacklist Tags'),
+        find.byKey(const ValueKey('online-gallery-blacklist')),
         findsOneWidget,
       );
+      expect(
+        find.byKey(const ValueKey('online-gallery-source-filters')),
+        collapsed ? findsOneWidget : findsNothing,
+      );
+      final primaryRow = tester.getRect(
+        find.byKey(const ValueKey('online-gallery-toolbar-primary-row')),
+      );
+      final secondaryRow = tester.getRect(
+        find.byKey(const ValueKey('online-gallery-toolbar-secondary-row')),
+      );
+      expect(primaryRow.height, 40);
+      expect(secondaryRow.height, 40);
+      expect(secondaryRow.top - primaryRow.bottom, 8);
+      final visibleKeys = <String>[
+        'online-gallery-source-selector',
+        'online-gallery-mode-search',
+        'online-gallery-mode-popular',
+        'online-gallery-mode-favorites',
+        'online-gallery-rating-filter',
+        'online-gallery-primary-search',
+        'online-gallery-blacklist',
+        'online-gallery-output-filter',
+        'online-gallery-random-toggle',
+        'online-gallery-refresh',
+        'online-gallery-multi-select',
+        'online-gallery-account-avatar',
+      ];
+      expect(
+        find.byKey(const ValueKey('online-gallery-primary-controls-scroll')),
+        width < 1400 ? findsOneWidget : findsNothing,
+      );
+      for (final key in visibleKeys) {
+        final rect = tester.getRect(find.byKey(ValueKey(key)));
+        expect(
+          (rect.center.dy - primaryRow.center.dy).abs(),
+          lessThan(1),
+          reason: '$key must stay in the primary row at width $width',
+        );
+      }
+      if (width == 700) {
+        await tester.tap(
+          find.byKey(const ValueKey('online-gallery-source-filters')),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+        final filterDialog = find.byType(AlertDialog);
+        expect(filterDialog, findsOneWidget);
+        expect(
+          find.descendant(
+            of: filterDialog,
+            matching: find.byKey(const ValueKey('online-gallery-blacklist')),
+          ),
+          findsNothing,
+        );
+        expect(
+          find.descendant(
+            of: filterDialog,
+            matching: find.byKey(
+              const ValueKey('online-gallery-output-filter'),
+            ),
+          ),
+          findsNothing,
+        );
+      }
       expect(tester.takeException(), isNull);
     });
   }
+
+  testWidgets('Gelbooru does not silently switch sites for popular mode', (
+    tester,
+  ) async {
+    await _setViewSize(tester, 1200);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          onlineGalleryNotifierProvider.overrideWith(
+            _GelbooruSearchGalleryNotifier.new,
+          ),
+          danbooruAuthProvider.overrideWith(_LoggedOutDanbooruAuth.new),
+          gelbooruAuthProvider.overrideWith(_UnconfiguredGelbooruAuth.new),
+          danbooruSuggestionNotifierProvider.overrideWith(
+            _EmptyDanbooruSuggestionNotifier.new,
+          ),
+        ],
+        child: const _TestApp(),
+      ),
+    );
+    await tester.pump();
+
+    final popularButton = find.byKey(
+      const ValueKey('online-gallery-mode-popular'),
+    );
+    final inkWell = tester.widget<InkWell>(
+      find.descendant(of: popularButton, matching: find.byType(InkWell)),
+    );
+    expect(inkWell.onTap, isNull);
+    expect(find.text('Gelbooru'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('Safebooru search has no account entry', (tester) async {
     await _setViewSize(tester, 1600);
@@ -114,6 +265,18 @@ void main() {
       ),
     );
     await tester.pump();
+
+    expect(
+      _selectedModeColor(tester, 'online-gallery-mode-popular'),
+      const Color(0xFFC2410C),
+    );
+    final secondaryRow = tester.getRect(
+      find.byKey(const ValueKey('online-gallery-toolbar-secondary-row')),
+    );
+    final secondaryControls = tester.getRect(
+      find.byKey(const ValueKey('online-gallery-secondary-controls')),
+    );
+    expect(secondaryControls.left, secondaryRow.left);
 
     final avatar = find.byKey(const ValueKey('online-gallery-account-avatar'));
     expect(avatar, findsOneWidget);
@@ -182,6 +345,15 @@ void main() {
         ),
       );
       await tester.pump();
+      expect(
+        _selectedModeColor(tester, 'online-gallery-mode-favorites'),
+        const Color(0xFFBE185D),
+      );
+      await tester.tap(
+        find.byKey(const ValueKey('online-gallery-source-filters')),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
 
       expect(find.text('Read-only favorites'), findsWidgets);
       expect(find.textContaining('Sorted by post ID'), findsOneWidget);
@@ -196,7 +368,7 @@ void main() {
     },
   );
 
-  for (final width in [1600.0, 700.0]) {
+  for (final width in [700.0, 840.0, 1180.0, 1600.0]) {
     testWidgets('AI TAG controls adapt without overflow at width $width', (
       tester,
     ) async {
@@ -226,6 +398,13 @@ void main() {
         findsOneWidget,
       );
       expect(find.textContaining('AI Prompt search'), findsOneWidget);
+      if (width < 1100) {
+        await tester.tap(
+          find.byKey(const ValueKey('online-gallery-source-filters')),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 250));
+      }
       final artistHuntToggle = find.byKey(
         const ValueKey('online-gallery-artist-hunt-toggle'),
       );
@@ -238,6 +417,27 @@ void main() {
       expect(semantics.properties.label, 'Artist chains only');
       expect(find.text('Artist chains only'), findsOneWidget);
       expect(semantics.properties.toggled, isFalse);
+      await tester.tap(artistHuntToggle);
+      await tester.pump();
+      expect(
+        tester
+            .widget<Semantics>(
+              find
+                  .ancestor(
+                    of: artistHuntToggle,
+                    matching: find.byType(Semantics),
+                  )
+                  .first,
+            )
+            .properties
+            .toggled,
+        isTrue,
+      );
+      if (width < 1100) {
+        Navigator.of(tester.element(find.byType(AlertDialog))).pop();
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 250));
+      }
 
       final card = find.byType(DanbooruPostCard);
       final viewIcon = find.descendant(
@@ -274,22 +474,6 @@ void main() {
       );
       expect(viewIconRect.left, closeTo(tester.getRect(card).left + 6, 1));
 
-      await tester.tap(artistHuntToggle);
-      await tester.pump();
-      expect(
-        tester
-            .widget<Semantics>(
-              find
-                  .ancestor(
-                    of: artistHuntToggle,
-                    matching: find.byType(Semantics),
-                  )
-                  .first,
-            )
-            .properties
-            .toggled,
-        isTrue,
-      );
       expect(find.text('Login'), findsNothing);
       expect(find.byIcon(Icons.tune), findsNothing);
       expect(find.byIcon(Icons.blur_on), findsNothing);
@@ -312,6 +496,9 @@ void main() {
           danbooruSuggestionNotifierProvider.overrideWith(
             _EmptyDanbooruSuggestionNotifier.new,
           ),
+          replicationQueueNotifierProvider.overrideWith(
+            _TestReplicationQueueNotifier.new,
+          ),
         ],
         child: const _TestApp(),
       ),
@@ -323,10 +510,35 @@ void main() {
 
     expect(find.text('AI TAG'), findsWidgets);
     expect(find.text('3 images'), findsOneWidget);
-    expect(find.text('Copy Prompt'), findsOneWidget);
-    expect(find.text('Copy full metadata'), findsOneWidget);
+    expect(find.byTooltip('Copy Prompt'), findsAtLeastNWidgets(1));
+    expect(find.widgetWithText(OutlinedButton, 'Copy'), findsOneWidget);
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Copy'));
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.widgetWithText(MenuItemButton, 'Copy Prompt'), findsNothing);
+    expect(
+      find.widgetWithText(MenuItemButton, 'Copy full metadata'),
+      findsOneWidget,
+    );
+    await tester.tap(find.widgetWithText(MenuItemButton, 'Copy full metadata'));
+    await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('Download all images in this work'), findsOneWidget);
     expect(find.byType(CachedNetworkImage), findsAtLeastNWidgets(4));
+
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Add to Queue'));
+    await tester.pump();
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(Dialog)),
+    );
+    final queuedTask = container
+        .read(replicationQueueNotifierProvider)
+        .tasks
+        .single;
+    expect(queuedTask.prompt, '1girl, solo');
+    expect(queuedTask.negativePrompt, 'lowres');
+    expect(queuedTask.applyNegativePrompt, isTrue);
+    expect(queuedTask.characterPrompts, hasLength(1));
+    expect(queuedTask.characterPrompts!.single.prompt, 'red hair');
+    await tester.pump(const Duration(seconds: 3));
     expect(tester.takeException(), isNull);
   });
 
@@ -383,12 +595,34 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 250));
 
-    expect(find.text('Copy artist chain'), findsOneWidget);
-    expect(find.text('Copy full Prompt'), findsOneWidget);
-    expect(find.text('Copy original artist fragments'), findsOneWidget);
-    await tester.tap(find.widgetWithText(FilledButton, 'Copy artist chain'));
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Copy'));
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(
+      find.widgetWithText(MenuItemButton, 'Copy artist chain'),
+      findsOneWidget,
+    );
+    expect(
+      find.widgetWithText(MenuItemButton, 'Copy full Prompt'),
+      findsOneWidget,
+    );
+    expect(
+      find.widgetWithText(MenuItemButton, 'Copy original artist fragments'),
+      findsOneWidget,
+    );
+    await tester.tap(find.widgetWithText(MenuItemButton, 'Copy artist chain'));
     await tester.pump();
     expect(clipboardText, '1.2::artist:target::');
+    await tester.pump(const Duration(seconds: 3));
+
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Copy'));
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.tap(find.widgetWithText(MenuItemButton, 'Copy full Prompt'));
+    await tester.pump();
+    expect(
+      clipboardText,
+      'landscape, 1.2::artist:target::\n\nNegative Prompt:\nlowres\n\n'
+      'Hero:\nred hair\nNegative Prompt: bad hands',
+    );
     await tester.pump(const Duration(seconds: 3));
 
     await tester.tap(
@@ -399,15 +633,19 @@ void main() {
     );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 250));
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Copy'));
+    await tester.pump(const Duration(milliseconds: 200));
     expect(find.text('No artist chain'), findsOneWidget);
     expect(
       tester
-          .widget<FilledButton>(
-            find.widgetWithText(FilledButton, 'No artist chain'),
+          .widget<MenuItemButton>(
+            find.widgetWithText(MenuItemButton, 'No artist chain'),
           )
           .onPressed,
       isNull,
     );
+    await tester.tapAt(const Offset(200, 400));
+    await tester.pump(const Duration(seconds: 3));
     expect(tester.takeException(), isNull);
   });
 
@@ -574,7 +812,7 @@ void main() {
   testWidgets('random mode replaces pagination and restores it when disabled', (
     tester,
   ) async {
-    await _setViewSize(tester, 1200);
+    await _setViewSize(tester, 1600);
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -596,25 +834,28 @@ void main() {
       find.byKey(const ValueKey('online-gallery-pagination-bar')),
       findsOneWidget,
     );
-    final primaryCenters = [
-      const ValueKey('online-gallery-random-toggle'),
-      const ValueKey('online-gallery-refresh'),
-      const ValueKey('online-gallery-multi-select'),
-      const ValueKey('online-gallery-account-avatar'),
-    ].map((key) => tester.getCenter(find.byKey(key)).dy).toList();
-    expect(
-      primaryCenters.every(
-        (center) => (center - primaryCenters.first).abs() < 1,
-      ),
-      isTrue,
+    final primaryCenter = tester
+        .getCenter(
+          find.byKey(const ValueKey('online-gallery-toolbar-primary-row')),
+        )
+        .dy;
+    for (final key in const [
+      ValueKey('online-gallery-blacklist'),
+      ValueKey('online-gallery-output-filter'),
+      ValueKey('online-gallery-random-toggle'),
+      ValueKey('online-gallery-refresh'),
+      ValueKey('online-gallery-multi-select'),
+      ValueKey('online-gallery-account-avatar'),
+    ]) {
+      expect(
+        (tester.getCenter(find.byKey(key)).dy - primaryCenter).abs(),
+        lessThan(1),
+      );
+    }
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('online-gallery-random-toggle')),
     );
-    expect(
-      tester
-          .getCenter(find.widgetWithText(OutlinedButton, 'Blacklist Tags'))
-          .dy,
-      greaterThan(primaryCenters.first),
-    );
-
+    await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(
       find.byKey(const ValueKey('online-gallery-random-toggle')),
     );
@@ -639,6 +880,180 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets(
+    'QuickTagCloud wide Chinese toolbar keeps icons and elastic search',
+    (tester) async {
+      await _setViewSize(tester, 1600);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            onlineGalleryNotifierProvider.overrideWith(
+              _QuickTagCloudGalleryNotifier.new,
+            ),
+            quickTagCloudGallerySourceAdapterProvider.overrideWithValue(
+              _TrackingQuickTagCloudAdapter(),
+            ),
+            quickTagCloudCatalogProvider.overrideWith(
+              (ref) async => _quickTagCloudCatalog(),
+            ),
+            quickTagCloudFilterProvider.overrideWith(
+              _QuickTagCloudFilterNotifier.new,
+            ),
+            danbooruAuthProvider.overrideWith(_LoggedOutDanbooruAuth.new),
+            gelbooruAuthProvider.overrideWith(_UnconfiguredGelbooruAuth.new),
+            danbooruSuggestionNotifierProvider.overrideWith(
+              _EmptyDanbooruSuggestionNotifier.new,
+            ),
+          ],
+          child: const _TestApp(locale: Locale('zh')),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      for (final icon in const [
+        Icons.shuffle,
+        Icons.refresh,
+        Icons.checklist,
+      ]) {
+        expect(find.byIcon(icon), findsOneWidget);
+      }
+      final searchRect = tester.getRect(
+        find.byKey(const ValueKey('online-gallery-primary-search')),
+      );
+      final blacklistRect = tester.getRect(
+        find.byKey(const ValueKey('online-gallery-blacklist')),
+      );
+      final accountRect = tester.getRect(
+        find.byKey(const ValueKey('online-gallery-account-avatar')),
+      );
+      final primaryRect = tester.getRect(
+        find.byKey(const ValueKey('online-gallery-toolbar-primary-row')),
+      );
+      expect(searchRect.width, greaterThan(280));
+      expect(blacklistRect.left - searchRect.right, closeTo(8, 0.1));
+      expect(accountRect.right, closeTo(primaryRect.right, 0.1));
+      expect(find.text('Leaf category'), findsOneWidget);
+      expect(find.text('Fallback codex title'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('QuickTagCloud reuses rating filter and refresh update check', (
+    tester,
+  ) async {
+    await _setViewSize(tester, 1600);
+    final adapter = _TrackingQuickTagCloudAdapter();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          onlineGalleryNotifierProvider.overrideWith(
+            _QuickTagCloudGalleryNotifier.new,
+          ),
+          quickTagCloudGallerySourceAdapterProvider.overrideWithValue(adapter),
+          quickTagCloudCatalogProvider.overrideWith(
+            (ref) async => _quickTagCloudCatalog(),
+          ),
+          quickTagCloudFilterProvider.overrideWith(
+            _QuickTagCloudFilterNotifier.new,
+          ),
+          danbooruAuthProvider.overrideWith(_LoggedOutDanbooruAuth.new),
+          gelbooruAuthProvider.overrideWith(_UnconfiguredGelbooruAuth.new),
+          danbooruSuggestionNotifierProvider.overrideWith(
+            _EmptyDanbooruSuggestionNotifier.new,
+          ),
+        ],
+        child: const _TestApp(),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(
+      find.byKey(const ValueKey('quick-tag-cloud-check-updates')),
+      findsNothing,
+    );
+    final sourceSelector = find.byKey(
+      const ValueKey('online-gallery-source-selector'),
+    );
+    expect(sourceSelector, findsOneWidget);
+    final ratingFilter = find.byKey(
+      const ValueKey('online-gallery-rating-filter'),
+    );
+    expect(ratingFilter, findsOneWidget);
+    final primaryCenter = tester
+        .getCenter(
+          find.byKey(const ValueKey('online-gallery-toolbar-primary-row')),
+        )
+        .dy;
+    for (final key in const [
+      ValueKey('online-gallery-primary-search'),
+      ValueKey('online-gallery-rating-filter'),
+      ValueKey('online-gallery-blacklist'),
+      ValueKey('online-gallery-output-filter'),
+      ValueKey('online-gallery-random-toggle'),
+      ValueKey('online-gallery-refresh'),
+      ValueKey('online-gallery-multi-select'),
+      ValueKey('online-gallery-account-avatar'),
+    ]) {
+      expect(
+        (tester.getCenter(find.byKey(key)).dy - primaryCenter).abs(),
+        lessThan(1),
+      );
+    }
+    expect(
+      tester
+          .getSize(find.byKey(const ValueKey('online-gallery-blacklist')))
+          .width,
+      lessThan(150),
+    );
+    expect(
+      tester
+          .getSize(find.byKey(const ValueKey('online-gallery-output-filter')))
+          .width,
+      lessThan(180),
+    );
+    await tester.tap(ratingFilter);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('General'), findsWidgets);
+    expect(find.text('Questionable'), findsOneWidget);
+    expect(find.text('Explicit'), findsOneWidget);
+    expect(find.text('Sensitive'), findsNothing);
+    await tester.tap(find.text('Questionable'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(OnlineGalleryScreen)),
+    );
+    expect(container.read(onlineGalleryNotifierProvider).selectedRatings, {
+      'g',
+      'q',
+    });
+
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('online-gallery-refresh')),
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.byKey(const ValueKey('online-gallery-refresh')));
+    await tester.pump();
+    expect(adapter.invalidationCount, 1);
+
+    await tester.ensureVisible(sourceSelector);
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(sourceSelector);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.text('Danbooru').last);
+    await tester.pump();
+    expect(
+      (container.read(onlineGalleryNotifierProvider.notifier)
+              as _QuickTagCloudGalleryNotifier)
+          .selectedSource,
+      GallerySourceId.danbooru,
+    );
+  });
 }
 
 Future<void> _setViewSize(WidgetTester tester, double width) async {
@@ -648,16 +1063,26 @@ Future<void> _setViewSize(WidgetTester tester, double width) async {
   addTearDown(tester.view.resetPhysicalSize);
 }
 
+Color? _selectedModeColor(WidgetTester tester, String key) {
+  final material = find.descendant(
+    of: find.byKey(ValueKey(key)),
+    matching: find.byType(Material),
+  );
+  return tester.widget<Material>(material).color;
+}
+
 class _TestApp extends StatelessWidget {
-  const _TestApp();
+  final Locale locale;
+
+  const _TestApp({this.locale = const Locale('en')});
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
-      locale: Locale('en'),
+    return MaterialApp(
+      locale: locale,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
-      home: OnlineGalleryScreen(),
+      home: const OnlineGalleryScreen(),
     );
   }
 }
@@ -763,6 +1188,115 @@ class _RandomUiGalleryNotifier extends OnlineGalleryNotifier {
   }
 }
 
+class _QuickTagCloudGalleryNotifier extends OnlineGalleryNotifier {
+  GallerySourceId? selectedSource;
+
+  @override
+  OnlineGalleryState build() => const OnlineGalleryState(
+    sourceId: GallerySourceId.quickTagCloud,
+    selectedRatings: {'g'},
+    searchCache: ModeCache(
+      posts: [
+        GalleryItem(
+          id: 0,
+          workId: 'book/text-entry',
+          sourceId: GallerySourceId.quickTagCloud,
+          title: 'Text entry',
+          mediaCount: 0,
+          rawSourceMetadata: {
+            'codexTitle': 'Fallback codex title',
+            'categoryPath': ['Parent category', 'Leaf category'],
+          },
+        ),
+      ],
+      hasMore: false,
+    ),
+  );
+
+  @override
+  void clearDetailCache() {}
+
+  @override
+  void syncQuickTagCloudFilterKey() {}
+
+  @override
+  Future<void> refresh() async {}
+
+  @override
+  Future<void> setRatings(Set<String> selectedRatings) async {
+    state = state.copyWith(selectedRatings: selectedRatings);
+  }
+
+  @override
+  Future<void> setSource(Object source) async {
+    selectedSource = source as GallerySourceId;
+  }
+}
+
+class _QuickTagCloudFilterNotifier extends QuickTagCloudFilterNotifier {
+  @override
+  QuickTagCloudGalleryQuery build() => const QuickTagCloudGalleryQuery();
+
+  @override
+  Future<bool> initializeContentAccess() async => false;
+
+  @override
+  Future<void> applyFilters({
+    required String codexId,
+    required String updateFilterId,
+    required QuickTagCloudBrowseScope scope,
+    required QuickTagCloudMediaFilter mediaFilter,
+    required bool allowNsfw,
+    required bool allowR18g,
+  }) async {
+    state = QuickTagCloudGalleryQuery(
+      codexId: codexId,
+      updateFilterId: updateFilterId,
+      scope: scope,
+      mediaFilter: mediaFilter,
+      allowNsfw: allowNsfw,
+      allowR18g: allowR18g,
+    );
+  }
+}
+
+class _TrackingQuickTagCloudAdapter extends QuickTagCloudGallerySourceAdapter {
+  _TrackingQuickTagCloudAdapter()
+    : super(
+        catalogService: QuickTagCloudRemoteCatalogService(),
+        userService: QuickTagCloudUserService(LocalStorageService()),
+        queryReader: () => const QuickTagCloudGalleryQuery(),
+      );
+
+  int invalidationCount = 0;
+
+  @override
+  void invalidateCatalog() {
+    invalidationCount++;
+    super.invalidateCatalog();
+  }
+}
+
+QuickTagCloudCatalog _quickTagCloudCatalog() => QuickTagCloudCatalog(
+  config: QuickTagCloudDataSourceConfig(
+    schemaVersion: 1,
+    baseUrl: Uri.https('example.test', '/data'),
+    pointer: 'current.json',
+  ),
+  pointer: const QuickTagCloudReleasePointer(
+    schemaVersion: 1,
+    release: 'r-0123456789abcdef0123',
+    manifest: 'manifest.json',
+  ),
+  manifest: QuickTagCloudReleaseManifest(
+    schemaVersion: 1,
+    release: 'r-0123456789abcdef0123',
+    files: const {},
+  ),
+  codexes: const [],
+  media: const QuickTagCloudMediaConfig(),
+);
+
 class _GelbooruSearchGalleryNotifier extends OnlineGalleryNotifier {
   @override
   OnlineGalleryState build() {
@@ -852,6 +1386,13 @@ class _AiTagDetailGalleryNotifier extends _AiTagSearchGalleryNotifier {
       prompt: '1girl, solo',
       negativePrompt: 'lowres',
       description: 'Description',
+      characterPrompts: [
+        GalleryCharacterPrompt(
+          label: 'Hero',
+          prompt: 'red hair',
+          negativePrompt: 'bad hands',
+        ),
+      ],
     );
   }
 }
@@ -1031,6 +1572,18 @@ class _AuthenticatedGelbooruAuth extends GelbooruAuth {
     credentials: GelbooruCredentials(userId: 99, apiKey: 'key'),
     status: GelbooruAuthStatus.authenticated,
   );
+}
+
+class _TestReplicationQueueNotifier extends ReplicationQueueNotifier {
+  @override
+  ReplicationQueueState build() =>
+      const ReplicationQueueState(isLoading: false);
+
+  @override
+  Future<bool> add(ReplicationTask task) async {
+    state = state.copyWith(tasks: [...state.tasks, task]);
+    return true;
+  }
 }
 
 class _EmptyDanbooruSuggestionNotifier extends DanbooruSuggestionNotifier {

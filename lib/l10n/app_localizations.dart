@@ -4467,11 +4467,71 @@ abstract class AppLocalizations {
   /// **'Popular'**
   String get onlineGallery_popular;
 
+  /// No description provided for @onlineGallery_sourceDoesNotSupportPopular.
+  ///
+  /// In en, this message translates to:
+  /// **'The current source does not provide popular rankings'**
+  String get onlineGallery_sourceDoesNotSupportPopular;
+
   /// No description provided for @onlineGallery_favorites.
   ///
   /// In en, this message translates to:
   /// **'Favorites'**
   String get onlineGallery_favorites;
+
+  /// No description provided for @onlineGallery_searchFavorites.
+  ///
+  /// In en, this message translates to:
+  /// **'Search favorites by title, author, or tag…'**
+  String get onlineGallery_searchFavorites;
+
+  /// No description provided for @onlineGallery_localFavorites.
+  ///
+  /// In en, this message translates to:
+  /// **'Local favorites'**
+  String get onlineGallery_localFavorites;
+
+  /// No description provided for @onlineGallery_localFavoritesDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved on this device and available for every source'**
+  String get onlineGallery_localFavoritesDescription;
+
+  /// No description provided for @onlineGallery_cloudFavorites.
+  ///
+  /// In en, this message translates to:
+  /// **'Cloud favorites'**
+  String get onlineGallery_cloudFavorites;
+
+  /// No description provided for @onlineGallery_loginForCloudFavorites.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to view cloud favorites'**
+  String get onlineGallery_loginForCloudFavorites;
+
+  /// No description provided for @onlineGallery_saveVisibleLocally.
+  ///
+  /// In en, this message translates to:
+  /// **'Save page locally'**
+  String get onlineGallery_saveVisibleLocally;
+
+  /// No description provided for @onlineGallery_visibleFavoritesAlreadySaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Everything on this page is already saved locally'**
+  String get onlineGallery_visibleFavoritesAlreadySaved;
+
+  /// No description provided for @onlineGallery_visibleFavoritesSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved {count} items to local favorites'**
+  String onlineGallery_visibleFavoritesSaved(int count);
+
+  /// No description provided for @onlineGallery_saveFavoritesFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to save local favorites: {error}'**
+  String onlineGallery_saveFavoritesFailed(String error);
 
   /// No description provided for @onlineGallery_searchTags.
   ///
@@ -4598,6 +4658,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Score'**
   String get onlineGallery_score;
+
+  /// No description provided for @onlineGallery_ratingLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Rating'**
+  String get onlineGallery_ratingLabel;
 
   /// No description provided for @onlineGallery_favCount.
   ///
@@ -4839,6 +4905,24 @@ abstract class AppLocalizations {
   /// **'Explicit'**
   String get onlineGallery_ratingExplicit;
 
+  /// No description provided for @onlineGallery_sourceGeneralOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'This source only provides general content'**
+  String get onlineGallery_sourceGeneralOnly;
+
+  /// No description provided for @onlineGallery_sourceUnrated.
+  ///
+  /// In en, this message translates to:
+  /// **'Source unrated'**
+  String get onlineGallery_sourceUnrated;
+
+  /// No description provided for @onlineGallery_sourceUnratedTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'This source does not provide a reliable content rating, so the app cannot infer one accurately'**
+  String get onlineGallery_sourceUnratedTooltip;
+
   /// No description provided for @onlineGallery_clear.
   ///
   /// In en, this message translates to:
@@ -4881,6 +4965,12 @@ abstract class AppLocalizations {
   /// **'Use *tag* matching for related tags when enabled; search exact Danbooru tags when disabled'**
   String get onlineGallery_fuzzySearchTooltip;
 
+  /// No description provided for @onlineGallery_blacklistShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Block'**
+  String get onlineGallery_blacklistShort;
+
   /// No description provided for @onlineGallery_blacklistTags.
   ///
   /// In en, this message translates to:
@@ -4892,6 +4982,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Output Filter'**
   String get onlineGallery_outputFilter;
+
+  /// No description provided for @onlineGallery_outputFilterShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Output'**
+  String get onlineGallery_outputFilterShort;
 
   /// No description provided for @onlineGallery_outputFilterTooltip.
   ///
@@ -5181,11 +5277,15 @@ abstract class AppLocalizations {
   /// **'Added {count} tasks to queue'**
   String onlineGallery_addedTasksToQueue(Object count);
 
-  /// No description provided for @onlineGallery_partiallyAddedTasksToQueue.
+  /// No description provided for @onlineGallery_queueBatchCompleted.
   ///
   /// In en, this message translates to:
-  /// **'Added {added} tasks; {skipped} were skipped because the queue is full'**
-  String onlineGallery_partiallyAddedTasksToQueue(Object added, Object skipped);
+  /// **'Added {added}; {prepareFailed} could not be prepared; {queueSkipped} were skipped because the queue is full'**
+  String onlineGallery_queueBatchCompleted(
+    Object added,
+    Object prepareFailed,
+    Object queueSkipped,
+  );
 
   /// No description provided for @onlineGallery_unfavorited.
   ///
@@ -5222,6 +5322,16 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Download complete: {success} succeeded, {failed} failed'**
   String onlineGallery_downloadSelectedCompleted(Object success, Object failed);
+
+  /// No description provided for @onlineGallery_downloadSelectedCompletedWithSkipped.
+  ///
+  /// In en, this message translates to:
+  /// **'Download complete: {success} succeeded, {failed} failed, {skipped} text-only items skipped'**
+  String onlineGallery_downloadSelectedCompletedWithSkipped(
+    Object success,
+    Object failed,
+    Object skipped,
+  );
 
   /// No description provided for @onlineGallery_startDate.
   ///
@@ -5330,6 +5440,282 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'AI Prompt search (search raw Prompt text such as artist:)'**
   String get onlineGallery_aiTagPromptQuery;
+
+  /// No description provided for @onlineGallery_sourceQuickTagCloud.
+  ///
+  /// In en, this message translates to:
+  /// **'Codex Gallery'**
+  String get onlineGallery_sourceQuickTagCloud;
+
+  /// No description provided for @onlineGallery_codexSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search titles, prompts, notes, categories, or contributors'**
+  String get onlineGallery_codexSearchHint;
+
+  /// No description provided for @onlineGallery_codexLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Codex'**
+  String get onlineGallery_codexLabel;
+
+  /// No description provided for @onlineGallery_codexSelect.
+  ///
+  /// In en, this message translates to:
+  /// **'Select codex'**
+  String get onlineGallery_codexSelect;
+
+  /// No description provided for @onlineGallery_codexAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All codexes'**
+  String get onlineGallery_codexAll;
+
+  /// No description provided for @onlineGallery_codexBrowse.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse'**
+  String get onlineGallery_codexBrowse;
+
+  /// No description provided for @onlineGallery_codexLatest.
+  ///
+  /// In en, this message translates to:
+  /// **'Latest update'**
+  String get onlineGallery_codexLatest;
+
+  /// No description provided for @onlineGallery_codexRecent.
+  ///
+  /// In en, this message translates to:
+  /// **'Recently viewed'**
+  String get onlineGallery_codexRecent;
+
+  /// No description provided for @onlineGallery_codexCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'Category'**
+  String get onlineGallery_codexCategory;
+
+  /// No description provided for @onlineGallery_codexAllCategories.
+  ///
+  /// In en, this message translates to:
+  /// **'All categories'**
+  String get onlineGallery_codexAllCategories;
+
+  /// No description provided for @onlineGallery_codexUpdateBatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Update batch'**
+  String get onlineGallery_codexUpdateBatch;
+
+  /// No description provided for @onlineGallery_codexMediaFilter.
+  ///
+  /// In en, this message translates to:
+  /// **'Images'**
+  String get onlineGallery_codexMediaFilter;
+
+  /// No description provided for @onlineGallery_codexAllEntries.
+  ///
+  /// In en, this message translates to:
+  /// **'All entries'**
+  String get onlineGallery_codexAllEntries;
+
+  /// No description provided for @onlineGallery_codexWithImages.
+  ///
+  /// In en, this message translates to:
+  /// **'With images'**
+  String get onlineGallery_codexWithImages;
+
+  /// No description provided for @onlineGallery_codexWithoutImages.
+  ///
+  /// In en, this message translates to:
+  /// **'Without images'**
+  String get onlineGallery_codexWithoutImages;
+
+  /// No description provided for @onlineGallery_codexOffline.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline cache'**
+  String get onlineGallery_codexOffline;
+
+  /// No description provided for @onlineGallery_codexContributors.
+  ///
+  /// In en, this message translates to:
+  /// **'Contributors and source'**
+  String get onlineGallery_codexContributors;
+
+  /// No description provided for @onlineGallery_codexEntryCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{entries} entries · {images} with images'**
+  String onlineGallery_codexEntryCount(Object entries, Object images);
+
+  /// No description provided for @onlineGallery_codexNoImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Entry without images'**
+  String get onlineGallery_codexNoImage;
+
+  /// No description provided for @onlineGallery_codexNoImageDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'This is a text-only entry. Its prompts and metadata remain fully available.'**
+  String get onlineGallery_codexNoImageDescription;
+
+  /// No description provided for @onlineGallery_codexAuthor.
+  ///
+  /// In en, this message translates to:
+  /// **'Author'**
+  String get onlineGallery_codexAuthor;
+
+  /// No description provided for @onlineGallery_codexImageFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Image file'**
+  String get onlineGallery_codexImageFile;
+
+  /// No description provided for @onlineGallery_codexOriginalFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Original file'**
+  String get onlineGallery_codexOriginalFile;
+
+  /// No description provided for @onlineGallery_codexDeclaredSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Data source'**
+  String get onlineGallery_codexDeclaredSource;
+
+  /// No description provided for @onlineGallery_codexPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Positive prompt'**
+  String get onlineGallery_codexPrompt;
+
+  /// No description provided for @onlineGallery_codexNegativePrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Negative prompt'**
+  String get onlineGallery_codexNegativePrompt;
+
+  /// No description provided for @onlineGallery_negativePromptCopyHeading.
+  ///
+  /// In en, this message translates to:
+  /// **'Negative Prompt'**
+  String get onlineGallery_negativePromptCopyHeading;
+
+  /// No description provided for @onlineGallery_codexCharacterPrompts.
+  ///
+  /// In en, this message translates to:
+  /// **'Character prompts'**
+  String get onlineGallery_codexCharacterPrompts;
+
+  /// No description provided for @onlineGallery_codexNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Notes'**
+  String get onlineGallery_codexNote;
+
+  /// No description provided for @onlineGallery_codexRawTag.
+  ///
+  /// In en, this message translates to:
+  /// **'Raw Tag'**
+  String get onlineGallery_codexRawTag;
+
+  /// No description provided for @onlineGallery_codexCopyPositive.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy positive'**
+  String get onlineGallery_codexCopyPositive;
+
+  /// No description provided for @onlineGallery_codexCopyNegative.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy negative'**
+  String get onlineGallery_codexCopyNegative;
+
+  /// No description provided for @onlineGallery_codexCopyCharacter.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy this character'**
+  String get onlineGallery_codexCopyCharacter;
+
+  /// No description provided for @onlineGallery_codexCopyAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy all'**
+  String get onlineGallery_codexCopyAll;
+
+  /// No description provided for @onlineGallery_codexSendToGeneration.
+  ///
+  /// In en, this message translates to:
+  /// **'Send to Generate'**
+  String get onlineGallery_codexSendToGeneration;
+
+  /// No description provided for @onlineGallery_codexAddToQueue.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to generation queue'**
+  String get onlineGallery_codexAddToQueue;
+
+  /// No description provided for @onlineGallery_codexDownloadOriginal.
+  ///
+  /// In en, this message translates to:
+  /// **'Download current original'**
+  String get onlineGallery_codexDownloadOriginal;
+
+  /// No description provided for @onlineGallery_codexOpenSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Open source'**
+  String get onlineGallery_codexOpenSource;
+
+  /// No description provided for @onlineGallery_codexOpenOrigin.
+  ///
+  /// In en, this message translates to:
+  /// **'Open original page'**
+  String get onlineGallery_codexOpenOrigin;
+
+  /// No description provided for @onlineGallery_codexOpenSourceFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open the declared source.'**
+  String get onlineGallery_codexOpenSourceFailed;
+
+  /// No description provided for @onlineGallery_codexBookLocked.
+  ///
+  /// In en, this message translates to:
+  /// **'This codex contains adult content. Select Questionable or Explicit in the rating filter to view it.'**
+  String get onlineGallery_codexBookLocked;
+
+  /// No description provided for @onlineGallery_codexNoData.
+  ///
+  /// In en, this message translates to:
+  /// **'No codex entries match these filters'**
+  String get onlineGallery_codexNoData;
+
+  /// No description provided for @onlineGallery_codexExternalFallback.
+  ///
+  /// In en, this message translates to:
+  /// **'The external source is unavailable. Showing the codex site\'s cached version.'**
+  String get onlineGallery_codexExternalFallback;
+
+  /// No description provided for @onlineGallery_codexPreviousRelease.
+  ///
+  /// In en, this message translates to:
+  /// **'The current version is unavailable. Showing the previous verified release.'**
+  String get onlineGallery_codexPreviousRelease;
+
+  /// No description provided for @onlineGallery_codexCachedBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'cached release'**
+  String get onlineGallery_codexCachedBadge;
+
+  /// No description provided for @onlineGallery_codexUntitled.
+  ///
+  /// In en, this message translates to:
+  /// **'Untitled entry'**
+  String get onlineGallery_codexUntitled;
 
   /// No description provided for @onlineGallery_artistHunt.
   ///
@@ -5450,6 +5836,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Could not connect to this gallery source. Check your network or proxy.'**
   String get onlineGallery_sourceNetworkError;
+
+  /// No description provided for @onlineGallery_sourceRequestFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The request failed. Please try again later.'**
+  String get onlineGallery_sourceRequestFailed;
+
+  /// No description provided for @onlineGallery_actionFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Action failed: {error}'**
+  String onlineGallery_actionFailed(Object error);
 
   /// No description provided for @onlineGallery_sourceMalformedResponse.
   ///
@@ -16594,6 +16992,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'You are sharing too quickly. Please try again shortly.'**
   String get discordShare_errorRateLimited;
+
+  /// No description provided for @discordShare_errorRateLimitedRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'You are sharing too quickly. Try again in {seconds} seconds.'**
+  String discordShare_errorRateLimitedRetry(int seconds);
 
   /// No description provided for @discordShare_errorNoChannels.
   ///

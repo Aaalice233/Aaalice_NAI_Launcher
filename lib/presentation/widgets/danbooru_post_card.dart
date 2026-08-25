@@ -13,6 +13,7 @@ import '../../core/cache/online_gallery_image_cache_manager.dart';
 import '../../core/cache/online_gallery_prefetch_coordinator.dart';
 import '../../core/utils/localization_extension.dart';
 import '../../core/utils/file_picker_utils.dart';
+import '../../data/models/character/character_prompt.dart';
 import '../../data/models/online_gallery/danbooru_post.dart';
 import '../../data/models/queue/replication_task.dart';
 import '../../core/autocomplete/tag_translation_lookup.dart';
@@ -51,9 +52,11 @@ class DanbooruPostCard extends StatefulWidget {
   final String? tagPrompt;
   final String? promptOverride;
   final String? negativePromptOverride;
+  final List<GalleryCharacterPrompt> characterPrompts;
   final String? copyTextOverride;
   final String? copyTooltip;
   final String? badgeLabel;
+  final String? emptyTitle;
   final VoidCallback onTap;
   final Function(String) onTagTap;
   final VoidCallback? onFavoriteToggle;
@@ -78,9 +81,11 @@ class DanbooruPostCard extends StatefulWidget {
     this.tagPrompt,
     this.promptOverride,
     this.negativePromptOverride,
+    this.characterPrompts = const [],
     this.copyTextOverride,
     this.copyTooltip,
     this.badgeLabel,
+    this.emptyTitle,
     required this.onTap,
     required this.onTagTap,
     this.onFavoriteToggle,
@@ -253,6 +258,21 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
     return null;
   }
 
+  String? _promptForGenerationAction() {
+    final prompt = _actionPrompt.trim();
+    final negativePrompt = widget.negativePromptOverride?.trim() ?? '';
+    final hasCharacterPrompt = widget.characterPrompts.any(
+      (character) =>
+          character.prompt.trim().isNotEmpty ||
+          character.negativePrompt.trim().isNotEmpty,
+    );
+    if (prompt.isNotEmpty || negativePrompt.isNotEmpty || hasCharacterPrompt) {
+      return prompt;
+    }
+    AppToast.info(context, context.l10n.onlineGallery_noTagInfo);
+    return null;
+  }
+
   Future<void> _handleDownload() async {
     final url = widget.post.bestQualityUrl;
     if (url.isEmpty) return;
@@ -278,16 +298,67 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
       await file.copy(destination);
 
       if (mounted) {
-        AppToast.info(
+        AppToast.success(
           context,
           context.l10n.onlineGallery_savedToPath(destination),
         );
       }
     } catch (e) {
       if (mounted) {
-        AppToast.info(context, context.l10n.onlineGallery_downloadFailed('$e'));
+        AppToast.error(
+          context,
+          context.l10n.onlineGallery_downloadFailed('$e'),
+        );
       }
     }
+  }
+
+  Widget _buildNoImageContent(ThemeData theme) {
+    final postTitle = widget.post.title?.trim() ?? '';
+    final title = postTitle.isEmpty
+        ? widget.emptyTitle?.trim() ?? ''
+        : postTitle;
+    final prompt = _actionPrompt.trim();
+    return ColoredBox(
+      color: theme.colorScheme.surfaceContainerHigh,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 44, 14, 52),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              Icons.notes_rounded,
+              color: theme.colorScheme.primary,
+              size: 22,
+            ),
+            const SizedBox(height: 10),
+            if (title.isNotEmpty)
+              Text(
+                title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            if (title.isNotEmpty && prompt.isNotEmpty)
+              const SizedBox(height: 8),
+            if (prompt.isNotEmpty)
+              Expanded(
+                child: Text(
+                  prompt,
+                  maxLines: 7,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    height: 1.45,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -404,30 +475,36 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                     child: Stack(
                       fit: StackFit.expand,
                       children: [
-                        CachedNetworkImage(
-                          imageUrl: gridImageRequest.url,
-                          httpHeaders: gridImageRequest.headers,
-                          cacheKey: gridImageRequest.cacheKey,
-                          fit: BoxFit.cover,
-                          memCacheWidth: gridImageRequest.targetDecodeWidth,
-                          cacheManager: OnlineGalleryImageCacheManager.instance,
-                          errorListener: (error) {
-                            // 静默处理图片加载错误，避免控制台警告
-                          },
-                          placeholder: (context, url) => Container(
-                            color: theme.colorScheme.surfaceContainerHighest,
-                            child: const Center(
-                              child: CircularProgressIndicator(strokeWidth: 2),
+                        if (gridImageRequest.url.isEmpty)
+                          _buildNoImageContent(theme)
+                        else
+                          CachedNetworkImage(
+                            imageUrl: gridImageRequest.url,
+                            httpHeaders: gridImageRequest.headers,
+                            cacheKey: gridImageRequest.cacheKey,
+                            fit: BoxFit.cover,
+                            memCacheWidth: gridImageRequest.targetDecodeWidth,
+                            cacheManager:
+                                OnlineGalleryImageCacheManager.instance,
+                            errorListener: (error) {
+                              // 静默处理图片加载错误，避免控制台警告
+                            },
+                            placeholder: (context, url) => Container(
+                              color: theme.colorScheme.surfaceContainerHighest,
+                              child: const Center(
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                            ),
+                            errorWidget: (context, url, error) => Container(
+                              color: theme.colorScheme.surfaceContainerHighest,
+                              child: Icon(
+                                Icons.broken_image,
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
                             ),
                           ),
-                          errorWidget: (context, url, error) => Container(
-                            color: theme.colorScheme.surfaceContainerHighest,
-                            child: Icon(
-                              Icons.broken_image,
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ),
                         if (widget.selectionMode) ...[
                           // Selection Overlay
                           if (widget.isSelected)
@@ -535,23 +612,41 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Icon(
-                                      widget.badgeLabel != null
-                                          ? Icons.brush_outlined
-                                          : Icons.collections_outlined,
-                                      size: 11,
-                                      color: Colors.white,
-                                    ),
-                                    const SizedBox(width: 3),
-                                    Text(
-                                      widget.badgeLabel ??
-                                          '${widget.post.mediaCount}',
-                                      style: const TextStyle(
+                                    if (widget.badgeLabel != null) ...[
+                                      const Icon(
+                                        Icons.brush_outlined,
+                                        size: 11,
                                         color: Colors.white,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w700,
                                       ),
-                                    ),
+                                      const SizedBox(width: 3),
+                                      Text(
+                                        widget.badgeLabel!,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ],
+                                    if (widget.badgeLabel != null &&
+                                        widget.post.mediaCount > 1)
+                                      const SizedBox(width: 6),
+                                    if (widget.post.mediaCount > 1) ...[
+                                      const Icon(
+                                        Icons.collections_outlined,
+                                        size: 11,
+                                        color: Colors.white,
+                                      ),
+                                      const SizedBox(width: 3),
+                                      Text(
+                                        '${widget.post.mediaCount}',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ],
                                   ],
                                 ),
                               ),
@@ -729,24 +824,43 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                                 isLoading: widget.isFavoriteLoading,
                                 onPressed: widget.onFavoriteToggle!,
                               ),
-                            CardActionButtonConfig(
-                              icon: Icons.download,
-                              tooltip:
-                                  context.l10n.onlineGallery_downloadOriginal,
-                              onPressed: _handleDownload,
-                            ),
+                            if (widget.post.bestQualityUrl.isNotEmpty)
+                              CardActionButtonConfig(
+                                icon: Icons.download,
+                                tooltip:
+                                    context.l10n.onlineGallery_downloadOriginal,
+                                onPressed: _handleDownload,
+                              ),
                             CardActionButtonConfig(
                               icon: Icons.playlist_add,
                               tooltip: context.l10n.onlineGallery_addToQueue,
                               onPressed: () async {
-                                final prompt = _promptForAction();
+                                final prompt = _promptForGenerationAction();
                                 if (prompt == null) return;
+                                final negativePrompt =
+                                    widget.negativePromptOverride ?? '';
                                 final task = ReplicationTask.create(
                                   prompt: prompt,
-                                  negativePrompt:
-                                      widget.negativePromptOverride ?? '',
+                                  negativePrompt: negativePrompt,
+                                  applyNegativePrompt: negativePrompt
+                                      .trim()
+                                      .isNotEmpty,
                                   thumbnailUrl: widget.post.previewUrl,
                                   source: ReplicationTaskSource.online,
+                                  characterPrompts:
+                                      widget.post.sourceId ==
+                                              GallerySourceId.quickTagCloud ||
+                                          widget.characterPrompts.isNotEmpty
+                                      ? [
+                                          for (final character
+                                              in widget.characterPrompts)
+                                            ReplicationCharacterPromptSnapshot(
+                                              prompt: character.prompt,
+                                              negativePrompt:
+                                                  character.negativePrompt,
+                                            ),
+                                        ]
+                                      : null,
                                 );
                                 final success = await ref
                                     .read(
@@ -781,13 +895,33 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                               tooltip:
                                   context.l10n.onlineGallery_sendToTextToImage,
                               onPressed: () {
-                                final prompt = _promptForAction();
+                                final prompt = _promptForGenerationAction();
                                 if (prompt == null) return;
                                 ref
                                     .read(
                                       characterPromptNotifierProvider.notifier,
                                     )
-                                    .clearAll();
+                                    .replaceAll([
+                                      for (
+                                        var index = 0;
+                                        index < widget.characterPrompts.length;
+                                        index++
+                                      )
+                                        CharacterPrompt(
+                                          id: 'gallery-${widget.post.stableKey}-$index',
+                                          name: widget
+                                              .characterPrompts[index]
+                                              .label,
+                                          prompt: widget
+                                              .characterPrompts[index]
+                                              .prompt,
+                                          negativePrompt: widget
+                                              .characterPrompts[index]
+                                              .negativePrompt,
+                                          positionMode:
+                                              CharacterPositionMode.aiChoice,
+                                        ),
+                                    ]);
                                 ref
                                     .read(
                                       pendingPromptNotifierProvider.notifier,
@@ -804,67 +938,71 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                                 );
                               },
                             ),
-                            CardActionButtonConfig(
-                              icon: Icons.manage_search_rounded,
-                              tooltip: context
-                                  .l10n
-                                  .onlineGallery_sendToReversePrompt,
-                              onPressed: () async {
-                                final imageUrl =
-                                    widget.post.sampleUrl ??
-                                    widget.post.fileUrl ??
-                                    widget.post.previewUrl;
-                                if (imageUrl.isEmpty) {
-                                  AppToast.warning(
-                                    context,
-                                    context.l10n.onlineGallery_noImageUrl,
-                                  );
-                                  return;
-                                }
-                                try {
-                                  final file =
-                                      await OnlineGalleryImageCacheManager
-                                          .instance
-                                          .getSingleFile(
+                            if (widget.post.hasValidPreview)
+                              CardActionButtonConfig(
+                                icon: Icons.manage_search_rounded,
+                                tooltip: context
+                                    .l10n
+                                    .onlineGallery_sendToReversePrompt,
+                                onPressed: () async {
+                                  final imageUrl =
+                                      widget.post.sampleUrl ??
+                                      widget.post.fileUrl ??
+                                      widget.post.previewUrl;
+                                  if (imageUrl.isEmpty) {
+                                    AppToast.warning(
+                                      context,
+                                      context.l10n.onlineGallery_noImageUrl,
+                                    );
+                                    return;
+                                  }
+                                  try {
+                                    final file = await OnlineGalleryImageCacheManager
+                                        .instance
+                                        .getSingleFile(
+                                          imageUrl,
+                                          key: onlineGalleryImageCacheKeyForUrl(
                                             imageUrl,
-                                            key:
-                                                onlineGalleryImageCacheKeyForUrl(
-                                                  imageUrl,
-                                                ),
-                                            headers:
-                                                onlineGalleryImageHeadersForUrl(
-                                                  imageUrl,
-                                                ),
-                                          );
-                                  final bytes = await file.readAsBytes();
-                                  await ref
-                                      .read(reversePromptProvider.notifier)
-                                      .addImage(
-                                        bytes,
-                                        name: 'danbooru_${widget.post.id}',
-                                      );
-                                  if (context.mounted) {
-                                    context.go('/');
-                                    AppToast.info(
-                                      context,
-                                      context
-                                          .l10n
-                                          .onlineGallery_sentToReversePrompt,
-                                    );
-                                  }
-                                } catch (e) {
-                                  if (context.mounted) {
-                                    AppToast.error(
-                                      context,
-                                      context.l10n
-                                          .onlineGallery_reversePromptSendFailed(
-                                            '$e',
                                           ),
-                                    );
+                                          headers:
+                                              onlineGalleryImageHeadersForUrl(
+                                                imageUrl,
+                                              ),
+                                        );
+                                    final bytes = await file.readAsBytes();
+                                    await ref
+                                        .read(reversePromptProvider.notifier)
+                                        .addImage(
+                                          bytes,
+                                          name:
+                                              '${widget.post.sourceId.key}_${widget.post.sourceWorkId}'
+                                                  .replaceAll(
+                                                    RegExp(r'[^A-Za-z0-9._-]'),
+                                                    '_',
+                                                  ),
+                                        );
+                                    if (context.mounted) {
+                                      context.go('/');
+                                      AppToast.info(
+                                        context,
+                                        context
+                                            .l10n
+                                            .onlineGallery_sentToReversePrompt,
+                                      );
+                                    }
+                                  } catch (e) {
+                                    if (context.mounted) {
+                                      AppToast.error(
+                                        context,
+                                        context.l10n
+                                            .onlineGallery_reversePromptSendFailed(
+                                              '$e',
+                                            ),
+                                      );
+                                    }
                                   }
-                                }
-                              },
-                            ),
+                                },
+                              ),
                             CardActionButtonConfig(
                               icon: Icons.copy,
                               tooltip:

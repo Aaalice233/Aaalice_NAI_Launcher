@@ -2461,7 +2461,46 @@ class AppLocalizationsEn extends AppLocalizations {
   String get onlineGallery_popular => 'Popular';
 
   @override
+  String get onlineGallery_sourceDoesNotSupportPopular =>
+      'The current source does not provide popular rankings';
+
+  @override
   String get onlineGallery_favorites => 'Favorites';
+
+  @override
+  String get onlineGallery_searchFavorites =>
+      'Search favorites by title, author, or tag…';
+
+  @override
+  String get onlineGallery_localFavorites => 'Local favorites';
+
+  @override
+  String get onlineGallery_localFavoritesDescription =>
+      'Saved on this device and available for every source';
+
+  @override
+  String get onlineGallery_cloudFavorites => 'Cloud favorites';
+
+  @override
+  String get onlineGallery_loginForCloudFavorites =>
+      'Sign in to view cloud favorites';
+
+  @override
+  String get onlineGallery_saveVisibleLocally => 'Save page locally';
+
+  @override
+  String get onlineGallery_visibleFavoritesAlreadySaved =>
+      'Everything on this page is already saved locally';
+
+  @override
+  String onlineGallery_visibleFavoritesSaved(int count) {
+    return 'Saved $count items to local favorites';
+  }
+
+  @override
+  String onlineGallery_saveFavoritesFailed(String error) {
+    return 'Failed to save local favorites: $error';
+  }
 
   @override
   String get onlineGallery_searchTags => 'Search tags...';
@@ -2528,6 +2567,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get onlineGallery_score => 'Score';
+
+  @override
+  String get onlineGallery_ratingLabel => 'Rating';
 
   @override
   String get onlineGallery_favCount => 'Favorites';
@@ -2663,6 +2705,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get onlineGallery_ratingExplicit => 'Explicit';
 
   @override
+  String get onlineGallery_sourceGeneralOnly =>
+      'This source only provides general content';
+
+  @override
+  String get onlineGallery_sourceUnrated => 'Source unrated';
+
+  @override
+  String get onlineGallery_sourceUnratedTooltip =>
+      'This source does not provide a reliable content rating, so the app cannot infer one accurately';
+
+  @override
   String get onlineGallery_clear => 'Clear';
 
   @override
@@ -2687,10 +2740,16 @@ class AppLocalizationsEn extends AppLocalizations {
       'Use *tag* matching for related tags when enabled; search exact Danbooru tags when disabled';
 
   @override
+  String get onlineGallery_blacklistShort => 'Block';
+
+  @override
   String get onlineGallery_blacklistTags => 'Blacklist Tags';
 
   @override
   String get onlineGallery_outputFilter => 'Output Filter';
+
+  @override
+  String get onlineGallery_outputFilterShort => 'Output';
 
   @override
   String get onlineGallery_outputFilterTooltip =>
@@ -2873,11 +2932,12 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String onlineGallery_partiallyAddedTasksToQueue(
+  String onlineGallery_queueBatchCompleted(
     Object added,
-    Object skipped,
+    Object prepareFailed,
+    Object queueSkipped,
   ) {
-    return 'Added $added tasks; $skipped were skipped because the queue is full';
+    return 'Added $added; $prepareFailed could not be prepared; $queueSkipped were skipped because the queue is full';
   }
 
   @override
@@ -2907,6 +2967,15 @@ class AppLocalizationsEn extends AppLocalizations {
     Object failed,
   ) {
     return 'Download complete: $success succeeded, $failed failed';
+  }
+
+  @override
+  String onlineGallery_downloadSelectedCompletedWithSkipped(
+    Object success,
+    Object failed,
+    Object skipped,
+  ) {
+    return 'Download complete: $success succeeded, $failed failed, $skipped text-only items skipped';
   }
 
   @override
@@ -2972,6 +3041,153 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get onlineGallery_aiTagPromptQuery =>
       'AI Prompt search (search raw Prompt text such as artist:)';
+
+  @override
+  String get onlineGallery_sourceQuickTagCloud => 'Codex Gallery';
+
+  @override
+  String get onlineGallery_codexSearchHint =>
+      'Search titles, prompts, notes, categories, or contributors';
+
+  @override
+  String get onlineGallery_codexLabel => 'Codex';
+
+  @override
+  String get onlineGallery_codexSelect => 'Select codex';
+
+  @override
+  String get onlineGallery_codexAll => 'All codexes';
+
+  @override
+  String get onlineGallery_codexBrowse => 'Browse';
+
+  @override
+  String get onlineGallery_codexLatest => 'Latest update';
+
+  @override
+  String get onlineGallery_codexRecent => 'Recently viewed';
+
+  @override
+  String get onlineGallery_codexCategory => 'Category';
+
+  @override
+  String get onlineGallery_codexAllCategories => 'All categories';
+
+  @override
+  String get onlineGallery_codexUpdateBatch => 'Update batch';
+
+  @override
+  String get onlineGallery_codexMediaFilter => 'Images';
+
+  @override
+  String get onlineGallery_codexAllEntries => 'All entries';
+
+  @override
+  String get onlineGallery_codexWithImages => 'With images';
+
+  @override
+  String get onlineGallery_codexWithoutImages => 'Without images';
+
+  @override
+  String get onlineGallery_codexOffline => 'Offline cache';
+
+  @override
+  String get onlineGallery_codexContributors => 'Contributors and source';
+
+  @override
+  String onlineGallery_codexEntryCount(Object entries, Object images) {
+    return '$entries entries · $images with images';
+  }
+
+  @override
+  String get onlineGallery_codexNoImage => 'Entry without images';
+
+  @override
+  String get onlineGallery_codexNoImageDescription =>
+      'This is a text-only entry. Its prompts and metadata remain fully available.';
+
+  @override
+  String get onlineGallery_codexAuthor => 'Author';
+
+  @override
+  String get onlineGallery_codexImageFile => 'Image file';
+
+  @override
+  String get onlineGallery_codexOriginalFile => 'Original file';
+
+  @override
+  String get onlineGallery_codexDeclaredSource => 'Data source';
+
+  @override
+  String get onlineGallery_codexPrompt => 'Positive prompt';
+
+  @override
+  String get onlineGallery_codexNegativePrompt => 'Negative prompt';
+
+  @override
+  String get onlineGallery_negativePromptCopyHeading => 'Negative Prompt';
+
+  @override
+  String get onlineGallery_codexCharacterPrompts => 'Character prompts';
+
+  @override
+  String get onlineGallery_codexNote => 'Notes';
+
+  @override
+  String get onlineGallery_codexRawTag => 'Raw Tag';
+
+  @override
+  String get onlineGallery_codexCopyPositive => 'Copy positive';
+
+  @override
+  String get onlineGallery_codexCopyNegative => 'Copy negative';
+
+  @override
+  String get onlineGallery_codexCopyCharacter => 'Copy this character';
+
+  @override
+  String get onlineGallery_codexCopyAll => 'Copy all';
+
+  @override
+  String get onlineGallery_codexSendToGeneration => 'Send to Generate';
+
+  @override
+  String get onlineGallery_codexAddToQueue => 'Add to generation queue';
+
+  @override
+  String get onlineGallery_codexDownloadOriginal => 'Download current original';
+
+  @override
+  String get onlineGallery_codexOpenSource => 'Open source';
+
+  @override
+  String get onlineGallery_codexOpenOrigin => 'Open original page';
+
+  @override
+  String get onlineGallery_codexOpenSourceFailed =>
+      'Could not open the declared source.';
+
+  @override
+  String get onlineGallery_codexBookLocked =>
+      'This codex contains adult content. Select Questionable or Explicit in the rating filter to view it.';
+
+  @override
+  String get onlineGallery_codexNoData =>
+      'No codex entries match these filters';
+
+  @override
+  String get onlineGallery_codexExternalFallback =>
+      'The external source is unavailable. Showing the codex site\'s cached version.';
+
+  @override
+  String get onlineGallery_codexPreviousRelease =>
+      'The current version is unavailable. Showing the previous verified release.';
+
+  @override
+  String get onlineGallery_codexCachedBadge => 'cached release';
+
+  @override
+  String get onlineGallery_codexUntitled => 'Untitled entry';
 
   @override
   String get onlineGallery_artistHunt => 'Artist chains only';
@@ -3045,6 +3261,15 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get onlineGallery_sourceNetworkError =>
       'Could not connect to this gallery source. Check your network or proxy.';
+
+  @override
+  String get onlineGallery_sourceRequestFailed =>
+      'The request failed. Please try again later.';
+
+  @override
+  String onlineGallery_actionFailed(Object error) {
+    return 'Action failed: $error';
+  }
 
   @override
   String get onlineGallery_sourceMalformedResponse =>
@@ -9432,6 +9657,11 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get discordShare_errorRateLimited =>
       'You are sharing too quickly. Please try again shortly.';
+
+  @override
+  String discordShare_errorRateLimitedRetry(int seconds) {
+    return 'You are sharing too quickly. Try again in $seconds seconds.';
+  }
 
   @override
   String get discordShare_errorNoChannels =>

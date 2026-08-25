@@ -24,7 +24,7 @@ jobs:
           cache: true
 
       - name: Install dependencies
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile
 
       - name: Verify third-party gallery contracts
         run: dart run tool/online_gallery/verify_live_sources.dart

@@ -81,7 +81,7 @@ jobs:
           cache: true
 
       - name: Resolve dependencies
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile
 
       - name: Generate localizations
         run: flutter gen-l10n
@@ -114,7 +114,7 @@ jobs:
           cache: true
 
       - name: Resolve dependencies
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile
 
       - name: Validate bundled autocomplete databases
         run: dart run tool/tag_catalog/verify_bundled_databases.dart
@@ -161,7 +161,7 @@ jobs:
         run: ./scripts/verify_nuget.ps1
 
       - name: Resolve dependencies
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile
 
       - name: Generate localizations
         run: flutter gen-l10n
@@ -208,7 +208,7 @@ jobs:
         run: choco install nsis -y --no-progress
 
       - name: Resolve dependencies
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile
 
       - name: Validate bundled autocomplete databases
         run: dart run tool/tag_catalog/verify_bundled_databases.dart

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
@@ -226,6 +227,63 @@ void main() {
     });
 
     test(
+      'multi-tag random retries the opposite side of a sparse target',
+      () async {
+        var anchorRequests = 0;
+        final http = _RecordingHttpAdapter((request) {
+          final page = request.queryParameters['page'];
+          if (page == null) {
+            return [for (var id = 1000; id > 940; id--) _donmaiPost(id)];
+          }
+          if (page == 'a0') {
+            return [for (var id = 1; id <= 60; id++) _donmaiPost(id)];
+          }
+          anchorRequests++;
+          return anchorRequests == 1 ? <Object?>[] : [_donmaiPost(500)];
+        });
+        final adapter = DonmaiGallerySourceAdapter(
+          sourceId: GallerySourceId.danbooru,
+          dio: Dio()..httpClientAdapter = http,
+          random: Random(7),
+        );
+
+        final result = await adapter.random(
+          const GalleryRandomSearchRequest(
+            pageSize: 10,
+            query: '1girl sparse_unique',
+          ),
+        );
+
+        expect(result.items.single.id, 500);
+        expect(anchorRequests, 2);
+        expect(http.requests, hasLength(4));
+      },
+    );
+
+    test(
+      'empty multi-tag search stops after the newest boundary probe',
+      () async {
+        final http = _RecordingHttpAdapter((request) => <Object?>[]);
+        final adapter = DonmaiGallerySourceAdapter(
+          sourceId: GallerySourceId.danbooru,
+          dio: Dio()..httpClientAdapter = http,
+          random: Random(7),
+        );
+
+        final result = await adapter.random(
+          const GalleryRandomSearchRequest(
+            pageSize: 10,
+            query: '1girl no_results_unique',
+          ),
+        );
+
+        expect(result.items, isEmpty);
+        expect(http.requests, hasLength(1));
+        expect(http.requests.single.queryParameters['page'], isNull);
+      },
+    );
+
+    test(
       'random ranking consumes every page in a four-page window once',
       () async {
         final http = _RecordingHttpAdapter((request) {
@@ -283,9 +341,61 @@ void main() {
     );
   });
 
-  group('GelbooruGallerySourceAdapter random', () {
+  group('GelbooruGallerySourceAdapter', () {
+    test('public HTML pagination uses Gelbooru fixed 42-item pages', () async {
+      final http = _RecordingHttpAdapter((request) {
+        final offset = request.queryParameters['pid'] as int;
+        final itemCount = offset < 84 ? 42 : 41;
+        return _RecordedResponse(
+          List.generate(itemCount, (index) {
+            final id = 100000 + offset + index;
+            return '''
+<article class="thumbnail-preview">
+  <a id="p$id" href="https://gelbooru.com/index.php?page=post&amp;s=view&amp;id=$id">
+    <img src="https://img3.gelbooru.com/thumb/$id.jpg" title="solo score:1 rating:general" />
+  </a>
+</article>
+''';
+          }).join(),
+          statusCode: 200,
+          raw: true,
+        );
+      });
+      final dio = Dio()..httpClientAdapter = http;
+      final adapter = GelbooruGallerySourceAdapter(
+        dio: dio,
+        apiService: GelbooruApiService(dio),
+        credentials: () async => null,
+        markCredentialsInvalid: () {},
+      );
+
+      final first = await adapter.search(
+        const GallerySearchRequest(cursor: '1', pageSize: 60),
+      );
+      final second = await adapter.search(
+        const GallerySearchRequest(cursor: '2', pageSize: 60),
+      );
+      final last = await adapter.search(
+        const GallerySearchRequest(cursor: '3', pageSize: 60),
+      );
+
+      expect(http.requests.map((request) => request.queryParameters['pid']), [
+        0,
+        42,
+        84,
+      ]);
+      expect(first.items, hasLength(42));
+      expect(first.hasMore, isTrue);
+      expect(first.nextCursor, '2');
+      expect(second.hasMore, isTrue);
+      expect(second.nextCursor, '3');
+      expect(last.items, hasLength(41));
+      expect(last.hasMore, isFalse);
+      expect(last.nextCursor, isNull);
+    });
+
     test(
-      'search and favorites use native sort:random without caching',
+      'random search and favorites use native sort:random without caching',
       () async {
         final http = _RecordingHttpAdapter((request) {
           expect(request.queryParameters['tags'], contains('sort:random'));
@@ -615,16 +725,21 @@ Map<String, Object?> _aiImage(String fileName) => {
 };
 
 class _RecordedResponse {
-  const _RecordedResponse(this.data, {required this.statusCode});
+  const _RecordedResponse(
+    this.data, {
+    required this.statusCode,
+    this.raw = false,
+  });
 
   final Object? data;
   final int statusCode;
+  final bool raw;
 }
 
 class _RecordingHttpAdapter implements HttpClientAdapter {
   _RecordingHttpAdapter(this.handler);
 
-  final Object? Function(RequestOptions request) handler;
+  final FutureOr<Object?> Function(RequestOptions request) handler;
   final List<RequestOptions> requests = [];
 
   @override
@@ -634,15 +749,17 @@ class _RecordingHttpAdapter implements HttpClientAdapter {
     Future<void>? cancelFuture,
   ) async {
     requests.add(options);
-    final value = handler(options);
+    final value = await handler(options);
     final response = value is _RecordedResponse
         ? value
         : _RecordedResponse(value, statusCode: 200);
     return ResponseBody.fromString(
-      jsonEncode(response.data),
+      response.raw ? response.data.toString() : jsonEncode(response.data),
       response.statusCode,
       headers: {
-        Headers.contentTypeHeader: [Headers.jsonContentType],
+        Headers.contentTypeHeader: [
+          response.raw ? Headers.textPlainContentType : Headers.jsonContentType,
+        ],
       },
     );
   }
