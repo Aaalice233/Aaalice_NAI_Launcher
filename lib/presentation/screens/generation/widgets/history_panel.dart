@@ -88,8 +88,9 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
   Timer? _historyPreheatTimer;
   Timer? _hoverPreheatTimer;
   bool _isHistoryScrolling = false;
+  bool _isTrackingGenerationPreviews = false;
   String? _lastSharePreparationMaintenanceKey;
-  Uint8List? _lastStreamPreviewBytes;
+  final Map<int, Uint8List> _streamPreviewBytesByImageNumber = {};
   final Map<String, Uint8List> _completionPreviewPlaceholders = {};
   final Map<String, bool> _favoriteStates = {};
   final Map<String, String?> _favoriteStatePaths = {};
@@ -455,19 +456,35 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
   }
 
   void _syncCompletionPreviewPlaceholder(ImageGenerationState state) {
-    if (state.hasStreamPreview) {
-      _lastStreamPreviewBytes = state.streamPreview;
-      return;
+    if (state.isGenerating && !_isTrackingGenerationPreviews) {
+      _streamPreviewBytesByImageNumber.clear();
+      _isTrackingGenerationPreviews = true;
+    } else if (!state.isGenerating) {
+      _isTrackingGenerationPreviews = false;
     }
 
-    if (_lastStreamPreviewBytes != null && state.currentImages.isNotEmpty) {
-      final newestImage = state.currentImages.first;
-      _completionPreviewPlaceholders.putIfAbsent(
-        newestImage.id,
-        () => _lastStreamPreviewBytes!,
-      );
-      _lastStreamPreviewBytes = null;
+    for (final slot in state.streamPreviewSlots) {
+      final previewBytes = slot.previewBytes;
+      if (previewBytes != null && previewBytes.isNotEmpty) {
+        _streamPreviewBytesByImageNumber[slot.imageNumber] = previewBytes;
+      }
     }
+    final streamPreview = state.streamPreview;
+    if (streamPreview != null &&
+        streamPreview.isNotEmpty &&
+        state.currentImage > 0) {
+      _streamPreviewBytesByImageNumber[state.currentImage] = streamPreview;
+    }
+
+    _streamPreviewBytesByImageNumber.removeWhere((imageNumber, previewBytes) {
+      final imageIndex = imageNumber - 1;
+      if (imageIndex < 0 || imageIndex >= state.currentImages.length) {
+        return false;
+      }
+      final image = state.currentImages[imageIndex];
+      _completionPreviewPlaceholders.putIfAbsent(image.id, () => previewBytes);
+      return true;
+    });
 
     final retainedIds = <String>{
       for (final image in state.currentImages) image.id,

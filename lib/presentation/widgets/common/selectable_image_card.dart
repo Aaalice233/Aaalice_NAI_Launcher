@@ -255,6 +255,7 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
   late bool _showPreparedIndexBadge;
   late bool _completedImageHasFrame;
   bool _completionPlaceholderSettledNotified = false;
+  int _completionImageEpoch = 0;
   Uint8List? _precachingCompletedImageBytes;
   Uint8List? _lastStreamPreviewBytes;
   Timer? _completionPlaceholderFallbackTimer;
@@ -328,8 +329,14 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
       _glowAnimation = null;
     }
 
+    // Preserve the stream only for generating -> completed; a reused completed
+    // card must not use another result's frame as its placeholder.
     if (widget.streamPreview?.isNotEmpty == true) {
       _lastStreamPreviewBytes = widget.streamPreview;
+    } else if (oldWidget.imageBytes != null &&
+        (oldWidget.imageIdentity != widget.imageIdentity ||
+            oldWidget.imageBytes != widget.imageBytes)) {
+      _lastStreamPreviewBytes = null;
     }
 
     if (oldWidget.imageBytes != widget.imageBytes ||
@@ -342,9 +349,11 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
     }
 
     if (oldWidget.imageBytes != widget.imageBytes ||
+        oldWidget.imageIdentity != widget.imageIdentity ||
         oldWidget.completionPlaceholderBytes !=
             widget.completionPlaceholderBytes ||
         (oldWidget.isGenerating && !widget.isGenerating)) {
+      _completionImageEpoch++;
       _completedImageHasFrame = _effectiveCompletionPlaceholderBytes == null;
       _completionPlaceholderSettledNotified = false;
       _precachingCompletedImageBytes = null;
@@ -418,14 +427,16 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
       return;
     }
 
+    final completionImageEpoch = _completionImageEpoch;
     _precachingCompletedImageBytes = imageBytes;
     unawaited(
       precacheImage(MemoryImage(imageBytes), context).then((_) {
         if (!mounted ||
+            completionImageEpoch != _completionImageEpoch ||
             !identical(_precachingCompletedImageBytes, imageBytes)) {
           return;
         }
-        _markCompletedImageReady();
+        _markCompletedImageReady(completionImageEpoch);
       }),
     );
   }
@@ -437,19 +448,21 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
       return;
     }
 
+    final completionImageEpoch = _completionImageEpoch;
     _completionPlaceholderFallbackTimer = Timer(
       _completionPlaceholderFallbackDuration,
       () {
-        if (!mounted) {
+        if (!mounted || completionImageEpoch != _completionImageEpoch) {
           return;
         }
-        _markCompletedImageReady();
+        _markCompletedImageReady(completionImageEpoch);
       },
     );
   }
 
-  void _markCompletedImageReady() {
-    if (_completedImageHasFrame) {
+  void _markCompletedImageReady([int? expectedEpoch]) {
+    if ((expectedEpoch != null && expectedEpoch != _completionImageEpoch) ||
+        _completedImageHasFrame) {
       return;
     }
     _completionPlaceholderFallbackTimer?.cancel();
@@ -471,11 +484,14 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
     bool wasSynchronouslyLoaded,
   ) {
     if ((frame != null || wasSynchronouslyLoaded) && !_completedImageHasFrame) {
+      final completionImageEpoch = _completionImageEpoch;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted || _completedImageHasFrame) {
+        if (!mounted ||
+            completionImageEpoch != _completionImageEpoch ||
+            _completedImageHasFrame) {
           return;
         }
-        _markCompletedImageReady();
+        _markCompletedImageReady(completionImageEpoch);
       });
     }
     return child;
@@ -830,6 +846,9 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
     final completionPlaceholderBytes = _effectiveCompletionPlaceholderBytes;
     final showCompletionPlaceholder =
         completionPlaceholderBytes != null && !_completedImageHasFrame;
+    final displayedImageBytes = showCompletionPlaceholder
+        ? completionPlaceholderBytes
+        : widget.imageBytes!;
 
     return MouseRegion(
       onEnter: (_) => _onHoverEnter(),
@@ -902,23 +921,16 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
                 // 0. 垫层：图片透明像素处透出的底色
                 if (widget.underlay != null) widget.underlay!,
 
-                // 1. 图片层
-                if (showCompletionPlaceholder)
-                  RepaintBoundary(
-                    child: DecodedMemoryImage(
-                      key: const ValueKey(
-                        'completed-image-preview-placeholder',
-                      ),
-                      bytes: completionPlaceholderBytes,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
+                // 1. 图片层。预览与结果共用同一个 Image/RenderImage，
+                // 避免透明结果首帧与旧预览同时合成。
                 RepaintBoundary(
                   child: DecodedMemoryImage(
-                    key: const ValueKey('selectable-image-completed-image'),
-                    bytes: widget.imageBytes!,
+                    key: const ValueKey('selectable-image-content'),
+                    bytes: displayedImageBytes,
                     fit: BoxFit.cover,
-                    frameBuilder: _buildCompletedImageFrame,
+                    frameBuilder: showCompletionPlaceholder
+                        ? null
+                        : _buildCompletedImageFrame,
                   ),
                 ),
 
