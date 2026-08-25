@@ -43,6 +43,56 @@ class GalleryRandomSampler {
     }
     return result;
   }
+
+  /// Returns a deterministic slice of a keyed pseudo-random permutation.
+  ///
+  /// The Feistel permutation preserves full coverage without copying [values].
+  /// Cycle walking restricts its power-of-two domain to the exact list length,
+  /// so consecutive slices read only the requested entries and never repeat.
+  List<T> permutationSlice<T>(
+    List<T> values, {
+    required int seed,
+    required int offset,
+    required int count,
+  }) {
+    if (values.isEmpty || offset >= values.length || count <= 0) {
+      return const [];
+    }
+    final end = min(offset + count, values.length);
+    return [
+      for (var position = offset; position < end; position++)
+        values[_permutedIndex(position, values.length, seed)],
+    ];
+  }
+
+  int _permutedIndex(int position, int length, int seed) {
+    if (length == 1) return 0;
+    var halfBits = 1;
+    while ((1 << (halfBits * 2)) < length) {
+      halfBits++;
+    }
+    final halfMask = (1 << halfBits) - 1;
+    var value = position;
+    do {
+      var left = value >> halfBits;
+      var right = value & halfMask;
+      for (var round = 0; round < 6; round++) {
+        final nextLeft = right;
+        final nextRight = left ^ _roundFunction(right, seed, round, halfMask);
+        left = nextLeft;
+        right = nextRight;
+      }
+      value = (left << halfBits) | right;
+    } while (value >= length);
+    return value;
+  }
+
+  int _roundFunction(int value, int seed, int round, int mask) {
+    var mixed = (value ^ seed ^ (round * 0x9e3779b9)) & 0xffffffff;
+    mixed = ((mixed ^ (mixed >>> 16)) * 0x45d9f3b) & 0xffffffff;
+    mixed = ((mixed ^ (mixed >>> 16)) * 0x45d9f3b) & 0xffffffff;
+    return (mixed ^ (mixed >>> 16)) & mask;
+  }
 }
 
 /// LRU cache entry for gallery random sampling

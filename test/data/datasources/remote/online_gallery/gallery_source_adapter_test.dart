@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
@@ -224,6 +225,63 @@ void main() {
       expect(result.items.single.id, 500);
       expect(http.requests, hasLength(3));
     });
+
+    test(
+      'multi-tag random retries the opposite side of a sparse target',
+      () async {
+        var anchorRequests = 0;
+        final http = _RecordingHttpAdapter((request) {
+          final page = request.queryParameters['page'];
+          if (page == null) {
+            return [for (var id = 1000; id > 940; id--) _donmaiPost(id)];
+          }
+          if (page == 'a0') {
+            return [for (var id = 1; id <= 60; id++) _donmaiPost(id)];
+          }
+          anchorRequests++;
+          return anchorRequests == 1 ? <Object?>[] : [_donmaiPost(500)];
+        });
+        final adapter = DonmaiGallerySourceAdapter(
+          sourceId: GallerySourceId.danbooru,
+          dio: Dio()..httpClientAdapter = http,
+          random: Random(7),
+        );
+
+        final result = await adapter.random(
+          const GalleryRandomSearchRequest(
+            pageSize: 10,
+            query: '1girl sparse_unique',
+          ),
+        );
+
+        expect(result.items.single.id, 500);
+        expect(anchorRequests, 2);
+        expect(http.requests, hasLength(4));
+      },
+    );
+
+    test(
+      'empty multi-tag search stops after the newest boundary probe',
+      () async {
+        final http = _RecordingHttpAdapter((request) => <Object?>[]);
+        final adapter = DonmaiGallerySourceAdapter(
+          sourceId: GallerySourceId.danbooru,
+          dio: Dio()..httpClientAdapter = http,
+          random: Random(7),
+        );
+
+        final result = await adapter.random(
+          const GalleryRandomSearchRequest(
+            pageSize: 10,
+            query: '1girl no_results_unique',
+          ),
+        );
+
+        expect(result.items, isEmpty);
+        expect(http.requests, hasLength(1));
+        expect(http.requests.single.queryParameters['page'], isNull);
+      },
+    );
 
     test(
       'random ranking consumes every page in a four-page window once',
@@ -681,7 +739,7 @@ class _RecordedResponse {
 class _RecordingHttpAdapter implements HttpClientAdapter {
   _RecordingHttpAdapter(this.handler);
 
-  final Object? Function(RequestOptions request) handler;
+  final FutureOr<Object?> Function(RequestOptions request) handler;
   final List<RequestOptions> requests = [];
 
   @override
@@ -691,7 +749,7 @@ class _RecordingHttpAdapter implements HttpClientAdapter {
     Future<void>? cancelFuture,
   ) async {
     requests.add(options);
-    final value = handler(options);
+    final value = await handler(options);
     final response = value is _RecordedResponse
         ? value
         : _RecordedResponse(value, statusCode: 200);

@@ -875,6 +875,10 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     ref.keepAlive();
     ref.onDispose(() {
       _blacklistRefreshDebounce?.cancel();
+      _requestGeneration++;
+      if (_cancelToken != null && !_cancelToken!.isCancelled) {
+        _cancelToken!.cancel('Online gallery notifier disposed');
+      }
       _detailCoordinator?.clear();
     });
     final storage = ref.read(localStorageServiceProvider);
@@ -1446,8 +1450,6 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     bool restart = false,
   }) async {
     if (!state.randomEnabled || !state.supportsRandom) return;
-    await _ensureQuickTagCloudFilterInitialized();
-    if (!state.randomEnabled || !state.supportsRandom) return;
     if (!replace &&
         (state.isLoading ||
             state.isLoadingMore ||
@@ -1455,7 +1457,16 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
       return;
     }
 
+    // Establish latest-call-wins before any initialization await. Otherwise an
+    // earlier QuickTagCloud refresh can finish initialization later and cancel
+    // the request started by a newer click.
     final generation = _beginRequest();
+    await _ensureQuickTagCloudFilterInitialized();
+    if (generation != _requestGeneration ||
+        !state.randomEnabled ||
+        !state.supportsRandom) {
+      return;
+    }
     final cacheKey = state.currentCacheKey;
     state = state.copyWith(
       isLoading: replace,
@@ -1519,7 +1530,14 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
       final seen = Set<String>.of(session.seenStableKeys);
       final seenCandidates = Set<String>.of(session.seenCandidateStableKeys);
       final candidates = <GalleryItem>[];
-      for (final item in page.items) {
+      for (var index = 0; index < page.items.length; index++) {
+        if (index > 0 && index % 256 == 0) {
+          await Future<void>.delayed(Duration.zero);
+          if (generation != _requestGeneration || !state.randomEnabled) {
+            return;
+          }
+        }
+        final item = page.items[index];
         final blocked = item.tags.any(
           (tag) => normalizedBlacklist.contains(
             tag.trim().toLowerCase().replaceAll(' ', '_'),
@@ -1629,6 +1647,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
         clearError: true,
       );
     } catch (error) {
+      if (error is DioException && CancelToken.isCancel(error)) return;
       if (generation != _requestGeneration || !state.randomEnabled) return;
       final isArtistHuntDetailFailure = error is _ArtistHuntDetailException;
       state = state.copyWith(
@@ -1814,7 +1833,6 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
       await _loadRandom(replace: refresh);
       return;
     }
-    await _ensureQuickTagCloudFilterInitialized();
     if (!refresh && (state.isLoading || state.isLoadingMore)) return;
     final restoredPage =
         !refresh && _pendingRestoredCacheKey == state.currentCacheKey
@@ -1875,6 +1893,10 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     required bool refresh,
     String? initialCursor,
   }) async {
+    final generation = _beginRequest();
+    await _ensureQuickTagCloudFilterInitialized();
+    if (generation != _requestGeneration || state.randomEnabled) return;
+
     final cache = state.currentCache;
     final cursor = initialCursor ?? (refresh ? '1' : cache.nextCursor);
     if (cursor == null) return;
@@ -1882,7 +1904,6 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
         ? state.popularSourceId
         : state.sourceId;
     final adapter = _adapters[sourceId]!;
-    final generation = _beginRequest();
     final cacheKey = state.currentCacheKey;
     final isAppend = !refresh && cache.posts.isNotEmpty;
     state = state.copyWith(

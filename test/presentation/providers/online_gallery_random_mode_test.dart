@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
@@ -397,25 +398,177 @@ void main() {
     expect(state.randomSession.seenStableKeys, {'danbooru:7'});
     expect(state.randomSession.exhausted, isFalse);
   });
+
+  test(
+    'source switch starts the new random request without awaiting the old one',
+    () async {
+      final oldRequest = Completer<GalleryPage>();
+      final danbooru = _ControlledRandomAdapter(
+        GallerySourceId.danbooru,
+        responses: [oldRequest.future],
+      );
+      final safebooru = _ControlledRandomAdapter(
+        GallerySourceId.safebooru,
+        responses: [
+          Future.value(_page([_sourceItem(2, GallerySourceId.safebooru)])),
+        ],
+      );
+      final container = _containerWithAdapters(danbooru, safebooru);
+      addTearDown(container.dispose);
+      final notifier = container.read(onlineGalleryNotifierProvider.notifier);
+
+      final enabling = notifier.setRandomEnabled(true);
+      await Future<void>.delayed(Duration.zero);
+      await notifier.setSource(GallerySourceId.safebooru);
+
+      final state = container.read(onlineGalleryNotifierProvider);
+      expect(danbooru.cancelTokens.single.isCancelled, isTrue);
+      expect(safebooru.randomCalls, 1);
+      expect(state.sourceId, GallerySourceId.safebooru);
+      expect(state.posts.single.stableKey, 'safebooru:2');
+
+      oldRequest.complete(_page([_item(99)]));
+      await enabling;
+      expect(
+        container.read(onlineGalleryNotifierProvider).posts.single.stableKey,
+        'safebooru:2',
+      );
+    },
+  );
+
+  test('rapid source switches commit only the latest random query', () async {
+    final danbooruRequest = Completer<GalleryPage>();
+    final safebooruRequest = Completer<GalleryPage>();
+    final danbooru = _ControlledRandomAdapter(
+      GallerySourceId.danbooru,
+      responses: [danbooruRequest.future],
+    );
+    final safebooru = _ControlledRandomAdapter(
+      GallerySourceId.safebooru,
+      responses: [safebooruRequest.future],
+    );
+    final gelbooru = _ControlledRandomAdapter(
+      GallerySourceId.gelbooru,
+      responses: [
+        Future.value(_page([_sourceItem(3, GallerySourceId.gelbooru)])),
+      ],
+    );
+    final container = _containerWithAdapters(danbooru, safebooru, gelbooru);
+    addTearDown(container.dispose);
+    final notifier = container.read(onlineGalleryNotifierProvider.notifier);
+
+    final first = notifier.setRandomEnabled(true);
+    await Future<void>.delayed(Duration.zero);
+    final second = notifier.setSource(GallerySourceId.safebooru);
+    await Future<void>.delayed(Duration.zero);
+    await notifier.setSource(GallerySourceId.gelbooru);
+
+    expect(danbooru.cancelTokens.single.isCancelled, isTrue);
+    expect(safebooru.cancelTokens.single.isCancelled, isTrue);
+    expect(
+      container.read(onlineGalleryNotifierProvider).posts.single.stableKey,
+      'gelbooru:3',
+    );
+
+    safebooruRequest.complete(
+      _page([_sourceItem(22, GallerySourceId.safebooru)]),
+    );
+    danbooruRequest.complete(_page([_item(11)]));
+    await Future.wait([first, second]);
+    final state = container.read(onlineGalleryNotifierProvider);
+    expect(state.sourceId, GallerySourceId.gelbooru);
+    expect(state.posts.single.stableKey, 'gelbooru:3');
+  });
+
+  test(
+    'refresh cancels the active random draw and starts a replacement',
+    () async {
+      final pending = Completer<GalleryPage>();
+      final adapter = _ControlledRandomAdapter(
+        GallerySourceId.danbooru,
+        responses: [
+          pending.future,
+          Future.value(_page([_item(8)])),
+        ],
+      );
+      final container = _containerWithAdapters(adapter);
+      addTearDown(container.dispose);
+      final notifier = container.read(onlineGalleryNotifierProvider.notifier);
+
+      final first = notifier.setRandomEnabled(true);
+      await Future<void>.delayed(Duration.zero);
+      await notifier.refresh();
+
+      expect(adapter.randomCalls, 2);
+      expect(adapter.cancelTokens.first.isCancelled, isTrue);
+      expect(container.read(onlineGalleryNotifierProvider).posts.single.id, 8);
+
+      pending.complete(_page([_item(9)]));
+      await first;
+      expect(container.read(onlineGalleryNotifierProvider).posts.single.id, 8);
+    },
+  );
+
+  test(
+    'disabling random cancels an in-flight draw without reporting an error',
+    () async {
+      final pending = Completer<GalleryPage>();
+      final adapter = _ControlledRandomAdapter(
+        GallerySourceId.danbooru,
+        responses: [pending.future],
+      );
+      final container = _containerWithAdapters(adapter);
+      addTearDown(container.dispose);
+      final notifier = container.read(onlineGalleryNotifierProvider.notifier);
+
+      final enabling = notifier.setRandomEnabled(true);
+      await Future<void>.delayed(Duration.zero);
+      await notifier.setRandomEnabled(false);
+
+      var state = container.read(onlineGalleryNotifierProvider);
+      expect(adapter.cancelTokens.single.isCancelled, isTrue);
+      expect(state.randomEnabled, isFalse);
+      expect(state.isLoading, isFalse);
+      expect(state.hasError, isFalse);
+
+      pending.complete(_page([_item(9)]));
+      await enabling;
+      state = container.read(onlineGalleryNotifierProvider);
+      expect(state.randomEnabled, isFalse);
+      expect(state.posts, isEmpty);
+    },
+  );
 }
 
-ProviderContainer _container(_RandomFakeAdapter danbooru) {
-  final adapters = <GallerySourceId, GallerySourceAdapter>{
+ProviderContainer _container(_RandomFakeAdapter danbooru) =>
+    _containerWithAdapters(danbooru);
+
+ProviderContainer _containerWithAdapters(
+  GallerySourceAdapter danbooru, [
+  GallerySourceAdapter? safebooru,
+  GallerySourceAdapter? gelbooru,
+]) {
+  final overrides = <GallerySourceId, GallerySourceAdapter>{
     GallerySourceId.danbooru: danbooru,
-    for (final source in GallerySourceId.values)
-      if (source != GallerySourceId.danbooru) source: _EmptyAdapter(source),
+    if (safebooru != null) GallerySourceId.safebooru: safebooru,
+    if (gelbooru != null) GallerySourceId.gelbooru: gelbooru,
   };
   return ProviderContainer(
     overrides: [
       localStorageServiceProvider.overrideWithValue(_MemoryStorage()),
-      onlineGallerySourceAdaptersProvider.overrideWithValue(adapters),
+      onlineGallerySourceAdaptersProvider.overrideWithValue({
+        for (final source in GallerySourceId.values)
+          source: overrides[source] ?? _EmptyAdapter(source),
+      }),
     ],
   );
 }
 
-GalleryItem _item(int id) => GalleryItem(
+GalleryItem _item(int id) => _sourceItem(id, GallerySourceId.danbooru);
+
+GalleryItem _sourceItem(int id, GallerySourceId sourceId) => GalleryItem(
   id: id,
-  sourceId: GallerySourceId.danbooru,
+  sourceId: sourceId,
   tags: const ['1girl'],
   cover: GalleryMedia(
     id: '$id',
@@ -461,6 +614,31 @@ class _MemoryStorage extends LocalStorageService {
   @override
   Future<void> deleteSetting(String key) async {
     _values.remove(key);
+  }
+}
+
+class _ControlledRandomAdapter extends GallerySourceAdapter {
+  _ControlledRandomAdapter(this.sourceId, {required this.responses});
+
+  @override
+  final GallerySourceId sourceId;
+  final List<Future<GalleryPage>> responses;
+  final List<CancelToken> cancelTokens = [];
+  int randomCalls = 0;
+
+  @override
+  Future<GalleryPage> search(
+    GallerySearchRequest request, {
+    CancelToken? cancelToken,
+  }) async => _page(const []);
+
+  @override
+  Future<GalleryPage> random(
+    GalleryRandomRequest request, {
+    CancelToken? cancelToken,
+  }) {
+    cancelTokens.add(cancelToken!);
+    return responses[randomCalls++];
   }
 }
 
