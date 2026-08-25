@@ -284,6 +284,9 @@ class StorageKeys {
   // 在线画廊黑名单设置
   static const String onlineGalleryBlacklistTags =
       'online_gallery_blacklist_tags';
+  static const String onlineGalleryBlacklistV2 = 'online_gallery_blacklist_v2';
+  static const String onlineGalleryBlacklistRollbackShadow =
+      'online_gallery_blacklist_rollback_shadow_v2';
   static const String onlineGalleryRemoteBlacklistTags =
       'online_gallery_remote_blacklist_tags';
   static const String onlineGalleryBlacklistAutoSync =

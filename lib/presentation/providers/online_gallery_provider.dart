@@ -971,11 +971,8 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
       ),
       (_, _) => _handleAccountIdentityChanged(GallerySourceId.gelbooru),
     );
-    ref.listen<String>(
-      onlineGalleryBlacklistNotifierProvider.select((value) {
-        final tags = value.effectiveTags.toList()..sort();
-        return tags.join('\u0000');
-      }),
+    ref.listen<int>(
+      onlineGalleryBlacklistNotifierProvider.select((value) => value.revision),
       (_, _) => _handleBlacklistChanged(),
     );
     return restored;
@@ -1497,9 +1494,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
           .read(onlineGalleryBlacklistNotifierProvider.notifier)
           .ensureInitialized();
       if (generation != _requestGeneration || !state.randomEnabled) return;
-      final blacklist = ref
-          .read(onlineGalleryBlacklistNotifierProvider)
-          .effectiveTags;
+      final blacklist = ref.read(onlineGalleryBlacklistNotifierProvider).tags;
       if (state.viewMode == GalleryViewMode.favorites &&
           !_canLoadRemoteFavorites(state.favoritesSourceId)) {
         await _loadRandomLocalFavorites(
@@ -1540,34 +1535,34 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
         return;
       }
 
-      final normalizedBlacklist = blacklist
-          .map((tag) => tag.trim().toLowerCase().replaceAll(' ', '_'))
-          .where((tag) => tag.isNotEmpty)
-          .toSet();
+      final eligibleItems = await _filterByBlacklistCompletingDetails(
+        page.items,
+        blacklist,
+      );
+      if (generation != _requestGeneration ||
+          !state.randomEnabled ||
+          state.currentCacheKey != cacheKey) {
+        return;
+      }
       final artistHuntActive = state.isArtistHuntActive;
       final seen = Set<String>.of(session.seenStableKeys);
       final seenCandidates = Set<String>.of(session.seenCandidateStableKeys);
       final candidates = <GalleryItem>[];
-      for (var index = 0; index < page.items.length; index++) {
+      for (var index = 0; index < eligibleItems.length; index++) {
         if (index > 0 && index % 256 == 0) {
           await Future<void>.delayed(Duration.zero);
           if (generation != _requestGeneration || !state.randomEnabled) {
             return;
           }
         }
-        final item = page.items[index];
-        final blocked = item.tags.any(
-          (tag) => normalizedBlacklist.contains(
-            tag.trim().toLowerCase().replaceAll(' ', '_'),
-          ),
-        );
+        final item = eligibleItems[index];
         final identity = artistHuntActive
             ? item.detailStableKey
             : item.stableKey;
         final alreadySeen = artistHuntActive
             ? seenCandidates.contains(identity)
             : seen.contains(identity);
-        if (blocked || alreadySeen || seen.length >= 20000) continue;
+        if (alreadySeen || seen.length >= 20000) continue;
         candidates.add(item);
       }
 
@@ -1938,9 +1933,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
           .read(onlineGalleryBlacklistNotifierProvider.notifier)
           .ensureInitialized();
       if (!_isCurrentRequest(generation, cacheKey)) return;
-      final blacklist = ref
-          .read(onlineGalleryBlacklistNotifierProvider)
-          .effectiveTags;
+      final blacklist = ref.read(onlineGalleryBlacklistNotifierProvider).tags;
       AiTagSourceConfig? aiTagConfig;
       if (adapter is AiTagGallerySourceAdapter) {
         aiTagConfig = await adapter.getConfig(cancelToken: _cancelToken);
@@ -2186,9 +2179,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
           .read(onlineGalleryBlacklistNotifierProvider.notifier)
           .ensureInitialized();
       if (!_isCurrentRequest(generation, cacheKey)) return;
-      final blacklist = ref
-          .read(onlineGalleryBlacklistNotifierProvider)
-          .effectiveTags;
+      final blacklist = ref.read(onlineGalleryBlacklistNotifierProvider).tags;
       final quickTagFilter = sourceId == GallerySourceId.quickTagCloud
           ? ref.read(quickTagCloudFilterProvider)
           : null;
@@ -2624,10 +2615,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     Set<String> blacklist,
   ) async {
     if (blacklist.isEmpty) return items;
-    final normalizedBlacklist = blacklist
-        .map(_normalizeGalleryPolicyTag)
-        .whereType<String>()
-        .toSet();
+    final normalizedBlacklist = blacklist;
     final allowed = <String, bool>{};
     final incomplete = <GalleryItem>[];
     for (final item in items) {
@@ -2696,10 +2684,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     Set<String> blacklist,
   ) {
     if (blacklist.isEmpty) return items.toList(growable: false);
-    final normalizedBlacklist = blacklist
-        .map(_normalizeGalleryPolicyTag)
-        .whereType<String>()
-        .toSet();
+    final normalizedBlacklist = blacklist;
     return items
         .where(
           (item) => !item.tags.any(

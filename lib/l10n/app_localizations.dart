@@ -5094,38 +5094,26 @@ abstract class AppLocalizations {
   /// No description provided for @onlineGallery_blacklistSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Choose the blacklist used to hide images. Local and Danbooru cloud lists remain independent.'**
+  /// **'One list is shared by every online gallery and keeps filtering while offline.'**
   String get onlineGallery_blacklistSubtitle;
-
-  /// No description provided for @onlineGallery_blacklistSourceLocal.
-  ///
-  /// In en, this message translates to:
-  /// **'Local'**
-  String get onlineGallery_blacklistSourceLocal;
-
-  /// No description provided for @onlineGallery_blacklistSourceCloud.
-  ///
-  /// In en, this message translates to:
-  /// **'Danbooru Cloud'**
-  String get onlineGallery_blacklistSourceCloud;
-
-  /// No description provided for @onlineGallery_blacklistLocalDescription.
-  ///
-  /// In en, this message translates to:
-  /// **'Stored only on this device and works without signing in'**
-  String get onlineGallery_blacklistLocalDescription;
 
   /// No description provided for @onlineGallery_blacklistCloudDescription.
   ///
   /// In en, this message translates to:
-  /// **'Use and edit the blacklist stored in your Danbooru account'**
+  /// **'Danbooru is connected; local changes sync after a safe merge'**
   String get onlineGallery_blacklistCloudDescription;
 
   /// No description provided for @onlineGallery_blacklistCloudLoginRequired.
   ///
   /// In en, this message translates to:
-  /// **'Sign in to Danbooru to use the cloud blacklist'**
+  /// **'The local blacklist still works; sign in to Danbooru to sync'**
   String get onlineGallery_blacklistCloudLoginRequired;
+
+  /// No description provided for @onlineGallery_blacklistCloudUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'The local blacklist is active. Cloud sync will resume after Danbooru can be verified.'**
+  String get onlineGallery_blacklistCloudUnavailable;
 
   /// No description provided for @onlineGallery_addBlacklistTagHint.
   ///
@@ -5136,14 +5124,8 @@ abstract class AppLocalizations {
   /// No description provided for @onlineGallery_noLocalBlacklistTags.
   ///
   /// In en, this message translates to:
-  /// **'No local blacklist tags'**
+  /// **'No blacklist tags'**
   String get onlineGallery_noLocalBlacklistTags;
-
-  /// No description provided for @onlineGallery_noCloudBlacklistTags.
-  ///
-  /// In en, this message translates to:
-  /// **'No cloud blacklist tags'**
-  String get onlineGallery_noCloudBlacklistTags;
 
   /// No description provided for @onlineGallery_pullBlacklist.
   ///
@@ -5151,41 +5133,23 @@ abstract class AppLocalizations {
   /// **'Pull cloud'**
   String get onlineGallery_pullBlacklist;
 
-  /// No description provided for @onlineGallery_pullBlacklistTooltip.
-  ///
-  /// In en, this message translates to:
-  /// **'Refresh the Danbooru cloud blacklist without changing the local list'**
-  String get onlineGallery_pullBlacklistTooltip;
-
   /// No description provided for @onlineGallery_pushBlacklist.
   ///
   /// In en, this message translates to:
   /// **'Push to cloud'**
   String get onlineGallery_pushBlacklist;
 
-  /// No description provided for @onlineGallery_pushBlacklistTooltip.
-  ///
-  /// In en, this message translates to:
-  /// **'Replace the Danbooru cloud blacklist with the local list'**
-  String get onlineGallery_pushBlacklistTooltip;
-
   /// No description provided for @onlineGallery_pushBlacklistConfirmTitle.
   ///
   /// In en, this message translates to:
-  /// **'Replace cloud with local?'**
+  /// **'Replace cloud with the unified list?'**
   String get onlineGallery_pushBlacklistConfirmTitle;
 
   /// No description provided for @onlineGallery_pushBlacklistConfirmBody.
   ///
   /// In en, this message translates to:
-  /// **'The Danbooru cloud blacklist will be completely replaced by your current local list. Make sure the local list is ready.'**
+  /// **'This completely replaces the Danbooru cloud blacklist. Routine syncing preserves unrecognized advanced rules, but this full push removes them.'**
   String get onlineGallery_pushBlacklistConfirmBody;
-
-  /// No description provided for @onlineGallery_blacklistPullSucceeded.
-  ///
-  /// In en, this message translates to:
-  /// **'Danbooru cloud blacklist refreshed'**
-  String get onlineGallery_blacklistPullSucceeded;
 
   /// No description provided for @onlineGallery_blacklistPushSucceeded.
   ///
@@ -5199,6 +5163,12 @@ abstract class AppLocalizations {
   /// **'Blacklist sync failed. Check your sign-in and network connection.'**
   String get onlineGallery_blacklistSyncFailedMessage;
 
+  /// No description provided for @onlineGallery_blacklistSaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to save blacklist: {error}'**
+  String onlineGallery_blacklistSaveFailed(String error);
+
   /// No description provided for @onlineGallery_autoSyncOnStartup.
   ///
   /// In en, this message translates to:
@@ -5208,7 +5178,7 @@ abstract class AppLocalizations {
   /// No description provided for @onlineGallery_autoSyncOnStartupSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Refreshes only the cloud cache and never overwrites the local blacklist'**
+  /// **'Safely merges new cloud tags without deleting local tags'**
   String get onlineGallery_autoSyncOnStartupSubtitle;
 
   /// No description provided for @onlineGallery_lastSyncFailed.
@@ -5235,11 +5205,68 @@ abstract class AppLocalizations {
   /// **'Online Gallery Blacklist Settings'**
   String get onlineGallery_blacklistSettingsTitle;
 
-  /// No description provided for @onlineGallery_blacklistLoginHint.
+  /// No description provided for @onlineGallery_blacklistImportTitle.
   ///
   /// In en, this message translates to:
-  /// **'You are not logged in to Danbooru. The local blacklist still works, but syncing requires login.'**
-  String get onlineGallery_blacklistLoginHint;
+  /// **'Import tags'**
+  String get onlineGallery_blacklistImportTitle;
+
+  /// No description provided for @onlineGallery_blacklistImportHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter one tag per line or separate tags with commas'**
+  String get onlineGallery_blacklistImportHint;
+
+  /// No description provided for @onlineGallery_blacklistImported.
+  ///
+  /// In en, this message translates to:
+  /// **'Added {count} tags'**
+  String onlineGallery_blacklistImported(Object count);
+
+  /// No description provided for @onlineGallery_blacklistClearTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear the unified blacklist?'**
+  String get onlineGallery_blacklistClearTitle;
+
+  /// No description provided for @onlineGallery_blacklistClearBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The gallery will immediately stop filtering by these tags. The cloud list will not be cleared automatically, and this action can be undone.'**
+  String get onlineGallery_blacklistClearBody;
+
+  /// No description provided for @onlineGallery_blacklistPullSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Added {added}, already had {existing}, skipped {skipped} deleted tags; preserved {opaque} advanced cloud rules'**
+  String onlineGallery_blacklistPullSummary(
+    Object added,
+    Object existing,
+    Object skipped,
+    Object opaque,
+  );
+
+  /// No description provided for @onlineGallery_blacklistPushDiff.
+  ///
+  /// In en, this message translates to:
+  /// **'Cloud will add {added}, remove {removed}, and delete {opaque} advanced rules.'**
+  String onlineGallery_blacklistPushDiff(
+    Object added,
+    Object removed,
+    Object opaque,
+  );
+
+  /// No description provided for @onlineGallery_blacklistCloudEmptyConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm clearing the cloud blacklist'**
+  String get onlineGallery_blacklistCloudEmptyConfirm;
+
+  /// No description provided for @onlineGallery_blacklistMigrationConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'This list includes cloud tags migrated from an unknown account. Confirm syncing them to the current account'**
+  String get onlineGallery_blacklistMigrationConfirm;
 
   /// No description provided for @onlineGallery_bulkFavorite.
   ///

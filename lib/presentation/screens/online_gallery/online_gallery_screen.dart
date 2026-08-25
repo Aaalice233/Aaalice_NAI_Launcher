@@ -726,7 +726,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
               Localizations.localeOf(context).languageCode == 'zh';
           final compactPrimaryActions =
               forceCompactForText ||
-              useScrollablePrimary ||
+              constraints.maxWidth < 1400 ||
               !keepsDetailedLabels;
           final compactRating = compactPrimaryActions;
           final compactModes = compactPrimaryActions;
@@ -753,7 +753,11 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           final trailingControls = Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _buildGalleryPolicyControls(theme, compact: true),
+              _buildGalleryPolicyControls(
+                theme,
+                sourceId: state.activeSourceId,
+                compact: true,
+              ),
               const SizedBox(width: 8),
               _buildPrimaryActions(
                 theme,
@@ -768,21 +772,34 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
               ? SingleChildScrollView(
                   key: const ValueKey('online-gallery-primary-controls-scroll'),
                   scrollDirection: Axis.horizontal,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      leadingControls,
-                      if (showQueryFields) ...[
-                        const SizedBox(width: 12),
-                        SizedBox(
-                          key: const ValueKey('online-gallery-primary-search'),
-                          width: queryFieldWidth,
-                          child: _buildSearchFields(theme, state),
-                        ),
-                      ],
-                      const SizedBox(width: 8),
-                      trailingControls,
-                    ],
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                    child: IntrinsicWidth(
+                      child: Row(
+                        children: [
+                          leadingControls,
+                          if (showQueryFields) ...[
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: ConstrainedBox(
+                                constraints: BoxConstraints(
+                                  minWidth: queryFieldWidth,
+                                ),
+                                child: KeyedSubtree(
+                                  key: const ValueKey(
+                                    'online-gallery-primary-search',
+                                  ),
+                                  child: _buildSearchFields(theme, state),
+                                ),
+                              ),
+                            ),
+                          ] else
+                            const Spacer(),
+                          const SizedBox(width: 8),
+                          trailingControls,
+                        ],
+                      ),
+                    ),
                   ),
                 )
               : Row(
@@ -1573,16 +1590,15 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     );
   }
 
-  Widget _buildGalleryPolicyControls(ThemeData theme, {required bool compact}) {
+  Widget _buildGalleryPolicyControls(
+    ThemeData theme, {
+    required GallerySourceId sourceId,
+    required bool compact,
+  }) {
     final blacklist = ref.watch(onlineGalleryBlacklistNotifierProvider);
     final outputFilterCount = ref.watch(
       onlineGalleryOutputFilterProvider.select((value) => value.tags.length),
     );
-    final blacklistLabel =
-        blacklist.effectiveSource == OnlineGalleryBlacklistSource.cloud
-        ? context.l10n.onlineGallery_blacklistSourceCloud
-        : context.l10n.onlineGallery_blacklistSourceLocal;
-
     Widget policyButton({
       required Key key,
       required IconData icon,
@@ -1596,21 +1612,21 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         visualDensity: VisualDensity.compact,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
       );
-      if (compact) {
-        return OutlinedButton(
-          key: key,
-          onPressed: onPressed,
-          style: style,
-          child: Text(label),
-        );
-      }
-      return OutlinedButton.icon(
-        key: key,
-        onPressed: onPressed,
-        icon: Icon(icon, size: 16),
-        label: Text(label),
-        style: style,
-      );
+      final button = compact
+          ? OutlinedButton(
+              key: key,
+              onPressed: onPressed,
+              style: style,
+              child: Text(label),
+            )
+          : OutlinedButton.icon(
+              key: key,
+              onPressed: onPressed,
+              icon: Icon(icon, size: 16),
+              label: Text(label),
+              style: style,
+            );
+      return Tooltip(message: tooltip, child: button);
     }
 
     return Row(
@@ -1620,10 +1636,13 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           key: const ValueKey('online-gallery-blacklist'),
           icon: Icons.block,
           label:
-              '${context.l10n.onlineGallery_blacklistShort} · ${blacklist.effectiveTags.length}',
-          tooltip:
-              '${context.l10n.onlineGallery_blacklistTags} · $blacklistLabel',
-          onPressed: () => showOnlineGalleryBlacklistDialog(context, ref),
+              '${context.l10n.onlineGallery_blacklistShort} · ${blacklist.tags.length}',
+          tooltip: context.l10n.onlineGallery_blacklistTags,
+          onPressed: () => showOnlineGalleryBlacklistDialog(
+            context,
+            ref,
+            sourceId: sourceId,
+          ),
         ),
         const SizedBox(width: 6),
         policyButton(

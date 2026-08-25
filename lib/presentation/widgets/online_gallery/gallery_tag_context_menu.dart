@@ -22,7 +22,7 @@ Future<OnlineGalleryTagContextAction?> showOnlineGalleryTagContextMenu({
   final normalized = OnlineGalleryOutputFilterSettings.normalizeTag(tag);
   final isOutputFiltered = outputFilter.contains(tag);
   final isBlacklisted =
-      normalized != null && blacklist.effectiveTags.contains(normalized);
+      normalized != null && blacklist.tags.contains(normalized);
 
   final action = await showMenu<OnlineGalleryTagContextAction>(
     context: context,
@@ -110,14 +110,25 @@ Future<OnlineGalleryTagContextAction?> showOnlineGalleryTagContextMenu({
       );
     }
   } else if (action == OnlineGalleryTagContextAction.blacklist) {
-    final added = await ref
-        .read(onlineGalleryBlacklistNotifierProvider.notifier)
-        .addTag(tag);
-    if (added && context.mounted) {
-      AppToast.success(
-        context,
-        context.l10n.onlineGallery_blacklistTagAdded(tag),
-      );
+    try {
+      final added = await ref
+          .read(onlineGalleryBlacklistNotifierProvider.notifier)
+          .addTag(tag);
+      if (!added) return null;
+      if (context.mounted) {
+        AppToast.success(
+          context,
+          context.l10n.onlineGallery_blacklistTagAdded(tag),
+        );
+      }
+    } catch (error) {
+      if (context.mounted) {
+        AppToast.error(
+          context,
+          context.l10n.onlineGallery_blacklistSaveFailed('$error'),
+        );
+      }
+      return null;
     }
   }
   return action;
