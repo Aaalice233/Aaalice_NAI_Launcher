@@ -75,6 +75,61 @@ void main() {
       },
     );
 
+    test('should match the web V5 automatic text request', () async {
+      const params = ImageParams(
+        prompt: 'chinese text, "圣女"',
+        model: ImageModels.animeDiffusionV5Curated,
+        qualityToggle: false,
+        ucPreset: UcPresets.noneApiValue,
+        seed: 343647091,
+      );
+
+      final result = await NAIImageRequestBuilder(
+        params: params,
+        encodeVibe: _fakeEncodeVibe,
+      ).build(sampler: Samplers.kEulerAncestral);
+      const expected = 'chinese text, "圣女", teXt: 圣女';
+
+      expect(result.effectivePrompt, expected);
+      expect(result.requestData['input'], expected);
+      expect(
+        result.requestParameters['v4_prompt']['caption']['base_caption'],
+        expected,
+      );
+    });
+
+    test('should order quoted character text by request centers', () async {
+      const params = ImageParams(
+        prompt: 'two characters',
+        model: ImageModels.animeDiffusionV5Full,
+        qualityToggle: false,
+        ucPreset: UcPresets.noneApiValue,
+        useCoords: true,
+        characters: [
+          CharacterPrompt(
+            prompt: 'right "RIGHT"',
+            positionX: 0.8,
+            positionY: 0.2,
+          ),
+          CharacterPrompt(
+            prompt: 'left "LEFT"',
+            positionX: 0.2,
+            positionY: 0.2,
+          ),
+        ],
+      );
+
+      final result = await NAIImageRequestBuilder(
+        params: params,
+        encodeVibe: _fakeEncodeVibe,
+      ).build(sampler: Samplers.kEulerAncestral);
+
+      expect(
+        result.requestData['input'],
+        'two characters, teXt: LEFT\n\nRIGHT',
+      );
+    });
+
     test('should match web SMEA thresholds and img2img disabling', () async {
       const belowThreshold = ImageParams(
         model: ImageModels.animeDiffusionV3,
@@ -1372,8 +1427,14 @@ void main() {
 
       expect(v45.width, 832);
       expect(v45.height, 1216);
-      expect(modern.requestParameters['skip_cfg_above_sigma'], closeTo(58, 1e-9));
-      expect(legacy.requestParameters['skip_cfg_above_sigma'], closeTo(19, 1e-9));
+      expect(
+        modern.requestParameters['skip_cfg_above_sigma'],
+        closeTo(58, 1e-9),
+      );
+      expect(
+        legacy.requestParameters['skip_cfg_above_sigma'],
+        closeTo(19, 1e-9),
+      );
     });
 
     test('should drop the e2e upscale block for infill', () async {

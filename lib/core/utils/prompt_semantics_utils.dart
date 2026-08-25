@@ -1,5 +1,6 @@
 import '../constants/api_constants.dart';
 import '../constants/model_capabilities.dart';
+import 'novelai_auto_text.dart';
 
 /// 提示词语义快照
 ///
@@ -11,12 +12,14 @@ class PromptSemanticsSnapshot {
     required this.baseNegativePrompt,
     required this.effectivePrompt,
     required this.effectiveNegativePrompt,
+    this.autoTextBlock,
   });
 
   final String basePrompt;
   final String baseNegativePrompt;
   final String effectivePrompt;
   final String effectiveNegativePrompt;
+  final String? autoTextBlock;
 }
 
 PromptSemanticsSnapshot buildPromptSemanticsSnapshot({
@@ -28,6 +31,8 @@ PromptSemanticsSnapshot buildPromptSemanticsSnapshot({
   bool isEnhanceRequest = false,
   bool transparentBackground = false,
   String qualityTier = QualityTags.standardTier,
+  List<NovelAiAutoTextCharacter> characters = const [],
+  bool useCoords = false,
 }) {
   final capabilities = ModelCapabilityRegistry.of(model);
   // 自定义质量预设在到这一步之前就已经并进 prompt（qualityToggle=false），
@@ -48,6 +53,20 @@ PromptSemanticsSnapshot buildPromptSemanticsSnapshot({
     effectivePrompt = EnhanceLevels.applyPromptAddition(effectivePrompt);
   }
 
+  String? autoTextBlock;
+  if (capabilities.supportsAutoText) {
+    autoTextBlock = NovelAiAutoText.buildBlock(
+      effectivePrompt,
+      characters: characters,
+      useCoords: useCoords,
+    );
+    effectivePrompt = NovelAiAutoText.apply(
+      effectivePrompt,
+      characters: characters,
+      useCoords: useCoords,
+    );
+  }
+
   final effectiveNegativePrompt = UcPresets.applyPresetWithNsfwCheck(
     negativePrompt,
     prompt,
@@ -60,5 +79,6 @@ PromptSemanticsSnapshot buildPromptSemanticsSnapshot({
     baseNegativePrompt: negativePrompt,
     effectivePrompt: effectivePrompt,
     effectiveNegativePrompt: effectiveNegativePrompt,
+    autoTextBlock: autoTextBlock,
   );
 }

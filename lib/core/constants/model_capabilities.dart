@@ -46,6 +46,7 @@ class ModelCapabilities {
     this.supportsMaxEnhance = false,
     this.supportsEnhancePromptAdd = false,
     this.supportsTextRendering = false,
+    this.supportsAutoText = false,
     this.supportsNoiseSchedule = true,
     this.supportsVarietyPlus = false,
     this.retainsVarietyPlus = true,
@@ -110,6 +111,10 @@ class ModelCapabilities {
   /// 官网能力位 `text`，V4 起为 true。质量词等自动追加的内容必须留在
   /// `text:` 之前，否则会被模型当成要画进图里的文字。
   final bool supportsTextRendering;
+
+  /// Whether quoted text is automatically mirrored into a trailing `teXt:`
+  /// block. The production web client enables this for V5.
+  final bool supportsAutoText;
 
   /// 噪声调度是否可选。
   final bool supportsNoiseSchedule;
@@ -287,6 +292,7 @@ class ModelCapabilityRegistry {
     supportsMaxEnhance: true,
     supportsEnhancePromptAdd: true,
     supportsTextRendering: true,
+    supportsAutoText: true,
     // 网页端对 V5 隐藏了噪声调度与 Variety+，这里刻意放开供手动尝试。
     supportsNoiseSchedule: true,
     supportsVarietyPlus: true,
@@ -311,6 +317,7 @@ class ModelCapabilityRegistry {
     supportsMaxEnhance: true,
     supportsEnhancePromptAdd: true,
     supportsTextRendering: true,
+    supportsAutoText: true,
     // 网页端对 V5 隐藏了噪声调度与 Variety+，这里刻意放开供手动尝试。
     supportsNoiseSchedule: true,
     supportsVarietyPlus: true,

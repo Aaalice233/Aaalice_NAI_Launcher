@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/constants/api_constants.dart';
+import 'package:nai_launcher/core/utils/novelai_auto_text.dart';
 import 'package:nai_launcher/core/utils/prompt_semantics_utils.dart';
 
 void main() {
@@ -76,6 +77,64 @@ void main() {
       );
 
       expect(snapshot.effectivePrompt, equals('1girl'));
+    });
+  });
+
+  group('V5 automatic text rendering', () {
+    test('should append the quoted text block after quality tags', () {
+      final snapshot = buildPromptSemanticsSnapshot(
+        prompt: 'chinese text, "圣女"',
+        negativePrompt: '',
+        model: ImageModels.animeDiffusionV5Curated,
+        qualityToggle: true,
+        ucPreset: UcPresets.noneApiValue,
+      );
+
+      expect(
+        snapshot.effectivePrompt,
+        'chinese text, "圣女", very aesthetic, masterpiece, no text, '
+        'teXt: 圣女',
+      );
+      expect(snapshot.autoTextBlock, 'teXt: 圣女');
+      expect(snapshot.basePrompt, 'chinese text, "圣女"');
+    });
+
+    test('should include quoted character text and respect coordinates', () {
+      final snapshot = buildPromptSemanticsSnapshot(
+        prompt: 'two characters',
+        negativePrompt: '',
+        model: ImageModels.animeDiffusionV5Full,
+        qualityToggle: false,
+        ucPreset: UcPresets.noneApiValue,
+        useCoords: true,
+        characters: const [
+          NovelAiAutoTextCharacter(
+            prompt: 'right "RIGHT"',
+            centerX: 0.8,
+            centerY: 0.2,
+          ),
+          NovelAiAutoTextCharacter(
+            prompt: 'left "LEFT"',
+            centerX: 0.2,
+            centerY: 0.2,
+          ),
+        ],
+      );
+
+      expect(snapshot.effectivePrompt, 'two characters, teXt: LEFT\n\nRIGHT');
+    });
+
+    test('should keep quoted prompts unchanged before V5', () {
+      final snapshot = buildPromptSemanticsSnapshot(
+        prompt: 'chinese text, "圣女"',
+        negativePrompt: '',
+        model: ImageModels.animeDiffusionV45Full,
+        qualityToggle: false,
+        ucPreset: UcPresets.noneApiValue,
+      );
+
+      expect(snapshot.effectivePrompt, 'chinese text, "圣女"');
+      expect(snapshot.autoTextBlock, isNull);
     });
   });
 

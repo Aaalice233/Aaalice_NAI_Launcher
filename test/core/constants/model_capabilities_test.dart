@@ -121,6 +121,13 @@ void main() {
       expect(caps.supportsE2eUpscale, isFalse);
       expect(caps.supportsMaxEnhance, isTrue);
       expect(caps.maxCharacters, 32);
+      expect(caps.supportsAutoText, isTrue);
+      expect(
+        ModelCapabilityRegistry.of(
+          ImageModels.animeDiffusionV45Full,
+        ).supportsAutoText,
+        isFalse,
+      );
       // 正式版专属：计价 1.5 倍、Opus 免费受配额池限制。
       expect(caps.anlasMultiplier, 1.5);
       expect(caps.hasOpusUsageLimit, isTrue);
@@ -444,7 +451,7 @@ void main() {
           currentScale: v3.defaultScale,
           currentSteps: v3.defaultSteps,
           currentNoiseSchedule: NoiseSchedules.native,
-        currentVarietyPlus: false,
+          currentVarietyPlus: false,
         );
 
         expect(followUps.noiseSchedule, NoiseSchedules.karras);

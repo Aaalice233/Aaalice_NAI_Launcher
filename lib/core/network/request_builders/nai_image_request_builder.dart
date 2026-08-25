@@ -8,6 +8,7 @@ import '../../utils/app_logger.dart';
 import '../../utils/inpaint_mask_utils.dart';
 import '../../utils/nai_resolution_adapter.dart';
 import '../../utils/nai_api_utils.dart';
+import '../../utils/novelai_auto_text.dart';
 import '../../utils/prompt_semantics_utils.dart';
 import '../../../data/models/character/character_prompt.dart'
     show CharacterPositionLayout;
@@ -194,17 +195,9 @@ class NAIImageRequestBuilder {
 
     for (var index = 0; index < params.characters.length; index++) {
       final char = params.characters[index];
-      // 连续坐标直传（0-1），与位置画布所见即所得
-      final fallbackPosition = CharacterPositionLayout.positionForIndex(
-        index,
-        params.characters.length,
-      );
-      var x = fallbackPosition.column;
-      var y = fallbackPosition.row;
-      if (char.positionX != null && char.positionY != null) {
-        x = char.positionX!.clamp(0.0, 1.0);
-        y = char.positionY!.clamp(0.0, 1.0);
-      }
+      final center = _resolveCharacterCenter(index);
+      final x = center.x;
+      final y = center.y;
 
       charCaptions.add({
         'centers': [
@@ -246,6 +239,36 @@ class NAIImageRequestBuilder {
     };
 
     requestParameters['characterPrompts'] = characterPrompts;
+  }
+
+  ({double x, double y}) _resolveCharacterCenter(int index) {
+    final character = params.characters[index];
+    if (character.positionX != null && character.positionY != null) {
+      return (
+        x: character.positionX!.clamp(0.0, 1.0),
+        y: character.positionY!.clamp(0.0, 1.0),
+      );
+    }
+
+    final fallback = CharacterPositionLayout.positionForIndex(
+      index,
+      params.characters.length,
+    );
+    return (x: fallback.column, y: fallback.row);
+  }
+
+  List<NovelAiAutoTextCharacter> _buildAutoTextCharacters() {
+    return List<NovelAiAutoTextCharacter>.generate(params.characters.length, (
+      index,
+    ) {
+      final character = params.characters[index];
+      final center = _resolveCharacterCenter(index);
+      return NovelAiAutoTextCharacter(
+        prompt: character.prompt,
+        centerX: center.x,
+        centerY: center.y,
+      );
+    }, growable: false);
   }
 
   Future<Map<int, String>> buildVibeTransferParameters(
@@ -520,6 +543,8 @@ class NAIImageRequestBuilder {
       isEnhanceRequest: params.shouldApplyEnhancePromptAddition,
       transparentBackground: params.transparentBackground,
       qualityTier: params.qualityTier,
+      characters: _buildAutoTextCharacters(),
+      useCoords: params.useCoords,
     );
     final effectivePrompt = promptSemantics.effectivePrompt;
     final effectiveNegativePrompt = promptSemantics.effectiveNegativePrompt;
