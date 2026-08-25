@@ -2433,9 +2433,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onlineGallery_randomRestart => '重新开始';
 
   @override
-  String get onlineGallery_originalRetry => '原图加载失败，重试';
-
-  @override
   String get onlineGallery_login => '登录';
 
   @override
@@ -2471,9 +2468,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onlineGallery_pleaseLogin => '请先登录';
 
   @override
-  String get onlineGallery_size => '尺寸';
-
-  @override
   String get onlineGallery_score => '评分';
 
   @override
@@ -2481,9 +2475,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get onlineGallery_favCount => '收藏';
-
-  @override
-  String get onlineGallery_type => '类型';
 
   @override
   String get mediaType_video => '视频';
@@ -2522,12 +2513,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onlineGallery_keepOnePromptTagCategory => '至少保留一个提示词类别';
 
   @override
-  String get onlineGallery_open => '打开';
-
-  @override
-  String get onlineGallery_send => '发送';
-
-  @override
   String get onlineGallery_addToQueue => '加入队列';
 
   @override
@@ -2551,13 +2536,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onlineGallery_noTagInfo => '此图片没有标签信息';
 
   @override
-  String get onlineGallery_promptSentToGeneration => '提示词已发送到生成页面';
-
-  @override
   String get onlineGallery_noImageUrl => '此图片没有可用地址';
-
-  @override
-  String get onlineGallery_gifLoadFailed => 'GIF加载失败';
 
   @override
   String get onlineGallery_pinchToZoom => '双指缩放';
@@ -2845,14 +2824,6 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String onlineGallery_downloadSelectedCompleted(
-    Object success,
-    Object failed,
-  ) {
-    return '下载完成: 成功 $success, 失败 $failed';
-  }
-
-  @override
   String onlineGallery_downloadSelectedCompletedWithSkipped(
     Object success,
     Object failed,
@@ -3009,9 +2980,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onlineGallery_codexNote => '备注';
 
   @override
-  String get onlineGallery_codexRawTag => 'Raw Tag';
-
-  @override
   String get onlineGallery_codexCopyPositive => '复制正向';
 
   @override
@@ -3065,9 +3033,6 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get onlineGallery_artistHuntTooltip =>
       '只显示正向 Prompt 中明确包含 artist: 标签的图片';
-
-  @override
-  String get onlineGallery_artistChain => '画师串';
 
   @override
   String get onlineGallery_copyArtistChain => '复制画师串';
@@ -3148,11 +3113,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onlineGallery_retryAppend => '加载失败，点击重试';
 
   @override
-  String onlineGallery_rankNumber(Object rank) {
-    return '第 $rank 名';
-  }
-
-  @override
   String onlineGallery_multipleImages(Object count) {
     return '$count 张图片';
   }
@@ -3165,9 +3125,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get onlineGallery_copyFullMetadata => '复制完整元数据';
-
-  @override
-  String get onlineGallery_metadataParseFailed => '元数据解析失败，原始内容已保留，可直接复制。';
 
   @override
   String get onlineGallery_gelbooruReadOnly => '只读收藏';
@@ -14553,9 +14510,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get onlineGallery_randomRestart => '重新開始';
 
   @override
-  String get onlineGallery_originalRetry => '原圖載入失敗，重試';
-
-  @override
   String get onlineGallery_login => '登入';
 
   @override
@@ -14591,9 +14545,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get onlineGallery_pleaseLogin => '請先登入';
 
   @override
-  String get onlineGallery_size => '尺寸';
-
-  @override
   String get onlineGallery_score => '評分';
 
   @override
@@ -14601,9 +14552,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get onlineGallery_favCount => '收藏';
-
-  @override
-  String get onlineGallery_type => '型別';
 
   @override
   String get mediaType_video => '影片';
@@ -14642,12 +14590,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get onlineGallery_keepOnePromptTagCategory => '至少保留一個提示詞類別';
 
   @override
-  String get onlineGallery_open => '開啟';
-
-  @override
-  String get onlineGallery_send => '傳送';
-
-  @override
   String get onlineGallery_addToQueue => '加入佇列';
 
   @override
@@ -14671,13 +14613,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get onlineGallery_noTagInfo => '此圖片沒有標籤資訊';
 
   @override
-  String get onlineGallery_promptSentToGeneration => '提示詞已傳送到生成頁面';
-
-  @override
   String get onlineGallery_noImageUrl => '此圖片沒有可用地址';
-
-  @override
-  String get onlineGallery_gifLoadFailed => 'GIF載入失敗';
 
   @override
   String get onlineGallery_pinchToZoom => '雙指縮放';
@@ -14966,14 +14902,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
-  String onlineGallery_downloadSelectedCompleted(
-    Object success,
-    Object failed,
-  ) {
-    return '下載完成: 成功 $success, 失敗 $failed';
-  }
-
-  @override
   String onlineGallery_downloadSelectedCompletedWithSkipped(
     Object success,
     Object failed,
@@ -15130,9 +15058,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get onlineGallery_codexNote => '備註';
 
   @override
-  String get onlineGallery_codexRawTag => 'Raw Tag';
-
-  @override
   String get onlineGallery_codexCopyPositive => '複製正向';
 
   @override
@@ -15186,9 +15111,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String get onlineGallery_artistHuntTooltip =>
       '只顯示正向 Prompt 中明確包含 artist: 標籤的圖片';
-
-  @override
-  String get onlineGallery_artistChain => '畫師串';
 
   @override
   String get onlineGallery_copyArtistChain => '複製畫師串';
@@ -15269,11 +15191,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get onlineGallery_retryAppend => '載入失敗，點選重試';
 
   @override
-  String onlineGallery_rankNumber(Object rank) {
-    return '第 $rank 名';
-  }
-
-  @override
   String onlineGallery_multipleImages(Object count) {
     return '$count 張圖片';
   }
@@ -15286,9 +15203,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get onlineGallery_copyFullMetadata => '複製完整後設資料';
-
-  @override
-  String get onlineGallery_metadataParseFailed => '後設資料解析失敗，原始內容已保留，可直接複製。';
 
   @override
   String get onlineGallery_gelbooruReadOnly => '只讀收藏';

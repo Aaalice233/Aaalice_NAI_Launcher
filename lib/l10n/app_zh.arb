@@ -1062,7 +1062,6 @@
   "onlineGallery_randomDrawing": "抽取中…",
   "onlineGallery_randomExhausted": "当前范围暂无更多未见图片",
   "onlineGallery_randomRestart": "重新开始",
-  "onlineGallery_originalRetry": "原图加载失败，重试",
   "onlineGallery_login": "登录",
   "onlineGallery_logout": "退出登录",
   "onlineGallery_dayRank": "日榜",
@@ -1074,11 +1073,9 @@
   "onlineGallery_favoritesEmpty": "收藏夹为空",
   "onlineGallery_noResults": "没有找到图片",
   "onlineGallery_pleaseLogin": "请先登录",
-  "onlineGallery_size": "尺寸",
   "onlineGallery_score": "评分",
   "onlineGallery_ratingLabel": "分级",
   "onlineGallery_favCount": "收藏",
-  "onlineGallery_type": "类型",
   "mediaType_video": "视频",
   "mediaType_gif": "动图",
   "onlineGallery_tags": "标签",
@@ -1091,8 +1088,6 @@
   "onlineGallery_promptTagCategories": "提示词类别",
   "onlineGallery_promptTagCategoriesTooltip": "选择复制、发送或加入队列时包含的标签类别",
   "onlineGallery_keepOnePromptTagCategory": "至少保留一个提示词类别",
-  "onlineGallery_open": "打开",
-  "onlineGallery_send": "发送",
   "onlineGallery_addToQueue": "加入队列",
   "onlineGallery_sendToTextToImage": "发送到文生图",
   "onlineGallery_sentToTextToImage": "已发送到文生图",
@@ -1105,9 +1100,7 @@
     }
   },
   "onlineGallery_noTagInfo": "此图片没有标签信息",
-  "onlineGallery_promptSentToGeneration": "提示词已发送到生成页面",
   "onlineGallery_noImageUrl": "此图片没有可用地址",
-  "onlineGallery_gifLoadFailed": "GIF加载失败",
   "onlineGallery_pinchToZoom": "双指缩放",
   "onlineGallery_metadata": "元数据",
   "onlineGallery_addedToQueueWithCount": "已加入队列，当前共 {count} 个待执行任务",
@@ -1257,13 +1250,6 @@
       "count": {}
     }
   },
-  "onlineGallery_downloadSelectedCompleted": "下载完成: 成功 {success}, 失败 {failed}",
-  "@onlineGallery_downloadSelectedCompleted": {
-    "placeholders": {
-      "success": {},
-      "failed": {}
-    }
-  },
   "onlineGallery_downloadSelectedCompletedWithSkipped": "下载完成：成功 {success}，失败 {failed}，跳过 {skipped} 个纯文本词条",
   "@onlineGallery_downloadSelectedCompletedWithSkipped": {
     "placeholders": {
@@ -1320,7 +1306,6 @@
   "onlineGallery_negativePromptCopyHeading": "负面提示词",
   "onlineGallery_codexCharacterPrompts": "角色提示词",
   "onlineGallery_codexNote": "备注",
-  "onlineGallery_codexRawTag": "Raw Tag",
   "onlineGallery_codexCopyPositive": "复制正向",
   "onlineGallery_codexCopyNegative": "复制负向",
   "onlineGallery_codexCopyCharacter": "复制此角色",
@@ -1339,7 +1324,6 @@
   "onlineGallery_codexUntitled": "未命名词条",
   "onlineGallery_artistHunt": "仅画师串",
   "onlineGallery_artistHuntTooltip": "只显示正向 Prompt 中明确包含 artist: 标签的图片",
-  "onlineGallery_artistChain": "画师串",
   "onlineGallery_copyArtistChain": "复制画师串",
   "onlineGallery_copyFullPrompt": "复制完整 Prompt",
   "onlineGallery_copyRawArtistFragments": "复制原始画师片段",
@@ -1367,14 +1351,11 @@
   "onlineGallery_imageUnavailable": "图片当前不可用。",
   "onlineGallery_loadedAll": "已加载全部",
   "onlineGallery_retryAppend": "加载失败，点击重试",
-  "onlineGallery_rankNumber": "第 {rank} 名",
-  "@onlineGallery_rankNumber": {"placeholders": {"rank": {}}},
   "onlineGallery_multipleImages": "{count} 张图片",
   "@onlineGallery_multipleImages": {"placeholders": {"count": {}}},
   "onlineGallery_views": "浏览",
   "onlineGallery_downloadAllMedia": "下载作品全部图片",
   "onlineGallery_copyFullMetadata": "复制完整元数据",
-  "onlineGallery_metadataParseFailed": "元数据解析失败，原始内容已保留，可直接复制。",
   "onlineGallery_gelbooruReadOnly": "只读收藏",
   "onlineGallery_gelbooruFavoritesSortHint": "按帖子 ID 从新到旧排列，不保证与网站收藏时间顺序一致。",
 

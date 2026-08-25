@@ -1155,7 +1155,6 @@
   "onlineGallery_randomDrawing": "Drawing…",
   "onlineGallery_randomExhausted": "No more unseen images in this range",
   "onlineGallery_randomRestart": "Start over",
-  "onlineGallery_originalRetry": "Original failed to load — retry",
   "onlineGallery_login": "Login",
   "onlineGallery_logout": "Logout",
   "onlineGallery_dayRank": "Day",
@@ -1172,11 +1171,9 @@
   "onlineGallery_favoritesEmpty": "Favorites is empty",
   "onlineGallery_noResults": "No images found",
   "onlineGallery_pleaseLogin": "Please login first",
-  "onlineGallery_size": "Size",
   "onlineGallery_score": "Score",
   "onlineGallery_ratingLabel": "Rating",
   "onlineGallery_favCount": "Favorites",
-  "onlineGallery_type": "Type",
   "mediaType_video": "Video",
   "mediaType_gif": "GIF",
   "onlineGallery_tags": "Tags",
@@ -1189,8 +1186,6 @@
   "onlineGallery_promptTagCategories": "Prompt tag categories",
   "onlineGallery_promptTagCategoriesTooltip": "Choose which tag categories are included when copying, sending, or adding to the queue",
   "onlineGallery_keepOnePromptTagCategory": "Keep at least one prompt tag category selected",
-  "onlineGallery_open": "Open",
-  "onlineGallery_send": "Send",
   "onlineGallery_addToQueue": "Add to Queue",
   "onlineGallery_sendToTextToImage": "Send to Text to Image",
   "onlineGallery_sentToTextToImage": "Sent to text-to-image",
@@ -1203,9 +1198,7 @@
     }
   },
   "onlineGallery_noTagInfo": "This image has no tag information",
-  "onlineGallery_promptSentToGeneration": "Prompt sent to generation page",
   "onlineGallery_noImageUrl": "This image has no available URL",
-  "onlineGallery_gifLoadFailed": "Failed to load GIF",
   "onlineGallery_pinchToZoom": "Pinch to zoom",
   "onlineGallery_metadata": "Metadata",
   "onlineGallery_addedToQueueWithCount": "Added to queue. {count} tasks are now pending",
@@ -1355,13 +1348,6 @@
       "count": {}
     }
   },
-  "onlineGallery_downloadSelectedCompleted": "Download complete: {success} succeeded, {failed} failed",
-  "@onlineGallery_downloadSelectedCompleted": {
-    "placeholders": {
-      "success": {},
-      "failed": {}
-    }
-  },
   "onlineGallery_downloadSelectedCompletedWithSkipped": "Download complete: {success} succeeded, {failed} failed, {skipped} text-only items skipped",
   "@onlineGallery_downloadSelectedCompletedWithSkipped": {
     "placeholders": {
@@ -1418,7 +1404,6 @@
   "onlineGallery_negativePromptCopyHeading": "Negative Prompt",
   "onlineGallery_codexCharacterPrompts": "Character prompts",
   "onlineGallery_codexNote": "Notes",
-  "onlineGallery_codexRawTag": "Raw Tag",
   "onlineGallery_codexCopyPositive": "Copy positive",
   "onlineGallery_codexCopyNegative": "Copy negative",
   "onlineGallery_codexCopyCharacter": "Copy this character",
@@ -1437,7 +1422,6 @@
   "onlineGallery_codexUntitled": "Untitled entry",
   "onlineGallery_artistHunt": "Artist chains only",
   "onlineGallery_artistHuntTooltip": "Show only images whose positive Prompt contains explicit artist: tags",
-  "onlineGallery_artistChain": "Artist chain",
   "onlineGallery_copyArtistChain": "Copy artist chain",
   "onlineGallery_copyFullPrompt": "Copy full Prompt",
   "onlineGallery_copyRawArtistFragments": "Copy original artist fragments",
@@ -1465,14 +1449,11 @@
   "onlineGallery_imageUnavailable": "This image is currently unavailable.",
   "onlineGallery_loadedAll": "All items loaded",
   "onlineGallery_retryAppend": "Load failed. Click to retry",
-  "onlineGallery_rankNumber": "Rank #{rank}",
-  "@onlineGallery_rankNumber": {"placeholders": {"rank": {}}},
   "onlineGallery_multipleImages": "{count} images",
   "@onlineGallery_multipleImages": {"placeholders": {"count": {}}},
   "onlineGallery_views": "Views",
   "onlineGallery_downloadAllMedia": "Download all images in this work",
   "onlineGallery_copyFullMetadata": "Copy full metadata",
-  "onlineGallery_metadataParseFailed": "Metadata parsing failed. The original content is preserved and can be copied.",
   "onlineGallery_gelbooruReadOnly": "Read-only favorites",
   "onlineGallery_gelbooruFavoritesSortHint": "Sorted by post ID, newest first. This may differ from website favorite-time order.",
 

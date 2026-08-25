@@ -2470,9 +2470,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get onlineGallery_randomRestart => '最初から';
 
   @override
-  String get onlineGallery_originalRetry => '元画像の読み込みに失敗しました。再試行';
-
-  @override
   String get onlineGallery_login => 'ログイン';
 
   @override
@@ -2508,9 +2505,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get onlineGallery_pleaseLogin => 'まずログインしてください';
 
   @override
-  String get onlineGallery_size => 'サイズ';
-
-  @override
   String get onlineGallery_score => 'スコア';
 
   @override
@@ -2518,9 +2512,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get onlineGallery_favCount => 'お気に入り';
-
-  @override
-  String get onlineGallery_type => 'タイプ';
 
   @override
   String get mediaType_video => 'ビデオ';
@@ -2561,12 +2552,6 @@ class AppLocalizationsJa extends AppLocalizations {
       'プロンプトタグのカテゴリを1つ以上選択してください';
 
   @override
-  String get onlineGallery_open => '開く';
-
-  @override
-  String get onlineGallery_send => '送信';
-
-  @override
   String get onlineGallery_addToQueue => 'キューに追加';
 
   @override
@@ -2590,13 +2575,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get onlineGallery_noTagInfo => 'この画像にはタグ情報がありません';
 
   @override
-  String get onlineGallery_promptSentToGeneration => 'プロンプトが生成ページに送信されました';
-
-  @override
   String get onlineGallery_noImageUrl => 'この画像には利用可能な URL がありません';
-
-  @override
-  String get onlineGallery_gifLoadFailed => 'GIFのロードに失敗しました';
 
   @override
   String get onlineGallery_pinchToZoom => 'ピンチしてズーム';
@@ -2895,14 +2874,6 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String onlineGallery_downloadSelectedCompleted(
-    Object success,
-    Object failed,
-  ) {
-    return 'ダウンロード完了: $success 成功、$failed 失敗';
-  }
-
-  @override
   String onlineGallery_downloadSelectedCompletedWithSkipped(
     Object success,
     Object failed,
@@ -3064,9 +3035,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get onlineGallery_codexNote => 'メモ';
 
   @override
-  String get onlineGallery_codexRawTag => 'Raw Tag';
-
-  @override
   String get onlineGallery_codexCopyPositive => 'ポジティブをコピー';
 
   @override
@@ -3123,9 +3091,6 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String get onlineGallery_artistHuntTooltip =>
       'ポジティブ Prompt に明示的な artist: タグがある画像のみ表示';
-
-  @override
-  String get onlineGallery_artistChain => '絵師タグ列';
 
   @override
   String get onlineGallery_copyArtistChain => '絵師タグ列をコピー';
@@ -3213,11 +3178,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get onlineGallery_retryAppend => '読み込みに失敗しました。クリックして再試行';
 
   @override
-  String onlineGallery_rankNumber(Object rank) {
-    return '第 $rank 位';
-  }
-
-  @override
   String onlineGallery_multipleImages(Object count) {
     return '$count 枚の画像';
   }
@@ -3230,10 +3190,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get onlineGallery_copyFullMetadata => '完全なメタデータをコピー';
-
-  @override
-  String get onlineGallery_metadataParseFailed =>
-      'メタデータの解析に失敗しました。元の内容は保持され、コピーできます。';
 
   @override
   String get onlineGallery_gelbooruReadOnly => '読み取り専用のお気に入り';

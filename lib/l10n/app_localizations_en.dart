@@ -2525,9 +2525,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get onlineGallery_randomRestart => 'Start over';
 
   @override
-  String get onlineGallery_originalRetry => 'Original failed to load — retry';
-
-  @override
   String get onlineGallery_login => 'Login';
 
   @override
@@ -2563,9 +2560,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get onlineGallery_pleaseLogin => 'Please login first';
 
   @override
-  String get onlineGallery_size => 'Size';
-
-  @override
   String get onlineGallery_score => 'Score';
 
   @override
@@ -2573,9 +2567,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get onlineGallery_favCount => 'Favorites';
-
-  @override
-  String get onlineGallery_type => 'Type';
 
   @override
   String get mediaType_video => 'Video';
@@ -2616,12 +2607,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Keep at least one prompt tag category selected';
 
   @override
-  String get onlineGallery_open => 'Open';
-
-  @override
-  String get onlineGallery_send => 'Send';
-
-  @override
   String get onlineGallery_addToQueue => 'Add to Queue';
 
   @override
@@ -2646,14 +2631,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get onlineGallery_noTagInfo => 'This image has no tag information';
 
   @override
-  String get onlineGallery_promptSentToGeneration =>
-      'Prompt sent to generation page';
-
-  @override
   String get onlineGallery_noImageUrl => 'This image has no available URL';
-
-  @override
-  String get onlineGallery_gifLoadFailed => 'Failed to load GIF';
 
   @override
   String get onlineGallery_pinchToZoom => 'Pinch to zoom';
@@ -2962,14 +2940,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String onlineGallery_downloadSelectedCompleted(
-    Object success,
-    Object failed,
-  ) {
-    return 'Download complete: $success succeeded, $failed failed';
-  }
-
-  @override
   String onlineGallery_downloadSelectedCompletedWithSkipped(
     Object success,
     Object failed,
@@ -3134,9 +3104,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get onlineGallery_codexNote => 'Notes';
 
   @override
-  String get onlineGallery_codexRawTag => 'Raw Tag';
-
-  @override
   String get onlineGallery_codexCopyPositive => 'Copy positive';
 
   @override
@@ -3195,9 +3162,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get onlineGallery_artistHuntTooltip =>
       'Show only images whose positive Prompt contains explicit artist: tags';
-
-  @override
-  String get onlineGallery_artistChain => 'Artist chain';
 
   @override
   String get onlineGallery_copyArtistChain => 'Copy artist chain';
@@ -3290,11 +3254,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get onlineGallery_retryAppend => 'Load failed. Click to retry';
 
   @override
-  String onlineGallery_rankNumber(Object rank) {
-    return 'Rank #$rank';
-  }
-
-  @override
   String onlineGallery_multipleImages(Object count) {
     return '$count images';
   }
@@ -3308,10 +3267,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get onlineGallery_copyFullMetadata => 'Copy full metadata';
-
-  @override
-  String get onlineGallery_metadataParseFailed =>
-      'Metadata parsing failed. The original content is preserved and can be copied.';
 
   @override
   String get onlineGallery_gelbooruReadOnly => 'Read-only favorites';

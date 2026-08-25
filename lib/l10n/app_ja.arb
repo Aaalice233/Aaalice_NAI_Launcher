@@ -1143,7 +1143,6 @@
   "onlineGallery_randomDrawing": "抽選中…",
   "onlineGallery_randomExhausted": "この範囲に未表示の画像はありません",
   "onlineGallery_randomRestart": "最初から",
-  "onlineGallery_originalRetry": "元画像の読み込みに失敗しました。再試行",
   "onlineGallery_login": "ログイン",
   "onlineGallery_logout": "ログアウト",
   "onlineGallery_dayRank": "日",
@@ -1160,11 +1159,9 @@
   "onlineGallery_favoritesEmpty": "お気に入りが空です",
   "onlineGallery_noResults": "画像が見つかりませんでした",
   "onlineGallery_pleaseLogin": "まずログインしてください",
-  "onlineGallery_size": "サイズ",
   "onlineGallery_score": "スコア",
   "onlineGallery_ratingLabel": "レーティング",
   "onlineGallery_favCount": "お気に入り",
-  "onlineGallery_type": "タイプ",
   "mediaType_video": "ビデオ",
   "mediaType_gif": "GIF",
   "onlineGallery_tags": "タグ",
@@ -1177,8 +1174,6 @@
   "onlineGallery_promptTagCategories": "プロンプトタグのカテゴリ",
   "onlineGallery_promptTagCategoriesTooltip": "コピー、送信、キューへの追加時に含めるタグカテゴリを選択します",
   "onlineGallery_keepOnePromptTagCategory": "プロンプトタグのカテゴリを1つ以上選択してください",
-  "onlineGallery_open": "開く",
-  "onlineGallery_send": "送信",
   "onlineGallery_addToQueue": "キューに追加",
   "onlineGallery_sendToTextToImage": "テキストから画像へ送信",
   "onlineGallery_sentToTextToImage": "text-to-image に送信されました",
@@ -1191,9 +1186,7 @@
     }
   },
   "onlineGallery_noTagInfo": "この画像にはタグ情報がありません",
-  "onlineGallery_promptSentToGeneration": "プロンプトが生成ページに送信されました",
   "onlineGallery_noImageUrl": "この画像には利用可能な URL がありません",
-  "onlineGallery_gifLoadFailed": "GIFのロードに失敗しました",
   "onlineGallery_pinchToZoom": "ピンチしてズーム",
   "onlineGallery_metadata": "メタデータ",
   "onlineGallery_addedToQueueWithCount": "キューに追加しました。現在 {count} 件が実行待ちです",
@@ -1343,13 +1336,6 @@
       "count": {}
     }
   },
-  "onlineGallery_downloadSelectedCompleted": "ダウンロード完了: {success} 成功、{failed} 失敗",
-  "@onlineGallery_downloadSelectedCompleted": {
-    "placeholders": {
-      "success": {},
-      "failed": {}
-    }
-  },
   "onlineGallery_downloadSelectedCompletedWithSkipped": "ダウンロード完了：{success} 件成功、{failed} 件失敗、テキストのみの項目 {skipped} 件をスキップ",
   "@onlineGallery_downloadSelectedCompletedWithSkipped": {
     "placeholders": {
@@ -1406,7 +1392,6 @@
   "onlineGallery_negativePromptCopyHeading": "ネガティブプロンプト",
   "onlineGallery_codexCharacterPrompts": "キャラクタープロンプト",
   "onlineGallery_codexNote": "メモ",
-  "onlineGallery_codexRawTag": "Raw Tag",
   "onlineGallery_codexCopyPositive": "ポジティブをコピー",
   "onlineGallery_codexCopyNegative": "ネガティブをコピー",
   "onlineGallery_codexCopyCharacter": "このキャラクターをコピー",
@@ -1425,7 +1410,6 @@
   "onlineGallery_codexUntitled": "無題の項目",
   "onlineGallery_artistHunt": "絵師タグのみ",
   "onlineGallery_artistHuntTooltip": "ポジティブ Prompt に明示的な artist: タグがある画像のみ表示",
-  "onlineGallery_artistChain": "絵師タグ列",
   "onlineGallery_copyArtistChain": "絵師タグ列をコピー",
   "onlineGallery_copyFullPrompt": "完全な Prompt をコピー",
   "onlineGallery_copyRawArtistFragments": "元の絵師タグ断片をコピー",
@@ -1453,14 +1437,11 @@
   "onlineGallery_imageUnavailable": "画像は現在利用できません。",
   "onlineGallery_loadedAll": "すべて読み込み済み",
   "onlineGallery_retryAppend": "読み込みに失敗しました。クリックして再試行",
-  "onlineGallery_rankNumber": "第 {rank} 位",
-  "@onlineGallery_rankNumber": {"placeholders": {"rank": {}}},
   "onlineGallery_multipleImages": "{count} 枚の画像",
   "@onlineGallery_multipleImages": {"placeholders": {"count": {}}},
   "onlineGallery_views": "閲覧数",
   "onlineGallery_downloadAllMedia": "作品の全画像をダウンロード",
   "onlineGallery_copyFullMetadata": "完全なメタデータをコピー",
-  "onlineGallery_metadataParseFailed": "メタデータの解析に失敗しました。元の内容は保持され、コピーできます。",
   "onlineGallery_gelbooruReadOnly": "読み取り専用のお気に入り",
   "onlineGallery_gelbooruFavoritesSortHint": "投稿 ID の新しい順です。ウェブサイトのお気に入り登録時刻順とは異なる場合があります。",
   "tooltip_fullscreenEdit": "フルスクリーン編集",
