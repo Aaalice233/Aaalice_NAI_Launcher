@@ -2451,9 +2451,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onlineGallery_randomRestart => '重新开始';
 
   @override
-  String get onlineGallery_originalRetry => '原图加载失败，重试';
-
-  @override
   String get onlineGallery_login => '登录';
 
   @override
@@ -2489,9 +2486,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onlineGallery_pleaseLogin => '请先登录';
 
   @override
-  String get onlineGallery_size => '尺寸';
-
-  @override
   String get onlineGallery_score => '评分';
 
   @override
@@ -2499,9 +2493,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get onlineGallery_favCount => '收藏';
-
-  @override
-  String get onlineGallery_type => '类型';
 
   @override
   String get mediaType_video => '视频';
@@ -2540,12 +2531,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onlineGallery_keepOnePromptTagCategory => '至少保留一个提示词类别';
 
   @override
-  String get onlineGallery_open => '打开';
-
-  @override
-  String get onlineGallery_send => '发送';
-
-  @override
   String get onlineGallery_addToQueue => '加入队列';
 
   @override
@@ -2569,13 +2554,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onlineGallery_noTagInfo => '此图片没有标签信息';
 
   @override
-  String get onlineGallery_promptSentToGeneration => '提示词已发送到生成页面';
-
-  @override
   String get onlineGallery_noImageUrl => '此图片没有可用地址';
-
-  @override
-  String get onlineGallery_gifLoadFailed => 'GIF加载失败';
 
   @override
   String get onlineGallery_pinchToZoom => '双指缩放';
@@ -2863,14 +2842,6 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String onlineGallery_downloadSelectedCompleted(
-    Object success,
-    Object failed,
-  ) {
-    return '下载完成: 成功 $success, 失败 $failed';
-  }
-
-  @override
   String onlineGallery_downloadSelectedCompletedWithSkipped(
     Object success,
     Object failed,
@@ -3027,9 +2998,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onlineGallery_codexNote => '备注';
 
   @override
-  String get onlineGallery_codexRawTag => 'Raw Tag';
-
-  @override
   String get onlineGallery_codexCopyPositive => '复制正向';
 
   @override
@@ -3083,9 +3051,6 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get onlineGallery_artistHuntTooltip =>
       '只显示正向 Prompt 中明确包含 artist: 标签的图片';
-
-  @override
-  String get onlineGallery_artistChain => '画师串';
 
   @override
   String get onlineGallery_copyArtistChain => '复制画师串';
@@ -3166,11 +3131,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onlineGallery_retryAppend => '加载失败，点击重试';
 
   @override
-  String onlineGallery_rankNumber(Object rank) {
-    return '第 $rank 名';
-  }
-
-  @override
   String onlineGallery_multipleImages(Object count) {
     return '$count 张图片';
   }
@@ -3183,9 +3143,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get onlineGallery_copyFullMetadata => '复制完整元数据';
-
-  @override
-  String get onlineGallery_metadataParseFailed => '元数据解析失败，原始内容已保留，可直接复制。';
 
   @override
   String get onlineGallery_gelbooruReadOnly => '只读收藏';
@@ -3861,7 +3818,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get randomMode_title => '选择随机模式';
 
   @override
-  String get randomMode_naiOfficial => '官网模式';
+  String get randomMode_naiOfficial => '离线词库';
 
   @override
   String get randomMode_custom => '自定义模式';
@@ -3870,16 +3827,16 @@ class AppLocalizationsZh extends AppLocalizations {
   String get randomMode_hybrid => '混合模式';
 
   @override
-  String get randomMode_naiOfficialDesc => '复刻 NovelAI 官方随机算法';
+  String get randomMode_naiOfficialDesc => '使用已验证的完整离线标签 catalog';
 
   @override
   String get randomMode_customDesc => '使用自定义预设生成';
 
   @override
-  String get randomMode_hybridDesc => '结合官方算法和自定义预设';
+  String get randomMode_hybridDesc => '结合离线词库和自定义预设';
 
   @override
-  String get randomMode_naiIndicator => 'NAI';
+  String get randomMode_naiIndicator => '离线';
 
   @override
   String get randomMode_customIndicator => '自定义';
@@ -4372,9 +4329,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get randomManager_syncing => '同步中';
-
-  @override
-  String get randomManager_syncingWithEllipsis => '同步中...';
 
   @override
   String get randomManager_syncDanbooruTags => '同步 Danbooru 标签';
@@ -12223,6 +12177,46 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get autocomplete_openSettings => '打开补全与数据源设置';
+
+  @override
+  String get randomManager_searchCategories => '搜索类别、词组或标签（Ctrl+F）';
+
+  @override
+  String get randomManager_verifiedOfflineLibrary => '已验证的离线随机词库';
+
+  @override
+  String get randomManager_sourceDetails => '数据来源详情';
+
+  @override
+  String get randomManager_sourceUrl => '来源 URL';
+
+  @override
+  String get randomManager_sourceCommit => '来源提交';
+
+  @override
+  String get randomManager_sourceDate => '来源日期';
+
+  @override
+  String get randomManager_sourceLicense => '许可证';
+
+  @override
+  String randomManager_catalogCounts(Object tags, Object aliases) {
+    return '完整 catalog：$tags 个标签，$aliases 个别名';
+  }
+
+  @override
+  String randomManager_libraryVersion(String version, String count) {
+    return '规则 v$version · $count 个标签';
+  }
+
+  @override
+  String get randomManager_preview => '随机结果预览';
+
+  @override
+  String get randomManager_libraryUnavailable => '随机词库无法使用';
+
+  @override
+  String get randomManager_noCategoryResults => '没有匹配的类别、词组或标签';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -14672,9 +14666,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get onlineGallery_randomRestart => '重新開始';
 
   @override
-  String get onlineGallery_originalRetry => '原圖載入失敗，重試';
-
-  @override
   String get onlineGallery_login => '登入';
 
   @override
@@ -14710,9 +14701,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get onlineGallery_pleaseLogin => '請先登入';
 
   @override
-  String get onlineGallery_size => '尺寸';
-
-  @override
   String get onlineGallery_score => '評分';
 
   @override
@@ -14720,9 +14708,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get onlineGallery_favCount => '收藏';
-
-  @override
-  String get onlineGallery_type => '型別';
 
   @override
   String get mediaType_video => '影片';
@@ -14761,12 +14746,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get onlineGallery_keepOnePromptTagCategory => '至少保留一個提示詞類別';
 
   @override
-  String get onlineGallery_open => '開啟';
-
-  @override
-  String get onlineGallery_send => '傳送';
-
-  @override
   String get onlineGallery_addToQueue => '加入佇列';
 
   @override
@@ -14790,13 +14769,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get onlineGallery_noTagInfo => '此圖片沒有標籤資訊';
 
   @override
-  String get onlineGallery_promptSentToGeneration => '提示詞已傳送到生成頁面';
-
-  @override
   String get onlineGallery_noImageUrl => '此圖片沒有可用地址';
-
-  @override
-  String get onlineGallery_gifLoadFailed => 'GIF載入失敗';
 
   @override
   String get onlineGallery_pinchToZoom => '雙指縮放';
@@ -15085,14 +15058,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
-  String onlineGallery_downloadSelectedCompleted(
-    Object success,
-    Object failed,
-  ) {
-    return '下載完成: 成功 $success, 失敗 $failed';
-  }
-
-  @override
   String onlineGallery_downloadSelectedCompletedWithSkipped(
     Object success,
     Object failed,
@@ -15249,9 +15214,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get onlineGallery_codexNote => '備註';
 
   @override
-  String get onlineGallery_codexRawTag => 'Raw Tag';
-
-  @override
   String get onlineGallery_codexCopyPositive => '複製正向';
 
   @override
@@ -15305,9 +15267,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String get onlineGallery_artistHuntTooltip =>
       '只顯示正向 Prompt 中明確包含 artist: 標籤的圖片';
-
-  @override
-  String get onlineGallery_artistChain => '畫師串';
 
   @override
   String get onlineGallery_copyArtistChain => '複製畫師串';
@@ -15388,11 +15347,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get onlineGallery_retryAppend => '載入失敗，點選重試';
 
   @override
-  String onlineGallery_rankNumber(Object rank) {
-    return '第 $rank 名';
-  }
-
-  @override
   String onlineGallery_multipleImages(Object count) {
     return '$count 張圖片';
   }
@@ -15405,9 +15359,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get onlineGallery_copyFullMetadata => '複製完整後設資料';
-
-  @override
-  String get onlineGallery_metadataParseFailed => '後設資料解析失敗，原始內容已保留，可直接複製。';
 
   @override
   String get onlineGallery_gelbooruReadOnly => '只讀收藏';
@@ -16083,7 +16034,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get randomMode_title => '選擇隨機模式';
 
   @override
-  String get randomMode_naiOfficial => '官網模式';
+  String get randomMode_naiOfficial => '離線詞庫';
 
   @override
   String get randomMode_custom => '自定義模式';
@@ -16092,16 +16043,16 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get randomMode_hybrid => '混合模式';
 
   @override
-  String get randomMode_naiOfficialDesc => '復刻 NovelAI 官方隨機演算法';
+  String get randomMode_naiOfficialDesc => '使用已驗證的完整離線標籤 catalog';
 
   @override
   String get randomMode_customDesc => '使用自定義預設生成';
 
   @override
-  String get randomMode_hybridDesc => '結合官方演算法和自定義預設';
+  String get randomMode_hybridDesc => '結合離線詞庫和自定義預設';
 
   @override
-  String get randomMode_naiIndicator => 'NAI';
+  String get randomMode_naiIndicator => '離線';
 
   @override
   String get randomMode_customIndicator => '自定義';
@@ -16594,9 +16545,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get randomManager_syncing => '同步中';
-
-  @override
-  String get randomManager_syncingWithEllipsis => '同步中...';
 
   @override
   String get randomManager_syncDanbooruTags => '同步 Danbooru 標籤';
@@ -24445,4 +24393,44 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get autocomplete_openSettings => '開啟補全與資料來源設定';
+
+  @override
+  String get randomManager_searchCategories => '搜尋類別、詞組或標籤（Ctrl+F）';
+
+  @override
+  String get randomManager_verifiedOfflineLibrary => '已驗證的離線隨機詞庫';
+
+  @override
+  String get randomManager_sourceDetails => '資料來源詳情';
+
+  @override
+  String get randomManager_sourceUrl => '來源 URL';
+
+  @override
+  String get randomManager_sourceCommit => '來源提交';
+
+  @override
+  String get randomManager_sourceDate => '來源日期';
+
+  @override
+  String get randomManager_sourceLicense => '授權條款';
+
+  @override
+  String randomManager_catalogCounts(Object tags, Object aliases) {
+    return '完整 catalog：$tags 個標籤，$aliases 個別名';
+  }
+
+  @override
+  String randomManager_libraryVersion(String version, String count) {
+    return '規則 v$version · $count 個標籤';
+  }
+
+  @override
+  String get randomManager_preview => '隨機結果預覽';
+
+  @override
+  String get randomManager_libraryUnavailable => '隨機詞庫無法使用';
+
+  @override
+  String get randomManager_noCategoryResults => '沒有符合的類別、詞組或標籤';
 }

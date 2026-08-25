@@ -28,7 +28,7 @@ import 'core/utils/window_focus_tracker.dart';
 import 'core/utils/windows_clipboard_history_key_fix.dart';
 import 'core/utils/window_state_coercion.dart';
 import 'core/utils/window_state_persistence.dart';
-import 'data/datasources/local/nai_tags_data_source.dart';
+import 'data/datasources/local/random_tag_library_data_source.dart';
 import 'data/models/gallery/nai_image_metadata.dart';
 import 'data/repositories/gallery_folder_repository.dart';
 import 'core/cache/gallery_cache_manager.dart';
@@ -448,8 +448,8 @@ Future<void> _runDeferredStartup(ProviderContainer container) async {
     _runNonFatalStartupStep('Temp files cleanup', () async {
       await TempImageService().cleanupOldTempFiles();
     }),
-    _runNonFatalStartupStep('NAI tags preload', () async {
-      await container.read(naiTagsDataSourceProvider).loadData();
+    _runNonFatalStartupStep('Random tag library preload', () async {
+      await container.read(randomTagLibraryDataSourceProvider).loadData();
     }),
     _runNonFatalStartupStep('Search index service initialization', () async {
       await SearchIndexService().init();

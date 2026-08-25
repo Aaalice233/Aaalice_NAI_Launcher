@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "taxonomyVersion": 1,
+  "taxonomyAsset": "assets/data/random_tag_library.json",
+  "taxonomySha256": "68037242690153cbf87e15d9bb54d4e263b0e3aac454015065bfb24c141ed09c",
+  "catalogSourceLock": "tool/tag_catalog/source_lock.json",
+  "catalogManifest": "assets/databases/manifest.json",
+  "catalogSchemaVersion": 2,
+  "catalogDataVersion": "42f35be9d394",
+  "catalogSha256": "270538fc623bb1a88acf1f347372568d51bf55510c53e0fb700cb370e0da798d",
+  "expectedCatalogTagCount": 221787,
+  "expectedCatalogAliasCount": 71504,
+  "expectedCategoryCounts": {
+    "hairColor": 76,
+    "eyeColor": 15,
+    "hairStyle": 373,
+    "clothingFemale": 890,
+    "clothingMale": 98,
+    "clothingGeneral": 1409,
+    "expression": 22,
+    "pose": 18,
+    "background": 180,
+    "scene": 20,
+    "style": 23,
+    "bodyFeatureFemale": 222,
+    "bodyFeatureMale": 5,
+    "bodyFeatureGeneral": 10,
+    "accessory": 1250,
+    "characterCount": 12
+  },
+  "license": "Unlicense",
+  "provenance": "The taxonomy contains only declarative semantic matching rules. Runtime candidates are read from the complete bundled tag catalog; no NovelAI website code or wordlist content is redistributed."
+}

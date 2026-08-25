@@ -1177,7 +1177,6 @@
   "onlineGallery_randomDrawing": "Drawing…",
   "onlineGallery_randomExhausted": "No more unseen images in this range",
   "onlineGallery_randomRestart": "Start over",
-  "onlineGallery_originalRetry": "Original failed to load — retry",
   "onlineGallery_login": "Login",
   "onlineGallery_logout": "Logout",
   "onlineGallery_dayRank": "Day",
@@ -1194,11 +1193,9 @@
   "onlineGallery_favoritesEmpty": "Favorites is empty",
   "onlineGallery_noResults": "No images found",
   "onlineGallery_pleaseLogin": "Please login first",
-  "onlineGallery_size": "Size",
   "onlineGallery_score": "Score",
   "onlineGallery_ratingLabel": "Rating",
   "onlineGallery_favCount": "Favorites",
-  "onlineGallery_type": "Type",
   "mediaType_video": "Video",
   "mediaType_gif": "GIF",
   "onlineGallery_tags": "Tags",
@@ -1211,8 +1208,6 @@
   "onlineGallery_promptTagCategories": "Prompt tag categories",
   "onlineGallery_promptTagCategoriesTooltip": "Choose which tag categories are included when copying, sending, or adding to the queue",
   "onlineGallery_keepOnePromptTagCategory": "Keep at least one prompt tag category selected",
-  "onlineGallery_open": "Open",
-  "onlineGallery_send": "Send",
   "onlineGallery_addToQueue": "Add to Queue",
   "onlineGallery_sendToTextToImage": "Send to Text to Image",
   "onlineGallery_sentToTextToImage": "Sent to text-to-image",
@@ -1225,9 +1220,7 @@
     }
   },
   "onlineGallery_noTagInfo": "This image has no tag information",
-  "onlineGallery_promptSentToGeneration": "Prompt sent to generation page",
   "onlineGallery_noImageUrl": "This image has no available URL",
-  "onlineGallery_gifLoadFailed": "Failed to load GIF",
   "onlineGallery_pinchToZoom": "Pinch to zoom",
   "onlineGallery_metadata": "Metadata",
   "onlineGallery_addedToQueueWithCount": "Added to queue. {count} tasks are now pending",
@@ -1377,13 +1370,6 @@
       "count": {}
     }
   },
-  "onlineGallery_downloadSelectedCompleted": "Download complete: {success} succeeded, {failed} failed",
-  "@onlineGallery_downloadSelectedCompleted": {
-    "placeholders": {
-      "success": {},
-      "failed": {}
-    }
-  },
   "onlineGallery_downloadSelectedCompletedWithSkipped": "Download complete: {success} succeeded, {failed} failed, {skipped} text-only items skipped",
   "@onlineGallery_downloadSelectedCompletedWithSkipped": {
     "placeholders": {
@@ -1440,7 +1426,6 @@
   "onlineGallery_negativePromptCopyHeading": "Negative Prompt",
   "onlineGallery_codexCharacterPrompts": "Character prompts",
   "onlineGallery_codexNote": "Notes",
-  "onlineGallery_codexRawTag": "Raw Tag",
   "onlineGallery_codexCopyPositive": "Copy positive",
   "onlineGallery_codexCopyNegative": "Copy negative",
   "onlineGallery_codexCopyCharacter": "Copy this character",
@@ -1459,7 +1444,6 @@
   "onlineGallery_codexUntitled": "Untitled entry",
   "onlineGallery_artistHunt": "Artist chains only",
   "onlineGallery_artistHuntTooltip": "Show only images whose positive Prompt contains explicit artist: tags",
-  "onlineGallery_artistChain": "Artist chain",
   "onlineGallery_copyArtistChain": "Copy artist chain",
   "onlineGallery_copyFullPrompt": "Copy full Prompt",
   "onlineGallery_copyRawArtistFragments": "Copy original artist fragments",
@@ -1487,14 +1471,11 @@
   "onlineGallery_imageUnavailable": "This image is currently unavailable.",
   "onlineGallery_loadedAll": "All items loaded",
   "onlineGallery_retryAppend": "Load failed. Click to retry",
-  "onlineGallery_rankNumber": "Rank #{rank}",
-  "@onlineGallery_rankNumber": {"placeholders": {"rank": {}}},
   "onlineGallery_multipleImages": "{count} images",
   "@onlineGallery_multipleImages": {"placeholders": {"count": {}}},
   "onlineGallery_views": "Views",
   "onlineGallery_downloadAllMedia": "Download all images in this work",
   "onlineGallery_copyFullMetadata": "Copy full metadata",
-  "onlineGallery_metadataParseFailed": "Metadata parsing failed. The original content is preserved and can be copied.",
   "onlineGallery_gelbooruReadOnly": "Read-only favorites",
   "onlineGallery_gelbooruFavoritesSortHint": "Sorted by post ID, newest first. This may differ from website favorite-time order.",
 
@@ -1789,13 +1770,13 @@
   },
 
   "randomMode_title": "Select Random Mode",
-  "randomMode_naiOfficial": "Official Mode",
+  "randomMode_naiOfficial": "Offline Library",
   "randomMode_custom": "Custom Mode",
   "randomMode_hybrid": "Hybrid Mode",
-  "randomMode_naiOfficialDesc": "Replicate NovelAI official random algorithm",
+  "randomMode_naiOfficialDesc": "Use the verified complete offline tag catalog",
   "randomMode_customDesc": "Generate using custom presets",
-  "randomMode_hybridDesc": "Combine official algorithm with custom presets",
-  "randomMode_naiIndicator": "NAI",
+  "randomMode_hybridDesc": "Combine the offline library with custom presets",
+  "randomMode_naiIndicator": "Offline",
   "randomMode_customIndicator": "Custom",
 
   "naiMode_noTags": "No tags",
@@ -2046,7 +2027,6 @@
   "randomManager_generatePreview": "Generate Preview",
   "randomManager_importExport": "Import / Export",
   "randomManager_syncing": "Syncing",
-  "randomManager_syncingWithEllipsis": "Syncing...",
   "randomManager_syncDanbooruTags": "Sync Danbooru Tags",
   "randomManager_unknownError": "Unknown error",
   "randomManager_readOnlyMode": "Read-only Mode",
@@ -6310,6 +6290,20 @@
   "autocomplete_statusDisabled": "Off",
   "autocomplete_statusSearching": "Searching",
   "autocomplete_statusTranslating": "Translating",
-  "autocomplete_openSettings": "Open autocomplete and data source settings"
+  "autocomplete_openSettings": "Open autocomplete and data source settings",
+  "randomManager_searchCategories": "Search categories, groups, or tags (Ctrl+F)",
+  "randomManager_verifiedOfflineLibrary": "Verified offline random library",
+  "randomManager_sourceDetails": "Data source details",
+  "randomManager_sourceUrl": "Source URL",
+  "randomManager_sourceCommit": "Source commit",
+  "randomManager_sourceDate": "Source date",
+  "randomManager_sourceLicense": "License",
+  "randomManager_catalogCounts": "Complete catalog: {tags} tags, {aliases} aliases",
+  "@randomManager_catalogCounts": {"placeholders": {"tags": {}, "aliases": {}}},
+  "randomManager_libraryVersion": "Rules v{version} · {count} tags",
+  "@randomManager_libraryVersion": {"placeholders": {"version": {"type": "String"}, "count": {"type": "String"}}},
+  "randomManager_preview": "Random result preview",
+  "randomManager_libraryUnavailable": "Random library unavailable",
+  "randomManager_noCategoryResults": "No matching categories, groups, or tags"
 
 }

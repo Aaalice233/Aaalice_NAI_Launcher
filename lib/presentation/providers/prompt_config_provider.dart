@@ -96,7 +96,7 @@ class PromptConfigNotifier extends _$PromptConfigNotifier {
             .where((p) => !p.isDefault) // 过滤掉默认预设
             .toList();
       } else {
-        // 首次使用，不再自动创建默认预设（默认使用 NAI 官方模式）
+        // 首次使用不再自动创建额外预设，直接使用内置离线随机模式。
         presets = [];
       }
 
@@ -161,17 +161,17 @@ class PromptConfigNotifier extends _$PromptConfigNotifier {
 
     return switch (mode) {
       RandomGenerationMode.naiOfficial => _generateOfficialPrompt(
-          seed: seed,
-          isV4Model: isV4Model,
-        ),
+        seed: seed,
+        isV4Model: isV4Model,
+      ),
       RandomGenerationMode.custom => _generateCustomPresetPrompt(
-          seed: seed,
-          isV4Model: isV4Model,
-        ),
+        seed: seed,
+        isV4Model: isV4Model,
+      ),
       RandomGenerationMode.hybrid => _generateHybridPrompt(
-          seed: seed,
-          isV4Model: isV4Model,
-        ),
+        seed: seed,
+        isV4Model: isV4Model,
+      ),
     };
   }
 
@@ -200,9 +200,10 @@ class PromptConfigNotifier extends _$PromptConfigNotifier {
     }
 
     // 默认预设异常为空时，保留原始 TagLibrary 生成能力作为兜底。
-    final filterConfig =
-        ref.read(tagLibraryNotifierProvider).categoryFilterConfig;
-    return generator.generateNaiStyle(
+    final filterConfig = ref
+        .read(tagLibraryNotifierProvider)
+        .categoryFilterConfig;
+    return generator.generateFromCatalog(
       seed: seed,
       isV4Model: isV4Model,
       categoryFilterConfig: filterConfig,

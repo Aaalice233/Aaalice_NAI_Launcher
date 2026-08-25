@@ -91,8 +91,8 @@ enum TagSubCategory {
 
 /// 标签子分类工具类
 ///
-/// 注意：预定义标签列表已迁移到 assets/data/nai_official_tags.json
-/// 使用 NaiTagsDataSource 加载
+/// 仅保留分类辅助规则；随机候选由 RandomTagLibraryDataSource
+/// 从完整离线 catalog 按版本化 taxonomy 加载。
 class TagSubCategoryHelper {
   /// 发色关键词（用于 classifyTag 方法判断）
   ///

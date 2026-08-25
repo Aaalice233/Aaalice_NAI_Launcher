@@ -4599,12 +4599,6 @@ abstract class AppLocalizations {
   /// **'Start over'**
   String get onlineGallery_randomRestart;
 
-  /// No description provided for @onlineGallery_originalRetry.
-  ///
-  /// In en, this message translates to:
-  /// **'Original failed to load — retry'**
-  String get onlineGallery_originalRetry;
-
   /// No description provided for @onlineGallery_login.
   ///
   /// In en, this message translates to:
@@ -4671,12 +4665,6 @@ abstract class AppLocalizations {
   /// **'Please login first'**
   String get onlineGallery_pleaseLogin;
 
-  /// No description provided for @onlineGallery_size.
-  ///
-  /// In en, this message translates to:
-  /// **'Size'**
-  String get onlineGallery_size;
-
   /// No description provided for @onlineGallery_score.
   ///
   /// In en, this message translates to:
@@ -4694,12 +4682,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Favorites'**
   String get onlineGallery_favCount;
-
-  /// No description provided for @onlineGallery_type.
-  ///
-  /// In en, this message translates to:
-  /// **'Type'**
-  String get onlineGallery_type;
 
   /// No description provided for @mediaType_video.
   ///
@@ -4773,18 +4755,6 @@ abstract class AppLocalizations {
   /// **'Keep at least one prompt tag category selected'**
   String get onlineGallery_keepOnePromptTagCategory;
 
-  /// No description provided for @onlineGallery_open.
-  ///
-  /// In en, this message translates to:
-  /// **'Open'**
-  String get onlineGallery_open;
-
-  /// No description provided for @onlineGallery_send.
-  ///
-  /// In en, this message translates to:
-  /// **'Send'**
-  String get onlineGallery_send;
-
   /// No description provided for @onlineGallery_addToQueue.
   ///
   /// In en, this message translates to:
@@ -4827,23 +4797,11 @@ abstract class AppLocalizations {
   /// **'This image has no tag information'**
   String get onlineGallery_noTagInfo;
 
-  /// No description provided for @onlineGallery_promptSentToGeneration.
-  ///
-  /// In en, this message translates to:
-  /// **'Prompt sent to generation page'**
-  String get onlineGallery_promptSentToGeneration;
-
   /// No description provided for @onlineGallery_noImageUrl.
   ///
   /// In en, this message translates to:
   /// **'This image has no available URL'**
   String get onlineGallery_noImageUrl;
-
-  /// No description provided for @onlineGallery_gifLoadFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to load GIF'**
-  String get onlineGallery_gifLoadFailed;
 
   /// No description provided for @onlineGallery_pinchToZoom.
   ///
@@ -5341,12 +5299,6 @@ abstract class AppLocalizations {
   /// **'Downloading {count} images...'**
   String onlineGallery_downloadSelectedStarted(Object count);
 
-  /// No description provided for @onlineGallery_downloadSelectedCompleted.
-  ///
-  /// In en, this message translates to:
-  /// **'Download complete: {success} succeeded, {failed} failed'**
-  String onlineGallery_downloadSelectedCompleted(Object success, Object failed);
-
   /// No description provided for @onlineGallery_downloadSelectedCompletedWithSkipped.
   ///
   /// In en, this message translates to:
@@ -5639,12 +5591,6 @@ abstract class AppLocalizations {
   /// **'Notes'**
   String get onlineGallery_codexNote;
 
-  /// No description provided for @onlineGallery_codexRawTag.
-  ///
-  /// In en, this message translates to:
-  /// **'Raw Tag'**
-  String get onlineGallery_codexRawTag;
-
   /// No description provided for @onlineGallery_codexCopyPositive.
   ///
   /// In en, this message translates to:
@@ -5752,12 +5698,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Show only images whose positive Prompt contains explicit artist: tags'**
   String get onlineGallery_artistHuntTooltip;
-
-  /// No description provided for @onlineGallery_artistChain.
-  ///
-  /// In en, this message translates to:
-  /// **'Artist chain'**
-  String get onlineGallery_artistChain;
 
   /// No description provided for @onlineGallery_copyArtistChain.
   ///
@@ -5903,12 +5843,6 @@ abstract class AppLocalizations {
   /// **'Load failed. Click to retry'**
   String get onlineGallery_retryAppend;
 
-  /// No description provided for @onlineGallery_rankNumber.
-  ///
-  /// In en, this message translates to:
-  /// **'Rank #{rank}'**
-  String onlineGallery_rankNumber(Object rank);
-
   /// No description provided for @onlineGallery_multipleImages.
   ///
   /// In en, this message translates to:
@@ -5932,12 +5866,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Copy full metadata'**
   String get onlineGallery_copyFullMetadata;
-
-  /// No description provided for @onlineGallery_metadataParseFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Metadata parsing failed. The original content is preserved and can be copied.'**
-  String get onlineGallery_metadataParseFailed;
 
   /// No description provided for @onlineGallery_gelbooruReadOnly.
   ///
@@ -7231,7 +7159,7 @@ abstract class AppLocalizations {
   /// No description provided for @randomMode_naiOfficial.
   ///
   /// In en, this message translates to:
-  /// **'Official Mode'**
+  /// **'Offline Library'**
   String get randomMode_naiOfficial;
 
   /// No description provided for @randomMode_custom.
@@ -7249,7 +7177,7 @@ abstract class AppLocalizations {
   /// No description provided for @randomMode_naiOfficialDesc.
   ///
   /// In en, this message translates to:
-  /// **'Replicate NovelAI official random algorithm'**
+  /// **'Use the verified complete offline tag catalog'**
   String get randomMode_naiOfficialDesc;
 
   /// No description provided for @randomMode_customDesc.
@@ -7261,13 +7189,13 @@ abstract class AppLocalizations {
   /// No description provided for @randomMode_hybridDesc.
   ///
   /// In en, this message translates to:
-  /// **'Combine official algorithm with custom presets'**
+  /// **'Combine the offline library with custom presets'**
   String get randomMode_hybridDesc;
 
   /// No description provided for @randomMode_naiIndicator.
   ///
   /// In en, this message translates to:
-  /// **'NAI'**
+  /// **'Offline'**
   String get randomMode_naiIndicator;
 
   /// No description provided for @randomMode_customIndicator.
@@ -8169,12 +8097,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Syncing'**
   String get randomManager_syncing;
-
-  /// No description provided for @randomManager_syncingWithEllipsis.
-  ///
-  /// In en, this message translates to:
-  /// **'Syncing...'**
-  String get randomManager_syncingWithEllipsis;
 
   /// No description provided for @randomManager_syncDanbooruTags.
   ///
@@ -22180,6 +22102,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Open autocomplete and data source settings'**
   String get autocomplete_openSettings;
+
+  /// No description provided for @randomManager_searchCategories.
+  ///
+  /// In en, this message translates to:
+  /// **'Search categories, groups, or tags (Ctrl+F)'**
+  String get randomManager_searchCategories;
+
+  /// No description provided for @randomManager_verifiedOfflineLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'Verified offline random library'**
+  String get randomManager_verifiedOfflineLibrary;
+
+  /// No description provided for @randomManager_sourceDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Data source details'**
+  String get randomManager_sourceDetails;
+
+  /// No description provided for @randomManager_sourceUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Source URL'**
+  String get randomManager_sourceUrl;
+
+  /// No description provided for @randomManager_sourceCommit.
+  ///
+  /// In en, this message translates to:
+  /// **'Source commit'**
+  String get randomManager_sourceCommit;
+
+  /// No description provided for @randomManager_sourceDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Source date'**
+  String get randomManager_sourceDate;
+
+  /// No description provided for @randomManager_sourceLicense.
+  ///
+  /// In en, this message translates to:
+  /// **'License'**
+  String get randomManager_sourceLicense;
+
+  /// No description provided for @randomManager_catalogCounts.
+  ///
+  /// In en, this message translates to:
+  /// **'Complete catalog: {tags} tags, {aliases} aliases'**
+  String randomManager_catalogCounts(Object tags, Object aliases);
+
+  /// No description provided for @randomManager_libraryVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Rules v{version} · {count} tags'**
+  String randomManager_libraryVersion(String version, String count);
+
+  /// No description provided for @randomManager_preview.
+  ///
+  /// In en, this message translates to:
+  /// **'Random result preview'**
+  String get randomManager_preview;
+
+  /// No description provided for @randomManager_libraryUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Random library unavailable'**
+  String get randomManager_libraryUnavailable;
+
+  /// No description provided for @randomManager_noCategoryResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No matching categories, groups, or tags'**
+  String get randomManager_noCategoryResults;
 }
 
 class _AppLocalizationsDelegate

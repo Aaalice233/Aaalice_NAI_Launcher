@@ -1084,7 +1084,6 @@
   "onlineGallery_randomDrawing": "抽取中…",
   "onlineGallery_randomExhausted": "当前范围暂无更多未见图片",
   "onlineGallery_randomRestart": "重新开始",
-  "onlineGallery_originalRetry": "原图加载失败，重试",
   "onlineGallery_login": "登录",
   "onlineGallery_logout": "退出登录",
   "onlineGallery_dayRank": "日榜",
@@ -1096,11 +1095,9 @@
   "onlineGallery_favoritesEmpty": "收藏夹为空",
   "onlineGallery_noResults": "没有找到图片",
   "onlineGallery_pleaseLogin": "请先登录",
-  "onlineGallery_size": "尺寸",
   "onlineGallery_score": "评分",
   "onlineGallery_ratingLabel": "分级",
   "onlineGallery_favCount": "收藏",
-  "onlineGallery_type": "类型",
   "mediaType_video": "视频",
   "mediaType_gif": "动图",
   "onlineGallery_tags": "标签",
@@ -1113,8 +1110,6 @@
   "onlineGallery_promptTagCategories": "提示词类别",
   "onlineGallery_promptTagCategoriesTooltip": "选择复制、发送或加入队列时包含的标签类别",
   "onlineGallery_keepOnePromptTagCategory": "至少保留一个提示词类别",
-  "onlineGallery_open": "打开",
-  "onlineGallery_send": "发送",
   "onlineGallery_addToQueue": "加入队列",
   "onlineGallery_sendToTextToImage": "发送到文生图",
   "onlineGallery_sentToTextToImage": "已发送到文生图",
@@ -1127,9 +1122,7 @@
     }
   },
   "onlineGallery_noTagInfo": "此图片没有标签信息",
-  "onlineGallery_promptSentToGeneration": "提示词已发送到生成页面",
   "onlineGallery_noImageUrl": "此图片没有可用地址",
-  "onlineGallery_gifLoadFailed": "GIF加载失败",
   "onlineGallery_pinchToZoom": "双指缩放",
   "onlineGallery_metadata": "元数据",
   "onlineGallery_addedToQueueWithCount": "已加入队列，当前共 {count} 个待执行任务",
@@ -1279,13 +1272,6 @@
       "count": {}
     }
   },
-  "onlineGallery_downloadSelectedCompleted": "下载完成: 成功 {success}, 失败 {failed}",
-  "@onlineGallery_downloadSelectedCompleted": {
-    "placeholders": {
-      "success": {},
-      "failed": {}
-    }
-  },
   "onlineGallery_downloadSelectedCompletedWithSkipped": "下载完成：成功 {success}，失败 {failed}，跳过 {skipped} 个纯文本词条",
   "@onlineGallery_downloadSelectedCompletedWithSkipped": {
     "placeholders": {
@@ -1342,7 +1328,6 @@
   "onlineGallery_negativePromptCopyHeading": "负面提示词",
   "onlineGallery_codexCharacterPrompts": "角色提示词",
   "onlineGallery_codexNote": "备注",
-  "onlineGallery_codexRawTag": "Raw Tag",
   "onlineGallery_codexCopyPositive": "复制正向",
   "onlineGallery_codexCopyNegative": "复制负向",
   "onlineGallery_codexCopyCharacter": "复制此角色",
@@ -1361,7 +1346,6 @@
   "onlineGallery_codexUntitled": "未命名词条",
   "onlineGallery_artistHunt": "仅画师串",
   "onlineGallery_artistHuntTooltip": "只显示正向 Prompt 中明确包含 artist: 标签的图片",
-  "onlineGallery_artistChain": "画师串",
   "onlineGallery_copyArtistChain": "复制画师串",
   "onlineGallery_copyFullPrompt": "复制完整 Prompt",
   "onlineGallery_copyRawArtistFragments": "复制原始画师片段",
@@ -1389,14 +1373,11 @@
   "onlineGallery_imageUnavailable": "图片当前不可用。",
   "onlineGallery_loadedAll": "已加载全部",
   "onlineGallery_retryAppend": "加载失败，点击重试",
-  "onlineGallery_rankNumber": "第 {rank} 名",
-  "@onlineGallery_rankNumber": {"placeholders": {"rank": {}}},
   "onlineGallery_multipleImages": "{count} 张图片",
   "@onlineGallery_multipleImages": {"placeholders": {"count": {}}},
   "onlineGallery_views": "浏览",
   "onlineGallery_downloadAllMedia": "下载作品全部图片",
   "onlineGallery_copyFullMetadata": "复制完整元数据",
-  "onlineGallery_metadataParseFailed": "元数据解析失败，原始内容已保留，可直接复制。",
   "onlineGallery_gelbooruReadOnly": "只读收藏",
   "onlineGallery_gelbooruFavoritesSortHint": "按帖子 ID 从新到旧排列，不保证与网站收藏时间顺序一致。",
 
@@ -1798,13 +1779,13 @@
   },
 
   "randomMode_title": "选择随机模式",
-  "randomMode_naiOfficial": "官网模式",
+  "randomMode_naiOfficial": "离线词库",
   "randomMode_custom": "自定义模式",
   "randomMode_hybrid": "混合模式",
-  "randomMode_naiOfficialDesc": "复刻 NovelAI 官方随机算法",
+  "randomMode_naiOfficialDesc": "使用已验证的完整离线标签 catalog",
   "randomMode_customDesc": "使用自定义预设生成",
-  "randomMode_hybridDesc": "结合官方算法和自定义预设",
-  "randomMode_naiIndicator": "NAI",
+  "randomMode_hybridDesc": "结合离线词库和自定义预设",
+  "randomMode_naiIndicator": "离线",
   "randomMode_customIndicator": "自定义",
 
   "naiMode_noTags": "暂无标签",
@@ -2055,7 +2036,6 @@
   "randomManager_generatePreview": "生成预览",
   "randomManager_importExport": "导入/导出",
   "randomManager_syncing": "同步中",
-  "randomManager_syncingWithEllipsis": "同步中...",
   "randomManager_syncDanbooruTags": "同步 Danbooru 标签",
   "randomManager_unknownError": "未知错误",
   "randomManager_readOnlyMode": "只读模式",
@@ -6379,6 +6359,20 @@
   "autocomplete_statusDisabled": "已关闭",
   "autocomplete_statusSearching": "查询中",
   "autocomplete_statusTranslating": "翻译中",
-  "autocomplete_openSettings": "打开补全与数据源设置"
+  "autocomplete_openSettings": "打开补全与数据源设置",
+  "randomManager_searchCategories": "搜索类别、词组或标签（Ctrl+F）",
+  "randomManager_verifiedOfflineLibrary": "已验证的离线随机词库",
+  "randomManager_sourceDetails": "数据来源详情",
+  "randomManager_sourceUrl": "来源 URL",
+  "randomManager_sourceCommit": "来源提交",
+  "randomManager_sourceDate": "来源日期",
+  "randomManager_sourceLicense": "许可证",
+  "randomManager_catalogCounts": "完整 catalog：{tags} 个标签，{aliases} 个别名",
+  "@randomManager_catalogCounts": {"placeholders": {"tags": {}, "aliases": {}}},
+  "randomManager_libraryVersion": "规则 v{version} · {count} 个标签",
+  "@randomManager_libraryVersion": {"placeholders": {"version": {"type": "String"}, "count": {"type": "String"}}},
+  "randomManager_preview": "随机结果预览",
+  "randomManager_libraryUnavailable": "随机词库无法使用",
+  "randomManager_noCategoryResults": "没有匹配的类别、词组或标签"
 
 }

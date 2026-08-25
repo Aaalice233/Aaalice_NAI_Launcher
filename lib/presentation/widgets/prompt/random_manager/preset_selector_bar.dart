@@ -32,28 +32,12 @@ class PresetSelectorBar extends ConsumerWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    // 方案: 微妙深色工具栏 - 比内容区稍深，有独立背景色
-    // 背景色填充整个区域，内部 padding 不会显示为间隔
     return Container(
-      padding: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        // 稍深的背景色，与内容区形成微妙对比
-        color: Color.alphaBlend(
-          Colors.black.withValues(alpha: 0.15),
-          colorScheme.surfaceContainerHighest,
-        ),
-        // 底部分隔线
-        border: Border(
-          bottom: BorderSide(
-            color: colorScheme.outlineVariant.withValues(alpha: 0.25),
-            width: 1,
-          ),
-        ),
-      ),
+      color: colorScheme.surface,
       child: LayoutBuilder(
         builder: (context, constraints) {
           // 响应式布局：窄屏时垂直排列
-          final isNarrow = constraints.maxWidth < 600;
+          final isNarrow = constraints.maxWidth < 760;
 
           if (isNarrow) {
             return Column(
@@ -81,15 +65,14 @@ class PresetSelectorBar extends ConsumerWidget {
                 Row(
                   children: [
                     if (selectedPreset != null)
-                      Expanded(
-                        child: _StatisticsInfo(preset: selectedPreset),
-                      ),
+                      Expanded(child: _StatisticsInfo(preset: selectedPreset)),
                     _ActionButtons(
-                      onDelete: selectedPreset != null &&
-                              !selectedPreset.isDefault
+                      onDelete:
+                          selectedPreset != null && !selectedPreset.isDefault
                           ? () => _deletePreset(context, ref, selectedPreset)
                           : null,
-                      onResetToDefault: selectedPreset != null &&
+                      onResetToDefault:
+                          selectedPreset != null &&
                               !selectedPreset.isDefault &&
                               selectedPreset.isBasedOnDefault
                           ? () => _resetToDefault(context, ref, selectedPreset)
@@ -98,8 +81,8 @@ class PresetSelectorBar extends ConsumerWidget {
                       onImportExport: onImportExport,
                       onSync:
                           selectedPreset != null && !selectedPreset.isDefault
-                              ? () => _syncDanbooru(context, ref)
-                              : null,
+                          ? () => _syncDanbooru(context, ref)
+                          : null,
                       isSyncing: syncState.isSyncing,
                     ),
                   ],
@@ -164,7 +147,8 @@ class PresetSelectorBar extends ConsumerWidget {
                 onDelete: selectedPreset != null && !selectedPreset.isDefault
                     ? () => _deletePreset(context, ref, selectedPreset)
                     : null,
-                onResetToDefault: selectedPreset != null &&
+                onResetToDefault:
+                    selectedPreset != null &&
                         !selectedPreset.isDefault &&
                         selectedPreset.isBasedOnDefault
                     ? () => _resetToDefault(context, ref, selectedPreset)
@@ -433,22 +417,8 @@ class _StatisticsInfo extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            colorScheme.surfaceContainerHigh.withValues(alpha: 0.8),
-            colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
-          ],
-        ),
+        color: colorScheme.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(6),
-        boxShadow: [
-          BoxShadow(
-            color: colorScheme.primary.withValues(alpha: 0.1),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -459,6 +429,7 @@ class _StatisticsInfo extends StatelessWidget {
               label: context.l10n.randomManager_categories,
               value: '${preset.categoryCount}',
               color: colorScheme.primary,
+              compact: true,
             ),
           ),
           _GradientDivider(color: colorScheme.primary),
@@ -469,6 +440,7 @@ class _StatisticsInfo extends StatelessWidget {
               value:
                   '${preset.categories.fold(0, (sum, c) => sum + c.groupCount)}',
               color: colorScheme.secondary,
+              compact: true,
             ),
           ),
           _GradientDivider(color: colorScheme.secondary),
@@ -478,6 +450,7 @@ class _StatisticsInfo extends StatelessWidget {
               label: context.l10n.randomManager_tags,
               value: '${preset.totalTagCount}',
               color: colorScheme.tertiary,
+              compact: true,
             ),
           ),
         ],
@@ -495,21 +468,10 @@ class _GradientDivider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 2,
-      height: 24,
+      width: 1,
+      height: 20,
       margin: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            color.withValues(alpha: 0.0),
-            color.withValues(alpha: 0.4),
-            color.withValues(alpha: 0.0),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(1),
-      ),
+      color: color.withValues(alpha: 0.3),
     );
   }
 }
@@ -525,18 +487,8 @@ class _VerticalDivider extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       width: 1,
-      height: 28,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            color.withValues(alpha: 0),
-            color.withValues(alpha: 0.4),
-            color.withValues(alpha: 0),
-          ],
-        ),
-      ),
+      height: 24,
+      color: color.withValues(alpha: 0.3),
     );
   }
 }
@@ -565,330 +517,48 @@ class _ActionButtons extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Danbooru 同步按钮（默认预设不显示）
-        if (onSync != null) ...[
-          _SyncButton(
-            onPressed: onSync,
-            isSyncing: isSyncing,
+        if (onSync != null)
+          TextButton.icon(
+            onPressed: isSyncing ? null : onSync,
+            icon: isSyncing
+                ? const SizedBox.square(
+                    dimension: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.cloud_sync_outlined, size: 18),
+            label: Text(
+              isSyncing ? context.l10n.randomManager_syncing : 'Danbooru',
+            ),
           ),
-          const SizedBox(width: 4),
-        ],
-        // 生成预览按钮
         if (onGeneratePreview != null)
-          _ActionButton(
-            icon: Icons.play_arrow_rounded,
-            tooltip: context.l10n.randomManager_generatePreview,
-            onPressed: onGeneratePreview,
-            color: colorScheme.primary,
+          Tooltip(
+            message: context.l10n.randomManager_generatePreview,
+            child: FilledButton.icon(
+              onPressed: onGeneratePreview,
+              icon: const Icon(Icons.play_arrow_rounded, size: 18),
+              label: Text(context.l10n.randomManager_generatePreview),
+            ),
           ),
-        // 重置为默认按钮
-        if (onResetToDefault != null) _ResetButton(onPressed: onResetToDefault),
-        // 删除按钮
+        if (onResetToDefault != null)
+          IconButton(
+            onPressed: onResetToDefault,
+            icon: const Icon(Icons.restart_alt_rounded),
+            tooltip: context.l10n.resetToDefaultTooltip,
+          ),
         if (onDelete != null)
-          _ActionButton(
-            icon: Icons.delete_outline,
-            tooltip: context.l10n.config_deletePreset,
+          IconButton(
             onPressed: onDelete,
-            color: Colors.red.shade400,
+            color: colorScheme.error,
+            icon: const Icon(Icons.delete_outline),
+            tooltip: context.l10n.config_deletePreset,
           ),
-        // 导入/导出按钮
         if (onImportExport != null)
-          _ActionButton(
-            icon: Icons.import_export,
-            tooltip: context.l10n.randomManager_importExport,
+          IconButton(
             onPressed: onImportExport,
+            icon: const Icon(Icons.import_export_rounded),
+            tooltip: context.l10n.randomManager_importExport,
           ),
       ],
-    );
-  }
-}
-
-/// Danbooru 同步按钮组件
-class _SyncButton extends StatefulWidget {
-  const _SyncButton({
-    this.onPressed,
-    this.isSyncing = false,
-  });
-
-  final VoidCallback? onPressed;
-  final bool isSyncing;
-
-  @override
-  State<_SyncButton> createState() => _SyncButtonState();
-}
-
-class _SyncButtonState extends State<_SyncButton>
-    with SingleTickerProviderStateMixin {
-  bool _isHovered = false;
-  late AnimationController _animController;
-
-  @override
-  void initState() {
-    super.initState();
-    _animController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1500),
-    );
-    if (widget.isSyncing) {
-      _animController.repeat();
-    }
-  }
-
-  @override
-  void didUpdateWidget(covariant _SyncButton oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.isSyncing && !_animController.isAnimating) {
-      _animController.repeat();
-    } else if (!widget.isSyncing && _animController.isAnimating) {
-      _animController.stop();
-      _animController.reset();
-    }
-  }
-
-  @override
-  void dispose() {
-    _animController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    const syncColor = Colors.teal;
-
-    return MouseRegion(
-      cursor:
-          widget.isSyncing ? SystemMouseCursors.wait : SystemMouseCursors.click,
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      child: Tooltip(
-        message: widget.isSyncing
-            ? context.l10n.randomManager_syncingWithEllipsis
-            : context.l10n.randomManager_syncDanbooruTags,
-        child: GestureDetector(
-          onTap: widget.isSyncing ? null : widget.onPressed,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeOutCubic,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: _isHovered || widget.isSyncing
-                    ? [
-                        syncColor.withValues(alpha: 0.2),
-                        syncColor.withValues(alpha: 0.1),
-                      ]
-                    : [
-                        syncColor.withValues(alpha: 0.08),
-                        syncColor.withValues(alpha: 0.04),
-                      ],
-              ),
-              borderRadius: BorderRadius.circular(6),
-              boxShadow: [
-                BoxShadow(
-                  color: syncColor.withValues(alpha: _isHovered ? 0.25 : 0.15),
-                  blurRadius: _isHovered ? 8 : 4,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                widget.isSyncing
-                    ? RotationTransition(
-                        turns: _animController,
-                        child: const Icon(
-                          Icons.sync,
-                          size: 16,
-                          color: syncColor,
-                        ),
-                      )
-                    : const Icon(
-                        Icons.cloud_sync_outlined,
-                        size: 16,
-                        color: syncColor,
-                      ),
-                const SizedBox(width: 6),
-                Text(
-                  widget.isSyncing
-                      ? context.l10n.randomManager_syncing
-                      : 'Danbooru',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: syncColor,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// 重置按钮组件
-class _ResetButton extends StatefulWidget {
-  const _ResetButton({this.onPressed});
-
-  final VoidCallback? onPressed;
-
-  @override
-  State<_ResetButton> createState() => _ResetButtonState();
-}
-
-class _ResetButtonState extends State<_ResetButton> {
-  bool _isHovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    const resetColor = Colors.orange;
-    final isEnabled = widget.onPressed != null;
-
-    return MouseRegion(
-      cursor: isEnabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      child: Tooltip(
-        message: context.l10n.resetToDefaultTooltip,
-        child: GestureDetector(
-          onTap: widget.onPressed,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeOutCubic,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: _isHovered && isEnabled
-                    ? [
-                        resetColor.withValues(alpha: 0.2),
-                        resetColor.withValues(alpha: 0.1),
-                      ]
-                    : [
-                        resetColor.withValues(alpha: 0.08),
-                        resetColor.withValues(alpha: 0.04),
-                      ],
-              ),
-              borderRadius: BorderRadius.circular(6),
-              boxShadow: _isHovered && isEnabled
-                  ? [
-                      BoxShadow(
-                        color: resetColor.withValues(alpha: 0.25),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ]
-                  : [
-                      BoxShadow(
-                        color: resetColor.withValues(alpha: 0.15),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.restart_alt,
-                  size: 16,
-                  color: isEnabled
-                      ? resetColor
-                      : resetColor.withValues(alpha: 0.4),
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  context.l10n.common_reset,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: isEnabled
-                        ? resetColor
-                        : resetColor.withValues(alpha: 0.4),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ActionButton extends StatefulWidget {
-  const _ActionButton({
-    required this.icon,
-    required this.tooltip,
-    this.onPressed,
-    this.color,
-  });
-
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback? onPressed;
-  final Color? color;
-
-  @override
-  State<_ActionButton> createState() => _ActionButtonState();
-}
-
-class _ActionButtonState extends State<_ActionButton> {
-  bool _isHovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final isEnabled = widget.onPressed != null;
-    final effectiveColor = widget.color ?? colorScheme.onSurfaceVariant;
-
-    return MouseRegion(
-      cursor: isEnabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      child: Tooltip(
-        message: widget.tooltip,
-        child: GestureDetector(
-          onTap: widget.onPressed,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeOutCubic,
-            width: 38,
-            height: 38,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: _isHovered && isEnabled
-                  ? effectiveColor.withValues(alpha: 0.12)
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(6),
-              boxShadow: _isHovered && isEnabled
-                  ? [
-                      BoxShadow(
-                        color: effectiveColor.withValues(alpha: 0.25),
-                        blurRadius: 12,
-                        spreadRadius: -2,
-                      ),
-                    ]
-                  : null,
-            ),
-            child: AnimatedScale(
-              scale: _isHovered && isEnabled ? 1.1 : 1.0,
-              duration: const Duration(milliseconds: 150),
-              curve: Curves.easeOutCubic,
-              child: Icon(
-                widget.icon,
-                size: 20,
-                color: isEnabled
-                    ? (_isHovered
-                        ? effectiveColor
-                        : effectiveColor.withValues(alpha: 0.8))
-                    : colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
-              ),
-            ),
-          ),
-        ),
-      ),
     );
   }
 }
@@ -906,12 +576,7 @@ class _ReadOnlyIndicator extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              Colors.amber.shade100.withValues(alpha: 0.15),
-              Colors.orange.shade100.withValues(alpha: 0.1),
-            ],
-          ),
+          color: Colors.amber.shade100.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(6),
           border: Border.all(
             color: Colors.amber.shade600.withValues(alpha: 0.4),
@@ -921,11 +586,7 @@ class _ReadOnlyIndicator extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.lock_outline,
-              size: 14,
-              color: Colors.amber.shade800,
-            ),
+            Icon(Icons.lock_outline, size: 14, color: Colors.amber.shade800),
             const SizedBox(width: 6),
             Text(
               context.l10n.randomManager_readOnlyMode,

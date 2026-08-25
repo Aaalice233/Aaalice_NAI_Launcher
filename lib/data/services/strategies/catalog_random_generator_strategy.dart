@@ -10,19 +10,17 @@ import '../character_count_resolver.dart';
 import '../strategies/character_tag_generator.dart';
 import '../weighted_selector.dart';
 
-/// NAI 风格生成策略
+/// 通用随机生成策略。
 ///
-/// 负责使用 TagLibrary 生成 NAI 官网风格的随机提示词。
-/// 支持多角色（V4+模式）和单角色（传统模式）生成。
-/// 从 RandomPromptGenerator.generateNaiStyle 提取。
+/// 使用经过校验的 TagLibrary 生成多角色（V4+）或单角色提示词。
+/// 由 RandomPromptGenerator.generateFromCatalog 调用。
 ///
 /// ## 主要功能
 ///
-/// - 复刻 NAI 官网的随机提示词生成逻辑
 /// - 支持三种生成模式：无人场景、单角色、多角色
-/// - 使用 NAI 官网的角色数量权重分布
+/// - 使用用户可配置的角色数量权重分布
 /// - 自动生成人数标签（solo, 2girls, 1girl, 1boy 等）
-/// - 支持分类级 Danbooru 补充标签
+/// - 支持分类级过滤与完整离线 catalog 候选
 ///
 /// ## 生成模式
 ///
@@ -46,7 +44,7 @@ import '../weighted_selector.dart';
 ///
 /// ## 角色数量权重
 ///
-/// 使用 NAI 官网分布：
+/// 默认分布：
 /// - 1 人: 70%
 /// - 2 人: 20%
 /// - 3 人: 7%
@@ -55,7 +53,7 @@ import '../weighted_selector.dart';
 /// ## 使用示例
 ///
 /// ```dart
-/// final strategy = NaiStyleGeneratorStrategy();
+/// final strategy = CatalogRandomGeneratorStrategy();
 /// final library = await _libraryService.getAvailableLibrary();
 /// final result = await strategy.generate(
 ///   library: library,
@@ -67,7 +65,7 @@ import '../weighted_selector.dart';
 /// print(result.mainPrompt);
 /// print(result.characters);
 /// ```
-class NaiStyleGeneratorStrategy {
+class CatalogRandomGeneratorStrategy {
   /// 加权选择器
   final WeightedSelector _weightedSelector;
 
@@ -77,7 +75,7 @@ class NaiStyleGeneratorStrategy {
   /// 角色标签生成器
   final CharacterTagGenerator _characterTagGenerator;
 
-  /// 角色数量权重分布（来自 NAI 官网）
+  /// 默认角色数量权重分布
   /// [[1,70], [2,20], [3,7], [0,5]]
   static const List<List<int>> characterCountWeights = [
     [1, 70], // 1人 70%
@@ -86,24 +84,25 @@ class NaiStyleGeneratorStrategy {
     [0, 5], // 无人 5%
   ];
 
-  /// 创建 NAI 风格生成策略
+  /// 创建通用随机生成策略
   ///
   /// [weightedSelector] 加权选择器（可选，默认创建新实例）
   /// [countResolver] 角色数量解析器（可选，默认创建新实例）
   /// [characterTagGenerator] 角色标签生成器（可选，默认创建新实例）
-  NaiStyleGeneratorStrategy({
+  CatalogRandomGeneratorStrategy({
     WeightedSelector? weightedSelector,
     CharacterCountResolver? countResolver,
     CharacterTagGenerator? characterTagGenerator,
-  })  : _weightedSelector = weightedSelector ?? WeightedSelector(),
-        _countResolver = countResolver ?? CharacterCountResolver(),
-        _characterTagGenerator = characterTagGenerator ?? CharacterTagGenerator();
+  }) : _weightedSelector = weightedSelector ?? WeightedSelector(),
+       _countResolver = countResolver ?? CharacterCountResolver(),
+       _characterTagGenerator =
+           characterTagGenerator ?? CharacterTagGenerator();
 
-  /// 生成 NAI 风格随机提示词
+  /// 生成随机提示词
   ///
   /// [library] 标签词库
   /// [random] 随机数生成器
-  /// [filterConfig] 分类级 Danbooru 补充配置
+  /// [filterConfig] 分类级候选过滤配置
   /// [seed] 随机种子（可选，用于结果追踪）
   /// [isV4Model] 是否为 V4+ 模型（支持多角色，默认 true）
   ///
@@ -111,7 +110,7 @@ class NaiStyleGeneratorStrategy {
   ///
   /// 示例：
   /// ```dart
-  /// final strategy = NaiStyleGeneratorStrategy();
+  /// final strategy = CatalogRandomGeneratorStrategy();
   /// final library = await _libraryService.getAvailableLibrary();
   /// final result = await strategy.generate(
   ///   library: library,
@@ -134,12 +133,7 @@ class NaiStyleGeneratorStrategy {
 
     if (characterCount == 0) {
       // 无人物场景
-      return _generateNoHumanPrompt(
-        library,
-        random,
-        filterConfig,
-        seed,
-      );
+      return _generateNoHumanPrompt(library, random, filterConfig, seed);
     }
 
     if (!isV4Model) {
@@ -216,7 +210,11 @@ class NaiStyleGeneratorStrategy {
       if (sceneTagsExtra.length > 1) {
         final count = random.nextInt(3) + 1;
         final selected = <String>{};
-        for (var i = 0; i < count && selected.length < sceneTagsExtra.length; i++) {
+        for (
+          var i = 0;
+          i < count && selected.length < sceneTagsExtra.length;
+          i++
+        ) {
           final tag = _weightedSelector.select(sceneTagsExtra, random: random);
           if (!tags.contains(tag)) {
             selected.add(tag);
@@ -248,8 +246,9 @@ class NaiStyleGeneratorStrategy {
 
     for (var i = 0; i < characterCount; i++) {
       // 随机分配性别
-      final gender =
-          random.nextBool() ? CharacterGender.female : CharacterGender.male;
+      final gender = random.nextBool()
+          ? CharacterGender.female
+          : CharacterGender.male;
       final genderTag = gender == CharacterGender.female ? '1girl' : '1boy';
 
       genders.add(gender);
@@ -266,17 +265,12 @@ class NaiStyleGeneratorStrategy {
       charTags.insert(0, genderTag);
 
       characters.add(
-        GeneratedCharacter(
-          prompt: charTags.join(', '),
-          gender: gender,
-        ),
+        GeneratedCharacter(prompt: charTags.join(', '), gender: gender),
       );
     }
 
     // 生成主提示词
-    final mainTags = <String>[
-      _countResolver.getCountTag(genders),
-    ];
+    final mainTags = <String>[_countResolver.getCountTag(genders)];
 
     // 添加风格（30%）
     if (random.nextDouble() < 0.3) {
@@ -319,10 +313,7 @@ class NaiStyleGeneratorStrategy {
     }
 
     // 合并所有标签为单提示词
-    final allTags = [
-      ...mainTags,
-      ...characters.map((c) => c.prompt),
-    ];
+    final allTags = [...mainTags, ...characters.map((c) => c.prompt)];
 
     return RandomPromptResult(
       mainPrompt: allTags.join(', '),
@@ -346,8 +337,9 @@ class NaiStyleGeneratorStrategy {
 
     for (var i = 0; i < characterCount; i++) {
       // 随机分配性别
-      final gender =
-          random.nextBool() ? CharacterGender.female : CharacterGender.male;
+      final gender = random.nextBool()
+          ? CharacterGender.female
+          : CharacterGender.male;
       final genderTag = gender == CharacterGender.female ? '1girl' : '1boy';
 
       genders.add(gender);
@@ -364,17 +356,12 @@ class NaiStyleGeneratorStrategy {
       charTags.insert(0, genderTag);
 
       characters.add(
-        GeneratedCharacter(
-          prompt: charTags.join(', '),
-          gender: gender,
-        ),
+        GeneratedCharacter(prompt: charTags.join(', '), gender: gender),
       );
     }
 
     // 生成主提示词
-    final mainTags = <String>[
-      _countResolver.getCountTag(genders),
-    ];
+    final mainTags = <String>[_countResolver.getCountTag(genders)];
 
     // 添加风格（30%）
     if (random.nextDouble() < 0.3) {
@@ -493,7 +480,7 @@ class NaiStyleGeneratorStrategy {
     );
   }
 
-  /// 获取过滤后的类别标签（根据分类级 Danbooru 补充配置）
+  /// 获取分类过滤后的候选标签
   List<WeightedTag> _getFilteredCategory(
     TagLibrary library,
     TagSubCategory category,
