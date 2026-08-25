@@ -837,26 +837,16 @@ class _GalleryDetailDialogState extends ConsumerState<GalleryDetailDialog> {
             padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
             children: [
               _buildItemBadges(theme),
-              if (codexTitle.isNotEmpty) ...[
+              if (codexTitle.isNotEmpty || categoryPath.isNotEmpty) ...[
                 const SizedBox(height: 12),
-                _buildCompactMetadata(
+                _buildCodexContext(
                   theme,
-                  icon: Icons.menu_book_outlined,
-                  label: widget.labels.codex,
-                  value: codexTitle,
-                ),
-              ],
-              if (categoryPath.isNotEmpty) ...[
-                const SizedBox(height: 10),
-                _buildCompactMetadata(
-                  theme,
-                  icon: Icons.account_tree_outlined,
-                  label: widget.labels.category,
-                  value: categoryPath.join(' / '),
+                  codexTitle: codexTitle,
+                  categoryPath: categoryPath,
                 ),
               ],
               if (widget.detail.item.tags.isNotEmpty) ...[
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
                 _buildTagSections(theme),
               ],
               if (showPromptCard) ...[
@@ -916,7 +906,7 @@ class _GalleryDetailDialogState extends ConsumerState<GalleryDetailDialog> {
                 ),
               ],
               if (preferredFile.isNotEmpty) ...[
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
                 _buildCompactMetadata(
                   theme,
                   icon: Icons.image_outlined,
@@ -925,7 +915,7 @@ class _GalleryDetailDialogState extends ConsumerState<GalleryDetailDialog> {
                 ),
               ],
               if (author.isNotEmpty) ...[
-                const SizedBox(height: 16),
+                const SizedBox(height: 10),
                 _buildCompactMetadata(
                   theme,
                   icon: Icons.person_outline,
@@ -943,7 +933,7 @@ class _GalleryDetailDialogState extends ConsumerState<GalleryDetailDialog> {
                 ),
               ],
               if (widget.detail.contributors.isNotEmpty) ...[
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
                 _buildContributors(theme),
               ],
             ],
@@ -1008,7 +998,7 @@ class _GalleryDetailDialogState extends ConsumerState<GalleryDetailDialog> {
               const gap = 8.0;
               final availableWidth = constraints.maxWidth;
               final itemWidth = stats.length == 1
-                  ? availableWidth.clamp(0.0, 144.0).toDouble()
+                  ? availableWidth.clamp(0.0, 124.0).toDouble()
                   : (availableWidth - gap * (stats.length - 1)) / stats.length;
               return Wrap(
                 key: const ValueKey('gallery-detail-stats'),
@@ -1205,6 +1195,86 @@ class _GalleryDetailDialogState extends ConsumerState<GalleryDetailDialog> {
     widget.onBlacklistChanged();
   }
 
+  Widget _buildCodexContext(
+    ThemeData theme, {
+    required String codexTitle,
+    required List<String> categoryPath,
+  }) {
+    final category = categoryPath.join(' / ');
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(11, 10, 12, 10),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primaryContainer.withValues(
+                  alpha: 0.65,
+                ),
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: Icon(
+                Icons.menu_book_rounded,
+                size: 18,
+                color: theme.colorScheme.onPrimaryContainer,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (codexTitle.isNotEmpty)
+                    Text(
+                      codexTitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        height: 1.2,
+                      ),
+                    ),
+                  if (category.isNotEmpty) ...[
+                    if (codexTitle.isNotEmpty) const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.account_tree_rounded,
+                          size: 14,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: 5),
+                        Expanded(
+                          child: Text(
+                            category,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                              height: 1.25,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildCompactMetadata(
     ThemeData theme, {
     required IconData icon,
@@ -1214,19 +1284,28 @@ class _GalleryDetailDialogState extends ConsumerState<GalleryDetailDialog> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 18, color: theme.colorScheme.onSurfaceVariant),
+        Padding(
+          padding: const EdgeInsets.only(top: 2),
+          child: Icon(
+            icon,
+            size: 16,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
         const SizedBox(width: 8),
         Text(
-          '$label: ',
-          style: theme.textTheme.bodyMedium?.copyWith(
+          '$label  ',
+          style: theme.textTheme.bodySmall?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
+            height: 1.35,
           ),
         ),
         Expanded(
           child: SelectableText(
             value,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.w600,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurface,
+              height: 1.35,
             ),
           ),
         ),
@@ -1304,41 +1383,71 @@ class _GalleryDetailDialogState extends ConsumerState<GalleryDetailDialog> {
   }
 
   Widget _buildContributors(ThemeData theme) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 11),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(
-              Icons.groups_outlined,
-              size: 18,
-              color: theme.colorScheme.onSurfaceVariant,
+            Row(
+              children: [
+                Icon(
+                  Icons.groups_rounded,
+                  size: 17,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 7),
+                Text(
+                  widget.labels.contributors,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(width: 8),
-            Text(
-              widget.labels.contributors,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
+            const SizedBox(height: 9),
+            for (
+              var index = 0;
+              index < widget.detail.contributors.length;
+              index++
+            ) ...[
+              _buildContributor(theme, widget.detail.contributors[index]),
+              if (index + 1 < widget.detail.contributors.length)
+                const SizedBox(height: 7),
+            ],
           ],
         ),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 7,
-          runSpacing: 7,
-          children: [
-            for (final contributor in widget.detail.contributors)
-              Chip(
-                visualDensity: VisualDensity.compact,
-                avatar: const Icon(Icons.person_outline, size: 16),
-                label: Text(
-                  contributor.role.trim().isEmpty
-                      ? contributor.name
-                      : '${contributor.name} · ${contributor.role}',
-                ),
-              ),
-          ],
+      ),
+    );
+  }
+
+  Widget _buildContributor(ThemeData theme, GalleryContributor contributor) {
+    final role = contributor.role.trim();
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 1),
+          child: Icon(
+            Icons.person_rounded,
+            size: 15,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(width: 7),
+        Expanded(
+          child: Text(
+            role.isEmpty ? contributor.name : '${contributor.name} · $role',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              height: 1.3,
+            ),
+          ),
         ),
       ],
     );
