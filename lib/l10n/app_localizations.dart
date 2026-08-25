@@ -14431,6 +14431,228 @@ abstract class AppLocalizations {
   /// **'Drag to Image2Image or another target'**
   String get drop_dragToImg2ImgOrOther;
 
+  /// No description provided for @drop_metadataDetected.
+  ///
+  /// In en, this message translates to:
+  /// **'NovelAI metadata detected'**
+  String get drop_metadataDetected;
+
+  /// No description provided for @drop_metadataParseFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Metadata could not be parsed'**
+  String get drop_metadataParseFailed;
+
+  /// No description provided for @drop_metadataParseFailedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The image contains metadata fields that cannot currently be read. Other image actions remain available.'**
+  String get drop_metadataParseFailedHint;
+
+  /// No description provided for @drop_metadataErrorDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'View error details'**
+  String get drop_metadataErrorDetails;
+
+  /// No description provided for @drop_positivePrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Prompt'**
+  String get drop_positivePrompt;
+
+  /// No description provided for @drop_negativePrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Undesired Content'**
+  String get drop_negativePrompt;
+
+  /// No description provided for @drop_characterPrompts.
+  ///
+  /// In en, this message translates to:
+  /// **'Character Prompts ({count})'**
+  String drop_characterPrompts(int count);
+
+  /// No description provided for @drop_characterPositivePrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Character {index} Positive Prompt'**
+  String drop_characterPositivePrompt(int index);
+
+  /// No description provided for @drop_characterNegativePrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Character {index} Undesired Content'**
+  String drop_characterNegativePrompt(int index);
+
+  /// No description provided for @drop_promptNotRecorded.
+  ///
+  /// In en, this message translates to:
+  /// **'Not recorded'**
+  String get drop_promptNotRecorded;
+
+  /// No description provided for @drop_promptCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get drop_promptCopy;
+
+  /// No description provided for @drop_promptAddWhole.
+  ///
+  /// In en, this message translates to:
+  /// **'Add full prompt to library'**
+  String get drop_promptAddWhole;
+
+  /// No description provided for @drop_promptAddSelection.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to library'**
+  String get drop_promptAddSelection;
+
+  /// No description provided for @drop_promptLibraryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to Library'**
+  String get drop_promptLibraryTitle;
+
+  /// No description provided for @drop_promptLibraryWriteMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Write mode'**
+  String get drop_promptLibraryWriteMode;
+
+  /// No description provided for @drop_promptLibraryCreate.
+  ///
+  /// In en, this message translates to:
+  /// **'New'**
+  String get drop_promptLibraryCreate;
+
+  /// No description provided for @drop_promptLibraryAppend.
+  ///
+  /// In en, this message translates to:
+  /// **'Append'**
+  String get drop_promptLibraryAppend;
+
+  /// No description provided for @drop_promptLibraryOverwrite.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace'**
+  String get drop_promptLibraryOverwrite;
+
+  /// No description provided for @drop_promptLibraryAliasHint.
+  ///
+  /// In en, this message translates to:
+  /// **'This name is also used by <library name> references'**
+  String get drop_promptLibraryAliasHint;
+
+  /// No description provided for @drop_promptLibraryTarget.
+  ///
+  /// In en, this message translates to:
+  /// **'Target entry'**
+  String get drop_promptLibraryTarget;
+
+  /// No description provided for @drop_promptLibrarySelectTarget.
+  ///
+  /// In en, this message translates to:
+  /// **'Select an entry to update'**
+  String get drop_promptLibrarySelectTarget;
+
+  /// No description provided for @drop_promptLibrarySeparator.
+  ///
+  /// In en, this message translates to:
+  /// **'Separator'**
+  String get drop_promptLibrarySeparator;
+
+  /// No description provided for @drop_promptLibrarySeparatorComma.
+  ///
+  /// In en, this message translates to:
+  /// **'Comma + space'**
+  String get drop_promptLibrarySeparatorComma;
+
+  /// No description provided for @drop_promptLibrarySeparatorNewline.
+  ///
+  /// In en, this message translates to:
+  /// **'New line'**
+  String get drop_promptLibrarySeparatorNewline;
+
+  /// No description provided for @drop_promptLibrarySeparatorNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No separator'**
+  String get drop_promptLibrarySeparatorNone;
+
+  /// No description provided for @drop_promptLibraryCharacterCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} characters'**
+  String drop_promptLibraryCharacterCount(int count);
+
+  /// No description provided for @drop_promptLibraryExactContentHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Saves this text without cleaning, reordering, or completing it'**
+  String get drop_promptLibraryExactContentHint;
+
+  /// No description provided for @drop_promptLibraryResultPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Result preview'**
+  String get drop_promptLibraryResultPreview;
+
+  /// No description provided for @drop_promptLibraryDuplicate.
+  ///
+  /// In en, this message translates to:
+  /// **'The same content already exists in “{name}”'**
+  String drop_promptLibraryDuplicate(Object name);
+
+  /// No description provided for @drop_promptLibraryNameConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'This name already exists. Rename it, append, or replace'**
+  String get drop_promptLibraryNameConflict;
+
+  /// No description provided for @drop_promptLibraryOverwriteWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'This will replace all prompt content in “{name}”'**
+  String drop_promptLibraryOverwriteWarning(Object name);
+
+  /// No description provided for @drop_promptLibraryMore.
+  ///
+  /// In en, this message translates to:
+  /// **'More options'**
+  String get drop_promptLibraryMore;
+
+  /// No description provided for @drop_promptLibraryConfirmOverwrite.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace'**
+  String get drop_promptLibraryConfirmOverwrite;
+
+  /// No description provided for @drop_promptLibrarySaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved to library'**
+  String get drop_promptLibrarySaved;
+
+  /// No description provided for @drop_promptLibrarySaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to save the library entry'**
+  String get drop_promptLibrarySaveFailed;
+
+  /// No description provided for @drop_promptLibraryPositiveName.
+  ///
+  /// In en, this message translates to:
+  /// **'Prompt snippet'**
+  String get drop_promptLibraryPositiveName;
+
+  /// No description provided for @drop_promptLibraryNegativeName.
+  ///
+  /// In en, this message translates to:
+  /// **'Undesired content snippet'**
+  String get drop_promptLibraryNegativeName;
+
   /// No description provided for @preciseRef_title.
   ///
   /// In en, this message translates to:

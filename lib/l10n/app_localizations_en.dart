@@ -8114,6 +8114,133 @@ class AppLocalizationsEn extends AppLocalizations {
       'Drag to Image2Image or another target';
 
   @override
+  String get drop_metadataDetected => 'NovelAI metadata detected';
+
+  @override
+  String get drop_metadataParseFailed => 'Metadata could not be parsed';
+
+  @override
+  String get drop_metadataParseFailedHint =>
+      'The image contains metadata fields that cannot currently be read. Other image actions remain available.';
+
+  @override
+  String get drop_metadataErrorDetails => 'View error details';
+
+  @override
+  String get drop_positivePrompt => 'Prompt';
+
+  @override
+  String get drop_negativePrompt => 'Undesired Content';
+
+  @override
+  String drop_characterPrompts(int count) {
+    return 'Character Prompts ($count)';
+  }
+
+  @override
+  String drop_characterPositivePrompt(int index) {
+    return 'Character $index Positive Prompt';
+  }
+
+  @override
+  String drop_characterNegativePrompt(int index) {
+    return 'Character $index Undesired Content';
+  }
+
+  @override
+  String get drop_promptNotRecorded => 'Not recorded';
+
+  @override
+  String get drop_promptCopy => 'Copy';
+
+  @override
+  String get drop_promptAddWhole => 'Add full prompt to library';
+
+  @override
+  String get drop_promptAddSelection => 'Add to library';
+
+  @override
+  String get drop_promptLibraryTitle => 'Add to Library';
+
+  @override
+  String get drop_promptLibraryWriteMode => 'Write mode';
+
+  @override
+  String get drop_promptLibraryCreate => 'New';
+
+  @override
+  String get drop_promptLibraryAppend => 'Append';
+
+  @override
+  String get drop_promptLibraryOverwrite => 'Replace';
+
+  @override
+  String get drop_promptLibraryAliasHint =>
+      'This name is also used by <library name> references';
+
+  @override
+  String get drop_promptLibraryTarget => 'Target entry';
+
+  @override
+  String get drop_promptLibrarySelectTarget => 'Select an entry to update';
+
+  @override
+  String get drop_promptLibrarySeparator => 'Separator';
+
+  @override
+  String get drop_promptLibrarySeparatorComma => 'Comma + space';
+
+  @override
+  String get drop_promptLibrarySeparatorNewline => 'New line';
+
+  @override
+  String get drop_promptLibrarySeparatorNone => 'No separator';
+
+  @override
+  String drop_promptLibraryCharacterCount(int count) {
+    return '$count characters';
+  }
+
+  @override
+  String get drop_promptLibraryExactContentHint =>
+      'Saves this text without cleaning, reordering, or completing it';
+
+  @override
+  String get drop_promptLibraryResultPreview => 'Result preview';
+
+  @override
+  String drop_promptLibraryDuplicate(Object name) {
+    return 'The same content already exists in “$name”';
+  }
+
+  @override
+  String get drop_promptLibraryNameConflict =>
+      'This name already exists. Rename it, append, or replace';
+
+  @override
+  String drop_promptLibraryOverwriteWarning(Object name) {
+    return 'This will replace all prompt content in “$name”';
+  }
+
+  @override
+  String get drop_promptLibraryMore => 'More options';
+
+  @override
+  String get drop_promptLibraryConfirmOverwrite => 'Replace';
+
+  @override
+  String get drop_promptLibrarySaved => 'Saved to library';
+
+  @override
+  String get drop_promptLibrarySaveFailed => 'Failed to save the library entry';
+
+  @override
+  String get drop_promptLibraryPositiveName => 'Prompt snippet';
+
+  @override
+  String get drop_promptLibraryNegativeName => 'Undesired content snippet';
+
+  @override
   String get preciseRef_title => 'Precise Reference';
 
   @override

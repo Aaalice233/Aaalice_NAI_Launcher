@@ -1406,6 +1406,10 @@ class NaiImageMetadata with _$NaiImageMetadata {
   /// 是否有有效数据
   bool get hasData =>
       prompt.isNotEmpty ||
+      negativePrompt.isNotEmpty ||
+      characterPrompts.isNotEmpty ||
+      characterNegativePrompts.isNotEmpty ||
+      characterInfos.isNotEmpty ||
       seed != null ||
       vibeReferences.isNotEmpty ||
       preciseReferenceImages.isNotEmpty;

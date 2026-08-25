@@ -407,6 +407,63 @@ class ImageMetadataService {
     }
   }
 
+  /// 从字节数组获取包含失败原因的完整解析结果。
+  ///
+  /// 拖入菜单需要区分“没有元数据”和“载荷损坏”，因此不能只返回
+  /// nullable metadata 后再重复解析整张图片。
+  Future<MetadataParseResult> getMetadataParseResultFromBytes(
+    Uint8List bytes,
+  ) async {
+    final hash = _hashCalculator.calculateFromBytes(bytes);
+    final cached =
+        _cacheManager.getFromMemory(hash) ??
+        _cacheManager.getFromPersistent(hash);
+    if (cached != null) {
+      return MetadataParseResult.success(
+        cached,
+        'cache',
+        cached.rawJson ?? '',
+        const ['cache'],
+        bytesRead: bytes.length,
+      );
+    }
+
+    final stopwatch = Stopwatch()..start();
+    try {
+      final result = UnifiedMetadataParser.parseFromImage(bytes);
+      final metadata = result.success ? result.metadata : null;
+      if (metadata != null && metadata.hasData) {
+        try {
+          await _cacheManager.save(hash, metadata);
+        } catch (e) {
+          AppLogger.w(
+            'Failed to cache parsed image metadata: $e',
+            'ImageMetadataService',
+          );
+        }
+        _statistics.recordSuccess(stopwatch.elapsed);
+      } else {
+        _statistics.recordFailure(
+          result.errorMessage ?? 'unknown',
+          stopwatch.elapsed,
+        );
+      }
+      return result;
+    } catch (e, stack) {
+      _statistics.recordFailure(
+        'exception: ${e.runtimeType}',
+        stopwatch.elapsed,
+      );
+      AppLogger.e('Parse bytes failed', e, stack, 'ImageMetadataService');
+      return MetadataParseResult.failed(
+        const [],
+        e.toString(),
+        parseTime: stopwatch.elapsed,
+        bytesRead: bytes.length,
+      );
+    }
+  }
+
   /// 手动缓存元数据
   Future<void> cacheMetadata(String path, NaiImageMetadata metadata) async {
     if (!metadata.hasData) return;

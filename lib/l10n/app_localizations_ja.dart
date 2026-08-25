@@ -7932,6 +7932,131 @@ class AppLocalizationsJa extends AppLocalizations {
   String get drop_dragToImg2ImgOrOther => 'Image2Image または別のターゲットにドラッグします';
 
   @override
+  String get drop_metadataDetected => 'NovelAI メタデータを検出しました';
+
+  @override
+  String get drop_metadataParseFailed => 'メタデータを解析できませんでした';
+
+  @override
+  String get drop_metadataParseFailedHint =>
+      '画像にメタデータ項目がありますが、現在は読み取れません。他の画像操作は引き続き使用できます。';
+
+  @override
+  String get drop_metadataErrorDetails => 'エラー詳細を表示';
+
+  @override
+  String get drop_positivePrompt => 'プロンプト';
+
+  @override
+  String get drop_negativePrompt => '除外したい要素';
+
+  @override
+  String drop_characterPrompts(int count) {
+    return 'キャラクタープロンプト（$count）';
+  }
+
+  @override
+  String drop_characterPositivePrompt(int index) {
+    return 'キャラクター $index プロンプト';
+  }
+
+  @override
+  String drop_characterNegativePrompt(int index) {
+    return 'キャラクター $index の除外したい要素';
+  }
+
+  @override
+  String get drop_promptNotRecorded => '記録なし';
+
+  @override
+  String get drop_promptCopy => 'コピー';
+
+  @override
+  String get drop_promptAddWhole => '全文をライブラリに追加';
+
+  @override
+  String get drop_promptAddSelection => 'ライブラリに追加';
+
+  @override
+  String get drop_promptLibraryTitle => 'ライブラリに追加';
+
+  @override
+  String get drop_promptLibraryWriteMode => '書き込み方法';
+
+  @override
+  String get drop_promptLibraryCreate => '新規';
+
+  @override
+  String get drop_promptLibraryAppend => '追記';
+
+  @override
+  String get drop_promptLibraryOverwrite => '置換';
+
+  @override
+  String get drop_promptLibraryAliasHint => 'この名前は <ライブラリ名> の参照にも使用されます';
+
+  @override
+  String get drop_promptLibraryTarget => '対象エントリ';
+
+  @override
+  String get drop_promptLibrarySelectTarget => '更新するエントリを選択';
+
+  @override
+  String get drop_promptLibrarySeparator => '区切り';
+
+  @override
+  String get drop_promptLibrarySeparatorComma => 'カンマ + スペース';
+
+  @override
+  String get drop_promptLibrarySeparatorNewline => '改行';
+
+  @override
+  String get drop_promptLibrarySeparatorNone => '区切りなし';
+
+  @override
+  String drop_promptLibraryCharacterCount(int count) {
+    return '$count 文字';
+  }
+
+  @override
+  String get drop_promptLibraryExactContentHint => 'テキストを整形、並べ替え、補完せずに保存します';
+
+  @override
+  String get drop_promptLibraryResultPreview => '結果プレビュー';
+
+  @override
+  String drop_promptLibraryDuplicate(Object name) {
+    return '同じ内容が「$name」に既にあります';
+  }
+
+  @override
+  String get drop_promptLibraryNameConflict =>
+      '同じ名前があります。名前の変更、追記、または置換を選択してください';
+
+  @override
+  String drop_promptLibraryOverwriteWarning(Object name) {
+    return '「$name」のプロンプト内容をすべて置き換えます';
+  }
+
+  @override
+  String get drop_promptLibraryMore => 'その他のオプション';
+
+  @override
+  String get drop_promptLibraryConfirmOverwrite => '置換を確認';
+
+  @override
+  String get drop_promptLibrarySaved => 'ライブラリに保存しました';
+
+  @override
+  String get drop_promptLibrarySaveFailed => 'ライブラリへの保存に失敗しました';
+
+  @override
+  String get drop_promptLibraryPositiveName => 'プロンプト抜粋';
+
+  @override
+  String get drop_promptLibraryNegativeName => '除外したい要素の抜粋';
+
+  @override
   String get preciseRef_title => '精密参照';
 
   @override

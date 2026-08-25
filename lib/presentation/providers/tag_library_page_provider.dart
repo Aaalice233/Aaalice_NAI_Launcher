@@ -218,7 +218,7 @@ class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
   }
 
   /// 保存条目到存储
-  Future<void> _saveEntries() async {
+  Future<void> _saveEntries({bool rethrowError = false}) async {
     try {
       final json = jsonEncode(state.entries.map((e) => e.toJson()).toList());
       await _storage.setTagLibraryEntriesJson(json);
@@ -229,6 +229,7 @@ class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
         stack,
         'TagLibraryPageProvider',
       );
+      if (rethrowError) rethrow;
     }
   }
 
@@ -260,6 +261,8 @@ class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
     List<String>? tags,
     String? categoryId,
     bool isFavorite = false,
+    bool preserveContentWhitespace = false,
+    bool failOnPersistenceError = false,
   }) async {
     final entry = TagLibraryEntry.create(
       name: name,
@@ -272,11 +275,18 @@ class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
       categoryId: categoryId,
       sortOrder: state.entries.length,
       isFavorite: isFavorite,
+      preserveContentWhitespace: preserveContentWhitespace,
     );
 
-    final newEntries = [...state.entries, entry];
+    final previousEntries = state.entries;
+    final newEntries = [...previousEntries, entry];
     state = state.copyWith(entries: newEntries);
-    await _saveEntries();
+    try {
+      await _saveEntries(rethrowError: failOnPersistenceError);
+    } catch (_) {
+      state = state.copyWith(entries: previousEntries);
+      rethrow;
+    }
 
     AppLogger.d('Added entry: ${entry.displayName}', 'TagLibraryPageProvider');
     return entry;
@@ -285,8 +295,14 @@ class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
   /// 更新条目（带同步）
   /// 
   /// 【新增】自动同步更新关联的固定词（双向同步）
-  Future<void> updateEntry(TagLibraryEntry updatedEntry) async {
-    await updateEntryWithoutSync(updatedEntry);
+  Future<void> updateEntry(
+    TagLibraryEntry updatedEntry, {
+    bool failOnPersistenceError = false,
+  }) async {
+    await updateEntryWithoutSync(
+      updatedEntry,
+      failOnPersistenceError: failOnPersistenceError,
+    );
     
     // 【新增】同步更新关联的固定词
     await _syncToFixedTags(updatedEntry);
@@ -295,7 +311,10 @@ class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
   /// 【新增】更新条目（不带同步）
   /// 
   /// 用于从固定词反向同步时，避免循环同步
-  Future<void> updateEntryWithoutSync(TagLibraryEntry updatedEntry) async {
+  Future<void> updateEntryWithoutSync(
+    TagLibraryEntry updatedEntry, {
+    bool failOnPersistenceError = false,
+  }) async {
     AppLogger.d(
       'updateEntryWithoutSync called: id=${updatedEntry.id}, name=${updatedEntry.name}',
       'TagLibraryPageProvider',
@@ -315,10 +334,16 @@ class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
       'TagLibraryPageProvider',
     );
 
-    final newEntries = [...state.entries];
+    final previousEntries = state.entries;
+    final newEntries = [...previousEntries];
     newEntries[index] = updatedEntry;
     state = state.copyWith(entries: newEntries);
-    await _saveEntries();
+    try {
+      await _saveEntries(rethrowError: failOnPersistenceError);
+    } catch (_) {
+      state = state.copyWith(entries: previousEntries);
+      rethrow;
+    }
 
     AppLogger.d(
       'Entry updated successfully: ${updatedEntry.id}',
