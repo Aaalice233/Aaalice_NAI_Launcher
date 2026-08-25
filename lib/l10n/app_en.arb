@@ -3549,8 +3549,6 @@
   "settings_queueRetryInterval": "Retry Interval",
   "settings_showRandomPromptTools": "Show random prompt tools",
   "settings_showRandomPromptToolsSubtitle": "Show the Random Prompt button and Random Mode toggle on the generation page",
-  "settings_enablePromptWeightScroll": "Adjust prompt weight with mouse wheel",
-  "settings_enablePromptWeightScrollSubtitle": "When prompt text is selected, use the wheel only to adjust its weight and suppress other scroll actions.",
   "settings_queueRetryCountMax": "Max {count} times",
   "@settings_queueRetryCountMax": {
     "placeholders": {

@@ -122,8 +122,6 @@ class UnifiedPromptInput extends ConsumerStatefulWidget {
 }
 
 class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
-  late final ValueGetter<TextEditingController> _effectiveControllerProvider;
-
   /// 语法高亮控制器
   NaiSyntaxController? _syntaxController;
   bool _syncingControllerValue = false;
@@ -266,7 +264,6 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
   @override
   void initState() {
     super.initState();
-    _effectiveControllerProvider = () => _effectiveController;
     _sessionId = _resolveSessionId(widget.sessionId);
 
     // 官网的竖线装饰独立于强调开关，因此始终使用语法控制器。
@@ -1303,7 +1300,6 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
 
   /// 构建文本输入框
   Widget _buildTextField() {
-    final enableWheelAdjustment = ref.watch(promptWeightScrollSettingsProvider);
     final assistantConfig = widget.enableAssistant
         ? ref.watch(promptAssistantConfigProvider)
         : null;
@@ -1360,13 +1356,6 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
       maxLines: widget.expands ? null : widget.maxLines,
       minLines: widget.expands ? null : (widget.minLines ?? 1),
       expands: widget.expands,
-      scrollPhysics:
-          enableWheelAdjustment &&
-              supportsPromptWeightScrollPhysics(defaultTargetPlatform)
-          ? WeightAdjustScrollPhysics(
-              controllerProvider: _effectiveControllerProvider,
-            )
-          : null,
       textAlignVertical: widget.expands ? TextAlignVertical.top : null,
       readOnly: widget.config.readOnly,
       inputFormatters: widget.config.readOnly
@@ -1397,7 +1386,6 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     Widget result = WeightAdjustToolbarWrapper(
       controller: _effectiveController,
       focusNode: _effectiveFocusNode,
-      enableWheelAdjustment: enableWheelAdjustment,
       child: clipboardAwareInput,
     );
 
