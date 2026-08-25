@@ -60,8 +60,10 @@ void main() {
           ),
         );
         expect(parameters['negative_prompt'], equals('$preset, bad hands'));
-        expect(parameters['qualityToggle'], isTrue);
-        expect(parameters['ucPreset'], equals(0));
+        expect(parameters['qualityPresetId'], 'standard');
+        expect(parameters['ucPresetId'], 'heavy');
+        expect(parameters.containsKey('qualityToggle'), isFalse);
+        expect(parameters.containsKey('ucPreset'), isFalse);
         expect(
           parameters['v4_prompt']['caption']['base_caption'],
           equals(
@@ -97,6 +99,109 @@ void main() {
         expected,
       );
     });
+
+    test('should match the captured official V5 request JSON', () async {
+      const params = ImageParams(
+        prompt: 'chinese text: 圣女,',
+        model: ImageModels.animeDiffusionV5Curated,
+        width: 832,
+        height: 1216,
+        scale: 6,
+        steps: 28,
+        seed: 3993934063,
+        qualityToggle: false,
+        ucPreset: UcPresets.noneApiValue,
+      );
+
+      final result = await NAIImageRequestBuilder(
+        params: params,
+        encodeVibe: _fakeEncodeVibe,
+      ).build(sampler: Samplers.kEulerAncestral, isStream: true);
+
+      expect(result.requestData, {
+        'input': 'chinese text: 圣女,',
+        'model': ImageModels.animeDiffusionV5Curated,
+        'action': 'generate',
+        'parameters': {
+          'params_version': 4,
+          'width': 832,
+          'height': 1216,
+          'scale': 6,
+          'sampler': Samplers.kEulerAncestral,
+          'steps': 28,
+          'n_samples': 1,
+          'ucPresetId': 'none',
+          'qualityPresetId': 'none',
+          'autoSmea': false,
+          'dynamic_thresholding': false,
+          'controlnet_strength': 1,
+          'legacy': false,
+          'add_original_image': true,
+          'cfg_rescale': 0,
+          'noise_schedule': NoiseSchedules.karras,
+          'inpaintImg2ImgStrength': 1,
+          'seed': 3993934063,
+          'uc': '',
+          'deliberate_euler_ancestral_bug': false,
+          'prefer_brownian': true,
+          'image_format': 'png',
+          'stream': 'msgpack',
+          'straight_alpha': true,
+          'tag_hint_qt': 0,
+          'tag_hint_uc_preset': 0,
+          'use_coords': false,
+          'legacy_v3_extend': false,
+          'legacy_uc': false,
+          'normalize_reference_strength_multiple': true,
+          'v4_prompt': {
+            'caption': {
+              'base_caption': 'chinese text: 圣女,',
+              'char_captions': <Object>[],
+            },
+            'use_coords': false,
+            'use_order': true,
+          },
+          'v4_negative_prompt': {
+            'caption': {'base_caption': '', 'char_captions': <Object>[]},
+            'legacy_uc': false,
+          },
+          'characterPrompts': <Object>[],
+        },
+        'use_new_shared_trial': true,
+      });
+    });
+
+    test(
+      'should use preset IDs and params version 4 for every model',
+      () async {
+        for (final model in [
+          ImageModels.animeDiffusionV3,
+          ImageModels.animeDiffusionV45Full,
+          ImageModels.animeDiffusionV5Full,
+        ]) {
+          final result = await NAIImageRequestBuilder(
+            params: ImageParams(
+              model: model,
+              qualityToggle: true,
+              ucPreset: UcPresets.heavyApiValue,
+            ),
+            encodeVibe: _fakeEncodeVibe,
+          ).build(sampler: Samplers.kEulerAncestral);
+          final parameters = result.requestParameters;
+
+          expect(parameters['params_version'], 4, reason: model);
+          expect(parameters['qualityPresetId'], 'standard', reason: model);
+          expect(parameters['ucPresetId'], 'heavy', reason: model);
+          expect(parameters['image_format'], 'png', reason: model);
+          expect(
+            parameters.containsKey('qualityToggle'),
+            isFalse,
+            reason: model,
+          );
+          expect(parameters.containsKey('ucPreset'), isFalse, reason: model);
+        }
+      },
+    );
 
     test('should order quoted character text by request centers', () async {
       const params = ImageParams(
@@ -171,6 +276,65 @@ void main() {
       expect(img2imgResult.requestParameters['sm'], isFalse);
       expect(img2imgResult.requestParameters['sm_dyn'], isFalse);
     });
+
+    test(
+      'should pin extra_noise_seed to seed - 1 when a base image exists',
+      () async {
+        final img2img = ImageParams(
+          action: ImageGenerationAction.img2img,
+          model: ImageModels.animeDiffusionV45Curated,
+          sourceImage: _validPngBytes(),
+          seed: 23552134,
+        );
+        final infill = ImageParams(
+          action: ImageGenerationAction.infill,
+          model: ImageModels.animeDiffusionV45Curated,
+          sourceImage: Uint8List.fromList([1, 2, 3]),
+          maskImage: Uint8List.fromList([4, 5, 6]),
+          seed: 7,
+        );
+        const txt2img = ImageParams(seed: 99);
+
+        final img2imgResult = await NAIImageRequestBuilder(
+          params: img2img,
+          encodeVibe: _fakeEncodeVibe,
+        ).build(sampler: 'k_euler');
+        final infillResult = await NAIImageRequestBuilder(
+          params: infill,
+          encodeVibe: _fakeEncodeVibe,
+        ).build(sampler: 'k_euler');
+        final txt2imgResult = await NAIImageRequestBuilder(
+          params: txt2img,
+          encodeVibe: _fakeEncodeVibe,
+        ).build(sampler: 'k_euler');
+
+        expect(img2imgResult.requestParameters['extra_noise_seed'], 23552133);
+        expect(infillResult.requestParameters['extra_noise_seed'], 6);
+        expect(
+          txt2imgResult.requestParameters.containsKey('extra_noise_seed'),
+          isFalse,
+        );
+      },
+    );
+
+    test(
+      'should derive extra_noise_seed from the rolled random seed',
+      () async {
+        final params = ImageParams(
+          action: ImageGenerationAction.img2img,
+          model: ImageModels.animeDiffusionV45Curated,
+          sourceImage: _validPngBytes(),
+          seed: -1,
+        );
+
+        final result = await NAIImageRequestBuilder(
+          params: params,
+          encodeVibe: _fakeEncodeVibe,
+        ).build(sampler: 'k_euler');
+
+        expect(result.requestParameters['extra_noise_seed'], result.seed - 1);
+      },
+    );
 
     test('should throw ArgumentError when sampler is empty', () async {
       const params = ImageParams();
@@ -285,7 +449,7 @@ void main() {
           result.requestParameters['negative_prompt'],
           equals(result.effectiveNegativePrompt),
         );
-        expect(result.requestParameters['ucPreset'], equals(0));
+        expect(result.requestParameters['ucPresetId'], equals('heavy'));
         expect(result.effectiveNegativePrompt, isNot(contains('nsfw')));
       },
     );
@@ -1178,10 +1342,11 @@ void main() {
       // V4 起的结构不再发送 V3 时代的顶层字段
       expect(parameters.containsKey('sm'), isFalse);
       expect(parameters.containsKey('sm_dyn'), isFalse);
-      expect(parameters.containsKey('uc'), isFalse);
+      expect(parameters['uc'], '');
+      expect(parameters.containsKey('negative_prompt'), isFalse);
     });
 
-    test('should keep V4.5 requests on params_version 3', () async {
+    test('should send V4.5 requests with params_version 4', () async {
       const params = ImageParams(model: ImageModels.animeDiffusionV45Full);
       final builder = NAIImageRequestBuilder(
         params: params,
@@ -1190,7 +1355,7 @@ void main() {
 
       final result = await builder.build(sampler: 'k_euler_ancestral');
 
-      expect(result.requestParameters['params_version'], 3);
+      expect(result.requestParameters['params_version'], 4);
     });
 
     test('should omit vibe payload for models without vibe support', () async {

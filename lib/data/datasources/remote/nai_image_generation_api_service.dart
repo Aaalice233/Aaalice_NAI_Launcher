@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 import 'dart:typed_data';
 import 'dart:ui';
 
+import 'package:crypto/crypto.dart' as crypto;
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -32,6 +34,13 @@ const bool _enablePipelineTracing = true;
 /// NovelAI Image Generation API 服务
 /// 处理图像生成相关的 API 调用，包括流式和非流式生成
 class NAIImageGenerationApiService {
+  static const String _correlationIdAlphabet =
+      'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz123456789';
+  static final Random _correlationIdRandom = Random.secure();
+  static final Uint8List _imageCacheHmacKey = Uint8List.fromList(
+    List<int>.generate(32, (_) => Random.secure().nextInt(256)),
+  );
+
   final Dio _dio;
   final NAIImageEnhancementApiService _enhancementService;
   final NaiApiEndpointService _endpointService;
@@ -71,6 +80,175 @@ class NAIImageGenerationApiService {
     }
 
     return sampler;
+  }
+
+  /// 按官网默认协议把生成请求编码为 multipart/form-data。
+  ///
+  /// 图像数据作为独立 PNG part 发送，JSON part 只保留 part 名与缓存键。
+  @visibleForTesting
+  static FormData buildGenerationFormData(Map<String, dynamic> requestData) {
+    final transformedRequest = jsonDecode(jsonEncode(requestData));
+    if (transformedRequest is! Map<String, dynamic>) {
+      throw ArgumentError.value(requestData, 'requestData', 'Expected a map');
+    }
+
+    final formData = FormData();
+    final partNamesByPayload = <String, String>{};
+
+    String appendImagePart(String encodedImage, String requestedPartName) {
+      final existingPartName = partNamesByPayload[encodedImage];
+      if (existingPartName != null) return existingPartName;
+
+      formData.files.add(
+        MapEntry(
+          requestedPartName,
+          MultipartFile.fromBytes(
+            base64Decode(encodedImage),
+            filename: 'blob',
+            contentType: DioMediaType('image', 'png'),
+          ),
+        ),
+      );
+      partNamesByPayload[encodedImage] = requestedPartName;
+      return requestedPartName;
+    }
+
+    void prepareCachedValue(
+      Map<String, dynamic> parameters,
+      String valueKey,
+      String cacheKey,
+    ) {
+      final value = parameters[valueKey];
+      if (value is! String || value.isEmpty) return;
+      parameters[cacheKey] = _imageCacheSecretKey(value);
+    }
+
+    void prepareCachedList(
+      Map<String, dynamic> parameters,
+      String sourceKey,
+      String cachedKey,
+    ) {
+      final source = parameters[sourceKey];
+      if (source is! List || source.isEmpty) return;
+      parameters[cachedKey] = source
+          .map((value) {
+            if (value is! String) {
+              throw ArgumentError.value(
+                value,
+                sourceKey,
+                'Expected base64 strings',
+              );
+            }
+            return <String, dynamic>{
+              'cache_secret_key': _imageCacheSecretKey(value),
+              'data': value,
+            };
+          })
+          .toList(growable: false);
+      parameters.remove(sourceKey);
+    }
+
+    void extractValue(
+      Map<String, dynamic> container,
+      String valueKey,
+      String partName,
+    ) {
+      final value = container[valueKey];
+      if (value is! String || value.isEmpty) return;
+      container[valueKey] = appendImagePart(value, partName);
+    }
+
+    void extractCachedList(
+      Map<String, dynamic> parameters,
+      String cachedKey,
+      String partPrefix,
+    ) {
+      final cachedValues = parameters[cachedKey];
+      if (cachedValues is! List) return;
+      for (var index = 0; index < cachedValues.length; index += 1) {
+        final cachedValue = cachedValues[index];
+        if (cachedValue is! Map<String, dynamic>) continue;
+        final data = cachedValue['data'];
+        if (data is! String || data.isEmpty) continue;
+        cachedValue['data'] = appendImagePart(data, '$partPrefix$index');
+      }
+    }
+
+    final parametersValue = transformedRequest['parameters'];
+    final parameters = parametersValue is Map<String, dynamic>
+        ? parametersValue
+        : null;
+    if (parameters != null) {
+      prepareCachedValue(parameters, 'image', 'image_cache_secret_key');
+      prepareCachedValue(parameters, 'mask', 'mask_cache_secret_key');
+      prepareCachedValue(
+        parameters,
+        'reference_image',
+        'reference_image_cache_secret_key',
+      );
+      prepareCachedList(
+        parameters,
+        'reference_image_multiple',
+        'reference_image_multiple_cached',
+      );
+      prepareCachedList(
+        parameters,
+        'director_reference_images',
+        'director_reference_images_cached',
+      );
+    }
+
+    extractValue(transformedRequest, 'image', 'image');
+    extractValue(transformedRequest, 'mask', 'mask');
+    if (parameters != null) {
+      extractValue(parameters, 'image', 'image');
+      extractValue(parameters, 'mask', 'mask');
+      extractValue(parameters, 'reference_image', 'reference_image');
+      extractCachedList(
+        parameters,
+        'reference_image_multiple_cached',
+        'ref_multiple_',
+      );
+      extractCachedList(
+        parameters,
+        'director_reference_images_cached',
+        'director_ref_',
+      );
+    }
+
+    formData.files.add(
+      MapEntry(
+        'request',
+        MultipartFile.fromBytes(
+          utf8.encode(jsonEncode(transformedRequest)),
+          filename: 'blob',
+          contentType: DioMediaType('application', 'json'),
+        ),
+      ),
+    );
+    return formData;
+  }
+
+  static String _imageCacheSecretKey(String encodedImage) {
+    return crypto.Hmac(
+      crypto.sha256,
+      _imageCacheHmacKey,
+    ).convert(utf8.encode(encodedImage)).toString();
+  }
+
+  static Map<String, String> _generationRequestHeaders(String accept) {
+    return {
+      'Accept': accept,
+      'x-correlation-id': List.generate(
+        6,
+        (_) =>
+            _correlationIdAlphabet[_correlationIdRandom.nextInt(
+              _correlationIdAlphabet.length,
+            )],
+        growable: false,
+      ).join(),
+      'x-initiated-at': DateTime.now().toUtc().toIso8601String(),
+    };
   }
 
   // ==================== 图像生成 API ====================
@@ -290,12 +468,12 @@ class NAIImageGenerationApiService {
       // 5. 发送请求
       final response = await _dio.post(
         _endpointService.imageUrl(ApiConstants.generateImageEndpoint),
-        data: requestData,
+        data: buildGenerationFormData(requestData),
         cancelToken: cancelToken,
         onReceiveProgress: onProgress,
         options: Options(
           responseType: ResponseType.bytes,
-          headers: {'Accept': 'application/x-zip-compressed'},
+          headers: _generationRequestHeaders('application/x-zip-compressed'),
         ),
       );
 
@@ -598,11 +776,11 @@ class NAIImageGenerationApiService {
 
       final response = await _dio.post<ResponseBody>(
         _endpointService.imageUrl(ApiConstants.generateImageStreamEndpoint),
-        data: requestData,
+        data: buildGenerationFormData(requestData),
         cancelToken: cancelToken,
         options: Options(
           responseType: ResponseType.stream,
-          headers: {'Accept': 'application/x-msgpack'},
+          headers: _generationRequestHeaders('application/x-msgpack'),
         ),
       );
       networkStopwatch.stop();

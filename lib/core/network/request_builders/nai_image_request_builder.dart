@@ -17,6 +17,9 @@ import '../../../data/models/image/image_params.dart';
 /// Variety+ sigma 缩放的基准潜空间体积：4 通道 × 104 × 152（832×1216 的潜空间）。
 const int _cfgDelayReferenceLatents = 4 * 104 * 152;
 
+/// 官网当前所有图像模型共用的请求参数版本。
+const int _officialParamsVersion = 4;
+
 typedef EncodeVibeFn =
     Future<String> Function(
       Uint8List image, {
@@ -69,17 +72,26 @@ class NAIImageRequestBuilder {
     required String effectiveNegativePrompt,
     required bool isStream,
   }) {
+    final noiseSchedule = params.capabilities.supportsNoiseSchedule
+        ? NoiseSchedules.resolve(
+            params.noiseSchedule,
+            allowNative: params.capabilities.allowsNativeNoiseSchedule,
+          )
+        : NoiseSchedules.karras;
+    final usesBrownianEulerAncestral =
+        sampler == Samplers.kEulerAncestral &&
+        noiseSchedule != NoiseSchedules.native;
     final requestParameters = <String, dynamic>{
-      'params_version': params.paramsVersion,
+      'params_version': _officialParamsVersion,
       'width': params.width,
       'height': params.height,
       'scale': NAIApiUtils.toJsonNumber(params.scale),
       'sampler': sampler,
       'steps': params.steps,
       'n_samples': params.nSamples,
-      'ucPreset': params.ucPreset,
-      'qualityToggle': params.qualityToggle,
-      'autoSmea': false,
+      'ucPresetId': _resolveUcPresetId(),
+      'qualityPresetId': _resolveQualityPresetId(),
+      if (params.isV4Model) 'autoSmea': false,
       'dynamic_thresholding': params.isV3Model && params.decrisp,
       'controlnet_strength': 1,
       'legacy': false,
@@ -87,33 +99,36 @@ class NAIImageRequestBuilder {
           ? false
           : params.addOriginalImage,
       'cfg_rescale': NAIApiUtils.toJsonNumber(params.cfgRescale),
-      'noise_schedule': params.capabilities.supportsNoiseSchedule
-          ? NoiseSchedules.resolve(
-              params.noiseSchedule,
-              allowNative: params.capabilities.allowsNativeNoiseSchedule,
-            )
-          : NoiseSchedules.karras,
-      'inpaintImg2ImgStrength': NAIApiUtils.toJsonNumber(
-        params.inpaintStrength,
-      ),
+      'noise_schedule': noiseSchedule,
+      if (params.isV4Model || params.inpaintStrength != 1.0)
+        'inpaintImg2ImgStrength': NAIApiUtils.toJsonNumber(
+          params.inpaintStrength,
+        ),
       'seed': seed,
-      'negative_prompt': effectiveNegativePrompt,
-      'deliberate_euler_ancestral_bug': false,
-      'prefer_brownian': true,
+      if (effectiveNegativePrompt.isEmpty)
+        'uc': ''
+      else
+        'negative_prompt': effectiveNegativePrompt,
+      if (usesBrownianEulerAncestral) 'deliberate_euler_ancestral_bug': false,
+      if (usesBrownianEulerAncestral) 'prefer_brownian': true,
+      'image_format': 'png',
       if (isStream) 'stream': 'msgpack',
     };
 
     // sigma 基数按模型取（V4.5 起 58，更早 19），再按潜空间面积缩放。
-    requestParameters['skip_cfg_above_sigma'] =
-        params.varietyPlus && params.capabilities.supportsVarietyPlus
-        ? params.capabilities.cfgDelaySigma *
-              sqrt(
-                4.0 *
-                    (params.width ~/ 8) *
-                    (params.height ~/ 8) /
-                    _cfgDelayReferenceLatents,
-              )
-        : null;
+    if (params.varietyPlus && params.capabilities.supportsVarietyPlus) {
+      requestParameters['skip_cfg_above_sigma'] =
+          params.capabilities.cfgDelaySigma *
+          sqrt(
+            4.0 *
+                (params.width ~/ 8) *
+                (params.height ~/ 8) /
+                _cfgDelayReferenceLatents,
+          );
+    } else if (params.capabilities.supportsVarietyPlus &&
+        params.capabilities.retainsVarietyPlus) {
+      requestParameters['skip_cfg_above_sigma'] = null;
+    }
 
     if (params.capabilities.supportsTransparentBackground) {
       // 官网把 Alpha 模式作为账号级设置，只要模型支持透明就随请求下发。
@@ -148,10 +163,27 @@ class NAIImageRequestBuilder {
     if (!params.isV4Model) {
       requestParameters['sm'] = params.effectiveSmea;
       requestParameters['sm_dyn'] = params.effectiveSmeaDyn;
-      requestParameters['uc'] = effectiveNegativePrompt;
     }
 
     return requestParameters;
+  }
+
+  String _resolveQualityPresetId() {
+    if (!params.qualityToggle) return 'none';
+    return QualityTags.tiersForModel(params.model).contains(params.qualityTier)
+        ? params.qualityTier
+        : QualityTags.standardTier;
+  }
+
+  String _resolveUcPresetId() {
+    return switch (params.ucPreset) {
+      UcPresets.heavyApiValue => 'heavy',
+      UcPresets.lightApiValue => 'light',
+      UcPresets.humanFocusApiValue => 'humanFocus',
+      UcPresets.noneApiValue => 'none',
+      UCPresets.furryFocus => 'furryFocus',
+      _ => 'none',
+    };
   }
 
   /// 质量预设的官网数字编号。
@@ -184,10 +216,12 @@ class NAIImageRequestBuilder {
     required String effectivePrompt,
     required String effectiveNegativePrompt,
   }) {
-    requestParameters['params_version'] = params.capabilities.paramsVersion;
+    requestParameters['params_version'] = _officialParamsVersion;
     requestParameters['use_coords'] = params.useCoords;
     requestParameters['legacy_v3_extend'] = false;
     requestParameters['legacy_uc'] = false;
+    requestParameters['normalize_reference_strength_multiple'] =
+        params.normalizeVibeStrength;
 
     final charCaptions = <Map<String, dynamic>>[];
     final negativeCharCaptions = <Map<String, dynamic>>[];
@@ -575,6 +609,7 @@ class NAIImageRequestBuilder {
       requestParameters['image'] = base64Encode(normalizedSource);
       requestParameters['strength'] = params.strength;
       requestParameters['noise'] = params.noise;
+      requestParameters['color_correct'] = false;
     }
 
     if (params.action == ImageGenerationAction.infill &&
@@ -607,6 +642,11 @@ class NAIImageRequestBuilder {
           'color_correct': true,
         };
       }
+    }
+
+    if (requestParameters.containsKey('image')) {
+      // 官网对带底图的请求固定 extra_noise_seed = seed - 1，缺发时服务端自选加噪种子，同种子无法复现。
+      requestParameters['extra_noise_seed'] = seed - 1;
     }
 
     final vibeEncodingMap = await buildVibeTransferParameters(
