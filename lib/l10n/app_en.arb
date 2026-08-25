@@ -4735,6 +4735,8 @@
   "discordShare_errorBrowser": "Could not open your browser. Check the system default browser setting.",
   "discordShare_errorTimeout": "Discord verification timed out. Please verify again.",
   "discordShare_errorRateLimited": "You are sharing too quickly. Please try again shortly.",
+  "discordShare_errorRateLimitedRetry": "You are sharing too quickly. Try again in {seconds} seconds.",
+  "@discordShare_errorRateLimitedRetry": {"placeholders": {"seconds": {"type": "int"}}},
   "discordShare_errorNoChannels": "No Discord share channels are currently available.",
   "discordShare_errorSession": "Your Discord verification expired. Please verify again.",
   "discordShare_errorRelay": "The Discord share service is temporarily unavailable. Please try again later.",

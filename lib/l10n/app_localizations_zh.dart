@@ -9226,6 +9226,11 @@ class AppLocalizationsZh extends AppLocalizations {
   String get discordShare_errorRateLimited => '分享过于频繁，请稍后再试';
 
   @override
+  String discordShare_errorRateLimitedRetry(int seconds) {
+    return '分享过于频繁，请在 $seconds 秒后重试';
+  }
+
+  @override
   String get discordShare_errorNoChannels => '当前没有可用的 Discord 分享频道';
 
   @override
@@ -21300,6 +21305,11 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get discordShare_errorRateLimited => '分享過於頻繁，請稍後再試';
+
+  @override
+  String discordShare_errorRateLimitedRetry(int seconds) {
+    return '分享過於頻繁，請在 $seconds 秒後重試';
+  }
 
   @override
   String get discordShare_errorNoChannels => '目前沒有可用的 Discord 分享頻道';

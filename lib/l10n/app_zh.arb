@@ -4518,6 +4518,8 @@
   "discordShare_errorBrowser": "无法打开浏览器，请检查系统的默认浏览器设置",
   "discordShare_errorTimeout": "Discord 验证已超时，请重新验证",
   "discordShare_errorRateLimited": "分享过于频繁，请稍后再试",
+  "discordShare_errorRateLimitedRetry": "分享过于频繁，请在 {seconds} 秒后重试",
+  "@discordShare_errorRateLimitedRetry": {"placeholders": {"seconds": {"type": "int"}}},
   "discordShare_errorNoChannels": "当前没有可用的 Discord 分享频道",
   "discordShare_errorSession": "Discord 验证已失效，请重新验证",
   "discordShare_errorRelay": "Discord 分享服务暂时不可用，请稍后再试",

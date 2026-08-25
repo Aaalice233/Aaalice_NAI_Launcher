@@ -9584,6 +9584,11 @@ class AppLocalizationsEn extends AppLocalizations {
       'You are sharing too quickly. Please try again shortly.';
 
   @override
+  String discordShare_errorRateLimitedRetry(int seconds) {
+    return 'You are sharing too quickly. Try again in $seconds seconds.';
+  }
+
+  @override
   String get discordShare_errorNoChannels =>
       'No Discord share channels are currently available.';
 

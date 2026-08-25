@@ -4763,6 +4763,8 @@
   "discordShare_errorBrowser": "ブラウザーを開けません。システムの既定のブラウザー設定を確認してください。",
   "discordShare_errorTimeout": "Discord の確認がタイムアウトしました。もう一度確認してください。",
   "discordShare_errorRateLimited": "共有回数が多すぎます。しばらくしてから再試行してください。",
+  "discordShare_errorRateLimitedRetry": "共有回数が多すぎます。{seconds} 秒後に再試行してください。",
+  "@discordShare_errorRateLimitedRetry": {"placeholders": {"seconds": {"type": "int"}}},
   "discordShare_errorNoChannels": "現在利用できる Discord 共有チャンネルがありません。",
   "discordShare_errorSession": "Discord の確認が期限切れです。もう一度確認してください。",
   "discordShare_errorRelay": "Discord 共有サービスは一時的に利用できません。後でもう一度お試しください。",

@@ -16861,6 +16861,12 @@ abstract class AppLocalizations {
   /// **'You are sharing too quickly. Please try again shortly.'**
   String get discordShare_errorRateLimited;
 
+  /// No description provided for @discordShare_errorRateLimitedRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'You are sharing too quickly. Try again in {seconds} seconds.'**
+  String discordShare_errorRateLimitedRetry(int seconds);
+
   /// No description provided for @discordShare_errorNoChannels.
   ///
   /// In en, this message translates to:

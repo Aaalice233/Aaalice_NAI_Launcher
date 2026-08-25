@@ -9372,6 +9372,11 @@ class AppLocalizationsJa extends AppLocalizations {
   String get discordShare_errorRateLimited => '共有回数が多すぎます。しばらくしてから再試行してください。';
 
   @override
+  String discordShare_errorRateLimitedRetry(int seconds) {
+    return '共有回数が多すぎます。$seconds 秒後に再試行してください。';
+  }
+
+  @override
   String get discordShare_errorNoChannels => '現在利用できる Discord 共有チャンネルがありません。';
 
   @override
