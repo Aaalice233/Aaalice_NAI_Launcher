@@ -116,6 +116,7 @@ You can log in for the first time using your NovelAI account credentials or an A
 ## 🙏 Acknowledgments
 
 - [NovelAI](https://novelai.net/) for providing the image generation service.
+- [Suozhang Codex Site (Codex Gallery)](https://novelai.quicktagcloud.com/) and its [AgIzT/NovelAI-Tag](https://github.com/AgIzT/NovelAI-Tag) project for providing Codex Gallery content and services.
 - [Flutter](https://flutter.dev/) for cross-platform UI capabilities.
 - [Riverpod](https://riverpod.dev/) for state management capabilities.
 - Thanks to all contributors and testers.
