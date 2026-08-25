@@ -2926,7 +2926,6 @@
   "fixedTags_searchLibraryEntries": "ライブラリ エントリを検索します...",
   "fixedTags_noMatchingResults": "一致する結果はありません",
   "reversePrompt_title": "逆プロンプト",
-  "reversePrompt_pending": "保留中",
   "reversePrompt_imageCount": "{count} 画像",
   "@reversePrompt_imageCount": {
     "placeholders": {

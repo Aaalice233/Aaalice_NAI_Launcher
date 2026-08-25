@@ -6305,9 +6305,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get reversePrompt_title => 'Reverse Prompt';
 
   @override
-  String get reversePrompt_pending => 'Pending';
-
-  @override
   String reversePrompt_imageCount(Object count) {
     return '$count image(s)';
   }

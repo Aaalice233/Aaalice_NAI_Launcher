@@ -2964,7 +2964,6 @@
   "fixedTags_searchLibraryEntries": "搜尋詞庫條目...",
   "fixedTags_noMatchingResults": "無匹配結果",
   "reversePrompt_title": "反推",
-  "reversePrompt_pending": "待新增",
   "reversePrompt_imageCount": "{count} 張",
   "@reversePrompt_imageCount": {
     "placeholders": {

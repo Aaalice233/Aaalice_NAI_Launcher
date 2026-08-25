@@ -2949,7 +2949,6 @@
   "fixedTags_noMatchingResults": "无匹配结果",
 
   "reversePrompt_title": "反推",
-  "reversePrompt_pending": "待添加",
   "reversePrompt_imageCount": "{count} 张",
   "@reversePrompt_imageCount": {
     "placeholders": {

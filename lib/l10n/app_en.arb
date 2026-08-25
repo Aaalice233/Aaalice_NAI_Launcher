@@ -2975,7 +2975,6 @@
   "fixedTags_noMatchingResults": "No matching results",
 
   "reversePrompt_title": "Reverse Prompt",
-  "reversePrompt_pending": "Pending",
   "reversePrompt_imageCount": "{count} image(s)",
   "@reversePrompt_imageCount": {
     "placeholders": {

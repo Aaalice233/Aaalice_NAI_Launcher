@@ -6063,9 +6063,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get reversePrompt_title => '反推';
 
   @override
-  String get reversePrompt_pending => '待添加';
-
-  @override
   String reversePrompt_imageCount(Object count) {
     return '$count 张';
   }
@@ -18173,9 +18170,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get reversePrompt_title => '反推';
-
-  @override
-  String get reversePrompt_pending => '待新增';
 
   @override
   String reversePrompt_imageCount(Object count) {

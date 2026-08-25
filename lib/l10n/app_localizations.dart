@@ -11228,12 +11228,6 @@ abstract class AppLocalizations {
   /// **'Reverse Prompt'**
   String get reversePrompt_title;
 
-  /// No description provided for @reversePrompt_pending.
-  ///
-  /// In en, this message translates to:
-  /// **'Pending'**
-  String get reversePrompt_pending;
-
   /// No description provided for @reversePrompt_imageCount.
   ///
   /// In en, this message translates to:
