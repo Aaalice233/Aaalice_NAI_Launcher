@@ -32,13 +32,13 @@ import 'data/datasources/local/nai_tags_data_source.dart';
 import 'data/models/gallery/nai_image_metadata.dart';
 import 'data/repositories/gallery_folder_repository.dart';
 import 'core/cache/gallery_cache_manager.dart';
+import 'core/cache/local_gallery_thumbnail_migration.dart';
 
 import 'core/cache/tag_cache_service.dart';
 import 'core/services/sqflite_bootstrap_service.dart';
 import 'data/services/metadata/isolate_metadata_service.dart';
 import 'data/services/search_index_service.dart';
 import 'data/services/temp_image_service.dart';
-import 'data/services/thumbnail_service.dart';
 import 'presentation/providers/online_gallery_blacklist_provider.dart';
 import 'presentation/screens/splash/app_bootstrap.dart';
 
@@ -435,7 +435,6 @@ Future<bool> _initializeSystemTray() async {
 }
 
 Future<void> _runDeferredStartup(ProviderContainer container) async {
-  final thumbnailService = ThumbnailService.instance;
   await Future.wait([
     _runNonFatalStartupStep('L2 cache cleanup', () async {
       await L2CacheCleaner().checkAndClean();
@@ -460,12 +459,19 @@ Future<void> _runDeferredStartup(ProviderContainer container) async {
     }),
   ]);
 
-  await _runNonFatalStartupStep('Nested thumbnail cleanup', () async {
+  await _runNonFatalStartupStep('Legacy local thumbnail migration', () async {
     final rootPath = await GalleryFolderRepository.instance.getRootPath();
     if (rootPath == null) return;
-    final cleanedCount = await thumbnailService.cleanupNestedThumbs(rootPath);
-    if (cleanedCount > 0) {
-      AppLogger.i('启动清理完成: 删除了 $cleanedCount 个嵌套缩略图目录', 'Main');
+    final result = await const LocalGalleryThumbnailMigration().runOnce(
+      rootPath,
+    );
+    if (!result.alreadyCompleted) {
+      AppLogger.i(
+        'Legacy thumbnail migration: removed ${result.removedFiles} files '
+            '(${result.removedBytes} bytes), preserved '
+            '${result.preservedFiles}, failures ${result.failures}',
+        'Main',
+      );
     }
   });
 
