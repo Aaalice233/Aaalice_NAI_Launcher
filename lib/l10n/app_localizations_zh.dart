@@ -2384,22 +2384,22 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onlineGallery_searchFavorites => '搜索收藏的标题、作者或标签…';
 
   @override
-  String get onlineGallery_localFavorites => '本地收藏';
+  String get onlineGallery_savedLocally => '已保存在本地';
 
   @override
-  String get onlineGallery_localFavoritesDescription => '保存在此设备，所有站点均可使用';
-
-  @override
-  String get onlineGallery_cloudFavorites => '云端收藏';
-
-  @override
-  String get onlineGallery_loginForCloudFavorites => '登录后可查看云端收藏';
+  String get onlineGallery_savedInCloud => '已保存在云端';
 
   @override
   String get onlineGallery_saveVisibleLocally => '保存本页到本地';
 
   @override
   String get onlineGallery_visibleFavoritesAlreadySaved => '本页内容已全部保存到本地收藏';
+
+  @override
+  String get onlineGallery_localFavoritesPartialFailure => '本地收藏加载失败，已保留云端结果';
+
+  @override
+  String get onlineGallery_cloudFavoritesPartialFailure => '云端收藏加载失败，已保留本地结果';
 
   @override
   String onlineGallery_visibleFavoritesSaved(int count) {
@@ -14464,22 +14464,22 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get onlineGallery_searchFavorites => '搜尋收藏的標題、作者或標籤…';
 
   @override
-  String get onlineGallery_localFavorites => '本機收藏';
+  String get onlineGallery_savedLocally => '已儲存在本機';
 
   @override
-  String get onlineGallery_localFavoritesDescription => '儲存在此裝置，所有來源均可使用';
-
-  @override
-  String get onlineGallery_cloudFavorites => '雲端收藏';
-
-  @override
-  String get onlineGallery_loginForCloudFavorites => '登入後可檢視雲端收藏';
+  String get onlineGallery_savedInCloud => '已儲存在雲端';
 
   @override
   String get onlineGallery_saveVisibleLocally => '將本頁儲存至本機';
 
   @override
   String get onlineGallery_visibleFavoritesAlreadySaved => '本頁內容已全部儲存至本機收藏';
+
+  @override
+  String get onlineGallery_localFavoritesPartialFailure => '本機收藏載入失敗，已保留雲端結果';
+
+  @override
+  String get onlineGallery_cloudFavoritesPartialFailure => '雲端收藏載入失敗，已保留本機結果';
 
   @override
   String onlineGallery_visibleFavoritesSaved(int count) {

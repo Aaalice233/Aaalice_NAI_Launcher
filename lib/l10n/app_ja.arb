@@ -1118,12 +1118,12 @@
   "onlineGallery_sourceDoesNotSupportPopular": "現在のサイトは人気ランキングに対応していません",
   "onlineGallery_favorites": "お気に入り",
   "onlineGallery_searchFavorites": "お気に入りのタイトル・作者・タグを検索…",
-  "onlineGallery_localFavorites": "ローカルお気に入り",
-  "onlineGallery_localFavoritesDescription": "このデバイスに保存され、すべてのサイトで利用できます",
-  "onlineGallery_cloudFavorites": "クラウドお気に入り",
-  "onlineGallery_loginForCloudFavorites": "ログインするとクラウドお気に入りを表示できます",
+  "onlineGallery_savedLocally": "ローカルに保存済み",
+  "onlineGallery_savedInCloud": "クラウドに保存済み",
   "onlineGallery_saveVisibleLocally": "このページをローカル保存",
   "onlineGallery_visibleFavoritesAlreadySaved": "このページはすべてローカル保存済みです",
+  "onlineGallery_localFavoritesPartialFailure": "ローカルお気に入りの読み込みに失敗しました。クラウドの結果は保持されています",
+  "onlineGallery_cloudFavoritesPartialFailure": "クラウドお気に入りの読み込みに失敗しました。ローカルの結果は保持されています",
   "onlineGallery_visibleFavoritesSaved": "{count} 件をローカルお気に入りに保存しました",
   "@onlineGallery_visibleFavoritesSaved": {
     "placeholders": {

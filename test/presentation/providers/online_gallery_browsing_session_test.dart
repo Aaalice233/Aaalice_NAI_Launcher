@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -76,6 +78,55 @@ void main() {
     expect(restored.currentCache.scrollOffset, 2048);
     expect(restored.currentCache.anchorStableKey, 'ai_tag:42');
     expect(restored.randomSession.cache.scrollOffset, 512);
+  });
+
+  test('legacy favorite scope is removed and its position is migrated', () {
+    final restored = decodeOnlineGalleryBrowsingSession(
+      jsonEncode({
+        'version': 1,
+        'viewMode': 'favorites',
+        'favoritesSourceId': 'gelbooru',
+        'favoritesScope': 'remote',
+        'positions': {
+          'favorites:gelbooru:remote||egqs|codex:|blacklist:0': {
+            'page': 4,
+            'offset': 96,
+          },
+        },
+      }),
+    );
+
+    expect(restored.viewMode, GalleryViewMode.favorites);
+    expect(restored.currentCache.page, 4);
+    expect(restored.currentCache.scrollOffset, 96);
+    expect(
+      encodeOnlineGalleryBrowsingSession(restored),
+      isNot(contains('favoritesScope')),
+    );
+  });
+
+  test('legacy favorite migration prefers the selected scope position', () {
+    final restored = decodeOnlineGalleryBrowsingSession(
+      jsonEncode({
+        'version': 1,
+        'viewMode': 'favorites',
+        'favoritesSourceId': 'danbooru',
+        'favoritesScope': 'remote',
+        'positions': {
+          'favorites:danbooru:local||egqs|codex:|blacklist:0': {
+            'page': 2,
+            'offset': 20,
+          },
+          'favorites:danbooru:remote||egqs|codex:|blacklist:0': {
+            'page': 8,
+            'offset': 80,
+          },
+        },
+      }),
+    );
+
+    expect(restored.currentCache.page, 8);
+    expect(restored.currentCache.scrollOffset, 80);
   });
 
   test('invalid or obsolete session safely falls back to defaults', () {
@@ -167,6 +218,29 @@ void main() {
       expect(restored.mediaFilter, QuickTagCloudMediaFilter.withoutImages);
     },
   );
+
+  test('favorite caches never leak across sources or queries', () {
+    const aiItem = GalleryItem(
+      id: 1,
+      sourceId: GallerySourceId.aiTag,
+      workId: 'ai-1',
+    );
+    var state = const OnlineGalleryState(
+      viewMode: GalleryViewMode.favorites,
+      favoritesSourceId: GallerySourceId.aiTag,
+    );
+    state = state.updateFavoritesCache(
+      GallerySourceId.aiTag,
+      const ModeCache(posts: [aiItem], hasMore: false),
+    );
+
+    expect(state.favoritesCacheFor(GallerySourceId.aiTag).posts, [aiItem]);
+    expect(state.favoritesCacheFor(GallerySourceId.danbooru).posts, isEmpty);
+    expect(state.favoritesCacheFor(GallerySourceId.gelbooru).posts, isEmpty);
+
+    state = state.copyWith(favoriteSearchQuery: 'different query');
+    expect(state.favoritesCacheFor(GallerySourceId.aiTag).posts, isEmpty);
+  });
 
   test('mode changes keep the currently selected source', () async {
     final storage = _MemoryStorage();

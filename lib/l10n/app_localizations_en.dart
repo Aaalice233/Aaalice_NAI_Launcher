@@ -2472,18 +2472,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Search favorites by title, author, or tag…';
 
   @override
-  String get onlineGallery_localFavorites => 'Local favorites';
+  String get onlineGallery_savedLocally => 'Saved locally';
 
   @override
-  String get onlineGallery_localFavoritesDescription =>
-      'Saved on this device and available for every source';
-
-  @override
-  String get onlineGallery_cloudFavorites => 'Cloud favorites';
-
-  @override
-  String get onlineGallery_loginForCloudFavorites =>
-      'Sign in to view cloud favorites';
+  String get onlineGallery_savedInCloud => 'Saved in cloud';
 
   @override
   String get onlineGallery_saveVisibleLocally => 'Save page locally';
@@ -2491,6 +2483,14 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get onlineGallery_visibleFavoritesAlreadySaved =>
       'Everything on this page is already saved locally';
+
+  @override
+  String get onlineGallery_localFavoritesPartialFailure =>
+      'Local favorites failed to load; cloud results are still available';
+
+  @override
+  String get onlineGallery_cloudFavoritesPartialFailure =>
+      'Cloud favorites failed to load; local results are still available';
 
   @override
   String onlineGallery_visibleFavoritesSaved(int count) {

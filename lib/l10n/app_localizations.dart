@@ -4485,29 +4485,17 @@ abstract class AppLocalizations {
   /// **'Search favorites by title, author, or tag…'**
   String get onlineGallery_searchFavorites;
 
-  /// No description provided for @onlineGallery_localFavorites.
+  /// No description provided for @onlineGallery_savedLocally.
   ///
   /// In en, this message translates to:
-  /// **'Local favorites'**
-  String get onlineGallery_localFavorites;
+  /// **'Saved locally'**
+  String get onlineGallery_savedLocally;
 
-  /// No description provided for @onlineGallery_localFavoritesDescription.
+  /// No description provided for @onlineGallery_savedInCloud.
   ///
   /// In en, this message translates to:
-  /// **'Saved on this device and available for every source'**
-  String get onlineGallery_localFavoritesDescription;
-
-  /// No description provided for @onlineGallery_cloudFavorites.
-  ///
-  /// In en, this message translates to:
-  /// **'Cloud favorites'**
-  String get onlineGallery_cloudFavorites;
-
-  /// No description provided for @onlineGallery_loginForCloudFavorites.
-  ///
-  /// In en, this message translates to:
-  /// **'Sign in to view cloud favorites'**
-  String get onlineGallery_loginForCloudFavorites;
+  /// **'Saved in cloud'**
+  String get onlineGallery_savedInCloud;
 
   /// No description provided for @onlineGallery_saveVisibleLocally.
   ///
@@ -4520,6 +4508,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Everything on this page is already saved locally'**
   String get onlineGallery_visibleFavoritesAlreadySaved;
+
+  /// No description provided for @onlineGallery_localFavoritesPartialFailure.
+  ///
+  /// In en, this message translates to:
+  /// **'Local favorites failed to load; cloud results are still available'**
+  String get onlineGallery_localFavoritesPartialFailure;
+
+  /// No description provided for @onlineGallery_cloudFavoritesPartialFailure.
+  ///
+  /// In en, this message translates to:
+  /// **'Cloud favorites failed to load; local results are still available'**
+  String get onlineGallery_cloudFavoritesPartialFailure;
 
   /// No description provided for @onlineGallery_visibleFavoritesSaved.
   ///

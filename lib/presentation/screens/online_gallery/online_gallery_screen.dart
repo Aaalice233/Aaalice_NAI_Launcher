@@ -745,13 +745,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             children: [
               _buildSourceSelector(state),
               const SizedBox(width: 8),
-              _buildModeSelector(
-                theme,
-                state,
-                authState,
-                gelbooruAuthState,
-                compact: compactModes,
-              ),
+              _buildModeSelector(theme, state, compact: compactModes),
               const SizedBox(width: 8),
               _buildRatingControl(theme, state, compact: compactRating),
             ],
@@ -859,9 +853,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
 
   Widget _buildModeSelector(
     ThemeData theme,
-    OnlineGalleryState state,
-    DanbooruAuthState authState,
-    GelbooruAuthState gelbooruAuthState, {
+    OnlineGalleryState state, {
     required bool compact,
   }) {
     final activeSourceId = state.activeSourceId;
@@ -917,15 +909,6 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
               _galleryNotifier.switchToFavorites();
             },
             isLast: true,
-            showBadge:
-                state.favoritesScope == GalleryFavoritesScope.remote &&
-                switch (state.favoritesSourceId) {
-                  GallerySourceId.gelbooru =>
-                    !gelbooruAuthState.isAuthenticated,
-                  GallerySourceId.danbooru => !authState.isLoggedIn,
-                  _ => false,
-                },
-            badgeHint: context.l10n.onlineGallery_loginForCloudFavorites,
             selectedBackgroundColor: const Color(0xFFBE185D),
             selectedForegroundColor: Colors.white,
           ),
@@ -1704,8 +1687,9 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     final capabilities = gallerySourceCapabilities[activeSourceId]!;
     final controls = <Widget>[];
 
-    if (state.viewMode == GalleryViewMode.favorites) {
-      controls.add(_buildFavoritesScopeControl(theme, state));
+    if (state.viewMode == GalleryViewMode.favorites &&
+        state.currentCache.hasFavoritesPartialFailure) {
+      controls.add(_buildFavoritesPartialFailureNotice(theme, state));
     }
     if (activeSourceId == GallerySourceId.quickTagCloud) {
       controls.add(
@@ -1749,7 +1733,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       }
       if (state.viewMode == GalleryViewMode.favorites &&
           state.favoritesSourceId == GallerySourceId.gelbooru &&
-          state.favoritesScope == GalleryFavoritesScope.remote) {
+          ref.watch(gelbooruAuthProvider).isAuthenticated) {
         controls
           ..add(_buildGelbooruFavoritesNotice(theme))
           ..add(
@@ -1786,60 +1770,37 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     );
   }
 
-  Widget _buildFavoritesScopeControl(
+  Widget _buildFavoritesPartialFailureNotice(
     ThemeData theme,
     OnlineGalleryState state,
   ) {
-    final capabilities = state.favoritesSourceId.capabilities;
-    if (capabilities.remoteFavorites == GalleryRemoteFavoritesCapability.none) {
-      return Tooltip(
-        message: context.l10n.onlineGallery_localFavoritesDescription,
-        child: Chip(
-          avatar: const Icon(Icons.devices_rounded, size: 16),
-          label: Text(context.l10n.onlineGallery_localFavorites),
-          visualDensity: VisualDensity.compact,
-        ),
-      );
-    }
-    final remoteAuthenticated = switch (state.favoritesSourceId) {
-      GallerySourceId.danbooru => ref.watch(danbooruAuthProvider).isLoggedIn,
-      GallerySourceId.gelbooru =>
-        ref.watch(gelbooruAuthProvider).isAuthenticated,
-      _ => false,
-    };
-    return SegmentedButton<GalleryFavoritesScope>(
-      showSelectedIcon: false,
-      segments: [
-        ButtonSegment(
-          value: GalleryFavoritesScope.local,
-          icon: const Icon(Icons.devices_rounded, size: 16),
-          label: Text(context.l10n.onlineGallery_localFavorites),
-        ),
-        ButtonSegment(
-          value: GalleryFavoritesScope.remote,
-          enabled: remoteAuthenticated,
-          icon: Icon(
-            capabilities.remoteFavorites ==
-                    GalleryRemoteFavoritesCapability.readOnly
-                ? Icons.cloud_download_outlined
-                : Icons.cloud_outlined,
+    final localFailed = state.currentCache.localFavoritesErrorCode != null;
+    final message = localFailed
+        ? context.l10n.onlineGallery_localFavoritesPartialFailure
+        : context.l10n.onlineGallery_cloudFavoritesPartialFailure;
+    return Container(
+      padding: const EdgeInsetsDirectional.only(start: 10),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.errorContainer.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.warning_amber_rounded,
             size: 16,
+            color: theme.colorScheme.onErrorContainer,
           ),
-          label: Text(context.l10n.onlineGallery_cloudFavorites),
-          tooltip: remoteAuthenticated
-              ? null
-              : context.l10n.onlineGallery_loginForCloudFavorites,
-        ),
-      ],
-      selected: {state.favoritesScope},
-      onSelectionChanged: (selection) {
-        if (selection.isNotEmpty) {
-          _galleryNotifier.setFavoritesScope(selection.first);
-        }
-      },
-      style: const ButtonStyle(
-        visualDensity: VisualDensity.compact,
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          const SizedBox(width: 6),
+          Text(message),
+          IconButton(
+            tooltip: context.l10n.common_retry,
+            onPressed: state.isLoading ? null : _galleryNotifier.refresh,
+            icon: const Icon(Icons.refresh_rounded, size: 17),
+            visualDensity: VisualDensity.compact,
+          ),
+        ],
       ),
     );
   }
@@ -2449,11 +2410,6 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
 
   bool _canWriteFavorites(OnlineGalleryState state) {
     final sourceId = _activeSource(state);
-    if (sourceId == GallerySourceId.gelbooru &&
-        state.viewMode == GalleryViewMode.favorites &&
-        state.favoritesScope == GalleryFavoritesScope.remote) {
-      return false;
-    }
     final capabilities = gallerySourceCapabilities[sourceId]!;
     return capabilities.supportsWritableFavorites ||
         capabilities.supportsLocalFavorites;
@@ -2787,15 +2743,10 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     required double layoutAspectRatio,
     GalleryDetail? detail,
   }) {
-    final favoriteReadOnly =
-        post.sourceId == GallerySourceId.gelbooru &&
-        state.viewMode == GalleryViewMode.favorites &&
-        state.favoritesScope == GalleryFavoritesScope.remote;
     final capabilities = gallerySourceCapabilities[post.sourceId]!;
     final canWriteFavorite =
-        !favoriteReadOnly &&
-        (capabilities.supportsWritableFavorites ||
-            capabilities.supportsLocalFavorites);
+        capabilities.supportsWritableFavorites ||
+        capabilities.supportsLocalFavorites;
     final targetMedia = post.focusedMediaId != null
         ? post.cover
         : detail != null && detail.media.isNotEmpty
@@ -2808,16 +2759,23 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         final favoriteState = cardRef.watch(
           onlineGalleryNotifierProvider.select(
             (value) => (
-              value.favoritedPostKeys,
+              value.localFavoritedPostKeys,
+              value.remoteFavoritedPostKeys,
               value.favoriteLoadingPostKeys.contains(postKey),
-              value.favoritesScope,
-              value.viewMode,
             ),
           ),
         );
-        final isFavorited = cardRef
-            .read(onlineGalleryNotifierProvider.notifier)
-            .isFavorited(post);
+        final localFavorited = favoriteState.$1.contains(postKey);
+        final remoteFavorited = favoriteState.$2.contains(postKey);
+        final writesRemotely =
+            post.sourceId == GallerySourceId.danbooru &&
+            cardRef.watch(
+              danbooruAuthProvider.select((value) => value.isLoggedIn),
+            );
+        final isFavorited = writesRemotely ? remoteFavorited : localFavorited;
+        final hasSecondaryFavorite = writesRemotely
+            ? localFavorited
+            : remoteFavorited;
         final selectionState = cardRef.watch(
           onlineGallerySelectionNotifierProvider.select(
             (value) =>
@@ -2860,9 +2818,19 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           itemWidth: itemWidth,
           layoutAspectRatio: layoutAspectRatio,
           isFavorited: isFavorited,
-          isFavoriteLoading: favoriteState.$2,
-          showFavoriteAction: canWriteFavorite || favoriteReadOnly,
-          favoriteReadOnly: favoriteReadOnly,
+          isFavoriteLoading: favoriteState.$3,
+          showFavoriteAction: canWriteFavorite,
+          favoriteReadOnly: false,
+          secondaryFavoriteIcon: hasSecondaryFavorite
+              ? writesRemotely
+                    ? Icons.download_done
+                    : Icons.cloud_done
+              : null,
+          secondaryFavoriteTooltip: hasSecondaryFavorite
+              ? writesRemotely
+                    ? context.l10n.onlineGallery_savedLocally
+                    : context.l10n.onlineGallery_savedInCloud
+              : null,
           selectionMode: selectionState.$1,
           isSelected: selectionState.$2,
           canSelect:
@@ -3220,10 +3188,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           favoriteLoading: galleryState.favoriteLoadingPostKeys.contains(
             stableKey,
           ),
-          canToggleFavorite:
-              !(item.sourceId == GallerySourceId.gelbooru &&
-                  galleryState.viewMode == GalleryViewMode.favorites &&
-                  galleryState.favoritesScope == GalleryFavoritesScope.remote),
+          canToggleFavorite: true,
           labels: GalleryDetailDialogLabels(
             sourceName: item.sourceId == GallerySourceId.quickTagCloud
                 ? l10n.onlineGallery_sourceQuickTagCloud
@@ -4273,9 +4238,7 @@ class _ModeButton extends StatelessWidget {
   final VoidCallback? onTap;
   final bool isFirst;
   final bool isLast;
-  final bool showBadge;
   final bool compact;
-  final String? badgeHint;
   final String? disabledHint;
   final Color selectedBackgroundColor;
   final Color selectedForegroundColor;
@@ -4288,9 +4251,7 @@ class _ModeButton extends StatelessWidget {
     required this.onTap,
     this.isFirst = false,
     this.isLast = false,
-    this.showBadge = false,
     this.compact = false,
-    this.badgeHint,
     this.disabledHint,
     required this.selectedBackgroundColor,
     required this.selectedForegroundColor,
@@ -4310,16 +4271,13 @@ class _ModeButton extends StatelessWidget {
         ? selectedForegroundColor
         : theme.colorScheme.onSurfaceVariant;
 
-    final tooltip =
-        disabledHint ??
-        (showBadge && badgeHint != null ? '$label · $badgeHint' : label);
+    final tooltip = disabledHint ?? label;
     return Tooltip(
       message: tooltip,
       child: Semantics(
         button: true,
         enabled: enabled,
         selected: isSelected,
-        hint: showBadge ? badgeHint : null,
         child: Material(
           color: isSelected ? selectedBackgroundColor : Colors.transparent,
           borderRadius: borderRadius,
@@ -4352,16 +4310,6 @@ class _ModeButton extends StatelessWidget {
                         color: foregroundColor,
                       ),
                     ),
-                    if (showBadge)
-                      Container(
-                        margin: const EdgeInsets.only(left: 4),
-                        width: 6,
-                        height: 6,
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.error,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
                   ],
                 ),
               ),
