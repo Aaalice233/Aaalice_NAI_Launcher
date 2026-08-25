@@ -1077,7 +1077,6 @@
   "onlineGallery_randomDrawing": "抽取中…",
   "onlineGallery_randomExhausted": "當前範圍暫無更多未見圖片",
   "onlineGallery_randomRestart": "重新開始",
-  "onlineGallery_originalRetry": "原圖載入失敗，重試",
   "onlineGallery_login": "登入",
   "onlineGallery_logout": "退出登入",
   "onlineGallery_dayRank": "日榜",
@@ -1089,11 +1088,9 @@
   "onlineGallery_favoritesEmpty": "收藏夾為空",
   "onlineGallery_noResults": "沒有找到圖片",
   "onlineGallery_pleaseLogin": "請先登入",
-  "onlineGallery_size": "尺寸",
   "onlineGallery_score": "評分",
   "onlineGallery_ratingLabel": "分級",
   "onlineGallery_favCount": "收藏",
-  "onlineGallery_type": "型別",
   "mediaType_video": "影片",
   "mediaType_gif": "動圖",
   "onlineGallery_tags": "標籤",
@@ -1106,8 +1103,6 @@
   "onlineGallery_promptTagCategories": "提示詞類別",
   "onlineGallery_promptTagCategoriesTooltip": "選擇複製、傳送或加入佇列時包含的標籤類別",
   "onlineGallery_keepOnePromptTagCategory": "至少保留一個提示詞類別",
-  "onlineGallery_open": "開啟",
-  "onlineGallery_send": "傳送",
   "onlineGallery_addToQueue": "加入佇列",
   "onlineGallery_sendToTextToImage": "傳送到文生圖",
   "onlineGallery_sentToTextToImage": "已傳送到文生圖",
@@ -1120,9 +1115,7 @@
     }
   },
   "onlineGallery_noTagInfo": "此圖片沒有標籤資訊",
-  "onlineGallery_promptSentToGeneration": "提示詞已傳送到生成頁面",
   "onlineGallery_noImageUrl": "此圖片沒有可用地址",
-  "onlineGallery_gifLoadFailed": "GIF載入失敗",
   "onlineGallery_pinchToZoom": "雙指縮放",
   "onlineGallery_metadata": "後設資料",
   "onlineGallery_addedToQueueWithCount": "已加入佇列，目前共有 {count} 個待執行任務",
@@ -1272,13 +1265,6 @@
       "count": {}
     }
   },
-  "onlineGallery_downloadSelectedCompleted": "下載完成: 成功 {success}, 失敗 {failed}",
-  "@onlineGallery_downloadSelectedCompleted": {
-    "placeholders": {
-      "success": {},
-      "failed": {}
-    }
-  },
   "onlineGallery_downloadSelectedCompletedWithSkipped": "下載完成：成功 {success}，失敗 {failed}，略過 {skipped} 個純文字詞條",
   "@onlineGallery_downloadSelectedCompletedWithSkipped": {
     "placeholders": {
@@ -1335,7 +1321,6 @@
   "onlineGallery_negativePromptCopyHeading": "負面提示詞",
   "onlineGallery_codexCharacterPrompts": "角色提示詞",
   "onlineGallery_codexNote": "備註",
-  "onlineGallery_codexRawTag": "Raw Tag",
   "onlineGallery_codexCopyPositive": "複製正向",
   "onlineGallery_codexCopyNegative": "複製負向",
   "onlineGallery_codexCopyCharacter": "複製此角色",
@@ -1354,7 +1339,6 @@
   "onlineGallery_codexUntitled": "未命名詞條",
   "onlineGallery_artistHunt": "僅畫師串",
   "onlineGallery_artistHuntTooltip": "只顯示正向 Prompt 中明確包含 artist: 標籤的圖片",
-  "onlineGallery_artistChain": "畫師串",
   "onlineGallery_copyArtistChain": "複製畫師串",
   "onlineGallery_copyFullPrompt": "複製完整 Prompt",
   "onlineGallery_copyRawArtistFragments": "複製原始畫師片段",
@@ -1390,12 +1374,6 @@
   "onlineGallery_imageUnavailable": "圖片當前不可用。",
   "onlineGallery_loadedAll": "已載入全部",
   "onlineGallery_retryAppend": "載入失敗，點選重試",
-  "onlineGallery_rankNumber": "第 {rank} 名",
-  "@onlineGallery_rankNumber": {
-    "placeholders": {
-      "rank": {}
-    }
-  },
   "onlineGallery_multipleImages": "{count} 張圖片",
   "@onlineGallery_multipleImages": {
     "placeholders": {
@@ -1405,7 +1383,6 @@
   "onlineGallery_views": "瀏覽",
   "onlineGallery_downloadAllMedia": "下載作品全部圖片",
   "onlineGallery_copyFullMetadata": "複製完整後設資料",
-  "onlineGallery_metadataParseFailed": "後設資料解析失敗，原始內容已保留，可直接複製。",
   "onlineGallery_gelbooruReadOnly": "只讀收藏",
   "onlineGallery_gelbooruFavoritesSortHint": "按帖子 ID 從新到舊排列，不保證與網站收藏時間順序一致。",
   "tooltip_fullscreenEdit": "全屏編輯",
