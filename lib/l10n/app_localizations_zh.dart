@@ -2300,6 +2300,24 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get character_summaryEmpty => '未添加角色';
+
+  @override
+  String character_summaryEnabled(int count, String name) {
+    return '已启用 $count 个 · $name';
+  }
+
+  @override
+  String character_summaryMore(int count, String name, int additional) {
+    return '已启用 $count 个 · $name +$additional';
+  }
+
+  @override
+  String character_summaryAllDisabled(int count) {
+    return '已启用 0 个 · 已停用 $count 个';
+  }
+
+  @override
   String get gallery_generationParams => '生成参数';
 
   @override
@@ -14377,6 +14395,24 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String character_number(Object index) {
     return '角色 $index';
+  }
+
+  @override
+  String get character_summaryEmpty => '未新增角色';
+
+  @override
+  String character_summaryEnabled(int count, String name) {
+    return '已啟用 $count 個 · $name';
+  }
+
+  @override
+  String character_summaryMore(int count, String name, int additional) {
+    return '已啟用 $count 個 · $name +$additional';
+  }
+
+  @override
+  String character_summaryAllDisabled(int count) {
+    return '已啟用 0 個 · 已停用 $count 個';
   }
 
   @override

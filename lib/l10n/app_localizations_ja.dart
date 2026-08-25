@@ -2334,6 +2334,24 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
+  String get character_summaryEmpty => 'キャラクター未追加';
+
+  @override
+  String character_summaryEnabled(int count, String name) {
+    return '$count人有効 · $name';
+  }
+
+  @override
+  String character_summaryMore(int count, String name, int additional) {
+    return '$count人有効 · $name +$additional';
+  }
+
+  @override
+  String character_summaryAllDisabled(int count) {
+    return '0人有効 · $count人無効';
+  }
+
+  @override
   String get gallery_generationParams => '生成パラメータ';
 
   @override

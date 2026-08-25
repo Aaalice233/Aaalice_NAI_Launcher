@@ -4329,6 +4329,30 @@ abstract class AppLocalizations {
   /// **'Character {index}'**
   String character_number(Object index);
 
+  /// No description provided for @character_summaryEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No characters added'**
+  String get character_summaryEmpty;
+
+  /// No description provided for @character_summaryEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} enabled · {name}'**
+  String character_summaryEnabled(int count, String name);
+
+  /// No description provided for @character_summaryMore.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} enabled · {name} +{additional}'**
+  String character_summaryMore(int count, String name, int additional);
+
+  /// No description provided for @character_summaryAllDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'0 enabled · {count} disabled'**
+  String character_summaryAllDisabled(int count);
+
   /// No description provided for @gallery_generationParams.
   ///
   /// In en, this message translates to:

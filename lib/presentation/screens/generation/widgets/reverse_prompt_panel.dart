@@ -9,6 +9,7 @@ import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 import '../../../../data/models/character/character_prompt.dart';
 import '../../../../data/models/tag_library/tag_library_entry.dart';
 import '../../../../data/services/local_onnx_model_service.dart';
+import '../../../providers/generation/generation_panel_expansion_provider.dart';
 import '../../../providers/generation/generation_params_notifier.dart';
 import '../../../providers/reverse_prompt_provider.dart';
 import '../../../providers/tag_library_page_provider.dart';
@@ -30,21 +31,29 @@ class ReversePromptPanel extends ConsumerStatefulWidget {
 }
 
 class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
-  bool _isExpanded = false;
+  static const _panel = GenerationWorkbenchPanel.reversePrompt;
+
   bool _isDragging = false;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final state = ref.watch(reversePromptProvider);
+    final isExpanded = ref.watch(
+      generationPanelExpansionProvider.select(
+        (value) => value.isExpanded(_panel),
+      ),
+    );
     final hasImages = state.images.isNotEmpty;
-    final showBackground = hasImages && !_isExpanded;
+    final showBackground = hasImages && !isExpanded;
 
     return CollapsibleImagePanel(
       title: context.l10n.reversePrompt_title,
       icon: Icons.manage_search_rounded,
-      isExpanded: _isExpanded,
-      onToggle: () => setState(() => _isExpanded = !_isExpanded),
+      isExpanded: isExpanded,
+      onToggle: () => unawaited(
+        ref.read(generationPanelExpansionProvider.notifier).toggle(_panel),
+      ),
       hasData: hasImages || state.finalPrompt.isNotEmpty,
       backgroundImage: showBackground
           ? DecodedMemoryImage(
@@ -54,7 +63,7 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
             )
           : null,
       badge: _buildBadge(context, state, showBackground),
-      child: Padding(
+      childBuilder: (context) => Padding(
         padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,

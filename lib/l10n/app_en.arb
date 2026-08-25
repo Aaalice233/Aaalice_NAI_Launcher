@@ -1088,6 +1088,28 @@
       "index": {}
     }
   },
+  "character_summaryEmpty": "No characters added",
+  "character_summaryEnabled": "{count} enabled · {name}",
+  "@character_summaryEnabled": {
+    "placeholders": {
+      "count": {"type": "int"},
+      "name": {"type": "String"}
+    }
+  },
+  "character_summaryMore": "{count} enabled · {name} +{additional}",
+  "@character_summaryMore": {
+    "placeholders": {
+      "count": {"type": "int"},
+      "name": {"type": "String"},
+      "additional": {"type": "int"}
+    }
+  },
+  "character_summaryAllDisabled": "0 enabled · {count} disabled",
+  "@character_summaryAllDisabled": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
   "gallery_generationParams": "Generation Parameters",
   "gallery_metaModel": "Model",
   "gallery_metaResolution": "Resolution",

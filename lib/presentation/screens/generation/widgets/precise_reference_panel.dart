@@ -12,6 +12,7 @@ import '../../../../../core/extensions/precise_ref_type_extensions.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/image/image_params.dart';
 import '../../../../data/services/precise_ref_library_storage_service.dart';
+import '../../../providers/generation/generation_panel_expansion_provider.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/precise_ref_library_provider.dart';
 import '../../../utils/dropped_file_reader.dart';
@@ -44,7 +45,8 @@ class PreciseReferencePanel extends ConsumerStatefulWidget {
 }
 
 class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
-  bool _isExpanded = false;
+  static const _panel = GenerationWorkbenchPanel.preciseReference;
+
   bool _isFileDraggingOver = false;
   bool _isProcessingDroppedFiles = false;
 
@@ -54,6 +56,11 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
     final references = ref.watch(
       generationParamsNotifierProvider.select(
         (params) => params.preciseReferences,
+      ),
+    );
+    final isExpanded = ref.watch(
+      generationPanelExpansionProvider.select(
+        (value) => value.isExpanded(_panel),
       ),
     );
     final hasReferences = references.isNotEmpty;
@@ -68,13 +75,15 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
     );
 
     // 判断是否显示背景（折叠且有数据时显示）
-    final showBackground = hasReferences && !_isExpanded;
+    final showBackground = hasReferences && !isExpanded;
 
     return CollapsibleImagePanel(
       title: context.l10n.preciseRef_title,
       icon: Icons.person_pin,
-      isExpanded: _isExpanded,
-      onToggle: () => setState(() => _isExpanded = !_isExpanded),
+      isExpanded: isExpanded,
+      onToggle: () => unawaited(
+        ref.read(generationPanelExpansionProvider.notifier).toggle(_panel),
+      ),
       hasData: hasReferences,
       backgroundImage: showBackground
           ? (references.length == 1
@@ -157,7 +166,7 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
               ),
             )
           : null,
-      child: Padding(
+      childBuilder: (context) => Padding(
         padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -250,7 +259,9 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
                 Expanded(
                   child: OutlinedButton.icon(
                     key: const Key('precise-ref-panel-from-library'),
-                    onPressed: supportsPreciseReference ? _importFromLibrary : null,
+                    onPressed: supportsPreciseReference
+                        ? _importFromLibrary
+                        : null,
                     icon: const Icon(Icons.photo_library_outlined, size: 16),
                     label: Text(
                       context.l10n.preciseRefLib_fromLibrary,

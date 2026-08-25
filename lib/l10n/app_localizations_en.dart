@@ -2384,6 +2384,24 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get character_summaryEmpty => 'No characters added';
+
+  @override
+  String character_summaryEnabled(int count, String name) {
+    return '$count enabled · $name';
+  }
+
+  @override
+  String character_summaryMore(int count, String name, int additional) {
+    return '$count enabled · $name +$additional';
+  }
+
+  @override
+  String character_summaryAllDisabled(int count) {
+    return '0 enabled · $count disabled';
+  }
+
+  @override
   String get gallery_generationParams => 'Generation Parameters';
 
   @override

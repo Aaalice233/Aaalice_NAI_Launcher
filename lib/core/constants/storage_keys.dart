@@ -61,8 +61,12 @@ class StorageKeys {
   static const String fixedTagsSidebarViewMode = 'fixed_tags_sidebar_view_mode';
   static const String fixedTagsNegativeHeight = 'fixed_tags_negative_height';
 
-  // Panel Expansion State Keys (面板展开状态)
+  // Generation Workbench Panel Expansion State Keys (生图工作台面板展开状态)
   static const String advancedOptionsExpanded = 'advanced_options_expanded';
+  static const String generationParamsMenuExpanded =
+      'generation_params_menu_expanded';
+  static const String characterPanelExpanded = 'character_panel_expanded';
+  static const String reversePromptExpanded = 'reverse_prompt_expanded';
   static const String img2imgExpanded = 'img2img_expanded';
   static const String vibeTransferExpanded = 'vibe_transfer_expanded';
   static const String preciseRefExpanded = 'precise_ref_expanded';
