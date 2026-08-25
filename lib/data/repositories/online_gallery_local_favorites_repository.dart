@@ -156,52 +156,74 @@ class OnlineGalleryLocalFavoritesRepository {
     final candidateKeys = query.sourceId == null
         ? _sortedKeys
         : (_sortedKeysBySource[query.sourceId!] ?? const <String>[]);
-    final matches = candidateKeys
-        .map((key) => _records[key]!)
-        .where((record) {
-          if (query.sourceId != null && record.sourceId != query.sourceId) {
+    final restrictsRatings =
+        ratings.isNotEmpty && !ratings.containsAll(const {'g', 's', 'q', 'e'});
+    final hasFilters =
+        restrictsRatings ||
+        blacklist.isNotEmpty ||
+        terms.isNotEmpty ||
+        (query.codexId != null && query.codexId != 'all') ||
+        query.categoryPath.isNotEmpty ||
+        query.mediaFilter != 'all';
+    if (!hasFilters) {
+      final start = query.offset.clamp(0, candidateKeys.length);
+      final end = (start + query.limit).clamp(start, candidateKeys.length);
+      return OnlineGalleryFavoritePage(
+        records: List.unmodifiable(
+          candidateKeys.sublist(start, end).map((key) => _records[key]!),
+        ),
+        total: candidateKeys.length,
+        offset: query.offset,
+        limit: query.limit,
+      );
+    }
+    final matches = candidateKeys.map((key) => _records[key]!).where((record) {
+      if (query.sourceId != null && record.sourceId != query.sourceId) {
+        return false;
+      }
+      if (query.codexId != null &&
+          query.codexId != 'all' &&
+          record.detail.rawSourceMetadata['codexId'] != query.codexId) {
+        return false;
+      }
+      if (query.categoryPath.isNotEmpty) {
+        final recordPath = record.detail.categoryPath;
+        if (recordPath.length < query.categoryPath.length) return false;
+        for (var index = 0; index < query.categoryPath.length; index++) {
+          if (recordPath[index] != query.categoryPath[index]) {
             return false;
           }
-          if (query.codexId != null &&
-              query.codexId != 'all' &&
-              record.detail.rawSourceMetadata['codexId'] != query.codexId) {
-            return false;
-          }
-          if (query.categoryPath.isNotEmpty) {
-            final recordPath = record.detail.categoryPath;
-            if (recordPath.length < query.categoryPath.length) return false;
-            for (var index = 0; index < query.categoryPath.length; index++) {
-              if (recordPath[index] != query.categoryPath[index]) {
-                return false;
-              }
-            }
-          }
-          final hasMedia = record.detail.media.any(
-            (media) =>
-                media.previewUrl.isNotEmpty || media.displayUrl.isNotEmpty,
-          );
-          if (query.mediaFilter == 'withImages' && !hasMedia) return false;
-          if (query.mediaFilter == 'withoutImages' && hasMedia) {
-            return false;
-          }
-          final rating = record.item.rating?.toLowerCase() ?? '';
-          if (ratings.isNotEmpty && !ratings.contains(rating)) return false;
-          if (blacklist.isNotEmpty &&
-              _recordTags(record).any(blacklist.contains)) {
-            return false;
-          }
-          if (terms.isNotEmpty) {
-            final haystack = _searchHaystack(record);
-            if (!terms.every(haystack.contains)) return false;
-          }
-          return true;
-        })
-        .toList(growable: false);
-    final start = query.offset.clamp(0, matches.length);
-    final end = (start + query.limit).clamp(start, matches.length);
+        }
+      }
+      final hasMedia = record.detail.media.any(
+        (media) => media.previewUrl.isNotEmpty || media.displayUrl.isNotEmpty,
+      );
+      if (query.mediaFilter == 'withImages' && !hasMedia) return false;
+      if (query.mediaFilter == 'withoutImages' && hasMedia) {
+        return false;
+      }
+      final rating = record.item.rating?.toLowerCase() ?? '';
+      if (restrictsRatings && !ratings.contains(rating)) return false;
+      if (blacklist.isNotEmpty && _recordTags(record).any(blacklist.contains)) {
+        return false;
+      }
+      if (terms.isNotEmpty) {
+        final haystack = _searchHaystack(record);
+        if (!terms.every(haystack.contains)) return false;
+      }
+      return true;
+    });
+    var total = 0;
+    final pageRecords = <OnlineGalleryFavoriteRecord>[];
+    for (final record in matches) {
+      if (total >= query.offset && pageRecords.length < query.limit) {
+        pageRecords.add(record);
+      }
+      total++;
+    }
     return OnlineGalleryFavoritePage(
-      records: List.unmodifiable(matches.sublist(start, end)),
-      total: matches.length,
+      records: List.unmodifiable(pageRecords),
+      total: total,
       offset: query.offset,
       limit: query.limit,
     );

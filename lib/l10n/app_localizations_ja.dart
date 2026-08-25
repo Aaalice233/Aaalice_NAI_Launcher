@@ -2419,17 +2419,10 @@ class AppLocalizationsJa extends AppLocalizations {
   String get onlineGallery_searchFavorites => 'お気に入りのタイトル・作者・タグを検索…';
 
   @override
-  String get onlineGallery_localFavorites => 'ローカルお気に入り';
+  String get onlineGallery_savedLocally => 'ローカルに保存済み';
 
   @override
-  String get onlineGallery_localFavoritesDescription =>
-      'このデバイスに保存され、すべてのサイトで利用できます';
-
-  @override
-  String get onlineGallery_cloudFavorites => 'クラウドお気に入り';
-
-  @override
-  String get onlineGallery_loginForCloudFavorites => 'ログインするとクラウドお気に入りを表示できます';
+  String get onlineGallery_savedInCloud => 'クラウドに保存済み';
 
   @override
   String get onlineGallery_saveVisibleLocally => 'このページをローカル保存';
@@ -2437,6 +2430,14 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String get onlineGallery_visibleFavoritesAlreadySaved =>
       'このページはすべてローカル保存済みです';
+
+  @override
+  String get onlineGallery_localFavoritesPartialFailure =>
+      'ローカルお気に入りの読み込みに失敗しました。クラウドの結果は保持されています';
+
+  @override
+  String get onlineGallery_cloudFavoritesPartialFailure =>
+      'クラウドお気に入りの読み込みに失敗しました。ローカルの結果は保持されています';
 
   @override
   String onlineGallery_visibleFavoritesSaved(int count) {

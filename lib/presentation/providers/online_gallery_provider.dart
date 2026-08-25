@@ -87,8 +87,6 @@ List<GalleryItem> parsePostsInIsolate(Map<String, dynamic> data) {
 
 enum GalleryViewMode { search, popular, favorites }
 
-enum GalleryFavoritesScope { local, remote }
-
 enum OnlineGalleryErrorCode {
   credentialsRequired,
   credentialsInvalid,
@@ -243,6 +241,14 @@ class ModeCache {
     this.anchorStableKey,
     this.anchorLocalOffset = 0,
     this.appendErrorCode,
+    this.localFavoritesOffset = 0,
+    this.remoteFavoritesPage = 1,
+    this.localFavoritesHasMore = true,
+    this.remoteFavoritesHasMore = true,
+    this.localFavoritesErrorCode,
+    this.remoteFavoritesErrorCode,
+    this.localFavoriteItemKeys = const {},
+    this.remoteFavoriteItemKeys = const {},
     this.endedByDuplicatePage = false,
     this.artistHuntCandidateCount = 0,
     this.artistHuntResolvedCount = 0,
@@ -258,7 +264,18 @@ class ModeCache {
   final String? anchorStableKey;
   final double anchorLocalOffset;
   final OnlineGalleryErrorCode? appendErrorCode;
+  final int localFavoritesOffset;
+  final int remoteFavoritesPage;
+  final bool localFavoritesHasMore;
+  final bool remoteFavoritesHasMore;
+  final OnlineGalleryErrorCode? localFavoritesErrorCode;
+  final OnlineGalleryErrorCode? remoteFavoritesErrorCode;
+  final Set<String> localFavoriteItemKeys;
+  final Set<String> remoteFavoriteItemKeys;
   final bool endedByDuplicatePage;
+
+  bool get hasFavoritesPartialFailure =>
+      localFavoritesErrorCode != null || remoteFavoritesErrorCode != null;
   final int artistHuntCandidateCount;
   final int artistHuntResolvedCount;
   final int artistHuntFailureCount;
@@ -274,6 +291,16 @@ class ModeCache {
     double? anchorLocalOffset,
     OnlineGalleryErrorCode? appendErrorCode,
     bool clearAppendError = false,
+    int? localFavoritesOffset,
+    int? remoteFavoritesPage,
+    bool? localFavoritesHasMore,
+    bool? remoteFavoritesHasMore,
+    OnlineGalleryErrorCode? localFavoritesErrorCode,
+    OnlineGalleryErrorCode? remoteFavoritesErrorCode,
+    bool clearLocalFavoritesError = false,
+    bool clearRemoteFavoritesError = false,
+    Set<String>? localFavoriteItemKeys,
+    Set<String>? remoteFavoriteItemKeys,
     bool? endedByDuplicatePage,
     int? artistHuntCandidateCount,
     int? artistHuntResolvedCount,
@@ -291,6 +318,24 @@ class ModeCache {
       appendErrorCode: clearAppendError
           ? null
           : (appendErrorCode ?? this.appendErrorCode),
+      localFavoritesOffset: localFavoritesOffset ?? this.localFavoritesOffset,
+      remoteFavoritesPage: remoteFavoritesPage ?? this.remoteFavoritesPage,
+      localFavoritesHasMore:
+          localFavoritesHasMore ?? this.localFavoritesHasMore,
+      remoteFavoritesHasMore:
+          remoteFavoritesHasMore ?? this.remoteFavoritesHasMore,
+      localFavoritesErrorCode: clearLocalFavoritesError
+          ? null
+          : (localFavoritesErrorCode ?? this.localFavoritesErrorCode),
+      remoteFavoritesErrorCode: clearRemoteFavoritesError
+          ? null
+          : (remoteFavoritesErrorCode ?? this.remoteFavoritesErrorCode),
+      localFavoriteItemKeys: Set.unmodifiable(
+        localFavoriteItemKeys ?? this.localFavoriteItemKeys,
+      ),
+      remoteFavoriteItemKeys: Set.unmodifiable(
+        remoteFavoriteItemKeys ?? this.remoteFavoriteItemKeys,
+      ),
       endedByDuplicatePage: endedByDuplicatePage ?? this.endedByDuplicatePage,
       artistHuntCandidateCount:
           artistHuntCandidateCount ?? this.artistHuntCandidateCount,
@@ -349,14 +394,11 @@ class OnlineGalleryState {
     this.sourceId = GallerySourceId.danbooru,
     this.popularSourceId = GallerySourceId.danbooru,
     this.favoritesSourceId = GallerySourceId.danbooru,
-    this.favoritesScope = GalleryFavoritesScope.remote,
     this.favoriteSearchQuery = '',
     this.selectedRatings = kAllRatings,
     this.viewMode = GalleryViewMode.search,
     this.searchCache = const ModeCache(),
     this.popularCache = const ModeCache(),
-    this.danbooruFavoritesCache = const ModeCache(),
-    this.gelbooruFavoritesCache = const ModeCache(),
     this.caches = const {},
     this.popularScale = PopularScale.day,
     this.popularDate,
@@ -365,6 +407,8 @@ class OnlineGalleryState {
     this.quickTagCloudFilterKey = QuickTagCloudGalleryQuery.defaultStableKey,
     this.aiTagConfig,
     this.favoritedPostKeys = const {},
+    this.localFavoritedPostKeys = const {},
+    this.remoteFavoritedPostKeys = const {},
     this.favoriteLoadingPostKeys = const {},
     this.dateRangeStart,
     this.dateRangeEnd,
@@ -387,14 +431,11 @@ class OnlineGalleryState {
   final GallerySourceId sourceId;
   final GallerySourceId popularSourceId;
   final GallerySourceId favoritesSourceId;
-  final GalleryFavoritesScope favoritesScope;
   final String favoriteSearchQuery;
   final Set<String> selectedRatings;
   final GalleryViewMode viewMode;
   final ModeCache searchCache;
   final ModeCache popularCache;
-  final ModeCache danbooruFavoritesCache;
-  final ModeCache gelbooruFavoritesCache;
   final Map<String, ModeCache> caches;
   final PopularScale popularScale;
   final DateTime? popularDate;
@@ -403,6 +444,8 @@ class OnlineGalleryState {
   final String quickTagCloudFilterKey;
   final AiTagSourceConfig? aiTagConfig;
   final Set<String> favoritedPostKeys;
+  final Set<String> localFavoritedPostKeys;
+  final Set<String> remoteFavoritedPostKeys;
   final Set<String> favoriteLoadingPostKeys;
   final DateTime? dateRangeStart;
   final DateTime? dateRangeEnd;
@@ -441,7 +484,7 @@ class OnlineGalleryState {
       case GalleryViewMode.popular:
         return 'popular:${popularSourceId.key}:${popularScale.name}|${popularDate?.toIso8601String() ?? ''}|$aiTagPopularPeriod|${popularQuery.trim()}|${popularPromptQuery.trim()}|${_ratingsKey(selectedRatings)}|artistHunt:${popularSourceId == GallerySourceId.aiTag && artistHuntEnabled}|blacklist:$blacklistRevision';
       case GalleryViewMode.favorites:
-        return 'favorites:${favoritesSourceId.key}:${favoritesScope.name}|${favoriteSearchQuery.trim()}|${_ratingsKey(selectedRatings)}|codex:${favoritesSourceId == GallerySourceId.quickTagCloud ? quickTagCloudFilterKey : ''}|blacklist:$blacklistRevision';
+        return 'favorites:${favoritesSourceId.key}|${favoriteSearchQuery.trim()}|${_ratingsKey(selectedRatings)}|codex:${favoritesSourceId == GallerySourceId.quickTagCloud ? quickTagCloudFilterKey : ''}|blacklist:$blacklistRevision';
     }
   }
 
@@ -466,11 +509,8 @@ class OnlineGalleryState {
 
   ModeCache favoritesCacheFor(GallerySourceId sourceId) {
     final key =
-        'favorites:${sourceId.key}:${favoritesScope.name}|${favoriteSearchQuery.trim()}|${_ratingsKey(selectedRatings)}|codex:${sourceId == GallerySourceId.quickTagCloud ? quickTagCloudFilterKey : ''}|blacklist:$blacklistRevision';
-    return caches[key] ??
-        (sourceId == GallerySourceId.gelbooru
-            ? gelbooruFavoritesCache
-            : danbooruFavoritesCache);
+        'favorites:${sourceId.key}|${favoriteSearchQuery.trim()}|${_ratingsKey(selectedRatings)}|codex:${sourceId == GallerySourceId.quickTagCloud ? quickTagCloudFilterKey : ''}|blacklist:$blacklistRevision';
+    return caches[key] ?? const ModeCache();
   }
 
   bool get hasError => error != null || errorCode != null;
@@ -497,14 +537,11 @@ class OnlineGalleryState {
     GallerySourceId? sourceId,
     GallerySourceId? popularSourceId,
     GallerySourceId? favoritesSourceId,
-    GalleryFavoritesScope? favoritesScope,
     String? favoriteSearchQuery,
     Set<String>? selectedRatings,
     GalleryViewMode? viewMode,
     ModeCache? searchCache,
     ModeCache? popularCache,
-    ModeCache? danbooruFavoritesCache,
-    ModeCache? gelbooruFavoritesCache,
     Map<String, ModeCache>? caches,
     PopularScale? popularScale,
     DateTime? popularDate,
@@ -513,6 +550,8 @@ class OnlineGalleryState {
     String? quickTagCloudFilterKey,
     AiTagSourceConfig? aiTagConfig,
     Set<String>? favoritedPostKeys,
+    Set<String>? localFavoritedPostKeys,
+    Set<String>? remoteFavoritedPostKeys,
     Set<String>? favoriteLoadingPostKeys,
     DateTime? dateRangeStart,
     DateTime? dateRangeEnd,
@@ -539,7 +578,6 @@ class OnlineGalleryState {
       sourceId: sourceId ?? this.sourceId,
       popularSourceId: popularSourceId ?? this.popularSourceId,
       favoritesSourceId: favoritesSourceId ?? this.favoritesSourceId,
-      favoritesScope: favoritesScope ?? this.favoritesScope,
       favoriteSearchQuery: favoriteSearchQuery ?? this.favoriteSearchQuery,
       selectedRatings: Set.unmodifiable(
         selectedRatings ?? this.selectedRatings,
@@ -547,10 +585,6 @@ class OnlineGalleryState {
       viewMode: viewMode ?? this.viewMode,
       searchCache: searchCache ?? this.searchCache,
       popularCache: popularCache ?? this.popularCache,
-      danbooruFavoritesCache:
-          danbooruFavoritesCache ?? this.danbooruFavoritesCache,
-      gelbooruFavoritesCache:
-          gelbooruFavoritesCache ?? this.gelbooruFavoritesCache,
       caches: Map.unmodifiable(caches ?? this.caches),
       popularScale: popularScale ?? this.popularScale,
       popularDate: clearPopularDate ? null : (popularDate ?? this.popularDate),
@@ -561,6 +595,12 @@ class OnlineGalleryState {
       aiTagConfig: aiTagConfig ?? this.aiTagConfig,
       favoritedPostKeys: Set.unmodifiable(
         favoritedPostKeys ?? this.favoritedPostKeys,
+      ),
+      localFavoritedPostKeys: Set.unmodifiable(
+        localFavoritedPostKeys ?? this.localFavoritedPostKeys,
+      ),
+      remoteFavoritedPostKeys: Set.unmodifiable(
+        remoteFavoritedPostKeys ?? this.remoteFavoritedPostKeys,
       ),
       favoriteLoadingPostKeys: Set.unmodifiable(
         favoriteLoadingPostKeys ?? this.favoriteLoadingPostKeys,
@@ -587,9 +627,7 @@ class OnlineGalleryState {
       case GalleryViewMode.popular:
         return copyWith(caches: updated, popularCache: cache);
       case GalleryViewMode.favorites:
-        return favoritesSourceId == GallerySourceId.gelbooru
-            ? copyWith(caches: updated, gelbooruFavoritesCache: cache)
-            : copyWith(caches: updated, danbooruFavoritesCache: cache);
+        return copyWith(caches: updated);
     }
   }
 
@@ -598,14 +636,12 @@ class OnlineGalleryState {
     ModeCache cache,
   ) {
     final key =
-        'favorites:${sourceId.key}:${favoritesScope.name}|${favoriteSearchQuery.trim()}|${_ratingsKey(selectedRatings)}|codex:${sourceId == GallerySourceId.quickTagCloud ? quickTagCloudFilterKey : ''}|blacklist:$blacklistRevision';
+        'favorites:${sourceId.key}|${favoriteSearchQuery.trim()}|${_ratingsKey(selectedRatings)}|codex:${sourceId == GallerySourceId.quickTagCloud ? quickTagCloudFilterKey : ''}|blacklist:$blacklistRevision';
     final updated = LinkedHashMap<String, ModeCache>.of(caches)
       ..remove(key)
       ..[key] = cache;
     _trimCaches(updated, currentCacheKey);
-    return sourceId == GallerySourceId.gelbooru
-        ? copyWith(caches: updated, gelbooruFavoritesCache: cache)
-        : copyWith(caches: updated, danbooruFavoritesCache: cache);
+    return copyWith(caches: updated);
   }
 
   static void _trimCaches(
@@ -644,12 +680,11 @@ String encodeOnlineGalleryBrowsingSession(OnlineGalleryState state) {
   }
 
   return jsonEncode({
-    'version': 1,
+    'version': 2,
     'viewMode': state.viewMode.name,
     'sourceId': state.sourceId.key,
     'popularSourceId': state.popularSourceId.key,
     'favoritesSourceId': state.favoritesSourceId.key,
-    'favoritesScope': state.favoritesScope.name,
     'favoriteSearchQuery': state.favoriteSearchQuery,
     'searchQuery': state.searchQuery,
     'promptQuery': state.promptQuery,
@@ -677,7 +712,8 @@ OnlineGalleryState decodeOnlineGalleryBrowsingSession(String? encoded) {
   }
   try {
     final decoded = jsonDecode(encoded);
-    if (decoded is! Map || decoded['version'] != 1) {
+    if (decoded is! Map ||
+        (decoded['version'] != 1 && decoded['version'] != 2)) {
       return const OnlineGalleryState();
     }
     final json = Map<String, dynamic>.from(decoded);
@@ -688,21 +724,7 @@ OnlineGalleryState decodeOnlineGalleryBrowsingSession(String? encoded) {
     final popularSourceId = popularSourceCandidate.capabilities.supportsRanking
         ? popularSourceCandidate
         : GallerySourceId.danbooru;
-    final favoritesSourceCandidate = _decodeGallerySource(
-      json['favoritesSourceId'],
-    );
-    final favoritesSourceId = favoritesSourceCandidate;
-    final requestedFavoritesScope = _decodeEnumByName(
-      GalleryFavoritesScope.values,
-      json['favoritesScope'],
-      GalleryFavoritesScope.remote,
-    );
-    final favoritesScope =
-        requestedFavoritesScope == GalleryFavoritesScope.remote &&
-            favoritesSourceId.capabilities.remoteFavorites !=
-                GalleryRemoteFavoritesCapability.none
-        ? GalleryFavoritesScope.remote
-        : GalleryFavoritesScope.local;
+    final favoritesSourceId = _decodeGallerySource(json['favoritesSourceId']);
     final viewMode = _decodeEnumByName(
       GalleryViewMode.values,
       json['viewMode'],
@@ -723,7 +745,6 @@ OnlineGalleryState decodeOnlineGalleryBrowsingSession(String? encoded) {
       sourceId: sourceId,
       popularSourceId: popularSourceId,
       favoritesSourceId: favoritesSourceId,
-      favoritesScope: favoritesScope,
       favoriteSearchQuery: _decodeBoundedString(
         json['favoriteSearchQuery'],
         maxLength: 500,
@@ -755,13 +776,28 @@ OnlineGalleryState decodeOnlineGalleryBrowsingSession(String? encoded) {
     );
 
     final caches = <String, ModeCache>{};
+    final cachePriorities = <String, int>{};
+    final legacyFavoritesScope = json['favoritesScope'];
     final rawPositions = json['positions'];
     if (rawPositions is Map) {
       for (final entry in rawPositions.entries.take(12)) {
-        final key = entry.key;
-        if (key is! String || key.isEmpty || key.length > 4096) continue;
+        final rawKey = entry.key;
+        if (rawKey is! String || rawKey.isEmpty || rawKey.length > 4096) {
+          continue;
+        }
+        final key = _migrateFavoritesCacheKey(rawKey);
         final position = _decodeGalleryPosition(entry.value);
-        if (position != null) caches[key] = position;
+        if (position == null) continue;
+        final legacyMatch = _legacyFavoritesCacheKeyPattern.firstMatch(rawKey);
+        final priority = legacyMatch == null
+            ? 3
+            : legacyMatch.group(2) == legacyFavoritesScope
+            ? 2
+            : 1;
+        if (priority > (cachePriorities[key] ?? 0)) {
+          caches[key] = position;
+          cachePriorities[key] = priority;
+        }
       }
     }
     var restored = base.copyWith(caches: caches);
@@ -794,7 +830,7 @@ Map<String, dynamic> _encodeGalleryPosition(ModeCache cache) => {
 ModeCache? _decodeGalleryPosition(Object? raw) {
   if (raw is! Map) return null;
   final pageValue = raw['page'];
-  final offsetValue = raw['scrollOffset'];
+  final offsetValue = raw['scrollOffset'] ?? raw['offset'];
   final localOffsetValue = raw['anchorLocalOffset'];
   final page = pageValue is num
       ? pageValue.toInt().clamp(1, 1000000).toInt()
@@ -813,6 +849,16 @@ ModeCache? _decodeGalleryPosition(Object? raw) {
     anchorStableKey: anchor is String && anchor.length <= 256 ? anchor : null,
     anchorLocalOffset: localOffset,
   );
+}
+
+final _legacyFavoritesCacheKeyPattern = RegExp(
+  r'^favorites:(danbooru|safebooru|gelbooru|ai_tag|quick_tag_cloud):(local|remote)\|',
+);
+
+String _migrateFavoritesCacheKey(String key) {
+  final match = _legacyFavoritesCacheKeyPattern.firstMatch(key);
+  if (match == null) return key;
+  return 'favorites:${match.group(1)}|${key.substring(match.end)}';
 }
 
 GallerySourceId _decodeGallerySource(Object? value) {
@@ -904,24 +950,26 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
         await ref
             .read(onlineGalleryLocalFavoritesProvider.notifier)
             .initialize();
-        _handleLocalFavoritesChanged();
+        _handleLocalFavoritesChanged(reloadFavorites: false);
       });
       ref.listen<(bool, int)>(
         onlineGalleryLocalFavoritesProvider.select(
           (value) => (value.isInitialized, value.revision),
         ),
-        (_, _) => _handleLocalFavoritesChanged(),
+        (previous, next) => _handleLocalFavoritesChanged(
+          reloadFavorites: previous?.$2 != next.$2,
+        ),
       );
     }
     ref.listen<String?>(
       danbooruAuthProvider.select((value) => value.user?.name),
-      (_, _) => _handleRandomAccountIdentityChanged(GallerySourceId.danbooru),
+      (_, _) => _handleAccountIdentityChanged(GallerySourceId.danbooru),
     );
     ref.listen<String?>(
       gelbooruAuthProvider.select(
         (value) => value.credentials?.userId.toString(),
       ),
-      (_, _) => _handleRandomAccountIdentityChanged(GallerySourceId.gelbooru),
+      (_, _) => _handleAccountIdentityChanged(GallerySourceId.gelbooru),
     );
     ref.listen<String>(
       onlineGalleryBlacklistNotifierProvider.select((value) {
@@ -957,7 +1005,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     });
   }
 
-  void _handleLocalFavoritesChanged() {
+  void _handleLocalFavoritesChanged({bool reloadFavorites = true}) {
     final localState = ref.read(onlineGalleryLocalFavoritesProvider);
     if (!localState.isInitialized) return;
     final nextLocalKeys = ref
@@ -965,17 +1013,16 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
         .stableKeys;
     final retainedCaches = <String, ModeCache>{
       for (final entry in state.caches.entries)
-        if (!(entry.key.startsWith('favorites:') &&
-            entry.key.contains(':local|')))
-          entry.key: entry.value,
+        if (!entry.key.startsWith('favorites:')) entry.key: entry.value,
     };
     _localFavoriteKeys = nextLocalKeys;
     state = state.copyWith(
       caches: retainedCaches,
       favoritedPostKeys: {..._localFavoriteKeys, ..._remoteFavoriteKeys},
+      localFavoritedPostKeys: _localFavoriteKeys,
+      remoteFavoritedPostKeys: _remoteFavoriteKeys,
     );
-    if (state.viewMode == GalleryViewMode.favorites &&
-        state.favoritesScope == GalleryFavoritesScope.local) {
+    if (reloadFavorites && state.viewMode == GalleryViewMode.favorites) {
       _cancelCurrentRequest();
       if (state.randomEnabled) {
         state = state.copyWith(randomSession: const RandomGallerySession());
@@ -1005,14 +1052,34 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     });
   }
 
-  void _handleRandomAccountIdentityChanged(GallerySourceId sourceId) {
-    if (!state.randomEnabled || state.activeSourceId != sourceId) return;
-    _cancelCurrentRequest();
-    state = state.copyWith(
-      randomSession: const RandomGallerySession(),
-      clearError: true,
+  void _handleAccountIdentityChanged(GallerySourceId sourceId) {
+    final retainedCaches = <String, ModeCache>{
+      for (final entry in state.caches.entries)
+        if (!entry.key.startsWith('favorites:${sourceId.key}'))
+          entry.key: entry.value,
+    };
+    _remoteFavoriteKeys.removeWhere(
+      (key) => key.startsWith('${sourceId.key}:'),
     );
-    unawaited(_loadRandom(replace: true, restart: true));
+    state = state.copyWith(
+      caches: retainedCaches,
+      favoritedPostKeys: {..._localFavoriteKeys, ..._remoteFavoriteKeys},
+      remoteFavoritedPostKeys: _remoteFavoriteKeys,
+    );
+    if (state.activeSourceId != sourceId ||
+        (!state.randomEnabled && state.viewMode != GalleryViewMode.favorites)) {
+      return;
+    }
+    _cancelCurrentRequest();
+    if (state.randomEnabled) {
+      state = state.copyWith(
+        randomSession: const RandomGallerySession(),
+        clearError: true,
+      );
+      unawaited(_loadRandom(replace: true, restart: true));
+    } else if (state.viewMode == GalleryViewMode.favorites) {
+      unawaited(loadPosts(refresh: true));
+    }
   }
 
   Map<GallerySourceId, GallerySourceAdapter> get _adapters =>
@@ -1105,25 +1172,9 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
       await ref.read(gelbooruAuthProvider.notifier).ensureInitialized();
     }
     _cancelCurrentRequest();
-    final capabilities = sourceId.capabilities;
-    final remoteAvailable =
-        capabilities.remoteFavorites != GalleryRemoteFavoritesCapability.none;
-    final remoteAuthenticated = switch (sourceId) {
-      GallerySourceId.danbooru => _danbooruAuth.isLoggedIn,
-      GallerySourceId.gelbooru => _gelbooruAuth.isAuthenticated,
-      _ => false,
-    };
-    final localStoreReady = Hive.isBoxOpen(StorageKeys.localFavoritesBox);
-    final scope =
-        state.favoritesScope == GalleryFavoritesScope.remote &&
-            (!remoteAvailable || !remoteAuthenticated) &&
-            localStoreReady
-        ? GalleryFavoritesScope.local
-        : state.favoritesScope;
     state = state.copyWith(
       viewMode: GalleryViewMode.favorites,
       favoritesSourceId: sourceId,
-      favoritesScope: scope,
       clearError: true,
     );
     if (state.randomEnabled || state.currentCache.posts.isEmpty) {
@@ -1178,25 +1229,9 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     if (sourceId == null || !sourceId.capabilities.supportsLocalFavorites) {
       return;
     }
+    if (state.favoritesSourceId == sourceId) return;
     if (sourceId == GallerySourceId.gelbooru) {
       await ref.read(gelbooruAuthProvider.notifier).ensureInitialized();
-    }
-    final remoteAuthenticated = switch (sourceId) {
-      GallerySourceId.danbooru => _danbooruAuth.isLoggedIn,
-      GallerySourceId.gelbooru => _gelbooruAuth.isAuthenticated,
-      _ => false,
-    };
-    final useRemote =
-        (sourceId.capabilities.remoteFavorites !=
-                GalleryRemoteFavoritesCapability.none &&
-            remoteAuthenticated) ||
-        !Hive.isBoxOpen(StorageKeys.localFavoritesBox);
-    final defaultScope = useRemote
-        ? GalleryFavoritesScope.remote
-        : GalleryFavoritesScope.local;
-    if (state.favoritesSourceId == sourceId &&
-        state.favoritesScope == defaultScope) {
-      return;
     }
     _cancelCurrentRequest();
     state = state.copyWith(
@@ -1205,28 +1240,9 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
           ? sourceId
           : state.popularSourceId,
       favoritesSourceId: sourceId,
-      favoritesScope: defaultScope,
       quickTagCloudFilterKey: sourceId == GallerySourceId.quickTagCloud
           ? ref.read(quickTagCloudFilterProvider).stableKey
           : state.quickTagCloudFilterKey,
-      clearError: true,
-      clearNotice: true,
-    );
-    if (state.viewMode == GalleryViewMode.favorites) {
-      await loadPosts(refresh: true);
-    }
-  }
-
-  Future<void> setFavoritesScope(GalleryFavoritesScope scope) async {
-    if (state.favoritesScope == scope) return;
-    final capabilities = state.favoritesSourceId.capabilities;
-    if (scope == GalleryFavoritesScope.remote &&
-        capabilities.remoteFavorites == GalleryRemoteFavoritesCapability.none) {
-      return;
-    }
-    _cancelCurrentRequest();
-    state = state.copyWith(
-      favoritesScope: scope,
       clearError: true,
       clearNotice: true,
     );
@@ -1420,6 +1436,8 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
         randomEnabled: false,
         randomSession: state.randomSession,
         favoritedPostKeys: state.favoritedPostKeys,
+        localFavoritedPostKeys: state.localFavoritedPostKeys,
+        remoteFavoritedPostKeys: state.remoteFavoritedPostKeys,
         favoriteLoadingPostKeys: state.favoriteLoadingPostKeys,
         aiTagConfig: state.aiTagConfig,
         artistHuntEnabled: state.artistHuntEnabled,
@@ -1483,7 +1501,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
           .read(onlineGalleryBlacklistNotifierProvider)
           .effectiveTags;
       if (state.viewMode == GalleryViewMode.favorites &&
-          state.favoritesScope == GalleryFavoritesScope.local) {
+          !_canLoadRemoteFavorites(state.favoritesSourceId)) {
         await _loadRandomLocalFavorites(
           generation: generation,
           cacheKey: cacheKey,
@@ -2126,197 +2144,479 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
 
   Future<void> _loadFavorites({required bool refresh, int? targetPage}) async {
     final sourceId = state.favoritesSourceId;
-    if (state.favoritesScope == GalleryFavoritesScope.local) {
-      await _loadLocalFavorites(refresh: refresh, targetPage: targetPage);
-      return;
-    }
-    final authMissing = sourceId == GallerySourceId.danbooru
-        ? !_danbooruAuth.isLoggedIn || _danbooruAuth.user == null
-        : false;
-    if (authMissing) {
-      state = state.copyWith(
-        isLoading: false,
-        errorCode: OnlineGalleryErrorCode.credentialsRequired,
-      );
-      return;
-    }
-    if (sourceId == GallerySourceId.gelbooru) {
+    if (sourceId == GallerySourceId.danbooru) {
+      await ref.read(danbooruAuthProvider.notifier).ensureInitialized();
+    } else if (sourceId == GallerySourceId.gelbooru) {
       await ref.read(gelbooruAuthProvider.notifier).ensureInitialized();
-      if (!_gelbooruAuth.isAuthenticated || _gelbooruAuth.credentials == null) {
-        state = state.copyWith(
-          isLoading: false,
-          errorCode: _gelbooruAuth.status == GelbooruAuthStatus.invalid
-              ? OnlineGalleryErrorCode.gelbooruCredentialsInvalid
-              : OnlineGalleryErrorCode.gelbooruCredentialsRequired,
-        );
-        return;
-      }
     }
-    final cache = state.currentCache;
-    final pageNumber = targetPage ?? (refresh ? 1 : cache.page + 1);
+    if (state.viewMode != GalleryViewMode.favorites ||
+        state.favoritesSourceId != sourceId) {
+      return;
+    }
+    final previousCache = state.currentCache;
+    final pageNumber = targetPage ?? (refresh ? 1 : previousCache.page + 1);
     final generation = _beginRequest();
     final cacheKey = state.currentCacheKey;
-    final isAppend = !refresh && cache.posts.isNotEmpty;
+    final resetBranches = refresh || targetPage != null;
+    final isAppend = !resetBranches && previousCache.posts.isNotEmpty;
+    var cache = resetBranches
+        ? ModeCache(
+            posts: previousCache.posts,
+            page: pageNumber,
+            localFavoritesOffset: (pageNumber - 1) * _pageSize,
+            remoteFavoritesPage: pageNumber,
+            localFavoriteItemKeys: previousCache.localFavoriteItemKeys,
+            remoteFavoriteItemKeys: previousCache.remoteFavoriteItemKeys,
+            scrollOffset: refresh ? 0 : previousCache.scrollOffset,
+          )
+        : previousCache;
+    var posts = cache.posts is ChunkedGalleryItems
+        ? cache.posts as ChunkedGalleryItems
+        : ChunkedGalleryItems.from(cache.posts);
     state = state.copyWith(
       isLoading: !isAppend,
       isLoadingMore: isAppend,
       clearError: true,
     );
+
+    Object? localError;
+    Object? remoteError;
     try {
       await ref
           .read(onlineGalleryBlacklistNotifierProvider.notifier)
           .ensureInitialized();
+      if (!_isCurrentRequest(generation, cacheKey)) return;
       final blacklist = ref
           .read(onlineGalleryBlacklistNotifierProvider)
           .effectiveTags;
-      final filtered = <GalleryItem>[];
-      var requestPage = pageNumber;
-      var lastFetchedPage = pageNumber;
-      var upstreamEnded = false;
-      var fetchedAnyRaw = false;
-      while (filtered.length < _pageSize && !upstreamEnded) {
-        final List<GalleryItem> raw;
-        final int rawCount;
-        lastFetchedPage = requestPage;
-        if (sourceId == GallerySourceId.danbooru) {
-          raw = await _danbooruApi.getFavorites(
-            username: _danbooruAuth.user!.name,
-            page: requestPage,
-            limit: _pageSize,
+      final quickTagFilter = sourceId == GallerySourceId.quickTagCloud
+          ? ref.read(quickTagCloudFilterProvider)
+          : null;
+
+      if (cache.localFavoritesHasMore) {
+        try {
+          final localFavorites = ref.read(
+            onlineGalleryLocalFavoritesProvider.notifier,
           );
-          rawCount = raw.length;
-        } else {
-          final result = await _gelbooruApi.getFavorites(
-            credentials: _gelbooruAuth.credentials!,
-            pid: requestPage - 1,
-            limit: _pageSize,
-            cancelToken: _cancelToken,
+          await localFavorites.initialize();
+          if (!_isCurrentRequest(generation, cacheKey)) return;
+          final localPage = localFavorites.query(
+            OnlineGalleryFavoriteQuery(
+              sourceId: sourceId,
+              searchText: state.favoriteSearchQuery,
+              ratings: sourceId.capabilities.supportsRatings
+                  ? state.selectedRatings
+                  : const {},
+              blacklistTags: blacklist,
+              codexId: quickTagFilter?.codexId,
+              categoryPath: quickTagFilter?.categoryPath ?? const [],
+              mediaFilter: quickTagFilter?.mediaFilter.name ?? 'all',
+              offset: cache.localFavoritesOffset,
+              limit: _pageSize,
+            ),
           );
-          raw = result.posts;
-          rawCount = result.rawCount;
+          final loadedLocalItemKeys = localPage.items
+              .map(onlineGalleryPostKey)
+              .toSet();
+          if (resetBranches) {
+            posts = _removeFavoriteBranch(
+              posts,
+              branchKeys: cache.localFavoriteItemKeys.difference(
+                loadedLocalItemKeys,
+              ),
+              retainedByOtherBranch: cache.remoteFavoriteItemKeys,
+            );
+          }
+          posts = posts.mergePage(
+            localPage.items,
+            mergeDuplicate: _mergeFavoriteItem,
+          );
+          final localItemKeys = resetBranches
+              ? loadedLocalItemKeys
+              : {
+                  ...cache.localFavoriteItemKeys,
+                  ...localPage.items.map(onlineGalleryPostKey),
+                };
+          cache = cache.copyWith(
+            posts: posts,
+            localFavoritesOffset:
+                cache.localFavoritesOffset + localPage.records.length,
+            localFavoritesHasMore: localPage.hasMore,
+            localFavoriteItemKeys: localItemKeys,
+            clearLocalFavoritesError: true,
+          );
+          state = state.updateCurrentCache(cache);
+        } catch (error, stack) {
+          localError = error;
+          AppLogger.e(
+            'Failed to load local favorites',
+            error,
+            stack,
+            'OnlineGallery',
+          );
+          cache = cache.copyWith(
+            localFavoritesHasMore: false,
+            localFavoritesErrorCode: _errorCode(error),
+          );
         }
-        if (!_isCurrentRequest(generation, cacheKey)) return;
-        fetchedAnyRaw = fetchedAnyRaw || rawCount > 0;
-        final ratingFiltered = _filterLocal(raw, const {});
-        filtered.addAll(
-          await _filterByBlacklistCompletingDetails(ratingFiltered, blacklist),
-        );
-        if (!_isCurrentRequest(generation, cacheKey)) return;
-        upstreamEnded = rawCount < _pageSize;
-        if (!upstreamEnded) requestPage++;
       }
-      final base = refresh
-          ? ChunkedGalleryItems()
-          : cache.posts is ChunkedGalleryItems
-          ? cache.posts as ChunkedGalleryItems
-          : ChunkedGalleryItems.from(cache.posts);
-      final merged = base.appendPage(filtered);
+
+      if (_canLoadRemoteFavorites(sourceId) && cache.remoteFavoritesHasMore) {
+        try {
+          final requestPage = cache.remoteFavoritesPage;
+          final List<GalleryItem> raw;
+          final int rawCount;
+          if (sourceId == GallerySourceId.danbooru) {
+            raw = await _danbooruApi.getFavorites(
+              username: _danbooruAuth.user!.name,
+              page: requestPage,
+              limit: _pageSize,
+            );
+            rawCount = raw.length;
+          } else {
+            final result = await _gelbooruApi.getFavorites(
+              credentials: _gelbooruAuth.credentials!,
+              pid: requestPage - 1,
+              limit: _pageSize,
+              cancelToken: _cancelToken,
+            );
+            raw = result.posts;
+            rawCount = result.rawCount;
+          }
+          if (!_isCurrentRequest(generation, cacheKey)) return;
+          final matching = _filterLocal(
+            raw,
+            const {},
+          ).where(_matchesFavoriteSearch).toList(growable: false);
+          final remoteItems = await _filterByBlacklistCompletingDetails(
+            matching,
+            blacklist,
+          );
+          if (!_isCurrentRequest(generation, cacheKey)) return;
+          final upstreamEnded = rawCount < _pageSize;
+          final nextRequestPage = requestPage + 1;
+          final loadedRemoteItemKeys = remoteItems
+              .map(onlineGalleryPostKey)
+              .toSet();
+          if (resetBranches) {
+            posts = _removeFavoriteBranch(
+              posts,
+              branchKeys: cache.remoteFavoriteItemKeys.difference(
+                loadedRemoteItemKeys,
+              ),
+              retainedByOtherBranch: cache.localFavoriteItemKeys,
+            );
+            _remoteFavoriteKeys.removeAll(cache.remoteFavoriteItemKeys);
+          }
+          posts = posts.mergePage(
+            remoteItems,
+            mergeDuplicate: _mergeFavoriteItem,
+          );
+          final remoteItemKeys = resetBranches
+              ? loadedRemoteItemKeys
+              : {
+                  ...cache.remoteFavoriteItemKeys,
+                  ...remoteItems.map(onlineGalleryPostKey),
+                };
+          _remoteFavoriteKeys.addAll(remoteItemKeys);
+          cache = cache.copyWith(
+            posts: posts,
+            remoteFavoritesPage: nextRequestPage,
+            remoteFavoritesHasMore: !upstreamEnded,
+            remoteFavoriteItemKeys: remoteItemKeys,
+            clearRemoteFavoritesError: true,
+          );
+        } on GelbooruApiException catch (error, stack) {
+          if (error.type == GelbooruApiErrorType.cancelled) return;
+          remoteError = error;
+          if (error.type == GelbooruApiErrorType.invalidCredentials) {
+            ref.read(gelbooruAuthProvider.notifier).markInvalid();
+          }
+          AppLogger.e(
+            'Failed to load remote favorites',
+            error,
+            stack,
+            'OnlineGallery',
+          );
+          cache = cache.copyWith(
+            remoteFavoritesHasMore: false,
+            remoteFavoritesErrorCode: _errorCode(error),
+          );
+        } catch (error, stack) {
+          remoteError = error;
+          AppLogger.e(
+            'Failed to load remote favorites',
+            error,
+            stack,
+            'OnlineGallery',
+          );
+          cache = cache.copyWith(
+            remoteFavoritesHasMore: false,
+            remoteFavoritesErrorCode: _errorCode(error),
+          );
+        }
+      } else if (!_canLoadRemoteFavorites(sourceId)) {
+        if (resetBranches) {
+          posts = _removeFavoriteBranch(
+            posts,
+            branchKeys: cache.remoteFavoriteItemKeys,
+            retainedByOtherBranch: cache.localFavoriteItemKeys,
+          );
+          _remoteFavoriteKeys.removeAll(cache.remoteFavoriteItemKeys);
+        }
+        cache = cache.copyWith(
+          posts: posts,
+          remoteFavoritesHasMore: false,
+          remoteFavoriteItemKeys: const {},
+          clearRemoteFavoritesError: true,
+        );
+      }
+
+      if (!_isCurrentRequest(generation, cacheKey)) return;
+      final remoteAvailable = _canLoadRemoteFavorites(sourceId);
+      final allAvailableBranchesFailed =
+          localError != null && (!remoteAvailable || remoteError != null);
+      if (allAvailableBranchesFailed) {
+        cache = cache.copyWith(
+          clearLocalFavoritesError: true,
+          clearRemoteFavoritesError: true,
+        );
+      }
+      if (isAppend &&
+          cache.localFavoritesHasMore &&
+          cache.localFavoriteItemKeys.length ==
+              previousCache.localFavoriteItemKeys.length) {
+        cache = cache.copyWith(localFavoritesHasMore: false);
+      }
+      if (isAppend &&
+          cache.remoteFavoritesHasMore &&
+          cache.remoteFavoriteItemKeys.length ==
+              previousCache.remoteFavoriteItemKeys.length) {
+        cache = cache.copyWith(remoteFavoritesHasMore: false);
+      }
       final duplicatePage =
-          !refresh && fetchedAnyRaw && merged.length == base.length;
-      _remoteFavoriteKeys.addAll(filtered.map(onlineGalleryPostKey));
-      final nextCache = ModeCache(
-        posts: merged,
-        page: lastFetchedPage,
-        nextCursor: duplicatePage || upstreamEnded
-            ? null
-            : '${lastFetchedPage + 1}',
-        hasMore: !duplicatePage && !upstreamEnded,
-        scrollOffset: refresh ? 0 : cache.scrollOffset,
+          isAppend &&
+          posts.length == previousCache.posts.length &&
+          !cache.localFavoritesHasMore &&
+          !cache.remoteFavoritesHasMore;
+      final hasMore =
+          cache.localFavoritesHasMore || cache.remoteFavoritesHasMore;
+      cache = cache.copyWith(
+        posts: posts,
+        page: pageNumber,
+        nextCursor: hasMore ? '${pageNumber + 1}' : null,
+        hasMore: hasMore,
         endedByDuplicatePage: duplicatePage,
+        appendErrorCode: allAvailableBranchesFailed && isAppend
+            ? _errorCode(remoteError ?? localError)
+            : null,
+        clearAppendError: !allAvailableBranchesFailed || !isAppend,
       );
       state = state
           .copyWith(
             isLoading: false,
             isLoadingMore: false,
+            errorCode: allAvailableBranchesFailed && !isAppend
+                ? _errorCode(remoteError ?? localError)
+                : null,
             favoritedPostKeys: {..._localFavoriteKeys, ..._remoteFavoriteKeys},
-            clearError: true,
+            localFavoritedPostKeys: _localFavoriteKeys,
+            remoteFavoritedPostKeys: _remoteFavoriteKeys,
+            clearError: !allAvailableBranchesFailed || isAppend,
           )
-          .updateCurrentCache(nextCache);
-    } on GelbooruApiException catch (error, stack) {
-      if (error.type == GelbooruApiErrorType.cancelled) return;
-      if (error.type == GelbooruApiErrorType.invalidCredentials) {
-        ref.read(gelbooruAuthProvider.notifier).markInvalid();
-        invalidateGelbooruFavorites();
-      }
-      AppLogger.e('Failed to load favorites', error, stack, 'OnlineGallery');
-      _finishRequestError(error, generation, cacheKey, isAppend, cache);
+          .updateCurrentCache(cache);
     } catch (error, stack) {
       AppLogger.e('Failed to load favorites', error, stack, 'OnlineGallery');
-      _finishRequestError(error, generation, cacheKey, isAppend, cache);
+      _finishRequestError(error, generation, cacheKey, isAppend, previousCache);
     }
   }
 
-  Future<void> _loadLocalFavorites({
-    required bool refresh,
-    int? targetPage,
-  }) async {
-    final cache = state.currentCache;
-    final pageNumber = targetPage ?? (refresh ? 1 : cache.page + 1);
-    final generation = _beginRequest();
-    final cacheKey = state.currentCacheKey;
-    final isAppend = !refresh && cache.posts.isNotEmpty;
-    state = state.copyWith(
-      isLoading: !isAppend,
-      isLoadingMore: isAppend,
-      clearError: true,
-    );
-    try {
-      await ref.read(onlineGalleryLocalFavoritesProvider.notifier).initialize();
-      await ref
-          .read(onlineGalleryBlacklistNotifierProvider.notifier)
-          .ensureInitialized();
-      if (!_isCurrentRequest(generation, cacheKey)) return;
-      final capabilities = state.favoritesSourceId.capabilities;
-      final quickTagFilter =
-          state.favoritesSourceId == GallerySourceId.quickTagCloud
-          ? ref.read(quickTagCloudFilterProvider)
-          : null;
-      final page = ref
-          .read(onlineGalleryLocalFavoritesProvider.notifier)
-          .query(
-            OnlineGalleryFavoriteQuery(
-              sourceId: state.favoritesSourceId,
-              searchText: state.favoriteSearchQuery,
-              ratings: capabilities.supportsRatings
-                  ? state.selectedRatings
-                  : const {},
-              blacklistTags: ref
-                  .read(onlineGalleryBlacklistNotifierProvider)
-                  .effectiveTags,
-              codexId: quickTagFilter?.codexId,
-              categoryPath: quickTagFilter?.categoryPath ?? const [],
-              mediaFilter: quickTagFilter?.mediaFilter.name ?? 'all',
-              offset: (pageNumber - 1) * _pageSize,
-              limit: _pageSize,
-            ),
-          );
-      if (!_isCurrentRequest(generation, cacheKey)) return;
-      final base = refresh
-          ? ChunkedGalleryItems()
-          : cache.posts is ChunkedGalleryItems
-          ? cache.posts as ChunkedGalleryItems
-          : ChunkedGalleryItems.from(cache.posts);
-      final merged = base.appendPage(page.items);
-      final nextCache = ModeCache(
-        posts: merged,
-        page: pageNumber,
-        nextCursor: page.hasMore ? '${pageNumber + 1}' : null,
-        hasMore: page.hasMore,
-        total: page.total,
-        scrollOffset: refresh ? 0 : cache.scrollOffset,
-      );
-      state = state
-          .copyWith(isLoading: false, isLoadingMore: false, clearError: true)
-          .updateCurrentCache(nextCache);
-    } catch (error, stack) {
-      AppLogger.e(
-        'Failed to load local favorites',
-        error,
-        stack,
-        'OnlineGallery',
-      );
-      _finishRequestError(error, generation, cacheKey, isAppend, cache);
+  bool _canLoadRemoteFavorites(GallerySourceId sourceId) {
+    if (sourceId.capabilities.remoteFavorites ==
+        GalleryRemoteFavoritesCapability.none) {
+      return false;
     }
+    return switch (sourceId) {
+      GallerySourceId.danbooru =>
+        _danbooruAuth.isLoggedIn && _danbooruAuth.user != null,
+      GallerySourceId.gelbooru =>
+        _gelbooruAuth.isAuthenticated && _gelbooruAuth.credentials != null,
+      _ => false,
+    };
+  }
+
+  bool _matchesFavoriteSearch(GalleryItem item) {
+    final terms = state.favoriteSearchQuery
+        .trim()
+        .toLowerCase()
+        .replaceAll('_', ' ')
+        .split(RegExp(r'\s+'))
+        .where((term) => term.isNotEmpty);
+    if (terms.isEmpty) return true;
+    final haystack = [
+      item.title,
+      item.author,
+      item.description,
+      item.tagString,
+      item.tagStringGeneral,
+      item.tagStringCharacter,
+      item.tagStringCopyright,
+      item.tagStringArtist,
+      item.tagStringMeta,
+    ].whereType<String>().join(' ').toLowerCase().replaceAll('_', ' ');
+    return terms.every(haystack.contains);
+  }
+
+  ChunkedGalleryItems _removeFavoriteBranch(
+    ChunkedGalleryItems posts, {
+    required Set<String> branchKeys,
+    required Set<String> retainedByOtherBranch,
+  }) {
+    if (branchKeys.isEmpty) return posts;
+    final keysToRemove = branchKeys.difference(retainedByOtherBranch);
+    if (keysToRemove.isEmpty) return posts;
+    return posts.removeStableKeys(keysToRemove);
+  }
+
+  GalleryItem _mergeFavoriteItem(GalleryItem current, GalleryItem incoming) {
+    final incomingIsRicher =
+        _favoriteItemCompleteness(incoming) >=
+        _favoriteItemCompleteness(current);
+    final primary = incomingIsRicher ? incoming : current;
+    final secondary = incomingIsRicher ? current : incoming;
+    String fill(String value, String fallback) =>
+        value.isNotEmpty ? value : fallback;
+    String? fillNullable(String? value, String? fallback) =>
+        value?.isNotEmpty == true ? value : fallback;
+    final primaryCover = primary.cover;
+    final secondaryCover = secondary.cover;
+    return primary.copyWith(
+      title: fillNullable(primary.title, secondary.title),
+      author: fillNullable(primary.author, secondary.author),
+      description: fillNullable(primary.description, secondary.description),
+      aiType: fillNullable(primary.aiType, secondary.aiType),
+      createdAt: fill(primary.createdAt, secondary.createdAt),
+      uploaderId: primary.uploaderId != 0
+          ? primary.uploaderId
+          : secondary.uploaderId,
+      score: primary.score ?? secondary.score,
+      source: fill(primary.source, secondary.source),
+      md5: fill(primary.md5, secondary.md5),
+      rating: fillNullable(primary.rating, secondary.rating),
+      imageWidth: primary.imageWidth > 0
+          ? primary.imageWidth
+          : secondary.imageWidth,
+      imageHeight: primary.imageHeight > 0
+          ? primary.imageHeight
+          : secondary.imageHeight,
+      tagString: fill(primary.tagString, secondary.tagString),
+      tags: {...primary.tags, ...secondary.tags}.toList(growable: false),
+      tagStringGeneral: fill(
+        primary.tagStringGeneral,
+        secondary.tagStringGeneral,
+      ),
+      tagStringCharacter: fill(
+        primary.tagStringCharacter,
+        secondary.tagStringCharacter,
+      ),
+      tagStringCopyright: fill(
+        primary.tagStringCopyright,
+        secondary.tagStringCopyright,
+      ),
+      tagStringArtist: fill(primary.tagStringArtist, secondary.tagStringArtist),
+      tagStringMeta: fill(primary.tagStringMeta, secondary.tagStringMeta),
+      fileExt: fillNullable(primary.fileExt, secondary.fileExt),
+      fileSize: primary.fileSize ?? secondary.fileSize,
+      fileUrl: fillNullable(primary.fileUrl, secondary.fileUrl),
+      largeFileUrl: fillNullable(primary.largeFileUrl, secondary.largeFileUrl),
+      previewFileUrl: fillNullable(
+        primary.previewFileUrl,
+        secondary.previewFileUrl,
+      ),
+      sampleUrl: fillNullable(primary.sampleUrl, secondary.sampleUrl),
+      sampleWidth: primary.sampleWidth ?? secondary.sampleWidth,
+      sampleHeight: primary.sampleHeight ?? secondary.sampleHeight,
+      cover: GalleryMedia(
+        id: fill(primaryCover.id, secondaryCover.id),
+        previewUrl: fill(primaryCover.previewUrl, secondaryCover.previewUrl),
+        displayUrl: fill(primaryCover.displayUrl, secondaryCover.displayUrl),
+        downloadUrl: fill(primaryCover.downloadUrl, secondaryCover.downloadUrl),
+        width: primaryCover.width > 0
+            ? primaryCover.width
+            : secondaryCover.width,
+        height: primaryCover.height > 0
+            ? primaryCover.height
+            : secondaryCover.height,
+        extension: fillNullable(
+          primaryCover.extension,
+          secondaryCover.extension,
+        ),
+        mimeType: fillNullable(primaryCover.mimeType, secondaryCover.mimeType),
+        rawMetadata: fillNullable(
+          primaryCover.rawMetadata,
+          secondaryCover.rawMetadata,
+        ),
+        mediaType: fill(primaryCover.mediaType, secondaryCover.mediaType),
+        prompt: fillNullable(primaryCover.prompt, secondaryCover.prompt),
+        negativePrompt: fillNullable(
+          primaryCover.negativePrompt,
+          secondaryCover.negativePrompt,
+        ),
+        metadataFormat: fillNullable(
+          primaryCover.metadataFormat,
+          secondaryCover.metadataFormat,
+        ),
+        metadataError: fillNullable(
+          primaryCover.metadataError,
+          secondaryCover.metadataError,
+        ),
+        metadata: {...secondaryCover.metadata, ...primaryCover.metadata},
+      ),
+      mediaCount: max(primary.mediaCount, secondary.mediaCount),
+      viewCount: primary.viewCount ?? secondary.viewCount,
+      favoriteCount: primary.favoriteCount ?? secondary.favoriteCount,
+      rank: primary.rank ?? secondary.rank,
+      rankingName: fillNullable(primary.rankingName, secondary.rankingName),
+      focusedMediaId: fillNullable(
+        primary.focusedMediaId,
+        secondary.focusedMediaId,
+      ),
+      focusedMediaIndex:
+          primary.focusedMediaIndex ?? secondary.focusedMediaIndex,
+      artistChain: primary.artistChain ?? secondary.artistChain,
+      rawSourceMetadata: {
+        ...secondary.rawSourceMetadata,
+        ...primary.rawSourceMetadata,
+      },
+    );
+  }
+
+  int _favoriteItemCompleteness(GalleryItem item) {
+    int textScore(String? value) {
+      final length = value?.trim().length ?? 0;
+      return length == 0 ? 0 : 1 + min(4, length ~/ 40);
+    }
+
+    final cover = item.cover;
+    return (textScore(item.title) +
+            textScore(item.author) +
+            textScore(item.description) +
+            textScore(item.tagString) +
+            textScore(item.tagStringGeneral) +
+            textScore(item.tagStringCharacter) +
+            textScore(item.tagStringCopyright) +
+            textScore(item.tagStringArtist) +
+            textScore(item.tagStringMeta) +
+            min(20, item.tags.length) +
+            (item.imageWidth > 0 && item.imageHeight > 0 ? 3 : 0) +
+            (item.fileUrl?.isNotEmpty == true ? 3 : 0) +
+            (item.largeFileUrl?.isNotEmpty == true ? 2 : 0) +
+            (item.previewFileUrl?.isNotEmpty == true ? 2 : 0) +
+            (cover.displayUrl.isNotEmpty ? 2 : 0) +
+            (cover.downloadUrl.isNotEmpty ? 2 : 0) +
+            min(10, item.rawSourceMetadata.length) +
+            min(10, cover.metadata.length))
+        .toInt();
   }
 
   Future<List<GalleryItem>> _filterByBlacklistCompletingDetails(
@@ -2518,9 +2818,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     bool forceRefresh = false,
     GalleryDetailPriority priority = GalleryDetailPriority.interactive,
   }) {
-    if (!forceRefresh &&
-        state.viewMode == GalleryViewMode.favorites &&
-        state.favoritesScope == GalleryFavoritesScope.local) {
+    if (!forceRefresh && state.viewMode == GalleryViewMode.favorites) {
       final record = ref
           .read(onlineGalleryLocalFavoritesProvider.notifier)
           .getByStableKey(item.stableKey);
@@ -2542,16 +2840,34 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     state = state.copyWith(
       favoriteLoadingPostKeys: {...state.favoriteLoadingPostKeys, key},
     );
-    final success = await _danbooruApi.addFavorite(postId);
-    final loading = {...state.favoriteLoadingPostKeys}..remove(key);
-    if (success) _remoteFavoriteKeys.add(key);
-    state = success
-        ? state.copyWith(
-            favoritedPostKeys: {..._localFavoriteKeys, ..._remoteFavoriteKeys},
-            favoriteLoadingPostKeys: loading,
-          )
-        : state.copyWith(favoriteLoadingPostKeys: loading);
-    return success;
+    try {
+      final success = await _danbooruApi.addFavorite(postId);
+      if (success) _remoteFavoriteKeys.add(key);
+      state = success
+          ? state.copyWith(
+              favoritedPostKeys: {
+                ..._localFavoriteKeys,
+                ..._remoteFavoriteKeys,
+              },
+              localFavoritedPostKeys: _localFavoriteKeys,
+              remoteFavoritedPostKeys: _remoteFavoriteKeys,
+            )
+          : state;
+      return success;
+    } catch (error, stack) {
+      AppLogger.e(
+        'Failed to add remote favorite',
+        error,
+        stack,
+        'OnlineGallery',
+      );
+      return false;
+    } finally {
+      state = state.copyWith(
+        favoriteLoadingPostKeys: {...state.favoriteLoadingPostKeys}
+          ..remove(key),
+      );
+    }
   }
 
   Future<bool> removeFavorite(Object postOrId) async {
@@ -2561,28 +2877,42 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     state = state.copyWith(
       favoriteLoadingPostKeys: {...state.favoriteLoadingPostKeys, key},
     );
-    final success = await _danbooruApi.removeFavorite(postId);
-    final loading = {...state.favoriteLoadingPostKeys}..remove(key);
-    if (success) {
+    try {
+      final success = await _danbooruApi.removeFavorite(postId);
+      if (!success) return false;
       _remoteFavoriteKeys.remove(key);
       state = state.copyWith(
         favoritedPostKeys: {..._localFavoriteKeys, ..._remoteFavoriteKeys},
-        favoriteLoadingPostKeys: loading,
+        localFavoritedPostKeys: _localFavoriteKeys,
+        remoteFavoritedPostKeys: _remoteFavoriteKeys,
       );
       if (state.viewMode == GalleryViewMode.favorites &&
-          state.favoritesSourceId == GallerySourceId.danbooru) {
+          state.favoritesSourceId == GallerySourceId.danbooru &&
+          !_localFavoriteKeys.contains(key)) {
+        final posts = state.currentCache.posts is ChunkedGalleryItems
+            ? state.currentCache.posts as ChunkedGalleryItems
+            : ChunkedGalleryItems.from(state.currentCache.posts);
         state = state.updateCurrentCache(
           state.currentCache.copyWith(
-            posts: ChunkedGalleryItems.from(
-              state.currentCache.posts.where((item) => item.id != postId),
-            ),
+            posts: posts.removeStableKeys({'danbooru:$postId'}),
           ),
         );
       }
-    } else {
-      state = state.copyWith(favoriteLoadingPostKeys: loading);
+      return true;
+    } catch (error, stack) {
+      AppLogger.e(
+        'Failed to remove remote favorite',
+        error,
+        stack,
+        'OnlineGallery',
+      );
+      return false;
+    } finally {
+      state = state.copyWith(
+        favoriteLoadingPostKeys: {...state.favoriteLoadingPostKeys}
+          ..remove(key),
+      );
     }
-    return success;
   }
 
   Future<void> recordQuickTagCloudViewed(GalleryItem item) async {
@@ -2644,15 +2974,8 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
           : addFavorite(postOrId);
     }
 
-    if (postOrId.sourceId == GallerySourceId.gelbooru &&
-        state.viewMode == GalleryViewMode.favorites &&
-        state.favoritesScope == GalleryFavoritesScope.remote) {
-      return false;
-    }
-
     if (postOrId.sourceId == GallerySourceId.danbooru &&
-        _danbooruAuth.isLoggedIn &&
-        state.favoritesScope == GalleryFavoritesScope.remote) {
+        _danbooruAuth.isLoggedIn) {
       return _remoteFavoriteKeys.contains(postOrId.stableKey)
           ? removeFavorite(postOrId)
           : addFavorite(postOrId);
@@ -2694,25 +3017,23 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
 
   bool isFavorited(Object postOrId) {
     if (postOrId is GalleryItem) {
-      final key = postOrId.stableKey;
-      final usesRemoteState =
-          (postOrId.sourceId == GallerySourceId.danbooru &&
-              _danbooruAuth.isLoggedIn &&
-              state.favoritesScope == GalleryFavoritesScope.remote) ||
-          (postOrId.sourceId == GallerySourceId.gelbooru &&
-              state.viewMode == GalleryViewMode.favorites &&
-              state.favoritesScope == GalleryFavoritesScope.remote);
-      return usesRemoteState
-          ? _remoteFavoriteKeys.contains(key)
-          : _localFavoriteKeys.contains(key);
+      return postOrId.sourceId == GallerySourceId.danbooru &&
+              _danbooruAuth.isLoggedIn
+          ? _remoteFavoriteKeys.contains(postOrId.stableKey)
+          : _localFavoriteKeys.contains(postOrId.stableKey);
     }
     if (postOrId is! int) return false;
     final key = 'danbooru:$postOrId';
-    return _danbooruAuth.isLoggedIn &&
-            state.favoritesScope == GalleryFavoritesScope.remote
+    return _danbooruAuth.isLoggedIn
         ? _remoteFavoriteKeys.contains(key)
         : _localFavoriteKeys.contains(key);
   }
+
+  bool isLocallyFavorited(GalleryItem item) =>
+      _localFavoriteKeys.contains(item.stableKey);
+
+  bool isRemotelyFavorited(GalleryItem item) =>
+      _remoteFavoriteKeys.contains(item.stableKey);
 
   int? _danbooruFavoritePostId(Object postOrId) {
     if (postOrId is GalleryItem) {
@@ -2731,8 +3052,9 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     _remoteFavoriteKeys.removeWhere((key) => key.startsWith('gelbooru:'));
     state = state.copyWith(
       caches: filteredCaches,
-      gelbooruFavoritesCache: const ModeCache(),
       favoritedPostKeys: {..._localFavoriteKeys, ..._remoteFavoriteKeys},
+      localFavoritedPostKeys: _localFavoriteKeys,
+      remoteFavoritedPostKeys: _remoteFavoriteKeys,
       favoriteLoadingPostKeys: state.favoriteLoadingPostKeys
           .where((key) => !key.startsWith('gelbooru:'))
           .toSet(),

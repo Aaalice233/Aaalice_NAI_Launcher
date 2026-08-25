@@ -1052,12 +1052,12 @@
   "onlineGallery_sourceDoesNotSupportPopular": "目前站點不支援熱門榜單",
   "onlineGallery_favorites": "收藏",
   "onlineGallery_searchFavorites": "搜尋收藏的標題、作者或標籤…",
-  "onlineGallery_localFavorites": "本機收藏",
-  "onlineGallery_localFavoritesDescription": "儲存在此裝置，所有來源均可使用",
-  "onlineGallery_cloudFavorites": "雲端收藏",
-  "onlineGallery_loginForCloudFavorites": "登入後可檢視雲端收藏",
+  "onlineGallery_savedLocally": "已儲存在本機",
+  "onlineGallery_savedInCloud": "已儲存在雲端",
   "onlineGallery_saveVisibleLocally": "將本頁儲存至本機",
   "onlineGallery_visibleFavoritesAlreadySaved": "本頁內容已全部儲存至本機收藏",
+  "onlineGallery_localFavoritesPartialFailure": "本機收藏載入失敗，已保留雲端結果",
+  "onlineGallery_cloudFavoritesPartialFailure": "雲端收藏載入失敗，已保留本機結果",
   "onlineGallery_visibleFavoritesSaved": "已將 {count} 個項目儲存至本機收藏",
   "@onlineGallery_visibleFavoritesSaved": {
     "placeholders": {

@@ -349,6 +349,7 @@ void main() {
         _selectedModeColor(tester, 'online-gallery-mode-favorites'),
         const Color(0xFFBE185D),
       );
+      expect(find.byIcon(Icons.cloud_done), findsOneWidget);
       await tester.tap(
         find.byKey(const ValueKey('online-gallery-source-filters')),
       );
@@ -357,6 +358,8 @@ void main() {
 
       expect(find.text('Read-only favorites'), findsWidgets);
       expect(find.textContaining('Sorted by post ID'), findsOneWidget);
+      expect(find.text('Local favorites'), findsNothing);
+      expect(find.text('Cloud favorites'), findsNothing);
       final avatar = find.byKey(
         const ValueKey('online-gallery-account-avatar'),
       );
@@ -367,6 +370,56 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  for (final width in [700.0, 840.0, 1180.0, 1600.0]) {
+    testWidgets('unified favorites stay aligned at width $width', (
+      tester,
+    ) async {
+      await _setViewSize(tester, width);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            onlineGalleryNotifierProvider.overrideWith(
+              _GelbooruFavoritesGalleryNotifier.new,
+            ),
+            danbooruAuthProvider.overrideWith(_LoggedOutDanbooruAuth.new),
+            gelbooruAuthProvider.overrideWith(_AuthenticatedGelbooruAuth.new),
+            danbooruSuggestionNotifierProvider.overrideWith(
+              _EmptyDanbooruSuggestionNotifier.new,
+            ),
+          ],
+          child: const _TestApp(),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Local favorites'), findsNothing);
+      expect(find.text('Cloud favorites'), findsNothing);
+      final primaryRow = tester.getRect(
+        find.byKey(const ValueKey('online-gallery-toolbar-primary-row')),
+      );
+      for (final key in [
+        'online-gallery-source-selector',
+        'online-gallery-mode-favorites',
+        'online-gallery-rating-filter',
+        'online-gallery-primary-search',
+        'online-gallery-blacklist',
+        'online-gallery-output-filter',
+        'online-gallery-random-toggle',
+        'online-gallery-refresh',
+        'online-gallery-multi-select',
+        'online-gallery-account-avatar',
+      ]) {
+        final rect = tester.getRect(find.byKey(ValueKey(key)));
+        expect(
+          (rect.center.dy - primaryRow.center.dy).abs(),
+          lessThan(1),
+          reason: '$key must stay in the primary row at width $width',
+        );
+      }
+      expect(tester.takeException(), isNull);
+    });
+  }
 
   for (final width in [700.0, 840.0, 1180.0, 1600.0]) {
     testWidgets('AI TAG controls adapt without overflow at width $width', (
@@ -1549,8 +1602,11 @@ class _GelbooruFavoritesGalleryNotifier extends OnlineGalleryNotifier {
     return const OnlineGalleryState(
       viewMode: GalleryViewMode.favorites,
       favoritesSourceId: GallerySourceId.gelbooru,
-      gelbooruFavoritesCache: ModeCache(posts: [_gelbooruPost], hasMore: false),
       favoritedPostKeys: {'gelbooru:301'},
+      remoteFavoritedPostKeys: {'gelbooru:301'},
+    ).updateFavoritesCache(
+      GallerySourceId.gelbooru,
+      const ModeCache(posts: [_gelbooruPost], hasMore: false),
     );
   }
 }
@@ -1558,6 +1614,9 @@ class _GelbooruFavoritesGalleryNotifier extends OnlineGalleryNotifier {
 class _LoggedOutDanbooruAuth extends DanbooruAuth {
   @override
   DanbooruAuthState build() => const DanbooruAuthState();
+
+  @override
+  Future<void> ensureInitialized() async {}
 }
 
 class _UnconfiguredGelbooruAuth extends GelbooruAuth {

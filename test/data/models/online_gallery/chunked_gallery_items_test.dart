@@ -141,6 +141,69 @@ void main() {
       expect(identical(result, chunked), true);
     });
 
+    test('mergePage deduplicates and enriches its first incoming page', () {
+      final brief = item1.copyWith(title: 'brief');
+      final complete = item1.copyWith(title: 'complete');
+
+      final result = ChunkedGalleryItems().mergePage([
+        brief,
+        complete,
+        item2,
+      ], mergeDuplicate: (_, incoming) => incoming);
+
+      expect(result.map((item) => item.id), [1, 2]);
+      expect(result.first.title, 'complete');
+      expect(result.indexOfStableKey(item2.stableKey), 1);
+    });
+
+    test('mergePage replaces a duplicate in place and appends new items', () {
+      final original = item1.copyWith(title: 'brief');
+      final richer = item1.copyWith(title: 'complete');
+      final chunked = ChunkedGalleryItems.from([original, item2]);
+
+      final result = chunked.mergePage(
+        [richer, item3],
+        mergeDuplicate: (current, incoming) =>
+            (incoming.title?.length ?? 0) > (current.title?.length ?? 0)
+            ? incoming
+            : current,
+      );
+
+      expect(result.map((item) => item.id), [1, 2, 3]);
+      expect(result.first.title, 'complete');
+      expect(result.chunkCount, 2);
+      expect(chunked.first.title, 'brief');
+    });
+
+    test('removeStableKeys preserves order, chunks, and indices', () {
+      final chunked = ChunkedGalleryItems.from([
+        item1,
+        item2,
+      ]).appendPage([item3, item4]);
+
+      final result = chunked.removeStableKeys({
+        item2.stableKey,
+        item3.stableKey,
+      });
+
+      expect(result.map((item) => item.id), [1, 4]);
+      expect(result.chunkSizes, [1, 1]);
+      expect(result.indexOfStableKey(item1.stableKey), 0);
+      expect(result.indexOfStableKey(item4.stableKey), 1);
+      expect(result.containsStableKey(item2.stableKey), isFalse);
+      expect(chunked.map((item) => item.id), [1, 2, 3, 4]);
+    });
+
+    test('removeStableKeys returns the same instance without matches', () {
+      final chunked = ChunkedGalleryItems.from([item1, item2]);
+
+      expect(identical(chunked.removeStableKeys(const {}), chunked), isTrue);
+      expect(
+        identical(chunked.removeStableKeys({item3.stableKey}), chunked),
+        isTrue,
+      );
+    });
+
     test('containsStableKey works correctly', () {
       final chunked = ChunkedGalleryItems.from([item1, item2]);
       expect(chunked.containsStableKey(item1.stableKey), true);

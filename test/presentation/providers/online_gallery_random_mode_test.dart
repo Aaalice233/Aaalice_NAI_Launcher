@@ -186,7 +186,6 @@ void main() {
     const initialState = OnlineGalleryState(
       viewMode: GalleryViewMode.favorites,
       favoritesSourceId: GallerySourceId.quickTagCloud,
-      favoritesScope: GalleryFavoritesScope.local,
     );
     final favoriteCacheKey = initialState.currentCacheKey;
     await storage.setSetting(
@@ -257,8 +256,8 @@ void main() {
       GalleryViewMode.favorites,
     );
     expect(
-      container.read(onlineGalleryNotifierProvider).favoritesScope,
-      GalleryFavoritesScope.local,
+      container.read(onlineGalleryNotifierProvider).favoritesSourceId,
+      GallerySourceId.quickTagCloud,
     );
 
     await notifier.setRandomEnabled(true);
