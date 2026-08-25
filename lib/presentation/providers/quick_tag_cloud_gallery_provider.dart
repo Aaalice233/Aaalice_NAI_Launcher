@@ -23,74 +23,108 @@ final quickTagCloudFilterProvider =
     );
 
 class QuickTagCloudFilterNotifier extends Notifier<QuickTagCloudGalleryQuery> {
+  Future<bool>? _initialization;
+  bool _initialized = false;
+  int _interactionRevision = 0;
+
   @override
   QuickTagCloudGalleryQuery build() => const QuickTagCloudGalleryQuery();
 
-  Future<bool> initializeContentAccess() async {
+  Future<bool> initializeContentAccess() {
+    if (_initialized) return Future.value(false);
+    final pending = _initialization;
+    if (pending != null) return pending;
+
+    late final Future<bool> initialization;
+    initialization = _loadPersistedFilters().whenComplete(() {
+      if (identical(_initialization, initialization)) {
+        _initialization = null;
+      }
+    });
+    _initialization = initialization;
+    return initialization;
+  }
+
+  Future<bool> _loadPersistedFilters() async {
+    final revisionBeforeLoad = _interactionRevision;
     final service = ref.read(quickTagCloudUserServiceProvider);
     await service.ensureInitialized();
     final access = service.contentAccess;
     final filters = service.browsingFilters;
+    final current = state;
+    final browsingChangedDuringLoad =
+        revisionBeforeLoad != _interactionRevision;
     final next = QuickTagCloudGalleryQuery(
-      codexId: filters.codexId,
-      categoryPath: List.unmodifiable(filters.categoryPath),
-      updateFilterId: filters.updateFilterId,
-      scope: QuickTagCloudBrowseScope.values.firstWhere(
-        (value) => value.name == filters.scope,
-        orElse: () => QuickTagCloudBrowseScope.catalog,
+      codexId: browsingChangedDuringLoad ? current.codexId : filters.codexId,
+      categoryPath: List.unmodifiable(
+        browsingChangedDuringLoad ? current.categoryPath : filters.categoryPath,
       ),
-      mediaFilter: QuickTagCloudMediaFilter.values.firstWhere(
-        (value) => value.name == filters.mediaFilter,
-        orElse: () => QuickTagCloudMediaFilter.all,
-      ),
+      updateFilterId: browsingChangedDuringLoad
+          ? current.updateFilterId
+          : filters.updateFilterId,
+      scope: browsingChangedDuringLoad
+          ? current.scope
+          : QuickTagCloudBrowseScope.values.firstWhere(
+              (value) => value.name == filters.scope,
+              orElse: () => QuickTagCloudBrowseScope.catalog,
+            ),
+      mediaFilter: browsingChangedDuringLoad
+          ? current.mediaFilter
+          : QuickTagCloudMediaFilter.values.firstWhere(
+              (value) => value.name == filters.mediaFilter,
+              orElse: () => QuickTagCloudMediaFilter.all,
+            ),
       allowNsfw: access.allowNsfw,
       allowR18g: access.allowR18g,
-      favoritesOnly: state.favoritesOnly,
+      favoritesOnly: current.favoritesOnly,
     );
+    _initialized = true;
     if (next.stableKey == state.stableKey) return false;
     state = next;
     return true;
   }
 
   void restoreBrowsingSessionFilters(QuickTagCloudGalleryQuery restored) {
-    state = QuickTagCloudGalleryQuery(
-      codexId: restored.codexId,
-      categoryPath: List.unmodifiable(restored.categoryPath),
-      updateFilterId: restored.updateFilterId,
-      scope: restored.scope,
-      mediaFilter: restored.mediaFilter,
-      allowNsfw: state.allowNsfw,
-      allowR18g: state.allowR18g,
-      favoritesOnly: state.favoritesOnly,
+    _setInteractiveState(
+      QuickTagCloudGalleryQuery(
+        codexId: restored.codexId,
+        categoryPath: List.unmodifiable(restored.categoryPath),
+        updateFilterId: restored.updateFilterId,
+        scope: restored.scope,
+        mediaFilter: restored.mediaFilter,
+        allowNsfw: state.allowNsfw,
+        allowR18g: state.allowR18g,
+        favoritesOnly: state.favoritesOnly,
+      ),
     );
   }
 
   void selectCodex(String codexId) {
-    state = _copyWith(
-      codexId: codexId,
-      categoryPath: const [],
-      updateFilterId: '',
+    _setInteractiveState(
+      _copyWith(codexId: codexId, categoryPath: const [], updateFilterId: ''),
     );
     _persistBrowsingFilters();
   }
 
   void selectCategory(List<String> categoryPath) {
-    state = _copyWith(categoryPath: List.unmodifiable(categoryPath));
+    _setInteractiveState(
+      _copyWith(categoryPath: List.unmodifiable(categoryPath)),
+    );
     _persistBrowsingFilters();
   }
 
   void selectUpdateFilter(String updateFilterId) {
-    state = _copyWith(updateFilterId: updateFilterId);
+    _setInteractiveState(_copyWith(updateFilterId: updateFilterId));
     _persistBrowsingFilters();
   }
 
   void selectScope(QuickTagCloudBrowseScope scope) {
-    state = _copyWith(scope: scope);
+    _setInteractiveState(_copyWith(scope: scope));
     _persistBrowsingFilters();
   }
 
   void selectMediaFilter(QuickTagCloudMediaFilter mediaFilter) {
-    state = _copyWith(mediaFilter: mediaFilter);
+    _setInteractiveState(_copyWith(mediaFilter: mediaFilter));
     _persistBrowsingFilters();
   }
 
@@ -115,15 +149,17 @@ class QuickTagCloudFilterNotifier extends Notifier<QuickTagCloudGalleryQuery> {
             ),
           );
     }
-    state = QuickTagCloudGalleryQuery(
-      codexId: codexId,
-      categoryPath: codexId == state.codexId ? state.categoryPath : const [],
-      updateFilterId: updateFilterId,
-      scope: scope,
-      mediaFilter: mediaFilter,
-      allowNsfw: allowNsfw,
-      allowR18g: normalizedR18g,
-      favoritesOnly: state.favoritesOnly,
+    _setInteractiveState(
+      QuickTagCloudGalleryQuery(
+        codexId: codexId,
+        categoryPath: codexId == state.codexId ? state.categoryPath : const [],
+        updateFilterId: updateFilterId,
+        scope: scope,
+        mediaFilter: mediaFilter,
+        allowNsfw: allowNsfw,
+        allowR18g: normalizedR18g,
+        favoritesOnly: state.favoritesOnly,
+      ),
     );
     await _saveBrowsingFilters();
   }
@@ -139,6 +175,12 @@ class QuickTagCloudFilterNotifier extends Notifier<QuickTagCloudGalleryQuery> {
     allowNsfw: allowNsfw,
     allowR18g: allowR18g,
   );
+
+  void _setInteractiveState(QuickTagCloudGalleryQuery next) {
+    if (next.stableKey == state.stableKey) return;
+    _interactionRevision++;
+    state = next;
+  }
 
   void _persistBrowsingFilters() {
     unawaited(_saveBrowsingFilters());

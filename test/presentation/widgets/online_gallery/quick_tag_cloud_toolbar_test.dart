@@ -202,6 +202,43 @@ void main() {
     expect(refreshCount, 1);
   });
 
+  testWidgets('switches codex with one selection click', (tester) async {
+    var refreshCount = 0;
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          quickTagCloudCatalogProvider.overrideWith(
+            (ref) async => _catalog(includeSecond: true),
+          ),
+          quickTagCloudCodexProvider.overrideWith((ref, id) async => _codex()),
+          quickTagCloudFilterProvider.overrideWith(
+            _TestQuickTagCloudFilterNotifier.new,
+          ),
+        ],
+        child: MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: _toolbar(onFiltersChanged: () async => refreshCount++),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(QuickTagCloudToolbar)),
+    );
+
+    await _scrollToAndTap(tester, find.text('Artist Codex'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Other Codex'));
+    await tester.pumpAndSettle();
+
+    expect(container.read(quickTagCloudFilterProvider).codexId, 'other');
+    expect(refreshCount, 1);
+  });
+
   testWidgets('opens list dialogs without intrinsic viewport errors', (
     tester,
   ) async {
@@ -424,6 +461,17 @@ class _TestQuickTagCloudFilterNotifier extends QuickTagCloudFilterNotifier {
   Future<bool> initializeContentAccess() async => false;
 
   @override
+  void selectCodex(String codexId) {
+    state = QuickTagCloudGalleryQuery(
+      codexId: codexId,
+      scope: state.scope,
+      mediaFilter: state.mediaFilter,
+      allowNsfw: state.allowNsfw,
+      allowR18g: state.allowR18g,
+    );
+  }
+
+  @override
   Future<void> applyFilters({
     required String codexId,
     required String updateFilterId,
@@ -492,7 +540,10 @@ class _NsfwQuickTagCloudFilterNotifier extends QuickTagCloudFilterNotifier {
   }
 }
 
-QuickTagCloudCatalog _catalog({bool nsfw = false}) => QuickTagCloudCatalog(
+QuickTagCloudCatalog _catalog({
+  bool nsfw = false,
+  bool includeSecond = false,
+}) => QuickTagCloudCatalog(
   config: QuickTagCloudDataSourceConfig(
     schemaVersion: 1,
     baseUrl: Uri.https('example.test', '/data'),
@@ -521,6 +572,15 @@ QuickTagCloudCatalog _catalog({bool nsfw = false}) => QuickTagCloudCatalog(
         QuickTagCloudContributor(name: 'Alice', role: 'Compiler'),
       ],
     ),
+    if (includeSecond)
+      QuickTagCloudCodexMeta(
+        id: 'other',
+        title: 'Other Codex',
+        version: '1.0',
+        author: 'Bob',
+        entryCount: 1,
+        imagedCount: 1,
+      ),
   ],
   media: const QuickTagCloudMediaConfig(),
 );
