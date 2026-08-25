@@ -65,4 +65,24 @@ abstract final class PromptTagUtils {
     addTag(prompt.length);
     return List.unmodifiable(tags);
   }
+
+  /// Produces individually actionable tags for display. Numeric weight groups
+  /// keep their exact syntax in the prompt itself, but their inner tags are
+  /// flattened here so one weighted group does not become a single giant chip.
+  static List<String> splitForDisplay(String prompt) {
+    final tags = <String>[];
+    final numericWeight = RegExp(
+      r'^[+-]?(?:\d+(?:\.\d+)?|\.\d+)\s*::([\s\S]*)::$',
+    );
+    for (final token in splitTopLevel(prompt)) {
+      final match = numericWeight.firstMatch(token);
+      if (match == null) {
+        tags.add(token);
+        continue;
+      }
+      final innerTags = splitTopLevel(match.group(1) ?? '');
+      tags.addAll(innerTags.isEmpty ? [token] : innerTags);
+    }
+    return List.unmodifiable(tags);
+  }
 }

@@ -778,16 +778,26 @@ class _GalleryDetailDialogState extends ConsumerState<GalleryDetailDialog> {
   }
 
   Widget _buildInfoPanel(ThemeData theme) {
+    final isQuickTagCloud =
+        widget.item.sourceId == GallerySourceId.quickTagCloud;
     final codexTitle = _metadataString('codexTitle');
+    final contributorNames = widget.detail.contributors
+        .map((contributor) => contributor.name.trim())
+        .where((name) => name.isNotEmpty)
+        .toSet();
     final attributions = <String>[];
     for (final value in [
       _currentMedia?.metadata['credit']?.toString(),
       _currentMedia?.metadata['author']?.toString(),
       widget.item.author,
     ]) {
-      final normalized = value?.trim() ?? '';
-      if (normalized.isNotEmpty && !attributions.contains(normalized)) {
-        attributions.add(normalized);
+      for (final part in (value ?? '').split(' · ')) {
+        final normalized = part.trim();
+        if (normalized.isNotEmpty &&
+            !contributorNames.contains(normalized) &&
+            !attributions.contains(normalized)) {
+          attributions.add(normalized);
+        }
       }
     }
     final author = attributions.join(' · ');
@@ -796,7 +806,26 @@ class _GalleryDetailDialogState extends ConsumerState<GalleryDetailDialog> {
     final originalFile = currentMedia != null && _hasOriginal(currentMedia)
         ? currentMedia.metadata['original']?.toString().trim() ?? ''
         : '';
+    final preferredFile = originalFile.isNotEmpty ? originalFile : imageFile;
+    final preferredFileLabel = originalFile.isNotEmpty
+        ? widget.labels.originalFile
+        : widget.labels.imageFile;
     final declaredSource = _metadataString('declaredSource');
+    final normalizedDeclaredSource = declaredSource.toLowerCase();
+    final repeatsContributor = contributorNames.any(
+      (name) => normalizedDeclaredSource.contains(name.toLowerCase()),
+    );
+    final showDeclaredSource =
+        declaredSource.isNotEmpty && (!isQuickTagCloud || !repeatsContributor);
+    final categoryPath = widget.detail.categoryPath
+        .map((part) => part.trim())
+        .where((part) => part.isNotEmpty)
+        .toList(growable: false);
+    final promptIsRepresentedByTags =
+        isQuickTagCloud &&
+        widget.detail.prompt?.trim().isNotEmpty == true &&
+        widget.detail.item.tagString.trim() == widget.detail.prompt!.trim();
+    final showPromptCard = _hasPrompt && !promptIsRepresentedByTags;
     final note = widget.detail.note?.trim().isNotEmpty == true
         ? widget.detail.note!.trim()
         : widget.detail.description?.trim() ?? '';
@@ -817,15 +846,20 @@ class _GalleryDetailDialogState extends ConsumerState<GalleryDetailDialog> {
                   value: codexTitle,
                 ),
               ],
-              if (widget.detail.categoryPath.isNotEmpty) ...[
+              if (categoryPath.isNotEmpty) ...[
                 const SizedBox(height: 10),
-                _buildCategoryPath(theme),
+                _buildCompactMetadata(
+                  theme,
+                  icon: Icons.account_tree_outlined,
+                  label: widget.labels.category,
+                  value: categoryPath.join(' / '),
+                ),
               ],
               if (widget.detail.item.tags.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 _buildTagSections(theme),
               ],
-              if (_hasPrompt) ...[
+              if (showPromptCard) ...[
                 const SizedBox(height: 16),
                 _DetailTextSection(
                   title: widget.labels.positivePrompt,
@@ -881,22 +915,13 @@ class _GalleryDetailDialogState extends ConsumerState<GalleryDetailDialog> {
                   monospace: true,
                 ),
               ],
-              if (imageFile.isNotEmpty) ...[
+              if (preferredFile.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 _buildCompactMetadata(
                   theme,
                   icon: Icons.image_outlined,
-                  label: widget.labels.imageFile,
-                  value: imageFile,
-                ),
-              ],
-              if (originalFile.isNotEmpty && originalFile != imageFile) ...[
-                const SizedBox(height: 12),
-                _buildCompactMetadata(
-                  theme,
-                  icon: Icons.high_quality_outlined,
-                  label: widget.labels.originalFile,
-                  value: originalFile,
+                  label: preferredFileLabel,
+                  value: preferredFile,
                 ),
               ],
               if (author.isNotEmpty) ...[
@@ -908,7 +933,7 @@ class _GalleryDetailDialogState extends ConsumerState<GalleryDetailDialog> {
                   value: author,
                 ),
               ],
-              if (declaredSource.isNotEmpty) ...[
+              if (showDeclaredSource) ...[
                 const SizedBox(height: 12),
                 _buildCompactMetadata(
                   theme,
@@ -935,30 +960,34 @@ class _GalleryDetailDialogState extends ConsumerState<GalleryDetailDialog> {
 
   Widget _buildItemBadges(ThemeData theme) {
     final item = widget.detail.item;
-    final stats = <({IconData icon, String label, String value})>[
+    final stats = <({IconData icon, String label, String value, Color accent})>[
       if (item.viewCount != null)
         (
-          icon: Icons.visibility_outlined,
+          icon: Icons.visibility_rounded,
           label: widget.labels.views,
           value: '${item.viewCount}',
+          accent: theme.colorScheme.primary,
         ),
       if (item.favoriteCount != null)
         (
-          icon: Icons.favorite_border,
+          icon: Icons.favorite_rounded,
           label: widget.labels.favoriteCount,
           value: '${item.favoriteCount}',
+          accent: theme.colorScheme.error,
         ),
       if (item.score != null)
         (
-          icon: Icons.star_outline,
+          icon: Icons.star_rounded,
           label: widget.labels.score,
           value: '${item.score}',
+          accent: theme.colorScheme.tertiary,
         ),
       if (item.rating?.trim().isNotEmpty == true)
         (
-          icon: Icons.shield_outlined,
+          icon: Icons.shield_rounded,
           label: widget.labels.rating,
           value: item.rating!.toUpperCase(),
+          accent: theme.colorScheme.secondary,
         ),
     ];
     final badges = <Widget>[
@@ -974,30 +1003,26 @@ class _GalleryDetailDialogState extends ConsumerState<GalleryDetailDialog> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (stats.isNotEmpty)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerLow,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
-              ),
-            ),
-            child: Row(
-              children: [
-                for (var index = 0; index < stats.length; index++) ...[
-                  if (index > 0)
+          LayoutBuilder(
+            builder: (context, constraints) {
+              const gap = 8.0;
+              final availableWidth = constraints.maxWidth;
+              final itemWidth = stats.length == 1
+                  ? availableWidth.clamp(0.0, 144.0).toDouble()
+                  : (availableWidth - gap * (stats.length - 1)) / stats.length;
+              return Wrap(
+                key: const ValueKey('gallery-detail-stats'),
+                spacing: gap,
+                runSpacing: gap,
+                children: [
+                  for (final stat in stats)
                     SizedBox(
-                      height: 30,
-                      child: VerticalDivider(
-                        width: 12,
-                        color: theme.colorScheme.outlineVariant,
-                      ),
+                      width: itemWidth,
+                      child: _buildStatItem(theme, stat),
                     ),
-                  Expanded(child: _buildStatItem(theme, stats[index])),
                 ],
-              ],
-            ),
+              );
+            },
           ),
         if (stats.isNotEmpty && badges.isNotEmpty) const SizedBox(height: 10),
         if (badges.isNotEmpty)
@@ -1008,40 +1033,64 @@ class _GalleryDetailDialogState extends ConsumerState<GalleryDetailDialog> {
 
   Widget _buildStatItem(
     ThemeData theme,
-    ({IconData icon, String label, String value}) stat,
+    ({IconData icon, String label, String value, Color accent}) stat,
   ) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(stat.icon, size: 17, color: theme.colorScheme.onSurfaceVariant),
-        const SizedBox(width: 6),
-        Flexible(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                stat.label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              Text(
-                stat.value,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.labelLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  fontFeatures: const [FontFeature.tabularFigures()],
-                ),
-              ),
-            ],
-          ),
+    final dark = theme.brightness == Brightness.dark;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Color.alphaBlend(
+          stat.accent.withValues(alpha: dark ? 0.12 : 0.08),
+          theme.colorScheme.surfaceContainerLow,
         ),
-      ],
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                color: stat.accent.withValues(alpha: dark ? 0.2 : 0.14),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(stat.icon, size: 16, color: stat.accent),
+            ),
+            const SizedBox(width: 9),
+            Flexible(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    stat.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      height: 1,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    stat.value,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: theme.colorScheme.onSurface,
+                      fontWeight: FontWeight.w600,
+                      height: 1,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -1179,37 +1228,6 @@ class _GalleryDetailDialogState extends ConsumerState<GalleryDetailDialog> {
             style: theme.textTheme.bodyMedium?.copyWith(
               fontWeight: FontWeight.w600,
             ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCategoryPath(ThemeData theme) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(
-              Icons.account_tree_outlined,
-              size: 18,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              widget.labels.category,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 7),
-        SelectableText(
-          widget.detail.categoryPath.join(' / '),
-          style: theme.textTheme.bodyMedium?.copyWith(
-            fontWeight: FontWeight.w600,
           ),
         ),
       ],

@@ -2851,12 +2851,17 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
                 outputFilter: outputFilter,
               );
         final codexTitle = post.rawSourceMetadata['codexTitle']?.toString();
-        final codexBadge =
+        final categoryLabel = _quickTagCloudCategoryLabel(
+          post.rawSourceMetadata['categoryPath'],
+        );
+        final badgeBase = categoryLabel ?? codexTitle;
+        final quickTagCloudBadge =
             isQuickTagCloud &&
+                badgeBase != null &&
                 post.rawSourceMetadata['loadSource'] ==
                     QuickTagCloudCodexLoadSource.previousRelease.name
-            ? '${codexTitle ?? ''} · ${context.l10n.onlineGallery_codexCachedBadge}'
-            : codexTitle;
+            ? '$badgeBase · ${context.l10n.onlineGallery_codexCachedBadge}'
+            : badgeBase;
         return DanbooruPostCard(
           key: ValueKey(post.stableKey),
           post: post,
@@ -2891,7 +2896,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
                   post.artistChain!.artistCount,
                 )
               : isQuickTagCloud
-              ? codexBadge
+              ? quickTagCloudBadge
               : null,
           emptyTitle: isQuickTagCloud
               ? context.l10n.onlineGallery_codexUntitled
@@ -4837,6 +4842,19 @@ class _RatingDropdown extends StatelessWidget {
       ),
     );
   }
+}
+
+String? _quickTagCloudCategoryLabel(Object? rawPath) {
+  final parts = switch (rawPath) {
+    final Iterable<dynamic> values => values,
+    final String value => value.split('/'),
+    _ => const <dynamic>[],
+  };
+  for (final part in parts.toList().reversed) {
+    final label = part.toString().trim();
+    if (label.isNotEmpty) return label;
+  }
+  return null;
 }
 
 class _VisibilityDrivenGalleryItem extends StatefulWidget {

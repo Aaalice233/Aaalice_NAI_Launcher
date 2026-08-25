@@ -933,6 +933,8 @@ void main() {
       expect(searchRect.width, greaterThan(280));
       expect(blacklistRect.left - searchRect.right, closeTo(8, 0.1));
       expect(accountRect.right, closeTo(primaryRect.right, 0.1));
+      expect(find.text('Leaf category'), findsOneWidget);
+      expect(find.text('Fallback codex title'), findsNothing);
       expect(tester.takeException(), isNull);
     },
   );
@@ -1200,6 +1202,10 @@ class _QuickTagCloudGalleryNotifier extends OnlineGalleryNotifier {
           sourceId: GallerySourceId.quickTagCloud,
           title: 'Text entry',
           mediaCount: 0,
+          rawSourceMetadata: {
+            'codexTitle': 'Fallback codex title',
+            'categoryPath': ['Parent category', 'Leaf category'],
+          },
         ),
       ],
       hasMore: false,

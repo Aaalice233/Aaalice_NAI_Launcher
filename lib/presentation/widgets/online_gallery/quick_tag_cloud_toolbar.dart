@@ -33,6 +33,7 @@ class QuickTagCloudToolbar extends ConsumerStatefulWidget {
 class _QuickTagCloudToolbarState extends ConsumerState<QuickTagCloudToolbar> {
   bool _normalizingCodex = false;
   bool _normalizingFilters = false;
+  bool _openingCategoryPicker = false;
 
   @override
   void initState() {
@@ -170,14 +171,10 @@ class _QuickTagCloudToolbarState extends ConsumerState<QuickTagCloudToolbar> {
           label: query.categoryPath.isEmpty
               ? l10n.onlineGallery_codexAllCategories
               : query.categoryPath.join(' / '),
-          loading: codexValue?.isLoading ?? false,
-          onPressed: codexValue?.valueOrNull == null
+          loading: (codexValue?.isLoading ?? false) || _openingCategoryPicker,
+          onPressed: query.codexId == 'all' || selectedCodexLocked
               ? null
-              : () => _showCategoryPicker(
-                  context,
-                  codexValue!.value!,
-                  query.categoryPath,
-                ),
+              : () => _openCategoryPicker(query.codexId, query.categoryPath),
         ),
         _ToolbarButton(
           icon: Icons.tune,
@@ -345,6 +342,40 @@ class _QuickTagCloudToolbarState extends ConsumerState<QuickTagCloudToolbar> {
     if (!mounted || selected == null || selected == query.codexId) return;
     ref.read(quickTagCloudFilterProvider.notifier).selectCodex(selected);
     await widget.onFiltersChanged();
+  }
+
+  Future<void> _openCategoryPicker(
+    String codexId,
+    List<String> selectedPath,
+  ) async {
+    if (_openingCategoryPicker) return;
+    setState(() => _openingCategoryPicker = true);
+    try {
+      final codex = await ref.read(quickTagCloudCodexProvider(codexId).future);
+      if (!mounted) return;
+      setState(() => _openingCategoryPicker = false);
+      await _showCategoryPicker(context, codex, selectedPath);
+    } catch (error, stackTrace) {
+      AppLogger.e(
+        'Failed to load QuickTagCloud categories for $codexId',
+        error,
+        stackTrace,
+        'QuickTagCloudToolbar',
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context)!.onlineGallery_loadFailed,
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted && _openingCategoryPicker) {
+        setState(() => _openingCategoryPicker = false);
+      }
+    }
   }
 
   Future<void> _showCategoryPicker(

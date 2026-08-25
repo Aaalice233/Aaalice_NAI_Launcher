@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -121,6 +123,83 @@ void main() {
       expect(rect.right, lessThanOrEqualTo(700));
     }
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('opens category picker from the first click while loading', (
+    tester,
+  ) async {
+    final codexCompleter = Completer<QuickTagCloudCodex>();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          quickTagCloudCatalogProvider.overrideWith((ref) async => _catalog()),
+          quickTagCloudCodexProvider.overrideWith(
+            (ref, id) => codexCompleter.future,
+          ),
+          quickTagCloudFilterProvider.overrideWith(
+            _TestQuickTagCloudFilterNotifier.new,
+          ),
+        ],
+        child: MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: _toolbar(onFiltersChanged: () async {})),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    await _scrollToAndTap(tester, find.text('All categories'));
+    codexCompleter.complete(_codex());
+    await tester.pumpAndSettle();
+
+    expect(find.text('Category'), findsOneWidget);
+    expect(find.byType(AlertDialog), findsOneWidget);
+  });
+
+  testWidgets('switches to all categories with one selection click', (
+    tester,
+  ) async {
+    var refreshCount = 0;
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          quickTagCloudCatalogProvider.overrideWith((ref) async => _catalog()),
+          quickTagCloudCodexProvider.overrideWith(
+            (ref, id) async => _codex(
+              tree: const [
+                {'name': 'Parent', 'count': 1},
+              ],
+            ),
+          ),
+          quickTagCloudFilterProvider.overrideWith(
+            _SelectedCategoryFilterNotifier.new,
+          ),
+        ],
+        child: MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: _toolbar(onFiltersChanged: () async => refreshCount++),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(QuickTagCloudToolbar)),
+    );
+
+    await _scrollToAndTap(tester, find.text('Parent'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('All categories'));
+    await tester.pumpAndSettle();
+
+    expect(container.read(quickTagCloudFilterProvider).categoryPath, isEmpty);
+    expect(refreshCount, 1);
   });
 
   testWidgets('opens list dialogs without intrinsic viewport errors', (
@@ -360,6 +439,27 @@ class _TestQuickTagCloudFilterNotifier extends QuickTagCloudFilterNotifier {
       mediaFilter: mediaFilter,
       allowNsfw: allowNsfw,
       allowR18g: allowNsfw && allowR18g,
+    );
+  }
+}
+
+class _SelectedCategoryFilterNotifier extends _TestQuickTagCloudFilterNotifier {
+  @override
+  QuickTagCloudGalleryQuery build() => const QuickTagCloudGalleryQuery(
+    codexId: 'artist',
+    categoryPath: ['Parent'],
+  );
+
+  @override
+  void selectCategory(List<String> categoryPath) {
+    state = QuickTagCloudGalleryQuery(
+      codexId: state.codexId,
+      categoryPath: List.unmodifiable(categoryPath),
+      updateFilterId: state.updateFilterId,
+      scope: state.scope,
+      mediaFilter: state.mediaFilter,
+      allowNsfw: state.allowNsfw,
+      allowR18g: state.allowR18g,
     );
   }
 }

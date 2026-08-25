@@ -32,7 +32,8 @@ void main() {
         previewFileUrl: '',
         sampleUrl: '',
         fileUrl: '',
-        tags: const ['tag'],
+        tagString: 'positive prompt',
+        tags: const ['positive prompt'],
         createdAt: DateTime.utc(2025).toIso8601String(),
         rating: 'g',
         score: 0,
@@ -103,6 +104,15 @@ void main() {
       );
       expect(find.text('Contributor · maintainer'), findsOneWidget);
       expect(find.text('Original dataset'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('gallery-detail-stats')),
+          matching: find.byType(VerticalDivider),
+        ),
+        findsNothing,
+      );
+      expect(find.byIcon(Icons.star_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.shield_rounded), findsOneWidget);
       expect(find.byIcon(Icons.favorite_border), findsOneWidget);
 
       await tester.tap(find.byTooltip('Add favorite'));

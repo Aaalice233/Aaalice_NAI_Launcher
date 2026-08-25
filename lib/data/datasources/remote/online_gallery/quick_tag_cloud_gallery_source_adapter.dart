@@ -963,7 +963,7 @@ class QuickTagCloudGallerySourceAdapter extends GallerySourceAdapter {
   }
 
   List<String> _promptTags(String prompt) =>
-      PromptTagUtils.splitTopLevel(prompt);
+      PromptTagUtils.splitForDisplay(prompt);
 
   int _stableNumericId(String value) {
     var hash = 0x811c9dc5;

@@ -584,7 +584,7 @@ OnlineGalleryFavoriteRecord _quickTagCloudRecord(
     imageWidth: cover.width,
     imageHeight: cover.height,
     tagString: entry.tags,
-    tags: PromptTagUtils.splitTopLevel(entry.tags),
+    tags: PromptTagUtils.splitForDisplay(entry.tags),
     fileExt: cover.extension,
     fileUrl: cover.downloadUrl.isEmpty ? null : cover.downloadUrl,
     largeFileUrl: cover.displayUrl.isEmpty ? null : cover.displayUrl,
