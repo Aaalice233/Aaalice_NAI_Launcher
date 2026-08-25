@@ -2524,6 +2524,31 @@ class AppLocalizationsEn extends AppLocalizations {
   String get onlineGallery_searchTags => 'Search tags...';
 
   @override
+  String onlineGallery_maxTagsExceeded(int max) {
+    return 'You can combine up to $max tags in one search';
+  }
+
+  @override
+  String get onlineGallery_tagDetailsIncomplete =>
+      'Some complete tag lists could not be loaded. Unverified works were excluded; retry to complete the results.';
+
+  @override
+  String get onlineGallery_unsupportedMetatag =>
+      'This source or mode does not support metatag syntax. Use ordinary tags or switch to the source search.';
+
+  @override
+  String onlineGallery_multiTagScanning(int requests, int candidates) {
+    return 'Combining tags: requested $requests pages and checked $candidates candidate works';
+  }
+
+  @override
+  String get onlineGallery_scanPaused =>
+      'Several candidate pages were checked without enough matches. You can continue scanning later pages.';
+
+  @override
+  String get onlineGallery_continueScanning => 'Continue scanning';
+
+  @override
   String get onlineGallery_refresh => 'Refresh';
 
   @override
@@ -2538,6 +2563,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get onlineGallery_randomExhausted =>
       'No more unseen images in this range';
+
+  @override
+  String get onlineGallery_randomDrawNoMatch =>
+      'This draw found no matching images. You can draw again.';
 
   @override
   String get onlineGallery_randomRestart => 'Start over';

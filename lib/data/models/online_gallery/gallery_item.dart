@@ -96,6 +96,8 @@ class GalleryItem {
     int? height,
     this.tagString = '',
     List<String>? tags,
+    this.searchTerms = const [],
+    this.tagsComplete = true,
     this.tagStringGeneral = '',
     this.tagStringCharacter = '',
     this.tagStringCopyright = '',
@@ -148,6 +150,10 @@ class GalleryItem {
   final int imageHeight;
   final String tagString;
   final List<String>? _tags;
+
+  /// Source-defined searchable text that is not necessarily a display tag.
+  final List<String> searchTerms;
+  final bool tagsComplete;
   final String tagStringGeneral;
   final String tagStringCharacter;
   final String tagStringCopyright;
@@ -332,6 +338,8 @@ class GalleryItem {
     int? imageHeight,
     String? tagString,
     List<String>? tags,
+    List<String>? searchTerms,
+    bool? tagsComplete,
     String? tagStringGeneral,
     String? tagStringCharacter,
     String? tagStringCopyright,
@@ -376,6 +384,8 @@ class GalleryItem {
       imageHeight: imageHeight ?? this.imageHeight,
       tagString: tagString ?? this.tagString,
       tags: tags ?? _tags,
+      searchTerms: searchTerms ?? this.searchTerms,
+      tagsComplete: tagsComplete ?? this.tagsComplete,
       tagStringGeneral: tagStringGeneral ?? this.tagStringGeneral,
       tagStringCharacter: tagStringCharacter ?? this.tagStringCharacter,
       tagStringCopyright: tagStringCopyright ?? this.tagStringCopyright,
@@ -473,6 +483,7 @@ class GalleryPage {
     required this.hasMore,
     this.total,
     this.rawItemCount = 0,
+    this.rawPageIdentity,
   });
 
   final List<GalleryItem> items;
@@ -481,4 +492,7 @@ class GalleryPage {
   final bool hasMore;
   final int? total;
   final int rawItemCount;
+
+  /// Stable identity of the upstream page before adapter-side filtering.
+  final String? rawPageIdentity;
 }

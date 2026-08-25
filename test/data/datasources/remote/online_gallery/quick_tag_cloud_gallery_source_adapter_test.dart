@@ -90,6 +90,28 @@ void main() {
     ]);
   });
 
+  test('多标签搜索仅返回完整 Tag 集满足 AND 条件的词条', () async {
+    final matched = await adapter.search(
+      const GallerySearchRequest(
+        query: 'hero cinematic_lighting -abstract',
+        cursor: '1',
+        pageSize: 20,
+        ratings: {'g'},
+      ),
+    );
+    final missing = await adapter.search(
+      const GallerySearchRequest(
+        query: 'hero abstract',
+        cursor: '1',
+        pageSize: 20,
+        ratings: {'g'},
+      ),
+    );
+
+    expect(matched.items.map((item) => item.sourceWorkId), ['book/book-0001']);
+    expect(missing.items, isEmpty);
+  });
+
   test('取消令牌贯穿目录与法典加载', () async {
     final cancelToken = CancelToken();
 

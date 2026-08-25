@@ -1,3 +1,5 @@
+import 'package:nai_launcher/core/online_gallery/gallery_tag_query.dart';
+
 enum GallerySourceId {
   danbooru('danbooru', 'Danbooru'),
   safebooru('safebooru', 'Safebooru'),
@@ -26,6 +28,69 @@ enum GalleryRemoteFavoritesCapability { none, readOnly, readWrite }
 
 enum GalleryRemoteBlacklistCapability { none, readWrite }
 
+enum GalleryTagSearchStrategy {
+  accountTierSeedResidual,
+  fixedSeedResidual,
+  native,
+  localPredicate,
+}
+
+class GalleryTagSearchCapabilities {
+  const GalleryTagSearchCapabilities({
+    required this.strategy,
+    required this.anonymousLimit,
+    this.authenticatedLimit,
+    this.goldLimit,
+    this.unlimitedFromLevel,
+    this.listTagsComplete = true,
+    this.supportsNegativePushdown = true,
+    this.searchMetatagPrefixes = const {},
+    this.rankingMetatagPrefixes = const {},
+    this.rankingAppliesOrdinaryQuery = false,
+    this.validatesPushdownLocally = false,
+  });
+
+  final GalleryTagSearchStrategy strategy;
+  final int anonymousLimit;
+  final int? authenticatedLimit;
+  final int? goldLimit;
+  final int? unlimitedFromLevel;
+  final bool listTagsComplete;
+  final bool supportsNegativePushdown;
+  final Set<String> searchMetatagPrefixes;
+  final Set<String> rankingMetatagPrefixes;
+  final bool rankingAppliesOrdinaryQuery;
+  final bool validatesPushdownLocally;
+
+  Set<String> metatagPrefixes(GalleryFeedKind feed) => switch (feed) {
+    GalleryFeedKind.search => searchMetatagPrefixes,
+    GalleryFeedKind.ranking => rankingMetatagPrefixes,
+    GalleryFeedKind.favorites => const {},
+  };
+
+  bool appliesOrdinaryQuery(GalleryFeedKind feed) => switch (feed) {
+    GalleryFeedKind.search => true,
+    GalleryFeedKind.ranking => rankingAppliesOrdinaryQuery,
+    GalleryFeedKind.favorites => false,
+  };
+
+  int serverLimit({required bool authenticated, int? accountLevel}) {
+    final level = accountLevel;
+    if (level != null &&
+        unlimitedFromLevel != null &&
+        level >= unlimitedFromLevel!) {
+      return 6;
+    }
+    if (level != null && level >= 30 && goldLimit != null) {
+      return goldLimit!;
+    }
+    if (authenticated && authenticatedLimit != null) {
+      return authenticatedLimit!;
+    }
+    return anonymousLimit;
+  }
+}
+
 class GallerySourceCapabilities {
   const GallerySourceCapabilities({
     required this.supportsSearch,
@@ -44,6 +109,10 @@ class GallerySourceCapabilities {
     required this.supportsDetails,
     required this.supportsMultipleMedia,
     required this.randomFeeds,
+    this.tagSearch = const GalleryTagSearchCapabilities(
+      strategy: GalleryTagSearchStrategy.native,
+      anonymousLimit: 6,
+    ),
   });
 
   final bool supportsSearch;
@@ -62,12 +131,24 @@ class GallerySourceCapabilities {
   final bool supportsDetails;
   final bool supportsMultipleMedia;
   final Set<GalleryFeedKind> randomFeeds;
+  final GalleryTagSearchCapabilities tagSearch;
 
   bool get supportsRanking => rankingKinds.isNotEmpty;
 
   bool supportsRandomFeed(GalleryFeedKind feed) => randomFeeds.contains(feed);
 }
 
+/// Search capability evidence (verified 2026-08-25):
+/// - Danbooru tiers: https://danbooru.donmai.us/wiki_pages/help:users
+/// - Safebooru anonymous API limit response:
+///   https://safebooru.donmai.us/posts.json?limit=1&tags=1girl+solo+smile
+/// - Gelbooru API contract: https://gelbooru.com/index.php?page=wiki&s=view&id=18780
+///   and a live six-tag HTML query:
+///   https://gelbooru.com/index.php?page=post&s=list&tags=1girl+solo+smile+long_hair+looking_at_viewer+blue_eyes
+/// - AI TAG live config/search contracts: https://aitag.win/api/config and
+///   https://aitag.win/api/ai_works_search?page=1&page_size=60&q=1girl
+/// - QuickTagCloud fixed codex format:
+///   https://github.com/AgIzT/NovelAI-Tag
 const Map<GallerySourceId, GallerySourceCapabilities>
 gallerySourceCapabilities = {
   GallerySourceId.danbooru: GallerySourceCapabilities(
@@ -94,6 +175,14 @@ gallerySourceCapabilities = {
       GalleryFeedKind.ranking,
       GalleryFeedKind.favorites,
     },
+    tagSearch: GalleryTagSearchCapabilities(
+      strategy: GalleryTagSearchStrategy.accountTierSeedResidual,
+      anonymousLimit: 2,
+      authenticatedLimit: 2,
+      goldLimit: 6,
+      unlimitedFromLevel: 31,
+      searchMetatagPrefixes: danbooruGalleryMetatagPrefixes,
+    ),
   ),
   GallerySourceId.safebooru: GallerySourceCapabilities(
     supportsSearch: true,
@@ -113,6 +202,11 @@ gallerySourceCapabilities = {
     supportsDetails: true,
     supportsMultipleMedia: false,
     randomFeeds: {GalleryFeedKind.search, GalleryFeedKind.ranking},
+    tagSearch: GalleryTagSearchCapabilities(
+      strategy: GalleryTagSearchStrategy.fixedSeedResidual,
+      anonymousLimit: 2,
+      searchMetatagPrefixes: danbooruGalleryMetatagPrefixes,
+    ),
   ),
   GallerySourceId.gelbooru: GallerySourceCapabilities(
     supportsSearch: true,
@@ -128,6 +222,12 @@ gallerySourceCapabilities = {
     supportsDetails: true,
     supportsMultipleMedia: false,
     randomFeeds: {GalleryFeedKind.search, GalleryFeedKind.favorites},
+    tagSearch: GalleryTagSearchCapabilities(
+      strategy: GalleryTagSearchStrategy.native,
+      anonymousLimit: 6,
+      authenticatedLimit: 6,
+      searchMetatagPrefixes: gelbooruGalleryMetatagPrefixes,
+    ),
   ),
   GallerySourceId.aiTag: GallerySourceCapabilities(
     supportsSearch: true,
@@ -142,6 +242,14 @@ gallerySourceCapabilities = {
     supportsDetails: true,
     supportsMultipleMedia: true,
     randomFeeds: {GalleryFeedKind.search, GalleryFeedKind.ranking},
+    tagSearch: GalleryTagSearchCapabilities(
+      strategy: GalleryTagSearchStrategy.fixedSeedResidual,
+      anonymousLimit: 1,
+      listTagsComplete: false,
+      supportsNegativePushdown: false,
+      rankingAppliesOrdinaryQuery: true,
+      validatesPushdownLocally: true,
+    ),
   ),
   GallerySourceId.quickTagCloud: GallerySourceCapabilities(
     supportsSearch: true,
@@ -157,6 +265,10 @@ gallerySourceCapabilities = {
     supportsDetails: true,
     supportsMultipleMedia: true,
     randomFeeds: {GalleryFeedKind.search, GalleryFeedKind.favorites},
+    tagSearch: GalleryTagSearchCapabilities(
+      strategy: GalleryTagSearchStrategy.localPredicate,
+      anonymousLimit: 6,
+    ),
   ),
 };
 

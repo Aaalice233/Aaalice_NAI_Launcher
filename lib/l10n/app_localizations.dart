@@ -4563,6 +4563,42 @@ abstract class AppLocalizations {
   /// **'Search tags...'**
   String get onlineGallery_searchTags;
 
+  /// No description provided for @onlineGallery_maxTagsExceeded.
+  ///
+  /// In en, this message translates to:
+  /// **'You can combine up to {max} tags in one search'**
+  String onlineGallery_maxTagsExceeded(int max);
+
+  /// No description provided for @onlineGallery_tagDetailsIncomplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Some complete tag lists could not be loaded. Unverified works were excluded; retry to complete the results.'**
+  String get onlineGallery_tagDetailsIncomplete;
+
+  /// No description provided for @onlineGallery_unsupportedMetatag.
+  ///
+  /// In en, this message translates to:
+  /// **'This source or mode does not support metatag syntax. Use ordinary tags or switch to the source search.'**
+  String get onlineGallery_unsupportedMetatag;
+
+  /// No description provided for @onlineGallery_multiTagScanning.
+  ///
+  /// In en, this message translates to:
+  /// **'Combining tags: requested {requests} pages and checked {candidates} candidate works'**
+  String onlineGallery_multiTagScanning(int requests, int candidates);
+
+  /// No description provided for @onlineGallery_scanPaused.
+  ///
+  /// In en, this message translates to:
+  /// **'Several candidate pages were checked without enough matches. You can continue scanning later pages.'**
+  String get onlineGallery_scanPaused;
+
+  /// No description provided for @onlineGallery_continueScanning.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue scanning'**
+  String get onlineGallery_continueScanning;
+
   /// No description provided for @onlineGallery_refresh.
   ///
   /// In en, this message translates to:
@@ -4592,6 +4628,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No more unseen images in this range'**
   String get onlineGallery_randomExhausted;
+
+  /// No description provided for @onlineGallery_randomDrawNoMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'This draw found no matching images. You can draw again.'**
+  String get onlineGallery_randomDrawNoMatch;
 
   /// No description provided for @onlineGallery_randomRestart.
   ///
