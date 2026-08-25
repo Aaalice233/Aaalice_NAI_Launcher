@@ -15,16 +15,14 @@ class QuickTagCloudToolbar extends ConsumerStatefulWidget {
     super.key,
     required this.onFiltersChanged,
     required this.selectedRatings,
-    required this.sourceControl,
-    required this.ratingControl,
     this.favoritesMode = false,
+    this.wrapControls = false,
   });
 
   final Future<void> Function() onFiltersChanged;
   final Set<String> selectedRatings;
-  final Widget sourceControl;
-  final Widget ratingControl;
   final bool favoritesMode;
+  final bool wrapControls;
 
   @override
   ConsumerState<QuickTagCloudToolbar> createState() =>
@@ -124,7 +122,6 @@ class _QuickTagCloudToolbarState extends ConsumerState<QuickTagCloudToolbar> {
       runSpacing: 8,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        widget.sourceControl,
         if (!widget.favoritesMode)
           SegmentedButton<QuickTagCloudBrowseScope>(
             segments: [
@@ -181,7 +178,6 @@ class _QuickTagCloudToolbarState extends ConsumerState<QuickTagCloudToolbar> {
                   query.categoryPath,
                 ),
         ),
-        widget.ratingControl,
         _ToolbarButton(
           icon: Icons.tune,
           label: l10n.common_filter,
@@ -232,13 +228,9 @@ class _QuickTagCloudToolbarState extends ConsumerState<QuickTagCloudToolbar> {
       ],
     );
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Expanded(child: filterControls),
-        const SizedBox(width: 8),
-        if (selectedMeta != null)
-          IconButton(
+    final contributorsButton = selectedMeta == null
+        ? null
+        : IconButton(
             key: const ValueKey('quick-tag-cloud-contributors'),
             tooltip: l10n.onlineGallery_codexContributors,
             visualDensity: VisualDensity.compact,
@@ -247,8 +239,39 @@ class _QuickTagCloudToolbarState extends ConsumerState<QuickTagCloudToolbar> {
               codexValue?.valueOrNull?.asMediaMeta() ?? selectedMeta,
             ),
             icon: const Icon(Icons.group_outlined, size: 20),
-          ),
+          );
+    if (widget.wrapControls) {
+      return SizedBox(
+        width: double.infinity,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            filterControls,
+            if (contributorsButton != null) contributorsButton,
+          ],
+        ),
+      );
+    }
+    final content = Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        filterControls,
+        if (contributorsButton != null) ...[
+          const SizedBox(width: 8),
+          contributorsButton,
+        ],
       ],
+    );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (!constraints.hasBoundedWidth) return content;
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: content,
+        );
+      },
     );
   }
 

@@ -22,6 +22,8 @@ enum GalleryRankingKind { day, week, month, aiTagMonthly }
 
 enum GalleryFeedKind { search, ranking, favorites }
 
+enum GalleryRemoteFavoritesCapability { none, readOnly, readWrite }
+
 class GallerySourceCapabilities {
   const GallerySourceCapabilities({
     required this.supportsSearch,
@@ -33,7 +35,9 @@ class GallerySourceCapabilities {
     required this.rankingKinds,
     required this.supportsFavorites,
     required this.supportsWritableFavorites,
-    this.supportsLocalFavorites = false,
+    this.supportsLocalFavorites = true,
+    this.remoteFavorites = GalleryRemoteFavoritesCapability.none,
+    this.supportsCategorizedTags = false,
     required this.supportsDetails,
     required this.supportsMultipleMedia,
     required this.randomFeeds,
@@ -49,6 +53,8 @@ class GallerySourceCapabilities {
   final bool supportsFavorites;
   final bool supportsWritableFavorites;
   final bool supportsLocalFavorites;
+  final GalleryRemoteFavoritesCapability remoteFavorites;
+  final bool supportsCategorizedTags;
   final bool supportsDetails;
   final bool supportsMultipleMedia;
   final Set<GalleryFeedKind> randomFeeds;
@@ -74,6 +80,8 @@ gallerySourceCapabilities = {
     },
     supportsFavorites: true,
     supportsWritableFavorites: true,
+    remoteFavorites: GalleryRemoteFavoritesCapability.readWrite,
+    supportsCategorizedTags: true,
     supportsDetails: true,
     supportsMultipleMedia: false,
     randomFeeds: {
@@ -96,6 +104,7 @@ gallerySourceCapabilities = {
     },
     supportsFavorites: false,
     supportsWritableFavorites: false,
+    supportsCategorizedTags: true,
     supportsDetails: true,
     supportsMultipleMedia: false,
     randomFeeds: {GalleryFeedKind.search, GalleryFeedKind.ranking},
@@ -110,6 +119,7 @@ gallerySourceCapabilities = {
     rankingKinds: {},
     supportsFavorites: true,
     supportsWritableFavorites: false,
+    remoteFavorites: GalleryRemoteFavoritesCapability.readOnly,
     supportsDetails: true,
     supportsMultipleMedia: false,
     randomFeeds: {GalleryFeedKind.search, GalleryFeedKind.favorites},

@@ -22,6 +22,7 @@ import '../../../core/utils/file_picker_utils.dart';
 import '../../../data/datasources/remote/danbooru_api_service.dart';
 import '../../../data/models/character/character_prompt.dart';
 import '../../../data/models/online_gallery/danbooru_post.dart';
+import '../../../data/models/online_gallery/gallery_prompt_projection.dart';
 import '../../../data/models/online_gallery/quick_tag_cloud_codex.dart';
 import '../../../data/models/queue/replication_task.dart';
 import '../../../data/services/danbooru_auth_service.dart';
@@ -29,6 +30,7 @@ import '../../../data/services/gelbooru_auth_service.dart';
 import '../../../data/services/online_gallery/quick_tag_cloud_access.dart';
 
 import '../../providers/character_prompt_provider.dart';
+import '../../providers/online_gallery_blacklist_provider.dart';
 import '../../providers/online_gallery_output_filter_provider.dart';
 import '../../providers/online_gallery_prompt_tag_settings_provider.dart';
 import '../../providers/online_gallery_provider.dart';
@@ -36,6 +38,7 @@ import '../../providers/pending_prompt_provider.dart';
 import '../../providers/quick_tag_cloud_gallery_provider.dart';
 import '../../providers/replication_queue_provider.dart';
 import '../../providers/selection_mode_provider.dart';
+import '../../services/gallery_prompt_projection_service.dart';
 import '../../widgets/app_branch_visibility.dart';
 import '../../widgets/danbooru_login_dialog.dart';
 import '../../widgets/danbooru_post_card.dart';
@@ -71,10 +74,13 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       TextEditingController();
   final TextEditingController _popularPromptSearchController =
       TextEditingController();
+  final TextEditingController _favoriteSearchController =
+      TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
   final FocusNode _promptSearchFocusNode = FocusNode();
   final FocusNode _popularSearchFocusNode = FocusNode();
   final FocusNode _popularPromptSearchFocusNode = FocusNode();
+  final FocusNode _favoriteSearchFocusNode = FocusNode();
   final ScrollController _scrollController = ScrollController();
   final OnlineGalleryHoverController _hoverController =
       OnlineGalleryHoverController();
@@ -149,6 +155,9 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       }
       if (_popularPromptSearchController.text != state.popularPromptQuery) {
         _popularPromptSearchController.text = state.popularPromptQuery;
+      }
+      if (_favoriteSearchController.text != state.favoriteSearchQuery) {
+        _favoriteSearchController.text = state.favoriteSearchQuery;
       }
       final initialCache = state.randomEnabled
           ? state.randomSession.cache
@@ -314,10 +323,12 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     _promptSearchController.dispose();
     _popularSearchController.dispose();
     _popularPromptSearchController.dispose();
+    _favoriteSearchController.dispose();
     _searchFocusNode.dispose();
     _promptSearchFocusNode.dispose();
     _popularSearchFocusNode.dispose();
     _popularPromptSearchFocusNode.dispose();
+    _favoriteSearchFocusNode.dispose();
     _scrollController.dispose();
     _pageController.dispose();
     _pageFocusNode.dispose();
@@ -705,68 +716,112 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final compactActions = constraints.maxWidth < 900;
-          final narrowToolbar = constraints.maxWidth < 720;
-          final modeSelector = _buildModeSelector(
-            theme,
-            state,
-            authState,
-            gelbooruAuthState,
-          );
-          final primaryActions = _buildPrimaryActions(
-            theme,
-            state,
-            authState,
-            gelbooruAuthState,
-            compact: compactActions,
-          );
-          final popularOptionsOnFirstRow =
-              state.viewMode == GalleryViewMode.popular && !narrowToolbar;
-          final secondaryControls = _buildSecondaryControls(
-            theme,
-            state,
-            includePopularOptions: !popularOptionsOnFirstRow,
-          );
+          final forceCompactForText =
+              MediaQuery.textScalerOf(context).scale(1) > 1.2;
+          final compactPrimaryActions =
+              forceCompactForText || constraints.maxWidth < 1800;
+          final compactPolicyActions =
+              forceCompactForText || constraints.maxWidth < 1800;
+          final compactRating =
+              forceCompactForText || constraints.maxWidth < 1800;
+          final iconOnlyModes =
+              forceCompactForText || constraints.maxWidth < 1800;
+          final collapseSecondaryControls = constraints.maxWidth < 1100;
           final showQueryFields =
               state.viewMode == GalleryViewMode.search ||
+              state.viewMode == GalleryViewMode.favorites ||
               (state.viewMode == GalleryViewMode.popular &&
                   state.popularSourceId == GallerySourceId.aiTag);
+          final secondaryControls = _buildSecondaryControls(theme, state);
 
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (narrowToolbar)
-                Wrap(
-                  alignment: WrapAlignment.spaceBetween,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: 12,
-                  runSpacing: 8,
-                  children: [modeSelector, primaryActions],
-                )
-              else
-                Row(
+              SizedBox(
+                key: const ValueKey('online-gallery-toolbar-primary-row'),
+                height: 40,
+                child: Row(
                   children: [
-                    modeSelector,
-                    if (showQueryFields) ...[
-                      const SizedBox(width: 12),
-                      Expanded(child: _buildSearchFields(theme, state)),
-                    ] else if (!popularOptionsOnFirstRow)
-                      const Spacer(),
-                    if (popularOptionsOnFirstRow) ...[
-                      const SizedBox(width: 12),
-                      _buildPopularOptions(theme, state),
-                      if (!showQueryFields) const Spacer(),
-                    ],
-                    const SizedBox(width: 12),
-                    primaryActions,
+                    Expanded(
+                      child: Row(
+                        children: [
+                          _buildSourceSelector(state),
+                          const SizedBox(width: 8),
+                          _buildModeSelector(
+                            theme,
+                            state,
+                            authState,
+                            gelbooruAuthState,
+                            compact: iconOnlyModes,
+                          ),
+                          const SizedBox(width: 8),
+                          _buildRatingControl(
+                            theme,
+                            state,
+                            compact: compactRating,
+                          ),
+                          const SizedBox(width: 8),
+                          _buildGalleryPolicyControls(
+                            theme,
+                            compact: compactPolicyActions,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    _buildPrimaryActions(
+                      theme,
+                      state,
+                      authState,
+                      gelbooruAuthState,
+                      compact: compactPrimaryActions,
+                    ),
                   ],
                 ),
-              if (narrowToolbar && showQueryFields) ...[
-                const SizedBox(height: 8),
-                _buildSearchFields(theme, state),
-              ],
+              ),
               const SizedBox(height: 8),
-              Align(alignment: Alignment.centerLeft, child: secondaryControls),
+              SizedBox(
+                key: const ValueKey('online-gallery-toolbar-secondary-row'),
+                height: 40,
+                child: Row(
+                  children: [
+                    if (showQueryFields) ...[
+                      Flexible(
+                        flex: 5,
+                        fit: FlexFit.loose,
+                        child: _buildSearchFields(theme, state),
+                      ),
+                      const SizedBox(width: 10),
+                    ],
+                    if (!showQueryFields && !collapseSecondaryControls)
+                      const Spacer(),
+                    if (collapseSecondaryControls) ...[
+                      const Spacer(),
+                      IconButton.filledTonal(
+                        key: const ValueKey('online-gallery-source-filters'),
+                        onPressed: _showSourceFilters,
+                        tooltip: context.l10n.common_filter,
+                        icon: const Icon(Icons.tune_rounded, size: 18),
+                      ),
+                    ] else ...[
+                      Flexible(
+                        flex: 6,
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: secondaryControls,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      IconButton.outlined(
+                        key: const ValueKey('online-gallery-source-filters'),
+                        onPressed: _showSourceFilters,
+                        tooltip: context.l10n.common_filter,
+                        icon: const Icon(Icons.tune_rounded, size: 18),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
             ],
           );
         },
@@ -778,8 +833,9 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     ThemeData theme,
     OnlineGalleryState state,
     DanbooruAuthState authState,
-    GelbooruAuthState gelbooruAuthState,
-  ) {
+    GelbooruAuthState gelbooruAuthState, {
+    required bool compact,
+  }) {
     return Container(
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
@@ -789,9 +845,11 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         mainAxisSize: MainAxisSize.min,
         children: [
           _ModeButton(
+            key: const ValueKey('online-gallery-mode-search'),
             icon: Icons.search,
             label: context.l10n.onlineGallery_search,
             isSelected: state.viewMode == GalleryViewMode.search,
+            compact: compact,
             onTap: () {
               _saveScrollOffset();
               _galleryNotifier.switchToSearch();
@@ -799,28 +857,36 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             isFirst: true,
           ),
           _ModeButton(
+            key: const ValueKey('online-gallery-mode-popular'),
             icon: Icons.local_fire_department,
             label: context.l10n.onlineGallery_popular,
             isSelected: state.viewMode == GalleryViewMode.popular,
+            compact: compact,
             onTap: () {
               _saveScrollOffset();
               _galleryNotifier.switchToPopular();
             },
           ),
           _ModeButton(
+            key: const ValueKey('online-gallery-mode-favorites'),
             icon: Icons.favorite,
             label: context.l10n.onlineGallery_favorites,
             isSelected: state.viewMode == GalleryViewMode.favorites,
+            compact: compact,
             onTap: () {
               _saveScrollOffset();
               _galleryNotifier.switchToFavorites();
             },
             isLast: true,
-            showBadge: switch (state.favoritesSourceId) {
-              GallerySourceId.gelbooru => !gelbooruAuthState.isAuthenticated,
-              GallerySourceId.danbooru => !authState.isLoggedIn,
-              _ => false,
-            },
+            showBadge:
+                state.favoritesScope == GalleryFavoritesScope.remote &&
+                switch (state.favoritesSourceId) {
+                  GallerySourceId.gelbooru =>
+                    !gelbooruAuthState.isAuthenticated,
+                  GallerySourceId.danbooru => !authState.isLoggedIn,
+                  _ => false,
+                },
+            badgeHint: context.l10n.onlineGallery_loginForCloudFavorites,
           ),
         ],
       ),
@@ -829,7 +895,24 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
 
   Widget _buildSearchFields(ThemeData theme, OnlineGalleryState state) {
     final isPopular = state.viewMode == GalleryViewMode.popular;
-    final activeSource = isPopular ? state.popularSourceId : state.sourceId;
+    final isFavorites = state.viewMode == GalleryViewMode.favorites;
+    final activeSource = switch (state.viewMode) {
+      GalleryViewMode.search => state.sourceId,
+      GalleryViewMode.popular => state.popularSourceId,
+      GalleryViewMode.favorites => state.favoritesSourceId,
+    };
+    if (isFavorites) {
+      return _buildPlainSearchField(
+        theme,
+        controller: _favoriteSearchController,
+        focusNode: _favoriteSearchFocusNode,
+        hintText: context.l10n.onlineGallery_searchFavorites,
+        icon: Icons.search_rounded,
+        treatSpacesAsSeparators: true,
+        onSubmitted: () =>
+            _galleryNotifier.searchFavorites(_favoriteSearchController.text),
+      );
+    }
     if (activeSource == GallerySourceId.quickTagCloud) {
       return _buildCodexSearchField(theme);
     }
@@ -860,37 +943,31 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
 
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 820),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final vertical = constraints.maxWidth < 620;
-          final query = _buildPlainSearchField(
-            theme,
-            controller: queryController,
-            focusNode: queryFocus,
-            hintText: context.l10n.onlineGallery_aiTagQuery,
-            icon: Icons.manage_search,
-            treatSpacesAsSeparators: true,
-            onSubmitted: submit,
-          );
-          final prompt = _buildPlainSearchField(
-            theme,
-            controller: promptController,
-            focusNode: promptFocus,
-            hintText: context.l10n.onlineGallery_aiTagPromptQuery,
-            icon: Icons.auto_awesome,
-            onSubmitted: submit,
-          );
-          if (vertical) {
-            return Column(children: [query, const SizedBox(height: 8), prompt]);
-          }
-          return Row(
-            children: [
-              Expanded(child: query),
-              const SizedBox(width: 8),
-              Expanded(child: prompt),
-            ],
-          );
-        },
+      child: Row(
+        children: [
+          Expanded(
+            child: _buildPlainSearchField(
+              theme,
+              controller: queryController,
+              focusNode: queryFocus,
+              hintText: context.l10n.onlineGallery_aiTagQuery,
+              icon: Icons.manage_search,
+              treatSpacesAsSeparators: true,
+              onSubmitted: submit,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _buildPlainSearchField(
+              theme,
+              controller: promptController,
+              focusNode: promptFocus,
+              hintText: context.l10n.onlineGallery_aiTagPromptQuery,
+              icon: Icons.auto_awesome,
+              onSubmitted: submit,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1047,6 +1124,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             ),
             suffixIcon: _searchController.text.isNotEmpty
                 ? IconButton(
+                    tooltip: context.l10n.common_clear,
                     icon: Icon(
                       Icons.close,
                       size: 16,
@@ -1338,7 +1416,9 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         selected: state.favoritesSourceId,
         sources: {
           GallerySourceId.danbooru: 'Danbooru',
+          GallerySourceId.safebooru: 'Safebooru',
           GallerySourceId.gelbooru: 'Gelbooru',
+          GallerySourceId.aiTag: 'AI TAG',
           GallerySourceId.quickTagCloud:
               context.l10n.onlineGallery_sourceQuickTagCloud,
         },
@@ -1350,10 +1430,184 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     };
   }
 
+  Widget _buildRatingControl(
+    ThemeData theme,
+    OnlineGalleryState state, {
+    required bool compact,
+  }) {
+    Widget sourceRatingStatus({
+      required IconData icon,
+      required String label,
+      required String tooltip,
+    }) {
+      if (!compact) {
+        return Tooltip(
+          message: tooltip,
+          child: Chip(
+            avatar: Icon(icon, size: 16),
+            label: Text(label),
+            visualDensity: VisualDensity.compact,
+          ),
+        );
+      }
+      return Tooltip(
+        message: '$label · $tooltip',
+        child: Semantics(
+          label: '$label. $tooltip',
+          child: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainerHighest.withValues(
+                alpha: 0.4,
+              ),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              icon,
+              size: 19,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+      );
+    }
+
+    final sourceId = _activeSource(state);
+    if (sourceId == GallerySourceId.safebooru) {
+      return sourceRatingStatus(
+        icon: Icons.shield_outlined,
+        label: context.l10n.onlineGallery_ratingGeneral,
+        tooltip: context.l10n.onlineGallery_sourceGeneralOnly,
+      );
+    }
+    if (sourceId == GallerySourceId.aiTag) {
+      return sourceRatingStatus(
+        icon: Icons.help_outline,
+        label: context.l10n.onlineGallery_sourceUnrated,
+        tooltip: context.l10n.onlineGallery_sourceUnratedTooltip,
+      );
+    }
+    if (sourceId == GallerySourceId.quickTagCloud) {
+      return _RatingDropdown(
+        selectedRatings: _quickTagCloudDisplayRatings(state.selectedRatings),
+        availableRatings: QuickTagCloudAccess.galleryRatings,
+        compact: compact,
+        onToggle: (rating) => unawaited(
+          _toggleQuickTagCloudRating(state.selectedRatings, rating),
+        ),
+      );
+    }
+    return _RatingDropdown(
+      selectedRatings: state.selectedRatings,
+      compact: compact,
+      onToggle: _galleryNotifier.toggleRating,
+    );
+  }
+
+  Widget _buildGalleryPolicyControls(ThemeData theme, {required bool compact}) {
+    final blacklist = ref.watch(onlineGalleryBlacklistNotifierProvider);
+    final outputFilterCount = ref.watch(
+      onlineGalleryOutputFilterProvider.select((value) => value.tags.length),
+    );
+    final blacklistLabel =
+        blacklist.effectiveSource == OnlineGalleryBlacklistSource.cloud
+        ? context.l10n.onlineGallery_blacklistSourceCloud
+        : context.l10n.onlineGallery_blacklistSourceLocal;
+
+    Widget policyButton({
+      required Key key,
+      required IconData icon,
+      required String label,
+      required String tooltip,
+      required VoidCallback onPressed,
+    }) {
+      if (compact) {
+        return IconButton.outlined(
+          key: key,
+          onPressed: onPressed,
+          tooltip: tooltip,
+          icon: Badge(label: Text(label), child: Icon(icon, size: 18)),
+        );
+      }
+      return OutlinedButton.icon(
+        key: key,
+        onPressed: onPressed,
+        icon: Icon(icon, size: 17),
+        label: Text(label),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: theme.colorScheme.onSurfaceVariant,
+          visualDensity: VisualDensity.compact,
+        ),
+      );
+    }
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        policyButton(
+          key: const ValueKey('online-gallery-blacklist'),
+          icon: Icons.block,
+          label: compact
+              ? '${blacklist.effectiveTags.length}'
+              : '$blacklistLabel · ${blacklist.effectiveTags.length}',
+          tooltip: context.l10n.onlineGallery_blacklistTags,
+          onPressed: () => showOnlineGalleryBlacklistDialog(context, ref),
+        ),
+        const SizedBox(width: 6),
+        policyButton(
+          key: const ValueKey('online-gallery-output-filter'),
+          icon: Icons.filter_alt_off_outlined,
+          label: compact
+              ? '$outputFilterCount'
+              : '${context.l10n.onlineGallery_outputFilter} · $outputFilterCount',
+          tooltip: context.l10n.onlineGallery_outputFilterTooltip,
+          onPressed: () => showOnlineGalleryOutputFilterDialog(context),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _showSourceFilters() async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.tune_rounded, size: 20),
+            const SizedBox(width: 8),
+            Text(context.l10n.common_filter),
+          ],
+        ),
+        content: SizedBox(
+          width: min(720, MediaQuery.sizeOf(dialogContext).width - 80),
+          child: SingleChildScrollView(
+            child: Consumer(
+              builder: (context, ref, _) {
+                final state = ref.watch(onlineGalleryNotifierProvider);
+                return _buildSecondaryControls(
+                  Theme.of(context),
+                  state,
+                  wrapControls: true,
+                );
+              },
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: Text(context.l10n.common_close),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSecondaryControls(
     ThemeData theme,
     OnlineGalleryState state, {
-    bool includePopularOptions = true,
+    bool wrapControls = false,
   }) {
     final activeSourceId = switch (state.viewMode) {
       GalleryViewMode.search => state.sourceId,
@@ -1361,115 +1615,169 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       GalleryViewMode.favorites => state.favoritesSourceId,
     };
     final capabilities = gallerySourceCapabilities[activeSourceId]!;
+    final controls = <Widget>[];
+
+    if (state.viewMode == GalleryViewMode.favorites) {
+      controls.add(_buildFavoritesScopeControl(theme, state));
+    }
     if (activeSourceId == GallerySourceId.quickTagCloud) {
-      return QuickTagCloudToolbar(
-        favoritesMode: state.viewMode == GalleryViewMode.favorites,
-        selectedRatings: state.selectedRatings,
-        sourceControl: _buildSourceSelector(state),
-        ratingControl: _RatingDropdown(
-          selectedRatings: _quickTagCloudDisplayRatings(state.selectedRatings),
-          availableRatings: QuickTagCloudAccess.galleryRatings,
-          onToggle: (rating) => unawaited(
-            _toggleQuickTagCloudRating(state.selectedRatings, rating),
-          ),
+      controls.add(
+        QuickTagCloudToolbar(
+          favoritesMode: state.viewMode == GalleryViewMode.favorites,
+          selectedRatings: state.selectedRatings,
+          wrapControls: wrapControls,
+          onFiltersChanged: () async {
+            _saveScrollOffset();
+            _galleryNotifier.syncQuickTagCloudFilterKey();
+            await _galleryNotifier.refresh();
+            if (mounted && _scrollController.hasClients) {
+              _scrollController.jumpTo(0);
+            }
+          },
         ),
-        onFiltersChanged: () async {
-          _saveScrollOffset();
-          _galleryNotifier.syncQuickTagCloudFilterKey();
-          await _galleryNotifier.refresh();
-          if (mounted && _scrollController.hasClients) {
-            _scrollController.jumpTo(0);
-          }
-        },
+      );
+    } else {
+      if (state.viewMode == GalleryViewMode.search &&
+          capabilities.supportsFuzzySearch) {
+        controls.add(
+          _FuzzySearchToggle(
+            enabled: state.fuzzySearchEnabled,
+            onChanged: _galleryNotifier.setFuzzySearchEnabled,
+          ),
+        );
+      }
+      if (state.viewMode == GalleryViewMode.search &&
+          capabilities.supportsDateRange) {
+        controls.add(_buildDateRangeButton(theme, state));
+      }
+      if (state.viewMode == GalleryViewMode.search &&
+          activeSourceId == GallerySourceId.aiTag) {
+        controls.add(_buildAiTagTimeRangeDropdown(state));
+      }
+      if (capabilities.supportsCategorizedTags) {
+        controls.add(_buildPromptTagCategorySelector(theme));
+      }
+      if (state.viewMode == GalleryViewMode.popular) {
+        controls.add(_buildPopularOptions(theme, state));
+      }
+      if (state.viewMode == GalleryViewMode.favorites &&
+          state.favoritesSourceId == GallerySourceId.gelbooru &&
+          state.favoritesScope == GalleryFavoritesScope.remote) {
+        controls
+          ..add(_buildGelbooruFavoritesNotice(theme))
+          ..add(
+            OutlinedButton.icon(
+              onPressed: state.isLoading ? null : _saveVisibleFavoritesLocally,
+              icon: const Icon(Icons.download_done_rounded, size: 17),
+              label: Text(context.l10n.onlineGallery_saveVisibleLocally),
+            ),
+          );
+      }
+      if (activeSourceId == GallerySourceId.aiTag &&
+          state.viewMode != GalleryViewMode.favorites) {
+        controls.add(_buildArtistHuntButton(theme, state));
+      }
+    }
+
+    if (wrapControls) {
+      return Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: controls,
       );
     }
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      crossAxisAlignment: WrapCrossAlignment.center,
+    return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        if (state.viewMode == GalleryViewMode.search) ...[
-          _buildSourceSelector(state),
-          if (capabilities.supportsFuzzySearch)
-            _FuzzySearchToggle(
-              enabled: state.fuzzySearchEnabled,
-              onChanged: _galleryNotifier.setFuzzySearchEnabled,
-            ),
+        for (var index = 0; index < controls.length; index++) ...[
+          if (index > 0) const SizedBox(width: 8),
+          controls[index],
         ],
-        if (state.viewMode == GalleryViewMode.popular)
-          _buildSourceSelector(state),
-        if (state.viewMode == GalleryViewMode.favorites) ...[
-          _buildSourceSelector(state),
-          const SizedBox(width: 6),
-        ],
-        if (capabilities.supportsRatings)
-          _RatingDropdown(
-            selectedRatings: state.selectedRatings,
-            onToggle: _galleryNotifier.toggleRating,
-          ),
-        if (state.viewMode == GalleryViewMode.search &&
-            capabilities.supportsDateRange)
-          _buildDateRangeButton(theme, state),
-        if (state.viewMode == GalleryViewMode.search &&
-            activeSourceId == GallerySourceId.aiTag)
-          _buildAiTagTimeRangeDropdown(state),
-        if (activeSourceId != GallerySourceId.quickTagCloud)
-          Tooltip(
-            message: context.l10n.onlineGallery_blacklistTags,
-            child: OutlinedButton.icon(
-              onPressed: () => showOnlineGalleryBlacklistDialog(context, ref),
-              icon: const Icon(Icons.block, size: 17),
-              label: Text(context.l10n.onlineGallery_blacklistTags),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: theme.colorScheme.onSurfaceVariant,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 7,
-                ),
-                visualDensity: VisualDensity.compact,
-              ),
-            ),
-          ),
-        if (activeSourceId != GallerySourceId.quickTagCloud)
-          Consumer(
-            builder: (context, filterRef, _) {
-              final count = filterRef.watch(
-                onlineGalleryOutputFilterProvider.select(
-                  (settings) => settings.tags.length,
-                ),
-              );
-              return Tooltip(
-                message: context.l10n.onlineGallery_outputFilterTooltip,
-                child: OutlinedButton.icon(
-                  key: const ValueKey('online-gallery-output-filter'),
-                  onPressed: () => showOnlineGalleryOutputFilterDialog(context),
-                  icon: const Icon(Icons.filter_alt_off_outlined, size: 17),
-                  label: Text(
-                    '${context.l10n.onlineGallery_outputFilter} · $count',
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: theme.colorScheme.onSurfaceVariant,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 7,
-                    ),
-                    visualDensity: VisualDensity.compact,
-                  ),
-                ),
-              );
-            },
-          ),
-        if (activeSourceId != GallerySourceId.quickTagCloud)
-          _buildPromptTagCategorySelector(theme),
-        if (state.viewMode == GalleryViewMode.popular && includePopularOptions)
-          _buildPopularOptions(theme, state),
-        if (state.viewMode == GalleryViewMode.favorites &&
-            state.favoritesSourceId == GallerySourceId.gelbooru)
-          _buildGelbooruFavoritesNotice(theme),
-        if (activeSourceId == GallerySourceId.aiTag)
-          _buildArtistHuntButton(theme, state),
       ],
     );
+  }
+
+  Widget _buildFavoritesScopeControl(
+    ThemeData theme,
+    OnlineGalleryState state,
+  ) {
+    final capabilities = state.favoritesSourceId.capabilities;
+    if (capabilities.remoteFavorites == GalleryRemoteFavoritesCapability.none) {
+      return Tooltip(
+        message: context.l10n.onlineGallery_localFavoritesDescription,
+        child: Chip(
+          avatar: const Icon(Icons.devices_rounded, size: 16),
+          label: Text(context.l10n.onlineGallery_localFavorites),
+          visualDensity: VisualDensity.compact,
+        ),
+      );
+    }
+    final remoteAuthenticated = switch (state.favoritesSourceId) {
+      GallerySourceId.danbooru => ref.watch(danbooruAuthProvider).isLoggedIn,
+      GallerySourceId.gelbooru =>
+        ref.watch(gelbooruAuthProvider).isAuthenticated,
+      _ => false,
+    };
+    return SegmentedButton<GalleryFavoritesScope>(
+      showSelectedIcon: false,
+      segments: [
+        ButtonSegment(
+          value: GalleryFavoritesScope.local,
+          icon: const Icon(Icons.devices_rounded, size: 16),
+          label: Text(context.l10n.onlineGallery_localFavorites),
+        ),
+        ButtonSegment(
+          value: GalleryFavoritesScope.remote,
+          enabled: remoteAuthenticated,
+          icon: Icon(
+            capabilities.remoteFavorites ==
+                    GalleryRemoteFavoritesCapability.readOnly
+                ? Icons.cloud_download_outlined
+                : Icons.cloud_outlined,
+            size: 16,
+          ),
+          label: Text(context.l10n.onlineGallery_cloudFavorites),
+          tooltip: remoteAuthenticated
+              ? null
+              : context.l10n.onlineGallery_loginForCloudFavorites,
+        ),
+      ],
+      selected: {state.favoritesScope},
+      onSelectionChanged: (selection) {
+        if (selection.isNotEmpty) {
+          _galleryNotifier.setFavoritesScope(selection.first);
+        }
+      },
+      style: const ButtonStyle(
+        visualDensity: VisualDensity.compact,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+    );
+  }
+
+  Future<void> _saveVisibleFavoritesLocally() async {
+    try {
+      final count = await _galleryNotifier.saveVisiblePostsToLocalFavorites();
+      if (!mounted) return;
+      if (count == 0) {
+        AppToast.info(
+          context,
+          context.l10n.onlineGallery_visibleFavoritesAlreadySaved,
+        );
+      } else {
+        AppToast.success(
+          context,
+          context.l10n.onlineGallery_visibleFavoritesSaved(count),
+        );
+      }
+    } catch (error) {
+      if (!mounted) return;
+      AppToast.error(
+        context,
+        context.l10n.onlineGallery_saveFavoritesFailed(error.toString()),
+      );
+    }
   }
 
   Widget _buildPromptTagCategorySelector(ThemeData theme) {
@@ -1690,42 +1998,48 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       IconData? badgeIcon,
       Color? badgeColor,
     }) {
-      return Container(
+      return SizedBox(
         key: const ValueKey('online-gallery-account-avatar'),
-        width: 34,
-        height: 34,
-        decoration: BoxDecoration(
-          color: backgroundColor,
-          shape: BoxShape.circle,
-          border: Border.all(color: borderColor),
-        ),
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Center(child: Icon(icon, size: 18, color: foregroundColor)),
-            if (badgeIcon != null)
-              Positioned(
-                right: -2,
-                bottom: -2,
-                child: Container(
-                  width: 14,
-                  height: 14,
-                  decoration: BoxDecoration(
-                    color: badgeColor,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: theme.colorScheme.surface,
-                      width: 1.5,
+        width: 40,
+        height: 40,
+        child: Center(
+          child: Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: backgroundColor,
+              shape: BoxShape.circle,
+              border: Border.all(color: borderColor),
+            ),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Center(child: Icon(icon, size: 18, color: foregroundColor)),
+                if (badgeIcon != null)
+                  Positioned(
+                    right: -2,
+                    bottom: -2,
+                    child: Container(
+                      width: 14,
+                      height: 14,
+                      decoration: BoxDecoration(
+                        color: badgeColor,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: theme.colorScheme.surface,
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Icon(
+                        badgeIcon,
+                        size: 9,
+                        color: theme.colorScheme.surface,
+                      ),
                     ),
                   ),
-                  child: Icon(
-                    badgeIcon,
-                    size: 9,
-                    color: theme.colorScheme.surface,
-                  ),
-                ),
-              ),
-          ],
+              ],
+            ),
+          ),
         ),
       );
     }
@@ -2036,7 +2350,13 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
   }
 
   bool _canWriteFavorites(OnlineGalleryState state) {
-    final capabilities = gallerySourceCapabilities[_activeSource(state)]!;
+    final sourceId = _activeSource(state);
+    if (sourceId == GallerySourceId.gelbooru &&
+        state.viewMode == GalleryViewMode.favorites &&
+        state.favoritesScope == GalleryFavoritesScope.remote) {
+      return false;
+    }
+    final capabilities = gallerySourceCapabilities[sourceId]!;
     return capabilities.supportsWritableFavorites ||
         capabilities.supportsLocalFavorites;
   }
@@ -2372,37 +2692,34 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     final favoriteReadOnly =
         post.sourceId == GallerySourceId.gelbooru &&
         state.viewMode == GalleryViewMode.favorites &&
-        state.favoritesSourceId == GallerySourceId.gelbooru;
+        state.favoritesScope == GalleryFavoritesScope.remote;
     final capabilities = gallerySourceCapabilities[post.sourceId]!;
     final canWriteFavorite =
-        capabilities.supportsWritableFavorites ||
-        capabilities.supportsLocalFavorites;
+        !favoriteReadOnly &&
+        (capabilities.supportsWritableFavorites ||
+            capabilities.supportsLocalFavorites);
     final targetMedia = post.focusedMediaId != null
         ? post.cover
         : detail != null && detail.media.isNotEmpty
         ? detail.media.first
         : null;
     final isQuickTagCloud = post.sourceId == GallerySourceId.quickTagCloud;
-    final promptOverride = isQuickTagCloud
-        ? post.rawSourceMetadata['prompt']?.toString()
-        : targetMedia?.prompt ?? detail?.prompt;
-    final negativePromptOverride = isQuickTagCloud
-        ? post.rawSourceMetadata['negativePrompt']?.toString()
-        : targetMedia?.negativePrompt ?? detail?.negativePrompt;
-    final characterPrompts = isQuickTagCloud
-        ? _quickTagCloudCharacterPrompts(post, detail)
-        : detail?.characterPrompts ?? const <GalleryCharacterPrompt>[];
     return Consumer(
       builder: (context, cardRef, _) {
         final postKey = onlineGalleryPostKey(post);
         final favoriteState = cardRef.watch(
           onlineGalleryNotifierProvider.select(
             (value) => (
-              value.favoritedPostKeys.contains(postKey),
+              value.favoritedPostKeys,
               value.favoriteLoadingPostKeys.contains(postKey),
+              value.favoritesScope,
+              value.viewMode,
             ),
           ),
         );
+        final isFavorited = cardRef
+            .read(onlineGalleryNotifierProvider.notifier)
+            .isFavorited(post);
         final selectionState = cardRef.watch(
           onlineGallerySelectionNotifierProvider.select(
             (value) =>
@@ -2413,18 +2730,20 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           onlineGalleryPromptTagSettingsProvider,
         );
         final outputFilter = cardRef.watch(onlineGalleryOutputFilterProvider);
-        final tagPrompt = promptTagSettings.promptFor(
-          post,
+        const projectionService = GalleryPromptProjectionService();
+        final projection = projectionService.project(
+          item: post,
+          detail: detail,
+          currentMedia: targetMedia,
+          promptTagSettings: promptTagSettings,
           outputFilter: outputFilter,
         );
-        final filteredPromptOverride = promptOverride == null
-            ? null
-            : isQuickTagCloud
-            ? promptOverride
-            : outputFilter.filterPrompt(promptOverride);
-        final filteredCopyText = post.artistChain == null
-            ? null
-            : outputFilter.filterPrompt(post.artistChain!.formattedText);
+        final copyText = post.artistChain == null
+            ? projection.copyText
+            : projectionService.projectPositivePrompt(
+                post.artistChain!.formattedText,
+                outputFilter: outputFilter,
+              );
         final codexTitle = post.rawSourceMetadata['codexTitle']?.toString();
         final codexBadge =
             isQuickTagCloud &&
@@ -2437,25 +2756,27 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           post: post,
           itemWidth: itemWidth,
           layoutAspectRatio: layoutAspectRatio,
-          isFavorited: favoriteState.$1,
+          isFavorited: isFavorited,
           isFavoriteLoading: favoriteState.$2,
           showFavoriteAction: canWriteFavorite || favoriteReadOnly,
           favoriteReadOnly: favoriteReadOnly,
           selectionMode: selectionState.$1,
           isSelected: selectionState.$2,
           canSelect:
-              (filteredPromptOverride ?? tagPrompt).trim().isNotEmpty ||
-              (negativePromptOverride?.trim().isNotEmpty ?? false) ||
-              characterPrompts.any(
+              projection.positivePrompt.trim().isNotEmpty ||
+              projection.negativePrompt.trim().isNotEmpty ||
+              projection.characterPrompts.any(
                 (character) =>
                     character.prompt.trim().isNotEmpty ||
                     character.negativePrompt.trim().isNotEmpty,
               ),
-          tagPrompt: tagPrompt,
-          promptOverride: filteredPromptOverride,
-          negativePromptOverride: negativePromptOverride,
-          characterPrompts: characterPrompts,
-          copyTextOverride: filteredCopyText,
+          tagPrompt: projection.positivePrompt,
+          promptOverride: projection.positivePrompt,
+          negativePromptOverride: projection.negativePrompt.trim().isEmpty
+              ? null
+              : projection.negativePrompt,
+          characterPrompts: projection.characterPrompts,
+          copyTextOverride: copyText,
           copyTooltip: post.artistChain != null
               ? context.l10n.onlineGallery_copyArtistChain
               : null,
@@ -2500,34 +2821,11 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             _galleryNotifier.search(tag);
           },
           onFavoriteToggle: canWriteFavorite
-              ? () => _handleFavoriteToggle(
-                  context,
-                  cardRef.read(onlineGalleryNotifierProvider),
-                  post,
-                )
+              ? () => _handleFavoriteToggle(context, post)
               : null,
         );
       },
     );
-  }
-
-  List<GalleryCharacterPrompt> _quickTagCloudCharacterPrompts(
-    GalleryItem post,
-    GalleryDetail? detail,
-  ) {
-    if (detail != null) return detail.characterPrompts;
-    final raw = post.rawSourceMetadata['characterPrompts'];
-    if (raw is! List) return const [];
-    return [
-      for (final item in raw.whereType<Map>())
-        if ((item['prompt']?.toString() ?? '').isNotEmpty ||
-            (item['negative']?.toString() ?? '').isNotEmpty)
-          GalleryCharacterPrompt(
-            label: item['label']?.toString() ?? '',
-            prompt: item['prompt']?.toString() ?? '',
-            negativePrompt: item['negative']?.toString() ?? '',
-          ),
-    ];
   }
 
   /// 构建加载更多指示器
@@ -2813,13 +3111,22 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       if (!context.mounted) return;
       final l10n = context.l10n;
       final galleryState = ref.read(onlineGalleryNotifierProvider);
+      final projection = const GalleryPromptProjectionService().project(
+        item: item,
+        detail: detail,
+        promptTagSettings: ref.read(onlineGalleryPromptTagSettingsProvider),
+        outputFilter: ref.read(onlineGalleryOutputFilterProvider),
+      );
       final stableKey = item.stableKey;
+      final isFavorited = ref
+          .read(onlineGalleryNotifierProvider.notifier)
+          .isFavorited(item);
       await showDialog<void>(
         context: context,
         builder: (dialogContext) => QuickTagCloudDetailDialog(
           item: item,
           detail: detail,
-          isFavorited: galleryState.favoritedPostKeys.contains(stableKey),
+          isFavorited: isFavorited,
           favoriteLoading: galleryState.favoriteLoadingPostKeys.contains(
             stableKey,
           ),
@@ -2861,38 +3168,42 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           ),
           onCopyPrompt: () => unawaited(
             _copyCodexText(
-              detail.prompt ?? '',
+              projection.positivePrompt,
               l10n.onlineGallery_codexCopyPositive,
             ),
           ),
           onCopyNegativePrompt: () => unawaited(
             _copyCodexText(
-              detail.negativePrompt ?? '',
+              projection.negativePrompt,
               l10n.onlineGallery_codexCopyNegative,
             ),
           ),
-          onCopyCharacter: (character) => unawaited(
-            _copyCodexText(
-              _buildCharacterCodexCopyText(character),
-              l10n.onlineGallery_codexCopyCharacter,
-            ),
-          ),
+          onCopyCharacter: (character) {
+            final index = detail.characterPrompts.indexOf(character);
+            final projected =
+                index >= 0 && index < projection.characterPrompts.length
+                ? projection.characterPrompts[index]
+                : character;
+            unawaited(
+              _copyCodexText(
+                _buildCharacterCodexCopyText(projected),
+                l10n.onlineGallery_codexCopyCharacter,
+              ),
+            );
+          },
           onCopyAll: () => unawaited(
             _copyCodexText(
-              _buildCodexCopyText(detail),
+              _buildCodexCopyText(projection),
               l10n.onlineGallery_codexCopyAll,
             ),
           ),
-          onToggleFavorite: () {
-            final before = ref.read(onlineGalleryNotifierProvider);
-            return _handleFavoriteToggle(context, before, item);
-          },
+          onToggleFavorite: () => _handleFavoriteToggle(context, item),
           onOpenSource: () =>
               unawaited(_openCodexSource(context, detail.sourceUrl)),
           onSendToGenerate: () {
-            _sendCodexDetailToGeneration(context, item, detail);
+            _sendCodexDetailToGeneration(context, item, projection);
           },
-          onAddToQueue: () => _addCodexDetailToQueue(context, item, detail),
+          onAddToQueue: () => _addCodexDetailToQueue(context, item, projection),
           onDownloadCurrentOriginal: (media) =>
               _downloadCodexMedia(context, item, media),
         ),
@@ -3033,17 +3344,17 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     }
   }
 
-  String _buildCodexCopyText(GalleryDetail detail) {
+  String _buildCodexCopyText(GalleryPromptProjection projection) {
     final blocks = <String>[];
-    final prompt = detail.prompt?.trim() ?? '';
-    final negative = detail.negativePrompt?.trim() ?? '';
+    final prompt = projection.positivePrompt.trim();
+    final negative = projection.negativePrompt.trim();
     if (prompt.isNotEmpty) blocks.add(prompt);
     final l10n = context.l10n;
     if (negative.isNotEmpty) {
       blocks.add('${l10n.onlineGallery_codexNegativePrompt}:\n$negative');
     }
-    for (var index = 0; index < detail.characterPrompts.length; index++) {
-      final character = detail.characterPrompts[index];
+    for (var index = 0; index < projection.characterPrompts.length; index++) {
+      final character = projection.characterPrompts[index];
       final content = <String>[
         if (character.prompt.trim().isNotEmpty) character.prompt.trim(),
         if (character.negativePrompt.trim().isNotEmpty)
@@ -3060,15 +3371,15 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
 
   List<CharacterPrompt> _codexCharacters(
     GalleryItem item,
-    GalleryDetail detail,
+    GalleryPromptProjection projection,
   ) {
     return [
-      for (var index = 0; index < detail.characterPrompts.length; index++)
+      for (var index = 0; index < projection.characterPrompts.length; index++)
         CharacterPrompt(
           id: 'codex-${item.stableKey}-$index',
-          name: detail.characterPrompts[index].label,
-          prompt: detail.characterPrompts[index].prompt,
-          negativePrompt: detail.characterPrompts[index].negativePrompt,
+          name: projection.characterPrompts[index].label,
+          prompt: projection.characterPrompts[index].prompt,
+          negativePrompt: projection.characterPrompts[index].negativePrompt,
           positionMode: CharacterPositionMode.aiChoice,
         ),
     ];
@@ -3077,16 +3388,16 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
   void _sendCodexDetailToGeneration(
     BuildContext dialogContext,
     GalleryItem item,
-    GalleryDetail detail,
+    GalleryPromptProjection projection,
   ) {
     ref
         .read(characterPromptNotifierProvider.notifier)
-        .replaceAll(_codexCharacters(item, detail));
+        .replaceAll(_codexCharacters(item, projection));
     ref
         .read(pendingPromptNotifierProvider.notifier)
         .set(
-          prompt: detail.prompt?.trim() ?? '',
-          negativePrompt: detail.negativePrompt,
+          prompt: projection.positivePrompt,
+          negativePrompt: projection.negativePrompt,
         );
     Navigator.of(dialogContext, rootNavigator: true).pop();
     context.go('/');
@@ -3096,11 +3407,11 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
   Future<void> _addCodexDetailToQueue(
     BuildContext dialogContext,
     GalleryItem item,
-    GalleryDetail detail,
+    GalleryPromptProjection projection,
   ) async {
-    final prompt = detail.prompt?.trim() ?? '';
-    final negativePrompt = detail.negativePrompt?.trim() ?? '';
-    final hasCharacterPrompt = detail.characterPrompts.any(
+    final prompt = projection.positivePrompt.trim();
+    final negativePrompt = projection.negativePrompt.trim();
+    final hasCharacterPrompt = projection.characterPrompts.any(
       (character) =>
           character.prompt.trim().isNotEmpty ||
           character.negativePrompt.trim().isNotEmpty,
@@ -3113,11 +3424,11 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             ReplicationTask.create(
               prompt: prompt,
               negativePrompt: negativePrompt,
-              applyNegativePrompt: true,
+              applyNegativePrompt: negativePrompt.isNotEmpty,
               thumbnailUrl: item.previewUrl,
               source: ReplicationTaskSource.online,
               characterPrompts: [
-                for (final character in detail.characterPrompts)
+                for (final character in projection.characterPrompts)
                   ReplicationCharacterPromptSnapshot(
                     prompt: character.prompt,
                     negativePrompt: character.negativePrompt,
@@ -3208,22 +3519,9 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
   /// 处理收藏切换
   Future<bool> _handleFavoriteToggle(
     BuildContext context,
-    OnlineGalleryState state,
     DanbooruPost post,
   ) async {
-    if (post.sourceId == GallerySourceId.danbooru) {
-      final authState = ref.read(danbooruAuthProvider);
-      if (!authState.isLoggedIn) {
-        _showLoginDialog(context);
-        return false;
-      }
-    } else if (post.sourceId != GallerySourceId.quickTagCloud) {
-      return false;
-    }
-
-    final wasFavorited = state.favoritedPostKeys.contains(
-      onlineGalleryPostKey(post),
-    );
+    final wasFavorited = _galleryNotifier.isFavorited(post);
     try {
       final success = await _galleryNotifier.toggleFavorite(post);
       if (context.mounted) {
@@ -3277,6 +3575,74 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     }
   }
 
+  Future<({ReplicationTask? task, bool failed})> _buildReplicationTask(
+    GalleryItem post,
+    OnlineGalleryPromptTagSettings promptTagSettings,
+    OnlineGalleryOutputFilterSettings outputFilter,
+  ) async {
+    try {
+      GalleryDetail? detail;
+      if (post.sourceId == GallerySourceId.aiTag ||
+          post.sourceId == GallerySourceId.quickTagCloud ||
+          post.focusedMediaId != null) {
+        detail = await _galleryNotifier.loadDetail(post);
+      }
+      GalleryMedia? media;
+      if (detail != null && detail.media.isNotEmpty) {
+        final focusedIndex = post.focusedMediaId == null
+            ? -1
+            : detail.media.indexWhere(
+                (candidate) => candidate.id == post.focusedMediaId,
+              );
+        media = focusedIndex >= 0
+            ? detail.media[focusedIndex]
+            : detail.media.first;
+      }
+      final projection = const GalleryPromptProjectionService().project(
+        item: post,
+        detail: detail,
+        currentMedia: media,
+        promptTagSettings: promptTagSettings,
+        outputFilter: outputFilter,
+      );
+      final hasCharacterPrompt = projection.characterPrompts.any(
+        (character) =>
+            character.prompt.trim().isNotEmpty ||
+            character.negativePrompt.trim().isNotEmpty,
+      );
+      if (projection.positivePrompt.isEmpty &&
+          projection.negativePrompt.isEmpty &&
+          !hasCharacterPrompt) {
+        return (task: null, failed: true);
+      }
+      final thumbnailPath = await _queueThumbnailPath(
+        media?.previewUrl ?? post.previewUrl,
+      );
+      return (
+        task: ReplicationTask.create(
+          prompt: projection.positivePrompt,
+          negativePrompt: projection.negativePrompt,
+          applyNegativePrompt: projection.negativePrompt.isNotEmpty,
+          thumbnailUrl: thumbnailPath,
+          source: ReplicationTaskSource.online,
+          width: media != null && media.width > 0 ? media.width : null,
+          height: media != null && media.height > 0 ? media.height : null,
+          characterPrompts: [
+            for (final character in projection.characterPrompts)
+              ReplicationCharacterPromptSnapshot(
+                prompt: character.prompt,
+                negativePrompt: character.negativePrompt,
+              ),
+          ],
+        ),
+        failed: false,
+      );
+    } catch (error) {
+      debugPrint('Failed to resolve ${post.stableKey} for queue: $error');
+      return (task: null, failed: true);
+    }
+  }
+
   Future<void> _addSelectedToQueue() async {
     final selectionState = ref.read(onlineGallerySelectionNotifierProvider);
     final galleryState = ref.read(onlineGalleryNotifierProvider);
@@ -3298,98 +3664,10 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         min(start + concurrency, selectedPosts.length),
       );
       final resolved = await Future.wait(
-        batch.map((post) async {
-          if (post.sourceId == GallerySourceId.quickTagCloud) {
-            try {
-              final detail = await _galleryNotifier.loadDetail(post);
-              final prompt = detail.prompt?.trim() ?? '';
-              final negativePrompt = detail.negativePrompt?.trim() ?? '';
-              final hasCharacterPrompt = detail.characterPrompts.any(
-                (character) =>
-                    character.prompt.trim().isNotEmpty ||
-                    character.negativePrompt.trim().isNotEmpty,
-              );
-              if (prompt.isEmpty &&
-                  negativePrompt.isEmpty &&
-                  !hasCharacterPrompt) {
-                return (task: null, failed: true);
-              }
-              final thumbnailPath = await _queueThumbnailPath(post.previewUrl);
-              return (
-                task: ReplicationTask.create(
-                  prompt: prompt,
-                  negativePrompt: negativePrompt,
-                  applyNegativePrompt: true,
-                  thumbnailUrl: thumbnailPath,
-                  source: ReplicationTaskSource.online,
-                  characterPrompts: [
-                    for (final character in detail.characterPrompts)
-                      ReplicationCharacterPromptSnapshot(
-                        prompt: character.prompt,
-                        negativePrompt: character.negativePrompt,
-                      ),
-                  ],
-                ),
-                failed: false,
-              );
-            } catch (error) {
-              debugPrint(
-                'Failed to resolve codex entry ${post.sourceWorkId}: $error',
-              );
-              return (task: null, failed: true);
-            }
-          }
-          if (post.sourceId != GallerySourceId.aiTag) {
-            final prompt = promptTagSettings.promptFor(
-              post,
-              outputFilter: outputFilter,
-            );
-            if (prompt.isEmpty) return (task: null, failed: true);
-            final thumbnailPath = await _queueThumbnailPath(post.previewUrl);
-            return (
-              task: ReplicationTask.create(
-                prompt: prompt,
-                thumbnailUrl: thumbnailPath,
-                source: ReplicationTaskSource.online,
-              ),
-              failed: false,
-            );
-          }
-          try {
-            final detail = await _galleryNotifier.loadDetail(post);
-            final focusedIndex = post.focusedMediaId == null
-                ? -1
-                : detail.media.indexWhere(
-                    (media) => media.id == post.focusedMediaId,
-                  );
-            final media = focusedIndex >= 0
-                ? detail.media[focusedIndex]
-                : detail.media.first;
-            final rawPrompt =
-                media.prompt ??
-                detail.prompt ??
-                promptTagSettings.promptFor(post, outputFilter: outputFilter);
-            final prompt = outputFilter.filterPrompt(rawPrompt);
-            if (prompt.isEmpty) return (task: null, failed: true);
-            final thumbnailPath = await _queueThumbnailPath(media.previewUrl);
-            return (
-              task: ReplicationTask.create(
-                prompt: prompt,
-                negativePrompt:
-                    media.negativePrompt ?? detail.negativePrompt ?? '',
-                applyNegativePrompt: true,
-                thumbnailUrl: thumbnailPath,
-                source: ReplicationTaskSource.online,
-                width: media.width > 0 ? media.width : null,
-                height: media.height > 0 ? media.height : null,
-              ),
-              failed: false,
-            );
-          } catch (error) {
-            debugPrint('Failed to resolve ${post.stableKey} for queue: $error');
-            return (task: null, failed: true);
-          }
-        }),
+        batch.map(
+          (post) =>
+              _buildReplicationTask(post, promptTagSettings, outputFilter),
+        ),
       );
       tasks.addAll(resolved.map((result) => result.task).whereType());
       preparationFailureCount += resolved
@@ -3441,37 +3719,24 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     final selectionState = ref.read(onlineGallerySelectionNotifierProvider);
     final galleryState = ref.read(onlineGalleryNotifierProvider);
     final source = _activeSource(galleryState);
-    if (source == GallerySourceId.danbooru &&
-        !ref.read(danbooruAuthProvider).isLoggedIn) {
-      _showLoginDialog(context);
-      return;
-    }
-
     final selectedPosts = galleryState.posts
         .where(
           (post) =>
               post.sourceId == source &&
-              (source == GallerySourceId.danbooru ||
-                  source == GallerySourceId.quickTagCloud) &&
               selectionState.selectedIds.contains(post.stableKey),
         )
         .toList();
     if (selectedPosts.isEmpty) return;
 
-    // 简单的批量收藏实现：逐个调用 toggleFavorite
-    // 注意：这可能会触发多次 API 调用，理想情况下应该有批量 API
-    // 这里为了简化，我们只对未收藏的进行收藏操作
-    int count = 0;
+    var count = 0;
     for (final post in selectedPosts) {
       // 检查widget是否仍然挂载，避免在widget disposed后继续操作
       if (!mounted) return;
 
-      if (!galleryState.favoritedPostKeys.contains(
-        onlineGalleryPostKey(post),
-      )) {
-        await _galleryNotifier.toggleFavorite(post);
-        count++;
-        if (source == GallerySourceId.danbooru) {
+      if (!_galleryNotifier.isFavorited(post)) {
+        final success = await _galleryNotifier.toggleFavorite(post);
+        if (success) count++;
+        if (success && source == GallerySourceId.danbooru) {
           await Future.delayed(const Duration(milliseconds: 100));
         }
       }
@@ -3692,7 +3957,7 @@ class _GalleryDownloadJob {
 }
 
 /// 模式切换按钮
-class _ModeButton extends StatefulWidget {
+class _ModeButton extends StatelessWidget {
   final IconData icon;
   final String label;
   final bool isSelected;
@@ -3700,8 +3965,11 @@ class _ModeButton extends StatefulWidget {
   final bool isFirst;
   final bool isLast;
   final bool showBadge;
+  final bool compact;
+  final String? badgeHint;
 
   const _ModeButton({
+    super.key,
     required this.icon,
     required this.label,
     required this.isSelected,
@@ -3709,72 +3977,83 @@ class _ModeButton extends StatefulWidget {
     this.isFirst = false,
     this.isLast = false,
     this.showBadge = false,
+    this.compact = false,
+    this.badgeHint,
   });
-
-  @override
-  State<_ModeButton> createState() => _ModeButtonState();
-}
-
-class _ModeButtonState extends State<_ModeButton> {
-  bool _isHovering = false;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final borderRadius = BorderRadius.horizontal(
+      left: isFirst ? const Radius.circular(8) : Radius.zero,
+      right: isLast ? const Radius.circular(8) : Radius.zero,
+    );
+    final foregroundColor = isSelected
+        ? theme.colorScheme.onPrimary
+        : theme.colorScheme.onSurfaceVariant;
 
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovering = true),
-      onExit: (_) => setState(() => _isHovering = false),
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            color: widget.isSelected
-                ? theme.colorScheme.primary
-                : (_isHovering
-                      ? theme.colorScheme.surfaceContainerHighest
-                      : Colors.transparent),
-            borderRadius: BorderRadius.horizontal(
-              left: widget.isFirst ? const Radius.circular(8) : Radius.zero,
-              right: widget.isLast ? const Radius.circular(8) : Radius.zero,
+    final tooltip = showBadge && badgeHint != null
+        ? '$label · $badgeHint'
+        : label;
+    return Tooltip(
+      message: tooltip,
+      child: Semantics(
+        button: true,
+        selected: isSelected,
+        label: compact ? label : null,
+        hint: showBadge ? badgeHint : null,
+        excludeSemantics: compact,
+        child: Material(
+          color: isSelected ? theme.colorScheme.primary : Colors.transparent,
+          borderRadius: borderRadius,
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: borderRadius,
+            hoverColor: isSelected
+                ? Colors.transparent
+                : theme.colorScheme.surfaceContainerHighest,
+            focusColor: theme.colorScheme.primaryContainer.withValues(
+              alpha: 0.5,
             ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                widget.icon,
-                size: 18,
-                color: widget.isSelected
-                    ? theme.colorScheme.onPrimary
-                    : theme.colorScheme.onSurfaceVariant,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minWidth: compact ? 40 : 0,
+                minHeight: 40,
               ),
-              const SizedBox(width: 6),
-              Text(
-                widget.label,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: widget.isSelected
-                      ? FontWeight.w600
-                      : FontWeight.normal,
-                  color: widget.isSelected
-                      ? theme.colorScheme.onPrimary
-                      : theme.colorScheme.onSurfaceVariant,
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: compact ? 11 : 14),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(icon, size: 18, color: foregroundColor),
+                    if (!compact) ...[
+                      const SizedBox(width: 6),
+                      Text(
+                        label,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: isSelected
+                              ? FontWeight.w600
+                              : FontWeight.normal,
+                          color: foregroundColor,
+                        ),
+                      ),
+                    ],
+                    if (showBadge)
+                      Container(
+                        margin: const EdgeInsets.only(left: 4),
+                        width: 6,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.error,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                  ],
                 ),
               ),
-              if (widget.showBadge)
-                Container(
-                  margin: const EdgeInsets.only(left: 4),
-                  width: 6,
-                  height: 6,
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.error,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-            ],
+            ),
           ),
         ),
       ),
@@ -3800,7 +4079,7 @@ class _SourceDropdown extends StatelessWidget {
     return PopupMenuButton<GallerySourceId>(
       key: const ValueKey('online-gallery-source-selector'),
       onSelected: onChanged,
-      offset: const Offset(0, 36),
+      offset: const Offset(0, 44),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       itemBuilder: (context) => sources.entries.map((e) {
         final isSelected = selected == e.key;
@@ -3823,22 +4102,28 @@ class _SourceDropdown extends StatelessWidget {
         );
       }).toList(),
       child: Container(
-        height: 32,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
+        height: 40,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
           color: theme.colorScheme.surfaceContainerHighest.withValues(
             alpha: 0.4,
           ),
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              sources[selected] ?? selected.label,
-              style: TextStyle(
-                fontSize: 12,
-                color: theme.colorScheme.onSurfaceVariant,
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 150),
+              child: Text(
+                sources[selected] ?? selected.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
             ),
             const SizedBox(width: 4),
@@ -4056,11 +4341,13 @@ class _RatingDropdown extends StatelessWidget {
   final Set<String> selectedRatings;
   final ValueChanged<String> onToggle;
   final Set<String> availableRatings;
+  final bool compact;
 
   const _RatingDropdown({
     required this.selectedRatings,
     required this.onToggle,
     this.availableRatings = kAllRatings,
+    this.compact = false,
   });
 
   List<(String, String, Color?)> _getRatings(BuildContext context) => [
@@ -4194,9 +4481,10 @@ class _RatingDropdown extends StatelessWidget {
           ),
         );
       }).toList(),
+      tooltip: buttonText(),
       child: Container(
-        height: 32,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
+        height: 40,
+        padding: EdgeInsets.symmetric(horizontal: compact ? 8 : 10),
         decoration: BoxDecoration(
           color: theme.colorScheme.surfaceContainerHighest.withValues(
             alpha: 0.4,
@@ -4210,14 +4498,15 @@ class _RatingDropdown extends StatelessWidget {
               _buildRatingIndicator(theme, selectedCodesInOrder),
               const SizedBox(width: 6),
             ],
-            Text(
-              buttonText(),
-              style: TextStyle(
-                fontSize: 12,
-                color: theme.colorScheme.onSurfaceVariant,
+            if (!compact)
+              Text(
+                buttonText(),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
-            ),
-            const SizedBox(width: 4),
+            SizedBox(width: compact ? 2 : 4),
             Icon(
               Icons.arrow_drop_down,
               size: 16,

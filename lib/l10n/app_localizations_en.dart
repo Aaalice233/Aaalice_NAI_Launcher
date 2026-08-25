@@ -2464,6 +2464,41 @@ class AppLocalizationsEn extends AppLocalizations {
   String get onlineGallery_favorites => 'Favorites';
 
   @override
+  String get onlineGallery_searchFavorites =>
+      'Search favorites by title, author, or tag…';
+
+  @override
+  String get onlineGallery_localFavorites => 'Local favorites';
+
+  @override
+  String get onlineGallery_localFavoritesDescription =>
+      'Saved on this device and available for every source';
+
+  @override
+  String get onlineGallery_cloudFavorites => 'Cloud favorites';
+
+  @override
+  String get onlineGallery_loginForCloudFavorites =>
+      'Sign in to view cloud favorites';
+
+  @override
+  String get onlineGallery_saveVisibleLocally => 'Save page locally';
+
+  @override
+  String get onlineGallery_visibleFavoritesAlreadySaved =>
+      'Everything on this page is already saved locally';
+
+  @override
+  String onlineGallery_visibleFavoritesSaved(int count) {
+    return 'Saved $count items to local favorites';
+  }
+
+  @override
+  String onlineGallery_saveFavoritesFailed(String error) {
+    return 'Failed to save local favorites: $error';
+  }
+
+  @override
   String get onlineGallery_searchTags => 'Search tags...';
 
   @override
@@ -2661,6 +2696,17 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get onlineGallery_ratingExplicit => 'Explicit';
+
+  @override
+  String get onlineGallery_sourceGeneralOnly =>
+      'This source only provides general content';
+
+  @override
+  String get onlineGallery_sourceUnrated => 'Source unrated';
+
+  @override
+  String get onlineGallery_sourceUnratedTooltip =>
+      'This source does not provide a reliable content rating, so the app cannot infer one accurately';
 
   @override
   String get onlineGallery_clear => 'Clear';

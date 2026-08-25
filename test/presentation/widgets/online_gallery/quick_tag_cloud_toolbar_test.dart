@@ -40,7 +40,10 @@ void main() {
             home: Scaffold(
               body: Align(
                 alignment: Alignment.topLeft,
-                child: _toolbar(onFiltersChanged: () async => refreshCount++),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: _toolbar(onFiltersChanged: () async => refreshCount++),
+                ),
               ),
             ),
           ),
@@ -48,7 +51,6 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Source selector'), findsOneWidget);
       expect(find.text('Browse'), findsOneWidget);
       expect(find.text('Latest update'), findsOneWidget);
       expect(find.text('Recently viewed'), findsOneWidget);
@@ -63,12 +65,63 @@ void main() {
         find.byKey(const ValueKey('quick-tag-cloud-check-updates')),
         findsNothing,
       );
-      expect(tester.getCenter(contributors).dx, greaterThan(width - 48));
+      expect(
+        tester.getCenter(contributors).dx,
+        greaterThan(tester.getCenter(find.text('Filter')).dx),
+      );
       expect(tester.widget<IconButton>(contributors).style?.side, isNull);
       expect(refreshCount, 0);
       expect(tester.takeException(), isNull);
     });
   }
+
+  testWidgets('wrapped source panel keeps every codex control reachable', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(700, 800);
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          quickTagCloudCatalogProvider.overrideWith((ref) async => _catalog()),
+          quickTagCloudCodexProvider.overrideWith((ref, id) async => _codex()),
+          quickTagCloudFilterProvider.overrideWith(
+            _TestQuickTagCloudFilterNotifier.new,
+          ),
+        ],
+        child: MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: Padding(
+              padding: const EdgeInsets.all(40),
+              child: _toolbar(
+                wrapControls: true,
+                onFiltersChanged: () async {},
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    for (final finder in [
+      find.text('Browse'),
+      find.text('Artist Codex'),
+      find.text('All categories'),
+      find.text('Filter'),
+      find.byKey(const ValueKey('quick-tag-cloud-contributors')),
+    ]) {
+      final rect = tester.getRect(finder);
+      expect(rect.left, greaterThanOrEqualTo(0));
+      expect(rect.right, lessThanOrEqualTo(700));
+    }
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('opens list dialogs without intrinsic viewport errors', (
     tester,
@@ -99,7 +152,7 @@ void main() {
     await mouse.addPointer(location: const Offset(4, 4));
     addTearDown(mouse.removePointer);
 
-    await tester.tap(find.text('Artist Codex'));
+    await _scrollToAndTap(tester, find.text('Artist Codex'));
     await tester.pumpAndSettle();
     await mouse.moveTo(tester.getCenter(find.byType(AlertDialog)));
     await tester.pump();
@@ -108,7 +161,7 @@ void main() {
     Navigator.of(tester.element(find.byType(AlertDialog))).pop();
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('All categories'));
+    await _scrollToAndTap(tester, find.text('All categories'));
     await tester.pumpAndSettle();
     await mouse.moveTo(tester.getCenter(find.byType(AlertDialog)));
     await tester.pump();
@@ -117,7 +170,8 @@ void main() {
     Navigator.of(tester.element(find.byType(AlertDialog))).pop();
     await tester.pumpAndSettle();
 
-    await tester.tap(
+    await _scrollToAndTap(
+      tester,
       find.byKey(const ValueKey('quick-tag-cloud-contributors')),
     );
     await tester.pumpAndSettle();
@@ -166,7 +220,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('All categories'));
+    await _scrollToAndTap(tester, find.text('All categories'));
     await tester.pumpAndSettle();
 
     expect(
@@ -201,8 +255,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.text('Rating selector'), findsOneWidget);
-      await tester.tap(find.text('Filter'));
+      await _scrollToAndTap(tester, find.text('Filter'));
       await tester.pumpAndSettle();
 
       expect(find.text('Show adult content'), findsNothing);
@@ -236,7 +289,7 @@ void main() {
       tester.element(find.byType(QuickTagCloudToolbar)),
     );
 
-    await tester.tap(find.text('Filter'));
+    await _scrollToAndTap(tester, find.text('Filter'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('With images'));
     await tester.tap(find.text('Cancel'));
@@ -248,7 +301,7 @@ void main() {
     );
     expect(refreshCount, 0);
 
-    await tester.tap(find.text('Filter'));
+    await _scrollToAndTap(tester, find.text('Filter'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('With images'));
     await tester.tap(find.text('Apply'));
@@ -262,14 +315,20 @@ void main() {
   });
 }
 
+Future<void> _scrollToAndTap(WidgetTester tester, Finder finder) async {
+  await tester.ensureVisible(finder);
+  await tester.pump();
+  await tester.tap(finder);
+}
+
 QuickTagCloudToolbar _toolbar({
   required Future<void> Function() onFiltersChanged,
   Set<String> selectedRatings = const {'g'},
+  bool wrapControls = false,
 }) => QuickTagCloudToolbar(
   onFiltersChanged: onFiltersChanged,
   selectedRatings: selectedRatings,
-  sourceControl: const Text('Source selector'),
-  ratingControl: const Text('Rating selector'),
+  wrapControls: wrapControls,
 );
 
 class _TestQuickTagCloudFilterNotifier extends QuickTagCloudFilterNotifier {

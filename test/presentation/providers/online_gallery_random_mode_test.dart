@@ -1,18 +1,23 @@
+import 'dart:io';
 import 'dart:math';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hive/hive.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/data/datasources/remote/online_gallery/gallery_source_adapter.dart';
 import 'package:nai_launcher/data/datasources/remote/online_gallery/quick_tag_cloud_gallery_source_adapter.dart';
 import 'package:nai_launcher/data/models/online_gallery/gallery_item.dart';
 import 'package:nai_launcher/data/models/online_gallery/gallery_source.dart';
+import 'package:nai_launcher/data/repositories/online_gallery_local_favorites_repository.dart';
 import 'package:nai_launcher/data/services/online_gallery/quick_tag_cloud_remote_catalog_service.dart';
 import 'package:nai_launcher/data/services/online_gallery/quick_tag_cloud_user_service.dart';
 import 'package:nai_launcher/presentation/providers/online_gallery_blacklist_provider.dart';
+import 'package:nai_launcher/presentation/providers/online_gallery_local_favorites_provider.dart';
 import 'package:nai_launcher/presentation/providers/online_gallery_provider.dart';
+import 'package:nai_launcher/presentation/providers/quick_tag_cloud_gallery_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -127,7 +132,7 @@ void main() {
     );
   });
 
-  test('QuickTagCloud random ignores booru blacklist state', () async {
+  test('QuickTagCloud random applies the shared blacklist', () async {
     final storage = _MemoryStorage();
     await storage.setSetting(
       StorageKeys.onlineGalleryBrowsingSessionV1,
@@ -161,19 +166,26 @@ void main() {
         .setRandomEnabled(true);
 
     final request = adapter.lastRandomRequest as GalleryRandomSearchRequest;
-    expect(request.blacklistTags, isEmpty);
-    expect(
-      container.read(onlineGalleryNotifierProvider).posts.single.stableKey,
-      item.stableKey,
-    );
+    expect(request.blacklistTags, {'blocked_tag'});
+    expect(container.read(onlineGalleryNotifierProvider).posts, isEmpty);
   });
 
-  test('unfavoriting in random favorites restarts the draw', () async {
+  test('unfavoriting in random local favorites restarts the draw', () async {
+    final tempDirectory = await Directory.systemTemp.createTemp(
+      'online-gallery-random-favorites-',
+    );
+    Hive.init(tempDirectory.path);
+    await Hive.openBox<dynamic>(StorageKeys.localFavoritesBox);
+    addTearDown(() async {
+      await Hive.close();
+      await tempDirectory.delete(recursive: true);
+    });
+
     final storage = _MemoryStorage();
     const initialState = OnlineGalleryState(
       viewMode: GalleryViewMode.favorites,
       favoritesSourceId: GallerySourceId.quickTagCloud,
-      randomEnabled: true,
+      favoritesScope: GalleryFavoritesScope.local,
     );
     final favoriteCacheKey = initialState.currentCacheKey;
     await storage.setSetting(
@@ -187,10 +199,7 @@ void main() {
         ),
       ),
     );
-    final adapter = _FavoriteQuickTagCloudAdapter(storage, [
-      [_quickItem('one')],
-      [_quickItem('two')],
-    ]);
+    final adapter = _FavoriteQuickTagCloudAdapter(storage);
     final container = ProviderContainer(
       overrides: [
         localStorageServiceProvider.overrideWithValue(storage),
@@ -204,15 +213,102 @@ void main() {
       ],
     );
     addTearDown(container.dispose);
+    final localFavorites = container.read(
+      onlineGalleryLocalFavoritesProvider.notifier,
+    );
+    final first = _quickItem(
+      'one',
+    ).copyWith(rating: 'g', rawSourceMetadata: const {'codexId': 'suozhang'});
+    final second = _quickItem(
+      'two',
+    ).copyWith(rating: 'g', rawSourceMetadata: const {'codexId': 'suozhang'});
+    await localFavorites.upsert(
+      GalleryDetail(
+        item: first,
+        media: [first.cover],
+        rawSourceMetadata: const {'codexId': 'suozhang'},
+      ),
+    );
+    await localFavorites.upsert(
+      GalleryDetail(
+        item: second,
+        media: [second.cover],
+        rawSourceMetadata: const {'codexId': 'suozhang'},
+      ),
+    );
     final notifier = container.read(onlineGalleryNotifierProvider.notifier);
+    expect(container.read(onlineGalleryLocalFavoritesProvider).count, 2);
+    expect(
+      localFavorites
+          .query(
+            const OnlineGalleryFavoriteQuery(
+              sourceId: GallerySourceId.quickTagCloud,
+              ratings: {'g', 's', 'q', 'e'},
+              codexId: 'suozhang',
+              limit: 10,
+            ),
+          )
+          .total,
+      2,
+    );
+    expect(
+      container.read(onlineGalleryNotifierProvider).viewMode,
+      GalleryViewMode.favorites,
+    );
+    expect(
+      container.read(onlineGalleryNotifierProvider).favoritesScope,
+      GalleryFavoritesScope.local,
+    );
 
-    await notifier.loadPosts();
-    await notifier.toggleFavorite(_quickItem('one'));
+    await notifier.setRandomEnabled(true);
+    final activeFilter = container.read(quickTagCloudFilterProvider);
+    expect(
+      localFavorites
+          .query(
+            OnlineGalleryFavoriteQuery(
+              sourceId: GallerySourceId.quickTagCloud,
+              ratings: container
+                  .read(onlineGalleryNotifierProvider)
+                  .selectedRatings,
+              blacklistTags: container
+                  .read(onlineGalleryBlacklistNotifierProvider)
+                  .effectiveTags,
+              codexId: activeFilter.codexId,
+              categoryPath: activeFilter.categoryPath,
+              mediaFilter: activeFilter.mediaFilter.name,
+              limit: 10,
+            ),
+          )
+          .total,
+      2,
+    );
+    for (var attempt = 0; attempt < 20; attempt++) {
+      if (container.read(onlineGalleryNotifierProvider).posts.isNotEmpty) {
+        break;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+    final refreshed = container.read(onlineGalleryNotifierProvider);
+    expect(refreshed.error, isNull);
+    expect(refreshed.posts, isNotEmpty);
+    final removed = refreshed.posts.first;
+    final snapshot = await notifier.loadDetail(removed);
+    expect(snapshot.item.stableKey, removed.stableKey);
+    expect(adapter.detailCalls, 0);
+
+    await notifier.toggleFavorite(removed);
+    expect(adapter.detailCalls, 0);
+    for (var attempt = 0; attempt < 20; attempt++) {
+      if (container.read(onlineGalleryNotifierProvider).posts.length == 1) {
+        break;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
 
     final state = container.read(onlineGalleryNotifierProvider);
-    expect(adapter.randomCalls, 2);
-    expect(state.posts.map((item) => item.sourceWorkId), ['book/two']);
-    expect(state.randomSession.seenStableKeys, {'quick_tag_cloud:book/two'});
+    expect(state.posts, hasLength(1));
+    expect(state.posts.single.stableKey, isNot(removed.stableKey));
+    expect(state.randomSession.seenStableKeys, {state.posts.single.stableKey});
     expect(
       state.caches.keys.where(
         (key) => key.startsWith('favorites:quick_tag_cloud'),
@@ -428,29 +524,22 @@ class _RandomFakeAdapter implements GallerySourceAdapter {
 }
 
 class _FavoriteQuickTagCloudAdapter extends QuickTagCloudGallerySourceAdapter {
-  _FavoriteQuickTagCloudAdapter(LocalStorageService storage, this.batches)
+  _FavoriteQuickTagCloudAdapter(LocalStorageService storage)
     : super(
         catalogService: QuickTagCloudRemoteCatalogService(),
         userService: QuickTagCloudUserService(storage),
         queryReader: () => const QuickTagCloudGalleryQuery(),
       );
 
-  final List<List<GalleryItem>> batches;
-  int randomCalls = 0;
+  int detailCalls = 0;
 
   @override
-  Future<Set<String>> favoriteKeys() async => {'quick_tag_cloud:book/one'};
-
-  @override
-  Future<bool> toggleFavorite(GalleryItem item) async => false;
-
-  @override
-  Future<GalleryPage> random(
-    GalleryRandomRequest request, {
+  Future<GalleryDetail> detail(
+    GalleryItem item, {
     CancelToken? cancelToken,
   }) async {
-    final index = randomCalls++;
-    return _page(index < batches.length ? batches[index] : const []);
+    detailCalls++;
+    return GalleryDetail(item: item, media: [item.cover]);
   }
 }
 

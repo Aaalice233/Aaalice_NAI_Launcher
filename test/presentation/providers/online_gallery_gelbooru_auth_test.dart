@@ -1,15 +1,19 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hive/hive.dart';
+import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/storage/secure_storage_service.dart';
 import 'package:nai_launcher/data/datasources/remote/danbooru_api_service.dart';
 import 'package:nai_launcher/data/datasources/remote/gelbooru_api_service.dart';
 import 'package:nai_launcher/data/models/online_gallery/danbooru_post.dart';
 import 'package:nai_launcher/data/models/online_gallery/gelbooru_credentials.dart';
 import 'package:nai_launcher/data/services/gelbooru_auth_service.dart';
+import 'package:nai_launcher/presentation/providers/online_gallery_local_favorites_provider.dart';
 import 'package:nai_launcher/presentation/providers/online_gallery_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -210,6 +214,56 @@ void main() {
       expect(await notifier.toggleFavorite(state.posts.single), isFalse);
       expect(danbooruApi.addFavoriteCalls, 0);
       expect(danbooruApi.removeFavoriteCalls, 0);
+    },
+  );
+
+  test(
+    'Gelbooru local and remote favorite membership remain independent',
+    () async {
+      final hiveDirectory = await Directory.systemTemp.createTemp(
+        'online-gallery-gelbooru-favorites-',
+      );
+      Hive.init(hiveDirectory.path);
+      await Hive.openBox<dynamic>(StorageKeys.settingsBox);
+      await Hive.openBox<dynamic>(StorageKeys.localFavoritesBox);
+      addTearDown(() async {
+        await Hive.close();
+        await hiveDirectory.delete(recursive: true);
+      });
+
+      final item = _gelbooruPost(321);
+      final gelbooruApi = _FakeGelbooruApiService(
+        favoritesResult: GelbooruPostPage(posts: [item], rawCount: 1),
+      );
+      final container = createContainer(
+        storedCredentials: stored(credentials),
+        gelbooruApi: gelbooruApi,
+      );
+      addTearDown(container.dispose);
+      final localFavorites = container.read(
+        onlineGalleryLocalFavoritesProvider.notifier,
+      );
+      await localFavorites.upsert(
+        GalleryDetail(item: item, media: [item.cover]),
+      );
+      final notifier = container.read(onlineGalleryNotifierProvider.notifier);
+
+      await notifier.setFavoritesSource(GallerySourceId.gelbooru);
+      await notifier.switchToFavorites();
+      expect(notifier.isFavorited(item), isTrue);
+
+      notifier.invalidateGelbooruFavorites();
+      expect(notifier.isFavorited(item), isFalse);
+      expect(
+        container
+            .read(onlineGalleryNotifierProvider)
+            .favoritedPostKeys
+            .contains(item.stableKey),
+        isTrue,
+      );
+
+      await notifier.setFavoritesScope(GalleryFavoritesScope.local);
+      expect(notifier.isFavorited(item), isTrue);
     },
   );
 

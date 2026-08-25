@@ -255,48 +255,51 @@ void main() {
     expect(state.currentCache.nextCursor, 'b700');
   });
 
-  test('continues after a full batch of filtered empty cursors', () async {
-    const nextCursorByCursor = {
-      '1': 'b900',
-      'b900': 'b800',
-      'b800': 'b700',
-      'b700': 'b600',
-      'b600': 'b500',
-    };
-    final adapter = _FakeGalleryAdapter(
-      GallerySourceId.danbooru,
-      onSearch: (request, _) async {
-        if (request.cursor == 'b500') {
-          return _page(request.cursor, [_item(6)], nextCursor: 'b400');
-        }
-        return _page(
-          request.cursor,
-          const [],
-          nextCursor: nextCursorByCursor[request.cursor],
-          rawItemCount: 40,
-        );
-      },
-    );
-    final container = _container(danbooru: adapter);
-    addTearDown(container.dispose);
-    final notifier = container.read(onlineGalleryNotifierProvider.notifier);
+  test(
+    'continues through filtered empty cursors until content arrives',
+    () async {
+      const nextCursorByCursor = {
+        '1': 'b900',
+        'b900': 'b800',
+        'b800': 'b700',
+        'b700': 'b600',
+        'b600': 'b500',
+      };
+      final adapter = _FakeGalleryAdapter(
+        GallerySourceId.danbooru,
+        onSearch: (request, _) async {
+          if (request.cursor == 'b500') {
+            return _page(request.cursor, [_item(6)], nextCursor: 'b400');
+          }
+          return _page(
+            request.cursor,
+            const [],
+            nextCursor: nextCursorByCursor[request.cursor],
+            rawItemCount: 40,
+          );
+        },
+      );
+      final container = _container(danbooru: adapter);
+      addTearDown(container.dispose);
+      final notifier = container.read(onlineGalleryNotifierProvider.notifier);
 
-    await notifier.loadPosts();
+      await notifier.loadPosts();
 
-    var state = container.read(onlineGalleryNotifierProvider);
-    expect(state.posts, isEmpty);
-    expect(state.page, 5);
-    expect(state.currentCache.nextCursor, 'b500');
-    expect(state.hasMore, isTrue);
-
-    await notifier.loadMore();
-
-    state = container.read(onlineGalleryNotifierProvider);
-    expect(adapter.searchCursors.last, 'b500');
-    expect(state.posts.single.id, 6);
-    expect(state.page, 6);
-    expect(state.currentCache.nextCursor, 'b400');
-  });
+      final state = container.read(onlineGalleryNotifierProvider);
+      expect(adapter.searchCursors, [
+        '1',
+        'b900',
+        'b800',
+        'b700',
+        'b600',
+        'b500',
+      ]);
+      expect(state.posts.single.id, 6);
+      expect(state.page, 6);
+      expect(state.currentCache.nextCursor, 'b400');
+      expect(state.hasMore, isTrue);
+    },
+  );
 
   test(
     'late results from a cancelled source cannot overwrite the new source',

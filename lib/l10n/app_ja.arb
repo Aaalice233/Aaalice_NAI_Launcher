@@ -1116,6 +1116,25 @@
   "onlineGallery_search": "検索",
   "onlineGallery_popular": "人気",
   "onlineGallery_favorites": "お気に入り",
+  "onlineGallery_searchFavorites": "お気に入りのタイトル・作者・タグを検索…",
+  "onlineGallery_localFavorites": "ローカルお気に入り",
+  "onlineGallery_localFavoritesDescription": "このデバイスに保存され、すべてのサイトで利用できます",
+  "onlineGallery_cloudFavorites": "クラウドお気に入り",
+  "onlineGallery_loginForCloudFavorites": "ログインするとクラウドお気に入りを表示できます",
+  "onlineGallery_saveVisibleLocally": "このページをローカル保存",
+  "onlineGallery_visibleFavoritesAlreadySaved": "このページはすべてローカル保存済みです",
+  "onlineGallery_visibleFavoritesSaved": "{count} 件をローカルお気に入りに保存しました",
+  "@onlineGallery_visibleFavoritesSaved": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "onlineGallery_saveFavoritesFailed": "ローカルお気に入りの保存に失敗しました：{error}",
+  "@onlineGallery_saveFavoritesFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
   "onlineGallery_searchTags": "タグを検索...",
   "onlineGallery_refresh": "更新",
   "onlineGallery_random": "ランダム",
@@ -1202,6 +1221,9 @@
   "onlineGallery_ratingSensitive": "センシティブ",
   "onlineGallery_ratingQuestionable": "疑問あり",
   "onlineGallery_ratingExplicit": "露骨",
+  "onlineGallery_sourceGeneralOnly": "このソースは全年齢向けコンテンツのみ提供します",
+  "onlineGallery_sourceUnrated": "ソース未分類",
+  "onlineGallery_sourceUnratedTooltip": "このソースには信頼できるコンテンツ分類がないため、アプリで正確に推定できません",
   "onlineGallery_clear": "クリア",
   "onlineGallery_previousPage": "前のページ",
   "onlineGallery_nextPage": "次のページ",

@@ -2412,6 +2412,39 @@ class AppLocalizationsJa extends AppLocalizations {
   String get onlineGallery_favorites => 'お気に入り';
 
   @override
+  String get onlineGallery_searchFavorites => 'お気に入りのタイトル・作者・タグを検索…';
+
+  @override
+  String get onlineGallery_localFavorites => 'ローカルお気に入り';
+
+  @override
+  String get onlineGallery_localFavoritesDescription =>
+      'このデバイスに保存され、すべてのサイトで利用できます';
+
+  @override
+  String get onlineGallery_cloudFavorites => 'クラウドお気に入り';
+
+  @override
+  String get onlineGallery_loginForCloudFavorites => 'ログインするとクラウドお気に入りを表示できます';
+
+  @override
+  String get onlineGallery_saveVisibleLocally => 'このページをローカル保存';
+
+  @override
+  String get onlineGallery_visibleFavoritesAlreadySaved =>
+      'このページはすべてローカル保存済みです';
+
+  @override
+  String onlineGallery_visibleFavoritesSaved(int count) {
+    return '$count 件をローカルお気に入りに保存しました';
+  }
+
+  @override
+  String onlineGallery_saveFavoritesFailed(String error) {
+    return 'ローカルお気に入りの保存に失敗しました：$error';
+  }
+
+  @override
   String get onlineGallery_searchTags => 'タグを検索...';
 
   @override
@@ -2605,6 +2638,16 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get onlineGallery_ratingExplicit => '露骨';
+
+  @override
+  String get onlineGallery_sourceGeneralOnly => 'このソースは全年齢向けコンテンツのみ提供します';
+
+  @override
+  String get onlineGallery_sourceUnrated => 'ソース未分類';
+
+  @override
+  String get onlineGallery_sourceUnratedTooltip =>
+      'このソースには信頼できるコンテンツ分類がないため、アプリで正確に推定できません';
 
   @override
   String get onlineGallery_clear => 'クリア';

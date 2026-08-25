@@ -4473,6 +4473,60 @@ abstract class AppLocalizations {
   /// **'Favorites'**
   String get onlineGallery_favorites;
 
+  /// No description provided for @onlineGallery_searchFavorites.
+  ///
+  /// In en, this message translates to:
+  /// **'Search favorites by title, author, or tag…'**
+  String get onlineGallery_searchFavorites;
+
+  /// No description provided for @onlineGallery_localFavorites.
+  ///
+  /// In en, this message translates to:
+  /// **'Local favorites'**
+  String get onlineGallery_localFavorites;
+
+  /// No description provided for @onlineGallery_localFavoritesDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved on this device and available for every source'**
+  String get onlineGallery_localFavoritesDescription;
+
+  /// No description provided for @onlineGallery_cloudFavorites.
+  ///
+  /// In en, this message translates to:
+  /// **'Cloud favorites'**
+  String get onlineGallery_cloudFavorites;
+
+  /// No description provided for @onlineGallery_loginForCloudFavorites.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to view cloud favorites'**
+  String get onlineGallery_loginForCloudFavorites;
+
+  /// No description provided for @onlineGallery_saveVisibleLocally.
+  ///
+  /// In en, this message translates to:
+  /// **'Save page locally'**
+  String get onlineGallery_saveVisibleLocally;
+
+  /// No description provided for @onlineGallery_visibleFavoritesAlreadySaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Everything on this page is already saved locally'**
+  String get onlineGallery_visibleFavoritesAlreadySaved;
+
+  /// No description provided for @onlineGallery_visibleFavoritesSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved {count} items to local favorites'**
+  String onlineGallery_visibleFavoritesSaved(int count);
+
+  /// No description provided for @onlineGallery_saveFavoritesFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to save local favorites: {error}'**
+  String onlineGallery_saveFavoritesFailed(String error);
+
   /// No description provided for @onlineGallery_searchTags.
   ///
   /// In en, this message translates to:
@@ -4838,6 +4892,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Explicit'**
   String get onlineGallery_ratingExplicit;
+
+  /// No description provided for @onlineGallery_sourceGeneralOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'This source only provides general content'**
+  String get onlineGallery_sourceGeneralOnly;
+
+  /// No description provided for @onlineGallery_sourceUnrated.
+  ///
+  /// In en, this message translates to:
+  /// **'Source unrated'**
+  String get onlineGallery_sourceUnrated;
+
+  /// No description provided for @onlineGallery_sourceUnratedTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'This source does not provide a reliable content rating, so the app cannot infer one accurately'**
+  String get onlineGallery_sourceUnratedTooltip;
 
   /// No description provided for @onlineGallery_clear.
   ///

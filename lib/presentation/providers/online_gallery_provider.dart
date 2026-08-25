@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:collection';
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive/hive.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/cache/online_gallery_detail_coordinator.dart';
@@ -25,10 +27,12 @@ import '../../data/models/online_gallery/gallery_source.dart';
 import '../../data/models/online_gallery/gelbooru_post_parser.dart';
 import '../../data/models/online_gallery/quick_tag_cloud_catalog.dart';
 import '../../data/models/online_gallery/quick_tag_cloud_codex.dart';
+import '../../data/repositories/online_gallery_local_favorites_repository.dart';
 import '../../data/services/danbooru_auth_service.dart';
 import '../../data/services/gelbooru_auth_service.dart';
 import '../../data/services/online_gallery/artist_chain_parser.dart';
 import 'online_gallery_blacklist_provider.dart';
+import 'online_gallery_local_favorites_provider.dart';
 import 'quick_tag_cloud_gallery_provider.dart';
 
 part 'online_gallery_provider.g.dart';
@@ -55,6 +59,15 @@ bool _isOnlineGallerySpecialTag(String tag) {
   return tag.contains('*') || tag.contains(':') || tag.startsWith('-');
 }
 
+String? _normalizeGalleryPolicyTag(String value) {
+  var normalized = value.trim().toLowerCase();
+  while (normalized.startsWith('-')) {
+    normalized = normalized.substring(1).trimLeft();
+  }
+  normalized = normalized.replaceAll(RegExp(r'\s+'), '_');
+  return normalized.isEmpty ? null : normalized;
+}
+
 /// Kept as a top-level parser for callers that process large booru responses in
 /// an isolate. New source adapters return the same common model.
 List<GalleryItem> parsePostsInIsolate(Map<String, dynamic> data) {
@@ -73,6 +86,8 @@ List<GalleryItem> parsePostsInIsolate(Map<String, dynamic> data) {
 }
 
 enum GalleryViewMode { search, popular, favorites }
+
+enum GalleryFavoritesScope { local, remote }
 
 enum OnlineGalleryErrorCode {
   credentialsRequired,
@@ -122,22 +137,7 @@ final quickTagCloudGallerySourceAdapterProvider =
         userService: ref.watch(quickTagCloudUserServiceProvider),
         queryReader: () {
           final query = ref.read(quickTagCloudFilterProvider);
-          final gallery = ref.read(onlineGalleryNotifierProvider);
-          final favoritesOnly =
-              gallery.viewMode == GalleryViewMode.favorites &&
-              gallery.favoritesSourceId == GallerySourceId.quickTagCloud;
-          return QuickTagCloudGalleryQuery(
-            codexId: query.codexId,
-            categoryPath: query.categoryPath,
-            updateFilterId: query.updateFilterId,
-            scope: favoritesOnly
-                ? QuickTagCloudBrowseScope.catalog
-                : query.scope,
-            mediaFilter: query.mediaFilter,
-            allowNsfw: query.allowNsfw,
-            allowR18g: query.allowR18g,
-            favoritesOnly: favoritesOnly,
-          );
+          return query;
         },
       );
     });
@@ -349,6 +349,8 @@ class OnlineGalleryState {
     this.sourceId = GallerySourceId.danbooru,
     this.popularSourceId = GallerySourceId.danbooru,
     this.favoritesSourceId = GallerySourceId.danbooru,
+    this.favoritesScope = GalleryFavoritesScope.remote,
+    this.favoriteSearchQuery = '',
     this.selectedRatings = kAllRatings,
     this.viewMode = GalleryViewMode.search,
     this.searchCache = const ModeCache(),
@@ -369,6 +371,7 @@ class OnlineGalleryState {
     this.randomEnabled = false,
     this.randomSession = const RandomGallerySession(),
     this.artistHuntEnabled = false,
+    this.blacklistRevision = 0,
   });
 
   final bool isLoading;
@@ -384,6 +387,8 @@ class OnlineGalleryState {
   final GallerySourceId sourceId;
   final GallerySourceId popularSourceId;
   final GallerySourceId favoritesSourceId;
+  final GalleryFavoritesScope favoritesScope;
+  final String favoriteSearchQuery;
   final Set<String> selectedRatings;
   final GalleryViewMode viewMode;
   final ModeCache searchCache;
@@ -404,6 +409,7 @@ class OnlineGalleryState {
   final bool randomEnabled;
   final RandomGallerySession randomSession;
   final bool artistHuntEnabled;
+  final int blacklistRevision;
 
   GallerySourceId get activeSourceId => switch (viewMode) {
     GalleryViewMode.search => sourceId,
@@ -431,11 +437,11 @@ class OnlineGalleryState {
   String get currentCacheKey {
     switch (viewMode) {
       case GalleryViewMode.search:
-        return 'search:${sourceId.key}:${searchQuery.trim()}|${promptQuery.trim()}|$fuzzySearchEnabled|${_ratingsKey(selectedRatings)}|${dateRangeStart?.toIso8601String() ?? ''}|${dateRangeEnd?.toIso8601String() ?? ''}|$aiTagTimeRange|artistHunt:${sourceId == GallerySourceId.aiTag && artistHuntEnabled}|codex:${sourceId == GallerySourceId.quickTagCloud ? quickTagCloudFilterKey : ''}';
+        return 'search:${sourceId.key}:${searchQuery.trim()}|${promptQuery.trim()}|$fuzzySearchEnabled|${_ratingsKey(selectedRatings)}|${dateRangeStart?.toIso8601String() ?? ''}|${dateRangeEnd?.toIso8601String() ?? ''}|$aiTagTimeRange|artistHunt:${sourceId == GallerySourceId.aiTag && artistHuntEnabled}|codex:${sourceId == GallerySourceId.quickTagCloud ? quickTagCloudFilterKey : ''}|blacklist:$blacklistRevision';
       case GalleryViewMode.popular:
-        return 'popular:${popularSourceId.key}:${popularScale.name}|${popularDate?.toIso8601String() ?? ''}|$aiTagPopularPeriod|${popularQuery.trim()}|${popularPromptQuery.trim()}|${_ratingsKey(selectedRatings)}|artistHunt:${popularSourceId == GallerySourceId.aiTag && artistHuntEnabled}';
+        return 'popular:${popularSourceId.key}:${popularScale.name}|${popularDate?.toIso8601String() ?? ''}|$aiTagPopularPeriod|${popularQuery.trim()}|${popularPromptQuery.trim()}|${_ratingsKey(selectedRatings)}|artistHunt:${popularSourceId == GallerySourceId.aiTag && artistHuntEnabled}|blacklist:$blacklistRevision';
       case GalleryViewMode.favorites:
-        return 'favorites:${favoritesSourceId.key}|${_ratingsKey(selectedRatings)}|codex:${favoritesSourceId == GallerySourceId.quickTagCloud ? quickTagCloudFilterKey : ''}';
+        return 'favorites:${favoritesSourceId.key}:${favoritesScope.name}|${favoriteSearchQuery.trim()}|${_ratingsKey(selectedRatings)}|codex:${favoritesSourceId == GallerySourceId.quickTagCloud ? quickTagCloudFilterKey : ''}|blacklist:$blacklistRevision';
     }
   }
 
@@ -460,7 +466,7 @@ class OnlineGalleryState {
 
   ModeCache favoritesCacheFor(GallerySourceId sourceId) {
     final key =
-        'favorites:${sourceId.key}|${_ratingsKey(selectedRatings)}|codex:${sourceId == GallerySourceId.quickTagCloud ? quickTagCloudFilterKey : ''}';
+        'favorites:${sourceId.key}:${favoritesScope.name}|${favoriteSearchQuery.trim()}|${_ratingsKey(selectedRatings)}|codex:${sourceId == GallerySourceId.quickTagCloud ? quickTagCloudFilterKey : ''}|blacklist:$blacklistRevision';
     return caches[key] ??
         (sourceId == GallerySourceId.gelbooru
             ? gelbooruFavoritesCache
@@ -491,6 +497,8 @@ class OnlineGalleryState {
     GallerySourceId? sourceId,
     GallerySourceId? popularSourceId,
     GallerySourceId? favoritesSourceId,
+    GalleryFavoritesScope? favoritesScope,
+    String? favoriteSearchQuery,
     Set<String>? selectedRatings,
     GalleryViewMode? viewMode,
     ModeCache? searchCache,
@@ -515,6 +523,7 @@ class OnlineGalleryState {
     bool? randomEnabled,
     RandomGallerySession? randomSession,
     bool? artistHuntEnabled,
+    int? blacklistRevision,
   }) {
     return OnlineGalleryState(
       isLoading: isLoading ?? this.isLoading,
@@ -530,6 +539,8 @@ class OnlineGalleryState {
       sourceId: sourceId ?? this.sourceId,
       popularSourceId: popularSourceId ?? this.popularSourceId,
       favoritesSourceId: favoritesSourceId ?? this.favoritesSourceId,
+      favoritesScope: favoritesScope ?? this.favoritesScope,
+      favoriteSearchQuery: favoriteSearchQuery ?? this.favoriteSearchQuery,
       selectedRatings: Set.unmodifiable(
         selectedRatings ?? this.selectedRatings,
       ),
@@ -561,6 +572,7 @@ class OnlineGalleryState {
       randomEnabled: randomEnabled ?? this.randomEnabled,
       randomSession: randomSession ?? this.randomSession,
       artistHuntEnabled: artistHuntEnabled ?? this.artistHuntEnabled,
+      blacklistRevision: blacklistRevision ?? this.blacklistRevision,
     );
   }
 
@@ -586,7 +598,7 @@ class OnlineGalleryState {
     ModeCache cache,
   ) {
     final key =
-        'favorites:${sourceId.key}|${_ratingsKey(selectedRatings)}|codex:${sourceId == GallerySourceId.quickTagCloud ? quickTagCloudFilterKey : ''}';
+        'favorites:${sourceId.key}:${favoritesScope.name}|${favoriteSearchQuery.trim()}|${_ratingsKey(selectedRatings)}|codex:${sourceId == GallerySourceId.quickTagCloud ? quickTagCloudFilterKey : ''}|blacklist:$blacklistRevision';
     final updated = LinkedHashMap<String, ModeCache>.of(caches)
       ..remove(key)
       ..[key] = cache;
@@ -637,6 +649,8 @@ String encodeOnlineGalleryBrowsingSession(OnlineGalleryState state) {
     'sourceId': state.sourceId.key,
     'popularSourceId': state.popularSourceId.key,
     'favoritesSourceId': state.favoritesSourceId.key,
+    'favoritesScope': state.favoritesScope.name,
+    'favoriteSearchQuery': state.favoriteSearchQuery,
     'searchQuery': state.searchQuery,
     'promptQuery': state.promptQuery,
     'popularQuery': state.popularQuery,
@@ -677,12 +691,18 @@ OnlineGalleryState decodeOnlineGalleryBrowsingSession(String? encoded) {
     final favoritesSourceCandidate = _decodeGallerySource(
       json['favoritesSourceId'],
     );
-    final favoritesSourceId =
-        favoritesSourceCandidate == GallerySourceId.gelbooru
-        ? GallerySourceId.gelbooru
-        : favoritesSourceCandidate == GallerySourceId.quickTagCloud
-        ? GallerySourceId.quickTagCloud
-        : GallerySourceId.danbooru;
+    final favoritesSourceId = favoritesSourceCandidate;
+    final requestedFavoritesScope = _decodeEnumByName(
+      GalleryFavoritesScope.values,
+      json['favoritesScope'],
+      GalleryFavoritesScope.remote,
+    );
+    final favoritesScope =
+        requestedFavoritesScope == GalleryFavoritesScope.remote &&
+            favoritesSourceId.capabilities.remoteFavorites !=
+                GalleryRemoteFavoritesCapability.none
+        ? GalleryFavoritesScope.remote
+        : GalleryFavoritesScope.local;
     final viewMode = _decodeEnumByName(
       GalleryViewMode.values,
       json['viewMode'],
@@ -703,6 +723,11 @@ OnlineGalleryState decodeOnlineGalleryBrowsingSession(String? encoded) {
       sourceId: sourceId,
       popularSourceId: popularSourceId,
       favoritesSourceId: favoritesSourceId,
+      favoritesScope: favoritesScope,
+      favoriteSearchQuery: _decodeBoundedString(
+        json['favoriteSearchQuery'],
+        maxLength: 500,
+      ),
       selectedRatings: selectedRatings,
       viewMode: viewMode,
       popularScale: _decodeEnumByName(
@@ -826,7 +851,6 @@ DateTime? _decodeDate(Object? value) {
 @riverpod
 class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
   static const int _pageSize = 60;
-  static const int _maxFilteredEmptyPagesPerLoad = 5;
 
   CancelToken? _cancelToken;
   int _requestGeneration = 0;
@@ -836,6 +860,9 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
   String? _pendingRestoredCacheKey;
   int? _pendingRestoredPage;
   Future<void> _persistenceQueue = Future<void>.value();
+  Timer? _blacklistRefreshDebounce;
+  Set<String> _localFavoriteKeys = const {};
+  final Set<String> _remoteFavoriteKeys = <String>{};
 
   OnlineGalleryDetailCoordinator get _details =>
       _detailCoordinator ??= OnlineGalleryDetailCoordinator(
@@ -846,7 +873,10 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
   @override
   OnlineGalleryState build() {
     ref.keepAlive();
-    ref.onDispose(() => _detailCoordinator?.clear());
+    ref.onDispose(() {
+      _blacklistRefreshDebounce?.cancel();
+      _detailCoordinator?.clear();
+    });
     final storage = ref.read(localStorageServiceProvider);
     final persistedSession = storage.getSetting<String>(
       StorageKeys.onlineGalleryBrowsingSessionV1,
@@ -865,9 +895,19 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
       _normalRestorePoint = restored.copyWith(randomEnabled: false);
     }
     listenSelf((_, next) => _persistBrowsingSession(storage, next));
-    if (restored.sourceId == GallerySourceId.quickTagCloud ||
-        restored.favoritesSourceId == GallerySourceId.quickTagCloud) {
-      Future.microtask(_refreshQuickTagCloudFavoriteKeys);
+    if (Hive.isBoxOpen(StorageKeys.localFavoritesBox)) {
+      Future.microtask(() async {
+        await ref
+            .read(onlineGalleryLocalFavoritesProvider.notifier)
+            .initialize();
+        _handleLocalFavoritesChanged();
+      });
+      ref.listen<(bool, int)>(
+        onlineGalleryLocalFavoritesProvider.select(
+          (value) => (value.isInitialized, value.revision),
+        ),
+        (_, _) => _handleLocalFavoritesChanged(),
+      );
     }
     ref.listen<String?>(
       danbooruAuthProvider.select((value) => value.user?.name),
@@ -884,7 +924,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
         final tags = value.effectiveTags.toList()..sort();
         return tags.join('\u0000');
       }),
-      (_, _) => _handleRandomScopeInputChanged(),
+      (_, _) => _handleBlacklistChanged(),
     );
     return restored;
   }
@@ -913,14 +953,52 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     });
   }
 
-  void _handleRandomScopeInputChanged() {
-    if (!state.randomEnabled) return;
-    _cancelCurrentRequest();
+  void _handleLocalFavoritesChanged() {
+    final localState = ref.read(onlineGalleryLocalFavoritesProvider);
+    if (!localState.isInitialized) return;
+    final nextLocalKeys = ref
+        .read(onlineGalleryLocalFavoritesRepositoryProvider)
+        .stableKeys;
+    final retainedCaches = <String, ModeCache>{
+      for (final entry in state.caches.entries)
+        if (!(entry.key.startsWith('favorites:') &&
+            entry.key.contains(':local|')))
+          entry.key: entry.value,
+    };
+    _localFavoriteKeys = nextLocalKeys;
     state = state.copyWith(
-      randomSession: const RandomGallerySession(),
-      clearError: true,
+      caches: retainedCaches,
+      favoritedPostKeys: {..._localFavoriteKeys, ..._remoteFavoriteKeys},
     );
-    unawaited(_loadRandom(replace: true, restart: true));
+    if (state.viewMode == GalleryViewMode.favorites &&
+        state.favoritesScope == GalleryFavoritesScope.local) {
+      _cancelCurrentRequest();
+      if (state.randomEnabled) {
+        state = state.copyWith(randomSession: const RandomGallerySession());
+      }
+      unawaited(loadPosts(refresh: true));
+    }
+  }
+
+  void _handleBlacklistChanged() {
+    _blacklistRefreshDebounce?.cancel();
+    _blacklistRefreshDebounce = Timer(const Duration(milliseconds: 150), () {
+      if (state.randomEnabled) {
+        _cancelCurrentRequest();
+        state = state.copyWith(
+          blacklistRevision: state.blacklistRevision + 1,
+          randomSession: const RandomGallerySession(),
+          clearError: true,
+        );
+        unawaited(_loadRandom(replace: true, restart: true));
+        return;
+      }
+      _cancelCurrentRequest();
+      state = state
+          .copyWith(blacklistRevision: state.blacklistRevision + 1)
+          .updateCurrentCache(const ModeCache());
+      unawaited(loadPosts(refresh: true));
+    });
   }
 
   void _handleRandomAccountIdentityChanged(GallerySourceId sourceId) {
@@ -1004,12 +1082,24 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
 
   Future<void> switchToFavorites() async {
     _cancelCurrentRequest();
+    final capabilities = state.favoritesSourceId.capabilities;
+    final remoteAvailable =
+        capabilities.remoteFavorites != GalleryRemoteFavoritesCapability.none;
+    final remoteAuthenticated = switch (state.favoritesSourceId) {
+      GallerySourceId.danbooru => _danbooruAuth.isLoggedIn,
+      GallerySourceId.gelbooru => _gelbooruAuth.isAuthenticated,
+      _ => false,
+    };
+    final localStoreReady = Hive.isBoxOpen(StorageKeys.localFavoritesBox);
+    final scope =
+        state.favoritesScope == GalleryFavoritesScope.remote &&
+            (!remoteAvailable || !remoteAuthenticated) &&
+            localStoreReady
+        ? GalleryFavoritesScope.local
+        : state.favoritesScope;
     state = state.copyWith(
       viewMode: GalleryViewMode.favorites,
-      quickTagCloudFilterKey:
-          state.favoritesSourceId == GallerySourceId.quickTagCloud
-          ? ref.read(quickTagCloudFilterProvider).stableKey
-          : state.quickTagCloudFilterKey,
+      favoritesScope: scope,
       clearError: true,
     );
     if (state.randomEnabled || state.currentCache.posts.isEmpty) {
@@ -1029,9 +1119,6 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
           : state.quickTagCloudFilterKey,
       clearError: true,
     );
-    if (sourceId == GallerySourceId.quickTagCloud) {
-      await _refreshQuickTagCloudFavoriteKeys();
-    }
     if (state.randomEnabled || state.currentCache.posts.isEmpty) {
       await loadPosts(refresh: true);
     }
@@ -1051,21 +1138,72 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
 
   Future<void> setFavoritesSource(Object source) async {
     final sourceId = _normalizeSource(source);
-    if (sourceId == null || !sourceId.capabilities.supportsFavorites) return;
-    if (state.favoritesSourceId == sourceId) return;
+    if (sourceId == null || !sourceId.capabilities.supportsLocalFavorites) {
+      return;
+    }
+    if (sourceId == GallerySourceId.gelbooru) {
+      await ref.read(gelbooruAuthProvider.notifier).ensureInitialized();
+    }
+    final remoteAuthenticated = switch (sourceId) {
+      GallerySourceId.danbooru => _danbooruAuth.isLoggedIn,
+      GallerySourceId.gelbooru => _gelbooruAuth.isAuthenticated,
+      _ => false,
+    };
+    final useRemote =
+        (sourceId.capabilities.remoteFavorites !=
+                GalleryRemoteFavoritesCapability.none &&
+            remoteAuthenticated) ||
+        !Hive.isBoxOpen(StorageKeys.localFavoritesBox);
+    final defaultScope = useRemote
+        ? GalleryFavoritesScope.remote
+        : GalleryFavoritesScope.local;
+    if (state.favoritesSourceId == sourceId &&
+        state.favoritesScope == defaultScope) {
+      return;
+    }
     _cancelCurrentRequest();
     state = state.copyWith(
       favoritesSourceId: sourceId,
-      quickTagCloudFilterKey: sourceId == GallerySourceId.quickTagCloud
-          ? ref.read(quickTagCloudFilterProvider).stableKey
-          : state.quickTagCloudFilterKey,
+      favoritesScope: defaultScope,
       clearError: true,
       clearNotice: true,
     );
-    if (state.viewMode == GalleryViewMode.favorites &&
-        (state.randomEnabled || state.currentCache.posts.isEmpty)) {
+    if (state.viewMode == GalleryViewMode.favorites) {
       await loadPosts(refresh: true);
     }
+  }
+
+  Future<void> setFavoritesScope(GalleryFavoritesScope scope) async {
+    if (state.favoritesScope == scope) return;
+    final capabilities = state.favoritesSourceId.capabilities;
+    if (scope == GalleryFavoritesScope.remote &&
+        capabilities.remoteFavorites == GalleryRemoteFavoritesCapability.none) {
+      return;
+    }
+    _cancelCurrentRequest();
+    state = state.copyWith(
+      favoritesScope: scope,
+      clearError: true,
+      clearNotice: true,
+    );
+    if (state.viewMode == GalleryViewMode.favorites) {
+      await loadPosts(refresh: true);
+    }
+  }
+
+  Future<void> searchFavorites(String query) async {
+    final normalized = query.trim();
+    if (state.favoriteSearchQuery == normalized &&
+        state.viewMode == GalleryViewMode.favorites) {
+      return;
+    }
+    _cancelCurrentRequest();
+    state = state.copyWith(
+      favoriteSearchQuery: normalized,
+      viewMode: GalleryViewMode.favorites,
+      clearError: true,
+    );
+    await loadPosts(refresh: true);
   }
 
   void syncQuickTagCloudFilterKey() {
@@ -1286,15 +1424,24 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     );
     try {
       final sourceId = state.activeSourceId;
-      if (sourceId != GallerySourceId.quickTagCloud) {
-        await ref
-            .read(onlineGalleryBlacklistNotifierProvider.notifier)
-            .ensureInitialized();
-      }
+      await ref
+          .read(onlineGalleryBlacklistNotifierProvider.notifier)
+          .ensureInitialized();
       if (generation != _requestGeneration || !state.randomEnabled) return;
-      final blacklist = sourceId == GallerySourceId.quickTagCloud
-          ? const <String>{}
-          : ref.read(onlineGalleryBlacklistNotifierProvider).effectiveTags;
+      final blacklist = ref
+          .read(onlineGalleryBlacklistNotifierProvider)
+          .effectiveTags;
+      if (state.viewMode == GalleryViewMode.favorites &&
+          state.favoritesScope == GalleryFavoritesScope.local) {
+        await _loadRandomLocalFavorites(
+          generation: generation,
+          cacheKey: cacheKey,
+          blacklist: blacklist,
+          replace: replace,
+          restart: restart,
+        );
+        return;
+      }
       final scopeKey = _randomScopeKey(blacklist);
       var session = state.randomSession;
       if (restart || session.scopeKey != scopeKey) {
@@ -1452,6 +1599,80 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
         clearError: isArtistHuntDetailFailure,
       );
     }
+  }
+
+  Future<void> _loadRandomLocalFavorites({
+    required int generation,
+    required String cacheKey,
+    required Set<String> blacklist,
+    required bool replace,
+    required bool restart,
+  }) async {
+    await ref.read(onlineGalleryLocalFavoritesProvider.notifier).initialize();
+    if (!_isCurrentRequest(generation, cacheKey) || !state.randomEnabled) {
+      return;
+    }
+    final scopeKey = _randomScopeKey(blacklist);
+    var session = state.randomSession;
+    if (restart || session.scopeKey != scopeKey) {
+      session = RandomGallerySession(scopeKey: scopeKey);
+    }
+    final localState = ref.read(onlineGalleryLocalFavoritesProvider);
+    final quickTagFilter =
+        state.favoritesSourceId == GallerySourceId.quickTagCloud
+        ? ref.read(quickTagCloudFilterProvider)
+        : null;
+    final page = ref
+        .read(onlineGalleryLocalFavoritesProvider.notifier)
+        .query(
+          OnlineGalleryFavoriteQuery(
+            sourceId: state.favoritesSourceId,
+            searchText: state.favoriteSearchQuery,
+            ratings: state.activeCapabilities.supportsRatings
+                ? state.selectedRatings
+                : const {},
+            blacklistTags: blacklist,
+            codexId: quickTagFilter?.codexId,
+            categoryPath: quickTagFilter?.categoryPath ?? const [],
+            mediaFilter: quickTagFilter?.mediaFilter.name ?? 'all',
+            limit: max(1, localState.count),
+          ),
+        );
+    final available =
+        page.items
+            .where((item) => !session.seenStableKeys.contains(item.stableKey))
+            .toList(growable: true)
+          ..shuffle(Random());
+    final selected = available.take(min(_pageSize, available.length)).toList();
+    final seen = {...session.seenStableKeys}
+      ..addAll(selected.map((item) => item.stableKey));
+    final base = replace
+        ? ChunkedGalleryItems()
+        : session.cache.posts is ChunkedGalleryItems
+        ? session.cache.posts as ChunkedGalleryItems
+        : ChunkedGalleryItems.from(session.cache.posts);
+    final posts = base.appendPage(selected);
+    final exhausted = seen.length >= page.total || selected.isEmpty;
+    state = state.copyWith(
+      isLoading: false,
+      isLoadingMore: false,
+      randomSession: RandomGallerySession(
+        scopeKey: scopeKey,
+        cache: session.cache.copyWith(
+          posts: posts,
+          page: 1,
+          nextCursor: exhausted ? null : 'local-random',
+          hasMore: !exhausted,
+          total: page.total,
+          endedByDuplicatePage: exhausted,
+        ),
+        seenStableKeys: Set.unmodifiable(seen),
+        consecutiveMisses: selected.isEmpty ? 1 : 0,
+        drawRevision: session.drawRevision + 1,
+        exhausted: exhausted,
+      ),
+      clearError: true,
+    );
   }
 
   String _randomScopeKey(Set<String> blacklist) {
@@ -1715,11 +1936,13 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
         }
         if (!_isCurrentRequest(generation, cacheKey)) return;
 
-        List<GalleryItem> visiblePageItems = page.items;
+        List<GalleryItem> visiblePageItems =
+            await _filterByBlacklistCompletingDetails(page.items, blacklist);
+        if (!_isCurrentRequest(generation, cacheKey)) return;
         if (artistHuntActive) {
-          candidateCount += page.items.length;
+          candidateCount += visiblePageItems.length;
           final resolution = await _resolveArtistHuntCandidates(
-            page.items,
+            visiblePageItems,
             generation: generation,
             cacheKey: cacheKey,
             deduplicationKeys: artistHuntDeduplicationKeys!,
@@ -1741,7 +1964,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
             },
           );
           if (resolution == null) return;
-          if (page.items.isNotEmpty &&
+          if (visiblePageItems.isNotEmpty &&
               resolution.resolvedCount == 0 &&
               resolution.failureCount > 0) {
             throw _ArtistHuntDetailException(resolution.failureCount);
@@ -1754,18 +1977,19 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
         }
 
         final nextCursor = page.nextCursor;
-        final filteredEmptyPage =
-            page.rawItemCount > 0 && visiblePageItems.isEmpty;
+        final filteredPage =
+            page.rawItemCount > 0 &&
+            visiblePageItems.length < page.rawItemCount;
         stalledCursor =
-            filteredEmptyPage &&
+            filteredPage &&
             nextCursor != null &&
             visitedCursors.contains(nextCursor);
         final shouldContinue =
-            filteredEmptyPage &&
+            filteredPage &&
+            matchedItemCount < _pageSize &&
             page.hasMore &&
             nextCursor != null &&
-            !stalledCursor &&
-            pagesFetched < _maxFilteredEmptyPagesPerLoad;
+            !stalledCursor;
         if (!shouldContinue) break;
         requestCursor = nextCursor;
       }
@@ -1841,11 +2065,8 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
 
   Future<void> _loadFavorites({required bool refresh, int? targetPage}) async {
     final sourceId = state.favoritesSourceId;
-    if (sourceId == GallerySourceId.quickTagCloud) {
-      await _loadQuickTagCloudFavorites(
-        refresh: refresh,
-        targetPage: targetPage,
-      );
+    if (state.favoritesScope == GalleryFavoritesScope.local) {
+      await _loadLocalFavorites(refresh: refresh, targetPage: targetPage);
       return;
     }
     final authMissing = sourceId == GallerySourceId.danbooru
@@ -1887,27 +2108,42 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
       final blacklist = ref
           .read(onlineGalleryBlacklistNotifierProvider)
           .effectiveTags;
-      final List<GalleryItem> raw;
-      final int rawCount;
-      if (sourceId == GallerySourceId.danbooru) {
-        raw = await _danbooruApi.getFavorites(
-          username: _danbooruAuth.user!.name,
-          page: pageNumber,
-          limit: _pageSize,
+      final filtered = <GalleryItem>[];
+      var requestPage = pageNumber;
+      var lastFetchedPage = pageNumber;
+      var upstreamEnded = false;
+      var fetchedAnyRaw = false;
+      while (filtered.length < _pageSize && !upstreamEnded) {
+        final List<GalleryItem> raw;
+        final int rawCount;
+        lastFetchedPage = requestPage;
+        if (sourceId == GallerySourceId.danbooru) {
+          raw = await _danbooruApi.getFavorites(
+            username: _danbooruAuth.user!.name,
+            page: requestPage,
+            limit: _pageSize,
+          );
+          rawCount = raw.length;
+        } else {
+          final result = await _gelbooruApi.getFavorites(
+            credentials: _gelbooruAuth.credentials!,
+            pid: requestPage - 1,
+            limit: _pageSize,
+            cancelToken: _cancelToken,
+          );
+          raw = result.posts;
+          rawCount = result.rawCount;
+        }
+        if (!_isCurrentRequest(generation, cacheKey)) return;
+        fetchedAnyRaw = fetchedAnyRaw || rawCount > 0;
+        final ratingFiltered = _filterLocal(raw, const {});
+        filtered.addAll(
+          await _filterByBlacklistCompletingDetails(ratingFiltered, blacklist),
         );
-        rawCount = raw.length;
-      } else {
-        final result = await _gelbooruApi.getFavorites(
-          credentials: _gelbooruAuth.credentials!,
-          pid: pageNumber - 1,
-          limit: _pageSize,
-          cancelToken: _cancelToken,
-        );
-        raw = result.posts;
-        rawCount = result.rawCount;
+        if (!_isCurrentRequest(generation, cacheKey)) return;
+        upstreamEnded = rawCount < _pageSize;
+        if (!upstreamEnded) requestPage++;
       }
-      if (!_isCurrentRequest(generation, cacheKey)) return;
-      final filtered = _filterLocal(raw, blacklist);
       final base = refresh
           ? ChunkedGalleryItems()
           : cache.posts is ChunkedGalleryItems
@@ -1915,14 +2151,15 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
           : ChunkedGalleryItems.from(cache.posts);
       final merged = base.appendPage(filtered);
       final duplicatePage =
-          !refresh && rawCount > 0 && merged.length == base.length;
-      final favorites = {...state.favoritedPostKeys}
-        ..addAll(filtered.map(onlineGalleryPostKey));
+          !refresh && fetchedAnyRaw && merged.length == base.length;
+      _remoteFavoriteKeys.addAll(filtered.map(onlineGalleryPostKey));
       final nextCache = ModeCache(
         posts: merged,
-        page: pageNumber,
-        nextCursor: duplicatePage ? null : '${pageNumber + 1}',
-        hasMore: !duplicatePage && rawCount >= _pageSize,
+        page: lastFetchedPage,
+        nextCursor: duplicatePage || upstreamEnded
+            ? null
+            : '${lastFetchedPage + 1}',
+        hasMore: !duplicatePage && !upstreamEnded,
         scrollOffset: refresh ? 0 : cache.scrollOffset,
         endedByDuplicatePage: duplicatePage,
       );
@@ -1930,7 +2167,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
           .copyWith(
             isLoading: false,
             isLoadingMore: false,
-            favoritedPostKeys: favorites,
+            favoritedPostKeys: {..._localFavoriteKeys, ..._remoteFavoriteKeys},
             clearError: true,
           )
           .updateCurrentCache(nextCache);
@@ -1948,7 +2185,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     }
   }
 
-  Future<void> _loadQuickTagCloudFavorites({
+  Future<void> _loadLocalFavorites({
     required bool refresh,
     int? targetPage,
   }) async {
@@ -1963,11 +2200,35 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
       clearError: true,
     );
     try {
-      final adapter = ref.read(quickTagCloudGallerySourceAdapterProvider);
-      final page = await adapter.search(
-        GallerySearchRequest(cursor: '$pageNumber', pageSize: _pageSize),
-        cancelToken: _cancelToken,
-      );
+      await ref.read(onlineGalleryLocalFavoritesProvider.notifier).initialize();
+      await ref
+          .read(onlineGalleryBlacklistNotifierProvider.notifier)
+          .ensureInitialized();
+      if (!_isCurrentRequest(generation, cacheKey)) return;
+      final capabilities = state.favoritesSourceId.capabilities;
+      final quickTagFilter =
+          state.favoritesSourceId == GallerySourceId.quickTagCloud
+          ? ref.read(quickTagCloudFilterProvider)
+          : null;
+      final page = ref
+          .read(onlineGalleryLocalFavoritesProvider.notifier)
+          .query(
+            OnlineGalleryFavoriteQuery(
+              sourceId: state.favoritesSourceId,
+              searchText: state.favoriteSearchQuery,
+              ratings: capabilities.supportsRatings
+                  ? state.selectedRatings
+                  : const {},
+              blacklistTags: ref
+                  .read(onlineGalleryBlacklistNotifierProvider)
+                  .effectiveTags,
+              codexId: quickTagFilter?.codexId,
+              categoryPath: quickTagFilter?.categoryPath ?? const [],
+              mediaFilter: quickTagFilter?.mediaFilter.name ?? 'all',
+              offset: (pageNumber - 1) * _pageSize,
+              limit: _pageSize,
+            ),
+          );
       if (!_isCurrentRequest(generation, cacheKey)) return;
       final base = refresh
           ? ChunkedGalleryItems()
@@ -1975,34 +2236,20 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
           ? cache.posts as ChunkedGalleryItems
           : ChunkedGalleryItems.from(cache.posts);
       final merged = base.appendPage(page.items);
-      final duplicatePage =
-          !refresh && page.rawItemCount > 0 && merged.length == base.length;
-      final favoriteKeys = await adapter.favoriteKeys();
       final nextCache = ModeCache(
         posts: merged,
         page: pageNumber,
-        nextCursor: duplicatePage ? null : page.nextCursor,
-        hasMore: !duplicatePage && page.hasMore,
+        nextCursor: page.hasMore ? '${pageNumber + 1}' : null,
+        hasMore: page.hasMore,
         total: page.total,
         scrollOffset: refresh ? 0 : cache.scrollOffset,
-        endedByDuplicatePage: duplicatePage,
       );
       state = state
-          .copyWith(
-            isLoading: false,
-            isLoadingMore: false,
-            favoritedPostKeys: {
-              ...state.favoritedPostKeys.where(
-                (key) => !key.startsWith('quick_tag_cloud:'),
-              ),
-              ...favoriteKeys,
-            },
-            clearError: true,
-          )
+          .copyWith(isLoading: false, isLoadingMore: false, clearError: true)
           .updateCurrentCache(nextCache);
     } catch (error, stack) {
       AppLogger.e(
-        'Failed to load QuickTagCloud favorites',
+        'Failed to load local favorites',
         error,
         stack,
         'OnlineGallery',
@@ -2011,37 +2258,94 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     }
   }
 
-  Future<void> _refreshQuickTagCloudFavoriteKeys() async {
-    final favoriteKeys = await ref
-        .read(quickTagCloudGallerySourceAdapterProvider)
-        .favoriteKeys();
-    state = state.copyWith(
-      favoritedPostKeys: {
-        ...state.favoritedPostKeys.where(
-          (key) => !key.startsWith('quick_tag_cloud:'),
+  Future<List<GalleryItem>> _filterByBlacklistCompletingDetails(
+    List<GalleryItem> items,
+    Set<String> blacklist,
+  ) async {
+    if (blacklist.isEmpty) return items;
+    final normalizedBlacklist = blacklist
+        .map(_normalizeGalleryPolicyTag)
+        .whereType<String>()
+        .toSet();
+    final allowed = <String, bool>{};
+    final incomplete = <GalleryItem>[];
+    for (final item in items) {
+      if (item.tags.isEmpty) {
+        incomplete.add(item);
+      } else {
+        allowed[item.stableKey] = !item.tags.any(
+          (tag) =>
+              normalizedBlacklist.contains(_normalizeGalleryPolicyTag(tag)),
+        );
+      }
+    }
+
+    const batchSize = 6;
+    for (var offset = 0; offset < incomplete.length; offset += batchSize) {
+      final end = min(offset + batchSize, incomplete.length);
+      final batch = incomplete.sublist(offset, end);
+      final details = await Future.wait(
+        batch.map(
+          (item) =>
+              _details.request(item, priority: GalleryDetailPriority.visible),
         ),
-        ...favoriteKeys,
-      },
-    );
+      );
+      for (var index = 0; index < details.length; index++) {
+        final detail = details[index];
+        final policyTags = <String>{
+          ...detail.item.tags,
+          ...detail.rawTags,
+          for (final prompt in <String?>[
+            detail.prompt,
+            ...detail.media.map((media) => media.prompt),
+          ])
+            if (prompt != null)
+              ...prompt
+                  .split(RegExp(r'[,，\n]+'))
+                  .map((tag) => tag.trim())
+                  .where((tag) => tag.isNotEmpty),
+        };
+        allowed[batch[index].stableKey] = !policyTags.any(
+          (tag) =>
+              normalizedBlacklist.contains(_normalizeGalleryPolicyTag(tag)),
+        );
+      }
+    }
+    return items
+        .where((item) => allowed[item.stableKey] ?? false)
+        .toList(growable: false);
   }
 
   List<GalleryItem> _filterLocal(
     List<GalleryItem> items,
     Set<String> blacklist,
   ) {
+    final ratingFiltered = items.where((item) {
+      if (!gallerySourceCapabilities[item.sourceId]!.supportsRatings) {
+        return true;
+      }
+      return state.selectedRatings.length == 4 ||
+          state.selectedRatings.contains(item.rating);
+    });
+    return _filterByBlacklist(ratingFiltered, blacklist);
+  }
+
+  List<GalleryItem> _filterByBlacklist(
+    Iterable<GalleryItem> items,
+    Set<String> blacklist,
+  ) {
+    if (blacklist.isEmpty) return items.toList(growable: false);
+    final normalizedBlacklist = blacklist
+        .map(_normalizeGalleryPolicyTag)
+        .whereType<String>()
+        .toSet();
     return items
-        .where((item) {
-          if (item.sourceId == GallerySourceId.quickTagCloud) return true;
-          if (state.selectedRatings.length < 4 &&
-              !state.selectedRatings.contains(item.rating)) {
-            return false;
-          }
-          return !item.tags.any(
-            (tag) => blacklist.contains(
-              tag.trim().toLowerCase().replaceAll(' ', '_'),
-            ),
-          );
-        })
+        .where(
+          (item) => !item.tags.any(
+            (tag) =>
+                normalizedBlacklist.contains(_normalizeGalleryPolicyTag(tag)),
+          ),
+        )
         .toList(growable: false);
   }
 
@@ -2153,6 +2457,14 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     bool forceRefresh = false,
     GalleryDetailPriority priority = GalleryDetailPriority.interactive,
   }) {
+    if (!forceRefresh &&
+        state.viewMode == GalleryViewMode.favorites &&
+        state.favoritesScope == GalleryFavoritesScope.local) {
+      final record = ref
+          .read(onlineGalleryLocalFavoritesProvider.notifier)
+          .getByStableKey(item.stableKey);
+      if (record != null) return Future.value(record.detail);
+    }
     return _details.request(
       item,
       forceRefresh: forceRefresh,
@@ -2171,9 +2483,10 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     );
     final success = await _danbooruApi.addFavorite(postId);
     final loading = {...state.favoriteLoadingPostKeys}..remove(key);
+    if (success) _remoteFavoriteKeys.add(key);
     state = success
         ? state.copyWith(
-            favoritedPostKeys: {...state.favoritedPostKeys, key},
+            favoritedPostKeys: {..._localFavoriteKeys, ..._remoteFavoriteKeys},
             favoriteLoadingPostKeys: loading,
           )
         : state.copyWith(favoriteLoadingPostKeys: loading);
@@ -2190,9 +2503,9 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     final success = await _danbooruApi.removeFavorite(postId);
     final loading = {...state.favoriteLoadingPostKeys}..remove(key);
     if (success) {
-      final favorites = {...state.favoritedPostKeys}..remove(key);
+      _remoteFavoriteKeys.remove(key);
       state = state.copyWith(
-        favoritedPostKeys: favorites,
+        favoritedPostKeys: {..._localFavoriteKeys, ..._remoteFavoriteKeys},
         favoriteLoadingPostKeys: loading,
       );
       if (state.viewMode == GalleryViewMode.favorites &&
@@ -2232,62 +2545,112 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     if (activeRecent) await loadPosts(refresh: true);
   }
 
-  Future<bool> toggleFavorite(Object postOrId) async {
-    if (postOrId is GalleryItem &&
-        postOrId.sourceId == GallerySourceId.quickTagCloud) {
-      final key = postOrId.stableKey;
-      state = state.copyWith(
-        favoriteLoadingPostKeys: {...state.favoriteLoadingPostKeys, key},
+  Future<int> saveVisiblePostsToLocalFavorites() async {
+    final candidates = state.posts
+        .where((item) => item.sourceId == state.favoritesSourceId)
+        .where((item) => !_localFavoriteKeys.contains(item.stableKey))
+        .toList(growable: false);
+    if (candidates.isEmpty) return 0;
+
+    final details = <GalleryDetail>[];
+    const batchSize = 6;
+    for (var offset = 0; offset < candidates.length; offset += batchSize) {
+      final end = min(offset + batchSize, candidates.length);
+      final batch = await Future.wait(
+        candidates
+            .sublist(offset, end)
+            .map(
+              (item) => _details.request(
+                item,
+                priority: GalleryDetailPriority.interactive,
+              ),
+            ),
       );
-      try {
-        final favorited = await ref
-            .read(quickTagCloudGallerySourceAdapterProvider)
-            .toggleFavorite(postOrId);
-        final favorites = {...state.favoritedPostKeys};
-        if (favorited) {
-          favorites.add(key);
-        } else {
-          favorites.remove(key);
-        }
-        final activeFavorites =
-            state.viewMode == GalleryViewMode.favorites &&
-            state.favoritesSourceId == GallerySourceId.quickTagCloud;
-        state = state.copyWith(
-          favoritedPostKeys: favorites,
-          caches: {
-            for (final entry in state.caches.entries)
-              if (!entry.key.startsWith('favorites:quick_tag_cloud'))
-                entry.key: entry.value,
-          },
-        );
-        if (!favorited && activeFavorites) {
-          if (state.randomEnabled) {
-            await restartRandom();
-          } else {
-            await loadPosts(refresh: true);
-          }
-        }
-        return true;
-      } finally {
-        state = state.copyWith(
-          favoriteLoadingPostKeys: {...state.favoriteLoadingPostKeys}
-            ..remove(key),
-        );
-      }
+      details.addAll(batch);
     }
-    final postId = _danbooruFavoritePostId(postOrId);
-    if (postId == null) return false;
-    return state.favoritedPostKeys.contains('danbooru:$postId')
-        ? removeFavorite(postOrId)
-        : addFavorite(postOrId);
+    await ref
+        .read(onlineGalleryLocalFavoritesProvider.notifier)
+        .upsertAll(details);
+    return details.length;
+  }
+
+  Future<bool> toggleFavorite(Object postOrId) async {
+    if (postOrId is! GalleryItem) {
+      final postId = _danbooruFavoritePostId(postOrId);
+      if (postId == null) return false;
+      return _remoteFavoriteKeys.contains('danbooru:$postId')
+          ? removeFavorite(postOrId)
+          : addFavorite(postOrId);
+    }
+
+    if (postOrId.sourceId == GallerySourceId.gelbooru &&
+        state.viewMode == GalleryViewMode.favorites &&
+        state.favoritesScope == GalleryFavoritesScope.remote) {
+      return false;
+    }
+
+    if (postOrId.sourceId == GallerySourceId.danbooru &&
+        _danbooruAuth.isLoggedIn &&
+        state.favoritesScope == GalleryFavoritesScope.remote) {
+      return _remoteFavoriteKeys.contains(postOrId.stableKey)
+          ? removeFavorite(postOrId)
+          : addFavorite(postOrId);
+    }
+
+    final key = postOrId.stableKey;
+    state = state.copyWith(
+      favoriteLoadingPostKeys: {...state.favoriteLoadingPostKeys, key},
+    );
+    try {
+      final localFavorites = ref.read(
+        onlineGalleryLocalFavoritesProvider.notifier,
+      );
+      if (_localFavoriteKeys.contains(key)) {
+        await localFavorites.remove(key);
+        return true;
+      }
+      final detail = await _details.request(
+        postOrId,
+        priority: GalleryDetailPriority.interactive,
+      );
+      await localFavorites.upsert(detail);
+      return true;
+    } catch (error, stack) {
+      AppLogger.e(
+        'Failed to toggle local online gallery favorite',
+        error,
+        stack,
+        'OnlineGallery',
+      );
+      return false;
+    } finally {
+      state = state.copyWith(
+        favoriteLoadingPostKeys: {...state.favoriteLoadingPostKeys}
+          ..remove(key),
+      );
+    }
   }
 
   bool isFavorited(Object postOrId) {
     if (postOrId is GalleryItem) {
-      return state.favoritedPostKeys.contains(postOrId.stableKey);
+      final key = postOrId.stableKey;
+      final usesRemoteState =
+          (postOrId.sourceId == GallerySourceId.danbooru &&
+              _danbooruAuth.isLoggedIn &&
+              state.favoritesScope == GalleryFavoritesScope.remote) ||
+          (postOrId.sourceId == GallerySourceId.gelbooru &&
+              state.viewMode == GalleryViewMode.favorites &&
+              state.favoritesScope == GalleryFavoritesScope.remote);
+      return usesRemoteState
+          ? _remoteFavoriteKeys.contains(key)
+          : _localFavoriteKeys.contains(key);
     }
-    return postOrId is int &&
-        state.favoritedPostKeys.contains('danbooru:$postOrId');
+    if (postOrId is! int) return false;
+    final key = 'danbooru:$postOrId';
+    return _danbooruAuth.isLoggedIn &&
+            state.favoritesScope == GalleryFavoritesScope.remote
+        ? _remoteFavoriteKeys.contains(key)
+        : _localFavoriteKeys.contains(key);
   }
 
   int? _danbooruFavoritePostId(Object postOrId) {
@@ -2304,12 +2667,11 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
       for (final entry in state.caches.entries)
         if (!entry.key.startsWith('favorites:gelbooru')) entry.key: entry.value,
     };
+    _remoteFavoriteKeys.removeWhere((key) => key.startsWith('gelbooru:'));
     state = state.copyWith(
       caches: filteredCaches,
       gelbooruFavoritesCache: const ModeCache(),
-      favoritedPostKeys: state.favoritedPostKeys
-          .where((key) => !key.startsWith('gelbooru:'))
-          .toSet(),
+      favoritedPostKeys: {..._localFavoriteKeys, ..._remoteFavoriteKeys},
       favoriteLoadingPostKeys: state.favoriteLoadingPostKeys
           .where((key) => !key.startsWith('gelbooru:'))
           .toSet(),

@@ -1128,6 +1128,25 @@
   "onlineGallery_search": "Search",
   "onlineGallery_popular": "Popular",
   "onlineGallery_favorites": "Favorites",
+  "onlineGallery_searchFavorites": "Search favorites by title, author, or tag…",
+  "onlineGallery_localFavorites": "Local favorites",
+  "onlineGallery_localFavoritesDescription": "Saved on this device and available for every source",
+  "onlineGallery_cloudFavorites": "Cloud favorites",
+  "onlineGallery_loginForCloudFavorites": "Sign in to view cloud favorites",
+  "onlineGallery_saveVisibleLocally": "Save page locally",
+  "onlineGallery_visibleFavoritesAlreadySaved": "Everything on this page is already saved locally",
+  "onlineGallery_visibleFavoritesSaved": "Saved {count} items to local favorites",
+  "@onlineGallery_visibleFavoritesSaved": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "onlineGallery_saveFavoritesFailed": "Failed to save local favorites: {error}",
+  "@onlineGallery_saveFavoritesFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
   "onlineGallery_searchTags": "Search tags...",
   "onlineGallery_refresh": "Refresh",
   "onlineGallery_random": "Random",
@@ -1214,6 +1233,9 @@
   "onlineGallery_ratingSensitive": "Sensitive",
   "onlineGallery_ratingQuestionable": "Questionable",
   "onlineGallery_ratingExplicit": "Explicit",
+  "onlineGallery_sourceGeneralOnly": "This source only provides general content",
+  "onlineGallery_sourceUnrated": "Source unrated",
+  "onlineGallery_sourceUnratedTooltip": "This source does not provide a reliable content rating, so the app cannot infer one accurately",
   "onlineGallery_clear": "Clear",
   "onlineGallery_previousPage": "Previous Page",
   "onlineGallery_nextPage": "Next Page",

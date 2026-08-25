@@ -2378,6 +2378,37 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onlineGallery_favorites => '收藏';
 
   @override
+  String get onlineGallery_searchFavorites => '搜索收藏的标题、作者或标签…';
+
+  @override
+  String get onlineGallery_localFavorites => '本地收藏';
+
+  @override
+  String get onlineGallery_localFavoritesDescription => '保存在此设备，所有站点均可使用';
+
+  @override
+  String get onlineGallery_cloudFavorites => '云端收藏';
+
+  @override
+  String get onlineGallery_loginForCloudFavorites => '登录后可查看云端收藏';
+
+  @override
+  String get onlineGallery_saveVisibleLocally => '保存本页到本地';
+
+  @override
+  String get onlineGallery_visibleFavoritesAlreadySaved => '本页内容已全部保存到本地收藏';
+
+  @override
+  String onlineGallery_visibleFavoritesSaved(int count) {
+    return '已保存 $count 项到本地收藏';
+  }
+
+  @override
+  String onlineGallery_saveFavoritesFailed(String error) {
+    return '保存本地收藏失败：$error';
+  }
+
+  @override
   String get onlineGallery_searchTags => '搜索标签...';
 
   @override
@@ -2569,6 +2600,15 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get onlineGallery_ratingExplicit => '限制级';
+
+  @override
+  String get onlineGallery_sourceGeneralOnly => '该站点仅提供全年龄内容';
+
+  @override
+  String get onlineGallery_sourceUnrated => '源未分级';
+
+  @override
+  String get onlineGallery_sourceUnratedTooltip => '该站点没有提供可靠的内容分级，无法在本地准确推断';
 
   @override
   String get onlineGallery_clear => '清除';
@@ -14395,6 +14435,37 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get onlineGallery_favorites => '收藏';
 
   @override
+  String get onlineGallery_searchFavorites => '搜尋收藏的標題、作者或標籤…';
+
+  @override
+  String get onlineGallery_localFavorites => '本機收藏';
+
+  @override
+  String get onlineGallery_localFavoritesDescription => '儲存在此裝置，所有來源均可使用';
+
+  @override
+  String get onlineGallery_cloudFavorites => '雲端收藏';
+
+  @override
+  String get onlineGallery_loginForCloudFavorites => '登入後可檢視雲端收藏';
+
+  @override
+  String get onlineGallery_saveVisibleLocally => '將本頁儲存至本機';
+
+  @override
+  String get onlineGallery_visibleFavoritesAlreadySaved => '本頁內容已全部儲存至本機收藏';
+
+  @override
+  String onlineGallery_visibleFavoritesSaved(int count) {
+    return '已將 $count 個項目儲存至本機收藏';
+  }
+
+  @override
+  String onlineGallery_saveFavoritesFailed(String error) {
+    return '儲存本機收藏失敗：$error';
+  }
+
+  @override
   String get onlineGallery_searchTags => '搜尋標籤...';
 
   @override
@@ -14586,6 +14657,15 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get onlineGallery_ratingExplicit => '限制級';
+
+  @override
+  String get onlineGallery_sourceGeneralOnly => '此來源僅提供全年齡內容';
+
+  @override
+  String get onlineGallery_sourceUnrated => '來源未分級';
+
+  @override
+  String get onlineGallery_sourceUnratedTooltip => '此來源未提供可靠的內容分級，應用程式無法準確推斷';
 
   @override
   String get onlineGallery_clear => '清除';

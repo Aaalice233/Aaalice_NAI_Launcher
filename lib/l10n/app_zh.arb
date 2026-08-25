@@ -1035,6 +1035,25 @@
   "onlineGallery_search": "搜索",
   "onlineGallery_popular": "热门",
   "onlineGallery_favorites": "收藏",
+  "onlineGallery_searchFavorites": "搜索收藏的标题、作者或标签…",
+  "onlineGallery_localFavorites": "本地收藏",
+  "onlineGallery_localFavoritesDescription": "保存在此设备，所有站点均可使用",
+  "onlineGallery_cloudFavorites": "云端收藏",
+  "onlineGallery_loginForCloudFavorites": "登录后可查看云端收藏",
+  "onlineGallery_saveVisibleLocally": "保存本页到本地",
+  "onlineGallery_visibleFavoritesAlreadySaved": "本页内容已全部保存到本地收藏",
+  "onlineGallery_visibleFavoritesSaved": "已保存 {count} 项到本地收藏",
+  "@onlineGallery_visibleFavoritesSaved": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "onlineGallery_saveFavoritesFailed": "保存本地收藏失败：{error}",
+  "@onlineGallery_saveFavoritesFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
   "onlineGallery_searchTags": "搜索标签...",
   "onlineGallery_refresh": "刷新",
   "onlineGallery_random": "随机",
@@ -1116,6 +1135,9 @@
   "onlineGallery_ratingSensitive": "敏感",
   "onlineGallery_ratingQuestionable": "可疑",
   "onlineGallery_ratingExplicit": "限制级",
+  "onlineGallery_sourceGeneralOnly": "该站点仅提供全年龄内容",
+  "onlineGallery_sourceUnrated": "源未分级",
+  "onlineGallery_sourceUnratedTooltip": "该站点没有提供可靠的内容分级，无法在本地准确推断",
   "onlineGallery_clear": "清除",
   "onlineGallery_previousPage": "上一页",
   "onlineGallery_nextPage": "下一页",

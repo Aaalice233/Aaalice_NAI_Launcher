@@ -57,13 +57,12 @@ class OnlineGalleryOutputFilterSettings {
     }
   }
 
-  /// Filters comma-separated prompt tags by exact normalized tag identity.
-  /// It deliberately never performs substring replacement, so filtering
-  /// `watermark` cannot damage unrelated tags or free-form prompt text.
+  /// Filters top-level comma-separated prompt tokens by exact normalized tag
+  /// identity. Commas inside NovelAI emphasis wrappers or numeric weights stay
+  /// within their token, and no substring replacement is ever performed.
   String filterPrompt(String prompt) {
     if (prompt.trim().isEmpty || tags.isEmpty) return prompt.trim();
-    return prompt
-        .split(',')
+    return _splitTopLevelPromptTokens(prompt)
         .map((part) => part.trim())
         .where((part) => part.isNotEmpty && !contains(part))
         .join(', ');
@@ -73,28 +72,123 @@ class OnlineGalleryOutputFilterSettings {
     var normalized = value.trim().toLowerCase();
     if (normalized.isEmpty) return null;
 
-    while (normalized.startsWith('-')) {
-      normalized = normalized.substring(1).trimLeft();
-    }
-
-    // Common NovelAI emphasis wrappers and numeric emphasis syntax should not
-    // prevent an otherwise exact configured tag from matching.
     var changed = true;
-    while (changed && normalized.length > 1) {
+    while (changed && normalized.isNotEmpty) {
       changed = false;
+      while (normalized.startsWith('-')) {
+        normalized = normalized.substring(1).trimLeft();
+        changed = true;
+      }
+
+      final weighted = RegExp(
+        r'^[+-]?(?:\d+(?:\.\d+)?|\.\d+)::([\s\S]+)::$',
+      ).firstMatch(normalized);
+      if (weighted != null) {
+        normalized = weighted.group(1)!.trim();
+        changed = true;
+        continue;
+      }
+
       for (final wrapper in const [('(', ')'), ('[', ']'), ('{', '}')]) {
-        if (normalized.startsWith(wrapper.$1) &&
-            normalized.endsWith(wrapper.$2)) {
+        if (_isFullyWrapped(normalized, wrapper.$1, wrapper.$2)) {
           normalized = normalized.substring(1, normalized.length - 1).trim();
           changed = true;
+          break;
         }
       }
     }
-    final weighted = RegExp(r'^\d+(?:\.\d+)?::(.+)::$').firstMatch(normalized);
-    if (weighted != null) normalized = weighted.group(1)!.trim();
 
     normalized = normalized.replaceAll(RegExp(r'\s+'), '_');
     return normalized.isEmpty ? null : normalized;
+  }
+
+  static List<String> _splitTopLevelPromptTokens(String prompt) {
+    final tokens = <String>[];
+    final wrappers = <String>[];
+    var tokenStart = 0;
+    var numericWeightOpen = false;
+    var escaped = false;
+
+    for (var index = 0; index < prompt.length; index++) {
+      final character = prompt[index];
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      if (character == r'\') {
+        escaped = true;
+        continue;
+      }
+
+      if (index + 1 < prompt.length &&
+          character == ':' &&
+          prompt[index + 1] == ':') {
+        if (numericWeightOpen) {
+          numericWeightOpen = false;
+        } else {
+          final prefix = prompt.substring(tokenStart, index).trimLeft();
+          if (RegExp(
+            r'^[\(\[\{]*\s*[+-]?(?:\d+(?:\.\d+)?|\.\d+)\s*$',
+          ).hasMatch(prefix)) {
+            numericWeightOpen = true;
+          }
+        }
+        index++;
+        continue;
+      }
+
+      final closing = switch (character) {
+        '(' => ')',
+        '[' => ']',
+        '{' => '}',
+        _ => null,
+      };
+      if (closing != null) {
+        wrappers.add(closing);
+        continue;
+      }
+      if (wrappers.isNotEmpty && character == wrappers.last) {
+        wrappers.removeLast();
+        continue;
+      }
+
+      if (character == ',' && wrappers.isEmpty && !numericWeightOpen) {
+        tokens.add(prompt.substring(tokenStart, index));
+        tokenStart = index + 1;
+      }
+    }
+    tokens.add(prompt.substring(tokenStart));
+    return tokens;
+  }
+
+  static bool _isFullyWrapped(String value, String opening, String closing) {
+    if (value.length < 2 ||
+        !value.startsWith(opening) ||
+        !value.endsWith(closing)) {
+      return false;
+    }
+
+    var depth = 0;
+    var escaped = false;
+    for (var index = 0; index < value.length; index++) {
+      final character = value[index];
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      if (character == r'\') {
+        escaped = true;
+        continue;
+      }
+      if (character == opening) {
+        depth++;
+      } else if (character == closing) {
+        depth--;
+        if (depth == 0 && index != value.length - 1) return false;
+        if (depth < 0) return false;
+      }
+    }
+    return depth == 0;
   }
 }
 

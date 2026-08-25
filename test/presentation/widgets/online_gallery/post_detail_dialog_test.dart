@@ -50,7 +50,7 @@ void main() {
     );
   });
 
-  testWidgets('Gelbooru search detail does not expose a favorite action', (
+  testWidgets('Gelbooru search detail exposes the local favorite action', (
     tester,
   ) async {
     const post = DanbooruPost(
@@ -74,7 +74,7 @@ void main() {
       ),
     );
 
-    expect(find.byTooltip('Favorite'), findsNothing);
+    expect(find.byTooltip('Favorite'), findsOneWidget);
     expect(find.byTooltip('Unfavorite'), findsNothing);
   });
 

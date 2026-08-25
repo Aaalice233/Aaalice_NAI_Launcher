@@ -15,16 +15,20 @@ import '../../router/app_router.dart';
 import '../../../core/utils/file_picker_utils.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/datasources/remote/online_gallery/gallery_source_adapter.dart';
+import '../../../data/models/character/character_prompt.dart';
 import '../../../data/models/online_gallery/gallery_item.dart';
+import '../../../data/models/online_gallery/gallery_prompt_projection.dart';
 import '../../../data/models/online_gallery/gallery_source.dart';
 import '../../../data/models/queue/replication_task.dart';
 import '../../../data/services/online_gallery/artist_chain_parser.dart';
 import '../../providers/character_prompt_provider.dart';
 import '../../providers/online_gallery_output_filter_provider.dart';
+import '../../providers/online_gallery_prompt_tag_settings_provider.dart';
 import '../../providers/online_gallery_provider.dart';
 import '../../providers/pending_prompt_provider.dart';
 import '../../providers/replication_queue_provider.dart';
 import '../../providers/reverse_prompt_provider.dart';
+import '../../services/gallery_prompt_projection_service.dart';
 import '../common/app_toast.dart';
 import '../tag_chip.dart';
 import 'gallery_tag_context_menu.dart';
@@ -430,13 +434,22 @@ class _AiTagDetailDialogState extends ConsumerState<_AiTagDetailDialog> {
   ) {
     final item = detail.item;
     final outputFilter = ref.watch(onlineGalleryOutputFilterProvider);
-    final artistChain = ArtistChainParser.parse(media.prompt);
-    final filteredArtistChain = outputFilter.filterPrompt(
-      artistChain.formattedText,
+    const projectionService = GalleryPromptProjectionService();
+    final projection = projectionService.project(
+      item: item,
+      detail: detail,
+      currentMedia: media,
+      promptTagSettings: ref.watch(onlineGalleryPromptTagSettingsProvider),
+      outputFilter: outputFilter,
     );
-    final filteredMediaPrompt = media.prompt == null
+    final artistChain = ArtistChainParser.parse(media.prompt);
+    final filteredArtistChain = projectionService.projectPositivePrompt(
+      artistChain.formattedText,
+      outputFilter: outputFilter,
+    );
+    final filteredMediaPrompt = projection.positivePrompt.isEmpty
         ? null
-        : outputFilter.filterPrompt(media.prompt!);
+        : projection.positivePrompt;
     final artistHuntMode = widget.item.focusedMediaId != null;
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -535,8 +548,8 @@ class _AiTagDetailDialogState extends ConsumerState<_AiTagDetailDialog> {
                 ),
               ),
               OutlinedButton.icon(
-                onPressed: filteredMediaPrompt?.isNotEmpty == true
-                    ? () => _copy(filteredMediaPrompt!)
+                onPressed: projection.copyText.isNotEmpty
+                    ? () => _copy(projection.copyText)
                     : null,
                 icon: const Icon(Icons.copy_all, size: 16),
                 label: Text(context.l10n.onlineGallery_copyFullPrompt),
@@ -557,8 +570,8 @@ class _AiTagDetailDialogState extends ConsumerState<_AiTagDetailDialog> {
                 label: Text(context.l10n.localGallery_copyPrompt),
               ),
             OutlinedButton.icon(
-              onPressed: media.negativePrompt?.isNotEmpty == true
-                  ? () => _copy(media.negativePrompt!)
+              onPressed: projection.negativePrompt.trim().isNotEmpty
+                  ? () => _copy(projection.negativePrompt)
                   : null,
               icon: const Icon(Icons.copy_all, size: 16),
               label: Text(context.l10n.prompt_negativePrompt),
@@ -569,12 +582,16 @@ class _AiTagDetailDialogState extends ConsumerState<_AiTagDetailDialog> {
               label: Text(context.l10n.onlineGallery_copyFullMetadata),
             ),
             FilledButton.tonalIcon(
-              onPressed: () => _sendToGenerate(detail, media),
+              onPressed: projection.hasUsableOutput
+                  ? () => _sendToGenerate(detail, projection)
+                  : null,
               icon: const Icon(Icons.auto_awesome, size: 16),
               label: Text(context.l10n.onlineGallery_sendToTextToImage),
             ),
             OutlinedButton.icon(
-              onPressed: () => _addToQueue(detail, media),
+              onPressed: projection.hasUsableOutput
+                  ? () => _addToQueue(media, projection)
+                  : null,
               icon: const Icon(Icons.playlist_add, size: 16),
               label: Text(context.l10n.onlineGallery_addToQueue),
             ),
@@ -671,46 +688,57 @@ class _AiTagDetailDialogState extends ConsumerState<_AiTagDetailDialog> {
     AppToast.success(context, context.l10n.onlineGallery_copied);
   }
 
-  String _promptFor(GalleryDetail detail, GalleryMedia media) {
-    final raw = media.prompt ?? detail.prompt ?? detail.item.tags.join(', ');
-    return ref.read(onlineGalleryOutputFilterProvider).filterPrompt(raw);
-  }
-
   String _fullMetadata(GalleryMedia media) {
     if (media.rawMetadata?.isNotEmpty == true) return media.rawMetadata!;
     return const JsonEncoder.withIndent('  ').convert(media.metadata);
   }
 
-  void _sendToGenerate(GalleryDetail detail, GalleryMedia media) {
-    final prompt = _promptFor(detail, media);
-    if (prompt.isEmpty) {
-      AppToast.info(context, context.l10n.onlineGallery_noTagInfo);
-      return;
-    }
-    ref.read(characterPromptNotifierProvider.notifier).clearAllCharacters();
+  void _sendToGenerate(
+    GalleryDetail detail,
+    GalleryPromptProjection projection,
+  ) {
+    ref.read(characterPromptNotifierProvider.notifier).replaceAll([
+      for (var index = 0; index < projection.characterPrompts.length; index++)
+        CharacterPrompt(
+          id: 'ai-tag-${detail.item.stableKey}-$index',
+          name: projection.characterPrompts[index].label,
+          prompt: projection.characterPrompts[index].prompt,
+          negativePrompt: projection.characterPrompts[index].negativePrompt,
+          positionMode: CharacterPositionMode.aiChoice,
+        ),
+    ]);
     ref
         .read(pendingPromptNotifierProvider.notifier)
         .set(
-          prompt: prompt,
-          negativePrompt: media.negativePrompt ?? detail.negativePrompt,
+          prompt: projection.positivePrompt,
+          negativePrompt: projection.negativePrompt,
         );
     Navigator.pop(context);
     context.go(AppRoutes.generation);
   }
 
-  Future<void> _addToQueue(GalleryDetail detail, GalleryMedia media) async {
-    final prompt = _promptFor(detail, media);
-    if (prompt.isEmpty) return;
+  Future<void> _addToQueue(
+    GalleryMedia media,
+    GalleryPromptProjection projection,
+  ) async {
     final added = await ref
         .read(replicationQueueNotifierProvider.notifier)
         .add(
           ReplicationTask.create(
-            prompt: prompt,
-            negativePrompt: media.negativePrompt ?? detail.negativePrompt ?? '',
+            prompt: projection.positivePrompt,
+            negativePrompt: projection.negativePrompt,
+            applyNegativePrompt: projection.negativePrompt.trim().isNotEmpty,
             thumbnailUrl: media.previewUrl,
             source: ReplicationTaskSource.online,
             width: media.width > 0 ? media.width : null,
             height: media.height > 0 ? media.height : null,
+            characterPrompts: [
+              for (final character in projection.characterPrompts)
+                ReplicationCharacterPromptSnapshot(
+                  prompt: character.prompt,
+                  negativePrompt: character.negativePrompt,
+                ),
+            ],
           ),
         );
     if (!mounted) return;

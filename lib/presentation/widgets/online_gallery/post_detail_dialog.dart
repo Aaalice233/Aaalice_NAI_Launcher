@@ -9,9 +9,10 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/cache/gallery_image_request.dart';
 import '../../../core/cache/online_gallery_image_cache_manager.dart';
 import '../../router/app_router.dart';
+import '../../../data/models/character/character_prompt.dart';
 import '../../../data/models/online_gallery/danbooru_post.dart';
+import '../../../data/models/online_gallery/gallery_prompt_projection.dart';
 import '../../../data/models/queue/replication_task.dart';
-import '../../../data/services/danbooru_auth_service.dart';
 import '../../../core/autocomplete/tag_translation_lookup.dart';
 import '../../providers/character_prompt_provider.dart';
 import '../../providers/online_gallery_output_filter_provider.dart';
@@ -20,6 +21,7 @@ import '../../providers/online_gallery_provider.dart';
 import '../../providers/pending_prompt_provider.dart';
 import '../../providers/replication_queue_provider.dart';
 import '../../providers/reverse_prompt_provider.dart';
+import '../../services/gallery_prompt_projection_service.dart';
 import '../tag_chip.dart';
 import '../../widgets/common/themed_divider.dart';
 import '../../widgets/common/app_toast.dart';
@@ -81,16 +83,15 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
     final theme = Theme.of(context);
     final screenSize = MediaQuery.of(context).size;
     final isWide = screenSize.width > 800;
-    final authState = ref.watch(danbooruAuthProvider);
     final galleryState = ref.watch(onlineGalleryNotifierProvider);
-    final isFavorited = galleryState.favoritedPostKeys.contains(
-      onlineGalleryPostKey(widget.post),
-    );
-    final canWriteFavorite = widget.post.sourceId == GallerySourceId.danbooru;
+    final isFavorited = ref
+        .read(onlineGalleryNotifierProvider.notifier)
+        .isFavorited(widget.post);
     final favoriteReadOnly =
         widget.post.sourceId == GallerySourceId.gelbooru &&
         galleryState.viewMode == GalleryViewMode.favorites &&
-        galleryState.favoritesSourceId == GallerySourceId.gelbooru;
+        galleryState.favoritesScope == GalleryFavoritesScope.remote;
+    final canWriteFavorite = !favoriteReadOnly;
 
     return AnimatedBuilder(
       animation: _animationController,
@@ -122,14 +123,12 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
             child: isWide
                 ? _buildWideLayout(
                     theme,
-                    authState,
                     isFavorited,
                     canWriteFavorite,
                     favoriteReadOnly,
                   )
                 : _buildNarrowLayout(
                     theme,
-                    authState,
                     isFavorited,
                     canWriteFavorite,
                     favoriteReadOnly,
@@ -143,7 +142,6 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
   /// 宽屏布局（左图右信息）
   Widget _buildWideLayout(
     ThemeData theme,
-    DanbooruAuthState authState,
     bool isFavorited,
     bool canWriteFavorite,
     bool favoriteReadOnly,
@@ -164,7 +162,6 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
           ),
           child: _buildInfoPanel(
             theme,
-            authState,
             isFavorited,
             canWriteFavorite,
             favoriteReadOnly,
@@ -177,7 +174,6 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
   /// 窄屏布局（上图下信息）
   Widget _buildNarrowLayout(
     ThemeData theme,
-    DanbooruAuthState authState,
     bool isFavorited,
     bool canWriteFavorite,
     bool favoriteReadOnly,
@@ -191,7 +187,6 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
           flex: 3,
           child: _buildInfoPanel(
             theme,
-            authState,
             isFavorited,
             canWriteFavorite,
             favoriteReadOnly,
@@ -320,7 +315,6 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
   /// 信息面板
   Widget _buildInfoPanel(
     ThemeData theme,
-    DanbooruAuthState authState,
     bool isFavorited,
     bool canWriteFavorite,
     bool favoriteReadOnly,
@@ -329,13 +323,7 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // 标题栏
-        _buildTitleBar(
-          theme,
-          authState,
-          isFavorited,
-          canWriteFavorite,
-          favoriteReadOnly,
-        ),
+        _buildTitleBar(theme, isFavorited, canWriteFavorite, favoriteReadOnly),
         const ThemedDivider(height: 1),
         // 图片信息
         Padding(
@@ -355,7 +343,6 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
   /// 标题栏
   Widget _buildTitleBar(
     ThemeData theme,
-    DanbooruAuthState authState,
     bool isFavorited,
     bool canWriteFavorite,
     bool favoriteReadOnly,
@@ -391,18 +378,9 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
           const Spacer(),
           if (canWriteFavorite)
             IconButton(
-              onPressed: () {
-                if (!authState.isLoggedIn) {
-                  AppToast.info(
-                    context,
-                    context.l10n.onlineGallery_pleaseLogin,
-                  );
-                  return;
-                }
-                ref
-                    .read(onlineGalleryNotifierProvider.notifier)
-                    .toggleFavorite(widget.post);
-              },
+              onPressed: () => ref
+                  .read(onlineGalleryNotifierProvider.notifier)
+                  .toggleFavorite(widget.post),
               icon: Icon(
                 isFavorited ? Icons.favorite : Icons.favorite_border,
                 color: isFavorited ? Colors.red : null,
@@ -641,12 +619,14 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
     );
   }
 
-  String get _actionPrompt {
-    final outputFilter = ref.read(onlineGalleryOutputFilterProvider);
-    return ref
-        .read(onlineGalleryPromptTagSettingsProvider)
-        .promptFor(widget.post, outputFilter: outputFilter);
-  }
+  GalleryPromptProjection get _actionProjection =>
+      const GalleryPromptProjectionService().project(
+        item: widget.post,
+        promptTagSettings: ref.read(onlineGalleryPromptTagSettingsProvider),
+        outputFilter: ref.read(onlineGalleryOutputFilterProvider),
+      );
+
+  String get _actionPrompt => _actionProjection.positivePrompt;
 
   /// 复制标签
   void _copyTags() {
@@ -661,17 +641,31 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
 
   /// 发送到生成页面
   void _sendToGenerate() {
-    final prompt = _actionPrompt;
-    if (prompt.isEmpty) {
+    final projection = _actionProjection;
+    if (projection.positivePrompt.isEmpty &&
+        projection.negativePrompt.isEmpty &&
+        projection.characterPrompts.isEmpty) {
       AppToast.info(context, context.l10n.onlineGallery_noTagInfo);
       return;
     }
 
-    // 清空角色提示词
-    ref.read(characterPromptNotifierProvider.notifier).clearAllCharacters();
+    ref.read(characterPromptNotifierProvider.notifier).replaceAll([
+      for (var index = 0; index < projection.characterPrompts.length; index++)
+        CharacterPrompt(
+          id: 'gallery-${widget.post.stableKey}-$index',
+          name: projection.characterPrompts[index].label,
+          prompt: projection.characterPrompts[index].prompt,
+          negativePrompt: projection.characterPrompts[index].negativePrompt,
+          positionMode: CharacterPositionMode.aiChoice,
+        ),
+    ]);
 
-    // 设置待填充提示词
-    ref.read(pendingPromptNotifierProvider.notifier).set(prompt: prompt);
+    ref
+        .read(pendingPromptNotifierProvider.notifier)
+        .set(
+          prompt: projection.positivePrompt,
+          negativePrompt: projection.negativePrompt,
+        );
 
     // 关闭弹窗并导航到生成页面
     Navigator.pop(context);
@@ -716,16 +710,27 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
 
   /// 加入队列
   Future<void> _addToQueue() async {
-    final prompt = _actionPrompt;
-    if (prompt.isEmpty) {
+    final projection = _actionProjection;
+    if (projection.positivePrompt.isEmpty &&
+        projection.negativePrompt.isEmpty &&
+        projection.characterPrompts.isEmpty) {
       AppToast.info(context, context.l10n.onlineGallery_noTagInfo);
       return;
     }
 
     final task = ReplicationTask.create(
-      prompt: prompt,
+      prompt: projection.positivePrompt,
+      negativePrompt: projection.negativePrompt,
+      applyNegativePrompt: projection.negativePrompt.isNotEmpty,
       thumbnailUrl: widget.post.previewUrl,
       source: ReplicationTaskSource.online,
+      characterPrompts: [
+        for (final character in projection.characterPrompts)
+          ReplicationCharacterPromptSnapshot(
+            prompt: character.prompt,
+            negativePrompt: character.negativePrompt,
+          ),
+      ],
     );
 
     final added = await ref

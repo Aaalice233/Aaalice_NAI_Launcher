@@ -837,12 +837,14 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                               onPressed: () async {
                                 final prompt = _promptForGenerationAction();
                                 if (prompt == null) return;
+                                final negativePrompt =
+                                    widget.negativePromptOverride ?? '';
                                 final task = ReplicationTask.create(
                                   prompt: prompt,
-                                  negativePrompt:
-                                      widget.negativePromptOverride ?? '',
-                                  applyNegativePrompt:
-                                      widget.negativePromptOverride != null,
+                                  negativePrompt: negativePrompt,
+                                  applyNegativePrompt: negativePrompt
+                                      .trim()
+                                      .isNotEmpty,
                                   thumbnailUrl: widget.post.previewUrl,
                                   source: ReplicationTaskSource.online,
                                   characterPrompts:
