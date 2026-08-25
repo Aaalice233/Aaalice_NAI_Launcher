@@ -4639,6 +4639,8 @@
   "discordShare_errorBrowser": "無法開啟瀏覽器，請檢查系統的預設瀏覽器設定",
   "discordShare_errorTimeout": "Discord 驗證已逾時，請重新驗證",
   "discordShare_errorRateLimited": "分享過於頻繁，請稍後再試",
+  "discordShare_errorRateLimitedRetry": "分享過於頻繁，請在 {seconds} 秒後重試",
+  "@discordShare_errorRateLimitedRetry": {"placeholders": {"seconds": {"type": "int"}}},
   "discordShare_errorNoChannels": "目前沒有可用的 Discord 分享頻道",
   "discordShare_errorSession": "Discord 驗證已失效，請重新驗證",
   "discordShare_errorRelay": "Discord 分享服務暫時無法使用，請稍後再試",
