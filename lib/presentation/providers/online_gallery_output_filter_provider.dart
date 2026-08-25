@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/constants/storage_keys.dart';
 import '../../core/storage/local_storage_service.dart';
+import '../../core/utils/prompt_tag_utils.dart';
 
 class OnlineGalleryOutputFilterSettings {
   const OnlineGalleryOutputFilterSettings({required this.tags});
@@ -62,7 +63,7 @@ class OnlineGalleryOutputFilterSettings {
   /// within their token, and no substring replacement is ever performed.
   String filterPrompt(String prompt) {
     if (prompt.trim().isEmpty || tags.isEmpty) return prompt.trim();
-    return _splitTopLevelPromptTokens(prompt)
+    return PromptTagUtils.splitTopLevel(prompt)
         .map((part) => part.trim())
         .where((part) => part.isNotEmpty && !contains(part))
         .join(', ');
@@ -100,65 +101,6 @@ class OnlineGalleryOutputFilterSettings {
 
     normalized = normalized.replaceAll(RegExp(r'\s+'), '_');
     return normalized.isEmpty ? null : normalized;
-  }
-
-  static List<String> _splitTopLevelPromptTokens(String prompt) {
-    final tokens = <String>[];
-    final wrappers = <String>[];
-    var tokenStart = 0;
-    var numericWeightOpen = false;
-    var escaped = false;
-
-    for (var index = 0; index < prompt.length; index++) {
-      final character = prompt[index];
-      if (escaped) {
-        escaped = false;
-        continue;
-      }
-      if (character == r'\') {
-        escaped = true;
-        continue;
-      }
-
-      if (index + 1 < prompt.length &&
-          character == ':' &&
-          prompt[index + 1] == ':') {
-        if (numericWeightOpen) {
-          numericWeightOpen = false;
-        } else {
-          final prefix = prompt.substring(tokenStart, index).trimLeft();
-          if (RegExp(
-            r'^[\(\[\{]*\s*[+-]?(?:\d+(?:\.\d+)?|\.\d+)\s*$',
-          ).hasMatch(prefix)) {
-            numericWeightOpen = true;
-          }
-        }
-        index++;
-        continue;
-      }
-
-      final closing = switch (character) {
-        '(' => ')',
-        '[' => ']',
-        '{' => '}',
-        _ => null,
-      };
-      if (closing != null) {
-        wrappers.add(closing);
-        continue;
-      }
-      if (wrappers.isNotEmpty && character == wrappers.last) {
-        wrappers.removeLast();
-        continue;
-      }
-
-      if (character == ',' && wrappers.isEmpty && !numericWeightOpen) {
-        tokens.add(prompt.substring(tokenStart, index));
-        tokenStart = index + 1;
-      }
-    }
-    tokens.add(prompt.substring(tokenStart));
-    return tokens;
   }
 
   static bool _isFullyWrapped(String value, String opening, String closing) {

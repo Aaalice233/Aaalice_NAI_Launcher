@@ -1,19 +1,25 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/autocomplete/tag_translation_lookup.dart';
 import '../../../core/cache/gallery_image_request.dart';
 import '../../../core/cache/online_gallery_image_cache_manager.dart';
 import '../../../data/models/online_gallery/gallery_item.dart';
 import '../../../data/models/online_gallery/gallery_source.dart';
+import '../../providers/online_gallery_output_filter_provider.dart';
+import '../tag_chip.dart';
+import 'gallery_tag_context_menu.dart';
+import 'video_player_widget.dart';
 
-/// All user-facing copy used by [QuickTagCloudDetailDialog].
+/// All user-facing copy used by [GalleryDetailDialog].
 ///
 /// Keeping these values outside the widget lets the caller connect generated
 /// localizations without making this reusable presentation component depend on
 /// a provider or localization extension.
-class QuickTagCloudDetailDialogLabels {
-  const QuickTagCloudDetailDialogLabels({
+class GalleryDetailDialogLabels {
+  const GalleryDetailDialogLabels({
     required this.sourceName,
     required this.untitled,
     required this.codex,
@@ -23,6 +29,13 @@ class QuickTagCloudDetailDialogLabels {
     required this.characterPrompts,
     required this.note,
     required this.rawTags,
+    required this.artists,
+    required this.characters,
+    required this.copyrights,
+    required this.general,
+    required this.metadata,
+    required this.tagContextMenuTooltip,
+    required this.outputFilteredTagTooltip,
     required this.author,
     required this.imageFile,
     required this.originalFile,
@@ -33,6 +46,7 @@ class QuickTagCloudDetailDialogLabels {
     required this.imageLoadFailed,
     required this.retry,
     required this.zoomHint,
+    required this.copyActions,
     required this.copyPositive,
     required this.copyNegative,
     required this.copyCharacter,
@@ -48,6 +62,18 @@ class QuickTagCloudDetailDialogLabels {
     required this.close,
     required this.emptyValue,
     required this.imageCounter,
+    required this.multipleImages,
+    required this.views,
+    required this.favoriteCount,
+    required this.rating,
+    required this.score,
+    required this.copyMetadata,
+    required this.downloadAll,
+    required this.sendToReverse,
+    required this.copyArtistChain,
+    required this.copyFullPrompt,
+    required this.copyRawArtistFragments,
+    required this.noArtistChain,
   });
 
   final String sourceName;
@@ -59,6 +85,13 @@ class QuickTagCloudDetailDialogLabels {
   final String characterPrompts;
   final String note;
   final String rawTags;
+  final String artists;
+  final String characters;
+  final String copyrights;
+  final String general;
+  final String metadata;
+  final String tagContextMenuTooltip;
+  final String outputFilteredTagTooltip;
   final String author;
   final String imageFile;
   final String originalFile;
@@ -69,6 +102,7 @@ class QuickTagCloudDetailDialogLabels {
   final String imageLoadFailed;
   final String retry;
   final String zoomHint;
+  final String copyActions;
   final String copyPositive;
   final String copyNegative;
   final String copyCharacter;
@@ -84,20 +118,32 @@ class QuickTagCloudDetailDialogLabels {
   final String close;
   final String emptyValue;
   final String Function(int current, int total) imageCounter;
+  final String Function(int count) multipleImages;
+  final String views;
+  final String favoriteCount;
+  final String rating;
+  final String score;
+  final String copyMetadata;
+  final String downloadAll;
+  final String sendToReverse;
+  final String copyArtistChain;
+  final String copyFullPrompt;
+  final String copyRawArtistFragments;
+  final String noArtistChain;
 }
 
-/// A provider- and router-independent detail dialog for QuickTagCloud entries.
+/// Source-neutral detail surface shared by every online gallery adapter.
 ///
-/// State-changing operations are deliberately exposed as callbacks. The caller
-/// owns clipboard feedback, favorites, navigation, queue mutations, downloads,
-/// and any related error reporting.
-class QuickTagCloudDetailDialog extends StatefulWidget {
-  const QuickTagCloudDetailDialog({
+/// Source-specific mutations remain callback-driven while media, metadata,
+/// prompt and tag interactions use one consistent responsive layout.
+class GalleryDetailDialog extends ConsumerStatefulWidget {
+  const GalleryDetailDialog({
     super.key,
     required this.item,
     required this.detail,
     required this.isFavorited,
     required this.favoriteLoading,
+    this.canToggleFavorite = true,
     required this.labels,
     required this.onCopyPrompt,
     required this.onCopyNegativePrompt,
@@ -108,13 +154,23 @@ class QuickTagCloudDetailDialog extends StatefulWidget {
     required this.onSendToGenerate,
     required this.onAddToQueue,
     required this.onDownloadCurrentOriginal,
+    required this.onTagSearch,
+    required this.onBlacklistChanged,
+    this.onCopyMetadata,
+    this.onDownloadAll,
+    this.onSendToReverse,
+    this.onCopyArtistChain,
+    this.onCopyFullPrompt,
+    this.onCopyRawArtistFragments,
+    this.hasArtistChain,
   });
 
   final GalleryItem item;
   final GalleryDetail detail;
   final bool isFavorited;
   final bool favoriteLoading;
-  final QuickTagCloudDetailDialogLabels labels;
+  final bool canToggleFavorite;
+  final GalleryDetailDialogLabels labels;
 
   final VoidCallback onCopyPrompt;
   final VoidCallback onCopyNegativePrompt;
@@ -125,13 +181,22 @@ class QuickTagCloudDetailDialog extends StatefulWidget {
   final VoidCallback onSendToGenerate;
   final Future<void> Function() onAddToQueue;
   final Future<void> Function(GalleryMedia media) onDownloadCurrentOriginal;
+  final ValueChanged<String> onTagSearch;
+  final VoidCallback onBlacklistChanged;
+  final void Function(GalleryMedia media)? onCopyMetadata;
+  final Future<void> Function(List<GalleryMedia> media)? onDownloadAll;
+  final Future<void> Function(GalleryMedia media)? onSendToReverse;
+  final void Function(GalleryMedia media)? onCopyArtistChain;
+  final void Function(GalleryMedia media)? onCopyFullPrompt;
+  final void Function(GalleryMedia media)? onCopyRawArtistFragments;
+  final bool Function(GalleryMedia media)? hasArtistChain;
 
   @override
-  State<QuickTagCloudDetailDialog> createState() =>
-      _QuickTagCloudDetailDialogState();
+  ConsumerState<GalleryDetailDialog> createState() =>
+      _GalleryDetailDialogState();
 }
 
-class _QuickTagCloudDetailDialogState extends State<QuickTagCloudDetailDialog> {
+class _GalleryDetailDialogState extends ConsumerState<GalleryDetailDialog> {
   late final PageController _pageController;
   final FocusNode _keyboardFocusNode = FocusNode();
 
@@ -178,7 +243,7 @@ class _QuickTagCloudDetailDialogState extends State<QuickTagCloudDetailDialog> {
   }
 
   @override
-  void didUpdateWidget(covariant QuickTagCloudDetailDialog oldWidget) {
+  void didUpdateWidget(covariant GalleryDetailDialog oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.isFavorited != widget.isFavorited) {
       _isFavorited = widget.isFavorited;
@@ -299,7 +364,13 @@ class _QuickTagCloudDetailDialogState extends State<QuickTagCloudDetailDialog> {
     final subtitleParts = [
       if (codexTitle.isNotEmpty) codexTitle,
       if (codexVersion.isNotEmpty) codexVersion,
+      if (widget.item.author?.trim().isNotEmpty == true)
+        widget.item.author!.trim(),
+      if (widget.item.createdAt.trim().isNotEmpty) widget.item.createdAt.trim(),
     ];
+    final fallbackTitle = widget.item.sourceId == GallerySourceId.quickTagCloud
+        ? widget.labels.untitled
+        : '${widget.labels.sourceName} #${widget.item.sourceWorkId}';
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 10, 8, 10),
@@ -326,7 +397,7 @@ class _QuickTagCloudDetailDialogState extends State<QuickTagCloudDetailDialog> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  title?.isNotEmpty == true ? title! : widget.labels.untitled,
+                  title?.isNotEmpty == true ? title! : fallbackTitle,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.titleMedium?.copyWith(
@@ -365,7 +436,7 @@ class _QuickTagCloudDetailDialogState extends State<QuickTagCloudDetailDialog> {
   Widget _favoriteButton(ThemeData theme) {
     final loading = widget.favoriteLoading || _favoriteActionPending;
     return IconButton(
-      onPressed: loading ? null : _toggleFavorite,
+      onPressed: loading || !widget.canToggleFavorite ? null : _toggleFavorite,
       tooltip: _isFavorited
           ? widget.labels.removeFavorite
           : widget.labels.addFavorite,
@@ -392,7 +463,9 @@ class _QuickTagCloudDetailDialogState extends State<QuickTagCloudDetailDialog> {
     );
   }
 
-  bool get _hasSourceUrl => widget.detail.sourceUrl?.trim().isNotEmpty == true;
+  bool get _hasSourceUrl =>
+      widget.detail.sourceUrl?.trim().isNotEmpty == true ||
+      widget.item.postUrl.trim().isNotEmpty;
 
   String get _currentMediaFacts {
     final media = _currentMedia;
@@ -513,6 +586,10 @@ class _QuickTagCloudDetailDialogState extends State<QuickTagCloudDetailDialog> {
   Widget _buildMediaPage(ThemeData theme, GalleryMedia media, int index) {
     final imageUrl = _displayUrl(media);
     if (imageUrl.isEmpty) return _buildNoImageState(theme, dark: true);
+    final extension = media.extension?.toLowerCase();
+    final isVideo =
+        media.mediaType == 'video' || extension == 'webm' || extension == 'mp4';
+    if (isVideo) return VideoPlayerWidget(videoUrl: imageUrl);
 
     return InteractiveViewer(
       minScale: 0.75,
@@ -730,16 +807,23 @@ class _QuickTagCloudDetailDialogState extends State<QuickTagCloudDetailDialog> {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
             children: [
-              if (codexTitle.isNotEmpty)
+              _buildItemBadges(theme),
+              if (codexTitle.isNotEmpty) ...[
+                const SizedBox(height: 12),
                 _buildCompactMetadata(
                   theme,
                   icon: Icons.menu_book_outlined,
                   label: widget.labels.codex,
                   value: codexTitle,
                 ),
+              ],
               if (widget.detail.categoryPath.isNotEmpty) ...[
                 const SizedBox(height: 10),
                 _buildCategoryPath(theme),
+              ],
+              if (widget.detail.item.tags.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                _buildTagSections(theme),
               ],
               if (_hasPrompt) ...[
                 const SizedBox(height: 16),
@@ -837,19 +921,6 @@ class _QuickTagCloudDetailDialogState extends State<QuickTagCloudDetailDialog> {
                 const SizedBox(height: 16),
                 _buildContributors(theme),
               ],
-              if (!_hasCopyableContent &&
-                  note.isEmpty &&
-                  _currentRawTags.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 24),
-                  child: Text(
-                    widget.labels.emptyValue,
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ),
             ],
           ),
         ),
@@ -860,6 +931,229 @@ class _QuickTagCloudDetailDialogState extends State<QuickTagCloudDetailDialog> {
         ),
       ],
     );
+  }
+
+  Widget _buildItemBadges(ThemeData theme) {
+    final item = widget.detail.item;
+    final stats = <({IconData icon, String label, String value})>[
+      if (item.viewCount != null)
+        (
+          icon: Icons.visibility_outlined,
+          label: widget.labels.views,
+          value: '${item.viewCount}',
+        ),
+      if (item.favoriteCount != null)
+        (
+          icon: Icons.favorite_border,
+          label: widget.labels.favoriteCount,
+          value: '${item.favoriteCount}',
+        ),
+      if (item.score != null)
+        (
+          icon: Icons.star_outline,
+          label: widget.labels.score,
+          value: '${item.score}',
+        ),
+      if (item.rating?.trim().isNotEmpty == true)
+        (
+          icon: Icons.shield_outlined,
+          label: widget.labels.rating,
+          value: item.rating!.toUpperCase(),
+        ),
+    ];
+    final badges = <Widget>[
+      if (item.rank != null) Chip(label: Text('#${item.rank}')),
+      if (item.aiType?.trim().isNotEmpty == true)
+        Chip(label: Text(item.aiType!.trim())),
+      if (item.mediaCount > 1)
+        Chip(label: Text(widget.labels.multipleImages(item.mediaCount))),
+    ];
+
+    if (stats.isEmpty && badges.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (stats.isNotEmpty)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+              ),
+            ),
+            child: Row(
+              children: [
+                for (var index = 0; index < stats.length; index++) ...[
+                  if (index > 0)
+                    SizedBox(
+                      height: 30,
+                      child: VerticalDivider(
+                        width: 12,
+                        color: theme.colorScheme.outlineVariant,
+                      ),
+                    ),
+                  Expanded(child: _buildStatItem(theme, stats[index])),
+                ],
+              ],
+            ),
+          ),
+        if (stats.isNotEmpty && badges.isNotEmpty) const SizedBox(height: 10),
+        if (badges.isNotEmpty)
+          Wrap(spacing: 7, runSpacing: 7, children: badges),
+      ],
+    );
+  }
+
+  Widget _buildStatItem(
+    ThemeData theme,
+    ({IconData icon, String label, String value}) stat,
+  ) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(stat.icon, size: 17, color: theme.colorScheme.onSurfaceVariant),
+        const SizedBox(width: 6),
+        Flexible(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                stat.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              Text(
+                stat.value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTagSections(ThemeData theme) {
+    final item = widget.detail.item;
+    final categorized = <String>{
+      ...item.artistTags,
+      ...item.characterTags,
+      ...item.copyrightTags,
+      ...item.generalTags,
+      ...item.metaTags,
+    };
+    final uncategorized = item.tags
+        .where((tag) => !categorized.contains(tag))
+        .toList(growable: false);
+    final groups = <({String label, List<String> tags, Color color})>[
+      if (item.artistTags.isNotEmpty)
+        (
+          label: widget.labels.artists,
+          tags: item.artistTags,
+          color: TagColors.artist,
+        ),
+      if (item.characterTags.isNotEmpty)
+        (
+          label: widget.labels.characters,
+          tags: item.characterTags,
+          color: TagColors.character,
+        ),
+      if (item.copyrightTags.isNotEmpty)
+        (
+          label: widget.labels.copyrights,
+          tags: item.copyrightTags,
+          color: TagColors.copyright,
+        ),
+      if (categorized.isNotEmpty &&
+          (item.generalTags.isNotEmpty || uncategorized.isNotEmpty))
+        (
+          label: widget.labels.general,
+          tags: [...item.generalTags, ...uncategorized],
+          color: TagColors.general,
+        ),
+      if (item.metaTags.isNotEmpty)
+        (
+          label: widget.labels.metadata,
+          tags: item.metaTags,
+          color: TagColors.meta,
+        ),
+      if (categorized.isEmpty)
+        (
+          label: widget.labels.rawTags,
+          tags: item.tags,
+          color: theme.colorScheme.primary,
+        ),
+    ];
+    final translation = ref.watch(tagTranslationLookupProvider);
+    final outputFilter = ref.watch(onlineGalleryOutputFilterProvider);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (var groupIndex = 0; groupIndex < groups.length; groupIndex++) ...[
+          Text(
+            '${groups[groupIndex].label} (${groups[groupIndex].tags.length})',
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: groups[groupIndex].color,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 7),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              for (final tag in groups[groupIndex].tags)
+                FutureBuilder<String?>(
+                  future: translation.translate(tag),
+                  builder: (context, snapshot) => SimpleTagChip(
+                    tag: tag,
+                    color: groups[groupIndex].color,
+                    translation: snapshot.data,
+                    isOutputFiltered: outputFilter.contains(tag),
+                    tooltip: outputFilter.contains(tag)
+                        ? widget.labels.outputFilteredTagTooltip
+                        : widget.labels.tagContextMenuTooltip,
+                    onTap: () => _searchTag(tag),
+                    onSecondaryTapDown: (details) => _showTagMenu(tag, details),
+                  ),
+                ),
+            ],
+          ),
+          if (groupIndex + 1 < groups.length) const SizedBox(height: 12),
+        ],
+      ],
+    );
+  }
+
+  void _searchTag(String tag) {
+    final query = OnlineGalleryOutputFilterSettings.normalizeTag(tag) ?? tag;
+    Navigator.of(context).pop();
+    widget.onTagSearch(query);
+  }
+
+  Future<void> _showTagMenu(String tag, TapDownDetails details) async {
+    final action = await showOnlineGalleryTagContextMenu(
+      context: context,
+      ref: ref,
+      tag: tag,
+      globalPosition: details.globalPosition,
+      onSearch: _searchTag,
+    );
+    if (!mounted || action != OnlineGalleryTagContextAction.blacklist) return;
+    Navigator.of(context).pop();
+    widget.onBlacklistChanged();
   }
 
   Widget _buildCompactMetadata(
@@ -1036,73 +1330,180 @@ class _QuickTagCloudDetailDialogState extends State<QuickTagCloudDetailDialog> {
     final media = _currentMedia;
     final canDownload =
         media != null && _hasOriginal(media) && _downloadUrl(media).isNotEmpty;
+    final canReverse = media != null && widget.onSendToReverse != null;
+    final canDownloadAll = widget.onDownloadAll != null && _media.length > 1;
+    const actionStyle = ButtonStyle(
+      minimumSize: WidgetStatePropertyAll(Size.fromHeight(42)),
+      padding: WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 12)),
+    );
+
+    Widget label(String value) =>
+        Text(value, maxLines: 1, overflow: TextOverflow.ellipsis);
+
+    Widget row(Widget first, Widget second) => Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(child: first),
+        const SizedBox(width: 8),
+        Expanded(child: second),
+      ],
+    );
+
     return Padding(
       padding: const EdgeInsets.all(14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              OutlinedButton.icon(
-                onPressed: _hasPrompt ? widget.onCopyPrompt : null,
-                icon: const Icon(Icons.content_copy, size: 17),
-                label: Text(widget.labels.copyPositive),
-              ),
-              OutlinedButton.icon(
-                onPressed: _hasNegativePrompt
-                    ? widget.onCopyNegativePrompt
-                    : null,
-                icon: const Icon(Icons.copy_all_outlined, size: 17),
-                label: Text(widget.labels.copyNegative),
-              ),
-              OutlinedButton.icon(
-                onPressed: _hasCopyableContent ? widget.onCopyAll : null,
-                icon: const Icon(Icons.data_object, size: 17),
-                label: Text(widget.labels.copyAll),
-              ),
-            ],
+          row(
+            FilledButton.icon(
+              style: actionStyle,
+              onPressed: _hasCopyableContent ? widget.onSendToGenerate : null,
+              icon: const Icon(Icons.auto_awesome, size: 18),
+              label: label(widget.labels.sendToGenerate),
+            ),
+            OutlinedButton.icon(
+              style: actionStyle,
+              onPressed: _hasCopyableContent && !_queueActionPending
+                  ? _addToQueue
+                  : null,
+              icon: _queueActionPending
+                  ? const SizedBox.square(
+                      dimension: 17,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.playlist_add, size: 18),
+              label: label(widget.labels.addToQueue),
+            ),
           ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              FilledButton.icon(
-                onPressed: _hasCopyableContent ? widget.onSendToGenerate : null,
-                icon: const Icon(Icons.auto_awesome, size: 18),
-                label: Text(widget.labels.sendToGenerate),
-              ),
-              OutlinedButton.icon(
-                onPressed: _hasCopyableContent && !_queueActionPending
-                    ? _addToQueue
-                    : null,
-                icon: _queueActionPending
-                    ? const SizedBox(
-                        width: 17,
-                        height: 17,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.playlist_add, size: 18),
-                label: Text(widget.labels.addToQueue),
-              ),
-              OutlinedButton.icon(
-                onPressed: canDownload && !_downloadActionPending
-                    ? _downloadCurrent
-                    : null,
-                icon: _downloadActionPending
-                    ? const SizedBox(
-                        width: 17,
-                        height: 17,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.download_outlined, size: 18),
-                label: Text(widget.labels.downloadOriginal),
-              ),
-            ],
+          const SizedBox(height: 8),
+          row(
+            _buildCopyActionsButton(media, actionStyle),
+            OutlinedButton.icon(
+              style: actionStyle,
+              onPressed: canDownload && !_downloadActionPending
+                  ? _downloadCurrent
+                  : null,
+              icon: _downloadActionPending
+                  ? const SizedBox.square(
+                      dimension: 17,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.download_outlined, size: 18),
+              label: label(widget.labels.downloadOriginal),
+            ),
           ),
+          if (canReverse || canDownloadAll) ...[
+            const SizedBox(height: 8),
+            row(
+              canReverse
+                  ? OutlinedButton.icon(
+                      style: actionStyle,
+                      onPressed: () => widget.onSendToReverse!(media),
+                      icon: const Icon(Icons.manage_search, size: 18),
+                      label: label(widget.labels.sendToReverse),
+                    )
+                  : const SizedBox.shrink(),
+              canDownloadAll
+                  ? OutlinedButton.icon(
+                      style: actionStyle,
+                      onPressed: _downloadActionPending ? null : _downloadAll,
+                      icon: const Icon(Icons.download_for_offline, size: 18),
+                      label: label(widget.labels.downloadAll),
+                    )
+                  : const SizedBox.shrink(),
+            ),
+          ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildCopyActionsButton(GalleryMedia? media, ButtonStyle style) {
+    final hasArtistChain =
+        media != null && widget.hasArtistChain?.call(media) == true;
+    final hasCopyActions =
+        _hasPrompt ||
+        _hasNegativePrompt ||
+        (widget.onCopyFullPrompt == null && _hasCopyableContent) ||
+        (media != null &&
+            (widget.onCopyMetadata != null ||
+                widget.onCopyArtistChain != null ||
+                widget.onCopyFullPrompt != null ||
+                widget.onCopyRawArtistFragments != null));
+
+    return MenuAnchor(
+      menuChildren: [
+        if (media != null && widget.onCopyArtistChain != null)
+          MenuItemButton(
+            onPressed: hasArtistChain
+                ? () => widget.onCopyArtistChain!(media)
+                : null,
+            leadingIcon: const Icon(Icons.brush_outlined, size: 18),
+            child: Text(
+              hasArtistChain
+                  ? widget.labels.copyArtistChain
+                  : widget.labels.noArtistChain,
+            ),
+          ),
+        if (media != null && widget.onCopyFullPrompt != null)
+          MenuItemButton(
+            onPressed: () => widget.onCopyFullPrompt!(media),
+            leadingIcon: const Icon(Icons.copy_all, size: 18),
+            child: Text(widget.labels.copyFullPrompt),
+          ),
+        if (media != null && widget.onCopyRawArtistFragments != null)
+          MenuItemButton(
+            onPressed: hasArtistChain
+                ? () => widget.onCopyRawArtistFragments!(media)
+                : null,
+            leadingIcon: const Icon(Icons.code, size: 18),
+            child: Text(widget.labels.copyRawArtistFragments),
+          ),
+        if (_hasPrompt)
+          MenuItemButton(
+            onPressed: widget.onCopyPrompt,
+            leadingIcon: const Icon(Icons.content_copy, size: 18),
+            child: Text(widget.labels.copyPositive),
+          ),
+        if (_hasNegativePrompt)
+          MenuItemButton(
+            onPressed: widget.onCopyNegativePrompt,
+            leadingIcon: const Icon(Icons.copy_all_outlined, size: 18),
+            child: Text(widget.labels.copyNegative),
+          ),
+        if (widget.onCopyFullPrompt == null && _hasCopyableContent)
+          MenuItemButton(
+            onPressed: widget.onCopyAll,
+            leadingIcon: const Icon(Icons.copy_all_outlined, size: 18),
+            child: Text(widget.labels.copyAll),
+          ),
+        if (media != null && widget.onCopyMetadata != null)
+          MenuItemButton(
+            onPressed: () => widget.onCopyMetadata!(media),
+            leadingIcon: const Icon(Icons.data_object, size: 18),
+            child: Text(widget.labels.copyMetadata),
+          ),
+      ],
+      builder: (context, controller, child) => OutlinedButton.icon(
+        style: style,
+        onPressed: hasCopyActions
+            ? () => controller.isOpen ? controller.close() : controller.open()
+            : null,
+        icon: const Icon(Icons.content_copy_outlined, size: 18),
+        label: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: Text(
+                widget.labels.copyActions,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: 2),
+            const Icon(Icons.arrow_drop_down, size: 18),
+          ],
+        ),
       ),
     );
   }
@@ -1152,7 +1553,7 @@ class _QuickTagCloudDetailDialogState extends State<QuickTagCloudDetailDialog> {
       final url = _displayUrl(media);
       if (url.isEmpty) continue;
       final request = GalleryImageRequest.forUrl(
-        sourceId: GallerySourceId.quickTagCloud,
+        sourceId: widget.item.sourceId,
         url: url,
         tier: GalleryImageTier.sample,
         targetDecodeWidth: GalleryImageSizing.detailViewportTargetWidth(
@@ -1205,6 +1606,17 @@ class _QuickTagCloudDetailDialogState extends State<QuickTagCloudDetailDialog> {
     setState(() => _downloadActionPending = true);
     try {
       await widget.onDownloadCurrentOriginal(media);
+    } finally {
+      if (mounted) setState(() => _downloadActionPending = false);
+    }
+  }
+
+  Future<void> _downloadAll() async {
+    final callback = widget.onDownloadAll;
+    if (callback == null || _media.isEmpty) return;
+    setState(() => _downloadActionPending = true);
+    try {
+      await callback(_media);
     } finally {
       if (mounted) setState(() => _downloadActionPending = false);
     }

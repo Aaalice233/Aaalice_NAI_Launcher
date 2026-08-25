@@ -4659,6 +4659,12 @@ abstract class AppLocalizations {
   /// **'Score'**
   String get onlineGallery_score;
 
+  /// No description provided for @onlineGallery_ratingLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Rating'**
+  String get onlineGallery_ratingLabel;
+
   /// No description provided for @onlineGallery_favCount.
   ///
   /// In en, this message translates to:
@@ -5590,6 +5596,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Negative prompt'**
   String get onlineGallery_codexNegativePrompt;
+
+  /// No description provided for @onlineGallery_negativePromptCopyHeading.
+  ///
+  /// In en, this message translates to:
+  /// **'Negative Prompt'**
+  String get onlineGallery_negativePromptCopyHeading;
 
   /// No description provided for @onlineGallery_codexCharacterPrompts.
   ///

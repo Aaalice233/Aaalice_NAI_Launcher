@@ -2514,6 +2514,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get onlineGallery_score => 'スコア';
 
   @override
+  String get onlineGallery_ratingLabel => 'レーティング';
+
+  @override
   String get onlineGallery_favCount => 'お気に入り';
 
   @override
@@ -3050,6 +3053,9 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get onlineGallery_codexNegativePrompt => 'ネガティブプロンプト';
+
+  @override
+  String get onlineGallery_negativePromptCopyHeading => 'ネガティブプロンプト';
 
   @override
   String get onlineGallery_codexCharacterPrompts => 'キャラクタープロンプト';

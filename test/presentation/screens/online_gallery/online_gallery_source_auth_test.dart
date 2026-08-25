@@ -510,8 +510,16 @@ void main() {
 
     expect(find.text('AI TAG'), findsWidgets);
     expect(find.text('3 images'), findsOneWidget);
-    expect(find.text('Copy Prompt'), findsOneWidget);
-    expect(find.text('Copy full metadata'), findsOneWidget);
+    expect(find.widgetWithText(OutlinedButton, 'Copy'), findsOneWidget);
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Copy'));
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.widgetWithText(MenuItemButton, 'Copy Prompt'), findsOneWidget);
+    expect(
+      find.widgetWithText(MenuItemButton, 'Copy full metadata'),
+      findsOneWidget,
+    );
+    await tester.tap(find.widgetWithText(MenuItemButton, 'Copy Prompt'));
+    await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('Download all images in this work'), findsOneWidget);
     expect(find.byType(CachedNetworkImage), findsAtLeastNWidgets(4));
 
@@ -586,15 +594,28 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 250));
 
-    expect(find.text('Copy artist chain'), findsOneWidget);
-    expect(find.text('Copy full Prompt'), findsOneWidget);
-    expect(find.text('Copy original artist fragments'), findsOneWidget);
-    await tester.tap(find.widgetWithText(FilledButton, 'Copy artist chain'));
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Copy'));
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(
+      find.widgetWithText(MenuItemButton, 'Copy artist chain'),
+      findsOneWidget,
+    );
+    expect(
+      find.widgetWithText(MenuItemButton, 'Copy full Prompt'),
+      findsOneWidget,
+    );
+    expect(
+      find.widgetWithText(MenuItemButton, 'Copy original artist fragments'),
+      findsOneWidget,
+    );
+    await tester.tap(find.widgetWithText(MenuItemButton, 'Copy artist chain'));
     await tester.pump();
     expect(clipboardText, '1.2::artist:target::');
     await tester.pump(const Duration(seconds: 3));
 
-    await tester.tap(find.widgetWithText(OutlinedButton, 'Copy full Prompt'));
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Copy'));
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.tap(find.widgetWithText(MenuItemButton, 'Copy full Prompt'));
     await tester.pump();
     expect(
       clipboardText,
@@ -611,15 +632,19 @@ void main() {
     );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 250));
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Copy'));
+    await tester.pump(const Duration(milliseconds: 200));
     expect(find.text('No artist chain'), findsOneWidget);
     expect(
       tester
-          .widget<FilledButton>(
-            find.widgetWithText(FilledButton, 'No artist chain'),
+          .widget<MenuItemButton>(
+            find.widgetWithText(MenuItemButton, 'No artist chain'),
           )
           .onPressed,
       isNull,
     );
+    await tester.tapAt(const Offset(200, 400));
+    await tester.pump(const Duration(seconds: 3));
     expect(tester.takeException(), isNull);
   });
 

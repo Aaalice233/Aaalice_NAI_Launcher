@@ -1,8 +1,11 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/online_gallery/gallery_item.dart';
 import 'package:nai_launcher/data/models/online_gallery/gallery_source.dart';
-import 'package:nai_launcher/presentation/widgets/online_gallery/quick_tag_cloud_detail_dialog.dart';
+import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/widgets/online_gallery/gallery_detail_dialog.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -62,23 +65,27 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: QuickTagCloudDetailDialog(
-              item: item,
-              detail: detail,
-              isFavorited: false,
-              favoriteLoading: false,
-              labels: _labels(),
-              onCopyPrompt: () => copyCount++,
-              onCopyNegativePrompt: () {},
-              onCopyCharacter: (_) => characterCopyCount++,
-              onCopyAll: () {},
-              onToggleFavorite: () async => favoriteSucceeds,
-              onOpenSource: () {},
-              onSendToGenerate: () => sentToGenerate = true,
-              onAddToQueue: () async => addedToQueue = true,
-              onDownloadCurrentOriginal: (_) async {},
+        ProviderScope(
+          child: MaterialApp(
+            home: Scaffold(
+              body: GalleryDetailDialog(
+                item: item,
+                detail: detail,
+                isFavorited: false,
+                favoriteLoading: false,
+                labels: _labels(),
+                onCopyPrompt: () => copyCount++,
+                onCopyNegativePrompt: () {},
+                onCopyCharacter: (_) => characterCopyCount++,
+                onCopyAll: () {},
+                onToggleFavorite: () async => favoriteSucceeds,
+                onOpenSource: () {},
+                onSendToGenerate: () => sentToGenerate = true,
+                onAddToQueue: () async => addedToQueue = true,
+                onDownloadCurrentOriginal: (_) async {},
+                onTagSearch: (_) {},
+                onBlacklistChanged: () {},
+              ),
             ),
           ),
         ),
@@ -107,7 +114,10 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byIcon(Icons.favorite), findsOneWidget);
 
-      await tester.tap(find.widgetWithText(OutlinedButton, 'Copy positive'));
+      await tester.tap(find.widgetWithText(OutlinedButton, 'Copy'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(MenuItemButton, 'Copy positive'));
+      await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('Copy this character'));
       await tester.tap(find.widgetWithText(FilledButton, 'Generate'));
       await tester.tap(find.widgetWithText(OutlinedButton, 'Queue'));
@@ -126,6 +136,69 @@ void main() {
       );
     },
   );
+
+  testWidgets('tag context menu searches one normalized tag', (tester) async {
+    tester.view.physicalSize = const Size(1280, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    const item = GalleryItem(
+      id: 42,
+      workId: '42',
+      sourceId: GallerySourceId.danbooru,
+      site: 'danbooru',
+      tags: ['{red hair}', 'solo'],
+      tagString: '{red hair}, solo',
+    );
+    String? searchedTag;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: GalleryDetailDialog(
+              item: item,
+              detail: const GalleryDetail(item: item, media: []),
+              isFavorited: false,
+              favoriteLoading: false,
+              labels: _labels(),
+              onCopyPrompt: () {},
+              onCopyNegativePrompt: () {},
+              onCopyCharacter: (_) {},
+              onCopyAll: () {},
+              onToggleFavorite: () async => true,
+              onOpenSource: () {},
+              onSendToGenerate: () {},
+              onAddToQueue: () async {},
+              onDownloadCurrentOriginal: (_) async {},
+              onTagSearch: (tag) => searchedTag = tag,
+              onBlacklistChanged: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(
+      find.text('{red hair}'),
+      160,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(find.text('Empty'), findsNothing);
+    await tester.tap(find.text('{red hair}'), buttons: kSecondaryMouseButton);
+    await tester.pumpAndSettle();
+    expect(find.text('Copy'), findsNWidgets(2));
+    expect(find.text('Search'), findsOneWidget);
+
+    await tester.tap(find.text('Search'));
+    await tester.pumpAndSettle();
+    expect(searchedTag, 'red_hair');
+  });
 
   testWidgets('disables original download when only a preview exists', (
     tester,
@@ -163,23 +236,27 @@ void main() {
     );
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: QuickTagCloudDetailDialog(
-            item: item,
-            detail: GalleryDetail(item: item, media: [media]),
-            isFavorited: false,
-            favoriteLoading: false,
-            labels: _labels(),
-            onCopyPrompt: () {},
-            onCopyNegativePrompt: () {},
-            onCopyCharacter: (_) {},
-            onCopyAll: () {},
-            onToggleFavorite: () async => true,
-            onOpenSource: () {},
-            onSendToGenerate: () {},
-            onAddToQueue: () async {},
-            onDownloadCurrentOriginal: (_) async {},
+      ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            body: GalleryDetailDialog(
+              item: item,
+              detail: GalleryDetail(item: item, media: [media]),
+              isFavorited: false,
+              favoriteLoading: false,
+              labels: _labels(),
+              onCopyPrompt: () {},
+              onCopyNegativePrompt: () {},
+              onCopyCharacter: (_) {},
+              onCopyAll: () {},
+              onToggleFavorite: () async => true,
+              onOpenSource: () {},
+              onSendToGenerate: () {},
+              onAddToQueue: () async {},
+              onDownloadCurrentOriginal: (_) async {},
+              onTagSearch: (_) {},
+              onBlacklistChanged: () {},
+            ),
           ),
         ),
       ),
@@ -199,8 +276,8 @@ void main() {
   });
 }
 
-QuickTagCloudDetailDialogLabels _labels() {
-  return QuickTagCloudDetailDialogLabels(
+GalleryDetailDialogLabels _labels() {
+  return GalleryDetailDialogLabels(
     sourceName: 'Codex',
     untitled: 'Untitled',
     codex: 'Codex',
@@ -210,6 +287,13 @@ QuickTagCloudDetailDialogLabels _labels() {
     characterPrompts: 'Characters',
     note: 'Note',
     rawTags: 'Raw tags',
+    artists: 'Artists',
+    characters: 'Characters',
+    copyrights: 'Copyrights',
+    general: 'General',
+    metadata: 'Metadata',
+    tagContextMenuTooltip: 'Tag actions',
+    outputFilteredTagTooltip: 'Output filtered',
     author: 'Author',
     imageFile: 'Image file',
     originalFile: 'Original file',
@@ -220,6 +304,7 @@ QuickTagCloudDetailDialogLabels _labels() {
     imageLoadFailed: 'Image failed',
     retry: 'Retry',
     zoomHint: 'Zoom',
+    copyActions: 'Copy',
     copyPositive: 'Copy positive',
     copyNegative: 'Copy negative',
     copyCharacter: 'Copy this character',
@@ -235,5 +320,17 @@ QuickTagCloudDetailDialogLabels _labels() {
     close: 'Close',
     emptyValue: 'Empty',
     imageCounter: (current, total) => '$current / $total',
+    multipleImages: (count) => '$count images',
+    views: 'Views',
+    favoriteCount: 'Favorites',
+    rating: 'Rating',
+    score: 'Score',
+    copyMetadata: 'Copy metadata',
+    downloadAll: 'Download all',
+    sendToReverse: 'Reverse',
+    copyArtistChain: 'Copy artist chain',
+    copyFullPrompt: 'Copy full prompt',
+    copyRawArtistFragments: 'Copy raw artists',
+    noArtistChain: 'No artist chain',
   );
 }

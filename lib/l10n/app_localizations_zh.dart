@@ -2477,6 +2477,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onlineGallery_score => '评分';
 
   @override
+  String get onlineGallery_ratingLabel => '分级';
+
+  @override
   String get onlineGallery_favCount => '收藏';
 
   @override
@@ -2995,6 +2998,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get onlineGallery_codexNegativePrompt => '负向提示词';
+
+  @override
+  String get onlineGallery_negativePromptCopyHeading => '负面提示词';
 
   @override
   String get onlineGallery_codexCharacterPrompts => '角色提示词';
@@ -14546,6 +14552,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get onlineGallery_score => '評分';
 
   @override
+  String get onlineGallery_ratingLabel => '分級';
+
+  @override
   String get onlineGallery_favCount => '收藏';
 
   @override
@@ -15065,6 +15074,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get onlineGallery_codexNegativePrompt => '負向提示詞';
+
+  @override
+  String get onlineGallery_negativePromptCopyHeading => '負面提示詞';
 
   @override
   String get onlineGallery_codexCharacterPrompts => '角色提示詞';

@@ -7,6 +7,7 @@ import 'package:path/path.dart' as p;
 import '../../core/constants/storage_keys.dart';
 import '../../core/storage/local_storage_service.dart';
 import '../../core/utils/app_logger.dart';
+import '../../core/utils/prompt_tag_utils.dart';
 import '../models/online_gallery/gallery_item.dart';
 import '../models/online_gallery/gallery_source.dart';
 import '../models/online_gallery/online_gallery_favorite_record.dart';
@@ -583,11 +584,7 @@ OnlineGalleryFavoriteRecord _quickTagCloudRecord(
     imageWidth: cover.width,
     imageHeight: cover.height,
     tagString: entry.tags,
-    tags: entry.tags
-        .split(RegExp(r'[,，\n]+'))
-        .map((tag) => tag.trim())
-        .where((tag) => tag.isNotEmpty)
-        .toList(growable: false),
+    tags: PromptTagUtils.splitTopLevel(entry.tags),
     fileExt: cover.extension,
     fileUrl: cover.downloadUrl.isEmpty ? null : cover.downloadUrl,
     largeFileUrl: cover.displayUrl.isEmpty ? null : cover.displayUrl,

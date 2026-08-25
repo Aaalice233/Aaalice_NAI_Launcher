@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:dio/dio.dart';
 import 'package:path/path.dart' as p;
 
+import '../../../../core/utils/prompt_tag_utils.dart';
 import '../../../models/online_gallery/gallery_item.dart';
 import '../../../models/online_gallery/gallery_source.dart';
 import '../../../services/online_gallery/quick_tag_cloud_access.dart';
@@ -961,11 +962,8 @@ class QuickTagCloudGallerySourceAdapter extends GallerySourceAdapter {
     }
   }
 
-  List<String> _promptTags(String prompt) => prompt
-      .split(RegExp(r'[,，\n]+'))
-      .map((tag) => tag.trim())
-      .where((tag) => tag.isNotEmpty)
-      .toList(growable: false);
+  List<String> _promptTags(String prompt) =>
+      PromptTagUtils.splitTopLevel(prompt);
 
   int _stableNumericId(String value) {
     var hash = 0x811c9dc5;
