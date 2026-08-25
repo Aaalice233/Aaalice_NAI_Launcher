@@ -13,8 +13,6 @@ import 'package:nai_launcher/presentation/providers/character_prompt_provider.da
 import 'package:nai_launcher/presentation/providers/prompt_token_counter_provider.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/generation_toggle_button.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/prompt_input.dart';
-import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
-import 'package:nai_launcher/presentation/widgets/common/weight_adjust_toolbar.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/unified/unified_prompt_config.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/unified/unified_prompt_input.dart';
 
@@ -373,49 +371,6 @@ void main() {
     }
   });
 
-  testWidgets('shared prompt input reads the disabled wheel setting', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          localStorageServiceProvider.overrideWith(
-            (ref) => _TestLocalStorageService(enablePromptWeightScroll: false),
-          ),
-          characterPromptNotifierProvider.overrideWith(
-            _TestCharacterPromptNotifier.new,
-          ),
-          promptTokenUsageProvider(
-            PromptTokenCountTarget.positive,
-          ).overrideWith(
-            (ref) async => const PromptTokenUsage(usedTokens: 0, limit: 512),
-          ),
-          promptTokenUsageProvider(
-            PromptTokenCountTarget.negative,
-          ).overrideWith(
-            (ref) async => const PromptTokenUsage(usedTokens: 0, limit: 512),
-          ),
-        ],
-        child: const MaterialApp(
-          supportedLocales: AppLocalizations.supportedLocales,
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          home: Scaffold(
-            body: SizedBox(width: 960, height: 420, child: PromptInputWidget()),
-          ),
-        ),
-      ),
-    );
-    await tester.pump();
-
-    final wrapper = tester.widget<WeightAdjustToolbarWrapper>(
-      find.byType(WeightAdjustToolbarWrapper).first,
-    );
-    final input = tester.widget<ThemedInput>(find.byType(ThemedInput).first);
-
-    expect(wrapper.enableWheelAdjustment, isFalse);
-    expect(input.scrollPhysics, isNull);
-  });
-
   testWidgets('expanded prompt assistant does not cover editable prompt text', (
     tester,
   ) async {
@@ -490,17 +445,10 @@ void main() {
 }
 
 class _TestLocalStorageService extends LocalStorageService {
-  _TestLocalStorageService({
-    this.enablePromptWeightScroll = true,
-    this.defaultModel = 'nai-diffusion-4-5-full',
-  });
+  _TestLocalStorageService({this.defaultModel = 'nai-diffusion-4-5-full'});
 
-  final bool enablePromptWeightScroll;
   final String defaultModel;
   bool? savedTransparentBackground;
-
-  @override
-  bool getEnablePromptWeightScroll() => enablePromptWeightScroll;
 
   @override
   bool getEnableAutocomplete() => false;

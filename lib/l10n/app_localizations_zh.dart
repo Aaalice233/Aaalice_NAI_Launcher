@@ -7203,13 +7203,6 @@ class AppLocalizationsZh extends AppLocalizations {
       '在生成页显示“随机提示词”按钮和“抽卡模式”开关';
 
   @override
-  String get settings_enablePromptWeightScroll => '滚轮调整提示词权重';
-
-  @override
-  String get settings_enablePromptWeightScrollSubtitle =>
-      '选中提示词时，滚轮仅调整权重，不再触发页面滚动等其他滚轮操作';
-
-  @override
   String settings_queueRetryCountMax(Object count) {
     return '最多 $count 次';
   }
@@ -19282,13 +19275,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String get settings_showRandomPromptToolsSubtitle =>
       '在生成頁顯示“隨機提示詞”按鈕和“抽卡模式”開關';
-
-  @override
-  String get settings_enablePromptWeightScroll => '滾輪調整提示詞權重';
-
-  @override
-  String get settings_enablePromptWeightScrollSubtitle =>
-      '選中提示詞時，滾輪僅調整權重，不再觸發頁面滾動等其他滾輪操作';
 
   @override
   String settings_queueRetryCountMax(Object count) {
