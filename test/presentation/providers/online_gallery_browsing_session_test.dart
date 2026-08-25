@@ -5,9 +5,11 @@ import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/data/datasources/remote/danbooru_api_service.dart';
 import 'package:nai_launcher/data/datasources/remote/online_gallery/gallery_source_adapter.dart';
+import 'package:nai_launcher/data/datasources/remote/online_gallery/quick_tag_cloud_gallery_source_adapter.dart';
 import 'package:nai_launcher/data/models/online_gallery/gallery_item.dart';
 import 'package:nai_launcher/data/models/online_gallery/gallery_source.dart';
 import 'package:nai_launcher/presentation/providers/online_gallery_provider.dart';
+import 'package:nai_launcher/presentation/providers/quick_tag_cloud_gallery_provider.dart';
 
 void main() {
   test('browsing session round-trips choices and per-query position', () {
@@ -25,6 +27,8 @@ void main() {
       popularScale: PopularScale.month,
       aiTagTimeRange: 'month',
       aiTagPopularPeriod: '2026-02',
+      quickTagCloudFilterKey:
+          'book%2Fone|%E4%BA%BA%E7%89%A9/%25|update%2F1|recent|withoutImages|true|false|false',
       randomEnabled: true,
       randomSession: RandomGallerySession(
         cache: ModeCache(
@@ -61,6 +65,10 @@ void main() {
     expect(restored.popularScale, PopularScale.month);
     expect(restored.aiTagTimeRange, 'month');
     expect(restored.aiTagPopularPeriod, '2026-02');
+    expect(
+      restored.quickTagCloudFilterKey,
+      'book%2Fone|%E4%BA%BA%E7%89%A9/%25|update%2F1|recent|withoutImages|true|false|false',
+    );
     expect(restored.randomEnabled, isTrue);
     expect(restored.artistHuntEnabled, isTrue);
     expect(restored.currentCache.page, 7);
@@ -78,6 +86,12 @@ void main() {
     expect(
       decodeOnlineGalleryBrowsingSession('not json').sourceId,
       GallerySourceId.danbooru,
+    );
+    expect(
+      decodeOnlineGalleryBrowsingSession(
+        '{"version":1,"quickTagCloudFilterKey":"invalid"}',
+      ).quickTagCloudFilterKey,
+      'suozhang|||catalog|all|false|false|false',
     );
   });
 
@@ -111,6 +125,48 @@ void main() {
     expect(restored.currentCache.page, 3);
     expect(restored.currentCache.scrollOffset, 120);
   });
+
+  test(
+    'restores the complete QuickTagCloud filter before first load',
+    () async {
+      final storage = _MemoryStorage();
+      const filter = QuickTagCloudGalleryQuery(
+        codexId: 'book/one',
+        categoryPath: ['人物', '%'],
+        updateFilterId: 'update/1',
+        scope: QuickTagCloudBrowseScope.recent,
+        mediaFilter: QuickTagCloudMediaFilter.withoutImages,
+      );
+      await storage.setSetting(
+        StorageKeys.onlineGalleryBrowsingSessionV1,
+        encodeOnlineGalleryBrowsingSession(
+          OnlineGalleryState(
+            sourceId: GallerySourceId.quickTagCloud,
+            quickTagCloudFilterKey: filter.stableKey,
+          ),
+        ),
+      );
+      final container = ProviderContainer(
+        overrides: [
+          localStorageServiceProvider.overrideWithValue(storage),
+          onlineGallerySourceAdaptersProvider.overrideWithValue({
+            for (final source in GallerySourceId.values)
+              source: _CursorAdapter(source),
+          }),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await container.read(onlineGalleryNotifierProvider.notifier).loadPosts();
+
+      final restored = container.read(quickTagCloudFilterProvider);
+      expect(restored.codexId, 'book/one');
+      expect(restored.categoryPath, ['人物', '%']);
+      expect(restored.updateFilterId, 'update/1');
+      expect(restored.scope, QuickTagCloudBrowseScope.recent);
+      expect(restored.mediaFilter, QuickTagCloudMediaFilter.withoutImages);
+    },
+  );
 
   test('notifier restores and persists location changes', () async {
     final storage = _MemoryStorage();

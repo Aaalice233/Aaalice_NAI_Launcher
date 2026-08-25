@@ -1218,11 +1218,12 @@
       "count": {}
     }
   },
-  "onlineGallery_partiallyAddedTasksToQueue": "已加入 {added} 個任務，另有 {skipped} 個因佇列已滿而未加入",
-  "@onlineGallery_partiallyAddedTasksToQueue": {
+  "onlineGallery_queueBatchCompleted": "已加入 {added} 個任務；{prepareFailed} 個未能準備；{queueSkipped} 個因佇列已滿而未加入",
+  "@onlineGallery_queueBatchCompleted": {
     "placeholders": {
       "added": {},
-      "skipped": {}
+      "prepareFailed": {},
+      "queueSkipped": {}
     }
   },
   "onlineGallery_unfavorited": "已取消收藏",
@@ -1252,6 +1253,14 @@
       "failed": {}
     }
   },
+  "onlineGallery_downloadSelectedCompletedWithSkipped": "下載完成：成功 {success}，失敗 {failed}，略過 {skipped} 個純文字詞條",
+  "@onlineGallery_downloadSelectedCompletedWithSkipped": {
+    "placeholders": {
+      "success": {},
+      "failed": {},
+      "skipped": {}
+    }
+  },
   "onlineGallery_startDate": "開始日期",
   "onlineGallery_endDate": "結束日期",
   "onlineGallery_invalidDateFormat": "日期格式無效",
@@ -1270,6 +1279,51 @@
   "onlineGallery_gelbooruRequestFailed": "Gelbooru 請求失敗，請稍後重試。",
   "onlineGallery_aiTagQuery": "搜尋作品、作者、標題、標籤或模型",
   "onlineGallery_aiTagPromptQuery": "AI Prompt 搜尋（可搜尋 artist: 等 Prompt 原文）",
+  "onlineGallery_sourceQuickTagCloud": "法典圖鑑",
+  "onlineGallery_codexSearchHint": "搜尋標題、提示詞、備註、分類或貢獻者",
+  "onlineGallery_codexLabel": "法典",
+  "onlineGallery_codexSelect": "選擇法典",
+  "onlineGallery_codexAll": "全部法典",
+  "onlineGallery_codexBrowse": "瀏覽",
+  "onlineGallery_codexLatest": "本次更新",
+  "onlineGallery_codexRecent": "最近瀏覽",
+  "onlineGallery_codexCategory": "分類",
+  "onlineGallery_codexAllCategories": "全部分類",
+  "onlineGallery_codexUpdateBatch": "更新批次",
+  "onlineGallery_codexMediaFilter": "配圖",
+  "onlineGallery_codexAllEntries": "全部詞條",
+  "onlineGallery_codexWithImages": "只看有圖",
+  "onlineGallery_codexWithoutImages": "只看無圖",
+  "onlineGallery_codexOffline": "離線快取",
+  "onlineGallery_codexContributors": "貢獻者與來源",
+  "onlineGallery_codexEntryCount": "{entries} 個詞條 · {images} 個有圖",
+  "@onlineGallery_codexEntryCount": {"placeholders": {"entries": {}, "images": {}}},
+  "onlineGallery_codexNoImage": "無配圖詞條",
+  "onlineGallery_codexNoImageDescription": "這是純文字詞條，提示詞與中繼資料仍可完整使用。",
+  "onlineGallery_codexAuthor": "作者",
+  "onlineGallery_codexImageFile": "圖片檔案",
+  "onlineGallery_codexOriginalFile": "原圖檔案",
+  "onlineGallery_codexDeclaredSource": "資料來源",
+  "onlineGallery_codexPrompt": "正向提示詞",
+  "onlineGallery_codexNegativePrompt": "負向提示詞",
+  "onlineGallery_codexCharacterPrompts": "角色提示詞",
+  "onlineGallery_codexNote": "備註",
+  "onlineGallery_codexRawTag": "Raw Tag",
+  "onlineGallery_codexCopyPositive": "複製正向",
+  "onlineGallery_codexCopyNegative": "複製負向",
+  "onlineGallery_codexCopyCharacter": "複製此角色",
+  "onlineGallery_codexCopyAll": "複製全部",
+  "onlineGallery_codexSendToGeneration": "帶入生成頁",
+  "onlineGallery_codexAddToQueue": "加入生成佇列",
+  "onlineGallery_codexDownloadOriginal": "下載目前原圖",
+  "onlineGallery_codexOpenSource": "開啟上游",
+  "onlineGallery_codexOpenSourceFailed": "無法開啟聲明的資料來源。",
+  "onlineGallery_codexBookLocked": "此法典包含成人內容，請在分級選單中選擇「可疑」或「限制級」。",
+  "onlineGallery_codexNoData": "暫無符合條件的法典詞條",
+  "onlineGallery_codexExternalFallback": "外部來源暫時無法使用，正在顯示法典站快取版本。",
+  "onlineGallery_codexPreviousRelease": "目前版本暫時無法使用，正在顯示上一個已驗證版本。",
+  "onlineGallery_codexCachedBadge": "舊版快取",
+  "onlineGallery_codexUntitled": "未命名詞條",
   "onlineGallery_artistHunt": "僅畫師串",
   "onlineGallery_artistHuntTooltip": "只顯示正向 Prompt 中明確包含 artist: 標籤的圖片",
   "onlineGallery_artistChain": "畫師串",
@@ -1300,6 +1354,9 @@
   "onlineGallery_sourceRateLimited": "請求過於頻繁，請稍後重試。",
   "onlineGallery_sourceTimeout": "請求超時，請檢查網路連線。",
   "onlineGallery_sourceNetworkError": "無法連線當前畫廊來源，請檢查網路或代理。",
+  "onlineGallery_sourceRequestFailed": "請求失敗，請稍後重試。",
+  "onlineGallery_actionFailed": "操作失敗：{error}",
+  "@onlineGallery_actionFailed": {"placeholders": {"error": {}}},
   "onlineGallery_sourceMalformedResponse": "來源返回的資料結構已變化，暫時無法解析。",
   "onlineGallery_detailNotFound": "作品不存在或已被刪除。",
   "onlineGallery_imageUnavailable": "圖片當前不可用。",

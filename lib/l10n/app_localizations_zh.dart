@@ -2763,11 +2763,12 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String onlineGallery_partiallyAddedTasksToQueue(
+  String onlineGallery_queueBatchCompleted(
     Object added,
-    Object skipped,
+    Object prepareFailed,
+    Object queueSkipped,
   ) {
-    return '已加入 $added 个任务，另有 $skipped 个因队列已满未加入';
+    return '已加入 $added 个任务；$prepareFailed 个未能准备；$queueSkipped 个因队列已满未加入';
   }
 
   @override
@@ -2797,6 +2798,15 @@ class AppLocalizationsZh extends AppLocalizations {
     Object failed,
   ) {
     return '下载完成: 成功 $success, 失败 $failed';
+  }
+
+  @override
+  String onlineGallery_downloadSelectedCompletedWithSkipped(
+    Object success,
+    Object failed,
+    Object skipped,
+  ) {
+    return '下载完成：成功 $success，失败 $failed，跳过 $skipped 个纯文本词条';
   }
 
   @override
@@ -2856,6 +2866,140 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get onlineGallery_aiTagPromptQuery =>
       'AI Prompt 搜索（可搜索 artist: 等 Prompt 原文）';
+
+  @override
+  String get onlineGallery_sourceQuickTagCloud => '法典图鉴';
+
+  @override
+  String get onlineGallery_codexSearchHint => '搜索标题、提示词、备注、分类或贡献者';
+
+  @override
+  String get onlineGallery_codexLabel => '法典';
+
+  @override
+  String get onlineGallery_codexSelect => '选择法典';
+
+  @override
+  String get onlineGallery_codexAll => '全部法典';
+
+  @override
+  String get onlineGallery_codexBrowse => '浏览';
+
+  @override
+  String get onlineGallery_codexLatest => '本次更新';
+
+  @override
+  String get onlineGallery_codexRecent => '最近浏览';
+
+  @override
+  String get onlineGallery_codexCategory => '分类';
+
+  @override
+  String get onlineGallery_codexAllCategories => '全部分类';
+
+  @override
+  String get onlineGallery_codexUpdateBatch => '更新批次';
+
+  @override
+  String get onlineGallery_codexMediaFilter => '配图';
+
+  @override
+  String get onlineGallery_codexAllEntries => '全部词条';
+
+  @override
+  String get onlineGallery_codexWithImages => '只看有图';
+
+  @override
+  String get onlineGallery_codexWithoutImages => '只看无图';
+
+  @override
+  String get onlineGallery_codexOffline => '离线缓存';
+
+  @override
+  String get onlineGallery_codexContributors => '贡献者与来源';
+
+  @override
+  String onlineGallery_codexEntryCount(Object entries, Object images) {
+    return '$entries 个词条 · $images 个有图';
+  }
+
+  @override
+  String get onlineGallery_codexNoImage => '无配图词条';
+
+  @override
+  String get onlineGallery_codexNoImageDescription => '这是纯文本词条，提示词与元数据仍可完整使用。';
+
+  @override
+  String get onlineGallery_codexAuthor => '作者';
+
+  @override
+  String get onlineGallery_codexImageFile => '图片文件';
+
+  @override
+  String get onlineGallery_codexOriginalFile => '原图文件';
+
+  @override
+  String get onlineGallery_codexDeclaredSource => '数据来源';
+
+  @override
+  String get onlineGallery_codexPrompt => '正向提示词';
+
+  @override
+  String get onlineGallery_codexNegativePrompt => '负向提示词';
+
+  @override
+  String get onlineGallery_codexCharacterPrompts => '角色提示词';
+
+  @override
+  String get onlineGallery_codexNote => '备注';
+
+  @override
+  String get onlineGallery_codexRawTag => 'Raw Tag';
+
+  @override
+  String get onlineGallery_codexCopyPositive => '复制正向';
+
+  @override
+  String get onlineGallery_codexCopyNegative => '复制负向';
+
+  @override
+  String get onlineGallery_codexCopyCharacter => '复制此角色';
+
+  @override
+  String get onlineGallery_codexCopyAll => '复制全部';
+
+  @override
+  String get onlineGallery_codexSendToGeneration => '带入生成页';
+
+  @override
+  String get onlineGallery_codexAddToQueue => '加入生成队列';
+
+  @override
+  String get onlineGallery_codexDownloadOriginal => '下载当前原图';
+
+  @override
+  String get onlineGallery_codexOpenSource => '打开上游';
+
+  @override
+  String get onlineGallery_codexOpenSourceFailed => '无法打开声明的数据来源。';
+
+  @override
+  String get onlineGallery_codexBookLocked => '此法典包含成人内容，请在分级选单中选择“可疑”或“限制级”。';
+
+  @override
+  String get onlineGallery_codexNoData => '暂无符合条件的法典词条';
+
+  @override
+  String get onlineGallery_codexExternalFallback => '外部来源暂不可用，正在显示法典站缓存版本。';
+
+  @override
+  String get onlineGallery_codexPreviousRelease => '当前版本暂不可用，正在显示上一个已校验版本。';
+
+  @override
+  String get onlineGallery_codexCachedBadge => '旧版缓存';
+
+  @override
+  String get onlineGallery_codexUntitled => '未命名词条';
 
   @override
   String get onlineGallery_artistHunt => '仅画师串';
@@ -2921,6 +3065,14 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get onlineGallery_sourceNetworkError => '无法连接当前画廊来源，请检查网络或代理。';
+
+  @override
+  String get onlineGallery_sourceRequestFailed => '请求失败，请稍后重试。';
+
+  @override
+  String onlineGallery_actionFailed(Object error) {
+    return '操作失败：$error';
+  }
 
   @override
   String get onlineGallery_sourceMalformedResponse => '来源返回的数据结构已变化，暂时无法解析。';
@@ -14629,11 +14781,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
-  String onlineGallery_partiallyAddedTasksToQueue(
+  String onlineGallery_queueBatchCompleted(
     Object added,
-    Object skipped,
+    Object prepareFailed,
+    Object queueSkipped,
   ) {
-    return '已加入 $added 個任務，另有 $skipped 個因佇列已滿而未加入';
+    return '已加入 $added 個任務；$prepareFailed 個未能準備；$queueSkipped 個因佇列已滿而未加入';
   }
 
   @override
@@ -14663,6 +14816,15 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
     Object failed,
   ) {
     return '下載完成: 成功 $success, 失敗 $failed';
+  }
+
+  @override
+  String onlineGallery_downloadSelectedCompletedWithSkipped(
+    Object success,
+    Object failed,
+    Object skipped,
+  ) {
+    return '下載完成：成功 $success，失敗 $failed，略過 $skipped 個純文字詞條';
   }
 
   @override
@@ -14722,6 +14884,140 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String get onlineGallery_aiTagPromptQuery =>
       'AI Prompt 搜尋（可搜尋 artist: 等 Prompt 原文）';
+
+  @override
+  String get onlineGallery_sourceQuickTagCloud => '法典圖鑑';
+
+  @override
+  String get onlineGallery_codexSearchHint => '搜尋標題、提示詞、備註、分類或貢獻者';
+
+  @override
+  String get onlineGallery_codexLabel => '法典';
+
+  @override
+  String get onlineGallery_codexSelect => '選擇法典';
+
+  @override
+  String get onlineGallery_codexAll => '全部法典';
+
+  @override
+  String get onlineGallery_codexBrowse => '瀏覽';
+
+  @override
+  String get onlineGallery_codexLatest => '本次更新';
+
+  @override
+  String get onlineGallery_codexRecent => '最近瀏覽';
+
+  @override
+  String get onlineGallery_codexCategory => '分類';
+
+  @override
+  String get onlineGallery_codexAllCategories => '全部分類';
+
+  @override
+  String get onlineGallery_codexUpdateBatch => '更新批次';
+
+  @override
+  String get onlineGallery_codexMediaFilter => '配圖';
+
+  @override
+  String get onlineGallery_codexAllEntries => '全部詞條';
+
+  @override
+  String get onlineGallery_codexWithImages => '只看有圖';
+
+  @override
+  String get onlineGallery_codexWithoutImages => '只看無圖';
+
+  @override
+  String get onlineGallery_codexOffline => '離線快取';
+
+  @override
+  String get onlineGallery_codexContributors => '貢獻者與來源';
+
+  @override
+  String onlineGallery_codexEntryCount(Object entries, Object images) {
+    return '$entries 個詞條 · $images 個有圖';
+  }
+
+  @override
+  String get onlineGallery_codexNoImage => '無配圖詞條';
+
+  @override
+  String get onlineGallery_codexNoImageDescription => '這是純文字詞條，提示詞與中繼資料仍可完整使用。';
+
+  @override
+  String get onlineGallery_codexAuthor => '作者';
+
+  @override
+  String get onlineGallery_codexImageFile => '圖片檔案';
+
+  @override
+  String get onlineGallery_codexOriginalFile => '原圖檔案';
+
+  @override
+  String get onlineGallery_codexDeclaredSource => '資料來源';
+
+  @override
+  String get onlineGallery_codexPrompt => '正向提示詞';
+
+  @override
+  String get onlineGallery_codexNegativePrompt => '負向提示詞';
+
+  @override
+  String get onlineGallery_codexCharacterPrompts => '角色提示詞';
+
+  @override
+  String get onlineGallery_codexNote => '備註';
+
+  @override
+  String get onlineGallery_codexRawTag => 'Raw Tag';
+
+  @override
+  String get onlineGallery_codexCopyPositive => '複製正向';
+
+  @override
+  String get onlineGallery_codexCopyNegative => '複製負向';
+
+  @override
+  String get onlineGallery_codexCopyCharacter => '複製此角色';
+
+  @override
+  String get onlineGallery_codexCopyAll => '複製全部';
+
+  @override
+  String get onlineGallery_codexSendToGeneration => '帶入生成頁';
+
+  @override
+  String get onlineGallery_codexAddToQueue => '加入生成佇列';
+
+  @override
+  String get onlineGallery_codexDownloadOriginal => '下載目前原圖';
+
+  @override
+  String get onlineGallery_codexOpenSource => '開啟上游';
+
+  @override
+  String get onlineGallery_codexOpenSourceFailed => '無法開啟聲明的資料來源。';
+
+  @override
+  String get onlineGallery_codexBookLocked => '此法典包含成人內容，請在分級選單中選擇「可疑」或「限制級」。';
+
+  @override
+  String get onlineGallery_codexNoData => '暫無符合條件的法典詞條';
+
+  @override
+  String get onlineGallery_codexExternalFallback => '外部來源暫時無法使用，正在顯示法典站快取版本。';
+
+  @override
+  String get onlineGallery_codexPreviousRelease => '目前版本暫時無法使用，正在顯示上一個已驗證版本。';
+
+  @override
+  String get onlineGallery_codexCachedBadge => '舊版快取';
+
+  @override
+  String get onlineGallery_codexUntitled => '未命名詞條';
 
   @override
   String get onlineGallery_artistHunt => '僅畫師串';
@@ -14787,6 +15083,14 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get onlineGallery_sourceNetworkError => '無法連線當前畫廊來源，請檢查網路或代理。';
+
+  @override
+  String get onlineGallery_sourceRequestFailed => '請求失敗，請稍後重試。';
+
+  @override
+  String onlineGallery_actionFailed(Object error) {
+    return '操作失敗：$error';
+  }
 
   @override
   String get onlineGallery_sourceMalformedResponse => '來源返回的資料結構已變化，暫時無法解析。';

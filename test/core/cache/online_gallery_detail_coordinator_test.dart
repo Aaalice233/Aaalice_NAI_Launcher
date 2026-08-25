@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/cache/online_gallery_detail_coordinator.dart';
 import 'package:nai_launcher/data/models/online_gallery/gallery_item.dart';
@@ -133,6 +134,30 @@ void main() {
 
       now = now.add(const Duration(hours: 24));
       expect(coordinator.completedCount, 0);
+    },
+  );
+
+  test(
+    'cancels an interactive detail request and keeps it retryable',
+    () async {
+      final item = _item(4);
+      var calls = 0;
+      final coordinator = OnlineGalleryDetailCoordinator(
+        loader: (requested, cancelToken) async {
+          calls++;
+          if (calls == 1) {
+            throw await cancelToken.whenCancel;
+          }
+          return _detail(requested, 'retry');
+        },
+      );
+
+      final cancelled = coordinator.request(item);
+      coordinator.cancel(item);
+
+      await expectLater(cancelled, throwsA(isA<DioException>()));
+      expect((await coordinator.request(item)).description, 'retry');
+      expect(calls, 2);
     },
   );
 

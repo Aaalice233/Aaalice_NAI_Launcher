@@ -39,6 +39,7 @@ flutter pub get
 dart run build_runner build --delete-conflicting-outputs
 flutter run -d windows
 flutter test
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/test_affected.ps1
 flutter analyze
 flutter build windows --release
 pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_nuget.ps1
@@ -67,6 +68,8 @@ Windows 桌面开发优先使用 `scripts/dev_hot_reload_window.ps1`，它会打
 ## 测试规范
 
 测试使用 `flutter_test`，需要 mock 时使用 `mocktail`。测试文件以 `_test.dart` 结尾，并放在对应功能路径下，例如 `test/core/utils/`、`test/data/services/`、`test/presentation/providers/`。UI 行为变更尽量补 widget test；状态管理、请求构造、文件处理等逻辑变更应补 provider 或 service 回归测试。
+
+日常局部修改优先运行 `scripts/test_affected.ps1`：不传 `-Path` 时根据当前 Git 改动选择镜像测试和直接 import 受影响源码的测试；需要限制本次范围时用 `-Path "lib/foo.dart,lib/bar.dart"`，额外回归测试用 `-Include "test/foo_test.dart"`，只查看选择结果用 `-ListOnly`。这个入口用于快速回归，不替代发布前、核心公共模块大改或明确要求时的完整 `flutter test`。
 
 ## 资源、生成文件与发布注意事项
 

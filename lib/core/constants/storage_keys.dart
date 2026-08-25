@@ -296,6 +296,12 @@ class StorageKeys {
       'online_gallery_output_filter_tags';
   static const String onlineGalleryBrowsingSessionV1 =
       'online_gallery_browsing_session_v1';
+  static const String quickTagCloudFavoritesV1 = 'quick_tag_cloud_favorites_v1';
+  static const String quickTagCloudRecentV1 = 'quick_tag_cloud_recent_v1';
+  static const String quickTagCloudContentAccessV1 =
+      'quick_tag_cloud_content_access_v1';
+  static const String quickTagCloudBrowsingFiltersV1 =
+      'quick_tag_cloud_browsing_filters_v1';
 
   // ComfyUI 设置
   static const String comfyuiEnabled = 'comfyui_enabled';

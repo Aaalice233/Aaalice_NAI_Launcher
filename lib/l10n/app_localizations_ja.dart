@@ -2809,11 +2809,12 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String onlineGallery_partiallyAddedTasksToQueue(
+  String onlineGallery_queueBatchCompleted(
     Object added,
-    Object skipped,
+    Object prepareFailed,
+    Object queueSkipped,
   ) {
-    return '$added 件を追加しました。キューがいっぱいのため $skipped 件は追加されませんでした';
+    return '$added 件を追加しました。$prepareFailed 件は準備できず、$queueSkipped 件はキューがいっぱいのため追加されませんでした';
   }
 
   @override
@@ -2843,6 +2844,15 @@ class AppLocalizationsJa extends AppLocalizations {
     Object failed,
   ) {
     return 'ダウンロード完了: $success 成功、$failed 失敗';
+  }
+
+  @override
+  String onlineGallery_downloadSelectedCompletedWithSkipped(
+    Object success,
+    Object failed,
+    Object skipped,
+  ) {
+    return 'ダウンロード完了：$success 件成功、$failed 件失敗、テキストのみの項目 $skipped 件をスキップ';
   }
 
   @override
@@ -2906,6 +2916,144 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String get onlineGallery_aiTagPromptQuery =>
       'AI Prompt 検索（artist: などの Prompt 原文を検索）';
+
+  @override
+  String get onlineGallery_sourceQuickTagCloud => '法典図鑑';
+
+  @override
+  String get onlineGallery_codexSearchHint => 'タイトル、プロンプト、メモ、カテゴリ、投稿者を検索';
+
+  @override
+  String get onlineGallery_codexLabel => '法典';
+
+  @override
+  String get onlineGallery_codexSelect => '法典を選択';
+
+  @override
+  String get onlineGallery_codexAll => 'すべての法典';
+
+  @override
+  String get onlineGallery_codexBrowse => '閲覧';
+
+  @override
+  String get onlineGallery_codexLatest => '今回の更新';
+
+  @override
+  String get onlineGallery_codexRecent => '最近見た項目';
+
+  @override
+  String get onlineGallery_codexCategory => 'カテゴリ';
+
+  @override
+  String get onlineGallery_codexAllCategories => 'すべてのカテゴリ';
+
+  @override
+  String get onlineGallery_codexUpdateBatch => '更新バッチ';
+
+  @override
+  String get onlineGallery_codexMediaFilter => '画像';
+
+  @override
+  String get onlineGallery_codexAllEntries => 'すべての項目';
+
+  @override
+  String get onlineGallery_codexWithImages => '画像ありのみ';
+
+  @override
+  String get onlineGallery_codexWithoutImages => '画像なしのみ';
+
+  @override
+  String get onlineGallery_codexOffline => 'オフラインキャッシュ';
+
+  @override
+  String get onlineGallery_codexContributors => '協力者と出典';
+
+  @override
+  String onlineGallery_codexEntryCount(Object entries, Object images) {
+    return '$entries 項目 · 画像あり $images 件';
+  }
+
+  @override
+  String get onlineGallery_codexNoImage => '画像なし項目';
+
+  @override
+  String get onlineGallery_codexNoImageDescription =>
+      'テキストのみの項目です。プロンプトとメタデータはすべて利用できます。';
+
+  @override
+  String get onlineGallery_codexAuthor => '作者';
+
+  @override
+  String get onlineGallery_codexImageFile => '画像ファイル';
+
+  @override
+  String get onlineGallery_codexOriginalFile => '原画像ファイル';
+
+  @override
+  String get onlineGallery_codexDeclaredSource => 'データ提供元';
+
+  @override
+  String get onlineGallery_codexPrompt => 'ポジティブプロンプト';
+
+  @override
+  String get onlineGallery_codexNegativePrompt => 'ネガティブプロンプト';
+
+  @override
+  String get onlineGallery_codexCharacterPrompts => 'キャラクタープロンプト';
+
+  @override
+  String get onlineGallery_codexNote => 'メモ';
+
+  @override
+  String get onlineGallery_codexRawTag => 'Raw Tag';
+
+  @override
+  String get onlineGallery_codexCopyPositive => 'ポジティブをコピー';
+
+  @override
+  String get onlineGallery_codexCopyNegative => 'ネガティブをコピー';
+
+  @override
+  String get onlineGallery_codexCopyCharacter => 'このキャラクターをコピー';
+
+  @override
+  String get onlineGallery_codexCopyAll => 'すべてコピー';
+
+  @override
+  String get onlineGallery_codexSendToGeneration => '生成画面へ送る';
+
+  @override
+  String get onlineGallery_codexAddToQueue => '生成キューに追加';
+
+  @override
+  String get onlineGallery_codexDownloadOriginal => '現在の原画像を保存';
+
+  @override
+  String get onlineGallery_codexOpenSource => '出典を開く';
+
+  @override
+  String get onlineGallery_codexOpenSourceFailed => '指定された出典を開けません。';
+
+  @override
+  String get onlineGallery_codexBookLocked =>
+      'この法典には成人向けコンテンツが含まれます。レーティングで「疑問あり」または「露骨」を選択してください。';
+
+  @override
+  String get onlineGallery_codexNoData => '条件に一致する法典項目がありません';
+
+  @override
+  String get onlineGallery_codexExternalFallback =>
+      '外部ソースを利用できないため、法典サイトのキャッシュ版を表示しています。';
+
+  @override
+  String get onlineGallery_codexPreviousRelease =>
+      '現在のバージョンを利用できないため、検証済みの前バージョンを表示しています。';
+
+  @override
+  String get onlineGallery_codexCachedBadge => '旧版キャッシュ';
+
+  @override
+  String get onlineGallery_codexUntitled => '無題の項目';
 
   @override
   String get onlineGallery_artistHunt => '絵師タグのみ';
@@ -2976,6 +3124,15 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String get onlineGallery_sourceNetworkError =>
       'ギャラリーソースに接続できません。ネットワークまたはプロキシを確認してください。';
+
+  @override
+  String get onlineGallery_sourceRequestFailed =>
+      'リクエストに失敗しました。しばらくしてから再試行してください。';
+
+  @override
+  String onlineGallery_actionFailed(Object error) {
+    return '操作に失敗しました: $error';
+  }
 
   @override
   String get onlineGallery_sourceMalformedResponse =>

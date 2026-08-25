@@ -52,6 +52,26 @@ After explicit user confirmation, the application downloads it directly from
 That upstream repository did not declare a license when this integration was
 implemented.
 
+## NovelAI QuickTagCloud Codex Content
+
+The Codex Gallery reads public, fixed codex metadata, entries, and media at
+runtime from [AgIzT/NovelAI-Tag](https://github.com/AgIzT/NovelAI-Tag) and its
+published QuickTagCloud data endpoints. This content is not bundled with or
+mirrored by the application. Release files are cached locally by their upstream
+release identifier only after manifest size and SHA256 verification. External
+codexes are fetched directly from their declared source and are not stored in
+the versioned release cache. User favorites and recent history are local
+application data and retain the displayed attribution.
+
+The upstream author granted this project free, non-exclusive, revocable
+permission in [AgIzT/NovelAI-Tag issue #27](https://github.com/AgIzT/NovelAI-Tag/issues/27)
+to access and display all public codex data and images. Every codex's complete
+`contributors[]` attribution is preserved in the interface. The integration
+does not upload submissions, mutate community likes, bundle upstream content,
+or operate a content mirror. The `mengshen_r18` external codex is requested
+only from the DreamGod source declared by upstream and is never substituted
+with the QuickTagCloud release copy.
+
 ## OpenCC Traditional-to-Simplified Character Data
 
 Traditional Chinese tag queries are normalized for the optional Simplified

@@ -1203,11 +1203,12 @@
       "count": {}
     }
   },
-  "onlineGallery_partiallyAddedTasksToQueue": "已加入 {added} 个任务，另有 {skipped} 个因队列已满未加入",
-  "@onlineGallery_partiallyAddedTasksToQueue": {
+  "onlineGallery_queueBatchCompleted": "已加入 {added} 个任务；{prepareFailed} 个未能准备；{queueSkipped} 个因队列已满未加入",
+  "@onlineGallery_queueBatchCompleted": {
     "placeholders": {
       "added": {},
-      "skipped": {}
+      "prepareFailed": {},
+      "queueSkipped": {}
     }
   },
   "onlineGallery_unfavorited": "已取消收藏",
@@ -1237,6 +1238,14 @@
       "failed": {}
     }
   },
+  "onlineGallery_downloadSelectedCompletedWithSkipped": "下载完成：成功 {success}，失败 {failed}，跳过 {skipped} 个纯文本词条",
+  "@onlineGallery_downloadSelectedCompletedWithSkipped": {
+    "placeholders": {
+      "success": {},
+      "failed": {},
+      "skipped": {}
+    }
+  },
   "onlineGallery_startDate": "开始日期",
   "onlineGallery_endDate": "结束日期",
   "onlineGallery_invalidDateFormat": "日期格式无效",
@@ -1255,6 +1264,51 @@
   "onlineGallery_gelbooruRequestFailed": "Gelbooru 请求失败，请稍后重试。",
   "onlineGallery_aiTagQuery": "搜索作品、作者、标题、标签或模型",
   "onlineGallery_aiTagPromptQuery": "AI Prompt 搜索（可搜索 artist: 等 Prompt 原文）",
+  "onlineGallery_sourceQuickTagCloud": "法典图鉴",
+  "onlineGallery_codexSearchHint": "搜索标题、提示词、备注、分类或贡献者",
+  "onlineGallery_codexLabel": "法典",
+  "onlineGallery_codexSelect": "选择法典",
+  "onlineGallery_codexAll": "全部法典",
+  "onlineGallery_codexBrowse": "浏览",
+  "onlineGallery_codexLatest": "本次更新",
+  "onlineGallery_codexRecent": "最近浏览",
+  "onlineGallery_codexCategory": "分类",
+  "onlineGallery_codexAllCategories": "全部分类",
+  "onlineGallery_codexUpdateBatch": "更新批次",
+  "onlineGallery_codexMediaFilter": "配图",
+  "onlineGallery_codexAllEntries": "全部词条",
+  "onlineGallery_codexWithImages": "只看有图",
+  "onlineGallery_codexWithoutImages": "只看无图",
+  "onlineGallery_codexOffline": "离线缓存",
+  "onlineGallery_codexContributors": "贡献者与来源",
+  "onlineGallery_codexEntryCount": "{entries} 个词条 · {images} 个有图",
+  "@onlineGallery_codexEntryCount": {"placeholders": {"entries": {}, "images": {}}},
+  "onlineGallery_codexNoImage": "无配图词条",
+  "onlineGallery_codexNoImageDescription": "这是纯文本词条，提示词与元数据仍可完整使用。",
+  "onlineGallery_codexAuthor": "作者",
+  "onlineGallery_codexImageFile": "图片文件",
+  "onlineGallery_codexOriginalFile": "原图文件",
+  "onlineGallery_codexDeclaredSource": "数据来源",
+  "onlineGallery_codexPrompt": "正向提示词",
+  "onlineGallery_codexNegativePrompt": "负向提示词",
+  "onlineGallery_codexCharacterPrompts": "角色提示词",
+  "onlineGallery_codexNote": "备注",
+  "onlineGallery_codexRawTag": "Raw Tag",
+  "onlineGallery_codexCopyPositive": "复制正向",
+  "onlineGallery_codexCopyNegative": "复制负向",
+  "onlineGallery_codexCopyCharacter": "复制此角色",
+  "onlineGallery_codexCopyAll": "复制全部",
+  "onlineGallery_codexSendToGeneration": "带入生成页",
+  "onlineGallery_codexAddToQueue": "加入生成队列",
+  "onlineGallery_codexDownloadOriginal": "下载当前原图",
+  "onlineGallery_codexOpenSource": "打开上游",
+  "onlineGallery_codexOpenSourceFailed": "无法打开声明的数据来源。",
+  "onlineGallery_codexBookLocked": "此法典包含成人内容，请在分级选单中选择“可疑”或“限制级”。",
+  "onlineGallery_codexNoData": "暂无符合条件的法典词条",
+  "onlineGallery_codexExternalFallback": "外部来源暂不可用，正在显示法典站缓存版本。",
+  "onlineGallery_codexPreviousRelease": "当前版本暂不可用，正在显示上一个已校验版本。",
+  "onlineGallery_codexCachedBadge": "旧版缓存",
+  "onlineGallery_codexUntitled": "未命名词条",
   "onlineGallery_artistHunt": "仅画师串",
   "onlineGallery_artistHuntTooltip": "只显示正向 Prompt 中明确包含 artist: 标签的图片",
   "onlineGallery_artistChain": "画师串",
@@ -1277,6 +1331,9 @@
   "onlineGallery_sourceRateLimited": "请求过于频繁，请稍后重试。",
   "onlineGallery_sourceTimeout": "请求超时，请检查网络连接。",
   "onlineGallery_sourceNetworkError": "无法连接当前画廊来源，请检查网络或代理。",
+  "onlineGallery_sourceRequestFailed": "请求失败，请稍后重试。",
+  "onlineGallery_actionFailed": "操作失败：{error}",
+  "@onlineGallery_actionFailed": {"placeholders": {"error": {}}},
   "onlineGallery_sourceMalformedResponse": "来源返回的数据结构已变化，暂时无法解析。",
   "onlineGallery_detailNotFound": "作品不存在或已被删除。",
   "onlineGallery_imageUnavailable": "图片当前不可用。",

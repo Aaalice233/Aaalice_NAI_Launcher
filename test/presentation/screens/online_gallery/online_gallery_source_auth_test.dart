@@ -6,15 +6,20 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/cache/online_gallery_detail_coordinator.dart';
+import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/data/datasources/remote/online_gallery/gallery_source_adapter.dart';
+import 'package:nai_launcher/data/datasources/remote/online_gallery/quick_tag_cloud_gallery_source_adapter.dart';
 import 'package:nai_launcher/data/models/online_gallery/artist_chain.dart';
 import 'package:nai_launcher/data/models/online_gallery/danbooru_post.dart';
 import 'package:nai_launcher/data/models/online_gallery/gelbooru_credentials.dart';
 import 'package:nai_launcher/data/services/danbooru_auth_service.dart';
 import 'package:nai_launcher/data/services/gelbooru_auth_service.dart';
+import 'package:nai_launcher/data/services/online_gallery/quick_tag_cloud_remote_catalog_service.dart';
+import 'package:nai_launcher/data/services/online_gallery/quick_tag_cloud_user_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/danbooru_suggestion_provider.dart';
 import 'package:nai_launcher/presentation/providers/online_gallery_provider.dart';
+import 'package:nai_launcher/presentation/providers/quick_tag_cloud_gallery_provider.dart';
 import 'package:nai_launcher/presentation/screens/online_gallery/online_gallery_screen.dart';
 import 'package:nai_launcher/presentation/widgets/app_branch_visibility.dart';
 import 'package:nai_launcher/presentation/widgets/danbooru_post_card.dart';
@@ -639,6 +644,83 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets('QuickTagCloud reuses rating filter and refresh update check', (
+    tester,
+  ) async {
+    await _setViewSize(tester, 1200);
+    final adapter = _TrackingQuickTagCloudAdapter();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          onlineGalleryNotifierProvider.overrideWith(
+            _QuickTagCloudGalleryNotifier.new,
+          ),
+          quickTagCloudGallerySourceAdapterProvider.overrideWithValue(adapter),
+          quickTagCloudCatalogProvider.overrideWith(
+            (ref) async => _quickTagCloudCatalog(),
+          ),
+          quickTagCloudFilterProvider.overrideWith(
+            _QuickTagCloudFilterNotifier.new,
+          ),
+          danbooruAuthProvider.overrideWith(_LoggedOutDanbooruAuth.new),
+          gelbooruAuthProvider.overrideWith(_UnconfiguredGelbooruAuth.new),
+          danbooruSuggestionNotifierProvider.overrideWith(
+            _EmptyDanbooruSuggestionNotifier.new,
+          ),
+        ],
+        child: const _TestApp(),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(
+      find.byKey(const ValueKey('quick-tag-cloud-check-updates')),
+      findsNothing,
+    );
+    final sourceSelector = find.byKey(
+      const ValueKey('online-gallery-source-selector'),
+    );
+    expect(sourceSelector, findsOneWidget);
+    final ratingFilter = find.byKey(
+      const ValueKey('online-gallery-rating-filter'),
+    );
+    expect(ratingFilter, findsOneWidget);
+    await tester.tap(ratingFilter);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('General'), findsWidgets);
+    expect(find.text('Questionable'), findsOneWidget);
+    expect(find.text('Explicit'), findsOneWidget);
+    expect(find.text('Sensitive'), findsNothing);
+    await tester.tap(find.text('Questionable'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(OnlineGalleryScreen)),
+    );
+    expect(container.read(onlineGalleryNotifierProvider).selectedRatings, {
+      'g',
+      'q',
+    });
+
+    await tester.tap(find.byKey(const ValueKey('online-gallery-refresh')));
+    await tester.pump();
+    expect(adapter.invalidationCount, 1);
+
+    await tester.tap(sourceSelector);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.text('Danbooru').last);
+    await tester.pump();
+    expect(
+      (container.read(onlineGalleryNotifierProvider.notifier)
+              as _QuickTagCloudGalleryNotifier)
+          .selectedSource,
+      GallerySourceId.danbooru,
+    );
+  });
 }
 
 Future<void> _setViewSize(WidgetTester tester, double width) async {
@@ -762,6 +844,111 @@ class _RandomUiGalleryNotifier extends OnlineGalleryNotifier {
     );
   }
 }
+
+class _QuickTagCloudGalleryNotifier extends OnlineGalleryNotifier {
+  GallerySourceId? selectedSource;
+
+  @override
+  OnlineGalleryState build() => const OnlineGalleryState(
+    sourceId: GallerySourceId.quickTagCloud,
+    selectedRatings: {'g'},
+    searchCache: ModeCache(
+      posts: [
+        GalleryItem(
+          id: 0,
+          workId: 'book/text-entry',
+          sourceId: GallerySourceId.quickTagCloud,
+          title: 'Text entry',
+          mediaCount: 0,
+        ),
+      ],
+      hasMore: false,
+    ),
+  );
+
+  @override
+  void clearDetailCache() {}
+
+  @override
+  void syncQuickTagCloudFilterKey() {}
+
+  @override
+  Future<void> refresh() async {}
+
+  @override
+  Future<void> setRatings(Set<String> selectedRatings) async {
+    state = state.copyWith(selectedRatings: selectedRatings);
+  }
+
+  @override
+  Future<void> setSource(Object source) async {
+    selectedSource = source as GallerySourceId;
+  }
+}
+
+class _QuickTagCloudFilterNotifier extends QuickTagCloudFilterNotifier {
+  @override
+  QuickTagCloudGalleryQuery build() => const QuickTagCloudGalleryQuery();
+
+  @override
+  Future<bool> initializeContentAccess() async => false;
+
+  @override
+  Future<void> applyFilters({
+    required String codexId,
+    required String updateFilterId,
+    required QuickTagCloudBrowseScope scope,
+    required QuickTagCloudMediaFilter mediaFilter,
+    required bool allowNsfw,
+    required bool allowR18g,
+  }) async {
+    state = QuickTagCloudGalleryQuery(
+      codexId: codexId,
+      updateFilterId: updateFilterId,
+      scope: scope,
+      mediaFilter: mediaFilter,
+      allowNsfw: allowNsfw,
+      allowR18g: allowR18g,
+    );
+  }
+}
+
+class _TrackingQuickTagCloudAdapter extends QuickTagCloudGallerySourceAdapter {
+  _TrackingQuickTagCloudAdapter()
+    : super(
+        catalogService: QuickTagCloudRemoteCatalogService(),
+        userService: QuickTagCloudUserService(LocalStorageService()),
+        queryReader: () => const QuickTagCloudGalleryQuery(),
+      );
+
+  int invalidationCount = 0;
+
+  @override
+  void invalidateCatalog() {
+    invalidationCount++;
+    super.invalidateCatalog();
+  }
+}
+
+QuickTagCloudCatalog _quickTagCloudCatalog() => QuickTagCloudCatalog(
+  config: QuickTagCloudDataSourceConfig(
+    schemaVersion: 1,
+    baseUrl: Uri.https('example.test', '/data'),
+    pointer: 'current.json',
+  ),
+  pointer: const QuickTagCloudReleasePointer(
+    schemaVersion: 1,
+    release: 'r-0123456789abcdef0123',
+    manifest: 'manifest.json',
+  ),
+  manifest: QuickTagCloudReleaseManifest(
+    schemaVersion: 1,
+    release: 'r-0123456789abcdef0123',
+    files: const {},
+  ),
+  codexes: const [],
+  media: const QuickTagCloudMediaConfig(),
+);
 
 class _GelbooruSearchGalleryNotifier extends OnlineGalleryNotifier {
   @override

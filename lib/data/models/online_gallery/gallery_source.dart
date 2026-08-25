@@ -2,7 +2,8 @@ enum GallerySourceId {
   danbooru('danbooru', 'Danbooru'),
   safebooru('safebooru', 'Safebooru'),
   gelbooru('gelbooru', 'Gelbooru'),
-  aiTag('ai_tag', 'AI TAG');
+  aiTag('ai_tag', 'AI TAG'),
+  quickTagCloud('quick_tag_cloud', 'QuickTagCloud');
 
   const GallerySourceId(this.key, this.label);
 
@@ -32,6 +33,7 @@ class GallerySourceCapabilities {
     required this.rankingKinds,
     required this.supportsFavorites,
     required this.supportsWritableFavorites,
+    this.supportsLocalFavorites = false,
     required this.supportsDetails,
     required this.supportsMultipleMedia,
     required this.randomFeeds,
@@ -46,6 +48,7 @@ class GallerySourceCapabilities {
   final Set<GalleryRankingKind> rankingKinds;
   final bool supportsFavorites;
   final bool supportsWritableFavorites;
+  final bool supportsLocalFavorites;
   final bool supportsDetails;
   final bool supportsMultipleMedia;
   final Set<GalleryFeedKind> randomFeeds;
@@ -125,23 +128,41 @@ gallerySourceCapabilities = {
     supportsMultipleMedia: true,
     randomFeeds: {GalleryFeedKind.search, GalleryFeedKind.ranking},
   ),
+  GallerySourceId.quickTagCloud: GallerySourceCapabilities(
+    supportsSearch: true,
+    supportsFuzzySearch: false,
+    supportsDateRange: false,
+    supportsRatings: true,
+    supportsGeneralQuery: true,
+    supportsPromptQuery: false,
+    rankingKinds: {},
+    supportsFavorites: true,
+    supportsWritableFavorites: false,
+    supportsLocalFavorites: true,
+    supportsDetails: true,
+    supportsMultipleMedia: true,
+    randomFeeds: {GalleryFeedKind.search, GalleryFeedKind.favorites},
+  ),
 };
 
 extension GallerySourceIdX on GallerySourceId {
-  String stableItemKey(int workId) => '$key:$workId';
+  String stableItemKey(Object workId) => '$key:$workId';
 
   String get baseUrl => switch (this) {
     GallerySourceId.danbooru => 'https://danbooru.donmai.us',
     GallerySourceId.safebooru => 'https://safebooru.donmai.us',
     GallerySourceId.gelbooru => 'https://gelbooru.com',
     GallerySourceId.aiTag => 'https://aitag.win',
+    GallerySourceId.quickTagCloud => 'https://novelai.quicktagcloud.com',
   };
 
-  String itemPageUrl(int workId) => switch (this) {
+  String itemPageUrl(Object workId) => switch (this) {
     GallerySourceId.danbooru ||
     GallerySourceId.safebooru => '$baseUrl/posts/$workId',
     GallerySourceId.gelbooru =>
       '$baseUrl/index.php?page=post&s=view&id=$workId',
     GallerySourceId.aiTag => '$baseUrl/i/$workId',
+    // QuickTagCloud does not expose a stable per-entry web route.
+    GallerySourceId.quickTagCloud => baseUrl,
   };
 }
