@@ -355,6 +355,132 @@ void main() {
     final scrollable = tester.state<ScrollableState>(find.byType(Scrollable));
     expect(scrollable.position.pixels, greaterThan(0));
   });
+
+  testWidgets('maps each batch stream preview to its completed image', (
+    tester,
+  ) async {
+    final firstPreview = _solidPng(255, 0, 0);
+    final secondPreview = _solidPng(0, 0, 255);
+    final container = _createContainer([]);
+    addTearDown(container.dispose);
+    final notifier = container.read(imageGenerationNotifierProvider.notifier);
+    notifier.state = notifier.state.copyWith(
+      status: GenerationStatus.generating,
+      currentImage: 2,
+      totalImages: 2,
+      streamPreview: secondPreview,
+      streamPreviewSlots: [
+        StreamPreviewSlot(
+          imageNumber: 1,
+          totalImages: 2,
+          progress: 0.9,
+          previewBytes: firstPreview,
+        ),
+        StreamPreviewSlot(
+          imageNumber: 2,
+          totalImages: 2,
+          progress: 0.8,
+          previewBytes: secondPreview,
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(_historyApp(container));
+    await tester.pump();
+
+    notifier.state = notifier.state.copyWith(
+      status: GenerationStatus.completed,
+      currentImages: [_image('batch-first'), _image('batch-second')],
+      clearStreamPreview: true,
+    );
+    await tester.pump();
+
+    final firstCard = tester.widget<SelectableImageCard>(
+      find.byKey(const ValueKey('batch-first')),
+    );
+    final secondCard = tester.widget<SelectableImageCard>(
+      find.byKey(const ValueKey('batch-second')),
+    );
+    expect(
+      listEquals(firstCard.completionPlaceholderBytes, firstPreview),
+      isTrue,
+    );
+    expect(
+      listEquals(secondCard.completionPlaceholderBytes, secondPreview),
+      isTrue,
+    );
+  });
+
+  testWidgets(
+    'does not reuse a cancelled run preview for the next generation',
+    (tester) async {
+      final cancelledPreview = _solidPng(255, 0, 0);
+      final nextPreview = _solidPng(0, 255, 0);
+      final container = _createContainer([]);
+      addTearDown(container.dispose);
+      final notifier = container.read(imageGenerationNotifierProvider.notifier);
+      notifier.state = notifier.state.copyWith(
+        status: GenerationStatus.generating,
+        currentImage: 1,
+        totalImages: 1,
+        streamPreview: cancelledPreview,
+        streamPreviewSlots: [
+          StreamPreviewSlot(
+            imageNumber: 1,
+            totalImages: 1,
+            progress: 0.8,
+            previewBytes: cancelledPreview,
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(_historyApp(container));
+      await tester.pump();
+
+      notifier.state = notifier.state.copyWith(
+        status: GenerationStatus.cancelled,
+        currentImages: const [],
+        clearStreamPreview: true,
+      );
+      await tester.pump();
+      notifier.state = notifier.state.copyWith(
+        status: GenerationStatus.generating,
+        currentImage: 1,
+        totalImages: 1,
+        streamPreview: nextPreview,
+        streamPreviewSlots: [
+          StreamPreviewSlot(
+            imageNumber: 1,
+            totalImages: 1,
+            progress: 0.8,
+            previewBytes: nextPreview,
+          ),
+        ],
+      );
+      await tester.pump();
+      notifier.state = notifier.state.copyWith(
+        status: GenerationStatus.completed,
+        currentImages: [_image('after-cancel')],
+        clearStreamPreview: true,
+      );
+      await tester.pump();
+
+      final card = tester.widget<SelectableImageCard>(
+        find.byKey(const ValueKey('after-cancel')),
+      );
+      expect(listEquals(card.completionPlaceholderBytes, nextPreview), isTrue);
+      expect(
+        listEquals(card.completionPlaceholderBytes, cancelledPreview),
+        isFalse,
+      );
+    },
+  );
+}
+
+Uint8List _solidPng(int red, int green, int blue) {
+  final image = img.Image(width: 4, height: 4, numChannels: 4);
+  img.fill(image, color: img.ColorRgba8(red, green, blue, 255));
+  return Uint8List.fromList(img.encodePng(image));
 }
 
 ProviderContainer _createContainer(
