@@ -13,6 +13,7 @@ import '../../providers/director_tools_notifier.dart';
 import '../../providers/subscription_provider.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/themed_confirm_dialog.dart';
+import 'widgets/pixel_snap_panel.dart';
 
 class DirectorToolsScreen extends ConsumerStatefulWidget {
   const DirectorToolsScreen({super.key, required this.sourceImage});
@@ -230,6 +231,10 @@ class _DirectorToolsScreenState extends ConsumerState<DirectorToolsScreen> {
                         state.result!,
                         fit: BoxFit.contain,
                         gaplessPlayback: true,
+                        // 像素画放大必须最近邻，插值会把刚对齐的硬边缘糊回去。
+                        filterQuality: state.selectedTool.producesPixelArt
+                            ? FilterQuality.none
+                            : FilterQuality.medium,
                       ),
                     ),
                   ],
@@ -262,11 +267,15 @@ class _DirectorToolsScreenState extends ConsumerState<DirectorToolsScreen> {
         if (state.error != null) ...[
           const SizedBox(height: 12),
           Text(
-            state.error!,
+            pixelSnapErrorText(context.l10n, state.errorCause) ?? state.error!,
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.error,
             ),
           ),
+        ],
+        if (state.pixelSnapResult != null && state.result != null) ...[
+          const SizedBox(height: 12),
+          PixelSnapSummary(output: state.pixelSnapResult!),
         ],
         if (state.result != null) ...[
           const SizedBox(height: 16),
@@ -300,6 +309,13 @@ class _DirectorToolsScreenState extends ConsumerState<DirectorToolsScreen> {
       widgets.addAll(_buildColorizeOptions(theme, state));
     } else if (tool == DirectorToolType.fixEmotion) {
       widgets.addAll(_buildEmotionOptions(theme, state));
+    } else if (tool == DirectorToolType.pixelSnap) {
+      widgets.add(
+        PixelSnapOptionsSection(
+          options: state.pixelSnap,
+          enabled: !state.isRunning,
+        ),
+      );
     }
 
     if (tool.needsPrompt) {
@@ -426,60 +442,77 @@ class _DirectorToolsScreenState extends ConsumerState<DirectorToolsScreen> {
     final label = state.selectedTool.labelKey(context.l10n);
     final isOpus = ref.watch(isOpusSubscriptionProvider);
     final cost = state.estimatedAnlasCost(isOpus: isOpus);
+    final runsLocally = state.selectedTool.runsLocally;
 
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Expanded(
-          child: FilledButton.icon(
-            onPressed:
-                state.isRunning ||
-                    state.imageWidth <= 0 ||
-                    state.imageHeight <= 0
-                ? null
-                : () => _runTool(),
-            icon: state.isRunning
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.play_arrow_rounded, size: 20),
-            label: Text(
-              state.isRunning
-                  ? context.l10n.img2img_directorRunning
-                  : context.l10n.img2img_directorRun(label),
-            ),
-            style: FilledButton.styleFrom(minimumSize: const Size(0, 48)),
-          ),
-        ),
-        if (state.imageWidth > 0 && state.imageHeight > 0) ...[
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.diamond_outlined,
-                  size: 14,
-                  color: theme.colorScheme.primary,
+        Row(
+          children: [
+            Expanded(
+              child: FilledButton.icon(
+                onPressed:
+                    state.isRunning ||
+                        state.imageWidth <= 0 ||
+                        state.imageHeight <= 0
+                    ? null
+                    : () => _runTool(),
+                icon: state.isRunning
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.play_arrow_rounded, size: 20),
+                label: Text(
+                  state.isRunning
+                      ? context.l10n.img2img_directorRunning
+                      : context.l10n.img2img_directorRun(label),
                 ),
-                const SizedBox(width: 4),
-                Text(
-                  cost == 0 ? 'Free' : '$cost',
-                  style: TextStyle(
-                    color: theme.colorScheme.primary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
+                style: FilledButton.styleFrom(minimumSize: const Size(0, 48)),
+              ),
+            ),
+            if (!runsLocally &&
+                state.imageWidth > 0 &&
+                state.imageHeight > 0) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primaryContainer.withValues(
+                    alpha: 0.5,
                   ),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-              ],
-            ),
-          ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.diamond_outlined,
+                      size: 14,
+                      color: theme.colorScheme.primary,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      cost == 0 ? 'Free' : '$cost',
+                      style: TextStyle(
+                        color: theme.colorScheme.primary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+        if (runsLocally && state.isRunning) ...[
+          const SizedBox(height: 12),
+          PixelSnapProgressPanel(progress: state.progress),
         ],
       ],
     );
@@ -517,20 +550,23 @@ class _DirectorToolsScreenState extends ConsumerState<DirectorToolsScreen> {
 
   Future<void> _runTool() async {
     final requestState = ref.read(directorToolsNotifierProvider);
-    final label = requestState.selectedTool.labelKey(context.l10n);
-    final cost = requestState.estimatedAnlasCost(
-      isOpus: ref.read(isOpusSubscriptionProvider),
-    );
-    final confirmed = await ThemedConfirmDialog.show(
-      context: context,
-      title: context.l10n.img2img_directorConfirmTitle,
-      content: context.l10n.img2img_directorConfirmContent(label, cost),
-      confirmText: context.l10n.common_confirm,
-      cancelText: context.l10n.common_cancel,
-      type: ThemedConfirmDialogType.warning,
-      icon: Icons.toll_outlined,
-    );
-    if (!confirmed || !mounted) return;
+    // 本机工具不花 Anlas，弹消耗确认只会让用户以为要扣费。
+    if (!requestState.selectedTool.runsLocally) {
+      final label = requestState.selectedTool.labelKey(context.l10n);
+      final cost = requestState.estimatedAnlasCost(
+        isOpus: ref.read(isOpusSubscriptionProvider),
+      );
+      final confirmed = await ThemedConfirmDialog.show(
+        context: context,
+        title: context.l10n.img2img_directorConfirmTitle,
+        content: context.l10n.img2img_directorConfirmContent(label, cost),
+        confirmText: context.l10n.common_confirm,
+        cancelText: context.l10n.common_cancel,
+        type: ThemedConfirmDialogType.warning,
+        icon: Icons.toll_outlined,
+      );
+      if (!confirmed || !mounted) return;
+    }
 
     final notifier = ref.read(directorToolsNotifierProvider.notifier);
     await notifier.runTool();

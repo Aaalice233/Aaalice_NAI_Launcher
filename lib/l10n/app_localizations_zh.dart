@@ -2007,6 +2007,81 @@ class AppLocalizationsZh extends AppLocalizations {
   String get img2img_directorDeclutter => '杂线清理';
 
   @override
+  String get img2img_directorPixelSnap => '像素对齐';
+
+  @override
+  String get img2img_directorPixelSnapHint =>
+      '完全在本机计算，不消耗 Anlas、不联网。大图可能要几秒到十几秒。';
+
+  @override
+  String get img2img_directorPixelSnapPalette => '调色板';
+
+  @override
+  String get img2img_directorPixelSnapPaletteOff => '关闭';
+
+  @override
+  String get img2img_directorPixelSnapPaletteAuto => '自动';
+
+  @override
+  String get img2img_directorPixelSnapPaletteCustom => '自定义';
+
+  @override
+  String get img2img_directorPixelSnapColors => '色数';
+
+  @override
+  String get img2img_directorPixelSnapAvoidOverRefining => '不过度细化';
+
+  @override
+  String get img2img_directorPixelSnapAvoidOverRefiningOn => '始终保留检测到的像素尺寸。';
+
+  @override
+  String get img2img_directorPixelSnapAvoidOverRefiningOff =>
+      '更细的像素尺寸更贴合原图时会改用它。';
+
+  @override
+  String get img2img_directorPixelSnapUpscale => '放大回原尺寸';
+
+  @override
+  String get img2img_directorPixelSnapUpscaleOn => '结果会放大到接近原图的大小。';
+
+  @override
+  String get img2img_directorPixelSnapUpscaleOff => '结果保持对齐后的像素尺寸。';
+
+  @override
+  String img2img_directorPixelSnapSummary(int width, int height, int colors) {
+    return '$width×$height 像素 · $colors 色';
+  }
+
+  @override
+  String img2img_directorPixelSnapSummaryNoPalette(int width, int height) {
+    return '$width×$height 像素';
+  }
+
+  @override
+  String get img2img_directorPixelSnapNoGrid => '这张图里找不到重复的像素网格。';
+
+  @override
+  String get img2img_directorPixelSnapBlank => '这张图整幅都是透明的。';
+
+  @override
+  String get img2img_directorPixelSnapDownscaled => '图片超过尺寸上限，已先降采样再分析。';
+
+  @override
+  String get img2img_directorCancel => '取消';
+
+  @override
+  String get img2img_directorStageAnalyzing => '分析图像';
+
+  @override
+  String get img2img_directorStageSearchingPitch => '搜索像素尺寸';
+
+  @override
+  String get img2img_directorStageRefiningGrid => '细化网格';
+
+  @override
+  String get img2img_directorStageFinishing => '生成结果';
+
+  @override
   String get img2img_enhance => '增强';
 
   @override
@@ -16579,6 +16654,81 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get img2img_directorDeclutter => '雜線清理';
+
+  @override
+  String get img2img_directorPixelSnap => '像素對齊';
+
+  @override
+  String get img2img_directorPixelSnapHint =>
+      '完全在本機計算，不消耗 Anlas、不連網。大圖可能要幾秒到十幾秒。';
+
+  @override
+  String get img2img_directorPixelSnapPalette => '調色盤';
+
+  @override
+  String get img2img_directorPixelSnapPaletteOff => '關閉';
+
+  @override
+  String get img2img_directorPixelSnapPaletteAuto => '自動';
+
+  @override
+  String get img2img_directorPixelSnapPaletteCustom => '自訂';
+
+  @override
+  String get img2img_directorPixelSnapColors => '色數';
+
+  @override
+  String get img2img_directorPixelSnapAvoidOverRefining => '不過度細化';
+
+  @override
+  String get img2img_directorPixelSnapAvoidOverRefiningOn => '始終保留偵測到的像素尺寸。';
+
+  @override
+  String get img2img_directorPixelSnapAvoidOverRefiningOff =>
+      '更細的像素尺寸更貼合原圖時會改用它。';
+
+  @override
+  String get img2img_directorPixelSnapUpscale => '放大回原尺寸';
+
+  @override
+  String get img2img_directorPixelSnapUpscaleOn => '結果會放大到接近原圖的大小。';
+
+  @override
+  String get img2img_directorPixelSnapUpscaleOff => '結果保持對齊後的像素尺寸。';
+
+  @override
+  String img2img_directorPixelSnapSummary(int width, int height, int colors) {
+    return '$width×$height 像素 · $colors 色';
+  }
+
+  @override
+  String img2img_directorPixelSnapSummaryNoPalette(int width, int height) {
+    return '$width×$height 像素';
+  }
+
+  @override
+  String get img2img_directorPixelSnapNoGrid => '這張圖裡找不到重複的像素網格。';
+
+  @override
+  String get img2img_directorPixelSnapBlank => '這張圖整幅都是透明的。';
+
+  @override
+  String get img2img_directorPixelSnapDownscaled => '圖片超過尺寸上限，已先降採樣再分析。';
+
+  @override
+  String get img2img_directorCancel => '取消';
+
+  @override
+  String get img2img_directorStageAnalyzing => '分析影像';
+
+  @override
+  String get img2img_directorStageSearchingPitch => '搜尋像素尺寸';
+
+  @override
+  String get img2img_directorStageRefiningGrid => '細化網格';
+
+  @override
+  String get img2img_directorStageFinishing => '產生結果';
 
   @override
   String get img2img_enhance => '增強';
