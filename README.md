@@ -116,6 +116,7 @@ NAI Launcher 是一个使用 Flutter 构建的 NovelAI 第三方客户端。它�
 ## 🙏 致谢
 
 - [NovelAI](https://novelai.net/) 提供图像生成服务。
+- [所长法典站（法典图鉴）](https://novelai.quicktagcloud.com/) 及其 [AgIzT/NovelAI-Tag](https://github.com/AgIzT/NovelAI-Tag) 项目提供法典图鉴内容与服务。
 - [Flutter](https://flutter.dev/) 提供跨平台 UI 能力。
 - [Riverpod](https://riverpod.dev/) 提供状态管理能力。
 - 感谢所有贡献者和测试用户。
