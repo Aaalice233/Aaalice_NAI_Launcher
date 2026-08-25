@@ -15,6 +15,7 @@ import '../../../core/enums/precise_ref_type.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../data/models/gallery/nai_image_metadata.dart';
 import '../../../data/services/image_metadata_service.dart';
+import '../../../data/services/metadata/unified_metadata_parser.dart';
 import '../../../core/utils/vibe_file_parser.dart';
 import '../../../data/models/queue/replication_task.dart';
 import '../../../data/models/vibe/vibe_library_entry.dart';
@@ -54,23 +55,80 @@ Future<void> appendDroppedCharacterReference({
   return Future<void>.value();
 }
 
-Future<NaiImageMetadata?> detectImportableDroppedImageMetadata(
+class DroppedImageMetadataDetection {
+  final NaiImageMetadata? metadata;
+  final String? parseError;
+
+  const DroppedImageMetadataDetection({this.metadata, this.parseError});
+}
+
+Future<DroppedImageMetadataDetection> detectDroppedImageMetadata(
   String fileName,
   Uint8List bytes,
 ) async {
   try {
-    final metadata = await ImageMetadataService().getMetadataFromBytes(bytes);
+    final result = await ImageMetadataService().getMetadataParseResultFromBytes(
+      bytes,
+    );
+    final metadata = result.success ? result.metadata : null;
     if (metadata != null && metadata.hasData) {
       AppLogger.i(
         'Detected NovelAI metadata in dropped image: $fileName',
         'DropHandler',
       );
-      return metadata;
+      return DroppedImageMetadataDetection(metadata: metadata);
+    }
+
+    if (_isDroppedMetadataParseFailure(result.errorMessage, bytes)) {
+      return DroppedImageMetadataDetection(parseError: result.errorMessage);
     }
   } catch (e) {
     AppLogger.d('Failed to detect NovelAI metadata: $e', 'DropHandler');
+    return DroppedImageMetadataDetection(parseError: e.toString());
   }
-  return null;
+  return const DroppedImageMetadataDetection();
+}
+
+Future<NaiImageMetadata?> detectImportableDroppedImageMetadata(
+  String fileName,
+  Uint8List bytes,
+) async {
+  return (await detectDroppedImageMetadata(fileName, bytes)).metadata;
+}
+
+bool _isDroppedMetadataParseFailure(String? errorMessage, Uint8List bytes) {
+  if (errorMessage == null || errorMessage.isEmpty) return false;
+  final fieldCount = RegExp(
+    r'from (\d+) fields',
+  ).firstMatch(errorMessage)?.group(1);
+  if (fieldCount != null) {
+    if (int.parse(fieldCount) == 0) return false;
+    final textData = UnifiedMetadataParser.extractPngTextData(bytes);
+    final normalizedData = {
+      for (final entry in textData.entries)
+        entry.key.toLowerCase(): entry.value,
+    };
+    const generationPayloadKeys = {
+      'comment',
+      'parameters',
+      'sd:parameters',
+      'prompt',
+      'workflow',
+      'nai',
+      'novelai',
+      'sd-metadata',
+      'fooocus',
+      'draw_things',
+      'drawthings',
+    };
+    if (normalizedData.keys.any(generationPayloadKeys.contains)) return true;
+    final description = normalizedData['description'];
+    return description != null &&
+        (description.contains('Steps:') || description.contains('Sampler:'));
+  }
+  if (errorMessage.startsWith('No EXIF UserComment metadata')) return false;
+  if (errorMessage.startsWith('Unsupported image container')) return false;
+  return true;
 }
 
 bool isGalleryInternalDragLocalData(Object? localData) {
@@ -442,10 +500,8 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
 
     // 保存 context 相关数据后再进行异步操作
     final l10n = context.l10n;
-    final detectedMetadata = await detectImportableDroppedImageMetadata(
-      fileName,
-      bytes,
-    );
+    final metadataDetection = await detectDroppedImageMetadata(fileName, bytes);
+    final detectedMetadata = metadataDetection.metadata;
     final showExtractMetadata = detectedMetadata != null;
 
     // 检测是否包含 Vibe 元数据（仅 PNG）
@@ -462,6 +518,8 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
       imageBytes: bytes,
       fileName: fileName,
       showExtractMetadata: showExtractMetadata,
+      metadata: detectedMetadata,
+      metadataParseError: metadataDetection.parseError,
       detectedVibe: detectedVibe,
       isBundle: detectedVibes.length > 1,
     );

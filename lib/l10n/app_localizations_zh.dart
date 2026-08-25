@@ -7835,6 +7835,129 @@ class AppLocalizationsZh extends AppLocalizations {
   String get drop_dragToImg2ImgOrOther => '拖拽到图生图或其他区域';
 
   @override
+  String get drop_metadataDetected => '检测到 NovelAI 元数据';
+
+  @override
+  String get drop_metadataParseFailed => '元数据解析失败';
+
+  @override
+  String get drop_metadataParseFailedHint => '图片包含元数据字段，但当前无法读取。其他图片用途仍可正常使用。';
+
+  @override
+  String get drop_metadataErrorDetails => '查看错误详情';
+
+  @override
+  String get drop_positivePrompt => '正向 Prompt';
+
+  @override
+  String get drop_negativePrompt => '负向 Prompt';
+
+  @override
+  String drop_characterPrompts(int count) {
+    return '角色 Prompt（$count）';
+  }
+
+  @override
+  String drop_characterPositivePrompt(int index) {
+    return '角色 $index 正向 Prompt';
+  }
+
+  @override
+  String drop_characterNegativePrompt(int index) {
+    return '角色 $index 负向 Prompt';
+  }
+
+  @override
+  String get drop_promptNotRecorded => '未记录';
+
+  @override
+  String get drop_promptCopy => '复制';
+
+  @override
+  String get drop_promptAddWhole => '整段加入词库';
+
+  @override
+  String get drop_promptAddSelection => '加入词库';
+
+  @override
+  String get drop_promptLibraryTitle => '加入词库';
+
+  @override
+  String get drop_promptLibraryWriteMode => '写入方式';
+
+  @override
+  String get drop_promptLibraryCreate => '新建';
+
+  @override
+  String get drop_promptLibraryAppend => '追加';
+
+  @override
+  String get drop_promptLibraryOverwrite => '覆盖';
+
+  @override
+  String get drop_promptLibraryAliasHint => '该名称同时用于 <词库名称> 引用';
+
+  @override
+  String get drop_promptLibraryTarget => '目标条目';
+
+  @override
+  String get drop_promptLibrarySelectTarget => '选择要更新的条目';
+
+  @override
+  String get drop_promptLibrarySeparator => '连接方式';
+
+  @override
+  String get drop_promptLibrarySeparatorComma => '逗号 + 空格';
+
+  @override
+  String get drop_promptLibrarySeparatorNewline => '换行';
+
+  @override
+  String get drop_promptLibrarySeparatorNone => '不插入分隔符';
+
+  @override
+  String drop_promptLibraryCharacterCount(int count) {
+    return '$count 字符';
+  }
+
+  @override
+  String get drop_promptLibraryExactContentHint => '保存当前文本，不自动清洗、重排或补全';
+
+  @override
+  String get drop_promptLibraryResultPreview => '结果预览';
+
+  @override
+  String drop_promptLibraryDuplicate(Object name) {
+    return '相同内容已存在于“$name”';
+  }
+
+  @override
+  String get drop_promptLibraryNameConflict => '该名称已存在，请改名或选择追加/覆盖';
+
+  @override
+  String drop_promptLibraryOverwriteWarning(Object name) {
+    return '将完整替换“$name”的提示词内容';
+  }
+
+  @override
+  String get drop_promptLibraryMore => '更多选项';
+
+  @override
+  String get drop_promptLibraryConfirmOverwrite => '确认覆盖';
+
+  @override
+  String get drop_promptLibrarySaved => '已保存到词库';
+
+  @override
+  String get drop_promptLibrarySaveFailed => '词库保存失败';
+
+  @override
+  String get drop_promptLibraryPositiveName => '正向提示词摘取';
+
+  @override
+  String get drop_promptLibraryNegativeName => '负向提示词摘取';
+
+  @override
   String get preciseRef_title => '精准参考';
 
   @override
@@ -19932,6 +20055,129 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get drop_dragToImg2ImgOrOther => '拖拽到圖生圖或其他區域';
+
+  @override
+  String get drop_metadataDetected => '檢測到 NovelAI 後設資料';
+
+  @override
+  String get drop_metadataParseFailed => '後設資料解析失敗';
+
+  @override
+  String get drop_metadataParseFailedHint => '圖片包含後設資料欄位，但目前無法讀取。其他圖片用途仍可正常使用。';
+
+  @override
+  String get drop_metadataErrorDetails => '檢視錯誤詳情';
+
+  @override
+  String get drop_positivePrompt => '正向 Prompt';
+
+  @override
+  String get drop_negativePrompt => '負向 Prompt';
+
+  @override
+  String drop_characterPrompts(int count) {
+    return '角色 Prompt（$count）';
+  }
+
+  @override
+  String drop_characterPositivePrompt(int index) {
+    return '角色 $index 正向 Prompt';
+  }
+
+  @override
+  String drop_characterNegativePrompt(int index) {
+    return '角色 $index 負向 Prompt';
+  }
+
+  @override
+  String get drop_promptNotRecorded => '未記錄';
+
+  @override
+  String get drop_promptCopy => '複製';
+
+  @override
+  String get drop_promptAddWhole => '整段加入詞庫';
+
+  @override
+  String get drop_promptAddSelection => '加入詞庫';
+
+  @override
+  String get drop_promptLibraryTitle => '加入詞庫';
+
+  @override
+  String get drop_promptLibraryWriteMode => '寫入方式';
+
+  @override
+  String get drop_promptLibraryCreate => '新建';
+
+  @override
+  String get drop_promptLibraryAppend => '追加';
+
+  @override
+  String get drop_promptLibraryOverwrite => '覆蓋';
+
+  @override
+  String get drop_promptLibraryAliasHint => '該名稱同時用於 <詞庫名稱> 引用';
+
+  @override
+  String get drop_promptLibraryTarget => '目標條目';
+
+  @override
+  String get drop_promptLibrarySelectTarget => '選擇要更新的條目';
+
+  @override
+  String get drop_promptLibrarySeparator => '連線方式';
+
+  @override
+  String get drop_promptLibrarySeparatorComma => '逗號 + 空格';
+
+  @override
+  String get drop_promptLibrarySeparatorNewline => '換行';
+
+  @override
+  String get drop_promptLibrarySeparatorNone => '不插入分隔符';
+
+  @override
+  String drop_promptLibraryCharacterCount(int count) {
+    return '$count 字元';
+  }
+
+  @override
+  String get drop_promptLibraryExactContentHint => '儲存當前文字，不自動清洗、重排或補全';
+
+  @override
+  String get drop_promptLibraryResultPreview => '結果預覽';
+
+  @override
+  String drop_promptLibraryDuplicate(Object name) {
+    return '相同內容已存在於「$name」';
+  }
+
+  @override
+  String get drop_promptLibraryNameConflict => '該名稱已存在，請改名或選擇追加/覆蓋';
+
+  @override
+  String drop_promptLibraryOverwriteWarning(Object name) {
+    return '將完整替換「$name」的提示詞內容';
+  }
+
+  @override
+  String get drop_promptLibraryMore => '更多選項';
+
+  @override
+  String get drop_promptLibraryConfirmOverwrite => '確認覆蓋';
+
+  @override
+  String get drop_promptLibrarySaved => '已儲存到詞庫';
+
+  @override
+  String get drop_promptLibrarySaveFailed => '詞庫儲存失敗';
+
+  @override
+  String get drop_promptLibraryPositiveName => '正向提示詞摘取';
+
+  @override
+  String get drop_promptLibraryNegativeName => '負向提示詞摘取';
 
   @override
   String get preciseRef_title => '精準參考';

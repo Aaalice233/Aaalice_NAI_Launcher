@@ -75,12 +75,13 @@ class TagLibraryEntry with _$TagLibraryEntry {
     String? categoryId,
     int sortOrder = 0,
     bool isFavorite = false,
+    bool preserveContentWhitespace = false,
   }) {
     final now = DateTime.now();
     return TagLibraryEntry(
       id: const Uuid().v4(),
       name: name.trim(),
-      content: content.trim(),
+      content: preserveContentWhitespace ? content : content.trim(),
       thumbnail: thumbnail,
       thumbnailOffsetX: thumbnailOffsetX,
       thumbnailOffsetY: thumbnailOffsetY,

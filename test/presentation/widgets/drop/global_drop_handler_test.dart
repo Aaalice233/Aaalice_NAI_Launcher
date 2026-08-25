@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/enums/precise_ref_type.dart';
+import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/widgets/drop/global_drop_handler.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
@@ -59,6 +60,35 @@ void main() {
       );
 
       expect(metadata, isNull);
+    });
+
+    test('ordinary PNG text is not reported as a parse failure', () async {
+      final bytes = UnifiedMetadataParser.embedTextChunkOnly(
+        Uint8List.fromList(_transparentPngBytes),
+        'Software',
+        'Example image editor',
+      );
+
+      final detection = await detectDroppedImageMetadata('edited.png', bytes);
+
+      expect(detection.metadata, isNull);
+      expect(detection.parseError, isNull);
+    });
+
+    test('malformed generation metadata reports a parse failure', () async {
+      final bytes = UnifiedMetadataParser.embedTextChunkOnly(
+        Uint8List.fromList(_transparentPngBytes),
+        'Comment',
+        'unparseable payload',
+      );
+
+      final detection = await detectDroppedImageMetadata(
+        'broken_metadata.png',
+        bytes,
+      );
+
+      expect(detection.metadata, isNull);
+      expect(detection.parseError, contains('from 1 fields'));
     });
 
     test(
