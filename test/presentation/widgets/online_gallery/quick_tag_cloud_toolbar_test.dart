@@ -178,6 +178,11 @@ void main() {
     await mouse.moveTo(tester.getCenter(find.byType(AlertDialog)));
     await tester.pump();
     expect(find.byType(AlertDialog), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('quick-tag-cloud-open-origin')),
+      findsOneWidget,
+    );
+    expect(find.text('Open original page'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

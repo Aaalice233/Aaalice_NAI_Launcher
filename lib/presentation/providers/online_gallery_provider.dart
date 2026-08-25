@@ -1064,8 +1064,16 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
 
   Future<void> switchToSearch() async {
     if (state.viewMode == GalleryViewMode.search) return;
+    final sourceId = state.activeSourceId;
     _cancelCurrentRequest();
-    state = state.copyWith(viewMode: GalleryViewMode.search, clearError: true);
+    state = state.copyWith(
+      viewMode: GalleryViewMode.search,
+      sourceId: sourceId,
+      quickTagCloudFilterKey: sourceId == GallerySourceId.quickTagCloud
+          ? ref.read(quickTagCloudFilterProvider).stableKey
+          : state.quickTagCloudFilterKey,
+      clearError: true,
+    );
     if (state.randomEnabled || state.currentCache.posts.isEmpty) {
       await loadPosts(refresh: true);
     }
@@ -1073,19 +1081,30 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
 
   Future<void> switchToPopular() async {
     if (state.viewMode == GalleryViewMode.popular) return;
+    final sourceId = state.activeSourceId;
+    if (!sourceId.capabilities.supportsRanking) return;
     _cancelCurrentRequest();
-    state = state.copyWith(viewMode: GalleryViewMode.popular, clearError: true);
+    state = state.copyWith(
+      viewMode: GalleryViewMode.popular,
+      popularSourceId: sourceId,
+      clearError: true,
+    );
     if (state.randomEnabled || state.currentCache.posts.isEmpty) {
       await loadPosts(refresh: true);
     }
   }
 
   Future<void> switchToFavorites() async {
+    final sourceId = state.activeSourceId;
+    if (!sourceId.capabilities.supportsLocalFavorites) return;
+    if (sourceId == GallerySourceId.gelbooru) {
+      await ref.read(gelbooruAuthProvider.notifier).ensureInitialized();
+    }
     _cancelCurrentRequest();
-    final capabilities = state.favoritesSourceId.capabilities;
+    final capabilities = sourceId.capabilities;
     final remoteAvailable =
         capabilities.remoteFavorites != GalleryRemoteFavoritesCapability.none;
-    final remoteAuthenticated = switch (state.favoritesSourceId) {
+    final remoteAuthenticated = switch (sourceId) {
       GallerySourceId.danbooru => _danbooruAuth.isLoggedIn,
       GallerySourceId.gelbooru => _gelbooruAuth.isAuthenticated,
       _ => false,
@@ -1099,6 +1118,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
         : state.favoritesScope;
     state = state.copyWith(
       viewMode: GalleryViewMode.favorites,
+      favoritesSourceId: sourceId,
       favoritesScope: scope,
       clearError: true,
     );
@@ -1114,6 +1134,12 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     _cancelCurrentRequest();
     state = state.copyWith(
       sourceId: sourceId,
+      popularSourceId: sourceId.capabilities.supportsRanking
+          ? sourceId
+          : state.popularSourceId,
+      favoritesSourceId: sourceId.capabilities.supportsLocalFavorites
+          ? sourceId
+          : state.favoritesSourceId,
       quickTagCloudFilterKey: sourceId == GallerySourceId.quickTagCloud
           ? ref.read(quickTagCloudFilterProvider).stableKey
           : state.quickTagCloudFilterKey,
@@ -1129,7 +1155,14 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     if (sourceId == null || !sourceId.capabilities.supportsRanking) return;
     if (state.popularSourceId == sourceId) return;
     _cancelCurrentRequest();
-    state = state.copyWith(popularSourceId: sourceId, clearError: true);
+    state = state.copyWith(
+      sourceId: sourceId,
+      popularSourceId: sourceId,
+      favoritesSourceId: sourceId.capabilities.supportsLocalFavorites
+          ? sourceId
+          : state.favoritesSourceId,
+      clearError: true,
+    );
     if (state.viewMode == GalleryViewMode.popular &&
         (state.randomEnabled || state.currentCache.posts.isEmpty)) {
       await loadPosts(refresh: true);
@@ -1163,8 +1196,15 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     }
     _cancelCurrentRequest();
     state = state.copyWith(
+      sourceId: sourceId,
+      popularSourceId: sourceId.capabilities.supportsRanking
+          ? sourceId
+          : state.popularSourceId,
       favoritesSourceId: sourceId,
       favoritesScope: defaultScope,
+      quickTagCloudFilterKey: sourceId == GallerySourceId.quickTagCloud
+          ? ref.read(quickTagCloudFilterProvider).stableKey
+          : state.quickTagCloudFilterKey,
       clearError: true,
       clearNotice: true,
     );

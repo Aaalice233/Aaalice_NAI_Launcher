@@ -53,6 +53,10 @@ void main() {
       );
       await tester.pump();
 
+      expect(
+        _selectedModeColor(tester, 'online-gallery-mode-search'),
+        const Color(0xFF2563EB),
+      );
       final avatar = find.byKey(
         const ValueKey('online-gallery-account-avatar'),
       );
@@ -63,6 +67,27 @@ void main() {
       );
       expect(find.text('Login'), findsNothing);
       if (width == 1600) {
+        expect(
+          find.byKey(const ValueKey('online-gallery-primary-search')),
+          findsOneWidget,
+        );
+        final primaryCenter = tester
+            .getCenter(
+              find.byKey(const ValueKey('online-gallery-toolbar-primary-row')),
+            )
+            .dy;
+        expect(
+          (tester
+                      .getCenter(
+                        find.byKey(
+                          const ValueKey('online-gallery-primary-search'),
+                        ),
+                      )
+                      .dy -
+                  primaryCenter)
+              .abs(),
+          lessThan(1),
+        );
         expect(find.text('Refresh'), findsOneWidget);
         expect(find.text('Multi-select'), findsOneWidget);
         expect(
@@ -70,11 +95,15 @@ void main() {
           findsNothing,
         );
       }
+      final collapsed = width < 1100;
       expect(
         find.byKey(const ValueKey('online-gallery-blacklist')),
         findsOneWidget,
       );
-      final viewport = Offset.zero & Size(width, 900);
+      expect(
+        find.byKey(const ValueKey('online-gallery-source-filters')),
+        collapsed ? findsOneWidget : findsNothing,
+      );
       final primaryRow = tester.getRect(
         find.byKey(const ValueKey('online-gallery-toolbar-primary-row')),
       );
@@ -84,31 +113,92 @@ void main() {
       expect(primaryRow.height, 40);
       expect(secondaryRow.height, 40);
       expect(secondaryRow.top - primaryRow.bottom, 8);
-      for (final key in const [
+      final visibleKeys = <String>[
         'online-gallery-source-selector',
         'online-gallery-mode-search',
         'online-gallery-mode-popular',
         'online-gallery-mode-favorites',
         'online-gallery-rating-filter',
+        'online-gallery-primary-search',
         'online-gallery-blacklist',
         'online-gallery-output-filter',
         'online-gallery-random-toggle',
         'online-gallery-refresh',
         'online-gallery-multi-select',
         'online-gallery-account-avatar',
-      ]) {
+      ];
+      expect(
+        find.byKey(const ValueKey('online-gallery-primary-controls-scroll')),
+        findsOneWidget,
+      );
+      for (final key in visibleKeys) {
         final rect = tester.getRect(find.byKey(ValueKey(key)));
         expect(
-          viewport.overlaps(rect),
-          isTrue,
-          reason: '$key must remain visible at width $width',
+          (rect.center.dy - primaryRow.center.dy).abs(),
+          lessThan(1),
+          reason: '$key must stay in the primary row at width $width',
         );
-        expect(rect.left, greaterThanOrEqualTo(0));
-        expect(rect.right, lessThanOrEqualTo(width));
+      }
+      if (width == 700) {
+        await tester.tap(
+          find.byKey(const ValueKey('online-gallery-source-filters')),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+        final filterDialog = find.byType(AlertDialog);
+        expect(filterDialog, findsOneWidget);
+        expect(
+          find.descendant(
+            of: filterDialog,
+            matching: find.byKey(const ValueKey('online-gallery-blacklist')),
+          ),
+          findsNothing,
+        );
+        expect(
+          find.descendant(
+            of: filterDialog,
+            matching: find.byKey(
+              const ValueKey('online-gallery-output-filter'),
+            ),
+          ),
+          findsNothing,
+        );
       }
       expect(tester.takeException(), isNull);
     });
   }
+
+  testWidgets('Gelbooru does not silently switch sites for popular mode', (
+    tester,
+  ) async {
+    await _setViewSize(tester, 1200);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          onlineGalleryNotifierProvider.overrideWith(
+            _GelbooruSearchGalleryNotifier.new,
+          ),
+          danbooruAuthProvider.overrideWith(_LoggedOutDanbooruAuth.new),
+          gelbooruAuthProvider.overrideWith(_UnconfiguredGelbooruAuth.new),
+          danbooruSuggestionNotifierProvider.overrideWith(
+            _EmptyDanbooruSuggestionNotifier.new,
+          ),
+        ],
+        child: const _TestApp(),
+      ),
+    );
+    await tester.pump();
+
+    final popularButton = find.byKey(
+      const ValueKey('online-gallery-mode-popular'),
+    );
+    final inkWell = tester.widget<InkWell>(
+      find.descendant(of: popularButton, matching: find.byType(InkWell)),
+    );
+    expect(inkWell.onTap, isNull);
+    expect(find.text('Gelbooru'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('Safebooru search has no account entry', (tester) async {
     await _setViewSize(tester, 1600);
@@ -161,6 +251,18 @@ void main() {
       ),
     );
     await tester.pump();
+
+    expect(
+      _selectedModeColor(tester, 'online-gallery-mode-popular'),
+      const Color(0xFFC2410C),
+    );
+    final secondaryRow = tester.getRect(
+      find.byKey(const ValueKey('online-gallery-toolbar-secondary-row')),
+    );
+    final secondaryControls = tester.getRect(
+      find.byKey(const ValueKey('online-gallery-secondary-controls')),
+    );
+    expect(secondaryControls.left, secondaryRow.left);
 
     final avatar = find.byKey(const ValueKey('online-gallery-account-avatar'));
     expect(avatar, findsOneWidget);
@@ -229,6 +331,10 @@ void main() {
         ),
       );
       await tester.pump();
+      expect(
+        _selectedModeColor(tester, 'online-gallery-mode-favorites'),
+        const Color(0xFFBE185D),
+      );
       await tester.tap(
         find.byKey(const ValueKey('online-gallery-source-filters')),
       );
@@ -666,7 +772,7 @@ void main() {
   testWidgets('random mode replaces pagination and restores it when disabled', (
     tester,
   ) async {
-    await _setViewSize(tester, 1200);
+    await _setViewSize(tester, 1600);
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -688,33 +794,28 @@ void main() {
       find.byKey(const ValueKey('online-gallery-pagination-bar')),
       findsOneWidget,
     );
-    final primaryCenters = [
-      const ValueKey('online-gallery-random-toggle'),
-      const ValueKey('online-gallery-refresh'),
-      const ValueKey('online-gallery-multi-select'),
-      const ValueKey('online-gallery-account-avatar'),
-    ].map((key) => tester.getCenter(find.byKey(key)).dy).toList();
-    expect(
-      primaryCenters.every(
-        (center) => (center - primaryCenters.first).abs() < 1,
-      ),
-      isTrue,
-    );
-    final secondaryCenter = tester
+    final primaryCenter = tester
         .getCenter(
-          find.byKey(const ValueKey('online-gallery-toolbar-secondary-row')),
+          find.byKey(const ValueKey('online-gallery-toolbar-primary-row')),
         )
         .dy;
     for (final key in const [
       ValueKey('online-gallery-blacklist'),
       ValueKey('online-gallery-output-filter'),
+      ValueKey('online-gallery-random-toggle'),
+      ValueKey('online-gallery-refresh'),
+      ValueKey('online-gallery-multi-select'),
+      ValueKey('online-gallery-account-avatar'),
     ]) {
       expect(
-        (tester.getCenter(find.byKey(key)).dy - secondaryCenter).abs(),
+        (tester.getCenter(find.byKey(key)).dy - primaryCenter).abs(),
         lessThan(1),
       );
     }
-
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('online-gallery-random-toggle')),
+    );
+    await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(
       find.byKey(const ValueKey('online-gallery-random-toggle')),
     );
@@ -728,7 +829,7 @@ void main() {
       find.byKey(const ValueKey('online-gallery-pagination-bar')),
       findsNothing,
     );
-    expect(find.byTooltip('Draw again'), findsOneWidget);
+    expect(find.text('Draw again'), findsOneWidget);
 
     await tester.tap(
       find.byKey(const ValueKey('online-gallery-random-toggle')),
@@ -743,7 +844,7 @@ void main() {
   testWidgets('QuickTagCloud reuses rating filter and refresh update check', (
     tester,
   ) async {
-    await _setViewSize(tester, 1200);
+    await _setViewSize(tester, 1600);
     final adapter = _TrackingQuickTagCloudAdapter();
     await tester.pumpWidget(
       ProviderScope(
@@ -782,6 +883,52 @@ void main() {
       const ValueKey('online-gallery-rating-filter'),
     );
     expect(ratingFilter, findsOneWidget);
+    final primaryCenter = tester
+        .getCenter(
+          find.byKey(const ValueKey('online-gallery-toolbar-primary-row')),
+        )
+        .dy;
+    for (final key in const [
+      ValueKey('online-gallery-primary-search'),
+      ValueKey('online-gallery-rating-filter'),
+      ValueKey('online-gallery-blacklist'),
+      ValueKey('online-gallery-output-filter'),
+      ValueKey('online-gallery-random-toggle'),
+      ValueKey('online-gallery-refresh'),
+      ValueKey('online-gallery-multi-select'),
+      ValueKey('online-gallery-account-avatar'),
+    ]) {
+      expect(
+        (tester.getCenter(find.byKey(key)).dy - primaryCenter).abs(),
+        lessThan(1),
+      );
+    }
+    expect(
+      tester
+          .getSize(find.byKey(const ValueKey('online-gallery-primary-search')))
+          .width,
+      lessThanOrEqualTo(360),
+    );
+    for (final icon in const [
+      Icons.search,
+      Icons.shuffle,
+      Icons.refresh,
+      Icons.checklist,
+    ]) {
+      expect(find.byIcon(icon), findsWidgets);
+    }
+    expect(
+      tester
+          .getSize(find.byKey(const ValueKey('online-gallery-blacklist')))
+          .width,
+      lessThan(150),
+    );
+    expect(
+      tester
+          .getSize(find.byKey(const ValueKey('online-gallery-output-filter')))
+          .width,
+      lessThan(180),
+    );
     await tester.tap(ratingFilter);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
@@ -800,10 +947,16 @@ void main() {
       'q',
     });
 
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('online-gallery-refresh')),
+    );
+    await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(find.byKey(const ValueKey('online-gallery-refresh')));
     await tester.pump();
     expect(adapter.invalidationCount, 1);
 
+    await tester.ensureVisible(sourceSelector);
+    await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(sourceSelector);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
@@ -823,6 +976,14 @@ Future<void> _setViewSize(WidgetTester tester, double width) async {
   tester.view.physicalSize = Size(width, 900);
   addTearDown(tester.view.resetDevicePixelRatio);
   addTearDown(tester.view.resetPhysicalSize);
+}
+
+Color? _selectedModeColor(WidgetTester tester, String key) {
+  final material = find.descendant(
+    of: find.byKey(ValueKey(key)),
+    matching: find.byType(Material),
+  );
+  return tester.widget<Material>(material).color;
 }
 
 class _TestApp extends StatelessWidget {

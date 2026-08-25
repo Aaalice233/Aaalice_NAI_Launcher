@@ -2409,6 +2409,10 @@ class AppLocalizationsJa extends AppLocalizations {
   String get onlineGallery_popular => '人気';
 
   @override
+  String get onlineGallery_sourceDoesNotSupportPopular =>
+      '現在のサイトは人気ランキングに対応していません';
+
+  @override
   String get onlineGallery_favorites => 'お気に入り';
 
   @override
@@ -2674,10 +2678,16 @@ class AppLocalizationsJa extends AppLocalizations {
       '有効な場合は、関連タグに *tag* マッチングを使用します。無効になっている場合は、正確な Danbooru タグを検索します';
 
   @override
+  String get onlineGallery_blacklistShort => '除外';
+
+  @override
   String get onlineGallery_blacklistTags => 'ブラックリスト タグ';
 
   @override
   String get onlineGallery_outputFilter => '出力フィルター';
+
+  @override
+  String get onlineGallery_outputFilterShort => '出力';
 
   @override
   String get onlineGallery_outputFilterTooltip =>
@@ -3073,6 +3083,9 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get onlineGallery_codexOpenSource => '出典を開く';
+
+  @override
+  String get onlineGallery_codexOpenOrigin => '元のページを開く';
 
   @override
   String get onlineGallery_codexOpenSourceFailed => '指定された出典を開けません。';

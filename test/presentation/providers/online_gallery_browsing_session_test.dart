@@ -168,6 +168,59 @@ void main() {
     },
   );
 
+  test('mode changes keep the currently selected source', () async {
+    final storage = _MemoryStorage();
+    final container = ProviderContainer(
+      overrides: [
+        localStorageServiceProvider.overrideWithValue(storage),
+        onlineGallerySourceAdaptersProvider.overrideWithValue({
+          for (final source in GallerySourceId.values)
+            source: _CursorAdapter(source),
+        }),
+      ],
+    );
+    addTearDown(container.dispose);
+    final notifier = container.read(onlineGalleryNotifierProvider.notifier);
+
+    await notifier.setSource(GallerySourceId.aiTag);
+    var state = container.read(onlineGalleryNotifierProvider);
+    expect(state.sourceId, GallerySourceId.aiTag);
+    expect(state.popularSourceId, GallerySourceId.aiTag);
+    expect(state.favoritesSourceId, GallerySourceId.aiTag);
+
+    await notifier.switchToPopular();
+    state = container.read(onlineGalleryNotifierProvider);
+    expect(state.viewMode, GalleryViewMode.popular);
+    expect(state.activeSourceId, GallerySourceId.aiTag);
+
+    await notifier.switchToSearch();
+    state = container.read(onlineGalleryNotifierProvider);
+    expect(state.viewMode, GalleryViewMode.search);
+    expect(state.activeSourceId, GallerySourceId.aiTag);
+  });
+
+  test('popular mode does not silently change an unsupported source', () async {
+    final storage = _MemoryStorage();
+    final container = ProviderContainer(
+      overrides: [
+        localStorageServiceProvider.overrideWithValue(storage),
+        onlineGallerySourceAdaptersProvider.overrideWithValue({
+          for (final source in GallerySourceId.values)
+            source: _CursorAdapter(source),
+        }),
+      ],
+    );
+    addTearDown(container.dispose);
+    final notifier = container.read(onlineGalleryNotifierProvider.notifier);
+
+    await notifier.setSource(GallerySourceId.gelbooru);
+    await notifier.switchToPopular();
+
+    final state = container.read(onlineGalleryNotifierProvider);
+    expect(state.viewMode, GalleryViewMode.search);
+    expect(state.activeSourceId, GallerySourceId.gelbooru);
+  });
+
   test('notifier restores and persists location changes', () async {
     final storage = _MemoryStorage();
     final initial = const OnlineGalleryState(
@@ -218,13 +271,21 @@ class _CursorAdapter extends GallerySourceAdapter {
     CancelToken? cancelToken,
   }) async {
     lastSearchCursor = request.cursor;
-    return GalleryPage(
-      items: const [],
-      cursor: request.cursor,
-      nextCursor: null,
-      hasMore: false,
-    );
+    return _emptyPage(request.cursor);
   }
+
+  @override
+  Future<GalleryPage> ranking(
+    GalleryRankingRequest request, {
+    CancelToken? cancelToken,
+  }) async => _emptyPage(request.cursor);
+
+  GalleryPage _emptyPage(String cursor) => GalleryPage(
+    items: const [],
+    cursor: cursor,
+    nextCursor: null,
+    hasMore: false,
+  );
 }
 
 class _MemoryStorage extends LocalStorageService {

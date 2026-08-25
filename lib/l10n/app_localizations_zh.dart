@@ -2375,6 +2375,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onlineGallery_popular => '热门';
 
   @override
+  String get onlineGallery_sourceDoesNotSupportPopular => '当前站点不支持热门榜单';
+
+  @override
   String get onlineGallery_favorites => '收藏';
 
   @override
@@ -2635,10 +2638,16 @@ class AppLocalizationsZh extends AppLocalizations {
       '开启后使用 *tag* 匹配相近标签；关闭时按 Danbooru 精确标签搜索';
 
   @override
+  String get onlineGallery_blacklistShort => '屏蔽';
+
+  @override
   String get onlineGallery_blacklistTags => '黑名单标签';
 
   @override
   String get onlineGallery_outputFilter => '输出过滤';
+
+  @override
+  String get onlineGallery_outputFilterShort => '输出';
 
   @override
   String get onlineGallery_outputFilterTooltip => '管理复制、发送和加入队列时自动剔除的标签';
@@ -3019,6 +3028,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get onlineGallery_codexOpenSource => '打开上游';
+
+  @override
+  String get onlineGallery_codexOpenOrigin => '打开原址';
 
   @override
   String get onlineGallery_codexOpenSourceFailed => '无法打开声明的数据来源。';
@@ -14432,6 +14444,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get onlineGallery_popular => '熱門';
 
   @override
+  String get onlineGallery_sourceDoesNotSupportPopular => '目前站點不支援熱門榜單';
+
+  @override
   String get onlineGallery_favorites => '收藏';
 
   @override
@@ -14692,10 +14707,16 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
       '開啟後使用 *tag* 匹配相近標籤；關閉時按 Danbooru 精確標籤搜尋';
 
   @override
+  String get onlineGallery_blacklistShort => '屏蔽';
+
+  @override
   String get onlineGallery_blacklistTags => '黑名單標籤';
 
   @override
   String get onlineGallery_outputFilter => '輸出過濾';
+
+  @override
+  String get onlineGallery_outputFilterShort => '輸出';
 
   @override
   String get onlineGallery_outputFilterTooltip => '管理複製、傳送和加入佇列時自動剔除的標籤';
@@ -15077,6 +15098,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get onlineGallery_codexOpenSource => '開啟上游';
+
+  @override
+  String get onlineGallery_codexOpenOrigin => '開啟原址';
 
   @override
   String get onlineGallery_codexOpenSourceFailed => '無法開啟聲明的資料來源。';

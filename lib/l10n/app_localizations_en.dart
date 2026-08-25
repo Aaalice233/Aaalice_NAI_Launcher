@@ -2461,6 +2461,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get onlineGallery_popular => 'Popular';
 
   @override
+  String get onlineGallery_sourceDoesNotSupportPopular =>
+      'The current source does not provide popular rankings';
+
+  @override
   String get onlineGallery_favorites => 'Favorites';
 
   @override
@@ -2733,10 +2737,16 @@ class AppLocalizationsEn extends AppLocalizations {
       'Use *tag* matching for related tags when enabled; search exact Danbooru tags when disabled';
 
   @override
+  String get onlineGallery_blacklistShort => 'Block';
+
+  @override
   String get onlineGallery_blacklistTags => 'Blacklist Tags';
 
   @override
   String get onlineGallery_outputFilter => 'Output Filter';
+
+  @override
+  String get onlineGallery_outputFilterShort => 'Output';
 
   @override
   String get onlineGallery_outputFilterTooltip =>
@@ -3143,6 +3153,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get onlineGallery_codexOpenSource => 'Open source';
+
+  @override
+  String get onlineGallery_codexOpenOrigin => 'Open original page';
 
   @override
   String get onlineGallery_codexOpenSourceFailed =>

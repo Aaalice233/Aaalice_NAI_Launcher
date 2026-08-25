@@ -4467,6 +4467,12 @@ abstract class AppLocalizations {
   /// **'Popular'**
   String get onlineGallery_popular;
 
+  /// No description provided for @onlineGallery_sourceDoesNotSupportPopular.
+  ///
+  /// In en, this message translates to:
+  /// **'The current source does not provide popular rankings'**
+  String get onlineGallery_sourceDoesNotSupportPopular;
+
   /// No description provided for @onlineGallery_favorites.
   ///
   /// In en, this message translates to:
@@ -4953,6 +4959,12 @@ abstract class AppLocalizations {
   /// **'Use *tag* matching for related tags when enabled; search exact Danbooru tags when disabled'**
   String get onlineGallery_fuzzySearchTooltip;
 
+  /// No description provided for @onlineGallery_blacklistShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Block'**
+  String get onlineGallery_blacklistShort;
+
   /// No description provided for @onlineGallery_blacklistTags.
   ///
   /// In en, this message translates to:
@@ -4964,6 +4976,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Output Filter'**
   String get onlineGallery_outputFilter;
+
+  /// No description provided for @onlineGallery_outputFilterShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Output'**
+  String get onlineGallery_outputFilterShort;
 
   /// No description provided for @onlineGallery_outputFilterTooltip.
   ///
@@ -5638,6 +5656,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Open source'**
   String get onlineGallery_codexOpenSource;
+
+  /// No description provided for @onlineGallery_codexOpenOrigin.
+  ///
+  /// In en, this message translates to:
+  /// **'Open original page'**
+  String get onlineGallery_codexOpenOrigin;
 
   /// No description provided for @onlineGallery_codexOpenSourceFailed.
   ///

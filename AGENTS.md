@@ -65,6 +65,18 @@ Windows 桌面开发优先使用 `scripts/dev_hot_reload_window.ps1`，它会打
 
 遵循 `analysis_options.yaml` 和 Dart 默认格式化规则，使用两个空格缩进。变量和方法使用 `lowerCamelCase`，类型使用 `UpperCamelCase`。Riverpod provider 命名应以 `Provider` 或 `NotifierProvider` 结尾。新增功能优先复用现有 service、provider、widget 和 utility，保持 `core`、`data`、`presentation` 的职责边界清晰。
 
+## 在线画廊顶栏布局约束
+
+在线画廊顶栏按控件职责固定分行，不允许按站点自由重排。实现位于 `lib/presentation/screens/online_gallery/online_gallery_screen.dart`，布局回归测试位于 `test/presentation/screens/online_gallery/online_gallery_source_auth_test.dart`。
+
+- 第一行只放且始终保留全站点共用控件：站点选择、搜索/热门/收藏模式、年龄分级、搜索框、黑名单、输出过滤、随机、刷新、多选和账号入口。QuickTagCloud 法典、AI TAG 等来源不得把其中任何控件挪到第二行。
+- 第二行只放当前站点专属筛选与操作，例如法典浏览/更新/最近浏览/法典/分类/筛选/贡献者，以及其他来源自己的榜单周期、日期或来源筛选。
+- 搜索框使用中等固定宽度，不得用 `Expanded` 无限制占满第一行；AI TAG 双搜索框可使用较宽的固定区域。
+- 常规桌面宽度保留按钮的图标与文字；窄屏可压缩为短文字或分级缩写，但不得退化为含义不明的纯图标。
+- 宽度不足时让第一行整体横向滚动，控件仍属于第一行；禁止通过换到第二行、塞入站点筛选弹窗或按来源创建例外来解决溢出。
+- 站点筛选弹窗只能包含第二行的站点专属内容，不得重复或收纳黑名单、输出过滤等全局控件。
+- 修改顶栏后必须覆盖至少 `700`、`840`、`1180`、`1600` 宽度，并断言所有全局控件与第一行纵向中心一致、无 `RenderFlex overflow`；QuickTagCloud 必须单独作为回归场景。
+
 ## 测试规范
 
 测试使用 `flutter_test`，需要 mock 时使用 `mocktail`。测试文件以 `_test.dart` 结尾，并放在对应功能路径下，例如 `test/core/utils/`、`test/data/services/`、`test/presentation/providers/`。UI 行为变更尽量补 widget test；状态管理、请求构造、文件处理等逻辑变更应补 provider 或 service 回归测试。

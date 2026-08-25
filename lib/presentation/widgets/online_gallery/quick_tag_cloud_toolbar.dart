@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/utils/app_logger.dart';
 import '../../../data/datasources/remote/online_gallery/quick_tag_cloud_gallery_source_adapter.dart';
 import '../../../data/models/online_gallery/quick_tag_cloud_catalog.dart';
 import '../../../data/models/online_gallery/quick_tag_cloud_codex.dart';
@@ -591,6 +592,31 @@ class _QuickTagCloudToolbarState extends ConsumerState<QuickTagCloudToolbar> {
     if (mounted) await widget.onFiltersChanged();
   }
 
+  Future<void> _openCodexOrigin(
+    BuildContext context,
+    QuickTagCloudCodexMeta meta,
+  ) async {
+    final uri = Uri.https('novelai.quicktagcloud.com', '/', {'codex': meta.id});
+    try {
+      if (await canLaunchUrl(uri) &&
+          await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+        return;
+      }
+    } catch (error, stackTrace) {
+      AppLogger.e(
+        'Failed to open QuickTagCloud codex origin: $uri',
+        error,
+        stackTrace,
+        'QuickTagCloudToolbar',
+      );
+    }
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppLocalizations.of(context)!.cannotOpenUrl)),
+      );
+    }
+  }
+
   Future<void> _showContributors(
     BuildContext context,
     QuickTagCloudCodexMeta meta,
@@ -648,6 +674,12 @@ class _QuickTagCloudToolbarState extends ConsumerState<QuickTagCloudToolbar> {
           ),
         ),
         actions: [
+          TextButton.icon(
+            key: const ValueKey('quick-tag-cloud-open-origin'),
+            onPressed: () => _openCodexOrigin(dialogContext, meta),
+            icon: const Icon(Icons.open_in_new, size: 17),
+            label: Text(l10n.onlineGallery_codexOpenOrigin),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
             child: Text(l10n.common_close),

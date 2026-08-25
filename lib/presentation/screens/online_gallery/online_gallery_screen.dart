@@ -721,20 +721,52 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           // 桌面宽度足够时优先保留文字。过早退化成一排纯图标会让工具栏
           // 看似简洁，却迫使用户逐个悬停才能知道操作含义。
           final compactPrimaryActions =
-              forceCompactForText || constraints.maxWidth < 1280;
-          final compactPolicyActions =
-              forceCompactForText || constraints.maxWidth < 1200;
+              forceCompactForText || constraints.maxWidth < 1100;
           final compactRating =
-              forceCompactForText || constraints.maxWidth < 1280;
-          final iconOnlyModes =
-              forceCompactForText || constraints.maxWidth < 1280;
+              forceCompactForText || constraints.maxWidth < 1100;
+          final compactModes =
+              forceCompactForText || constraints.maxWidth < 1100;
           final collapseSecondaryControls = constraints.maxWidth < 1100;
           final showQueryFields =
               state.viewMode == GalleryViewMode.search ||
               state.viewMode == GalleryViewMode.favorites ||
               (state.viewMode == GalleryViewMode.popular &&
                   state.popularSourceId == GallerySourceId.aiTag);
+          final queryFieldWidth = _activeSource(state) == GallerySourceId.aiTag
+              ? 520.0
+              : 340.0;
           final secondaryControls = _buildSecondaryControls(theme, state);
+          final primaryControls = <Widget>[
+            _buildSourceSelector(state),
+            const SizedBox(width: 8),
+            _buildModeSelector(
+              theme,
+              state,
+              authState,
+              gelbooruAuthState,
+              compact: compactModes,
+            ),
+            const SizedBox(width: 8),
+            _buildRatingControl(theme, state, compact: compactRating),
+            if (showQueryFields) ...[
+              const SizedBox(width: 12),
+              SizedBox(
+                key: const ValueKey('online-gallery-primary-search'),
+                width: queryFieldWidth,
+                child: _buildSearchFields(theme, state),
+              ),
+            ],
+            const SizedBox(width: 8),
+            _buildGalleryPolicyControls(theme, compact: true),
+            const SizedBox(width: 8),
+            _buildPrimaryActions(
+              theme,
+              state,
+              authState,
+              gelbooruAuthState,
+              compact: compactPrimaryActions,
+            ),
+          ];
 
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -742,38 +774,13 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
               SizedBox(
                 key: const ValueKey('online-gallery-toolbar-primary-row'),
                 height: 40,
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Row(
-                        children: [
-                          _buildSourceSelector(state),
-                          const SizedBox(width: 8),
-                          _buildModeSelector(
-                            theme,
-                            state,
-                            authState,
-                            gelbooruAuthState,
-                            compact: iconOnlyModes,
-                          ),
-                          const SizedBox(width: 8),
-                          _buildRatingControl(
-                            theme,
-                            state,
-                            compact: compactRating,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    _buildPrimaryActions(
-                      theme,
-                      state,
-                      authState,
-                      gelbooruAuthState,
-                      compact: compactPrimaryActions,
-                    ),
-                  ],
+                child: SingleChildScrollView(
+                  key: const ValueKey('online-gallery-primary-controls-scroll'),
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: primaryControls,
+                  ),
                 ),
               ),
               const SizedBox(height: 8),
@@ -782,23 +789,8 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
                 height: 40,
                 child: Row(
                   children: [
-                    if (showQueryFields) ...[
-                      Flexible(
-                        flex: 5,
-                        fit: FlexFit.loose,
-                        child: _buildSearchFields(theme, state),
-                      ),
-                      const SizedBox(width: 10),
-                    ],
-                    if (!showQueryFields && !collapseSecondaryControls)
-                      const Spacer(),
                     if (collapseSecondaryControls) ...[
                       const Spacer(),
-                      _buildGalleryPolicyControls(
-                        theme,
-                        compact: compactPolicyActions,
-                      ),
-                      const SizedBox(width: 8),
                       FilledButton.tonalIcon(
                         key: const ValueKey('online-gallery-source-filters'),
                         onPressed: _showSourceFilters,
@@ -820,11 +812,6 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
                           child: secondaryControls,
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      _buildGalleryPolicyControls(
-                        theme,
-                        compact: compactPolicyActions,
-                      ),
                     ],
                   ],
                 ),
@@ -843,6 +830,8 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     GelbooruAuthState gelbooruAuthState, {
     required bool compact,
   }) {
+    final activeSourceId = state.activeSourceId;
+    final supportsPopular = activeSourceId.capabilities.supportsRanking;
     return Container(
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
@@ -861,6 +850,8 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
               _saveScrollOffset();
               _galleryNotifier.switchToSearch();
             },
+            selectedBackgroundColor: const Color(0xFF2563EB),
+            selectedForegroundColor: Colors.white,
             isFirst: true,
           ),
           _ModeButton(
@@ -869,10 +860,17 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             label: context.l10n.onlineGallery_popular,
             isSelected: state.viewMode == GalleryViewMode.popular,
             compact: compact,
-            onTap: () {
-              _saveScrollOffset();
-              _galleryNotifier.switchToPopular();
-            },
+            disabledHint: supportsPopular
+                ? null
+                : context.l10n.onlineGallery_sourceDoesNotSupportPopular,
+            onTap: supportsPopular
+                ? () {
+                    _saveScrollOffset();
+                    _galleryNotifier.switchToPopular();
+                  }
+                : null,
+            selectedBackgroundColor: const Color(0xFFC2410C),
+            selectedForegroundColor: Colors.white,
           ),
           _ModeButton(
             key: const ValueKey('online-gallery-mode-favorites'),
@@ -894,6 +892,8 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
                   _ => false,
                 },
             badgeHint: context.l10n.onlineGallery_loginForCloudFavorites,
+            selectedBackgroundColor: const Color(0xFFBE185D),
+            selectedForegroundColor: Colors.white,
           ),
         ],
       ),
@@ -1171,7 +1171,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       toggled: state.randomEnabled,
       label: context.l10n.onlineGallery_random,
       child: compact
-          ? IconButton(
+          ? OutlinedButton(
               key: const ValueKey('online-gallery-random-toggle'),
               onPressed: state.isLoading
                   ? null
@@ -1181,19 +1181,21 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
                         _galleryNotifier.setRandomEnabled(!state.randomEnabled),
                       );
                     },
-              tooltip: context.l10n.onlineGallery_random,
-              icon: const Icon(Icons.shuffle, size: 18),
-              style: IconButton.styleFrom(
+              style: OutlinedButton.styleFrom(
                 backgroundColor: state.randomEnabled
                     ? theme.colorScheme.primaryContainer
                     : null,
                 foregroundColor: state.randomEnabled
                     ? theme.colorScheme.onPrimaryContainer
                     : theme.colorScheme.onSurfaceVariant,
+                minimumSize: const Size(0, 40),
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                visualDensity: VisualDensity.compact,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(6),
                 ),
               ),
+              child: Text(context.l10n.onlineGallery_random),
             )
           : OutlinedButton.icon(
               key: const ValueKey('online-gallery-random-toggle'),
@@ -1280,18 +1282,24 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       children: [
         if (state.supportsRandom) ...[randomButton, const SizedBox(width: 6)],
         if (compact)
-          IconButton.filledTonal(
+          FilledButton.tonal(
             key: const ValueKey('online-gallery-refresh'),
             onPressed: state.isLoading ? null : refreshAction,
-            tooltip: state.randomEnabled
-                ? context.l10n.onlineGallery_randomRedraw
-                : context.l10n.onlineGallery_refresh,
-            icon: refreshIcon,
-            style: IconButton.styleFrom(
+            style: FilledButton.styleFrom(
+              minimumSize: const Size(0, 40),
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              visualDensity: VisualDensity.compact,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(6),
               ),
             ),
+            child: state.isLoading
+                ? refreshIcon
+                : Text(
+                    state.randomEnabled
+                        ? context.l10n.onlineGallery_randomRedraw
+                        : context.l10n.onlineGallery_refresh,
+                  ),
           )
         else
           FilledButton.tonalIcon(
@@ -1313,16 +1321,19 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           ),
         const SizedBox(width: 6),
         if (compact)
-          IconButton(
+          TextButton(
             key: const ValueKey('online-gallery-multi-select'),
-            icon: const Icon(Icons.checklist, size: 19),
-            tooltip: context.l10n.common_multiSelect,
             onPressed: _selectionNotifier.enter,
-            style: IconButton.styleFrom(
+            style: TextButton.styleFrom(
+              foregroundColor: theme.colorScheme.onSurfaceVariant,
+              minimumSize: const Size(0, 40),
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              visualDensity: VisualDensity.compact,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(6),
               ),
             ),
+            child: Text(context.l10n.common_multiSelect),
           )
         else
           TextButton.icon(
@@ -1570,29 +1581,26 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       required String tooltip,
       required VoidCallback onPressed,
     }) {
+      final style = OutlinedButton.styleFrom(
+        foregroundColor: theme.colorScheme.onSurfaceVariant,
+        padding: EdgeInsets.symmetric(horizontal: compact ? 8 : 12),
+        visualDensity: VisualDensity.compact,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+      );
       if (compact) {
-        return IconButton.outlined(
+        return OutlinedButton(
           key: key,
           onPressed: onPressed,
-          tooltip: tooltip,
-          icon: Badge(label: Text(label), child: Icon(icon, size: 18)),
-          style: IconButton.styleFrom(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(6),
-            ),
-          ),
+          style: style,
+          child: Text(label),
         );
       }
       return OutlinedButton.icon(
         key: key,
         onPressed: onPressed,
-        icon: Icon(icon, size: 17),
+        icon: Icon(icon, size: 16),
         label: Text(label),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: theme.colorScheme.onSurfaceVariant,
-          visualDensity: VisualDensity.compact,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-        ),
+        style: style,
       );
     }
 
@@ -1602,19 +1610,18 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         policyButton(
           key: const ValueKey('online-gallery-blacklist'),
           icon: Icons.block,
-          label: compact
-              ? '${blacklist.effectiveTags.length}'
-              : '$blacklistLabel · ${blacklist.effectiveTags.length}',
-          tooltip: context.l10n.onlineGallery_blacklistTags,
+          label:
+              '${context.l10n.onlineGallery_blacklistShort} · ${blacklist.effectiveTags.length}',
+          tooltip:
+              '${context.l10n.onlineGallery_blacklistTags} · $blacklistLabel',
           onPressed: () => showOnlineGalleryBlacklistDialog(context, ref),
         ),
         const SizedBox(width: 6),
         policyButton(
           key: const ValueKey('online-gallery-output-filter'),
           icon: Icons.filter_alt_off_outlined,
-          label: compact
-              ? '$outputFilterCount'
-              : '${context.l10n.onlineGallery_outputFilter} · $outputFilterCount',
+          label:
+              '${compact ? context.l10n.onlineGallery_outputFilterShort : context.l10n.onlineGallery_outputFilter} · $outputFilterCount',
           tooltip: context.l10n.onlineGallery_outputFilterTooltip,
           onPressed: () => showOnlineGalleryOutputFilterDialog(context),
         ),
@@ -1742,6 +1749,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       );
     }
     return Row(
+      key: const ValueKey('online-gallery-secondary-controls'),
       mainAxisSize: MainAxisSize.min,
       children: [
         for (var index = 0; index < controls.length; index++) ...[
@@ -4025,12 +4033,15 @@ class _ModeButton extends StatelessWidget {
   final IconData icon;
   final String label;
   final bool isSelected;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   final bool isFirst;
   final bool isLast;
   final bool showBadge;
   final bool compact;
   final String? badgeHint;
+  final String? disabledHint;
+  final Color selectedBackgroundColor;
+  final Color selectedForegroundColor;
 
   const _ModeButton({
     super.key,
@@ -4043,6 +4054,9 @@ class _ModeButton extends StatelessWidget {
     this.showBadge = false,
     this.compact = false,
     this.badgeHint,
+    this.disabledHint,
+    required this.selectedBackgroundColor,
+    required this.selectedForegroundColor,
   });
 
   @override
@@ -4052,23 +4066,25 @@ class _ModeButton extends StatelessWidget {
       left: isFirst ? const Radius.circular(8) : Radius.zero,
       right: isLast ? const Radius.circular(8) : Radius.zero,
     );
-    final foregroundColor = isSelected
-        ? theme.colorScheme.onPrimary
+    final enabled = onTap != null;
+    final foregroundColor = !enabled
+        ? theme.colorScheme.onSurface.withValues(alpha: 0.35)
+        : isSelected
+        ? selectedForegroundColor
         : theme.colorScheme.onSurfaceVariant;
 
-    final tooltip = showBadge && badgeHint != null
-        ? '$label · $badgeHint'
-        : label;
+    final tooltip =
+        disabledHint ??
+        (showBadge && badgeHint != null ? '$label · $badgeHint' : label);
     return Tooltip(
       message: tooltip,
       child: Semantics(
         button: true,
+        enabled: enabled,
         selected: isSelected,
-        label: compact ? label : null,
         hint: showBadge ? badgeHint : null,
-        excludeSemantics: compact,
         child: Material(
-          color: isSelected ? theme.colorScheme.primary : Colors.transparent,
+          color: isSelected ? selectedBackgroundColor : Colors.transparent,
           borderRadius: borderRadius,
           clipBehavior: Clip.antiAlias,
           child: InkWell(
@@ -4076,34 +4092,29 @@ class _ModeButton extends StatelessWidget {
             borderRadius: borderRadius,
             hoverColor: isSelected
                 ? Colors.transparent
-                : theme.colorScheme.surfaceContainerHighest,
-            focusColor: theme.colorScheme.primaryContainer.withValues(
-              alpha: 0.5,
-            ),
+                : selectedBackgroundColor.withValues(alpha: 0.08),
+            focusColor: selectedBackgroundColor.withValues(alpha: 0.14),
             child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minWidth: compact ? 40 : 0,
-                minHeight: 40,
-              ),
+              constraints: const BoxConstraints(minHeight: 40),
               child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: compact ? 11 : 14),
+                padding: EdgeInsets.symmetric(horizontal: compact ? 10 : 14),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(icon, size: 18, color: foregroundColor),
                     if (!compact) ...[
+                      Icon(icon, size: 18, color: foregroundColor),
                       const SizedBox(width: 6),
-                      Text(
-                        label,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: isSelected
-                              ? FontWeight.w600
-                              : FontWeight.normal,
-                          color: foregroundColor,
-                        ),
-                      ),
                     ],
+                    Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: isSelected
+                            ? FontWeight.w600
+                            : FontWeight.normal,
+                        color: foregroundColor,
+                      ),
+                    ),
                     if (showBadge)
                       Container(
                         margin: const EdgeInsets.only(left: 4),
@@ -4562,14 +4573,19 @@ class _RatingDropdown extends StatelessWidget {
               _buildRatingIndicator(theme, selectedCodesInOrder),
               const SizedBox(width: 6),
             ],
-            if (!compact)
-              Text(
-                buttonText(),
-                style: TextStyle(
-                  fontSize: 12,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
+            Text(
+              compact
+                  ? (isAllSelected || selectedCodesInOrder.isEmpty
+                        ? current.$2
+                        : selectedCodesInOrder
+                              .map((code) => code.toUpperCase())
+                              .join('/'))
+                  : buttonText(),
+              style: TextStyle(
+                fontSize: 12,
+                color: theme.colorScheme.onSurfaceVariant,
               ),
+            ),
             SizedBox(width: compact ? 2 : 4),
             Icon(
               Icons.arrow_drop_down,
