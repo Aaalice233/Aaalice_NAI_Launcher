@@ -58,8 +58,6 @@ Future<NaiImageMetadata?> detectImportableDroppedImageMetadata(
   String fileName,
   Uint8List bytes,
 ) async {
-  if (!fileName.toLowerCase().endsWith('.png')) return null;
-
   try {
     final metadata = await ImageMetadataService().getMetadataFromBytes(bytes);
     if (metadata != null && metadata.hasData) {

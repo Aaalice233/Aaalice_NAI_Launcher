@@ -82,7 +82,7 @@ class IsolateParseResult {
 
 /// Isolate 元数据解析服务
 ///
-/// 在独立线程中执行 PNG 元数据解析，避免阻塞 UI。
+/// 在独立线程中执行图像元数据解析，避免阻塞 UI。
 /// 适用于详情页等需要实时响应的场景。
 ///
 /// 特性：
@@ -182,7 +182,7 @@ class IsolateMetadataService {
 
   /// 解析元数据（Isolate 中执行）
   ///
-  /// [filePath] PNG 文件路径
+  /// [filePath] 图像文件路径
   /// [config] 解析配置（超时、渐进式读取等）
   /// 返回解析结果，失败返回带错误信息的结果
   Future<IsolateParseResult> parseMetadata(
@@ -731,7 +731,7 @@ void _handleParseRequest(_ParseRequest request, SendPort sendPort) {
 
   try {
     // 在 Isolate 中执行解析
-    final result = UnifiedMetadataParser.parseFromPng(
+    final result = UnifiedMetadataParser.parseFromImage(
       request.bytes,
       filePathForLog: request.filePath,
     );
