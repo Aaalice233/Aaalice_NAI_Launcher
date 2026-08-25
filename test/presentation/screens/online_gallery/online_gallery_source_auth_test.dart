@@ -62,6 +62,14 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('Login'), findsNothing);
+      if (width == 1600) {
+        expect(find.text('Refresh'), findsOneWidget);
+        expect(find.text('Multi-select'), findsOneWidget);
+        expect(
+          find.byKey(const ValueKey('online-gallery-source-filters')),
+          findsNothing,
+        );
+      }
       expect(
         find.byKey(const ValueKey('online-gallery-blacklist')),
         findsOneWidget,
@@ -692,16 +700,20 @@ void main() {
       ),
       isTrue,
     );
-    expect(
-      (tester
-                  .getCenter(
-                    find.byKey(const ValueKey('online-gallery-blacklist')),
-                  )
-                  .dy -
-              primaryCenters.first)
-          .abs(),
-      lessThan(1),
-    );
+    final secondaryCenter = tester
+        .getCenter(
+          find.byKey(const ValueKey('online-gallery-toolbar-secondary-row')),
+        )
+        .dy;
+    for (final key in const [
+      ValueKey('online-gallery-blacklist'),
+      ValueKey('online-gallery-output-filter'),
+    ]) {
+      expect(
+        (tester.getCenter(find.byKey(key)).dy - secondaryCenter).abs(),
+        lessThan(1),
+      );
+    }
 
     await tester.tap(
       find.byKey(const ValueKey('online-gallery-random-toggle')),

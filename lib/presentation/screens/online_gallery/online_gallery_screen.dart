@@ -718,14 +718,16 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         builder: (context, constraints) {
           final forceCompactForText =
               MediaQuery.textScalerOf(context).scale(1) > 1.2;
+          // 桌面宽度足够时优先保留文字。过早退化成一排纯图标会让工具栏
+          // 看似简洁，却迫使用户逐个悬停才能知道操作含义。
           final compactPrimaryActions =
-              forceCompactForText || constraints.maxWidth < 1800;
+              forceCompactForText || constraints.maxWidth < 1280;
           final compactPolicyActions =
-              forceCompactForText || constraints.maxWidth < 1800;
+              forceCompactForText || constraints.maxWidth < 1200;
           final compactRating =
-              forceCompactForText || constraints.maxWidth < 1800;
+              forceCompactForText || constraints.maxWidth < 1280;
           final iconOnlyModes =
-              forceCompactForText || constraints.maxWidth < 1800;
+              forceCompactForText || constraints.maxWidth < 1280;
           final collapseSecondaryControls = constraints.maxWidth < 1100;
           final showQueryFields =
               state.viewMode == GalleryViewMode.search ||
@@ -760,11 +762,6 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
                             state,
                             compact: compactRating,
                           ),
-                          const SizedBox(width: 8),
-                          _buildGalleryPolicyControls(
-                            theme,
-                            compact: compactPolicyActions,
-                          ),
                         ],
                       ),
                     ),
@@ -797,11 +794,23 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
                       const Spacer(),
                     if (collapseSecondaryControls) ...[
                       const Spacer(),
-                      IconButton.filledTonal(
+                      _buildGalleryPolicyControls(
+                        theme,
+                        compact: compactPolicyActions,
+                      ),
+                      const SizedBox(width: 8),
+                      FilledButton.tonalIcon(
                         key: const ValueKey('online-gallery-source-filters'),
                         onPressed: _showSourceFilters,
-                        tooltip: context.l10n.common_filter,
-                        icon: const Icon(Icons.tune_rounded, size: 18),
+                        icon: const Icon(Icons.tune_rounded, size: 17),
+                        label: Text(context.l10n.common_filter),
+                        style: FilledButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          visualDensity: VisualDensity.compact,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                        ),
                       ),
                     ] else ...[
                       Flexible(
@@ -811,12 +820,10 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
                           child: secondaryControls,
                         ),
                       ),
-                      const SizedBox(width: 4),
-                      IconButton.outlined(
-                        key: const ValueKey('online-gallery-source-filters'),
-                        onPressed: _showSourceFilters,
-                        tooltip: context.l10n.common_filter,
-                        icon: const Icon(Icons.tune_rounded, size: 18),
+                      const SizedBox(width: 8),
+                      _buildGalleryPolicyControls(
+                        theme,
+                        compact: compactPolicyActions,
                       ),
                     ],
                   ],
@@ -1183,6 +1190,9 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
                 foregroundColor: state.randomEnabled
                     ? theme.colorScheme.onPrimaryContainer
                     : theme.colorScheme.onSurfaceVariant,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(6),
+                ),
               ),
             )
           : OutlinedButton.icon(
@@ -1209,6 +1219,9 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
                   vertical: 7,
                 ),
                 visualDensity: VisualDensity.compact,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(6),
+                ),
               ),
             ),
     );
@@ -1274,6 +1287,11 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
                 ? context.l10n.onlineGallery_randomRedraw
                 : context.l10n.onlineGallery_refresh,
             icon: refreshIcon,
+            style: IconButton.styleFrom(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(6),
+              ),
+            ),
           )
         else
           FilledButton.tonalIcon(
@@ -1288,17 +1306,47 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             style: FilledButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               visualDensity: VisualDensity.compact,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(6),
+              ),
+            ),
+          ),
+        const SizedBox(width: 6),
+        if (compact)
+          IconButton(
+            key: const ValueKey('online-gallery-multi-select'),
+            icon: const Icon(Icons.checklist, size: 19),
+            tooltip: context.l10n.common_multiSelect,
+            onPressed: _selectionNotifier.enter,
+            style: IconButton.styleFrom(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(6),
+              ),
+            ),
+          )
+        else
+          TextButton.icon(
+            key: const ValueKey('online-gallery-multi-select'),
+            icon: const Icon(Icons.checklist, size: 18),
+            label: Text(context.l10n.common_multiSelect),
+            onPressed: _selectionNotifier.enter,
+            style: TextButton.styleFrom(
+              foregroundColor: theme.colorScheme.onSurfaceVariant,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              visualDensity: VisualDensity.compact,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(6),
+              ),
             ),
           ),
         const SizedBox(width: 4),
-        IconButton(
-          key: const ValueKey('online-gallery-multi-select'),
-          icon: const Icon(Icons.checklist),
-          tooltip: context.l10n.common_multiSelect,
-          onPressed: _selectionNotifier.enter,
+        _buildUserButton(
+          theme,
+          state,
+          authState,
+          gelbooruAuthState,
+          compact: compact,
         ),
-        const SizedBox(width: 2),
-        _buildUserButton(theme, state, authState, gelbooruAuthState),
       ],
     );
   }
@@ -1528,6 +1576,11 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           onPressed: onPressed,
           tooltip: tooltip,
           icon: Badge(label: Text(label), child: Icon(icon, size: 18)),
+          style: IconButton.styleFrom(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(6),
+            ),
+          ),
         );
       }
       return OutlinedButton.icon(
@@ -1538,6 +1591,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         style: OutlinedButton.styleFrom(
           foregroundColor: theme.colorScheme.onSurfaceVariant,
           visualDensity: VisualDensity.compact,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
         ),
       );
     }
@@ -1988,17 +2042,21 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     ThemeData theme,
     OnlineGalleryState state,
     DanbooruAuthState authState,
-    GelbooruAuthState gelbooruAuthState,
-  ) {
-    Widget avatar({
+    GelbooruAuthState gelbooruAuthState, {
+    required bool compact,
+  }) {
+    Widget accountControl({
+      required String label,
       required IconData icon,
       required Color backgroundColor,
       required Color foregroundColor,
       required Color borderColor,
-      IconData? badgeIcon,
-      Color? badgeColor,
+      IconData? statusIcon,
+      Color? statusColor,
+      VoidCallback? onTap,
+      bool enabled = true,
     }) {
-      return SizedBox(
+      final content = SizedBox(
         key: const ValueKey('online-gallery-account-avatar'),
         width: 40,
         height: 40,
@@ -2015,7 +2073,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
               clipBehavior: Clip.none,
               children: [
                 Center(child: Icon(icon, size: 18, color: foregroundColor)),
-                if (badgeIcon != null)
+                if (statusIcon != null)
                   Positioned(
                     right: -2,
                     bottom: -2,
@@ -2023,7 +2081,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
                       width: 14,
                       height: 14,
                       decoration: BoxDecoration(
-                        color: badgeColor,
+                        color: statusColor ?? foregroundColor,
                         shape: BoxShape.circle,
                         border: Border.all(
                           color: theme.colorScheme.surface,
@@ -2031,7 +2089,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
                         ),
                       ),
                       child: Icon(
-                        badgeIcon,
+                        statusIcon,
                         size: 9,
                         color: theme.colorScheme.surface,
                       ),
@@ -2042,26 +2100,37 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           ),
         ),
       );
+      if (onTap == null) {
+        return Opacity(opacity: enabled ? 1 : 0.55, child: content);
+      }
+      return Material(
+        color: Colors.transparent,
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onTap,
+          child: content,
+        ),
+      );
     }
 
     final sourceId = _activeSource(state);
     if (sourceId == GallerySourceId.safebooru ||
         sourceId == GallerySourceId.aiTag ||
         sourceId == GallerySourceId.quickTagCloud) {
+      final label = sourceId == GallerySourceId.quickTagCloud
+          ? context.l10n.onlineGallery_sourceQuickTagCloud
+          : sourceId.label;
       return Tooltip(
-        message: sourceId == GallerySourceId.quickTagCloud
-            ? context.l10n.onlineGallery_sourceQuickTagCloud
-            : sourceId.label,
+        message: label,
         child: Semantics(
           enabled: false,
-          child: Opacity(
-            opacity: 0.45,
-            child: avatar(
-              icon: Icons.person_off_outlined,
-              backgroundColor: theme.colorScheme.surfaceContainerHighest,
-              foregroundColor: theme.colorScheme.onSurfaceVariant,
-              borderColor: theme.colorScheme.outlineVariant,
-            ),
+          child: accountControl(
+            label: label,
+            icon: Icons.person_off_outlined,
+            backgroundColor: theme.colorScheme.surfaceContainerHighest,
+            foregroundColor: theme.colorScheme.onSurfaceVariant,
+            borderColor: theme.colorScheme.outlineVariant,
+            enabled: false,
           ),
         ),
       );
@@ -2079,49 +2148,48 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         child: Semantics(
           button: true,
           label: message,
-          child: InkWell(
-            customBorder: const CircleBorder(),
+          child: accountControl(
+            label: compact ? 'API' : message,
+            icon: invalid
+                ? Icons.person_off_outlined
+                : ready
+                ? Icons.person
+                : Icons.person_outline,
+            backgroundColor: invalid
+                ? theme.colorScheme.errorContainer
+                : ready
+                ? theme.colorScheme.primaryContainer
+                : theme.colorScheme.surfaceContainerHigh,
+            foregroundColor: invalid
+                ? theme.colorScheme.onErrorContainer
+                : ready
+                ? theme.colorScheme.onPrimaryContainer
+                : theme.colorScheme.onSurfaceVariant,
+            borderColor: invalid
+                ? theme.colorScheme.error
+                : ready
+                ? theme.colorScheme.primary.withValues(alpha: 0.45)
+                : theme.colorScheme.outlineVariant,
+            statusIcon: invalid
+                ? Icons.priority_high
+                : ready
+                ? Icons.check
+                : Icons.key,
+            statusColor: invalid
+                ? theme.colorScheme.error
+                : ready
+                ? Colors.green.shade600
+                : theme.colorScheme.tertiary,
             onTap: () => _showGelbooruCredentialsDialog(context),
-            child: avatar(
-              icon: invalid
-                  ? Icons.person_off_outlined
-                  : ready
-                  ? Icons.person
-                  : Icons.person_outline,
-              backgroundColor: invalid
-                  ? theme.colorScheme.errorContainer
-                  : ready
-                  ? theme.colorScheme.primaryContainer
-                  : theme.colorScheme.surfaceContainerHigh,
-              foregroundColor: invalid
-                  ? theme.colorScheme.onErrorContainer
-                  : ready
-                  ? theme.colorScheme.onPrimaryContainer
-                  : theme.colorScheme.onSurfaceVariant,
-              borderColor: invalid
-                  ? theme.colorScheme.error
-                  : ready
-                  ? theme.colorScheme.primary.withValues(alpha: 0.45)
-                  : theme.colorScheme.outlineVariant,
-              badgeIcon: invalid
-                  ? Icons.priority_high
-                  : ready
-                  ? Icons.check
-                  : Icons.key,
-              badgeColor: invalid
-                  ? theme.colorScheme.error
-                  : ready
-                  ? Colors.green.shade600
-                  : theme.colorScheme.tertiary,
-            ),
           ),
         ),
       );
     }
 
     if (authState.isLoggedIn) {
+      final username = authState.credentials?.username ?? 'Danbooru';
       return PopupMenuButton<String>(
-        tooltip: authState.credentials?.username,
+        tooltip: username,
         onSelected: (value) {
           if (value == 'logout') {
             ref.read(danbooruAuthProvider.notifier).logout();
@@ -2135,10 +2203,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  authState.credentials?.username ?? '',
-                  style: theme.textTheme.titleSmall,
-                ),
+                Text(username, style: theme.textTheme.titleSmall),
                 if (authState.user != null)
                   Text(
                     authState.user!.levelName,
@@ -2161,13 +2226,14 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             ),
           ),
         ],
-        child: avatar(
+        child: accountControl(
+          label: username,
           icon: Icons.person,
           backgroundColor: theme.colorScheme.primaryContainer,
           foregroundColor: theme.colorScheme.onPrimaryContainer,
           borderColor: theme.colorScheme.primary.withValues(alpha: 0.45),
-          badgeIcon: Icons.check,
-          badgeColor: Colors.green.shade600,
+          statusIcon: Icons.check,
+          statusColor: Colors.green.shade600,
         ),
       );
     }
@@ -2177,17 +2243,15 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       child: Semantics(
         button: true,
         label: context.l10n.onlineGallery_login,
-        child: InkWell(
-          customBorder: const CircleBorder(),
+        child: accountControl(
+          label: context.l10n.onlineGallery_login,
+          icon: Icons.person_outline,
+          backgroundColor: theme.colorScheme.surfaceContainerHigh,
+          foregroundColor: theme.colorScheme.onSurfaceVariant,
+          borderColor: theme.colorScheme.outlineVariant,
+          statusIcon: Icons.login,
+          statusColor: theme.colorScheme.primary,
           onTap: () => _showLoginDialog(context),
-          child: avatar(
-            icon: Icons.person_outline,
-            backgroundColor: theme.colorScheme.surfaceContainerHigh,
-            foregroundColor: theme.colorScheme.onSurfaceVariant,
-            borderColor: theme.colorScheme.outlineVariant,
-            badgeIcon: Icons.login,
-            badgeColor: theme.colorScheme.primary,
-          ),
         ),
       ),
     );
