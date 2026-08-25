@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
@@ -31,12 +32,16 @@ class WeightAdjustToolbarWrapper extends StatefulWidget {
   /// 是否启用权重调整
   final bool enabled;
 
+  /// 是否允许通过鼠标滚轮调整权重
+  final bool enableWheelAdjustment;
+
   const WeightAdjustToolbarWrapper({
     super.key,
     required this.child,
     required this.controller,
     this.focusNode,
     this.enabled = true,
+    this.enableWheelAdjustment = true,
   });
 
   @override
@@ -84,6 +89,18 @@ class _WeightAdjustToolbarWrapperState
         _focusNode.dispose();
       }
       _initFocusNode();
+    }
+    if (oldWidget.enableWheelAdjustment != widget.enableWheelAdjustment) {
+      final overlayEntry = _overlayEntry;
+      if (overlayEntry != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted &&
+              identical(_overlayEntry, overlayEntry) &&
+              overlayEntry.mounted) {
+            overlayEntry.markNeedsBuild();
+          }
+        });
+      }
     }
   }
 
@@ -152,6 +169,7 @@ class _WeightAdjustToolbarWrapperState
         layerLink: _layerLink,
         textFieldKey: _textFieldKey,
         onClose: _hideToolbar,
+        enableWheelAdjustment: widget.enableWheelAdjustment,
         onInteractingChanged: (interacting) {
           _isInteractingWithToolbar = interacting;
         },
@@ -167,11 +185,41 @@ class _WeightAdjustToolbarWrapperState
     _overlayEntry = null;
   }
 
+  void _adjustWeightByStep(double step) {
+    final result = _WeightSelectionEditor.parseSelection(widget.controller);
+    _WeightSelectionEditor.applyWeight(
+      widget.controller,
+      (result.weight + step).clamp(0.1, 3.0),
+    );
+    _overlayEntry?.markNeedsBuild();
+  }
+
+  void _handlePointerSignal(PointerSignalEvent event) {
+    if (event is! PointerScrollEvent ||
+        event.scrollDelta.dy == 0 ||
+        !widget.enabled ||
+        !widget.enableWheelAdjustment ||
+        !_WeightSelectionEditor.hasSelection(widget.controller)) {
+      return;
+    }
+
+    GestureBinding.instance.pointerSignalResolver.register(event, (
+      resolvedEvent,
+    ) {
+      final scrollEvent = resolvedEvent as PointerScrollEvent;
+      _adjustWeightByStep(scrollEvent.scrollDelta.dy < 0 ? 0.05 : -0.05);
+      scrollEvent.respond(allowPlatformDefault: false);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    return CompositedTransformTarget(
-      link: _layerLink,
-      child: KeyedSubtree(key: _textFieldKey, child: widget.child),
+    return Listener(
+      onPointerSignal: _handlePointerSignal,
+      child: CompositedTransformTarget(
+        link: _layerLink,
+        child: KeyedSubtree(key: _textFieldKey, child: widget.child),
+      ),
     );
   }
 }
@@ -185,6 +233,14 @@ class _WeightParseResult {
 }
 
 class _WeightSelectionEditor {
+  static bool hasSelection(TextEditingController controller) {
+    final selection = controller.selection;
+    return selection.isValid &&
+        selection.start != selection.end &&
+        selection.start >= 0 &&
+        selection.end <= controller.text.length;
+  }
+
   static _WeightParseResult parseSelection(TextEditingController controller) {
     final text = controller.text;
     final selection = controller.selection;
@@ -308,12 +364,50 @@ class _WeightSelectionEditor {
   }
 }
 
+class WeightAdjustScrollPhysics extends ScrollPhysics {
+  const WeightAdjustScrollPhysics({
+    required this.controllerProvider,
+    super.parent,
+  });
+
+  /// Resolves lazily because Flutter can retain same-type physics on rebuild.
+  final ValueGetter<TextEditingController> controllerProvider;
+
+  @override
+  WeightAdjustScrollPhysics applyTo(ScrollPhysics? ancestor) {
+    return WeightAdjustScrollPhysics(
+      controllerProvider: controllerProvider,
+      parent: buildParent(ancestor),
+    );
+  }
+
+  @override
+  bool shouldAcceptUserOffset(ScrollMetrics position) {
+    if (_WeightSelectionEditor.hasSelection(controllerProvider())) {
+      return false;
+    }
+    return super.shouldAcceptUserOffset(position);
+  }
+}
+
+bool supportsPromptWeightScrollPhysics(TargetPlatform platform) {
+  return switch (platform) {
+    TargetPlatform.windows ||
+    TargetPlatform.macOS ||
+    TargetPlatform.linux => true,
+    TargetPlatform.android ||
+    TargetPlatform.iOS ||
+    TargetPlatform.fuchsia => false,
+  };
+}
+
 /// 权重调整工具条
 class _WeightAdjustToolbar extends StatefulWidget {
   final TextEditingController controller;
   final LayerLink layerLink;
   final GlobalKey textFieldKey;
   final VoidCallback onClose;
+  final bool enableWheelAdjustment;
   final ValueChanged<bool> onInteractingChanged;
 
   const _WeightAdjustToolbar({
@@ -321,6 +415,7 @@ class _WeightAdjustToolbar extends StatefulWidget {
     required this.layerLink,
     required this.textFieldKey,
     required this.onClose,
+    required this.enableWheelAdjustment,
     required this.onInteractingChanged,
   });
 
@@ -361,6 +456,22 @@ class _WeightAdjustToolbarState extends State<_WeightAdjustToolbar> {
   void _adjustWeightByStep(double step) {
     final currentWeight = double.tryParse(_weightController.text) ?? 1.0;
     _applyWeight((currentWeight + step).clamp(0.1, 3.0));
+  }
+
+  void _handlePointerSignal(PointerSignalEvent event) {
+    if (event is! PointerScrollEvent ||
+        event.scrollDelta.dy == 0 ||
+        !widget.enableWheelAdjustment) {
+      return;
+    }
+
+    GestureBinding.instance.pointerSignalResolver.register(event, (
+      resolvedEvent,
+    ) {
+      final scrollEvent = resolvedEvent as PointerScrollEvent;
+      _adjustWeightByStep(scrollEvent.scrollDelta.dy < 0 ? 0.05 : -0.05);
+      scrollEvent.respond(allowPlatformDefault: false);
+    });
   }
 
   Offset _calculateOffset() {
@@ -421,6 +532,7 @@ class _WeightAdjustToolbarState extends State<_WeightAdjustToolbar> {
     return Listener(
       onPointerDown: (_) => widget.onInteractingChanged(true),
       onPointerUp: (_) => widget.onInteractingChanged(false),
+      onPointerSignal: _handlePointerSignal,
       child: CompositedTransformFollower(
         link: widget.layerLink,
         showWhenUnlinked: false,

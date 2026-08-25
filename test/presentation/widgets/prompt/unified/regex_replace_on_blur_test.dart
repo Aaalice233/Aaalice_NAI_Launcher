@@ -269,6 +269,9 @@ class _TestLocalStorageService extends LocalStorageService {
   bool getResolveAliasOnCopy() => false;
 
   @override
+  bool getEnablePromptWeightScroll() => false;
+
+  @override
   bool getEnableAutocomplete() => false;
 
   @override

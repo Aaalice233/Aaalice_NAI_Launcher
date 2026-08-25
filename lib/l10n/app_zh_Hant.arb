@@ -3527,6 +3527,8 @@
   "settings_queueRetryInterval": "重試間隔",
   "settings_showRandomPromptTools": "顯示隨機提示詞工具",
   "settings_showRandomPromptToolsSubtitle": "在生成頁顯示“隨機提示詞”按鈕和“抽卡模式”開關",
+  "settings_enablePromptWeightScroll": "滾輪調整提示詞權重",
+  "settings_enablePromptWeightScrollSubtitle": "選中提示詞時，滾輪僅調整權重，不再觸發頁面滾動等其他滾輪操作",
   "settings_queueRetryCountMax": "最多 {count} 次",
   "@settings_queueRetryCountMax": {
     "placeholders": {

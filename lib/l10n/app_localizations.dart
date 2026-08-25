@@ -13310,6 +13310,18 @@ abstract class AppLocalizations {
   /// **'Show the Random Prompt button and Random Mode toggle on the generation page'**
   String get settings_showRandomPromptToolsSubtitle;
 
+  /// No description provided for @settings_enablePromptWeightScroll.
+  ///
+  /// In en, this message translates to:
+  /// **'Adjust prompt weight with mouse wheel'**
+  String get settings_enablePromptWeightScroll;
+
+  /// No description provided for @settings_enablePromptWeightScrollSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'When prompt text is selected, use the wheel only to adjust its weight and suppress other scroll actions.'**
+  String get settings_enablePromptWeightScrollSubtitle;
+
   /// No description provided for @settings_queueRetryCountMax.
   ///
   /// In en, this message translates to:

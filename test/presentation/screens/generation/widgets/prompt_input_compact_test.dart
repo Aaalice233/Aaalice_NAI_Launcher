@@ -92,6 +92,9 @@ class _TestLocalStorageService extends LocalStorageService {
   final String defaultModel;
 
   @override
+  bool getEnablePromptWeightScroll() => true;
+
+  @override
   bool getEnableAutocomplete() => false;
 
   @override

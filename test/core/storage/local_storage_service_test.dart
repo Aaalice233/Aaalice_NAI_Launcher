@@ -45,15 +45,4 @@ void main() {
 
     expect(storage.getDefaultSteps(), 31);
   });
-
-  test('ignores the removed prompt weight wheel setting on startup', () async {
-    await Hive.box<dynamic>(
-      StorageKeys.settingsBox,
-    ).put('enable_prompt_weight_scroll', true);
-    await Hive.close();
-    await Hive.openBox(StorageKeys.settingsBox);
-
-    final storage = LocalStorageService();
-    expect(storage.getDefaultModel(), ImageModels.animeDiffusionV45Full);
-  });
 }

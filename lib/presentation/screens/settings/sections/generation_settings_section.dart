@@ -105,6 +105,9 @@ class _GenerationSettingsSectionState
     final theme = Theme.of(context);
     final l10n = context.l10n;
     final showRandomTools = ref.watch(randomPromptToolsVisibilityProvider);
+    final promptWeightScrollEnabled = ref.watch(
+      promptWeightScrollSettingsProvider,
+    );
     final straightAlpha = ref.watch(
       generationParamsNotifierProvider.select((params) => params.straightAlpha),
     );
@@ -149,6 +152,26 @@ class _GenerationSettingsSectionState
             value: showRandomTools,
             onChanged: (value) {
               ref.read(randomPromptToolsVisibilityProvider.notifier).set(value);
+            },
+          ),
+          SwitchListTile(
+            secondary: const Icon(Icons.mouse_outlined),
+            title: Text(l10n.settings_enablePromptWeightScroll),
+            subtitle: Text(l10n.settings_enablePromptWeightScrollSubtitle),
+            value: promptWeightScrollEnabled,
+            onChanged: (value) async {
+              final messenger = ScaffoldMessenger.maybeOf(context);
+              try {
+                await ref
+                    .read(promptWeightScrollSettingsProvider.notifier)
+                    .set(value);
+              } catch (error) {
+                messenger?.showSnackBar(
+                  SnackBar(
+                    content: Text(l10n.globalSettings_saveFailed('$error')),
+                  ),
+                );
+              }
             },
           ),
           SettingsSectionLabel(l10n.settings_generationOutputSection),
