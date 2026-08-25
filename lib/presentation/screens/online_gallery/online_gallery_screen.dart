@@ -4473,6 +4473,13 @@ class _FuzzySearchToggle extends StatelessWidget {
     return FilterChip(
       selected: enabled,
       showCheckmark: false,
+      avatar: Icon(
+        Icons.manage_search_rounded,
+        size: 16,
+        color: enabled
+            ? theme.colorScheme.secondary
+            : theme.colorScheme.onSurfaceVariant,
+      ),
       label: Text(
         context.l10n.onlineGallery_fuzzySearch,
         style: const TextStyle(fontSize: 12),

@@ -7,6 +7,7 @@ import 'package:nai_launcher/data/models/online_gallery/gallery_source.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/widgets/online_gallery/gallery_detail_dialog.dart';
 import 'package:nai_launcher/presentation/widgets/online_gallery/gallery_detail_overview_card.dart';
+import 'package:nai_launcher/presentation/widgets/tag_chip.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -21,6 +22,7 @@ void main() {
 
       var favoriteSucceeds = false;
       var copyCount = 0;
+      var negativeCopyCount = 0;
       var characterCopyCount = 0;
       var sentToGenerate = false;
       var addedToQueue = false;
@@ -56,6 +58,7 @@ void main() {
           GalleryCharacterPrompt(
             label: 'Character',
             prompt: 'character prompt',
+            negativePrompt: 'character negative',
           ),
         ],
         rawSourceMetadata: const {
@@ -78,7 +81,7 @@ void main() {
                 favoriteLoading: false,
                 labels: _labels(),
                 onCopyPrompt: () => copyCount++,
-                onCopyNegativePrompt: () {},
+                onCopyNegativePrompt: () => negativeCopyCount++,
                 onCopyCharacter: (_) => characterCopyCount++,
                 onCopyAll: () {},
                 onToggleFavorite: () async => favoriteSucceeds,
@@ -99,7 +102,10 @@ void main() {
       expect(find.text('No image'), findsOneWidget);
       expect(find.text('positive prompt'), findsOneWidget);
       expect(find.text('negative prompt'), findsOneWidget);
+      expect(find.text('character prompt'), findsOneWidget);
+      expect(find.text('character negative'), findsOneWidget);
       expect(find.text('raw parameters'), findsOneWidget);
+      expect(find.byType(SimpleTagChip), findsNWidgets(4));
       final overview = find.byType(GalleryDetailOverviewCard);
       expect(
         find.descendant(of: overview, matching: find.text('negative prompt')),
@@ -136,15 +142,19 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byIcon(Icons.favorite), findsOneWidget);
 
-      await tester.tap(find.widgetWithText(OutlinedButton, 'Copy'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(MenuItemButton, 'Copy positive'));
-      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.byTooltip('Copy positive'),
+        -180,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.byTooltip('Copy positive'));
+      await tester.tap(find.byTooltip('Copy negative'));
       await tester.tap(find.byTooltip('Copy this character'));
       await tester.tap(find.widgetWithText(FilledButton, 'Generate'));
       await tester.tap(find.widgetWithText(OutlinedButton, 'Queue'));
       await tester.pumpAndSettle();
       expect(copyCount, 1);
+      expect(negativeCopyCount, 1);
       expect(characterCopyCount, 1);
       expect(sentToGenerate, isTrue);
       expect(addedToQueue, isTrue);

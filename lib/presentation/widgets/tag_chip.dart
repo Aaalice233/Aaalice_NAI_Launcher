@@ -16,7 +16,6 @@ class SimpleTagChip extends ConsumerStatefulWidget {
   final bool autoTranslate;
   final int? category;
   final bool isOutputFiltered;
-  final bool tonal;
   final String? tooltip;
   final VoidCallback? onDeleted;
   final String? deleteTooltip;
@@ -31,7 +30,6 @@ class SimpleTagChip extends ConsumerStatefulWidget {
     this.autoTranslate = true,
     this.category,
     this.isOutputFiltered = false,
-    this.tonal = false,
     this.tooltip,
     this.onDeleted,
     this.deleteTooltip,
@@ -96,22 +94,14 @@ class _SimpleTagChipState extends ConsumerState<SimpleTagChip> {
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
             color: _isHovering
-                ? stateColor.withValues(alpha: widget.tonal ? 0.18 : 0.22)
+                ? stateColor.withValues(alpha: 0.22)
                 : stateColor.withValues(
-                    alpha: widget.isOutputFiltered
-                        ? 0.08
-                        : widget.tonal
-                        ? 0.11
-                        : 0.1,
+                    alpha: widget.isOutputFiltered ? 0.08 : 0.1,
                   ),
-            borderRadius: BorderRadius.circular(widget.tonal ? 7 : 4),
-            border: widget.tonal
-                ? null
-                : Border.all(
-                    color: stateColor.withValues(
-                      alpha: _isHovering ? 0.8 : 0.35,
-                    ),
-                  ),
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(
+              color: stateColor.withValues(alpha: _isHovering ? 0.8 : 0.35),
+            ),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -121,9 +111,7 @@ class _SimpleTagChipState extends ConsumerState<SimpleTagChip> {
                   displayText,
                   style: TextStyle(
                     fontSize: 11,
-                    color: widget.tonal
-                        ? theme.colorScheme.onSurface
-                        : stateColor,
+                    color: stateColor,
                     fontWeight: FontWeight.w500,
                     decoration: widget.isOutputFiltered
                         ? TextDecoration.lineThrough

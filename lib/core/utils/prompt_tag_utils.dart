@@ -85,4 +85,18 @@ abstract final class PromptTagUtils {
     }
     return List.unmodifiable(tags);
   }
+
+  /// Removes empty and repeated display tags while preserving the first
+  /// occurrence and its original spelling.
+  static List<String> uniqueForDisplay(Iterable<String> tags) {
+    final seen = <String>{};
+    return List.unmodifiable([
+      for (final tag in tags)
+        if (tag.trim().isNotEmpty && seen.add(tag.trim().toLowerCase()))
+          tag.trim(),
+    ]);
+  }
+
+  static List<String> parseForDisplay(String prompt) =>
+      uniqueForDisplay(splitForDisplay(prompt));
 }

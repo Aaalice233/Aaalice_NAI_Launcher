@@ -36,5 +36,14 @@ void main() {
         ['mignon', 'artist:quasarcake', 'artist:houkisei', 'solo'],
       );
     });
+
+    test('parses display tags with stable case-insensitive deduplication', () {
+      expect(
+        PromptTagUtils.parseForDisplay(
+          'masterpiece, location, Masterpiece, 1.2::location, no text::',
+        ),
+        ['masterpiece', 'location', 'no text'],
+      );
+    });
   });
 }

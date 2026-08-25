@@ -510,15 +510,16 @@ void main() {
 
     expect(find.text('AI TAG'), findsWidgets);
     expect(find.text('3 images'), findsOneWidget);
+    expect(find.byTooltip('Copy Prompt'), findsAtLeastNWidgets(1));
     expect(find.widgetWithText(OutlinedButton, 'Copy'), findsOneWidget);
     await tester.tap(find.widgetWithText(OutlinedButton, 'Copy'));
     await tester.pump(const Duration(milliseconds: 200));
-    expect(find.widgetWithText(MenuItemButton, 'Copy Prompt'), findsOneWidget);
+    expect(find.widgetWithText(MenuItemButton, 'Copy Prompt'), findsNothing);
     expect(
       find.widgetWithText(MenuItemButton, 'Copy full metadata'),
       findsOneWidget,
     );
-    await tester.tap(find.widgetWithText(MenuItemButton, 'Copy Prompt'));
+    await tester.tap(find.widgetWithText(MenuItemButton, 'Copy full metadata'));
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('Download all images in this work'), findsOneWidget);
     expect(find.byType(CachedNetworkImage), findsAtLeastNWidgets(4));

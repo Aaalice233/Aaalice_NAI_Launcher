@@ -5,11 +5,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/cache/gallery_image_request.dart';
 import '../../../core/cache/online_gallery_image_cache_manager.dart';
+import '../../../core/utils/prompt_tag_utils.dart';
 import '../../../data/models/online_gallery/gallery_item.dart';
 import '../../../data/models/online_gallery/gallery_source.dart';
 import '../../providers/online_gallery_output_filter_provider.dart';
 import '../tag_chip.dart';
 import 'gallery_detail_overview_card.dart';
+import 'gallery_detail_tag_section.dart';
 import 'gallery_detail_text_section.dart';
 import 'gallery_tag_context_menu.dart';
 import 'video_player_widget.dart';
@@ -223,14 +225,18 @@ class _GalleryDetailDialogState extends ConsumerState<GalleryDetailDialog> {
   bool get _hasNegativePrompt =>
       widget.detail.negativePrompt?.trim().isNotEmpty == true;
 
-  bool get _hasCopyableContent =>
-      _hasPrompt ||
-      _hasNegativePrompt ||
-      widget.detail.characterPrompts.any(
+  List<GalleryCharacterPrompt> get _displayCharacterPrompts => widget
+      .detail
+      .characterPrompts
+      .where(
         (character) =>
             character.prompt.trim().isNotEmpty ||
             character.negativePrompt.trim().isNotEmpty,
-      );
+      )
+      .toList(growable: false);
+
+  bool get _hasCopyableContent =>
+      _hasPrompt || _hasNegativePrompt || _displayCharacterPrompts.isNotEmpty;
 
   @override
   void initState() {
@@ -823,13 +829,13 @@ class _GalleryDetailDialogState extends ConsumerState<GalleryDetailDialog> {
         .where((part) => part.isNotEmpty)
         .toList(growable: false);
     final promptIsRepresentedByTags =
-        isQuickTagCloud &&
         widget.detail.prompt?.trim().isNotEmpty == true &&
         widget.detail.item.tagString.trim() == widget.detail.prompt!.trim();
     final showPromptCard = _hasPrompt && !promptIsRepresentedByTags;
     final note = widget.detail.note?.trim().isNotEmpty == true
         ? widget.detail.note!.trim()
         : widget.detail.description?.trim() ?? '';
+    final characterPrompts = _displayCharacterPrompts;
 
     return Column(
       children: [
@@ -846,7 +852,6 @@ class _GalleryDetailDialogState extends ConsumerState<GalleryDetailDialog> {
                   fileName: preferredFile,
                   author: author,
                   declaredSource: showDeclaredSource ? declaredSource : '',
-                  includePrompt: showPromptCard,
                   note: note,
                 )
               else ...[
@@ -860,27 +865,38 @@ class _GalleryDetailDialogState extends ConsumerState<GalleryDetailDialog> {
                 ],
                 if (widget.detail.item.tags.isNotEmpty) ...[
                   const SizedBox(height: 14),
-                  _buildTagSections(theme),
+                  _buildTagSections(
+                    sectionLabel: promptIsRepresentedByTags
+                        ? widget.labels.positivePrompt
+                        : '',
+                    onCopySection: promptIsRepresentedByTags
+                        ? widget.onCopyPrompt
+                        : null,
+                    sectionCopyTooltip: widget.labels.copyPositive,
+                  ),
                 ],
               ],
               if (!isQuickTagCloud && showPromptCard) ...[
                 const SizedBox(height: 16),
-                GalleryDetailTextSection(
-                  title: widget.labels.positivePrompt,
-                  content: widget.detail.prompt!.trim(),
-                  accentColor: theme.colorScheme.primary,
+                _buildPromptTagSection(
+                  label: widget.labels.positivePrompt,
+                  prompt: widget.detail.prompt!.trim(),
+                  color: TagColors.general,
+                  onCopy: widget.onCopyPrompt,
+                  copyTooltip: widget.labels.copyPositive,
                 ),
               ],
               if (!isQuickTagCloud && _hasNegativePrompt) ...[
                 const SizedBox(height: 12),
-                GalleryDetailTextSection(
-                  title: widget.labels.negativePrompt,
-                  content: widget.detail.negativePrompt!.trim(),
-                  accentColor: theme.colorScheme.error,
+                _buildPromptTagSection(
+                  label: widget.labels.negativePrompt,
+                  prompt: widget.detail.negativePrompt!.trim(),
+                  color: theme.colorScheme.error,
+                  onCopy: widget.onCopyNegativePrompt,
+                  copyTooltip: widget.labels.copyNegative,
                 ),
               ],
-              if (!isQuickTagCloud &&
-                  widget.detail.characterPrompts.isNotEmpty) ...[
+              if (!isQuickTagCloud && characterPrompts.isNotEmpty) ...[
                 const SizedBox(height: 18),
                 Text(
                   widget.labels.characterPrompts,
@@ -891,15 +907,11 @@ class _GalleryDetailDialogState extends ConsumerState<GalleryDetailDialog> {
                 const SizedBox(height: 8),
                 for (
                   var index = 0;
-                  index < widget.detail.characterPrompts.length;
+                  index < characterPrompts.length;
                   index++
                 ) ...[
-                  _buildCharacterPrompt(
-                    theme,
-                    widget.detail.characterPrompts[index],
-                    index,
-                  ),
-                  if (index + 1 < widget.detail.characterPrompts.length)
+                  _buildCharacterTagSection(characterPrompts[index], index),
+                  if (index + 1 < characterPrompts.length)
                     const SizedBox(height: 8),
                 ],
               ],
@@ -1100,22 +1112,17 @@ class _GalleryDetailDialogState extends ConsumerState<GalleryDetailDialog> {
     );
   }
 
-  Widget _buildTagSections(ThemeData theme, {bool tonal = false}) {
+  Widget _buildTagSections({
+    String sectionLabel = '',
+    VoidCallback? onCopySection,
+    String sectionCopyTooltip = '',
+  }) {
     final item = widget.detail.item;
-    List<String> unique(Iterable<String> values) {
-      final seen = <String>{};
-      return [
-        for (final value in values)
-          if (value.trim().isNotEmpty && seen.add(value.trim().toLowerCase()))
-            value.trim(),
-      ];
-    }
-
-    final artists = unique(item.artistTags);
-    final characters = unique(item.characterTags);
-    final copyrights = unique(item.copyrightTags);
-    final general = unique(item.generalTags);
-    final metadata = unique(item.metaTags);
+    final artists = PromptTagUtils.uniqueForDisplay(item.artistTags);
+    final characters = PromptTagUtils.uniqueForDisplay(item.characterTags);
+    final copyrights = PromptTagUtils.uniqueForDisplay(item.copyrightTags);
+    final general = PromptTagUtils.uniqueForDisplay(item.generalTags);
+    final metadata = PromptTagUtils.uniqueForDisplay(item.metaTags);
     final categorized = {
       for (final tag in [
         ...artists,
@@ -1126,76 +1133,138 @@ class _GalleryDetailDialogState extends ConsumerState<GalleryDetailDialog> {
       ])
         tag.toLowerCase(),
     };
-    final uncategorized = unique(
+    final uncategorized = PromptTagUtils.uniqueForDisplay(
       item.tags.where((tag) => !categorized.contains(tag.trim().toLowerCase())),
     );
-    final groups = <({String label, List<String> tags, Color color})>[
-      if (artists.isNotEmpty)
-        (label: widget.labels.artists, tags: artists, color: TagColors.artist),
-      if (characters.isNotEmpty)
-        (
-          label: widget.labels.characters,
-          tags: characters,
-          color: TagColors.character,
+    return _buildTagCollection(
+      [
+        if (artists.isNotEmpty)
+          GalleryDetailTagGroup(
+            label: widget.labels.artists,
+            tags: artists,
+            color: TagColors.artist,
+          ),
+        if (characters.isNotEmpty)
+          GalleryDetailTagGroup(
+            label: widget.labels.characters,
+            tags: characters,
+            color: TagColors.character,
+          ),
+        if (copyrights.isNotEmpty)
+          GalleryDetailTagGroup(
+            label: widget.labels.copyrights,
+            tags: copyrights,
+            color: TagColors.copyright,
+          ),
+        if (categorized.isNotEmpty &&
+            (general.isNotEmpty || uncategorized.isNotEmpty))
+          GalleryDetailTagGroup(
+            label: widget.labels.general,
+            tags: PromptTagUtils.uniqueForDisplay([
+              ...general,
+              ...uncategorized,
+            ]),
+            color: TagColors.general,
+          ),
+        if (metadata.isNotEmpty)
+          GalleryDetailTagGroup(
+            label: widget.labels.metadata,
+            tags: metadata,
+            color: TagColors.meta,
+          ),
+        if (categorized.isEmpty && uncategorized.isNotEmpty)
+          GalleryDetailTagGroup(
+            label: widget.labels.rawTags,
+            tags: uncategorized,
+            color: TagColors.general,
+          ),
+      ],
+      sectionLabel: sectionLabel,
+      onCopySection: onCopySection,
+      sectionCopyTooltip: sectionCopyTooltip,
+    );
+  }
+
+  Widget _buildPromptTagSection({
+    required String label,
+    required String prompt,
+    required Color color,
+    VoidCallback? onCopy,
+    String copyTooltip = '',
+    String sectionLabel = '',
+  }) {
+    final tags = PromptTagUtils.parseForDisplay(prompt);
+    return _buildTagCollection(
+      [
+        GalleryDetailTagGroup(
+          label: label,
+          tags: tags,
+          color: color,
+          onCopy: sectionLabel.isEmpty ? onCopy : null,
+          copyTooltip: copyTooltip,
         ),
-      if (copyrights.isNotEmpty)
-        (
-          label: widget.labels.copyrights,
-          tags: copyrights,
-          color: TagColors.copyright,
-        ),
-      if (categorized.isNotEmpty &&
-          (general.isNotEmpty || uncategorized.isNotEmpty))
-        (
-          label: widget.labels.general,
-          tags: unique([...general, ...uncategorized]),
+      ],
+      sectionLabel: sectionLabel,
+      onCopySection: sectionLabel.isEmpty ? null : onCopy,
+      sectionCopyTooltip: copyTooltip,
+    );
+  }
+
+  Widget _buildCharacterTagSection(
+    GalleryCharacterPrompt character,
+    int index,
+  ) {
+    final groups = <GalleryDetailTagGroup>[];
+    final positive = PromptTagUtils.parseForDisplay(character.prompt);
+    final negative = PromptTagUtils.parseForDisplay(character.negativePrompt);
+    if (positive.isNotEmpty) {
+      groups.add(
+        GalleryDetailTagGroup(
+          label: widget.labels.positivePrompt,
+          tags: positive,
           color: TagColors.general,
         ),
-      if (metadata.isNotEmpty)
-        (label: widget.labels.metadata, tags: metadata, color: TagColors.meta),
-      if (categorized.isEmpty && uncategorized.isNotEmpty)
-        (
-          label: widget.labels.rawTags,
-          tags: uncategorized,
-          color: tonal
-              ? theme.colorScheme.onSurfaceVariant
-              : theme.colorScheme.primary,
+      );
+    }
+    if (negative.isNotEmpty) {
+      groups.add(
+        GalleryDetailTagGroup(
+          label: widget.labels.negativePrompt,
+          tags: negative,
+          color: Theme.of(context).colorScheme.error,
         ),
-    ];
+      );
+    }
+    final sectionLabel = character.label.trim().isEmpty
+        ? '#${index + 1}'
+        : character.label.trim();
+    return _buildTagCollection(
+      groups,
+      sectionLabel: sectionLabel,
+      onCopySection: groups.isEmpty
+          ? null
+          : () => widget.onCopyCharacter(character),
+      sectionCopyTooltip: widget.labels.copyCharacter,
+    );
+  }
+
+  Widget _buildTagCollection(
+    List<GalleryDetailTagGroup> groups, {
+    String sectionLabel = '',
+    VoidCallback? onCopySection,
+    String sectionCopyTooltip = '',
+  }) {
     final outputFilter = ref.watch(onlineGalleryOutputFilterProvider);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (var groupIndex = 0; groupIndex < groups.length; groupIndex++) ...[
-          Text(
-            '${groups[groupIndex].label} (${groups[groupIndex].tags.length})',
-            style: theme.textTheme.labelMedium?.copyWith(
-              color: groups[groupIndex].color,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 7),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              for (final tag in groups[groupIndex].tags)
-                SimpleTagChip(
-                  tag: tag,
-                  color: groups[groupIndex].color,
-                  isOutputFiltered: outputFilter.contains(tag),
-                  tonal: tonal,
-                  tooltip: outputFilter.contains(tag)
-                      ? widget.labels.outputFilteredTagTooltip
-                      : widget.labels.tagContextMenuTooltip,
-                  onTap: () => _searchTag(tag),
-                  onSecondaryTapDown: (details) => _showTagMenu(tag, details),
-                ),
-            ],
-          ),
-          if (groupIndex + 1 < groups.length) const SizedBox(height: 12),
-        ],
-      ],
+    return GalleryDetailTagSection(
+      groups: groups,
+      sectionLabel: sectionLabel,
+      onCopySection: onCopySection,
+      sectionCopyTooltip: sectionCopyTooltip,
+      isOutputFiltered: outputFilter.contains,
+      normalTooltip: widget.labels.tagContextMenuTooltip,
+      filteredTooltip: widget.labels.outputFilteredTagTooltip,
+      onTagTap: _searchTag,
+      onTagSecondaryTapDown: _showTagMenu,
     );
   }
 
@@ -1226,39 +1295,45 @@ class _GalleryDetailDialogState extends ConsumerState<GalleryDetailDialog> {
     required String fileName,
     required String author,
     required String declaredSource,
-    required bool includePrompt,
     required String note,
   }) {
     final item = widget.detail.item;
     final rating = item.rating?.trim().toUpperCase() ?? '';
+    final characterPrompts = _displayCharacterPrompts;
     final content = <Widget>[];
     void addContent(Widget child) {
       if (content.isNotEmpty) content.add(const SizedBox(height: 12));
       content.add(child);
     }
 
-    if (item.tags.isNotEmpty) {
-      addContent(_buildTagSections(theme, tonal: true));
-    }
-    if (includePrompt) {
+    final positivePrompt = widget.detail.prompt?.trim().isNotEmpty == true
+        ? widget.detail.prompt!.trim()
+        : item.tagString.trim().isNotEmpty
+        ? item.tagString.trim()
+        : item.tags.join(', ');
+    if (positivePrompt.isNotEmpty) {
       addContent(
-        GalleryDetailTextSection(
-          title: widget.labels.positivePrompt,
-          content: widget.detail.prompt!.trim(),
-          accentColor: theme.colorScheme.primary,
+        _buildPromptTagSection(
+          label: widget.labels.positivePrompt,
+          prompt: positivePrompt,
+          color: TagColors.general,
+          onCopy: widget.onCopyPrompt,
+          copyTooltip: widget.labels.copyPositive,
         ),
       );
     }
     if (_hasNegativePrompt) {
       addContent(
-        GalleryDetailTextSection(
-          title: widget.labels.negativePrompt,
-          content: widget.detail.negativePrompt!.trim(),
-          accentColor: theme.colorScheme.error,
+        _buildPromptTagSection(
+          label: widget.labels.negativePrompt,
+          prompt: widget.detail.negativePrompt!.trim(),
+          color: theme.colorScheme.error,
+          onCopy: widget.onCopyNegativePrompt,
+          copyTooltip: widget.labels.copyNegative,
         ),
       );
     }
-    if (widget.detail.characterPrompts.isNotEmpty) {
+    if (characterPrompts.isNotEmpty) {
       addContent(
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1271,18 +1346,10 @@ class _GalleryDetailDialogState extends ConsumerState<GalleryDetailDialog> {
               ),
             ),
             const SizedBox(height: 8),
-            for (
-              var index = 0;
-              index < widget.detail.characterPrompts.length;
-              index++
-            ) ...[
-              _buildCharacterPrompt(
-                theme,
-                widget.detail.characterPrompts[index],
-                index,
-              ),
-              if (index + 1 < widget.detail.characterPrompts.length)
-                const SizedBox(height: 8),
+            for (var index = 0; index < characterPrompts.length; index++) ...[
+              _buildCharacterTagSection(characterPrompts[index], index),
+              if (index + 1 < characterPrompts.length)
+                const SizedBox(height: 12),
             ],
           ],
         ),
@@ -1402,75 +1469,6 @@ class _GalleryDetailDialogState extends ConsumerState<GalleryDetailDialog> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildCharacterPrompt(
-    ThemeData theme,
-    GalleryCharacterPrompt character,
-    int index,
-  ) {
-    final label = character.label.trim().isEmpty
-        ? '#${index + 1}'
-        : character.label.trim();
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.45)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  label,
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              IconButton(
-                visualDensity: VisualDensity.compact,
-                tooltip: widget.labels.copyCharacter,
-                onPressed:
-                    character.prompt.trim().isEmpty &&
-                        character.negativePrompt.trim().isEmpty
-                    ? null
-                    : () => widget.onCopyCharacter(character),
-                icon: const Icon(Icons.content_copy, size: 16),
-              ),
-            ],
-          ),
-          if (character.prompt.trim().isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Text(
-              widget.labels.positivePrompt,
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: theme.colorScheme.primary,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 3),
-            SelectableText(character.prompt.trim()),
-          ],
-          if (character.negativePrompt.trim().isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Text(
-              widget.labels.negativePrompt,
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: theme.colorScheme.error,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 3),
-            SelectableText(character.negativePrompt.trim()),
-          ],
-        ],
-      ),
     );
   }
 
@@ -1677,18 +1675,6 @@ class _GalleryDetailDialogState extends ConsumerState<GalleryDetailDialog> {
                 : null,
             leadingIcon: const Icon(Icons.code, size: 18),
             child: Text(widget.labels.copyRawArtistFragments),
-          ),
-        if (_hasPrompt)
-          MenuItemButton(
-            onPressed: widget.onCopyPrompt,
-            leadingIcon: const Icon(Icons.content_copy, size: 18),
-            child: Text(widget.labels.copyPositive),
-          ),
-        if (_hasNegativePrompt)
-          MenuItemButton(
-            onPressed: widget.onCopyNegativePrompt,
-            leadingIcon: const Icon(Icons.copy_all_outlined, size: 18),
-            child: Text(widget.labels.copyNegative),
           ),
         if (widget.onCopyFullPrompt == null && _hasCopyableContent)
           MenuItemButton(
