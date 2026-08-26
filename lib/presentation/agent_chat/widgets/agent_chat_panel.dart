@@ -413,7 +413,7 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
     AppLocalizations l10n,
     AgentChatState state,
   ) {
-    final running = state.status == AgentChatRunStatus.running;
+    final sessionActionsEnabled = canManageAgentChatSessions(state);
     // 统一 32x32 图标按钮，与标题、选择器垂直居中对齐。
     Widget iconButton({
       required IconData icon,
@@ -478,10 +478,10 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
           iconButton(
             icon: Icons.add_comment_outlined,
             tooltip: l10n.agentChat_newChat,
-            onTap: running
-                ? null
-                : () =>
-                      ref.read(agentChatNotifierProvider.notifier).newSession(),
+            onTap: sessionActionsEnabled
+                ? () =>
+                      ref.read(agentChatNotifierProvider.notifier).newSession()
+                : null,
           ),
           const SizedBox(width: 4),
           Expanded(
@@ -629,6 +629,8 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
         ? l10n.agentChat_untitled
         : current.name;
     return PopupMenuButton<String>(
+      key: const ValueKey('agent-chat-session-selector'),
+      enabled: canManageAgentChatSessions(state),
       tooltip: label,
       onSelected: _onSessionMenuSelected,
       itemBuilder: (context) => [
@@ -1363,7 +1365,9 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
     AgentChatState state,
   ) {
     final running = state.status == AgentChatRunStatus.running;
-    final canSend = state.routeReady && state.initialized;
+    final controlsLocked = running || state.sessionTransitioning;
+    final canSend =
+        state.routeReady && state.initialized && !state.sessionTransitioning;
     return Padding(
       padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
       child: Container(
@@ -1430,7 +1434,7 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
                   _buildAttachButton(theme, l10n, state),
                   _buildPlusMenu(theme, l10n, state),
                   const SizedBox(width: 2),
-                  _buildPermissionModeButton(theme, l10n, running),
+                  _buildPermissionModeButton(theme, l10n, controlsLocked),
                   const SizedBox(width: 2),
                   if (state.queuedCount > 0)
                     Flexible(
@@ -1494,7 +1498,7 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
     AppLocalizations l10n,
     AgentChatState state,
   ) {
-    final running = state.status == AgentChatRunStatus.running;
+    final actionsEnabled = canManageAgentChatSessions(state);
     return PopupMenuButton<String>(
       tooltip: l10n.agentChat_moreActions,
       onSelected: (action) => _handlePlusAction(action, state),
@@ -1504,28 +1508,28 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
           value: 'new',
           icon: Icons.add_comment_outlined,
           label: l10n.agentChat_newChat,
-          enabled: !running,
+          enabled: actionsEnabled,
         ),
         _plusItem(
           theme,
           value: 'rename',
           icon: Icons.edit_outlined,
           label: l10n.common_rename,
-          enabled: !running,
+          enabled: actionsEnabled,
         ),
         _plusItem(
           theme,
           value: 'compact',
           icon: Icons.compress_outlined,
           label: l10n.agentChat_compact,
-          enabled: !running,
+          enabled: actionsEnabled,
         ),
         _plusItem(
           theme,
           value: 'delete',
           icon: Icons.delete_outline,
           label: l10n.common_delete,
-          enabled: !running,
+          enabled: actionsEnabled,
           danger: true,
         ),
       ],
@@ -1642,6 +1646,7 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
       label = activeModel.isEmpty ? state.routeLabel : activeModel;
     }
     return PopupMenuButton<(String, String)>(
+      enabled: canManageAgentChatSessions(state),
       tooltip: l10n.agentChat_model,
       onSelected: (route) => ref
           .read(agentChatNotifierProvider.notifier)

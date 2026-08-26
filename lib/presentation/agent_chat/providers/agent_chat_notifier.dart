@@ -53,6 +53,7 @@ class AgentChatState {
     this.routeError = '',
     this.error = '',
     this.compacting = false,
+    this.sessionTransitioning = false,
     this.approvalRequest,
     this.totalUsage,
   });
@@ -73,6 +74,7 @@ class AgentChatState {
   final String routeError;
   final String error;
   final bool compacting;
+  final bool sessionTransitioning;
   final AgentToolApprovalRequest? approvalRequest;
   final Usage? totalUsage;
 
@@ -91,6 +93,7 @@ class AgentChatState {
     String? routeError,
     String? error,
     bool? compacting,
+    bool? sessionTransitioning,
     AgentToolApprovalRequest? approvalRequest,
     bool clearApprovalRequest = false,
     Usage? totalUsage,
@@ -110,6 +113,7 @@ class AgentChatState {
       routeError: routeError ?? this.routeError,
       error: error ?? this.error,
       compacting: compacting ?? this.compacting,
+      sessionTransitioning: sessionTransitioning ?? this.sessionTransitioning,
       approvalRequest: clearApprovalRequest
           ? null
           : approvalRequest ?? this.approvalRequest,
@@ -119,6 +123,56 @@ class AgentChatState {
 }
 
 enum AgentChatRunStatus { idle, running }
+
+bool canManageAgentChatSessions(AgentChatState state) =>
+    state.status == AgentChatRunStatus.idle && !state.sessionTransitioning;
+
+Usage calculateAgentChatSessionUsage(
+  Iterable<session_types.SessionEntry> entries,
+) {
+  var total = Usage.empty;
+  for (final entry in entries) {
+    Usage? usage;
+    if (entry is session_types.MessageEntry &&
+        entry.message is AssistantMessage) {
+      usage = (entry.message as AssistantMessage).usage;
+    } else if (entry is session_types.CompactionEntry) {
+      usage = entry.usage;
+    } else if (entry is session_types.BranchSummaryEntry) {
+      usage = entry.usage;
+    }
+    if (usage != null) {
+      total = total + usage;
+    }
+  }
+  return total;
+}
+
+enum AgentToolPermissionPolicy { allow, block, ask }
+
+const Set<String> _sensitiveAgentTools = {
+  'read',
+  'read_skill',
+  'interrogate_image',
+  'update_character',
+  'remove_character',
+  'generate_image',
+  'queue_image_task',
+  'update_generation_settings',
+};
+
+AgentToolPermissionPolicy agentToolPermissionPolicyFor(
+  AgentPermissionMode mode,
+  String toolName,
+) {
+  if (!_sensitiveAgentTools.contains(toolName) ||
+      mode == AgentPermissionMode.fullAccess) {
+    return AgentToolPermissionPolicy.allow;
+  }
+  return mode == AgentPermissionMode.safe
+      ? AgentToolPermissionPolicy.block
+      : AgentToolPermissionPolicy.ask;
+}
 
 /// 工具执行卡片状态。
 class AgentToolActivity {
@@ -215,12 +269,23 @@ final agentChatNotifierProvider =
 /// - 上下文压缩经 [prepareCompaction]/[compact]（自动阈值 + 手动触发）；
 /// - skills 经目录发现加载，并以 XML 清单注入系统提示词。
 class AgentChatNotifier extends StateNotifier<AgentChatState> {
-  AgentChatNotifier(this._ref, {List<HarnessSkill>? presetSkills})
-    : super(const AgentChatState()) {
+  AgentChatNotifier(
+    this._ref, {
+    List<HarnessSkill>? presetSkills,
+    Directory? supportDir,
+    Directory? workspaceDir,
+    JsonlSessionRepo? sessionRepo,
+  }) : _providedSupportDir = supportDir,
+       _providedWorkspaceDir = workspaceDir,
+       _providedSessionRepo = sessionRepo,
+       super(const AgentChatState()) {
     _init(presetSkills: presetSkills);
   }
 
   final Ref _ref;
+  final Directory? _providedSupportDir;
+  final Directory? _providedWorkspaceDir;
+  final JsonlSessionRepo? _providedSessionRepo;
   late Directory _supportDir;
   late Directory _workspaceDir;
   late JsonlSessionRepo _repo;
@@ -232,39 +297,35 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
   Usage _usageTotal = const Usage();
   Completer<bool>? _approvalCompleter;
 
-  static const Set<String> _sensitiveTools = {
-    'read',
-    'read_skill',
-    'interrogate_image',
-    'update_character',
-    'remove_character',
-    'generate_image',
-    'queue_image_task',
-    'update_generation_settings',
-  };
-
   LocalStorageService get _local => _ref.read(localStorageServiceProvider);
 
   Future<void> _init({List<HarnessSkill>? presetSkills}) async {
-    try {
-      _supportDir = await getApplicationSupportDirectory();
-    } catch (e) {
-      AppLogger.w('agent chat init failed: $e', 'AgentChat');
-      _supportDir = Directory.systemTemp;
+    final providedSupportDir = _providedSupportDir;
+    if (providedSupportDir != null) {
+      _supportDir = providedSupportDir;
+    } else {
+      try {
+        _supportDir = await getApplicationSupportDirectory();
+      } catch (e) {
+        AppLogger.w('agent chat init failed: $e', 'AgentChat');
+        _supportDir = Directory.systemTemp;
+      }
     }
-    _repo = JsonlSessionRepo(_supportDir);
+    _repo = _providedSessionRepo ?? JsonlSessionRepo(_supportDir);
     // 文件工具工作区（read 的 cwd 与相对路径根）。
     // 默认指向图片导出根目录（自定义保存路径或 Documents/NAI_Launcher/
     // images），让 Agent 能直接按相对路径读取生成的图片；解析失败时
     // 回退到应用支持目录下的 agent/workspace。
-    Directory? workspaceDir;
-    try {
-      final exportRoot = await GalleryFolderRepository.instance.getRootPath();
-      if (exportRoot != null && exportRoot.isNotEmpty) {
-        workspaceDir = Directory(exportRoot);
+    Directory? workspaceDir = _providedWorkspaceDir;
+    if (workspaceDir == null) {
+      try {
+        final exportRoot = await GalleryFolderRepository.instance.getRootPath();
+        if (exportRoot != null && exportRoot.isNotEmpty) {
+          workspaceDir = Directory(exportRoot);
+        }
+      } catch (e) {
+        AppLogger.w('resolve image export dir failed: $e', 'AgentChat');
       }
-    } catch (e) {
-      AppLogger.w('resolve image export dir failed: $e', 'AgentChat');
     }
     _workspaceDir =
         workspaceDir ??
@@ -368,14 +429,12 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     BeforeToolCallContext context,
     AbortSignal? signal,
   ) async {
-    if (!_sensitiveTools.contains(context.toolCall.name)) {
-      return null;
-    }
     final mode = _ref.read(promptAssistantConfigProvider).agentPermissionMode;
-    if (mode == AgentPermissionMode.fullAccess) {
+    final policy = agentToolPermissionPolicyFor(mode, context.toolCall.name);
+    if (policy == AgentToolPermissionPolicy.allow) {
       return null;
     }
-    if (mode == AgentPermissionMode.safe) {
+    if (policy == AgentToolPermissionPolicy.block) {
       return const BeforeToolCallResult(
         block: true,
         reason:
@@ -432,7 +491,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
   }
 
   Future<void> setPermissionMode(AgentPermissionMode mode) async {
-    if (state.status == AgentChatRunStatus.running) {
+    if (!canManageAgentChatSessions(state)) {
       return;
     }
     await _ref
@@ -837,7 +896,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
         ? sessions.first.metadata.id
         : '';
     if (target.isEmpty) {
-      await newSession();
+      await _createAndActivateSession();
       return;
     }
     await _activateSession(target);
@@ -861,6 +920,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
   }
 
   Future<void> _activateSession(String sessionId) async {
+    await _agent?.waitForIdle();
     final metadata = (await _repo.list()).firstWhere(
       (m) => m.id == sessionId,
       orElse: () => session_types.SessionMetadata(
@@ -876,11 +936,8 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
         session_types.SessionCreateOptions(id: sessionId),
       );
     }
-    _session = session;
     // 重建 Agent（每次会话独立转录）。
-    await _agent?.waitForIdle();
-    _agent = null;
-    _agent = await _buildAgent();
+    final nextAgent = await _buildAgent();
     // 从 Session 树恢复转录（含 compaction 折叠语义）。
     final entries = await session.findEntriesOnBranch(
       const session_types.EntryQuery(
@@ -888,8 +945,13 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       ),
     );
     final context = buildSessionContext(entries);
-    _agent!.state.messages = context.messages;
-    _agent!.setSystemPrompt(await _buildSystemPrompt());
+    final totalUsage = calculateAgentChatSessionUsage(entries);
+    nextAgent.state.messages = context.messages;
+    nextAgent.setSystemPrompt(await _buildSystemPrompt());
+
+    _session = session;
+    _agent = nextAgent;
+    _usageTotal = totalUsage;
 
     await _local.setSetting(StorageKeys.agentChatActiveSession, sessionId);
     state = state.copyWith(
@@ -900,61 +962,87 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       error: '',
       queuedCount: 0,
       sessions: await _listSessions(),
+      totalUsage: totalUsage,
     );
   }
 
-  Future<void> newSession() async {
+  Future<void> _createAndActivateSession() async {
     final session = await _repo.create();
     final metadata = await session.getMetadata();
     await _activateSession(metadata.id);
   }
 
-  Future<void> switchSession(String sessionId) async {
-    await _activateSession(sessionId);
+  Future<void> _runSessionTransition(Future<void> Function() action) async {
+    if (!canManageAgentChatSessions(state)) {
+      return;
+    }
+    state = state.copyWith(sessionTransitioning: true);
+    try {
+      await action();
+    } finally {
+      if (mounted) {
+        state = state.copyWith(sessionTransitioning: false);
+      }
+    }
+  }
+
+  Future<void> newSession() => _runSessionTransition(_createAndActivateSession);
+
+  Future<void> switchSession(String sessionId) {
+    if (sessionId.isEmpty || sessionId == state.activeSessionId) {
+      return Future.value();
+    }
+    return _runSessionTransition(() => _activateSession(sessionId));
   }
 
   /// 删除指定会话；删除当前会话时自动切到最近剩余会话（无则新建）。
-  Future<void> deleteSession(String sessionId) async {
+  Future<void> deleteSession(String sessionId) {
     if (sessionId.isEmpty) {
-      return;
+      return Future.value();
     }
-    // 直接按 id 删文件，不依赖列表匹配（避免表头解析失败导致删不掉）。
-    _repo.deleteById(sessionId);
-    if (sessionId != state.activeSessionId) {
-      state = state.copyWith(sessions: await _listSessions());
-      return;
-    }
-    final remaining = (await _listSessions())
-        .where((s) => s.id != sessionId)
-        .toList();
-    if (remaining.isNotEmpty) {
-      await _activateSession(remaining.first.id);
-    } else {
-      await newSession();
-    }
+    return _runSessionTransition(() async {
+      // 直接按 id 删文件，不依赖列表匹配（避免表头解析失败导致删不掉）。
+      _repo.deleteById(sessionId);
+      if (sessionId != state.activeSessionId) {
+        state = state.copyWith(sessions: await _listSessions());
+        return;
+      }
+      final remaining = (await _listSessions())
+          .where((s) => s.id != sessionId)
+          .toList();
+      if (remaining.isNotEmpty) {
+        await _activateSession(remaining.first.id);
+      } else {
+        await _createAndActivateSession();
+      }
+    });
   }
 
   /// 重命名会话（持久化 name 记录，列表即时刷新）。
-  Future<void> renameSession(String sessionId, String name) async {
+  Future<void> renameSession(String sessionId, String name) {
     final trimmed = name.trim();
     if (sessionId.isEmpty || trimmed.isEmpty) {
-      return;
+      return Future.value();
     }
-    try {
-      final metadata = (await _repo.list()).firstWhere(
-        (m) => m.id == sessionId,
-      );
-      final session = await _repo.open(metadata);
-      await session.setName(trimmed);
-      state = state.copyWith(sessions: await _listSessions());
-    } catch (e) {
-      AppLogger.w('rename session failed: $e', 'AgentChat');
-    }
+    return _runSessionTransition(() async {
+      try {
+        final metadata = (await _repo.list()).firstWhere(
+          (m) => m.id == sessionId,
+        );
+        final session = await _repo.open(metadata);
+        await session.setName(trimmed);
+        state = state.copyWith(sessions: await _listSessions());
+      } catch (e) {
+        AppLogger.w('rename session failed: $e', 'AgentChat');
+      }
+    });
   }
 
   /// 切换聊天模型：写入 chat 任务路由并持久化，随后刷新本地路由缓存。
   Future<void> selectChatModel(String providerId, String model) async {
-    if (providerId.isEmpty || model.isEmpty) {
+    if (!canManageAgentChatSessions(state) ||
+        providerId.isEmpty ||
+        model.isEmpty) {
       return;
     }
     final config = _ref.read(promptAssistantConfigProvider);
@@ -1001,6 +1089,9 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
   }
 
   Future<void> _sendMessage(UserMessage message) async {
+    if (state.sessionTransitioning) {
+      return;
+    }
     final agent = _agent;
     if (agent == null) {
       state = state.copyWith(
