@@ -291,6 +291,7 @@ extension _VibeLibraryScreenLayout on _VibeLibraryScreenState {
       child: TextField(
         controller: _searchController,
         style: theme.textTheme.bodyMedium,
+        textAlignVertical: TextAlignVertical.center,
         decoration: InputDecoration(
           hintText: context.l10n.vibeLibrary_searchHint,
           hintStyle: TextStyle(

@@ -6,7 +6,7 @@ import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 void main() {
   group('ThemedInput 平面输入色面', () {
-    testWidgets('默认不绘制内阴影并使用极细边界，聚焦时强化状态边界', (tester) async {
+    testWidgets('仅移除内发光，并以主题色外轮廓表达聚焦状态', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(body: ThemedInput(hintText: 'Prompt')),
@@ -25,7 +25,7 @@ void main() {
         ),
         findsNothing,
       );
-      var borderDecoration = tester
+      var surfaceDecoration = tester
           .widgetList<AnimatedContainer>(
             find.descendant(
               of: find.byType(InputSurfaceContainer),
@@ -34,8 +34,13 @@ void main() {
           )
           .map((widget) => widget.decoration)
           .whereType<BoxDecoration>()
-          .singleWhere((decoration) => decoration.border != null);
-      expect(borderDecoration.border!.top.width, 0.55);
+          .single;
+      final unfocusedBorder = surfaceDecoration.border! as Border;
+      expect(unfocusedBorder.top.width, 0.55);
+      expect(
+        tester.widget<TextField>(find.byType(TextField)).textAlignVertical,
+        TextAlignVertical.center,
+      );
 
       await tester.tap(find.byType(TextField));
       await tester.pump();
@@ -44,7 +49,7 @@ void main() {
         find.byType(InputSurfaceContainer),
       );
       expect(surface.isFocused, isTrue);
-      borderDecoration = tester
+      surfaceDecoration = tester
           .widgetList<AnimatedContainer>(
             find.descendant(
               of: find.byType(InputSurfaceContainer),
@@ -53,8 +58,10 @@ void main() {
           )
           .map((widget) => widget.decoration)
           .whereType<BoxDecoration>()
-          .singleWhere((decoration) => decoration.border != null);
-      expect(borderDecoration.border!.top.width, 1.0);
+          .single;
+      final focusedBorder = surfaceDecoration.border! as Border;
+      expect(focusedBorder.top.width, 1);
+      expect(focusedBorder.top.color, isNot(unfocusedBorder.top.color));
     });
 
     testWidgets('内部输入装饰不继承全局填充层遮挡圆角边界', (tester) async {

@@ -453,6 +453,7 @@ class _PreciseRefLibraryScreenState
     final search = TextField(
       key: const Key('precise-ref-library-search'),
       controller: _searchController,
+      textAlignVertical: TextAlignVertical.center,
       decoration: InputDecoration(
         hintText: l10n.preciseRefLib_searchHint,
         prefixIcon: const Icon(Icons.search, size: 18),

@@ -8,7 +8,7 @@ import 'themed_text_selection_toolbar.dart';
 
 /// 统一样式的输入框组件
 ///
-/// 使用共享深色填充与零尺寸内侧焦点发光。
+/// 使用共享深色填充与清晰、无发光的主题色聚焦轮廓。
 /// 支持单行和多行模式，统一圆角和状态样式。
 class ThemedInput extends StatefulWidget {
   /// 文本控制器
@@ -396,7 +396,11 @@ class _ThemedInputState extends State<ThemedInput> {
       style: widget.style,
       autofocus: widget.autofocus,
       textAlign: widget.textAlign,
-      textAlignVertical: widget.textAlignVertical,
+      textAlignVertical:
+          widget.textAlignVertical ??
+          (widget.maxLines == 1 && !widget.expands
+              ? TextAlignVertical.center
+              : null),
       cursorColor: widget.cursorColor,
       decoration: inputDecoration,
       // 不传时用带主题字体的默认实现：Flutter 自带的工具栏按钮会绕开

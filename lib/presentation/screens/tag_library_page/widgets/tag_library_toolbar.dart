@@ -322,6 +322,7 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
           controller: _searchController,
           focusNode: _searchFocusNode,
           style: theme.textTheme.bodyMedium,
+          textAlignVertical: TextAlignVertical.center,
           decoration: InputDecoration(
             hintText: context.l10n.tagLibrary_searchHint,
             hintStyle: TextStyle(

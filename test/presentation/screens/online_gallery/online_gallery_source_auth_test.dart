@@ -979,7 +979,7 @@ void main() {
     );
   });
 
-  for (final width in [700.0, 840.0, 1180.0, 1600.0]) {
+  for (final width in [360.0, 700.0, 840.0, 1180.0, 1600.0]) {
     testWidgets(
       'QuickTagCloud toolbar keeps every global control in row one at $width',
       (tester) async {
@@ -1050,6 +1050,15 @@ void main() {
           find.byKey(const ValueKey('online-gallery-toolbar-primary-row')),
         );
         expect(searchRect.width, greaterThanOrEqualTo(280));
+        if (width == 360) {
+          // QuickTagCloud keeps a medium-width query field even when the row
+          // scrolls; initial entry centers it instead of hiding it off-screen.
+          expect(searchRect.center.dx, closeTo(width / 2, 0.1));
+          expect(
+            searchRect.intersect(Rect.fromLTWH(0, 0, width, 900)).width,
+            greaterThanOrEqualTo(width - 32),
+          );
+        }
         expect(counterRect.center.dy, closeTo(searchRect.center.dy, 0.1));
         expect(blacklistRect.left - searchRect.right, closeTo(8, 0.1));
         expect(
@@ -1077,6 +1086,10 @@ void main() {
           final searchField = find.descendant(
             of: find.byKey(const ValueKey('online-gallery-primary-search')),
             matching: find.byType(TextField),
+          );
+          expect(
+            tester.widget<TextField>(searchField).textAlignVertical,
+            TextAlignVertical.center,
           );
           await tester.enterText(searchField, 'a b c d e f g');
           await tester.pump();

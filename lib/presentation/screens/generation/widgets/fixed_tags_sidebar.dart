@@ -233,6 +233,7 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
       child: TextField(
         controller: _searchController,
+        textAlignVertical: TextAlignVertical.center,
         decoration: InputDecoration(
           hintText: context.l10n.fixedTags_searchNameOrContent,
           prefixIcon: const Icon(Icons.search_rounded, size: 18),

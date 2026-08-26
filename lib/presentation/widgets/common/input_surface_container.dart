@@ -4,8 +4,9 @@ import '../../themes/core/input_surface_style.dart';
 
 /// Shared deep surface for editable controls.
 ///
-/// The default state is borderless. Focus and error feedback are painted
-/// entirely inside the clipped surface, so state changes never alter layout.
+/// Focus is expressed with a crisp outer outline rather than an inner glow or
+/// shadow. The stroke is painted inside the existing bounds, so state changes
+/// never alter layout.
 class InputSurfaceContainer extends StatelessWidget {
   const InputSurfaceContainer({
     super.key,
@@ -30,11 +31,7 @@ class InputSurfaceContainer extends StatelessWidget {
   final BoxConstraints? constraints;
   final bool? enabled;
   final Color? backgroundColor;
-
-  /// Optional focus-glow color retained for existing callers.
   final Color? borderColor;
-
-  /// Retained for source compatibility; editable surfaces are borderless.
   final double borderWidth;
   final EdgeInsetsGeometry? padding;
   final bool hasError;
@@ -57,16 +54,21 @@ class InputSurfaceContainer extends StatelessWidget {
   Widget _buildSurface(BuildContext context, bool focused) {
     final colors = Theme.of(context).colorScheme;
     final isEnabled = enabled ?? true;
-    final focusColor = borderColor ?? colors.primary;
-    final glowColor = hasError
-        ? colors.error.withValues(alpha: focused ? 0.92 : 0.68)
-        : focused && isEnabled
-        ? focusColor.withValues(alpha: focusColor.a * 0.82)
-        : Colors.transparent;
+    final effectiveBorderColor = !isEnabled
+        ? (borderColor ?? colors.outlineVariant).withValues(alpha: 0.18)
+        : hasError
+        ? (borderColor ?? colors.error).withValues(alpha: focused ? 0.9 : 0.62)
+        : focused
+        ? colors.primary.withValues(alpha: 0.68)
+        : (borderColor ?? colors.outlineVariant).withValues(alpha: 0.32);
+    final effectiveBorderWidth = hasError || focused
+        ? 1.0
+        : borderWidth > 0
+        ? borderWidth
+        : 0.55;
     final duration = MediaQuery.disableAnimationsOf(context)
         ? Duration.zero
         : const Duration(milliseconds: 120);
-    final radius = BorderRadius.circular(borderRadius);
 
     return AnimatedContainer(
       duration: duration,
@@ -75,42 +77,17 @@ class InputSurfaceContainer extends StatelessWidget {
       height: height,
       constraints: constraints,
       clipBehavior: Clip.antiAlias,
+      padding: padding,
       decoration: BoxDecoration(
         color: backgroundColor ?? inputSurfaceFillColor(colors),
-        borderRadius: radius,
-      ),
-      child: CustomPaint(
-        foregroundPainter: _InputSurfaceGlowPainter(
-          borderRadius: radius,
-          color: glowColor,
+        borderRadius: BorderRadius.circular(borderRadius),
+        border: Border.all(
+          color: effectiveBorderColor,
+          width: effectiveBorderWidth,
+          strokeAlign: BorderSide.strokeAlignInside,
         ),
-        child: padding == null ? child : Padding(padding: padding!, child: child),
       ),
+      child: child,
     );
-  }
-}
-
-class _InputSurfaceGlowPainter extends CustomPainter {
-  const _InputSurfaceGlowPainter({
-    required this.borderRadius,
-    required this.color,
-  });
-
-  final BorderRadius borderRadius;
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    paintInputInnerGlow(
-      canvas,
-      Offset.zero & size,
-      borderRadius: borderRadius,
-      color: color,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_InputSurfaceGlowPainter oldDelegate) {
-    return oldDelegate.borderRadius != borderRadius || oldDelegate.color != color;
   }
 }

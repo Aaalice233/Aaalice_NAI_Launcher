@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
@@ -120,6 +121,8 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
   final Map<int, ({GalleryItem item, double itemWidth, double visibleTop})>
   _visibleItems = {};
   final GlobalKey _anchorRestoreKey = GlobalKey();
+  final GlobalKey _primarySearchRevealKey = GlobalKey();
+  String? _lastPrimarySearchRevealSignature;
   String? _pendingAnchorStableKey;
   double _pendingAnchorLocalOffset = 0;
   double _lastScrollOffset = 0;
@@ -210,6 +213,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       _hoverController.dismiss();
       _scheduledAutoLoadCacheKey = null;
     } else {
+      _lastPrimarySearchRevealSignature = null;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         _scheduleAutoLoadIfUnderfilled(ref.read(onlineGalleryNotifierProvider));
@@ -789,6 +793,43 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             GallerySourceId.quickTagCloud => 420.0,
             _ => 280.0,
           };
+          if (useScrollablePrimary && showQueryFields) {
+            final revealSignature = Object.hash(
+              _activeSource(state),
+              state.viewMode,
+              constraints.maxWidth.round(),
+            ).toString();
+            if (_lastPrimarySearchRevealSignature != revealSignature) {
+              _lastPrimarySearchRevealSignature = revealSignature;
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                final searchContext = _primarySearchRevealKey.currentContext;
+                if (!mounted || searchContext == null) return;
+                final scrollable = Scrollable.maybeOf(searchContext);
+                final searchBox =
+                    searchContext.findRenderObject() as RenderBox?;
+                final viewport = searchBox == null
+                    ? null
+                    : RenderAbstractViewport.maybeOf(searchBox);
+                if (scrollable == null ||
+                    searchBox == null ||
+                    viewport == null ||
+                    !scrollable.position.hasPixels) {
+                  return;
+                }
+
+                final position = scrollable.position;
+                final centeredOffset = viewport
+                    .getOffsetToReveal(searchBox, 0.5)
+                    .offset;
+                position.jumpTo(
+                  centeredOffset.clamp(
+                    position.minScrollExtent,
+                    position.maxScrollExtent,
+                  ),
+                );
+              });
+            }
+          }
           final secondaryControls = _buildSecondaryControls(theme, state);
           final leadingControls = Row(
             mainAxisSize: MainAxisSize.min,
@@ -834,7 +875,10 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
                             key: const ValueKey(
                               'online-gallery-primary-search',
                             ),
-                            child: _buildSearchFields(theme, state),
+                            child: KeyedSubtree(
+                              key: _primarySearchRevealKey,
+                              child: _buildSearchFields(theme, state),
+                            ),
                           ),
                         ),
                       ],
@@ -1097,6 +1141,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             controller: controller,
             focusNode: focusNode,
             style: theme.textTheme.bodyMedium,
+            textAlignVertical: TextAlignVertical.center,
             decoration: InputDecoration(
               hintText: hintText,
               hintStyle: TextStyle(
@@ -1159,6 +1204,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           controller: _searchController,
           focusNode: _searchFocusNode,
           style: theme.textTheme.bodyMedium,
+          textAlignVertical: TextAlignVertical.center,
           textInputAction: TextInputAction.search,
           decoration: InputDecoration(
             hintText: context.l10n.onlineGallery_codexSearchHint,
@@ -1269,6 +1315,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           controller: controller,
           focusNode: focusNode,
           style: theme.textTheme.bodyMedium,
+          textAlignVertical: TextAlignVertical.center,
           decoration: InputDecoration(
             hintText: context.l10n.onlineGallery_searchTags,
             filled: false,

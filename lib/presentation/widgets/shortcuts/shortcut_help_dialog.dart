@@ -63,6 +63,7 @@ class _ShortcutHelpDialogState extends ConsumerState<ShortcutHelpDialog> {
                     width: 200,
                     child: TextField(
                       controller: _searchController,
+                      textAlignVertical: TextAlignVertical.center,
                       decoration: InputDecoration(
                         hintText: context.l10n.shortcut_help_search,
                         prefixIcon: const Icon(Icons.search, size: 20),

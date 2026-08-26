@@ -283,6 +283,7 @@ class _AddTagGroupDialogState extends ConsumerState<AddTagGroupDialog>
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
       child: TextField(
         controller: _searchController,
+        textAlignVertical: TextAlignVertical.center,
         decoration: InputDecoration(
           hintText: _sourceTabIndex == 1
               ? context.l10n.randomManager_searchTagGroup

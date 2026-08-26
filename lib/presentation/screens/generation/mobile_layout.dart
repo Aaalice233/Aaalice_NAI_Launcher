@@ -41,6 +41,12 @@ class _MobileGenerationLayoutState extends ConsumerState<MobileGenerationLayout>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // Phone generation always opens in the image-first collapsed state. The
+    // previous desktop-style persisted maximize flag must not summon the
+    // keyboard or hide the preview during a later mobile launch.
+    unawaited(
+      ref.read(promptMaximizeNotifierProvider.notifier).setMaximized(false),
+    );
   }
 
   @override
@@ -54,6 +60,13 @@ class _MobileGenerationLayoutState extends ConsumerState<MobileGenerationLayout>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  void _closePromptEditor() {
+    FocusManager.instance.primaryFocus?.unfocus();
+    unawaited(
+      ref.read(promptMaximizeNotifierProvider.notifier).setMaximized(false),
+    );
   }
 
   @override
@@ -82,16 +95,15 @@ class _MobileGenerationLayoutState extends ConsumerState<MobileGenerationLayout>
       imageWorkflowControllerProvider.select((workflow) => workflow.isUpscale),
     );
     final randomModeEnabled = ref.watch(randomPromptModeProvider);
+    final promptSummary = ref.watch(
+      generationParamsNotifierProvider.select((params) => params.prompt.trim()),
+    );
 
     return PopScope<void>(
       canPop: !isPromptMaximized,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop && isPromptMaximized) {
-          unawaited(
-            ref
-                .read(promptMaximizeNotifierProvider.notifier)
-                .setMaximized(false),
-          );
+          _closePromptEditor();
         }
       },
       child: ThemedScaffold(
@@ -100,7 +112,19 @@ class _MobileGenerationLayoutState extends ConsumerState<MobileGenerationLayout>
         endDrawer: isPromptMaximized ? null : _buildHistoryDrawer(context),
         appBar: AppBar(
           automaticallyImplyLeading: false,
-          title: Text(context.l10n.generation_title),
+          leading: isPromptMaximized
+              ? IconButton(
+                  key: const ValueKey('generation-prompt-editor-close'),
+                  icon: const Icon(Icons.arrow_back_rounded),
+                  tooltip: context.l10n.toolbar_fullscreenEdit,
+                  onPressed: _closePromptEditor,
+                )
+              : null,
+          title: Text(
+            isPromptMaximized
+                ? context.l10n.toolbar_fullscreenEdit
+                : context.l10n.generation_title,
+          ),
           actions: isPromptMaximized
               ? null
               : [
@@ -128,7 +152,11 @@ class _MobileGenerationLayoutState extends ConsumerState<MobileGenerationLayout>
                   ? const Padding(
                       key: ValueKey('maximized-prompt'),
                       padding: EdgeInsets.all(12),
-                      child: PromptInputWidget(isMaximized: true),
+                      child: PromptInputWidget(
+                        isMaximized: true,
+                        showMaximizeButton: false,
+                        autofocus: true,
+                      ),
                     )
                   : LayoutBuilder(
                       key: const ValueKey('generation-workspace'),
@@ -168,22 +196,20 @@ class _MobileGenerationLayoutState extends ConsumerState<MobileGenerationLayout>
                           );
                         }
 
-                        final useCondensedWorkspace =
-                            keyboardVisible || constraints.maxHeight < 420;
                         return Column(
                           children: [
-                            Expanded(
-                              flex: useCondensedWorkspace ? 1 : 42,
-                              child: const Padding(
-                                padding: EdgeInsets.fromLTRB(12, 12, 12, 8),
-                                child: PromptInputWidget(compact: true),
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+                              child: _CollapsedPromptLauncher(
+                                prompt: promptSummary,
+                                onTap: () => ref
+                                    .read(
+                                      promptMaximizeNotifierProvider.notifier,
+                                    )
+                                    .setMaximized(true),
                               ),
                             ),
-                            if (!useCondensedWorkspace)
-                              const Expanded(
-                                flex: 58,
-                                child: ImagePreviewWidget(),
-                              ),
+                            const Expanded(child: ImagePreviewWidget()),
                             if (generationState.isGenerating)
                               _GenerationProgress(
                                 progress: generationState.progress,
@@ -356,6 +382,92 @@ class _MobileGenerationLayoutState extends ConsumerState<MobileGenerationLayout>
 
     // 生成（抽卡模式逻辑在 generate 方法内部处理）
     ref.read(imageGenerationNotifierProvider.notifier).generate(params);
+  }
+}
+
+class _CollapsedPromptLauncher extends StatelessWidget {
+  const _CollapsedPromptLauncher({required this.prompt, required this.onTap});
+
+  final String prompt;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final hasPrompt = prompt.isNotEmpty;
+
+    return Semantics(
+      button: true,
+      label: context.l10n.toolbar_fullscreenEdit,
+      child: Material(
+        color: colors.surfaceContainerHigh.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(12),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          key: const ValueKey('generation-collapsed-prompt-launcher'),
+          onTap: onTap,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 68),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              child: Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: colors.primaryContainer.withValues(alpha: 0.62),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(
+                      Icons.edit_rounded,
+                      size: 20,
+                      color: colors.onPrimaryContainer,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          context.l10n.toolbar_fullscreenEdit,
+                          style: theme.textTheme.labelLarge?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          hasPrompt
+                              ? prompt.replaceAll(RegExp(r'\s+'), ' ')
+                              : context.l10n.prompt_describeImage,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colors.onSurfaceVariant.withValues(
+                              alpha: hasPrompt ? 0.82 : 0.58,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Icon(
+                    Icons.open_in_full_rounded,
+                    size: 18,
+                    color: colors.onSurfaceVariant.withValues(alpha: 0.72),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 

@@ -54,6 +54,7 @@ class PromptInputWidget extends ConsumerStatefulWidget {
   final VoidCallback? onToggleMaximize;
   final bool isMaximized;
   final bool showMaximizeButton;
+  final bool autofocus;
   final ValueNotifier<bool>? negativeModeNotifier;
 
   /// 编辑器随内容自增高（用于一体式滚动布局），
@@ -66,6 +67,7 @@ class PromptInputWidget extends ConsumerStatefulWidget {
     this.onToggleMaximize,
     this.isMaximized = false,
     this.showMaximizeButton = true,
+    this.autofocus = false,
     this.negativeModeNotifier,
     this.autoGrow = false,
   });
@@ -98,6 +100,9 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     // 检查并消费待填充提示词（从画廊发送）
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _consumePendingPrompt();
+      if (widget.autofocus && mounted) {
+        _promptFocusNode.requestFocus();
+      }
     });
 
     _isNegativeMode = widget.negativeModeNotifier?.value ?? false;
@@ -558,6 +563,13 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     return LayoutBuilder(
       builder: (context, constraints) {
         if (constraints.maxWidth < 600) {
+          final mobileTypeSwitch = _buildPromptTypeSwitch(
+            theme,
+            promptCount,
+            negativeCount,
+            expand: true,
+            compact: true,
+          );
           final primaryToolbar = PromptEditorToolbar(
             config: PromptEditorToolbarConfig.mainEditor.copyWith(
               showRandomButton: false,
@@ -591,16 +603,8 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
               Row(
                 key: const ValueKey('generation_prompt_mobile_primary_row'),
                 children: [
-                  Expanded(
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
-                        child: typeSwitch,
-                      ),
-                    ),
-                  ),
+                  Expanded(child: mobileTypeSwitch),
+                  const SizedBox(width: 6),
                   primaryToolbar,
                 ],
               ),
@@ -767,8 +771,10 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
   Widget _buildPromptTypeSwitch(
     ThemeData theme,
     int promptCount,
-    int negativeCount,
-  ) {
+    int negativeCount, {
+    bool expand = false,
+    bool compact = false,
+  }) {
     // 获取固定词数据
     final fixedTagsState = ref.watch(fixedTagsNotifierProvider);
     final enabledPrefixes = fixedTagsState.enabledPrefixes;
@@ -799,49 +805,52 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     // 预先获取别名解析器，避免在子组件 build 中访问 provider
     final aliasResolver = ref.read(aliasResolverServiceProvider.notifier);
 
+    final positiveButton = _PromptTypeButton(
+      icon: Icons.auto_awesome,
+      label: context.l10n.prompt_positive,
+      count: promptCount,
+      isSelected: !_isNegativeMode,
+      color: theme.colorScheme.primary,
+      compact: compact,
+      onTap: () => _setNegativeMode(false),
+      tooltipBuilder: (theme) => _PositivePromptTooltip(
+        theme: theme,
+        userPrompt: _promptController.text,
+        prefixes: enabledPrefixes,
+        suffixes: enabledSuffixes,
+        qualityMode: qualityState.mode,
+        qualityContent: qualityContent,
+        characters: characterConfig.characters,
+        globalAiChoice: characterConfig.globalAiChoice,
+        l10n: context.l10n,
+        aliasResolver: aliasResolver,
+      ),
+    );
+    final negativeButton = _PromptTypeButton(
+      icon: Icons.block,
+      label: context.l10n.prompt_negative,
+      count: negativeCount,
+      isSelected: _isNegativeMode,
+      color: theme.colorScheme.error,
+      compact: compact,
+      onTap: () => _setNegativeMode(true),
+      tooltipBuilder: (theme) => _NegativePromptTooltip(
+        theme: theme,
+        userNegativePrompt: _negativeController.text,
+        prefixes: negativeEnabledPrefixes,
+        suffixes: negativeEnabledSuffixes,
+        ucPresetContent: ucPresetContent,
+        l10n: context.l10n,
+        aliasResolver: aliasResolver,
+      ),
+    );
+
     return Row(
-      mainAxisSize: MainAxisSize.min,
+      mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
       children: [
-        // 正面提示词按钮
-        _PromptTypeButton(
-          icon: Icons.auto_awesome,
-          label: context.l10n.prompt_positive,
-          count: promptCount,
-          isSelected: !_isNegativeMode,
-          color: theme.colorScheme.primary,
-          onTap: () => _setNegativeMode(false),
-          tooltipBuilder: (theme) => _PositivePromptTooltip(
-            theme: theme,
-            userPrompt: _promptController.text,
-            prefixes: enabledPrefixes,
-            suffixes: enabledSuffixes,
-            qualityMode: qualityState.mode,
-            qualityContent: qualityContent,
-            characters: characterConfig.characters,
-            globalAiChoice: characterConfig.globalAiChoice,
-            l10n: context.l10n,
-            aliasResolver: aliasResolver,
-          ),
-        ),
-        const SizedBox(width: 8),
-        // 负面提示词按钮
-        _PromptTypeButton(
-          icon: Icons.block,
-          label: context.l10n.prompt_negative,
-          count: negativeCount,
-          isSelected: _isNegativeMode,
-          color: theme.colorScheme.error,
-          onTap: () => _setNegativeMode(true),
-          tooltipBuilder: (theme) => _NegativePromptTooltip(
-            theme: theme,
-            userNegativePrompt: _negativeController.text,
-            prefixes: negativeEnabledPrefixes,
-            suffixes: negativeEnabledSuffixes,
-            ucPresetContent: ucPresetContent,
-            l10n: context.l10n,
-            aliasResolver: aliasResolver,
-          ),
-        ),
+        if (expand) Expanded(child: positiveButton) else positiveButton,
+        SizedBox(width: compact ? 6 : 8),
+        if (expand) Expanded(child: negativeButton) else negativeButton,
       ],
     );
   }
@@ -2033,6 +2042,7 @@ class _PromptTypeButton extends StatefulWidget {
   final bool isSelected;
   final Color color;
   final VoidCallback onTap;
+  final bool compact;
   final Widget Function(ThemeData theme)? tooltipBuilder;
 
   const _PromptTypeButton({
@@ -2042,6 +2052,7 @@ class _PromptTypeButton extends StatefulWidget {
     required this.isSelected,
     required this.color,
     required this.onTap,
+    this.compact = false,
     this.tooltipBuilder,
   });
 
@@ -2097,7 +2108,10 @@ class _PromptTypeButtonState extends State<_PromptTypeButton>
             duration: const Duration(milliseconds: 200),
             curve: Curves.easeOutCubic,
             constraints: const BoxConstraints(minHeight: 48),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            padding: EdgeInsets.symmetric(
+              horizontal: widget.compact ? 8 : 14,
+              vertical: 8,
+            ),
             decoration: BoxDecoration(
               // 选中时使用渐变背景
               gradient: widget.isSelected
@@ -2118,7 +2132,9 @@ class _PromptTypeButtonState extends State<_PromptTypeButton>
               borderRadius: BorderRadius.circular(10),
             ),
             child: Row(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisSize: widget.compact
+                  ? MainAxisSize.max
+                  : MainAxisSize.min,
               children: [
                 // 图标
                 AnimatedContainer(
@@ -2138,24 +2154,45 @@ class _PromptTypeButtonState extends State<_PromptTypeButton>
                         : theme.colorScheme.onSurface.withValues(alpha: 0.5),
                   ),
                 ),
-                const SizedBox(width: 8),
-                // 文字
-                Text(
-                  widget.label,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: widget.isSelected
-                        ? FontWeight.w600
-                        : FontWeight.w500,
-                    color: widget.isSelected
-                        ? widget.color
-                        : theme.colorScheme.onSurface.withValues(alpha: 0.7),
-                    letterSpacing: 0.3,
+                SizedBox(width: widget.compact ? 5 : 8),
+                // 窄屏保留可读文字，但让长译文自然截断而不是压缩整行。
+                if (widget.compact)
+                  Expanded(
+                    child: Text(
+                      widget.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: widget.isSelected
+                            ? FontWeight.w600
+                            : FontWeight.w500,
+                        color: widget.isSelected
+                            ? widget.color
+                            : theme.colorScheme.onSurface.withValues(
+                                alpha: 0.7,
+                              ),
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  )
+                else
+                  Text(
+                    widget.label,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: widget.isSelected
+                          ? FontWeight.w600
+                          : FontWeight.w500,
+                      color: widget.isSelected
+                          ? widget.color
+                          : theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                      letterSpacing: 0.3,
+                    ),
                   ),
-                ),
-                // 数量徽章
-                if (widget.count > 0) ...[
-                  const SizedBox(width: 6),
+                // 紧凑布局优先保证模式名称完整可辨，数量在编辑器内仍可见。
+                if (widget.count > 0 && !widget.compact) ...[
+                  SizedBox(width: widget.compact ? 4 : 6),
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 6,

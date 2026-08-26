@@ -594,8 +594,8 @@ void main() {
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             home: Scaffold(
               body: SizedBox(
-                width: 720,
-                height: 72,
+                width: 320,
+                height: 80,
                 child: UnifiedPromptInput(
                   controller: controller,
                   sessionId: sessionId,
@@ -637,6 +637,8 @@ void main() {
       expect(toolbar, findsOneWidget);
       expect(editableRect.height, greaterThanOrEqualTo(18));
       expect(editableRect.bottom, lessThanOrEqualTo(toolbarRect.top));
+      expect(toolbarRect.left, greaterThanOrEqualTo(8));
+      expect(toolbarRect.right, lessThanOrEqualTo(312));
       expect(tester.takeException(), isNull);
     } finally {
       debugDefaultTargetPlatformOverride = null;

@@ -5,7 +5,7 @@ import 'input_surface_container.dart';
 
 /// 带表单验证的统一样式输入框组件
 ///
-/// 使用共享深色填充与零尺寸内侧焦点/错误发光。
+/// 使用共享深色填充与清晰、无发光的聚焦和错误轮廓。
 /// 支持 [validator] 验证功能和错误提示显示。
 class ThemedFormInput extends StatelessWidget {
   /// 文本控制器
@@ -283,7 +283,11 @@ class ThemedFormInput extends StatelessWidget {
                 style: style,
                 autofocus: autofocus,
                 textAlign: textAlign,
-                textAlignVertical: textAlignVertical,
+                textAlignVertical:
+                    textAlignVertical ??
+                    (maxLines == 1 && !expands
+                        ? TextAlignVertical.center
+                        : null),
                 cursorColor: cursorColor,
                 decoration: inputDecoration,
               );

@@ -352,6 +352,57 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('Android phone keeps prompt collapsed until the user opens it', (
+    tester,
+  ) async {
+    final storage = _SidebarTestStorage(
+      fixedEntries: const [],
+      categories: const [],
+      libraryEntries: const [],
+    )..fixedSidebarExpanded = false;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: SizedBox(width: 360, height: 700, child: GenerationScreen()),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 220));
+
+    final launcher = find.byKey(
+      const ValueKey('generation-collapsed-prompt-launcher'),
+    );
+    expect(launcher, findsOneWidget);
+    expect(find.byKey(const ValueKey('maximized-prompt')), findsNothing);
+
+    await tester.tap(launcher);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 220));
+
+    expect(find.byKey(const ValueKey('maximized-prompt')), findsOneWidget);
+    final closeButton = find.byKey(
+      const ValueKey('generation-prompt-editor-close'),
+    );
+    expect(closeButton, findsOneWidget);
+
+    await tester.tap(closeButton);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 220));
+
+    expect(launcher, findsOneWidget);
+    expect(find.byKey(const ValueKey('maximized-prompt')), findsNothing);
+    expect(storage.promptMaximized, isFalse);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('GenerationScreen overlays the sidebar on very narrow layouts', (
     tester,
   ) async {
@@ -1229,6 +1280,7 @@ class _SidebarTestStorage extends LocalStorageService {
   final List<TagLibraryEntry> libraryEntries;
 
   bool fixedSidebarExpanded = true;
+  bool promptMaximized = false;
   double fixedSidebarWidth = 320.0;
   String fixedSidebarViewMode = 'list';
   double negativeHeight = 180.0;
@@ -1250,7 +1302,12 @@ class _SidebarTestStorage extends LocalStorageService {
   double getPromptAreaHeight() => 200.0;
 
   @override
-  bool getPromptMaximized() => false;
+  bool getPromptMaximized() => promptMaximized;
+
+  @override
+  Future<void> setPromptMaximized(bool maximized) async {
+    promptMaximized = maximized;
+  }
 
   @override
   bool getFixedTagsSidebarExpanded() => fixedSidebarExpanded;

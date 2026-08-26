@@ -167,6 +167,7 @@ class _SearchInputState extends State<_SearchInput> {
           controller: widget.controller,
           onChanged: widget.onChanged,
           style: Theme.of(context).textTheme.bodySmall,
+          textAlignVertical: TextAlignVertical.center,
           decoration: InputDecoration(
             hintText: context.l10n.randomManager_searchCategoryOrTagGroup,
             hintStyle: TextStyle(

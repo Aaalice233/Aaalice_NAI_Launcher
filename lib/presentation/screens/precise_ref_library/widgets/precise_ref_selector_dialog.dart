@@ -121,6 +121,7 @@ class _PreciseRefSelectorDialogState
           children: [
             TextField(
               key: const Key('precise-ref-selector-search'),
+              textAlignVertical: TextAlignVertical.center,
               decoration: InputDecoration(
                 hintText: l10n.preciseRefLib_searchHint,
                 prefixIcon: const Icon(Icons.search, size: 20),

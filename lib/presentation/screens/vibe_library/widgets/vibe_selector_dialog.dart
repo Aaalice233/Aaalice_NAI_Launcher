@@ -538,6 +538,7 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
       controller: _searchController,
       focusNode: _searchFocusNode,
       onChanged: _onSearchChanged,
+      textAlignVertical: TextAlignVertical.center,
       decoration: InputDecoration(
         hintText: context.l10n.vibeLibrary_searchHint,
         prefixIcon: const Icon(Icons.search),

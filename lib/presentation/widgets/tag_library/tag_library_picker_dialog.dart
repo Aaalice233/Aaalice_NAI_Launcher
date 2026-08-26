@@ -110,6 +110,7 @@ class _TagLibraryPickerDialogState
         Expanded(
           flex: 2,
           child: TextField(
+            textAlignVertical: TextAlignVertical.center,
             decoration: InputDecoration(
               hintText: context.l10n.tagLibraryPicker_searchHint,
               prefixIcon: const Icon(Icons.search, size: 20),

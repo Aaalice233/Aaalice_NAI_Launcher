@@ -124,6 +124,7 @@ class _ShortcutSettingsPanelState extends ConsumerState<ShortcutSettingsPanel> {
                   Expanded(
                     child: TextField(
                       controller: _searchController,
+                      textAlignVertical: TextAlignVertical.center,
                       decoration: InputDecoration(
                         hintText: context.l10n.shortcut_settings_search,
                         prefixIcon: const Icon(Icons.search, size: 20),

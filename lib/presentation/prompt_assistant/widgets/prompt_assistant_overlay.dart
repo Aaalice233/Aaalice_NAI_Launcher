@@ -56,7 +56,8 @@ class PromptAssistantOverlay extends ConsumerStatefulWidget {
       _PromptAssistantOverlayState();
 }
 
-class _PromptAssistantOverlayState extends ConsumerState<PromptAssistantOverlay> {
+class _PromptAssistantOverlayState
+    extends ConsumerState<PromptAssistantOverlay> {
   StreamSubscription? _streamSub;
 
   bool get _isDesktop => PlatformCapabilities.current.hasPrecisePointer;
@@ -576,9 +577,7 @@ class _PromptAssistantOverlayState extends ConsumerState<PromptAssistantOverlay>
             ? (details) => _showMenu(details.globalPosition)
             : null,
         child: AnimatedContainer(
-          key: ValueKey<String>(
-            'prompt_assistant_toolbar_${widget.sessionId}',
-          ),
+          key: ValueKey<String>('prompt_assistant_toolbar_${widget.sessionId}'),
           duration: reduceMotion
               ? Duration.zero
               : const Duration(milliseconds: 160),
@@ -591,8 +590,9 @@ class _PromptAssistantOverlayState extends ConsumerState<PromptAssistantOverlay>
             color: !widget.floatOverEditor
                 ? Colors.transparent
                 : isExpanded
-                ? Theme.of(context).colorScheme.surfaceContainerHighest
-                      .withValues(alpha: 0.82)
+                ? Theme.of(
+                    context,
+                  ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.82)
                 : Theme.of(context).colorScheme.surface.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(isExpanded ? 12 : 15),
           ),
@@ -603,110 +603,106 @@ class _PromptAssistantOverlayState extends ConsumerState<PromptAssistantOverlay>
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                  if (!isExpanded)
-                    _miniButton(
-                      icon: Icons.auto_awesome_rounded,
-                      tooltip: widget.expandInPlace
-                          ? context.l10n.promptAssistant_expandAssistant
-                          : context.l10n.promptAssistant_menu,
-                      onPressed: widget.expandInPlace
-                          ? () => notifier.setExpanded(widget.sessionId, true)
-                          : () => _showMenu(),
-                      iconColor: Theme.of(
-                        context,
-                      ).colorScheme.onSurface.withValues(alpha: 0.78),
-                    ),
-                  if (isExpanded && !_isDesktop) ...[
-                    _miniButton(
-                      icon: Icons.translate,
-                      tooltip: context.l10n.promptAssistant_translate,
-                      onPressed: isProcessing ? null : _runTranslate,
-                    ),
-                    _miniButton(
-                      icon: Icons.auto_fix_high,
-                      tooltip: context.l10n.promptAssistant_optimize,
-                      onPressed: isProcessing ? null : _runOptimize,
-                    ),
-                    _miniButton(
-                      icon: isProcessing ? Icons.stop_circle : Icons.more_horiz,
-                      tooltip: isProcessing
-                          ? context.l10n.promptAssistant_cancelTask
-                          : context.l10n.promptAssistant_menu,
-                      onPressed: isProcessing
-                          ? () async {
-                              await ref
-                                  .read(promptAssistantServiceProvider)
-                                  .cancelCurrentTask(
-                                    sessionId: widget.sessionId,
-                                  );
-                              notifier.finishProcessing(widget.sessionId);
-                            }
-                          : () => _showMenu(),
-                    ),
-                    _miniButton(
-                      icon: Icons.keyboard_arrow_down_rounded,
-                      tooltip: context.l10n.promptAssistant_collapseAssistant,
-                      onPressed: () =>
-                          notifier.setExpanded(widget.sessionId, false),
-                    ),
-                  ] else if (isExpanded) ...[
-                    _miniButton(
-                      icon: Icons.history,
-                      tooltip: context.l10n.promptAssistant_history,
-                      onPressed: _showHistory,
-                    ),
-                    _miniButton(
-                      icon: Icons.undo,
-                      tooltip: context.l10n.promptAssistant_undo,
-                      onPressed: history.canUndo ? _undo : null,
-                    ),
-                    _miniButton(
-                      icon: Icons.redo,
-                      tooltip: context.l10n.promptAssistant_redo,
-                      onPressed: history.canRedo ? _redo : null,
-                    ),
-                    _miniButton(
-                      icon: Icons.translate,
-                      tooltip: context.l10n.promptAssistant_translate,
-                      onPressed: isProcessing ? null : _runTranslate,
-                    ),
-                    _miniButton(
-                      icon: Icons.auto_fix_high,
-                      tooltip: context.l10n.promptAssistant_optimize,
-                      onPressed: isProcessing ? null : _runOptimize,
-                    ),
-                    _miniButton(
-                      icon: Icons.tune_rounded,
-                      tooltip: context.l10n.promptAssistant_custom,
-                      onPressed: isProcessing ? null : _runCustom,
-                    ),
-                    _miniButton(
-                      icon: Icons.manage_accounts_rounded,
-                      tooltip: context.l10n.promptAssistant_characterReplace,
-                      onPressed: isProcessing ? null : _runCharacterReplace,
-                    ),
-                    _miniButton(
-                      icon: isProcessing ? Icons.stop_circle : Icons.more_horiz,
-                      tooltip: isProcessing
-                          ? context.l10n.promptAssistant_cancelTask
-                          : context.l10n.promptAssistant_menu,
-                      onPressed: isProcessing
-                          ? () async {
-                              await ref
-                                  .read(promptAssistantServiceProvider)
-                                  .cancelCurrentTask(
-                                    sessionId: widget.sessionId,
-                                  );
-                              notifier.finishProcessing(widget.sessionId);
-                            }
-                          : () => _showMenu(),
-                    ),
-                    _miniButton(
-                      icon: Icons.keyboard_arrow_down_rounded,
-                      tooltip: context.l10n.promptAssistant_collapseAssistant,
-                      onPressed: () =>
-                          notifier.setExpanded(widget.sessionId, false),
-                    ),
+                if (!isExpanded)
+                  _miniButton(
+                    icon: Icons.auto_awesome_rounded,
+                    tooltip: widget.expandInPlace
+                        ? context.l10n.promptAssistant_expandAssistant
+                        : context.l10n.promptAssistant_menu,
+                    onPressed: widget.expandInPlace
+                        ? () => notifier.setExpanded(widget.sessionId, true)
+                        : () => _showMenu(),
+                    iconColor: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.78),
+                  ),
+                if (isExpanded && !_isDesktop) ...[
+                  _miniButton(
+                    icon: Icons.translate,
+                    tooltip: context.l10n.promptAssistant_translate,
+                    onPressed: isProcessing ? null : _runTranslate,
+                  ),
+                  _miniButton(
+                    icon: Icons.auto_fix_high,
+                    tooltip: context.l10n.promptAssistant_optimize,
+                    onPressed: isProcessing ? null : _runOptimize,
+                  ),
+                  _miniButton(
+                    icon: isProcessing ? Icons.stop_circle : Icons.more_horiz,
+                    tooltip: isProcessing
+                        ? context.l10n.promptAssistant_cancelTask
+                        : context.l10n.promptAssistant_menu,
+                    onPressed: isProcessing
+                        ? () async {
+                            await ref
+                                .read(promptAssistantServiceProvider)
+                                .cancelCurrentTask(sessionId: widget.sessionId);
+                            notifier.finishProcessing(widget.sessionId);
+                          }
+                        : () => _showMenu(),
+                  ),
+                  _miniButton(
+                    icon: Icons.keyboard_arrow_down_rounded,
+                    tooltip: context.l10n.promptAssistant_collapseAssistant,
+                    onPressed: () =>
+                        notifier.setExpanded(widget.sessionId, false),
+                  ),
+                ] else if (isExpanded) ...[
+                  _miniButton(
+                    icon: Icons.history,
+                    tooltip: context.l10n.promptAssistant_history,
+                    onPressed: _showHistory,
+                  ),
+                  _miniButton(
+                    icon: Icons.undo,
+                    tooltip: context.l10n.promptAssistant_undo,
+                    onPressed: history.canUndo ? _undo : null,
+                  ),
+                  _miniButton(
+                    icon: Icons.redo,
+                    tooltip: context.l10n.promptAssistant_redo,
+                    onPressed: history.canRedo ? _redo : null,
+                  ),
+                  _miniButton(
+                    icon: Icons.translate,
+                    tooltip: context.l10n.promptAssistant_translate,
+                    onPressed: isProcessing ? null : _runTranslate,
+                  ),
+                  _miniButton(
+                    icon: Icons.auto_fix_high,
+                    tooltip: context.l10n.promptAssistant_optimize,
+                    onPressed: isProcessing ? null : _runOptimize,
+                  ),
+                  _miniButton(
+                    icon: Icons.tune_rounded,
+                    tooltip: context.l10n.promptAssistant_custom,
+                    onPressed: isProcessing ? null : _runCustom,
+                  ),
+                  _miniButton(
+                    icon: Icons.manage_accounts_rounded,
+                    tooltip: context.l10n.promptAssistant_characterReplace,
+                    onPressed: isProcessing ? null : _runCharacterReplace,
+                  ),
+                  _miniButton(
+                    icon: isProcessing ? Icons.stop_circle : Icons.more_horiz,
+                    tooltip: isProcessing
+                        ? context.l10n.promptAssistant_cancelTask
+                        : context.l10n.promptAssistant_menu,
+                    onPressed: isProcessing
+                        ? () async {
+                            await ref
+                                .read(promptAssistantServiceProvider)
+                                .cancelCurrentTask(sessionId: widget.sessionId);
+                            notifier.finishProcessing(widget.sessionId);
+                          }
+                        : () => _showMenu(),
+                  ),
+                  _miniButton(
+                    icon: Icons.keyboard_arrow_down_rounded,
+                    tooltip: context.l10n.promptAssistant_collapseAssistant,
+                    onPressed: () =>
+                        notifier.setExpanded(widget.sessionId, false),
+                  ),
                 ],
               ],
             ),
@@ -719,7 +715,15 @@ class _PromptAssistantOverlayState extends ConsumerState<PromptAssistantOverlay>
       return child;
     }
 
-    return Positioned(right: 8, bottom: 8, child: child);
+    // Give the expanding toolbar the editor's real horizontal constraint. An
+    // unconstrained right-anchored child grows to its full intrinsic width and
+    // gets clipped past the editor's left edge on narrow desktop panels.
+    return Positioned(
+      left: 8,
+      right: 8,
+      bottom: 8,
+      child: Align(alignment: Alignment.bottomRight, child: child),
+    );
   }
 
   Widget _miniButton({

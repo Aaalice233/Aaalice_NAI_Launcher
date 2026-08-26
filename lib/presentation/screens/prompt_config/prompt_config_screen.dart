@@ -540,6 +540,7 @@ class _LibrarySearchField extends StatelessWidget {
         controller: controller,
         focusNode: focusNode,
         onChanged: onChanged,
+        textAlignVertical: TextAlignVertical.center,
         decoration: InputDecoration(
           hintText: searchLabel,
           prefixIcon: const Icon(Icons.search_rounded, size: 20),

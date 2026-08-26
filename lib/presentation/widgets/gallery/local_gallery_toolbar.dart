@@ -655,6 +655,7 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
         controller: _searchController,
         focusNode: _searchFocusNode,
         style: theme.textTheme.bodyMedium,
+        textAlignVertical: TextAlignVertical.center,
         decoration: InputDecoration(
           hintText: context.l10n.localGallery_searchFilenamePromptPlaceholder,
           hintStyle: TextStyle(
