@@ -765,12 +765,10 @@ class _SourceBadges extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
                 decoration: BoxDecoration(
-                  border: Border.all(
-                    color: _sourceColor(
-                      theme,
-                      visible[index],
-                    ).withValues(alpha: 0.78),
-                  ),
+                  color: _sourceColor(
+                    theme,
+                    visible[index],
+                  ).withValues(alpha: 0.14),
                   borderRadius: BorderRadius.circular(3),
                 ),
                 child: Text(

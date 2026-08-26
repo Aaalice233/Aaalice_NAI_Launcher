@@ -1307,10 +1307,6 @@ class _BreakdownMenu extends StatelessWidget {
                         ],
                       ),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: theme.colorScheme.outline.withValues(alpha: 0.2),
-                        width: 1,
-                      ),
                       boxShadow: [
                         BoxShadow(
                           color: theme.colorScheme.shadow.withValues(

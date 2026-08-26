@@ -8,9 +8,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/models/character/character_prompt.dart';
 import '../../providers/character_position_canvas_provider.dart';
 import '../../providers/character_prompt_provider.dart';
+import '../../providers/composition_guide_provider.dart';
 import '../../providers/generation/generation_params_selectors.dart';
 import '../../providers/image_generation_provider.dart';
+import '../common/composition_guide.dart';
 import '../common/decoded_memory_image.dart';
+import 'composition_guide_button.dart';
 
 /// 芯片显示信息：性别符号 + 显示名
 typedef CharacterChipDisplay = ({IconData? genderIcon, String? label});
@@ -128,6 +131,7 @@ class _CharacterPositionCanvasViewState
             ),
           ),
           const Spacer(),
+          const CompositionGuideButton(),
           IconButton(
             onPressed: () =>
                 ref.read(characterPositionCanvasProvider.notifier).close(),
@@ -155,6 +159,7 @@ class _CharacterPositionCanvasViewState
     final previewDimensions = ref.watch(
       generationParamsNotifierProvider.select(selectPreviewDimensionsViewData),
     );
+    final guide = ref.watch(compositionGuideNotifierProvider);
 
     final backgroundImage = generationState.displayImages.isNotEmpty
         ? generationState.displayImages.first
@@ -184,17 +189,7 @@ class _CharacterPositionCanvasViewState
                   // 轻微暗化，让锚点在亮图上也清晰
                   const ColoredBox(color: Color(0x26000000)),
                 ] else
-                  Container(
-                    decoration: BoxDecoration(
-                      color: colorScheme.surfaceContainerHighest.withValues(
-                        alpha: 0.4,
-                      ),
-                      border: Border.all(
-                        color: colorScheme.outline.withValues(alpha: 0.3),
-                      ),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
+                  ColoredBox(color: colorScheme.surfaceContainerLow),
                 if (config.globalAiChoice)
                   Center(
                     child: Container(
@@ -214,7 +209,7 @@ class _CharacterPositionCanvasViewState
                       ),
                     ),
                   )
-                else ...[
+                else
                   for (var i = 0; i < config.characters.length; i++)
                     _buildAnchor(
                       context,
@@ -223,10 +218,16 @@ class _CharacterPositionCanvasViewState
                       i,
                       size,
                     ),
-                  // 浮签独立成层且始终位于列表尾部：拖动开始时插入它
-                  // 不会挤动锚点的 Element 位置（锚点手势不被打断）
-                  if (_draggingId != null) _buildDragLabel(size),
-                ],
+                // 参考线压在锚点之上，才看得清锚点落在哪条线的哪一侧
+                CompositionGuideOverlay(
+                  mode: guide.mode,
+                  columns: guide.columns,
+                  rows: guide.rows,
+                ),
+                // 浮签独立成层且始终位于列表尾部：拖动开始时插入它
+                // 不会挤动锚点的 Element 位置（锚点手势不被打断）
+                if (!config.globalAiChoice && _draggingId != null)
+                  _buildDragLabel(size),
               ],
             );
           },
@@ -414,7 +415,7 @@ class CharacterPositionModeSegments extends ConsumerWidget {
       color: selected
           ? theme.colorScheme.primary
           : theme.colorScheme.onSurfaceVariant,
-      fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+      fontWeight: FontWeight.w500,
     );
   }
 }
@@ -444,14 +445,9 @@ class _ModeSegment extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
           color: selected
-              ? colorScheme.primary.withValues(alpha: 0.15)
-              : Colors.transparent,
+              ? colorScheme.primary.withValues(alpha: 0.14)
+              : colorScheme.surfaceContainer,
           borderRadius: radius,
-          border: Border.all(
-            color: selected
-                ? colorScheme.primary.withValues(alpha: 0.6)
-                : colorScheme.outline.withValues(alpha: 0.3),
-          ),
         ),
         child: child,
       ),
@@ -513,7 +509,7 @@ class _CharacterChip extends StatelessWidget {
     final colorScheme = theme.colorScheme;
     final display = resolveCharacterChipDisplay(character);
     final foreground = selected
-        ? colorScheme.onPrimary
+        ? colorScheme.primary
         : colorScheme.onSurfaceVariant;
 
     return InkWell(
@@ -523,13 +519,10 @@ class _CharacterChip extends StatelessWidget {
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
-          color: selected ? colorScheme.primary : Colors.transparent,
+          color: selected
+              ? colorScheme.primary.withValues(alpha: 0.14)
+              : colorScheme.surfaceContainerLow,
           borderRadius: BorderRadius.circular(6),
-          border: Border.all(
-            color: selected
-                ? colorScheme.primary
-                : colorScheme.outline.withValues(alpha: 0.35),
-          ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,

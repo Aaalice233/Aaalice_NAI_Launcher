@@ -153,7 +153,7 @@ int estimatedCost(Ref ref) {
     return AnlasCalculator.calculateNovelAiUpscaleCost(
       inputWidth: inputWidth,
       inputHeight: inputHeight,
-      scale: 4,
+      scale: 2,
       subscriptionTier: subscriptionTier,
     );
   }

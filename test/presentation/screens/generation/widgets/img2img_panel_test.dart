@@ -8,7 +8,9 @@ import 'package:nai_launcher/core/comfyui/seedvr2_support.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/presentation/providers/comfyui/comfyui_provider.dart';
+import 'package:nai_launcher/presentation/providers/cost_estimate_provider.dart';
 import 'package:nai_launcher/presentation/providers/generation/image_workflow_controller.dart';
+import 'package:nai_launcher/presentation/providers/generation/novel_ai_upscale_task_provider.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/img2img_panel.dart';
 
 import '../../../../helpers/light_theme_contrast.dart';
@@ -123,6 +125,139 @@ void main() {
       expect(find.textContaining('普通模型 ·'), findsNothing);
     });
 
+    testWidgets('NovelAI 超分点数显示在开始超分按钮内', (tester) async {
+      final container = ProviderContainer(
+        overrides: [
+          localStorageServiceProvider.overrideWith(
+            (ref) => _MemoryLocalStorageService(),
+          ),
+          comfyUISettingsProvider.overrideWith(_EnabledComfyUISettings.new),
+          comfyUISeedvr2ModelsProvider.overrideWith(
+            _FixedComfyUIUpscaleModels.new,
+          ),
+          isFreeGenerationProvider.overrideWith((ref) => false),
+          estimatedCostProvider.overrideWith((ref) => 10),
+          isBalanceInsufficientProvider.overrideWith((ref) => false),
+        ],
+      );
+      addTearDown(container.dispose);
+      await tester.binding.setSurfaceSize(const Size(1400, 1600));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final controller = container.read(
+        imageWorkflowControllerProvider.notifier,
+      );
+      controller.replaceSourceImage(_testImageBytes);
+      controller.updateUpscaleBackend(UpscaleBackend.novelai);
+      controller.enterUpscaleMode();
+      controller.setPanelExpanded(true);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(
+            locale: Locale('zh'),
+            supportedLocales: AppLocalizations.supportedLocales,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            home: Scaffold(body: Img2ImgPanel()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final expectedCost = container.read(estimatedCostProvider);
+      final startButton = find.widgetWithText(FilledButton, '开始超分');
+      final costBadge = find.byKey(const ValueKey('upscale_anlas_cost_badge'));
+
+      expect(expectedCost, greaterThan(0));
+      expect(startButton, findsOneWidget);
+      expect(
+        find.descendant(of: startButton, matching: costBadge),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: costBadge,
+          matching: find.text(expectedCost.toString()),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('NovelAI 超分离开页面后返回仍显示运行状态', (tester) async {
+      final container = ProviderContainer(
+        overrides: [
+          localStorageServiceProvider.overrideWith(
+            (ref) => _MemoryLocalStorageService(),
+          ),
+          comfyUISettingsProvider.overrideWith(_EnabledComfyUISettings.new),
+          comfyUISeedvr2ModelsProvider.overrideWith(
+            _FixedComfyUIUpscaleModels.new,
+          ),
+          novelAiUpscaleTaskProvider.overrideWith(
+            _TestNovelAiUpscaleTaskNotifier.new,
+          ),
+          isFreeGenerationProvider.overrideWith((ref) => false),
+          estimatedCostProvider.overrideWith((ref) => 10),
+          isBalanceInsufficientProvider.overrideWith((ref) => false),
+        ],
+      );
+      var containerDisposed = false;
+      addTearDown(() {
+        if (!containerDisposed) container.dispose();
+      });
+      await tester.binding.setSurfaceSize(const Size(1400, 1600));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final controller = container.read(
+        imageWorkflowControllerProvider.notifier,
+      );
+      controller.replaceSourceImage(_testImageBytes);
+      controller.updateUpscaleBackend(UpscaleBackend.novelai);
+      controller.enterUpscaleMode();
+      controller.setPanelExpanded(true);
+      await tester.pump(const Duration(milliseconds: 1));
+      final taskNotifier =
+          container.read(novelAiUpscaleTaskProvider.notifier)
+              as _TestNovelAiUpscaleTaskNotifier;
+      taskNotifier.start();
+
+      Future<void> pumpPanel() => tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(
+            locale: Locale('zh'),
+            supportedLocales: AppLocalizations.supportedLocales,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            home: Scaffold(body: Img2ImgPanel()),
+          ),
+        ),
+      );
+
+      await pumpPanel();
+      await tester.pump(const Duration(milliseconds: 1));
+      expect(find.byType(LinearProgressIndicator), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 1));
+      expect(container.read(novelAiUpscaleTaskProvider).isRunning, isTrue);
+
+      await pumpPanel();
+      await tester.pump(const Duration(milliseconds: 1));
+      expect(find.byType(LinearProgressIndicator), findsOneWidget);
+      expect(
+        tester
+            .widget<FilledButton>(find.widgetWithText(FilledButton, '开始超分'))
+            .onPressed,
+        isNull,
+      );
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      container.dispose();
+      containerDisposed = true;
+      await tester.pump(const Duration(milliseconds: 1));
+    });
+
     testWidgets('浅色主题下展开面板不应出现贴在面板底色上的近白色文字', (tester) async {
       final container = ProviderContainer();
       addTearDown(container.dispose);
@@ -201,5 +336,16 @@ class _MemoryLocalStorageService extends LocalStorageService {
   @override
   Future<void> deleteSetting(String key) async {
     _values.remove(key);
+  }
+}
+
+class _TestNovelAiUpscaleTaskNotifier extends NovelAiUpscaleTaskNotifier {
+  @override
+  NovelAiUpscaleTaskState build() => const NovelAiUpscaleTaskState();
+
+  void start() {
+    state = const NovelAiUpscaleTaskState(
+      status: NovelAiUpscaleTaskStatus.running,
+    );
   }
 }

@@ -15,9 +15,10 @@ import '../../../data/models/image/image_stream_chunk.dart';
 import '../../../data/repositories/gallery_folder_repository.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../providers/share_image_settings_provider.dart';
-import '../../themes/theme_extension.dart';
 import '../../utils/clipboard_image.dart';
+import '../../themes/theme_extension.dart';
 import 'animated_favorite_button.dart';
+import 'image_card_hover_motion.dart';
 import 'pro_context_menu.dart';
 import 'app_toast.dart';
 import 'decoded_memory_image.dart';
@@ -192,7 +193,7 @@ class SelectableImageCard extends ConsumerStatefulWidget {
     this.allowRepeatedModifierTaps = false,
     this.enableContextMenu = true,
     this.enableHoverScale = true,
-    this.enableGlossEffect = true,
+    this.enableGlossEffect = false,
     this.hoverEffectsEnabled = true,
     this.shareWarmupEnabled = true,
     this.enableSaveAction = true,
@@ -255,6 +256,7 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
   late bool _showPreparedIndexBadge;
   late bool _completedImageHasFrame;
   bool _completionPlaceholderSettledNotified = false;
+  int _completionImageEpoch = 0;
   Uint8List? _precachingCompletedImageBytes;
   Uint8List? _lastStreamPreviewBytes;
   Timer? _completionPlaceholderFallbackTimer;
@@ -311,7 +313,7 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
       vsync: this,
     )..repeat(reverse: true);
 
-    _glowAnimation = Tween<double>(begin: 0.1, end: 0.35).animate(
+    _glowAnimation = Tween<double>(begin: 0.04, end: 0.1).animate(
       CurvedAnimation(parent: _glowController!, curve: Curves.easeInOut),
     );
   }
@@ -328,8 +330,14 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
       _glowAnimation = null;
     }
 
+    // Preserve the stream only for generating -> completed; a reused completed
+    // card must not use another result's frame as its placeholder.
     if (widget.streamPreview?.isNotEmpty == true) {
       _lastStreamPreviewBytes = widget.streamPreview;
+    } else if (oldWidget.imageBytes != null &&
+        (oldWidget.imageIdentity != widget.imageIdentity ||
+            oldWidget.imageBytes != widget.imageBytes)) {
+      _lastStreamPreviewBytes = null;
     }
 
     if (oldWidget.imageBytes != widget.imageBytes ||
@@ -342,9 +350,11 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
     }
 
     if (oldWidget.imageBytes != widget.imageBytes ||
+        oldWidget.imageIdentity != widget.imageIdentity ||
         oldWidget.completionPlaceholderBytes !=
             widget.completionPlaceholderBytes ||
         (oldWidget.isGenerating && !widget.isGenerating)) {
+      _completionImageEpoch++;
       _completedImageHasFrame = _effectiveCompletionPlaceholderBytes == null;
       _completionPlaceholderSettledNotified = false;
       _precachingCompletedImageBytes = null;
@@ -418,14 +428,16 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
       return;
     }
 
+    final completionImageEpoch = _completionImageEpoch;
     _precachingCompletedImageBytes = imageBytes;
     unawaited(
       precacheImage(MemoryImage(imageBytes), context).then((_) {
         if (!mounted ||
+            completionImageEpoch != _completionImageEpoch ||
             !identical(_precachingCompletedImageBytes, imageBytes)) {
           return;
         }
-        _markCompletedImageReady();
+        _markCompletedImageReady(completionImageEpoch);
       }),
     );
   }
@@ -437,19 +449,21 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
       return;
     }
 
+    final completionImageEpoch = _completionImageEpoch;
     _completionPlaceholderFallbackTimer = Timer(
       _completionPlaceholderFallbackDuration,
       () {
-        if (!mounted) {
+        if (!mounted || completionImageEpoch != _completionImageEpoch) {
           return;
         }
-        _markCompletedImageReady();
+        _markCompletedImageReady(completionImageEpoch);
       },
     );
   }
 
-  void _markCompletedImageReady() {
-    if (_completedImageHasFrame) {
+  void _markCompletedImageReady([int? expectedEpoch]) {
+    if ((expectedEpoch != null && expectedEpoch != _completionImageEpoch) ||
+        _completedImageHasFrame) {
       return;
     }
     _completionPlaceholderFallbackTimer?.cancel();
@@ -471,21 +485,22 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
     bool wasSynchronouslyLoaded,
   ) {
     if ((frame != null || wasSynchronouslyLoaded) && !_completedImageHasFrame) {
+      final completionImageEpoch = _completionImageEpoch;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted || _completedImageHasFrame) {
+        if (!mounted ||
+            completionImageEpoch != _completionImageEpoch ||
+            _completedImageHasFrame) {
           return;
         }
-        _markCompletedImageReady();
+        _markCompletedImageReady(completionImageEpoch);
       });
     }
     return child;
   }
 
-  /// 获取边缘发光颜色
+  /// 获取生成状态的语义强调色。
   Color _getGlowColor(BuildContext context) {
-    final theme = Theme.of(context);
-    final extension = theme.extension<AppThemeExtension>();
-    return extension?.glowColor ?? theme.colorScheme.primary;
+    return Theme.of(context).colorScheme.primary;
   }
 
   @override
@@ -536,10 +551,9 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
             boxShadow: [
               BoxShadow(
                 color: primaryColor.withValues(
-                  alpha: _glowAnimation?.value ?? 0.2,
+                  alpha: _glowAnimation?.value ?? 0.06,
                 ),
-                blurRadius: 40,
-                spreadRadius: 0,
+                blurRadius: 18,
               ),
             ],
           ),
@@ -709,17 +723,12 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
           decoration: BoxDecoration(
             color: surfaceColor,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: primaryColor.withValues(alpha: 0.15),
-              width: 1,
-            ),
             boxShadow: [
               BoxShadow(
                 color: primaryColor.withValues(
-                  alpha: _glowAnimation?.value ?? 0.2,
+                  alpha: _glowAnimation?.value ?? 0.06,
                 ),
-                blurRadius: 40,
-                spreadRadius: 0,
+                blurRadius: 18,
               ),
             ],
           ),
@@ -815,6 +824,8 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
   /// 构建已完成状态的卡片
   Widget _buildCompletedCard(BuildContext context, ThemeData theme) {
     final glowColor = _getGlowColor(context);
+    final reducedMotion = MediaQuery.disableAnimationsOf(context);
+    final motion = theme.appTheme;
 
     // 确保有图像数据
     if (widget.imageBytes == null) {
@@ -830,6 +841,9 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
     final completionPlaceholderBytes = _effectiveCompletionPlaceholderBytes;
     final showCompletionPlaceholder =
         completionPlaceholderBytes != null && !_completedImageHasFrame;
+    final displayedImageBytes = showCompletionPlaceholder
+        ? completionPlaceholderBytes
+        : widget.imageBytes!;
 
     return MouseRegion(
       onEnter: (_) => _onHoverEnter(),
@@ -849,279 +863,257 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
                 unawaited(_showContextMenu(context, details.globalPosition));
               }
             : null,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          curve: Curves.easeOut,
-          transform: Matrix4.diagonal3Values(
-            widget.enableHoverScale && _isHovering ? 1.03 : 1.0,
-            widget.enableHoverScale && _isHovering ? 1.03 : 1.0,
-            1.0,
-          ),
-          transformAlignment: Alignment.center,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: widget.isSelected
-                ? Border.all(color: theme.colorScheme.primary, width: 3)
-                : widget.isPreviewActive
-                ? Border.all(color: theme.colorScheme.tertiary, width: 3)
-                : (_isHovering
-                      ? Border.all(
-                          color: theme.colorScheme.primary.withValues(
-                            alpha: 0.3,
-                          ),
-                          width: 2,
-                        )
-                      : null),
-            boxShadow: [
-              // 主阴影
-              BoxShadow(
-                color: widget.isSelected
-                    ? theme.colorScheme.primary.withValues(alpha: 0.3)
-                    : (_isHovering
-                          ? Colors.black.withValues(alpha: 0.35)
-                          : Colors.black.withValues(alpha: 0.12)),
-                blurRadius: widget.isSelected ? 16 : (_isHovering ? 28 : 10),
-                offset: Offset(0, _isHovering ? 14 : 4),
-                spreadRadius: _isHovering ? 2 : 0,
-              ),
-              // 次阴影（悬浮时增加深度感）
-              if (_isHovering)
+        child: ImageCardHoverMotion(
+          hovered: _isHovering,
+          enabled: widget.enableHoverScale,
+          child: AnimatedContainer(
+            duration: reducedMotion || !widget.hoverEffectsEnabled
+                ? Duration.zero
+                : motion.fastDuration,
+            curve: motion.standardCurve,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: widget.isSelected
+                  ? Border.all(color: theme.colorScheme.primary, width: 2)
+                  : widget.isPreviewActive
+                  ? Border.all(color: theme.colorScheme.tertiary, width: 2)
+                  : null,
+              boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.15),
-                  blurRadius: 40,
-                  offset: const Offset(0, 20),
-                  spreadRadius: -4,
+                  color: widget.isSelected
+                      ? theme.colorScheme.primary.withValues(alpha: 0.16)
+                      : Colors.black.withValues(
+                          alpha: _isHovering ? 0.16 : 0.08,
+                        ),
+                  blurRadius: _isHovering ? 14 : 6,
+                  offset: Offset(0, _isHovering ? 6 : 2),
                 ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                // 0. 垫层：图片透明像素处透出的底色
-                if (widget.underlay != null) widget.underlay!,
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  // 0. 垫层：图片透明像素处透出的底色
+                  if (widget.underlay != null) widget.underlay!,
 
-                // 1. 图片层
-                if (showCompletionPlaceholder)
+                  // 1. 图片层。预览与结果共用同一个 Image/RenderImage，
+                  // 避免透明结果首帧与旧预览同时合成。
                   RepaintBoundary(
                     child: DecodedMemoryImage(
-                      key: const ValueKey(
-                        'completed-image-preview-placeholder',
-                      ),
-                      bytes: completionPlaceholderBytes,
+                      key: const ValueKey('selectable-image-content'),
+                      bytes: displayedImageBytes,
                       fit: BoxFit.cover,
+                      frameBuilder: showCompletionPlaceholder
+                          ? null
+                          : _buildCompletedImageFrame,
                     ),
                   ),
-                RepaintBoundary(
-                  child: DecodedMemoryImage(
-                    key: const ValueKey('selectable-image-completed-image'),
-                    bytes: widget.imageBytes!,
-                    fit: BoxFit.cover,
-                    frameBuilder: _buildCompletedImageFrame,
-                  ),
-                ),
 
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: AnimatedOpacity(
-                      key: const ValueKey(
-                        'drag-preparation-preview-overlay-opacity',
-                      ),
-                      duration: _dragPreparationOverlayFadeDuration,
-                      curve: Curves.easeOutCubic,
-                      opacity: widget.dragPreparationReady ? 0 : 1,
-                      onEnd: () {
-                        if (!mounted ||
-                            !widget.dragPreparationReady ||
-                            _showPreparedIndexBadge) {
-                          return;
-                        }
-                        setState(() {
-                          _showPreparedIndexBadge = true;
-                        });
-                      },
-                      child: Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          Container(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [
-                                  Colors.transparent,
-                                  Colors.black.withValues(alpha: 0.38),
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: AnimatedOpacity(
+                        key: const ValueKey(
+                          'drag-preparation-preview-overlay-opacity',
+                        ),
+                        duration: _dragPreparationOverlayFadeDuration,
+                        curve: Curves.easeOutCubic,
+                        opacity: widget.dragPreparationReady ? 0 : 1,
+                        onEnd: () {
+                          if (!mounted ||
+                              !widget.dragPreparationReady ||
+                              _showPreparedIndexBadge) {
+                            return;
+                          }
+                          setState(() {
+                            _showPreparedIndexBadge = true;
+                          });
+                        },
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            Container(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    Colors.transparent,
+                                    Colors.black.withValues(alpha: 0.38),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              left: 8,
+                              right: 8,
+                              bottom: 8,
+                              child: Row(
+                                children: [
+                                  SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      key: const ValueKey(
+                                        'drag-preparation-preview-progress-ring',
+                                      ),
+                                      value: _dragPreparationProgressValue,
+                                      strokeWidth: 2,
+                                      backgroundColor: Colors.white.withValues(
+                                        alpha: 0.2,
+                                      ),
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Spacer(),
+                                  Text(
+                                    '${(_dragPreparationProgressValue * 100).toInt()}%',
+                                    key: const ValueKey(
+                                      'drag-preparation-preview-progress-percent',
+                                    ),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                      shadows: [
+                                        Shadow(
+                                          color: Colors.black54,
+                                          blurRadius: 4,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
-                          ),
-                          Positioned(
-                            left: 8,
-                            right: 8,
-                            bottom: 8,
-                            child: Row(
-                              children: [
-                                SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    key: const ValueKey(
-                                      'drag-preparation-preview-progress-ring',
-                                    ),
-                                    value: _dragPreparationProgressValue,
-                                    strokeWidth: 2,
-                                    backgroundColor: Colors.white.withValues(
-                                      alpha: 0.2,
-                                    ),
-                                    color: Colors.white,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                const Spacer(),
-                                Text(
-                                  '${(_dragPreparationProgressValue * 100).toInt()}%',
-                                  key: const ValueKey(
-                                    'drag-preparation-preview-progress-percent',
-                                  ),
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                    shadows: [
-                                      Shadow(
-                                        color: Colors.black54,
-                                        blurRadius: 4,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-
-                // 2. 边缘发光效果（悬浮时）
-                if (_isHovering && widget.enableGlossEffect)
-                  Positioned.fill(
-                    child: TweenAnimationBuilder<double>(
-                      tween: Tween(begin: 0.0, end: 1.0),
-                      duration: const Duration(milliseconds: 200),
-                      curve: Curves.easeOut,
-                      builder: (context, value, child) {
-                        return _EdgeGlowOverlay(
-                          glowColor: glowColor,
-                          intensity: value,
-                        );
-                      },
-                    ),
-                  ),
-
-                // 3. 光泽扫过效果（悬浮时）
-                if (_isHovering && widget.enableGlossEffect)
-                  Positioned.fill(
-                    child: RepaintBoundary(
-                      child: AnimatedBuilder(
-                        animation: _glossAnimation,
-                        builder: (context, child) {
-                          return _GlossOverlay(progress: _glossAnimation.value);
-                        },
-                      ),
-                    ),
-                  ),
-
-                // 4. 悬浮/选中时的渐变遮罩（使用 IgnorePointer 让点击穿透）
-                if (_isHovering || widget.isSelected)
-                  IgnorePointer(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.center,
-                          colors: [
-                            Colors.black.withValues(alpha: 0.4),
-                            Colors.transparent,
                           ],
                         ),
                       ),
                     ),
                   ),
 
-                if (widget.statusBadgeLabel != null)
-                  Positioned(
-                    top: 8,
-                    left: 8,
-                    child: _buildStatusBadge(context),
-                  ),
-
-                // 5. 左上角：选择框（悬浮或选中时显示）
-                if (widget.enableSelection &&
-                    widget.statusBadgeLabel == null &&
-                    (_isHovering || widget.isSelected))
-                  Positioned(top: 8, left: 8, child: _buildCheckbox(theme)),
-
-                // 5.5 右上角：本地画廊收藏按钮
-                if (widget.onFavoriteToggle != null)
-                  Positioned(top: 8, right: 8, child: _buildFavoriteButton()),
-
-                // 6. 操作按钮（悬浮时显示）
-                if (_isHovering && _hasHoverActions)
-                  Positioned(
-                    bottom: 12,
-                    left: 0,
-                    right: 0,
-                    child: _buildHoverActionBar(context),
-                  ),
-
-                // 7. 左下角：序号
-                Positioned(
-                  bottom: 8,
-                  left: 8,
-                  child: Offstage(
-                    key: const ValueKey(
-                      'selectable-image-index-badge-offstage',
+                  // 2. 边缘发光效果（悬浮时）
+                  if (_isHovering && widget.enableGlossEffect)
+                    Positioned.fill(
+                      child: TweenAnimationBuilder<double>(
+                        tween: Tween(begin: 0.0, end: 1.0),
+                        duration: const Duration(milliseconds: 200),
+                        curve: Curves.easeOut,
+                        builder: (context, value, child) {
+                          return _EdgeGlowOverlay(
+                            glowColor: glowColor,
+                            intensity: value,
+                          );
+                        },
+                      ),
                     ),
-                    offstage: !showIndexBadge,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.black54,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        indexLabel,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
+
+                  // 3. 光泽扫过效果（悬浮时）
+                  if (_isHovering && widget.enableGlossEffect)
+                    Positioned.fill(
+                      child: RepaintBoundary(
+                        child: AnimatedBuilder(
+                          animation: _glossAnimation,
+                          builder: (context, child) {
+                            return _GlossOverlay(
+                              progress: _glossAnimation.value,
+                            );
+                          },
                         ),
                       ),
                     ),
-                  ),
-                ),
 
-                // 8. 选中覆盖层（使用 IgnorePointer 让点击穿透）
-                if (widget.isSelected)
-                  Positioned.fill(
-                    child: IgnorePointer(
+                  // 4. 悬浮/选中时的渐变遮罩（使用 IgnorePointer 让点击穿透）
+                  if (_isHovering || widget.isSelected)
+                    IgnorePointer(
                       child: Container(
                         decoration: BoxDecoration(
-                          color: theme.colorScheme.primary.withValues(
-                            alpha: 0.15,
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.center,
+                            colors: [
+                              Colors.black.withValues(alpha: 0.4),
+                              Colors.transparent,
+                            ],
                           ),
-                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+
+                  if (widget.statusBadgeLabel != null)
+                    Positioned(
+                      top: 8,
+                      left: 8,
+                      child: _buildStatusBadge(context),
+                    ),
+
+                  // 5. 左上角：选择框（悬浮或选中时显示）
+                  if (widget.enableSelection &&
+                      widget.statusBadgeLabel == null &&
+                      (_isHovering || widget.isSelected))
+                    Positioned(top: 8, left: 8, child: _buildCheckbox(theme)),
+
+                  // 5.5 右上角：本地画廊收藏按钮
+                  if (widget.onFavoriteToggle != null)
+                    Positioned(top: 8, right: 8, child: _buildFavoriteButton()),
+
+                  // 6. 操作按钮（悬浮时显示）
+                  if (_isHovering && _hasHoverActions)
+                    Positioned(
+                      bottom: 12,
+                      left: 0,
+                      right: 0,
+                      child: _buildHoverActionBar(context),
+                    ),
+
+                  // 7. 左下角：序号
+                  Positioned(
+                    bottom: 8,
+                    left: 8,
+                    child: Offstage(
+                      key: const ValueKey(
+                        'selectable-image-index-badge-offstage',
+                      ),
+                      offstage: !showIndexBadge,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black54,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          indexLabel,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ),
                     ),
                   ),
-              ],
+
+                  // 8. 选中覆盖层（使用 IgnorePointer 让点击穿透）
+                  if (widget.isSelected)
+                    Positioned.fill(
+                      child: IgnorePointer(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primary.withValues(
+                              alpha: 0.15,
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
         ),
@@ -1201,7 +1193,6 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
         decoration: BoxDecoration(
           color: Colors.black.withValues(alpha: 0.62),
           borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.25),
@@ -1242,10 +1233,6 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
         decoration: BoxDecoration(
           color: Colors.black.withValues(alpha: 0.7),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.1),
-            width: 1,
-          ),
         ),
         child: Wrap(
           spacing: 6,
@@ -1367,35 +1354,30 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
       widget.onSaveToLibrary != null;
 
   Widget _buildCheckbox(ThemeData theme) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () {
-        widget.onSelectionChanged?.call(!widget.isSelected);
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        width: 28,
-        height: 28,
-        decoration: BoxDecoration(
-          color: widget.isSelected ? theme.colorScheme.primary : Colors.black45,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: widget.isSelected
+    return SizedBox.square(
+      dimension: 40,
+      child: Checkbox(
+        value: widget.isSelected,
+        onChanged: widget.onSelectionChanged == null
+            ? null
+            : (value) {
+                if (value != null) widget.onSelectionChanged!(value);
+              },
+        shape: const CircleBorder(),
+        side: WidgetStateBorderSide.resolveWith(
+          (states) => BorderSide(
+            color: states.contains(WidgetState.selected)
                 ? theme.colorScheme.primary
                 : Colors.white70,
-            width: 2,
+            width: 1.5,
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.2),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
         ),
-        child: widget.isSelected
-            ? Icon(Icons.check, color: theme.colorScheme.onPrimary, size: 18)
-            : null,
+        fillColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? theme.colorScheme.primary
+              : Colors.black45,
+        ),
+        checkColor: theme.colorScheme.onPrimary,
       ),
     );
   }

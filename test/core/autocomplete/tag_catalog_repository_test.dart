@@ -76,6 +76,21 @@ void main() {
     },
   );
 
+  test('resolves canonical and alias metadata in one bounded query', () async {
+    final records = await repository.resolveExactTags([
+      'blue_hair',
+      'aqua eyes',
+      'missing',
+      'BLUE_HAIR',
+    ]);
+
+    expect(records.keys, {'blue_hair', 'aqua_eyes'});
+    expect(records['blue_hair']?.canonicalTag, 'blue_hair');
+    expect(records['blue_hair']?.postCount, 2000);
+    expect(records['aqua_eyes']?.canonicalTag, 'blue_eyes');
+    expect(records['aqua_eyes']?.postCount, 1000);
+  });
+
   test('maps e621 source categories without dropping their tags', () async {
     final general = await repository.search(_query('anthro'));
     final species = await repository.search(_query('species_wolf'));

@@ -330,7 +330,7 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
       _isInitialized = true;
 
       // 2. 后台执行索引初始化（不阻塞）
-      _initializeIndexInBackground();
+      _initializeIndexInBackground(List<File>.unmodifiable(files));
 
       return files;
     } on GalleryException {
@@ -393,9 +393,7 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
             }
           }),
         );
-        validStats.addAll(
-          batchStats.whereType<({File file, FileStat stat})>(),
-        );
+        validStats.addAll(batchStats.whereType<({File file, FileStat stat})>());
         await Future<void>.delayed(Duration.zero);
       }
 
@@ -416,7 +414,7 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
   }
 
   /// 后台索引初始化
-  Future<void> _initializeIndexInBackground() async {
+  Future<void> _initializeIndexInBackground(List<File> fileSnapshot) async {
     // ✅ 防止并发后台扫描
     if (_isBackgroundScanning) {
       AppLogger.d(
@@ -436,13 +434,13 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
       // 检查是否需要完整扫描
       final existingCount = await _dataSource.countImages();
       AppLogger.i(
-        'Database has $existingCount images, file system has ${_allFiles.length} images',
+        'Database has $existingCount images, file system has ${fileSnapshot.length} images',
         'LocalGalleryService',
       );
 
       switch (chooseStartupIndexAction(
         databaseImageCount: existingCount,
-        fileSystemImageCount: _allFiles.length,
+        fileSystemImageCount: fileSnapshot.length,
       )) {
         case GalleryStartupIndexAction.none:
           AppLogger.i(
@@ -451,10 +449,10 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
           );
         case GalleryStartupIndexAction.fullScan:
           AppLogger.i(
-            'Performing startup file index scan (${_allFiles.length} files)',
+            'Performing startup file index scan (${fileSnapshot.length} files)',
             'LocalGalleryService',
           );
-          await _performFullScan(knownTotalFiles: _allFiles.length);
+          await _performFullScan(fileSnapshot: fileSnapshot);
       }
 
       AppLogger.i(
@@ -491,7 +489,7 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
   Future<void> _performIncrementalScan({
     bool retryMissingMetadata = false,
     bool retryFailedMetadata = false,
-    int? knownTotalFiles,
+    List<File>? fileSnapshot,
   }) async {
     final rootPath = await GalleryFolderRepository.instance.getRootPath();
     if (rootPath == null) {
@@ -525,7 +523,7 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
       dir,
       retryMissingMetadata: retryMissingMetadata,
       retryFailedMetadata: retryFailedMetadata,
-      knownTotalFiles: knownTotalFiles,
+      fileSnapshot: fileSnapshot,
       // 【扫描时日志太频繁，禁用】
       // onFileProcessed: (result, stats) {
       //   // 每处理一个文件就更新状态
@@ -546,7 +544,7 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
   Future<void> _performFullScan({
     bool retryMissingMetadata = false,
     bool retryFailedMetadata = false,
-    int? knownTotalFiles,
+    List<File>? fileSnapshot,
   }) async {
     final rootPath = await GalleryFolderRepository.instance.getRootPath();
     if (rootPath == null) {
@@ -575,7 +573,7 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
       dir,
       retryMissingMetadata: retryMissingMetadata,
       retryFailedMetadata: retryFailedMetadata,
-      knownTotalFiles: knownTotalFiles,
+      fileSnapshot: fileSnapshot,
       // 【扫描时日志太频繁，禁用】
       // onFileProcessed: (result, stats) {
       //   // 每处理一个文件就更新状态
@@ -1186,10 +1184,10 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
           'File count changed significantly ($previousCount -> ${files.length}), performing full scan',
           'LocalGalleryService',
         );
-        await _performFullScan(knownTotalFiles: files.length);
+        await _performFullScan(fileSnapshot: files);
       } else {
         // 后台扫描新文件（使用 await 确保扫描完成）
-        await _performIncrementalScan(knownTotalFiles: files.length);
+        await _performIncrementalScan(fileSnapshot: files);
       }
     } catch (e) {
       if (e is GalleryException) rethrow;

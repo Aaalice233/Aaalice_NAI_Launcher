@@ -17,7 +17,6 @@ void main() {
   test('selected visible surfaces do not hardcode Chinese strings', () {
     final files = [
       'lib/presentation/widgets/common/themed_confirm_dialog.dart',
-      'lib/presentation/widgets/common/glass_dialog.dart',
       'lib/presentation/widgets/common/themed_input.dart',
       'lib/core/services/warmup_task_scheduler.dart',
       'lib/core/enums/warmup_phase.dart',

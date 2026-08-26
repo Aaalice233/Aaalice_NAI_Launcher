@@ -128,9 +128,7 @@ class _PaginationBarState extends State<PaginationBar> {
       decoration: BoxDecoration(
         color: isDark ? colorScheme.surfaceContainerHigh : colorScheme.surface,
         border: Border(
-          top: BorderSide(
-            color: theme.dividerColor.withValues(alpha: 0.2),
-          ),
+          top: BorderSide(color: theme.dividerColor.withValues(alpha: 0.2)),
         ),
       ),
       child: widget.compact
@@ -163,16 +161,16 @@ class _PaginationBarState extends State<PaginationBar> {
   Widget _buildCompactLayout(ThemeData theme, ColorScheme colorScheme) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        _buildPageNavigation(theme, colorScheme),
-      ],
+      children: [_buildPageNavigation(theme, colorScheme)],
     );
   }
 
   Widget _buildTotalInfo(ThemeData theme, ColorScheme colorScheme) {
     final startItem = widget.currentPage * widget.itemsPerPage + 1;
-    final endItem = ((widget.currentPage + 1) * widget.itemsPerPage)
-        .clamp(0, widget.totalItems);
+    final endItem = ((widget.currentPage + 1) * widget.itemsPerPage).clamp(
+      0,
+      widget.totalItems,
+    );
 
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -209,8 +207,9 @@ class _PaginationBarState extends State<PaginationBar> {
         _buildNavButton(
           icon: Icons.first_page,
           tooltip: l10n.pagination_firstPage,
-          onPressed:
-              widget.currentPage > 0 ? () => widget.onPageChanged(0) : null,
+          onPressed: widget.currentPage > 0
+              ? () => widget.onPageChanged(0)
+              : null,
         ),
 
         // Previous page
@@ -334,8 +333,9 @@ class _PaginationBarState extends State<PaginationBar> {
               '${page + 1}',
               style: theme.textTheme.bodyMedium?.copyWith(
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color:
-                    isSelected ? colorScheme.onPrimary : colorScheme.onSurface,
+                color: isSelected
+                    ? colorScheme.onPrimary
+                    : colorScheme.onSurface,
               ),
             ),
           ),
@@ -369,18 +369,9 @@ class _PaginationBarState extends State<PaginationBar> {
           style: theme.textTheme.bodyMedium?.copyWith(
             fontWeight: FontWeight.w600,
           ),
-          decoration: InputDecoration(
+          decoration: const InputDecoration(
             isDense: true,
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(6),
-              borderSide: BorderSide(color: colorScheme.primary),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(6),
-              borderSide: BorderSide(color: colorScheme.primary, width: 2),
-            ),
+            contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           ),
           inputFormatters: [
             FilteringTextInputFormatter.digitsOnly,
@@ -393,34 +384,16 @@ class _PaginationBarState extends State<PaginationBar> {
 
     return Tooltip(
       message: context.l10n.pagination_jumpToPage,
-      child: InkWell(
-        onTap: widget.totalPages > 1 ? _startEditing : null,
-        borderRadius: BorderRadius.circular(6),
-        child: Container(
+      child: TextButton.icon(
+        onPressed: widget.totalPages > 1 ? _startEditing : null,
+        icon: const Icon(Icons.arrow_forward, size: 14),
+        label: Text(context.l10n.pagination_jump),
+        style: TextButton.styleFrom(
+          foregroundColor: colorScheme.onSurfaceVariant,
+          textStyle: theme.textTheme.bodySmall,
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: colorScheme.outline.withValues(alpha: 0.3),
-            ),
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.arrow_forward,
-                size: 14,
-                color: colorScheme.onSurfaceVariant,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                context.l10n.pagination_jump,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
+          minimumSize: Size.zero,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         ),
       ),
     );
@@ -440,9 +413,7 @@ class _PaginationBarState extends State<PaginationBar> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8),
           decoration: BoxDecoration(
-            border: Border.all(
-              color: colorScheme.outline.withValues(alpha: 0.3),
-            ),
+            color: colorScheme.surfaceContainerHigh,
             borderRadius: BorderRadius.circular(6),
           ),
           child: DropdownButtonHideUnderline(
@@ -452,10 +423,7 @@ class _PaginationBarState extends State<PaginationBar> {
               items: widget.itemsPerPageOptions.map((count) {
                 return DropdownMenuItem(
                   value: count,
-                  child: Text(
-                    '$count',
-                    style: theme.textTheme.bodyMedium,
-                  ),
+                  child: Text('$count', style: theme.textTheme.bodyMedium),
                 );
               }).toList(),
               onChanged: (value) {

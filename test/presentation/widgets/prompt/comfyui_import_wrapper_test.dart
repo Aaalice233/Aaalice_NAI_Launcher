@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/character/character_prompt.dart';
+import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/widgets/prompt/comfyui_import_dialog.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/comfyui_import_wrapper.dart';
 
 void main() {
-  testWidgets('automatically imports NovelAI pipe chunks after paste', (
+  testWidgets('asks before importing NovelAI pipe chunks after paste', (
     tester,
   ) async {
     final controller = TextEditingController();
@@ -13,6 +15,8 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(
           body: ComfyuiImportWrapper(
             controller: controller,
@@ -30,12 +34,19 @@ void main() {
         '2girls, outdoors, sunset | alice, blonde hair | bob, black hair';
     await tester.pump();
 
-    expect(importedBase, '2girls, outdoors, sunset');
-    expect(importedCharacters?.map((character) => character.prompt), [
-      'alice, blonde hair',
-      'bob, black hair',
-    ]);
-    expect(controller.text, '2girls, outdoors, sunset');
+    expect(find.byType(ComfyuiImportDialog), findsOneWidget);
+    expect(importedBase, isNull);
+    expect(importedCharacters, isNull);
+    expect(
+      controller.text,
+      '2girls, outdoors, sunset | alice, blonde hair | bob, black hair',
+    );
+
+    await tester.tap(find.byType(TextButton).first);
+    await tester.pumpAndSettle();
+
+    expect(importedBase, isNull);
+    expect(importedCharacters, isNull);
   });
 
   testWidgets('imports a short pipe prompt pasted in one edit', (tester) async {
@@ -45,6 +56,8 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(
           body: ComfyuiImportWrapper(
             controller: controller,
@@ -61,8 +74,101 @@ void main() {
     controller.text = 'a | b';
     await tester.pump();
 
+    expect(find.byType(ComfyuiImportDialog), findsOneWidget);
+    expect(importedBase, isNull);
+
+    await tester.tap(find.byType(FilledButton));
+    await tester.pumpAndSettle();
+
     expect(importedBase, 'a');
     expect(importedCharacters?.single.prompt, 'b');
+    expect(importedCharacters?.single.negativePrompt, isEmpty);
+  });
+
+  testWidgets('imports pipe syntax when paste replaces the full selection', (
+    tester,
+  ) async {
+    const oldText = 'scene | stale character';
+    final controller = TextEditingController.fromValue(
+      const TextEditingValue(
+        text: oldText,
+        selection: TextSelection(baseOffset: 0, extentOffset: oldText.length),
+      ),
+    );
+    String? importedBase;
+    List<CharacterPrompt>? importedCharacters;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: ComfyuiImportWrapper(
+            controller: controller,
+            onImport: (base, characters) {
+              importedBase = base;
+              importedCharacters = characters;
+            },
+            child: TextField(controller: controller),
+          ),
+        ),
+      ),
+    );
+
+    const pastedText = 'scene | replacement character';
+    controller.value = const TextEditingValue(
+      text: pastedText,
+      selection: TextSelection.collapsed(offset: pastedText.length),
+    );
+    await tester.pump();
+
+    expect(find.byType(ComfyuiImportDialog), findsOneWidget);
+    expect(importedBase, isNull);
+    expect(controller.text, pastedText);
+
+    await tester.tap(find.byType(FilledButton));
+    await tester.pumpAndSettle();
+
+    expect(importedBase, 'scene');
+    expect(importedCharacters?.single.prompt, 'replacement character');
+    expect(controller.text, 'scene');
+  });
+
+  testWidgets('detects ComfyUI syntax when paste replaces the full selection', (
+    tester,
+  ) async {
+    const oldText = 'an existing prompt with approximately the same length';
+    final controller = TextEditingController.fromValue(
+      const TextEditingValue(
+        text: oldText,
+        selection: TextSelection(baseOffset: 0, extentOffset: oldText.length),
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: ComfyuiImportWrapper(
+            controller: controller,
+            child: TextField(controller: controller),
+          ),
+        ),
+      ),
+    );
+
+    const pastedText = 'scene COUPLE(0 1) 1girl, red hair';
+    controller.value = const TextEditingValue(
+      text: pastedText,
+      selection: TextSelection.collapsed(offset: pastedText.length),
+    );
+    await tester.pump();
+
+    expect(find.byType(ComfyuiImportDialog), findsOneWidget);
+
+    await tester.tap(find.byType(TextButton).first);
+    await tester.pumpAndSettle();
   });
 
   testWidgets('typing a separator incrementally does not interrupt editing', (

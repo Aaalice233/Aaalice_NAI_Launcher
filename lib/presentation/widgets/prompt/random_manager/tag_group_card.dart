@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/utils/localization_extension.dart';
 import '../../../providers/random_preset_provider.dart';
 import '../../../providers/tag_library_provider.dart';
 import '../../../../data/models/prompt/random_tag_group.dart';
@@ -12,9 +13,7 @@ import '../diy/panels/dependency_config_panel.dart';
 import '../diy/panels/visibility_rule_panel.dart';
 import '../diy/panels/time_condition_panel.dart';
 import '../diy/panels/post_process_rule_panel.dart';
-import '../../common/elevated_card.dart';
 import 'random_config_l10n.dart';
-import 'random_manager_widgets.dart';
 
 /// 词组卡片组件
 ///
@@ -47,154 +46,129 @@ class _TagGroupCardState extends ConsumerState<TagGroupCard> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final colors = theme.colorScheme;
     final l10n = AppLocalizations.of(context)!;
     final tagGroup = widget.tagGroup;
-    final hasDiyAbility = tagGroup.hasConditionalBranch ||
-        tagGroup.hasDependency ||
-        tagGroup.hasVisibilityRules ||
-        tagGroup.hasTimeCondition ||
-        tagGroup.hasPostProcessRules ||
-        tagGroup.emphasisProbability > 0;
-
-    // 获取标签预览内容
-    final tooltipText = _buildTagPreview(l10n, tagGroup);
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final tagCount = ref.watch(groupTagCountProvider(tagGroup));
 
     return Tooltip(
-      message: tooltipText,
+      message: _buildTagPreview(l10n, tagGroup),
       waitDuration: const Duration(milliseconds: 500),
       preferBelow: false,
-      child: MouseRegion(
-        onEnter: (_) => setState(() => _isHovered = true),
-        onExit: (_) => setState(() => _isHovered = false),
-        cursor: SystemMouseCursors.click,
-        child: GestureDetector(
-          onTap: widget.onTap ?? () => _showEditDialog(context),
-          child: Opacity(
-            opacity: tagGroup.enabled ? 1.0 : 0.5,
-            child: ElevatedCard(
-              elevation: CardElevation.level1,
-              hoverElevation: CardElevation.level2,
-              enableHoverEffect: false, // 外层 MouseRegion 已处理
-              borderRadius: 8,
-              gradientBorder: tagGroup.enabled && _isHovered && hasDiyAbility
-                  ? CardGradients.primary(colorScheme)
-                  : null,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeOutCubic,
-                width: 135,
-                padding: const EdgeInsets.all(12),
-                transform: Matrix4.identity()
-                  ..translateByDouble(0.0, _isHovered ? -2.0 : 0.0, 0, 1),
-                transformAlignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: _isHovered
-                      ? colorScheme.surfaceContainerHighest
-                      : colorScheme.surfaceContainerHigh,
-                  borderRadius: BorderRadius.circular(8),
-                  boxShadow: _isHovered
-                      ? [
-                          BoxShadow(
-                            color: colorScheme.primary.withValues(alpha: 0.15),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
-                          ),
-                        ]
-                      : null,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // 第一行：emoji + 名称 + 开关
-                    Row(
-                      children: [
-                        if (tagGroup.emoji.isNotEmpty)
-                          Container(
-                            padding: const EdgeInsets.all(2),
-                            decoration: BoxDecoration(
-                              color: colorScheme.primaryContainer
-                                  .withValues(alpha: 0.3),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              tagGroup.emoji,
-                              style: const TextStyle(fontSize: 13),
-                            ),
-                          ),
-                        if (tagGroup.emoji.isNotEmpty) const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            l10n.randomTagGroupName(tagGroup),
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              decoration: tagGroup.enabled
-                                  ? null
-                                  : TextDecoration.lineThrough,
-                              color: tagGroup.enabled
-                                  ? null
-                                  : colorScheme.onSurfaceVariant,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        // 启用开关（移到右侧）
-                        SizedBox(
-                          width: 28,
-                          height: 20,
-                          child: Transform.scale(
-                            scale: 0.6,
-                            child: Switch(
-                              value: tagGroup.enabled,
-                              onChanged: widget.isPresetDefault
-                                  ? null
-                                  : (value) {
-                                      ref
-                                          .read(
-                                            randomPresetNotifierProvider
-                                                .notifier,
-                                          )
-                                          .toggleGroupEnabled(
-                                            widget.categoryKey,
-                                            tagGroup.id,
-                                          );
-                                    },
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    // 第二行：概率进度条 + 百分比
-                    ProbabilityBar(
-                      probability: tagGroup.probability,
-                      isHovered: _isHovered,
-                      height: 4.0,
-                      useBadgeStyle: false,
-                    ),
-                    const SizedBox(height: 6),
-                    // 第三行：标签数量 + DIY 图标
-                    Row(
+      child: Opacity(
+        opacity: tagGroup.enabled ? 1 : 0.55,
+        child: MouseRegion(
+          onEnter: (_) => setState(() => _isHovered = true),
+          onExit: (_) => setState(() => _isHovered = false),
+          child: AnimatedContainer(
+            duration: reduceMotion
+                ? Duration.zero
+                : const Duration(milliseconds: 120),
+            curve: Curves.easeOutCubic,
+            decoration: BoxDecoration(
+              color: _isHovered
+                  ? colors.surfaceContainerHighest
+                  : colors.surfaceContainerHigh,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Material(
+              color: Colors.transparent,
+              borderRadius: BorderRadius.circular(8),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: widget.onTap ?? () => _showEditDialog(context),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 54),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 7, 4, 7),
+                    child: Row(
                       children: [
                         Icon(
-                          Icons.label_outline,
-                          size: 12,
-                          color: colorScheme.onSurfaceVariant,
+                          _sourceIcon(tagGroup.sourceType),
+                          size: 18,
+                          color: colors.onSurfaceVariant,
                         ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${ref.watch(groupTagCountProvider(tagGroup))}',
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                l10n.randomTagGroupName(tagGroup),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '$tagCount · ${(tagGroup.probability * 100).round()}%',
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: colors.onSurfaceVariant,
+                                  fontFeatures: const [
+                                    FontFeature.tabularFigures(),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        const Spacer(),
-                        // DIY 能力图标
-                        ..._buildDiyIcons(tagGroup),
+                        ..._buildCapabilityIndicators(tagGroup, colors),
+                        Switch(
+                          value: tagGroup.enabled,
+                          onChanged: widget.isPresetDefault
+                              ? null
+                              : (_) => ref
+                                    .read(randomPresetNotifierProvider.notifier)
+                                    .toggleGroupEnabled(
+                                      widget.categoryKey,
+                                      tagGroup.id,
+                                    ),
+                        ),
+                        PopupMenuButton<_TagGroupAction>(
+                          tooltip: l10n.randomManager_moreActions,
+                          onSelected: (action) {
+                            if (action == _TagGroupAction.edit) {
+                              _showEditDialog(context);
+                            } else {
+                              _deleteGroup(context);
+                            }
+                          },
+                          itemBuilder: (context) => [
+                            PopupMenuItem(
+                              value: _TagGroupAction.edit,
+                              child: ListTile(
+                                dense: true,
+                                contentPadding: EdgeInsets.zero,
+                                leading: const Icon(Icons.tune_rounded),
+                                title: Text(l10n.common_edit),
+                              ),
+                            ),
+                            if (!widget.isPresetDefault)
+                              PopupMenuItem(
+                                value: _TagGroupAction.delete,
+                                child: ListTile(
+                                  dense: true,
+                                  contentPadding: EdgeInsets.zero,
+                                  leading: Icon(
+                                    Icons.delete_outline_rounded,
+                                    color: colors.error,
+                                  ),
+                                  title: Text(
+                                    l10n.common_delete,
+                                    style: TextStyle(color: colors.error),
+                                  ),
+                                ),
+                              ),
+                          ],
+                          icon: const Icon(Icons.more_horiz_rounded, size: 19),
+                        ),
                       ],
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -204,122 +178,99 @@ class _TagGroupCardState extends ConsumerState<TagGroupCard> {
     );
   }
 
-  /// 构建标签预览文本
-  String _buildTagPreview(
-    AppLocalizations l10n,
-    RandomTagGroup tagGroup,
+  List<Widget> _buildCapabilityIndicators(
+    RandomTagGroup group,
+    ColorScheme colors,
   ) {
-    List<String> tags = [];
+    final indicators = <IconData>[
+      if (group.hasConditionalBranch) Icons.call_split_rounded,
+      if (group.hasDependency) Icons.link_rounded,
+      if (group.hasVisibilityRules) Icons.visibility_outlined,
+      if (group.hasTimeCondition) Icons.schedule_rounded,
+      if (group.hasPostProcessRules) Icons.auto_fix_high_outlined,
+      if (group.emphasisProbability > 0) Icons.bolt_outlined,
+    ];
+    return indicators
+        .take(3)
+        .map(
+          (icon) => Padding(
+            padding: const EdgeInsets.only(left: 5),
+            child: Icon(icon, size: 15, color: colors.secondary),
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  IconData _sourceIcon(TagGroupSourceType type) {
+    return switch (type) {
+      TagGroupSourceType.builtin => Icons.inventory_2_outlined,
+      TagGroupSourceType.custom => Icons.edit_note_rounded,
+      TagGroupSourceType.tagGroup => Icons.cloud_sync_outlined,
+      TagGroupSourceType.pool => Icons.collections_outlined,
+    };
+  }
+
+  Future<void> _deleteGroup(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(context.l10n.randomManager_deleteTagGroupTitle),
+        content: Text(
+          context.l10n.randomManager_deleteTagGroupConfirm(
+            context.l10n.randomTagGroupName(widget.tagGroup),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(context.l10n.common_cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: Text(context.l10n.common_delete),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await ref
+        .read(randomPresetNotifierProvider.notifier)
+        .removeGroupFromCategory(widget.categoryKey, widget.tagGroup.id);
+  }
+
+  /// 构建标签预览文本
+  String _buildTagPreview(AppLocalizations l10n, RandomTagGroup tagGroup) {
+    Iterable<String> tags;
+    var count = 0;
 
     if (tagGroup.sourceType == TagGroupSourceType.builtin) {
-      // 内置词库类型：从 TagLibrary 获取
-      final libraryState = ref.read(tagLibraryNotifierProvider);
-      if (libraryState.library != null && tagGroup.sourceId != null) {
-        final category =
-            TagSubCategory.values.cast<TagSubCategory?>().firstWhere(
-                  (c) => c?.name == tagGroup.sourceId,
-                  orElse: () => null,
-                );
-        if (category != null) {
-          tags = libraryState.library!
-              .getCategory(category)
-              .map((t) => t.tag)
-              .toList();
-        }
-      }
+      final library = ref.read(tagLibraryNotifierProvider).library;
+      final sourceId = tagGroup.sourceId;
+      final category = sourceId == null
+          ? null
+          : TagSubCategory.values.cast<TagSubCategory?>().firstWhere(
+              (item) => item?.name == sourceId,
+              orElse: () => null,
+            );
+      final entries = category == null || library == null
+          ? null
+          : library.getCategory(category);
+      count = entries?.length ?? 0;
+      tags = entries?.take(10).map((item) => item.tag) ?? const [];
     } else {
-      // 其他类型：使用 tags 字段
-      tags = tagGroup.tags.map((t) => t.tag).toList();
+      count = tagGroup.tags.length;
+      tags = tagGroup.tags.take(10).map((item) => item.tag);
     }
 
-    if (tags.isEmpty) return l10n.naiMode_noTags;
-
-    // 显示前10个标签
-    const maxShow = 10;
-    final preview = tags.take(maxShow).join(', ');
-    if (tags.length > maxShow) {
-      return '$preview ... (${l10n.tagGroup_tagCount(tags.length.toString())})';
+    if (count == 0) return l10n.naiMode_noTags;
+    final preview = tags.join(', ');
+    if (count > 10) {
+      return '$preview … (${l10n.tagGroup_tagCount(count.toString())})';
     }
     return preview;
-  }
-
-  List<Widget> _buildDiyIcons(RandomTagGroup tagGroup) {
-    final l10n = AppLocalizations.of(context)!;
-    final icons = <Widget>[];
-
-    if (tagGroup.hasConditionalBranch) {
-      icons.add(
-        _DiyIcon(
-          icon: Icons.call_split,
-          tooltip: l10n.randomManager_editHint(
-            l10n.randomManager_conditionalBranch,
-          ),
-          onTap: () => _openDiyPanel(context, 'conditionalBranch'),
-        ),
-      );
-    }
-    if (tagGroup.hasDependency) {
-      icons.add(
-        _DiyIcon(
-          icon: Icons.link,
-          tooltip: l10n.randomManager_editHint(
-            l10n.randomManager_dependencyConfig,
-          ),
-          onTap: () => _openDiyPanel(context, 'dependency'),
-        ),
-      );
-    }
-    if (tagGroup.hasVisibilityRules) {
-      icons.add(
-        _DiyIcon(
-          icon: Icons.visibility,
-          tooltip: l10n.randomManager_editHint(
-            l10n.randomManager_visibilityRules,
-          ),
-          onTap: () => _openDiyPanel(context, 'visibility'),
-        ),
-      );
-    }
-    if (tagGroup.hasTimeCondition) {
-      icons.add(
-        _DiyIcon(
-          icon: Icons.calendar_today,
-          tooltip: l10n.randomManager_editHint(
-            l10n.randomManager_timeCondition,
-          ),
-          onTap: () => _openDiyPanel(context, 'timeCondition'),
-        ),
-      );
-    }
-    if (tagGroup.hasPostProcessRules) {
-      icons.add(
-        _DiyIcon(
-          icon: Icons.build,
-          tooltip: l10n.randomManager_editHint(
-            l10n.randomManager_postProcessRules,
-          ),
-          onTap: () => _openDiyPanel(context, 'postProcess'),
-        ),
-      );
-    }
-    if (tagGroup.emphasisProbability > 0) {
-      icons.add(
-        _DiyIcon(
-          icon: Icons.bolt,
-          tooltip: l10n.randomManager_emphasisProbabilityValue(
-            (tagGroup.emphasisProbability * 100).toStringAsFixed(0),
-          ),
-          onTap: () => _showEditDialog(context), // 强调概率在主编辑对话框中
-        ),
-      );
-    }
-
-    return icons;
-  }
-
-  void _openDiyPanel(BuildContext context, String panelType) {
-    // 所有 DIY 功能都在编辑对话框的第二个选项卡 (index=1)
-    _showEditDialog(context, initialTabIndex: 1);
   }
 
   void _showEditDialog(BuildContext context, {int initialTabIndex = 0}) {
@@ -336,68 +287,7 @@ class _TagGroupCardState extends ConsumerState<TagGroupCard> {
   }
 }
 
-class _DiyIcon extends StatefulWidget {
-  const _DiyIcon({
-    required this.icon,
-    required this.tooltip,
-    this.onTap,
-  });
-
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback? onTap;
-
-  @override
-  State<_DiyIcon> createState() => _DiyIconState();
-}
-
-class _DiyIconState extends State<_DiyIcon> {
-  bool _isHovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      cursor: widget.onTap != null
-          ? SystemMouseCursors.click
-          : SystemMouseCursors.basic,
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: Tooltip(
-          message: widget.tooltip,
-          child: Padding(
-            padding: const EdgeInsets.only(left: 3),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              padding: const EdgeInsets.all(2),
-              decoration: BoxDecoration(
-                color: _isHovered
-                    ? colorScheme.primary.withValues(alpha: 0.25)
-                    : colorScheme.secondaryContainer.withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(3),
-                boxShadow: _isHovered
-                    ? [
-                        BoxShadow(
-                          color: colorScheme.primary.withValues(alpha: 0.2),
-                          blurRadius: 4,
-                        ),
-                      ]
-                    : null,
-              ),
-              child: Icon(
-                widget.icon,
-                size: 11,
-                color: _isHovered ? colorScheme.primary : colorScheme.secondary,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
+enum _TagGroupAction { edit, delete }
 
 /// 词组编辑对话框
 class _TagGroupEditDialog extends ConsumerStatefulWidget {
@@ -429,8 +319,9 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
   /// 获取当前预设的类别名称列表
   List<String> get _availableCategories {
     final state = ref.read(randomPresetNotifierProvider);
-    final preset =
-        state.presets.firstWhereOrNull((p) => p.id == widget.presetId);
+    final preset = state.presets.firstWhereOrNull(
+      (p) => p.id == widget.presetId,
+    );
     if (preset == null) return [];
     return preset.categories.map((c) => c.name).toList();
   }
@@ -461,163 +352,106 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
     final l10n = AppLocalizations.of(context)!;
 
     return Dialog(
-      backgroundColor: Colors.transparent,
-      child: Container(
-        width: 620,
-        height: 620,
-        decoration: BoxDecoration(
-          color: colorScheme.surface,
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: [
-            BoxShadow(
-              color: colorScheme.shadow.withValues(alpha: 0.08),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-            BoxShadow(
-              color: colorScheme.shadow.withValues(alpha: 0.16),
-              blurRadius: 24,
-              offset: const Offset(0, 12),
-            ),
-          ],
-        ),
+      backgroundColor: colorScheme.surface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      clipBehavior: Clip.antiAlias,
+      child: SizedBox(
+        width: 640,
+        height: 640,
         child: Column(
           children: [
-            // 标题栏 - 渐变背景
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    colorScheme.primaryContainer.withValues(alpha: 0.3),
-                    colorScheme.secondaryContainer.withValues(alpha: 0.2),
-                  ],
-                ),
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(8)),
-                border: Border(
-                  bottom: BorderSide(
-                    color: colorScheme.outlineVariant.withValues(alpha: 0.2),
-                  ),
-                ),
-              ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(22, 18, 12, 12),
               child: Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: colorScheme.primary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(
-                      Icons.edit_note,
-                      color: colorScheme.primary,
-                      size: 20,
+                  Icon(
+                    Icons.tune_rounded,
+                    size: 20,
+                    color: colorScheme.primary,
+                  ),
+                  const SizedBox(width: 11),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          l10n.randomManager_editTagGroup,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Text(
+                          l10n.randomTagGroupName(widget.tagGroup),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Text(
-                    l10n.randomManager_editTagGroup,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const Spacer(),
                   IconButton(
                     onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close),
-                    iconSize: 20,
-                    style: IconButton.styleFrom(
-                      backgroundColor: colorScheme.surfaceContainerHighest
-                          .withValues(alpha: 0.5),
-                    ),
+                    tooltip: l10n.common_close,
+                    icon: const Icon(Icons.close_rounded, size: 20),
                   ),
                 ],
               ),
             ),
-            // 标签页
             TabBar(
               controller: _tabController,
+              dividerColor: Colors.transparent,
+              indicatorSize: TabBarIndicatorSize.label,
               tabs: [
                 Tab(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.list_alt, size: 16),
-                      const SizedBox(width: 6),
-                      Text(l10n.randomManager_basicTab),
-                    ],
+                  icon: const Icon(Icons.tune_rounded, size: 17),
+                  text: l10n.randomManager_basicTab,
+                ),
+                Tab(
+                  icon: const Icon(Icons.sell_outlined, size: 17),
+                  text: l10n.randomManager_tagsTab(
+                    ref.watch(groupTagCountProvider(_editingTagGroup)),
                   ),
                 ),
                 Tab(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.label_outline, size: 16),
-                      const SizedBox(width: 6),
-                      Text(
-                        l10n.randomManager_tagsTab(
-                          ref.watch(groupTagCountProvider(_editingTagGroup)),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Tab(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.auto_awesome, size: 16),
-                      const SizedBox(width: 6),
-                      Text(l10n.randomManager_diyAbilitiesTab),
-                    ],
-                  ),
+                  icon: const Icon(Icons.account_tree_outlined, size: 17),
+                  text: l10n.randomManager_diyAbilitiesTab,
                 ),
               ],
             ),
-            // 内容
             Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildBasicTab(context),
-                  _buildTagsTab(context),
-                  _buildDiyTab(context),
-                ],
-              ),
-            ),
-            // 底部按钮
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerHighest,
-                borderRadius:
-                    const BorderRadius.vertical(bottom: Radius.circular(8)),
-                border: Border(
-                  top: BorderSide(
-                    color: colorScheme.outlineVariant.withValues(alpha: 0.2),
-                  ),
+              child: ColoredBox(
+                color: colorScheme.surfaceContainerLow,
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildBasicTab(context),
+                    _buildTagsTab(context),
+                    _buildDiyTab(context),
+                  ],
                 ),
               ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  OutlinedButton(
+                  TextButton(
                     onPressed: () => Navigator.pop(context),
                     child: Text(
                       widget.isPresetDefault
-                          ? AppLocalizations.of(context)!.common_close
-                          : AppLocalizations.of(context)!.common_cancel,
+                          ? l10n.common_close
+                          : l10n.common_cancel,
                     ),
                   ),
                   if (!widget.isPresetDefault) ...[
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 8),
                     FilledButton.icon(
                       onPressed: _saveChanges,
-                      icon: const Icon(Icons.check, size: 18),
-                      label: Text(AppLocalizations.of(context)!.common_save),
+                      icon: const Icon(Icons.check_rounded, size: 18),
+                      label: Text(l10n.common_save),
                     ),
                   ],
                 ],
@@ -646,7 +480,6 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
             enabled: !isReadOnly,
             decoration: InputDecoration(
               labelText: l10n.randomManager_tagGroupName,
-              border: const OutlineInputBorder(),
               suffixIcon: isReadOnly
                   ? Icon(
                       Icons.lock_outline,
@@ -685,8 +518,9 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
                         ? null
                         : (value) {
                             setState(() {
-                              _editingTagGroup =
-                                  _editingTagGroup.copyWith(probability: value);
+                              _editingTagGroup = _editingTagGroup.copyWith(
+                                probability: value,
+                              );
                             });
                           },
                   ),
@@ -720,25 +554,25 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
                   items: SelectionMode.values.map((mode) {
                     final (label, desc) = switch (mode) {
                       SelectionMode.single => (
-                          l10n.randomManager_selectionSingle,
-                          l10n.randomManager_selectionSingleDesc,
-                        ),
+                        l10n.randomManager_selectionSingle,
+                        l10n.randomManager_selectionSingleDesc,
+                      ),
                       SelectionMode.all => (
-                          l10n.randomManager_selectionAll,
-                          l10n.randomManager_selectionAllDesc,
-                        ),
+                        l10n.randomManager_selectionAll,
+                        l10n.randomManager_selectionAllDesc,
+                      ),
                       SelectionMode.multipleNum => (
-                          l10n.randomManager_selectionMultipleCount,
-                          l10n.randomManager_selectionMultipleCountDesc,
-                        ),
+                        l10n.randomManager_selectionMultipleCount,
+                        l10n.randomManager_selectionMultipleCountDesc,
+                      ),
                       SelectionMode.multipleProb => (
-                          l10n.randomManager_selectionMultipleProbability,
-                          l10n.randomManager_selectionMultipleProbabilityDesc,
-                        ),
+                        l10n.randomManager_selectionMultipleProbability,
+                        l10n.randomManager_selectionMultipleProbabilityDesc,
+                      ),
                       SelectionMode.sequential => (
-                          l10n.randomManager_selectionSequential,
-                          l10n.randomManager_selectionSequentialDesc,
-                        ),
+                        l10n.randomManager_selectionSequential,
+                        l10n.randomManager_selectionSequentialDesc,
+                      ),
                     };
                     return DropdownMenuItem(
                       value: mode,
@@ -779,11 +613,12 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
       // 内置词库类型：从 TagLibrary 获取
       final libraryState = ref.watch(tagLibraryNotifierProvider);
       if (libraryState.library != null && _editingTagGroup.sourceId != null) {
-        final category =
-            TagSubCategory.values.cast<TagSubCategory?>().firstWhere(
-                  (c) => c?.name == _editingTagGroup.sourceId,
-                  orElse: () => null,
-                );
+        final category = TagSubCategory.values
+            .cast<TagSubCategory?>()
+            .firstWhere(
+              (c) => c?.name == _editingTagGroup.sourceId,
+              orElse: () => null,
+            );
         if (category != null) {
           tagList = libraryState.library!
               .getCategory(category)
@@ -841,10 +676,7 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
                         final tag = tagList[index];
                         return Padding(
                           padding: const EdgeInsets.symmetric(vertical: 4),
-                          child: Text(
-                            tag,
-                            style: theme.textTheme.bodyMedium,
-                          ),
+                          child: Text(tag, style: theme.textTheme.bodyMedium),
                         );
                       },
                     ),
@@ -866,11 +698,7 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.lock_outline,
-              size: 48,
-              color: colorScheme.outline,
-            ),
+            Icon(Icons.lock_outline, size: 48, color: colorScheme.outline),
             const SizedBox(height: 16),
             Text(
               l10n.diyNotAvailableForDefault,
@@ -992,8 +820,8 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
                     data: SliderTheme.of(context).copyWith(
                       trackHeight: 4,
                       activeTrackColor: colorScheme.tertiary,
-                      inactiveTrackColor:
-                          colorScheme.tertiaryContainer.withValues(alpha: 0.3),
+                      inactiveTrackColor: colorScheme.tertiaryContainer
+                          .withValues(alpha: 0.3),
                       thumbColor: colorScheme.tertiary,
                       overlayColor: colorScheme.tertiary.withValues(alpha: 0.1),
                     ),
@@ -1140,8 +968,9 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
     final notifier = ref.read(randomPresetNotifierProvider.notifier);
     final state = ref.read(randomPresetNotifierProvider);
     final preset = state.presets.firstWhere((p) => p.id == widget.presetId);
-    final category =
-        preset.categories.firstWhere((c) => c.id == widget.categoryId);
+    final category = preset.categories.firstWhere(
+      (c) => c.id == widget.categoryId,
+    );
     final updatedCategory = category.updateGroup(_editingTagGroup);
     notifier.updateCategory(updatedCategory);
     Navigator.pop(context);
@@ -1187,8 +1016,8 @@ class _DiySectionState extends State<_DiySection> {
           color: widget.enabled
               ? colorScheme.primaryContainer.withValues(alpha: 0.3)
               : _isHovered
-                  ? colorScheme.surfaceContainerHighest
-                  : colorScheme.surfaceContainerHigh,
+              ? colorScheme.surfaceContainerHighest
+              : colorScheme.surfaceContainerHigh,
           borderRadius: BorderRadius.circular(6),
           boxShadow: [
             BoxShadow(
@@ -1276,9 +1105,9 @@ class _DiySectionState extends State<_DiySection> {
                 ],
               )
             else
-              OutlinedButton(
+              FilledButton.tonal(
                 onPressed: widget.onAdd,
-                style: OutlinedButton.styleFrom(
+                style: FilledButton.styleFrom(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
                     vertical: 6,
@@ -1297,10 +1126,7 @@ class _DiySectionState extends State<_DiySection> {
 
 /// DIY 配置对话框
 class _DiyConfigDialog extends StatelessWidget {
-  const _DiyConfigDialog({
-    required this.title,
-    required this.child,
-  });
+  const _DiyConfigDialog({required this.title, required this.child});
 
   final String title;
   final Widget child;
@@ -1345,8 +1171,9 @@ class _DiyConfigDialog extends StatelessWidget {
                     colorScheme.tertiaryContainer.withValues(alpha: 0.2),
                   ],
                 ),
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(8)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(8),
+                ),
                 border: Border(
                   bottom: BorderSide(
                     color: colorScheme.outlineVariant.withValues(alpha: 0.2),
@@ -1399,8 +1226,9 @@ class _DiyConfigDialog extends StatelessWidget {
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: colorScheme.surfaceContainerHighest,
-                borderRadius:
-                    const BorderRadius.vertical(bottom: Radius.circular(8)),
+                borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(8),
+                ),
                 border: Border(
                   top: BorderSide(
                     color: colorScheme.outlineVariant.withValues(alpha: 0.2),

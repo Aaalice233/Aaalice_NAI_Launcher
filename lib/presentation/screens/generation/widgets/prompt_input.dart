@@ -1034,6 +1034,7 @@ class _PromptFooter extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
     final tokenUsage = ref.watch(promptTokenUsageProvider(target));
     final transparentBackground = ref.watch(
       generationParamsNotifierProvider.select(
@@ -1052,15 +1053,60 @@ class _PromptFooter extends ConsumerWidget {
       child: Row(
         children: [
           if (showTransparentBackground) ...[
-            GenerationToggleButton(
-              key: const ValueKey('generation_transparent_background_toggle'),
-              label: context.l10n.generation_transparentBackground,
-              isEnabled: transparentBackground.enabled,
-              onChanged: (value) {
-                ref
-                    .read(generationParamsNotifierProvider.notifier)
-                    .updateTransparentBackground(value);
-              },
+            Tooltip(
+              richMessage: WidgetSpan(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 320),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        context.l10n.qualityTags_addToEnd,
+                        style: TextStyle(
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.7,
+                          ),
+                          fontSize: 11,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        ', ${QualityTags.transparentBackgroundTag}',
+                        style: TextStyle(
+                          color: Colors.green.shade700,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              preferBelow: true,
+              verticalOffset: 20,
+              waitDuration: const Duration(milliseconds: 300),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.2),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              padding: const EdgeInsets.all(12),
+              child: GenerationToggleButton(
+                key: const ValueKey('generation_transparent_background_toggle'),
+                label: context.l10n.generation_transparentBackground,
+                isEnabled: transparentBackground.enabled,
+                onChanged: (value) {
+                  ref
+                      .read(generationParamsNotifierProvider.notifier)
+                      .updateTransparentBackground(value);
+                },
+              ),
             ),
             const SizedBox(width: 8),
           ],
@@ -1214,9 +1260,6 @@ class _PositivePromptTooltip extends StatelessWidget {
           ],
         ),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: theme.colorScheme.primary.withValues(alpha: 0.2),
-        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1324,9 +1367,6 @@ class _PositivePromptTooltip extends StatelessWidget {
           ],
         ),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: theme.colorScheme.primary.withValues(alpha: 0.2),
-        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1651,9 +1691,6 @@ class _NegativePromptTooltip extends StatelessWidget {
           ],
         ),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: theme.colorScheme.error.withValues(alpha: 0.2),
-        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1761,9 +1798,6 @@ class _NegativePromptTooltip extends StatelessWidget {
           ],
         ),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: theme.colorScheme.error.withValues(alpha: 0.2),
-        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1938,23 +1972,6 @@ class _PromptTypeButtonState extends State<_PromptTypeButton>
                         ? theme.colorScheme.surfaceContainerHighest
                         : theme.colorScheme.surfaceContainerHigh),
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: widget.isSelected
-                    ? widget.color.withValues(alpha: 0.5)
-                    : (_isHovering
-                          ? theme.colorScheme.outline.withValues(alpha: 0.3)
-                          : Colors.transparent),
-                width: widget.isSelected ? 1.5 : 1,
-              ),
-              boxShadow: widget.isSelected
-                  ? [
-                      BoxShadow(
-                        color: widget.color.withValues(alpha: 0.2),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ]
-                  : null,
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,

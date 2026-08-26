@@ -13,9 +13,11 @@ import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 import '../../../core/enums/precise_ref_type.dart';
 import '../../../core/utils/app_logger.dart';
+import '../../../core/utils/isolate_pool.dart';
+import '../../../core/utils/vibe_file_parser.dart';
 import '../../../data/models/gallery/nai_image_metadata.dart';
 import '../../../data/services/image_metadata_service.dart';
-import '../../../core/utils/vibe_file_parser.dart';
+import '../../../data/services/metadata/unified_metadata_parser.dart';
 import '../../../data/models/queue/replication_task.dart';
 import '../../../data/models/vibe/vibe_library_entry.dart';
 import '../../../data/models/vibe/vibe_reference.dart';
@@ -54,25 +56,140 @@ Future<void> appendDroppedCharacterReference({
   return Future<void>.value();
 }
 
-Future<NaiImageMetadata?> detectImportableDroppedImageMetadata(
-  String fileName,
-  Uint8List bytes,
-) async {
-  if (!fileName.toLowerCase().endsWith('.png')) return null;
+class DroppedImageMetadataDetection {
+  final NaiImageMetadata? metadata;
+  final String? parseError;
 
+  const DroppedImageMetadataDetection({this.metadata, this.parseError});
+}
+
+Future<DroppedImageMetadataDetection> detectDroppedImageMetadata(
+  String fileName,
+  Uint8List bytes, {
+  Uint8List? metadataBytes,
+  bool inspectNonPngStealth = false,
+}) async {
   try {
-    final metadata = await ImageMetadataService().getMetadataFromBytes(bytes);
+    String? parseError;
+    NaiImageMetadata? metadata;
+
+    void recordParseFailure(MetadataParseResult result, Uint8List sourceBytes) {
+      if (parseError == null &&
+          _isDroppedMetadataParseFailure(result.errorMessage, sourceBytes)) {
+        parseError = result.errorMessage;
+      }
+    }
+
+    if (metadataBytes != null &&
+        UnifiedMetadataParser.isPngHeader(metadataBytes)) {
+      final textData = UnifiedMetadataParser.extractPngTextData(metadataBytes);
+      final result = UnifiedMetadataParser.parseFromTextData(textData);
+      metadata = result.success ? result.metadata : null;
+      if (metadata == null || !metadata.hasData) {
+        recordParseFailure(result, metadataBytes);
+      }
+    }
+
+    // Parse complete bytes through the shared PNG/WebP metadata path before
+    // attempting the more expensive pixel-level stealth fallback.
+    if (metadata == null || !metadata.hasData) {
+      final result = await ImageMetadataService()
+          .getMetadataParseResultFromBytes(bytes);
+      metadata = result.success ? result.metadata : null;
+      if (metadata == null || !metadata.hasData) {
+        recordParseFailure(result, bytes);
+      }
+    }
+
+    if ((metadata == null || !metadata.hasData) && inspectNonPngStealth) {
+      metadata = await ComputeGate().runCompute(
+        _parseStealthMetadataFromImageBytes,
+        bytes,
+        debugLabel: 'dropped_image_stealth_metadata',
+      );
+    }
     if (metadata != null && metadata.hasData) {
       AppLogger.i(
         'Detected NovelAI metadata in dropped image: $fileName',
         'DropHandler',
       );
-      return metadata;
+      return DroppedImageMetadataDetection(metadata: metadata);
     }
+
+    return DroppedImageMetadataDetection(parseError: parseError);
   } catch (e) {
     AppLogger.d('Failed to detect NovelAI metadata: $e', 'DropHandler');
+    return DroppedImageMetadataDetection(parseError: e.toString());
   }
-  return null;
+}
+
+Future<NaiImageMetadata?> detectImportableDroppedImageMetadata(
+  String fileName,
+  Uint8List bytes, {
+  Uint8List? metadataBytes,
+  bool inspectNonPngStealth = false,
+}) async {
+  return (await detectDroppedImageMetadata(
+    fileName,
+    bytes,
+    metadataBytes: metadataBytes,
+    inspectNonPngStealth: inspectNonPngStealth,
+  )).metadata;
+}
+
+bool _isDroppedMetadataParseFailure(String? errorMessage, Uint8List bytes) {
+  if (errorMessage == null || errorMessage.isEmpty) return false;
+  final fieldCount = RegExp(
+    r'from (\d+) fields',
+  ).firstMatch(errorMessage)?.group(1);
+  if (fieldCount != null) {
+    if (int.parse(fieldCount) == 0) return false;
+    final textData = UnifiedMetadataParser.extractPngTextData(bytes);
+    final normalizedData = {
+      for (final entry in textData.entries)
+        entry.key.toLowerCase(): entry.value,
+    };
+    const generationPayloadKeys = {
+      'comment',
+      'parameters',
+      'sd:parameters',
+      'prompt',
+      'workflow',
+      'nai',
+      'novelai',
+      'sd-metadata',
+      'fooocus',
+      'draw_things',
+      'drawthings',
+    };
+    if (normalizedData.keys.any(generationPayloadKeys.contains)) return true;
+    final description = normalizedData['description'];
+    return description != null &&
+        (description.contains('Steps:') || description.contains('Sampler:'));
+  }
+  if (errorMessage.startsWith('No EXIF UserComment metadata')) return false;
+  if (errorMessage.startsWith('Unsupported image container')) return false;
+  return true;
+}
+
+NaiImageMetadata? _parseStealthMetadataFromImageBytes(Uint8List bytes) {
+  final result = UnifiedMetadataParser.parseStealthFromImageBytes(bytes);
+  return result.success ? result.metadata : null;
+}
+
+@visibleForTesting
+bool imageDestinationRequiresOriginalBytes(ImageDestination destination) {
+  return switch (destination) {
+    ImageDestination.img2img ||
+    ImageDestination.reversePrompt ||
+    ImageDestination.vibeTransfer ||
+    ImageDestination.vibeTransferRaw ||
+    ImageDestination.characterReference => true,
+    ImageDestination.vibeTransferReuse ||
+    ImageDestination.saveToVibeLibrary ||
+    ImageDestination.extractMetadata ||
+    ImageDestination.addToQueue => false,
+  };
 }
 
 bool isGalleryInternalDragLocalData(Object? localData) {
@@ -117,7 +234,7 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
 
       _showProcessingIndicator();
       try {
-        await _processDroppedFile(pastedFile.fileName, pastedFile.bytes);
+        await _processDroppedFile(pastedFile);
       } finally {
         _hideProcessingIndicator();
       }
@@ -347,8 +464,10 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
         if (internalPayload != null) {
           handledAny = true;
           await _processDroppedFile(
-            internalPayload.fileName,
-            internalPayload.bytes,
+            DroppedFileData(
+              fileName: internalPayload.fileName,
+              bytes: internalPayload.bytes,
+            ),
           );
           continue;
         }
@@ -363,7 +482,7 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
         );
         if (fileData != null) {
           handledAny = true;
-          await _processDroppedFile(fileData.fileName, fileData.bytes);
+          await _processDroppedFile(fileData);
         }
       }
       if (!handledAny && mounted) {
@@ -401,8 +520,11 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
     return _plainImageExtensions.any(lower.endsWith);
   }
 
-  Future<void> _processDroppedFile(String fileName, Uint8List bytes) async {
+  Future<void> _processDroppedFile(DroppedFileData fileData) async {
     if (!mounted) return;
+
+    final fileName = fileData.fileName;
+    final bytes = fileData.bytes;
 
     // 检查是否为支持的文件类型
     if (!VibeFileParser.isSupportedFile(fileName)) {
@@ -418,11 +540,13 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
 
     // 如果是词库页面，使用词库专属拖拽处理
     if (isTagLibraryPage) {
+      final originalBytes = await _resolveOriginalImageBytes(fileData);
+      if (originalBytes == null || !mounted) return;
       await TagLibraryDropHandler.handle(
         context: context,
         ref: ref,
         fileName: fileName,
-        bytes: bytes,
+        bytes: originalBytes,
       );
       return;
     }
@@ -431,10 +555,12 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
     // 同时兜底拖拽被外层接住的情况）；.naiv4vibe 等仍走通用对话框
     final isPreciseRefLibraryPage = currentPath == AppRoutes.preciseRefLibrary;
     if (isPreciseRefLibraryPage && _isPlainImageFile(fileName)) {
+      final originalBytes = await _resolveOriginalImageBytes(fileData);
+      if (originalBytes == null || !mounted) return;
       await saveBytesToPreciseRefLibrary(
         ref,
         context,
-        bytes,
+        originalBytes,
         suggestedName: p.basenameWithoutExtension(fileName),
         // 正处于某个类型分类下时，粘贴入库跟随该分类
         type: ref.read(preciseRefLibraryNotifierProvider).typeFilter,
@@ -444,17 +570,48 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
 
     // 保存 context 相关数据后再进行异步操作
     final l10n = context.l10n;
-    final detectedMetadata = await detectImportableDroppedImageMetadata(
+    final isDiscordAttachment =
+        fileData.sourceUri != null &&
+        DroppedFileReader.isDiscordAttachmentUri(fileData.sourceUri!);
+    var metadataDetection = await detectDroppedImageMetadata(
       fileName,
       bytes,
+      metadataBytes: fileData.metadataBytes,
+      inspectNonPngStealth: isDiscordAttachment,
     );
+    if (metadataDetection.metadata == null &&
+        fileData.metadataBytes == null &&
+        isDiscordAttachment) {
+      final metadataBytes =
+          await DroppedFileReader.downloadRemoteMetadataPrefix(
+            fileData.sourceUri!,
+            logTag: 'DropHandler',
+          );
+      if (metadataBytes != null) {
+        final remoteDetection = await detectDroppedImageMetadata(
+          fileName,
+          bytes,
+          metadataBytes: metadataBytes,
+        );
+        metadataDetection = DroppedImageMetadataDetection(
+          metadata: remoteDetection.metadata,
+          parseError:
+              remoteDetection.parseError ?? metadataDetection.parseError,
+        );
+      }
+    }
+    final detectedMetadata = metadataDetection.metadata;
     final showExtractMetadata = detectedMetadata != null;
 
     // 检测是否包含 Vibe 元数据（仅 PNG）
-    final detectedVibe = await _detectVibeMetadata(fileName, bytes);
+    final detectedVibe = fileData.imageBytesArePreview
+        ? null
+        : await _detectVibeMetadata(fileName, bytes);
 
     // 检测是否为 bundle（多个 vibes）
-    final detectedVibes = await _detectAllVibesInPng(fileName, bytes);
+    final detectedVibes = fileData.imageBytesArePreview
+        ? const <VibeReference>[]
+        : await _detectAllVibesInPng(fileName, bytes);
 
     if (!mounted) return;
 
@@ -464,6 +621,8 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
       imageBytes: bytes,
       fileName: fileName,
       showExtractMetadata: showExtractMetadata,
+      metadata: detectedMetadata,
+      metadataParseError: metadataDetection.parseError,
       detectedVibe: detectedVibe,
       isBundle: detectedVibes.length > 1,
     );
@@ -471,17 +630,49 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
     if (destination == null || !mounted) return;
 
     final notifier = ref.read(generationParamsNotifierProvider.notifier);
+    var destinationBytes = bytes;
+    if (fileData.imageBytesArePreview &&
+        imageDestinationRequiresOriginalBytes(destination)) {
+      final originalBytes = await _resolveOriginalImageBytes(fileData);
+      if (originalBytes == null || !mounted) return;
+      destinationBytes = originalBytes;
+    }
 
     await _handleDestination(
       destination,
       fileName,
-      bytes,
+      destinationBytes,
       detectedVibe,
       detectedVibes,
       detectedMetadata,
       notifier,
       l10n,
     );
+  }
+
+  Future<Uint8List?> _resolveOriginalImageBytes(
+    DroppedFileData fileData,
+  ) async {
+    if (!fileData.imageBytesArePreview) {
+      return fileData.bytes;
+    }
+
+    final sourceUri = fileData.sourceUri;
+    if (sourceUri == null) {
+      _showError(context.l10n.toast_unreadableDroppedImageSource);
+      return null;
+    }
+
+    final originalImage = await DroppedFileReader.downloadRemoteImage(
+      sourceUri,
+      logTag: 'DropHandler',
+    );
+    if (!mounted) return null;
+    if (originalImage == null) {
+      _showError(context.l10n.toast_unreadableDroppedImageSource);
+      return null;
+    }
+    return originalImage.bytes;
   }
 
   Future<VibeReference?> _detectVibeMetadata(

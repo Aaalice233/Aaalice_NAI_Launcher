@@ -36,6 +36,10 @@ class ChunkedGalleryItems extends ListBase<GalleryItem> {
       throw UnsupportedError('ChunkedGalleryItems is read-only');
 
   @override
+  Iterator<GalleryItem> get iterator =>
+      _chunks.expand((chunk) => chunk).iterator;
+
+  @override
   GalleryItem operator [](int index) {
     RangeError.checkValidIndex(index, this, 'index', length);
     var low = 0;
@@ -57,19 +61,101 @@ class ChunkedGalleryItems extends ListBase<GalleryItem> {
       throw UnsupportedError('ChunkedGalleryItems is read-only');
 
   ChunkedGalleryItems appendPage(Iterable<GalleryItem> page) {
-    final indices = Map<String, int>.of(_indicesByStableKey);
-    final unique = <GalleryItem>[];
-    for (final item in page) {
-      if (indices.containsKey(item.stableKey)) continue;
-      indices[item.stableKey] = length + unique.length;
-      unique.add(item);
-    }
-    if (unique.isEmpty) return this;
+    return mergePage(page);
+  }
 
-    final immutablePage = List<GalleryItem>.unmodifiable(unique);
+  /// Appends unseen rows and combines duplicate rows when requested.
+  ///
+  /// Existing chunks are shared unless they contain a replaced row, so a
+  /// local favorite snapshot can enrich a remote list row without rebuilding
+  /// the complete collection.
+  ChunkedGalleryItems mergePage(
+    Iterable<GalleryItem> page, {
+    GalleryItem Function(GalleryItem current, GalleryItem incoming)?
+    mergeDuplicate,
+  }) {
+    final indices = Map<String, int>.of(_indicesByStableKey);
+    final appended = <GalleryItem>[];
+    final replacements = <int, GalleryItem>{};
+    for (final item in page) {
+      final existingIndex = indices[item.stableKey];
+      if (existingIndex == null) {
+        indices[item.stableKey] = length + appended.length;
+        appended.add(item);
+        continue;
+      }
+      if (existingIndex >= length) {
+        final appendedIndex = existingIndex - length;
+        final current = appended[appendedIndex];
+        appended[appendedIndex] =
+            mergeDuplicate?.call(current, item) ?? current;
+        continue;
+      }
+      final current = replacements[existingIndex] ?? this[existingIndex];
+      final merged = mergeDuplicate?.call(current, item) ?? current;
+      if (!identical(merged, current)) replacements[existingIndex] = merged;
+    }
+    if (appended.isEmpty && replacements.isEmpty) return this;
+
+    final chunks = List<List<GalleryItem>>.of(_chunks);
+    if (replacements.isNotEmpty) {
+      var chunkStart = 0;
+      for (var chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
+        final chunkEnd = _endOffsets[chunkIndex];
+        final affected = replacements.entries.where(
+          (entry) => entry.key >= chunkStart && entry.key < chunkEnd,
+        );
+        if (affected.isNotEmpty) {
+          final mutable = List<GalleryItem>.of(chunks[chunkIndex]);
+          for (final entry in affected) {
+            mutable[entry.key - chunkStart] = entry.value;
+          }
+          chunks[chunkIndex] = List<GalleryItem>.unmodifiable(mutable);
+        }
+        chunkStart = chunkEnd;
+      }
+    }
+    final endOffsets = List<int>.of(_endOffsets);
+    if (appended.isNotEmpty) {
+      final immutablePage = List<GalleryItem>.unmodifiable(appended);
+      chunks.add(immutablePage);
+      endOffsets.add(length + immutablePage.length);
+    }
     return ChunkedGalleryItems._(
-      chunks: <List<GalleryItem>>[..._chunks, immutablePage],
-      endOffsets: <int>[..._endOffsets, length + immutablePage.length],
+      chunks: chunks,
+      endOffsets: endOffsets,
+      indicesByStableKey: indices,
+    );
+  }
+
+  /// Removes rows without copying chunks that contain no matching keys.
+  ChunkedGalleryItems removeStableKeys(Set<String> stableKeys) {
+    if (stableKeys.isEmpty ||
+        !stableKeys.any(_indicesByStableKey.containsKey)) {
+      return this;
+    }
+
+    final chunks = <List<GalleryItem>>[];
+    final endOffsets = <int>[];
+    final indices = <String, int>{};
+    var length = 0;
+    for (final chunk in _chunks) {
+      final affected = chunk.any((item) => stableKeys.contains(item.stableKey));
+      final retained = affected
+          ? List<GalleryItem>.unmodifiable(
+              chunk.where((item) => !stableKeys.contains(item.stableKey)),
+            )
+          : chunk;
+      if (retained.isEmpty) continue;
+      for (final item in retained) {
+        indices[item.stableKey] = length++;
+      }
+      chunks.add(retained);
+      endOffsets.add(length);
+    }
+    return ChunkedGalleryItems._(
+      chunks: chunks,
+      endOffsets: endOffsets,
       indicesByStableKey: indices,
     );
   }

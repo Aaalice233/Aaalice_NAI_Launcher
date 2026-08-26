@@ -200,10 +200,6 @@ class _ImageComparisonScreenState extends ConsumerState<ImageComparisonScreen> {
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: theme.colorScheme.outline.withValues(alpha: 0.3),
-          width: 1,
-        ),
       ),
       clipBehavior: Clip.antiAlias,
       child: Stack(
@@ -253,10 +249,6 @@ class _ImageComparisonScreenState extends ConsumerState<ImageComparisonScreen> {
               decoration: BoxDecoration(
                 color: theme.colorScheme.surface.withValues(alpha: 0.9),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: theme.colorScheme.outline.withValues(alpha: 0.3),
-                  width: 1,
-                ),
               ),
               child: Text(
                 '${index + 1}',

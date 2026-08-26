@@ -31,8 +31,9 @@ NAI Launcher 是一个使用 Flutter 构建的 NovelAI 第三方客户端。它�
 | 🖼️ 图生图与编辑 | 支持图生图、局部重绘、Focused Inpaint、Outpaint、虚拟画布扩图、硬边蒙版和点击式区域填充。 |
 | 🌈 参考与风格 | 支持 Vibe Transfer、Precise Reference、多图参考、Vibe 整包导入导出、PNG 元数据嵌入导出。 |
 | ✍️ Prompt 工具 | 内置完整离线 Danbooru/e621 合并标签与别名；本地 Danbooru 共现关系以可选数据包提供，默认进入主页后后台下载。支持 `Ctrl/⌘+Shift+Space` 查询光标前标签的相关词、固定来源标签后连续选词、Danbooru 在线相关标签补充、可选中文词库与 AI 缺失汉化，以及 NAI/SD 权重语法辅助、Token 统计、提示词框内搜索和固定词。 |
+| 🎲 随机词库 | 内置完整还原的 NovelAI 官网随机词库，并按当前模型使用 Legacy Anime、Furry V3 或 Character Prompts；自定义模式使用完整离线标签 catalog，混合模式同时结合两种来源。可调整 catalog 分类、词组、权重、排除与依赖规则，预览结果并导入导出自定义预设。 |
 | 📚 本地图库 | 支持递归扫描、SQLite 全文搜索、分类/收藏/集合、元数据解析、批量操作和大图预览。 |
-| 🌐 在线图库 | 支持 Danbooru / Safebooru / Gelbooru / AI TAG 搜索、真实排行榜、多图详情、元数据复用和批量下载。 |
+| 🌐 在线图库 | 支持 Danbooru / Safebooru / Gelbooru / AI TAG / 法典图鉴搜索、真实排行榜、多图详情、元数据复用和批量下载。 |
 | 📦 生成队列 | 支持任务排序、批量生成、暂停/继续、失败策略、进度统计和队列导入导出。 |
 | 🔌 外部联动 | 支持 Krita 本地联动、ComfyUI 本地工作流、系统代理、跨平台图片复制和文件定位。 |
 | 🌏 界面语言 | 支持简体中文、繁體中文、English 和日本語；繁体中文输入可继续检索可选的简中标签汉化词库。 |
@@ -42,6 +43,7 @@ NAI Launcher 是一个使用 Flutter 构建的 NovelAI 第三方客户端。它�
 - **Danbooru / Safebooru**：支持标签、日期搜索，以及指定日期的日榜、周榜和月榜；Danbooru 可登录并管理收藏，Safebooru 使用 `safebooru.donmai.us` 匿名只读访问。
 - **Gelbooru**：支持公开搜索；配置 API 凭据后可加速搜索并浏览只读网站收藏，不提供伪造的本地排行榜。
 - **AI TAG**：支持作品/作者/标题/标签/模型综合搜索和原样 Prompt 语法搜索（如 `::artist:`），时间范围由来源实时配置；支持实时月榜、历史月榜和旧月份归档。多图详情可切换、预取和逐图复用 NAI / Stable Diffusion / ComfyUI 元数据，并支持下载当前图片或作品全部图片。AI TAG 无需账号且仅提供只读访问。
+- **法典图鉴（NovelAI QuickTagCloud）**：按法典、分类、更新批次、图片状态和完整文本字段浏览固定公开法典，支持多图与纯文本词条、贡献者署名、正负及多角色 Prompt 复制/生成/排队、本地收藏和最近浏览。内容分级复用画廊已有的分级选单，提供全年龄、可疑（成人）与限制级（R18G / 重口）三级筛选。法典版本 JSON 经大小与 SHA-256 校验后缓存，图片仅使用普通运行时网络缓存；所有内容始终从上游读取，不随安装包分发或镜像。
 
 ## 🖥️ 界面预览
 
@@ -115,6 +117,7 @@ NAI Launcher 是一个使用 Flutter 构建的 NovelAI 第三方客户端。它�
 ## 🙏 致谢
 
 - [NovelAI](https://novelai.net/) 提供图像生成服务。
+- [所长法典站（法典图鉴）](https://novelai.quicktagcloud.com/) 及其 [AgIzT/NovelAI-Tag](https://github.com/AgIzT/NovelAI-Tag) 项目提供法典图鉴内容与服务。
 - [Flutter](https://flutter.dev/) 提供跨平台 UI 能力。
 - [Riverpod](https://riverpod.dev/) 提供状态管理能力。
 - 感谢所有贡献者和测试用户。

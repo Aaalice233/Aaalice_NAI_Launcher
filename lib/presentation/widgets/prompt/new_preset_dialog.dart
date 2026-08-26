@@ -235,12 +235,9 @@ class _ModeOptionCard extends StatelessWidget {
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: isSelected
-                  ? colorScheme.primary
-                  : colorScheme.outlineVariant.withValues(alpha: 0.5),
-              width: isSelected ? 2 : 1,
-            ),
+            border: isSelected
+                ? Border.all(color: colorScheme.primary, width: 2)
+                : null,
           ),
           child: Row(
             children: [

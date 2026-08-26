@@ -273,7 +273,7 @@ void main() {
 
   group('SelectableImageCard hover gating', () {
     testWidgets(
-        'keeps the last stream preview behind completed image until first frame',
+        'keeps the last stream preview as the only image until completion is ready',
         (tester) async {
       var placeholderSettled = false;
 
@@ -298,25 +298,24 @@ void main() {
         ),
       );
 
-      final placeholderFinder = find.byKey(
-        const ValueKey('completed-image-preview-placeholder'),
+      final contentFinder = find.byKey(
+        const ValueKey('selectable-image-content'),
       );
-      expect(placeholderFinder, findsOneWidget);
-      expect(
-        find.byKey(const ValueKey('selectable-image-completed-image')),
-        findsOneWidget,
-      );
+      expect(contentFinder, findsOneWidget);
+      expect(find.byType(DecodedMemoryImage), findsOneWidget);
 
       await tester.pump(const Duration(milliseconds: 899));
 
       expect(placeholderSettled, isFalse);
-      expect(placeholderFinder, findsOneWidget);
+      expect(contentFinder, findsOneWidget);
+      expect(find.byType(DecodedMemoryImage), findsOneWidget);
 
       await tester.pump(const Duration(milliseconds: 1));
       await tester.pump();
 
       expect(placeholderSettled, isTrue);
-      expect(placeholderFinder, findsNothing);
+      expect(contentFinder, findsOneWidget);
+      expect(find.byType(DecodedMemoryImage), findsOneWidget);
     });
 
     testWidgets('reuses stream preview when the same card becomes completed',
@@ -361,9 +360,10 @@ void main() {
       );
 
       expect(
-        find.byKey(const ValueKey('completed-image-preview-placeholder')),
+        find.byKey(const ValueKey('selectable-image-content')),
         findsOneWidget,
       );
+      expect(find.byType(DecodedMemoryImage), findsOneWidget);
     });
 
     testWidgets(

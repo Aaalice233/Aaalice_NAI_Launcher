@@ -1,302 +1,237 @@
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import '../../core/utils/app_logger.dart';
+import '../models/prompt/official_wordlist.dart';
 import '../models/prompt/wordlist_entry.dart';
 
 part 'wordlist_service.g.dart';
 
-/// 词库类型
 enum WordlistType {
-  /// V4 模型词库
-  v4('wordlists_v4.csv'),
+  v4('characterPrompts', 'wordlists_v4.csv'),
+  legacy('legacyAnime', 'wordlists_legacy.csv'),
+  furry('furryV3', 'wordlists_furry.csv');
 
-  /// Legacy 模型词库
-  legacy('wordlists_legacy.csv'),
+  const WordlistType(this.generatorId, this.fileName);
 
-  /// Furry 模型词库
-  furry('wordlists_furry.csv');
-
-  const WordlistType(this.fileName);
-
-  /// CSV 文件名
+  final String generatorId;
   final String fileName;
 
-  /// 获取资源路径
-  String get assetPath => 'assets/data/wordlists/$fileName';
+  @Deprecated('Use officialWordlistAssetPath')
+  String get assetPath => officialWordlistAssetPath;
 }
 
-/// 词库服务
-///
-/// 负责加载和管理 CSV 格式的词库数据
-/// 支持 V4、Legacy、Furry 三种词库类型
+/// Loads the source-locked NovelAI random wordlists without normalizing,
+/// deduplicating, or reordering their records.
 class WordlistService {
-  /// 词库缓存（按类型存储）
-  final Map<WordlistType, List<WordlistEntry>> _cache = {};
+  WordlistService({AssetBundle? assetBundle})
+    : _assetBundle = assetBundle ?? rootBundle;
 
-  /// 按变量名索引的缓存（用于快速查找）
+  final AssetBundle _assetBundle;
+  final Map<WordlistType, OfficialWordlist> _officialCache = {};
+  final Map<WordlistType, List<WordlistEntry>> _compatibilityCache = {};
   final Map<WordlistType, Map<String, List<WordlistEntry>>> _variableIndex = {};
-
-  /// 按分类索引的缓存
   final Map<WordlistType, Map<String, List<WordlistEntry>>> _categoryIndex = {};
 
-  /// 加载状态
-  final Map<WordlistType, bool> _loadingStatus = {};
+  OfficialWordlistData? _data;
+  Future<OfficialWordlistData>? _loadingFuture;
+  var _cacheEpoch = 0;
 
-  /// 是否已初始化
-  bool _isInitialized = false;
+  bool get isInitialized => _data != null;
+  OfficialWordlistData? get data => _data;
 
-  /// 是否正在加载
-  bool _isLoading = false;
-
-  WordlistService();
-
-  /// 是否已初始化
-  bool get isInitialized => _isInitialized;
-
-  /// 是否正在加载
-  bool get isLoading => _isLoading;
-
-  /// 获取指定类型的词库条目数量
-  int getEntryCount(WordlistType type) => _cache[type]?.length ?? 0;
-
-  /// 初始化服务（加载所有词库）
-  ///
-  /// 默认只加载 V4 词库，其他词库按需加载
   Future<void> initialize({bool loadAll = false}) async {
-    if (_isInitialized || _isLoading) return;
-    _isLoading = true;
-
-    try {
-      AppLogger.i('Initializing WordlistService...', 'Wordlist');
-
-      // 默认加载 V4 词库
+    if (loadAll) {
+      await loadAllWordlists();
+    } else {
       await loadWordlist(WordlistType.v4);
-
-      if (loadAll) {
-        // 并行加载其他词库
-        await Future.wait([
-          loadWordlist(WordlistType.legacy),
-          loadWordlist(WordlistType.furry),
-        ]);
-      }
-
-      _isInitialized = true;
-      AppLogger.i(
-        'WordlistService initialized: ${getEntryCount(WordlistType.v4)} V4 entries',
-        'Wordlist',
-      );
-    } catch (e, stack) {
-      AppLogger.e('Failed to initialize WordlistService', e, stack, 'Wordlist');
-      rethrow;
-    } finally {
-      _isLoading = false;
     }
   }
 
-  /// 加载指定类型的词库
+  Future<void> loadAllWordlists() async {
+    final data = await _loadData();
+    for (final type in WordlistType.values) {
+      _cacheType(type, data);
+    }
+  }
+
   Future<void> loadWordlist(WordlistType type) async {
-    if (_cache.containsKey(type)) return; // 已加载
-    if (_loadingStatus[type] == true) return; // 正在加载
+    if (_officialCache.containsKey(type)) return;
+    _cacheType(type, await _loadData());
+  }
 
-    _loadingStatus[type] = true;
+  Future<OfficialWordlist> getOfficialWordlist(WordlistType type) async {
+    await loadWordlist(type);
+    return _officialCache[type]!;
+  }
 
+  OfficialWordlist? getLoadedOfficialWordlist(WordlistType type) =>
+      _officialCache[type];
+
+  Future<OfficialWordlistData> _loadData() async {
+    final cached = _data;
+    if (cached != null) return cached;
+    final epoch = _cacheEpoch;
+    final future = _loadingFuture ??= _readAsset();
     try {
-      AppLogger.d('Loading wordlist: ${type.fileName}', 'Wordlist');
-
-      // 从 assets 加载 CSV 文件
-      final content = await rootBundle.loadString(type.assetPath);
-
-      // 使用 Isolate 解析，避免阻塞主线程
-      final entries = await _parseCsvContentAsync(content);
-
-      // 缓存结果
-      _cache[type] = entries;
-
-      // 构建索引
-      _buildIndices(type, entries);
-
-      AppLogger.d(
-        'Loaded ${entries.length} entries from ${type.fileName}',
-        'Wordlist',
-      );
-    } catch (e, stack) {
-      AppLogger.e(
-        'Failed to load wordlist: ${type.fileName}',
-        e,
-        stack,
-        'Wordlist',
-      );
-      rethrow;
+      final loaded = await future;
+      if (epoch != _cacheEpoch) {
+        throw StateError('Official wordlist load was invalidated');
+      }
+      _data = loaded;
+      return loaded;
     } finally {
-      _loadingStatus[type] = false;
+      if (identical(_loadingFuture, future)) _loadingFuture = null;
     }
   }
 
-  /// 构建索引
-  void _buildIndices(WordlistType type, List<WordlistEntry> entries) {
+  Future<OfficialWordlistData> _readAsset() async {
+    final content = await _assetBundle.loadString(officialWordlistAssetPath);
+    return compute(_parseOfficialWordlist, content);
+  }
+
+  void _cacheType(WordlistType type, OfficialWordlistData data) {
+    final official = data.generatorsById[type.generatorId];
+    if (official == null) {
+      throw FormatException(
+        'Official wordlist generator is missing: ${type.generatorId}',
+      );
+    }
+    _officialCache[type] = official;
+    final compatibilityEntries = <WordlistEntry>[];
     final variableIndex = <String, List<WordlistEntry>>{};
     final categoryIndex = <String, List<WordlistEntry>>{};
-
-    for (final entry in entries) {
-      // 变量名索引
-      variableIndex.putIfAbsent(entry.variable, () => []).add(entry);
-
-      // 分类索引
-      categoryIndex.putIfAbsent(entry.category, () => []).add(entry);
-    }
-
-    _variableIndex[type] = variableIndex;
-    _categoryIndex[type] = categoryIndex;
-  }
-
-  /// 解析 CSV 内容
-  ///
-  /// 注：Isolate.run 在 Windows 上与 Freezed 对象存在序列化兼容性问题，
-  /// 且 CSV 解析速度足够快，无需异步隔离执行，故直接使用同步实现。
-  Future<List<WordlistEntry>> _parseCsvContentAsync(String content) async {
-    return _parseCsvContentSync(content);
-  }
-
-  /// 同步解析 CSV 内容（供 Isolate 使用）
-  static List<WordlistEntry> _parseCsvContentSync(String content) {
-    final lines = content.split('\n');
-    final entries = <WordlistEntry>[];
-
-    // 跳过标题行
-    final startIndex =
-        lines.isNotEmpty && lines[0].toLowerCase().contains('variable') ? 1 : 0;
-
-    for (var i = startIndex; i < lines.length; i++) {
-      final line = lines[i].trim();
-      if (line.isEmpty) continue;
-
-      try {
-        final entry = WordlistEntry.fromCsvLine(line);
-        entries.add(entry);
-      } catch (e) {
-        // 忽略解析错误的行
-        continue;
+    for (final group in official.groups) {
+      final groupEntries = <WordlistEntry>[];
+      for (final entry in group.entries) {
+        final isCharacterPrompt = type == WordlistType.v4;
+        final compatibilityEntry = WordlistEntry(
+          variable: group.id,
+          category: group.semantic,
+          tag: entry.text,
+          weight: entry.weight,
+          require: entry.stringFieldValues(isCharacterPrompt ? 3 : 2),
+          exclude: isCharacterPrompt ? entry.stringFieldValues(4) : const [],
+          extra: isCharacterPrompt ? entry.stringFieldValues(2) : const [],
+        );
+        compatibilityEntries.add(compatibilityEntry);
+        groupEntries.add(compatibilityEntry);
+        categoryIndex
+            .putIfAbsent(group.semantic, () => [])
+            .add(compatibilityEntry);
       }
+      variableIndex[group.id] = List.unmodifiable(groupEntries);
     }
-
-    return entries;
+    _compatibilityCache[type] = List.unmodifiable(compatibilityEntries);
+    _variableIndex[type] = Map.unmodifiable(variableIndex);
+    _categoryIndex[type] = {
+      for (final entry in categoryIndex.entries)
+        entry.key: List.unmodifiable(entry.value),
+    };
   }
 
-  // ========== 查询方法 ==========
+  List<WordlistEntry> getAllEntries(WordlistType type) =>
+      _compatibilityCache[type] ?? const [];
 
-  /// 获取所有条目
-  List<WordlistEntry> getAllEntries(WordlistType type) {
-    return _cache[type] ?? [];
-  }
+  List<WordlistEntry> getEntriesByVariable(
+    WordlistType type,
+    String variable,
+  ) => _variableIndex[type]?[variable] ?? const [];
 
-  /// 按变量名获取条目
-  List<WordlistEntry> getEntriesByVariable(WordlistType type, String variable) {
-    return _variableIndex[type]?[variable] ?? [];
-  }
+  List<WordlistEntry> getEntriesByCategory(
+    WordlistType type,
+    String category,
+  ) => _categoryIndex[type]?[category] ?? const [];
 
-  /// 按分类获取条目
-  List<WordlistEntry> getEntriesByCategory(WordlistType type, String category) {
-    return _categoryIndex[type]?[category] ?? [];
-  }
+  List<String> getVariables(WordlistType type) =>
+      _variableIndex[type]?.keys.toList(growable: false) ?? const [];
 
-  /// 获取所有变量名
-  List<String> getVariables(WordlistType type) {
-    return _variableIndex[type]?.keys.toList() ?? [];
-  }
+  List<String> getCategories(WordlistType type) =>
+      _categoryIndex[type]?.keys.toList(growable: false) ?? const [];
 
-  /// 获取所有分类
-  List<String> getCategories(WordlistType type) {
-    return _categoryIndex[type]?.keys.toList() ?? [];
-  }
-
-  /// 按变量和分类获取条目
   List<WordlistEntry> getEntriesByVariableAndCategory(
     WordlistType type,
     String variable,
     String category,
-  ) {
-    final entries = getEntriesByVariable(type, variable);
-    return entries.where((e) => e.category == category).toList();
-  }
+  ) => getEntriesByVariable(
+    type,
+    variable,
+  ).where((entry) => entry.category == category).toList(growable: false);
 
-  /// 搜索标签
-  ///
-  /// [query] 搜索词
-  /// [type] 词库类型
-  /// [limit] 最大返回数量
   List<WordlistEntry> search(
     WordlistType type,
     String query, {
     int limit = 20,
   }) {
-    if (query.isEmpty) return [];
-
-    final entries = _cache[type] ?? [];
-    final lowerQuery = query.toLowerCase();
-
-    return entries
-        .where((e) => e.tag.toLowerCase().contains(lowerQuery))
+    if (query.trim().isEmpty || limit <= 0) return const [];
+    final normalizedQuery = query.trim().toLowerCase();
+    return getAllEntries(type)
+        .where((entry) => entry.tag.toLowerCase().contains(normalizedQuery))
         .take(limit)
-        .toList();
+        .toList(growable: false);
   }
 
-  /// 加权随机选择
-  ///
-  /// 根据权重随机选择一个条目
   WordlistEntry? weightedRandomSelect(
     List<WordlistEntry> entries,
     int Function() randomInt,
   ) {
-    if (entries.isEmpty) return null;
-
-    final totalWeight = entries.fold<int>(0, (sum, e) => sum + e.weight);
-    if (totalWeight <= 0) {
-      // 无权重，均匀随机
-      return entries[randomInt() % entries.length];
+    final eligible = entries.where((entry) => entry.weight > 0).toList();
+    if (eligible.isEmpty) return null;
+    final totalWeight = eligible.fold<int>(
+      0,
+      (total, entry) => total + entry.weight,
+    );
+    var target = randomInt().abs() % totalWeight;
+    for (final entry in eligible) {
+      if (target < entry.weight) return entry;
+      target -= entry.weight;
     }
-
-    final target = (randomInt() % totalWeight) + 1;
-    var cumulative = 0;
-
-    for (final entry in entries) {
-      cumulative += entry.weight;
-      if (target <= cumulative) {
-        return entry;
-      }
-    }
-
-    return entries.last;
+    throw StateError('Wordlist weighted selection exhausted unexpectedly');
   }
 
-  /// 清除缓存
   void clearCache([WordlistType? type]) {
-    if (type != null) {
-      _cache.remove(type);
-      _variableIndex.remove(type);
-      _categoryIndex.remove(type);
-    } else {
-      _cache.clear();
+    if (type == null) {
+      _cacheEpoch++;
+      _data = null;
+      _loadingFuture = null;
+      _officialCache.clear();
+      _compatibilityCache.clear();
       _variableIndex.clear();
       _categoryIndex.clear();
-      _isInitialized = false;
+      return;
     }
+    _officialCache.remove(type);
+    _compatibilityCache.remove(type);
+    _variableIndex.remove(type);
+    _categoryIndex.remove(type);
   }
 
-  /// 强制刷新
   Future<void> refresh([WordlistType? type]) async {
     clearCache(type);
-    if (type != null) {
-      await loadWordlist(type);
+    if (type == null) {
+      await loadAllWordlists();
     } else {
-      await initialize(loadAll: true);
+      await loadWordlist(type);
     }
   }
 }
 
-/// WordlistService Provider
-@Riverpod(keepAlive: true)
-WordlistService wordlistService(Ref ref) {
-  return WordlistService();
+OfficialWordlistData _parseOfficialWordlist(String content) {
+  return OfficialWordlistData.fromJson(
+    jsonDecode(content) as Map<String, dynamic>,
+  );
 }
+
+@Riverpod(keepAlive: true)
+WordlistService wordlistService(Ref ref) => WordlistService();
+
+final officialWordlistDataProvider = FutureProvider<OfficialWordlistData>((
+  ref,
+) async {
+  final service = ref.watch(wordlistServiceProvider);
+  await service.loadAllWordlists();
+  return service.data!;
+});

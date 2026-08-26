@@ -13,10 +13,16 @@ import 'package:nai_launcher/core/database/datasources/gallery_data_source.dart'
 import 'package:nai_launcher/core/utils/app_logger.dart';
 import 'package:nai_launcher/data/models/gallery/local_image_record.dart';
 import 'package:nai_launcher/data/services/gallery/gallery_stream_scanner.dart'
-    show ExistingFileCacheEntry, GalleryStreamScanner, buildRetryPriorityPaths;
+    show
+        ExistingFileCacheEntry,
+        GalleryStreamScanner,
+        StreamScanStats,
+        buildRetryPriorityPaths;
 import 'package:nai_launcher/data/services/image_metadata_service.dart';
 import 'package:nai_launcher/data/services/metadata/isolate_metadata_service.dart';
 import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
+
+import '../../../helpers/webp_metadata_fixture.dart';
 
 void main() {
   group('GalleryStreamScanner retryMissingMetadata', () {
@@ -246,10 +252,7 @@ void main() {
         expect(imageId, isNotNull);
         final storedImageId = imageId!;
         var imageRecord = await dataSource.getImageById(storedImageId);
-        expect(
-          imageRecord?.metadataStatus,
-          MetadataStatus.transientFailure,
-        );
+        expect(imageRecord?.metadataStatus, MetadataStatus.transientFailure);
 
         await scanner.startScanning(tempDir);
         imageRecord = await dataSource.getImageById(storedImageId);
@@ -262,7 +265,121 @@ void main() {
       },
     );
 
-    test('counting and scanning share the gallery file policy', () async {
+    test('scanner indexes NovelAI metadata from WebP', () async {
+      final file = File(p.join(tempDir.path, 'metadata.webp'));
+      await file.writeAsBytes(
+        buildNovelAiWebpFixture(
+          comment: const {
+            'prompt': 'scanner-webp-prompt',
+            'uc': 'lowres',
+            'width': 832,
+            'height': 1216,
+            'seed': 42,
+            'steps': 28,
+            'scale': 5.0,
+            'sampler': 'k_euler',
+          },
+        ),
+      );
+      final scanner = GalleryStreamScanner(dataSource: dataSource);
+
+      await scanner.startScanning(tempDir, fileSnapshot: [file]);
+
+      final imageId = await dataSource.getImageIdByPath(file.path);
+      expect(imageId, isNotNull);
+      final storedImageId = imageId!;
+      final image = await dataSource.getImageById(storedImageId);
+      final metadata = (await dataSource.getMetadataByImageIds([
+        storedImageId,
+      ]))[storedImageId];
+      expect(image?.metadataStatus, MetadataStatus.success);
+      expect(metadata?.prompt, 'scanner-webp-prompt');
+    });
+
+    test(
+      'file-system changes cannot change a running snapshot total',
+      () async {
+        final first = await _createWrappedNovelAiPng(
+          tempDir,
+          'snapshot_a.png',
+          prompt: 'snapshot-a',
+        );
+        final deleted = await _createWrappedNovelAiPng(
+          tempDir,
+          'snapshot_b.png',
+          prompt: 'snapshot-b',
+        );
+        final added = File(p.join(tempDir.path, 'snapshot_added.png'));
+        final callerOwnedSnapshot = <File>[first, deleted];
+        final observedStats = <StreamScanStats>[];
+        final scanner = GalleryStreamScanner(dataSource: dataSource);
+
+        await scanner.startScanning(
+          tempDir,
+          fileSnapshot: callerOwnedSnapshot,
+          onFileProcessed: (_, stats) {
+            observedStats.add(stats);
+            if (observedStats.length == 1) {
+              callerOwnedSnapshot
+                ..clear()
+                ..add(added);
+              deleted.deleteSync();
+              added.writeAsBytesSync(_buildBasePngBytes());
+            }
+          },
+        );
+
+        expect(observedStats, hasLength(2));
+        expect(
+          observedStats.every((stats) => stats.totalDiscovered == 2),
+          isTrue,
+        );
+        expect(observedStats.last.processed + observedStats.last.skipped, 2);
+        expect(observedStats.last.progress, 1);
+        expect(observedStats.every((stats) => stats.progress <= 1), isTrue);
+        expect(await dataSource.getImageIdByPath(added.path), isNull);
+      },
+    );
+
+    test('priority paths outside the snapshot are never injected', () async {
+      final included = await _createWrappedNovelAiPng(
+        tempDir,
+        'snapshot_included.png',
+        prompt: 'included',
+      );
+      final externalDir = await Directory.systemTemp.createTemp(
+        'gallery_priority_external_',
+      );
+      addTearDown(() => _deleteDirectoryWithRetry(externalDir));
+      final external = await _createWrappedNovelAiPng(
+        externalDir,
+        'external_retry.png',
+        prompt: 'external',
+      );
+      await external.setLastModified(
+        DateTime.now().subtract(const Duration(days: 1)),
+      );
+      final externalId = await _seedStaleNoneRecord(dataSource, external);
+      final processedPaths = <String>[];
+      final scanner = GalleryStreamScanner(dataSource: dataSource);
+
+      await scanner.startScanning(
+        tempDir,
+        retryMissingMetadata: true,
+        fileSnapshot: [included],
+        onFileProcessed: (result, stats) {
+          processedPaths.add(result.path);
+          expect(stats.totalDiscovered, 1);
+          expect(stats.progress, lessThanOrEqualTo(1));
+        },
+      );
+
+      expect(processedPaths, [p.absolute(included.path)]);
+      final externalRecord = await dataSource.getImageById(externalId);
+      expect(externalRecord?.metadataStatus, MetadataStatus.none);
+    });
+
+    test('snapshot and scanning share the gallery file policy', () async {
       final cacheDir = Directory(p.join(tempDir.path, 'cache'));
       await cacheDir.create();
       final excluded = await _createWrappedNovelAiPng(
@@ -290,7 +407,7 @@ void main() {
       await scanner.startScanning(
         tempDir,
         retryMissingMetadata: true,
-        knownTotalFiles: 1,
+        fileSnapshot: [included],
       );
 
       expect(await dataSource.getImageIdByPath(included.path), isNotNull);

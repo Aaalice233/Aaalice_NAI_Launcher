@@ -109,7 +109,8 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
                     ),
                     const SizedBox(width: 8),
                     FilledButton.icon(
-                      onPressed: _selectedEntryIds.isNotEmpty ||
+                      onPressed:
+                          _selectedEntryIds.isNotEmpty ||
                               _selectedCategoryIds.isNotEmpty
                           ? _import
                           : null,
@@ -145,10 +146,6 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
             decoration: BoxDecoration(
               color: theme.colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: theme.colorScheme.outlineVariant,
-                style: BorderStyle.solid,
-              ),
             ),
             child: Column(
               children: [
@@ -265,8 +262,9 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color:
-                    theme.colorScheme.tertiaryContainer.withValues(alpha: 0.5),
+                color: theme.colorScheme.tertiaryContainer.withValues(
+                  alpha: 0.5,
+                ),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
@@ -303,8 +301,9 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
                 onPressed: () {
                   setState(() {
                     _selectedEntryIds.addAll(preview.entries.map((e) => e.id));
-                    _selectedCategoryIds
-                        .addAll(preview.categories.map((c) => c.id));
+                    _selectedCategoryIds.addAll(
+                      preview.categories.map((c) => c.id),
+                    );
                   });
                 },
                 child: Text(context.l10n.common_selectAll),
@@ -448,10 +447,7 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
       ),
       child: Row(
         children: [
-          Checkbox(
-            value: isSelected,
-            onChanged: onChanged,
-          ),
+          Checkbox(value: isSelected, onChanged: onChanged),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -761,10 +757,11 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
       });
 
       // 确定分类是否需要添加后缀（重命名场景）
-      final categoryNameSuffix = categoriesToImport.any((c) {
-        final resolution = _conflictResolutions[c.id];
-        return resolution == ConflictResolution.rename;
-      })
+      final categoryNameSuffix =
+          categoriesToImport.any((c) {
+            final resolution = _conflictResolutions[c.id];
+            return resolution == ConflictResolution.rename;
+          })
           ? ' (${l10n.common_import})'
           : null;
 
@@ -789,10 +786,11 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
       });
 
       // 确定条目是否需要添加后缀（重命名场景）
-      final entryNameSuffix = entriesToImport.any((e) {
-        final resolution = _conflictResolutions[e.id];
-        return resolution == ConflictResolution.rename;
-      })
+      final entryNameSuffix =
+          entriesToImport.any((e) {
+            final resolution = _conflictResolutions[e.id];
+            return resolution == ConflictResolution.rename;
+          })
           ? ' (${l10n.common_import})'
           : null;
 
@@ -823,8 +821,9 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
           );
         }
         if (result.renamedCount > 0) {
-          messages
-              .add(context.l10n.tagLibrary_renamedCount(result.renamedCount));
+          messages.add(
+            context.l10n.tagLibrary_renamedCount(result.renamedCount),
+          );
         }
         if (result.overwrittenCount > 0) {
           messages.add(

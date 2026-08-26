@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
-import '../../../../themes/theme_extension.dart';
 
-/// Metric card with value, trend indicator and optional sparkline
-/// Enhanced with gradient backgrounds, glow effects, and smooth animations
+/// Metric card with value, trend indicator and optional sparkline.
 class MetricCard extends StatefulWidget {
   final IconData icon;
   final String label;
@@ -37,63 +35,58 @@ class _MetricCardState extends State<MetricCard> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final extension = theme.extension<AppThemeExtension>();
     final effectiveIconColor = widget.iconColor ?? colorScheme.primary;
-    final shadowIntensity = extension?.shadowIntensity ?? 0.08;
     final isDark = theme.brightness == Brightness.dark;
+    final interactive = widget.onTap != null;
+    final reducedMotion = MediaQuery.disableAnimationsOf(context);
 
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      cursor: SystemMouseCursors.click,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOutCubic,
-        transform: _isHovered
-            ? (Matrix4.identity()..translateByDouble(0.0, -2.0, 0, 1))
-            : Matrix4.identity(),
-        decoration: BoxDecoration(
-          // 深度层叠风格：使用主题中明确定义的最亮容器色
-          color: colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(8),
-          // 多层阴影替代边框
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(
-                alpha: _isHovered ? shadowIntensity * 1.5 : shadowIntensity,
+    return Semantics(
+      button: interactive,
+      enabled: interactive,
+      child: MergeSemantics(
+        child: MouseRegion(
+          onEnter: interactive
+              ? (_) => setState(() => _isHovered = true)
+              : null,
+          onExit: interactive
+              ? (_) => setState(() => _isHovered = false)
+              : null,
+          cursor: interactive ? SystemMouseCursors.click : MouseCursor.defer,
+          child: AnimatedContainer(
+            duration: reducedMotion
+                ? Duration.zero
+                : const Duration(milliseconds: 160),
+            curve: Curves.easeOutCubic,
+            decoration: BoxDecoration(
+              color: interactive && _isHovered
+                  ? colorScheme.surfaceContainer
+                  : colorScheme.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: widget.onTap,
+                borderRadius: BorderRadius.circular(8),
+                splashColor: effectiveIconColor.withValues(alpha: 0.08),
+                highlightColor: effectiveIconColor.withValues(alpha: 0.04),
+                child: Padding(
+                  padding: EdgeInsets.all(widget.compact ? 14 : 18),
+                  child: widget.compact
+                      ? _buildCompactLayout(
+                          theme,
+                          colorScheme,
+                          effectiveIconColor,
+                          isDark,
+                        )
+                      : _buildDefaultLayout(
+                          theme,
+                          colorScheme,
+                          effectiveIconColor,
+                          isDark,
+                        ),
+                ),
               ),
-              blurRadius: _isHovered ? 16 : 12,
-              offset: Offset(0, _isHovered ? 6 : 4),
-            ),
-            BoxShadow(
-              color: Colors.black.withValues(alpha: shadowIntensity * 0.5),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: widget.onTap,
-            borderRadius: BorderRadius.circular(8),
-            splashColor: effectiveIconColor.withValues(alpha: 0.08),
-            highlightColor: effectiveIconColor.withValues(alpha: 0.04),
-            child: Padding(
-              padding: EdgeInsets.all(widget.compact ? 14 : 18),
-              child: widget.compact
-                  ? _buildCompactLayout(
-                      theme,
-                      colorScheme,
-                      effectiveIconColor,
-                      isDark,
-                    )
-                  : _buildDefaultLayout(
-                      theme,
-                      colorScheme,
-                      effectiveIconColor,
-                      isDark,
-                    ),
             ),
           ),
         ),
@@ -117,11 +110,7 @@ class _MetricCardState extends State<MetricCard> {
             color: effectiveIconColor.withValues(alpha: isDark ? 0.15 : 0.1),
             borderRadius: BorderRadius.circular(6),
           ),
-          child: Icon(
-            widget.icon,
-            size: 18,
-            color: effectiveIconColor,
-          ),
+          child: Icon(widget.icon, size: 18, color: effectiveIconColor),
         ),
         const SizedBox(width: 12),
         // Label
@@ -140,6 +129,7 @@ class _MetricCardState extends State<MetricCard> {
             fontWeight: FontWeight.bold,
             color: colorScheme.onSurface,
             letterSpacing: -0.3,
+            fontFeatures: const [FontFeature.tabularFigures()],
           ),
         ),
         if (widget.trend != null) ...[
@@ -166,15 +156,12 @@ class _MetricCardState extends State<MetricCard> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color:
-                    effectiveIconColor.withValues(alpha: isDark ? 0.15 : 0.1),
+                color: effectiveIconColor.withValues(
+                  alpha: isDark ? 0.15 : 0.1,
+                ),
                 borderRadius: BorderRadius.circular(6),
               ),
-              child: Icon(
-                widget.icon,
-                size: 20,
-                color: effectiveIconColor,
-              ),
+              child: Icon(widget.icon, size: 20, color: effectiveIconColor),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -202,6 +189,7 @@ class _MetricCardState extends State<MetricCard> {
                   fontWeight: FontWeight.bold,
                   color: colorScheme.onSurface,
                   letterSpacing: -0.5,
+                  fontFeatures: const [FontFeature.tabularFigures()],
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -234,19 +222,14 @@ class TrendData {
   final String? label;
   final bool isPercentage;
 
-  const TrendData({
-    required this.value,
-    this.label,
-    this.isPercentage = true,
-  });
+  const TrendData({required this.value, this.label, this.isPercentage = true});
 
   bool get isPositive => value > 0;
   bool get isNegative => value < 0;
   bool get isNeutral => value == 0;
 }
 
-/// Trend indicator widget showing up/down/neutral trend
-/// Enhanced with gradient backgrounds and improved styling
+/// Trend indicator widget showing up/down/neutral trend.
 class TrendIndicator extends StatelessWidget {
   final TrendData data;
   final double iconSize;
@@ -286,56 +269,62 @@ class TrendIndicator extends StatelessWidget {
     final displayValue = data.isPercentage
         ? '${data.value.abs().toStringAsFixed(1)}%'
         : data.value.abs().toStringAsFixed(0);
+    final semanticValue = data.isPositive
+        ? '+$displayValue'
+        : data.isNegative
+        ? '−$displayValue'
+        : displayValue;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            primaryColor.withValues(alpha: isDark ? 0.2 : 0.12),
-            secondaryColor.withValues(alpha: isDark ? 0.1 : 0.06),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(
-          color: primaryColor.withValues(alpha: 0.2),
-          width: 1,
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: iconSize, color: primaryColor),
-          const SizedBox(width: 5),
-          Text(
-            displayValue,
-            style: textStyle ??
-                theme.textTheme.labelSmall?.copyWith(
-                  color: primaryColor,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.2,
-                ),
+    return Semantics(
+      value: semanticValue,
+      excludeSemantics: true,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              primaryColor.withValues(alpha: isDark ? 0.2 : 0.12),
+              secondaryColor.withValues(alpha: isDark ? 0.1 : 0.06),
+            ],
           ),
-          if (data.label != null) ...[
-            const SizedBox(width: 3),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: iconSize, color: primaryColor),
+            const SizedBox(width: 5),
             Text(
-              data.label!,
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: primaryColor.withValues(alpha: 0.75),
-                fontWeight: FontWeight.w500,
-              ),
+              displayValue,
+              style:
+                  textStyle ??
+                  theme.textTheme.labelSmall?.copyWith(
+                    color: primaryColor,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.2,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
             ),
+            if (data.label != null) ...[
+              const SizedBox(width: 3),
+              Text(
+                data.label!,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: primaryColor.withValues(alpha: 0.75),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
 }
 
-/// Mini sparkline chart for metric cards
-/// Enhanced with smooth gradients and refined styling
+/// Mini sparkline chart for metric cards.
 class MiniSparkline extends StatelessWidget {
   final List<double> data;
   final Color color;
@@ -387,11 +376,11 @@ class MiniSparkline extends StatelessWidget {
               show: showDots,
               getDotPainter: (spot, percent, barData, index) =>
                   FlDotCirclePainter(
-                radius: 3,
-                color: color,
-                strokeWidth: 1.5,
-                strokeColor: Colors.white,
-              ),
+                    radius: 3,
+                    color: color,
+                    strokeWidth: 1.5,
+                    strokeColor: Colors.white,
+                  ),
             ),
             belowBarData: showArea
                 ? BarAreaData(

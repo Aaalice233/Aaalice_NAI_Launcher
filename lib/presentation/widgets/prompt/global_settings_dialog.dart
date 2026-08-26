@@ -398,11 +398,6 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
             ? theme.colorScheme.surface
             : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: option.enabled
-              ? theme.colorScheme.outline.withValues(alpha: 0.3)
-              : theme.colorScheme.outline.withValues(alpha: 0.1),
-        ),
       ),
       child: Row(
         children: [

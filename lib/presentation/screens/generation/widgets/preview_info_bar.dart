@@ -150,9 +150,8 @@ class _SeedPill extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return _InfoPill(
       tooltip: context.l10n.generation_previewApplySeed,
-      onTap: () => ref
-          .read(generationParamsNotifierProvider.notifier)
-          .updateSeed(seed),
+      onTap: () =>
+          ref.read(generationParamsNotifierProvider.notifier).updateSeed(seed),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -303,14 +302,10 @@ class _TransparencyBackgroundPanelState
       elevation: 8,
       borderRadius: BorderRadius.circular(6),
       clipBehavior: Clip.antiAlias,
-      color: theme.colorScheme.surface,
+      color: theme.colorScheme.surfaceContainerHigh,
       child: Container(
         width: 232,
         padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: theme.dividerColor),
-        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -350,11 +345,13 @@ class _TransparencyBackgroundPanelState
                 _Swatch(
                   tooltip: l10n.generation_transparencyCustom,
                   selected: isCustom,
-                  onTap: () => setState(() => _customExpanded = !_customExpanded),
+                  onTap: () =>
+                      setState(() => _customExpanded = !_customExpanded),
                   child: isCustom
                       ? ColoredBox(
-                          color:
-                              TransparencyBackgrounds.parseCustomColor(style)!,
+                          color: TransparencyBackgrounds.parseCustomColor(
+                            style,
+                          )!,
                         )
                       : Icon(
                           Icons.colorize_rounded,
@@ -423,9 +420,7 @@ class _Swatch extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(4),
             border: Border.all(
-              color: selected
-                  ? theme.colorScheme.primary
-                  : theme.dividerColor,
+              color: selected ? theme.colorScheme.primary : theme.dividerColor,
               width: selected ? 2 : 1,
             ),
           ),

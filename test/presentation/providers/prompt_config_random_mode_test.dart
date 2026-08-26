@@ -19,6 +19,8 @@ import 'package:nai_launcher/presentation/providers/random_mode_provider.dart';
 import 'package:nai_launcher/presentation/providers/random_preset_provider.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('PromptConfigNotifier.generateRandomPrompt provider routing', () {
     test('official mode ignores the selected custom preset', () async {
       final container = _containerForMode(RandomGenerationMode.naiOfficial);
@@ -29,9 +31,24 @@ void main() {
           .generateRandomPrompt(seed: 1);
 
       expect(result.mode, RandomGenerationMode.naiOfficial);
-      expect(result.noHumans, isTrue);
-      expect(result.mainPrompt, contains(_officialTag));
+      expect(result.mainPrompt, isNotEmpty);
       expect(result.mainPrompt, isNot(contains(_customTag)));
+      expect(result.mainPrompt, isNot(contains(_defaultCatalogTag)));
+    });
+
+    test('official mode stays independent of catalog preset errors', () async {
+      final container = _containerForMode(
+        RandomGenerationMode.naiOfficial,
+        presetError: 'catalog unavailable',
+      );
+      addTearDown(container.dispose);
+
+      final result = await container
+          .read(promptConfigNotifierProvider.notifier)
+          .generateRandomPrompt(seed: 1);
+
+      expect(result.mode, RandomGenerationMode.naiOfficial);
+      expect(result.mainPrompt, isNotEmpty);
     });
 
     test('custom mode uses the selected RandomPreset', () async {
@@ -45,25 +62,48 @@ void main() {
       expect(result.mode, RandomGenerationMode.custom);
       expect(result.noHumans, isTrue);
       expect(result.mainPrompt, contains(_customTag));
-      expect(result.mainPrompt, isNot(contains(_officialTag)));
+      expect(result.mainPrompt, isNot(contains(_defaultCatalogTag)));
     });
 
-    test('hybrid mode merges official and selected custom presets', () async {
-      final container = _containerForMode(RandomGenerationMode.hybrid);
+    test('custom mode falls back to the default catalog preset', () async {
+      final container = _containerForMode(
+        RandomGenerationMode.custom,
+        includeCustomPreset: false,
+      );
       addTearDown(container.dispose);
 
       final result = await container
           .read(promptConfigNotifierProvider.notifier)
           .generateRandomPrompt(seed: 1);
 
-      expect(result.mode, RandomGenerationMode.hybrid);
-      expect(result.noHumans, isTrue);
-      expect(result.mainPrompt, contains(_officialTag));
-      expect(result.mainPrompt, contains(_customTag));
+      expect(result.mode, RandomGenerationMode.custom);
+      expect(result.mainPrompt, contains(_defaultCatalogTag));
     });
 
-    test('hybrid mode without a custom preset returns an empty hybrid result',
-        () async {
+    test(
+      'hybrid mode combines the official source and selected catalog preset',
+      () async {
+        final officialContainer = _containerForMode(
+          RandomGenerationMode.naiOfficial,
+        );
+        final hybridContainer = _containerForMode(RandomGenerationMode.hybrid);
+        addTearDown(officialContainer.dispose);
+        addTearDown(hybridContainer.dispose);
+
+        final official = await officialContainer
+            .read(promptConfigNotifierProvider.notifier)
+            .generateRandomPrompt(seed: 1);
+        final result = await hybridContainer
+            .read(promptConfigNotifierProvider.notifier)
+            .generateRandomPrompt(seed: 1);
+
+        expect(result.mode, RandomGenerationMode.hybrid);
+        expect(result.mainPrompt, startsWith(official.mainPrompt));
+        expect(result.mainPrompt, contains(_customTag));
+      },
+    );
+
+    test('hybrid mode falls back to the default catalog preset', () async {
       final container = _containerForMode(
         RandomGenerationMode.hybrid,
         includeCustomPreset: false,
@@ -75,35 +115,37 @@ void main() {
           .generateRandomPrompt(seed: 1);
 
       expect(result.mode, RandomGenerationMode.hybrid);
-      expect(result.mainPrompt, isEmpty);
-      expect(result.mainPrompt, isNot(contains(_officialTag)));
+      expect(result.mainPrompt, isNotEmpty);
+      expect(result.mainPrompt, contains(_defaultCatalogTag));
     });
 
-    test('preset load error is surfaced instead of returning an empty result',
-        () async {
-      final container = _containerForMode(
-        RandomGenerationMode.custom,
-        presetError: 'boom',
-      );
-      addTearDown(container.dispose);
+    test(
+      'preset load error is surfaced instead of returning an empty result',
+      () async {
+        final container = _containerForMode(
+          RandomGenerationMode.custom,
+          presetError: 'boom',
+        );
+        addTearDown(container.dispose);
 
-      expect(
-        () => container
-            .read(promptConfigNotifierProvider.notifier)
-            .generateRandomPrompt(seed: 1),
-        throwsA(
-          isA<StateError>().having(
-            (error) => error.message,
-            'message',
-            contains('boom'),
+        expect(
+          () => container
+              .read(promptConfigNotifierProvider.notifier)
+              .generateRandomPrompt(seed: 1),
+          throwsA(
+            isA<StateError>().having(
+              (error) => error.message,
+              'message',
+              contains('boom'),
+            ),
           ),
-        ),
-      );
-    });
+        );
+      },
+    );
   });
 }
 
-const _officialTag = 'official skyline fixture';
+const _defaultCatalogTag = 'default catalog skyline fixture';
 const _customTag = 'custom lantern fixture';
 
 ProviderContainer _containerForMode(
@@ -112,11 +154,11 @@ ProviderContainer _containerForMode(
   String? presetError,
 }) {
   final officialPreset = _preset(
-    id: 'official',
-    name: 'Official fixture',
+    id: 'default_catalog',
+    name: 'Default catalog fixture',
     isDefault: true,
-    tag: _officialTag,
-    groupName: 'Official Scene',
+    tag: _defaultCatalogTag,
+    groupName: 'Default catalog scene',
   );
   final customPreset = _preset(
     id: 'custom',
@@ -124,8 +166,9 @@ ProviderContainer _containerForMode(
     tag: _customTag,
     groupName: 'Custom Scene',
   );
-  final presets =
-      includeCustomPreset ? [officialPreset, customPreset] : [officialPreset];
+  final presets = includeCustomPreset
+      ? [officialPreset, customPreset]
+      : [officialPreset];
 
   return ProviderContainer(
     overrides: [
@@ -137,8 +180,9 @@ ProviderContainer _containerForMode(
         () => _FixedRandomPresetNotifier(
           RandomPresetState(
             presets: presets,
-            selectedPresetId:
-                includeCustomPreset ? customPreset.id : officialPreset.id,
+            selectedPresetId: includeCustomPreset
+                ? customPreset.id
+                : officialPreset.id,
             error: presetError,
           ),
         ),
@@ -184,9 +228,7 @@ RandomPreset _preset({
             name: groupName,
             selectionMode: SelectionMode.all,
             shuffle: false,
-            tags: [
-              WeightedTag.simple(tag, 10),
-            ],
+            tags: [WeightedTag.simple(tag, 10)],
           ),
         ],
       ),
@@ -222,7 +264,10 @@ class _FixedRandomPresetNotifier extends RandomPresetNotifier {
 class _MockTagLibraryService extends Mock implements TagLibraryService {}
 
 class _MockSequentialStateService extends Mock
-    implements SequentialStateService {}
+    implements SequentialStateService {
+  @override
+  Future<void> init() async {}
+}
 
 class _MockTagGroupCacheService extends Mock implements TagGroupCacheService {}
 

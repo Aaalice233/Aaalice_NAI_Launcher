@@ -19,6 +19,8 @@ typedef MetadataWorkerInitializer =
       Future<void> Function() initializeWorker,
     );
 
+typedef MetadataWorkerEntrypoint = void Function(Object? message);
+
 enum IsolateParseFailureKind { definitive, infrastructure, cancelled }
 
 /// Isolate 解析配置
@@ -26,13 +28,11 @@ class IsolateParseConfig {
   final Duration timeout;
   final bool useGradualRead;
   final bool useCache;
-  final bool textChunksOnly;
 
   const IsolateParseConfig({
     this.timeout = const Duration(seconds: 5),
     this.useGradualRead = true,
     this.useCache = true,
-    this.textChunksOnly = false,
   });
 }
 
@@ -78,8 +78,7 @@ class IsolateParseResult {
     required Duration parseTime,
     bool wasCancelled = false,
     bool wasTimeout = false,
-    IsolateParseFailureKind failureKind =
-        IsolateParseFailureKind.definitive,
+    IsolateParseFailureKind failureKind = IsolateParseFailureKind.definitive,
   }) {
     return IsolateParseResult(
       error: error,
@@ -93,7 +92,7 @@ class IsolateParseResult {
 
 /// Isolate 元数据解析服务
 ///
-/// 在独立线程中执行 PNG 元数据解析，避免阻塞 UI。
+/// 在独立线程中执行图像元数据解析，避免阻塞 UI。
 /// 适用于详情页等需要实时响应的场景。
 ///
 /// 特性：
@@ -108,17 +107,30 @@ class IsolateMetadataService {
 
   IsolateMetadataService._internal({
     MetadataWorkerInitializer? workerInitializer,
-  }) : _workerInitializer = workerInitializer;
+  }) : _workerInitializer = workerInitializer,
+       _workerEntrypoint = _isolateEntryPoint,
+       _workerStartupTimeout = const Duration(seconds: 5),
+       _maxWorkers = 2;
 
   IsolateMetadataService.forTesting({
     MetadataWorkerInitializer? workerInitializer,
-  }) : _workerInitializer = workerInitializer;
+    MetadataWorkerEntrypoint workerEntrypoint = _isolateEntryPoint,
+    Duration workerStartupTimeout = const Duration(seconds: 5),
+    int maxWorkers = 2,
+  }) : _workerInitializer = workerInitializer,
+       _workerEntrypoint = workerEntrypoint,
+       _workerStartupTimeout = workerStartupTimeout,
+       _maxWorkers = maxWorkers;
 
   final MetadataWorkerInitializer? _workerInitializer;
+  final MetadataWorkerEntrypoint _workerEntrypoint;
+  final Duration _workerStartupTimeout;
 
-  /// 解析线程池（最多2个线程并发）
+  /// 解析线程池（最多 [_maxWorkers] 个线程并发）
   final List<_ParseWorker> _workers = [];
-  final int _maxWorkers = 2;
+  final Set<_ParseWorker> _pendingWorkers = {};
+  final Set<_WorkerReservation> _workerReservations = {};
+  final int _maxWorkers;
 
   /// 任务队列
   final List<_ParseTask> _taskQueue = [];
@@ -128,7 +140,6 @@ class IsolateMetadataService {
   bool _initialized = false;
   Future<void>? _initializationFuture;
   String? _workerStartupError;
-  int _restartingWorkers = 0;
   int _lifecycleGeneration = 0;
 
   /// 统计信息
@@ -157,7 +168,6 @@ class IsolateMetadataService {
   }
 
   Future<void> _initializeWorkers(int generation) async {
-
     AppLogger.i(
       '[IsolateMetadata] Initializing with $_maxWorkers workers',
       'IsolateMetadataService',
@@ -165,46 +175,68 @@ class IsolateMetadataService {
 
     _workerStartupError = null;
 
-    final initializedWorkers = <_ParseWorker>[];
+    // Reserve every currently available slot before the first await. A
+    // replacement and a full initialization can therefore never both claim
+    // the same capacity.
+    final reservations = <_WorkerReservation>[];
+    for (var workerId = 0; workerId < _maxWorkers; workerId++) {
+      if (_workers.any((worker) => worker.id == workerId) ||
+          _workerReservations.any(
+            (reservation) => reservation.workerId == workerId,
+          )) {
+        continue;
+      }
+      final reservation = _reserveWorkerSlot(
+        workerId: workerId,
+        preferredIndex: _workers.length + reservations.length,
+        generation: generation,
+      );
+      if (reservation != null) reservations.add(reservation);
+    }
+
+    if (reservations.isEmpty) {
+      _initialized =
+          generation == _lifecycleGeneration &&
+          (_workers.isNotEmpty || _workerReservations.isNotEmpty);
+      return;
+    }
+
+    final initializedWorkers = <(_WorkerReservation, _ParseWorker)>[];
     _ParseWorker? pendingWorker;
 
     try {
-      // 创建工作线程
-      for (int i = 0; i < _maxWorkers; i++) {
-        pendingWorker = _ParseWorker(id: i, onBecameIdle: _processQueue);
-        final initializeWorker = pendingWorker.initialize;
-
-        if (_workerInitializer != null) {
-          await _workerInitializer(i, initializeWorker);
-        } else {
-          await initializeWorker();
+      for (final reservation in reservations) {
+        pendingWorker = _createWorker(reservation.workerId);
+        _pendingWorkers.add(pendingWorker);
+        try {
+          await _initializeWorker(pendingWorker);
+        } finally {
+          _pendingWorkers.remove(pendingWorker);
         }
-
-        initializedWorkers.add(pendingWorker);
+        initializedWorkers.add((reservation, pendingWorker));
         pendingWorker = null;
       }
 
-      if (generation != _lifecycleGeneration) {
-        for (final worker in initializedWorkers) {
+      for (final (reservation, worker) in initializedWorkers) {
+        // There is intentionally no await between this validity check and the
+        // insertion performed by _commitWorkerReservation.
+        if (!_commitWorkerReservation(reservation, worker)) {
           worker.dispose();
         }
-        return;
       }
 
-      _workers.addAll(initializedWorkers);
-      _initialized = true;
+      if (generation == _lifecycleGeneration) {
+        _initialized = _workers.isNotEmpty || _workerReservations.isNotEmpty;
+      }
 
       AppLogger.i('[IsolateMetadata] Initialized', 'IsolateMetadataService');
     } catch (e, stackTrace) {
       pendingWorker?.dispose();
-      for (final worker in initializedWorkers) {
+      for (final (_, worker) in initializedWorkers) {
         worker.dispose();
       }
       if (generation == _lifecycleGeneration) {
-        _workers.clear();
-        _taskQueue.clear();
         _workerStartupError = e.toString();
-        _initialized = false;
       }
 
       AppLogger.e(
@@ -213,13 +245,82 @@ class IsolateMetadataService {
         stackTrace,
         'IsolateMetadataService',
       );
+    } finally {
+      for (final reservation in reservations) {
+        _workerReservations.remove(reservation);
+      }
+      if (generation == _lifecycleGeneration) {
+        _initialized = _workers.isNotEmpty || _workerReservations.isNotEmpty;
+        if (!_initialized) {
+          _failQueuedTasks(
+            'Metadata worker unavailable: '
+            '${_workerStartupError ?? 'startup failed'}',
+          );
+        }
+        _processQueue();
+      }
+    }
+  }
+
+  _ParseWorker _createWorker(int workerId) {
+    return _ParseWorker(
+      id: workerId,
+      onBecameIdle: _processQueue,
+      entrypoint: _workerEntrypoint,
+      startupTimeout: _workerStartupTimeout,
+    );
+  }
+
+  Future<void> _initializeWorker(_ParseWorker worker) async {
+    final initializeWorker = worker.initialize;
+    if (_workerInitializer != null) {
+      await _workerInitializer(worker.id, initializeWorker);
+    } else {
+      await initializeWorker();
+    }
+  }
+
+  _WorkerReservation? _reserveWorkerSlot({
+    required int workerId,
+    required int preferredIndex,
+    required int generation,
+  }) {
+    if (generation != _lifecycleGeneration ||
+        _workers.length + _workerReservations.length >= _maxWorkers) {
+      return null;
     }
 
+    final reservation = _WorkerReservation(
+      workerId: workerId,
+      preferredIndex: preferredIndex,
+      generation: generation,
+    );
+    _workerReservations.add(reservation);
+    return reservation;
+  }
+
+  bool _commitWorkerReservation(
+    _WorkerReservation reservation,
+    _ParseWorker worker,
+  ) {
+    if (reservation.generation != _lifecycleGeneration ||
+        !_workerReservations.contains(reservation) ||
+        _workers.length >= _maxWorkers ||
+        _workers.any((activeWorker) => activeWorker.id == worker.id)) {
+      return false;
+    }
+
+    _workerReservations.remove(reservation);
+    final insertIndex = reservation.preferredIndex
+        .clamp(0, _workers.length)
+        .toInt();
+    _workers.insert(insertIndex, worker);
+    return true;
   }
 
   /// 解析元数据（Isolate 中执行）
   ///
-  /// [filePath] PNG 文件路径
+  /// [filePath] 图像文件路径
   /// [config] 解析配置（超时、渐进式读取等）
   /// 返回解析结果，失败返回带错误信息的结果
   Future<IsolateParseResult> parseMetadata(
@@ -231,7 +332,7 @@ class IsolateMetadataService {
     final stopwatch = Stopwatch()..start();
     _totalTasks++;
 
-    if (_workers.isEmpty && _restartingWorkers == 0) {
+    if (_workers.isEmpty && _workerReservations.isEmpty) {
       stopwatch.stop();
       _failedTasks++;
       return IsolateParseResult.error(
@@ -408,11 +509,14 @@ class IsolateMetadataService {
     'successRate': _totalTasks > 0 ? _successfulTasks / _totalTasks : 0.0,
     'activeWorkers': _workers.where((w) => w.isBusy).length,
     'workerCount': _workers.length,
+    'reservedWorkerCount': _workerReservations.length,
+    'capacityUsage': _workers.length + _workerReservations.length,
+    'maxWorkers': _maxWorkers,
     'queuedTasks': _taskQueue.length,
     'restartedWorkers': _restartedWorkers,
     'fallbackToInlineParsing': false,
     'workerStartupError': _workerStartupError,
-    'restartingWorkers': _restartingWorkers,
+    'restartingWorkers': _workerReservations.length,
   };
 
   /// 重置统计
@@ -431,16 +535,17 @@ class IsolateMetadataService {
       '[IsolateMetadata] Disposing service',
       'IsolateMetadataService',
     );
+    _lifecycleGeneration++;
     cancelAll();
-    for (final worker in _workers) {
+    for (final worker in [..._workers, ..._pendingWorkers]) {
       worker.dispose();
     }
     _workers.clear();
-    _lifecycleGeneration++;
+    _pendingWorkers.clear();
+    _workerReservations.clear();
     _initialized = false;
     _initializationFuture = null;
     _workerStartupError = null;
-    _restartingWorkers = 0;
   }
 
   // ==================== 私有方法 ====================
@@ -520,60 +625,74 @@ class IsolateMetadataService {
     final workerIndex = _workers.indexOf(worker);
     if (workerIndex < 0) return;
 
+    final generation = _lifecycleGeneration;
     _workers.removeAt(workerIndex);
-
-    _restartingWorkers++;
-    unawaited(
-      _initializeReplacementWorker(
-        worker,
-        worker.id,
-        workerIndex,
-        _lifecycleGeneration,
-      ),
+    final reservation = _reserveWorkerSlot(
+      workerId: worker.id,
+      preferredIndex: workerIndex,
+      generation: generation,
     );
+    if (reservation == null) {
+      worker.dispose();
+      return;
+    }
+
+    unawaited(_initializeReplacementWorker(worker, reservation));
   }
 
   Future<void> _initializeReplacementWorker(
     _ParseWorker retiredWorker,
-    int workerId,
-    int workerIndex,
-    int generation,
+    _WorkerReservation reservation,
   ) async {
     _ParseWorker? replacement;
+    var committed = false;
 
     try {
       // Wait for the killed isolate to report its exit before assigning more
       // work. On Windows this also gives the VM a deterministic point to
       // release native file handles held by the synchronous parser.
       await retiredWorker.disposeAndWait();
-      if (!_initialized || generation != _lifecycleGeneration) return;
-
-      replacement = _ParseWorker(id: workerId, onBecameIdle: _processQueue);
-      await replacement.initialize();
-      if (!_initialized || generation != _lifecycleGeneration) {
-        replacement.dispose();
+      if (!_workerReservations.contains(reservation) ||
+          reservation.generation != _lifecycleGeneration) {
         return;
       }
-      final insertIndex = workerIndex <= _workers.length
-          ? workerIndex
-          : _workers.length;
-      _workers.insert(insertIndex, replacement);
+
+      replacement = _createWorker(reservation.workerId);
+      _pendingWorkers.add(replacement);
+      try {
+        await _initializeWorker(replacement);
+      } finally {
+        _pendingWorkers.remove(replacement);
+      }
+
+      // No await is allowed between initialization completion and this
+      // generation/reservation/capacity recheck.
+      committed = _commitWorkerReservation(reservation, replacement);
+      if (!committed) return;
       _restartedWorkers++;
     } catch (e, stackTrace) {
-      replacement?.dispose();
-      _workerStartupError = e.toString();
-      if (_workers.isEmpty && generation == _lifecycleGeneration) {
-        _initialized = false;
+      if (reservation.generation == _lifecycleGeneration) {
+        _workerStartupError = e.toString();
       }
       AppLogger.e(
-        '[IsolateMetadata] Failed to restart worker $workerId',
+        '[IsolateMetadata] Failed to restart worker ${reservation.workerId}',
         e,
         stackTrace,
         'IsolateMetadataService',
       );
     } finally {
-      if (generation == _lifecycleGeneration) {
-        _restartingWorkers--;
+      _pendingWorkers.remove(replacement);
+      if (!committed) replacement?.dispose();
+      _workerReservations.remove(reservation);
+
+      if (reservation.generation == _lifecycleGeneration) {
+        _initialized = _workers.isNotEmpty || _workerReservations.isNotEmpty;
+        if (!_initialized) {
+          _failQueuedTasks(
+            'Metadata worker unavailable: '
+            '${_workerStartupError ?? 'replacement startup failed'}',
+          );
+        }
         _processQueue();
       }
     }
@@ -620,6 +739,34 @@ class IsolateMetadataService {
       task.completer.complete(result);
     }
   }
+
+  void _failQueuedTasks(String error) {
+    final queuedTasks = List<_ParseTask>.from(_taskQueue);
+    _taskQueue.clear();
+    for (final task in queuedTasks) {
+      _failedTasks++;
+      _completeTask(
+        task,
+        IsolateParseResult.error(
+          error,
+          parseTime: DateTime.now().difference(task.startTime),
+          failureKind: IsolateParseFailureKind.infrastructure,
+        ),
+      );
+    }
+  }
+}
+
+class _WorkerReservation {
+  const _WorkerReservation({
+    required this.workerId,
+    required this.preferredIndex,
+    required this.generation,
+  });
+
+  final int workerId;
+  final int preferredIndex;
+  final int generation;
 }
 
 /// 无空闲工作线程异常
@@ -643,47 +790,98 @@ class _ParseTask {
 
 /// 解析工作线程
 class _ParseWorker {
+  _ParseWorker({
+    required this.id,
+    required this.entrypoint,
+    required this.startupTimeout,
+    this.onBecameIdle,
+  });
+
   final int id;
+  final MetadataWorkerEntrypoint entrypoint;
+  final Duration startupTimeout;
   final void Function()? onBecameIdle;
+  final ReceivePort _receivePort = ReceivePort();
+  final ReceivePort _exitPort = ReceivePort();
+  final ReceivePort _errorPort = ReceivePort();
+
   Isolate? _isolate;
   SendPort? _sendPort;
-  final _receivePort = ReceivePort();
-  final _exitPort = ReceivePort();
   bool _isBusy = false;
+  bool _disposed = false;
+  bool _portsClosed = false;
   int? _currentRequestId;
   Completer<IsolateParseResult>? _currentCompleter;
   Completer<void>? _exitCompleter;
-  StreamSubscription? _subscription;
-  StreamSubscription? _exitSubscription;
-
-  _ParseWorker({required this.id, this.onBecameIdle});
+  StreamSubscription<dynamic>? _subscription;
+  StreamSubscription<dynamic>? _exitSubscription;
+  StreamSubscription<dynamic>? _errorSubscription;
 
   bool get isBusy => _isBusy;
 
   /// 初始化工作线程
   Future<void> initialize() async {
+    if (_disposed) throw StateError('Worker $id has been disposed');
+
+    final readyCompleter = Completer<SendPort>();
     _exitCompleter = Completer<void>();
+
+    _subscription = _receivePort.listen((message) {
+      if (_sendPort == null && message is SendPort) {
+        if (!readyCompleter.isCompleted) readyCompleter.complete(message);
+        return;
+      }
+      _handleResponse(message);
+    });
     _exitSubscription = _exitPort.listen((_) {
       final exitCompleter = _exitCompleter;
       if (exitCompleter != null && !exitCompleter.isCompleted) {
         exitCompleter.complete();
       }
+      if (_sendPort == null && !readyCompleter.isCompleted) {
+        readyCompleter.completeError(
+          StateError('Metadata worker $id exited before ready'),
+        );
+      }
     });
-    _isolate = await Isolate.spawn(
-      _isolateEntryPoint,
-      _WorkerInitMessage(sendPort: _receivePort.sendPort, workerId: id),
-      debugName: 'MetadataWorker-$id',
-      onExit: _exitPort.sendPort,
-    );
+    _errorSubscription = _errorPort.listen((message) {
+      if (_sendPort == null && !readyCompleter.isCompleted) {
+        readyCompleter.completeError(
+          StateError(
+            'Metadata worker $id errored before ready: '
+            '${_formatIsolateError(message)}',
+          ),
+        );
+      }
+    });
 
-    // 将 ReceivePort 转换为广播流，允许多次监听
-    final broadcastStream = _receivePort.asBroadcastStream();
+    try {
+      final isolate = await Isolate.spawn<Object?>(
+        entrypoint,
+        _WorkerInitMessage(sendPort: _receivePort.sendPort, workerId: id),
+        debugName: 'MetadataWorker-$id',
+        onExit: _exitPort.sendPort,
+        onError: _errorPort.sendPort,
+        errorsAreFatal: true,
+      );
+      if (_disposed) {
+        isolate.kill(priority: Isolate.immediate);
+        throw StateError('Worker $id was disposed during startup');
+      }
+      _isolate = isolate;
 
-    // 等待工作线程就绪（获取第一个消息 - SendPort）
-    _sendPort = await broadcastStream.first as SendPort;
-
-    // 监听后续响应
-    _subscription = broadcastStream.listen(_handleResponse);
+      _sendPort = await readyCompleter.future.timeout(
+        startupTimeout,
+        onTimeout: () => throw TimeoutException(
+          'Metadata worker $id did not become ready within $startupTimeout',
+          startupTimeout,
+        ),
+      );
+    } catch (_) {
+      _disposed = true;
+      await _disposeAndWaitForExit();
+      rethrow;
+    }
   }
 
   /// 执行解析任务
@@ -691,40 +889,24 @@ class _ParseWorker {
     if (_isBusy) {
       throw StateError('Worker $id is busy');
     }
+    final sendPort = _sendPort;
+    if (sendPort == null) {
+      throw StateError('Worker $id is unavailable');
+    }
 
     _isBusy = true;
     _currentRequestId = task.requestId;
     _currentCompleter = Completer<IsolateParseResult>();
 
     try {
-      // Keep file bytes and decoding work inside the worker isolate. The UI
-      // isolate sends only a path and a bounded parsing policy.
-      final file = File(task.filePath);
-      if (!await file.exists()) {
-        AppLogger.w(
-          '[IsolateMetadata] File not found: ${task.filePath}',
-          'IsolateMetadataService',
-        );
-        _isBusy = false;
-        return IsolateParseResult.error(
-          'File not found: ${task.filePath}',
-          parseTime: Duration.zero,
-          failureKind: IsolateParseFailureKind.infrastructure,
-        );
-      }
-
-      // 发送任务到 Isolate
-      _sendPort!.send(
+      sendPort.send(
         _ParseRequest(
           requestId: task.requestId,
           filePath: task.filePath,
           config: task.config,
         ),
       );
-
-      // 等待结果
-      final result = await _currentCompleter!.future;
-      return result;
+      return await _currentCompleter!.future;
     } finally {
       _isBusy = false;
       _currentRequestId = null;
@@ -751,25 +933,23 @@ class _ParseWorker {
 
   /// 销毁工作线程
   void dispose() {
+    if (_disposed) return;
+    _disposed = true;
     cancelCurrent();
-    _subscription?.cancel();
-    _subscription = null;
     _isolate?.kill(priority: Isolate.immediate);
     _isolate = null;
-    _receivePort.close();
-    _exitSubscription?.cancel();
-    _exitSubscription = null;
-    _exitPort.close();
+    unawaited(_cancelSubscriptions());
+    _closePorts();
   }
 
   Future<void> disposeAndWait() async {
+    if (_disposed) return;
+    _disposed = true;
     cancelCurrent();
-    final responseSubscription = _subscription;
-    _subscription = null;
-    if (responseSubscription != null) {
-      await responseSubscription.cancel();
-    }
+    await _disposeAndWaitForExit();
+  }
 
+  Future<void> _disposeAndWaitForExit() async {
     final isolate = _isolate;
     final exitFuture = _exitCompleter?.future;
     _isolate = null;
@@ -779,13 +959,37 @@ class _ParseWorker {
       await exitFuture.timeout(const Duration(seconds: 2), onTimeout: () {});
     }
 
-    _receivePort.close();
-    final exitSubscription = _exitSubscription;
+    await _cancelSubscriptions();
+    _closePorts();
+  }
+
+  Future<void> _cancelSubscriptions() async {
+    final subscriptions = [
+      _subscription,
+      _errorSubscription,
+      _exitSubscription,
+    ];
+    _subscription = null;
+    _errorSubscription = null;
     _exitSubscription = null;
-    if (exitSubscription != null) {
-      await exitSubscription.cancel();
+    for (final subscription in subscriptions) {
+      await subscription?.cancel();
     }
+  }
+
+  void _closePorts() {
+    if (_portsClosed) return;
+    _portsClosed = true;
+    _receivePort.close();
+    _errorPort.close();
     _exitPort.close();
+  }
+
+  String _formatIsolateError(Object? message) {
+    if (message is List && message.isNotEmpty) {
+      return message.first.toString();
+    }
+    return message.toString();
   }
 
   void _handleResponse(dynamic message) {
@@ -832,13 +1036,14 @@ class _ParseWorker {
 }
 
 /// Isolate 入口点
-void _isolateEntryPoint(_WorkerInitMessage initMsg) {
+void _isolateEntryPoint(Object? message) {
+  final initMsg = message as _WorkerInitMessage;
   final receivePort = ReceivePort();
   initMsg.sendPort.send(receivePort.sendPort);
 
-  receivePort.listen((message) {
-    if (message is _ParseRequest) {
-      _handleParseRequest(message, initMsg.sendPort);
+  receivePort.listen((request) {
+    if (request is _ParseRequest) {
+      _handleParseRequest(request, initMsg.sendPort);
     }
   });
 }
@@ -848,14 +1053,15 @@ void _handleParseRequest(_ParseRequest request, SendPort sendPort) {
   final stopwatch = Stopwatch()..start();
 
   try {
-    // 在 Isolate 中执行解析
-    final result = request.config.textChunksOnly
-        ? UnifiedMetadataParser.parseTextChunksFromFile(request.filePath)
-        : UnifiedMetadataParser.parseFromFile(
-            request.filePath,
-            useGradualRead: request.config.useGradualRead,
-            useCache: request.config.useCache,
-          );
+    // File IO and container decoding both remain in the worker isolate. The
+    // generic dispatcher is required so PNG and WebP metadata share the same
+    // scanner path.
+    final bytes = File(request.filePath).readAsBytesSync();
+    final result = UnifiedMetadataParser.parseFromImage(
+      bytes,
+      filePathForLog: request.filePath,
+      useCache: request.config.useCache,
+    );
 
     stopwatch.stop();
 
@@ -865,7 +1071,7 @@ void _handleParseRequest(_ParseRequest request, SendPort sendPort) {
           requestId: request.requestId,
           metadata: result.metadata,
           parseTime: stopwatch.elapsed,
-          bytesRead: result.bytesRead,
+          bytesRead: result.bytesRead ?? bytes.length,
           wasCancelled: false,
         ),
       );
@@ -876,12 +1082,21 @@ void _handleParseRequest(_ParseRequest request, SendPort sendPort) {
           error: result.errorMessage ?? 'Failed to parse metadata',
           parseTime: stopwatch.elapsed,
           wasCancelled: false,
-          failureKind: result.retryable
-              ? IsolateParseFailureKind.infrastructure
-              : IsolateParseFailureKind.definitive,
+          failureKind: IsolateParseFailureKind.definitive,
         ),
       );
     }
+  } on PathNotFoundException catch (e) {
+    stopwatch.stop();
+    sendPort.send(
+      _ParseResponse(
+        requestId: request.requestId,
+        error: 'File not found: ${request.filePath} (${e.message})',
+        parseTime: stopwatch.elapsed,
+        wasCancelled: false,
+        failureKind: IsolateParseFailureKind.infrastructure,
+      ),
+    );
   } catch (e) {
     stopwatch.stop();
     sendPort.send(

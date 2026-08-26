@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import '../../core/cache/thumbnail_cache_service.dart';
 import '../../core/cache/gallery_cache_manager.dart';
 import '../../core/exceptions/gallery_exceptions.dart';
 import '../../core/utils/app_logger.dart';
@@ -12,12 +11,10 @@ import '../../data/models/gallery/local_image_record.dart';
 import '../../data/models/gallery/nai_image_metadata.dart';
 import '../../core/database/datasources/gallery_data_source.dart';
 import '../../data/repositories/gallery_folder_repository.dart';
-import '../../data/services/gallery/deferred_scan_work.dart';
 import '../../data/services/gallery/gallery_filter_service.dart';
 import '../../data/services/gallery/gallery_stream_scanner.dart';
 import '../../data/services/gallery/scan_state_manager.dart';
 import '../../data/services/gallery/unified_gallery_service.dart';
-import '../../data/services/thumbnail_service.dart';
 import '../../l10n/app_localizations.dart';
 
 part 'local_gallery_provider.freezed.dart';
@@ -157,23 +154,9 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
   LocalGalleryState? _cachedState;
   LocalGalleryService? _service;
   int _filterRequestSerial = 0;
-  DeferredScanWork<_AdjacentPagePreloadRequest>? _adjacentPagePreload;
 
   @override
   LocalGalleryState build() {
-    _adjacentPagePreload ??= DeferredScanWork<_AdjacentPagePreloadRequest>(
-      isBlocked: () => ScanStateManager.instance.isScanning,
-      resumeSignals: ScanStateManager.instance.statusStream,
-      run: _runAdjacentPagePreload,
-    );
-    ref.onDispose(() {
-      final preload = _adjacentPagePreload;
-      _adjacentPagePreload = null;
-      if (preload != null) {
-        unawaited(preload.dispose());
-      }
-    });
-
     if (_cachedState != null) return _cachedState!;
 
     // 监听缓存清理事件
@@ -417,12 +400,6 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
           isPageLoading: false,
         ),
       );
-      _preloadAdjacentPageThumbnails(
-        service,
-        normalizedPage,
-        state.pageSize,
-        totalPages,
-      );
     } on GalleryNotInitializedException {
       _setState(
         state.copyWith(
@@ -453,56 +430,6 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
     } catch (e) {
       AppLogger.e('Failed to load page $page', e, null, 'LocalGalleryNotifier');
       _setState(state.copyWith(isLoading: false, isPageLoading: false));
-    }
-  }
-
-  void _preloadAdjacentPageThumbnails(
-    LocalGalleryService service,
-    int page,
-    int pageSize,
-    int totalPages,
-  ) {
-    _adjacentPagePreload?.schedule(
-      _AdjacentPagePreloadRequest(
-        service: service,
-        page: page,
-        pageSize: pageSize,
-        totalPages: totalPages,
-      ),
-    );
-  }
-
-  Future<void> _runAdjacentPagePreload(
-    _AdjacentPagePreloadRequest request,
-  ) async {
-    final pagesToPreload = <int>{
-      if (request.page + 1 < request.totalPages) request.page + 1,
-      if (request.page > 0) request.page - 1,
-    };
-    if (pagesToPreload.isEmpty) return;
-
-    try {
-      final thumbnailService = ThumbnailService.instance;
-      await thumbnailService.initialize();
-
-      for (final targetPage in pagesToPreload) {
-        final records = await request.service.getPage(
-          targetPage,
-          pageSize: request.pageSize,
-        );
-        for (final record in records) {
-          thumbnailService.preloadThumbnail(
-            record.path,
-            size: ThumbnailSize.small,
-            priority: ThumbnailPriority.low,
-          );
-        }
-      }
-    } catch (error) {
-      AppLogger.w(
-        'Adjacent thumbnail preload failed: $error',
-        'LocalGalleryNotifier',
-      );
     }
   }
 
@@ -1243,18 +1170,4 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
 
     return true;
   }
-}
-
-class _AdjacentPagePreloadRequest {
-  const _AdjacentPagePreloadRequest({
-    required this.service,
-    required this.page,
-    required this.pageSize,
-    required this.totalPages,
-  });
-
-  final LocalGalleryService service;
-  final int page;
-  final int pageSize;
-  final int totalPages;
 }

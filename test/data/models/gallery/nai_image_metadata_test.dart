@@ -252,6 +252,74 @@ void main() {
       );
     });
 
+    test('V5 metadata should hide a matching generated teXt block', () {
+      const effectivePrompt = 'chinese text, "圣女", teXt: 圣女';
+      final metadata = NaiImageMetadata.fromNaiComment({
+        'Comment': jsonEncode({
+          'prompt': effectivePrompt,
+          'tag_hint_qt': 0,
+          'v4_prompt': {
+            'caption': {
+              'base_caption': effectivePrompt,
+              'char_captions': const [],
+            },
+            'use_coords': false,
+          },
+        }),
+        'Software': 'NovelAI',
+        'Source': 'NovelAI Diffusion V5 DB276663',
+      });
+
+      expect(metadata.prompt, 'chinese text, "圣女"');
+      expect(metadata.mainPrompt, 'chinese text, "圣女"');
+      expect(metadata.originalPrompt, effectivePrompt);
+    });
+
+    test('V5 metadata should separate quality tags before generated text', () {
+      const effectivePrompt =
+          'sign "HELLO", very aesthetic, masterpiece, no text, '
+          'teXt: HELLO';
+      final metadata = NaiImageMetadata.fromNaiComment({
+        'Comment': jsonEncode({
+          'prompt': effectivePrompt,
+          'tag_hint_qt': 1,
+          'v4_prompt': {
+            'caption': {
+              'base_caption': effectivePrompt,
+              'char_captions': const [],
+            },
+            'use_coords': false,
+          },
+        }),
+        'Software': 'NovelAI',
+        'Source': 'NovelAI Diffusion V5 DB276663',
+      });
+
+      expect(
+        metadata.prompt,
+        'sign "HELLO", very aesthetic, masterpiece, no text',
+      );
+      expect(metadata.qualityToggle, isTrue);
+      expect(metadata.qualityTags, [
+        'very aesthetic',
+        'masterpiece',
+        'no text',
+      ]);
+      expect(metadata.mainPrompt, 'sign "HELLO"');
+    });
+
+    test('V5 metadata should preserve a manual Text block', () {
+      const prompt = 'sign "HELLO", Text: HELLO';
+      final metadata = NaiImageMetadata.fromNaiComment({
+        'Comment': jsonEncode({'prompt': prompt, 'tag_hint_qt': 0}),
+        'Software': 'NovelAI',
+        'Source': 'NovelAI Diffusion V5 DB276663',
+      });
+
+      expect(metadata.prompt, prompt);
+      expect(metadata.originalPrompt, prompt);
+    });
+
     test(
       'V5 metadata should not classify a weighted detailed prompt as quality tags',
       () {

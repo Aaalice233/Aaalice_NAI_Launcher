@@ -1,7 +1,10 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/localization_extension.dart';
+import '../../providers/generation/image_workflow_controller.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/krita/krita_bridge_notifier.dart';
 import '../../providers/prompt_maximize_provider.dart';
@@ -42,6 +45,45 @@ class _MobileGenerationLayoutState
     final isGenerating =
         isLauncherGenerating || kritaBridgeState.isBridgeGenerating;
     final showRandomTools = ref.watch(randomPromptToolsVisibilityProvider);
+    final isUpscaleMode = ref.watch(
+      imageWorkflowControllerProvider.select((workflow) => workflow.isUpscale),
+    );
+    final drawerWidth = math.max(
+      160.0,
+      math.min(300.0, MediaQuery.sizeOf(context).width - 24),
+    );
+
+    Widget buildResourceControls() {
+      return Wrap(
+        spacing: 6,
+        runSpacing: 6,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          const OpusUsageChip(compact: true),
+          const AnlasBalanceChip(compact: true),
+          if (showRandomTools)
+            _MobileRandomModeToggle(
+              enabled: ref.watch(randomPromptModeProvider),
+            ),
+        ],
+      );
+    }
+
+    Widget buildGenerateButton() {
+      return _MobileGenerateButton(
+        isGenerating: isGenerating,
+        showCancel: isLauncherGenerating,
+        generationState: generationState,
+        cooldownRemainingSeconds: cooldownState.remainingSeconds,
+        onGenerate: () => _handleGenerate(context, ref),
+        onCancel: () =>
+            ref.read(imageGenerationNotifierProvider.notifier).cancel(),
+        onSkipCurrent: () => ref
+            .read(imageGenerationNotifierProvider.notifier)
+            .skipCurrentRequest(),
+        showCost: !isUpscaleMode,
+      );
+    }
 
     return ThemedScaffold(
       // 使用 GlobalKey 来控制 Drawer
@@ -60,7 +102,7 @@ class _MobileGenerationLayoutState
         ],
       ),
       endDrawer: Drawer(
-        width: 300,
+        width: drawerWidth,
         child: SafeArea(
           child: Column(
             children: [
@@ -137,37 +179,31 @@ class _MobileGenerationLayoutState
               top: BorderSide(color: theme.dividerColor, width: 1),
             ),
           ),
-          child: Row(
-            children: [
-              // Opus 免费配额 + Anlas 余额显示
-              const OpusUsageChip(compact: true),
-              const SizedBox(width: 6),
-              const AnlasBalanceChip(compact: true),
-              const SizedBox(width: 8),
-              // 抽卡模式开关
-              if (showRandomTools) ...[
-                _MobileRandomModeToggle(
-                  enabled: ref.watch(randomPromptModeProvider),
-                ),
-                const SizedBox(width: 8),
-              ],
-              // 生成按钮（集成价格徽章）
-              Expanded(
-                child: _MobileGenerateButton(
-                  isGenerating: isGenerating,
-                  showCancel: isLauncherGenerating,
-                  generationState: generationState,
-                  cooldownRemainingSeconds: cooldownState.remainingSeconds,
-                  onGenerate: () => _handleGenerate(context, ref),
-                  onCancel: () => ref
-                      .read(imageGenerationNotifierProvider.notifier)
-                      .cancel(),
-                  onSkipCurrent: () => ref
-                      .read(imageGenerationNotifierProvider.notifier)
-                      .skipCurrentRequest(),
-                ),
-              ),
-            ],
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              if (constraints.maxWidth < 520) {
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: buildResourceControls(),
+                    ),
+                    const SizedBox(height: 10),
+                    buildGenerateButton(),
+                  ],
+                );
+              }
+
+              return Row(
+                children: [
+                  buildResourceControls(),
+                  const SizedBox(width: 8),
+                  Expanded(child: buildGenerateButton()),
+                ],
+              );
+            },
           ),
         ),
       ),
@@ -212,32 +248,32 @@ class _MobileRandomModeToggle extends ConsumerWidget {
       message: enabled
           ? context.l10n.randomMode_enabledTip
           : context.l10n.randomMode_disabledTip,
-      child: GestureDetector(
-        onTap: () {
-          ref.read(randomPromptModeProvider.notifier).toggle();
-        },
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            color: enabled
-                ? theme.colorScheme.primary.withValues(alpha: 0.15)
-                : theme.colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () => ref.read(randomPromptModeProvider.notifier).toggle(),
+          borderRadius: BorderRadius.circular(12),
+          child: AnimatedContainer(
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : const Duration(milliseconds: 140),
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
               color: enabled
-                  ? theme.colorScheme.primary.withValues(alpha: 0.5)
-                  : theme.colorScheme.outline.withValues(alpha: 0.3),
-              width: enabled ? 1.5 : 1,
+                  ? theme.colorScheme.primaryContainer
+                  : theme.colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(12),
             ),
-          ),
-          child: Icon(
-            Icons.casino_outlined,
-            size: 22,
-            color: enabled
-                ? theme.colorScheme.primary
-                : theme.colorScheme.onSurface.withValues(alpha: 0.5),
+            child: Icon(
+              Icons.casino_outlined,
+              size: 22,
+              color: enabled
+                  ? theme.colorScheme.onPrimaryContainer
+                  : theme.colorScheme.onSurfaceVariant,
+            ),
           ),
         ),
       ),
@@ -254,6 +290,7 @@ class _MobileGenerateButton extends ConsumerWidget {
   final VoidCallback onGenerate;
   final VoidCallback onCancel;
   final VoidCallback onSkipCurrent;
+  final bool showCost;
 
   const _MobileGenerateButton({
     required this.isGenerating,
@@ -263,6 +300,7 @@ class _MobileGenerateButton extends ConsumerWidget {
     required this.onGenerate,
     required this.onCancel,
     required this.onSkipCurrent,
+    this.showCost = true,
   });
 
   bool get _canSkipCurrentBatch =>
@@ -287,7 +325,9 @@ class _MobileGenerateButton extends ConsumerWidget {
     final isLoading = isGenerating && !showCancel;
     final primaryButton = AnimatedTheme(
       data: showCancel ? cancelTheme : theme,
-      duration: const Duration(milliseconds: 160),
+      duration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : const Duration(milliseconds: 160),
       curve: Curves.easeOut,
       child: ThemedButton(
         onPressed: showCancel
@@ -322,7 +362,7 @@ class _MobileGenerateButton extends ConsumerWidget {
                         )
                       : context.l10n.generation_generate,
                 ),
-                AnlasCostBadge(isGenerating: isLoading),
+                if (showCost) AnlasCostBadge(isGenerating: isLoading),
               ],
             ),
             Row(
@@ -343,21 +383,32 @@ class _MobileGenerateButton extends ConsumerWidget {
       return primaryButton;
     }
 
-    return Row(
-      children: [
-        Expanded(
-          child: ThemedButton(
-            onPressed: onSkipCurrent,
-            icon: const Icon(Icons.skip_next),
-            label: Text(
-              '${context.l10n.generation_skipCurrentBatch} ${_progressText()}',
-            ),
-            style: ThemedButtonStyle.outlined,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(child: primaryButton),
-      ],
+    final skipButton = ThemedButton(
+      onPressed: onSkipCurrent,
+      icon: const Icon(Icons.skip_next),
+      label: Text(
+        '${context.l10n.generation_skipCurrentBatch} ${_progressText()}',
+      ),
+      style: ThemedButtonStyle.outlined,
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 440) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [skipButton, const SizedBox(height: 8), primaryButton],
+          );
+        }
+
+        return Row(
+          children: [
+            Expanded(child: skipButton),
+            const SizedBox(width: 8),
+            Expanded(child: primaryButton),
+          ],
+        );
+      },
     );
   }
 }

@@ -156,11 +156,6 @@ class UpdateCheckDialog extends ConsumerWidget {
               decoration: BoxDecoration(
                 color: releaseNotesBackground,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: theme.colorScheme.outlineVariant.withValues(
-                    alpha: 0.5,
-                  ),
-                ),
               ),
               child: SingleChildScrollView(
                 child: _buildReleaseNotes(

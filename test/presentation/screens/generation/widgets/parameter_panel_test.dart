@@ -377,6 +377,19 @@ class _FakeFilePicker extends FilePicker {
 }
 
 class _TestLocalStorageService extends LocalStorageService {
+  final Map<String, Object?> _settings = {};
+
+  @override
+  T? getSetting<T>(String key, {T? defaultValue}) {
+    final value = _settings[key];
+    return value is T ? value : defaultValue;
+  }
+
+  @override
+  Future<void> setSetting<T>(String key, T value) async {
+    _settings[key] = value;
+  }
+
   @override
   String getLastPrompt() => '';
 

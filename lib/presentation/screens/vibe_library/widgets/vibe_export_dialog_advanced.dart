@@ -336,9 +336,8 @@ class _VibeExportDialogAdvancedState
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        border: Border.all(color: theme.colorScheme.outlineVariant),
         borderRadius: BorderRadius.circular(12),
-        color: theme.colorScheme.surfaceContainerLowest,
+        color: theme.colorScheme.surfaceContainer,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -406,11 +405,8 @@ class _VibeExportDialogAdvancedState
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        border: Border.all(
-          color: theme.colorScheme.primary.withValues(alpha: 0.3),
-        ),
         borderRadius: BorderRadius.circular(12),
-        color: theme.colorScheme.primaryContainer.withValues(alpha: 0.1),
+        color: theme.colorScheme.primaryContainer.withValues(alpha: 0.2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -476,9 +472,7 @@ class _VibeExportDialogAdvancedState
                           height: 40,
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(6),
-                            border: Border.all(
-                              color: theme.colorScheme.outlineVariant,
-                            ),
+                            color: theme.colorScheme.surfaceContainerHigh,
                           ),
                           clipBehavior: Clip.antiAlias,
                           child: Image.memory(
@@ -735,9 +729,7 @@ class _VibeExportDialogAdvancedState
                           height: 60,
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: theme.colorScheme.outlineVariant,
-                            ),
+                            color: theme.colorScheme.surfaceContainerHigh,
                           ),
                           clipBehavior: Clip.antiAlias,
                           child: Image.memory(
@@ -1465,14 +1457,9 @@ class _OptionCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          border: Border.all(
-            color: isDisabled
-                ? theme.colorScheme.outlineVariant.withValues(alpha: 0.3)
-                : isSelected
-                ? theme.colorScheme.primary
-                : theme.colorScheme.outlineVariant,
-            width: isSelected ? 2 : 1,
-          ),
+          border: isSelected
+              ? Border.all(color: theme.colorScheme.primary, width: 2)
+              : null,
           borderRadius: BorderRadius.circular(12),
           color: isDisabled
               ? theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3)

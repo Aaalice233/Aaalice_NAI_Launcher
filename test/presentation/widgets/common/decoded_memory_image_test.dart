@@ -56,6 +56,7 @@ void main() {
 
     final image = tester.widget<Image>(find.byType(Image));
     expect(image.image, isA<ResizeImage>());
+    expect(image.gaplessPlayback, isTrue);
 
     final provider = image.image as ResizeImage;
     expect(provider.width, 100);

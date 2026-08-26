@@ -184,7 +184,7 @@ class GalleryStreamScanner {
   /// [checkConsistency] - 是否在扫描前检查数据一致性（删除不存在的文件记录）
   /// [retryMissingMetadata] - 是否重新尝试历史上标记为无元数据的文件
   /// [retryFailedMetadata] - 是否重新尝试历史上提取失败的文件
-  /// [knownTotalFiles] - 调用方已经枚举过目录时复用其文件总数
+  /// [fileSnapshot] - 调用方已枚举时复用同一份文件快照
   ///
   /// 使用互斥锁保证同一时间只有一个扫描任务在运行
   Future<void> startScanning(
@@ -194,10 +194,16 @@ class GalleryStreamScanner {
     bool checkConsistency = true,
     bool retryMissingMetadata = false,
     bool retryFailedMetadata = false,
-    int? knownTotalFiles,
-  }) async {
+    List<File>? fileSnapshot,
+  }) {
+    // Copy caller-owned lists before the first await so later mutations cannot
+    // change either the total or the files processed by this scan.
+    final suppliedSnapshot = fileSnapshot == null
+        ? null
+        : _freezeFileSnapshot(rootDir, fileSnapshot);
+
     // 使用互斥锁防止并发扫描
-    await _scanLock.synchronized(() async {
+    return _scanLock.synchronized(() async {
       if (_isRunning) {
         AppLogger.w(
           '[StreamScan] Scanner already running',
@@ -229,23 +235,14 @@ class GalleryStreamScanner {
           retryFailedMetadata: retryFailedMetadata,
         );
 
-        // 3. 复用调用方已经完成的目录枚举，避免启动时重复遍历大画廊。
-        final int totalFiles;
-        if (knownTotalFiles != null) {
-          totalFiles = knownTotalFiles;
-          AppLogger.i(
-            '[StreamScan] Reusing known file count: $totalFiles',
-            'GalleryStreamScanner',
-          );
-        } else {
-          AppLogger.i(
-            '[StreamScan] Counting total files...',
-            'GalleryStreamScanner',
-          );
-          totalFiles = await _countTotalFiles(rootDir);
-        }
+        // 3. Enumerate once, freeze the result, and only reorder entries that
+        // are already in that snapshot. File-system changes after this point
+        // are deliberately deferred to the next scan.
+        final snapshot = suppliedSnapshot ?? await _createFileSnapshot(rootDir);
+        final filesToScan = _prioritizeSnapshot(snapshot, retryPriorityPaths);
+        final totalFiles = filesToScan.length;
         AppLogger.i(
-          '[StreamScan] Total files to scan: $totalFiles',
+          '[StreamScan] Total files in snapshot: $totalFiles',
           'GalleryStreamScanner',
         );
 
@@ -273,10 +270,7 @@ class GalleryStreamScanner {
         var processedCount = 0;
         var skippedCount = 0; // 【调试】统计跳过的文件数
 
-        await for (final file in _scanDirectory(
-          rootDir,
-          priorityPaths: retryPriorityPaths,
-        )) {
+        for (final file in filesToScan) {
           if (_shouldCancel) break;
 
           // 立即处理这个文件
@@ -608,20 +602,14 @@ class GalleryStreamScanner {
 
       // 阶段2: 提取元数据（仅对真正的新文件或变更文件）
       _updateStage(stats, FileProcessingStage.extracting, fileName);
-      final parseResult = p.extension(file.path).toLowerCase() == '.png'
-          ? await _isolateMetadataService.parseMetadata(
-              file.path,
-              config: const IsolateParseConfig(
-                timeout: Duration(seconds: 10),
-                useGradualRead: false,
-                useCache: false,
-                textChunksOnly: true,
-              ),
-            )
-          : IsolateParseResult.error(
-              'Bulk metadata indexing supports PNG text chunks only',
-              parseTime: Duration.zero,
-            );
+      final parseResult = await _isolateMetadataService.parseMetadata(
+        file.path,
+        config: const IsolateParseConfig(
+          timeout: Duration(seconds: 10),
+          useGradualRead: false,
+          useCache: false,
+        ),
+      );
       final metadata = parseResult.metadata;
 
       if (parseResult.wasTimeout) {
@@ -752,69 +740,67 @@ class GalleryStreamScanner {
     return null;
   }
 
-  /// 扫描目录
-  Stream<File> _scanDirectory(
-    Directory rootDir, {
-    List<String> priorityPaths = const [],
-  }) async* {
-    final emittedPaths = <String>{};
-    final rootPath = p.absolute(rootDir.path);
-
-    for (final path in priorityPaths) {
-      if (_shouldCancel) break;
-
-      final absolutePath = p.absolute(path);
-      if (!p.isWithin(rootPath, absolutePath) ||
-          !_scanConfig.acceptsGalleryImagePath(absolutePath)) {
-        continue;
-      }
-
-      final file = File(absolutePath);
-      if (!await file.exists()) {
-        continue;
-      }
-
-      emittedPaths.add(absolutePath);
-      yield file;
-    }
-
+  Future<List<File>> _createFileSnapshot(Directory rootDir) async {
+    final files = <File>[];
     await for (final entity in rootDir.list(
       recursive: true,
       followLinks: false,
     )) {
       if (_shouldCancel) break;
-
-      if (entity is File) {
-        final absolutePath = p.absolute(entity.path);
-        if (_scanConfig.acceptsGalleryImagePath(absolutePath) &&
-            !emittedPaths.contains(absolutePath)) {
-          yield File(absolutePath);
-        }
-      }
+      if (entity is File) files.add(entity);
     }
+    return _freezeFileSnapshot(rootDir, files);
   }
 
-  /// 统计总文件数（预扫描）
-  ///
-  /// 在开始处理前先遍历一遍目录，统计总文件数
-  /// 这样可以让用户看到固定的进度（如 0/8751 → 8751/8751）
-  Future<int> _countTotalFiles(Directory rootDir) async {
-    var count = 0;
+  List<File> _freezeFileSnapshot(Directory rootDir, Iterable<File> files) {
+    final rootPath = p.normalize(p.absolute(rootDir.path));
+    final seen = <String>{};
+    final snapshot = <File>[];
 
-    await for (final entity in rootDir.list(
-      recursive: true,
-      followLinks: false,
-    )) {
-      if (_shouldCancel) break;
-
-      if (entity is File) {
-        if (_scanConfig.acceptsGalleryImagePath(entity.path)) {
-          count++;
-        }
+    for (final file in files) {
+      final absolutePath = p.normalize(p.absolute(file.path));
+      final pathKey = Platform.isWindows
+          ? absolutePath.toLowerCase()
+          : absolutePath;
+      if (!p.isWithin(rootPath, absolutePath) ||
+          !_scanConfig.acceptsGalleryImagePath(absolutePath) ||
+          !seen.add(pathKey)) {
+        continue;
       }
+      snapshot.add(File(absolutePath));
     }
 
-    return count;
+    return List<File>.unmodifiable(snapshot);
+  }
+
+  List<File> _prioritizeSnapshot(
+    List<File> snapshot,
+    List<String> priorityPaths,
+  ) {
+    if (snapshot.isEmpty || priorityPaths.isEmpty) return snapshot;
+
+    String pathKey(String path) {
+      final normalized = p.normalize(p.absolute(path));
+      return Platform.isWindows ? normalized.toLowerCase() : normalized;
+    }
+
+    final byPath = <String, File>{
+      for (final file in snapshot) pathKey(file.path): file,
+    };
+    final emitted = <String>{};
+    final ordered = <File>[];
+
+    for (final priorityPath in priorityPaths) {
+      final key = pathKey(priorityPath);
+      final file = byPath[key];
+      if (file != null && emitted.add(key)) ordered.add(file);
+    }
+    for (final file in snapshot) {
+      final key = pathKey(file.path);
+      if (emitted.add(key)) ordered.add(file);
+    }
+
+    return List<File>.unmodifiable(ordered);
   }
 
   /// 转换阶段到 ScanPhase

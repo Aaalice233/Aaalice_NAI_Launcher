@@ -28,17 +28,17 @@ import 'core/utils/window_focus_tracker.dart';
 import 'core/utils/windows_clipboard_history_key_fix.dart';
 import 'core/utils/window_state_coercion.dart';
 import 'core/utils/window_state_persistence.dart';
-import 'data/datasources/local/nai_tags_data_source.dart';
+import 'data/datasources/local/random_tag_library_data_source.dart';
 import 'data/models/gallery/nai_image_metadata.dart';
 import 'data/repositories/gallery_folder_repository.dart';
 import 'core/cache/gallery_cache_manager.dart';
+import 'core/cache/local_gallery_thumbnail_migration.dart';
 
 import 'core/cache/tag_cache_service.dart';
 import 'core/services/sqflite_bootstrap_service.dart';
 import 'data/services/metadata/isolate_metadata_service.dart';
 import 'data/services/search_index_service.dart';
 import 'data/services/temp_image_service.dart';
-import 'data/services/thumbnail_service.dart';
 import 'presentation/providers/online_gallery_blacklist_provider.dart';
 import 'presentation/screens/splash/app_bootstrap.dart';
 
@@ -435,7 +435,6 @@ Future<bool> _initializeSystemTray() async {
 }
 
 Future<void> _runDeferredStartup(ProviderContainer container) async {
-  final thumbnailService = ThumbnailService.instance;
   await Future.wait([
     _runNonFatalStartupStep('L2 cache cleanup', () async {
       await L2CacheCleaner().checkAndClean();
@@ -449,8 +448,8 @@ Future<void> _runDeferredStartup(ProviderContainer container) async {
     _runNonFatalStartupStep('Temp files cleanup', () async {
       await TempImageService().cleanupOldTempFiles();
     }),
-    _runNonFatalStartupStep('NAI tags preload', () async {
-      await container.read(naiTagsDataSourceProvider).loadData();
+    _runNonFatalStartupStep('Random tag library preload', () async {
+      await container.read(randomTagLibraryDataSourceProvider).loadData();
     }),
     _runNonFatalStartupStep('Search index service initialization', () async {
       await SearchIndexService().init();
@@ -460,12 +459,19 @@ Future<void> _runDeferredStartup(ProviderContainer container) async {
     }),
   ]);
 
-  await _runNonFatalStartupStep('Nested thumbnail cleanup', () async {
+  await _runNonFatalStartupStep('Legacy local thumbnail migration', () async {
     final rootPath = await GalleryFolderRepository.instance.getRootPath();
     if (rootPath == null) return;
-    final cleanedCount = await thumbnailService.cleanupNestedThumbs(rootPath);
-    if (cleanedCount > 0) {
-      AppLogger.i('启动清理完成: 删除了 $cleanedCount 个嵌套缩略图目录', 'Main');
+    final result = await const LocalGalleryThumbnailMigration().runOnce(
+      rootPath,
+    );
+    if (!result.alreadyCompleted) {
+      AppLogger.i(
+        'Legacy thumbnail migration: removed ${result.removedFiles} files '
+            '(${result.removedBytes} bytes), preserved '
+            '${result.preservedFiles}, failures ${result.failures}',
+        'Main',
+      );
     }
   });
 
@@ -517,10 +523,9 @@ Future<void> _bootstrapApplication() async {
     AppLogger.i('App version: ${AppVersion.fullVersion}', 'Main');
   });
 
-  // Keep enough decoded thumbnails for smooth paging while leaving a strict
-  // memory budget for large local galleries and metadata workers.
-  PaintingBinding.instance.imageCache.maximumSize = 150;
-  PaintingBinding.instance.imageCache.maximumSizeBytes = 64 << 20;
+  // 增加图片缓存限制，防止本地画廊滚动时图片被回收变白
+  PaintingBinding.instance.imageCache.maximumSize = 500; // 最大缓存 500 张图片
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 200 << 20; // 200MB
 
   // FFI 注册本身不打开数据库，需在数据库调用方出现前完成。
   await SqfliteBootstrapService.instance.ensureInitialized();

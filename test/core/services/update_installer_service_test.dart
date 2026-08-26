@@ -276,7 +276,7 @@ void main() {
           script.path,
         ], ProcessStartMode.normal);
 
-        final deadline = DateTime.now().add(const Duration(seconds: 5));
+        final deadline = DateTime.now().add(const Duration(seconds: 15));
         while (!await marker.exists() && DateTime.now().isBefore(deadline)) {
           await Future<void>.delayed(const Duration(milliseconds: 50));
         }

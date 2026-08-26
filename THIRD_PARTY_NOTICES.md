@@ -30,6 +30,26 @@ ComfyUI-Lora-Manager is GPL-3.0 licensed. Only its pinned copy of the
 Unlicense tag dataset is used here; no Python, JavaScript, or other GPL
 implementation code from that project is included in this application.
 
+The custom and hybrid random-tag extension uses declarative semantic matching
+rules over this same complete bundled catalog. The rules, catalog version,
+source URL, source date, SHA256, complete counts, license, and resolved category
+counts are locked in `tool/random_tag_library/source_lock.json`.
+
+## NovelAI Official Random Wordlist Data
+
+The official random mode includes a data-only extraction of the random
+wordlists published in the NovelAI image-generation frontend at
+[novelai.net/image](https://novelai.net/image). NovelAI and its frontend content
+are © Anlatan. The project does not include NovelAI frontend JavaScript or claim
+a license to NovelAI trademarks or service code.
+
+The bundled data preserves 5,960 original records in 118 source arrays,
+including order, duplicate records, weights, and condition fields, so the client
+can reproduce the public frontend's random-prompt behavior offline. The exact
+source bundle name, source SHA256, output SHA256, array counts, and record counts
+are pinned in `tool/random_tag_library/source_lock.json`; deterministic rebuild
+and verification tools live in `tool/random_tag_library/`.
+
 ## Danbooru Co-occurrence Data
 
 The optional local related-tag data pack published by this project is generated
@@ -51,6 +71,26 @@ After explicit user confirmation, the application downloads it directly from
 [ffdkj/ComfyUI_Danbooru_Tag_Assistant](https://github.com/ffdkj/ComfyUI_Danbooru_Tag_Assistant).
 That upstream repository did not declare a license when this integration was
 implemented.
+
+## NovelAI QuickTagCloud Codex Content
+
+The Codex Gallery reads public, fixed codex metadata, entries, and media at
+runtime from [AgIzT/NovelAI-Tag](https://github.com/AgIzT/NovelAI-Tag) and its
+published QuickTagCloud data endpoints. This content is not bundled with or
+mirrored by the application. Release files are cached locally by their upstream
+release identifier only after manifest size and SHA256 verification. External
+codexes are fetched directly from their declared source and are not stored in
+the versioned release cache. User favorites and recent history are local
+application data and retain the displayed attribution.
+
+The upstream author granted this project free, non-exclusive, revocable
+permission in [AgIzT/NovelAI-Tag issue #27](https://github.com/AgIzT/NovelAI-Tag/issues/27)
+to access and display all public codex data and images. Every codex's complete
+`contributors[]` attribution is preserved in the interface. The integration
+does not upload submissions, mutate community likes, bundle upstream content,
+or operate a content mirror. The `mengshen_r18` external codex is requested
+only from the DreamGod source declared by upstream and is never substituted
+with the QuickTagCloud release copy.
 
 ## OpenCC Traditional-to-Simplified Character Data
 

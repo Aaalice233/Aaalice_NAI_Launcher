@@ -14,6 +14,7 @@ import 'package:nai_launcher/presentation/providers/image_generation_provider.da
 import 'package:nai_launcher/presentation/screens/generation/widgets/history_panel.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/image_preview.dart';
 import 'package:nai_launcher/presentation/widgets/common/draggable_memory_image.dart';
+import 'package:nai_launcher/presentation/widgets/common/image_card_hover_motion.dart';
 import 'package:nai_launcher/presentation/widgets/common/pro_context_menu.dart';
 import 'package:nai_launcher/presentation/widgets/common/selectable_image_card.dart';
 
@@ -55,6 +56,32 @@ void main() {
 
     expect(find.byTooltip('局部重绘'), findsOneWidget);
     expect(find.byTooltip('放大'), findsOneWidget);
+  });
+
+  testWidgets('completed image cards use the shared hover scale', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_buildCardApp());
+
+    final motion = find.byType(ImageCardHoverMotion);
+    expect(motion, findsOneWidget);
+    expect(tester.widget<ImageCardHoverMotion>(motion).hovered, isFalse);
+
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(gesture.removePointer);
+    await gesture.addPointer(location: Offset.zero);
+    await gesture.moveTo(tester.getCenter(find.byType(SelectableImageCard)));
+    await tester.pump();
+
+    expect(tester.widget<ImageCardHoverMotion>(motion).hovered, isTrue);
+    expect(
+      tester
+          .widget<AnimatedScale>(
+            find.descendant(of: motion, matching: find.byType(AnimatedScale)),
+          )
+          .scale,
+      ImageCardHoverMotion.hoverScale,
+    );
   });
 
   testWidgets('context menu should expose inpaint and upscale shortcuts', (

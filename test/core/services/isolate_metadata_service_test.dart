@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -175,28 +176,7 @@ void main() {
       },
     );
 
-    test('bulk text-chunk mode skips image payload bytes', () async {
-      final file = File('${tempDir.path}/large_payload.png');
-      await file.writeAsBytes(
-        _pngWithLargeSkippedPayload(prompt: 'bounded-memory-prompt'),
-      );
-
-      final result = await service.parseMetadata(
-        file.path,
-        config: const IsolateParseConfig(
-          timeout: Duration(seconds: 2),
-          useGradualRead: false,
-          useCache: false,
-          textChunksOnly: true,
-        ),
-      );
-
-      expect(result.success, isTrue);
-      expect(result.metadata?.prompt, 'bounded-memory-prompt');
-      expect(result.bytesRead, lessThan(32 * 1024));
-    });
-
-    test('bulk mode keeps compressed PNG text formats searchable', () async {
+    test('worker keeps compressed PNG text formats searchable', () async {
       final comment = _novelAiComment(prompt: 'compressed-format-prompt');
       final cases = <String, Uint8List>{
         'ztxt': _pngWithInsertedChunk(
@@ -232,7 +212,6 @@ void main() {
             timeout: Duration(seconds: 2),
             useGradualRead: false,
             useCache: false,
-            textChunksOnly: true,
           ),
         );
 
@@ -241,7 +220,7 @@ void main() {
       }
     });
 
-    test('bulk mode falls back to stealth_pngcomp metadata', () async {
+    test('worker falls back to stealth_pngcomp metadata', () async {
       final image = img.Image(width: 64, height: 64, numChannels: 4);
       final basePng = Uint8List.fromList(img.encodePng(image));
       final embedded = await UnifiedMetadataParser.embedMetadata(
@@ -258,7 +237,6 @@ void main() {
           timeout: Duration(seconds: 2),
           useGradualRead: false,
           useCache: false,
-          textChunksOnly: true,
         ),
       );
 
@@ -294,6 +272,7 @@ void main() {
 
     test('keeps parsing disabled when worker startup fails', () async {
       final unavailableService = IsolateMetadataService.forTesting(
+        maxWorkers: 1,
         workerInitializer: (_, _) async {
           throw StateError('spawn failed');
         },
@@ -306,6 +285,7 @@ void main() {
       final statistics = unavailableService.getStatistics();
       expect(statistics['fallbackToInlineParsing'], isFalse);
       expect(statistics['workerStartupError'], contains('spawn failed'));
+      expect(statistics['reservedWorkerCount'], 0);
 
       final result = await unavailableService.parseMetadata(
         '${tempDir.path}/missing.png',
@@ -315,7 +295,153 @@ void main() {
       expect(result.error, contains('Metadata worker unavailable'));
       expect(result.retryable, isTrue);
     });
+
+    test('worker exit before ready releases startup resources', () async {
+      final startupService = IsolateMetadataService.forTesting(
+        maxWorkers: 1,
+        workerEntrypoint: _exitBeforeReady,
+        workerStartupTimeout: const Duration(milliseconds: 200),
+      );
+      addTearDown(startupService.dispose);
+
+      await startupService.initialize();
+
+      final statistics = startupService.getStatistics();
+      expect(statistics['workerStartupError'], contains('exited before ready'));
+      expect(statistics['workerCount'], 0);
+      expect(statistics['reservedWorkerCount'], 0);
+    });
+
+    test('worker error before ready wins the startup race', () async {
+      final startupService = IsolateMetadataService.forTesting(
+        maxWorkers: 1,
+        workerEntrypoint: _errorBeforeReady,
+        workerStartupTimeout: const Duration(milliseconds: 200),
+      );
+      addTearDown(startupService.dispose);
+
+      await startupService.initialize();
+
+      final statistics = startupService.getStatistics();
+      expect(statistics['workerStartupError'], contains('startup boom'));
+      expect(statistics['workerCount'], 0);
+      expect(statistics['reservedWorkerCount'], 0);
+    });
+
+    test('worker ready timeout releases startup resources', () async {
+      final startupService = IsolateMetadataService.forTesting(
+        maxWorkers: 1,
+        workerEntrypoint: _neverReady,
+        workerStartupTimeout: const Duration(milliseconds: 50),
+      );
+      addTearDown(startupService.dispose);
+
+      await startupService.initialize();
+
+      final statistics = startupService.getStatistics();
+      expect(
+        statistics['workerStartupError'],
+        contains('did not become ready'),
+      );
+      expect(statistics['workerCount'], 0);
+      expect(statistics['reservedWorkerCount'], 0);
+    });
+
+    test('retries initialization after a temporary startup failure', () async {
+      var startupAttempts = 0;
+      final recoveringService = IsolateMetadataService.forTesting(
+        maxWorkers: 1,
+        workerInitializer: (_, initializeWorker) async {
+          startupAttempts++;
+          if (startupAttempts == 1) {
+            throw StateError('temporary startup failure');
+          }
+          await initializeWorker();
+        },
+      );
+      addTearDown(recoveringService.dispose);
+      final file = File('${tempDir.path}/recovered.png');
+      await file.writeAsBytes(
+        await _pngWithNovelAiMetadata(prompt: 'recovered-prompt'),
+      );
+
+      await recoveringService.initialize();
+      final result = await recoveringService.parseMetadata(file.path);
+
+      expect(result.success, isTrue, reason: result.error);
+      expect(result.metadata?.prompt, 'recovered-prompt');
+      expect(recoveringService.getStatistics()['workerCount'], 1);
+      expect(recoveringService.getStatistics()['reservedWorkerCount'], 0);
+    });
+
+    test('stale replacements cannot exceed worker capacity', () async {
+      final replacementGate = Completer<void>();
+      var initializationCalls = 0;
+      final racingService = IsolateMetadataService.forTesting(
+        maxWorkers: 2,
+        workerInitializer: (_, initializeWorker) async {
+          initializationCalls++;
+          if (initializationCalls == 3 || initializationCalls == 4) {
+            await replacementGate.future;
+          }
+          await initializeWorker();
+        },
+      );
+      addTearDown(racingService.dispose);
+      await racingService.initialize();
+
+      final firstFile = File('${tempDir.path}/race_a.png');
+      final secondFile = File('${tempDir.path}/race_b.png');
+      await firstFile.writeAsBytes(
+        await _pngWithNovelAiMetadata(prompt: 'race-a'),
+      );
+      await secondFile.writeAsBytes(
+        await _pngWithNovelAiMetadata(prompt: 'race-b'),
+      );
+
+      final results = await Future.wait([
+        racingService.parseMetadata(
+          firstFile.path,
+          config: const IsolateParseConfig(timeout: Duration.zero),
+        ),
+        racingService.parseMetadata(
+          secondFile.path,
+          config: const IsolateParseConfig(timeout: Duration.zero),
+        ),
+      ]);
+      expect(results.every((result) => result.wasTimeout), isTrue);
+      await _waitForReservedWorkers(racingService, 2);
+      await _waitForCondition(
+        () => initializationCalls >= 4,
+        'Expected both replacement initializers to be waiting',
+      );
+      expect(racingService.getStatistics()['capacityUsage'], 2);
+
+      racingService.dispose();
+      await racingService.initialize();
+      expect(racingService.getStatistics()['capacityUsage'], 2);
+
+      replacementGate.complete();
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+
+      final statistics = racingService.getStatistics();
+      expect(statistics['workerCount'], 2);
+      expect(statistics['reservedWorkerCount'], 0);
+      expect(statistics['capacityUsage'], lessThanOrEqualTo(2));
+    });
   });
+}
+
+void _exitBeforeReady(Object? _) {
+  Isolate.exit();
+}
+
+void _errorBeforeReady(Object? _) {
+  throw StateError('startup boom');
+}
+
+void _neverReady(Object? _) {
+  ReceivePort().listen((_) {});
 }
 
 String _novelAiComment({required String prompt}) {
@@ -416,37 +542,6 @@ Future<Uint8List> _pngWithNovelAiMetadata({
   );
 }
 
-Uint8List _pngWithLargeSkippedPayload({required String prompt}) {
-  final builder = BytesBuilder(copy: false)
-    ..add(const [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
-
-  void addChunk(String type, List<int> data) {
-    final length = ByteData(4)..setUint32(0, data.length);
-    builder
-      ..add(length.buffer.asUint8List())
-      ..add(ascii.encode(type))
-      ..add(data)
-      ..add(Uint8List(4));
-  }
-
-  addChunk('IHDR', Uint8List(13));
-  addChunk('IDAT', Uint8List(4 * 1024 * 1024));
-
-  final comment = jsonEncode({
-    'prompt': prompt,
-    'uc': '',
-    'width': 8,
-    'height': 8,
-    'seed': 1,
-    'steps': 28,
-    'scale': 5.0,
-    'sampler': 'k_euler',
-  });
-  addChunk('tEXt', [...latin1.encode('Comment'), 0, ...latin1.encode(comment)]);
-  addChunk('IEND', const []);
-  return builder.takeBytes();
-}
-
 Future<void> _waitForQueuedTask(IsolateMetadataService service) async {
   final stopwatch = Stopwatch()..start();
   while (stopwatch.elapsed < const Duration(seconds: 3)) {
@@ -456,6 +551,32 @@ Future<void> _waitForQueuedTask(IsolateMetadataService service) async {
     await Future<void>.delayed(const Duration(milliseconds: 10));
   }
   fail('Expected a metadata parse task to be queued');
+}
+
+Future<void> _waitForCondition(
+  bool Function() condition,
+  String failureMessage,
+) async {
+  final stopwatch = Stopwatch()..start();
+  while (stopwatch.elapsed < const Duration(seconds: 3)) {
+    if (condition()) return;
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+  }
+  fail(failureMessage);
+}
+
+Future<void> _waitForReservedWorkers(
+  IsolateMetadataService service,
+  int count,
+) async {
+  final stopwatch = Stopwatch()..start();
+  while (stopwatch.elapsed < const Duration(seconds: 3)) {
+    if ((service.getStatistics()['reservedWorkerCount'] as int) >= count) {
+      return;
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+  }
+  fail('Expected at least $count reserved metadata workers');
 }
 
 Future<void> _waitForActiveWorkers(

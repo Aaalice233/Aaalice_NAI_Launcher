@@ -45,23 +45,37 @@ class NAIImageEnhancementApiService {
 
   /// 调用 NovelAI `/ai/upscale` 端点进行超分辨率放大。
   ///
-  /// V5 上线后接口换代：请求体变为 `{image, model, declared_blur_sigma}`，
-  /// 发往图像生成域。仅当服务端明确不认新格式（400/404/405/422）时回退
-  /// 旧版 `{image, width, height, scale}` 发主 API；计费类与服务器错误
-  /// （401/402/429/5xx）不回退，避免重复扣费。
+  /// V5 上线后接口换代：图片与 `{image, model, declared_blur_sigma}` 请求
+  /// 描述通过 multipart 发往图像生成域。仅当服务端明确不认新格式
+  /// （400/404/405/422）时回退旧版 `{image, width, height, scale}` 发主 API；
+  /// 计费类与服务器错误（401/402/429/5xx）不回退，避免重复扣费。
   Future<Uint8List> upscaleImage(
     Uint8List image, {
-    int scale = 4,
+    int scale = 2,
     void Function(int, int)? onProgress,
   }) async {
     try {
+      final request = jsonEncode({
+        'image': 'image',
+        'model': _upscaleModel,
+        'declared_blur_sigma': _upscaleDeclaredBlurSigma,
+      });
+      final formData = FormData.fromMap({
+        'image': MultipartFile.fromBytes(
+          image,
+          filename: 'blob',
+          contentType: DioMediaType('image', 'png'),
+        ),
+        'request': MultipartFile.fromBytes(
+          utf8.encode(request),
+          filename: 'blob',
+          contentType: DioMediaType('application', 'json'),
+        ),
+      });
+
       final response = await _dio.post(
         _endpointService.imageUrl(ApiConstants.upscaleEndpoint),
-        data: {
-          'image': base64Encode(image),
-          'model': _upscaleModel,
-          'declared_blur_sigma': _upscaleDeclaredBlurSigma,
-        },
+        data: formData,
         options: Options(
           responseType: ResponseType.bytes,
           headers: {'Accept': 'application/x-zip-compressed'},

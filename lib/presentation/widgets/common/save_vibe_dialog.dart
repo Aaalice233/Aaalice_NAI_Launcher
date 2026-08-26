@@ -291,9 +291,6 @@ class _SaveVibeDialogState extends ConsumerState<SaveVibeDialog> {
                     alpha: 0.5,
                   ),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: colorScheme.outline.withValues(alpha: 0.2),
-                  ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

@@ -40,15 +40,9 @@ class CharacterPromptButton extends ConsumerWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: hasCharacters
-              ? colorScheme.primary.withValues(alpha: 0.5)
-              : colorScheme.outline.withValues(alpha: 0.3),
-          width: 1,
-        ),
         color: hasCharacters
-            ? colorScheme.primary.withValues(alpha: 0.1)
-            : Colors.transparent,
+            ? colorScheme.primary.withValues(alpha: 0.12)
+            : colorScheme.surfaceContainer,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

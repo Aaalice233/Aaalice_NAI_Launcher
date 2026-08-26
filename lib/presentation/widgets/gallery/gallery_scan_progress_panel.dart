@@ -29,11 +29,22 @@ int galleryProgressStripeCountForWidth(double width) {
   if (!width.isFinite || width <= 0) return 0;
 
   const spacing = _galleryProgressStripeWidth + _galleryProgressStripeGap;
-  const maxWidthBeforeCap =
-      (_maxGalleryProgressStripeCount - 1) * spacing;
+  const maxWidthBeforeCap = (_maxGalleryProgressStripeCount - 1) * spacing;
   if (width >= maxWidthBeforeCap) return _maxGalleryProgressStripeCount;
 
   return ((width + spacing) / spacing).ceil();
+}
+
+/// Rejects invalid paint bounds before any stripe work is attempted.
+@visibleForTesting
+int galleryProgressStripeCountForSize(Size size) {
+  if (!size.width.isFinite ||
+      size.width <= 0 ||
+      !size.height.isFinite ||
+      size.height <= 0) {
+    return 0;
+  }
+  return galleryProgressStripeCountForWidth(size.width);
 }
 
 /// 画廊扫描进度面板
@@ -67,10 +78,6 @@ class GalleryScanProgressPanel extends ConsumerWidget {
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
-          width: 1,
-        ),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -361,44 +368,48 @@ class GalleryScanProgressPanel extends ConsumerWidget {
         child: Row(
           children: [
             // 绿色：跳过的（已扫描过，缓存命中）
-            if (skippedRatio > 0)
-              Expanded(
-                flex: galleryProgressSegmentFlex(skippedRatio),
-                child: Container(color: Colors.green.shade400),
-              ),
+            ..._buildProgressSegment(
+              ratio: skippedRatio,
+              child: Container(color: Colors.green.shade400),
+            ),
             // 蓝色：有元数据的（解析成功）
-            if (withMetadataRatio > 0)
-              Expanded(
-                flex: galleryProgressSegmentFlex(withMetadataRatio),
-                child: Container(color: Colors.blue.shade400),
-              ),
+            ..._buildProgressSegment(
+              ratio: withMetadataRatio,
+              child: Container(color: Colors.blue.shade400),
+            ),
             // 红色：扫描错误的
-            if (failedRatio > 0)
-              Expanded(
-                flex: galleryProgressSegmentFlex(failedRatio),
-                child: Container(color: Colors.red.shade400),
-              ),
+            ..._buildProgressSegment(
+              ratio: failedRatio,
+              child: Container(color: Colors.red.shade400),
+            ),
             // 紫色：正在处理的
-            if (processingRatio > 0)
-              Expanded(
-                flex: galleryProgressSegmentFlex(processingRatio),
-                child: Container(
-                  color: theme.colorScheme.primary,
-                  child: const _AnimatedStripes(),
-                ),
+            ..._buildProgressSegment(
+              ratio: processingRatio,
+              child: Container(
+                color: theme.colorScheme.primary,
+                child: const _AnimatedStripes(),
               ),
+            ),
             // 灰色：待处理的
-            if (pendingRatio > 0)
-              Expanded(
-                flex: galleryProgressSegmentFlex(pendingRatio),
-                child: Container(
-                  color: theme.colorScheme.surfaceContainerHighest,
-                ),
+            ..._buildProgressSegment(
+              ratio: pendingRatio,
+              child: Container(
+                color: theme.colorScheme.surfaceContainerHighest,
               ),
+            ),
           ],
         ),
       ),
     );
+  }
+
+  List<Widget> _buildProgressSegment({
+    required double ratio,
+    required Widget child,
+  }) {
+    final flex = galleryProgressSegmentFlex(ratio);
+    if (flex == 0) return const [];
+    return [Expanded(flex: flex, child: child)];
   }
 
   /// 构建进度条图例
@@ -515,10 +526,8 @@ class _StripesPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final stripeCount = galleryProgressStripeCountForWidth(size.width);
-    if (stripeCount == 0 || !size.height.isFinite || size.height <= 0) {
-      return;
-    }
+    final stripeCount = galleryProgressStripeCountForSize(size);
+    if (stripeCount == 0) return;
 
     final paint = Paint()
       ..color = color
@@ -532,10 +541,7 @@ class _StripesPainter extends CustomPainter {
       final x = -_galleryProgressStripeWidth + index * spacing;
       canvas.drawLine(
         Offset(x + offset, 0),
-        Offset(
-          x + offset - _galleryProgressStripeWidth / 2,
-          size.height,
-        ),
+        Offset(x + offset - _galleryProgressStripeWidth / 2, size.height),
         paint,
       );
     }

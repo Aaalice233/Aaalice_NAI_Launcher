@@ -103,7 +103,7 @@ void main() {
     final theme = Theme.of(tester.element(find.byType(SelectableImageCard)));
 
     expect(_activeBorder(tester).top.color, theme.colorScheme.tertiary);
-    expect(_activeBorder(tester).top.width, 3);
+    expect(_activeBorder(tester).top.width, 2);
 
     await tester.pumpWidget(
       _testApp(_card(isPreviewActive: true, isSelected: true)),
@@ -111,7 +111,7 @@ void main() {
     await tester.pump();
 
     expect(_activeBorder(tester).top.color, theme.colorScheme.primary);
-    expect(_activeBorder(tester).top.width, 3);
+    expect(_activeBorder(tester).top.width, 2);
   });
 
   testWidgets('right-click menu exposes view details', (tester) async {
@@ -177,7 +177,7 @@ Border _activeBorder(WidgetTester tester) {
       .whereType<BoxDecoration>()
       .map((decoration) => decoration.border)
       .whereType<Border>()
-      .firstWhere((border) => border.top.width == 3);
+      .firstWhere((border) => border.top.width == 2);
 }
 
 Widget _testApp(Widget child) {

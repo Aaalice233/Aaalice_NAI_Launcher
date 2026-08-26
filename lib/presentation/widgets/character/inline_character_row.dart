@@ -408,6 +408,7 @@ class _AddCharacterChip extends ConsumerWidget {
     }
 
     return PopupMenuButton<_CharacterAddAction>(
+      key: const Key('character-add-menu'),
       tooltip: l10n.character_addCharacter,
       padding: EdgeInsets.zero,
       onSelected: (action) => _handleAdd(context, ref, action),
@@ -454,10 +455,8 @@ class _AddCharacterChip extends ConsumerWidget {
     return Container(
       constraints: const BoxConstraints(minHeight: 72),
       decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: theme.colorScheme.outline.withValues(alpha: 0.4),
-        ),
       ),
       child: Center(
         child: Icon(

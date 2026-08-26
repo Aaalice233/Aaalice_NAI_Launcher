@@ -86,9 +86,10 @@ class _SimpleTagChipState extends ConsumerState<SimpleTagChip> {
     final chip = MouseRegion(
       onEnter: (_) => setState(() => _isHovering = true),
       onExit: (_) => setState(() => _isHovering = false),
-      child: GestureDetector(
+      child: InkWell(
         onTap: widget.onTap,
         onSecondaryTapDown: widget.onSecondaryTapDown,
+        borderRadius: BorderRadius.circular(4),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -99,9 +100,6 @@ class _SimpleTagChipState extends ConsumerState<SimpleTagChip> {
                     alpha: widget.isOutputFiltered ? 0.08 : 0.1,
                   ),
             borderRadius: BorderRadius.circular(4),
-            border: Border.all(
-              color: stateColor.withValues(alpha: _isHovering ? 0.8 : 0.35),
-            ),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
