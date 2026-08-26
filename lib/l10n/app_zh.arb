@@ -110,6 +110,13 @@
 
   "auth_login": "登录",
   "auth_logout": "退出登录",
+  "auth_continueWithoutLogin": "跳过登录，进入主界面",
+  "auth_loginRequiredImageGeneration": "请先登录，再使用 NovelAI 生成图片。",
+  "auth_loginRequiredQueueExecution": "请先登录，再启动 NovelAI 生成队列。",
+  "auth_loginRequiredDirectorTools": "请先登录，再使用 NovelAI Director Tools。",
+  "auth_loginRequiredNovelAiUpscale": "请先登录，再使用 NovelAI 云端超分。",
+  "auth_loginRequiredKritaBridge": "请先登录，再通过 Krita Bridge 生成图片。",
+  "auth_loginRequiredVibeEncoding": "请先登录，再使用 NovelAI 编码 Vibe 图片。",
   "auth_email": "邮箱",
   "auth_password": "密码",
   "auth_loginButton": "登录",

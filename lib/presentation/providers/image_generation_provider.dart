@@ -30,6 +30,7 @@ import '../../data/repositories/gallery_folder_repository.dart';
 import '../../data/services/statistics_cache_service.dart';
 import '../../data/services/alias_resolver_service.dart';
 import 'character_prompt_provider.dart';
+import 'auth_provider.dart';
 import 'fixed_tags_provider.dart';
 import 'image_save_settings_provider.dart';
 import 'local_gallery_provider.dart';
@@ -508,6 +509,10 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
   }
 
   Future<void> _generate(ImageParams params) async {
+    if (!requireAuthenticatedAction(ref, AuthPromptReason.imageGeneration)) {
+      return;
+    }
+
     final resolutionIssue = NaiResolutionAdapter.validateGenerationResolution(
       params.width,
       params.height,

@@ -34,6 +34,7 @@ void main() {
         readMinimumContextPixels: () => 64,
         send: sent.add,
         isUiGenerating: () => false,
+        authGuard: () => true,
         generateStream: (_) => const Stream.empty(),
         generateFallback: (_) async => const [],
         registerExternalImage: (_, {required params, addToDisplay}) async =>
@@ -75,6 +76,7 @@ void main() {
         ),
         send: sent.add,
         isUiGenerating: () => false,
+        authGuard: () => true,
         generateStream: (_) => const Stream.empty(),
         generateFallback: (_) async => const [],
         registerExternalImage: (_, {required params, addToDisplay}) async =>
@@ -99,6 +101,7 @@ void main() {
         readBaseParams: () => const ImageParams(),
         send: sent.add,
         isUiGenerating: () => true,
+        authGuard: () => true,
         generateStream: (_) {
           streamCalled = true;
           return const Stream.empty();
@@ -127,6 +130,56 @@ void main() {
       expect(sent.single['code'], KritaBridgeErrorCode.busy.value);
     });
 
+    test(
+      'rejects unauthenticated generation before busy or running state',
+      () async {
+        final sent = <Map<String, dynamic>>[];
+        final activeRequests = <String?>[];
+        var streamCalls = 0;
+        var fallbackCalls = 0;
+        var registerCalls = 0;
+        final service = KritaBridgeService(
+          readBaseParams: () => const ImageParams(),
+          send: sent.add,
+          isUiGenerating: () => true,
+          authGuard: () => false,
+          generateStream: (_) {
+            streamCalls++;
+            return const Stream.empty();
+          },
+          generateFallback: (_) async {
+            fallbackCalls++;
+            return const [];
+          },
+          registerExternalImage: (_, {required params, addToDisplay}) async {
+            registerCalls++;
+            return null;
+          },
+          cancelGeneration: () {},
+        )..setActiveRequestReporter(activeRequests.add);
+
+        await service.handle(
+          KritaImg2ImgMessage(
+            id: 'img-auth-required',
+            image: Uint8List.fromList([1]),
+            prompt: 'keep prompt',
+            negativePrompt: 'keep negative',
+            strength: 0.5,
+            noise: 0,
+          ),
+        );
+
+        expect(streamCalls, 0);
+        expect(fallbackCalls, 0);
+        expect(registerCalls, 0);
+        expect(service.isBridgeGenerating, isFalse);
+        expect(activeRequests, isEmpty);
+        expect(sent, hasLength(1));
+        expect(sent.single['type'], 'error');
+        expect(sent.single['code'], KritaBridgeErrorCode.authFailed.value);
+      },
+    );
+
     test('rejects an invalid generation resolution before API calls', () async {
       final sent = <Map<String, dynamic>>[];
       var streamCalled = false;
@@ -135,6 +188,7 @@ void main() {
         readBaseParams: () => const ImageParams(width: 1080, height: 1920),
         send: sent.add,
         isUiGenerating: () => false,
+        authGuard: () => true,
         generateStream: (_) {
           streamCalled = true;
           return const Stream.empty();
@@ -175,6 +229,7 @@ void main() {
         readBaseParams: () => const ImageParams(),
         send: sent.add,
         isUiGenerating: () => false,
+        authGuard: () => true,
         generateStream: (_) {
           streamCalls++;
           throw Exception('500 server error');
@@ -226,6 +281,7 @@ void main() {
           readBaseParams: () => const ImageParams(),
           send: sent.add,
           isUiGenerating: () => false,
+          authGuard: () => true,
           generateStream: (_) => Stream.fromIterable([
             ImageStreamChunk.progress(
               progress: 0.25,
@@ -270,6 +326,7 @@ void main() {
           readBaseParams: () => const ImageParams(),
           send: sent.add,
           isUiGenerating: () => false,
+          authGuard: () => true,
           generateStream: (_) => throw Exception('streaming is not allowed'),
           generateFallback: (_) async => const [],
           registerExternalImage: (_, {required params, addToDisplay}) async =>
@@ -304,6 +361,7 @@ void main() {
         readBaseParams: () => const ImageParams(),
         send: sent.add,
         isUiGenerating: () => false,
+        authGuard: () => true,
         generateStream: (_) => throw Exception('Inpaint mask is empty'),
         generateFallback: (_) async => const [],
         registerExternalImage: (_, {required params, addToDisplay}) async =>
@@ -350,6 +408,7 @@ void main() {
           readBaseParams: () => const ImageParams(),
           send: sent.add,
           isUiGenerating: () => false,
+          authGuard: () => true,
           generateStream: (_) => throw Exception(entry.error),
           generateFallback: (_) async => const [],
           registerExternalImage: (_, {required params, addToDisplay}) async =>
@@ -383,6 +442,7 @@ void main() {
           readBaseParams: () => const ImageParams(),
           send: sent.add,
           isUiGenerating: () => false,
+          authGuard: () => true,
           generateStream: (_) => throw Exception(
             '401 token pst-secret account user@example.com endpoint https://nai.local',
           ),
@@ -418,6 +478,7 @@ void main() {
         readBaseParams: () => const ImageParams(),
         send: (_) {},
         isUiGenerating: () => false,
+        authGuard: () => true,
         generateStream: (_) => streamController.stream,
         generateFallback: (_) async => const [],
         registerExternalImage: (_, {required params, addToDisplay}) async =>
@@ -461,6 +522,7 @@ void main() {
           ),
           send: sent.add,
           isUiGenerating: () => false,
+          authGuard: () => true,
           generateStream: (request) {
             capturedRequest = request;
             return Stream.fromIterable([
@@ -536,6 +598,7 @@ void main() {
           readBaseParams: () => const ImageParams(),
           send: (_) {},
           isUiGenerating: () => false,
+          authGuard: () => true,
           generateStream: (_) => Stream.value(
             ImageStreamChunk.complete(Uint8List.fromList([7, 8, 9])),
           ),
@@ -575,6 +638,7 @@ void main() {
           readBaseParams: () => const ImageParams(),
           send: sent.add,
           isUiGenerating: () => false,
+          authGuard: () => true,
           generateStream: (_) {
             streamCalled = true;
             return Stream.value(ImageStreamChunk.complete(generated));
@@ -635,6 +699,7 @@ void main() {
           readBaseParams: () => const ImageParams(),
           send: sent.add,
           isUiGenerating: () => false,
+          authGuard: () => true,
           generateStream: (_) {
             streamCalled = true;
             return Stream.value(
@@ -698,6 +763,7 @@ void main() {
           readBaseParams: () => const ImageParams(),
           send: sent.add,
           isUiGenerating: () => false,
+          authGuard: () => true,
           generateStream: (request) {
             capturedRequest = request;
             streamCalled = true;
@@ -773,6 +839,7 @@ void main() {
           readBaseParams: () => const ImageParams(),
           send: sent.add,
           isUiGenerating: () => false,
+          authGuard: () => true,
           generateStream: (_) => const Stream.empty(),
           generateFallback: (request) async {
             capturedRequest = request;
@@ -831,6 +898,7 @@ void main() {
           readBaseParams: () => const ImageParams(),
           send: sent.add,
           isUiGenerating: () => false,
+          authGuard: () => true,
           generateStream: (_) => streamController.stream,
           generateFallback: (_) async => const [],
           registerExternalImage: (_, {required params, addToDisplay}) async =>
@@ -883,6 +951,7 @@ void main() {
         readBaseParams: () => const ImageParams(),
         send: (_) {},
         isUiGenerating: () => false,
+        authGuard: () => true,
         generateStream: (_) => streamController.stream,
         generateFallback: (_) async => const [],
         registerExternalImage: (_, {required params, addToDisplay}) async =>

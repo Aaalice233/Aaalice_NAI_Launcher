@@ -274,6 +274,33 @@ class AppLocalizationsJa extends AppLocalizations {
   String get auth_logout => 'ログアウト';
 
   @override
+  String get auth_continueWithoutLogin => 'ログインせずにメイン画面へ';
+
+  @override
+  String get auth_loginRequiredImageGeneration =>
+      'NovelAI で画像を生成するにはログインしてください。';
+
+  @override
+  String get auth_loginRequiredQueueExecution =>
+      'NovelAI の生成キューを開始するにはログインしてください。';
+
+  @override
+  String get auth_loginRequiredDirectorTools =>
+      'NovelAI Director Tools を使用するにはログインしてください。';
+
+  @override
+  String get auth_loginRequiredNovelAiUpscale =>
+      'NovelAI クラウドアップスケールを使用するにはログインしてください。';
+
+  @override
+  String get auth_loginRequiredKritaBridge =>
+      'Krita Bridge から画像を生成するにはログインしてください。';
+
+  @override
+  String get auth_loginRequiredVibeEncoding =>
+      'NovelAI で Vibe 画像をエンコードするにはログインしてください。';
+
+  @override
   String get auth_email => '電子メール';
 
   @override

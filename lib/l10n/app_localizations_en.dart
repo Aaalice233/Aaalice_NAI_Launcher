@@ -278,6 +278,33 @@ class AppLocalizationsEn extends AppLocalizations {
   String get auth_logout => 'Logout';
 
   @override
+  String get auth_continueWithoutLogin => 'Continue without signing in';
+
+  @override
+  String get auth_loginRequiredImageGeneration =>
+      'Sign in to generate images with NovelAI.';
+
+  @override
+  String get auth_loginRequiredQueueExecution =>
+      'Sign in to start the NovelAI generation queue.';
+
+  @override
+  String get auth_loginRequiredDirectorTools =>
+      'Sign in to use NovelAI Director Tools.';
+
+  @override
+  String get auth_loginRequiredNovelAiUpscale =>
+      'Sign in to use NovelAI cloud upscale.';
+
+  @override
+  String get auth_loginRequiredKritaBridge =>
+      'Sign in to generate images from Krita Bridge.';
+
+  @override
+  String get auth_loginRequiredVibeEncoding =>
+      'Sign in to encode Vibe images with NovelAI.';
+
+  @override
   String get auth_email => 'Email';
 
   @override

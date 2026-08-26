@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../providers/auth_provider.dart';
 import '../../../providers/account_manager_provider.dart';
+import '../../../router/app_router.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/settings/account_detail_tile.dart';
 import '../../../widgets/settings/account_profile_sheet.dart';
@@ -33,6 +35,7 @@ class _AccountSettingsSectionState
         child: AccountDetailTile(
           onEdit: () => _showProfileSheet(context),
           onLogin: () => _navigateToLogin(context),
+          onLogout: _logout,
         ),
       ),
     );
@@ -64,6 +67,10 @@ class _AccountSettingsSectionState
 
   /// 导航到登录页面
   void _navigateToLogin(BuildContext context) {
-    AppToast.info(context, context.l10n.settings_goToLoginPage);
+    context.push(AppRoutes.login);
+  }
+
+  Future<void> _logout() async {
+    await ref.read(authNotifierProvider.notifier).logout();
   }
 }

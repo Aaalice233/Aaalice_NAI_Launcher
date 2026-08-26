@@ -506,6 +506,11 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
     final details = parts.length > 1 ? parts[1] : null;
 
     switch (errorCode) {
+      case 'AUTH_REQUIRED':
+        return (
+          context.l10n.settings_notLoggedIn,
+          context.l10n.settings_goToLoginPage,
+        );
       case 'GENERATION_ERROR_INVALID_RESOLUTION':
         if (parts.length >= 5) {
           final width = int.tryParse(parts[1]);

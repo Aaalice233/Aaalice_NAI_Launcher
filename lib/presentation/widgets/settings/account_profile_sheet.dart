@@ -219,12 +219,25 @@ class _AccountProfileBottomSheetState
     }
   }
 
+  Future<void> _logout() async {
+    if (_isOperationInProgress) return;
+    _isOperationInProgress = true;
+
+    final authNotifier = ref.read(authNotifierProvider.notifier);
+    Navigator.of(context).pop();
+    await WidgetsBinding.instance.endOfFrame;
+    await authNotifier.logout();
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     // 使用 ref.watch 实现响应式更新
     final accounts = ref.watch(accountManagerNotifierProvider).accounts;
-    final currentAccountId = ref.watch(authNotifierProvider).accountId;
+    final authState = ref.watch(authNotifierProvider);
+    final currentAccountId = authState.accountId;
+    final isCurrentAccount =
+        authState.isAuthenticated && currentAccountId == currentAccount.id;
     final defaultAccount = ref
         .read(accountManagerNotifierProvider.notifier)
         .defaultAccount;
@@ -291,7 +304,33 @@ class _AccountProfileBottomSheetState
               ),
             ),
           ),
+          if (isCurrentAccount) _buildLogoutFooter(context),
         ],
+      ),
+    );
+  }
+
+  Widget _buildLogoutFooter(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+        child: SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            key: const Key('account-profile-logout-button'),
+            onPressed: _isOperationInProgress ? null : _logout,
+            icon: const Icon(Icons.logout),
+            label: Text(context.l10n.auth_logout),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: theme.colorScheme.error,
+              side: BorderSide(color: theme.colorScheme.error),
+              padding: const EdgeInsets.symmetric(vertical: 12),
+            ),
+          ),
+        ),
       ),
     );
   }

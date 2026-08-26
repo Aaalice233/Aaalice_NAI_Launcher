@@ -8,6 +8,7 @@ import '../../core/utils/app_logger.dart';
 import '../../core/services/anlas_calculator.dart';
 import '../../data/datasources/remote/nai_image_enhancement_api_service.dart';
 import '../../data/models/director/director_tool_type.dart';
+import 'auth_provider.dart';
 import 'image_generation_provider.dart';
 import 'subscription_provider.dart';
 
@@ -161,6 +162,9 @@ class DirectorToolsNotifier extends Notifier<DirectorToolsState> {
   Future<void> runTool() async {
     final source = state.sourceImage;
     if (source == null) return;
+    if (!requireAuthenticatedAction(ref, AuthPromptReason.directorTools)) {
+      return;
+    }
 
     state = state.copyWith(
       isRunning: true,

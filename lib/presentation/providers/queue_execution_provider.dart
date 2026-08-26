@@ -11,6 +11,7 @@ import '../../data/models/queue/replication_task_status.dart';
 import '../../data/models/queue/failure_handling_strategy.dart';
 import 'character_prompt_provider.dart';
 import 'image_generation_provider.dart';
+import 'auth_provider.dart';
 import 'krita/krita_bridge_notifier.dart';
 import 'notification_settings_provider.dart';
 import 'replication_queue_provider.dart';
@@ -36,7 +37,7 @@ enum QueueExecutionStatus {
   completed,
 }
 
-enum QueueStartResult { started, empty, busy }
+enum QueueStartResult { started, empty, busy, authRequired }
 
 /// 队列执行状态
 class QueueExecutionState {
@@ -284,6 +285,10 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
       return;
     }
 
+    if (!requireAuthenticatedAction(ref, AuthPromptReason.queueExecution)) {
+      return;
+    }
+
     if (state.currentTaskId == null) {
       _processNextTask();
     } else {
@@ -297,6 +302,10 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
   Future<QueueStartResult> startQueue() async {
     final queueState = ref.read(replicationQueueNotifierProvider);
     if (queueState.isEmpty) return QueueStartResult.empty;
+
+    if (!requireAuthenticatedAction(ref, AuthPromptReason.queueExecution)) {
+      return QueueStartResult.authRequired;
+    }
 
     final generationState = ref.read(imageGenerationNotifierProvider);
     final kritaState = ref.read(kritaBridgeNotifierProvider);

@@ -4,8 +4,9 @@ import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/utils/localization_extension.dart';
+import '../../core/services/auth_error_service.dart';
 import '../../core/shortcuts/default_shortcuts.dart';
-import '../providers/auth_provider.dart' show authNotifierProvider, AuthStatus;
+import '../providers/auth_provider.dart';
 import '../providers/replication_queue_provider.dart';
 import '../providers/update_provider.dart';
 import '../screens/auth/login_screen.dart';
@@ -71,6 +72,23 @@ class AppRoutes {
   static const String preciseRefLibrary = '/precise-ref-library';
 }
 
+String? resolveAuthRedirect({
+  required AuthStatus status,
+  required bool isAuthenticated,
+  required String matchedLocation,
+}) {
+  final isLoading =
+      status == AuthStatus.loading || status == AuthStatus.initial;
+  if (isLoading) return null;
+
+  final isLoggingIn = matchedLocation == AppRoutes.login;
+  if (isAuthenticated && isLoggingIn) {
+    return AppRoutes.home;
+  }
+
+  return null;
+}
+
 /// 应用路由 Provider
 ///
 /// 使用 ref.listen 监听认证状态变化并通知 GoRouter
@@ -106,28 +124,11 @@ GoRouter appRouter(Ref ref) {
     redirect: (context, state) {
       // 在 redirect 内部使用 ref.read 获取最新状态
       final authState = ref.read(authNotifierProvider);
-      final isLoading =
-          authState.status == AuthStatus.loading ||
-          authState.status == AuthStatus.initial;
-      final isLoggedIn = authState.isAuthenticated;
-      final isLoggingIn = state.matchedLocation == AppRoutes.login;
-
-      // 正在加载中（检查自动登录），不重定向，等待认证状态确定
-      if (isLoading) {
-        return null;
-      }
-
-      // 未登录且不在登录页，重定向到登录页
-      if (!isLoggedIn && !isLoggingIn) {
-        return AppRoutes.login;
-      }
-
-      // 已登录且在登录页，重定向到首页
-      if (isLoggedIn && isLoggingIn) {
-        return AppRoutes.home;
-      }
-
-      return null;
+      return resolveAuthRedirect(
+        status: authState.status,
+        isAuthenticated: authState.isAuthenticated,
+        matchedLocation: state.matchedLocation,
+      );
     },
 
     // 路由配置
@@ -343,6 +344,29 @@ class MainShell extends ConsumerStatefulWidget {
 
 class _MainShellState extends ConsumerState<MainShell> {
   int? _previousIndex;
+  bool _authPromptVisible = false;
+  ProviderSubscription<AuthPromptRequest?>? _authPromptSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _authPromptSubscription = ref.listenManual<AuthPromptRequest?>(
+      authPromptRequestProvider,
+      (previous, next) {
+        if (next == null || next.id == previous?.id) return;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _showAuthPrompt(next);
+        });
+      },
+      fireImmediately: true,
+    );
+  }
+
+  @override
+  void dispose() {
+    _authPromptSubscription?.close();
+    super.dispose();
+  }
 
   @override
   void didUpdateWidget(MainShell oldWidget) {
@@ -432,6 +456,103 @@ class _MainShellState extends ConsumerState<MainShell> {
       },
     );
   }
+
+  Future<void> _showAuthPrompt(AuthPromptRequest request) async {
+    if (_authPromptVisible) return;
+    _authPromptVisible = true;
+    try {
+      final details = switch (request.reason) {
+        AuthPromptReason.imageGeneration =>
+          context.l10n.auth_loginRequiredImageGeneration,
+        AuthPromptReason.queueExecution =>
+          context.l10n.auth_loginRequiredQueueExecution,
+        AuthPromptReason.directorTools =>
+          context.l10n.auth_loginRequiredDirectorTools,
+        AuthPromptReason.novelAiUpscale =>
+          context.l10n.auth_loginRequiredNovelAiUpscale,
+        AuthPromptReason.kritaBridge =>
+          context.l10n.auth_loginRequiredKritaBridge,
+        AuthPromptReason.vibeEncoding =>
+          context.l10n.auth_loginRequiredVibeEncoding,
+        AuthPromptReason.sessionExpired => context.l10n.api_error_401_hint,
+      };
+      final openLogin = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(context.l10n.auth_login),
+          content: Text(details),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: Text(context.l10n.common_cancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: Text(context.l10n.settings_goToLogin),
+            ),
+          ],
+        ),
+      );
+      if (openLogin == true && mounted) {
+        context.push(AppRoutes.login);
+      }
+    } finally {
+      ref.read(authPromptRequestProvider.notifier).consume(request.id);
+      _authPromptVisible = false;
+      final pending = ref.read(authPromptRequestProvider);
+      if (pending != null && mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _showAuthPrompt(pending);
+        });
+      }
+    }
+  }
+}
+
+class _GlobalStatusBanners extends StatelessWidget {
+  const _GlobalStatusBanners();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [UpdateNoticeBanner(), _AuthRecoveryBanner()],
+    );
+  }
+}
+
+class _AuthRecoveryBanner extends ConsumerWidget {
+  const _AuthRecoveryBanner();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authNotifierProvider);
+    final errorCode = authState.errorCode;
+    if (authState.status != AuthStatus.error || errorCode == null) {
+      return const SizedBox.shrink();
+    }
+
+    final message = AuthErrorService().getErrorText(
+      context.l10n,
+      errorCode,
+      authState.httpStatusCode,
+    );
+    return MaterialBanner(
+      content: Text(message),
+      leading: const Icon(Icons.cloud_off_rounded),
+      actions: [
+        TextButton(
+          onPressed: () =>
+              ref.read(authNotifierProvider.notifier).retryAutoLogin(),
+          child: Text(context.l10n.common_retry),
+        ),
+        TextButton(
+          onPressed: () => context.push(AppRoutes.login),
+          child: Text(context.l10n.settings_goToLogin),
+        ),
+      ],
+    );
+  }
 }
 
 /// 桌面端布局
@@ -467,7 +588,7 @@ class DesktopShell extends ConsumerWidget {
                       top: 0,
                       left: 0,
                       right: 0,
-                      child: UpdateNoticeBanner(),
+                      child: _GlobalStatusBanners(),
                     ),
                     _QueuePanel(
                       isVisible: isQueueVisible,
@@ -518,7 +639,7 @@ class MobileShell extends ConsumerWidget {
                 top: 0,
                 left: 0,
                 right: 0,
-                child: UpdateNoticeBanner(),
+                child: _GlobalStatusBanners(),
               ),
               _QueuePanel(
                 isVisible: isQueueVisible,

@@ -272,6 +272,28 @@ class AppLocalizationsZh extends AppLocalizations {
   String get auth_logout => '退出登录';
 
   @override
+  String get auth_continueWithoutLogin => '跳过登录，进入主界面';
+
+  @override
+  String get auth_loginRequiredImageGeneration => '请先登录，再使用 NovelAI 生成图片。';
+
+  @override
+  String get auth_loginRequiredQueueExecution => '请先登录，再启动 NovelAI 生成队列。';
+
+  @override
+  String get auth_loginRequiredDirectorTools =>
+      '请先登录，再使用 NovelAI Director Tools。';
+
+  @override
+  String get auth_loginRequiredNovelAiUpscale => '请先登录，再使用 NovelAI 云端超分。';
+
+  @override
+  String get auth_loginRequiredKritaBridge => '请先登录，再通过 Krita Bridge 生成图片。';
+
+  @override
+  String get auth_loginRequiredVibeEncoding => '请先登录，再使用 NovelAI 编码 Vibe 图片。';
+
+  @override
   String get auth_email => '邮箱';
 
   @override
@@ -12656,6 +12678,28 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get auth_logout => '退出登入';
+
+  @override
+  String get auth_continueWithoutLogin => '跳過登入，進入主畫面';
+
+  @override
+  String get auth_loginRequiredImageGeneration => '請先登入，再使用 NovelAI 生成圖片。';
+
+  @override
+  String get auth_loginRequiredQueueExecution => '請先登入，再啟動 NovelAI 生成佇列。';
+
+  @override
+  String get auth_loginRequiredDirectorTools =>
+      '請先登入，再使用 NovelAI Director Tools。';
+
+  @override
+  String get auth_loginRequiredNovelAiUpscale => '請先登入，再使用 NovelAI 雲端超分。';
+
+  @override
+  String get auth_loginRequiredKritaBridge => '請先登入，再透過 Krita Bridge 生成圖片。';
+
+  @override
+  String get auth_loginRequiredVibeEncoding => '請先登入，再使用 NovelAI 編碼 Vibe 圖片。';
 
   @override
   String get auth_email => '郵箱';

@@ -18,6 +18,7 @@ import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 import 'package:nai_launcher/data/models/image/image_params.dart';
 import 'package:nai_launcher/data/models/image/image_stream_chunk.dart';
 import 'package:nai_launcher/data/models/user/user_subscription.dart';
+import 'package:nai_launcher/presentation/providers/auth_provider.dart';
 import 'package:nai_launcher/presentation/providers/character_prompt_provider.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/providers/image_save_settings_provider.dart';
@@ -26,6 +27,22 @@ import 'package:nai_launcher/presentation/providers/subscription_provider.dart';
 
 class MockNAIImageGenerationApiService extends Mock
     implements NAIImageGenerationApiService {}
+
+class _AuthenticatedAuthNotifier extends AuthNotifier {
+  @override
+  AuthState build() => const AuthState(status: AuthStatus.authenticated);
+}
+
+ProviderContainer _createAuthenticatedContainer({
+  List<Override> overrides = const [],
+}) {
+  return ProviderContainer(
+    overrides: [
+      authNotifierProvider.overrideWith(_AuthenticatedAuthNotifier.new),
+      ...overrides,
+    ],
+  );
+}
 
 class TestSubscriptionNotifier extends SubscriptionNotifier {
   @override
@@ -139,7 +156,7 @@ void main() {
     });
     when(() => mockApiService.cancelGeneration()).thenReturn(null);
 
-    final container = ProviderContainer(
+    final container = _createAuthenticatedContainer(
       overrides: [
         naiImageGenerationApiServiceProvider.overrideWithValue(mockApiService),
       ],
@@ -213,7 +230,7 @@ void main() {
     });
     when(() => mockApiService.cancelGeneration()).thenReturn(null);
 
-    final container = ProviderContainer(
+    final container = _createAuthenticatedContainer(
       overrides: [
         naiImageGenerationApiServiceProvider.overrideWithValue(mockApiService),
       ],
@@ -278,7 +295,7 @@ void main() {
     ).thenAnswer((_) => stream.stream);
     when(() => mockApiService.cancelGeneration()).thenReturn(null);
 
-    final container = ProviderContainer(
+    final container = _createAuthenticatedContainer(
       overrides: [
         naiImageGenerationApiServiceProvider.overrideWithValue(mockApiService),
       ],
@@ -375,7 +392,7 @@ void main() {
     });
     when(() => mockApiService.cancelGeneration()).thenReturn(null);
 
-    final container = ProviderContainer(
+    final container = _createAuthenticatedContainer(
       overrides: [
         naiImageGenerationApiServiceProvider.overrideWithValue(mockApiService),
       ],
@@ -487,7 +504,7 @@ void main() {
     });
     when(() => mockApiService.cancelGeneration()).thenReturn(null);
 
-    final container = ProviderContainer(
+    final container = _createAuthenticatedContainer(
       overrides: [
         naiImageGenerationApiServiceProvider.overrideWithValue(mockApiService),
         subscriptionNotifierProvider.overrideWith(TestSubscriptionNotifier.new),
@@ -584,7 +601,7 @@ void main() {
     });
     when(() => mockApiService.cancelGeneration()).thenReturn(null);
 
-    final container = ProviderContainer(
+    final container = _createAuthenticatedContainer(
       overrides: [
         naiImageGenerationApiServiceProvider.overrideWithValue(mockApiService),
         subscriptionNotifierProvider.overrideWith(TestSubscriptionNotifier.new),
@@ -679,7 +696,7 @@ void main() {
     });
     when(() => mockApiService.cancelGeneration()).thenReturn(null);
 
-    final container = ProviderContainer(
+    final container = _createAuthenticatedContainer(
       overrides: [
         naiImageGenerationApiServiceProvider.overrideWithValue(mockApiService),
       ],
@@ -762,7 +779,7 @@ void main() {
     );
     when(() => mockApiService.cancelGeneration()).thenReturn(null);
 
-    final container = ProviderContainer(
+    final container = _createAuthenticatedContainer(
       overrides: [
         naiImageGenerationApiServiceProvider.overrideWithValue(mockApiService),
       ],
@@ -895,7 +912,7 @@ void main() {
     );
     when(() => mockApiService.cancelGeneration()).thenReturn(null);
 
-    final container = ProviderContainer(
+    final container = _createAuthenticatedContainer(
       overrides: [
         naiImageGenerationApiServiceProvider.overrideWithValue(mockApiService),
       ],
@@ -981,7 +998,7 @@ void main() {
     });
     when(() => mockApiService.cancelGeneration()).thenReturn(null);
 
-    final container = ProviderContainer(
+    final container = _createAuthenticatedContainer(
       overrides: [
         naiImageGenerationApiServiceProvider.overrideWithValue(mockApiService),
       ],
@@ -1053,7 +1070,7 @@ void main() {
     );
     when(() => mockApiService.cancelGeneration()).thenReturn(null);
 
-    final container = ProviderContainer(
+    final container = _createAuthenticatedContainer(
       overrides: [
         naiImageGenerationApiServiceProvider.overrideWithValue(mockApiService),
       ],
@@ -1118,7 +1135,7 @@ void main() {
     ).thenAnswer((_) => Stream.value(ImageStreamChunk.error('Cancelled')));
     when(() => mockApiService.cancelGeneration()).thenReturn(null);
 
-    final container = ProviderContainer(
+    final container = _createAuthenticatedContainer(
       overrides: [
         naiImageGenerationApiServiceProvider.overrideWithValue(mockApiService),
       ],
@@ -1166,7 +1183,7 @@ void main() {
     ).thenAnswer((_) => const Stream<ImageStreamChunk>.empty());
     when(() => mockApiService.cancelGeneration()).thenReturn(null);
 
-    final container = ProviderContainer(
+    final container = _createAuthenticatedContainer(
       overrides: [
         naiImageGenerationApiServiceProvider.overrideWithValue(mockApiService),
       ],
@@ -1196,7 +1213,7 @@ void main() {
     // 不替换 naiImageGenerationApiServiceProvider：走真实服务链路，
     // 复现 generate() 与 cancel() 分别 ref.read 服务实例的生产行为。
     final adapter = _RecordingHttpAdapter();
-    final container = ProviderContainer(
+    final container = _createAuthenticatedContainer(
       overrides: [
         imageGenerationDioClientProvider.overrideWithValue(
           Dio()..httpClientAdapter = adapter,
@@ -1276,7 +1293,7 @@ void main() {
     });
     when(() => mockApiService.cancelGeneration()).thenReturn(null);
 
-    final container = ProviderContainer(
+    final container = _createAuthenticatedContainer(
       overrides: [
         naiImageGenerationApiServiceProvider.overrideWithValue(mockApiService),
       ],
@@ -1331,7 +1348,7 @@ void main() {
     });
     when(() => mockApiService.cancelGeneration()).thenReturn(null);
 
-    final container = ProviderContainer(
+    final container = _createAuthenticatedContainer(
       overrides: [
         naiImageGenerationApiServiceProvider.overrideWithValue(mockApiService),
       ],

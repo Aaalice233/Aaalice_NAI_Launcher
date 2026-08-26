@@ -23,6 +23,7 @@ import '../../../data/models/vibe/vibe_library_category.dart';
 import '../../../data/models/vibe/vibe_library_entry.dart';
 import '../../../data/models/vibe/vibe_reference.dart';
 import '../../../data/services/vibe_import_service.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/generation/generation_params_notifier.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/selection_mode_provider.dart';
@@ -59,7 +60,10 @@ const List<String> _vibeImportImageExtensions = ['png', 'jpg', 'jpeg', 'webp'];
 /// Vibe库屏幕
 /// Vibe Library Screen
 class VibeLibraryScreen extends ConsumerStatefulWidget {
-  const VibeLibraryScreen({super.key});
+  const VibeLibraryScreen({super.key, this.pickImportFiles});
+
+  @visibleForTesting
+  final Future<List<PlatformFile>?> Function()? pickImportFiles;
 
   @override
   ConsumerState<VibeLibraryScreen> createState() => _VibeLibraryScreenState();
@@ -790,6 +794,10 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
     setState(() => _isPickingFile = true);
 
     try {
+      final injectedPicker = widget.pickImportFiles;
+      if (injectedPicker != null) {
+        return await injectedPicker();
+      }
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: [
@@ -1709,6 +1717,17 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
       );
     }
 
+    final notifier = ref.read(generationParamsNotifierProvider.notifier);
+    final isCached = notifier.hasCachedVibeEncoding(
+      imageFile.bytes,
+      model: currentModel,
+      informationExtracted: config.infoExtracted,
+    );
+    if (!isCached &&
+        !requireAuthenticatedWidgetAction(ref, AuthPromptReason.vibeEncoding)) {
+      return null;
+    }
+
     // 编码重试循环
     while (mounted) {
       if (!mounted) break;
@@ -1744,15 +1763,12 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
       String? errorMessage;
 
       try {
-        final notifier = ref.read(generationParamsNotifierProvider.notifier);
-        final params = ref.read(generationParamsNotifierProvider);
-        final model = params.model;
-        encodingModel = model;
+        encodingModel = currentModel;
 
         encoding = await notifier
             .encodeVibeWithCache(
               imageFile.bytes,
-              model: model,
+              model: currentModel,
               informationExtracted: config.infoExtracted,
               vibeName: config.name,
             )

@@ -4,8 +4,10 @@ import 'package:nai_launcher/data/models/character/character_prompt.dart';
 import 'package:nai_launcher/data/models/image/image_params.dart'
     show ImageParams;
 import 'package:nai_launcher/data/models/queue/replication_task.dart';
+import 'package:nai_launcher/presentation/providers/auth_provider.dart';
 import 'package:nai_launcher/presentation/providers/character_prompt_provider.dart';
-import 'package:nai_launcher/presentation/providers/generation/generation_params_notifier.dart';
+import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
+import 'package:nai_launcher/presentation/providers/krita/krita_bridge_notifier.dart';
 import 'package:nai_launcher/presentation/providers/queue_execution_provider.dart';
 import 'package:nai_launcher/presentation/providers/replication_queue_provider.dart';
 
@@ -37,6 +39,56 @@ void main() {
       ],
     );
   }
+
+  for (final status in [AuthStatus.unauthenticated, AuthStatus.loading]) {
+    test('队列在 $status 时保持任务和执行状态不变', () async {
+      final task = ReplicationTask.create(prompt: 'keep queued prompt');
+      final container = _buildStartContainer(task, status);
+      addTearDown(container.dispose);
+      final beforeQueue = container.read(replicationQueueNotifierProvider);
+      final beforeExecution = container.read(queueExecutionNotifierProvider);
+
+      final result = await container
+          .read(queueExecutionNotifierProvider.notifier)
+          .startQueue();
+
+      expect(result, QueueStartResult.authRequired);
+      expect(
+        container.read(replicationQueueNotifierProvider),
+        same(beforeQueue),
+      );
+      expect(
+        container.read(queueExecutionNotifierProvider).status,
+        beforeExecution.status,
+      );
+      expect(
+        container.read(queueExecutionNotifierProvider).currentTaskId,
+        beforeExecution.currentTaskId,
+      );
+      expect(
+        container.read(authPromptRequestProvider)?.reason,
+        AuthPromptReason.queueExecution,
+      );
+    });
+  }
+
+  test('登录后队列保留启动路径', () async {
+    final task = ReplicationTask.create(prompt: 'queued prompt');
+    final container = _buildStartContainer(task, AuthStatus.authenticated);
+    addTearDown(container.dispose);
+
+    final result = await container
+        .read(queueExecutionNotifierProvider.notifier)
+        .startQueue();
+
+    expect(result, QueueStartResult.started);
+    expect(container.read(queueExecutionNotifierProvider).isReady, isTrue);
+    expect(
+      container.read(queueExecutionNotifierProvider).currentTaskId,
+      task.id,
+    );
+    expect(container.read(authPromptRequestProvider), isNull);
+  });
 
   test('旧任务没有角色快照时保留当前角色', () {
     final task = ReplicationTask.create(prompt: 'queued prompt');
@@ -124,6 +176,42 @@ void main() {
   });
 }
 
+ProviderContainer _buildStartContainer(
+  ReplicationTask task,
+  AuthStatus authStatus,
+) {
+  return ProviderContainer(
+    overrides: [
+      authNotifierProvider.overrideWith(() => _TestAuthNotifier(authStatus)),
+      replicationQueueNotifierProvider.overrideWith(
+        () => _TestReplicationQueueNotifier([task]),
+      ),
+      queueExecutionNotifierProvider.overrideWith(
+        _TestQueueExecutionNotifier.new,
+      ),
+      generationParamsNotifierProvider.overrideWith(
+        _TestGenerationParamsNotifier.new,
+      ),
+      characterPromptNotifierProvider.overrideWith(
+        () => _TestCharacterPromptNotifier(const []),
+      ),
+      imageGenerationNotifierProvider.overrideWith(
+        _TestImageGenerationNotifier.new,
+      ),
+      kritaBridgeNotifierProvider.overrideWith((ref) => KritaBridgeNotifier()),
+    ],
+  );
+}
+
+class _TestAuthNotifier extends AuthNotifier {
+  _TestAuthNotifier(this.authStatus);
+
+  final AuthStatus authStatus;
+
+  @override
+  AuthState build() => AuthState(status: authStatus);
+}
+
 class _TestReplicationQueueNotifier extends ReplicationQueueNotifier {
   _TestReplicationQueueNotifier(this.tasks);
 
@@ -151,6 +239,14 @@ class _TestGenerationParamsNotifier extends GenerationParamsNotifier {
   void updateNegativePrompt(String negativePrompt) {
     state = state.copyWith(negativePrompt: negativePrompt);
   }
+}
+
+class _TestImageGenerationNotifier extends ImageGenerationNotifier {
+  @override
+  ImageGenerationState build() => const ImageGenerationState();
+
+  @override
+  Future<void> generate(ImageParams params) async {}
 }
 
 class _TestCharacterPromptNotifier extends CharacterPromptNotifier {

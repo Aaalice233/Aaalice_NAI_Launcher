@@ -19,6 +19,7 @@ typedef KritaBridgePromptSnapshotReader =
     KritaBridgePromptSnapshot Function(ImageParams params);
 typedef KritaBridgeMinimumContextReader = int Function();
 typedef KritaBridgeBusyReader = bool Function();
+typedef KritaBridgeAuthGuard = bool Function();
 typedef KritaBridgeSender = void Function(Map<String, dynamic> message);
 typedef KritaBridgeStreamGenerator =
     Stream<ImageStreamChunk> Function(KritaBridgeGenerateRequest request);
@@ -66,6 +67,7 @@ class KritaBridgeService implements KritaBridgeMessageService {
     required KritaBridgeSender send,
     required KritaBridgeBusyReader isUiGenerating,
     required KritaBridgeStreamGenerator generateStream,
+    required KritaBridgeAuthGuard authGuard,
     required KritaBridgeFallbackGenerator generateFallback,
     required KritaBridgeExternalImageRegistrar registerExternalImage,
     required KritaBridgeCancelGeneration cancelGeneration,
@@ -80,6 +82,7 @@ class KritaBridgeService implements KritaBridgeMessageService {
                (prompt: params.prompt, negativePrompt: params.negativePrompt)),
        _send = send,
        _isUiGenerating = isUiGenerating,
+       _authGuard = authGuard,
        _generateStream = generateStream,
        _generateFallback = generateFallback,
        _registerExternalImage = registerExternalImage,
@@ -93,6 +96,7 @@ class KritaBridgeService implements KritaBridgeMessageService {
   final KritaBridgeMinimumContextReader _readMinimumContextPixels;
   final KritaBridgeSender _send;
   final KritaBridgeBusyReader _isUiGenerating;
+  final KritaBridgeAuthGuard _authGuard;
   final KritaBridgeStreamGenerator _generateStream;
   final KritaBridgeFallbackGenerator _generateFallback;
   final KritaBridgeExternalImageRegistrar _registerExternalImage;
@@ -184,6 +188,16 @@ class KritaBridgeService implements KritaBridgeMessageService {
   }
 
   Future<void> _generate(String id, KritaImageParamsMapping mapping) async {
+    if (!_authGuard()) {
+      AppLogger.w('Rejected unauthenticated Krita request: $id', _logTag);
+      _sendError(
+        id,
+        KritaBridgeErrorCode.authFailed,
+        _publicErrorMessage(KritaBridgeErrorCode.authFailed),
+      );
+      return;
+    }
+
     if (_isUiGenerating() || _isBridgeGenerating) {
       AppLogger.w('Rejected Krita request as busy: $id', _logTag);
       _sendError(

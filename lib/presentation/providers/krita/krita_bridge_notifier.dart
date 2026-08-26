@@ -9,6 +9,7 @@ import '../../../core/constants/storage_keys.dart';
 import '../../../core/krita/krita_bridge_server.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../data/datasources/remote/nai_image_generation_api_service.dart';
+import '../auth_provider.dart';
 import '../fixed_tags_provider.dart';
 import '../generation/image_workflow_controller.dart';
 import '../image_generation_provider.dart';
@@ -295,6 +296,8 @@ final kritaBridgeNotifierProvider =
           send: server.send,
           isUiGenerating: () =>
               ref.read(imageGenerationNotifierProvider).isGenerating,
+          authGuard: () =>
+              requireAuthenticatedAction(ref, AuthPromptReason.kritaBridge),
           generateStream: (request) {
             final apiService = ref.read(naiImageGenerationApiServiceProvider);
             return apiService.generateImageStream(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/services/auth_error_service.dart';
 import '../../../core/services/avatar_service.dart';
@@ -115,6 +116,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           isLoading,
                           accounts,
                         ),
+                        const SizedBox(height: 12),
+                        TextButton.icon(
+                          key: const Key('auth-skip-login-button'),
+                          onPressed: _continueWithoutLogin,
+                          icon: const Icon(Icons.arrow_forward_rounded),
+                          label: Text(
+                            context.l10n.auth_continueWithoutLogin,
+                          ),
+                        ),
                         const SizedBox(height: 16),
                         if (_showTroubleshootingButton)
                           _TroubleshootingButton(),
@@ -136,6 +146,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ],
       ),
     );
+  }
+
+  void _continueWithoutLogin() {
+    if (context.canPop()) {
+      context.pop();
+      return;
+    }
+    context.goNamed('home');
   }
 
   Widget _buildMainContent(
