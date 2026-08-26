@@ -59,6 +59,20 @@ jobs:
           path: ${{ env.BUNDLE_PATH }}
           key: ${{ env.WINDOWS_CACHE_NAMESPACE }}-portable-v${{ env.PORTABLE_RECIPE_VERSION }}-${{ runner.os }}-${{ env.FLUTTER_VERSION }}-${{ inputs.build-mode || 'release' }}-${{ steps.build-inputs.outputs.fingerprint }}
 
+      - name: Verify restored portable bundle
+        if: steps.portable-cache.outputs.cache-hit == 'true'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $match = Select-String -Path pubspec.yaml -Pattern '^version:\s*(.+)$'
+          if (!$match) {
+            throw 'pubspec.yaml does not contain a version field.'
+          }
+          $version = $match.Matches[0].Groups[1].Value.Trim() -replace '\+.*$', ''
+          ./scripts/verify_windows_portable_package.ps1 `
+            -DirectoryPath $env:BUNDLE_PATH `
+            -ExpectedVersion $version
+
       - name: Prepare incremental Flutter build
         if: steps.portable-cache.outputs.cache-hit != 'true'
         uses: ./.github/actions/prepare-flutter-build

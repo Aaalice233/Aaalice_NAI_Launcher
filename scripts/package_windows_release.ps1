@@ -37,6 +37,35 @@ function Get-ToolPath {
   throw "$Name was not found. Install NSIS or add it to PATH."
 }
 
+function Assert-WindowsFlutterRuntime {
+  param([string]$BundlePath)
+
+  foreach ($required in @(
+      'nai_launcher.exe',
+      'flutter_windows.dll',
+      'data/icudtl.dat'
+    )) {
+    $path = Join-Path $BundlePath $required
+    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+      throw "Windows Flutter runtime file was not found: $path"
+    }
+    if ((Get-Item -LiteralPath $path).Length -le 0) {
+      throw "Windows Flutter runtime file is empty: $path"
+    }
+  }
+
+  $flutterAssetsPath = Join-Path $BundlePath 'data/flutter_assets'
+  $flutterAssets = @(
+    if (Test-Path -LiteralPath $flutterAssetsPath -PathType Container) {
+      Get-ChildItem -LiteralPath $flutterAssetsPath -File -Recurse |
+        Where-Object { $_.Length -gt 0 }
+    }
+  )
+  if ($flutterAssets.Count -eq 0) {
+    throw "Windows Flutter assets directory does not contain any non-empty files: $flutterAssetsPath"
+  }
+}
+
 $root = Resolve-Path (Join-Path $PSScriptRoot "..")
 Set-Location $root
 
@@ -46,7 +75,6 @@ if ([string]::IsNullOrWhiteSpace($Version)) {
 
 $distPath = Join-Path $root $DistDir
 $buildPath = Join-Path $root "build/windows/x64/runner/$BuildMode"
-$exePath = Join-Path $buildPath "nai_launcher.exe"
 $nsisScript = Join-Path $root "installer/windows/nai_launcher.nsi"
 $portablePath = Join-Path $distPath "NAI_Launcher_Windows_${Version}_Portable.zip"
 $installerPath = Join-Path $distPath "NAI_Launcher_Windows_${Version}_Setup.exe"
@@ -60,9 +88,7 @@ if (-not $SkipFlutterBuild) {
   flutter build windows --$flutterBuildMode
 }
 
-if (-not (Test-Path -LiteralPath $exePath)) {
-  throw "Windows release executable was not found: $exePath"
-}
+Assert-WindowsFlutterRuntime -BundlePath $buildPath
 
 # 便携版更新使用该清单区分应用文件与用户放在程序目录中的个人文件。
 $filesManifestPath = Join-Path $buildPath "app_files_manifest.json"

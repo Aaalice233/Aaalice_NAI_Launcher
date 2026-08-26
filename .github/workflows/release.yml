@@ -28,13 +28,25 @@ jobs:
       version: ${{ steps.version.outputs.version }}
       public_version: ${{ steps.version.outputs.public_version }}
       prerelease: ${{ steps.version.outputs.prerelease }}
+      release_sha: ${{ steps.release-ref.outputs.release_sha }}
 
     steps:
-      - name: Checkout
+      - name: Checkout release tag
         uses: actions/checkout@v6
         with:
-          ref: ${{ env.RELEASE_TAG }}
+          ref: refs/tags/${{ env.RELEASE_TAG }}
           lfs: false
+
+      - name: Resolve immutable release commit
+        id: release-ref
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $releaseSha = (git rev-parse --verify 'HEAD^{commit}').Trim().ToLowerInvariant()
+          if ($releaseSha -notmatch '^[0-9a-f]{40}$') {
+            throw "Resolved release commit is not a full 40-character SHA: $releaseSha"
+          }
+          "release_sha=$releaseSha" >> $env:GITHUB_OUTPUT
 
       - name: Verify tag matches pubspec version
         id: version
@@ -101,11 +113,21 @@ jobs:
       WINDOWS_CACHE_NAMESPACE: ${{ vars.WINDOWS_FLUTTER_RUNNER != '' && 'nai-self-hosted' || 'nai-hosted' }}
 
     steps:
-      - name: Checkout
+      - name: Checkout immutable release commit
         uses: actions/checkout@v6
         with:
-          ref: ${{ env.RELEASE_TAG }}
+          ref: ${{ needs.prepare.outputs.release_sha }}
           lfs: true
+
+      - name: Verify checked out release commit
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $head = (git rev-parse --verify HEAD).Trim().ToLowerInvariant()
+          $expected = '${{ needs.prepare.outputs.release_sha }}'
+          if ($head -ne $expected) {
+            throw "Checked out commit $head does not match immutable release commit $expected."
+          }
 
       - name: Setup Flutter
         id: flutter
@@ -278,11 +300,21 @@ jobs:
     needs: prepare
 
     steps:
-      - name: Checkout
+      - name: Checkout immutable release commit
         uses: actions/checkout@v6
         with:
-          ref: ${{ env.RELEASE_TAG }}
+          ref: ${{ needs.prepare.outputs.release_sha }}
           lfs: true
+
+      - name: Verify checked out release commit
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $head = (git rev-parse --verify HEAD).Trim().ToLowerInvariant()
+          $expected = '${{ needs.prepare.outputs.release_sha }}'
+          if ($head -ne $expected) {
+            throw "Checked out commit $head does not match immutable release commit $expected."
+          }
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -353,10 +385,20 @@ jobs:
       - build-macos
 
     steps:
-      - name: Checkout
+      - name: Checkout immutable release commit
         uses: actions/checkout@v6
         with:
-          ref: ${{ env.RELEASE_TAG }}
+          ref: ${{ needs.prepare.outputs.release_sha }}
+
+      - name: Verify checked out release commit
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $head = (git rev-parse --verify HEAD).Trim().ToLowerInvariant()
+          $expected = '${{ needs.prepare.outputs.release_sha }}'
+          if ($head -ne $expected) {
+            throw "Checked out commit $head does not match immutable release commit $expected."
+          }
 
       - name: Download artifacts
         uses: actions/download-artifact@v4
@@ -377,6 +419,37 @@ jobs:
 
       - name: Show assets
         run: ls -lh release-assets
+
+      - name: Verify release tag has not moved
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tag = '${{ env.RELEASE_TAG }}'
+          $expected = '${{ needs.prepare.outputs.release_sha }}'
+          $lines = @(git ls-remote origin "refs/tags/$tag" "refs/tags/$tag^{}")
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to resolve remote release tag refs/tags/$tag."
+          }
+          $direct = $null
+          $peeled = $null
+          foreach ($line in $lines) {
+            $fields = $line -split '\s+', 2
+            if ($fields.Count -ne 2) {
+              continue
+            }
+            if ($fields[1] -eq "refs/tags/$tag^{}") {
+              $peeled = $fields[0]
+            } elseif ($fields[1] -eq "refs/tags/$tag") {
+              $direct = $fields[0]
+            }
+          }
+          $current = if ($peeled) { $peeled } else { $direct }
+          if ($current -notmatch '^[0-9a-fA-F]{40}$') {
+            throw "Remote release tag refs/tags/$tag does not resolve to a commit SHA."
+          }
+          if ($current.ToLowerInvariant() -ne $expected) {
+            throw "Remote release tag refs/tags/$tag moved from $expected to $current."
+          }
 
       - name: Publish release
         uses: softprops/action-gh-release@v2

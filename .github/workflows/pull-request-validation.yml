@@ -107,6 +107,10 @@ jobs:
         with:
           lfs: true
 
+      - name: Test Windows portable package verifier
+        shell: pwsh
+        run: ./scripts/test_windows_portable_package_verifier.ps1
+
       - name: Prepare incremental Flutter build
         uses: ./.github/actions/prepare-flutter-build
         with:
