@@ -13,9 +13,16 @@ import 'package:nai_launcher/core/database/datasources/gallery_data_source.dart'
 import 'package:nai_launcher/core/utils/app_logger.dart';
 import 'package:nai_launcher/data/models/gallery/local_image_record.dart';
 import 'package:nai_launcher/data/services/gallery/gallery_stream_scanner.dart'
-    show ExistingFileCacheEntry, GalleryStreamScanner, buildRetryPriorityPaths;
+    show
+        ExistingFileCacheEntry,
+        GalleryStreamScanner,
+        StreamScanStats,
+        buildRetryPriorityPaths;
 import 'package:nai_launcher/data/services/image_metadata_service.dart';
+import 'package:nai_launcher/data/services/metadata/isolate_metadata_service.dart';
 import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
+
+import '../../../helpers/webp_metadata_fixture.dart';
 
 void main() {
   group('GalleryStreamScanner retryMissingMetadata', () {
@@ -46,11 +53,13 @@ void main() {
       dataSource = GalleryDataSource();
       await dataSource.initialize();
       await ImageMetadataService().initialize();
+      IsolateMetadataService.instance.dispose();
       GalleryStreamScanner.resetInstance();
     });
 
     tearDown(() async {
       GalleryStreamScanner.resetInstance();
+      IsolateMetadataService.instance.dispose();
       await Hive.close();
       await dataSource.dispose();
       await ConnectionPoolHolder.dispose();
@@ -60,153 +69,355 @@ void main() {
       }
     });
 
-    test('should skip stale none records during default incremental scan',
-        () async {
-      final file = await _createWrappedNovelAiPng(
-        tempDir,
-        'stale_skip.png',
-        prompt: 'artist:shycocoa, 1girl, solo',
-      );
+    test(
+      'should skip stale none records during default incremental scan',
+      () async {
+        final file = await _createWrappedNovelAiPng(
+          tempDir,
+          'stale_skip.png',
+          prompt: 'artist:shycocoa, 1girl, solo',
+        );
 
-      final imageId = await _seedStaleNoneRecord(dataSource, file);
+        final imageId = await _seedStaleNoneRecord(dataSource, file);
+        final scanner = GalleryStreamScanner(dataSource: dataSource);
+
+        await scanner.startScanning(tempDir);
+
+        final imageRecord = await dataSource.getImageById(imageId);
+        final metadata = (await dataSource.getMetadataByImageIds([
+          imageId,
+        ]))[imageId];
+        final results = await dataSource.advancedSearch(
+          textQuery: 'shycocoa',
+          limit: 10,
+        );
+
+        expect(imageRecord, isNotNull);
+        expect(imageRecord!.metadataStatus, MetadataStatus.none);
+        expect(metadata, isNull);
+        expect(results, isNot(contains(imageId)));
+      },
+    );
+
+    test(
+      'should retry stale none records when retryMissingMetadata is enabled',
+      () async {
+        final file = await _createWrappedNovelAiPng(
+          tempDir,
+          'stale_retry.png',
+          prompt: 'artist:shycocoa, 1girl, solo',
+        );
+
+        final imageId = await _seedStaleNoneRecord(dataSource, file);
+        final scanner = GalleryStreamScanner(dataSource: dataSource);
+
+        await scanner.startScanning(tempDir, retryMissingMetadata: true);
+
+        final imageRecord = await dataSource.getImageById(imageId);
+        final metadata = (await dataSource.getMetadataByImageIds([
+          imageId,
+        ]))[imageId];
+        final results = await dataSource.advancedSearch(
+          textQuery: 'shycocoa',
+          limit: 10,
+        );
+
+        expect(imageRecord, isNotNull);
+        expect(imageRecord!.metadataStatus, MetadataStatus.success);
+        expect(metadata, isNotNull);
+        expect(metadata!.prompt, contains('artist:shycocoa'));
+        expect(results, contains(imageId));
+      },
+    );
+
+    test(
+      'should mark stale none records as failed when retry finds no metadata',
+      () async {
+        final file = File(p.join(tempDir.path, 'stale_failed.png'));
+        await file.writeAsBytes(_buildBasePngBytes());
+
+        final imageId = await _seedStaleNoneRecord(dataSource, file);
+        final scanner = GalleryStreamScanner(dataSource: dataSource);
+
+        await scanner.startScanning(tempDir, retryMissingMetadata: true);
+
+        final imageRecord = await dataSource.getImageById(imageId);
+        final metadata = (await dataSource.getMetadataByImageIds([
+          imageId,
+        ]))[imageId];
+
+        expect(imageRecord, isNotNull);
+        expect(imageRecord!.metadataStatus, MetadataStatus.failed);
+        expect(metadata, isNull);
+      },
+    );
+
+    test(
+      'should prioritize missing metadata records before normal scan order',
+      () async {
+        final oldNoneTime = DateTime(2026, 1, 1);
+        final newNoneTime = DateTime(2026, 2, 1);
+        final failedTime = DateTime(2026, 3, 1);
+
+        final entries = <String, ExistingFileCacheEntry>{
+          '/gallery/success.png': (
+            1,
+            1,
+            1,
+            MetadataStatus.success,
+            DateTime(2026, 4, 1),
+          ),
+          '/gallery/new_none.png': (1, 1, 2, MetadataStatus.none, newNoneTime),
+          '/gallery/old_none.png': (1, 1, 3, MetadataStatus.none, oldNoneTime),
+          '/gallery/failed.png': (1, 1, 4, MetadataStatus.failed, failedTime),
+        };
+
+        expect(
+          buildRetryPriorityPaths(
+            entries,
+            retryMissingMetadata: true,
+            retryFailedMetadata: false,
+          ),
+          ['/gallery/old_none.png', '/gallery/new_none.png'],
+        );
+
+        expect(
+          buildRetryPriorityPaths(
+            entries,
+            retryMissingMetadata: false,
+            retryFailedMetadata: true,
+          ),
+          ['/gallery/failed.png'],
+        );
+
+        expect(
+          buildRetryPriorityPaths(
+            entries,
+            retryMissingMetadata: true,
+            retryFailedMetadata: true,
+          ),
+          [
+            '/gallery/old_none.png',
+            '/gallery/new_none.png',
+            '/gallery/failed.png',
+          ],
+        );
+
+        expect(
+          buildRetryPriorityPaths(
+            {
+              '/gallery/transient.png': (
+                1,
+                1,
+                5,
+                MetadataStatus.transientFailure,
+                DateTime(2026, 5, 1),
+              ),
+            },
+            retryMissingMetadata: false,
+            retryFailedMetadata: false,
+          ),
+          ['/gallery/transient.png'],
+        );
+      },
+    );
+
+    test(
+      'ordinary scans retry metadata after a temporary worker outage',
+      () async {
+        final file = await _createWrappedNovelAiPng(
+          tempDir,
+          'transient_worker.png',
+          prompt: 'artist:retryable, 1girl',
+        );
+        var startupCalls = 0;
+        final metadataService = IsolateMetadataService.forTesting(
+          workerInitializer: (_, initializeWorker) async {
+            startupCalls++;
+            if (startupCalls == 1) {
+              throw StateError('temporary spawn failure');
+            }
+            await initializeWorker();
+          },
+        );
+        addTearDown(metadataService.dispose);
+        final scanner = GalleryStreamScanner.forTesting(
+          dataSource: dataSource,
+          metadataService: metadataService,
+        );
+        addTearDown(scanner.dispose);
+
+        await scanner.startScanning(tempDir);
+        final imageId = await dataSource.getImageIdByPath(file.path);
+        expect(imageId, isNotNull);
+        final storedImageId = imageId!;
+        var imageRecord = await dataSource.getImageById(storedImageId);
+        expect(imageRecord?.metadataStatus, MetadataStatus.transientFailure);
+
+        await scanner.startScanning(tempDir);
+        imageRecord = await dataSource.getImageById(storedImageId);
+        final metadata = (await dataSource.getMetadataByImageIds([
+          storedImageId,
+        ]))[storedImageId];
+
+        expect(imageRecord?.metadataStatus, MetadataStatus.success);
+        expect(metadata?.prompt, contains('artist:retryable'));
+      },
+    );
+
+    test('scanner indexes NovelAI metadata from WebP', () async {
+      final file = File(p.join(tempDir.path, 'metadata.webp'));
+      await file.writeAsBytes(
+        buildNovelAiWebpFixture(
+          comment: const {
+            'prompt': 'scanner-webp-prompt',
+            'uc': 'lowres',
+            'width': 832,
+            'height': 1216,
+            'seed': 42,
+            'steps': 28,
+            'scale': 5.0,
+            'sampler': 'k_euler',
+          },
+        ),
+      );
       final scanner = GalleryStreamScanner(dataSource: dataSource);
 
-      await scanner.startScanning(tempDir);
+      await scanner.startScanning(tempDir, fileSnapshot: [file]);
 
-      final imageRecord = await dataSource.getImageById(imageId);
-      final metadata =
-          (await dataSource.getMetadataByImageIds([imageId]))[imageId];
-      final results = await dataSource.advancedSearch(
-        textQuery: 'shycocoa',
-        limit: 10,
-      );
-
-      expect(imageRecord, isNotNull);
-      expect(imageRecord!.metadataStatus, MetadataStatus.none);
-      expect(metadata, isNull);
-      expect(results, isNot(contains(imageId)));
-    });
-
-    test('should retry stale none records when retryMissingMetadata is enabled',
-        () async {
-      final file = await _createWrappedNovelAiPng(
-        tempDir,
-        'stale_retry.png',
-        prompt: 'artist:shycocoa, 1girl, solo',
-      );
-
-      final imageId = await _seedStaleNoneRecord(dataSource, file);
-      final scanner = GalleryStreamScanner(dataSource: dataSource);
-
-      await scanner.startScanning(
-        tempDir,
-        retryMissingMetadata: true,
-      );
-
-      final imageRecord = await dataSource.getImageById(imageId);
-      final metadata =
-          (await dataSource.getMetadataByImageIds([imageId]))[imageId];
-      final results = await dataSource.advancedSearch(
-        textQuery: 'shycocoa',
-        limit: 10,
-      );
-
-      expect(imageRecord, isNotNull);
-      expect(imageRecord!.metadataStatus, MetadataStatus.success);
-      expect(metadata, isNotNull);
-      expect(metadata!.prompt, contains('artist:shycocoa'));
-      expect(results, contains(imageId));
+      final imageId = await dataSource.getImageIdByPath(file.path);
+      expect(imageId, isNotNull);
+      final storedImageId = imageId!;
+      final image = await dataSource.getImageById(storedImageId);
+      final metadata = (await dataSource.getMetadataByImageIds([
+        storedImageId,
+      ]))[storedImageId];
+      expect(image?.metadataStatus, MetadataStatus.success);
+      expect(metadata?.prompt, 'scanner-webp-prompt');
     });
 
     test(
-        'should mark stale none records as failed when retry finds no metadata',
-        () async {
-      final file = File(p.join(tempDir.path, 'stale_failed.png'));
-      await file.writeAsBytes(_buildBasePngBytes());
+      'file-system changes cannot change a running snapshot total',
+      () async {
+        final first = await _createWrappedNovelAiPng(
+          tempDir,
+          'snapshot_a.png',
+          prompt: 'snapshot-a',
+        );
+        final deleted = await _createWrappedNovelAiPng(
+          tempDir,
+          'snapshot_b.png',
+          prompt: 'snapshot-b',
+        );
+        final added = File(p.join(tempDir.path, 'snapshot_added.png'));
+        final callerOwnedSnapshot = <File>[first, deleted];
+        final observedStats = <StreamScanStats>[];
+        final scanner = GalleryStreamScanner(dataSource: dataSource);
 
-      final imageId = await _seedStaleNoneRecord(dataSource, file);
+        await scanner.startScanning(
+          tempDir,
+          fileSnapshot: callerOwnedSnapshot,
+          onFileProcessed: (_, stats) {
+            observedStats.add(stats);
+            if (observedStats.length == 1) {
+              callerOwnedSnapshot
+                ..clear()
+                ..add(added);
+              deleted.deleteSync();
+              added.writeAsBytesSync(_buildBasePngBytes());
+            }
+          },
+        );
+
+        expect(observedStats, hasLength(2));
+        expect(
+          observedStats.every((stats) => stats.totalDiscovered == 2),
+          isTrue,
+        );
+        expect(observedStats.last.processed + observedStats.last.skipped, 2);
+        expect(observedStats.last.progress, 1);
+        expect(observedStats.every((stats) => stats.progress <= 1), isTrue);
+        expect(await dataSource.getImageIdByPath(added.path), isNull);
+      },
+    );
+
+    test('priority paths outside the snapshot are never injected', () async {
+      final included = await _createWrappedNovelAiPng(
+        tempDir,
+        'snapshot_included.png',
+        prompt: 'included',
+      );
+      final externalDir = await Directory.systemTemp.createTemp(
+        'gallery_priority_external_',
+      );
+      addTearDown(() => _deleteDirectoryWithRetry(externalDir));
+      final external = await _createWrappedNovelAiPng(
+        externalDir,
+        'external_retry.png',
+        prompt: 'external',
+      );
+      await external.setLastModified(
+        DateTime.now().subtract(const Duration(days: 1)),
+      );
+      final externalId = await _seedStaleNoneRecord(dataSource, external);
+      final processedPaths = <String>[];
       final scanner = GalleryStreamScanner(dataSource: dataSource);
 
       await scanner.startScanning(
         tempDir,
         retryMissingMetadata: true,
+        fileSnapshot: [included],
+        onFileProcessed: (result, stats) {
+          processedPaths.add(result.path);
+          expect(stats.totalDiscovered, 1);
+          expect(stats.progress, lessThanOrEqualTo(1));
+        },
       );
 
-      final imageRecord = await dataSource.getImageById(imageId);
-      final metadata =
-          (await dataSource.getMetadataByImageIds([imageId]))[imageId];
-
-      expect(imageRecord, isNotNull);
-      expect(imageRecord!.metadataStatus, MetadataStatus.failed);
-      expect(metadata, isNull);
+      expect(processedPaths, [p.absolute(included.path)]);
+      final externalRecord = await dataSource.getImageById(externalId);
+      expect(externalRecord?.metadataStatus, MetadataStatus.none);
     });
 
-    test('should prioritize missing metadata records before normal scan order',
-        () async {
-      final oldNoneTime = DateTime(2026, 1, 1);
-      final newNoneTime = DateTime(2026, 2, 1);
-      final failedTime = DateTime(2026, 3, 1);
+    test('snapshot and scanning share the gallery file policy', () async {
+      final cacheDir = Directory(p.join(tempDir.path, 'cache'));
+      await cacheDir.create();
+      final excluded = await _createWrappedNovelAiPng(
+        cacheDir,
+        'excluded_retry.png',
+        prompt: 'excluded',
+      );
+      final included = await _createWrappedNovelAiPng(
+        tempDir,
+        'included.png',
+        prompt: 'included',
+      );
+      await excluded.setLastModified(
+        DateTime.now().subtract(const Duration(days: 1)),
+      );
+      await _seedStaleNoneRecord(dataSource, excluded);
 
-      final entries = <String, ExistingFileCacheEntry>{
-        '/gallery/success.png': (
-          1,
-          1,
-          1,
-          MetadataStatus.success,
-          DateTime(2026, 4, 1),
-        ),
-        '/gallery/new_none.png': (
-          1,
-          1,
-          2,
-          MetadataStatus.none,
-          newNoneTime,
-        ),
-        '/gallery/old_none.png': (
-          1,
-          1,
-          3,
-          MetadataStatus.none,
-          oldNoneTime,
-        ),
-        '/gallery/failed.png': (
-          1,
-          1,
-          4,
-          MetadataStatus.failed,
-          failedTime,
-        ),
-      };
+      final scanner = GalleryStreamScanner(dataSource: dataSource);
+      final progressValues = <double>[];
+      final subscription = scanner.statsStream.listen(
+        (stats) => progressValues.add(stats.progress),
+      );
+      addTearDown(subscription.cancel);
 
-      expect(
-        buildRetryPriorityPaths(
-          entries,
-          retryMissingMetadata: true,
-          retryFailedMetadata: false,
-        ),
-        ['/gallery/old_none.png', '/gallery/new_none.png'],
+      await scanner.startScanning(
+        tempDir,
+        retryMissingMetadata: true,
+        fileSnapshot: [included],
       );
 
+      expect(await dataSource.getImageIdByPath(included.path), isNotNull);
+      final excludedId = await dataSource.getImageIdByPath(excluded.path);
+      final excludedRecord = await dataSource.getImageById(excludedId!);
+      expect(excludedRecord?.metadataStatus, MetadataStatus.none);
+      expect(progressValues, isNotEmpty);
       expect(
-        buildRetryPriorityPaths(
-          entries,
-          retryMissingMetadata: false,
-          retryFailedMetadata: true,
-        ),
-        ['/gallery/failed.png'],
-      );
-
-      expect(
-        buildRetryPriorityPaths(
-          entries,
-          retryMissingMetadata: true,
-          retryFailedMetadata: true,
-        ),
-        [
-          '/gallery/old_none.png',
-          '/gallery/new_none.png',
-          '/gallery/failed.png',
-        ],
+        progressValues.reduce((a, b) => a > b ? a : b),
+        lessThanOrEqualTo(1),
       );
     });
   });

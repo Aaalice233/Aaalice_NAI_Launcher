@@ -330,7 +330,7 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
       _isInitialized = true;
 
       // 2. 后台执行索引初始化（不阻塞）
-      _initializeIndexInBackground();
+      _initializeIndexInBackground(List<File>.unmodifiable(files));
 
       return files;
     } on GalleryException {
@@ -364,9 +364,6 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
     }
 
     var files = <File>[];
-    const supportedExtensions = {'.png', '.jpg', '.jpeg', '.webp'};
-
-    // 使用 ScanConfig 的缩略图检测配置
     const scanConfig = ScanConfig();
 
     try {
@@ -375,33 +372,31 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
         followLinks: false,
       )) {
         if (entity is File) {
-          // 排除缩略图目录和文件
-          if (scanConfig.isThumbnailPath(entity.path)) {
-            continue;
-          }
-
-          // 使用 path 包正确提取扩展名，避免多层扩展名问题
-          final ext = p.extension(entity.path).toLowerCase();
-          if (supportedExtensions.contains(ext)) {
+          if (scanConfig.acceptsGalleryImagePath(entity.path)) {
             files.add(entity);
           }
         }
       }
 
-      // 按修改时间排序（最新的在前）
-      final fileStats = await Future.wait(
-        files.map((file) async {
-          try {
-            return (file: file, stat: await file.stat());
-          } catch (_) {
-            return null;
-          }
-        }),
-      );
+      // Resolve file metadata with bounded fan-out. Thousands of simultaneous
+      // stat futures create avoidable allocation spikes during gallery startup.
+      const statBatchSize = 32;
+      final validStats = <({File file, FileStat stat})>[];
+      for (var start = 0; start < files.length; start += statBatchSize) {
+        final end = min(start + statBatchSize, files.length);
+        final batchStats = await Future.wait(
+          files.sublist(start, end).map((file) async {
+            try {
+              return (file: file, stat: await file.stat());
+            } catch (_) {
+              return null;
+            }
+          }),
+        );
+        validStats.addAll(batchStats.whereType<({File file, FileStat stat})>());
+        await Future<void>.delayed(Duration.zero);
+      }
 
-      final validStats = fileStats
-          .whereType<({File file, FileStat stat})>()
-          .toList();
       validStats.sort((a, b) => b.stat.modified.compareTo(a.stat.modified));
 
       files = validStats.map((e) => e.file).toList();
@@ -419,7 +414,7 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
   }
 
   /// 后台索引初始化
-  Future<void> _initializeIndexInBackground() async {
+  Future<void> _initializeIndexInBackground(List<File> fileSnapshot) async {
     // ✅ 防止并发后台扫描
     if (_isBackgroundScanning) {
       AppLogger.d(
@@ -439,13 +434,13 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
       // 检查是否需要完整扫描
       final existingCount = await _dataSource.countImages();
       AppLogger.i(
-        'Database has $existingCount images, file system has ${_allFiles.length} images',
+        'Database has $existingCount images, file system has ${fileSnapshot.length} images',
         'LocalGalleryService',
       );
 
       switch (chooseStartupIndexAction(
         databaseImageCount: existingCount,
-        fileSystemImageCount: _allFiles.length,
+        fileSystemImageCount: fileSnapshot.length,
       )) {
         case GalleryStartupIndexAction.none:
           AppLogger.i(
@@ -454,10 +449,10 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
           );
         case GalleryStartupIndexAction.fullScan:
           AppLogger.i(
-            'Performing startup file index scan (${_allFiles.length} files)',
+            'Performing startup file index scan (${fileSnapshot.length} files)',
             'LocalGalleryService',
           );
-          await _performFullScan();
+          await _performFullScan(fileSnapshot: fileSnapshot);
       }
 
       AppLogger.i(
@@ -494,6 +489,7 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
   Future<void> _performIncrementalScan({
     bool retryMissingMetadata = false,
     bool retryFailedMetadata = false,
+    List<File>? fileSnapshot,
   }) async {
     final rootPath = await GalleryFolderRepository.instance.getRootPath();
     if (rootPath == null) {
@@ -527,6 +523,7 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
       dir,
       retryMissingMetadata: retryMissingMetadata,
       retryFailedMetadata: retryFailedMetadata,
+      fileSnapshot: fileSnapshot,
       // 【扫描时日志太频繁，禁用】
       // onFileProcessed: (result, stats) {
       //   // 每处理一个文件就更新状态
@@ -547,6 +544,7 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
   Future<void> _performFullScan({
     bool retryMissingMetadata = false,
     bool retryFailedMetadata = false,
+    List<File>? fileSnapshot,
   }) async {
     final rootPath = await GalleryFolderRepository.instance.getRootPath();
     if (rootPath == null) {
@@ -575,6 +573,7 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
       dir,
       retryMissingMetadata: retryMissingMetadata,
       retryFailedMetadata: retryFailedMetadata,
+      fileSnapshot: fileSnapshot,
       // 【扫描时日志太频繁，禁用】
       // onFileProcessed: (result, stats) {
       //   // 每处理一个文件就更新状态
@@ -621,9 +620,6 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
   /// 加载图片记录列表
   Future<List<LocalImageRecord>> _loadRecords(List<File> files) async {
     if (files.isEmpty) return [];
-
-    // 预加载元数据到缓存（后台）
-    _preloadMetadataBatch(files);
 
     // 获取文件状态信息
     final fileStats = <File, FileStat>{};
@@ -716,28 +712,6 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
     }
 
     return records;
-  }
-
-  /// 批量预加载元数据
-  void _preloadMetadataBatch(List<File> files) {
-    final pngFiles = files
-        .where((f) => f.path.toLowerCase().endsWith('.png'))
-        .toList();
-    if (pngFiles.isEmpty) return;
-
-    Future.microtask(() {
-      try {
-        final images = pngFiles
-            .map((f) => GeneratedImageInfo(id: f.path, filePath: f.path))
-            .toList();
-        ImageMetadataService().preloadBatch(images);
-      } catch (e) {
-        AppLogger.w(
-          'Failed to preload metadata batch: $e',
-          'LocalGalleryService',
-        );
-      }
-    });
   }
 
   /// 从数据库记录构建元数据
@@ -1210,10 +1184,10 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
           'File count changed significantly ($previousCount -> ${files.length}), performing full scan',
           'LocalGalleryService',
         );
-        await _performFullScan();
+        await _performFullScan(fileSnapshot: files);
       } else {
         // 后台扫描新文件（使用 await 确保扫描完成）
-        await _performIncrementalScan();
+        await _performIncrementalScan(fileSnapshot: files);
       }
     } catch (e) {
       if (e is GalleryException) rethrow;

@@ -8,17 +8,11 @@ import '../../../core/database/datasources/gallery_data_source.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../models/gallery/local_image_record.dart';
 import '../../models/gallery/nai_image_metadata.dart';
-import '../image_metadata_service.dart';
+import '../metadata/isolate_metadata_service.dart';
 import 'scan_config.dart';
 import 'scan_state_manager.dart';
 
-typedef ExistingFileCacheEntry = (
-  int,
-  int,
-  int,
-  MetadataStatus,
-  DateTime?,
-);
+typedef ExistingFileCacheEntry = (int, int, int, MetadataStatus, DateTime?);
 
 /// 文件处理阶段
 enum FileProcessingStage {
@@ -143,7 +137,8 @@ class GalleryStreamScanner {
 
   final GalleryDataSource _dataSource;
   final ScanStateManager _stateManager = ScanStateManager.instance;
-  final _metadataService = ImageMetadataService();
+  final IsolateMetadataService _isolateMetadataService;
+  static const ScanConfig _scanConfig = ScanConfig();
 
   // 状态
   bool _isRunning = false;
@@ -164,7 +159,14 @@ class GalleryStreamScanner {
 
   /// 私有构造函数
   GalleryStreamScanner._internal({required GalleryDataSource dataSource})
-      : _dataSource = dataSource;
+    : _dataSource = dataSource,
+      _isolateMetadataService = IsolateMetadataService.instance;
+
+  GalleryStreamScanner.forTesting({
+    required GalleryDataSource dataSource,
+    required IsolateMetadataService metadataService,
+  }) : _dataSource = dataSource,
+       _isolateMetadataService = metadataService;
 
   /// @deprecated 使用 [instance] 代替
   ///
@@ -182,18 +184,26 @@ class GalleryStreamScanner {
   /// [checkConsistency] - 是否在扫描前检查数据一致性（删除不存在的文件记录）
   /// [retryMissingMetadata] - 是否重新尝试历史上标记为无元数据的文件
   /// [retryFailedMetadata] - 是否重新尝试历史上提取失败的文件
+  /// [fileSnapshot] - 调用方已枚举时复用同一份文件快照
   ///
   /// 使用互斥锁保证同一时间只有一个扫描任务在运行
   Future<void> startScanning(
     Directory rootDir, {
     void Function(FileProcessingResult result, StreamScanStats stats)?
-        onFileProcessed,
+    onFileProcessed,
     bool checkConsistency = true,
     bool retryMissingMetadata = false,
     bool retryFailedMetadata = false,
-  }) async {
+    List<File>? fileSnapshot,
+  }) {
+    // Copy caller-owned lists before the first await so later mutations cannot
+    // change either the total or the files processed by this scan.
+    final suppliedSnapshot = fileSnapshot == null
+        ? null
+        : _freezeFileSnapshot(rootDir, fileSnapshot);
+
     // 使用互斥锁防止并发扫描
-    await _scanLock.synchronized(() async {
+    return _scanLock.synchronized(() async {
       if (_isRunning) {
         AppLogger.w(
           '[StreamScan] Scanner already running',
@@ -225,14 +235,14 @@ class GalleryStreamScanner {
           retryFailedMetadata: retryFailedMetadata,
         );
 
-        // 3. 【关键修改】先遍历一遍统计总数（让用户看到固定的总进度）
+        // 3. Enumerate once, freeze the result, and only reorder entries that
+        // are already in that snapshot. File-system changes after this point
+        // are deliberately deferred to the next scan.
+        final snapshot = suppliedSnapshot ?? await _createFileSnapshot(rootDir);
+        final filesToScan = _prioritizeSnapshot(snapshot, retryPriorityPaths);
+        final totalFiles = filesToScan.length;
         AppLogger.i(
-          '[StreamScan] Counting total files...',
-          'GalleryStreamScanner',
-        );
-        final totalFiles = await _countTotalFiles(rootDir);
-        AppLogger.i(
-          '[StreamScan] Total files to scan: $totalFiles',
+          '[StreamScan] Total files in snapshot: $totalFiles',
           'GalleryStreamScanner',
         );
 
@@ -260,10 +270,7 @@ class GalleryStreamScanner {
         var processedCount = 0;
         var skippedCount = 0; // 【调试】统计跳过的文件数
 
-        await for (final file in _scanDirectory(
-          rootDir,
-          priorityPaths: retryPriorityPaths,
-        )) {
+        for (final file in filesToScan) {
           if (_shouldCancel) break;
 
           // 立即处理这个文件
@@ -276,7 +283,8 @@ class GalleryStreamScanner {
 
           // 更新统计
           processedCount++;
-          final isProcessed = result.stage == FileProcessingStage.completed ||
+          final isProcessed =
+              result.stage == FileProcessingStage.completed ||
               result.stage == FileProcessingStage.error;
           final isSkipped = result.stage == FileProcessingStage.skipped;
           final isError = result.stage == FileProcessingStage.error;
@@ -319,10 +327,9 @@ class GalleryStreamScanner {
             phase: _stageToPhase(result.stage),
           );
 
-          // 让出时间片，避免阻塞UI
-          if (processedCount % 10 == 0) {
-            await Future.delayed(Duration.zero);
-          }
+          // Yield after every file so database callbacks, input, and frames are
+          // never starved by a large sequence of fast scan operations.
+          await Future<void>.delayed(Duration.zero);
         }
 
         // 扫描完成
@@ -512,9 +519,9 @@ class GalleryStreamScanner {
           AppLogger.d(
             retryMissingMetadata
                 ? '[StreamScan] Retry missing metadata: $fileName, '
-                    'last scanned at $lastScannedAt'
+                      'last scanned at $lastScannedAt'
                 : '[StreamScan] Skip re-scan (no metadata): $fileName, '
-                    'last scanned at $lastScannedAt',
+                      'last scanned at $lastScannedAt',
             'GalleryStreamScanner',
           );
         } else if (metadataStatus == MetadataStatus.failed) {
@@ -522,9 +529,15 @@ class GalleryStreamScanner {
           AppLogger.d(
             retryFailedMetadata
                 ? '[StreamScan] Retry failed metadata: $fileName, '
-                    'last scanned at $lastScannedAt'
+                      'last scanned at $lastScannedAt'
                 : '[StreamScan] Skip re-scan (failed metadata): $fileName, '
-                    'last scanned at $lastScannedAt',
+                      'last scanned at $lastScannedAt',
+            'GalleryStreamScanner',
+          );
+        } else if (metadataStatus == MetadataStatus.transientFailure) {
+          needsUpdate = true;
+          AppLogger.d(
+            '[StreamScan] Retry transient metadata failure: $fileName',
             'GalleryStreamScanner',
           );
         } else {
@@ -569,7 +582,7 @@ class GalleryStreamScanner {
               stat.modified.millisecondsSinceEpoch,
               oldImageId,
               oldRecord.$4,
-              DateTime.now()
+              DateTime.now(),
             );
           }
           _pathToId.remove(movedFromPath);
@@ -589,7 +602,22 @@ class GalleryStreamScanner {
 
       // 阶段2: 提取元数据（仅对真正的新文件或变更文件）
       _updateStage(stats, FileProcessingStage.extracting, fileName);
-      final metadata = await _metadataService.getMetadataImmediate(file.path);
+      final parseResult = await _isolateMetadataService.parseMetadata(
+        file.path,
+        config: const IsolateParseConfig(
+          timeout: Duration(seconds: 10),
+          useGradualRead: false,
+          useCache: false,
+        ),
+      );
+      final metadata = parseResult.metadata;
+
+      if (parseResult.wasTimeout) {
+        AppLogger.w(
+          '[StreamScan] Metadata timeout, continuing scan: $fileName',
+          'GalleryStreamScanner',
+        );
+      }
 
       // 阶段3: 写入数据库
       _updateStage(stats, FileProcessingStage.caching, fileName);
@@ -597,6 +625,8 @@ class GalleryStreamScanner {
       final isNewFile = existing == null;
       final metadataStatus = metadata != null && metadata.hasData
           ? MetadataStatus.success
+          : parseResult.retryable
+          ? MetadataStatus.transientFailure
           : MetadataStatus.failed;
 
       final imageId = await _dataSource.upsertImage(
@@ -617,10 +647,14 @@ class GalleryStreamScanner {
 
       if (metadata != null && metadata.hasData) {
         await _dataSource.upsertMetadata(imageId, metadata);
-        _metadataService.cacheMetadata(path, metadata);
 
         // 更新 ScanStateManager 的元数据计数
         _stateManager.incrementMetadataCacheCount();
+      } else {
+        // Keep progress classification aligned with the persisted failed
+        // metadata status. Otherwise each metadata-free image accumulates in
+        // the UI's transient "processing" segment after it has completed.
+        _stateManager.incrementFailedCount();
       }
 
       // 【修复】无论是否有元数据，都更新本地缓存，确保 lastScannedAt 被设置
@@ -629,9 +663,7 @@ class GalleryStreamScanner {
         stat.size,
         stat.modified.millisecondsSinceEpoch,
         imageId,
-        metadata != null && metadata.hasData
-            ? MetadataStatus.success
-            : MetadataStatus.failed,
+        metadataStatus,
         DateTime.now(), // 关键：确保 lastScannedAt 被设置
       );
 
@@ -641,10 +673,13 @@ class GalleryStreamScanner {
       // 阶段4: 完成
       return FileProcessingResult(
         path: path,
-        stage: FileProcessingStage.completed,
+        stage: parseResult.retryable
+            ? FileProcessingStage.error
+            : FileProcessingStage.completed,
         metadata: metadata,
         isNewFile: isNewFile,
         metadataUpdated: metadata != null && metadata.hasData,
+        error: parseResult.retryable ? parseResult.error : null,
       );
     } catch (e) {
       AppLogger.w(
@@ -687,10 +722,7 @@ class GalleryStreamScanner {
   ) {
     // 更新本地 stats controller（供内部使用）
     _statsController.add(
-      stats.copyWith(
-        currentStage: stage,
-        currentFile: fileName,
-      ),
+      stats.copyWith(currentStage: stage, currentFile: fileName),
     );
 
     // 【修复】同步更新 ScanStateManager，让 UI 能看到阶段变化
@@ -708,82 +740,67 @@ class GalleryStreamScanner {
     return null;
   }
 
-  /// 扫描目录
-  Stream<File> _scanDirectory(
-    Directory rootDir, {
-    List<String> priorityPaths = const [],
-  }) async* {
-    const supportedExtensions = ['.png', '.jpg', '.jpeg', '.webp'];
-    final emittedPaths = <String>{};
-
-    for (final path in priorityPaths) {
+  Future<List<File>> _createFileSnapshot(Directory rootDir) async {
+    final files = <File>[];
+    await for (final entity in rootDir.list(
+      recursive: true,
+      followLinks: false,
+    )) {
       if (_shouldCancel) break;
-
-      final ext = p.extension(path).toLowerCase();
-      if (!supportedExtensions.contains(ext)) {
-        continue;
-      }
-
-      final file = File(path);
-      if (!await file.exists()) {
-        continue;
-      }
-
-      emittedPaths.add(path);
-      yield file;
+      if (entity is File) files.add(entity);
     }
-
-    await for (final entity
-        in rootDir.list(recursive: true, followLinks: false)) {
-      if (_shouldCancel) break;
-
-      if (entity is File) {
-        // 跳过缩略图
-        if (entity.path.contains(
-              '${Platform.pathSeparator}.thumbs${Platform.pathSeparator}',
-            ) ||
-            entity.path.contains('.thumb.')) {
-          continue;
-        }
-
-        final ext = p.extension(entity.path).toLowerCase();
-        if (supportedExtensions.contains(ext) &&
-            !emittedPaths.contains(entity.path)) {
-          yield entity;
-        }
-      }
-    }
+    return _freezeFileSnapshot(rootDir, files);
   }
 
-  /// 统计总文件数（预扫描）
-  ///
-  /// 在开始处理前先遍历一遍目录，统计总文件数
-  /// 这样可以让用户看到固定的进度（如 0/8751 → 8751/8751）
-  Future<int> _countTotalFiles(Directory rootDir) async {
-    const supportedExtensions = ['.png', '.jpg', '.jpeg', '.webp'];
-    var count = 0;
+  List<File> _freezeFileSnapshot(Directory rootDir, Iterable<File> files) {
+    final rootPath = p.normalize(p.absolute(rootDir.path));
+    final seen = <String>{};
+    final snapshot = <File>[];
 
-    await for (final entity
-        in rootDir.list(recursive: true, followLinks: false)) {
-      if (_shouldCancel) break;
-
-      if (entity is File) {
-        // 跳过缩略图
-        if (entity.path.contains(
-              '${Platform.pathSeparator}.thumbs${Platform.pathSeparator}',
-            ) ||
-            entity.path.contains('.thumb.')) {
-          continue;
-        }
-
-        final ext = p.extension(entity.path).toLowerCase();
-        if (supportedExtensions.contains(ext)) {
-          count++;
-        }
+    for (final file in files) {
+      final absolutePath = p.normalize(p.absolute(file.path));
+      final pathKey = Platform.isWindows
+          ? absolutePath.toLowerCase()
+          : absolutePath;
+      if (!p.isWithin(rootPath, absolutePath) ||
+          !_scanConfig.acceptsGalleryImagePath(absolutePath) ||
+          !seen.add(pathKey)) {
+        continue;
       }
+      snapshot.add(File(absolutePath));
     }
 
-    return count;
+    return List<File>.unmodifiable(snapshot);
+  }
+
+  List<File> _prioritizeSnapshot(
+    List<File> snapshot,
+    List<String> priorityPaths,
+  ) {
+    if (snapshot.isEmpty || priorityPaths.isEmpty) return snapshot;
+
+    String pathKey(String path) {
+      final normalized = p.normalize(p.absolute(path));
+      return Platform.isWindows ? normalized.toLowerCase() : normalized;
+    }
+
+    final byPath = <String, File>{
+      for (final file in snapshot) pathKey(file.path): file,
+    };
+    final emitted = <String>{};
+    final ordered = <File>[];
+
+    for (final priorityPath in priorityPaths) {
+      final key = pathKey(priorityPath);
+      final file = byPath[key];
+      if (file != null && emitted.add(key)) ordered.add(file);
+    }
+    for (final file in snapshot) {
+      final key = pathKey(file.path);
+      if (emitted.add(key)) ordered.add(file);
+    }
+
+    return List<File>.unmodifiable(ordered);
   }
 
   /// 转换阶段到 ScanPhase
@@ -810,28 +827,29 @@ List<String> buildRetryPriorityPaths(
   required bool retryMissingMetadata,
   required bool retryFailedMetadata,
 }) {
-  final candidates = existingMap.entries.where((entry) {
-    final status = entry.value.$4;
-    return (retryMissingMetadata && status == MetadataStatus.none) ||
-        (retryFailedMetadata && status == MetadataStatus.failed);
-  }).toList()
-    ..sort((a, b) {
-      final aScannedAt = a.value.$5;
-      final bScannedAt = b.value.$5;
+  final candidates =
+      existingMap.entries.where((entry) {
+        final status = entry.value.$4;
+        return status == MetadataStatus.transientFailure ||
+            (retryMissingMetadata && status == MetadataStatus.none) ||
+            (retryFailedMetadata && status == MetadataStatus.failed);
+      }).toList()..sort((a, b) {
+        final aScannedAt = a.value.$5;
+        final bScannedAt = b.value.$5;
 
-      if (aScannedAt == null && bScannedAt == null) {
+        if (aScannedAt == null && bScannedAt == null) {
+          return a.key.compareTo(b.key);
+        }
+        if (aScannedAt == null) return -1;
+        if (bScannedAt == null) return 1;
+
+        final compare = aScannedAt.compareTo(bScannedAt);
+        if (compare != 0) {
+          return compare;
+        }
+
         return a.key.compareTo(b.key);
-      }
-      if (aScannedAt == null) return -1;
-      if (bScannedAt == null) return 1;
-
-      final compare = aScannedAt.compareTo(bScannedAt);
-      if (compare != 0) {
-        return compare;
-      }
-
-      return a.key.compareTo(b.key);
-    });
+      });
 
   return candidates.map((entry) => entry.key).toList(growable: false);
 }
