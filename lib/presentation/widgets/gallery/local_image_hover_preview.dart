@@ -1,10 +1,11 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:image/image.dart' as img;
 
+import '../../../core/cache/local_gallery_thumbnail_provider.dart';
 import '../../../core/utils/byte_format.dart';
 import '../../../data/models/gallery/local_image_record.dart';
 import '../../../data/models/gallery/nai_image_metadata.dart';
@@ -127,7 +128,7 @@ class LocalImageHoverPreviewCard extends StatefulWidget {
 
 class _LocalImageHoverPreviewCardState
     extends State<LocalImageHoverPreviewCard> {
-  ImageProvider? _imageProvider;
+  LocalGalleryThumbnailProvider? _imageProvider;
   int? _resolvedWidth;
   int? _resolvedHeight;
   double? _devicePixelRatio;
@@ -178,7 +179,10 @@ class _LocalImageHoverPreviewCardState
   @override
   void didUpdateWidget(covariant LocalImageHoverPreviewCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.record.path != widget.record.path) {
+    if (oldWidget.record.path != widget.record.path ||
+        oldWidget.record.size != widget.record.size ||
+        oldWidget.record.modifiedAt != widget.record.modifiedAt) {
+      _cancelPendingImage();
       _resolvedWidth = null;
       _resolvedHeight = null;
       _metadata = widget.record.metadata?.upgradeFromRawJsonIfNeeded();
@@ -189,12 +193,32 @@ class _LocalImageHoverPreviewCardState
   }
 
   void _prepareImageProvider(double pixelRatio) {
-    final targetWidth = math.max(1, (widget.maxWidth * pixelRatio).round());
-    _imageProvider = ResizeImage.resizeIfNeeded(
-      targetWidth,
-      null,
-      FileImage(File(widget.record.path)),
+    _cancelPendingImage();
+    final target = LocalGalleryThumbnailTarget.fromLogicalSize(
+      logicalWidth: widget.maxWidth,
+      logicalHeight: widget.maxHeight,
+      devicePixelRatio: pixelRatio,
     );
+    final provider = LocalGalleryThumbnailProvider(
+      source: LocalGallerySourceIdentity.fromRecord(
+        path: widget.record.path,
+        size: widget.record.size,
+        modifiedAt: widget.record.modifiedAt,
+      ),
+      target: target,
+      fit: LocalGalleryThumbnailFit.contain,
+    );
+    LocalGalleryThumbnailMemoryCache.instance.register(provider);
+    _imageProvider = provider;
+  }
+
+  void _cancelPendingImage() {
+    final provider = _imageProvider;
+    if (provider != null) {
+      unawaited(
+        LocalGalleryThumbnailMemoryCache.instance.cancelPending(provider),
+      );
+    }
   }
 
   Future<void> _loadMetadata() async {
@@ -215,14 +239,19 @@ class _LocalImageHoverPreviewCardState
     try {
       final file = File(path);
       if (!await file.exists()) return;
-      final bytes = await file.readAsBytes();
-      final decoder = img.findDecoderForData(bytes);
-      final info = decoder?.startDecode(bytes);
-      if (!mounted || requestId != _dimensionRequestId || info == null) return;
-      setState(() {
-        _resolvedWidth = info.width;
-        _resolvedHeight = info.height;
-      });
+      final buffer = await ui.ImmutableBuffer.fromFilePath(path);
+      ui.ImageDescriptor? descriptor;
+      try {
+        descriptor = await ui.ImageDescriptor.encoded(buffer);
+        if (!mounted || requestId != _dimensionRequestId) return;
+        setState(() {
+          _resolvedWidth = descriptor!.width;
+          _resolvedHeight = descriptor.height;
+        });
+      } finally {
+        descriptor?.dispose();
+        buffer.dispose();
+      }
     } catch (_) {
       // The image itself still reports a useful load error in the preview.
     }
@@ -254,6 +283,7 @@ class _LocalImageHoverPreviewCardState
         (naturalHeight > maxImageHeight ? widthForFullHeight : contentMaxWidth)
             .clamp(math.min(220, contentMaxWidth), contentMaxWidth)
             .toDouble();
+    final imageProvider = _imageProvider;
 
     return Material(
       color: Colors.transparent,
@@ -299,20 +329,35 @@ class _LocalImageHoverPreviewCardState
                 height: imageHeight,
                 child: ColoredBox(
                   color: theme.colorScheme.surfaceContainerLowest,
-                  child: _imageProvider == null
+                  child: imageProvider == null
                       ? const Center(child: CircularProgressIndicator())
                       : Image(
-                          image: _imageProvider!,
+                          image: imageProvider,
                           fit: BoxFit.contain,
                           filterQuality: FilterQuality.high,
                           gaplessPlayback: true,
-                          errorBuilder: (_, __, ___) => Center(
-                            child: Icon(
-                              Icons.broken_image_outlined,
-                              color: theme.colorScheme.onSurfaceVariant,
-                              size: 36,
-                            ),
-                          ),
+                          frameBuilder:
+                              (context, child, frame, wasSynchronouslyLoaded) {
+                                if (wasSynchronouslyLoaded || frame != null) {
+                                  LocalGalleryThumbnailMemoryCache.instance
+                                      .releasePendingOwner(imageProvider);
+                                  return child;
+                                }
+                                return const Center(
+                                  child: CircularProgressIndicator(),
+                                );
+                              },
+                          errorBuilder: (_, __, ___) {
+                            LocalGalleryThumbnailMemoryCache.instance
+                                .releasePendingOwner(imageProvider);
+                            return Center(
+                              child: Icon(
+                                Icons.broken_image_outlined,
+                                color: theme.colorScheme.onSurfaceVariant,
+                                size: 36,
+                              ),
+                            );
+                          },
                         ),
                 ),
               ),
@@ -414,6 +459,7 @@ class _LocalImageHoverPreviewCardState
   void dispose() {
     _dimensionRequestId++;
     _metadataRequestId++;
+    _cancelPendingImage();
     super.dispose();
   }
 }

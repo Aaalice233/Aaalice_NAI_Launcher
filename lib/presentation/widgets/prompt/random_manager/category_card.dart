@@ -2,17 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/utils/localization_extension.dart';
-import '../../../providers/random_preset_provider.dart';
 import '../../../../data/models/prompt/random_category.dart';
-import '../../../../data/models/prompt/random_tag_group.dart';
-import '../../common/elevated_card.dart';
-import '../../common/themed_confirm_dialog.dart';
+import '../../../../data/models/prompt/tag_scope.dart';
+import '../../../providers/random_preset_provider.dart';
 import 'add_tag_group_dialog.dart';
-import 'category_card_widgets.dart';
 import 'random_config_l10n.dart';
 import 'tag_group_card.dart';
 
-// 导出拆分的组件，方便外部使用
 export 'add_tag_group_dialog.dart' show AddTagGroupDialog;
 export 'category_card_list.dart' show CategoryCardList, CategoryCardGrid;
 export 'category_card_widgets.dart'
@@ -24,10 +20,6 @@ export 'category_card_widgets.dart'
         EmptyCategoryPlaceholder,
         CategoryStats;
 
-/// 类别卡片组件
-///
-/// 显示类别信息，支持展开/收起内部的词组卡片
-/// 采用 Dimensional Layering 风格设计
 class CategoryCard extends ConsumerStatefulWidget {
   const CategoryCard({
     super.key,
@@ -48,251 +40,72 @@ class CategoryCard extends ConsumerStatefulWidget {
 
 class _CategoryCardState extends ConsumerState<CategoryCard>
     with SingleTickerProviderStateMixin {
-  bool _isExpanded = false;
-
-  /// 当前正在拖拽的词组（用于显示垃圾桶区域）
-  RandomTagGroup? _draggingGroup;
+  bool _expanded = false;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
     final category = widget.category;
-
-    return Opacity(
-      opacity: category.enabled ? 1.0 : 0.5,
-      child: ElevatedCard(
-        elevation: _isExpanded ? CardElevation.level2 : CardElevation.level1,
-        hoverElevation: CardElevation.level2,
-        enableHoverEffect: category.enabled,
-        hoverTranslateY: -3,
-        borderRadius: 8,
-        gradientBorder: category.enabled && _isExpanded
-            ? LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  colorScheme.primary.withValues(alpha: 0.6),
-                  colorScheme.secondary.withValues(alpha: 0.4),
-                ],
-              )
-            : null,
-        gradientBorderWidth: 1.5,
-        onTap: () => setState(() => _isExpanded = !_isExpanded),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHeader(context, category),
-            AnimatedCrossFade(
-              duration: const Duration(milliseconds: 250),
-              crossFadeState: _isExpanded
-                  ? CrossFadeState.showSecond
-                  : CrossFadeState.showFirst,
-              firstChild: const SizedBox.shrink(),
-              secondChild: _buildExpandedContent(context, category),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeader(BuildContext context, RandomCategory category) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final l10n = context.l10n;
+    final colors = theme.colorScheme;
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
 
-    return Padding(
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 第一行：emoji + 名称 + 作用域开关 + 启用开关
-          Row(
-            children: [
-              if (category.emoji.isNotEmpty)
-                Text(category.emoji, style: const TextStyle(fontSize: 18)),
-              if (category.emoji.isNotEmpty) const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  l10n.randomCategoryName(category),
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    decoration: category.enabled
-                        ? null
-                        : TextDecoration.lineThrough,
-                    color: category.enabled
-                        ? null
-                        : colorScheme.onSurfaceVariant,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              // 作用域三选项开关
-              SizedBox(
-                width: 220,
-                child: ScopeTripleSwitch(
-                  scope: category.scope,
-                  enabled: !widget.isPresetDefault,
-                  onChanged: (scope) {
-                    _updateCategory(category.copyWith(scope: scope));
-                  },
-                ),
-              ),
-              const SizedBox(width: 8),
-              // 启用开关
-              SizedBox(
-                height: 28,
-                child: FittedBox(
-                  fit: BoxFit.contain,
-                  child: Switch(
-                    value: category.enabled,
-                    onChanged: widget.isPresetDefault
-                        ? null
-                        : (value) {
-                            _updateCategory(category.copyWith(enabled: value));
-                          },
-                  ),
-                ),
-              ),
-            ],
+    return Semantics(
+      container: true,
+      expanded: _expanded,
+      enabled: category.enabled,
+      label: context.l10n.randomCategoryName(category),
+      child: AnimatedOpacity(
+        opacity: category.enabled ? 1 : 0.56,
+        duration: reduceMotion
+            ? Duration.zero
+            : const Duration(milliseconds: 140),
+        child: Container(
+          decoration: BoxDecoration(
+            color: _expanded
+                ? colors.surfaceContainer
+                : colors.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(12),
           ),
-          const SizedBox(height: 8),
-          // 第二行：概率滑条 + 词组数量
-          Row(
-            children: [
-              Expanded(
-                child: ColorfulProbabilitySlider(
-                  probability: category.probability,
-                  enabled: category.enabled,
-                  interactive: !widget.isPresetDefault,
-                  onChanged: (value) {
-                    _updateCategory(category.copyWith(probability: value));
-                  },
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                l10n.randomManager_tagGroupCount(
-                  category.groupCount.toString(),
-                ),
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Icon(
-                _isExpanded
-                    ? Icons.keyboard_arrow_up
-                    : Icons.keyboard_arrow_down,
-                size: 20,
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildExpandedContent(BuildContext context, RandomCategory category) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final l10n = context.l10n;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Divider(
-          height: 1,
-          color: colorScheme.outlineVariant.withValues(alpha: 0.3),
-        ),
-        Padding(
-          padding: const EdgeInsets.all(12),
+          clipBehavior: Clip.antiAlias,
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                l10n.randomManager_tagGroupList,
-                style: theme.textTheme.labelLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+              _CategoryHeader(
+                category: category,
+                expanded: _expanded,
+                readOnly: widget.isPresetDefault,
+                onToggleExpanded: () => setState(() => _expanded = !_expanded),
+                onToggleEnabled: (enabled) =>
+                    _updateCategory(category.copyWith(enabled: enabled)),
               ),
-              const SizedBox(height: 8),
-              if (category.groups.isEmpty)
-                AddTagGroupCard(
-                  onTap: () => _addTagGroup(context),
-                  enabled: !widget.isPresetDefault,
-                )
-              else
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    ...category.groups.map((group) {
-                      // 判断该词组是否可删除：默认预设中的内置词组不可删除
-                      final canDelete =
-                          !(widget.isPresetDefault && group.isBuiltin);
-
-                      final card = TagGroupCard(
-                        tagGroup: group,
-                        categoryId: category.id,
-                        categoryKey: category.key,
+              AnimatedSize(
+                duration: reduceMotion
+                    ? Duration.zero
+                    : const Duration(milliseconds: 180),
+                curve: Curves.easeOutCubic,
+                alignment: Alignment.topCenter,
+                child: _expanded
+                    ? _CategoryEditor(
+                        category: category,
                         presetId: widget.presetId,
-                        isPresetDefault: widget.isPresetDefault,
-                      );
-
-                      // 可删除的词组可以拖拽
-                      if (canDelete) {
-                        return Draggable<_DragData>(
-                          data: _DragData(
-                            group: group,
-                            categoryKey: category.key,
-                          ),
-                          onDragStarted: () {
-                            setState(() => _draggingGroup = group);
-                          },
-                          onDragEnd: (_) {
-                            setState(() => _draggingGroup = null);
-                          },
-                          feedback: Material(
-                            elevation: 8,
-                            borderRadius: BorderRadius.circular(8),
-                            child: Opacity(opacity: 0.9, child: card),
-                          ),
-                          childWhenDragging: Opacity(opacity: 0.3, child: card),
-                          child: card,
-                        );
-                      }
-                      return card;
-                    }),
-                    // 拖拽时显示垃圾桶区域
-                    if (_draggingGroup != null)
-                      _TrashDropZone(
-                        onAccept: (data) =>
-                            _showDeleteConfirmDialog(context, data),
+                        readOnly: widget.isPresetDefault,
+                        onCategoryChanged: _updateCategory,
+                        onAddGroup: () => _addTagGroup(context),
                       )
-                    else
-                      AddTagGroupCard(
-                        onTap: () => _addTagGroup(context),
-                        enabled: !widget.isPresetDefault,
-                      ),
-                  ],
-                ),
+                    : const SizedBox(width: double.infinity),
+              ),
             ],
           ),
         ),
-      ],
+      ),
     );
   }
 
-  void _updateCategory(RandomCategory updatedCategory) {
-    final notifier = ref.read(randomPresetNotifierProvider.notifier);
-    notifier.updateCategory(updatedCategory);
+  void _updateCategory(RandomCategory category) {
+    ref.read(randomPresetNotifierProvider.notifier).updateCategory(category);
   }
 
   void _addTagGroup(BuildContext context) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AddTagGroupDialog(
         category: widget.category,
@@ -300,147 +113,322 @@ class _CategoryCardState extends ConsumerState<CategoryCard>
       ),
     );
   }
-
-  /// 显示删除确认对话框
-  void _showDeleteConfirmDialog(BuildContext context, _DragData data) async {
-    final confirmed = await ThemedConfirmDialog.show(
-      context: context,
-      title: context.l10n.randomManager_deleteTagGroupTitle,
-      content: context.l10n.randomManager_deleteTagGroupConfirm(
-        context.l10n.randomTagGroupName(data.group),
-      ),
-      confirmText: context.l10n.common_delete,
-      cancelText: context.l10n.common_cancel,
-      type: ThemedConfirmDialogType.danger,
-      icon: Icons.delete_outline,
-    );
-
-    if (confirmed) {
-      ref
-          .read(randomPresetNotifierProvider.notifier)
-          .removeGroupFromCategory(data.categoryKey, data.group.id);
-    }
-  }
 }
 
-/// 拖拽数据
-class _DragData {
-  final RandomTagGroup group;
-  final String categoryKey;
+class _CategoryHeader extends StatelessWidget {
+  const _CategoryHeader({
+    required this.category,
+    required this.expanded,
+    required this.readOnly,
+    required this.onToggleExpanded,
+    required this.onToggleEnabled,
+  });
 
-  _DragData({required this.group, required this.categoryKey});
-}
-
-/// 垃圾桶拖放区域
-class _TrashDropZone extends StatefulWidget {
-  const _TrashDropZone({required this.onAccept});
-
-  final void Function(_DragData data) onAccept;
-
-  @override
-  State<_TrashDropZone> createState() => _TrashDropZoneState();
-}
-
-class _TrashDropZoneState extends State<_TrashDropZone>
-    with SingleTickerProviderStateMixin {
-  bool _isHovering = false;
-  late AnimationController _animationController;
-  late Animation<double> _scaleAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 200),
-      vsync: this,
-    );
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.1).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic),
-    );
-  }
-
-  @override
-  void dispose() {
-    _animationController.dispose();
-    super.dispose();
-  }
+  final RandomCategory category;
+  final bool expanded;
+  final bool readOnly;
+  final VoidCallback onToggleExpanded;
+  final ValueChanged<bool> onToggleEnabled;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final colors = theme.colorScheme;
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final percentage = (category.probability * 100).round();
 
-    return DragTarget<_DragData>(
-      onWillAcceptWithDetails: (details) {
-        setState(() => _isHovering = true);
-        _animationController.forward();
-        return true;
-      },
-      onLeave: (_) {
-        setState(() => _isHovering = false);
-        _animationController.reverse();
-      },
-      onAcceptWithDetails: (details) {
-        setState(() => _isHovering = false);
-        _animationController.reverse();
-        widget.onAccept(details.data);
-      },
-      builder: (context, candidateData, rejectedData) {
-        return ScaleTransition(
-          scale: _scaleAnimation,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            width: 135,
-            height: 80,
-            decoration: BoxDecoration(
-              color: _isHovering
-                  ? colorScheme.errorContainer
-                  : colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: _isHovering
-                    ? colorScheme.error
-                    : colorScheme.outline.withValues(alpha: 0.3),
-                width: _isHovering ? 2 : 1,
-                strokeAlign: BorderSide.strokeAlignInside,
-              ),
-              boxShadow: _isHovering
-                  ? [
-                      BoxShadow(
-                        color: colorScheme.error.withValues(alpha: 0.3),
-                        blurRadius: 12,
-                        spreadRadius: 2,
-                      ),
-                    ]
-                  : null,
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onToggleExpanded,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 66),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            child: Row(
               children: [
                 Icon(
-                  _isHovering ? Icons.delete_forever : Icons.delete_outline,
-                  size: _isHovering ? 32 : 28,
-                  color: _isHovering
-                      ? colorScheme.error
-                      : colorScheme.onSurfaceVariant,
+                  _categoryIcon(category.key),
+                  size: 20,
+                  color: category.enabled
+                      ? colors.primary
+                      : colors.onSurfaceVariant,
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  _isHovering
-                      ? context.l10n.randomManager_releaseToDelete
-                      : context.l10n.randomManager_dragHereToDelete,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: _isHovering
-                        ? colorScheme.error
-                        : colorScheme.onSurfaceVariant,
-                    fontWeight: _isHovering ? FontWeight.bold : null,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        context.l10n.randomCategoryName(category),
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        '${context.l10n.randomManager_tagGroupCount(category.groupCount.toString())} · $percentage%',
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colors.onSurfaceVariant,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (readOnly)
+                  Tooltip(
+                    message: context.l10n.randomManager_readOnlyTooltip,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Icon(
+                        Icons.lock_outline_rounded,
+                        size: 16,
+                        color: colors.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                Switch(
+                  value: category.enabled,
+                  onChanged: readOnly ? null : onToggleEnabled,
+                ),
+                const SizedBox(width: 2),
+                AnimatedRotation(
+                  duration: reduceMotion
+                      ? Duration.zero
+                      : const Duration(milliseconds: 160),
+                  curve: Curves.easeOutCubic,
+                  turns: expanded ? 0.5 : 0,
+                  child: Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    color: colors.onSurfaceVariant,
                   ),
                 ),
               ],
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
+}
+
+class _CategoryEditor extends StatelessWidget {
+  const _CategoryEditor({
+    required this.category,
+    required this.presetId,
+    required this.readOnly,
+    required this.onCategoryChanged,
+    required this.onAddGroup,
+  });
+
+  final RandomCategory category;
+  final String presetId;
+  final bool readOnly;
+  final ValueChanged<RandomCategory> onCategoryChanged;
+  final VoidCallback onAddGroup;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Divider(
+            height: 1,
+            color: colors.outlineVariant.withValues(alpha: 0.18),
+          ),
+          const SizedBox(height: 14),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final scope = _ScopeSelector(
+                value: category.scope,
+                enabled: !readOnly && category.enabled,
+                onChanged: (value) =>
+                    onCategoryChanged(category.copyWith(scope: value)),
+              );
+              final probability = _ProbabilityEditor(
+                value: category.probability,
+                enabled: !readOnly && category.enabled,
+                onChanged: (value) =>
+                    onCategoryChanged(category.copyWith(probability: value)),
+              );
+              if (constraints.maxWidth >= 620) {
+                return Row(
+                  children: [
+                    scope,
+                    const SizedBox(width: 20),
+                    Expanded(child: probability),
+                  ],
+                );
+              }
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Align(alignment: Alignment.centerLeft, child: scope),
+                  const SizedBox(height: 10),
+                  probability,
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Text(
+                context.l10n.randomManager_tagGroupList,
+                style: Theme.of(
+                  context,
+                ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
+              ),
+              const Spacer(),
+              if (!readOnly)
+                TextButton.icon(
+                  onPressed: onAddGroup,
+                  icon: const Icon(Icons.add_rounded, size: 18),
+                  label: Text(context.l10n.randomManager_addTagGroup),
+                ),
+            ],
+          ),
+          if (category.groups.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              child: Text(
+                context.l10n.randomManager_noCategoriesHint,
+                style: TextStyle(color: colors.onSurfaceVariant),
+              ),
+            )
+          else
+            ...category.groups.map(
+              (group) => Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: TagGroupCard(
+                  tagGroup: group,
+                  categoryId: category.id,
+                  categoryKey: category.key,
+                  presetId: presetId,
+                  isPresetDefault: readOnly,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ScopeSelector extends StatelessWidget {
+  const _ScopeSelector({
+    required this.value,
+    required this.enabled,
+    required this.onChanged,
+  });
+
+  final TagScope value;
+  final bool enabled;
+  final ValueChanged<TagScope> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return SegmentedButton<TagScope>(
+      segments: [
+        ButtonSegment(
+          value: TagScope.all,
+          label: Text(context.l10n.scope_all),
+          icon: const Icon(Icons.layers_outlined, size: 16),
+        ),
+        ButtonSegment(
+          value: TagScope.global,
+          label: Text(context.l10n.randomManager_global),
+          icon: const Icon(Icons.public_rounded, size: 16),
+        ),
+        ButtonSegment(
+          value: TagScope.character,
+          label: Text(context.l10n.scope_character),
+          icon: const Icon(Icons.person_outline_rounded, size: 16),
+        ),
+      ],
+      selected: {value},
+      showSelectedIcon: false,
+      onSelectionChanged: enabled
+          ? (selection) => onChanged(selection.first)
+          : null,
+      style: const ButtonStyle(
+        visualDensity: VisualDensity(horizontal: -2, vertical: -2),
+      ),
+    );
+  }
+}
+
+class _ProbabilityEditor extends StatelessWidget {
+  const _ProbabilityEditor({
+    required this.value,
+    required this.enabled,
+    required this.onChanged,
+  });
+
+  final double value;
+  final bool enabled;
+  final ValueChanged<double> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    return Row(
+      children: [
+        Text(
+          context.l10n.randomManager_probability,
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: colors.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Slider(
+            value: value.clamp(0, 1),
+            divisions: 20,
+            onChanged: enabled ? onChanged : null,
+          ),
+        ),
+        SizedBox(
+          width: 42,
+          child: Text(
+            '${(value * 100).round()}%',
+            textAlign: TextAlign.end,
+            style: theme.textTheme.labelMedium?.copyWith(
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+IconData _categoryIcon(String key) {
+  return switch (key) {
+    'hairColor' => Icons.palette_outlined,
+    'eyeColor' => Icons.visibility_outlined,
+    'hairStyle' => Icons.content_cut_rounded,
+    'expression' => Icons.sentiment_satisfied_alt_outlined,
+    'pose' => Icons.accessibility_new_rounded,
+    'clothing' => Icons.checkroom_outlined,
+    'bodyFeature' => Icons.person_outline_rounded,
+    'accessory' => Icons.diamond_outlined,
+    'style' => Icons.brush_outlined,
+    'background' => Icons.landscape_outlined,
+    'scene' => Icons.location_on_outlined,
+    'composition' => Icons.photo_camera_outlined,
+    'prop' => Icons.inventory_2_outlined,
+    'effect' => Icons.auto_awesome_outlined,
+    'year' => Icons.calendar_month_outlined,
+    'detail' => Icons.casino_outlined,
+    _ => Icons.category_outlined,
+  };
 }

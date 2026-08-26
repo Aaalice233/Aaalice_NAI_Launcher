@@ -172,12 +172,6 @@ class _FixedTagsDialogState extends ConsumerState<FixedTagsDialog> {
                   ? theme.colorScheme.surface.withValues(alpha: 0.85)
                   : theme.colorScheme.surface.withValues(alpha: 0.92),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: isDark
-                    ? Colors.white.withValues(alpha: 0.08)
-                    : Colors.black.withValues(alpha: 0.06),
-                width: 1,
-              ),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.15),
@@ -201,7 +195,8 @@ class _FixedTagsDialogState extends ConsumerState<FixedTagsDialog> {
 
                 // 列表区域
                 Flexible(
-                  child: entries.isEmpty
+                  child:
+                      entries.isEmpty && !fixedTagsState.negativePanelExpanded
                       ? _buildEmptyState(theme, isDark)
                       : _buildListBody(theme, fixedTagsState, isDark),
                 ),
@@ -1048,7 +1043,7 @@ class _FixedTagsDialogState extends ConsumerState<FixedTagsDialog> {
 
     showDialog(
       context: context,
-      builder: (ctx) => _LibraryPickerDialog(
+      builder: (ctx) => FixedTagLibraryPickerDialog(
         entries: entries,
         onSelect: (entry) => _addFromLibrary(entry, promptType),
       ),
@@ -1144,17 +1139,23 @@ class _FixedTagsDialogState extends ConsumerState<FixedTagsDialog> {
 }
 
 /// 词库选择对话框
-class _LibraryPickerDialog extends StatefulWidget {
+class FixedTagLibraryPickerDialog extends StatefulWidget {
+  const FixedTagLibraryPickerDialog({
+    super.key,
+    required this.entries,
+    required this.onSelect,
+  });
+
   final List<TagLibraryEntry> entries;
   final ValueChanged<TagLibraryEntry> onSelect;
 
-  const _LibraryPickerDialog({required this.entries, required this.onSelect});
-
   @override
-  State<_LibraryPickerDialog> createState() => _LibraryPickerDialogState();
+  State<FixedTagLibraryPickerDialog> createState() =>
+      _FixedTagLibraryPickerDialogState();
 }
 
-class _LibraryPickerDialogState extends State<_LibraryPickerDialog> {
+class _FixedTagLibraryPickerDialogState
+    extends State<FixedTagLibraryPickerDialog> {
   String _searchQuery = '';
   final _searchController = TextEditingController();
 
@@ -1251,12 +1252,18 @@ class _LibraryPickerDialogState extends State<_LibraryPickerDialog> {
                       itemCount: filtered.length,
                       itemBuilder: (context, index) {
                         final entry = filtered[index];
-                        return _LibraryEntryTile(
+                        final tile = _LibraryEntryTile(
+                          key: ValueKey('fixed-tag-library-entry-${entry.id}'),
                           entry: entry,
                           onTap: () {
                             widget.onSelect(entry);
                             Navigator.of(context).pop();
                           },
+                        );
+                        if (!entry.hasThumbnail) return tile;
+                        return TagLibraryEntryHoverPreview(
+                          entry: entry,
+                          child: tile,
                         );
                       },
                     ),
@@ -1271,10 +1278,14 @@ class _LibraryPickerDialogState extends State<_LibraryPickerDialog> {
 
 /// 词库条目选项
 class _LibraryEntryTile extends StatelessWidget {
+  const _LibraryEntryTile({
+    super.key,
+    required this.entry,
+    required this.onTap,
+  });
+
   final TagLibraryEntry entry;
   final VoidCallback onTap;
-
-  const _LibraryEntryTile({required this.entry, required this.onTap});
 
   @override
   Widget build(BuildContext context) {

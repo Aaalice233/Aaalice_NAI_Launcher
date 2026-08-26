@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
@@ -252,6 +253,138 @@ void main() {
       expect(result.deliveredTargets, ['Art', 'Showcase']);
       expect(result.isPartial, isFalse);
     },
+  );
+
+  test('uses Retry-After from a relay 429 response', () async {
+    when(
+      () => dio.post<Map<String, dynamic>>(
+        '/v1/share',
+        data: any(named: 'data'),
+        options: any(named: 'options'),
+      ),
+    ).thenAnswer(
+      (_) async => Response(
+        requestOptions: RequestOptions(path: '/v1/share'),
+        statusCode: 429,
+        headers: Headers.fromMap({
+          'retry-after': ['12.5'],
+        }),
+        data: const {
+          'code': 'rate_limited',
+          'message': 'Wait before sharing again.',
+          'retry_after_seconds': 60,
+        },
+      ),
+    );
+
+    await expectLater(
+      _share(service),
+      throwsA(
+        isA<DiscordShareException>()
+            .having((error) => error.status, 'status', 429)
+            .having(
+              (error) => error.retryAfter,
+              'retryAfter',
+              const Duration(milliseconds: 12500),
+            ),
+      ),
+    );
+  });
+
+  test(
+    'rejects a concurrent share without a duplicate relay request',
+    () async {
+      final response = Completer<Response<Map<String, dynamic>>>();
+      when(
+        () => dio.post<Map<String, dynamic>>(
+          '/v1/share',
+          data: any(named: 'data'),
+          options: any(named: 'options'),
+        ),
+      ).thenAnswer((_) => response.future);
+
+      final first = _share(service);
+      final duplicate = _share(service);
+      await expectLater(
+        duplicate,
+        throwsA(
+          isA<DiscordShareException>().having(
+            (error) => error.code,
+            'code',
+            'share_in_progress',
+          ),
+        ),
+      );
+
+      response.complete(
+        Response(
+          requestOptions: RequestOptions(path: '/v1/share'),
+          statusCode: 200,
+          data: const {
+            'delivered_targets': <Map<String, dynamic>>[],
+            'failed_targets': <Map<String, dynamic>>[],
+          },
+        ),
+      );
+      await first;
+
+      verify(
+        () => dio.post<Map<String, dynamic>>(
+          '/v1/share',
+          data: any(named: 'data'),
+          options: any(named: 'options'),
+        ),
+      ).called(1);
+    },
+  );
+
+  test('releases the concurrent-share guard after a failed request', () async {
+    var attempts = 0;
+    when(
+      () => dio.post<Map<String, dynamic>>(
+        '/v1/share',
+        data: any(named: 'data'),
+        options: any(named: 'options'),
+      ),
+    ).thenAnswer((invocation) async {
+      attempts++;
+      if (attempts == 1) {
+        throw DioException(
+          requestOptions: RequestOptions(path: '/v1/share'),
+          type: DioExceptionType.connectionError,
+          error: 'offline',
+        );
+      }
+      return Response(
+        requestOptions: RequestOptions(path: '/v1/share'),
+        statusCode: 200,
+        data: const {
+          'delivered_targets': <Map<String, dynamic>>[],
+          'failed_targets': <Map<String, dynamic>>[],
+        },
+      );
+    });
+
+    await expectLater(_share(service), throwsA(isA<DiscordShareException>()));
+    await expectLater(_share(service), completes);
+    expect(attempts, 2);
+  });
+}
+
+Future<DiscordShareResult> _share(DiscordShareService service) {
+  return service.share(
+    session: _session,
+    image: SanitizedShareImage(
+      bytes: Uint8List.fromList([1, 2, 3]),
+      fileName: 'result.png',
+      mimeType: 'image/png',
+    ),
+    targetIds: const {'showcase'},
+    prompt: 'scene',
+    caption: '',
+    width: 832,
+    height: 1216,
+    longPromptAsFile: true,
   );
 }
 

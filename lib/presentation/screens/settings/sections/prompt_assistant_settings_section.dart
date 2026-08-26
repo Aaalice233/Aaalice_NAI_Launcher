@@ -36,11 +36,11 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
             subtitle: Text(context.l10n.promptAssistant_desktopOverlaySubtitle),
             onChanged: notifier.setDesktopOverlayEnabled,
           ),
-          const Divider(),
+          const SizedBox(height: 24),
           _buildRouting(context, state, notifier),
-          const Divider(),
+          const SizedBox(height: 24),
           _buildProviders(context, ref, state, notifier),
-          const Divider(),
+          const SizedBox(height: 24),
           _buildRules(context, state, notifier),
         ],
       ),
@@ -122,23 +122,19 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
       taskType: taskType,
     );
     final modelItems = models
-        .map(
-          (m) => DropdownMenuItem(
-            value: m.name,
-            child: Text(m.displayName),
-          ),
-        )
+        .map((m) => DropdownMenuItem(value: m.name, child: Text(m.displayName)))
         .toList();
     final hasRealModel = models.any(
       (m) => m.name.trim().isNotEmpty && m.name.trim() != 'default-model',
     );
-    final useCurrentModel = models.any((m) => m.name == modelName) &&
+    final useCurrentModel =
+        models.any((m) => m.name == modelName) &&
         !(modelName.trim() == 'default-model' && hasRealModel);
     final modelValue = useCurrentModel
         ? modelName
         : models.isNotEmpty
-            ? models.first.name
-            : null;
+        ? models.first.name
+        : null;
 
     return _buildTaskRouteCard(
       context: context,
@@ -201,43 +197,45 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
     required List<DropdownMenuItem<String>> modelItems,
     required ValueChanged<String?>? onModelChanged,
   }) {
-    return Card(
+    final colors = Theme.of(context).colorScheme;
+    return Container(
       margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-      elevation: 0,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              context.l10n.promptAssistant_taskRouteTitle(title),
-              style: Theme.of(context).textTheme.titleMedium,
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            context.l10n.promptAssistant_taskRouteTitle(title),
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<String>(
+            initialValue: providerValue,
+            isExpanded: true,
+            items: providerItems,
+            onChanged: onProviderChanged,
+            decoration: InputDecoration(
+              labelText: context.l10n.promptAssistant_provider,
+              isDense: true,
             ),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<String>(
-              initialValue: providerValue,
-              isExpanded: true,
-              items: providerItems,
-              onChanged: onProviderChanged,
-              decoration: InputDecoration(
-                labelText: context.l10n.promptAssistant_provider,
-                isDense: true,
-              ),
+          ),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<String>(
+            initialValue: modelValue,
+            isExpanded: true,
+            hint: Text(context.l10n.promptAssistant_noModelsPullFirst),
+            items: modelItems,
+            onChanged: onModelChanged,
+            decoration: InputDecoration(
+              labelText: context.l10n.promptAssistant_model,
+              isDense: true,
             ),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<String>(
-              initialValue: modelValue,
-              isExpanded: true,
-              hint: Text(context.l10n.promptAssistant_noModelsPullFirst),
-              items: modelItems,
-              onChanged: onModelChanged,
-              decoration: InputDecoration(
-                labelText: context.l10n.promptAssistant_model,
-                isDense: true,
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -252,8 +250,9 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
       children: [
         ListTile(
           title: Text(context.l10n.promptAssistant_providerManagement),
-          subtitle:
-              Text(context.l10n.promptAssistant_providerManagementSubtitle),
+          subtitle: Text(
+            context.l10n.promptAssistant_providerManagementSubtitle,
+          ),
           trailing: IconButton(
             icon: const Icon(Icons.add),
             onPressed: () => _showProviderDialog(context, notifier, state),
@@ -295,7 +294,8 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
                           hasApiKey
                               ? context.l10n.promptAssistant_apiKeyConfigured
                               : context
-                                  .l10n.promptAssistant_apiKeyNotConfigured,
+                                    .l10n
+                                    .promptAssistant_apiKeyNotConfigured,
                           provider.allowImageInput
                               ? context.l10n.promptAssistant_supportsImageInput
                               : context.l10n.promptAssistant_textOnly,
@@ -307,8 +307,10 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
                 ),
                 const SizedBox(width: 8),
                 ConstrainedBox(
-                  constraints:
-                      const BoxConstraints(minWidth: 240, maxWidth: 360),
+                  constraints: const BoxConstraints(
+                    minWidth: 240,
+                    maxWidth: 360,
+                  ),
                   child: Align(
                     alignment: Alignment.centerRight,
                     child: Wrap(
@@ -328,10 +330,7 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
                             context.l10n.promptAssistant_connectionConfig,
                           ),
                         ),
-                        Icon(
-                          hasApiKey ? Icons.key : Icons.key_off,
-                          size: 18,
-                        ),
+                        Icon(hasApiKey ? Icons.key : Icons.key_off, size: 18),
                         IconButton(
                           icon: const Icon(Icons.download_for_offline_outlined),
                           tooltip: context.l10n.promptAssistant_pullModelList,
@@ -394,16 +393,12 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
 
       messenger?.showSnackBar(
         SnackBar(
-          content: Text(
-            l10n.promptAssistant_modelsSynced(modelNames.length),
-          ),
+          content: Text(l10n.promptAssistant_modelsSynced(modelNames.length)),
         ),
       );
     } catch (e) {
       messenger?.showSnackBar(
-        SnackBar(
-          content: Text(l10n.promptAssistant_pullModelsFailed('$e')),
-        ),
+        SnackBar(content: Text(l10n.promptAssistant_pullModelsFailed('$e'))),
       );
     }
   }
@@ -461,12 +456,13 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
     final nameController = TextEditingController(text: provider?.name ?? '');
     final baseController = TextEditingController(text: provider?.baseUrl ?? '');
     final keyController = TextEditingController();
-    var preset = provider?.preset ??
+    var preset =
+        provider?.preset ??
         (provider == null
             ? ProviderPreset.openaiChat
             : provider.protocol == ProviderProtocol.openaiResponses
-                ? ProviderPreset.openaiCompatibleResponses
-                : ProviderPreset.openaiCompatibleChat);
+            ? ProviderPreset.openaiCompatibleResponses
+            : ProviderPreset.openaiCompatibleChat);
     var allowImageInput =
         provider?.allowImageInput ?? preset.defaultAllowImageInput;
 
@@ -581,7 +577,8 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
     final resolvedName = nameController.text.trim().isEmpty
         ? preset.defaultName
         : nameController.text.trim();
-    final resolvedId = provider?.id ??
+    final resolvedId =
+        provider?.id ??
         _uniqueProviderId(
           state,
           _providerIdFromName(resolvedName, fallback: preset.defaultId),
@@ -609,8 +606,9 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
       );
       if (!hasModel) {
         final defaultModels = next.preset?.defaultModelNames ?? const [];
-        final modelName =
-            defaultModels.isNotEmpty ? defaultModels.first : 'default-model';
+        final modelName = defaultModels.isNotEmpty
+            ? defaultModels.first
+            : 'default-model';
         await notifier.upsertModel(
           ModelConfig(
             providerId: resolvedId,
@@ -629,8 +627,9 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
       return baseId;
     }
     var index = 2;
-    while (
-        state.providers.any((provider) => provider.id == '${baseId}_$index')) {
+    while (state.providers.any(
+      (provider) => provider.id == '${baseId}_$index',
+    )) {
       index++;
     }
     return '${baseId}_$index';
@@ -689,8 +688,9 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
                     CheckboxListTile(
                       value: clearApiKey,
                       contentPadding: EdgeInsets.zero,
-                      title:
-                          Text(context.l10n.promptAssistant_clearCurrentApiKey),
+                      title: Text(
+                        context.l10n.promptAssistant_clearCurrentApiKey,
+                      ),
                       onChanged: (value) {
                         setState(() => clearApiKey = value ?? false);
                       },
@@ -701,10 +701,12 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
                       title: Text(context.l10n.promptAssistant_allowImageInput),
                       subtitle: Text(
                         provider.protocol.supportsImagePayload
-                            ? context.l10n
-                                .promptAssistant_protocolSupportsImagePayload
+                            ? context
+                                  .l10n
+                                  .promptAssistant_protocolSupportsImagePayload
                             : context
-                                .l10n.promptAssistant_protocolTextOnlyWarning,
+                                  .l10n
+                                  .promptAssistant_protocolTextOnlyWarning,
                       ),
                       onChanged: (value) {
                         setState(() => allowImageInput = value);

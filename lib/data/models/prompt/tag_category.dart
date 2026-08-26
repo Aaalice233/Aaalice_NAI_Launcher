@@ -85,14 +85,59 @@ enum TagSubCategory {
   /// 注意: duo 和 trio 是 Danbooru 已废弃的标签
   characterCount,
 
+  /// 特殊眼睛、瞳孔与巩膜
+  eyeFeature,
+
+  /// 发长
+  hairLength,
+
+  /// 发质
+  hairTexture,
+
+  /// 刘海与侧发
+  bangs,
+
+  /// 相机视角
+  camera,
+
+  /// 画面景别
+  framing,
+
+  /// 画面焦点
+  focus,
+
+  /// 肤色
+  skinTone,
+
+  /// 物种
+  species,
+
+  /// 帽子与头部覆盖物
+  headwear,
+
+  /// 发饰
+  hairAccessory,
+
+  /// 道具
+  prop,
+
+  /// 画面特效
+  effect,
+
+  /// 年代标签
+  year,
+
+  /// 完整描述性 catalog 创意细节池
+  detail,
+
   /// 其他
   other,
 }
 
 /// 标签子分类工具类
 ///
-/// 注意：预定义标签列表已迁移到 assets/data/nai_official_tags.json
-/// 使用 NaiTagsDataSource 加载
+/// 仅保留分类辅助规则；随机候选由 RandomTagLibraryDataSource
+/// 从完整离线 catalog 按版本化 taxonomy 加载。
 class TagSubCategoryHelper {
   /// 发色关键词（用于 classifyTag 方法判断）
   ///
@@ -252,6 +297,21 @@ class TagSubCategoryHelper {
         TagSubCategory.bodyFeatureGeneral => '通用体型',
         TagSubCategory.accessory => '配饰',
         TagSubCategory.characterCount => '人数',
+        TagSubCategory.eyeFeature => '眼睛特征',
+        TagSubCategory.hairLength => '发长',
+        TagSubCategory.hairTexture => '发质',
+        TagSubCategory.bangs => '刘海',
+        TagSubCategory.camera => '视角',
+        TagSubCategory.framing => '构图',
+        TagSubCategory.focus => '焦点',
+        TagSubCategory.skinTone => '肤色',
+        TagSubCategory.species => '物种',
+        TagSubCategory.headwear => '帽子',
+        TagSubCategory.hairAccessory => '发饰',
+        TagSubCategory.prop => '道具',
+        TagSubCategory.effect => '特效',
+        TagSubCategory.year => '年代',
+        TagSubCategory.detail => '创意细节',
         TagSubCategory.other => '其他',
       };
     }
@@ -274,6 +334,21 @@ class TagSubCategoryHelper {
       TagSubCategory.bodyFeatureGeneral => 'General Body',
       TagSubCategory.accessory => 'Accessory',
       TagSubCategory.characterCount => 'Character Count',
+      TagSubCategory.eyeFeature => 'Eye Feature',
+      TagSubCategory.hairLength => 'Hair Length',
+      TagSubCategory.hairTexture => 'Hair Texture',
+      TagSubCategory.bangs => 'Bangs',
+      TagSubCategory.camera => 'Camera Angle',
+      TagSubCategory.framing => 'Framing',
+      TagSubCategory.focus => 'Focus',
+      TagSubCategory.skinTone => 'Skin Tone',
+      TagSubCategory.species => 'Species',
+      TagSubCategory.headwear => 'Headwear',
+      TagSubCategory.hairAccessory => 'Hair Accessory',
+      TagSubCategory.prop => 'Prop',
+      TagSubCategory.effect => 'Effect',
+      TagSubCategory.year => 'Year',
+      TagSubCategory.detail => 'Creative Detail',
       TagSubCategory.other => 'Other',
     };
   }

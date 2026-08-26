@@ -37,7 +37,7 @@ class RandomPreset with _$RandomPreset {
     @Default(false) bool isBasedOnDefault,
 
     /// 数据版本
-    @Default(2) int version,
+    @Default(4) int version,
 
     /// 算法配置
     @Default(AlgorithmConfig()) AlgorithmConfig algorithmConfig,
@@ -77,7 +77,7 @@ class RandomPreset with _$RandomPreset {
       id: const Uuid().v4(),
       name: name,
       description: description,
-      version: 2,
+      version: 4,
       algorithmConfig: algorithmConfig ?? const AlgorithmConfig(),
       categories: categories ?? [],
       createdAt: now,
@@ -85,18 +85,16 @@ class RandomPreset with _$RandomPreset {
     );
   }
 
-  /// 创建默认预设（NAI 官网配置）
+  /// 创建离线 catalog 默认预设
   ///
   /// [version] 词库版本，默认为 V4
-  factory RandomPreset.defaultPreset({
-    WordlistType version = WordlistType.v4,
-  }) {
+  factory RandomPreset.defaultPreset({WordlistType version = WordlistType.v4}) {
     return RandomPreset(
       id: 'default',
       name: _getDefaultPresetName(version),
       description: _getDefaultPresetDescription(version),
       isDefault: true,
-      version: 2,
+      version: 4,
       algorithmConfig: _getDefaultAlgorithmConfig(version),
       categories: DefaultCategories.createDefaultForVersion(version),
       tagGroupMappings: DefaultTagGroupMappings.createDefaultMappings(),
@@ -109,11 +107,11 @@ class RandomPreset with _$RandomPreset {
   static String _getDefaultPresetName(WordlistType version) {
     switch (version) {
       case WordlistType.v4:
-        return '默认模式 (V4)';
+        return '通用随机 (V4+)';
       case WordlistType.legacy:
-        return '默认模式 (Legacy)';
+        return '通用随机 (Legacy)';
       case WordlistType.furry:
-        return '默认模式 (Furry)';
+        return '通用随机 (Furry)';
     }
   }
 
@@ -121,17 +119,17 @@ class RandomPreset with _$RandomPreset {
   static String _getDefaultPresetDescription(WordlistType version) {
     switch (version) {
       case WordlistType.v4:
-        return '基于 NAI V4 模型的随机算法配置，支持多角色';
+        return '使用完整离线标签 catalog，支持多角色提示词';
       case WordlistType.legacy:
-        return '基于 NAI Legacy 模型的随机算法配置';
+        return '使用完整离线标签 catalog 的单提示词配置';
       case WordlistType.furry:
-        return '基于 NAI Furry 模型的随机算法配置';
+        return '使用完整离线标签 catalog 的 Furry 配置';
     }
   }
 
   /// 获取默认算法配置
   static AlgorithmConfig _getDefaultAlgorithmConfig(WordlistType version) {
-    // NAI 官方概率配置
+    // 通用默认概率配置
     // 角色数量: 1人70%, 2人20%, 3人7%, 4人3%
     // 性别: female 60%, male 30%, other 10%
     // 强调概率: 2%
@@ -142,11 +140,7 @@ class RandomPreset with _$RandomPreset {
         [3, 7],
         [4, 3],
       ],
-      genderWeights: const {
-        'male': 30,
-        'female': 60,
-        'other': 10,
-      },
+      genderWeights: const {'male': 30, 'female': 60, 'other': 10},
       globalEmphasisProbability: 0.02,
       globalEmphasisBracketCount: 1,
       enableSeasonalWordlists: true,
@@ -163,7 +157,7 @@ class RandomPreset with _$RandomPreset {
       name: name,
       description: source.description,
       isDefault: false,
-      version: 2,
+      version: source.version,
       algorithmConfig: source.algorithmConfig,
       categoryProbabilities: source.categoryProbabilities,
       categories: source.categories.map((c) => c.deepCopy()).toList(),
@@ -232,26 +226,17 @@ class RandomPreset with _$RandomPreset {
 
   /// 更新算法配置
   RandomPreset updateAlgorithmConfig(AlgorithmConfig config) {
-    return copyWith(
-      algorithmConfig: config,
-      updatedAt: DateTime.now(),
-    );
+    return copyWith(algorithmConfig: config, updatedAt: DateTime.now());
   }
 
   /// 更新类别概率配置
   RandomPreset updateCategoryProbabilities(CategoryProbabilityConfig config) {
-    return copyWith(
-      categoryProbabilities: config,
-      updatedAt: DateTime.now(),
-    );
+    return copyWith(categoryProbabilities: config, updatedAt: DateTime.now());
   }
 
   /// 更新类别列表
   RandomPreset updateCategories(List<RandomCategory> newCategories) {
-    return copyWith(
-      categories: newCategories,
-      updatedAt: DateTime.now(),
-    );
+    return copyWith(categories: newCategories, updatedAt: DateTime.now());
   }
 
   /// 添加类别
@@ -285,10 +270,7 @@ class RandomPreset with _$RandomPreset {
 
     final newCategories = [...categories];
     newCategories[index] = updatedCategory;
-    return copyWith(
-      categories: newCategories,
-      updatedAt: DateTime.now(),
-    );
+    return copyWith(categories: newCategories, updatedAt: DateTime.now());
   }
 
   /// 按 key 更新或添加类别
@@ -302,10 +284,7 @@ class RandomPreset with _$RandomPreset {
     // 存在则更新
     final newCategories = [...categories];
     newCategories[index] = category;
-    return copyWith(
-      categories: newCategories,
-      updatedAt: DateTime.now(),
-    );
+    return copyWith(categories: newCategories, updatedAt: DateTime.now());
   }
 
   /// 通过ID查找类别
@@ -337,8 +316,9 @@ class RandomPreset with _$RandomPreset {
   /// 删除 Tag Group 映射
   RandomPreset removeTagGroupMapping(String mappingId) {
     return copyWith(
-      tagGroupMappings:
-          tagGroupMappings.where((m) => m.id != mappingId).toList(),
+      tagGroupMappings: tagGroupMappings
+          .where((m) => m.id != mappingId)
+          .toList(),
       updatedAt: DateTime.now(),
     );
   }
@@ -350,10 +330,7 @@ class RandomPreset with _$RandomPreset {
 
     final newMappings = [...tagGroupMappings];
     newMappings[index] = updatedMapping;
-    return copyWith(
-      tagGroupMappings: newMappings,
-      updatedAt: DateTime.now(),
-    );
+    return copyWith(tagGroupMappings: newMappings, updatedAt: DateTime.now());
   }
 
   /// 切换 Tag Group 映射启用状态
@@ -364,10 +341,7 @@ class RandomPreset with _$RandomPreset {
     final mapping = tagGroupMappings[index];
     final newMappings = [...tagGroupMappings];
     newMappings[index] = mapping.copyWith(enabled: !mapping.enabled);
-    return copyWith(
-      tagGroupMappings: newMappings,
-      updatedAt: DateTime.now(),
-    );
+    return copyWith(tagGroupMappings: newMappings, updatedAt: DateTime.now());
   }
 
   /// 通过ID查找 Tag Group 映射
@@ -403,10 +377,7 @@ class RandomPreset with _$RandomPreset {
 
     final newMappings = [...poolMappings];
     newMappings[index] = updatedMapping;
-    return copyWith(
-      poolMappings: newMappings,
-      updatedAt: DateTime.now(),
-    );
+    return copyWith(poolMappings: newMappings, updatedAt: DateTime.now());
   }
 
   /// 切换 Pool 映射启用状态
@@ -417,10 +388,7 @@ class RandomPreset with _$RandomPreset {
     final mapping = poolMappings[index];
     final newMappings = [...poolMappings];
     newMappings[index] = mapping.copyWith(enabled: !mapping.enabled);
-    return copyWith(
-      poolMappings: newMappings,
-      updatedAt: DateTime.now(),
-    );
+    return copyWith(poolMappings: newMappings, updatedAt: DateTime.now());
   }
 
   /// 通过ID查找 Pool 映射

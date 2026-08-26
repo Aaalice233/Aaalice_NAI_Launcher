@@ -6,12 +6,10 @@
 ///
 /// ## Architecture
 ///
-/// The modular theme system consists of 6 core modules:
+/// The modular theme system consists of 4 effective modules:
 /// - [ColorSchemeModule] - Color palette and scheme
 /// - [TypographyModule] - Font families and text styles
 /// - [ShapeModule] - Border radius and shape definitions
-/// - [ShadowModule] - Elevation and shadow styles
-/// - [EffectModule] - Special effects (glassmorphism, neon, textures)
 /// - [MotionModule] - Animation durations and curves
 ///
 /// These modules can be freely combined using [ThemeComposer] to create
@@ -134,106 +132,6 @@ abstract class ShapeModule {
 
   /// Shape for menu/popup components.
   ShapeBorder get menuShape;
-}
-
-// ============================================
-// Shadow Module
-// ============================================
-
-/// Defines the shadow/elevation styles for a theme.
-///
-/// Provides shadow definitions at different elevation levels.
-/// For flat design themes, these can be empty lists.
-///
-/// Example:
-/// ```dart
-/// class FlatShadowModule implements ShadowModule {
-///   @override
-///   List<BoxShadow> get elevation1 => []; // No shadow
-/// }
-///
-/// class SoftShadowModule implements ShadowModule {
-///   @override
-///   List<BoxShadow> get elevation1 => [
-///     BoxShadow(color: Colors.black12, blurRadius: 4),
-///   ];
-/// }
-/// ```
-abstract class ShadowModule {
-  /// Low elevation shadow (subtle).
-  List<BoxShadow> get elevation1;
-
-  /// Medium elevation shadow (standard).
-  List<BoxShadow> get elevation2;
-
-  /// High elevation shadow (prominent).
-  List<BoxShadow> get elevation3;
-
-  /// Shadow specifically for card components.
-  List<BoxShadow> get cardShadow;
-}
-
-// ============================================
-// Effect Module
-// ============================================
-
-/// Defines special visual effects for a theme.
-///
-/// Controls effects like glassmorphism, neon glow, and texture overlays.
-///
-/// Example:
-/// ```dart
-/// class GlassEffectModule implements EffectModule {
-///   @override
-///   bool get enableGlassmorphism => true;
-///   @override
-///   double get blurStrength => 12.0;
-/// }
-/// ```
-abstract class EffectModule {
-  /// Whether glassmorphism (frosted glass) effect is enabled.
-  bool get enableGlassmorphism;
-
-  /// Whether neon glow effect is enabled.
-  bool get enableNeonGlow;
-
-  /// The type of texture overlay to apply.
-  TextureType get textureType;
-
-  /// The color of the glow effect (for neon themes).
-  Color? get glowColor;
-
-  /// The blur strength for glassmorphism effect.
-  double get blurStrength;
-
-  /// Whether inset shadow effect is enabled for input areas.
-  /// Creates a "sunken" or "carved" appearance for text input fields.
-  bool get enableInsetShadow;
-
-  /// The depth/intensity of the inset shadow (0.0-1.0).
-  /// Higher values create more pronounced depth effect.
-  double get insetShadowDepth;
-
-  /// The blur radius for the inset shadow effect.
-  double get insetShadowBlur;
-}
-
-/// Types of texture overlays that can be applied to a theme.
-enum TextureType {
-  /// No texture overlay.
-  none,
-
-  /// Paper grain texture (random dots for paper-like appearance).
-  paperGrain,
-
-  /// Dot matrix texture (regular grid of dots).
-  dotMatrix,
-
-  /// Halftone texture (gradient-sized dots like print media).
-  halftone,
-
-  /// Grunge texture (irregular noise for distressed look).
-  grunge,
 }
 
 // ============================================

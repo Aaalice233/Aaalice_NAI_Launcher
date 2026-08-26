@@ -1,41 +1,11 @@
 import 'package:flutter/material.dart';
+
 import '../shortcuts/shortcut_tooltip.dart';
 
-/// Compact icon button with optional label for toolbars
-/// 工具栏紧凑图标按钮（可带标签）
-class CompactIconButton extends StatefulWidget {
-  /// Icon to display
-  /// 显示的图标
-  final IconData icon;
-
-  /// Optional label text
-  /// 可选的标签文本
-  final String? label;
-
-  /// Tooltip text (defaults to label if not provided)
-  /// 提示文本（未提供时默认使用标签）
-  final String? tooltip;
-
-  /// Callback when button is pressed
-  /// 按钮点击回调
-  final VoidCallback? onPressed;
-
-  /// Whether the button is in active state
-  /// 按钮是否处于激活状态
-  final bool isActive;
-
-  /// Whether to use danger color scheme
-  /// 是否使用危险颜色方案
-  final bool isDanger;
-
-  /// Whether the button is in loading state
-  /// 按钮是否处于加载状态
-  final bool isLoading;
-
-  /// Shortcut ID for displaying keyboard shortcut in tooltip
-  /// 快捷键ID（用于在提示中显示键盘快捷键）
-  final String? shortcutId;
-
+/// 工具栏紧凑操作。
+///
+/// 默认态不绘制完整边框；激活、危险、悬停和键盘焦点通过语义色面表达。
+class CompactIconButton extends StatelessWidget {
   const CompactIconButton({
     super.key,
     required this.icon,
@@ -48,111 +18,109 @@ class CompactIconButton extends StatefulWidget {
     this.shortcutId,
   });
 
-  @override
-  State<CompactIconButton> createState() => _CompactIconButtonState();
-}
-
-class _CompactIconButtonState extends State<CompactIconButton> {
-  bool _isHovered = false;
+  final IconData icon;
+  final String? label;
+  final String? tooltip;
+  final VoidCallback? onPressed;
+  final bool isActive;
+  final bool isDanger;
+  final bool isLoading;
+  final String? shortcutId;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final isEnabled = widget.onPressed != null && !widget.isLoading;
-    final hasLabel = widget.label != null && widget.label!.isNotEmpty;
+    final colorScheme = theme.colorScheme;
+    final message = tooltip ?? label;
+    final enabled = onPressed != null && !isLoading;
+    final hasLabel = label?.isNotEmpty ?? false;
 
-    Color iconColor;
-    Color bgColor;
-    Color borderColor;
-
-    if (widget.isDanger) {
-      iconColor = theme.colorScheme.error;
-      bgColor = _isHovered
-          ? theme.colorScheme.error.withValues(alpha: isDark ? 0.2 : 0.12)
-          : theme.colorScheme.error.withValues(alpha: isDark ? 0.08 : 0.04);
-      borderColor =
-          theme.colorScheme.error.withValues(alpha: isDark ? 0.3 : 0.2);
-    } else if (widget.isActive) {
-      iconColor = theme.colorScheme.primary;
-      bgColor = _isHovered
-          ? theme.colorScheme.primary.withValues(alpha: isDark ? 0.25 : 0.15)
-          : theme.colorScheme.primary.withValues(alpha: isDark ? 0.15 : 0.08);
-      borderColor =
-          theme.colorScheme.primary.withValues(alpha: isDark ? 0.4 : 0.25);
-    } else {
-      iconColor = isEnabled
-          ? theme.colorScheme.onSurfaceVariant
-          : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.4);
-      bgColor = _isHovered
-          ? theme.colorScheme.onSurfaceVariant
-              .withValues(alpha: isDark ? 0.15 : 0.1)
-          : theme.colorScheme.onSurfaceVariant
-              .withValues(alpha: isDark ? 0.06 : 0.03);
-      borderColor = theme.colorScheme.outlineVariant
-          .withValues(alpha: isDark ? 0.3 : 0.4);
+    Color foreground(Set<WidgetState> states) {
+      if (states.contains(WidgetState.disabled)) {
+        return colorScheme.onSurface.withValues(alpha: 0.38);
+      }
+      if (isDanger) return colorScheme.error;
+      if (isActive) return colorScheme.onPrimaryContainer;
+      return colorScheme.onSurfaceVariant;
     }
 
-    final buttonContent = MouseRegion(
-      onEnter: isEnabled ? (_) => setState(() => _isHovered = true) : null,
-      onExit: isEnabled ? (_) => setState(() => _isHovered = false) : null,
-      cursor: isEnabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
-      child: GestureDetector(
-        onTap: widget.onPressed,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          padding: EdgeInsets.symmetric(
-            horizontal: hasLabel ? 10 : 6,
-            vertical: 6,
-          ),
-          decoration: BoxDecoration(
-            color: bgColor,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: borderColor, width: 1),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (widget.isLoading)
-                SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(iconColor),
-                  ),
-                )
-              else
-                Icon(widget.icon, size: 18, color: iconColor),
-              if (hasLabel) ...[
-                const SizedBox(width: 6),
-                Text(
-                  widget.label!,
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: iconColor,
-                    fontWeight: _isHovered ? FontWeight.w600 : FontWeight.w500,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
+    Color background(Set<WidgetState> states) {
+      if (states.contains(WidgetState.disabled)) return Colors.transparent;
+      if (isActive) {
+        return states.contains(WidgetState.hovered) ||
+                states.contains(WidgetState.focused) ||
+                states.contains(WidgetState.pressed)
+            ? colorScheme.primaryContainer
+            : colorScheme.primaryContainer.withValues(alpha: 0.72);
+      }
+      if (isDanger) {
+        return states.contains(WidgetState.hovered) ||
+                states.contains(WidgetState.focused) ||
+                states.contains(WidgetState.pressed)
+            ? colorScheme.errorContainer
+            : Colors.transparent;
+      }
+      if (states.contains(WidgetState.pressed)) {
+        return colorScheme.surfaceContainerHighest;
+      }
+      if (states.contains(WidgetState.hovered) ||
+          states.contains(WidgetState.focused)) {
+        return colorScheme.surfaceContainerHigh;
+      }
+      return Colors.transparent;
+    }
+
+    final style = ButtonStyle(
+      foregroundColor: WidgetStateProperty.resolveWith(foreground),
+      backgroundColor: WidgetStateProperty.resolveWith(background),
+      overlayColor: const WidgetStatePropertyAll(Colors.transparent),
+      side: const WidgetStatePropertyAll(BorderSide.none),
+      elevation: const WidgetStatePropertyAll(0),
+      minimumSize: WidgetStatePropertyAll(Size(hasLabel ? 0 : 40, 36)),
+      padding: WidgetStatePropertyAll(
+        EdgeInsets.symmetric(horizontal: hasLabel ? 10 : 8, vertical: 6),
+      ),
+      tapTargetSize: MaterialTapTargetSize.padded,
+      visualDensity: VisualDensity.compact,
+      shape: WidgetStatePropertyAll(
+        RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
     );
 
-    // 如果提供了shortcutId，使用ShortcutTooltip包装
-    if (widget.shortcutId != null) {
-      return ShortcutTooltip(
-        message: widget.tooltip ?? widget.label ?? '',
-        shortcutId: widget.shortcutId,
-        child: buttonContent,
+    final iconWidget = isLoading
+        ? const SizedBox.square(
+            dimension: 18,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          )
+        : Icon(icon, size: 18);
+
+    Widget button;
+    if (hasLabel) {
+      button = TextButton.icon(
+        onPressed: enabled ? onPressed : null,
+        style: style,
+        icon: iconWidget,
+        label: Text(label!),
+      );
+    } else {
+      button = IconButton(
+        onPressed: enabled ? onPressed : null,
+        style: style,
+        icon: iconWidget,
+        tooltip: shortcutId == null ? message : null,
       );
     }
 
-    // 否则使用普通Tooltip
-    return Tooltip(
-      message: widget.tooltip ?? widget.label ?? '',
-      child: buttonContent,
-    );
+    if (shortcutId != null) {
+      button = ShortcutTooltip(
+        message: message ?? '',
+        shortcutId: shortcutId,
+        child: button,
+      );
+    } else if (hasLabel && message != null && message != label) {
+      button = Tooltip(message: message, child: button);
+    }
+
+    return button;
   }
 }

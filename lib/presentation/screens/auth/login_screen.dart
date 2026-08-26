@@ -607,12 +607,6 @@ class _AccountSwitcherSkeleton extends StatelessWidget {
       constraints: BoxConstraints(maxWidth: isWideScreen ? 550 : 420),
       child: Card(
         elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(
-            color: theme.colorScheme.outline.withValues(alpha: 0.2),
-          ),
-        ),
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: isWideScreen ? _buildWideLayout() : _buildMobileLayout(),
@@ -711,12 +705,6 @@ class _QuickLoginView extends ConsumerWidget {
       constraints: BoxConstraints(maxWidth: isWideScreen ? 550 : 420),
       child: Card(
         elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(
-            color: theme.colorScheme.outline.withValues(alpha: 0.2),
-          ),
-        ),
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: isWideScreen

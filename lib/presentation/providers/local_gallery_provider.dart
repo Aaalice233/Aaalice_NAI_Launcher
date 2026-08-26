@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import '../../core/cache/thumbnail_cache_service.dart';
 import '../../core/cache/gallery_cache_manager.dart';
 import '../../core/exceptions/gallery_exceptions.dart';
 import '../../core/utils/app_logger.dart';
@@ -16,7 +15,6 @@ import '../../data/services/gallery/gallery_filter_service.dart';
 import '../../data/services/gallery/gallery_stream_scanner.dart';
 import '../../data/services/gallery/scan_state_manager.dart';
 import '../../data/services/gallery/unified_gallery_service.dart';
-import '../../data/services/thumbnail_service.dart';
 import '../../l10n/app_localizations.dart';
 
 part 'local_gallery_provider.freezed.dart';
@@ -402,12 +400,6 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
           isPageLoading: false,
         ),
       );
-      _preloadAdjacentPageThumbnails(
-        service,
-        normalizedPage,
-        state.pageSize,
-        totalPages,
-      );
     } on GalleryNotInitializedException {
       _setState(
         state.copyWith(
@@ -439,42 +431,6 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       AppLogger.e('Failed to load page $page', e, null, 'LocalGalleryNotifier');
       _setState(state.copyWith(isLoading: false, isPageLoading: false));
     }
-  }
-
-  void _preloadAdjacentPageThumbnails(
-    LocalGalleryService service,
-    int page,
-    int pageSize,
-    int totalPages,
-  ) {
-    final pagesToPreload = <int>{
-      if (page + 1 < totalPages) page + 1,
-      if (page > 0) page - 1,
-    };
-    if (pagesToPreload.isEmpty) return;
-
-    unawaited(
-      () async {
-        final thumbnailService = ThumbnailService.instance;
-        await thumbnailService.initialize();
-
-        for (final targetPage in pagesToPreload) {
-          final records = await service.getPage(targetPage, pageSize: pageSize);
-          for (final record in records) {
-            thumbnailService.preloadThumbnail(
-              record.path,
-              size: ThumbnailSize.small,
-              priority: ThumbnailPriority.low,
-            );
-          }
-        }
-      }().catchError((Object error, StackTrace stack) {
-        AppLogger.w(
-          'Adjacent thumbnail preload failed: $error',
-          'LocalGalleryNotifier',
-        );
-      }),
-    );
   }
 
   /// 加载下一页

@@ -16,7 +16,6 @@ import '../../core/utils/hive_storage_helper.dart';
 import '../../data/repositories/collection_repository.dart';
 import '../../data/services/gallery/scan_state_manager.dart';
 import '../../data/services/image_metadata_service.dart';
-import '../../data/services/thumbnail_service.dart';
 import '../../data/services/vibe_library_migration_service.dart';
 
 /// 可替换的启动关键任务边界，便于验证 Splash 与真实初始化的时序。
@@ -146,7 +145,6 @@ final startupInitializationTasksProvider = Provider<StartupInitializationTasks>(
             hivePath: hivePath,
           ),
           ImageMetadataService().initialize(),
-          ThumbnailService.instance.initialize(),
           ScanStateManager.instance.initialize(),
           ShortcutStorage().init(),
         ]);

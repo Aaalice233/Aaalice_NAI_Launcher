@@ -11,6 +11,8 @@ import '../gelbooru_api_service.dart';
 import 'gallery_source_adapter.dart';
 
 class GelbooruGallerySourceAdapter implements GallerySourceAdapter {
+  static const int _publicHtmlPageSize = 42;
+
   GelbooruGallerySourceAdapter({
     required Dio dio,
     required GelbooruApiService apiService,
@@ -108,7 +110,7 @@ class GelbooruGallerySourceAdapter implements GallerySourceAdapter {
           'page': 'post',
           's': 'list',
           'tags': _formatTags(tags),
-          'pid': (page - 1) * 42,
+          'pid': (page - 1) * _publicHtmlPageSize,
         },
         options: Options(
           headers: {
@@ -136,7 +138,13 @@ class GelbooruGallerySourceAdapter implements GallerySourceAdapter {
         }
       }
       final parsed = parseGelbooruHtmlPosts(response.data?.toString() ?? '');
-      return _pageFromItems(parsed, parsed.length, page, request);
+      return _pageFromItems(
+        parsed,
+        parsed.length,
+        page,
+        request,
+        pageCapacity: _publicHtmlPageSize,
+      );
     } on DioException catch (error) {
       if (error.type == DioExceptionType.cancel) rethrow;
       throw mapGalleryDioException(error, sourceId);
@@ -147,8 +155,9 @@ class GelbooruGallerySourceAdapter implements GallerySourceAdapter {
     List<GalleryItem> items,
     int rawCount,
     int page,
-    GallerySearchRequest request,
-  ) {
+    GallerySearchRequest request, {
+    int? pageCapacity,
+  }) {
     final filtered = items
         .where((item) {
           if (request.ratings.length < 4 &&
@@ -162,13 +171,14 @@ class GelbooruGallerySourceAdapter implements GallerySourceAdapter {
           );
         })
         .toList(growable: false);
-    final hasMore = rawCount >= request.pageSize;
+    final hasMore = rawCount >= (pageCapacity ?? request.pageSize);
     return GalleryPage(
       items: filtered,
       cursor: request.cursor,
       nextCursor: hasMore ? '${page + 1}' : null,
       hasMore: hasMore,
       rawItemCount: rawCount,
+      rawPageIdentity: items.map((item) => item.stableKey).join(','),
     );
   }
 

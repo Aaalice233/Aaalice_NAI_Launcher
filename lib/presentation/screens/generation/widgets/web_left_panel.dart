@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 import '../../../../core/constants/api_constants.dart';
+import '../../../providers/generation/generation_panel_expansion_provider.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/layout_state_provider.dart';
 import '../../../widgets/character/inline_character_section.dart';
@@ -38,7 +41,7 @@ class WebLeftPanel extends ConsumerStatefulWidget {
 
 class _WebLeftPanelState extends ConsumerState<WebLeftPanel>
     with SingleTickerProviderStateMixin {
-  /// 参数二级菜单是否挂载（动画收起完毕后卸载，瞬态不持久化）
+  /// 参数二级菜单是否挂载（动画收起完毕后卸载）。
   bool _paramsMenuMounted = false;
 
   late final AnimationController _menuController = AnimationController(
@@ -58,12 +61,27 @@ class _WebLeftPanelState extends ConsumerState<WebLeftPanel>
   @override
   void initState() {
     super.initState();
+    final restored = ref
+        .read(generationPanelExpansionProvider)
+        .isExpanded(GenerationWorkbenchPanel.generationParameters);
+    _paramsMenuMounted = restored;
+    _menuController.value = restored ? 1 : 0;
     // 收起动画播完再卸载浮层
     _menuController.addStatusListener((status) {
       if (status == AnimationStatus.dismissed && mounted) {
         setState(() => _paramsMenuMounted = false);
       }
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final duration = MediaQuery.disableAnimationsOf(context)
+        ? Duration.zero
+        : const Duration(milliseconds: 220);
+    _menuController.duration = duration;
+    _menuController.reverseDuration = duration;
   }
 
   @override
@@ -74,18 +92,28 @@ class _WebLeftPanelState extends ConsumerState<WebLeftPanel>
   }
 
   void _toggleParamsMenu() {
-    final opening = _menuController.status == AnimationStatus.dismissed ||
+    final opening =
+        _menuController.status == AnimationStatus.dismissed ||
         _menuController.status == AnimationStatus.reverse;
-    if (opening) {
+    _setParamsMenuExpanded(opening);
+  }
+
+  void _closeParamsMenu() => _setParamsMenuExpanded(false);
+
+  void _setParamsMenuExpanded(bool expanded) {
+    if (expanded && !_paramsMenuMounted) {
       setState(() => _paramsMenuMounted = true);
+    }
+    if (expanded) {
       _menuController.forward();
     } else {
       _menuController.reverse();
     }
-  }
-
-  void _closeParamsMenu() {
-    _menuController.reverse();
+    unawaited(
+      ref
+          .read(generationPanelExpansionProvider.notifier)
+          .setExpanded(GenerationWorkbenchPanel.generationParameters, expanded),
+    );
   }
 
   @override
@@ -98,9 +126,7 @@ class _WebLeftPanelState extends ConsumerState<WebLeftPanel>
         : 40.0;
     final decoration = BoxDecoration(
       color: theme.colorScheme.surface,
-      border: Border(
-        right: BorderSide(color: theme.dividerColor, width: 1),
-      ),
+      border: Border(right: BorderSide(color: theme.dividerColor, width: 1)),
     );
 
     final child = layoutState.webLeftPanelExpanded
@@ -248,8 +274,9 @@ class _WebLeftPanelState extends ConsumerState<WebLeftPanel>
                                   border: Border(
                                     top: BorderSide(color: theme.dividerColor),
                                     left: BorderSide(color: theme.dividerColor),
-                                    right:
-                                        BorderSide(color: theme.dividerColor),
+                                    right: BorderSide(
+                                      color: theme.dividerColor,
+                                    ),
                                   ),
                                 ),
                                 child: const SingleChildScrollView(
@@ -315,8 +342,10 @@ class _WebLeftPanelState extends ConsumerState<WebLeftPanel>
                   const SizedBox(width: 4),
                   // 箭头随抽屉开合旋转（收起朝上提示拉出方向）
                   RotationTransition(
-                    turns: Tween<double>(begin: 0, end: 0.5)
-                        .animate(_menuAnimation),
+                    turns: Tween<double>(
+                      begin: 0,
+                      end: 0.5,
+                    ).animate(_menuAnimation),
                     child: const Icon(Icons.keyboard_arrow_up, size: 20),
                   ),
                 ],

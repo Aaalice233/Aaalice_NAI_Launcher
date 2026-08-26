@@ -2,16 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/prompt/random_prompt_result.dart';
 import '../../../../data/services/random_prompt_generator.dart';
-import '../../../../core/utils/localization_extension.dart';
 import '../../../providers/random_preset_provider.dart';
-import '../../common/elevated_card.dart';
 import '../../common/app_toast.dart';
 
-/// 预览生成面板组件
-///
-/// 用于快速预览随机标签生成结果
 class PreviewGeneratorPanel extends ConsumerStatefulWidget {
   const PreviewGeneratorPanel({super.key});
 
@@ -20,218 +16,192 @@ class PreviewGeneratorPanel extends ConsumerStatefulWidget {
       _PreviewGeneratorPanelState();
 }
 
-class _PreviewGeneratorPanelState extends ConsumerState<PreviewGeneratorPanel>
-    with SingleTickerProviderStateMixin {
+class _PreviewGeneratorPanelState extends ConsumerState<PreviewGeneratorPanel> {
   RandomPromptResult? _result;
   bool _isGenerating = false;
   String? _error;
-  late AnimationController _animController;
-
-  @override
-  void initState() {
-    super.initState();
-    _animController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 600),
-    );
-  }
+  int _generationRevision = 0;
 
   @override
   void dispose() {
-    _animController.dispose();
+    _generationRevision++;
     super.dispose();
   }
 
   Future<void> _generate() async {
     if (_isGenerating) return;
-
     setState(() {
       _isGenerating = true;
       _error = null;
     });
-
-    _animController.repeat();
+    final revision = ++_generationRevision;
 
     try {
-      final generator = ref.read(randomPromptGeneratorProvider);
-      final presetState = ref.read(randomPresetNotifierProvider);
-      final preset = presetState.selectedPreset;
-
+      final preset = ref.read(randomPresetNotifierProvider).selectedPreset;
       if (preset == null) {
-        throw Exception(context.l10n.randomManager_selectPresetRequired);
+        throw StateError(context.l10n.randomManager_selectPresetRequired);
       }
-
-      final result = await generator.generateFromPreset(
-        preset: preset,
-      );
-
-      if (mounted) {
-        setState(() {
-          _result = result;
-          _isGenerating = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _error = e.toString();
-          _isGenerating = false;
-        });
-      }
-    } finally {
-      _animController.stop();
-      _animController.reset();
+      final result = await ref
+          .read(randomPromptGeneratorProvider)
+          .generateFromPreset(preset: preset);
+      final selectedId = ref
+          .read(randomPresetNotifierProvider)
+          .selectedPresetId;
+      if (!mounted || revision != _generationRevision) return;
+      setState(() {
+        if (selectedId == preset.id) _result = result;
+        _isGenerating = false;
+      });
+    } catch (error) {
+      if (!mounted || revision != _generationRevision) return;
+      setState(() {
+        _error = error.toString();
+        _isGenerating = false;
+      });
     }
   }
 
-  void _copyToClipboard() {
-    if (_result == null) return;
-    Clipboard.setData(ClipboardData(text: _result!.mergedPrompt));
-    AppToast.success(context, context.l10n.randomManager_copiedToClipboard);
+  Future<void> _copyToClipboard() async {
+    final result = _result;
+    if (result == null) return;
+    await Clipboard.setData(ClipboardData(text: result.mergedPrompt));
+    if (mounted) {
+      AppToast.success(context, context.l10n.randomManager_copiedToClipboard);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return ElevatedCard(
-      elevation: CardElevation.level2,
-      borderRadius: 14,
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 标题栏
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      colorScheme.secondary.withValues(alpha: 0.2),
-                      colorScheme.secondary.withValues(alpha: 0.1),
-                    ],
+    final colors = theme.colorScheme;
+    return Container(
+      decoration: BoxDecoration(
+        color: colors.surfaceContainer,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.shuffle_rounded, size: 19, color: colors.primary),
+                const SizedBox(width: 9),
+                Expanded(
+                  child: Text(
+                    context.l10n.randomManager_previewGeneration,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                  borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(
-                  Icons.shuffle_rounded,
-                  size: 18,
-                  color: colorScheme.secondary,
+                FilledButton.icon(
+                  onPressed: _isGenerating ? null : _generate,
+                  icon: _isGenerating
+                      ? const SizedBox.square(
+                          dimension: 15,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.play_arrow_rounded, size: 18),
+                  label: Text(
+                    _isGenerating
+                        ? context.l10n.randomManager_generating
+                        : context.l10n.randomManager_generate,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                context.l10n.randomManager_previewGeneration,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const Spacer(),
-              // 生成按钮
-              _GenerateButton(
-                onPressed: _generate,
-                isGenerating: _isGenerating,
-                animController: _animController,
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          // 结果区域
-          Expanded(
-            child: _buildResultArea(context),
-          ),
-        ],
+                const SizedBox(width: 32),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Expanded(child: _buildResult(context)),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildResultArea(BuildContext context) {
+  Widget _buildResult(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
+    final colors = theme.colorScheme;
     if (_error != null) {
-      return _ErrorDisplay(error: _error!);
+      return _PreviewMessage(
+        icon: Icons.error_outline_rounded,
+        title: context.l10n.randomManager_generationFailed,
+        message: _error!,
+        foreground: colors.error,
+        action: TextButton.icon(
+          onPressed: _generate,
+          icon: const Icon(Icons.refresh_rounded),
+          label: Text(context.l10n.common_retry),
+        ),
+      );
+    }
+    final result = _result;
+    if (result == null) {
+      return _PreviewMessage(
+        icon: Icons.notes_rounded,
+        title: context.l10n.randomManager_previewHint,
+        message: context.l10n.randomManager_previewEmptyDescription,
+        foreground: colors.onSurfaceVariant,
+        action: TextButton.icon(
+          onPressed: _generate,
+          icon: const Icon(Icons.shuffle_rounded),
+          label: Text(context.l10n.randomManager_generateNow),
+        ),
+      );
     }
 
-    if (_result == null) {
-      return _EmptyState(onGenerate: _generate);
-    }
-
+    final tagCount = result.mergedPrompt
+        .split(',')
+        .where((tag) => tag.trim().isNotEmpty)
+        .length;
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // 生成的 Prompt
         Expanded(
           child: Container(
-            width: double.infinity,
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: colorScheme.surfaceContainerHighest,
+              color: colors.surfaceContainerLow,
               borderRadius: BorderRadius.circular(8),
-              boxShadow: [
-                BoxShadow(
-                  color: colorScheme.shadow.withValues(alpha: 0.05),
-                  blurRadius: 4,
-                  offset: const Offset(0, 1),
-                ),
-              ],
             ),
-            child: SelectableText(
-              _result!.mergedPrompt,
-              style: theme.textTheme.bodySmall?.copyWith(
-                fontFamily: 'monospace',
-                height: 1.5,
+            child: SingleChildScrollView(
+              child: SelectableText(
+                result.mergedPrompt,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontFamily: 'monospace',
+                  height: 1.55,
+                ),
               ),
             ),
           ),
         ),
-        const SizedBox(height: 12),
-        // 统计信息 + 操作按钮
+        const SizedBox(height: 10),
         Row(
           children: [
-            // 角色数量
-            _StatChip(
-              icon: Icons.person_outline,
+            _InlineStat(
+              icon: Icons.person_outline_rounded,
               label: context.l10n.randomManager_characterCountLabel(
-                _result!.characterCount,
+                result.characterCount,
               ),
-              color: colorScheme.primary,
             ),
-            const SizedBox(width: 8),
-            // 标签数量 (估算：按逗号分隔)
-            _StatChip(
-              icon: Icons.tag,
-              label: context.l10n.randomManager_tagCountLabel(
-                _result!.mergedPrompt.split(',').length,
-              ),
-              color: colorScheme.secondary,
+            const SizedBox(width: 10),
+            _InlineStat(
+              icon: Icons.sell_outlined,
+              label: context.l10n.randomManager_tagCountLabel(tagCount),
             ),
             const Spacer(),
-            // 复制按钮
             IconButton(
               onPressed: _copyToClipboard,
-              icon: const Icon(Icons.copy_outlined),
-              iconSize: 18,
               tooltip: context.l10n.randomManager_copy,
-              style: IconButton.styleFrom(
-                backgroundColor:
-                    colorScheme.primaryContainer.withValues(alpha: 0.3),
-              ),
+              icon: const Icon(Icons.copy_outlined, size: 18),
             ),
-            const SizedBox(width: 4),
-            // 重新生成按钮
             IconButton(
               onPressed: _isGenerating ? null : _generate,
-              icon: const Icon(Icons.refresh),
-              iconSize: 18,
               tooltip: context.l10n.randomManager_regenerate,
-              style: IconButton.styleFrom(
-                backgroundColor:
-                    colorScheme.secondaryContainer.withValues(alpha: 0.3),
-              ),
+              icon: const Icon(Icons.refresh_rounded, size: 19),
             ),
           ],
         ),
@@ -240,190 +210,52 @@ class _PreviewGeneratorPanelState extends ConsumerState<PreviewGeneratorPanel>
   }
 }
 
-/// 生成按钮组件
-class _GenerateButton extends StatefulWidget {
-  const _GenerateButton({
-    required this.onPressed,
-    required this.isGenerating,
-    required this.animController,
+class _PreviewMessage extends StatelessWidget {
+  const _PreviewMessage({
+    required this.icon,
+    required this.title,
+    required this.message,
+    required this.foreground,
+    required this.action,
   });
 
-  final VoidCallback onPressed;
-  final bool isGenerating;
-  final AnimationController animController;
-
-  @override
-  State<_GenerateButton> createState() => _GenerateButtonState();
-}
-
-class _GenerateButtonState extends State<_GenerateButton> {
-  bool _isHovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return MouseRegion(
-      cursor: widget.isGenerating
-          ? SystemMouseCursors.wait
-          : SystemMouseCursors.click,
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      child: GestureDetector(
-        onTap: widget.isGenerating ? null : widget.onPressed,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: _isHovered || widget.isGenerating
-                  ? [colorScheme.primary, colorScheme.secondary]
-                  : [
-                      colorScheme.primary.withValues(alpha: 0.9),
-                      colorScheme.secondary.withValues(alpha: 0.8),
-                    ],
-            ),
-            borderRadius: BorderRadius.circular(8),
-            boxShadow: _isHovered && !widget.isGenerating
-                ? [
-                    BoxShadow(
-                      color: colorScheme.primary.withValues(alpha: 0.35),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ]
-                : [
-                    BoxShadow(
-                      color: colorScheme.primary.withValues(alpha: 0.2),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              widget.isGenerating
-                  ? RotationTransition(
-                      turns: widget.animController,
-                      child: const Icon(
-                        Icons.sync,
-                        size: 16,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Icon(
-                      Icons.play_arrow_rounded,
-                      size: 18,
-                      color: Colors.white,
-                    ),
-              const SizedBox(width: 6),
-              Text(
-                widget.isGenerating
-                    ? context.l10n.randomManager_generating
-                    : context.l10n.randomManager_generate,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// 空状态提示
-class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.onGenerate});
-
-  final VoidCallback onGenerate;
+  final IconData icon;
+  final String title;
+  final String message;
+  final Color foreground;
+  final Widget action;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
+    final colors = theme.colorScheme;
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.auto_awesome_outlined,
-              size: 32,
-              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            context.l10n.randomManager_previewHint,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 16),
-          FilledButton.tonalIcon(
-            onPressed: onGenerate,
-            icon: const Icon(Icons.shuffle, size: 16),
-            label: Text(context.l10n.randomManager_generateNow),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// 错误显示
-class _ErrorDisplay extends StatelessWidget {
-  const _ErrorDisplay({required this.error});
-
-  final String error;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Center(
-      child: Container(
+      child: Padding(
         padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: colorScheme.errorContainer.withValues(alpha: 0.3),
-          borderRadius: BorderRadius.circular(8),
-        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.error_outline,
-              size: 32,
-              color: colorScheme.error,
-            ),
-            const SizedBox(height: 8),
+            Icon(icon, size: 30, color: foreground),
+            const SizedBox(height: 10),
             Text(
-              context.l10n.randomManager_generationFailed,
-              style: theme.textTheme.titleSmall?.copyWith(
-                color: colorScheme.error,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              error,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: colorScheme.onErrorContainer,
-              ),
+              title,
               textAlign: TextAlign.center,
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
             ),
+            const SizedBox(height: 5),
+            Text(
+              message,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: colors.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 10),
+            action,
           ],
         ),
       ),
@@ -431,42 +263,28 @@ class _ErrorDisplay extends StatelessWidget {
   }
 }
 
-/// 统计信息标签
-class _StatChip extends StatelessWidget {
-  const _StatChip({
-    required this.icon,
-    required this.label,
-    required this.color,
-  });
+class _InlineStat extends StatelessWidget {
+  const _InlineStat({required this.icon, required this.label});
 
   final IconData icon;
   final String label;
-  final Color color;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: color,
-              fontWeight: FontWeight.w600,
-            ),
+    final colors = Theme.of(context).colorScheme;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 14, color: colors.onSurfaceVariant),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: colors.onSurfaceVariant,
+            fontFeatures: const [FontFeature.tabularFigures()],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

@@ -407,6 +407,63 @@ class ImageMetadataService {
     }
   }
 
+  /// 从字节数组获取包含失败原因的完整解析结果。
+  ///
+  /// 拖入菜单需要区分“没有元数据”和“载荷损坏”，因此不能只返回
+  /// nullable metadata 后再重复解析整张图片。
+  Future<MetadataParseResult> getMetadataParseResultFromBytes(
+    Uint8List bytes,
+  ) async {
+    final hash = _hashCalculator.calculateFromBytes(bytes);
+    final cached =
+        _cacheManager.getFromMemory(hash) ??
+        _cacheManager.getFromPersistent(hash);
+    if (cached != null) {
+      return MetadataParseResult.success(
+        cached,
+        'cache',
+        cached.rawJson ?? '',
+        const ['cache'],
+        bytesRead: bytes.length,
+      );
+    }
+
+    final stopwatch = Stopwatch()..start();
+    try {
+      final result = UnifiedMetadataParser.parseFromImage(bytes);
+      final metadata = result.success ? result.metadata : null;
+      if (metadata != null && metadata.hasData) {
+        try {
+          await _cacheManager.save(hash, metadata);
+        } catch (e) {
+          AppLogger.w(
+            'Failed to cache parsed image metadata: $e',
+            'ImageMetadataService',
+          );
+        }
+        _statistics.recordSuccess(stopwatch.elapsed);
+      } else {
+        _statistics.recordFailure(
+          result.errorMessage ?? 'unknown',
+          stopwatch.elapsed,
+        );
+      }
+      return result;
+    } catch (e, stack) {
+      _statistics.recordFailure(
+        'exception: ${e.runtimeType}',
+        stopwatch.elapsed,
+      );
+      AppLogger.e('Parse bytes failed', e, stack, 'ImageMetadataService');
+      return MetadataParseResult.failed(
+        const [],
+        e.toString(),
+        parseTime: stopwatch.elapsed,
+        bytesRead: bytes.length,
+      );
+    }
+  }
+
   /// 手动缓存元数据
   Future<void> cacheMetadata(String path, NaiImageMetadata metadata) async {
     if (!metadata.hasData) return;
@@ -580,18 +637,10 @@ class ImageMetadataService {
 
       _checkCancelled(cancelToken);
 
-      // 检查是否是PNG文件
-      // 检查是否是PNG文件
-      if (!path.toLowerCase().endsWith('.png')) {
-        AppLogger.w('[MetadataFlow] Not a PNG file: $path', 'ImageMetadataService');
-        _statistics.recordFailure('not_png', totalStopwatch.elapsed);
-        return null;
-      }
-
       NaiImageMetadata? metadata;
+      String? parseError;
 
-      // 使用统一解析器（带渐进式读取策略）
-      // 使用统一解析器（带渐进式读取策略）
+      // 容器格式由解析器根据文件签名判断，不能依赖拖拽来源是否提供扩展名。
       final parseStopwatch = Stopwatch()..start();
 
       try {
@@ -607,6 +656,8 @@ class ImageMetadataService {
 
         if (result.success && result.metadata != null) {
           metadata = result.metadata;
+        } else {
+          parseError = result.errorMessage;
         }
       } catch (e, _) {
         parseStopwatch.stop();
@@ -622,7 +673,10 @@ class ImageMetadataService {
         _statistics.recordSuccess(totalStopwatch.elapsed);
       } else {
         if (metadata == null) {
-          _statistics.recordFailure('no_metadata', totalStopwatch.elapsed);
+          _statistics.recordFailure(
+            parseError ?? 'no_metadata',
+            totalStopwatch.elapsed,
+          );
         } else {
           _statistics.recordFailure('empty_metadata', totalStopwatch.elapsed);
         }
@@ -659,7 +713,7 @@ class ImageMetadataService {
         return null;
       }
 
-      final result = UnifiedMetadataParser.parseFromPng(bytes);
+      final result = UnifiedMetadataParser.parseFromImage(bytes);
       final metadata = result.success ? result.metadata : null;
 
       if (metadata != null && metadata.hasData) {

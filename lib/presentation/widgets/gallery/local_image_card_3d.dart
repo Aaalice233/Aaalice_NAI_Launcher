@@ -2,24 +2,24 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/cache/thumbnail_cache_service.dart';
+import '../../../core/cache/local_gallery_thumbnail_provider.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/image_share_sanitizer.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/gallery/local_image_record.dart';
-import '../../../data/services/thumbnail_service.dart';
 import '../../providers/share_image_settings_provider.dart';
+import '../../themes/theme_extension.dart';
 import '../../utils/clipboard_image.dart';
 import '../common/app_toast.dart';
 import '../common/card_action_buttons.dart';
+import '../common/image_card_hover_motion.dart';
 import 'local_image_context_menu.dart';
 import 'local_image_hover_preview.dart';
 
-enum _ImageLoadState { idle, loading, loaded, error }
-
-/// Steam风格本地图片卡片，包含边缘发光、光泽扫过、悬停动画效果
+/// 本地图片卡片，提供稳定的选择、快捷操作和键盘交互。
 class LocalImageCard3D extends ConsumerStatefulWidget {
   final LocalImageRecord record;
   final double width;
@@ -65,114 +65,85 @@ class LocalImageCard3D extends ConsumerStatefulWidget {
 
 class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
   bool _isHovered = false;
-  String? _thumbnailPath;
-  String? _displayPath;
-  ThumbnailCacheService? _thumbnailService;
-  _ImageLoadState _loadState = _ImageLoadState.idle;
-  bool _isLoadingThumbnail = false;
+  bool _isFocused = false;
   bool _isCopyingImage = false;
   bool _suppressCardTap = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _initAndLoadThumbnail();
-  }
+  bool _hasDecodedFrame = false;
+  LocalGalleryThumbnailProvider? _imageProvider;
 
   @override
   void didUpdateWidget(LocalImageCard3D oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.priority != widget.priority ||
-        (oldWidget.isVisible != widget.isVisible && widget.isVisible)) {
-      if (_thumbnailPath == null && !_isLoadingThumbnail) {
-        _loadThumbnail();
-      }
+    if (oldWidget.record.path != widget.record.path ||
+        oldWidget.record.size != widget.record.size ||
+        oldWidget.record.modifiedAt != widget.record.modifiedAt ||
+        oldWidget.width != widget.width ||
+        oldWidget.height != widget.height) {
+      _cancelPendingImage();
+      _imageProvider = null;
+      _hasDecodedFrame = false;
     }
   }
 
-  Future<void> _initAndLoadThumbnail() async {
-    _thumbnailService = ThumbnailCacheService.instance;
-    await _thumbnailService!.init();
-    await _loadThumbnail();
+  @override
+  void dispose() {
+    _cancelPendingImage();
+    super.dispose();
   }
 
-  Future<void> _loadThumbnail() async {
-    if (_isLoadingThumbnail) return;
-
-    _isLoadingThumbnail = true;
-    final path = widget.record.path;
-    final fileName = path.split(Platform.pathSeparator).last;
-
-    // 只在调试模式下记录日志，避免影响性能
-    // AppLogger.i('[CardLoad] START: $fileName, priority=${widget.priority}', 'LocalImageCard3D');
-
-    try {
-      setState(() => _loadState = _ImageLoadState.loading);
-
-      final originalFile = File(path);
-      if (!await originalFile.exists()) {
-        AppLogger.e(
-          '[CardLoad] Original file NOT FOUND: $path',
-          'LocalImageCard3D',
-        );
-        if (mounted) {
-          setState(() => _loadState = _ImageLoadState.error);
-        }
-        return;
-      }
-
-      final existingPath = await _thumbnailService?.getThumbnailPath(path);
-      if (existingPath != null && await File(existingPath).exists()) {
-        // AppLogger.i('[CardLoad] Using existing thumbnail: $fileName', 'LocalImageCard3D');
-        if (mounted) {
-          setState(() {
-            _thumbnailPath = existingPath;
-            _displayPath = existingPath;
-            _loadState = _ImageLoadState.loaded;
-          });
-        }
-        return;
-      }
-
-      final thumbnailService = ThumbnailService.instance;
-      await thumbnailService.initialize();
-      thumbnailService.updateVisibility(
-        path,
-        isVisible: widget.isVisible,
-        priority: widget.priority,
+  void _cancelPendingImage() {
+    final provider = _imageProvider;
+    if (provider != null && !_hasDecodedFrame) {
+      unawaited(
+        LocalGalleryThumbnailMemoryCache.instance.cancelPending(provider),
       );
-
-      final generatedPath = await thumbnailService.getThumbnail(
-        path,
-        size: ThumbnailSize.small,
-        priority: widget.priority,
-      );
-
-      if (!mounted || widget.record.path != path) return;
-
-      if (generatedPath != null) {
-        setState(() {
-          _thumbnailPath = generatedPath;
-          _displayPath = generatedPath;
-          _loadState = _ImageLoadState.loaded;
-        });
-      } else {
-        setState(() {
-          _displayPath = path;
-          _loadState = _ImageLoadState.loaded;
-        });
-      }
-    } catch (e, stack) {
-      AppLogger.e('[CardLoad] ERROR: $fileName', e, stack, 'LocalImageCard3D');
-      if (mounted) {
-        setState(() {
-          _displayPath = path;
-          _loadState = _ImageLoadState.loaded;
-        });
-      }
-    } finally {
-      _isLoadingThumbnail = false;
     }
+  }
+
+  LocalGalleryThumbnailProvider _providerForCurrentLayout() {
+    final target = LocalGalleryThumbnailTarget.fromLogicalSize(
+      logicalWidth: widget.width,
+      logicalHeight: widget.height ?? widget.width,
+      devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
+    );
+    final source = LocalGallerySourceIdentity.fromRecord(
+      path: widget.record.path,
+      size: widget.record.size,
+      modifiedAt: widget.record.modifiedAt,
+    );
+    final current = _imageProvider;
+    if (current != null &&
+        current.source == source &&
+        current.target == target &&
+        current.fit == LocalGalleryThumbnailFit.cover) {
+      return current;
+    }
+
+    if (current != null && !_hasDecodedFrame) {
+      unawaited(
+        LocalGalleryThumbnailMemoryCache.instance.cancelPending(current),
+      );
+    }
+    final provider = LocalGalleryThumbnailProvider(
+      source: source,
+      target: target,
+    );
+    LocalGalleryThumbnailMemoryCache.instance.register(provider);
+    _imageProvider = provider;
+    _hasDecodedFrame = false;
+    return provider;
+  }
+
+  void _retryImage() {
+    final provider = _imageProvider;
+    if (provider != null) {
+      _cancelPendingImage();
+      PaintingBinding.instance.imageCache.evict(provider.cacheKey);
+    }
+    setState(() {
+      _imageProvider = null;
+      _hasDecodedFrame = false;
+    });
   }
 
   void _onHoverEnter(PointerEvent event) {
@@ -245,6 +216,10 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
     final colorScheme = theme.colorScheme;
     final aspectRatio = widget.width / cardHeight;
     final buttonDirection = aspectRatio > 1.3 ? Axis.horizontal : Axis.vertical;
+    final reducedMotion = MediaQuery.disableAnimationsOf(context);
+    final motion = theme.appTheme;
+    final interactive = widget.onTap != null;
+    final fileName = widget.record.path.split(RegExp(r'[/\\]')).last;
 
     Widget cardContent = GestureDetector(
       onTap: widget.onTap == null ? null : _handleCardTap,
@@ -252,86 +227,92 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
       onDoubleTap: widget.onDoubleTap,
       onLongPress: widget.onLongPress,
       onSecondaryTapDown: widget.onSecondaryTapDown,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        curve: Curves.easeOut,
-        width: widget.width,
-        height: cardHeight,
-        transform: Matrix4.identity()
-          ..translateByDouble(0, _isHovered ? -4 : 0, 0, 1)
-          ..scaleByDouble(
-            _isHovered ? 1.02 : 1.0,
-            _isHovered ? 1.02 : 1.0,
-            _isHovered ? 1.02 : 1.0,
-            1,
-          ),
-        transformAlignment: Alignment.center,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: _isHovered
-              ? [
-                  BoxShadow(
-                    color: colorScheme.primary.withValues(alpha: 0.3),
-                    blurRadius: 16,
-                    offset: const Offset(0, 8),
-                    spreadRadius: 2,
-                  ),
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.15),
-                    blurRadius: 24,
-                    offset: const Offset(0, 12),
-                  ),
-                ]
-              : [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.2),
-                    blurRadius: 4,
-                  ),
-                ],
-        ),
-        foregroundDecoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          border: widget.isSelected
-              ? Border.all(color: colorScheme.primary, width: 3)
-              : _isHovered
-              ? Border.all(
-                  color: colorScheme.primary.withValues(alpha: 0.4),
-                  width: 1.5,
-                )
-              : null,
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(10),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              _buildImageLayer(),
-              Positioned(
-                top: 4,
-                right: buttonDirection == Axis.vertical ? 4 : null,
-                left: buttonDirection == Axis.horizontal ? 4 : null,
-                child: _buildActionButtons(buttonDirection),
-              ),
-              if (widget.isSelected)
-                Positioned(
-                  top: 8,
-                  left: 8,
-                  child: _buildSelectionIndicator(colorScheme),
+      child: ImageCardHoverMotion(
+        hovered: _isHovered,
+        enabled: interactive,
+        child: AnimatedContainer(
+          duration: reducedMotion ? Duration.zero : motion.fastDuration,
+          curve: motion.standardCurve,
+          width: widget.width,
+          height: cardHeight,
+          decoration: BoxDecoration(
+            color: colorScheme.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(
+                  alpha: _isHovered && interactive ? 0.16 : 0,
                 ),
-              if (widget.isSelected)
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: colorScheme.primary.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(12),
+                blurRadius: _isHovered && interactive ? 14 : 0,
+                offset: Offset(0, _isHovered && interactive ? 6 : 0),
+              ),
+            ],
+          ),
+          foregroundDecoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: _isFocused
+                ? Border.all(color: colorScheme.primary, width: 1)
+                : null,
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                _buildImageLayer(),
+                Positioned(
+                  top: 4,
+                  right: buttonDirection == Axis.vertical ? 4 : null,
+                  left: buttonDirection == Axis.horizontal ? 4 : null,
+                  child: _buildActionButtons(buttonDirection),
+                ),
+                if (widget.isSelected)
+                  Positioned(
+                    top: 8,
+                    left: 8,
+                    child: _buildSelectionIndicator(colorScheme),
+                  ),
+                if (widget.isSelected)
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: colorScheme.primary.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                     ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
+      ),
+    );
+
+    cardContent = Semantics(
+      label: fileName,
+      button: interactive,
+      enabled: interactive,
+      selected: widget.isSelected,
+      child: FocusableActionDetector(
+        enabled: interactive,
+        shortcuts: const {
+          SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
+          SingleActivator(LogicalKeyboardKey.space): ActivateIntent(),
+        },
+        onFocusChange: (focused) {
+          if (_isFocused != focused) setState(() => _isFocused = focused);
+        },
+        actions: {
+          ActivateIntent: CallbackAction<ActivateIntent>(
+            onInvoke: (_) {
+              _handleCardTap();
+              return null;
+            },
+          ),
+        },
+        child: cardContent,
       ),
     );
 
@@ -346,19 +327,13 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
       child: MouseRegion(
         onEnter: _onHoverEnter,
         onExit: _onHoverExit,
-        cursor: SystemMouseCursors.click,
+        cursor: interactive ? SystemMouseCursors.click : MouseCursor.defer,
         child: cardContent,
       ),
     );
   }
 
-  Widget _buildImageLayer() => switch (_loadState) {
-    _ImageLoadState.error => _buildErrorPlaceholder(),
-    _ImageLoadState.loading when _displayPath == null =>
-      _buildLoadingPlaceholder(),
-    _ when _displayPath != null => _buildOptimizedImage(_displayPath!),
-    _ => _buildLoadingPlaceholder(),
-  };
+  Widget _buildImageLayer() => _buildOptimizedImage();
 
   Widget _buildLoadingPlaceholder() {
     return Container(
@@ -401,7 +376,7 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
             ),
             const SizedBox(height: 4),
             TextButton.icon(
-              onPressed: _loadThumbnail,
+              onPressed: _retryImage,
               icon: Icon(Icons.refresh, color: Colors.red[300], size: 16),
               label: Text(
                 context.l10n.common_retry,
@@ -419,54 +394,40 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
     );
   }
 
-  Widget _buildOptimizedImage(String imagePath) {
-    final pixelRatio = MediaQuery.of(context).devicePixelRatio;
-    final cacheWidth = (widget.width * pixelRatio * 1.5).toInt();
-    final cacheHeight = ((widget.height ?? widget.width) * pixelRatio * 1.5)
-        .toInt();
-
-    return Image.file(
-      File(imagePath),
+  Widget _buildOptimizedImage() {
+    final provider = _providerForCurrentLayout();
+    return Image(
+      key: ValueKey(provider.cacheKey),
+      image: provider,
       fit: BoxFit.cover,
-      cacheWidth: cacheWidth,
-      cacheHeight: cacheHeight,
+      filterQuality: FilterQuality.medium,
       gaplessPlayback: true,
       frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-        if (wasSynchronouslyLoaded || frame != null) return child;
-        return Container(
-          color: Colors.grey[850],
-          child: const Center(
-            child: SizedBox(
-              width: 24,
-              height: 24,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: Colors.white38,
-              ),
-            ),
-          ),
-        );
+        if (wasSynchronouslyLoaded || frame != null) {
+          LocalGalleryThumbnailMemoryCache.instance.releasePendingOwner(
+            provider,
+          );
+          if (identical(_imageProvider, provider)) {
+            _hasDecodedFrame = true;
+          }
+          return child;
+        }
+        if (identical(_imageProvider, provider)) {
+          _hasDecodedFrame = false;
+        }
+        return _buildLoadingPlaceholder();
       },
       errorBuilder: (context, error, stackTrace) {
-        AppLogger.w(
-          'Image load failed, attempting fallback: $imagePath',
+        LocalGalleryThumbnailMemoryCache.instance.releasePendingOwner(provider);
+        AppLogger.e(
+          'Local gallery thumbnail decode failed: ${widget.record.path}',
+          error,
+          stackTrace,
           'LocalImageCard3D',
         );
-        return _buildErrorFallback(imagePath);
+        return _buildErrorPlaceholder();
       },
     );
-  }
-
-  Widget _buildErrorFallback(String failedPath) {
-    if (failedPath != widget.record.path) {
-      return Image.file(
-        File(widget.record.path),
-        fit: BoxFit.cover,
-        gaplessPlayback: true,
-        errorBuilder: (_, __, ___) => _buildErrorPlaceholder(),
-      );
-    }
-    return _buildErrorPlaceholder();
   }
 
   Widget _buildActionButtons(Axis direction) {
@@ -478,7 +439,7 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
       },
       onPointerCancel: (_) => _suppressCardTap = false,
       child: CardActionButtons(
-        visible: _isHovered,
+        visible: _isHovered || _isFocused,
         direction: direction,
         buttons: [
           if (widget.onFavoriteToggle != null)
@@ -546,29 +507,14 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
   }
 
   Widget _buildSelectionIndicator(ColorScheme colorScheme) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0.0, end: 1.0),
-      duration: const Duration(milliseconds: 150),
-      curve: Curves.easeOutBack,
-      builder: (context, value, child) =>
-          Transform.scale(scale: value, child: child),
-      child: Container(
-        width: 28,
-        height: 28,
-        decoration: BoxDecoration(
-          color: colorScheme.primary,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.white, width: 2),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.2),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Icon(Icons.check, color: colorScheme.onPrimary, size: 18),
+    return Container(
+      width: 28,
+      height: 28,
+      decoration: BoxDecoration(
+        color: colorScheme.primary,
+        borderRadius: BorderRadius.circular(14),
       ),
+      child: Icon(Icons.check, color: colorScheme.onPrimary, size: 18),
     );
   }
 }

@@ -112,17 +112,31 @@ void main() {
   });
 
   group('EnhanceScales', () {
-    test('should keep the fixed tiers for 832x1216', () {
-      // 832×1.5=1248 过不了 64 对齐，官网给这个尺寸开了口子
-      expect(
-        EnhanceScales.availableFactors(sourceWidth: 832, sourceHeight: 1216),
-        [1.5, 1.0],
-      );
-      expect(
-        EnhanceScales.availableFactors(sourceWidth: 1216, sourceHeight: 832),
-        [1.5, 1.0],
-      );
-    });
+    test(
+      'should offer factors whose normalized target fits the area budget',
+      () {
+        expect(
+          EnhanceScales.availableFactors(sourceWidth: 832, sourceHeight: 1216),
+          [1.5, 1.0],
+        );
+        expect(
+          EnhanceScales.availableFactors(sourceWidth: 1216, sourceHeight: 832),
+          [1.5, 1.0],
+        );
+        expect(
+          EnhanceScales.availableFactors(sourceWidth: 1344, sourceHeight: 768),
+          [1.5, 1.0],
+        );
+        expect(
+          EnhanceScales.resolveTargetSize(
+            sourceWidth: 1344,
+            sourceHeight: 768,
+            factor: 1.5,
+          ),
+          (width: 2048, height: 1152),
+        );
+      },
+    );
 
     test('should offer 2x only while the result fits the area budget', () {
       // 768×1024 放大 2 倍正好等于面积上限

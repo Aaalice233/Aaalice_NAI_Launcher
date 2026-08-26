@@ -124,6 +124,52 @@ class TagCatalogRepository implements CompletionSource {
     return records[canonicalTag.trim().toLowerCase()]?.postCount;
   }
 
+  Future<Map<String, TagCatalogRecord>> resolveExactTags(
+    Iterable<String> terms,
+  ) async {
+    final normalized = terms
+        .map(
+          (term) => term.trim().toLowerCase().replaceAll(RegExp(r'\s+'), '_'),
+        )
+        .where((term) => term.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+    if (normalized.isEmpty) return const {};
+    await initialize();
+
+    final result = <String, TagCatalogRecord>{};
+    for (var offset = 0; offset < normalized.length; offset += 400) {
+      final chunk = normalized.skip(offset).take(400).toList(growable: false);
+      final placeholders = List.filled(chunk.length, '?').join(',');
+      final rows = await _database!.rawQuery(
+        '''
+        SELECT t.name AS term, t.name, t.category, t.post_count, 0 AS kind
+        FROM tags t
+        WHERE t.name IN ($placeholders)
+        UNION ALL
+        SELECT a.alias AS term, t.name, t.category, t.post_count, 1 AS kind
+        FROM aliases a
+        JOIN tags t ON t.id = a.tag_id
+        WHERE a.alias IN ($placeholders)
+        ORDER BY kind ASC, post_count DESC
+        ''',
+        [...chunk, ...chunk],
+      );
+      for (final row in rows) {
+        final term = row['term'] as String;
+        if (result.containsKey(term)) continue;
+        final category = TagCategory.fromCatalog(row['category'] as int);
+        if (category == null) continue;
+        result[term] = TagCatalogRecord(
+          canonicalTag: row['name'] as String,
+          category: category,
+          postCount: row['post_count'] as int,
+        );
+      }
+    }
+    return result;
+  }
+
   Future<Map<String, TagCatalogRecord>> recordsByCanonicalTag(
     Iterable<String> canonicalTags,
   ) async {

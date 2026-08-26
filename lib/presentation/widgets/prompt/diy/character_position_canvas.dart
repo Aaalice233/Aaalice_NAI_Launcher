@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../../data/models/character/character_prompt.dart';
-import '../../../widgets/common/elevated_card.dart';
 
 /// 角色位置画布组件
 ///
@@ -73,26 +72,11 @@ class _CharacterPositionCanvasState extends State<CharacterPositionCanvas> {
 
     return Row(
       children: [
-        // 图标容器 - 渐变背景
         Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                colorScheme.primary.withValues(alpha: 0.2),
-                colorScheme.primary.withValues(alpha: 0.1),
-              ],
-            ),
+            color: colorScheme.primary.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(10),
-            boxShadow: [
-              BoxShadow(
-                color: colorScheme.primary.withValues(alpha: 0.1),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
           ),
           child: Icon(
             Icons.grid_on_rounded,
@@ -108,7 +92,7 @@ class _CharacterPositionCanvasState extends State<CharacterPositionCanvas> {
               Text(
                 context.l10n.diy_characterPositionTitle,
                 style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
               Text(
@@ -129,7 +113,7 @@ class _CharacterPositionCanvasState extends State<CharacterPositionCanvas> {
           child: Text(
             '${widget.positions.length}/${widget.characterCount}',
             style: theme.textTheme.labelSmall?.copyWith(
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w600,
               color: colorScheme.primary,
             ),
           ),
@@ -142,19 +126,12 @@ class _CharacterPositionCanvasState extends State<CharacterPositionCanvas> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return ElevatedCard(
-      elevation: CardElevation.level2,
-      borderRadius: 12,
-      padding: EdgeInsets.zero,
-      gradientBorder: LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          colorScheme.primary.withValues(alpha: 0.3),
-          colorScheme.secondary.withValues(alpha: 0.2),
-        ],
+    return Container(
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(12),
       ),
-      gradientBorderWidth: 1,
+      clipBehavior: Clip.antiAlias,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
         child: AspectRatio(
@@ -266,16 +243,16 @@ class _CharacterPositionCanvasState extends State<CharacterPositionCanvas> {
             ),
             shape: BoxShape.circle,
             border: Border.all(
-              color: isSelected ? Colors.white : Colors.transparent,
-              width: 3,
+              color: Colors.white.withValues(
+                alpha: isSelected || isDragging ? 1 : 0.72,
+              ),
+              width: isSelected || isDragging ? 3 : 2,
             ),
             boxShadow: [
               BoxShadow(
-                color: color.withValues(
-                  alpha: isSelected || isDragging ? 0.6 : 0.3,
-                ),
-                blurRadius: isSelected || isDragging ? 12 : 6,
-                spreadRadius: isSelected || isDragging ? 2 : 0,
+                color: Colors.black.withValues(alpha: 0.35),
+                blurRadius: isSelected || isDragging ? 10 : 6,
+                offset: const Offset(0, 2),
               ),
             ],
           ),
@@ -318,10 +295,12 @@ class _CharacterPositionCanvasState extends State<CharacterPositionCanvas> {
     final colorScheme = theme.colorScheme;
 
     if (widget.positions.isEmpty) {
-      return ElevatedCard(
-        elevation: CardElevation.level1,
-        borderRadius: 12,
+      return Container(
         padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: colorScheme.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(12),
+        ),
         child: Center(
           child: Column(
             children: [
@@ -343,10 +322,12 @@ class _CharacterPositionCanvasState extends State<CharacterPositionCanvas> {
       );
     }
 
-    return ElevatedCard(
-      elevation: CardElevation.level1,
-      borderRadius: 12,
-      padding: EdgeInsets.zero,
+    return Container(
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      clipBehavior: Clip.antiAlias,
       child: ListView.separated(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
@@ -378,25 +359,15 @@ class _CharacterPositionCanvasState extends State<CharacterPositionCanvas> {
                       width: 36,
                       height: 36,
                       decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [color, color.withValues(alpha: 0.7)],
-                        ),
+                        color: color.withValues(alpha: 0.14),
                         shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: color.withValues(alpha: 0.3),
-                            blurRadius: 6,
-                          ),
-                        ],
                       ),
                       child: Center(
                         child: Text(
                           '${index + 1}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
+                          style: TextStyle(
+                            color: color,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
@@ -488,27 +459,18 @@ class _CharacterPositionCanvasState extends State<CharacterPositionCanvas> {
           duration: const Duration(milliseconds: 150),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            gradient: isSelected
-                ? LinearGradient(
-                    colors: [
-                      colorScheme.primary,
-                      colorScheme.primary.withValues(alpha: 0.8),
-                    ],
-                  )
-                : null,
-            color: isSelected ? null : colorScheme.surfaceContainerHighest,
+            color: isSelected
+                ? colorScheme.primary.withValues(alpha: 0.14)
+                : colorScheme.surfaceContainer,
             borderRadius: BorderRadius.circular(6),
-            border: Border.all(
-              color: isSelected
-                  ? Colors.transparent
-                  : colorScheme.outline.withValues(alpha: 0.3),
-            ),
           ),
           child: Text(
             label,
             style: theme.textTheme.labelSmall?.copyWith(
               fontWeight: FontWeight.w600,
-              color: isSelected ? Colors.white : colorScheme.onSurface,
+              color: isSelected
+                  ? colorScheme.primary
+                  : colorScheme.onSurfaceVariant,
             ),
           ),
         ),
@@ -517,42 +479,13 @@ class _CharacterPositionCanvasState extends State<CharacterPositionCanvas> {
   }
 
   Widget _buildAddButton() {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
     return Padding(
       padding: const EdgeInsets.only(top: 12),
       child: Center(
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: _addPosition,
-            borderRadius: BorderRadius.circular(10),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: colorScheme.primary.withValues(alpha: 0.5),
-                  width: 1.5,
-                ),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.add_rounded, size: 18, color: colorScheme.primary),
-                  const SizedBox(width: 8),
-                  Text(
-                    context.l10n.diy_addCharacterPosition,
-                    style: theme.textTheme.labelLarge?.copyWith(
-                      color: colorScheme.primary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+        child: FilledButton.tonalIcon(
+          onPressed: _addPosition,
+          icon: const Icon(Icons.add_rounded, size: 18),
+          label: Text(context.l10n.diy_addCharacterPosition),
         ),
       ),
     );

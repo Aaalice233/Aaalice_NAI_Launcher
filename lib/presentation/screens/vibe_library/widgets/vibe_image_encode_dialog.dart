@@ -235,7 +235,6 @@ class _VibeImageEncodeDialogState extends State<VibeImageEncodeDialog> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
           color: theme.colorScheme.surfaceContainerHighest,
-          border: Border.all(color: theme.colorScheme.outlineVariant),
         ),
         clipBehavior: Clip.antiAlias,
         child: widget.thumbnail != null

@@ -49,7 +49,11 @@ class DesktopToolbar extends StatelessWidget {
       width: 48,
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        border: Border(right: BorderSide(color: theme.dividerColor, width: 1)),
+        border: Border(
+          right: BorderSide(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.24),
+          ),
+        ),
       ),
       child: Column(
         children: [

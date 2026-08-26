@@ -612,9 +612,6 @@ class _VibeBundleImportDialogState extends State<VibeBundleImportDialog> {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(10),
         color: theme.colorScheme.surfaceContainerHighest,
-        border: Border.all(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.35),
-        ),
       ),
       clipBehavior: Clip.antiAlias,
       child: thumbnail != null

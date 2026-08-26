@@ -54,14 +54,6 @@ class _GenerationToggleButtonState extends State<GenerationToggleButton> {
           decoration: BoxDecoration(
             color: backgroundColor,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: widget.isEnabled
-                  ? theme.colorScheme.primary
-                  : (_isHovered
-                        ? theme.colorScheme.outline.withValues(alpha: 0.4)
-                        : theme.colorScheme.outline.withValues(alpha: 0.2)),
-              width: 1,
-            ),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,

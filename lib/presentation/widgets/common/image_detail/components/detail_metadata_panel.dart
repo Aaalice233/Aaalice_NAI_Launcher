@@ -732,11 +732,8 @@ class _InfoSection extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+            color: colorScheme.surfaceContainerLow,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: colorScheme.outline.withValues(alpha: 0.1),
-            ),
           ),
           child: Column(
             children: validChildren
@@ -908,13 +905,8 @@ class _ActionButtonState extends State<_ActionButton> {
           decoration: BoxDecoration(
             color: _isHovered
                 ? colorScheme.primary.withValues(alpha: 0.1)
-                : colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                : colorScheme.surfaceContainer,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: _isHovered
-                  ? colorScheme.primary.withValues(alpha: 0.3)
-                  : colorScheme.outline.withValues(alpha: 0.15),
-            ),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -933,7 +925,7 @@ class _ActionButtonState extends State<_ActionButton> {
                   color: _isHovered
                       ? colorScheme.primary
                       : colorScheme.onSurfaceVariant,
-                  fontWeight: _isHovered ? FontWeight.w600 : FontWeight.w500,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ],

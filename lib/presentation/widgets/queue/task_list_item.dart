@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:nai_launcher/core/cache/gallery_image_request.dart';
-import 'package:nai_launcher/core/cache/online_gallery_image_cache_manager.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../data/models/queue/replication_task.dart';
@@ -11,6 +8,7 @@ import '../../../data/models/queue/replication_task_status.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/queue_execution_provider.dart';
 import '../../providers/replication_queue_provider.dart';
+import 'queue_task_thumbnail.dart';
 
 /// 任务列表项 - 紧凑美观的现代设计
 class TaskListItem extends ConsumerStatefulWidget {
@@ -148,27 +146,17 @@ class _TaskListItemState extends ConsumerState<TaskListItem>
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: widget.isSelected
-                                ? theme.colorScheme.primary.withValues(
-                                    alpha: 0.5,
-                                  )
-                                : isRunning
-                                ? theme.colorScheme.primary.withValues(
-                                    alpha: 0.3,
-                                  )
-                                : theme.colorScheme.outline.withValues(
-                                    alpha: 0.1,
-                                  ),
-                            width: 1,
-                          ),
+                          border: widget.isSelected
+                              ? Border.all(color: theme.colorScheme.primary)
+                              : null,
                           // 如果是当前正在执行的任务，显示实心进度条；否则显示普通背景
                           color: widget.isSelected
                               ? theme.colorScheme.primaryContainer.withValues(
                                   alpha: 0.4,
                                 )
-                              : theme.colorScheme.surfaceContainerHighest
-                                    .withValues(alpha: 0.4),
+                              : _isHovered
+                              ? theme.colorScheme.surfaceContainer
+                              : theme.colorScheme.surfaceContainerLow,
                         ),
                         child: Stack(
                           children: [
@@ -280,46 +268,10 @@ class _TaskListItemState extends ConsumerState<TaskListItem>
         widget.task.thumbnailUrl!.isNotEmpty) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(8),
-        child: CachedNetworkImage(
-          imageUrl: widget.task.thumbnailUrl!,
-          httpHeaders: onlineGalleryImageHeadersForUrl(
-            widget.task.thumbnailUrl!,
-          ),
-          cacheKey: onlineGalleryImageCacheKeyForUrl(widget.task.thumbnailUrl!),
-          cacheManager: OnlineGalleryImageCacheManager.instance,
-          memCacheWidth: GalleryImageSizing.gridTargetWidth(
-            layoutWidth: 44,
-            devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
-          ),
+        child: QueueTaskThumbnail(
+          source: widget.task.thumbnailUrl!,
           width: 44,
           height: 44,
-          fit: BoxFit.cover,
-          placeholder: (context, url) => Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              Icons.image_rounded,
-              size: 20,
-              color: theme.colorScheme.outline.withValues(alpha: 0.5),
-            ),
-          ),
-          errorWidget: (context, url, error) => Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              Icons.broken_image_rounded,
-              size: 20,
-              color: theme.colorScheme.outline.withValues(alpha: 0.5),
-            ),
-          ),
         ),
       );
     }
@@ -659,9 +611,6 @@ class _TaskTooltipContent extends StatelessWidget {
         decoration: BoxDecoration(
           color: theme.colorScheme.surfaceContainerHigh,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: theme.colorScheme.outline.withValues(alpha: 0.2),
-          ),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.25),
@@ -679,40 +628,10 @@ class _TaskTooltipContent extends StatelessWidget {
               Center(
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(10),
-                  child: CachedNetworkImage(
-                    imageUrl: task.thumbnailUrl!,
-                    httpHeaders: onlineGalleryImageHeadersForUrl(
-                      task.thumbnailUrl!,
-                    ),
-                    cacheKey: onlineGalleryImageCacheKeyForUrl(
-                      task.thumbnailUrl!,
-                    ),
-                    cacheManager: OnlineGalleryImageCacheManager.instance,
-                    memCacheWidth: GalleryImageSizing.gridTargetWidth(
-                      layoutWidth: 200,
-                      devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
-                    ),
+                  child: QueueTaskThumbnail(
+                    source: task.thumbnailUrl!,
                     width: 200,
                     height: 200,
-                    fit: BoxFit.cover,
-                    placeholder: (context, url) => Container(
-                      width: 200,
-                      height: 200,
-                      color: theme.colorScheme.surfaceContainerHighest,
-                      child: const Center(
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    ),
-                    errorWidget: (context, url, error) => Container(
-                      width: 200,
-                      height: 200,
-                      color: theme.colorScheme.surfaceContainerHighest,
-                      child: Icon(
-                        Icons.broken_image_rounded,
-                        size: 48,
-                        color: theme.colorScheme.outline,
-                      ),
-                    ),
                   ),
                 ),
               ),

@@ -1,3 +1,4 @@
+import 'dart:collection';
 import 'dart:math';
 
 // ignore_for_file: prefer_const_constructors
@@ -327,5 +328,71 @@ void main() {
         expect(first.toSet(), {1, 2, 3, 4});
       },
     );
+
+    test('permutation slices cover the input exactly once across pages', () {
+      final sampler = GalleryRandomSampler(random: Random(1));
+      final values = List<int>.generate(101, (index) => index);
+      final sampled = <int>[];
+      for (var offset = 0; offset < values.length; offset += 13) {
+        sampled.addAll(
+          sampler.permutationSlice(values, seed: 77, offset: offset, count: 13),
+        );
+      }
+
+      expect(sampled, hasLength(values.length));
+      expect(sampled.toSet(), values.toSet());
+    });
+
+    test('permutation does not collapse into a fixed modular stride', () {
+      final values = List<int>.generate(257, (index) => index);
+      final sampled = GalleryRandomSampler().permutationSlice(
+        values,
+        seed: 77,
+        offset: 0,
+        count: values.length,
+      );
+      final strides = <int>{
+        for (var index = 1; index < sampled.length; index++)
+          (sampled[index] - sampled[index - 1]) % values.length,
+      };
+
+      expect(strides.length, greaterThan(32));
+    });
+
+    test('permutation slice work is bounded by the requested result count', () {
+      final values = _CountingList(1000000);
+      final sampled = GalleryRandomSampler().permutationSlice(
+        values,
+        seed: 123,
+        offset: 600,
+        count: 60,
+      );
+
+      expect(sampled, hasLength(60));
+      expect(values.readCount, 60);
+    });
   });
+}
+
+class _CountingList extends ListBase<int> {
+  _CountingList(this._length);
+
+  final int _length;
+  int readCount = 0;
+
+  @override
+  int get length => _length;
+
+  @override
+  int operator [](int index) {
+    readCount++;
+    return index;
+  }
+
+  @override
+  void operator []=(int index, int value) =>
+      throw UnsupportedError('read only');
+
+  @override
+  set length(int value) => throw UnsupportedError('fixed length');
 }

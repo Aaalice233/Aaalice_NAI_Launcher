@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_form_input.dart';
 
 import '../../../data/models/auth/saved_account.dart';
-import '../common/inset_shadow_container.dart';
-import 'package:nai_launcher/presentation/widgets/common/themed_form_input.dart';
 
 /// 昵称编辑弹窗
 ///
@@ -13,10 +12,7 @@ class NicknameEditDialog extends StatefulWidget {
   /// 当前账号
   final SavedAccount account;
 
-  const NicknameEditDialog({
-    super.key,
-    required this.account,
-  });
+  const NicknameEditDialog({super.key, required this.account});
 
   /// 显示昵称编辑弹窗
   ///
@@ -34,23 +30,15 @@ class NicknameEditDialog extends StatefulWidget {
       transitionDuration: const Duration(milliseconds: 200),
       transitionBuilder: (context, animation, secondaryAnimation, child) {
         return ScaleTransition(
-          scale: CurvedAnimation(
-            parent: animation,
-            curve: Curves.easeOutCubic,
-          ),
+          scale: CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
           child: FadeTransition(
-            opacity: CurvedAnimation(
-              parent: animation,
-              curve: Curves.easeOut,
-            ),
+            opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
             child: child,
           ),
         );
       },
       pageBuilder: (dialogContext, animation, secondaryAnimation) {
-        return NicknameEditDialog(
-          account: account,
-        );
+        return NicknameEditDialog(account: account);
       },
     ).then((result) {
       // result 是用户点击的按钮类型
@@ -145,11 +133,6 @@ class _NicknameEditDialogState extends State<NicknameEditDialog> {
     final error = _hasInteracted ? _errorText : null;
 
     return Dialog(
-      backgroundColor: theme.colorScheme.surface,
-      surfaceTintColor: Colors.transparent,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(6),
-      ),
       child: Container(
         width: 400,
         padding: const EdgeInsets.all(24),
@@ -177,34 +160,26 @@ class _NicknameEditDialogState extends State<NicknameEditDialog> {
             const SizedBox(height: 24),
 
             // 昵称输入框
-            InsetShadowContainer(
-              borderRadius: 8,
-              child: ThemedFormInput(
-                controller: _controller,
-                focusNode: _focusNode,
-                onChanged: _onNicknameChanged,
-                onFieldSubmitted: (_) => _onSave(),
-                autovalidateMode: AutovalidateMode.onUserInteraction,
-                maxLength: _maxLength,
-                decoration: InputDecoration(
-                  labelText: context.l10n.settings_nickname,
-                  hintText: context.l10n.settings_nicknameHint,
-                  errorText: error,
-                  counterText:
-                      '${_controller.text.characters.length}/$_maxLength',
-                  prefixIcon: const Icon(Icons.person_outline),
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: InputBorder.none,
-                  errorBorder: InputBorder.none,
-                  focusedErrorBorder: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 14,
-                  ),
+            ThemedFormInput(
+              controller: _controller,
+              focusNode: _focusNode,
+              onChanged: _onNicknameChanged,
+              onFieldSubmitted: (_) => _onSave(),
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+              maxLength: _maxLength,
+              decoration: InputDecoration(
+                labelText: context.l10n.settings_nickname,
+                hintText: context.l10n.settings_nicknameHint,
+                errorText: error,
+                counterText:
+                    '${_controller.text.characters.length}/$_maxLength',
+                prefixIcon: const Icon(Icons.person_outline),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 14,
                 ),
-                textInputAction: TextInputAction.done,
               ),
+              textInputAction: TextInputAction.done,
             ),
             const SizedBox(height: 24),
 
@@ -218,7 +193,8 @@ class _NicknameEditDialogState extends State<NicknameEditDialog> {
                 ),
                 const SizedBox(width: 12),
                 FilledButton(
-                  onPressed: _validateNickname(_controller.text) == null &&
+                  onPressed:
+                      _validateNickname(_controller.text) == null &&
                           _controller.text.trim().isNotEmpty
                       ? _onSave
                       : null,

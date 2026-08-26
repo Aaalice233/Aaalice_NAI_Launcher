@@ -1,6 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../autocomplete/autocomplete_cache_database.dart';
+import '../cache/local_gallery_thumbnail_provider.dart';
 import '../autocomplete/autocomplete_providers.dart';
 import '../constants/storage_keys.dart';
 import '../database/providers/database_state_providers.dart';
@@ -107,9 +108,13 @@ class CacheClearService {
             as AutocompleteCacheDatabase;
     var danbooruRemoved = 0;
     var aiRemoved = 0;
+    var localGalleryThumbnailsRemoved = 0;
     final result = await notifier.clearCache(
       serviceClearCallback: () async {
         await serviceClearCallback?.call();
+        localGalleryThumbnailsRemoved = LocalGalleryThumbnailMemoryCache
+            .instance
+            .clear();
         // The shipped catalog and user-installed ffdkj dictionary are data
         // sources, not caches, so a global cache clear must not remove them.
         danbooruRemoved = await autocompleteCache.clearDanbooruCache();
@@ -118,6 +123,7 @@ class CacheClearService {
     );
     final tableStats = <String, int>{
       ...Map<String, int>.from(result.tableStats as Map),
+      'local_gallery_thumbnails': localGalleryThumbnailsRemoved,
       'autocomplete_remote_queries': danbooruRemoved,
       'autocomplete_ai_translations': aiRemoved,
     };
@@ -125,7 +131,11 @@ class CacheClearService {
     return ClearResult(
       success: result.success,
       error: result.error,
-      totalRemoved: result.totalRemoved + danbooruRemoved + aiRemoved,
+      totalRemoved:
+          result.totalRemoved +
+          localGalleryThumbnailsRemoved +
+          danbooruRemoved +
+          aiRemoved,
       tableStats: tableStats,
     );
   }

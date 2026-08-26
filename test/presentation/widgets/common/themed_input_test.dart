@@ -1,8 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/presentation/widgets/common/inset_shadow_container.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 void main() {
+  group('ThemedInput 语义色面', () {
+    testWidgets('默认无完整边框，聚焦时才显示状态边界', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(body: ThemedInput(hintText: 'Prompt')),
+        ),
+      );
+
+      var surface = tester.widget<InsetShadowContainer>(
+        find.byType(InsetShadowContainer),
+      );
+      expect(surface.borderWidth, 0);
+      expect(surface.isFocused, isFalse);
+
+      await tester.tap(find.byType(TextField));
+      await tester.pump();
+
+      surface = tester.widget<InsetShadowContainer>(
+        find.byType(InsetShadowContainer),
+      );
+      expect(surface.isFocused, isTrue);
+    });
+  });
+
   group('ThemedInput 清空按钮', () {
     testWidgets('文本在空/非空间切换时输入框不重建、焦点不丢失', (tester) async {
       final controller = TextEditingController(text: 'girl');

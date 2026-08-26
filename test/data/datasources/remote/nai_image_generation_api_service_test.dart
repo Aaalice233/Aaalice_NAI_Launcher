@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui';
@@ -16,6 +17,94 @@ import 'package:nai_launcher/data/datasources/remote/nai_image_generation_api_se
 import 'package:nai_launcher/data/models/image/image_params.dart';
 
 void main() {
+  test(
+    'encodes generation payloads with the official multipart layout',
+    () async {
+      final imageBytes = Uint8List.fromList([1, 2, 3, 4]);
+      final maskBytes = Uint8List.fromList([5, 6, 7, 8]);
+      final vibeBytes = Uint8List.fromList([9, 10, 11]);
+      final directorBytes = Uint8List.fromList([12, 13, 14]);
+      final formData = NAIImageGenerationApiService.buildGenerationFormData({
+        'input': 'test',
+        'model': ImageModels.animeDiffusionV5Curated,
+        'action': 'infill',
+        'parameters': {
+          'image': base64Encode(imageBytes),
+          'mask': base64Encode(maskBytes),
+          'reference_image_multiple': [base64Encode(vibeBytes)],
+          'director_reference_images': [base64Encode(directorBytes)],
+        },
+        'use_new_shared_trial': true,
+      });
+
+      expect(formData.fields, isEmpty);
+      expect(
+        formData.files.map((entry) => entry.key),
+        orderedEquals([
+          'image',
+          'mask',
+          'ref_multiple_0',
+          'director_ref_0',
+          'request',
+        ]),
+      );
+      final parts = {
+        for (final entry in formData.files) entry.key: entry.value,
+      };
+      final request =
+          jsonDecode(utf8.decode(await _readMultipartFile(parts['request']!)))
+              as Map<String, dynamic>;
+      final parameters = request['parameters'] as Map<String, dynamic>;
+      final cachedVibes =
+          parameters['reference_image_multiple_cached'] as List<dynamic>;
+      final cachedDirectors =
+          parameters['director_reference_images_cached'] as List<dynamic>;
+
+      expect(await _readMultipartFile(parts['image']!), imageBytes);
+      expect(await _readMultipartFile(parts['mask']!), maskBytes);
+      expect(await _readMultipartFile(parts['ref_multiple_0']!), vibeBytes);
+      expect(await _readMultipartFile(parts['director_ref_0']!), directorBytes);
+      expect(parts['request']!.filename, 'blob');
+      expect(parts['request']!.contentType.toString(), 'application/json');
+      expect(parts['image']!.filename, 'blob');
+      expect(parts['image']!.contentType.toString(), 'image/png');
+      expect(parameters['image'], 'image');
+      expect(parameters['mask'], 'mask');
+      expect(parameters['image_cache_secret_key'], matches(r'^[0-9a-f]{64}$'));
+      expect(parameters['mask_cache_secret_key'], matches(r'^[0-9a-f]{64}$'));
+      expect(parameters.containsKey('reference_image_multiple'), isFalse);
+      expect(parameters.containsKey('director_reference_images'), isFalse);
+      expect(cachedVibes.single['data'], 'ref_multiple_0');
+      expect(
+        cachedVibes.single['cache_secret_key'],
+        matches(r'^[0-9a-f]{64}$'),
+      );
+      expect(cachedDirectors.single['data'], 'director_ref_0');
+      expect(
+        cachedDirectors.single['cache_secret_key'],
+        matches(r'^[0-9a-f]{64}$'),
+      );
+    },
+  );
+
+  test('encodes text-only generation as one JSON multipart part', () async {
+    final formData = NAIImageGenerationApiService.buildGenerationFormData({
+      'input': 'test',
+      'model': ImageModels.animeDiffusionV5Curated,
+      'action': 'generate',
+      'parameters': {'seed': 1},
+      'use_new_shared_trial': true,
+    });
+
+    expect(formData.files, hasLength(1));
+    expect(formData.files.single.key, 'request');
+    expect(formData.files.single.value.filename, 'blob');
+    expect(
+      formData.files.single.value.contentType.toString(),
+      'application/json',
+    );
+  });
+
   test('maps DDIM onto Euler Ancestral for every v4-structure model', () {
     // V5 之前的判定是 contains('diffusion-4')，V5 会漏掉并把 ddim 原样发出。
     for (final model in [
@@ -45,6 +134,34 @@ void main() {
       ),
       Samplers.kEulerAncestral,
     );
+  });
+
+  test('sends official transport headers with generation requests', () async {
+    final adapter = _PendingDioAdapter();
+    final dio = Dio()..httpClientAdapter = adapter;
+    final endpointService = NaiApiEndpointService();
+    final service = NAIImageGenerationApiService(
+      dio,
+      NAIImageEnhancementApiService(dio, endpointService),
+      endpointService,
+    );
+
+    final generation = service.generateImage(
+      const ImageParams(prompt: 'transport headers'),
+    );
+    await _waitForRequestCount(adapter, 1);
+    final headers = adapter.requests.single.options.headers;
+
+    expect(headers['Accept'], 'application/x-zip-compressed');
+    expect(
+      headers['x-correlation-id'],
+      matches(r'^[A-Zabcdefghijkmnopqrstuvwxyz1-9]{6}$'),
+    );
+    expect(DateTime.tryParse(headers['x-initiated-at'] as String), isNotNull);
+    expect(adapter.requests.single.options.data, isA<FormData>());
+
+    adapter.requests.single.completeWithEmptyZip();
+    await expectLater(generation, throwsA(isA<Exception>()));
   });
 
   test('completed older request must not clear newer cancel token', () async {
@@ -796,4 +913,12 @@ void _expectSameImagePixels(img.Image actual, img.Image expected) {
       );
     }
   }
+}
+
+Future<Uint8List> _readMultipartFile(MultipartFile file) async {
+  final builder = BytesBuilder(copy: false);
+  await for (final chunk in file.finalize()) {
+    builder.add(chunk);
+  }
+  return builder.takeBytes();
 }

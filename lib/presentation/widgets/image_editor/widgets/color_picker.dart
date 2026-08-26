@@ -67,6 +67,9 @@ class _HSVColorPickerState extends State<HSVColorPicker> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -79,36 +82,44 @@ class _HSVColorPickerState extends State<HSVColorPicker> {
               decoration: BoxDecoration(
                 color: _hsvColor.toColor(),
                 borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: Colors.white24),
+                border: Border.all(
+                  color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+                ),
               ),
             ),
             const SizedBox(width: 8),
             Expanded(
               child: ThemedInput(
                 controller: _hexController,
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: colorScheme.onSurface,
                   fontSize: 12,
                   fontFamily: 'monospace',
                 ),
                 decoration: InputDecoration(
                   isDense: true,
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 8,
+                  ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(4),
-                    borderSide: const BorderSide(color: Colors.white24),
+                    borderSide: BorderSide(
+                      color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+                    ),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(4),
-                    borderSide: const BorderSide(color: Colors.white24),
+                    borderSide: BorderSide(
+                      color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+                    ),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(4),
-                    borderSide: const BorderSide(color: Color(0xFF4a90d9)),
+                    borderSide: BorderSide(color: colorScheme.primary),
                   ),
                   filled: true,
-                  fillColor: const Color(0xFF3a3a3a),
+                  fillColor: colorScheme.surfaceContainer,
                 ),
                 onSubmitted: (value) {
                   final color = _hexToColor(value);
@@ -126,10 +137,7 @@ class _HSVColorPickerState extends State<HSVColorPicker> {
         // SV 面板
         SizedBox(
           height: 120,
-          child: _SVPanel(
-            hsvColor: _hsvColor,
-            onChanged: _onColorChanged,
-          ),
+          child: _SVPanel(hsvColor: _hsvColor, onChanged: _onColorChanged),
         ),
 
         const SizedBox(height: 8),
@@ -154,10 +162,7 @@ class _SVPanel extends StatelessWidget {
   final HSVColor hsvColor;
   final ValueChanged<HSVColor> onChanged;
 
-  const _SVPanel({
-    required this.hsvColor,
-    required this.onChanged,
-  });
+  const _SVPanel({required this.hsvColor, required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
@@ -191,10 +196,7 @@ class _SVPanel extends StatelessWidget {
                   gradient: const LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.transparent,
-                      Colors.black,
-                    ],
+                    colors: [Colors.transparent, Colors.black],
                   ),
                 ),
               ),
@@ -236,10 +238,7 @@ class _HueSlider extends StatelessWidget {
   final double hue;
   final ValueChanged<double> onChanged;
 
-  const _HueSlider({
-    required this.hue,
-    required this.onChanged,
-  });
+  const _HueSlider({required this.hue, required this.onChanged});
 
   @override
   Widget build(BuildContext context) {

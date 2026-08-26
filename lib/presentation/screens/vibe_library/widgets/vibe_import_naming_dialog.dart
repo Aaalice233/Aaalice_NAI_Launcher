@@ -12,10 +12,7 @@ class VibeImportResult {
   /// 是否应用到后续所有文件（批量导入时）
   final bool applyToAll;
 
-  const VibeImportResult({
-    required this.name,
-    this.applyToAll = false,
-  });
+  const VibeImportResult({required this.name, this.applyToAll = false});
 }
 
 /// Vibe 导入命名对话框
@@ -123,12 +120,9 @@ class _VibeImportNamingDialogState extends State<VibeImportNamingDialog> {
       'VibeImportNamingDialog',
     );
 
-    Navigator.of(context).pop(
-      VibeImportResult(
-        name: name,
-        applyToAll: _applyToAll,
-      ),
-    );
+    Navigator.of(
+      context,
+    ).pop(VibeImportResult(name: name, applyToAll: _applyToAll));
   }
 
   /// 跳过当前文件
@@ -152,14 +146,9 @@ class _VibeImportNamingDialogState extends State<VibeImportNamingDialog> {
       focusNode: FocusNode(),
       onKeyEvent: _handleKeyEvent,
       child: Dialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            maxWidth: 400,
-            minWidth: 320,
-          ),
+          constraints: const BoxConstraints(maxWidth: 400, minWidth: 320),
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
@@ -200,10 +189,7 @@ class _VibeImportNamingDialogState extends State<VibeImportNamingDialog> {
   Widget _buildHeader(ThemeData theme) {
     return Row(
       children: [
-        Icon(
-          Icons.edit_note,
-          color: theme.colorScheme.primary,
-        ),
+        Icon(Icons.edit_note, color: theme.colorScheme.primary),
         const SizedBox(width: 12),
         Expanded(
           child: Text(
@@ -235,19 +221,13 @@ class _VibeImportNamingDialogState extends State<VibeImportNamingDialog> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
           color: theme.colorScheme.surfaceContainerHighest,
-          border: Border.all(
-            color: theme.colorScheme.outlineVariant,
-          ),
         ),
         clipBehavior: Clip.antiAlias,
         child: Image.memory(
           widget.thumbnail!,
           fit: BoxFit.contain,
           errorBuilder: (context, error, stackTrace) {
-            AppLogger.w(
-              '缩略图加载失败: $error',
-              'VibeImportNamingDialog',
-            );
+            AppLogger.w('缩略图加载失败: $error', 'VibeImportNamingDialog');
             return Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -281,9 +261,7 @@ class _VibeImportNamingDialogState extends State<VibeImportNamingDialog> {
         hintText: context.l10n.vibe_saveToLibrary_nameHint,
         errorText: _errorText,
         prefixIcon: const Icon(Icons.label_outline),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         filled: true,
         fillColor: theme.colorScheme.surfaceContainerHighest,
       ),

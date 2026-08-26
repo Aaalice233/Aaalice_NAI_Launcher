@@ -57,16 +57,11 @@ class _EntryListItemState extends State<EntryListItem> {
     final theme = Theme.of(context);
     final entry = widget.entry;
 
-    // 选择模式下的背景色
     final backgroundColor = widget.isSelected
-        ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3)
+        ? theme.colorScheme.primary.withValues(alpha: 0.12)
         : (_isHovering && !widget.isSelectionMode
-            ? theme.colorScheme.surfaceContainerHighest
-            : theme.colorScheme.surfaceContainerHigh);
-
-    // 选择模式下的边框
-    final borderColor =
-        widget.isSelected ? theme.colorScheme.primary : Colors.transparent;
+              ? theme.colorScheme.surfaceContainer
+              : theme.colorScheme.surfaceContainerLow);
 
     final itemContent = MouseRegion(
       onEnter: (_) {
@@ -95,51 +90,13 @@ class _EntryListItemState extends State<EntryListItem> {
           transform: widget.isSelectionMode
               ? null
               : (Matrix4.identity()
-                ..translateByDouble(0.0, _isHovering ? -2.0 : 0.0, 0, 1)),
+                  ..translateByDouble(0.0, _isHovering ? -2.0 : 0.0, 0, 1)),
           decoration: BoxDecoration(
-            // 背景色 - 选中时使用主色容器
             color: backgroundColor,
             borderRadius: BorderRadius.circular(12),
-            // 选中时显示边框
-            border: Border.all(
-              color: borderColor,
-              width: widget.isSelected ? 2 : 0,
-            ),
-            // 阴影（非选择模式）
-            boxShadow: _isHovering && !widget.isSelectionMode
-                ? [
-                    // 主阴影 - 带主题色
-                    BoxShadow(
-                      color: theme.colorScheme.primary.withValues(alpha: 0.15),
-                      blurRadius: 16,
-                      offset: const Offset(0, 6),
-                    ),
-                    // 中层阴影
-                    BoxShadow(
-                      color: theme.colorScheme.primary.withValues(alpha: 0.08),
-                      blurRadius: 8,
-                      offset: const Offset(0, 3),
-                    ),
-                    // 底层阴影
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.06),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
-                    ),
-                  ]
-                : [
-                    // 静态阴影
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.08),
-                      blurRadius: 8,
-                      offset: const Offset(0, 3),
-                    ),
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.04),
-                      blurRadius: 4,
-                      offset: const Offset(0, 1),
-                    ),
-                  ],
+            border: widget.isSelected
+                ? Border.all(color: theme.colorScheme.primary)
+                : null,
           ),
           child: Row(
             children: [
@@ -157,9 +114,7 @@ class _EntryListItemState extends State<EntryListItem> {
               const SizedBox(width: 16),
 
               // 信息
-              Expanded(
-                child: _buildInfo(theme, entry),
-              ),
+              Expanded(child: _buildInfo(theme, entry)),
 
               // 操作按钮（非选择模式悬停时显示）
               if (!widget.isSelectionMode && _isHovering) ...[
@@ -179,10 +134,7 @@ class _EntryListItemState extends State<EntryListItem> {
       feedback: widget.enableDrag
           ? _buildDragFeedback(theme, entry)
           : const SizedBox.shrink(),
-      childWhenDragging: Opacity(
-        opacity: 0.4,
-        child: itemContent,
-      ),
+      childWhenDragging: Opacity(opacity: 0.4, child: itemContent),
       onDragStarted: () {
         HapticFeedback.mediumImpact();
         setState(() {
@@ -406,19 +358,12 @@ class _EntryListItemState extends State<EntryListItem> {
             const SizedBox(width: 2),
             Text(
               '${entry.promptTagCount}',
-              style: TextStyle(
-                fontSize: 10,
-                color: theme.colorScheme.outline,
-              ),
+              style: TextStyle(fontSize: 10, color: theme.colorScheme.outline),
             ),
             // 使用次数
             if (entry.useCount > 0) ...[
               const SizedBox(width: 8),
-              Icon(
-                Icons.repeat,
-                size: 11,
-                color: theme.colorScheme.outline,
-              ),
+              Icon(Icons.repeat, size: 11, color: theme.colorScheme.outline),
               const SizedBox(width: 2),
               Text(
                 '${entry.useCount}',
@@ -437,8 +382,10 @@ class _EntryListItemState extends State<EntryListItem> {
           Wrap(
             spacing: 4,
             runSpacing: 4,
-            children:
-                entry.tags.take(4).map((tag) => _TagChip(tag: tag)).toList(),
+            children: entry.tags
+                .take(4)
+                .map((tag) => _TagChip(tag: tag))
+                .toList(),
           ),
         ],
       ],
@@ -460,11 +407,7 @@ class _EntryListItemState extends State<EntryListItem> {
                   borderRadius: BorderRadius.circular(6),
                   child: const Padding(
                     padding: EdgeInsets.all(6),
-                    child: Icon(
-                      Icons.favorite,
-                      size: 18,
-                      color: Colors.white,
-                    ),
+                    child: Icon(Icons.favorite, size: 18, color: Colors.white),
                   ),
                 ),
               )
@@ -573,10 +516,7 @@ class _SelectionCheckbox extends StatelessWidget {
   final bool isSelected;
   final VoidCallback? onTap;
 
-  const _SelectionCheckbox({
-    required this.isSelected,
-    this.onTap,
-  });
+  const _SelectionCheckbox({required this.isSelected, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -608,11 +548,7 @@ class _SelectionCheckbox extends StatelessWidget {
           ],
         ),
         child: isSelected
-            ? Icon(
-                Icons.check,
-                size: 16,
-                color: theme.colorScheme.onPrimary,
-              )
+            ? Icon(Icons.check, size: 16, color: theme.colorScheme.onPrimary)
             : null,
       ),
     );

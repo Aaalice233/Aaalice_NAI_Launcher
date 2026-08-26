@@ -9,10 +9,7 @@ import '../../../widgets/common/hover_preview_card.dart';
 class TagGroupPreviewContent extends ConsumerWidget {
   final String groupTitle;
 
-  const TagGroupPreviewContent({
-    super.key,
-    required this.groupTitle,
-  });
+  const TagGroupPreviewContent({super.key, required this.groupTitle});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -43,11 +40,7 @@ class TagGroupPreviewContent extends ConsumerWidget {
           // 标题和数量
           Row(
             children: [
-              Icon(
-                Icons.label_outline,
-                size: 16,
-                color: colorScheme.primary,
-              ),
+              Icon(Icons.label_outline, size: 16, color: colorScheme.primary),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
@@ -93,10 +86,7 @@ class TagGroupPreviewContent extends ConsumerWidget {
 class PoolPreviewContent extends ConsumerWidget {
   final int poolId;
 
-  const PoolPreviewContent({
-    super.key,
-    required this.poolId,
-  });
+  const PoolPreviewContent({super.key, required this.poolId});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -194,16 +184,10 @@ class _TagChip extends StatelessWidget {
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: colorScheme.outline.withValues(alpha: 0.2),
-        ),
       ),
       child: Text(
         tag,
-        style: TextStyle(
-          fontSize: 11,
-          color: colorScheme.onSurface,
-        ),
+        style: TextStyle(fontSize: 11, color: colorScheme.onSurface),
       ),
     );
   }

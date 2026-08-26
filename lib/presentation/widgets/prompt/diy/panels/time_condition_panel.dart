@@ -305,9 +305,6 @@ class _TimeConditionPanelState extends State<TimeConditionPanel> {
                         decoration: BoxDecoration(
                           color: colorScheme.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: colorScheme.outline.withValues(alpha: 0.2),
-                          ),
                         ),
                         child: Column(
                           children: [
@@ -467,9 +464,11 @@ class _TimeConditionPanelState extends State<TimeConditionPanel> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerLowest,
+        color: Color.alphaBlend(
+          color.withValues(alpha: 0.07),
+          colorScheme.surfaceContainerLowest,
+        ),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

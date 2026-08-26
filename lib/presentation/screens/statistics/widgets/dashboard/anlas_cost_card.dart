@@ -1,18 +1,111 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../../../core/utils/app_logger.dart';
 import '../../../../../data/services/anlas_statistics_service.dart';
 import '../cards/chart_card.dart';
 
+enum AnlasStatisticsPeriod { week, month, threeMonths, year, all, custom }
+
 /// 点数花费统计卡片 - 按日期统计Anlas消耗趋势
 /// Anlas cost card - displays Anlas consumption trend by date
-class AnlasCostCard extends ConsumerWidget {
+class AnlasCostCard extends ConsumerStatefulWidget {
   const AnlasCostCard({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AnlasCostCard> createState() => _AnlasCostCardState();
+}
+
+class _AnlasCostCardState extends ConsumerState<AnlasCostCard> {
+  static const _periodPreferenceKey = 'anlas_statistics_period';
+  static const _customDaysPreferenceKey = 'anlas_statistics_custom_days';
+  static const _defaultCustomDays = 30;
+  static const _maxCustomDays = 36500;
+
+  AnlasStatisticsPeriod _selectedPeriod = AnlasStatisticsPeriod.month;
+  int _customDays = _defaultCustomDays;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_loadPeriodPreference());
+  }
+
+  Future<void> _loadPeriodPreference() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final storedPeriod = prefs.getString(_periodPreferenceKey);
+      final period = AnlasStatisticsPeriod.values
+          .where((value) => value.name == storedPeriod)
+          .firstOrNull;
+      final storedCustomDays = prefs.getInt(_customDaysPreferenceKey);
+      if (!mounted) return;
+      setState(() {
+        if (period != null) _selectedPeriod = period;
+        if (storedCustomDays != null &&
+            storedCustomDays > 0 &&
+            storedCustomDays <= _maxCustomDays) {
+          _customDays = storedCustomDays;
+        }
+      });
+    } catch (error) {
+      AppLogger.w(
+        'Failed to load Anlas statistics period: $error',
+        'AnlasStats',
+      );
+    }
+  }
+
+  Future<void> _selectPeriod(AnlasStatisticsPeriod period) async {
+    var nextCustomDays = _customDays;
+    if (period == AnlasStatisticsPeriod.custom) {
+      final selectedDays = await showDialog<int>(
+        context: context,
+        builder: (context) => _CustomDaysDialog(
+          initialDays: _customDays,
+          maxDays: _maxCustomDays,
+        ),
+      );
+      if (selectedDays == null || !mounted) return;
+      nextCustomDays = selectedDays;
+    }
+
+    setState(() {
+      _selectedPeriod = period;
+      _customDays = nextCustomDays;
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await Future.wait([
+        prefs.setString(_periodPreferenceKey, period.name),
+        prefs.setInt(_customDaysPreferenceKey, nextCustomDays),
+      ]);
+    } catch (error) {
+      AppLogger.w(
+        'Failed to save Anlas statistics period: $error',
+        'AnlasStats',
+      );
+    }
+  }
+
+  int? get _selectedDays => switch (_selectedPeriod) {
+    AnlasStatisticsPeriod.week => 7,
+    AnlasStatisticsPeriod.month => 30,
+    AnlasStatisticsPeriod.threeMonths => 90,
+    AnlasStatisticsPeriod.year => 365,
+    AnlasStatisticsPeriod.all => null,
+    AnlasStatisticsPeriod.custom => _customDays,
+  };
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context)!;
@@ -22,14 +115,15 @@ class AnlasCostCard extends ConsumerWidget {
 
     return anlasStats.when(
       data: (service) {
-        final dailyStats = service.getDailyStats(days: 14);
-        final totalCost = service.totalCost;
+        final periodStats = service.getPeriodStats(days: _selectedDays);
+        final periodSelector = _buildPeriodSelector(context, l10n);
 
-        if (dailyStats.isEmpty || totalCost == 0) {
+        if (!service.hasData) {
           return ChartCard(
             title: l10n.statistics_anlasCost,
             titleIcon: Icons.paid_outlined,
             accentColor: Colors.amber,
+            trailing: periodSelector,
             child: _buildEmptyState(context, l10n),
           );
         }
@@ -38,16 +132,17 @@ class AnlasCostCard extends ConsumerWidget {
           title: l10n.statistics_anlasCost,
           titleIcon: Icons.paid_outlined,
           accentColor: Colors.amber,
+          trailing: periodSelector,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 总消耗和平均消耗
               Row(
                 children: [
                   Expanded(
                     child: _StatBox(
                       label: l10n.statistics_totalAnlasCost,
-                      value: _formatAnlas(totalCost),
+                      value: _formatAnlas(periodStats.totalCost),
+                      valueKey: const ValueKey('anlas-period-total'),
                       isDark: isDark,
                       colorScheme: colorScheme,
                       textTheme: theme.textTheme,
@@ -57,15 +152,8 @@ class AnlasCostCard extends ConsumerWidget {
                   Expanded(
                     child: _StatBox(
                       label: l10n.statistics_avgDailyCost,
-                      value: _formatAnlas(
-                        dailyStats.isNotEmpty
-                            ? totalCost ~/
-                                dailyStats
-                                    .where((s) => s.cost > 0)
-                                    .length
-                                    .clamp(1, 999)
-                            : 0,
-                      ),
+                      value: _formatAnlas(periodStats.averageDailyCost),
+                      valueKey: const ValueKey('anlas-period-average'),
                       isDark: isDark,
                       colorScheme: colorScheme,
                       textTheme: theme.textTheme,
@@ -73,16 +161,31 @@ class AnlasCostCard extends ConsumerWidget {
                   ),
                 ],
               ),
+              const SizedBox(height: 10),
+              _buildPeriodSummary(context, l10n, periodStats),
+              if (periodStats.hasPartialCoverage) ...[
+                const SizedBox(height: 8),
+                _buildPartialCoverageNotice(context, l10n, periodStats),
+              ],
               const SizedBox(height: 16),
-              // 日趋势图
               SizedBox(
                 height: 120,
-                child: _buildTrendChart(
-                  context,
-                  dailyStats,
-                  colorScheme,
-                  isDark,
-                ),
+                child: periodStats.totalCost == 0
+                    ? Center(
+                        child: Text(
+                          l10n.statistics_noAnlasInPeriod,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      )
+                    : _buildTrendChart(
+                        context,
+                        periodStats.dailyStats,
+                        colorScheme,
+                        isDark,
+                      ),
               ),
             ],
           ),
@@ -104,6 +207,136 @@ class AnlasCostCard extends ConsumerWidget {
         titleIcon: Icons.paid_outlined,
         accentColor: Colors.amber,
         child: _buildEmptyState(context, l10n),
+      ),
+    );
+  }
+
+  Widget _buildPeriodSelector(BuildContext context, AppLocalizations l10n) {
+    return PopupMenuButton<AnlasStatisticsPeriod>(
+      key: const ValueKey('anlas-period-selector'),
+      tooltip: l10n.statistics_periodSelectorTooltip,
+      onSelected: (period) => unawaited(_selectPeriod(period)),
+      itemBuilder: (context) => AnlasStatisticsPeriod.values.map((period) {
+        return CheckedPopupMenuItem<AnlasStatisticsPeriod>(
+          key: ValueKey('anlas-period-${period.name}'),
+          value: period,
+          checked: period == _selectedPeriod,
+          child: Text(_menuPeriodLabel(l10n, period)),
+        );
+      }).toList(),
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 132),
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.amber.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: Colors.amber.withValues(alpha: 0.25)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: Text(
+                _selectedPeriodLabel(l10n),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(
+                  context,
+                ).textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w600),
+              ),
+            ),
+            const SizedBox(width: 4),
+            const Icon(Icons.arrow_drop_down_rounded, size: 18),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _selectedPeriodLabel(AppLocalizations l10n) {
+    if (_selectedPeriod == AnlasStatisticsPeriod.custom) {
+      return l10n.statistics_periodDays(_customDays);
+    }
+    return _menuPeriodLabel(l10n, _selectedPeriod);
+  }
+
+  String _menuPeriodLabel(AppLocalizations l10n, AnlasStatisticsPeriod period) {
+    return switch (period) {
+      AnlasStatisticsPeriod.week => l10n.statistics_periodWeek,
+      AnlasStatisticsPeriod.month => l10n.statistics_periodMonth,
+      AnlasStatisticsPeriod.threeMonths => l10n.statistics_periodThreeMonths,
+      AnlasStatisticsPeriod.year => l10n.statistics_periodYear,
+      AnlasStatisticsPeriod.all => l10n.statistics_periodAll,
+      AnlasStatisticsPeriod.custom => l10n.statistics_periodCustom,
+    };
+  }
+
+  Widget _buildPeriodSummary(
+    BuildContext context,
+    AppLocalizations l10n,
+    AnlasPeriodStats periodStats,
+  ) {
+    final materialL10n = MaterialLocalizations.of(context);
+    final start = materialL10n.formatShortDate(periodStats.startDate);
+    final end = materialL10n.formatShortDate(periodStats.endDate);
+    final colorScheme = Theme.of(context).colorScheme;
+    return Row(
+      children: [
+        Icon(
+          Icons.date_range_outlined,
+          size: 15,
+          color: colorScheme.onSurfaceVariant,
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            l10n.statistics_periodSummary(start, end, periodStats.coveredDays),
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPartialCoverageNotice(
+    BuildContext context,
+    AppLocalizations l10n,
+    AnlasPeriodStats periodStats,
+  ) {
+    final theme = Theme.of(context);
+    final coverageStart = MaterialLocalizations.of(
+      context,
+    ).formatShortDate(periodStats.startDate);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.info_outline_rounded,
+            size: 15,
+            color: theme.colorScheme.onSecondaryContainer,
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              l10n.statistics_partialCoverage(
+                coverageStart,
+                periodStats.coveredDays,
+              ),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSecondaryContainer,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -145,14 +378,18 @@ class AnlasCostCard extends ConsumerWidget {
   ) {
     if (dailyStats.isEmpty) return const SizedBox.shrink();
 
+    final materialL10n = MaterialLocalizations.of(context);
+
     final spots = dailyStats.asMap().entries.map((e) {
       return FlSpot(e.key.toDouble(), e.value.cost.toDouble());
     }).toList();
 
-    final maxValue =
-        dailyStats.map((e) => e.cost).reduce((a, b) => a > b ? a : b);
-    final minValue =
-        dailyStats.map((e) => e.cost).reduce((a, b) => a < b ? a : b);
+    final maxValue = dailyStats
+        .map((e) => e.cost)
+        .reduce((a, b) => a > b ? a : b);
+    final minValue = dailyStats
+        .map((e) => e.cost)
+        .reduce((a, b) => a < b ? a : b);
     final range = maxValue - minValue;
     final padding = range > 0 ? range * 0.15 : maxValue * 0.15;
 
@@ -181,7 +418,7 @@ class AnlasCostCard extends ConsumerWidget {
               return touchedSpots.map((spot) {
                 final stat = dailyStats[spot.spotIndex];
                 return LineTooltipItem(
-                  '${stat.date.month}/${stat.date.day}\n${_formatAnlas(stat.cost)}',
+                  '${materialL10n.formatShortDate(stat.date)}\n${_formatAnlas(stat.cost)}',
                   TextStyle(
                     color: colorScheme.onSurface,
                     fontWeight: FontWeight.w600,
@@ -197,20 +434,20 @@ class AnlasCostCard extends ConsumerWidget {
         lineBarsData: [
           LineChartBarData(
             spots: spots,
-            isCurved: true,
+            isCurved: dailyStats.length <= 90,
             curveSmoothness: 0.3,
             color: Colors.amber,
             barWidth: 3,
             isStrokeCapRound: true,
             dotData: FlDotData(
-              show: true,
+              show: dailyStats.length <= 31,
               getDotPainter: (spot, percent, barData, index) =>
                   FlDotCirclePainter(
-                radius: 4,
-                color: Colors.amber,
-                strokeWidth: 2,
-                strokeColor: isDark ? colorScheme.surface : Colors.white,
-              ),
+                    radius: 4,
+                    color: Colors.amber,
+                    strokeWidth: 2,
+                    strokeColor: isDark ? colorScheme.surface : Colors.white,
+                  ),
             ),
             belowBarData: BarAreaData(
               show: true,
@@ -243,6 +480,7 @@ class _StatBox extends StatelessWidget {
   final bool isDark;
   final ColorScheme colorScheme;
   final TextTheme textTheme;
+  final Key? valueKey;
 
   const _StatBox({
     required this.label,
@@ -250,6 +488,7 @@ class _StatBox extends StatelessWidget {
     required this.isDark,
     required this.colorScheme,
     required this.textTheme,
+    this.valueKey,
   });
 
   @override
@@ -278,6 +517,7 @@ class _StatBox extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             value,
+            key: valueKey,
             style: textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.bold,
               color: Colors.amber.shade700,
@@ -286,6 +526,81 @@ class _StatBox extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _CustomDaysDialog extends StatefulWidget {
+  final int initialDays;
+  final int maxDays;
+
+  const _CustomDaysDialog({required this.initialDays, required this.maxDays});
+
+  @override
+  State<_CustomDaysDialog> createState() => _CustomDaysDialogState();
+}
+
+class _CustomDaysDialogState extends State<_CustomDaysDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialDays.toString());
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    Navigator.of(context).pop(int.parse(_controller.text));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final materialL10n = MaterialLocalizations.of(context);
+    return AlertDialog(
+      title: Text(l10n.statistics_customPeriodTitle),
+      content: Form(
+        key: _formKey,
+        child: TextFormField(
+          key: const ValueKey('anlas-custom-days-field'),
+          controller: _controller,
+          autofocus: true,
+          keyboardType: TextInputType.number,
+          textInputAction: TextInputAction.done,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          decoration: InputDecoration(
+            labelText: l10n.statistics_customDaysHint,
+            suffixText: l10n.statistics_daysUnit,
+          ),
+          validator: (value) {
+            final days = int.tryParse(value ?? '');
+            if (days == null || days <= 0 || days > widget.maxDays) {
+              return l10n.statistics_customDaysError(widget.maxDays);
+            }
+            return null;
+          },
+          onFieldSubmitted: (_) => _submit(),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(materialL10n.cancelButtonLabel),
+        ),
+        FilledButton(
+          key: const ValueKey('anlas-custom-days-apply'),
+          onPressed: _submit,
+          child: Text(materialL10n.okButtonLabel),
+        ),
+      ],
     );
   }
 }

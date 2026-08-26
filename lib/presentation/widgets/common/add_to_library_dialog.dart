@@ -271,9 +271,6 @@ class _AddToLibraryDialogState extends ConsumerState<AddToLibraryDialog> {
                     alpha: 0.5,
                   ),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: colorScheme.outline.withValues(alpha: 0.2),
-                  ),
                 ),
                 child: Text(
                   widget.content,
@@ -293,7 +290,6 @@ class _AddToLibraryDialogState extends ConsumerState<AddToLibraryDialog> {
                   labelText: l10n.addGroup_displayNameLabel,
                   hintText: l10n.addToLibrary_displayNameHint,
                   prefixIcon: const Icon(Icons.label_outline),
-                  border: const OutlineInputBorder(),
                   suffixIcon: IconButton(
                     icon: const Icon(Icons.clear),
                     onPressed: () => _nameController.clear(),
@@ -313,7 +309,6 @@ class _AddToLibraryDialogState extends ConsumerState<AddToLibraryDialog> {
                     decoration: InputDecoration(
                       labelText: l10n.addGroup_targetCategoryLabel,
                       prefixIcon: const Icon(Icons.folder_outlined),
-                      border: const OutlineInputBorder(),
                     ),
                     items: [
                       DropdownMenuItem(
@@ -347,7 +342,6 @@ class _AddToLibraryDialogState extends ConsumerState<AddToLibraryDialog> {
                   labelText: l10n.tag_addTag,
                   hintText: l10n.addToLibrary_tagHint,
                   prefixIcon: const Icon(Icons.tag),
-                  border: const OutlineInputBorder(),
                   suffixIcon: IconButton(
                     icon: const Icon(Icons.add),
                     onPressed: _addTag,

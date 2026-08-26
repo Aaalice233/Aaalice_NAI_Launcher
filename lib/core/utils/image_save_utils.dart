@@ -79,6 +79,7 @@ class ImageSaveUtils {
       if (params.isImg2Img) ...{
         'strength': params.strength,
         'noise': params.noise,
+        'extra_noise_seed': actualSeed - 1,
       },
       // V5 专属参数：官网写回元数据时保留 upscale 与透明背景，只剔除
       // upscaled_enhance（增强 max 档是一次性动作，不属于图片参数）。

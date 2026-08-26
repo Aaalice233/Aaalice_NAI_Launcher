@@ -15,20 +15,21 @@ import '../../../../core/constants/api_constants.dart';
 import '../../../../core/utils/focused_inpaint_utils.dart';
 import '../../../../core/utils/app_logger.dart';
 import '../../../../core/utils/localization_extension.dart';
-import '../../../../data/datasources/remote/nai_image_enhancement_api_service.dart';
 import '../../../../data/models/image/image_params.dart';
 import '../../../../data/services/precise_ref_library_storage_service.dart';
 import '../../../providers/comfyui/comfyui_provider.dart';
 import '../../../providers/cost_estimate_provider.dart';
+import '../../../providers/generation/generation_panel_expansion_provider.dart';
 import '../../../providers/generation/generation_params_selectors.dart';
+import '../../../providers/generation/novel_ai_upscale_task_provider.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/image_save_settings_provider.dart';
 import '../../../providers/generation/image_workflow_controller.dart';
 import '../../../providers/precise_ref_library_provider.dart';
-import '../../../providers/subscription_provider.dart';
 import '../../../services/image_workflow_launcher.dart';
 import '../../../utils/comfyui_workflow_l10n.dart';
 import '../../../utils/precise_ref_library_import_helper.dart';
+import '../../../widgets/common/anlas_cost_badge.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/collapsible_image_panel.dart';
 import '../../../widgets/common/decoded_memory_image.dart';
@@ -99,25 +100,41 @@ class Img2ImgPanel extends ConsumerStatefulWidget {
 class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
   static const String _upscaleLogTag = 'Img2Img-Upscale';
 
-  bool _naiUpscaling = false;
-
   @override
   Widget build(BuildContext context) {
+    ref.listen<NovelAiUpscaleTaskState>(novelAiUpscaleTaskProvider, (
+      previous,
+      next,
+    ) {
+      if (previous?.isRunning != true) return;
+      if (next.status == NovelAiUpscaleTaskStatus.completed) {
+        AppToast.success(context, context.l10n.img2img_novelAiUpscaleComplete);
+      } else if (next.status == NovelAiUpscaleTaskStatus.failed) {
+        final errorMessage = next.errorMessage;
+        if (errorMessage != null) AppToast.error(context, errorMessage);
+      }
+    });
+
     final theme = Theme.of(context);
     final params = ref.watch(
       generationParamsNotifierProvider.select(selectImg2ImgPanelViewData),
     );
     final workflow = ref.watch(imageWorkflowControllerProvider);
+    final isExpanded = ref.watch(
+      generationPanelExpansionProvider.select(
+        (value) => value.isExpanded(GenerationWorkbenchPanel.img2img),
+      ),
+    );
     final hasSourceImage = params.sourceImage != null;
-    final showBackground = hasSourceImage && !workflow.isPanelExpanded;
+    final showBackground = hasSourceImage && !isExpanded;
 
     return CollapsibleImagePanel(
       title: context.l10n.img2img_title,
       icon: Icons.image,
-      isExpanded: workflow.isPanelExpanded,
+      isExpanded: isExpanded,
       onToggle: () => ref
           .read(imageWorkflowControllerProvider.notifier)
-          .setPanelExpanded(!workflow.isPanelExpanded),
+          .setPanelExpanded(!isExpanded),
       hasData: hasSourceImage,
       backgroundImage: hasSourceImage
           ? DecodedMemoryImage(
@@ -143,7 +160,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
           ),
         ),
       ),
-      child: Padding(
+      childBuilder: (context) => Padding(
         padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -164,7 +181,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
                 _buildNoiseSlider(theme, params),
               ],
               const SizedBox(height: 12),
-              OutlinedButton.icon(
+              TextButton.icon(
                 onPressed: _clearImg2Img,
                 icon: const Icon(Icons.clear, size: 18),
                 label: Text(context.l10n.img2img_clearSettings),
@@ -354,7 +371,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
           ],
         ),
         const SizedBox(height: 8),
-        OutlinedButton.icon(
+        FilledButton.tonalIcon(
           key: const Key('img2img-from-precise-ref-library'),
           onPressed: _importSourceFromPreciseRefLibrary,
           icon: const Icon(Icons.photo_library_outlined, size: 16),
@@ -421,7 +438,6 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
       decoration: BoxDecoration(
         color: background,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: foreground.withValues(alpha: 0.24)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -545,11 +561,6 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
                         alpha: 0.5,
                       ),
                 borderRadius: BorderRadius.circular(999),
-                border: Border.all(
-                  color: workflow.focusedInpaintEnabled
-                      ? theme.colorScheme.primary.withValues(alpha: 0.35)
-                      : theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
-                ),
               ),
               child: Text(
                 workflow.focusedInpaintEnabled
@@ -587,11 +598,8 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
   /// 灰底配白字。改用主题槽位后两种亮度下都保持层次。
   BoxDecoration _subPanelDecoration(ThemeData theme) {
     return BoxDecoration(
-      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+      color: theme.colorScheme.surfaceContainerHigh,
       borderRadius: BorderRadius.circular(10),
-      border: Border.all(
-        color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
-      ),
     );
   }
 
@@ -651,7 +659,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
       sourceHeight: workflow.sourceHeight ?? workflow.baseHeight,
     );
     final useMaxScale = enhance.maxScale && maxEnhanceAvailable;
-    // 官网按源图尺寸决定可选倍率：面积超上限或算出来对不齐 64 的档位不给选
+    // 按归一化后的实际请求尺寸决定可选倍率，避免展示超过面积上限的档位。
     final availableFactors = controller.availableEnhanceFactors;
     final activeFactor = controller.effectiveEnhanceFactor;
 
@@ -709,7 +717,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
-            // 可用倍率按源图尺寸算：放大后超面积上限或对不齐 64 的档位不给选
+            // 宽高先归一化到 64-grid，实际请求面积未超上限的档位都可选。
             children: [
               ...availableFactors.reversed.map((factor) {
                 final label = factor == factor.roundToDouble()
@@ -760,6 +768,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
     );
     final taskState = ref.watch(comfyUITaskProvider);
     final taskError = taskState.localizedError(context.l10n);
+    final naiTaskState = ref.watch(novelAiUpscaleTaskProvider);
     final hasSourceImage = ref.watch(
       generationParamsNotifierProvider.select(
         (params) => params.sourceImage != null,
@@ -814,7 +823,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
 
     final bool canStart;
     if (isNai) {
-      canStart = hasSourceImage && !_naiUpscaling;
+      canStart = hasSourceImage && !naiTaskState.isRunning;
     } else {
       final hasRequiredComfyModel = isComfyRtx || resolvedComfyModel != null;
       canStart =
@@ -925,7 +934,6 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
                       ? resolvedComfyModel
                       : null,
                   decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
                     isDense: true,
                     contentPadding: EdgeInsets.symmetric(
                       horizontal: 12,
@@ -1045,15 +1053,35 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
                 ),
             ],
           ],
-          if (_naiUpscaling) ...[
+          if (naiTaskState.isRunning) ...[
             const SizedBox(height: 8),
             const LinearProgressIndicator(),
+          ] else if (isNai &&
+              naiTaskState.status == NovelAiUpscaleTaskStatus.failed &&
+              naiTaskState.errorMessage != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              naiTaskState.errorMessage!,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.error,
+              ),
+            ),
           ],
           const SizedBox(height: 8),
           FilledButton.icon(
             onPressed: canStart ? _runUpscale : null,
             icon: const Icon(Icons.play_arrow, size: 20),
-            label: Text(context.l10n.img2img_startUpscale),
+            label: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(context.l10n.img2img_startUpscale),
+                if (isNai)
+                  AnlasCostBadge(
+                    key: const ValueKey('upscale_anlas_cost_badge'),
+                    isGenerating: naiTaskState.isRunning,
+                  ),
+              ],
+            ),
           ),
         ],
       ),
@@ -1123,12 +1151,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
       decoration: BoxDecoration(
         borderRadius: borderRadius,
-        border: Border.all(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
-        ),
-        color: theme.colorScheme.surfaceContainerHighest.withValues(
-          alpha: 0.25,
-        ),
+        color: theme.colorScheme.surfaceContainerHigh,
       ),
       child: Column(
         children: [
@@ -1519,49 +1542,9 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
   }
 
   Future<void> _runNaiUpscale(ImageParams params, Uint8List src) async {
-    AppLogger.i(
-      'NovelAI upscale begin: ${_sourceLogSummary(params, src)}',
-      _upscaleLogTag,
-    );
-    final subscriptionNotifier = ref.read(
-      subscriptionNotifierProvider.notifier,
-    );
-    setState(() => _naiUpscaling = true);
-    try {
-      final apiService = ref.read(naiImageEnhancementApiServiceProvider);
-      AppLogger.d('NovelAI upscale API request start', _upscaleLogTag);
-      final result = await apiService.upscaleImage(src, scale: 4);
-      AppLogger.i(
-        'NovelAI upscale API returned: bytes=${result.length}',
-        _upscaleLogTag,
-      );
-      if (!mounted) return;
-
-      final saveSettings = ref.read(imageSaveSettingsNotifierProvider);
-      AppLogger.d(
-        'Registering NovelAI upscale result: autoSave=${saveSettings.autoSave}',
-        _upscaleLogTag,
-      );
-      await ref
-          .read(imageGenerationNotifierProvider.notifier)
-          .registerExternalImage(
-            result,
-            params: params,
-            saveToLocal: saveSettings.autoSave,
-            replaceCurrentDisplay: true,
-          );
-      AppLogger.i('NovelAI upscale result registered', _upscaleLogTag);
-      if (mounted) {
-        AppToast.success(context, context.l10n.img2img_novelAiUpscaleComplete);
-      }
-    } catch (e) {
-      AppLogger.w('NovelAI upscale failed: $e', _upscaleLogTag);
-      if (mounted) AppToast.error(context, e.toString());
-    } finally {
-      subscriptionNotifier.schedulePostBillingRefresh();
-      AppLogger.d('NovelAI upscale end', _upscaleLogTag);
-      if (mounted) setState(() => _naiUpscaling = false);
-    }
+    await ref
+        .read(novelAiUpscaleTaskProvider.notifier)
+        .execute(params: params, sourceImage: src);
   }
 
   Future<void> _runComfySeedvr2Upscale(

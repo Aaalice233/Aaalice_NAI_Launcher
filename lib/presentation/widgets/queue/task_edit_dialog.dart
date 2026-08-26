@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:nai_launcher/core/cache/gallery_image_request.dart';
-import 'package:nai_launcher/core/cache/online_gallery_image_cache_manager.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../data/models/queue/replication_task.dart';
@@ -15,6 +12,8 @@ import '../autocomplete/autocomplete_wrapper.dart';
 import '../common/inset_shadow_container.dart';
 import '../prompt/prompt_formatter_wrapper.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
+
+import 'queue_task_thumbnail.dart';
 
 /// 任务编辑对话框
 class TaskEditDialog extends ConsumerStatefulWidget {
@@ -84,43 +83,15 @@ class _TaskEditDialogState extends ConsumerState<TaskEditDialog> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // 缩略图预览
-                    if (widget.task.thumbnailUrl != null)
+                    if (widget.task.thumbnailUrl != null &&
+                        widget.task.thumbnailUrl!.isNotEmpty)
                       Center(
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(12),
-                          child: CachedNetworkImage(
-                            imageUrl: widget.task.thumbnailUrl!,
-                            httpHeaders: onlineGalleryImageHeadersForUrl(
-                              widget.task.thumbnailUrl!,
-                            ),
-                            cacheKey: onlineGalleryImageCacheKeyForUrl(
-                              widget.task.thumbnailUrl!,
-                            ),
-                            cacheManager:
-                                OnlineGalleryImageCacheManager.instance,
-                            memCacheWidth: GalleryImageSizing.gridTargetWidth(
-                              layoutWidth: 150,
-                              devicePixelRatio: MediaQuery.devicePixelRatioOf(
-                                context,
-                              ),
-                            ),
+                          child: QueueTaskThumbnail(
+                            source: widget.task.thumbnailUrl!,
                             width: 150,
                             height: 150,
-                            fit: BoxFit.cover,
-                            placeholder: (context, url) => Container(
-                              width: 150,
-                              height: 150,
-                              color: theme.colorScheme.surfaceContainerHighest,
-                              child: const Center(
-                                child: CircularProgressIndicator(),
-                              ),
-                            ),
-                            errorWidget: (context, url, error) => Container(
-                              width: 150,
-                              height: 150,
-                              color: theme.colorScheme.surfaceContainerHighest,
-                              child: const Icon(Icons.broken_image, size: 48),
-                            ),
                           ),
                         ),
                       ),

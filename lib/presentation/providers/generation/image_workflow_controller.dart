@@ -12,6 +12,7 @@ import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/focused_inpaint_utils.dart';
 import '../../../core/utils/nai_resolution_adapter.dart';
 import '../../../data/models/image/image_params.dart';
+import 'generation_panel_expansion_provider.dart';
 import 'generation_params_notifier.dart';
 
 enum ImageWorkflowMode { base, inpaint, enhance, upscale }
@@ -488,10 +489,12 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
   ImageWorkflowState _buildDefaultState({
     EnhanceWorkflowSettings? enhance,
     UpscaleWorkflowSettings? upscale,
+    bool? isPanelExpanded,
   }) {
     return ImageWorkflowState(
       enhance: enhance ?? const EnhanceWorkflowSettings(),
       upscale: upscale ?? const UpscaleWorkflowSettings(),
+      isPanelExpanded: isPanelExpanded ?? false,
     );
   }
 
@@ -510,7 +513,20 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
         }
       },
     );
+    ref.listen<bool>(
+      generationPanelExpansionProvider.select(
+        (value) => value.isExpanded(GenerationWorkbenchPanel.img2img),
+      ),
+      (previous, next) {
+        if (state.isPanelExpanded != next) {
+          state = state.copyWith(isPanelExpanded: next);
+        }
+      },
+    );
 
+    final persistedPanelExpanded = ref
+        .read(generationPanelExpansionProvider)
+        .isExpanded(GenerationWorkbenchPanel.img2img);
     final persistedScale = _readPersistedUpscaleScale();
     final legacyPersistedModel = _readPersistedStringSetting(
       StorageKeys.comfyuiUpscaleModel,
@@ -592,6 +608,7 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
 
     return _buildDefaultState(
       enhance: persistedEnhance,
+      isPanelExpanded: persistedPanelExpanded,
       upscale: UpscaleWorkflowSettings(
         backend: persistedBackend,
         comfyModule: persistedComfyModule,
@@ -1078,11 +1095,22 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
 
     _paramsNotifier.clearImg2Img();
     _paramsNotifier.setMaskImage(null);
-    state = _buildDefaultState(enhance: state.enhance, upscale: state.upscale);
+    state = _buildDefaultState(
+      enhance: state.enhance,
+      upscale: state.upscale,
+      isPanelExpanded: state.isPanelExpanded,
+    );
   }
 
   void setPanelExpanded(bool value) {
-    state = state.copyWith(isPanelExpanded: value);
+    if (state.isPanelExpanded != value) {
+      state = state.copyWith(isPanelExpanded: value);
+    }
+    unawaited(
+      ref
+          .read(generationPanelExpansionProvider.notifier)
+          .setExpanded(GenerationWorkbenchPanel.img2img, value),
+    );
   }
 
   void setSourceImageDimensions(int? width, int? height) {
@@ -1110,6 +1138,7 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
       isPanelExpanded: true,
       isOutpaint: false,
     );
+    setPanelExpanded(true);
     _applySourceSizeToParams();
     _paramsNotifier.updateIsOutpaint(false);
     _paramsNotifier.updateAction(ImageGenerationAction.img2img);
@@ -1382,6 +1411,7 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
       focusedSelectionRect: constrainedSelection,
       clearFocusedSelectionRect: !effectiveFocusedInpaintEnabled,
     );
+    setPanelExpanded(true);
 
     _applySourceSizeToParams();
     _paramsNotifier.setMaskImage(maskImage);
@@ -1403,6 +1433,7 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
       isPanelExpanded: true,
       isOutpaint: false,
     );
+    setPanelExpanded(true);
     _paramsNotifier.updateIsOutpaint(false);
     _applyEnhanceToParams();
   }
@@ -1444,6 +1475,7 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
       isPanelExpanded: true,
       isOutpaint: false,
     );
+    setPanelExpanded(true);
 
     _applySourceSizeToParams();
     _syncInpaintRequestState();
@@ -1607,13 +1639,20 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
     // 自动退回倍率档，避免 upscaled_enhance 发给不认识它的模型。
     final useMaxScale = state.enhance.maxScale && isMaxEnhanceAvailable;
     final factor = useMaxScale ? 1.0 : effectiveEnhanceFactor;
-    final requestWidth = _normalizeDimension((baseWidth * factor).round());
-    final requestHeight = _normalizeDimension((baseHeight * factor).round());
+    final targetSize = EnhanceScales.resolveTargetSize(
+      sourceWidth: baseWidth,
+      sourceHeight: baseHeight,
+      factor: factor,
+    );
     final resolved = state.enhance.showIndividualSettings
         ? (strength: state.enhance.strength, noise: state.enhance.noise)
         : EnhanceLevels.resolve(state.enhance.level);
 
-    _paramsNotifier.updateSize(requestWidth, requestHeight, persist: false);
+    _paramsNotifier.updateSize(
+      targetSize.width,
+      targetSize.height,
+      persist: false,
+    );
     _paramsNotifier.updateStrength(resolved.strength);
     _paramsNotifier.updateNoise(resolved.noise);
     _paramsNotifier.updateUpscaledEnhance(useMaxScale);
@@ -1657,11 +1696,6 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
 
     _paramsNotifier.updateIsOutpaint(false);
     _paramsNotifier.updateAction(ImageGenerationAction.img2img);
-  }
-
-  int _normalizeDimension(int value) {
-    final normalized = ((value + 32) ~/ 64) * 64;
-    return normalized.clamp(64, 4096);
   }
 
   bool _usesStableDiffusionImportBounds(String model) {
