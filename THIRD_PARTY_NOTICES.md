@@ -30,11 +30,25 @@ ComfyUI-Lora-Manager is GPL-3.0 licensed. Only its pinned copy of the
 Unlicense tag dataset is used here; no Python, JavaScript, or other GPL
 implementation code from that project is included in this application.
 
-The random tag library uses declarative semantic matching rules over this same
-complete bundled catalog. The rules, catalog version, source URL, source date,
-SHA256, complete counts, license, and resolved category counts are locked in
-`tool/random_tag_library/source_lock.json`; no NovelAI website bundle or
-wordlist content is included, downloaded, scraped, or redistributed.
+The custom and hybrid random-tag extension uses declarative semantic matching
+rules over this same complete bundled catalog. The rules, catalog version,
+source URL, source date, SHA256, complete counts, license, and resolved category
+counts are locked in `tool/random_tag_library/source_lock.json`.
+
+## NovelAI Official Random Wordlist Data
+
+The official random mode includes a data-only extraction of the random
+wordlists published in the NovelAI image-generation frontend at
+[novelai.net/image](https://novelai.net/image). NovelAI and its frontend content
+are © Anlatan. The project does not include NovelAI frontend JavaScript or claim
+a license to NovelAI trademarks or service code.
+
+The bundled data preserves 5,960 original records in 118 source arrays,
+including order, duplicate records, weights, and condition fields, so the client
+can reproduce the public frontend's random-prompt behavior offline. The exact
+source bundle name, source SHA256, output SHA256, array counts, and record counts
+are pinned in `tool/random_tag_library/source_lock.json`; deterministic rebuild
+and verification tools live in `tool/random_tag_library/`.
 
 ## Danbooru Co-occurrence Data
 

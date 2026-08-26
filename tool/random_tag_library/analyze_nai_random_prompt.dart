@@ -3,132 +3,7 @@ import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 
-const _generatorVariables = <String, List<String>>{
-  'legacyAnime': [
-    'lF',
-    'lO',
-    'lV',
-    'lU',
-    'lW',
-    r'l$',
-    'lH',
-    'lG',
-    'lX',
-    'lY',
-    'lQ',
-    'lK',
-    'lZ',
-    'lJ',
-    'l0',
-    'l3',
-    'l2',
-    'l1',
-    'l5',
-    'l6',
-    'l4',
-    'l8',
-    'l7',
-    'l9',
-    'ce',
-    'ct',
-    'cr',
-    'ci',
-    'ca',
-    'cn',
-    'co',
-    'cs',
-    'cl',
-    'cc',
-    'cd',
-    'ch',
-    'cu',
-    'cp',
-    'cg',
-  ],
-  'furryV3': [
-    'cx',
-    'cw',
-    'cv',
-    'ck',
-    'cC',
-    'cI',
-    'cM',
-    'cS',
-    'cD',
-    'cT',
-    'cR',
-    'cP',
-    'cz',
-    'cq',
-    'cE',
-    'cB',
-    'cN',
-    'cL',
-    'cF',
-    'cO',
-    'cV',
-    'cU',
-    'cW',
-    r'c$',
-    'cH',
-    'cG',
-    'cX',
-    'cY',
-    'cQ',
-    'cK',
-    'cZ',
-    'cJ',
-    'c0',
-    'c3',
-    'c2',
-    'c1',
-    'c5',
-    'c6',
-    'c4',
-    'c8',
-  ],
-  'characterPrompts': [
-    'dr',
-    'di',
-    'da',
-    'dn',
-    'ds',
-    'dl',
-    'dc',
-    'dd',
-    'dh',
-    'du',
-    'dp',
-    'dg',
-    'dm',
-    'df',
-    'dy',
-    'd_',
-    'db',
-    'dx',
-    'dw',
-    'dv',
-    'dk',
-    'dC',
-    'dj',
-    'dA',
-    'dI',
-    'dM',
-    'dS',
-    'dD',
-    'dT',
-    'dR',
-    'dP',
-    'dz',
-    'dq',
-    'dE',
-    'dB',
-    'dN',
-    'dL',
-    'dF',
-    'dO',
-  ],
-};
+import 'nai_official_wordlist_builder.dart';
 
 /// Produces aggregate evidence only. It never writes or emits proprietary tags.
 Future<void> main(List<String> args) async {
@@ -167,12 +42,12 @@ Future<void> main(List<String> args) async {
   DateTime.parse(expected['retrievedAt'] as String);
 
   final generatorStats = <String, Object?>{};
-  for (final generator in _generatorVariables.entries) {
+  for (final generator in naiOfficialGeneratorGroups.entries) {
     final arrayCounts = <String, int>{};
     var entryCount = 0;
     final uniqueEntries = <String>{};
-    for (final variable in generator.value) {
-      final value = _decodeAssignedArray(source, variable);
+    for (final variable in generator.value.keys) {
+      final value = decodeAssignedArray(source, variable);
       arrayCounts[variable] = value.length;
       entryCount += value.length;
       for (final item in value) {
@@ -208,46 +83,6 @@ Future<void> main(List<String> args) async {
     }),
   );
   stdout.writeln('NovelAI random-prompt reference analysis passed.');
-}
-
-List<dynamic> _decodeAssignedArray(String source, String variable) {
-  final assignment = RegExp(
-    '(?<![A-Za-z0-9_\\\$])${RegExp.escape(variable)}=\\[',
-  ).firstMatch(source);
-  _expect(assignment != null, 'missing array assignment: $variable');
-  final start = assignment!.end - 1;
-  final end = _arrayEnd(source, start);
-  final value = jsonDecode(source.substring(start, end + 1));
-  _expect(value is List, '$variable is not an array');
-  return value as List<dynamic>;
-}
-
-int _arrayEnd(String source, int start) {
-  var depth = 0;
-  var escaped = false;
-  int? quote;
-  for (var index = start; index < source.length; index++) {
-    final code = source.codeUnitAt(index);
-    if (quote != null) {
-      if (escaped) {
-        escaped = false;
-      } else if (code == 0x5c) {
-        escaped = true;
-      } else if (code == quote) {
-        quote = null;
-      }
-      continue;
-    }
-    if (code == 0x22 || code == 0x27) {
-      quote = code;
-    } else if (code == 0x5b) {
-      depth++;
-    } else if (code == 0x5d) {
-      depth--;
-      if (depth == 0) return index;
-    }
-  }
-  throw const FormatException('Unterminated array literal');
 }
 
 void _expect(bool condition, String message) {

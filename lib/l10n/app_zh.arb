@@ -1805,17 +1805,16 @@
   },
 
   "randomMode_title": "选择随机模式",
-  "randomMode_naiOfficial": "离线词库",
+  "randomMode_naiOfficial": "官网模式",
   "randomMode_custom": "自定义模式",
   "randomMode_hybrid": "混合模式",
-  "randomMode_naiOfficialDesc": "使用已验证的完整离线标签 catalog",
-  "randomMode_customDesc": "使用自定义预设生成",
-  "randomMode_hybridDesc": "结合离线词库和自定义预设",
-  "randomMode_naiIndicator": "离线",
+  "randomMode_naiOfficialDesc": "按当前模型使用 NovelAI 官网随机词库",
+  "randomMode_customDesc": "使用完整离线标签 catalog 与自定义预设生成",
+  "randomMode_hybridDesc": "同时使用官网词库与 catalog 扩展",
+  "randomMode_naiIndicator": "官网",
   "randomMode_customIndicator": "自定义",
 
   "naiMode_noTags": "暂无标签",
-  "naiAlgorithm_characterCount": "角色数量分布",
   "naiAlgorithm_mainPrompt": "主提示词",
   "tagGroup_tagCount": "{count} 标签",
   "@tagGroup_tagCount": {
@@ -1969,14 +1968,9 @@
   "randomManager_algorithmConfig": "算法配置",
   "randomManager_characterCountWeight": "角色数量权重",
   "randomManager_genderWeight": "性别权重",
-  "randomManager_globalSettings": "全局设置",
   "randomManager_enableSeasonalWordlists": "启用季节性词库",
   "randomManager_enableSeasonalWordlistsDesc": "圣诞节、万圣节等特殊日期词库",
   "randomManager_globalEmphasisProbability": "全局强调概率",
-  "randomManager_soloGenderOptions": "单人性别选项",
-  "randomManager_femaleShort": "女",
-  "randomManager_maleShort": "男",
-  "randomManager_other": "其他",
   "randomManager_tagGroupList": "词组列表",
   "randomManager_deleteTagGroupTitle": "删除词组",
   "randomManager_deleteTagGroupConfirm": "确定要删除词组「{name}」吗？此操作不可撤销。",
@@ -2000,7 +1994,6 @@
   "randomManager_noCategories": "暂无类别",
   "randomManager_noCategoriesHint": "点击“新增类别”开始配置",
   "randomManager_globalPeopleSettings": "全局人数设置",
-  "randomManager_closePreview": "关闭预览",
   "randomManager_importPreset": "导入预设",
   "randomManager_importPresetSubtitle": "从 JSON 文本导入随机配置预设",
   "randomManager_exportCurrentPreset": "导出当前预设",
@@ -2061,7 +2054,6 @@
   "randomManager_resetDefaultDone": "已重置为默认配置",
   "randomManager_generatePreview": "生成预览",
   "randomManager_importExport": "导入/导出",
-  "randomManager_syncing": "同步中",
   "randomManager_syncDanbooruTags": "同步 Danbooru 标签",
   "randomManager_unknownError": "未知错误",
   "randomManager_readOnlyMode": "只读模式",
@@ -2130,18 +2122,6 @@
   "randomManager_emphasisProbability": "强调概率",
   "randomManager_probability": "概率",
   "randomManager_selectionMode": "选择模式",
-  "randomManager_editHint": "{name} (点击编辑)",
-  "@randomManager_editHint": {
-    "placeholders": {
-      "name": {}
-    }
-  },
-  "randomManager_emphasisProbabilityValue": "强调概率: {percent}%",
-  "@randomManager_emphasisProbabilityValue": {
-    "placeholders": {
-      "percent": {}
-    }
-  },
   "randomManager_previewGeneration": "预览生成",
   "randomManager_generating": "生成中",
   "randomManager_generate": "生成",
@@ -3624,9 +3604,7 @@
   "settings_notificationSelectSound": "选择音效",
   "settings_notificationResetSound": "恢复默认",
 
-  "categoryConfiguration": "类别配置",
   "resetToDefault": "重置为默认",
-  "resetToDefaultTooltip": "重置为默认配置",
   "toggleGroupEnabled": "切换词组启用状态",
   "diyNotAvailableForDefault": "默认预设不支持 DIY 配置",
   "diyNotAvailableHint": "请复制为自定义预设后编辑",
@@ -6162,8 +6140,6 @@
     }
   },
 
-  "randomManager_releaseToDelete": "松开删除",
-  "randomManager_dragHereToDelete": "拖到这里删除",
   "randomManager_keyboardShortcutsHint": "键盘快捷键（按 ? 查看）",
 
   "localGallery_createFolder": "创建文件夹",
@@ -6410,7 +6386,24 @@
   "randomManager_category_effect": "特效",
   "randomManager_category_year": "年代",
   "randomManager_category_detail": "创意细节",
-  "randomManager_verifiedOfflineLibrary": "已验证的离线随机词库",
+  "randomManager_sourceOfficial": "官网 · {wordlist}",
+  "@randomManager_sourceOfficial": {"placeholders": {"wordlist": {"type": "String"}}},
+  "randomManager_sourceCatalog": "自定义 · Catalog 扩展",
+  "randomManager_sourceHybrid": "混合 · {wordlist} + Catalog",
+  "@randomManager_sourceHybrid": {"placeholders": {"wordlist": {"type": "String"}}},
+  "randomManager_currentMode": "当前模式",
+  "randomManager_officialWordlist": "当前模型官网词库",
+  "randomManager_officialWordlistCount": "{wordlist}：{count} 条原始记录",
+  "@randomManager_officialWordlistCount": {"placeholders": {"wordlist": {"type": "String"}, "count": {"type": "int"}}},
+  "randomManager_officialAsset": "完整官网资产",
+  "randomManager_officialAssetCount": "{entries} 条记录，{groups} 个原始数组",
+  "@randomManager_officialAssetCount": {"placeholders": {"entries": {"type": "int"}, "groups": {"type": "int"}}},
+  "randomManager_sourceFile": "来源文件",
+  "randomManager_sourceSha256": "来源 SHA-256",
+  "randomManager_catalogExtension": "Catalog 扩展",
+  "randomManager_wordlistLegacyAnime": "Legacy Anime",
+  "randomManager_wordlistFurryV3": "Furry V3",
+  "randomManager_wordlistCharacterPrompts": "Character Prompts",
   "randomManager_sourceDetails": "数据来源详情",
   "randomManager_sourceUrl": "来源 URL",
   "randomManager_sourceCommit": "来源提交",
@@ -6418,9 +6411,6 @@
   "randomManager_sourceLicense": "许可证",
   "randomManager_catalogCounts": "完整 catalog：{tags} 个标签，{aliases} 个别名",
   "@randomManager_catalogCounts": {"placeholders": {"tags": {}, "aliases": {}}},
-  "randomManager_libraryVersion": "规则 v{version} · {count} 个标签",
-  "@randomManager_libraryVersion": {"placeholders": {"version": {"type": "String"}, "count": {"type": "String"}}},
-  "randomManager_preview": "随机结果预览",
   "randomManager_libraryUnavailable": "随机词库无法使用",
   "randomManager_noCategoryResults": "没有匹配的类别、词组或标签"
 

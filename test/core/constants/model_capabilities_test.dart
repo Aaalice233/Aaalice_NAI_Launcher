@@ -64,6 +64,43 @@ void main() {
   });
 
   group('capability facts', () {
+    test(
+      'routes every model family to the matching official random recipe',
+      () {
+        expect(
+          ModelCapabilityRegistry.of(
+            ImageModels.animeDiffusionV3,
+          ).randomPromptProfile,
+          RandomPromptProfile.legacyAnime,
+        );
+        expect(
+          ModelCapabilityRegistry.of(ImageModels.furry).randomPromptProfile,
+          RandomPromptProfile.legacyAnime,
+        );
+        expect(
+          ModelCapabilityRegistry.of(
+            ImageModels.furryDiffusionV3,
+          ).randomPromptProfile,
+          RandomPromptProfile.furryV3,
+        );
+        for (final model in [
+          ImageModels.animeDiffusionV4Curated,
+          ImageModels.animeDiffusionV4Full,
+          ImageModels.animeDiffusionV45Curated,
+          ImageModels.animeDiffusionV45Full,
+          ImageModels.animeDiffusionV5Curated,
+          ImageModels.animeDiffusionV5Full,
+          ImageModels.v5StagingKey,
+        ]) {
+          expect(
+            ModelCapabilityRegistry.of(model).randomPromptProfile,
+            RandomPromptProfile.characterPrompts,
+            reason: '$model must reuse Character Prompts',
+          );
+        }
+      },
+    );
+
     test('V5 uses the V4 prompt structure with params_version 4', () {
       final caps = ModelCapabilityRegistry.of(ImageModels.v5StagingKey);
 

@@ -2,8 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/constants/model_capabilities.dart';
 import '../../../core/utils/localization_extension.dart';
+import '../../../data/models/prompt/official_wordlist.dart';
+import '../../../data/models/prompt/random_prompt_result.dart';
 import '../../../data/models/prompt/tag_library.dart';
+import '../../../data/services/wordlist_service.dart';
+import '../../providers/generation/generation_params_notifier.dart';
+import '../../providers/random_mode_provider.dart';
 import '../../providers/random_preset_provider.dart';
 import '../../providers/tag_library_provider.dart';
 import '../../widgets/common/app_toast.dart';
@@ -452,15 +458,21 @@ class _InspectorPanel extends StatelessWidget {
   }
 }
 
-class _RecipeHeading extends StatelessWidget {
+class _RecipeHeading extends ConsumerWidget {
   const _RecipeHeading({required this.libraryState});
 
   final TagLibraryState libraryState;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
+    final mode = ref.watch(randomModeNotifierProvider);
+    final model = ref.watch(generationParamsNotifierProvider).model;
+    final profile = ModelCapabilityRegistry.of(model).randomPromptProfile;
+    final officialData = mode == RandomGenerationMode.custom
+        ? null
+        : ref.watch(officialWordlistDataProvider).valueOrNull;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -485,7 +497,12 @@ class _RecipeHeading extends StatelessWidget {
           ),
         ),
         if (libraryState.library case final library?)
-          _LibraryStatusButton(library: library),
+          _LibraryStatusButton(
+            library: library,
+            mode: mode,
+            profile: profile,
+            officialData: officialData,
+          ),
       ],
     );
   }
@@ -548,17 +565,48 @@ class _LibrarySearchField extends StatelessWidget {
 }
 
 class _LibraryStatusButton extends StatelessWidget {
-  const _LibraryStatusButton({required this.library});
+  const _LibraryStatusButton({
+    required this.library,
+    required this.mode,
+    required this.profile,
+    required this.officialData,
+  });
 
   final TagLibrary library;
+  final RandomGenerationMode mode;
+  final RandomPromptProfile profile;
+  final OfficialWordlistData? officialData;
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final officialCount = _officialProfileCount(profile);
+    final label = switch (mode) {
+      RandomGenerationMode.naiOfficial =>
+        context.l10n.randomManager_sourceOfficial(
+          _officialProfileName(context, profile),
+        ),
+      RandomGenerationMode.custom => context.l10n.randomManager_sourceCatalog,
+      RandomGenerationMode.hybrid => context.l10n.randomManager_sourceHybrid(
+        _officialProfileName(context, profile),
+      ),
+    };
+    final count = switch (mode) {
+      RandomGenerationMode.naiOfficial => '$officialCount',
+      RandomGenerationMode.custom => '${library.totalTagCount}',
+      RandomGenerationMode.hybrid =>
+        '$officialCount + ${library.totalTagCount}',
+    };
     return Tooltip(
       message: context.l10n.randomManager_sourceDetails,
       child: InkWell(
-        onTap: () => _showSourceDetails(context, library),
+        onTap: () => _showSourceDetails(
+          context,
+          library,
+          mode: mode,
+          profile: profile,
+          officialData: officialData,
+        ),
         borderRadius: BorderRadius.circular(8),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
@@ -567,13 +615,18 @@ class _LibraryStatusButton extends StatelessWidget {
             children: [
               Icon(Icons.verified_rounded, size: 17, color: colors.primary),
               const SizedBox(width: 7),
-              Text(
-                context.l10n.randomManager_verifiedOfflineLibrary,
-                style: Theme.of(context).textTheme.labelMedium,
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 230),
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.labelMedium,
+                ),
               ),
               const SizedBox(width: 5),
               Text(
-                library.totalTagCount.toString(),
+                count,
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
                   color: colors.onSurfaceVariant,
                   fontFeatures: const [FontFeature.tabularFigures()],
@@ -587,7 +640,15 @@ class _LibraryStatusButton extends StatelessWidget {
   }
 }
 
-Future<void> _showSourceDetails(BuildContext context, TagLibrary library) {
+Future<void> _showSourceDetails(
+  BuildContext context,
+  TagLibrary library, {
+  required RandomGenerationMode mode,
+  required RandomPromptProfile profile,
+  required OfficialWordlistData? officialData,
+}) {
+  final includesOfficial = mode != RandomGenerationMode.custom;
+  final includesCatalog = mode != RandomGenerationMode.naiOfficial;
   return showDialog<void>(
     context: context,
     builder: (context) => AlertDialog(
@@ -600,29 +661,60 @@ Future<void> _showSourceDetails(BuildContext context, TagLibrary library) {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _SourceDetailRow(
-                label: context.l10n.randomManager_sourceUrl,
-                value: library.sourceUrl ?? '—',
+                label: context.l10n.randomManager_currentMode,
+                value: mode.getName(context.l10n),
               ),
-              _SourceDetailRow(
-                label: context.l10n.randomManager_sourceCommit,
-                value: library.sourceCommit ?? '—',
-              ),
-              _SourceDetailRow(
-                label: context.l10n.randomManager_sourceDate,
-                value:
-                    library.sourceVersionDate?.toUtc().toIso8601String() ?? '—',
-              ),
-              _SourceDetailRow(
-                label: context.l10n.randomManager_sourceLicense,
-                value: library.sourceLicense ?? '—',
-              ),
-              _SourceDetailRow(
-                label: context.l10n.randomManager_verifiedOfflineLibrary,
-                value: context.l10n.randomManager_catalogCounts(
-                  library.sourceCatalogTagCount ?? 0,
-                  library.sourceCatalogAliasCount ?? 0,
+              if (includesOfficial) ...[
+                _SourceDetailRow(
+                  label: context.l10n.randomManager_officialWordlist,
+                  value: context.l10n.randomManager_officialWordlistCount(
+                    _officialProfileName(context, profile),
+                    _officialProfileCount(profile),
+                  ),
                 ),
-              ),
+                _SourceDetailRow(
+                  label: context.l10n.randomManager_officialAsset,
+                  value: context.l10n.randomManager_officialAssetCount(
+                    officialWordlistTotalEntryCount,
+                    officialWordlistTotalGroupCount,
+                  ),
+                ),
+                _SourceDetailRow(
+                  label: context.l10n.randomManager_sourceFile,
+                  value: officialData?.sourceFileName ?? '—',
+                ),
+                _SourceDetailRow(
+                  label: context.l10n.randomManager_sourceSha256,
+                  value: officialData?.sourceSha256 ?? '—',
+                ),
+              ],
+              if (includesCatalog) ...[
+                _SourceDetailRow(
+                  label: context.l10n.randomManager_sourceUrl,
+                  value: library.sourceUrl ?? '—',
+                ),
+                _SourceDetailRow(
+                  label: context.l10n.randomManager_sourceCommit,
+                  value: library.sourceCommit ?? '—',
+                ),
+                _SourceDetailRow(
+                  label: context.l10n.randomManager_sourceDate,
+                  value:
+                      library.sourceVersionDate?.toUtc().toIso8601String() ??
+                      '—',
+                ),
+                _SourceDetailRow(
+                  label: context.l10n.randomManager_sourceLicense,
+                  value: library.sourceLicense ?? '—',
+                ),
+                _SourceDetailRow(
+                  label: context.l10n.randomManager_catalogExtension,
+                  value: context.l10n.randomManager_catalogCounts(
+                    library.sourceCatalogTagCount ?? 0,
+                    library.sourceCatalogAliasCount ?? 0,
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -636,6 +728,20 @@ Future<void> _showSourceDetails(BuildContext context, TagLibrary library) {
     ),
   );
 }
+
+String _officialProfileName(
+  BuildContext context,
+  RandomPromptProfile profile,
+) => switch (profile) {
+  RandomPromptProfile.legacyAnime =>
+    context.l10n.randomManager_wordlistLegacyAnime,
+  RandomPromptProfile.furryV3 => context.l10n.randomManager_wordlistFurryV3,
+  RandomPromptProfile.characterPrompts =>
+    context.l10n.randomManager_wordlistCharacterPrompts,
+};
+
+int _officialProfileCount(RandomPromptProfile profile) =>
+    officialWordlistGeneratorEntryCounts[profile.name]!;
 
 class _SourceDetailRow extends StatelessWidget {
   const _SourceDetailRow({required this.label, required this.value});
