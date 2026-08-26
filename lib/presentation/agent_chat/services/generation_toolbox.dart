@@ -107,8 +107,14 @@ class GenerationToolbox {
             'retried automatically). Total images = count x the "images '
             'per request" app setting (default 1, so count usually equals '
             'total). '
-            '(3) "width"/"height" must be valid NAI sizes (e.g. '
-            '832/1024/1216); omit to reuse the generation page size. '
+            '(3) "width"/"height": prefer NAI presets — Normal portrait '
+            '832x1216, landscape 1216x832, square 1024x1024; Large '
+            '1024x1536 / 1536x1024 / 1472x1472; Wallpaper 1088x1920 / '
+            '1920x1088; Small 512x768 / 768x512 / 640x640. Custom sizes '
+            'are allowed but limited: width and height MUST be multiples '
+            'of 64 (minimum 64), each side at most 2048, total pixels at '
+            'most 2088960 (wallpaper level). Omit to reuse the generation '
+            'page size. '
             '(4) "seed": omit or -1 for random. A fixed seed is honored '
             'only when count = 1; with count > 1 every image gets an '
             'independent random seed (identical to the generation page). '
@@ -139,11 +145,15 @@ class GenerationToolbox {
             },
             'width': {
               'type': 'number',
-              'description': 'Must be a valid NAI size (e.g. 832/1024/1216).',
+              'description':
+                  'Width in px; must be a multiple of 64. Prefer preset '
+                  'values (512/640/768/832/1024/1088/1216/1472/1536/1920).',
             },
             'height': {
               'type': 'number',
-              'description': 'Must be a valid NAI size (e.g. 832/1024/1216).',
+              'description':
+                  'Height in px; must be a multiple of 64. Prefer preset '
+                  'values (768/640/512/1216/1024/832/1536/1472/1920/1088).',
             },
             'count': {
               'type': 'number',
@@ -206,8 +216,8 @@ class GenerationToolbox {
             'is required; "count" 1-50, capped by the queue\'s remaining '
             'capacity (tool reports an error when full); "auto_start" '
             'starts the queue after adding (default true). Queue outputs '
-            'do NOT appear automatically — only call get_recent_images '
-            'to show them if the user asks to review queue results.',
+            'do NOT appear automatically; get_recent_images can retrieve '
+            'them later.',
         parameters: const {
           'type': 'object',
           'properties': {
@@ -256,10 +266,8 @@ class GenerationToolbox {
         label: 'Get Recent Images',
         description:
             'Return recently generated images (including queue outputs) '
-            'as chat thumbnails plus file paths. Use ONLY when the user '
-            'explicitly asks to review history / recent / queue results. '
-            'Do NOT call it proactively — it floods the conversation with '
-            'images. generate_image already shows its own results.',
+            'as chat thumbnails plus file paths for history review or when '
+            'visual context is useful.',
         parameters: const {
           'type': 'object',
           'properties': {

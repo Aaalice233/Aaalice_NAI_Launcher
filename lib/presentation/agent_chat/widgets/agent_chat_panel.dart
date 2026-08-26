@@ -464,7 +464,8 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
             ),
           ),
           const SizedBox(width: 8),
-          Flexible(
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 96),
             child: Text(
               l10n.agentChat_tab,
               style: theme.textTheme.titleSmall?.copyWith(
@@ -484,21 +485,29 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
           ),
           const SizedBox(width: 4),
           Expanded(
-            child: SizedBox(
-              height: 30,
-              child: _buildSessionSelector(theme, l10n, state),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 180),
+                child: SizedBox(
+                  height: 30,
+                  child: _buildSessionSelector(theme, l10n, state),
+                ),
+              ),
             ),
           ),
-          const SizedBox(width: 4),
           if (state.skills.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(right: 4),
+            SizedBox(
+              width: 32,
+              height: 32,
               child: Tooltip(
                 message: state.skills.map((s) => s.name).take(6).join(', '),
-                child: Icon(
-                  Icons.extension_outlined,
-                  size: 14,
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
+                child: Center(
+                  child: Icon(
+                    Icons.extension_outlined,
+                    size: 14,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
+                  ),
                 ),
               ),
             ),

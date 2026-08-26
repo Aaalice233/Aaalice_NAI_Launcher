@@ -236,11 +236,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     'read',
     'read_skill',
     'interrogate_image',
-    'get_recent_images',
-    'set_positive_prompt',
-    'set_negative_prompt',
     'update_character',
-    'add_character',
     'remove_character',
     'generate_image',
     'queue_image_task',
@@ -707,10 +703,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       '',
       'File tools:',
       '- read works inside the image export root: $workspacePath '
-          '(relative paths resolve against it). Generated images are '
-          'auto-saved there in dated subfolders (e.g. 2026-08-25/), so you '
-          'can read exported images by relative path; generate_image and '
-          'get_generation_status also return absolute paths.',
+          '(relative paths resolve against it).',
       '- Outside-workspace file paths are rejected unless the user has '
           'explicitly selected Full Access mode.',
       '- Use it for prompt drafts, exports, and reading skill files when a '
@@ -733,9 +726,8 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       '- get_generation_status reports generation progress, queue stats, '
           'and recent output paths (read-only, safe).',
       '- get_recent_images shows recently generated images (including '
-          'queue results) as thumbnails — use ONLY when the user asks to '
-          'review history / recent / queue results; never call it '
-          'proactively, or the chat floods with images.',
+          'queue results) as thumbnails for history review or when visual '
+          'context is useful.',
       '- get_generation_settings / update_generation_settings read and '
           'change model, sampler, steps, scale and other page settings. '
           'When the user names a model ("use V5", "switch to v4.5 '
@@ -748,6 +740,24 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
           'models also understand natural language, so use whichever fits.',
       '- Generated images appear as thumbnails in this chat automatically; '
           'the user can expand them to view the full image.',
+      '',
+      'Resolution rules:',
+      '- Presets (identical on V3 / V4 / V4.5 / V5): Normal 832x1216 / '
+          '1216x832 / 1024x1024; Large 1024x1536 / 1536x1024 / 1472x1472; '
+          'Wallpaper 1088x1920 / 1920x1088; Small 512x768 / 768x512 / '
+          '640x640.',
+      '- Custom sizes: width and height MUST be multiples of 64 (minimum '
+          '64); keep each side at most 2048 and total pixels at most '
+          '2088960 (wallpaper level). Oversized or extreme-aspect custom '
+          'sizes degrade composition and cost more.',
+      '- Pick by content: portrait character 832x1216, landscape scene or '
+          '3+ characters 1216x832, square avatar 1024x1024, phone '
+          'wallpaper 1088x1920. Do not invent custom sizes unless the user '
+          'asks; when you must, round to multiples of 64 first and say so.',
+      '- Cost: total pixels <= 1024x1024 with steps <= 28 is free for '
+          'Opus; anything larger costs Anlas and scales with pixel count. '
+          'V5 additionally consumes a time-recharged usage quota that '
+          'grows with pixel count; other models have no such quota.',
       '',
       'Prompt conventions:',
       '- Prompts are English danbooru tags separated by commas, important '
