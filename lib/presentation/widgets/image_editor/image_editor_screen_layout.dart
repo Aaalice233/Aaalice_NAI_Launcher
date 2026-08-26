@@ -135,7 +135,9 @@ extension _ImageEditorScreenLayout on _ImageEditorScreenState {
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         border: Border(
-          bottom: BorderSide(color: theme.dividerColor.withValues(alpha: 0.3)),
+          bottom: BorderSide(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.24),
+          ),
         ),
       ),
       child: Row(
@@ -276,7 +278,9 @@ extension _ImageEditorScreenLayout on _ImageEditorScreenState {
           decoration: BoxDecoration(
             color: theme.colorScheme.surfaceContainerHighest,
             border: Border(
-              top: BorderSide(color: theme.dividerColor.withValues(alpha: 0.3)),
+              top: BorderSide(
+                color: theme.colorScheme.outlineVariant.withValues(alpha: 0.24),
+              ),
             ),
           ),
           child: Row(

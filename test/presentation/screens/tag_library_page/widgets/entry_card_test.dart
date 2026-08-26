@@ -46,7 +46,7 @@ void main() {
 
     await pumpCard(isSelected: true);
     expect(find.text(entry.displayName), findsOneWidget);
-    expect(find.byIcon(Icons.check), findsOneWidget);
+    expect(tester.widget<Checkbox>(find.byType(Checkbox)).value, isTrue);
   });
 
   testWidgets('切换多选模式时保留缩略图状态并禁用拖拽', (tester) async {

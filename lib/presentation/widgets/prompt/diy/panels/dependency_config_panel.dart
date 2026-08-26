@@ -257,11 +257,6 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
                               ? null
                               : colorScheme.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: isSelected
-                                ? Colors.transparent
-                                : colorScheme.outline.withValues(alpha: 0.2),
-                          ),
                           boxShadow: isSelected
                               ? [
                                   BoxShadow(
@@ -308,9 +303,6 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
             decoration: BoxDecoration(
               color: colorScheme.surfaceContainerLowest,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: colorScheme.outline.withValues(alpha: 0.1),
-              ),
             ),
             child: Row(
               children: [
@@ -511,9 +503,6 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
               decoration: BoxDecoration(
                 color: colorScheme.surfaceContainerLowest,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: colorScheme.outline.withValues(alpha: 0.1),
-                ),
               ),
               child: Center(
                 child: Column(
@@ -550,9 +539,6 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
                   decoration: BoxDecoration(
                     color: colorScheme.surfaceContainerLowest,
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: colorScheme.outline.withValues(alpha: 0.1),
-                    ),
                   ),
                   child: Row(
                     children: [

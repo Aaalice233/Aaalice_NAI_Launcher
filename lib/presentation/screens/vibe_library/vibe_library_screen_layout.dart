@@ -335,10 +335,6 @@ extension _VibeLibraryScreenLayout on _VibeLibraryScreenState {
             alpha: 0.5,
           ),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: theme.colorScheme.outline.withValues(alpha: 0.2),
-            width: 1,
-          ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,

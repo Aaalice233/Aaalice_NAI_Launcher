@@ -133,12 +133,6 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
                       ? Colors.orange.withValues(alpha: 0.9)
                       : Colors.orange.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(4),
-                  border: Border.all(
-                    color: showBackground
-                        ? Colors.orange.shade300
-                        : Colors.orange.shade400,
-                    width: 1,
-                  ),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -238,7 +232,7 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
             // 添加按钮
             _buildAddReferenceDropTarget(
               supportsPreciseReference: supportsPreciseReference,
-              child: OutlinedButton.icon(
+              child: FilledButton.tonalIcon(
                 onPressed: supportsPreciseReference ? _addReference : null,
                 icon: Icon(
                   _isFileDraggingOver ? Icons.file_download_rounded : Icons.add,
@@ -257,7 +251,7 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
             Row(
               children: [
                 Expanded(
-                  child: OutlinedButton.icon(
+                  child: TextButton.icon(
                     key: const Key('precise-ref-panel-from-library'),
                     onPressed: supportsPreciseReference
                         ? _importFromLibrary
@@ -273,7 +267,7 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: OutlinedButton.icon(
+                  child: TextButton.icon(
                     key: const Key('precise-ref-panel-save-to-library'),
                     onPressed: hasReferences ? _saveReferencesToLibrary : null,
                     icon: const Icon(Icons.bookmark_add_outlined, size: 16),
@@ -804,7 +798,6 @@ class _PreciseReferenceCard extends StatelessWidget {
       isDense: true,
       decoration: InputDecoration(
         labelText: context.l10n.preciseRef_referenceType,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       ),
       items: PreciseRefType.values.map((type) {

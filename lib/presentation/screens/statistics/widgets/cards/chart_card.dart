@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../../../themes/theme_extension.dart';
 
 /// Section header widget
 /// 章节标题组件
@@ -86,9 +85,7 @@ class _ChartCardState extends State<ChartCard> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final extension = theme.extension<AppThemeExtension>();
     final isDesktop = MediaQuery.of(context).size.width >= 900;
-    final shadowIntensity = extension?.shadowIntensity ?? 0.08;
     final isDark = theme.brightness == Brightness.dark;
     final accentColor = widget.accentColor ?? colorScheme.primary;
 
@@ -102,28 +99,10 @@ class _ChartCardState extends State<ChartCard> {
             ? (Matrix4.identity()..translateByDouble(0.0, -2.0, 0, 1))
             : Matrix4.identity(),
         decoration: BoxDecoration(
-          // 深度层叠风格：使用主题中明确定义的最亮容器色
-          color: colorScheme.surfaceContainerHighest,
+          color: _isHovered
+              ? colorScheme.surfaceContainer
+              : colorScheme.surfaceContainerLow,
           borderRadius: BorderRadius.circular(8),
-          // 多层阴影替代边框
-          boxShadow: widget.elevated
-              ? [
-                  BoxShadow(
-                    color: Colors.black.withValues(
-                      alpha:
-                          _isHovered ? shadowIntensity * 1.5 : shadowIntensity,
-                    ),
-                    blurRadius: _isHovered ? 16 : 12,
-                    offset: Offset(0, _isHovered ? 6 : 4),
-                  ),
-                  BoxShadow(
-                    color:
-                        Colors.black.withValues(alpha: shadowIntensity * 0.5),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
-                  ),
-                ]
-              : null,
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(8),
@@ -207,7 +186,8 @@ class StatRow extends StatelessWidget {
         children: [
           Text(
             label,
-            style: labelStyle ??
+            style:
+                labelStyle ??
                 theme.textTheme.bodyMedium?.copyWith(
                   color: colorScheme.onSurfaceVariant,
                 ),
@@ -215,13 +195,15 @@ class StatRow extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color:
-                  (valueColor ?? colorScheme.primary).withValues(alpha: 0.08),
+              color: (valueColor ?? colorScheme.primary).withValues(
+                alpha: 0.08,
+              ),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
               value,
-              style: valueStyle ??
+              style:
+                  valueStyle ??
                   theme.textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                     color: valueColor ?? colorScheme.onSurface,
@@ -294,8 +276,9 @@ class ChartEmptyState extends StatelessWidget {
                     child: Icon(
                       icon,
                       size: 48,
-                      color:
-                          colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                      color: colorScheme.onSurfaceVariant.withValues(
+                        alpha: 0.6,
+                      ),
                     ),
                   ),
                 );

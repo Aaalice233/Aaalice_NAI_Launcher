@@ -1676,6 +1676,7 @@
   "api_error_network": "网络错误",
   "api_error_network_hint": "无法连接到服务器，请检查网络",
   "drop_dialogTitle": "如何使用这张图片？",
+  "drop_actions": "操作",
   "drop_hint": "拖拽图片到这里",
   "drop_processing": "正在解析图片...",
   "drop_img2img": "图生图",
@@ -1817,24 +1818,22 @@
   "toolbar_confirmClear": "确认清空",
   "toolbar_settings": "设置",
 
-  "characterTooltip_noCharacters": "未配置角色",
-  "characterTooltip_clickToConfig": "点击按钮开始配置多人角色",
-  "characterTooltip_globalAiLabel": "全局 AI 位置:",
-  "characterTooltip_enabled": "启用",
-  "characterTooltip_disabled": "禁用",
-  "characterTooltip_positionAi": "AI",
   "characterTooltip_disabledLabel": "已禁用",
-  "characterTooltip_promptLabel": "正向",
-  "characterTooltip_negativeLabel": "负面",
   "characterTooltip_notSet": "未设置",
-  "characterTooltip_summary": "共 {total} 个角色 ({enabled} 个启用)",
-  "@characterTooltip_summary": {
+  "characterTooltip_previewTitle": "角色预览",
+  "characterTooltip_enabledSummary": "{enabled} / {total} 启用",
+  "@characterTooltip_enabledSummary": {
     "placeholders": {
-      "total": {},
-      "enabled": {}
+      "enabled": {"type": "int"},
+      "total": {"type": "int"}
     }
   },
-  "characterTooltip_viewFullConfig": "点击查看完整配置",
+  "characterTooltip_more": "还有 {count} 个角色",
+  "@characterTooltip_more": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
 
   "tagLibrary_generatedCharacters": "已生成 {count} 个角色",
   "@tagLibrary_generatedCharacters": {

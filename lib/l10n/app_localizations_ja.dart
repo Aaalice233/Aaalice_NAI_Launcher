@@ -4007,42 +4007,23 @@ class AppLocalizationsJa extends AppLocalizations {
   String get toolbar_settings => '設定';
 
   @override
-  String get characterTooltip_noCharacters => 'キャラクターが設定されていません';
-
-  @override
-  String get characterTooltip_clickToConfig => 'クリックして複数キャラクタープロンプトを設定します';
-
-  @override
-  String get characterTooltip_globalAiLabel => 'グローバル AI のポジション:';
-
-  @override
-  String get characterTooltip_enabled => '有効';
-
-  @override
-  String get characterTooltip_disabled => '無効';
-
-  @override
-  String get characterTooltip_positionAi => 'AI';
-
-  @override
   String get characterTooltip_disabledLabel => '無効';
-
-  @override
-  String get characterTooltip_promptLabel => 'プロンプト';
-
-  @override
-  String get characterTooltip_negativeLabel => '除外したい要素';
 
   @override
   String get characterTooltip_notSet => '未設定';
 
   @override
-  String characterTooltip_summary(Object total, Object enabled) {
-    return '$total キャラクター ($enabled 有効)';
+  String get characterTooltip_previewTitle => 'キャラクタープレビュー';
+
+  @override
+  String characterTooltip_enabledSummary(int enabled, int total) {
+    return '$enabled / $total 有効';
   }
 
   @override
-  String get characterTooltip_viewFullConfig => 'クリックすると完全な構成が表示されます';
+  String characterTooltip_more(int count) {
+    return '他 $count 人のキャラクター';
+  }
 
   @override
   String tagLibrary_generatedCharacters(Object count) {
@@ -7989,6 +7970,9 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get drop_dialogTitle => 'この画像はどのように使用しますか?';
+
+  @override
+  String get drop_actions => '操作';
 
   @override
   String get drop_hint => 'ここに画像をドロップしてください';

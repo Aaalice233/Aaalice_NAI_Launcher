@@ -227,19 +227,17 @@ class _PromptSectionState extends State<PromptSection> {
     ThemeData theme,
     List<String> tags,
   ) {
-    final borderColor =
-        widget.borderColor?.withValues(alpha: widget.isNegative ? 0.28 : 0.2) ??
-        colorScheme.outline.withValues(alpha: 0.1);
+    final surfaceColor = widget.isNegative
+        ? colorScheme.errorContainer.withValues(alpha: 0.12)
+        : widget.borderColor?.withValues(alpha: 0.10) ??
+              colorScheme.surfaceContainerLow;
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: widget.isNegative
-            ? colorScheme.errorContainer.withValues(alpha: 0.10)
-            : colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+        color: surfaceColor,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: borderColor),
       ),
       child:
           widget.customContent ??
@@ -432,13 +430,6 @@ class _TranslatedTagChipState extends ConsumerState<_TranslatedTagChip> {
         : colorScheme.surfaceContainerHighest.withValues(
             alpha: _isHovered ? 0.85 : 0.60,
           );
-    final borderColor = accent.withValues(
-      alpha: _isHovered
-          ? 0.38
-          : isCategorized
-          ? 0.26
-          : 0.14,
-    );
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
@@ -452,7 +443,6 @@ class _TranslatedTagChipState extends ConsumerState<_TranslatedTagChip> {
           decoration: BoxDecoration(
             color: bgColor,
             borderRadius: BorderRadius.circular(6),
-            border: Border.all(color: borderColor),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -512,9 +502,8 @@ class CharacterPromptCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+        color: colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: colorScheme.outline.withValues(alpha: 0.1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -612,9 +601,6 @@ class CharacterPromptCard extends StatelessWidget {
           decoration: BoxDecoration(
             color: colorScheme.errorContainer.withValues(alpha: 0.18),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: colorScheme.error.withValues(alpha: 0.22),
-            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

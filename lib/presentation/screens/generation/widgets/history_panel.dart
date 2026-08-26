@@ -806,7 +806,6 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
                             onFullscreen: () =>
                                 _showLinkedDetail(context, historyImage),
                             enableContextMenu: true,
-                            enableHoverScale: true,
                             hoverEffectsEnabled: !_isHistoryScrolling,
                             shareWarmupEnabled: false,
                             onReversePrompt:
@@ -1036,7 +1035,6 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
               : null,
           onFullscreen: () => _showLinkedDetail(context, image),
           enableContextMenu: true,
-          enableHoverScale: true,
           hoverEffectsEnabled: !_isHistoryScrolling,
           shareWarmupEnabled: false,
           onReversePrompt: image.canUseAsGenerationInput

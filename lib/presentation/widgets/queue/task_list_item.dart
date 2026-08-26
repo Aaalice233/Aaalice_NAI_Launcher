@@ -146,27 +146,17 @@ class _TaskListItemState extends ConsumerState<TaskListItem>
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: widget.isSelected
-                                ? theme.colorScheme.primary.withValues(
-                                    alpha: 0.5,
-                                  )
-                                : isRunning
-                                ? theme.colorScheme.primary.withValues(
-                                    alpha: 0.3,
-                                  )
-                                : theme.colorScheme.outline.withValues(
-                                    alpha: 0.1,
-                                  ),
-                            width: 1,
-                          ),
+                          border: widget.isSelected
+                              ? Border.all(color: theme.colorScheme.primary)
+                              : null,
                           // 如果是当前正在执行的任务，显示实心进度条；否则显示普通背景
                           color: widget.isSelected
                               ? theme.colorScheme.primaryContainer.withValues(
                                   alpha: 0.4,
                                 )
-                              : theme.colorScheme.surfaceContainerHighest
-                                    .withValues(alpha: 0.4),
+                              : _isHovered
+                              ? theme.colorScheme.surfaceContainer
+                              : theme.colorScheme.surfaceContainerLow,
                         ),
                         child: Stack(
                           children: [
@@ -621,9 +611,6 @@ class _TaskTooltipContent extends StatelessWidget {
         decoration: BoxDecoration(
           color: theme.colorScheme.surfaceContainerHigh,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: theme.colorScheme.outline.withValues(alpha: 0.2),
-          ),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.25),

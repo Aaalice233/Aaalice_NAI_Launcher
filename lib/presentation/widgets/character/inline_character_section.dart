@@ -13,6 +13,7 @@ import '../common/collapsible_image_panel.dart';
 import '../common/themed_divider.dart';
 import 'add_character_buttons.dart';
 import 'character_position_canvas.dart';
+import 'character_tooltip_content.dart';
 import 'inline_character_card.dart';
 import 'inline_character_editor.dart';
 
@@ -72,22 +73,131 @@ class InlineCharacterSection extends ConsumerWidget {
       key: const Key('character-secondary-menu'),
       title: l10n.character_buttonLabel,
       icon: Icons.people,
+      leading: _CharacterStackIcon(
+        key: const Key('character-stack-icon'),
+        characters: characters,
+      ),
       isExpanded: isExpanded,
       onToggle: () => unawaited(
         ref.read(generationPanelExpansionProvider.notifier).toggle(panel),
       ),
       hasData: characters.isNotEmpty,
-      summary: Text(
-        buildCharacterPanelSummary(l10n, characters),
-        key: const Key('character-panel-summary'),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        textAlign: TextAlign.end,
-        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
+      headerActions: const [AddCharacterButtons(compact: true)],
+      centerHeaderActions: true,
+      collapsedHoverPreviewBuilder: characters.isEmpty
+          ? null
+          : (context) => CharacterTooltipContent(config: config),
+      childBuilder: (context) => _CharacterPanelContent(characters: characters),
+    );
+  }
+}
+
+class _CharacterStackIcon extends StatelessWidget {
+  const _CharacterStackIcon({super.key, required this.characters});
+
+  static const _personSize = 20.0;
+  static const _overlapOffset = 8.0;
+
+  final List<CharacterPrompt> characters;
+
+  Color _genderColor(CharacterGender gender) => switch (gender) {
+    CharacterGender.female => const Color(0xFFEC4899),
+    CharacterGender.male => const Color(0xFF3B82F6),
+    CharacterGender.other => const Color(0xFF8B5CF6),
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    if (characters.isEmpty) {
+      return Semantics(
+        label: buildCharacterPanelSummary(
+          AppLocalizations.of(context)!,
+          characters,
+        ),
+        child: Icon(
+          Icons.person_add_alt_1_outlined,
+          size: _personSize,
+          color: colorScheme.onSurfaceVariant,
+        ),
+      );
+    }
+
+    final visibleCharacters = characters.take(3).toList(growable: false);
+    final hiddenCount = characters.length - visibleCharacters.length;
+    final peopleWidth =
+        _personSize + (visibleCharacters.length - 1) * _overlapOffset;
+    final totalWidth = peopleWidth + (hiddenCount > 0 ? 19 : 0);
+
+    return Semantics(
+      label: buildCharacterPanelSummary(
+        AppLocalizations.of(context)!,
+        characters,
+      ),
+      container: true,
+      excludeSemantics: true,
+      child: SizedBox(
+        width: totalWidth,
+        height: 24,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            for (var index = 0; index < visibleCharacters.length; index++)
+              Positioned(
+                key: ValueKey('character-stack-person-$index'),
+                left: index * _overlapOffset,
+                top: 2,
+                child: Opacity(
+                  opacity: visibleCharacters[index].enabled ? 1 : 0.38,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Icon(
+                        Icons.person,
+                        size: _personSize + 3,
+                        color: colorScheme.surface,
+                      ),
+                      Icon(
+                        Icons.person,
+                        size: _personSize,
+                        color: _genderColor(
+                          visibleCharacters[index].effectiveGender,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            if (hiddenCount > 0)
+              Positioned(
+                right: 0,
+                bottom: 0,
+                child: Container(
+                  key: const Key('character-stack-overflow-count'),
+                  constraints: const BoxConstraints(
+                    minWidth: 18,
+                    minHeight: 14,
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 3),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(7),
+                  ),
+                  child: Text(
+                    '+$hiddenCount',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                      fontSize: 9,
+                      height: 1,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
-      childBuilder: (context) => _CharacterPanelContent(characters: characters),
     );
   }
 }
@@ -138,7 +248,6 @@ class _CharacterPanelContent extends ConsumerWidget {
                 total: characters.length,
               ),
             ),
-          const AddCharacterButtons(),
         ],
       ),
     );

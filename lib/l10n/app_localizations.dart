@@ -7339,59 +7339,11 @@ abstract class AppLocalizations {
   /// **'Settings'**
   String get toolbar_settings;
 
-  /// No description provided for @characterTooltip_noCharacters.
-  ///
-  /// In en, this message translates to:
-  /// **'No characters configured'**
-  String get characterTooltip_noCharacters;
-
-  /// No description provided for @characterTooltip_clickToConfig.
-  ///
-  /// In en, this message translates to:
-  /// **'Click to configure multi-character prompts'**
-  String get characterTooltip_clickToConfig;
-
-  /// No description provided for @characterTooltip_globalAiLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Global AI Position:'**
-  String get characterTooltip_globalAiLabel;
-
-  /// No description provided for @characterTooltip_enabled.
-  ///
-  /// In en, this message translates to:
-  /// **'Enabled'**
-  String get characterTooltip_enabled;
-
-  /// No description provided for @characterTooltip_disabled.
-  ///
-  /// In en, this message translates to:
-  /// **'Disabled'**
-  String get characterTooltip_disabled;
-
-  /// No description provided for @characterTooltip_positionAi.
-  ///
-  /// In en, this message translates to:
-  /// **'AI'**
-  String get characterTooltip_positionAi;
-
   /// No description provided for @characterTooltip_disabledLabel.
   ///
   /// In en, this message translates to:
   /// **'Disabled'**
   String get characterTooltip_disabledLabel;
-
-  /// No description provided for @characterTooltip_promptLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Prompt'**
-  String get characterTooltip_promptLabel;
-
-  /// No description provided for @characterTooltip_negativeLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Undesired Content'**
-  String get characterTooltip_negativeLabel;
 
   /// No description provided for @characterTooltip_notSet.
   ///
@@ -7399,17 +7351,23 @@ abstract class AppLocalizations {
   /// **'Not set'**
   String get characterTooltip_notSet;
 
-  /// No description provided for @characterTooltip_summary.
+  /// No description provided for @characterTooltip_previewTitle.
   ///
   /// In en, this message translates to:
-  /// **'{total} characters ({enabled} enabled)'**
-  String characterTooltip_summary(Object total, Object enabled);
+  /// **'Character preview'**
+  String get characterTooltip_previewTitle;
 
-  /// No description provided for @characterTooltip_viewFullConfig.
+  /// No description provided for @characterTooltip_enabledSummary.
   ///
   /// In en, this message translates to:
-  /// **'Click for full configuration'**
-  String get characterTooltip_viewFullConfig;
+  /// **'{enabled} / {total} enabled'**
+  String characterTooltip_enabledSummary(int enabled, int total);
+
+  /// No description provided for @characterTooltip_more.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} more characters'**
+  String characterTooltip_more(int count);
 
   /// No description provided for @tagLibrary_generatedCharacters.
   ///
@@ -14511,6 +14469,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'How to use this image?'**
   String get drop_dialogTitle;
+
+  /// No description provided for @drop_actions.
+  ///
+  /// In en, this message translates to:
+  /// **'Actions'**
+  String get drop_actions;
 
   /// No description provided for @drop_hint.
   ///

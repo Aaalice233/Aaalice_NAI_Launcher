@@ -1,6 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hive/hive.dart';
 import 'package:nai_launcher/data/models/gallery/local_image_record.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/local_gallery_provider.dart';
@@ -8,35 +11,60 @@ import 'package:nai_launcher/presentation/providers/selection_mode_provider.dart
 import 'package:nai_launcher/presentation/widgets/gallery/local_gallery_toolbar.dart';
 
 void main() {
-  testWidgets('selection toolbar separates current page and all result actions',
-      (tester) async {
-    await _pumpToolbar(tester);
+  late Directory hiveDir;
 
-    expect(find.byTooltip('选择本页'), findsOneWidget);
-    expect(find.byTooltip('选择全部'), findsOneWidget);
-    expect(find.byTooltip('全选'), findsNothing);
+  setUpAll(() {
+    hiveDir = Directory.systemTemp.createTempSync('local_toolbar_hive_');
+    Hive.init(hiveDir.path);
   });
 
-  testWidgets('select current page only selects visible page paths',
-      (tester) async {
+  tearDownAll(() async {
+    await Hive.close();
+    if (hiveDir.existsSync()) hiveDir.deleteSync(recursive: true);
+  });
+
+  testWidgets(
+    'selection toolbar separates current page and all result actions',
+    (tester) async {
+      await _pumpToolbar(tester);
+
+      expect(find.byTooltip('选择本页'), findsOneWidget);
+      expect(find.byTooltip('选择全部'), findsOneWidget);
+      expect(find.byTooltip('全选'), findsNothing);
+    },
+  );
+
+  testWidgets('select current page only selects visible page paths', (
+    tester,
+  ) async {
     final container = await _pumpToolbar(tester);
 
     await tester.tap(find.byTooltip('选择本页'));
     await tester.pump();
 
-    expect(
-      container.read(localGallerySelectionNotifierProvider).selectedIds,
-      {
-        r'C:\gallery\page-1.png',
-        r'C:\gallery\page-2.png',
-      },
-    );
+    expect(container.read(localGallerySelectionNotifierProvider).selectedIds, {
+      r'C:\gallery\page-1.png',
+      r'C:\gallery\page-2.png',
+    });
     expect(find.byTooltip('取消本页'), findsOneWidget);
     expect(find.byTooltip('选择全部'), findsOneWidget);
   });
 
-  testWidgets('select all replaces selection with all filtered result paths',
-      (tester) async {
+  testWidgets('normal toolbar wraps actions without overflow at narrow width', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(700, 500));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await _pumpToolbar(tester, selectionActive: false);
+
+    expect(find.byType(LocalGalleryToolbar), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('select all replaces selection with all filtered result paths', (
+    tester,
+  ) async {
     final container = await _pumpToolbar(
       tester,
       initialSelectedIds: {r'C:\gallery\stale.png'},
@@ -45,16 +73,13 @@ void main() {
     await tester.tap(find.byTooltip('选择全部'));
     await tester.pumpAndSettle();
 
-    expect(
-      container.read(localGallerySelectionNotifierProvider).selectedIds,
-      {
-        r'C:\gallery\page-1.png',
-        r'C:\gallery\page-2.png',
-        r'C:\gallery\result-3.png',
-        r'C:\gallery\result-4.png',
-        r'C:\gallery\result-5.png',
-      },
-    );
+    expect(container.read(localGallerySelectionNotifierProvider).selectedIds, {
+      r'C:\gallery\page-1.png',
+      r'C:\gallery\page-2.png',
+      r'C:\gallery\result-3.png',
+      r'C:\gallery\result-4.png',
+      r'C:\gallery\result-5.png',
+    });
     expect(find.byTooltip('取消全部'), findsOneWidget);
   });
 }
@@ -62,6 +87,7 @@ void main() {
 Future<ProviderContainer> _pumpToolbar(
   WidgetTester tester, {
   Set<String> initialSelectedIds = const {},
+  bool selectionActive = true,
 }) async {
   await tester.pumpWidget(
     ProviderScope(
@@ -88,7 +114,10 @@ Future<ProviderContainer> _pumpToolbar(
           ),
         ),
         localGallerySelectionNotifierProvider.overrideWith(
-          () => _ActiveSelectionNotifier(initialSelectedIds),
+          () => _ActiveSelectionNotifier(
+            initialSelectedIds,
+            isActive: selectionActive,
+          ),
         ),
       ],
       child: const MaterialApp(
@@ -96,7 +125,7 @@ Future<ProviderContainer> _pumpToolbar(
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(
-          body: LocalGalleryToolbar(),
+          body: LocalGalleryToolbar(enableSearchAutocomplete: false),
         ),
       ),
     ),
@@ -108,18 +137,11 @@ Future<ProviderContainer> _pumpToolbar(
 }
 
 LocalImageRecord _record(String path) {
-  return LocalImageRecord(
-    path: path,
-    size: 1,
-    modifiedAt: DateTime(2026),
-  );
+  return LocalImageRecord(path: path, size: 1, modifiedAt: DateTime(2026));
 }
 
 class _ToolbarGalleryNotifier extends LocalGalleryNotifier {
-  _ToolbarGalleryNotifier(
-    this._initialState, {
-    required this.filteredPaths,
-  });
+  _ToolbarGalleryNotifier(this._initialState, {required this.filteredPaths});
 
   final LocalGalleryState _initialState;
   final List<String> filteredPaths;
@@ -132,14 +154,15 @@ class _ToolbarGalleryNotifier extends LocalGalleryNotifier {
 }
 
 class _ActiveSelectionNotifier extends LocalGallerySelectionNotifier {
-  _ActiveSelectionNotifier(this._initialSelectedIds);
+  _ActiveSelectionNotifier(this._initialSelectedIds, {required this.isActive});
 
   final Set<String> _initialSelectedIds;
+  final bool isActive;
 
   @override
   SelectionModeState build() {
     return SelectionModeState(
-      isActive: true,
+      isActive: isActive,
       selectedIds: _initialSelectedIds,
     );
   }

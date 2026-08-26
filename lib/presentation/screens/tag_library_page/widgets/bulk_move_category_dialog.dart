@@ -21,10 +21,7 @@ class BulkMoveCategoryDialog extends StatelessWidget {
     return AlertDialog(
       title: Row(
         children: [
-          Icon(
-            Icons.drive_file_move_outline,
-            color: theme.colorScheme.primary,
-          ),
+          Icon(Icons.drive_file_move_outline, color: theme.colorScheme.primary),
           const SizedBox(width: 8),
           Text(context.l10n.tagLibrary_moveToCategoryTitle),
         ],
@@ -47,10 +44,6 @@ class BulkMoveCategoryDialog extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: theme.colorScheme.surfaceContainerLow,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color:
-                        theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
-                  ),
                 ),
                 child: ListView(
                   padding: const EdgeInsets.all(8),
@@ -105,9 +98,7 @@ class BulkMoveCategoryDialog extends StatelessWidget {
       );
 
       // 递归添加子分类
-      result.addAll(
-        _buildCategoryTree(context, category.id, depth: depth + 1),
-      );
+      result.addAll(_buildCategoryTree(context, category.id, depth: depth + 1));
     }
 
     return result;
@@ -161,8 +152,9 @@ class _CategoryTile extends StatelessWidget {
                 child: Text(
                   name,
                   style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight:
-                        isSelected ? FontWeight.w600 : FontWeight.normal,
+                    fontWeight: isSelected
+                        ? FontWeight.w600
+                        : FontWeight.normal,
                     color: isSelected
                         ? theme.colorScheme.primary
                         : theme.colorScheme.onSurface,

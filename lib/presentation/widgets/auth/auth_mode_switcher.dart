@@ -107,12 +107,6 @@ class AuthModeSwitcher extends ConsumerWidget {
                     alpha: 0.5,
                   ),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: enabled && isSelected
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.outline.withValues(alpha: 0.3),
-              width: enabled && isSelected ? 2 : 1,
-            ),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,

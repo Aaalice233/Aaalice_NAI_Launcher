@@ -7,6 +7,7 @@ import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/cache/local_gallery_thumbnail_provider.dart';
 import 'package:nai_launcher/data/models/gallery/local_image_record.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/widgets/common/image_card_hover_motion.dart';
 import 'package:nai_launcher/presentation/widgets/gallery/local_image_card_3d.dart';
 
 void main() {
@@ -43,7 +44,12 @@ void main() {
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: Center(
-            child: LocalImageCard3D(record: record, width: 180, height: 220),
+            child: LocalImageCard3D(
+              record: record,
+              width: 180,
+              height: 220,
+              onTap: () {},
+            ),
           ),
         ),
       ),
@@ -55,6 +61,10 @@ void main() {
       provider.target,
       const LocalGalleryThumbnailTarget(width: 192, height: 224),
     );
+
+    final motion = find.byType(ImageCardHoverMotion);
+    expect(motion, findsOneWidget);
+    expect(tester.widget<ImageCardHoverMotion>(motion).enabled, isTrue);
 
     tester.view.devicePixelRatio = 2;
     await tester.pump();

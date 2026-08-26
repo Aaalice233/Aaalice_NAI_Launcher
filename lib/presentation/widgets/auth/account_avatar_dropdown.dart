@@ -31,8 +31,9 @@ class AccountAvatarDropdown extends ConsumerWidget {
     // 监听账号状态变化以触发重建
     ref.watch(accountManagerNotifierProvider);
     final authState = ref.watch(authNotifierProvider);
-    final accounts =
-        ref.read(accountManagerNotifierProvider.notifier).sortedAccounts;
+    final accounts = ref
+        .read(accountManagerNotifierProvider.notifier)
+        .sortedAccounts;
 
     if (accounts.isEmpty) {
       return const SizedBox.shrink();
@@ -84,8 +85,8 @@ class AccountAvatarDropdown extends ConsumerWidget {
             // 账号列表
             Container(
               decoration: BoxDecoration(
-                border: Border.all(
-                  color: theme.colorScheme.outline.withValues(alpha: 0.2),
+                color: theme.colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.45,
                 ),
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -96,7 +97,8 @@ class AccountAvatarDropdown extends ConsumerWidget {
                       account: accounts[i],
                       isFirst: i == 0,
                       isLast: i == accounts.length - 1 || i == 4,
-                      isSelected: currentAccount?.id == accounts[i].id &&
+                      isSelected:
+                          currentAccount?.id == accounts[i].id &&
                           authState.isAuthenticated,
                       isDefault: i == 0, // 第一个为最近使用的账号
                       onTap: () => _onAccountTap(context, ref, accounts[i]),
@@ -245,8 +247,9 @@ class _AccountListTile extends StatelessWidget {
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
-                            color: theme.colorScheme.primary
-                                .withValues(alpha: 0.1),
+                            color: theme.colorScheme.primary.withValues(
+                              alpha: 0.1,
+                            ),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(

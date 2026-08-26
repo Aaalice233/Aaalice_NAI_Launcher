@@ -172,12 +172,6 @@ class _FixedTagsDialogState extends ConsumerState<FixedTagsDialog> {
                   ? theme.colorScheme.surface.withValues(alpha: 0.85)
                   : theme.colorScheme.surface.withValues(alpha: 0.92),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: isDark
-                    ? Colors.white.withValues(alpha: 0.08)
-                    : Colors.black.withValues(alpha: 0.06),
-                width: 1,
-              ),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.15),

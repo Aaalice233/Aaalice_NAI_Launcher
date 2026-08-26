@@ -315,12 +315,6 @@ class _PresetDropdownState extends State<_PresetDropdown> {
               ? colorScheme.surfaceContainerHighest
               : colorScheme.surfaceContainerHigh,
           borderRadius: BorderRadius.circular(6),
-          border: Border.all(
-            color: _isHovered
-                ? colorScheme.primary.withValues(alpha: 0.3)
-                : colorScheme.outlineVariant.withValues(alpha: 0.2),
-            width: 1,
-          ),
         ),
         child: DropdownButton<String>(
           value: widget.selectedPreset?.id,
@@ -576,23 +570,23 @@ class _ReadOnlyIndicator extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: Colors.amber.shade100.withValues(alpha: 0.12),
+          color: theme.colorScheme.tertiaryContainer.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(6),
-          border: Border.all(
-            color: Colors.amber.shade600.withValues(alpha: 0.4),
-            width: 1,
-          ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.lock_outline, size: 14, color: Colors.amber.shade800),
+            Icon(
+              Icons.lock_outline,
+              size: 14,
+              color: theme.colorScheme.onTertiaryContainer,
+            ),
             const SizedBox(width: 6),
             Text(
               context.l10n.randomManager_readOnlyMode,
               style: theme.textTheme.labelSmall?.copyWith(
                 fontWeight: FontWeight.w600,
-                color: Colors.amber.shade900,
+                color: theme.colorScheme.onTertiaryContainer,
               ),
             ),
           ],

@@ -10,6 +10,7 @@ void main() {
     required bool expanded,
     required VoidCallback onToggle,
     bool disableAnimations = false,
+    bool showSummary = true,
     WidgetBuilder? childBuilder,
   }) {
     return MaterialApp(
@@ -28,7 +29,14 @@ void main() {
                 icon: Icons.people_outline,
                 isExpanded: expanded,
                 onToggle: onToggle,
-                summary: const Text('3 个启用 · Alice +2'),
+                summary: showSummary
+                    ? const Text(
+                        '3 个启用 · Alice +2',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                      )
+                    : null,
                 childBuilder:
                     childBuilder ??
                     (context) =>
@@ -136,8 +144,8 @@ void main() {
     expect(opacity.opacity, 1);
   });
 
-  for (final width in [700.0, 840.0, 1180.0, 1600.0]) {
-    testWidgets('$width 宽度下标题摘要无溢出', (tester) async {
+  for (final width in [280.0, 416.0, 700.0, 840.0, 1180.0, 1600.0]) {
+    testWidgets('$width 宽度下标题摘要无溢出且箭头贴右', (tester) async {
       await tester.pumpWidget(
         buildSubject(width: width, expanded: false, onToggle: () {}),
       );
@@ -145,6 +153,37 @@ void main() {
 
       expect(tester.takeException(), isNull);
       expect(find.text('3 个启用 · Alice +2'), findsOneWidget);
+
+      final header = find.byKey(const Key('collapsible-header-角色'));
+      final chevron = find.byKey(const Key('collapsible-chevron-角色'));
+      final summary = find.byKey(const Key('collapsible-summary-角色'));
+      expect(
+        tester.getTopRight(header).dx - tester.getCenter(chevron).dx,
+        lessThanOrEqualTo(24),
+      );
+      expect(
+        (tester.getCenter(header).dx - tester.getCenter(summary).dx).abs(),
+        lessThanOrEqualTo(1),
+      );
     });
   }
+
+  testWidgets('无摘要时箭头仍固定在标题行右侧', (tester) async {
+    await tester.pumpWidget(
+      buildSubject(
+        width: 416,
+        expanded: false,
+        showSummary: false,
+        onToggle: () {},
+      ),
+    );
+    await tester.pump();
+
+    final header = find.byKey(const Key('collapsible-header-角色'));
+    final chevron = find.byKey(const Key('collapsible-chevron-角色'));
+    expect(
+      tester.getTopRight(header).dx - tester.getCenter(chevron).dx,
+      lessThanOrEqualTo(24),
+    );
+  });
 }

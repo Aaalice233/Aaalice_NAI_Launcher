@@ -101,7 +101,7 @@ class _AddToLibraryDialogState extends ConsumerState<AddToLibraryDialog> {
 
     return Dialog(
       clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
         width: 480,
         constraints: const BoxConstraints(maxHeight: 500),
@@ -183,10 +183,10 @@ class _AddToLibraryDialogState extends ConsumerState<AddToLibraryDialog> {
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              color: Colors.red.withValues(alpha: 0.2),
+              color: colorScheme.errorContainer.withValues(alpha: 0.35),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(Icons.favorite, size: 18, color: Colors.red.shade400),
+            child: Icon(Icons.favorite, size: 18, color: colorScheme.error),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -292,10 +292,8 @@ class _AddToLibraryDialogState extends ConsumerState<AddToLibraryDialog> {
         const SizedBox(height: 6),
         Container(
           decoration: BoxDecoration(
+            color: colorScheme.surfaceContainer,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: colorScheme.outlineVariant.withValues(alpha: 0.5),
-            ),
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String?>(
@@ -352,11 +350,8 @@ class _AddToLibraryDialogState extends ConsumerState<AddToLibraryDialog> {
           padding: const EdgeInsets.all(12),
           constraints: const BoxConstraints(maxHeight: 120),
           decoration: BoxDecoration(
-            color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+            color: colorScheme.surfaceContainerLow,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: colorScheme.outlineVariant.withValues(alpha: 0.3),
-            ),
           ),
           child: SingleChildScrollView(
             child: Text(

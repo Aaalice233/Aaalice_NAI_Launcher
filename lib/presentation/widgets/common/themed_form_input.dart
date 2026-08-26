@@ -204,126 +204,136 @@ class ThemedFormInput extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return FormField<String>(
-      initialValue: controller?.text ?? initialValue ?? '',
-      validator: validator,
-      autovalidateMode: autovalidateMode ?? AutovalidateMode.disabled,
-      onSaved: onSaved,
-      builder: (FormFieldState<String> field) {
-        final hasError = field.hasError;
-        final errorText = field.errorText;
+    return Focus(
+      canRequestFocus: false,
+      skipTraversal: true,
+      child: Builder(
+        builder: (focusContext) {
+          final hasFocus = Focus.of(focusContext).hasFocus;
+          return FormField<String>(
+            initialValue: controller?.text ?? initialValue ?? '',
+            validator: validator,
+            autovalidateMode: autovalidateMode ?? AutovalidateMode.disabled,
+            onSaved: onSaved,
+            builder: (FormFieldState<String> field) {
+              final hasError = field.hasError;
+              final errorText = field.errorText;
 
-        // 构建基础 InputDecoration
-        var inputDecoration = InputDecoration(
-          hintText: hintText,
-          hintStyle: hintStyle,
-          labelText: labelText,
-          border: InputBorder.none,
-          enabledBorder: InputBorder.none,
-          focusedBorder: InputBorder.none,
-          disabledBorder: InputBorder.none,
-          errorBorder: InputBorder.none,
-          focusedErrorBorder: InputBorder.none,
-          contentPadding: contentPadding,
-          prefixIcon: prefixIcon,
-          suffixIcon: suffixIcon,
-          isDense: true,
-          counterText: '', // 隐藏字符计数
-        );
+              // 构建基础 InputDecoration
+              var inputDecoration = InputDecoration(
+                hintText: hintText,
+                hintStyle: hintStyle,
+                labelText: labelText,
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                disabledBorder: InputBorder.none,
+                errorBorder: InputBorder.none,
+                focusedErrorBorder: InputBorder.none,
+                contentPadding: contentPadding,
+                prefixIcon: prefixIcon,
+                suffixIcon: suffixIcon,
+                isDense: true,
+                counterText: '', // 隐藏字符计数
+              );
 
-        // 如果提供了额外的 decoration，合并属性
-        if (decoration != null) {
-          inputDecoration = inputDecoration.copyWith(
-            labelStyle: decoration!.labelStyle,
-            floatingLabelStyle: decoration!.floatingLabelStyle,
-            helperStyle: decoration!.helperStyle,
-            errorStyle: decoration!.errorStyle,
-            prefix: decoration!.prefix,
-            prefixText: decoration!.prefixText,
-            prefixStyle: decoration!.prefixStyle,
-            suffix: decoration!.suffix,
-            suffixText: decoration!.suffixText,
-            suffixStyle: decoration!.suffixStyle,
-            counter: decoration!.counter,
-            counterStyle: decoration!.counterStyle,
-            filled: decoration!.filled,
-            fillColor: decoration!.fillColor,
+              // 如果提供了额外的 decoration，合并属性
+              if (decoration != null) {
+                inputDecoration = inputDecoration.copyWith(
+                  labelStyle: decoration!.labelStyle,
+                  floatingLabelStyle: decoration!.floatingLabelStyle,
+                  helperStyle: decoration!.helperStyle,
+                  errorStyle: decoration!.errorStyle,
+                  prefix: decoration!.prefix,
+                  prefixText: decoration!.prefixText,
+                  prefixStyle: decoration!.prefixStyle,
+                  suffix: decoration!.suffix,
+                  suffixText: decoration!.suffixText,
+                  suffixStyle: decoration!.suffixStyle,
+                  counter: decoration!.counter,
+                  counterStyle: decoration!.counterStyle,
+                  filled: decoration!.filled,
+                  fillColor: decoration!.fillColor,
+                );
+              }
+
+              final textField = TextField(
+                controller: controller,
+                focusNode: focusNode,
+                maxLines: maxLines,
+                minLines: minLines,
+                expands: expands,
+                textInputAction: textInputAction,
+                keyboardType: keyboardType,
+                onChanged: (value) {
+                  field.didChange(value);
+                  onChanged?.call(value);
+                },
+                onSubmitted: (value) {
+                  onSubmitted?.call(value);
+                  onFieldSubmitted?.call(value);
+                },
+                onTap: onTap,
+                onEditingComplete: onEditingComplete,
+                onTapOutside: onTapOutside,
+                readOnly: readOnly,
+                enabled: enabled,
+                inputFormatters: inputFormatters,
+                obscureText: obscureText,
+                maxLength: maxLength,
+                style: style,
+                autofocus: autofocus,
+                textAlign: textAlign,
+                textAlignVertical: textAlignVertical,
+                cursorColor: cursorColor,
+                decoration: inputDecoration,
+              );
+
+              final container = InsetShadowContainer(
+                borderRadius: borderRadius,
+                enabled: enabled,
+                hasError: hasError,
+                isFocused: hasFocus,
+                child: textField,
+              );
+
+              // 构建完整的输入框，包含错误提示和帮助文字
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  container,
+                  if (hasError && errorText != null) ...[
+                    const SizedBox(height: 4),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 12),
+                      child: Text(
+                        errorText,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: theme.colorScheme.error,
+                        ),
+                      ),
+                    ),
+                  ] else if (helperText != null) ...[
+                    const SizedBox(height: 4),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 12),
+                      child: Text(
+                        helperText!,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: theme.colorScheme.outline,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              );
+            },
           );
-        }
-
-        final textField = TextField(
-          controller: controller,
-          focusNode: focusNode,
-          maxLines: maxLines,
-          minLines: minLines,
-          expands: expands,
-          textInputAction: textInputAction,
-          keyboardType: keyboardType,
-          onChanged: (value) {
-            field.didChange(value);
-            onChanged?.call(value);
-          },
-          onSubmitted: (value) {
-            onSubmitted?.call(value);
-            onFieldSubmitted?.call(value);
-          },
-          onTap: onTap,
-          onEditingComplete: onEditingComplete,
-          onTapOutside: onTapOutside,
-          readOnly: readOnly,
-          enabled: enabled,
-          inputFormatters: inputFormatters,
-          obscureText: obscureText,
-          maxLength: maxLength,
-          style: style,
-          autofocus: autofocus,
-          textAlign: textAlign,
-          textAlignVertical: textAlignVertical,
-          cursorColor: cursorColor,
-          decoration: inputDecoration,
-        );
-
-        final container = InsetShadowContainer(
-          borderRadius: borderRadius,
-          enabled: enabled ? null : false,
-          hasError: hasError,
-          child: textField,
-        );
-
-        // 构建完整的输入框，包含错误提示和帮助文字
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            container,
-            if (hasError && errorText != null) ...[
-              const SizedBox(height: 4),
-              Padding(
-                padding: const EdgeInsets.only(left: 12),
-                child: Text(
-                  errorText,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: theme.colorScheme.error,
-                  ),
-                ),
-              ),
-            ] else if (helperText != null) ...[
-              const SizedBox(height: 4),
-              Padding(
-                padding: const EdgeInsets.only(left: 12),
-                child: Text(
-                  helperText!,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: theme.colorScheme.outline,
-                  ),
-                ),
-              ),
-            ],
-          ],
-        );
-      },
+        },
+      ),
     );
   }
 }

@@ -23,8 +23,9 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final fixedTagsState = ref.watch(fixedTagsNotifierProvider);
-    final enabledCount =
-        fixedTagsState.entries.where((entry) => entry.enabled).length;
+    final enabledCount = fixedTagsState.entries
+        .where((entry) => entry.enabled)
+        .length;
     final hasEntries = fixedTagsState.entries.isNotEmpty;
     final hasEnabled = enabledCount > 0;
 
@@ -76,11 +77,11 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
             decoration: BoxDecoration(
               color: hasEnabled
                   ? (_isHovering
-                      ? theme.colorScheme.secondary.withValues(alpha: 0.2)
-                      : theme.colorScheme.secondary.withValues(alpha: 0.1))
+                        ? theme.colorScheme.secondary.withValues(alpha: 0.2)
+                        : theme.colorScheme.secondary.withValues(alpha: 0.1))
                   : (_isHovering
-                      ? theme.colorScheme.surfaceContainerHighest
-                      : Colors.transparent),
+                        ? theme.colorScheme.surfaceContainerHighest
+                        : Colors.transparent),
               borderRadius: BorderRadius.circular(6),
               border: Border.all(
                 color: hasEnabled
@@ -392,8 +393,9 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
     FixedTagEntry entry,
     bool isPrefix,
   ) {
-    final color =
-        isPrefix ? theme.colorScheme.primary : theme.colorScheme.tertiary;
+    final color = isPrefix
+        ? theme.colorScheme.primary
+        : theme.colorScheme.tertiary;
     final hasWeight = entry.weight != 1.0;
     // 只要内容不为空就显示，充分利用空间
     final showContent = entry.content.isNotEmpty;
@@ -475,11 +477,7 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
           // 【新增】关联自词库的标识
           if (entry.sourceEntryId != null) ...[
             const SizedBox(width: 6),
-            Icon(
-              Icons.sync_alt,
-              size: 12,
-              color: Colors.blue.shade400,
-            ),
+            Icon(Icons.sync_alt, size: 12, color: Colors.blue.shade400),
           ],
           // 位置标签（固定宽度，靠右）
           const SizedBox(width: 8),
@@ -517,9 +515,6 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerLow.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.15),
-        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -615,9 +610,6 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.2),
-        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -636,8 +628,9 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
                 fontSize: 10,
                 color: theme.colorScheme.outline,
                 decoration: TextDecoration.lineThrough,
-                decorationColor:
-                    theme.colorScheme.outline.withValues(alpha: 0.5),
+                decorationColor: theme.colorScheme.outline.withValues(
+                  alpha: 0.5,
+                ),
               ),
               overflow: TextOverflow.ellipsis,
             ),
@@ -646,20 +639,13 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
             const SizedBox(width: 4),
             Text(
               '${entry.weight.toStringAsFixed(1)}x',
-              style: TextStyle(
-                fontSize: 9,
-                color: theme.colorScheme.outline,
-              ),
+              style: TextStyle(fontSize: 9, color: theme.colorScheme.outline),
             ),
           ],
           // 【新增】关联自词库的标识
           if (entry.sourceEntryId != null) ...[
             const SizedBox(width: 4),
-            Icon(
-              Icons.sync_alt,
-              size: 10,
-              color: Colors.blue.shade300,
-            ),
+            Icon(Icons.sync_alt, size: 10, color: Colors.blue.shade300),
           ],
         ],
       ),
@@ -667,9 +653,6 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
   }
 
   void _showFixedTagsDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => const FixedTagsDialog(),
-    );
+    showDialog(context: context, builder: (context) => const FixedTagsDialog());
   }
 }

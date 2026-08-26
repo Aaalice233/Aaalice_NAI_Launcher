@@ -184,17 +184,7 @@ class _CharacterPositionCanvasViewState
                   // 轻微暗化，让锚点在亮图上也清晰
                   const ColoredBox(color: Color(0x26000000)),
                 ] else
-                  Container(
-                    decoration: BoxDecoration(
-                      color: colorScheme.surfaceContainerHighest.withValues(
-                        alpha: 0.4,
-                      ),
-                      border: Border.all(
-                        color: colorScheme.outline.withValues(alpha: 0.3),
-                      ),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
+                  ColoredBox(color: colorScheme.surfaceContainerLow),
                 if (config.globalAiChoice)
                   Center(
                     child: Container(
@@ -414,7 +404,7 @@ class CharacterPositionModeSegments extends ConsumerWidget {
       color: selected
           ? theme.colorScheme.primary
           : theme.colorScheme.onSurfaceVariant,
-      fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+      fontWeight: FontWeight.w500,
     );
   }
 }
@@ -444,14 +434,9 @@ class _ModeSegment extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
           color: selected
-              ? colorScheme.primary.withValues(alpha: 0.15)
-              : Colors.transparent,
+              ? colorScheme.primary.withValues(alpha: 0.14)
+              : colorScheme.surfaceContainer,
           borderRadius: radius,
-          border: Border.all(
-            color: selected
-                ? colorScheme.primary.withValues(alpha: 0.6)
-                : colorScheme.outline.withValues(alpha: 0.3),
-          ),
         ),
         child: child,
       ),
@@ -513,7 +498,7 @@ class _CharacterChip extends StatelessWidget {
     final colorScheme = theme.colorScheme;
     final display = resolveCharacterChipDisplay(character);
     final foreground = selected
-        ? colorScheme.onPrimary
+        ? colorScheme.primary
         : colorScheme.onSurfaceVariant;
 
     return InkWell(
@@ -523,13 +508,10 @@ class _CharacterChip extends StatelessWidget {
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
-          color: selected ? colorScheme.primary : Colors.transparent,
+          color: selected
+              ? colorScheme.primary.withValues(alpha: 0.14)
+              : colorScheme.surfaceContainerLow,
           borderRadius: BorderRadius.circular(6),
-          border: Border.all(
-            color: selected
-                ? colorScheme.primary
-                : colorScheme.outline.withValues(alpha: 0.35),
-          ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
