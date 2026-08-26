@@ -18,6 +18,7 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/fixed_tags_provider.dart';
 import 'package:nai_launcher/presentation/providers/layout_state_provider.dart';
 import 'package:nai_launcher/presentation/screens/generation/generation_screen.dart';
+import 'package:nai_launcher/presentation/screens/generation/mobile_layout.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/fixed_tags_sidebar.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/sidebar_entry_tile.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/sidebar_link_painter.dart';
@@ -349,6 +350,53 @@ void main() {
 
     expect(find.byType(FixedTagsSidebar), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('GenerationScreen overlays the sidebar on very narrow layouts', (
+    tester,
+  ) async {
+    final storage = _SidebarTestStorage(
+      fixedEntries: const [],
+      categories: const [],
+      libraryEntries: const [],
+    )..fixedSidebarExpanded = true;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: SizedBox(width: 600, height: 700, child: GenerationScreen()),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(
+      find.byKey(const ValueKey('generation-fixed-tags-overlay')),
+      findsOneWidget,
+    );
+    expect(tester.getSize(find.byType(MobileGenerationLayout)).width, 600);
+    expect(find.byType(FixedTagsSidebar), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(GenerationScreen)),
+    );
+    await tester.tapAt(const Offset(20, 350));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(
+      container.read(layoutStateNotifierProvider).fixedTagsSidebarExpanded,
+      isFalse,
+    );
+    expect(find.byType(FixedTagsSidebar), findsNothing);
   });
 
   testWidgets(

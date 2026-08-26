@@ -8,6 +8,7 @@ import 'package:dio/dio.dart';
 import 'package:image/image.dart' as img;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../core/constants/model_capabilities.dart';
 import '../../core/services/anlas_calculator.dart';
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/image_save_utils.dart';
@@ -549,7 +550,9 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     // 队列执行时跳过抽卡模式，使用队列任务的原始提示词
     ImageParams effectiveParams = params;
     if (randomMode && !isQueueExecuting) {
-      final randomPrompt = await generateAndApplyRandomPrompt();
+      final randomPrompt = await generateAndApplyRandomPrompt(
+        model: params.model,
+      );
       if (_shouldAbortGenerationRun(generationRunId)) return;
       if (randomPrompt.isNotEmpty) {
         AppLogger.d(
@@ -690,7 +693,9 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       // 第一批已在方法开头随机过了
       // 队列执行时跳过抽卡模式
       if (randomMode && batch > 0 && !isQueueExecuting) {
-        final randomPrompt = await generateAndApplyRandomPrompt();
+        final randomPrompt = await generateAndApplyRandomPrompt(
+          model: currentParams.model,
+        );
         if (_shouldAbortGenerationRun(generationRunId)) return;
         if (randomPrompt.isNotEmpty) {
           AppLogger.d(
@@ -2004,16 +2009,22 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
   /// 生成随机提示词并自动应用到主提示词和角色提示词
   ///
   /// [seed] 随机种子（可选）
+  /// [model] 自动生成流程应传入本次请求模型；手动按钮省略时读取当前模型。
   /// 返回生成的主提示词字符串（用于日志/显示）
-  Future<String> generateAndApplyRandomPrompt({int? seed}) async {
-    // 获取当前模型是否为 V4
+  Future<String> generateAndApplyRandomPrompt({
+    int? seed,
+    String? model,
+  }) async {
     final params = ref.read(generationParamsNotifierProvider);
-    final isV4Model = params.isV4Model;
+    final capabilities = ModelCapabilityRegistry.of(model ?? params.model);
 
-    // 使用统一的生成入口
+    // 使用统一模型能力注册表决定官网随机 recipe。
     final result = await ref
         .read(promptConfigNotifierProvider.notifier)
-        .generateRandomPrompt(isV4Model: isV4Model, seed: seed);
+        .generateRandomPrompt(
+          modelProfile: capabilities.randomPromptProfile,
+          seed: seed,
+        );
 
     // 格式化生成的提示词（空格转下划线等）
     final formattedPrompt = NaiPromptFormatter.format(result.mainPrompt);
@@ -2032,7 +2043,8 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     }
 
     // 应用角色提示词（同时进行格式化）
-    if (result.hasCharacters && isV4Model) {
+    if (result.hasCharacters &&
+        capabilities.randomPromptProfile.supportsCharacterPrompts) {
       final characterPrompts = result.toCharacterPrompts().map((char) {
         return char.copyWith(
           prompt: NaiPromptFormatter.format(char.prompt),

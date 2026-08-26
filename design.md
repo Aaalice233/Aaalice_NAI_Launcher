@@ -25,13 +25,13 @@ Aaalice NAI Launcher 是面向高频创作流程的桌面工具，不是营销�
 
 项目当前建立在 Flutter Material 3 之上，并已有模块化主题系统：
 
-- `lib/presentation/themes/core/theme_composer.dart` 负责组合颜色、字体、形状、阴影、效果、动效与分隔线。
-- `lib/presentation/themes/theme_extension.dart` 定义了主题扩展能力。
+- `lib/presentation/themes/core/theme_composer.dart` 负责组合颜色、字体、形状与动效，并生成统一的 Material 3 组件主题。
+- `lib/presentation/themes/theme_extension.dart` 只保留已接入消费链路的圆角、动效和低对比分隔语义。
 - `lib/presentation/themes/design_tokens.dart` 提供部分跨界面 token。
 - `lib/presentation/widgets/common/` 和设置页公共组件承载了部分统一实现。
 - 生成页采用工作区式布局；在线画廊强调内容密度；设置页采用侧栏与受限宽度内容；统计页采用响应式信息网格。
 
-需要区分“已经定义”和“已经生效”：当前 `MaterialApp.router` 固定使用 `ThemeMode.dark`；未保存设置时默认外观是 `grungeCollage`，默认字体配置是 `LXGW ZhenKai GB`。各预设虽然能构建 `AppThemeExtension`，但当前 `ThemeData` 没有全局挂载这些 extension；颜色、字体、形状和部分页面转场接入较完整，shadow、effect、texture 与组件 motion 仍只有部分实现消费。`DesignTokens` 也尚未成为全仓唯一入口。因此，本文既记录当前事实，也定义后续收敛目标，不能把未接入能力当成现有保证。
+当前 `MaterialApp.router` 固定使用 `ThemeMode.dark`；未保存设置时默认外观是 `grungeCollage`，默认字体配置是 `LXGW ZhenKai GB`。每个预设都通过 `ThemeComposer` 生成完整 `ThemeData`，并全局挂载 `AppThemeExtension`；公共卡片、输入、按钮、选择控件与页面转场从这些真实 token 获取样式。旧 shadow / effect / texture / divider 模块及未接线 painter 已移除，避免主题声明一套、运行界面又实现另一套。`DesignTokens` 仍承担稳定的通用尺寸，页面不得把它与局部常量混成新的并行系统。
 
 这些实现已经形成几项适合保留的项目特征：
 
@@ -43,25 +43,25 @@ Aaalice NAI Launcher 是面向高频创作流程的桌面工具，不是营销�
 
 ### 2.2 代表性界面的风格判断
 
-- **全局导航**：`main_nav_rail.dart` 已采用紧凑侧栏、图标与标签组合、淡色 hover 和按压反馈，方向接近桌面创作工具；但 selected 状态又叠加完整描边，和已有选中色面重复。
+- **全局导航**：`main_nav_rail.dart` 采用紧凑侧栏、图标与标签组合，通过淡色 hover、选中色面和前景色反馈状态，不为 selected 状态重复叠加完整描边。
 - **生成页**：`generation/` 是项目核心视觉原型，采用画布/预览与参数面板组成的工作台式布局，强调连续编辑和空间利用；它应成为“内容优先、工具退后”的主要参考，而不是继续增加独立卡片。
 - **在线画廊**：`online_gallery_screen.dart` 使用高密度顶栏与无界图片网格，内容优先最明确。这里的筛选与批量操作需要紧凑色面状态，不适合大量 outlined controls。
-- **设置页**：`settings_screen.dart` 的侧栏、受限内容宽度和任务分区是合理的信息架构；`SettingsCard` 的常驻外框与底部分隔线则让每个分组形成重复白框，应逐步改为留白与低对比色面。
+- **设置页**：`settings_screen.dart` 使用侧栏、受限内容宽度和任务分区；`SettingsCard` 以留白和低对比色面分组，不再用常驻外框与底部分隔线重复包围内容。
 - **统计页**：`statistics_screen.dart` 使用响应式瀑布流卡片，适合浏览不同数据模块；卡片层级需要统一，图表本身应高于容器装饰。
 - **公共输入与容器**：`ThemedInput`、`ElevatedCard`、`CompactIconButton` 等已经尝试统一交互，但边框、内凹阴影、悬浮阴影等表达同时存在，导致调用方难以组合出安静的界面。
 - **对话框与浮层**：项目同时存在 themed、glass 与功能专用实现。它们应共享遮罩、圆角、操作区、键盘焦点和层级规则，仅在内容材质上保留有限差异。
 
 总体上，项目最适合的不是纯 Material 默认风格、重拟物风格或卡片化后台，而是：**以生成工作台和图片内容为中心，以 Material 3 语义为基础，用低对比色面建立深度的桌面创作工具风格。**
 
-### 2.3 需要统一的问题
+### 2.3 本轮统一所针对的问题
 
-目前最明显的问题不是“缺少样式”，而是**局部样式过多且没有稳定优先级**：
+本轮全仓审计发现的问题不是“缺少样式”，而是**局部样式过多且没有稳定优先级**：
 
 - 卡片、按钮、输入框和选中项经常各自添加完整描边，形成层层白框。
 - `Border.all`、`OutlinedButton`、`OutlineInputBorder` 与自定义阴影并存，同一层级被重复表达。
 - 圆角、间距、持续时间和透明度存在大量局部常量，公共 token 没有成为默认入口。
 - 部分公共组件本身带固定边框，调用方再套容器后容易产生嵌套框。
-- 主题预设可以同时改变颜色、形状、阴影、纹理和动效，个性强于产品的一致性。
+- 旧主题预设曾同时声明颜色、形状、阴影、纹理和动效，其中部分能力从未接入运行界面，个性声明强于产品一致性。
 - 某些界面依靠重阴影、弹跳曲线或高对比描边表达普通状态，抢走了内容注意力。
 
 因此，本基准不是再增加一层装饰，而是规定视觉信息的优先级：
@@ -301,7 +301,7 @@ Aaalice NAI Launcher 是面向高频创作流程的桌面工具，不是营销�
 
 - 默认分组方式：标题 + 留白；其次是低对比色面；最后才是边框。
 - 普通静态卡片：`surfaceContainerLow`、12px 圆角、无边框、无阴影。
-- 交互卡片：hover 只提高色面对比；selected 使用主色淡底。
+- 普通信息与设置卡片：hover 只提高色面对比；selected 使用主色淡底。图像内容卡片按第 13.3 节使用统一的轻缩放与柔和阴影反馈。
 - 卡片内部存在多个小节时，用 16–24px 垂直留白或局部短分隔线，不再给每个小节套卡片。
 - 卡片标题栏只在需要共同操作或独立语义时存在；不要每张卡片都复制彩色图标底座。
 - 嵌套容器最多两层，第三层必须有明确交互理由。
@@ -399,7 +399,7 @@ Aaalice NAI Launcher 是面向高频创作流程的桌面工具，不是营销�
 
 ### 13.1 时间基准
 
-业务组件必须从已实际挂载的 motion theme/token 获取时长和曲线。当前 motion module 尚未完整暴露给组件，在完成接线前应优先复用现有集中 token，不得继续增加页面私有时长。以下范围是统一默认节奏：
+业务组件必须从已挂载的 `AppThemeExtension` 或稳定公共 token 获取时长和曲线，不得继续增加页面私有时长。以下范围是统一默认节奏：
 
 - hover / press：100–140ms。
 - 普通状态过渡：160–200ms。
@@ -414,13 +414,24 @@ Aaalice NAI Launcher 是面向高频创作流程的桌面工具，不是营销�
 
 ### 13.2 行为规则
 
-- hover 反馈以色面和前景变化为主。
+- 普通 hover 反馈以色面和前景变化为主；只有内容预览等明确例外才使用空间变换。
 - press 缩放仅用于独立按钮/卡片，范围约 0.98–1.0。
 - 列表键盘导航不使用重叠滚动动画，不改变文字字重，不让几何结构抖动。
 - 展开/折叠应同时处理进入和退出，避免内容瞬间消失。
 - 异步操作必须可见；超过约 300ms 时显示局部 loading。
 - 尊重 `MediaQuery.disableAnimations`，关闭非必要位移和缩放。
 - 主题可以改变动效节奏的细微气质，但不能在高频操作中引入弹跳、延迟或不可预测路径。
+
+### 13.3 图像卡片悬浮反馈
+
+生成结果、图像历史队列、本地图库和在线画廊都属于高频图像浏览场景。它们需要一致且可见的指针反馈，不能按普通静态卡片完全移除悬浮动画。
+
+- 统一使用 `ImageCardHoverMotion`；默认 hover 目标为 `1.01` 倍缩放，时长与曲线来自 `AppThemeExtension.fastDuration` 和 `standardCurve`。
+- 缩放只影响绘制，不改变网格占位、图片比例或相邻卡片布局；进入和退出都必须平滑且可中断。
+- hover 同时允许一级柔和阴影和操作按钮显现，但不得叠加亮色完整边框、发光或夸张位移。
+- selected、focused、loading 和拖拽准备状态保持各自语义，不能依赖缩放表达；历史列表高速滚动时可以暂时关闭 hover 效果。
+- `MediaQuery.disableAnimations` 开启时缩放必须回到 `1.0` 且立即完成，同时保留必要的色面、阴影或操作可见性反馈。
+- 该规则只适用于可打开、选择或操作的图像内容卡片，不扩散到设置卡片、统计卡片和普通信息分组。
 
 ---
 
@@ -457,7 +468,7 @@ Aaalice NAI Launcher 是面向高频创作流程的桌面工具，不是营销�
 - `ColorScheme` 调色板。
 - 标题与正文字体家族，但不能破坏尺寸层级。
 - 圆角在约定范围内的小幅变化。
-- 阴影软硬、背景纹理和装饰图形，但只能用于合适层级。
+- Overlay 层的轻量环境阴影，以及不覆盖内容的背景装饰图形；不得恢复独立 shadow / texture 主题系统。
 - 图表和来源标识的辅助色。
 
 ### 15.3 主题不得变化
@@ -477,7 +488,7 @@ Aaalice NAI Launcher 是面向高频创作流程的桌面工具，不是营销�
 
 1. 公共组件表达的语义角色与状态。
 2. `Theme.of(context).colorScheme` / `textTheme`。
-3. **已经挂载到 `ThemeData`** 的 `AppThemeExtension` 语义 token；未挂载的 extension 不能假定可用。
+3. 已挂载到 `ThemeData` 的 `AppThemeExtension` 圆角、动效与分隔 token。
 4. `DesignTokens` 中稳定的尺寸、间距和时长。
 5. 经说明的业务例外，仅限组件独有且有明确原因的值。
 
@@ -497,16 +508,16 @@ Aaalice NAI Launcher 是面向高频创作流程的桌面工具，不是营销�
 
 | 语义 | 默认选择 | 现阶段约束 |
 |---|---|---|
-| Button | Material 3 `FilledButton` / `.tonal` / `TextButton` / `IconButton` | `ThemedButton` 仅延续已有主题专用界面，不作为普通按钮默认入口 |
-| Text input | 复用 `ThemedInput` 或同功能已有输入组件 | 必须补齐可见 focus、error、disabled 与键盘状态；不得再包一层常驻外框 |
-| Checkbox / Switch / Radio | Flutter Material 原生控件 | 自绘版本必须达到同等键盘、Semantics 与命中区能力 |
+| Button | Material 3 `FilledButton` / `.tonal` / `TextButton` / `IconButton`，或现有 `ThemedButton` 兼容入口 | `ThemedButton` 内部同样使用原生 Material 控件，不引入另一套物理/数字按钮交互 |
+| Text input | 复用 `ThemedInput` 或同功能已有输入组件 | focus、error、disabled 由统一语义色面表达；不得再包一层常驻外框 |
+| Checkbox / Switch / Slider / Radio | Flutter Material 原生控件或现有 themed 兼容入口 | themed 入口内部复用原生控件，保持键盘、Semantics 与状态行为一致 |
 | Card / Panel | 声明 surface 语义的简单容器 | `ElevatedCard` 仅用于确有 elevation 的交互层，普通分组不用它制造阴影 |
 | Dialog | 复用已有 themed dialog shell；确认操作使用 `ThemedConfirmDialog` | 不新增仅外观不同的 dialog shell；功能专用内容仍共享遮罩、焦点和操作区规则 |
 | Toast | `AppToast` | 不在业务页面另建 overlay 通知；后续统一 live-region、堆叠与关闭命中区 |
 | Tooltip | 主题 `Tooltip` / `ShortcutTooltip` | 纯图标和快捷键入口必须提供，正文不能长到替代帮助页 |
 | Divider | `Divider` / `VerticalDivider` | 仅用于真实结构边界，颜色从主题获取，不把 divider 当装饰 |
 
-`ThemedContainer`、`ComposerCard`、`GlassDialog`、`ElevatedCard` 等现有视觉组件不是可以随意互换的“皮肤”。修改其调用方前先确认它在该功能中的语义；新功能不得只因看起来特别而引入它们。
+`ThemedContainer` 用于普通语义色面，`ElevatedCard` 只用于确有交互层级的卡片；两者不是可以随意互换的“皮肤”。旧 `ComposerCard` 与 `GlassDialog` 已移除，新功能不得仅因看起来特别而重新引入平行容器体系。
 
 ### 16.4 推荐实现示例
 
@@ -615,18 +626,18 @@ BoxDecoration(
 
 ---
 
-## 18. 现有界面的渐进式迁移顺序
+## 18. 现有界面的迁移与持续约束
 
-不进行一次性全仓视觉重写。触碰相关界面时按以下顺序收敛：
+本轮已按以下顺序完成主题根因、公共组件与主要页面的集中收敛；后续触碰相关界面时继续按同一优先级维护：
 
 1. **公共组件默认样式**：输入框、图标按钮、设置卡片、确认对话框。
 2. **高频创作路径**：生成页提示词与参数区、图像操作区、导航。
 3. **高密度工具栏**：在线画廊筛选、批量操作和分页。
 4. **设置页**：移除卡片常驻描边，以留白和色面重建分组。
 5. **统计与信息页**：统一卡片层级、图表色彩和空状态。
-6. **主题预设**：限制高对比描边、重阴影和弹跳动效只出现在装饰层。
+6. **主题预设**：删除未接线的阴影、效果、纹理与分隔模块，主题个性只通过真实生效的颜色、字体、形状和克制动效表达。
 
-每次迁移只处理当前功能涉及的区域，但必须优先修复造成局部不一致的公共根因；不得在新旧风格之间再增加第三套临时样式。
+后续改动必须优先修复造成局部不一致的公共根因，不得在统一系统之外增加第三套临时样式；确需边界的场景必须能对应第 5.1 节列出的交互或结构理由。
 
 ---
 

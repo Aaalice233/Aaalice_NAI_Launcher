@@ -11,6 +11,8 @@ import 'package:nai_launcher/data/models/prompt/random_category.dart';
 import 'package:nai_launcher/data/models/prompt/random_preset.dart';
 import 'package:nai_launcher/data/models/prompt/random_prompt_result.dart';
 import 'package:nai_launcher/data/models/prompt/random_tag_group.dart';
+import 'package:nai_launcher/data/models/prompt/tag_category.dart';
+import 'package:nai_launcher/data/models/prompt/tag_library.dart';
 import 'package:nai_launcher/data/models/prompt/tag_scope.dart';
 import 'package:nai_launcher/data/models/prompt/time_condition.dart';
 import 'package:nai_launcher/data/models/prompt/visibility_rule.dart';
@@ -21,10 +23,12 @@ import 'package:nai_launcher/data/services/tag_library_service.dart';
 
 void main() {
   late RandomPromptGenerator generator;
+  late _MockTagLibraryService libraryService;
 
   setUp(() {
+    libraryService = _MockTagLibraryService();
     generator = RandomPromptGenerator(
-      _MockTagLibraryService(),
+      libraryService,
       _MockSequentialStateService(),
       _MockTagGroupCacheService(),
       _MockPoolCacheService(),
@@ -50,6 +54,67 @@ void main() {
 
     expect(result.mode, RandomGenerationMode.custom);
     expect(result.mainPrompt, contains('city'));
+  });
+
+  test('keeps the first occurrence when generated tags overlap', () async {
+    final preset = _preset([
+      _category(
+        id: 'detail',
+        key: 'detail',
+        groups: [
+          _group(id: 'first', tags: ['city']),
+          _group(id: 'second', tags: ['city']),
+        ],
+      ),
+    ]);
+
+    final result = await generator.generateFromPreset(preset: preset, seed: 1);
+
+    expect(
+      result.mainPrompt.split(', ').where((tag) => tag == 'city'),
+      hasLength(1),
+    );
+  });
+
+  test('built-in groups generate from the verified catalog library', () async {
+    when(() => libraryService.getAvailableLibrary()).thenAnswer(
+      (_) async => TagLibrary(
+        id: 'catalog-test',
+        name: 'Catalog',
+        lastUpdated: DateTime.utc(2026),
+        source: TagLibrarySource.catalog,
+        categories: {
+          TagSubCategory.detail.name: const [
+            WeightedTag(tag: 'city', weight: 10),
+            WeightedTag(
+              tag: 'remote only',
+              weight: 10,
+              source: TagSource.danbooru,
+            ),
+          ],
+        },
+      ),
+    );
+    final preset = _preset([
+      _category(
+        id: 'detail',
+        key: 'detail',
+        groups: [
+          RandomTagGroup(
+            id: 'catalog_detail',
+            name: 'Detail',
+            sourceType: TagGroupSourceType.builtin,
+            sourceId: TagSubCategory.detail.name,
+          ),
+        ],
+      ),
+    ]);
+
+    final result = await generator.generateFromPreset(preset: preset, seed: 1);
+
+    expect(result.mainPrompt, contains('city'));
+    expect(result.mainPrompt, isNot(contains('remote only')));
+    verify(() => libraryService.getAvailableLibrary()).called(1);
   });
 
   test('uses effective legacy character count config when new config is absent',

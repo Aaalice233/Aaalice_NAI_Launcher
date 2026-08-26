@@ -197,7 +197,7 @@ class _ComfyUIWorkflowDialogState extends ConsumerState<ComfyUIWorkflowDialog> {
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
           if (_results != null && _results!.isNotEmpty) ...[
-            OutlinedButton(
+            FilledButton.tonal(
               onPressed: () => Navigator.of(context).pop(_results),
               child: Text(context.l10n.comfyWorkflow_useResult),
             ),
@@ -215,7 +215,7 @@ class _ComfyUIWorkflowDialogState extends ConsumerState<ComfyUIWorkflowDialog> {
               label: Text(context.l10n.comfyWorkflow_execute),
             )
           else
-            OutlinedButton.icon(
+            TextButton.icon(
               onPressed: () => ref.read(comfyUITaskProvider.notifier).cancel(),
               icon: const Icon(Icons.stop, size: 18),
               label: Text(context.l10n.common_cancel),
@@ -294,9 +294,7 @@ class _ComfyUIWorkflowDialogState extends ConsumerState<ComfyUIWorkflowDialog> {
               child: Container(
                 height: 80,
                 decoration: BoxDecoration(
-                  border: Border.all(
-                    color: theme.colorScheme.outline.withValues(alpha: 0.4),
-                  ),
+                  color: theme.colorScheme.surfaceContainer,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Center(
@@ -397,7 +395,6 @@ class _ComfyUIWorkflowDialogState extends ConsumerState<ComfyUIWorkflowDialog> {
           DropdownButtonFormField<String>(
             initialValue: choices.contains(current) ? current : null,
             decoration: InputDecoration(
-              border: const OutlineInputBorder(),
               isDense: true,
               labelText: slot.localizedLabel(context),
             ),
@@ -450,7 +447,6 @@ class _ComfyUIWorkflowDialogState extends ConsumerState<ComfyUIWorkflowDialog> {
       initialValue: val.toInt().toString(),
       decoration: InputDecoration(
         labelText: slot.localizedLabel(context),
-        border: const OutlineInputBorder(),
         isDense: true,
       ),
       keyboardType: TextInputType.number,
@@ -501,7 +497,6 @@ class _ComfyUIWorkflowDialogState extends ConsumerState<ComfyUIWorkflowDialog> {
       initialValue: val.toString(),
       decoration: InputDecoration(
         labelText: slot.localizedLabel(context),
-        border: const OutlineInputBorder(),
         isDense: true,
       ),
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -535,7 +530,6 @@ class _ComfyUIWorkflowDialogState extends ConsumerState<ComfyUIWorkflowDialog> {
           .toString(),
       decoration: InputDecoration(
         labelText: slot.localizedLabel(context),
-        border: const OutlineInputBorder(),
         isDense: true,
       ),
       onChanged: (v) => _paramValues[slot.id] = v,

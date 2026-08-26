@@ -148,9 +148,6 @@ class _PresetImportDialogState extends State<PresetImportDialog> {
               offset: const Offset(0, 12),
             ),
           ],
-          border: Border.all(
-            color: colorScheme.outlineVariant.withValues(alpha: 0.2),
-          ),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -275,13 +272,11 @@ class _PresetImportDialogState extends State<PresetImportDialog> {
                     Container(
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: _error != null
-                              ? colorScheme.error.withValues(alpha: 0.5)
-                              : colorScheme.outlineVariant.withValues(
-                                  alpha: 0.3,
-                                ),
-                        ),
+                        border: _error == null
+                            ? null
+                            : Border.all(
+                                color: colorScheme.error.withValues(alpha: 0.5),
+                              ),
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(12),

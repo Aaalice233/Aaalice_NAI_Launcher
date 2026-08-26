@@ -74,13 +74,6 @@ class _EntryCardState extends State<EntryCard> {
     final theme = Theme.of(context);
     final entry = widget.entry;
 
-    // 选中/悬停边框色
-    final borderColor = widget.isSelected
-        ? theme.colorScheme.primary
-        : (_isHovering
-              ? theme.colorScheme.primary.withValues(alpha: 0.5)
-              : Colors.transparent);
-
     // 构建卡片主体内容（在GestureDetector内）
     final cardBody = GestureDetector(
       onTap: widget.isSelectionMode ? widget.onToggleSelection : widget.onTap,
@@ -155,43 +148,25 @@ class _EntryCardState extends State<EntryCard> {
         curve: Curves.easeOut,
         height: 80,
         transform: Matrix4.identity()
-          ..translateByDouble(0, _isHovering ? -4 : 0, 0, 1)
-          ..scaleByDouble(
-            _isHovering ? 1.02 : 1,
-            _isHovering ? 1.02 : 1,
-            _isHovering ? 1.02 : 1,
-            1,
-          ),
+          ..translateByDouble(0, _isHovering ? -2 : 0, 0, 1),
         transformAlignment: Alignment.center,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           boxShadow: _isHovering
               ? [
                   BoxShadow(
-                    color: theme.colorScheme.primary.withValues(alpha: 0.3),
-                    blurRadius: 16,
-                    offset: const Offset(0, 8),
-                    spreadRadius: 2,
-                  ),
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.15),
-                    blurRadius: 24,
-                    offset: const Offset(0, 12),
+                    color: theme.colorScheme.shadow.withValues(alpha: 0.12),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
                   ),
                 ]
-              : [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.2),
-                    blurRadius: 4,
-                  ),
-                ],
+              : null,
         ),
         foregroundDecoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: borderColor,
-            width: widget.isSelected ? 3 : (_isHovering ? 1.5 : 0),
-          ),
+          border: widget.isSelected
+              ? Border.all(color: theme.colorScheme.primary)
+              : null,
         ),
         child: Stack(
           fit: StackFit.expand,
@@ -362,16 +337,8 @@ class _EntryCardState extends State<EntryCard> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: theme.colorScheme.primary.withValues(alpha: 0.8),
-            width: 2,
+            color: theme.colorScheme.primary.withValues(alpha: 0.75),
           ),
-          boxShadow: [
-            BoxShadow(
-              color: theme.colorScheme.primary.withValues(alpha: 0.4),
-              blurRadius: 20,
-              spreadRadius: 2,
-            ),
-          ],
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(16),
@@ -510,32 +477,19 @@ class _ActionIconState extends State<_ActionIcon> {
         child: GestureDetector(
           onTap: widget.onTap,
           behavior: HitTestBehavior.opaque,
-          child: AnimatedScale(
+          child: AnimatedContainer(
             duration: const Duration(milliseconds: 150),
-            scale: _isHovering ? 1.15 : 1.0,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: _isHovering ? hoverBgColor : bgColor,
-                borderRadius: BorderRadius.circular(8),
-                boxShadow: _isHovering
-                    ? [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.4),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ]
-                    : null,
-              ),
-              child: Icon(
-                widget.icon,
-                size: 20,
-                color:
-                    widget.color ??
-                    (widget.isDestructive ? Colors.redAccent : Colors.white),
-              ),
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: _isHovering ? hoverBgColor : bgColor,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              widget.icon,
+              size: 20,
+              color:
+                  widget.color ??
+                  (widget.isDestructive ? Colors.redAccent : Colors.white),
             ),
           ),
         ),
@@ -580,27 +534,26 @@ class _SelectionCheckbox extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        width: 22,
-        height: 22,
-        decoration: BoxDecoration(
-          color: isSelected
-              ? theme.colorScheme.primary
-              : Colors.black.withValues(alpha: 0.5),
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(
-            color: isSelected
+    return SizedBox.square(
+      dimension: 40,
+      child: Checkbox(
+        value: isSelected,
+        onChanged: onTap == null ? null : (_) => onTap?.call(),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+        side: WidgetStateBorderSide.resolveWith(
+          (states) => BorderSide(
+            color: states.contains(WidgetState.selected)
                 ? theme.colorScheme.primary
-                : Colors.white.withValues(alpha: 0.8),
-            width: 2,
+                : Colors.white70,
+            width: 1.5,
           ),
         ),
-        child: isSelected
-            ? Icon(Icons.check, size: 14, color: theme.colorScheme.onPrimary)
-            : null,
+        fillColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? theme.colorScheme.primary
+              : Colors.black45,
+        ),
+        checkColor: theme.colorScheme.onPrimary,
       ),
     );
   }

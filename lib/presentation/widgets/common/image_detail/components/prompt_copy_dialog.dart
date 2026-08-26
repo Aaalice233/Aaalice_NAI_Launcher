@@ -97,9 +97,6 @@ class _PromptCopyDialogState extends State<PromptCopyDialog> {
                 ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(
-                    color: colorScheme.outlineVariant.withValues(alpha: 0.55),
-                  ),
                 ),
                 clipBehavior: Clip.antiAlias,
                 child: Column(

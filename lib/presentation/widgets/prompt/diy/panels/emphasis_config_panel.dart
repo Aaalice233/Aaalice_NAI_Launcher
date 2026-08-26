@@ -283,12 +283,6 @@ class EmphasisConfigPanel extends StatelessWidget {
                               ? null
                               : colorScheme.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: isSelected
-                                ? Colors.transparent
-                                : colorScheme.outline.withValues(alpha: 0.2),
-                            width: 1,
-                          ),
                           boxShadow: isSelected
                               ? [
                                   BoxShadow(
@@ -336,15 +330,6 @@ class EmphasisConfigPanel extends StatelessWidget {
     return ElevatedCard(
       elevation: CardElevation.level1,
       borderRadius: 12,
-      gradientBorder: LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          colorScheme.primary.withValues(alpha: 0.4),
-          colorScheme.secondary.withValues(alpha: 0.2),
-        ],
-      ),
-      gradientBorderWidth: 1,
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -397,9 +382,6 @@ class EmphasisConfigPanel extends StatelessWidget {
             decoration: BoxDecoration(
               color: colorScheme.surfaceContainerLowest,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: colorScheme.outline.withValues(alpha: 0.15),
-              ),
               boxShadow: [
                 BoxShadow(
                   color: colorScheme.shadow.withValues(alpha: 0.05),

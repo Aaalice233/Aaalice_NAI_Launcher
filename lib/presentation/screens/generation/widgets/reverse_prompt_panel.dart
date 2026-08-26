@@ -176,7 +176,7 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
         setState(() => _isDragging = false);
         unawaited(_handleDrop(event));
       },
-      child: OutlinedButton.icon(
+      child: FilledButton.tonalIcon(
         onPressed: state.isProcessing ? null : _pickImages,
         icon: Icon(
           _isDragging ? Icons.file_download_rounded : Icons.add_photo_alternate,
@@ -374,11 +374,8 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        color: theme.colorScheme.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
-        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -409,7 +406,7 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
             spacing: 8,
             runSpacing: 8,
             children: [
-              OutlinedButton.icon(
+              FilledButton.tonalIcon(
                 onPressed: state.isProcessing
                     ? null
                     : _selectReverseCharacterFromLibrary,
@@ -479,7 +476,7 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
           ),
         ),
         const SizedBox(width: 8),
-        OutlinedButton.icon(
+        FilledButton.tonalIcon(
           onPressed: state.finalPrompt.trim().isEmpty
               ? null
               : () {

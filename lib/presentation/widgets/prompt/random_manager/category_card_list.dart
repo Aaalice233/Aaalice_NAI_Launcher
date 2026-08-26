@@ -37,9 +37,9 @@ class CategoryCardList extends ConsumerWidget {
                 ? const NeverScrollableScrollPhysics()
                 : const ClampingScrollPhysics(),
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: EdgeInsets.zero,
+            padding: const EdgeInsets.only(bottom: 4),
             itemCount: categories.length,
-            separatorBuilder: (_, _) => const SizedBox(height: 10),
+            separatorBuilder: (_, _) => const SizedBox(height: 8),
             itemBuilder: (context, index) {
               final category = categories[index];
               return CategoryCard(
@@ -55,12 +55,12 @@ class CategoryCardList extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: shrinkWrap ? MainAxisSize.min : MainAxisSize.max,
       children: [
-        _CategoryHeader(
+        _RecipeSummary(
           preset: preset,
           visibleCount: categories.length,
           onAddCategory: onAddCategory,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
         if (shrinkWrap) list else Expanded(child: list),
       ],
     );
@@ -90,9 +90,6 @@ class CategoryCardList extends ConsumerWidget {
   }
 }
 
-/// Compatibility wrapper retained for callers that previously requested a grid.
-/// A stable vertical list avoids narrow-card overflows and keeps expansion
-/// geometry predictable at every supported desktop width.
 class CategoryCardGrid extends StatelessWidget {
   const CategoryCardGrid({super.key, this.onAddCategory, this.query = ''});
 
@@ -109,8 +106,8 @@ class CategoryCardGrid extends StatelessWidget {
   }
 }
 
-class _CategoryHeader extends ConsumerWidget {
-  const _CategoryHeader({
+class _RecipeSummary extends ConsumerWidget {
+  const _RecipeSummary({
     required this.preset,
     required this.visibleCount,
     required this.onAddCategory,
@@ -123,66 +120,81 @@ class _CategoryHeader extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final colors = theme.colorScheme;
     final tagCount = ref.watch(presetTotalTagCountProvider);
     final groupCount = preset.categories.fold<int>(
       0,
       (total, category) => total + category.groupCount,
     );
+    final enabledCount = preset.categories.where((item) => item.enabled).length;
 
-    return Wrap(
-      crossAxisAlignment: WrapCrossAlignment.center,
-      spacing: 10,
-      runSpacing: 8,
+    return Row(
       children: [
         Text(
-          context.l10n.categoryConfiguration,
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w600,
+          '$enabledCount/${preset.categoryCount}',
+          style: theme.textTheme.labelLarge?.copyWith(
+            fontFeatures: const [FontFeature.tabularFigures()],
           ),
         ),
-        _CountBadge(
-          icon: Icons.category_outlined,
-          value: '$visibleCount/${preset.categoryCount}',
+        const SizedBox(width: 6),
+        Text(
+          context.l10n.randomManager_categories,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: colors.onSurfaceVariant,
+          ),
         ),
-        _CountBadge(icon: Icons.layers_outlined, value: '$groupCount'),
-        _CountBadge(icon: Icons.sell_outlined, value: '$tagCount'),
+        const SizedBox(width: 14),
+        _InlineMetric(
+          icon: Icons.layers_outlined,
+          value: groupCount.toString(),
+        ),
+        const SizedBox(width: 12),
+        _InlineMetric(icon: Icons.sell_outlined, value: tagCount.toString()),
+        if (visibleCount != preset.categoryCount) ...[
+          const SizedBox(width: 12),
+          Text(
+            '$visibleCount/${preset.categoryCount}',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: colors.primary,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+        ],
+        const Spacer(),
         if (onAddCategory != null && !preset.isDefault)
-          IconButton.filledTonal(
+          TextButton.icon(
             onPressed: onAddCategory,
-            tooltip: context.l10n.randomManager_addCategory,
-            icon: const Icon(Icons.add_rounded),
+            icon: const Icon(Icons.add_rounded, size: 18),
+            label: Text(context.l10n.randomManager_addCategory),
           ),
       ],
     );
   }
 }
 
-class _CountBadge extends StatelessWidget {
-  const _CountBadge({required this.icon, required this.value});
+class _InlineMetric extends StatelessWidget {
+  const _InlineMetric({required this.icon, required this.value});
 
   final IconData icon;
   final String value;
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Semantics(
-      label: value,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(999),
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 14, color: colors.onSurfaceVariant),
+        const SizedBox(width: 4),
+        Text(
+          value,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: colors.onSurfaceVariant,
+            fontFeatures: const [FontFeature.tabularFigures()],
+          ),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 14, color: colorScheme.onSurfaceVariant),
-            const SizedBox(width: 4),
-            Text(value, style: Theme.of(context).textTheme.labelSmall),
-          ],
-        ),
-      ),
+      ],
     );
   }
 }
@@ -194,17 +206,23 @@ class _NoCategoryResults extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 40),
+      padding: const EdgeInsets.symmetric(vertical: 48),
       child: Column(
         children: [
-          const Icon(Icons.search_off_rounded, size: 36),
+          Icon(
+            Icons.search_off_rounded,
+            size: 32,
+            color: colors.onSurfaceVariant,
+          ),
           const SizedBox(height: 10),
           Text(
             hasQuery
                 ? context.l10n.randomManager_noCategoryResults
                 : context.l10n.randomManager_noCategories,
             textAlign: TextAlign.center,
+            style: TextStyle(color: colors.onSurfaceVariant),
           ),
         ],
       ),

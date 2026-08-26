@@ -219,12 +219,17 @@ class ThemedInput extends StatefulWidget {
 
 class _ThemedInputState extends State<ThemedInput> {
   late TextEditingController _effectiveController;
+  late FocusNode _effectiveFocusNode;
+  bool _ownsFocusNode = false;
   bool _hasContent = false;
 
   @override
   void initState() {
     super.initState();
     _effectiveController = widget.controller ?? TextEditingController();
+    _effectiveFocusNode = widget.focusNode ?? FocusNode();
+    _ownsFocusNode = widget.focusNode == null;
+    _effectiveFocusNode.addListener(_onFocusChanged);
     _hasContent = _effectiveController.text.isNotEmpty;
     if (widget.showClearButton) {
       _effectiveController.addListener(_onTextChanged);
@@ -247,6 +252,13 @@ class _ThemedInputState extends State<ThemedInput> {
         _effectiveController.addListener(_onTextChanged);
       }
     }
+    if (widget.focusNode != oldWidget.focusNode) {
+      _effectiveFocusNode.removeListener(_onFocusChanged);
+      if (_ownsFocusNode) _effectiveFocusNode.dispose();
+      _effectiveFocusNode = widget.focusNode ?? FocusNode();
+      _ownsFocusNode = widget.focusNode == null;
+      _effectiveFocusNode.addListener(_onFocusChanged);
+    }
   }
 
   @override
@@ -257,7 +269,13 @@ class _ThemedInputState extends State<ThemedInput> {
     if (widget.controller == null) {
       _effectiveController.dispose();
     }
+    _effectiveFocusNode.removeListener(_onFocusChanged);
+    if (_ownsFocusNode) _effectiveFocusNode.dispose();
     super.dispose();
+  }
+
+  void _onFocusChanged() {
+    if (mounted) setState(() {});
   }
 
   void _onTextChanged() {
@@ -349,7 +367,7 @@ class _ThemedInputState extends State<ThemedInput> {
     final field = TextField(
       controller: _effectiveController,
       undoController: widget.undoController,
-      focusNode: widget.focusNode,
+      focusNode: _effectiveFocusNode,
       maxLines: widget.maxLines,
       minLines: widget.minLines,
       expands: widget.expands,
@@ -408,7 +426,8 @@ class _ThemedInputState extends State<ThemedInput> {
 
     final container = InsetShadowContainer(
       borderRadius: widget.borderRadius,
-      enabled: widget.enabled ? null : false,
+      enabled: widget.enabled,
+      isFocused: _effectiveFocusNode.hasFocus,
       child: content,
     );
 
@@ -443,22 +462,13 @@ class _ClearButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Material(
-      color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.8),
-      shape: const CircleBorder(),
-      child: InkWell(
-        onTap: onPressed,
-        customBorder: const CircleBorder(),
-        child: Padding(
-          padding: const EdgeInsets.all(4),
-          child: Icon(
-            Icons.close,
-            size: 14,
-            color: colorScheme.onSurfaceVariant,
-          ),
-        ),
-      ),
+    return IconButton(
+      onPressed: onPressed,
+      icon: const Icon(Icons.close, size: 16),
+      tooltip: MaterialLocalizations.of(context).deleteButtonTooltip,
+      visualDensity: VisualDensity.compact,
+      constraints: const BoxConstraints.tightFor(width: 32, height: 32),
+      padding: EdgeInsets.zero,
     );
   }
 }

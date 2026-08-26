@@ -181,7 +181,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
                 _buildNoiseSlider(theme, params),
               ],
               const SizedBox(height: 12),
-              OutlinedButton.icon(
+              TextButton.icon(
                 onPressed: _clearImg2Img,
                 icon: const Icon(Icons.clear, size: 18),
                 label: Text(context.l10n.img2img_clearSettings),
@@ -371,7 +371,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
           ],
         ),
         const SizedBox(height: 8),
-        OutlinedButton.icon(
+        FilledButton.tonalIcon(
           key: const Key('img2img-from-precise-ref-library'),
           onPressed: _importSourceFromPreciseRefLibrary,
           icon: const Icon(Icons.photo_library_outlined, size: 16),
@@ -438,7 +438,6 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
       decoration: BoxDecoration(
         color: background,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: foreground.withValues(alpha: 0.24)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -562,11 +561,6 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
                         alpha: 0.5,
                       ),
                 borderRadius: BorderRadius.circular(999),
-                border: Border.all(
-                  color: workflow.focusedInpaintEnabled
-                      ? theme.colorScheme.primary.withValues(alpha: 0.35)
-                      : theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
-                ),
               ),
               child: Text(
                 workflow.focusedInpaintEnabled
@@ -604,11 +598,8 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
   /// 灰底配白字。改用主题槽位后两种亮度下都保持层次。
   BoxDecoration _subPanelDecoration(ThemeData theme) {
     return BoxDecoration(
-      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+      color: theme.colorScheme.surfaceContainerHigh,
       borderRadius: BorderRadius.circular(10),
-      border: Border.all(
-        color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
-      ),
     );
   }
 
@@ -943,7 +934,6 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
                       ? resolvedComfyModel
                       : null,
                   decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
                     isDense: true,
                     contentPadding: EdgeInsets.symmetric(
                       horizontal: 12,
@@ -1161,12 +1151,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
       decoration: BoxDecoration(
         borderRadius: borderRadius,
-        border: Border.all(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
-        ),
-        color: theme.colorScheme.surfaceContainerHighest.withValues(
-          alpha: 0.25,
-        ),
+        color: theme.colorScheme.surfaceContainerHigh,
       ),
       child: Column(
         children: [

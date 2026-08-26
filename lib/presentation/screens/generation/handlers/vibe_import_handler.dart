@@ -414,7 +414,6 @@ class VibeImportHandler {
                           decoration: InputDecoration(
                             labelText: l10n.vibe_saveToLibrary_nameLabel,
                             hintText: l10n.vibe_saveToLibrary_nameHint,
-                            border: const OutlineInputBorder(),
                           ),
                           autofocus: true,
                         ),

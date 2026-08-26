@@ -99,12 +99,13 @@ class _TagTemplatePanelState extends ConsumerState<TagTemplatePanel> {
         onConfirm: (name, description) async {
           final l10n = dialogContext.l10n;
 
-          final result =
-              await ref.read(tagTemplateNotifierProvider.notifier).saveTemplate(
-                    name: name,
-                    tags: tagsToSave,
-                    description: description,
-                  );
+          final result = await ref
+              .read(tagTemplateNotifierProvider.notifier)
+              .saveTemplate(
+                name: name,
+                tags: tagsToSave,
+                description: description,
+              );
 
           if (result == null) {
             // 保存失败（名称冲突）
@@ -172,12 +173,10 @@ class _TagTemplatePanelState extends ConsumerState<TagTemplatePanel> {
           // 模板列表
           Expanded(
             child: isLoading
-                ? const Center(
-                    child: CircularProgressIndicator(),
-                  )
+                ? const Center(child: CircularProgressIndicator())
                 : templates.isEmpty
-                    ? _buildEmptyState(context)
-                    : _buildTemplatesList(context, templates),
+                ? _buildEmptyState(context)
+                : _buildTemplatesList(context, templates),
           ),
         ],
       ),
@@ -190,11 +189,7 @@ class _TagTemplatePanelState extends ConsumerState<TagTemplatePanel> {
 
     return Row(
       children: [
-        Icon(
-          Icons.bookmark_border,
-          size: 20,
-          color: theme.colorScheme.primary,
-        ),
+        Icon(Icons.bookmark_border, size: 20, color: theme.colorScheme.primary),
         const SizedBox(width: 8),
         Text(
           context.l10n.tag_templatesTitle,
@@ -291,10 +286,7 @@ class _TagTemplatePanelState extends ConsumerState<TagTemplatePanel> {
   }
 
   /// 构建单个模板项
-  Widget _buildTemplateItem(
-    BuildContext context,
-    TagTemplate template,
-  ) {
+  Widget _buildTemplateItem(BuildContext context, TagTemplate template) {
     final theme = Theme.of(context);
 
     return Material(
@@ -307,11 +299,9 @@ class _TagTemplatePanelState extends ConsumerState<TagTemplatePanel> {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: theme.colorScheme.outline.withValues(alpha: 0.3),
+            color: theme.colorScheme.surfaceContainerHighest.withValues(
+              alpha: 0.3,
             ),
-            color: theme.colorScheme.surfaceContainerHighest
-                .withValues(alpha: 0.3),
           ),
           child: Row(
             children: [
@@ -343,8 +333,9 @@ class _TagTemplatePanelState extends ConsumerState<TagTemplatePanel> {
                       Text(
                         template.description!,
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurface
-                              .withValues(alpha: 0.6),
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.6,
+                          ),
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -355,8 +346,9 @@ class _TagTemplatePanelState extends ConsumerState<TagTemplatePanel> {
                     Text(
                       context.l10n.tag_templateTagCount(template.tagCount),
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color:
-                            theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.5,
+                        ),
                         fontSize: 11,
                       ),
                     ),
@@ -423,10 +415,7 @@ class _CreateTemplateDialogState extends State<_CreateTemplateDialog> {
       _isSaving = true;
     });
 
-    widget.onConfirm(
-      name,
-      description.isEmpty ? null : description,
-    );
+    widget.onConfirm(name, description.isEmpty ? null : description);
 
     // 延迟关闭对话框，等待保存结果
     Future.delayed(const Duration(milliseconds: 300), () {
@@ -459,7 +448,6 @@ class _CreateTemplateDialogState extends State<_CreateTemplateDialog> {
                 decoration: InputDecoration(
                   labelText: context.l10n.tag_templateNameLabel,
                   hintText: context.l10n.tag_templateNameHint,
-                  border: const OutlineInputBorder(),
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
@@ -477,7 +465,6 @@ class _CreateTemplateDialogState extends State<_CreateTemplateDialog> {
                 decoration: InputDecoration(
                   labelText: context.l10n.tag_templateDescLabel,
                   hintText: context.l10n.tag_templateDescHint,
-                  border: const OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 16),
@@ -486,12 +473,10 @@ class _CreateTemplateDialogState extends State<_CreateTemplateDialog> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest
-                      .withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: theme.colorScheme.outline.withValues(alpha: 0.3),
+                  color: theme.colorScheme.surfaceContainerHighest.withValues(
+                    alpha: 0.3,
                   ),
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -499,8 +484,9 @@ class _CreateTemplateDialogState extends State<_CreateTemplateDialog> {
                     Text(
                       context.l10n.tag_templatePreview,
                       style: theme.textTheme.labelSmall?.copyWith(
-                        color:
-                            theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.6,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -528,8 +514,9 @@ class _CreateTemplateDialogState extends State<_CreateTemplateDialog> {
                           widget.initialTags.length - 10,
                         ),
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurface
-                              .withValues(alpha: 0.5),
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.5,
+                          ),
                           fontSize: 11,
                         ),
                       ),

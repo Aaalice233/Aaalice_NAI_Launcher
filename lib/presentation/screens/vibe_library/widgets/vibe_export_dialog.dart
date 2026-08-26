@@ -347,17 +347,12 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
               child: Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  border: Border.all(
-                    color: isSelected
-                        ? theme.colorScheme.primary
-                        : theme.colorScheme.outlineVariant,
-                  ),
                   borderRadius: BorderRadius.circular(8),
                   color: isSelected
                       ? theme.colorScheme.primaryContainer.withValues(
                           alpha: 0.3,
                         )
-                      : null,
+                      : theme.colorScheme.surfaceContainer,
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

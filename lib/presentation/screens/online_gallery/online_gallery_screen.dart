@@ -1288,7 +1288,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       toggled: state.randomEnabled,
       label: context.l10n.onlineGallery_random,
       child: compact
-          ? OutlinedButton(
+          ? TextButton(
               key: const ValueKey('online-gallery-random-toggle'),
               onPressed: () {
                 if (!state.randomEnabled) _saveScrollOffset();
@@ -1296,10 +1296,12 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
                   _galleryNotifier.setRandomEnabled(!state.randomEnabled),
                 );
               },
-              style: OutlinedButton.styleFrom(
+              style: TextButton.styleFrom(
                 backgroundColor: state.randomEnabled
                     ? theme.colorScheme.primaryContainer
-                    : null,
+                    : theme.colorScheme.surfaceContainerHighest.withValues(
+                        alpha: 0.4,
+                      ),
                 foregroundColor: state.randomEnabled
                     ? theme.colorScheme.onPrimaryContainer
                     : theme.colorScheme.onSurfaceVariant,
@@ -1312,7 +1314,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
               ),
               child: Text(context.l10n.onlineGallery_random),
             )
-          : OutlinedButton.icon(
+          : TextButton.icon(
               key: const ValueKey('online-gallery-random-toggle'),
               onPressed: () {
                 if (!state.randomEnabled) _saveScrollOffset();
@@ -1322,10 +1324,12 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
               },
               icon: const Icon(Icons.shuffle, size: 17),
               label: Text(context.l10n.onlineGallery_random),
-              style: OutlinedButton.styleFrom(
+              style: TextButton.styleFrom(
                 backgroundColor: state.randomEnabled
                     ? theme.colorScheme.primaryContainer
-                    : null,
+                    : theme.colorScheme.surfaceContainerHighest.withValues(
+                        alpha: 0.4,
+                      ),
                 foregroundColor: state.randomEnabled
                     ? theme.colorScheme.onPrimaryContainer
                     : theme.colorScheme.onSurfaceVariant,
@@ -1482,7 +1486,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         button: true,
         toggled: state.artistHuntEnabled,
         label: context.l10n.onlineGallery_artistHunt,
-        child: OutlinedButton.icon(
+        child: TextButton.icon(
           key: const ValueKey('online-gallery-artist-hunt-toggle'),
           onPressed: () {
             _saveScrollOffset();
@@ -1492,10 +1496,12 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           },
           icon: const Icon(Icons.brush_outlined, size: 17),
           label: Text(context.l10n.onlineGallery_artistHunt),
-          style: OutlinedButton.styleFrom(
+          style: TextButton.styleFrom(
             backgroundColor: state.artistHuntEnabled
                 ? theme.colorScheme.primaryContainer
-                : null,
+                : theme.colorScheme.surfaceContainerHighest.withValues(
+                    alpha: 0.4,
+                  ),
             foregroundColor: state.artistHuntEnabled
                 ? theme.colorScheme.onPrimaryContainer
                 : theme.colorScheme.onSurfaceVariant,
@@ -1689,20 +1695,23 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       required String tooltip,
       required VoidCallback onPressed,
     }) {
-      final style = OutlinedButton.styleFrom(
+      final style = TextButton.styleFrom(
         foregroundColor: theme.colorScheme.onSurfaceVariant,
+        backgroundColor: theme.colorScheme.surfaceContainerHighest.withValues(
+          alpha: 0.4,
+        ),
         padding: EdgeInsets.symmetric(horizontal: compact ? 8 : 12),
         visualDensity: VisualDensity.compact,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
       );
       final button = compact
-          ? OutlinedButton(
+          ? TextButton(
               key: key,
               onPressed: onPressed,
               style: style,
               child: Text(label),
             )
-          : OutlinedButton.icon(
+          : TextButton.icon(
               key: key,
               onPressed: onPressed,
               icon: Icon(icon, size: 16),
@@ -1839,7 +1848,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         controls
           ..add(_buildGelbooruFavoritesNotice(theme))
           ..add(
-            OutlinedButton.icon(
+            TextButton.icon(
               onPressed: state.isLoading ? null : _saveVisibleFavoritesLocally,
               icon: const Icon(Icons.download_done_rounded, size: 17),
               label: Text(context.l10n.onlineGallery_saveVisibleLocally),
@@ -1980,7 +1989,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       builder: (context, controller, child) {
         return Tooltip(
           message: context.l10n.onlineGallery_promptTagCategoriesTooltip,
-          child: OutlinedButton.icon(
+          child: TextButton.icon(
             onPressed: () {
               controller.isOpen ? controller.close() : controller.open();
             },
@@ -1988,8 +1997,10 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             label: Text(
               '${context.l10n.onlineGallery_promptTagCategories} · $selectedCount',
             ),
-            style: OutlinedButton.styleFrom(
+            style: TextButton.styleFrom(
               foregroundColor: theme.colorScheme.onSurfaceVariant,
+              backgroundColor: theme.colorScheme.surfaceContainerHighest
+                  .withValues(alpha: 0.4),
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
               visualDensity: VisualDensity.compact,
             ),
@@ -2040,7 +2051,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
 
     return CompositedTransformTarget(
       link: _dateRangeLayerLink,
-      child: OutlinedButton.icon(
+      child: TextButton.icon(
         onPressed: () => _toggleDateRangePopup(state),
         icon: Icon(
           Icons.date_range,
@@ -2059,12 +2070,14 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             color: hasDateRange ? theme.colorScheme.primary : null,
           ),
         ),
-        style: OutlinedButton.styleFrom(
+        style: TextButton.styleFrom(
+          backgroundColor: hasDateRange
+              ? theme.colorScheme.primary.withValues(alpha: 0.12)
+              : theme.colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.4,
+                ),
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           visualDensity: VisualDensity.compact,
-          side: hasDateRange
-              ? BorderSide(color: theme.colorScheme.primary)
-              : null,
         ),
       ),
     );
@@ -2432,7 +2445,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
           ),
         ),
-        OutlinedButton.icon(
+        TextButton.icon(
           onPressed: () => _selectDate(context, state),
           icon: const Icon(Icons.calendar_today, size: 14),
           label: Text(
@@ -2444,7 +2457,9 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
                 : context.l10n.onlineGallery_today,
             style: const TextStyle(fontSize: 13),
           ),
-          style: OutlinedButton.styleFrom(
+          style: TextButton.styleFrom(
+            backgroundColor: theme.colorScheme.surfaceContainerHighest
+                .withValues(alpha: 0.4),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             visualDensity: VisualDensity.compact,
           ),
@@ -4620,11 +4635,7 @@ class _FuzzySearchToggle extends StatelessWidget {
       backgroundColor: theme.colorScheme.surfaceContainerHighest.withValues(
         alpha: 0.4,
       ),
-      side: BorderSide(
-        color: enabled
-            ? theme.colorScheme.secondary.withValues(alpha: 0.7)
-            : Colors.transparent,
-      ),
+      side: BorderSide.none,
     );
   }
 }

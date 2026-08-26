@@ -116,32 +116,27 @@ class _AddTagGroupDialogState extends ConsumerState<AddTagGroupDialog>
     final colorScheme = theme.colorScheme;
 
     return Dialog(
-      backgroundColor: Colors.transparent,
-      child: Container(
-        width: 560,
-        constraints: const BoxConstraints(maxHeight: 650),
-        decoration: BoxDecoration(
-          color: colorScheme.surface,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: colorScheme.shadow.withValues(alpha: 0.1),
-              blurRadius: 16,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
+      backgroundColor: colorScheme.surface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      clipBehavior: Clip.antiAlias,
+      child: SizedBox(
+        width: 580,
+        height: 660,
         child: Form(
           key: _formKey,
           child: Column(
-            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _buildHeader(context),
               _buildNameSection(context),
               _buildSourceTabs(context),
               if (_sourceTabIndex > 0) _buildSearchBar(context),
-              Flexible(child: _buildTabContent(context)),
+              Expanded(
+                child: ColoredBox(
+                  color: colorScheme.surfaceContainerLow,
+                  child: _buildTabContent(context),
+                ),
+              ),
               _buildFooter(context),
             ],
           ),
@@ -154,32 +149,12 @@ class _AddTagGroupDialogState extends ConsumerState<AddTagGroupDialog>
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            colorScheme.primaryContainer.withValues(alpha: 0.3),
-            colorScheme.secondaryContainer.withValues(alpha: 0.2),
-          ],
-        ),
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-      ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(22, 18, 12, 10),
       child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: colorScheme.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              Icons.add_circle_outline,
-              color: colorScheme.primary,
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 12),
+          Icon(Icons.add_rounded, color: colorScheme.primary, size: 21),
+          const SizedBox(width: 11),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -187,7 +162,7 @@ class _AddTagGroupDialogState extends ConsumerState<AddTagGroupDialog>
                 Text(
                   context.l10n.randomManager_addTagGroup,
                   style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 Text(
@@ -203,11 +178,8 @@ class _AddTagGroupDialogState extends ConsumerState<AddTagGroupDialog>
           ),
           IconButton(
             onPressed: () => Navigator.pop(context),
-            icon: const Icon(Icons.close),
-            iconSize: 20,
-            style: IconButton.styleFrom(
-              backgroundColor: colorScheme.surfaceContainerHighest,
-            ),
+            tooltip: context.l10n.common_close,
+            icon: const Icon(Icons.close_rounded, size: 20),
           ),
         ],
       ),
@@ -218,25 +190,18 @@ class _AddTagGroupDialogState extends ConsumerState<AddTagGroupDialog>
     final colorScheme = Theme.of(context).colorScheme;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      padding: const EdgeInsets.fromLTRB(18, 10, 18, 12),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          _EmojiPickerButton(emoji: _selectedEmoji, onTap: _pickEmoji),
-          const SizedBox(width: 12),
           Expanded(
             child: TextFormField(
               controller: _nameController,
               decoration: InputDecoration(
                 labelText: context.l10n.randomManager_tagGroupName,
                 hintText: context.l10n.randomManager_tagGroupNameHint,
-                border: const OutlineInputBorder(),
+                border: InputBorder.none,
                 filled: true,
-                fillColor: colorScheme.surfaceContainerHighest,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 14,
-                ),
+                fillColor: colorScheme.surfaceContainerLow,
               ),
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
@@ -247,6 +212,16 @@ class _AddTagGroupDialogState extends ConsumerState<AddTagGroupDialog>
               autofocus: true,
             ),
           ),
+          const SizedBox(width: 8),
+          Tooltip(
+            message: context.l10n.category_selectEmoji,
+            child: IconButton.filledTonal(
+              onPressed: _pickEmoji,
+              icon: _selectedEmoji.isEmpty
+                  ? const Icon(Icons.mood_outlined, size: 20)
+                  : Text(_selectedEmoji, style: const TextStyle(fontSize: 19)),
+            ),
+          ),
         ],
       ),
     );
@@ -255,24 +230,15 @@ class _AddTagGroupDialogState extends ConsumerState<AddTagGroupDialog>
   Widget _buildSourceTabs(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(8),
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 18),
       child: TabBar(
         controller: _tabController,
-        indicator: BoxDecoration(
-          color: colorScheme.primaryContainer,
-          borderRadius: BorderRadius.circular(6),
-        ),
-        indicatorSize: TabBarIndicatorSize.tab,
-        indicatorPadding: const EdgeInsets.all(4),
+        indicatorSize: TabBarIndicatorSize.label,
         dividerColor: Colors.transparent,
-        labelColor: colorScheme.onPrimaryContainer,
+        labelColor: colorScheme.primary,
         unselectedLabelColor: colorScheme.onSurfaceVariant,
-        labelStyle: const TextStyle(fontSize: 12),
+        labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
         tabs: [
           Tab(
             child: Row(
@@ -330,7 +296,6 @@ class _AddTagGroupDialogState extends ConsumerState<AddTagGroupDialog>
                   },
                 )
               : null,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
           filled: true,
           fillColor: colorScheme.surfaceContainerHighest,
           contentPadding: const EdgeInsets.symmetric(
@@ -386,7 +351,6 @@ class _AddTagGroupDialogState extends ConsumerState<AddTagGroupDialog>
               textAlignVertical: TextAlignVertical.top,
               decoration: InputDecoration(
                 hintText: 'red hair\nblue eyes:2\nlong hair',
-                border: const OutlineInputBorder(),
                 filled: true,
                 fillColor: colorScheme.surfaceContainerHighest,
                 contentPadding: const EdgeInsets.all(12),
@@ -519,25 +483,19 @@ class _AddTagGroupDialogState extends ConsumerState<AddTagGroupDialog>
   }
 
   Widget _buildFooter(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest,
-        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
-      ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          OutlinedButton(
+          TextButton(
             onPressed: () => Navigator.pop(context),
             child: Text(context.l10n.common_cancel),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 8),
           FilledButton.icon(
             onPressed: _canSubmit() ? _addGroup : null,
-            icon: const Icon(Icons.add, size: 18),
+            icon: const Icon(Icons.add_rounded, size: 18),
             label: Text(context.l10n.common_add),
           ),
         ],
@@ -654,59 +612,6 @@ class _AddTagGroupDialogState extends ConsumerState<AddTagGroupDialog>
   }
 }
 
-/// Emoji 选择按钮
-class _EmojiPickerButton extends StatefulWidget {
-  const _EmojiPickerButton({required this.emoji, required this.onTap});
-  final String emoji;
-  final VoidCallback onTap;
-  @override
-  State<_EmojiPickerButton> createState() => _EmojiPickerButtonState();
-}
-
-class _EmojiPickerButtonState extends State<_EmojiPickerButton> {
-  bool _isHovered = false;
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          width: 56,
-          height: 56,
-          decoration: BoxDecoration(
-            color: _isHovered
-                ? colorScheme.primaryContainer
-                : colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: _isHovered
-                  ? colorScheme.primary
-                  : colorScheme.outline.withValues(alpha: 0.3),
-              width: _isHovered ? 2 : 1,
-            ),
-          ),
-          child: Center(
-            child: widget.emoji.isEmpty
-                ? Icon(
-                    Icons.add_reaction_outlined,
-                    color: _isHovered
-                        ? colorScheme.primary
-                        : colorScheme.onSurfaceVariant,
-                    size: 24,
-                  )
-                : Text(widget.emoji, style: const TextStyle(fontSize: 28)),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 /// Danbooru 列表项类型
 enum DanbooruItemType { tagGroup, pool }
 
@@ -772,12 +677,6 @@ class _DanbooruListTileState extends State<_DanbooruListTile> {
                 ? colorScheme.surfaceContainerHigh
                 : colorScheme.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: widget.isSelected
-                  ? colorScheme.primary
-                  : Colors.transparent,
-              width: widget.isSelected ? 2 : 0,
-            ),
           ),
           child: Row(
             children: [

@@ -95,7 +95,7 @@ void main() {
     await tester.pumpWidget(buildTestApp(const InlineCharacterRow()));
     await tester.pumpAndSettle();
 
-    final addMenu = find.byTooltip('Add Character');
+    final addMenu = find.byKey(const Key('character-add-menu'));
     expect(addMenu, findsOneWidget);
     await tester.tap(addMenu);
     await tester.pumpAndSettle();

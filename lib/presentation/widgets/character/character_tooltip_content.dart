@@ -33,12 +33,7 @@ class CharacterTooltipContent extends StatelessWidget {
       elevation: 10,
       shadowColor: Colors.black.withValues(alpha: 0.28),
       clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: colorScheme.outlineVariant.withValues(alpha: 0.7),
-        ),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(12, 11, 12, 9),
         child: Column(
@@ -122,9 +117,8 @@ class _EnabledSummaryBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
       decoration: BoxDecoration(
-        color: colorScheme.primary.withValues(alpha: 0.1),
+        color: colorScheme.primary.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: colorScheme.primary.withValues(alpha: 0.22)),
       ),
       child: Text(
         label,
@@ -170,7 +164,6 @@ class _CharacterPreviewRow extends StatelessWidget {
             colorScheme.surfaceContainerLow,
           ),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: genderColor.withValues(alpha: 0.22)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -262,7 +255,6 @@ class _PreviewGenderBadge extends StatelessWidget {
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.13),
         borderRadius: BorderRadius.circular(9),
-        border: Border.all(color: color.withValues(alpha: 0.28)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

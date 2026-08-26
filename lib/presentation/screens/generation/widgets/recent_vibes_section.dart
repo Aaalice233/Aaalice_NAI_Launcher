@@ -118,11 +118,8 @@ class RecentVibeItem extends StatelessWidget {
       child: Container(
         width: 72,
         decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerLowest,
+          color: theme.colorScheme.surfaceContainerLow,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
-          ),
         ),
         child: Column(
           children: [

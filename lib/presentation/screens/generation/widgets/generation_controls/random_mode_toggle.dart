@@ -18,7 +18,6 @@ class _RandomModeToggleState extends ConsumerState<RandomModeToggle>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _rotateAnimation;
-  bool _isHovering = false;
 
   @override
   void initState() {
@@ -27,9 +26,10 @@ class _RandomModeToggleState extends ConsumerState<RandomModeToggle>
       duration: const Duration(milliseconds: 600),
       vsync: this,
     );
-    _rotateAnimation = Tween<double>(begin: 0, end: 2).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _rotateAnimation = Tween<double>(
+      begin: 0,
+      end: 2,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
 
   @override
@@ -49,61 +49,38 @@ class _RandomModeToggleState extends ConsumerState<RandomModeToggle>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final reducedMotion = MediaQuery.disableAnimationsOf(context);
 
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovering = true),
-      onExit: (_) => setState(() => _isHovering = false),
-      cursor: SystemMouseCursors.click,
-      child: Tooltip(
-        message: widget.enabled
-            ? context.l10n.randomMode_enabledTip
-            : context.l10n.randomMode_disabledTip,
-        preferBelow: true,
-        child: GestureDetector(
-          onTap: () {
-            ref.read(randomPromptModeProvider.notifier).toggle();
-            if (!widget.enabled) {
-              _controller.forward(from: 0);
-            }
-          },
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: widget.enabled
-                  ? (_isHovering
-                      ? theme.colorScheme.primary.withValues(alpha: 0.25)
-                      : theme.colorScheme.primary.withValues(alpha: 0.15))
-                  : (_isHovering
-                      ? theme.colorScheme.surfaceContainerHighest
-                      : Colors.transparent),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: widget.enabled
-                    ? theme.colorScheme.primary.withValues(alpha: 0.5)
-                    : theme.colorScheme.outline.withValues(alpha: 0.3),
-                width: widget.enabled ? 1.5 : 1,
-              ),
-            ),
-            child: AnimatedBuilder(
-              animation: _rotateAnimation,
-              builder: (context, child) {
-                return Transform.rotate(
-                  angle: _rotateAnimation.value * 3.14159,
-                  child: child,
-                );
-              },
-              child: Icon(
-                Icons.casino_outlined,
-                size: 20,
-                color: widget.enabled
-                    ? theme.colorScheme.primary
-                    : theme.colorScheme.onSurface.withValues(alpha: 0.5),
-              ),
-            ),
-          ),
-        ),
+    return IconButton(
+      tooltip: widget.enabled
+          ? context.l10n.randomMode_enabledTip
+          : context.l10n.randomMode_disabledTip,
+      onPressed: () {
+        ref.read(randomPromptModeProvider.notifier).toggle();
+        if (!widget.enabled && !reducedMotion) {
+          _controller.forward(from: 0);
+        }
+      },
+      style: IconButton.styleFrom(
+        minimumSize: const Size(40, 40),
+        maximumSize: const Size(40, 40),
+        backgroundColor: widget.enabled
+            ? theme.colorScheme.primaryContainer
+            : Colors.transparent,
+        foregroundColor: widget.enabled
+            ? theme.colorScheme.onPrimaryContainer
+            : theme.colorScheme.onSurfaceVariant,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+      icon: AnimatedBuilder(
+        animation: _rotateAnimation,
+        builder: (context, child) {
+          return Transform.rotate(
+            angle: reducedMotion ? 0 : _rotateAnimation.value * 3.14159,
+            child: child,
+          );
+        },
+        child: const Icon(Icons.casino_outlined, size: 20),
       ),
     );
   }

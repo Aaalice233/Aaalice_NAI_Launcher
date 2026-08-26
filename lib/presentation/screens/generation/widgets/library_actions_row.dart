@@ -20,25 +20,23 @@ class LibraryActionsRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        // 保存到库按钮
         Expanded(
-          child: OutlinedButton.icon(
+          child: FilledButton.tonalIcon(
             onPressed: vibes.isNotEmpty ? onSaveToLibrary : null,
             icon: const Icon(Icons.save_outlined, size: 16),
             label: Text(context.l10n.vibeLibrary_save),
-            style: OutlinedButton.styleFrom(
+            style: FilledButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 8),
             ),
           ),
         ),
         const SizedBox(width: 8),
-        // 从库导入按钮
         Expanded(
-          child: OutlinedButton.icon(
+          child: FilledButton.tonalIcon(
             onPressed: onImportFromLibrary,
             icon: const Icon(Icons.folder_open_outlined, size: 16),
             label: Text(context.l10n.vibe_addFromLibraryTitle),
-            style: OutlinedButton.styleFrom(
+            style: FilledButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 8),
             ),
           ),

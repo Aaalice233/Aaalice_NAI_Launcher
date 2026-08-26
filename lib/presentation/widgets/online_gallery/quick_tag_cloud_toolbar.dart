@@ -736,7 +736,8 @@ class _ToolbarButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return OutlinedButton.icon(
+    final colors = Theme.of(context).colorScheme;
+    return TextButton.icon(
       onPressed: onPressed,
       icon: loading
           ? const SizedBox.square(
@@ -747,6 +748,11 @@ class _ToolbarButton extends StatelessWidget {
       label: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 220),
         child: Text(label, overflow: TextOverflow.ellipsis),
+      ),
+      style: TextButton.styleFrom(
+        foregroundColor: colors.onSurfaceVariant,
+        backgroundColor: colors.surfaceContainerHighest.withValues(alpha: 0.4),
+        visualDensity: VisualDensity.compact,
       ),
     );
   }

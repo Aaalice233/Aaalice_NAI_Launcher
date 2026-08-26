@@ -9,6 +9,17 @@ enum PromptStructure {
   v4,
 }
 
+/// 官网随机提示词生成器分派。
+///
+/// NovelAI 当前仅有三套词库；V4、V4.5 与 V5 共用角色独立词库。
+enum RandomPromptProfile {
+  legacyAnime,
+  furryV3,
+  characterPrompts;
+
+  bool get supportsCharacterPrompts => this == characterPrompts;
+}
+
 /// 提示词 token 计数使用的分词器。
 enum TokenizerKind { clip, t5, qwen35 }
 
@@ -34,6 +45,7 @@ class ModelCapabilities {
     required this.tokenLimit,
     required this.defaultScale,
     required this.defaultSteps,
+    this.randomPromptProfile = RandomPromptProfile.legacyAnime,
     this.paramsVersion = 3,
     this.maxCharacters = 0,
     this.supportsVibeTransfer = false,
@@ -61,6 +73,7 @@ class ModelCapabilities {
   final PromptStructure promptStructure;
   final AnlasFormula anlasFormula;
   final TokenizerKind tokenizer;
+  final RandomPromptProfile randomPromptProfile;
 
   /// 提示词 token 上限。
   final int tokenLimit;
@@ -198,6 +211,7 @@ class ModelCapabilityRegistry {
     tokenLimit: 225,
     defaultScale: 6.2,
     defaultSteps: 23,
+    randomPromptProfile: RandomPromptProfile.furryV3,
     supportsVibeTransfer: true,
     supportsImg2ImgInpainting: true,
     supportsVarietyPlus: true,
@@ -211,6 +225,7 @@ class ModelCapabilityRegistry {
     tokenLimit: 512,
     defaultScale: 5.5,
     defaultSteps: 23,
+    randomPromptProfile: RandomPromptProfile.characterPrompts,
     maxCharacters: 6,
     supportsVibeTransfer: true,
     supportsEncodedVibeTransfer: true,
@@ -227,6 +242,7 @@ class ModelCapabilityRegistry {
     tokenLimit: 512,
     defaultScale: 5.5,
     defaultSteps: 23,
+    randomPromptProfile: RandomPromptProfile.characterPrompts,
     maxCharacters: 6,
     supportsVibeTransfer: true,
     supportsEncodedVibeTransfer: true,
@@ -243,6 +259,7 @@ class ModelCapabilityRegistry {
     tokenLimit: 512,
     defaultScale: 5.0,
     defaultSteps: 23,
+    randomPromptProfile: RandomPromptProfile.characterPrompts,
     maxCharacters: 6,
     supportsVibeTransfer: true,
     supportsEncodedVibeTransfer: true,
@@ -262,6 +279,7 @@ class ModelCapabilityRegistry {
     tokenLimit: 512,
     defaultScale: 5.0,
     defaultSteps: 23,
+    randomPromptProfile: RandomPromptProfile.characterPrompts,
     maxCharacters: 6,
     supportsVibeTransfer: true,
     supportsEncodedVibeTransfer: true,
@@ -286,6 +304,7 @@ class ModelCapabilityRegistry {
     paramsVersion: 4,
     defaultScale: 7.0,
     defaultSteps: 23,
+    randomPromptProfile: RandomPromptProfile.characterPrompts,
     maxCharacters: 32,
     supportsImg2ImgInpainting: true,
     supportsTransparentBackground: true,
@@ -311,6 +330,7 @@ class ModelCapabilityRegistry {
     paramsVersion: 4,
     defaultScale: 7.0,
     defaultSteps: 23,
+    randomPromptProfile: RandomPromptProfile.characterPrompts,
     maxCharacters: 32,
     supportsImg2ImgInpainting: true,
     supportsTransparentBackground: true,
