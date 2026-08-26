@@ -381,6 +381,14 @@ void main() {
       const ValueKey('generation-collapsed-prompt-launcher'),
     );
     expect(launcher, findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('generation-agent-drawer-action')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('generation-history-drawer-action')),
+      findsOneWidget,
+    );
     expect(find.byKey(const ValueKey('maximized-prompt')), findsNothing);
 
     await tester.tap(launcher);

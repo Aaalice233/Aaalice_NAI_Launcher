@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/utils/localization_extension.dart';
+import '../../agent_chat/widgets/agent_chat_panel.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/generation/image_workflow_controller.dart';
 import '../../providers/image_generation_provider.dart';
@@ -24,6 +25,8 @@ import 'widgets/parameter_panel.dart';
 
 import '../../widgets/common/app_toast.dart';
 
+enum _MobileAuxiliaryView { agent, history }
+
 /// 移动端单栏布局
 class MobileGenerationLayout extends ConsumerStatefulWidget {
   const MobileGenerationLayout({super.key});
@@ -36,6 +39,7 @@ class MobileGenerationLayout extends ConsumerStatefulWidget {
 class _MobileGenerationLayoutState extends ConsumerState<MobileGenerationLayout>
     with WidgetsBindingObserver {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  _MobileAuxiliaryView _auxiliaryView = _MobileAuxiliaryView.history;
 
   @override
   void initState() {
@@ -67,6 +71,24 @@ class _MobileGenerationLayoutState extends ConsumerState<MobileGenerationLayout>
     unawaited(
       ref.read(promptMaximizeNotifierProvider.notifier).setMaximized(false),
     );
+  }
+
+  void _openAuxiliaryDrawer(_MobileAuxiliaryView view) {
+    if (_auxiliaryView == view) {
+      _scaffoldKey.currentState?.openEndDrawer();
+      return;
+    }
+    setState(() => _auxiliaryView = view);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _scaffoldKey.currentState?.openEndDrawer();
+      }
+    });
+  }
+
+  void _closeAuxiliaryDrawer() {
+    FocusManager.instance.primaryFocus?.unfocus();
+    _scaffoldKey.currentState?.closeEndDrawer();
   }
 
   @override
@@ -109,7 +131,7 @@ class _MobileGenerationLayoutState extends ConsumerState<MobileGenerationLayout>
       child: ThemedScaffold(
         scaffoldKey: _scaffoldKey,
         drawer: isPromptMaximized ? null : _buildParameterDrawer(context),
-        endDrawer: isPromptMaximized ? null : _buildHistoryDrawer(context),
+        endDrawer: isPromptMaximized ? null : _buildAuxiliaryDrawer(context),
         appBar: AppBar(
           automaticallyImplyLeading: false,
           leading: isPromptMaximized
@@ -129,13 +151,23 @@ class _MobileGenerationLayoutState extends ConsumerState<MobileGenerationLayout>
               ? null
               : [
                   IconButton(
+                    key: const ValueKey('generation-parameters-drawer-action'),
                     icon: const Icon(Icons.tune_rounded),
                     onPressed: () => _scaffoldKey.currentState?.openDrawer(),
                     tooltip: context.l10n.generation_paramsSettings,
                   ),
                   IconButton(
+                    key: const ValueKey('generation-agent-drawer-action'),
+                    icon: const Icon(Icons.smart_toy_outlined),
+                    onPressed: () =>
+                        _openAuxiliaryDrawer(_MobileAuxiliaryView.agent),
+                    tooltip: context.l10n.agentChat_tab,
+                  ),
+                  IconButton(
+                    key: const ValueKey('generation-history-drawer-action'),
                     icon: const Icon(Icons.history_rounded),
-                    onPressed: () => _scaffoldKey.currentState?.openEndDrawer(),
+                    onPressed: () =>
+                        _openAuxiliaryDrawer(_MobileAuxiliaryView.history),
                     tooltip: context.l10n.generation_history,
                   ),
                 ],
@@ -342,15 +374,19 @@ class _MobileGenerationLayoutState extends ConsumerState<MobileGenerationLayout>
     );
   }
 
-  Widget _buildHistoryDrawer(BuildContext context) {
+  Widget _buildAuxiliaryDrawer(BuildContext context) {
+    final isAgent = _auxiliaryView == _MobileAuxiliaryView.agent;
     return Drawer(
-      width: (MediaQuery.sizeOf(context).width * 0.9)
-          .clamp(280.0, 440.0)
+      key: ValueKey(
+        isAgent ? 'generation-agent-drawer' : 'generation-history-drawer',
+      ),
+      width: (MediaQuery.sizeOf(context).width * 0.92)
+          .clamp(280.0, 480.0)
           .toDouble(),
       child: SafeArea(
-        child: HistoryPanel(
-          onClose: () => _scaffoldKey.currentState?.closeEndDrawer(),
-        ),
+        child: isAgent
+            ? AgentChatPanel(mobile: true, onClose: _closeAuxiliaryDrawer)
+            : HistoryPanel(onClose: _closeAuxiliaryDrawer),
       ),
     );
   }

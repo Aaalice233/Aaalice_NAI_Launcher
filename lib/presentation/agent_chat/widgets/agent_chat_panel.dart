@@ -25,7 +25,10 @@ import '../providers/agent_chat_session_view.dart';
 /// 布局：顶部会话工具行 → 消息区（空态为居中欢迎屏）→ 底部圆角
 /// 输入容器（内嵌无边框输入框 + 模型标签 + 发送/停止按钮）。
 class AgentChatPanel extends ConsumerStatefulWidget {
-  const AgentChatPanel({super.key});
+  const AgentChatPanel({super.key, this.onClose, this.mobile = false});
+
+  final VoidCallback? onClose;
+  final bool mobile;
 
   @override
   ConsumerState<AgentChatPanel> createState() => _AgentChatPanelState();
@@ -151,7 +154,9 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
     setState(() => _pendingImages.clear());
     _inputController.imageCount = 0;
     await ref.read(agentChatNotifierProvider.notifier).sendContent(content);
-    _inputFocus.requestFocus();
+    if (mounted) {
+      _inputFocus.requestFocus();
+    }
   }
 
   List<UserContent> _buildInlineUserContent(
@@ -384,23 +389,33 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
       _scrollToBottom();
     }
 
-    return Column(
-      children: [
-        _buildSessionRow(theme, l10n, state),
-        const Divider(height: 1),
-        Expanded(
-          child: isEmpty && !state.routeReady
-              ? _buildSetupHint(theme, state)
-              : isEmpty
-              ? _buildHero(theme, l10n, state)
-              : _buildMessageList(theme, state),
-        ),
-        if (state.error.isNotEmpty) _buildErrorBar(theme, state),
-        if (state.compacting) _buildCompactingBar(theme, l10n),
-        if (state.approvalRequest != null)
-          _buildApprovalBar(theme, l10n, state.approvalRequest!),
-        _buildInputContainer(theme, l10n, state),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compactMobile = widget.mobile && constraints.maxHeight < 480;
+        return Column(
+          children: [
+            _buildSessionRow(theme, l10n, state),
+            const Divider(height: 1),
+            Expanded(
+              child: isEmpty && !state.routeReady
+                  ? _buildSetupHint(theme, compact: compactMobile)
+                  : isEmpty
+                  ? _buildHero(theme, l10n, state)
+                  : _buildMessageList(theme, state),
+            ),
+            if (state.error.isNotEmpty) _buildErrorBar(theme, state),
+            if (state.compacting) _buildCompactingBar(theme, l10n),
+            if (state.approvalRequest != null)
+              _buildApprovalBar(theme, l10n, state.approvalRequest!),
+            _buildInputContainer(
+              theme,
+              l10n,
+              state,
+              compactMobile: compactMobile,
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -413,6 +428,10 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
     AppLocalizations l10n,
     AgentChatState state,
   ) {
+    if (widget.mobile) {
+      return _buildMobileSessionRow(theme, l10n, state);
+    }
+
     final sessionActionsEnabled = canManageAgentChatSessions(state);
     // 统一 32x32 图标按钮，与标题、选择器垂直居中对齐。
     Widget iconButton({
@@ -516,6 +535,85 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
     );
   }
 
+  Widget _buildMobileSessionRow(
+    ThemeData theme,
+    AppLocalizations l10n,
+    AgentChatState state,
+  ) {
+    final sessionActionsEnabled = canManageAgentChatSessions(state);
+    final onClose = widget.onClose;
+
+    return Padding(
+      key: const ValueKey('agent-chat-mobile-header'),
+      padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              IconButton(
+                key: const ValueKey('agent-chat-mobile-close'),
+                onPressed:
+                    onClose ??
+                    () => ref
+                        .read(layoutStateNotifierProvider.notifier)
+                        .setRightPanelExpanded(false),
+                icon: const Icon(Icons.chevron_right_rounded),
+                tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+                constraints: const BoxConstraints.tightFor(
+                  width: 48,
+                  height: 48,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  l10n.agentChat_tab,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              IconButton(
+                key: const ValueKey('agent-chat-mobile-new-session'),
+                onPressed: sessionActionsEnabled
+                    ? () => ref
+                          .read(agentChatNotifierProvider.notifier)
+                          .newSession()
+                    : null,
+                icon: const Icon(Icons.add_comment_outlined),
+                tooltip: l10n.agentChat_newChat,
+                constraints: const BoxConstraints.tightFor(
+                  width: 48,
+                  height: 48,
+                ),
+              ),
+              if (state.skills.isNotEmpty)
+                SizedBox(
+                  width: 48,
+                  height: 48,
+                  child: Tooltip(
+                    message: state.skills
+                        .map((skill) => skill.name)
+                        .take(6)
+                        .join(', '),
+                    child: const Icon(Icons.extension_outlined, size: 18),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 2),
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: _buildSessionSelector(theme, l10n, state),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildPermissionModeButton(
     ThemeData theme,
     AppLocalizations l10n,
@@ -528,6 +626,7 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
       AgentPermissionMode.fullAccess => Icons.lock_open_outlined,
     };
     return PopupMenuButton<AgentPermissionMode>(
+      key: const ValueKey('agent-chat-permission-mode'),
       enabled: !running,
       tooltip:
           '${l10n.agentChat_permissionMode}: '
@@ -579,8 +678,8 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
           ),
       ],
       child: SizedBox(
-        width: 30,
-        height: 30,
+        width: widget.mobile ? 48 : 30,
+        height: widget.mobile ? 48 : 30,
         child: Icon(
           icon,
           size: 17,
@@ -636,7 +735,7 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
       itemBuilder: (context) => [
         PopupMenuItem(
           value: _menuNewSession,
-          height: 36,
+          height: widget.mobile ? 48 : 36,
           child: Row(
             children: [
               Icon(
@@ -659,7 +758,7 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
         if (state.sessions.isEmpty)
           PopupMenuItem(
             enabled: false,
-            height: 36,
+            height: widget.mobile ? 48 : 36,
             child: Text(
               l10n.agentChat_untitled,
               style: theme.textTheme.bodySmall?.copyWith(
@@ -670,7 +769,7 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
         for (final session in state.sessions)
           PopupMenuItem(
             value: session.id,
-            height: 38,
+            height: widget.mobile ? 56 : 38,
             padding: const EdgeInsets.symmetric(horizontal: 10),
             child: _SessionMenuRow(
               session: session,
@@ -678,6 +777,8 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
                   ? l10n.agentChat_untitled
                   : session.name,
               active: session.id == state.activeSessionId,
+              alwaysShowActions: widget.mobile,
+              touchOptimized: widget.mobile,
               onRename: () =>
                   Navigator.of(context).pop('$_menuRenamePrefix${session.id}'),
               onDelete: () =>
@@ -686,8 +787,15 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
           ),
       ],
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-        margin: const EdgeInsets.symmetric(horizontal: 4),
+        width: widget.mobile ? double.infinity : null,
+        constraints: widget.mobile
+            ? const BoxConstraints(minHeight: 48)
+            : const BoxConstraints(),
+        padding: EdgeInsets.symmetric(
+          horizontal: widget.mobile ? 12 : 8,
+          vertical: 6,
+        ),
+        margin: EdgeInsets.symmetric(horizontal: widget.mobile ? 0 : 4),
         decoration: BoxDecoration(
           color: theme.colorScheme.surfaceContainerHighest.withValues(
             alpha: 0.4,
@@ -862,7 +970,9 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
                       ),
                     ),
                     tooltip: suggestion,
-                    visualDensity: VisualDensity.compact,
+                    visualDensity: widget.mobile
+                        ? VisualDensity.standard
+                        : VisualDensity.compact,
                     backgroundColor: theme.colorScheme.surfaceContainerHighest
                         .withValues(alpha: 0.4),
                     side: BorderSide(
@@ -881,27 +991,27 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
     );
   }
 
-  Widget _buildSetupHint(ThemeData theme, AgentChatState state) {
+  Widget _buildSetupHint(ThemeData theme, {required bool compact}) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(compact ? 8 : 16),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
               Icons.smart_toy_outlined,
-              size: 40,
+              size: compact ? 32 : 40,
               color: theme.colorScheme.onSurface.withValues(alpha: 0.25),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: compact ? 6 : 12),
             Text(
-              state.routeError.isEmpty
-                  ? context.l10n.agentChat_needSetup
-                  : state.routeError,
+              context.l10n.agentChat_needSetup,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.55),
               ),
               textAlign: TextAlign.center,
+              maxLines: compact ? 3 : null,
+              overflow: compact ? TextOverflow.ellipsis : TextOverflow.visible,
             ),
           ],
         ),
@@ -1078,10 +1188,15 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
     return Semantics(
       label: alt,
       image: true,
-      child: SizedBox(
-        width: 320,
-        height: 220,
-        child: ClipRRect(borderRadius: BorderRadius.circular(8), child: image),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 320, maxHeight: 220),
+        child: AspectRatio(
+          aspectRatio: 320 / 220,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: image,
+          ),
+        ),
       ),
     );
   }
@@ -1247,14 +1362,24 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          InkWell(
-            onTap: () => state.error.isEmpty
-                ? null
-                : ref.read(agentChatNotifierProvider.notifier).dismissError(),
-            child: Icon(
-              Icons.close,
-              size: 14,
-              color: theme.colorScheme.onErrorContainer.withValues(alpha: 0.7),
+          SizedBox(
+            key: const ValueKey('agent-chat-error-dismiss'),
+            width: widget.mobile ? 48 : 24,
+            height: widget.mobile ? 48 : 24,
+            child: InkWell(
+              onTap: state.error.isEmpty
+                  ? null
+                  : () => ref
+                        .read(agentChatNotifierProvider.notifier)
+                        .dismissError(),
+              borderRadius: BorderRadius.circular(8),
+              child: Icon(
+                Icons.close,
+                size: widget.mobile ? 18 : 14,
+                color: theme.colorScheme.onErrorContainer.withValues(
+                  alpha: 0.7,
+                ),
+              ),
             ),
           ),
         ],
@@ -1362,13 +1487,15 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
   Widget _buildInputContainer(
     ThemeData theme,
     AppLocalizations l10n,
-    AgentChatState state,
-  ) {
+    AgentChatState state, {
+    required bool compactMobile,
+  }) {
     final running = state.status == AgentChatRunStatus.running;
     final controlsLocked = running || state.sessionTransitioning;
     final canSend =
         state.routeReady && state.initialized && !state.sessionTransitioning;
     return Padding(
+      key: const ValueKey('agent-chat-input-container'),
       padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
       child: Container(
         decoration: BoxDecoration(
@@ -1408,11 +1535,12 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
                 return KeyEventResult.handled;
               },
               child: TextField(
+                key: const ValueKey('agent-chat-input'),
                 controller: _inputController,
                 focusNode: _inputFocus,
                 enabled: state.initialized,
-                minLines: 3,
-                maxLines: 8,
+                minLines: compactMobile ? 1 : (widget.mobile ? 2 : 3),
+                maxLines: compactMobile ? 3 : (widget.mobile ? 5 : 8),
                 style: theme.textTheme.bodySmall?.copyWith(height: 1.45),
                 textInputAction: TextInputAction.newline,
                 decoration: InputDecoration(
@@ -1426,39 +1554,78 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
                 ),
               ),
             ),
-            // 控制行：附件、「+」操作菜单与权限模式居左；模型选择 + 发送居右
-            Padding(
-              padding: const EdgeInsets.fromLTRB(4, 0, 8, 6),
-              child: Row(
-                children: [
-                  _buildAttachButton(theme, l10n, state),
-                  _buildPlusMenu(theme, l10n, state),
-                  const SizedBox(width: 2),
-                  _buildPermissionModeButton(theme, l10n, controlsLocked),
-                  const SizedBox(width: 2),
-                  if (state.queuedCount > 0)
-                    Flexible(
-                      child: Text(
-                        l10n.agentChat_queued,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: theme.colorScheme.tertiary,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  const Spacer(),
-                  _buildModelSelector(theme, l10n, state),
-                  const SizedBox(width: 4),
-                  _SendButton(
-                    running: running,
-                    enabled: canSend,
-                    onSend: _send,
-                    onStop: () =>
-                        ref.read(agentChatNotifierProvider.notifier).abort(),
-                  ),
-                ],
+            if (widget.mobile) ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: SizedBox(
+                  height: 48,
+                  child: _buildModelSelector(theme, l10n, state),
+                ),
               ),
-            ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(4, 0, 4, 4),
+                child: Row(
+                  children: [
+                    _buildAttachButton(theme, l10n, state),
+                    _buildPlusMenu(theme, l10n, state),
+                    _buildPermissionModeButton(theme, l10n, controlsLocked),
+                    if (state.queuedCount > 0)
+                      Expanded(
+                        child: Text(
+                          l10n.agentChat_queued,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.colorScheme.tertiary,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      )
+                    else
+                      const Spacer(),
+                    _SendButton(
+                      running: running,
+                      enabled: canSend,
+                      touchOptimized: true,
+                      onSend: _send,
+                      onStop: () =>
+                          ref.read(agentChatNotifierProvider.notifier).abort(),
+                    ),
+                  ],
+                ),
+              ),
+            ] else
+              // 控制行：附件、「+」操作菜单与权限模式居左；模型选择 + 发送居右
+              Padding(
+                padding: const EdgeInsets.fromLTRB(4, 0, 8, 6),
+                child: Row(
+                  children: [
+                    _buildAttachButton(theme, l10n, state),
+                    _buildPlusMenu(theme, l10n, state),
+                    const SizedBox(width: 2),
+                    _buildPermissionModeButton(theme, l10n, controlsLocked),
+                    const SizedBox(width: 2),
+                    if (state.queuedCount > 0)
+                      Flexible(
+                        child: Text(
+                          l10n.agentChat_queued,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.colorScheme.tertiary,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    const Spacer(),
+                    _buildModelSelector(theme, l10n, state),
+                    const SizedBox(width: 4),
+                    _SendButton(
+                      running: running,
+                      enabled: canSend,
+                      onSend: _send,
+                      onStop: () =>
+                          ref.read(agentChatNotifierProvider.notifier).abort(),
+                    ),
+                  ],
+                ),
+              ),
           ],
         ),
       ),
@@ -1475,11 +1642,13 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
     return Tooltip(
       message: l10n.agentChat_attachImage,
       waitDuration: const Duration(milliseconds: 400),
-      child: InkWell(
-        onTap: enabled ? _pickImages : null,
-        borderRadius: BorderRadius.circular(4),
-        child: Padding(
-          padding: const EdgeInsets.all(6),
+      child: SizedBox(
+        key: const ValueKey('agent-chat-attach-image'),
+        width: widget.mobile ? 48 : 30,
+        height: widget.mobile ? 48 : 30,
+        child: InkWell(
+          onTap: enabled ? _pickImages : null,
+          borderRadius: BorderRadius.circular(8),
           child: Icon(
             Icons.image_outlined,
             size: 18,
@@ -1500,6 +1669,7 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
   ) {
     final actionsEnabled = canManageAgentChatSessions(state);
     return PopupMenuButton<String>(
+      key: const ValueKey('agent-chat-more-actions'),
       tooltip: l10n.agentChat_moreActions,
       onSelected: (action) => _handlePlusAction(action, state),
       itemBuilder: (context) => [
@@ -1533,8 +1703,9 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
           danger: true,
         ),
       ],
-      child: Padding(
-        padding: const EdgeInsets.all(6),
+      child: SizedBox(
+        width: widget.mobile ? 48 : 30,
+        height: widget.mobile ? 48 : 30,
         child: Icon(
           Icons.add,
           size: 18,
@@ -1558,7 +1729,7 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
     return PopupMenuItem(
       value: value,
       enabled: enabled,
-      height: 36,
+      height: widget.mobile ? 48 : 36,
       child: Row(
         children: [
           Icon(icon, size: 15, color: color),
@@ -1655,7 +1826,7 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
         for (final provider in enabled) ...[
           PopupMenuItem<(String, String)>(
             enabled: false,
-            height: 30,
+            height: widget.mobile ? 40 : 30,
             child: Text(
               provider.name,
               style: theme.textTheme.labelSmall?.copyWith(
@@ -1674,7 +1845,7 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
                   .where((m) => !m.isPlaceholder))
             PopupMenuItem(
               value: (provider.id, model.name),
-              height: 36,
+              height: widget.mobile ? 48 : 36,
               child: Row(
                 children: [
                   if (provider.id == activeProviderId &&
@@ -1700,8 +1871,15 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
         ],
       ],
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-        constraints: const BoxConstraints(maxWidth: 140),
+        width: widget.mobile ? double.infinity : null,
+        padding: EdgeInsets.symmetric(
+          horizontal: widget.mobile ? 12 : 8,
+          vertical: 5,
+        ),
+        constraints: BoxConstraints(
+          minHeight: widget.mobile ? 48 : 0,
+          maxWidth: widget.mobile ? double.infinity : 140,
+        ),
         decoration: BoxDecoration(
           color: theme.colorScheme.surfaceContainerHighest.withValues(
             alpha: 0.4,
@@ -1762,6 +1940,8 @@ class _SessionMenuRow extends StatefulWidget {
     required this.session,
     required this.label,
     required this.active,
+    required this.alwaysShowActions,
+    required this.touchOptimized,
     required this.onRename,
     required this.onDelete,
   });
@@ -1769,6 +1949,8 @@ class _SessionMenuRow extends StatefulWidget {
   final AgentChatSessionSummary session;
   final String label;
   final bool active;
+  final bool alwaysShowActions;
+  final bool touchOptimized;
   final VoidCallback onRename;
   final VoidCallback onDelete;
 
@@ -1801,18 +1983,20 @@ class _SessionMenuRowState extends State<_SessionMenuRow> {
             ),
           ),
           const SizedBox(width: 8),
-          if (_hovering) ...[
+          if (_hovering || widget.alwaysShowActions) ...[
             _MenuIconAction(
               icon: Icons.edit_outlined,
               tooltip: context.l10n.common_rename,
               color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+              touchOptimized: widget.touchOptimized,
               onTap: widget.onRename,
             ),
-            const SizedBox(width: 2),
+            if (!widget.touchOptimized) const SizedBox(width: 2),
             _MenuIconAction(
               icon: Icons.delete_outline,
               tooltip: context.l10n.common_delete,
               color: theme.colorScheme.error.withValues(alpha: 0.8),
+              touchOptimized: widget.touchOptimized,
               onTap: widget.onDelete,
             ),
           ] else
@@ -1844,12 +2028,14 @@ class _MenuIconAction extends StatelessWidget {
     required this.icon,
     required this.tooltip,
     required this.color,
+    required this.touchOptimized,
     required this.onTap,
   });
 
   final IconData icon;
   final String tooltip;
   final Color color;
+  final bool touchOptimized;
   final VoidCallback onTap;
 
   @override
@@ -1857,12 +2043,13 @@ class _MenuIconAction extends StatelessWidget {
     return Tooltip(
       message: tooltip,
       waitDuration: const Duration(milliseconds: 400),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(4),
-        child: Padding(
-          padding: const EdgeInsets.all(3),
-          child: Icon(icon, size: 14, color: color),
+      child: SizedBox(
+        width: touchOptimized ? 48 : 20,
+        height: touchOptimized ? 48 : 20,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(8),
+          child: Icon(icon, size: touchOptimized ? 18 : 14, color: color),
         ),
       ),
     );
@@ -1877,12 +2064,14 @@ class _SendButton extends StatelessWidget {
     required this.enabled,
     required this.onSend,
     required this.onStop,
+    this.touchOptimized = false,
   });
 
   final bool running;
   final bool enabled;
   final VoidCallback onSend;
   final VoidCallback onStop;
+  final bool touchOptimized;
 
   @override
   Widget build(BuildContext context) {
@@ -1896,14 +2085,16 @@ class _SendButton extends StatelessWidget {
     return Tooltip(
       message: running ? l10n.agentChat_stop : l10n.agentChat_send,
       waitDuration: const Duration(milliseconds: 500),
-      child: InkWell(
-        onTap: running ? onStop : (enabled ? onSend : null),
-        borderRadius: BorderRadius.circular(4),
-        child: Padding(
-          padding: const EdgeInsets.all(6),
+      child: SizedBox(
+        key: const ValueKey('agent-chat-send'),
+        width: touchOptimized ? 48 : 30,
+        height: touchOptimized ? 48 : 30,
+        child: InkWell(
+          onTap: running ? onStop : (enabled ? onSend : null),
+          borderRadius: BorderRadius.circular(8),
           child: Icon(
             running ? Icons.stop_rounded : Icons.arrow_upward_rounded,
-            size: 18,
+            size: touchOptimized ? 20 : 18,
             color: color,
           ),
         ),
