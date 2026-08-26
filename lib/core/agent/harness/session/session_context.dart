@@ -105,8 +105,11 @@ List<AgentMessage> sessionEntryToContextMessages(
 ]) {
   if (entry is MessageEntry) {
     final message = entry.message;
-    if (message is AssistantMessage && message.stopReason == StopReason.deferred) {
-      return const [];
+    if (message is AssistantMessage) {
+      if (message.stopReason == StopReason.deferred ||
+          !isReplayableAssistantMessage(message)) {
+        return const [];
+      }
     }
     return [message];
   }

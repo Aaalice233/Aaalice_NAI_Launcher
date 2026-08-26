@@ -72,6 +72,101 @@ void main() {
       ];
       expect(harnessConvertToLlm(messages), isEmpty);
     });
+
+    test('drops empty failed messages but keeps partial text', () {
+      final emptyAborted = AssistantMessage(
+        content: const [],
+        stopReason: StopReason.aborted,
+      );
+      final emptyError = AssistantMessage(
+        content: const [],
+        stopReason: StopReason.error,
+      );
+      final partialAborted = AssistantMessage(
+        content: const [AssistantTextContent('partial answer')],
+        stopReason: StopReason.aborted,
+      );
+
+      final llm = harnessConvertToLlm([
+        UserMessage.text('first'),
+        emptyAborted,
+        emptyError,
+        UserMessage.text('continue'),
+        partialAborted,
+      ]);
+
+      expect(llm, hasLength(3));
+      expect(llm.whereType<AssistantMessage>().single.text, 'partial answer');
+    });
+
+    test('keeps complete tool calls and removes broken tool history', () {
+      final completeCall = AssistantMessage(
+        content: const [
+          ToolCallContent(id: 'complete', name: 'read', arguments: {}),
+        ],
+        stopReason: StopReason.toolUse,
+      );
+      final incompleteCall = AssistantMessage(
+        content: const [
+          AssistantTextContent('I will check.'),
+          ToolCallContent(id: 'first', name: 'read', arguments: {}),
+          ToolCallContent(id: 'missing', name: 'read', arguments: {}),
+        ],
+        stopReason: StopReason.aborted,
+      );
+      final llm = harnessConvertToLlm([
+        UserMessage.text('complete request'),
+        completeCall,
+        ToolResultMessage(
+          toolCallId: 'complete',
+          toolName: 'read',
+          content: const [ToolResultTextContent('done')],
+        ),
+        UserMessage.text('broken request'),
+        incompleteCall,
+        ToolResultMessage(
+          toolCallId: 'first',
+          toolName: 'read',
+          content: const [ToolResultTextContent('partial')],
+        ),
+        ToolResultMessage(
+          toolCallId: 'orphan',
+          toolName: 'read',
+          content: const [ToolResultTextContent('orphan')],
+        ),
+        UserMessage.text('continue'),
+      ]);
+
+      expect(llm.whereType<ToolResultMessage>(), hasLength(1));
+      expect(llm.whereType<ToolResultMessage>().single.toolCallId, 'complete');
+      final assistants = llm.whereType<AssistantMessage>().toList();
+      expect(assistants, hasLength(2));
+      expect(assistants.last.text, 'I will check.');
+      expect(assistants.last.toolCalls, isEmpty);
+    });
+
+    test('session restore ignores empty failed assistant messages', () {
+      final context = buildSessionContext([
+        MessageEntry(id: 'user', message: UserMessage.text('hello')),
+        MessageEntry(
+          id: 'aborted',
+          message: AssistantMessage(
+            content: const [],
+            stopReason: StopReason.aborted,
+          ),
+        ),
+        MessageEntry(
+          id: 'error',
+          message: AssistantMessage(
+            content: const [],
+            stopReason: StopReason.error,
+          ),
+        ),
+      ]);
+
+      expect(context.messages, hasLength(1));
+      expect(context.messages.single, isA<UserMessage>());
+    });
   });
 
   group('compaction', () {

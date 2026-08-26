@@ -1224,6 +1224,11 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
         }
       case AgentEventMessageEnd():
         final message = event.message;
+        if (message is AssistantMessage &&
+            !isReplayableAssistantMessage(message)) {
+          state = state.copyWith(streamingText: '');
+          break;
+        }
         // 先同步追加到转录（保证 UI 顺序与事件顺序一致），再异步持久化。
         // 同时清空流式文本：消息已固化到消息流，live 区继续显示会造成
         // 同一段文字重复出现（工具结果之后尤为明显）。
@@ -1310,11 +1315,10 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     if (session == null) {
       return;
     }
+    if (message is AssistantMessage && !isReplayableAssistantMessage(message)) {
+      return;
+    }
     try {
-      if (message is AssistantMessage &&
-          message.stopReason == StopReason.aborted) {
-        // 中止消息仍持久化（代理 会话保留部分结果）。
-      }
       await session.appendMessage(message);
     } catch (e) {
       AppLogger.w('persist message failed: $e', 'AgentChat');

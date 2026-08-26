@@ -160,26 +160,111 @@ String bashExecutionToText(BashExecutionMessage msg) {
   return text;
 }
 
+/// 是否包含可以安全重放给模型的助手内容。
+///
+/// 中断或请求失败可能产生既没有文本、也没有完整工具调用的空消息。多数
+/// OpenAI 兼容服务会拒绝只有 `role: assistant` 的历史项。
+bool isReplayableAssistantMessage(AssistantMessage message) {
+  if (message.text.trim().isNotEmpty) {
+    return true;
+  }
+  return message.toolCalls.any(
+    (call) => call.id.trim().isNotEmpty && call.name.trim().isNotEmpty,
+  );
+}
+
+AssistantMessage _normalizeAssistantMessage(AssistantMessage message) {
+  final toolCallIds = <String>{};
+  final content = <AssistantContent>[
+    for (final block in message.content)
+      if (block is! ToolCallContent ||
+          (block.id.trim().isNotEmpty &&
+              block.name.trim().isNotEmpty &&
+              toolCallIds.add(block.id)))
+        block,
+  ];
+  return message.copyWith(content: content);
+}
+
+List<Message> _sanitizeReplayableMessages(List<Message> messages) {
+  final result = <Message>[];
+  var openToolCallMessageIndex = -1;
+  final pendingToolCallIds = <String>{};
+
+  void discardIncompleteToolCallBatch() {
+    if (openToolCallMessageIndex < 0 || pendingToolCallIds.isEmpty) {
+      openToolCallMessageIndex = -1;
+      pendingToolCallIds.clear();
+      return;
+    }
+
+    final assistant = result[openToolCallMessageIndex] as AssistantMessage;
+    final fallback = assistant.copyWith(
+      content: [
+        for (final block in assistant.content)
+          if (block is! ToolCallContent) block,
+      ],
+    );
+    result.removeRange(openToolCallMessageIndex, result.length);
+    if (isReplayableAssistantMessage(fallback)) {
+      result.add(fallback);
+    }
+    openToolCallMessageIndex = -1;
+    pendingToolCallIds.clear();
+  }
+
+  for (final message in messages) {
+    if (message is ToolResultMessage) {
+      if (openToolCallMessageIndex >= 0 &&
+          pendingToolCallIds.remove(message.toolCallId)) {
+        result.add(message);
+        if (pendingToolCallIds.isEmpty) {
+          openToolCallMessageIndex = -1;
+        }
+      }
+      continue;
+    }
+
+    discardIncompleteToolCallBatch();
+    if (message is AssistantMessage) {
+      final normalized = _normalizeAssistantMessage(message);
+      if (!isReplayableAssistantMessage(normalized)) {
+        continue;
+      }
+      result.add(normalized);
+      final toolCalls = normalized.toolCalls;
+      if (toolCalls.isNotEmpty) {
+        openToolCallMessageIndex = result.length - 1;
+        pendingToolCallIds.addAll(toolCalls.map((call) => call.id));
+      }
+      continue;
+    }
+    result.add(message);
+  }
+  discardIncompleteToolCallBatch();
+  return result;
+}
+
 /// AgentMessage[] → LLM Message[]（循环边界的唯一转换点）。
 List<Message> harnessConvertToLlm(List<AgentMessage> messages) {
-  final result = <Message>[];
+  final projected = <Message>[];
   for (final message in messages) {
     if (message is BashExecutionMessage) {
       if (message.excludeFromContext == true) {
         continue;
       }
-      result.add(
+      projected.add(
         UserMessage(
           content: [UserTextContent(bashExecutionToText(message))],
           timestamp: message.timestamp,
         ),
       );
     } else if (message is HarnessCustomMessage) {
-      result.add(
+      projected.add(
         UserMessage(content: message.content, timestamp: message.timestamp),
       );
     } else if (message is BranchSummaryMessage) {
-      result.add(
+      projected.add(
         UserMessage(
           content: [
             UserTextContent(
@@ -190,7 +275,7 @@ List<Message> harnessConvertToLlm(List<AgentMessage> messages) {
         ),
       );
     } else if (message is CompactionSummaryMessage) {
-      result.add(
+      projected.add(
         UserMessage(
           content: [
             UserTextContent(
@@ -203,8 +288,8 @@ List<Message> harnessConvertToLlm(List<AgentMessage> messages) {
     } else if (message is UserMessage ||
         message is AssistantMessage ||
         message is ToolResultMessage) {
-      result.add(message);
+      projected.add(message);
     }
   }
-  return result;
+  return _sanitizeReplayableMessages(projected);
 }
