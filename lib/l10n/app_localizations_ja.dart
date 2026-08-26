@@ -790,6 +790,114 @@ class AppLocalizationsJa extends AppLocalizations {
   String get generation_historyRecord => '履歴レコード';
 
   @override
+  String get agentChat_tab => 'チャット';
+
+  @override
+  String get agentChat_inputHint => 'AI アシスタントにメッセージを送る…';
+
+  @override
+  String get agentChat_attachImage => '画像を追加';
+
+  @override
+  String agentChat_unsupportedImageFormat(Object fileName) {
+    return 'サポートされていない画像形式です: $fileName';
+  }
+
+  @override
+  String get agentChat_newChat => '新しいチャット';
+
+  @override
+  String get agentChat_send => '送信';
+
+  @override
+  String get agentChat_stop => '停止';
+
+  @override
+  String get agentChat_queued => '待機中';
+
+  @override
+  String get agentChat_thinking => '思考中…';
+
+  @override
+  String get agentChat_toolRunning => 'ツール実行中';
+
+  @override
+  String get agentChat_needSetup =>
+      'チャットモデルが未設定です。先に設定でツール呼び出しに対応したプロバイダーを追加してください。';
+
+  @override
+  String get agentChat_heroTitle => 'AI アシスタント';
+
+  @override
+  String get agentChat_heroSubtitle => '会話でプロンプトとキャラクターを編集';
+
+  @override
+  String get agentChat_moreActions => '操作メニュー';
+
+  @override
+  String get agentChat_compact => 'コンテキスト圧縮';
+
+  @override
+  String get agentChat_compacting => 'コンテキストを圧縮中…';
+
+  @override
+  String get agentChat_model => 'モデルを選択';
+
+  @override
+  String get agentChat_noModel => 'モデル未設定';
+
+  @override
+  String get agentChat_untitled => '新しいチャット';
+
+  @override
+  String get agentChat_renameHint => 'チャット名';
+
+  @override
+  String get agentChat_suggestion1 => '現在のポジティブプロンプトを改善して';
+
+  @override
+  String get agentChat_suggestion2 => '2人のキャラを追加してポーズを設定して';
+
+  @override
+  String get agentChat_suggestion3 => 'ネガティブプロンプトをリアル系に書き換えて';
+
+  @override
+  String get agentChat_permissionMode => 'Agent 権限';
+
+  @override
+  String get agentChat_permissionSafe => 'セーフ';
+
+  @override
+  String get agentChat_permissionSafeDescription => '副作用のないツールのみ実行';
+
+  @override
+  String get agentChat_permissionAsk => '確認';
+
+  @override
+  String get agentChat_permissionAskDescription => '機密性の高い操作の前に確認';
+
+  @override
+  String get agentChat_permissionFull => 'フルアクセス';
+
+  @override
+  String get agentChat_permissionFullDescription => '確認なしで実行し、ワークスペース外のファイルも許可';
+
+  @override
+  String agentChat_approvalTitle(Object toolName) {
+    return '$toolName の実行を許可しますか？';
+  }
+
+  @override
+  String get agentChat_approvalDescription =>
+      'このツールはローカルデータの読み取り、アプリ状態の変更、または料金の発生を伴う可能性があります。';
+
+  @override
+  String get agentChat_approvalAllow => '今回のみ許可';
+
+  @override
+  String get agentChat_approvalDeny => '拒否';
+
+  @override
   String get generation_failedStreamSnapshot => 'スナップショットが失敗しました';
 
   @override

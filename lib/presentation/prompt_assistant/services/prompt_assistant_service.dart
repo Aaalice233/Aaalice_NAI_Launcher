@@ -5,13 +5,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 
 import '../../../core/utils/app_logger.dart';
+import '../../providers/proxy_settings_provider.dart';
 import '../models/prompt_assistant_models.dart';
 import '../providers/prompt_assistant_config_provider.dart';
 import 'provider_adapters/prompt_assistant_adapter.dart';
 import 'prompt_assistant_api_client.dart';
 
 final promptAssistantDioProvider = Provider<Dio>((ref) {
+  // 监听代理设置变化触发重建：默认适配器在创建 HttpClient 时才读取
+  // HttpOverrides.global，代理变更后需要新实例才能走新代理。
+  ref.watch(currentProxyAddressProvider);
   // 使用独立 Dio，避免第三方服务的 401 触发全局登录态刷新/登出逻辑。
+  // 始终使用默认 HTTP/1.1 适配器（内部使用 dart:io.HttpClient，
+  // 自动遵循 HttpOverrides.global），保证有代理时流量走应用代理。
   return Dio(
     BaseOptions(
       connectTimeout: const Duration(seconds: 20),
@@ -207,10 +213,16 @@ Prompt version: $tagTranslationPromptVersion
     return '${provider.name} / $model';
   }
 
+  /// 反推图片提示词。
+  ///
+  /// [taskType] 决定走哪条任务路由：默认 [AssistantTaskType.reverse]
+  /// （专用 VLM）；传 [AssistantTaskType.chat] 时复用对话模型路由，
+  /// 供对话模型支持图片输入时直接解析。
   Stream<StreamingChunk> reverseImagePrompt(
     Uint8List imageBytes, {
     required String sessionId,
     String? taggerPrompt,
+    AssistantTaskType taskType = AssistantTaskType.reverse,
   }) async* {
     final text = StringBuffer(
       'Reverse prompt this image and output English comma-separated prompts that can be used directly in NovelAI.',
@@ -226,7 +238,7 @@ Prompt version: $tagTranslationPromptVersion
 
     yield* _runTask(
       sessionId: sessionId,
-      taskType: AssistantTaskType.reverse,
+      taskType: taskType,
       userContent: [
         PromptAssistantContentPart.text(text.toString()),
         PromptAssistantContentPart.image(

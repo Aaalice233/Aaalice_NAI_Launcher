@@ -801,6 +801,119 @@ class AppLocalizationsEn extends AppLocalizations {
   String get generation_historyRecord => 'History Records';
 
   @override
+  String get agentChat_tab => 'Chat';
+
+  @override
+  String get agentChat_inputHint => 'Message the AI agent…';
+
+  @override
+  String get agentChat_attachImage => 'Attach images';
+
+  @override
+  String agentChat_unsupportedImageFormat(Object fileName) {
+    return 'Unsupported image format: $fileName';
+  }
+
+  @override
+  String get agentChat_newChat => 'New chat';
+
+  @override
+  String get agentChat_send => 'Send';
+
+  @override
+  String get agentChat_stop => 'Stop';
+
+  @override
+  String get agentChat_queued => 'Queued';
+
+  @override
+  String get agentChat_thinking => 'Thinking…';
+
+  @override
+  String get agentChat_toolRunning => 'Running tool';
+
+  @override
+  String get agentChat_needSetup =>
+      'No chat model configured. Add a provider with tool-calling support in Settings first.';
+
+  @override
+  String get agentChat_heroTitle => 'AI Agent';
+
+  @override
+  String get agentChat_heroSubtitle =>
+      'Edit prompts and characters through conversation';
+
+  @override
+  String get agentChat_moreActions => 'More actions';
+
+  @override
+  String get agentChat_compact => 'Compact context';
+
+  @override
+  String get agentChat_compacting => 'Compacting context…';
+
+  @override
+  String get agentChat_model => 'Select model';
+
+  @override
+  String get agentChat_noModel => 'No model';
+
+  @override
+  String get agentChat_untitled => 'New chat';
+
+  @override
+  String get agentChat_renameHint => 'Session name';
+
+  @override
+  String get agentChat_suggestion1 => 'Improve my current positive prompt';
+
+  @override
+  String get agentChat_suggestion2 => 'Add two characters with distinct poses';
+
+  @override
+  String get agentChat_suggestion3 =>
+      'Rewrite the negative prompt for photorealistic style';
+
+  @override
+  String get agentChat_permissionMode => 'Agent permissions';
+
+  @override
+  String get agentChat_permissionSafe => 'Safe';
+
+  @override
+  String get agentChat_permissionSafeDescription =>
+      'Only run tools without side effects';
+
+  @override
+  String get agentChat_permissionAsk => 'Ask';
+
+  @override
+  String get agentChat_permissionAskDescription =>
+      'Ask before sensitive actions';
+
+  @override
+  String get agentChat_permissionFull => 'Full access';
+
+  @override
+  String get agentChat_permissionFullDescription =>
+      'Run without prompts and allow files outside the workspace';
+
+  @override
+  String agentChat_approvalTitle(Object toolName) {
+    return 'Allow $toolName?';
+  }
+
+  @override
+  String get agentChat_approvalDescription =>
+      'This tool may read local data, change application state, or incur a charge.';
+
+  @override
+  String get agentChat_approvalAllow => 'Allow once';
+
+  @override
+  String get agentChat_approvalDeny => 'Deny';
+
+  @override
   String get generation_failedStreamSnapshot => 'Failed snapshot';
 
   @override

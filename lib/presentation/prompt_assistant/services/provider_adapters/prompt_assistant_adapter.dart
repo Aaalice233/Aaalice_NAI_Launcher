@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:image/image.dart' as img;
 
+import '../../models/agent_protocol.dart';
 import '../../models/prompt_assistant_models.dart';
 
 const int promptAssistantImageUploadMaxBytes = 5 * 1024 * 1024;
@@ -83,6 +84,20 @@ abstract class PromptAssistantProviderAdapter {
     required PromptAssistantRequest request,
     required CancelToken cancelToken,
   });
+
+  /// Agent 模式：多轮消息 + 工具调用，流式输出 [AgentWireEvent]。
+  ///
+  /// 默认抛出 [UnsupportedError]，由支持工具调用的协议各自覆写。
+  Stream<AgentWireEvent> completeAgent({
+    required Dio dio,
+    required AgentChatRequest request,
+    required CancelToken cancelToken,
+  }) async* {
+    throw UnsupportedError(
+      'Provider protocol ${request.provider.protocol.label} does not support '
+      'agent tool calling',
+    );
+  }
 }
 
 String normalizedBaseUrl(String baseUrl) {

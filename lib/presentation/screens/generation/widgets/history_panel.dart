@@ -74,7 +74,11 @@ class _HistoryRowDescriptor {
 
 /// 历史面板组件
 class HistoryPanel extends ConsumerStatefulWidget {
-  const HistoryPanel({super.key});
+  const HistoryPanel({super.key, this.embedded = false});
+
+  /// 嵌入模式：隐藏自带标题行（由外层 Tab 栏承担标题职责），
+  /// 同时保留折叠按钮给外层处理。
+  final bool embedded;
 
   @override
   ConsumerState<HistoryPanel> createState() => _HistoryPanelState();
@@ -149,98 +153,175 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 标题栏
-        Padding(
-          padding: const EdgeInsets.only(
-            left: 8,
-            right: 4,
-            top: 12,
-            bottom: 12,
-          ),
-          child: Row(
-            children: [
-              // 折叠按钮
-              _buildCollapseButton(theme),
-              const SizedBox(width: 8),
-              Flexible(
-                child: Text(
-                  context.l10n.generation_historyRecord,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              if (state.history.isNotEmpty ||
-                  state.currentImages.isNotEmpty) ...[
-                const SizedBox(width: 4),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 5,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    '${_getAllSelectableImages(state).length}',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: theme.colorScheme.onPrimaryContainer,
+        // 标题栏（嵌入模式下由外层 Tab 栏承担，仅保留操作按钮）
+        if (widget.embedded)
+          Padding(
+            padding: const EdgeInsets.only(left: 4, right: 4, top: 4),
+            child: Row(
+              children: [
+                const Spacer(),
+                if (state.history.isNotEmpty ||
+                    state.currentImages.isNotEmpty) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 5,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '${_getAllSelectableImages(state).length}',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onPrimaryContainer,
+                      ),
                     ),
                   ),
-                ),
-              ],
-              const Spacer(),
-              // 全选按钮
-              if (state.history.isNotEmpty || state.currentImages.isNotEmpty)
-                IconButton(
-                  onPressed: () {
-                    setState(() {
-                      final allImages = _getAllSelectableImages(state);
-                      if (_selectedIds.length == allImages.length) {
-                        _selectedIds.clear();
-                      } else {
-                        _selectedIds.clear();
-                        _selectedIds.addAll(allImages.map((img) => img.id));
-                      }
-                    });
-                  },
-                  icon: Icon(
-                    _selectedIds.length == _getAllSelectableImages(state).length
-                        ? Icons.deselect
-                        : Icons.select_all,
-                    size: 20,
-                  ),
-                  tooltip:
+                  const SizedBox(width: 4),
+                ],
+                if (state.history.isNotEmpty ||
+                    state.currentImages.isNotEmpty)
+                  IconButton(
+                    onPressed: () {
+                      setState(() {
+                        final allImages = _getAllSelectableImages(state);
+                        if (_selectedIds.length == allImages.length) {
+                          _selectedIds.clear();
+                        } else {
+                          _selectedIds.clear();
+                          _selectedIds.addAll(allImages.map((img) => img.id));
+                        }
+                      });
+                    },
+                    icon: Icon(
                       _selectedIds.length ==
-                          _getAllSelectableImages(state).length
-                      ? context.l10n.common_deselectAll
-                      : context.l10n.common_selectAll,
-                  style: IconButton.styleFrom(
-                    foregroundColor: theme.colorScheme.primary,
+                              _getAllSelectableImages(state).length
+                          ? Icons.deselect
+                          : Icons.select_all,
+                      size: 18,
+                    ),
+                    tooltip: _selectedIds.length ==
+                            _getAllSelectableImages(state).length
+                        ? context.l10n.common_deselectAll
+                        : context.l10n.common_selectAll,
+                    style: IconButton.styleFrom(
+                      foregroundColor: theme.colorScheme.primary,
+                    ),
+                    visualDensity: VisualDensity.compact,
+                    constraints: const BoxConstraints(),
+                    padding: const EdgeInsets.all(8),
                   ),
-                  visualDensity: VisualDensity.compact,
-                  constraints: const BoxConstraints(),
-                  padding: const EdgeInsets.all(8),
-                ),
-              if (state.history.isNotEmpty || state.currentImages.isNotEmpty)
-                IconButton(
-                  onPressed: () {
-                    _showClearDialog(context, ref);
-                  },
-                  icon: const Icon(Icons.delete_outline, size: 20),
-                  tooltip: context.l10n.common_clear,
-                  style: IconButton.styleFrom(
-                    foregroundColor: theme.colorScheme.error,
+                if (state.history.isNotEmpty ||
+                    state.currentImages.isNotEmpty)
+                  IconButton(
+                    onPressed: () {
+                      _showClearDialog(context, ref);
+                    },
+                    icon: const Icon(Icons.delete_outline, size: 18),
+                    tooltip: context.l10n.common_clear,
+                    style: IconButton.styleFrom(
+                      foregroundColor: theme.colorScheme.error,
+                    ),
+                    visualDensity: VisualDensity.compact,
+                    constraints: const BoxConstraints(),
+                    padding: const EdgeInsets.all(8),
                   ),
-                  visualDensity: VisualDensity.compact,
-                  constraints: const BoxConstraints(),
-                  padding: const EdgeInsets.all(8),
+              ],
+            ),
+          )
+        else
+          Padding(
+            padding: const EdgeInsets.only(
+              left: 8,
+              right: 4,
+              top: 12,
+              bottom: 12,
+            ),
+            child: Row(
+              children: [
+                // 折叠按钮
+                _buildCollapseButton(theme),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    context.l10n.generation_historyRecord,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-            ],
+                if (state.history.isNotEmpty ||
+                    state.currentImages.isNotEmpty) ...[
+                  const SizedBox(width: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 5,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '${_getAllSelectableImages(state).length}',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onPrimaryContainer,
+                      ),
+                    ),
+                  ),
+                ],
+                const Spacer(),
+                // 全选按钮
+                if (state.history.isNotEmpty || state.currentImages.isNotEmpty)
+                  IconButton(
+                    onPressed: () {
+                      setState(() {
+                        final allImages = _getAllSelectableImages(state);
+                        if (_selectedIds.length == allImages.length) {
+                          _selectedIds.clear();
+                        } else {
+                          _selectedIds.clear();
+                          _selectedIds.addAll(allImages.map((img) => img.id));
+                        }
+                      });
+                    },
+                    icon: Icon(
+                      _selectedIds.length ==
+                              _getAllSelectableImages(state).length
+                          ? Icons.deselect
+                          : Icons.select_all,
+                      size: 20,
+                    ),
+                    tooltip: _selectedIds.length ==
+                            _getAllSelectableImages(state).length
+                        ? context.l10n.common_deselectAll
+                        : context.l10n.common_selectAll,
+                    style: IconButton.styleFrom(
+                      foregroundColor: theme.colorScheme.primary,
+                    ),
+                    visualDensity: VisualDensity.compact,
+                    constraints: const BoxConstraints(),
+                    padding: const EdgeInsets.all(8),
+                  ),
+                if (state.history.isNotEmpty || state.currentImages.isNotEmpty)
+                  IconButton(
+                    onPressed: () {
+                      _showClearDialog(context, ref);
+                    },
+                    icon: const Icon(Icons.delete_outline, size: 20),
+                    tooltip: context.l10n.common_clear,
+                    style: IconButton.styleFrom(
+                      foregroundColor: theme.colorScheme.error,
+                    ),
+                    visualDensity: VisualDensity.compact,
+                    constraints: const BoxConstraints(),
+                    padding: const EdgeInsets.all(8),
+                  ),
+              ],
+            ),
           ),
-        ),
         const ThemedDivider(height: 1),
 
         // 历史列表
