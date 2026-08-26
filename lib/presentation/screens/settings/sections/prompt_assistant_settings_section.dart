@@ -865,6 +865,8 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
         return context.l10n.promptAssistant_taskCharacterReplace;
       case AssistantTaskType.custom:
         return context.l10n.promptAssistant_taskCustom;
+      case AssistantTaskType.chat:
+        return context.l10n.agentChat_tab;
     }
   }
 

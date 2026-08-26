@@ -784,6 +784,112 @@ class AppLocalizationsZh extends AppLocalizations {
   String get generation_historyRecord => '历史记录';
 
   @override
+  String get agentChat_tab => '聊天';
+
+  @override
+  String get agentChat_inputHint => '给 AI 助手发消息…';
+
+  @override
+  String get agentChat_attachImage => '添加图片';
+
+  @override
+  String agentChat_unsupportedImageFormat(Object fileName) {
+    return '不支持的图片格式：$fileName';
+  }
+
+  @override
+  String get agentChat_newChat => '新建聊天';
+
+  @override
+  String get agentChat_send => '发送';
+
+  @override
+  String get agentChat_stop => '停止';
+
+  @override
+  String get agentChat_queued => '已排队';
+
+  @override
+  String get agentChat_thinking => '思考中…';
+
+  @override
+  String get agentChat_toolRunning => '调用工具中';
+
+  @override
+  String get agentChat_needSetup => '未配置聊天模型。请先在设置中添加支持工具调用的供应商。';
+
+  @override
+  String get agentChat_heroTitle => 'AI 助手';
+
+  @override
+  String get agentChat_heroSubtitle => '对话式编辑提示词与角色设定';
+
+  @override
+  String get agentChat_moreActions => '更多操作';
+
+  @override
+  String get agentChat_compact => '压缩上下文';
+
+  @override
+  String get agentChat_compacting => '正在压缩上下文…';
+
+  @override
+  String get agentChat_model => '选择模型';
+
+  @override
+  String get agentChat_noModel => '未配置模型';
+
+  @override
+  String get agentChat_untitled => '新会话';
+
+  @override
+  String get agentChat_renameHint => '会话名称';
+
+  @override
+  String get agentChat_suggestion1 => '帮我优化当前的正向提示词';
+
+  @override
+  String get agentChat_suggestion2 => '为画面添加两个角色并分别设定动作';
+
+  @override
+  String get agentChat_suggestion3 => '把负向提示词改成适合写实风格的版本';
+
+  @override
+  String get agentChat_permissionMode => 'Agent 权限';
+
+  @override
+  String get agentChat_permissionSafe => '安全模式';
+
+  @override
+  String get agentChat_permissionSafeDescription => '仅运行无副作用工具';
+
+  @override
+  String get agentChat_permissionAsk => '询问模式';
+
+  @override
+  String get agentChat_permissionAskDescription => '敏感操作执行前询问';
+
+  @override
+  String get agentChat_permissionFull => '完全访问';
+
+  @override
+  String get agentChat_permissionFullDescription => '不询问并允许访问工作区外文件';
+
+  @override
+  String agentChat_approvalTitle(Object toolName) {
+    return '允许执行 $toolName？';
+  }
+
+  @override
+  String get agentChat_approvalDescription => '此工具会读取本地数据、修改应用状态或产生费用。';
+
+  @override
+  String get agentChat_approvalAllow => '允许一次';
+
+  @override
+  String get agentChat_approvalDeny => '拒绝';
+
+  @override
   String get generation_failedStreamSnapshot => '失败快照';
 
   @override
@@ -13302,6 +13408,112 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get generation_historyRecord => '歷史記錄';
+
+  @override
+  String get agentChat_tab => '聊天';
+
+  @override
+  String get agentChat_inputHint => '給 AI 助手傳送訊息…';
+
+  @override
+  String get agentChat_attachImage => '新增圖片';
+
+  @override
+  String agentChat_unsupportedImageFormat(Object fileName) {
+    return '不支援的圖片格式：$fileName';
+  }
+
+  @override
+  String get agentChat_newChat => '新對話';
+
+  @override
+  String get agentChat_send => '傳送';
+
+  @override
+  String get agentChat_stop => '停止';
+
+  @override
+  String get agentChat_queued => '已排隊';
+
+  @override
+  String get agentChat_thinking => '思考中…';
+
+  @override
+  String get agentChat_toolRunning => '呼叫工具中';
+
+  @override
+  String get agentChat_needSetup => '未設定聊天模型。請先在設定中新增支援工具呼叫的供應商。';
+
+  @override
+  String get agentChat_heroTitle => 'AI 助手';
+
+  @override
+  String get agentChat_heroSubtitle => '對話式編輯提示詞與角色設定';
+
+  @override
+  String get agentChat_moreActions => '更多操作';
+
+  @override
+  String get agentChat_compact => '壓縮上下文';
+
+  @override
+  String get agentChat_compacting => '正在壓縮上下文…';
+
+  @override
+  String get agentChat_model => '選擇模型';
+
+  @override
+  String get agentChat_noModel => '未配置模型';
+
+  @override
+  String get agentChat_untitled => '新會話';
+
+  @override
+  String get agentChat_renameHint => '會話名稱';
+
+  @override
+  String get agentChat_suggestion1 => '幫我優化目前的正向提示詞';
+
+  @override
+  String get agentChat_suggestion2 => '為畫面加入兩個角色並分別設定動作';
+
+  @override
+  String get agentChat_suggestion3 => '把負向提示詞改成適合寫實風格的版本';
+
+  @override
+  String get agentChat_permissionMode => 'Agent 權限';
+
+  @override
+  String get agentChat_permissionSafe => '安全模式';
+
+  @override
+  String get agentChat_permissionSafeDescription => '僅執行無副作用工具';
+
+  @override
+  String get agentChat_permissionAsk => '詢問模式';
+
+  @override
+  String get agentChat_permissionAskDescription => '敏感操作執行前詢問';
+
+  @override
+  String get agentChat_permissionFull => '完全存取';
+
+  @override
+  String get agentChat_permissionFullDescription => '不詢問並允許存取工作區外檔案';
+
+  @override
+  String agentChat_approvalTitle(Object toolName) {
+    return '允許執行 $toolName？';
+  }
+
+  @override
+  String get agentChat_approvalDescription => '此工具會讀取本機資料、修改應用程式狀態或產生費用。';
+
+  @override
+  String get agentChat_approvalAllow => '允許一次';
+
+  @override
+  String get agentChat_approvalDeny => '拒絕';
 
   @override
   String get generation_failedStreamSnapshot => '失敗快照';

@@ -31,6 +31,7 @@ NAI Launcher 是一个使用 Flutter 构建的 NovelAI 第三方跨平台客户�
 | 🖼️ 图生图与编辑 | 支持图生图、局部重绘、Focused Inpaint、Outpaint、虚拟画布扩图、硬边蒙版和点击式区域填充。 |
 | 🌈 参考与风格 | 支持 Vibe Transfer、Precise Reference、多图参考、Vibe 整包导入导出、PNG 元数据嵌入导出。 |
 | ✍️ Prompt 工具 | 内置完整离线 Danbooru/e621 合并标签与别名；本地 Danbooru 共现关系以可选数据包提供，默认进入主页后后台下载。支持 `Ctrl/⌘+Shift+Space` 查询光标前标签的相关词、固定来源标签后连续选词、Danbooru 在线相关标签补充、可选中文词库与 AI 缺失汉化，以及 NAI/SD 权重语法辅助、Token 统计、提示词框内搜索和固定词。 |
+| 🤖 智能代理 | 在生成页侧栏中使用已配置的第三方模型进行多轮对话，可查看和调整 Prompt、角色及生成参数，检索标签和生成历史，并按权限模式执行生成或读取图片等操作；会话以 JSONL 保存在本机。 |
 | 🎲 随机词库 | 内置完整还原的 NovelAI 官网随机词库，并按当前模型使用 Legacy Anime、Furry V3 或 Character Prompts；自定义模式使用完整离线标签 catalog，混合模式同时结合两种来源。可调整 catalog 分类、词组、权重、排除与依赖规则，预览结果并导入导出自定义预设。 |
 | 📚 本地图库 | 支持递归扫描、SQLite 全文搜索、分类/收藏/集合、元数据解析、批量操作和大图预览。 |
 | 🌐 在线图库 | 支持 Danbooru / Safebooru / Gelbooru / AI TAG / 法典图鉴搜索、真实排行榜、多图详情、元数据复用和批量下载。 |
@@ -99,7 +100,7 @@ NAI Launcher 是一个使用 Flutter 构建的 NovelAI 第三方跨平台客户�
 
 首次登录可以使用 NovelAI 账号密码或 API Token。账号数据仅保存在本地设备，支持的平台使用系统安全存储保存敏感信息。
 
-### 补全数据与隐私
+### 补全、智能代理与隐私
 
 - 完整的基础 Danbooru/e621 标签与别名 catalog 随应用提供，只在本机查询，不需要联网。
 - 本地相关标签共现数据由项目从固定版本的 [newtextdoc1111/danbooru-tag-csv](https://huggingface.co/datasets/newtextdoc1111/danbooru-tag-csv) 构建，并作为独立的可选数据包发布。相关标签功能开启时，应用默认在进入主页后后台下载约 30.3 MiB，安装后约占用 78.7 MiB；下载不会阻塞启动或基础补全。
@@ -107,6 +108,7 @@ NAI Launcher 是一个使用 Flutter 构建的 NovelAI 第三方跨平台客户�
 - 简体中文汉化词库为可选组件。繁体中文界面与繁体标签输入同样可以使用该词库，查询时会在本地转换后匹配，不会上传输入内容。应用仅在用户确认后从 [ffdkj/ComfyUI_Danbooru_Tag_Assistant](https://github.com/ffdkj/ComfyUI_Danbooru_Tag_Assistant) 上游直接下载，项目不再分发该数据库。
 - Danbooru 在线补充默认开启，只发送光标所在的当前英文 token，不发送完整提示词；可在“设置 → 数据源与缓存”关闭并单独清除缓存。
 - AI 缺失汉化默认关闭。开启后会复用 Prompt Assistant 的 `Translate` 路由，向用户选择的模型服务发送最多 8 个待翻译标签，可能产生 API 费用；AI 翻译缓存可单独清除。
+- 智能代理会把对话文本、用户附加的图片和完成当前任务所需的工具结果发送给用户选择的模型服务，可能产生对应服务的 API 费用，并受该服务的隐私政策约束。会话记录以 JSONL 保存在本机应用数据目录；文件读取默认限制在图片导出目录，只有用户主动选择“完全访问”后才允许读取该目录之外的文件。
 
 ## 💬 支持与贡献
 

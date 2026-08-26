@@ -5,15 +5,16 @@ import '../../../core/storage/local_storage_service.dart';
 import '../../../core/storage/secure_storage_service.dart';
 import '../models/prompt_assistant_models.dart';
 
-final promptAssistantConfigProvider = StateNotifierProvider<
-    PromptAssistantConfigNotifier, PromptAssistantConfigState>(
-  (ref) => PromptAssistantConfigNotifier(ref),
-);
+final promptAssistantConfigProvider =
+    StateNotifierProvider<
+      PromptAssistantConfigNotifier,
+      PromptAssistantConfigState
+    >((ref) => PromptAssistantConfigNotifier(ref));
 
 class PromptAssistantConfigNotifier
     extends StateNotifier<PromptAssistantConfigState> {
   PromptAssistantConfigNotifier(this._ref)
-      : super(PromptAssistantConfigState.defaults()) {
+    : super(PromptAssistantConfigState.defaults()) {
     _load();
   }
 
@@ -23,8 +24,9 @@ class PromptAssistantConfigNotifier
   SecureStorageService get _secure => _ref.read(secureStorageServiceProvider);
 
   Future<void> _load() async {
-    final raw =
-        _local.getSetting<String>(StorageKeys.promptAssistantConfigJson);
+    final raw = _local.getSetting<String>(
+      StorageKeys.promptAssistantConfigJson,
+    );
     if (raw != null && raw.isNotEmpty) {
       try {
         state = PromptAssistantConfigState.decode(raw);
@@ -74,6 +76,11 @@ class PromptAssistantConfigNotifier
     await _save();
   }
 
+  Future<void> setAgentPermissionMode(AgentPermissionMode mode) async {
+    state = state.copyWith(agentPermissionMode: mode);
+    await _save();
+  }
+
   Future<void> upsertProvider(ProviderConfig provider) async {
     final providers = [...state.providers];
     final idx = providers.indexWhere((p) => p.id == provider.id);
@@ -88,8 +95,9 @@ class PromptAssistantConfigNotifier
 
   Future<void> deleteProvider(String providerId) async {
     final providers = state.providers.where((p) => p.id != providerId).toList();
-    final models =
-        state.models.where((m) => m.providerId != providerId).toList();
+    final models = state.models
+        .where((m) => m.providerId != providerId)
+        .toList();
     var routing = state.routing;
     for (final taskType in AssistantTaskType.values) {
       if (routing.providerIdFor(taskType) == providerId) {
@@ -128,9 +136,9 @@ class PromptAssistantConfigNotifier
           .where((m) => m.providerId == provider.id && m.forTask == taskType)
           .toList();
       final realModel = providerModels.cast<ModelConfig?>().firstWhere(
-            (model) => model != null && !model.isPlaceholder,
-            orElse: () => null,
-          );
+        (model) => model != null && !model.isPlaceholder,
+        orElse: () => null,
+      );
       if (realModel != null) {
         return (providerId: provider.id, model: realModel.name);
       }
@@ -185,7 +193,8 @@ class PromptAssistantConfigNotifier
         models.add(model);
         continue;
       }
-      final isStaleApiModel = model.source == ModelSource.api &&
+      final isStaleApiModel =
+          model.source == ModelSource.api &&
           !model.isPlaceholder &&
           !incomingSet.contains(model.name);
       if (isStaleApiModel) {
@@ -199,9 +208,7 @@ class PromptAssistantConfigNotifier
       for (final name in incoming) {
         final exists = models.any(
           (m) =>
-              m.providerId == providerId &&
-              m.forTask == task &&
-              m.name == name,
+              m.providerId == providerId && m.forTask == task && m.name == name,
         );
         if (!exists) {
           models.add(
@@ -242,7 +249,8 @@ class PromptAssistantConfigNotifier
   }
 
   Future<void> deleteModel(ModelConfig model) async {
-    final models = [...state.models]..removeWhere(
+    final models = [...state.models]
+      ..removeWhere(
         (m) =>
             m.providerId == model.providerId &&
             m.name == model.name &&
@@ -284,10 +292,11 @@ class PromptAssistantConfigNotifier
     final orderMap = <String, int>{
       for (var i = 0; i < orderedIds.length; i++) orderedIds[i]: i,
     };
-    final updated = state.rules
-        .map((r) => r.copyWith(order: orderMap[r.id] ?? r.order))
-        .toList()
-      ..sort((a, b) => a.order.compareTo(b.order));
+    final updated =
+        state.rules
+            .map((r) => r.copyWith(order: orderMap[r.id] ?? r.order))
+            .toList()
+          ..sort((a, b) => a.order.compareTo(b.order));
     state = state.copyWith(rules: updated);
     await _save();
   }

@@ -1,6 +1,11 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 
+import '../../../../core/agent/agent_types.dart';
+import '../../models/agent_protocol.dart';
 import '../../models/prompt_assistant_models.dart';
+import 'agent_wire_helpers.dart';
 import 'openai_chat_completions_adapter.dart';
 import 'prompt_assistant_adapter.dart';
 
@@ -55,6 +60,195 @@ class OpenAiResponsesAdapter extends PromptAssistantProviderAdapter {
     );
 
     return _extractResponseContent(response.data);
+  }
+
+  @override
+  Stream<AgentWireEvent> completeAgent({
+    required Dio dio,
+    required AgentChatRequest request,
+    required CancelToken cancelToken,
+  }) async* {
+    final pending = <AgentWireEvent>[];
+    var stopReason = StopReason.stop;
+    Usage? usage;
+    var sawError = false;
+    final emittedToolCalls = <String>{};
+
+    final parser = AgentSseParser(
+      onEvent: (event, data) {
+        final json = parseSseJson(data);
+        if (json == null) {
+          return;
+        }
+        switch (event) {
+          case 'response.output_text.delta':
+            final delta = json['delta'];
+            if (delta is String && delta.isNotEmpty) {
+              pending.add(AgentWireTextDelta(delta));
+            }
+          case 'response.output_item.done':
+            final item = json['item'];
+            if (item is Map<String, dynamic> &&
+                item['type'] == 'function_call') {
+              final callId = item['call_id'] as String? ?? '';
+              if (emittedToolCalls.add(callId)) {
+                pending.add(
+                  AgentWireToolCallDone(
+                    id: callId,
+                    name: item['name'] as String? ?? '',
+                    arguments: parseToolArguments(
+                      item['arguments'] as String?,
+                    ),
+                  ),
+                );
+                stopReason = StopReason.toolUse;
+              }
+            }
+          case 'response.completed':
+            final response = json['response'];
+            if (response is Map<String, dynamic>) {
+              final usageRaw = response['usage'];
+              if (usageRaw is Map<String, dynamic>) {
+                usage = Usage(
+                  input: (usageRaw['input_tokens'] as num?)?.toInt() ?? 0,
+                  output: (usageRaw['output_tokens'] as num?)?.toInt() ?? 0,
+                  totalTokens: (usageRaw['total_tokens'] as num?)?.toInt() ?? 0,
+                );
+              }
+            }
+          case 'response.incomplete':
+            stopReason = StopReason.length;
+          case 'response.failed':
+          case 'error':
+            sawError = true;
+            final error = json;
+            final response = error['response'];
+            Map<String, dynamic>? errorBody;
+            if (response is Map<String, dynamic>) {
+              final inner = response['error'];
+              if (inner is Map<String, dynamic>) {
+                errorBody = inner;
+              }
+            }
+            final direct = error['error'];
+            if (errorBody == null && direct is Map<String, dynamic>) {
+              errorBody = direct;
+            }
+            final message = errorBody?['message'] as String? ??
+                'LLM stream failed with event $event';
+            pending.add(AgentWireError('LLM service returned an error: $message'));
+          default:
+            break;
+        }
+      },
+    );
+
+    try {
+      final stream = agentStreamPost(
+        dio,
+        endpoint: _resolveEndpoint(request.provider),
+        payload: _buildAgentPayload(request),
+        headers: _agentHeaders(request.apiKey),
+        cancelToken: cancelToken,
+      );
+      await for (final chunk in stream) {
+        parser.push(chunk);
+        if (pending.isNotEmpty) {
+          yield* Stream.fromIterable(List.of(pending));
+          pending.clear();
+        }
+      }
+      parser.close();
+      if (pending.isNotEmpty) {
+        yield* Stream.fromIterable(List.of(pending));
+        pending.clear();
+      }
+    } on Object catch (error) {
+      if (pending.isNotEmpty) {
+        yield* Stream.fromIterable(List.of(pending));
+      }
+      yield agentWireErrorFrom(error, request.provider);
+      return;
+    }
+
+    if (sawError) {
+      return;
+    }
+    yield AgentWireFinish(stopReason: stopReason, usage: usage);
+  }
+
+  Map<String, dynamic> _buildAgentPayload(AgentChatRequest request) {
+    final input = <Map<String, dynamic>>[];
+    for (final message in request.messages) {
+      if (message is UserMessage) {
+        final images = inlineImagesOf(message);
+        input.add({
+          'type': 'message',
+          'role': 'user',
+          'content': [
+            if (message.text.trim().isNotEmpty)
+              {'type': 'input_text', 'text': message.text},
+            for (final image in images)
+              {
+                'type': 'input_image',
+                'image_url':
+                    'data:${image.mimeType};base64,${base64Encode(image.bytes)}',
+                'detail': 'auto',
+              },
+          ],
+        });
+      } else if (message is AssistantMessage) {
+        if (message.text.isNotEmpty) {
+          input.add({
+            'type': 'message',
+            'role': 'assistant',
+            'content': [
+              {'type': 'output_text', 'text': message.text},
+            ],
+          });
+        }
+        for (final call in message.toolCalls) {
+          input.add({
+            'type': 'function_call',
+            'call_id': call.id,
+            'name': call.name,
+            'arguments': jsonEncode(call.arguments),
+          });
+        }
+      } else if (message is ToolResultMessage) {
+        input.add({
+          'type': 'function_call_output',
+          'call_id': message.toolCallId,
+          'output': message.text,
+        });
+      }
+    }
+
+    return {
+      'model': request.model,
+      'stream': true,
+      if (request.systemPrompt.trim().isNotEmpty)
+        'instructions': request.systemPrompt.trim(),
+      'input': input,
+      if (request.tools.isNotEmpty)
+        'tools': [
+          for (final tool in request.tools)
+            {
+              'type': 'function',
+              'name': tool.name,
+              'description': tool.description,
+              'parameters': tool.parameters,
+            },
+        ],
+    };
+  }
+
+  Map<String, dynamic> _agentHeaders(String? apiKey) {
+    return {
+      'Content-Type': 'application/json',
+      if (apiKey != null && apiKey.trim().isNotEmpty)
+        'Authorization': 'Bearer ${apiKey.trim()}',
+    };
   }
 
   List<Map<String, dynamic>> _inputParts(

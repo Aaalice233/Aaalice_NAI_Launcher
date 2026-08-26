@@ -31,6 +31,7 @@ NAI Launcher is a cross-platform third-party client for NovelAI built with Flutt
 | 🖼️ Image-to-Image & Editing | Supports img2img, inpainting, Focused Inpaint, Outpaint, virtual canvas expansion, hard-edge masks, and click-to-fill region selection. |
 | 🌈 Reference & Style | Supports Vibe Transfer, Precise Reference, multi-image references, Vibe pack import/export, and PNG metadata embedding/export. |
 | ✍️ Prompt Tools | Includes the complete offline merged Danbooru/e621 tag and alias catalog. Local Danbooru co-occurrence recommendations are delivered as an optional data pack downloaded in the background after the home screen opens. Press `Ctrl/⌘+Shift+Space` for tags related to the tag before the cursor, pin the source tag for continuous insertion, and optionally merge Danbooru online relations, Chinese translations, and AI translations for missing entries. Also includes NAI/SD weight syntax assistance, token counting, in-box prompt search, and pinned words. |
+| 🤖 Agent Chat | Uses a configured third-party model for multi-turn conversations in the generation sidebar. It can inspect and adjust prompts, characters, and generation settings, search tags and generation history, and perform generation or image-reading operations according to the selected permission mode. Sessions are stored locally as JSONL. |
 | 🎲 Random Tag Library | Includes a complete restoration of NovelAI's official random wordlists and selects Legacy Anime, Furry V3, or Character Prompts for the current model. Custom mode uses the complete offline tag catalog, while hybrid mode combines both sources. Catalog categories, groups, weights, exclusions, and dependency rules are editable; custom presets support preview, import, and export. |
 | 📚 Local Gallery | Supports recursive scanning, SQLite full-text search, categories/collections/favorites, metadata parsing, batch operations, and large image previews. |
 | 🌐 Online Gallery | Supports Danbooru / Safebooru / Gelbooru / AI TAG / Codex Gallery search, native rankings, multi-image details, metadata reuse, and batch downloads. |
@@ -99,7 +100,7 @@ Download the latest version from [Releases](https://github.com/Aaalice233/Aaalic
 
 You can log in for the first time using your NovelAI account credentials or an API Token. Account data is stored locally on the device only. Supported platforms use system secure storage for sensitive information.
 
-### Autocomplete Data & Privacy
+### Autocomplete, Agent Chat & Privacy
 
 - The complete base Danbooru/e621 tag and alias catalog ships with the app and is queried locally without a network connection.
 - The local related-tag co-occurrence data is built by this project from a pinned revision of [newtextdoc1111/danbooru-tag-csv](https://huggingface.co/datasets/newtextdoc1111/danbooru-tag-csv) and published as a separate optional data pack. When related tags are enabled, the app downloads about 30.3 MiB in the background after the home screen opens; installation uses about 78.7 MiB and never blocks startup or base autocomplete.
@@ -107,6 +108,7 @@ You can log in for the first time using your NovelAI account credentials or an A
 - The Simplified Chinese translation dictionary is optional. Traditional Chinese UI and tag queries can use the same dictionary; queries are converted locally for matching and are not uploaded. It is downloaded directly from the [ffdkj/ComfyUI_Danbooru_Tag_Assistant](https://github.com/ffdkj/ComfyUI_Danbooru_Tag_Assistant) upstream only after user confirmation; this project does not redistribute that database.
 - The Danbooru online supplement is enabled by default. It sends only the current English token under the cursor, never the complete prompt; it can be disabled and its cache cleared separately under Settings → Data Sources & Cache.
 - AI translation for missing entries is disabled by default. When enabled, it reuses the Prompt Assistant `Translate` route and sends at most 8 untranslated tags to the model service selected by the user, which may incur API charges. Its cache can be cleared separately.
+- Agent Chat sends conversation text, user-attached images, and tool results needed for the current task to the model service selected by the user. This may incur that service's API charges and is subject to its privacy policy. Session records are stored locally as JSONL in the application's data directory. File reads are limited to the image export directory by default; files outside it become accessible only after the user explicitly selects Full Access.
 
 ## 💬 Support & Contributing
 
