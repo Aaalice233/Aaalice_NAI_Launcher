@@ -16,6 +16,7 @@ permissions:
 
 env:
   FLUTTER_VERSION: "3.44.2"
+  PUB_HOSTED_URL: "https://pub.dev"
   RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
 
 jobs:
@@ -27,13 +28,25 @@ jobs:
       version: ${{ steps.version.outputs.version }}
       public_version: ${{ steps.version.outputs.public_version }}
       prerelease: ${{ steps.version.outputs.prerelease }}
+      release_sha: ${{ steps.release-ref.outputs.release_sha }}
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout release tag
+        uses: actions/checkout@v6
         with:
-          ref: ${{ env.RELEASE_TAG }}
+          ref: refs/tags/${{ env.RELEASE_TAG }}
           lfs: false
+
+      - name: Resolve immutable release commit
+        id: release-ref
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $releaseSha = (git rev-parse --verify 'HEAD^{commit}').Trim().ToLowerInvariant()
+          if ($releaseSha -notmatch '^[0-9a-f]{40}$') {
+            throw "Resolved release commit is not a full 40-character SHA: $releaseSha"
+          }
+          "release_sha=$releaseSha" >> $env:GITHUB_OUTPUT
 
       - name: Verify tag matches pubspec version
         id: version
@@ -93,22 +106,60 @@ jobs:
 
   build-windows:
     name: Build Windows
-    runs-on: windows-2022
+    # A trusted tag may use a prewarmed runner configured by repository vars.
+    runs-on: ${{ vars.WINDOWS_FLUTTER_RUNNER || 'windows-2022' }}
     needs: prepare
+    env:
+      WINDOWS_CACHE_NAMESPACE: ${{ vars.WINDOWS_FLUTTER_RUNNER != '' && 'nai-self-hosted' || 'nai-hosted' }}
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout immutable release commit
+        uses: actions/checkout@v6
         with:
-          ref: ${{ env.RELEASE_TAG }}
+          ref: ${{ needs.prepare.outputs.release_sha }}
           lfs: true
 
+      - name: Verify checked out release commit
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $head = (git rev-parse --verify HEAD).Trim().ToLowerInvariant()
+          $expected = '${{ needs.prepare.outputs.release_sha }}'
+          if ($head -ne $expected) {
+            throw "Checked out commit $head does not match immutable release commit $expected."
+          }
+
       - name: Setup Flutter
+        id: flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
-          cache: true
+          cache: ${{ vars.WINDOWS_FLUTTER_SDK_CACHE || 'true' }}
+          pub-cache: ${{ vars.WINDOWS_PUB_CACHE || 'true' }}
+          pub-cache-key: "${{ env.WINDOWS_CACHE_NAMESPACE }}-flutter-pub-:os:-:channel:-:version:-:arch:-:hash:"
+
+      - name: Restore generated-code cache
+        uses: actions/cache@v6
+        with:
+          path: |
+            .dart_tool/build
+            lib/**/*.g.dart
+            lib/**/*.freezed.dart
+          key: ${{ env.WINDOWS_CACHE_NAMESPACE }}-codegen-${{ runner.os }}-${{ env.FLUTTER_VERSION }}-${{ hashFiles('pubspec.lock') }}-${{ hashFiles('pubspec.yaml', 'build.yaml', 'lib/**') }}
+          restore-keys: |
+            ${{ env.WINDOWS_CACHE_NAMESPACE }}-codegen-${{ runner.os }}-${{ env.FLUTTER_VERSION }}-${{ hashFiles('pubspec.lock') }}-
+
+      - name: Restore Flutter and native Windows build cache
+        uses: actions/cache@v6
+        with:
+          path: |
+            .dart_tool/flutter_build
+            build/native_assets
+            build/windows
+          key: ${{ env.WINDOWS_CACHE_NAMESPACE }}-windows-build-${{ runner.os }}-${{ env.FLUTTER_VERSION }}-${{ hashFiles('pubspec.lock', 'windows/**') }}-${{ hashFiles('pubspec.yaml', 'l10n.yaml', 'lib/**', 'assets/**', 'fonts/**') }}
+          restore-keys: |
+            ${{ env.WINDOWS_CACHE_NAMESPACE }}-windows-build-${{ runner.os }}-${{ env.FLUTTER_VERSION }}-${{ hashFiles('pubspec.lock', 'windows/**') }}-
 
       - name: Setup NuGet
         uses: NuGet/setup-nuget@v4
@@ -157,7 +208,12 @@ jobs:
             }
           }
 
-      - name: Resolve dependencies
+      - name: Resolve dependencies from cache
+        if: steps.flutter.outputs.PUB-CACHE-HIT == 'true'
+        run: flutter pub get --enforce-lockfile --offline
+
+      - name: Resolve dependencies from network
+        if: steps.flutter.outputs.PUB-CACHE-HIT != 'true'
         run: flutter pub get --enforce-lockfile
 
       - name: Validate bundled autocomplete databases
@@ -170,7 +226,7 @@ jobs:
         run: dart run build_runner build --delete-conflicting-outputs
 
       - name: Build Windows release
-        run: flutter build windows --release
+        run: flutter build windows --release --no-pub
 
       - name: Sign Windows application
         shell: pwsh
@@ -200,6 +256,13 @@ jobs:
           ./scripts/package_windows_release.ps1 `
             -Version '${{ needs.prepare.outputs.version }}' `
             -SkipFlutterBuild
+
+      - name: Verify Windows portable package
+        shell: pwsh
+        run: |
+          ./scripts/verify_windows_portable_package.ps1 `
+            -ArchivePath 'dist/NAI_Launcher_Windows_${{ needs.prepare.outputs.version }}_Portable.zip' `
+            -ExpectedVersion '${{ needs.prepare.outputs.version }}'
 
       - name: Sign Windows installer
         shell: pwsh
@@ -237,11 +300,21 @@ jobs:
     needs: prepare
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout immutable release commit
+        uses: actions/checkout@v6
         with:
-          ref: ${{ env.RELEASE_TAG }}
+          ref: ${{ needs.prepare.outputs.release_sha }}
           lfs: true
+
+      - name: Verify checked out release commit
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $head = (git rev-parse --verify HEAD).Trim().ToLowerInvariant()
+          $expected = '${{ needs.prepare.outputs.release_sha }}'
+          if ($head -ne $expected) {
+            throw "Checked out commit $head does not match immutable release commit $expected."
+          }
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -312,10 +385,20 @@ jobs:
       - build-macos
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout immutable release commit
+        uses: actions/checkout@v6
         with:
-          ref: ${{ env.RELEASE_TAG }}
+          ref: ${{ needs.prepare.outputs.release_sha }}
+
+      - name: Verify checked out release commit
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $head = (git rev-parse --verify HEAD).Trim().ToLowerInvariant()
+          $expected = '${{ needs.prepare.outputs.release_sha }}'
+          if ($head -ne $expected) {
+            throw "Checked out commit $head does not match immutable release commit $expected."
+          }
 
       - name: Download artifacts
         uses: actions/download-artifact@v4
@@ -336,6 +419,37 @@ jobs:
 
       - name: Show assets
         run: ls -lh release-assets
+
+      - name: Verify release tag has not moved
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tag = '${{ env.RELEASE_TAG }}'
+          $expected = '${{ needs.prepare.outputs.release_sha }}'
+          $lines = @(git ls-remote origin "refs/tags/$tag" "refs/tags/$tag^{}")
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to resolve remote release tag refs/tags/$tag."
+          }
+          $direct = $null
+          $peeled = $null
+          foreach ($line in $lines) {
+            $fields = $line -split '\s+', 2
+            if ($fields.Count -ne 2) {
+              continue
+            }
+            if ($fields[1] -eq "refs/tags/$tag^{}") {
+              $peeled = $fields[0]
+            } elseif ($fields[1] -eq "refs/tags/$tag") {
+              $direct = $fields[0]
+            }
+          }
+          $current = if ($peeled) { $peeled } else { $direct }
+          if ($current -notmatch '^[0-9a-fA-F]{40}$') {
+            throw "Remote release tag refs/tags/$tag does not resolve to a commit SHA."
+          }
+          if ($current.ToLowerInvariant() -ne $expected) {
+            throw "Remote release tag refs/tags/$tag moved from $expected to $current."
+          }
 
       - name: Publish release
         uses: softprops/action-gh-release@v2

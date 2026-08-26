@@ -5,8 +5,10 @@ on:
     branches:
       - main
     paths:
+      - ".github/actions/prepare-flutter-build/action.yml"
       - ".github/workflows/pull-request-validation.yml"
       - ".github/workflows/release.yml"
+      - ".github/workflows/windows-portable.yml"
       - "analysis_options.yaml"
       - "assets/**"
       - "fonts/**"
@@ -31,6 +33,7 @@ concurrency:
 
 env:
   FLUTTER_VERSION: "3.44.2"
+  PUB_HOSTED_URL: "https://pub.dev"
 
 jobs:
   changes:
@@ -48,7 +51,10 @@ jobs:
         with:
           filters: |
             windows_build:
+              - '.github/actions/prepare-flutter-build/action.yml'
               - '.github/workflows/pull-request-validation.yml'
+              - '.github/workflows/release.yml'
+              - '.github/workflows/windows-portable.yml'
               - 'assets/**'
               - 'fonts/**'
               - 'l10n.yaml'
@@ -57,10 +63,15 @@ jobs:
               - 'pubspec.yaml'
               - 'windows/**'
             windows_package:
+              - '.github/actions/prepare-flutter-build/action.yml'
+              - '.github/workflows/pull-request-validation.yml'
+              - '.github/workflows/release.yml'
+              - '.github/workflows/windows-portable.yml'
               - 'installer/windows/**'
               - 'pubspec.lock'
               - 'pubspec.yaml'
               - 'scripts/package_windows_release.ps1'
+              - 'scripts/verify_windows_portable_package.ps1'
               - 'scripts/validate_windows_installer_process_handling.ps1'
               - 'windows/**'
 
@@ -71,23 +82,13 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - name: Prepare incremental Flutter build
+        uses: ./.github/actions/prepare-flutter-build
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: stable
-          cache: true
-
-      - name: Resolve dependencies
-        run: flutter pub get --enforce-lockfile
-
-      - name: Generate localizations
-        run: flutter gen-l10n
-
-      - name: Generate code
-        run: dart run build_runner build --delete-conflicting-outputs
+          cache-namespace: nai-hosted
 
       - name: Verify generated files
         run: git diff --exit-code
@@ -102,28 +103,22 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           lfs: true
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - name: Test Windows portable package verifier
+        shell: pwsh
+        run: ./scripts/test_windows_portable_package_verifier.ps1
+
+      - name: Prepare incremental Flutter build
+        uses: ./.github/actions/prepare-flutter-build
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: stable
-          cache: true
-
-      - name: Resolve dependencies
-        run: flutter pub get --enforce-lockfile
+          cache-namespace: nai-hosted
 
       - name: Validate bundled autocomplete databases
         run: dart run tool/tag_catalog/verify_bundled_databases.dart
-
-      - name: Generate localizations
-        run: flutter gen-l10n
-
-      - name: Generate code
-        run: dart run build_runner build --delete-conflicting-outputs
 
       - name: Run tests
         run: flutter test --reporter compact
@@ -142,14 +137,14 @@ jobs:
       # Database integrity is checked by the test job; compile smoke does not
       # need to download the large LFS payloads.
       - name: Checkout without LFS payloads
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - name: Prepare incremental Flutter build
+        uses: ./.github/actions/prepare-flutter-build
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: stable
-          cache: true
+          cache-namespace: nai-hosted
+          cache-windows-build: "true"
 
       - name: Setup NuGet
         uses: NuGet/setup-nuget@v4
@@ -160,17 +155,8 @@ jobs:
         shell: pwsh
         run: ./scripts/verify_nuget.ps1
 
-      - name: Resolve dependencies
-        run: flutter pub get --enforce-lockfile
-
-      - name: Generate localizations
-        run: flutter gen-l10n
-
-      - name: Generate code
-        run: dart run build_runner build --delete-conflicting-outputs
-
       - name: Build Windows debug
-        run: flutter build windows --debug
+        run: flutter build windows --debug --no-pub
 
   windows-package:
     name: Test and package Windows
@@ -183,16 +169,16 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           lfs: true
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - name: Prepare incremental Flutter build
+        uses: ./.github/actions/prepare-flutter-build
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: stable
-          cache: true
+          cache-namespace: nai-hosted
+          cache-windows-build: "true"
 
       - name: Setup NuGet
         uses: NuGet/setup-nuget@v4
@@ -207,20 +193,11 @@ jobs:
         shell: pwsh
         run: choco install nsis -y --no-progress
 
-      - name: Resolve dependencies
-        run: flutter pub get --enforce-lockfile
-
       - name: Validate bundled autocomplete databases
         run: dart run tool/tag_catalog/verify_bundled_databases.dart
 
-      - name: Generate localizations
-        run: flutter gen-l10n
-
-      - name: Generate code
-        run: dart run build_runner build --delete-conflicting-outputs
-
       - name: Build Windows release
-        run: flutter build windows --release
+        run: flutter build windows --release --no-pub
 
       - name: Validate installer process handling
         shell: pwsh
@@ -254,6 +231,9 @@ jobs:
               throw "Missing packaged artifact: $path"
             }
           }
+          ./scripts/verify_windows_portable_package.ps1 `
+            -ArchivePath $required[1] `
+            -ExpectedVersion $version
 
   result:
     name: PR validation

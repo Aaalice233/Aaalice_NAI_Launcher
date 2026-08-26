@@ -1,0 +1,140 @@
+name: Windows portable build
+run-name: Windows ${{ inputs.build-mode || 'release' }} portable
+
+on:
+  workflow_dispatch:
+    inputs:
+      build-mode:
+        description: Flutter build mode
+        required: true
+        default: debug
+        type: choice
+        options:
+          - debug
+          - release
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-portable-${{ github.ref }}-${{ inputs.build-mode || 'release' }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: "3.44.2"
+  PUB_HOSTED_URL: "https://pub.dev"
+  PORTABLE_RECIPE_VERSION: "2"
+  BUILD_MODE: ${{ inputs.build-mode || 'release' }}
+  BUNDLE_PATH: build/windows/x64/runner/${{ inputs.build-mode == 'debug' && 'Debug' || 'Release' }}
+
+jobs:
+  build-windows-portable:
+    name: Build Windows ${{ inputs.build-mode || 'release' }} portable
+    # A configured persistent runner is reserved for trusted executable refs.
+    if: >-
+      vars.WINDOWS_FLUTTER_RUNNER == '' ||
+      github.ref == 'refs/heads/main' ||
+      startsWith(github.ref, 'refs/tags/v')
+    runs-on: ${{ vars.WINDOWS_FLUTTER_RUNNER || 'windows-2022' }}
+    timeout-minutes: 45
+    env:
+      WINDOWS_CACHE_NAMESPACE: ${{ vars.WINDOWS_FLUTTER_RUNNER != '' && 'nai-self-hosted' || 'nai-hosted' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          lfs: true
+
+      - name: Fingerprint portable build inputs
+        id: build-inputs
+        shell: pwsh
+        run: |
+          "fingerprint=${{ hashFiles('.github/workflows/windows-portable.yml', '.github/actions/prepare-flutter-build/**', 'scripts/package_windows_release.ps1', 'scripts/verify_windows_portable_package.ps1', 'scripts/verify_nuget.ps1', 'pubspec.lock', 'pubspec.yaml', 'build.yaml', 'l10n.yaml', 'lib/**', 'windows/**', 'assets/**', 'fonts/**') }}" >> $env:GITHUB_OUTPUT
+
+      - name: Restore exact portable bundle
+        id: portable-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ env.BUNDLE_PATH }}
+          key: ${{ env.WINDOWS_CACHE_NAMESPACE }}-portable-v${{ env.PORTABLE_RECIPE_VERSION }}-${{ runner.os }}-${{ env.FLUTTER_VERSION }}-${{ inputs.build-mode || 'release' }}-${{ steps.build-inputs.outputs.fingerprint }}
+
+      - name: Verify restored portable bundle
+        if: steps.portable-cache.outputs.cache-hit == 'true'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $match = Select-String -Path pubspec.yaml -Pattern '^version:\s*(.+)$'
+          if (!$match) {
+            throw 'pubspec.yaml does not contain a version field.'
+          }
+          $version = $match.Matches[0].Groups[1].Value.Trim() -replace '\+.*$', ''
+          ./scripts/verify_windows_portable_package.ps1 `
+            -DirectoryPath $env:BUNDLE_PATH `
+            -ExpectedVersion $version
+
+      - name: Prepare incremental Flutter build
+        if: steps.portable-cache.outputs.cache-hit != 'true'
+        uses: ./.github/actions/prepare-flutter-build
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache-namespace: ${{ env.WINDOWS_CACHE_NAMESPACE }}
+          cache-flutter-sdk: ${{ vars.WINDOWS_FLUTTER_SDK_CACHE || 'true' }}
+          cache-pub-dependencies: ${{ vars.WINDOWS_PUB_CACHE || 'true' }}
+          cache-windows-build: "true"
+
+      - name: Setup NuGet
+        if: steps.portable-cache.outputs.cache-hit != 'true'
+        uses: NuGet/setup-nuget@v4
+        with:
+          nuget-version: latest
+
+      - name: Verify NuGet
+        if: steps.portable-cache.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: ./scripts/verify_nuget.ps1
+
+      - name: Build Windows portable
+        if: steps.portable-cache.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: flutter build windows --$env:BUILD_MODE --no-pub
+
+      - name: Package user-ready portable archive
+        id: package
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $match = Select-String -Path pubspec.yaml -Pattern '^version:\s*(.+)$'
+          if (!$match) {
+            throw 'pubspec.yaml does not contain a version field.'
+          }
+          $version = $match.Matches[0].Groups[1].Value.Trim() -replace '\+.*$', ''
+          $configuration = if ($env:BUILD_MODE -eq 'debug') { 'Debug' } else { 'Release' }
+          ./scripts/package_windows_release.ps1 `
+            -Version $version `
+            -BuildMode $configuration `
+            -SkipFlutterBuild `
+            -PortableOnly
+          $archive = [IO.Path]::GetFullPath(
+            (Join-Path $env:GITHUB_WORKSPACE "dist/NAI_Launcher_Windows_${version}_Portable.zip")
+          )
+          ./scripts/verify_windows_portable_package.ps1 `
+            -ArchivePath $archive `
+            -ExpectedVersion $version
+          "archive-path=$archive" >> $env:GITHUB_OUTPUT
+
+      - name: Save exact portable bundle
+        if: steps.portable-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ env.BUNDLE_PATH }}
+          key: ${{ env.WINDOWS_CACHE_NAMESPACE }}-portable-v${{ env.PORTABLE_RECIPE_VERSION }}-${{ runner.os }}-${{ env.FLUTTER_VERSION }}-${{ inputs.build-mode || 'release' }}-${{ steps.build-inputs.outputs.fingerprint }}
+
+      - name: Upload Windows portable artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: nai-launcher-windows-${{ inputs.build-mode || 'release' }}-portable
+          path: ${{ steps.package.outputs.archive-path }}
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
