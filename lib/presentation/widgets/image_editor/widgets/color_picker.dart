@@ -91,35 +91,18 @@ class _HSVColorPickerState extends State<HSVColorPicker> {
             Expanded(
               child: ThemedInput(
                 controller: _hexController,
+                borderRadius: 4,
                 style: TextStyle(
                   color: colorScheme.onSurface,
                   fontSize: 12,
                   fontFamily: 'monospace',
                 ),
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(
+                  contentPadding: EdgeInsets.symmetric(
                     horizontal: 8,
                     vertical: 8,
                   ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(4),
-                    borderSide: BorderSide(
-                      color: colorScheme.outlineVariant.withValues(alpha: 0.3),
-                    ),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(4),
-                    borderSide: BorderSide(
-                      color: colorScheme.outlineVariant.withValues(alpha: 0.3),
-                    ),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(4),
-                    borderSide: BorderSide(color: colorScheme.primary),
-                  ),
-                  filled: true,
-                  fillColor: colorScheme.surfaceContainer,
                 ),
                 onSubmitted: (value) {
                   final color = _hexToColor(value);

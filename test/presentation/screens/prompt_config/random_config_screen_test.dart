@@ -139,6 +139,14 @@ void main() {
       expect(find.text('官网 · Character Prompts'), findsOneWidget);
       expect(find.byTooltip('数据来源详情'), findsOneWidget);
       expect(find.byType(TextField), findsWidgets);
+      final searchHints = tester
+          .widgetList<TextField>(find.byType(TextField))
+          .map((field) => field.decoration?.hintText)
+          .whereType<String>();
+      expect(
+        searchHints,
+        contains(width < 1050 ? '搜索类别、词组或标签' : '搜索类别、词组或标签（Ctrl+F）'),
+      );
       expect(tester.takeException(), isNull);
     });
   }

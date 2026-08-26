@@ -3,6 +3,7 @@ enum ReleaseAssetType {
   windowsInstaller,
   windowsPortable,
   macosPortable,
+  androidApk,
   unknown,
 }
 
@@ -28,15 +29,18 @@ class ReleaseAssetInfo {
     this.description,
   });
 
-  /// Windows 安装版与便携版均支持应用内自动更新；macOS 需手动替换。
+  /// Windows 安装版与便携版由独立更新器替换应用；Android APK 在应用内
+  /// 完成下载与校验后交给系统安装界面确认。macOS 仍需手动替换。
   bool get supportsInAppInstall =>
       type == ReleaseAssetType.windowsInstaller ||
-      type == ReleaseAssetType.windowsPortable;
+      type == ReleaseAssetType.windowsPortable ||
+      type == ReleaseAssetType.androidApk;
 
   String get typeId => switch (type) {
     ReleaseAssetType.windowsInstaller => 'windows-installer',
     ReleaseAssetType.windowsPortable => 'windows-portable',
     ReleaseAssetType.macosPortable => 'macos-portable',
+    ReleaseAssetType.androidApk => 'android-apk',
     ReleaseAssetType.unknown => 'unknown',
   };
 
@@ -116,6 +120,7 @@ class ReleaseAssetInfo {
       'windows-installer' => ReleaseAssetType.windowsInstaller,
       'windows-portable' => ReleaseAssetType.windowsPortable,
       'macos-portable' => ReleaseAssetType.macosPortable,
+      'android-apk' => ReleaseAssetType.androidApk,
       'unknown' => ReleaseAssetType.unknown,
       _ => null,
     };
@@ -136,6 +141,9 @@ class ReleaseAssetInfo {
         (lowerName.contains('portable') || lowerName.endsWith('.zip'))) {
       return ReleaseAssetType.macosPortable;
     }
+    if (lowerName.contains('android') && lowerName.endsWith('.apk')) {
+      return ReleaseAssetType.androidApk;
+    }
     return ReleaseAssetType.unknown;
   }
 
@@ -144,6 +152,7 @@ class ReleaseAssetInfo {
       ReleaseAssetType.windowsInstaller ||
       ReleaseAssetType.windowsPortable => 'windows',
       ReleaseAssetType.macosPortable => 'macos',
+      ReleaseAssetType.androidApk => 'android',
       ReleaseAssetType.unknown => 'unknown',
     };
   }
@@ -153,6 +162,7 @@ class ReleaseAssetInfo {
       ReleaseAssetType.windowsInstaller => 'Windows 安装版',
       ReleaseAssetType.windowsPortable => 'Windows 便携版',
       ReleaseAssetType.macosPortable => 'macOS 便携版',
+      ReleaseAssetType.androidApk => 'Android APK',
       ReleaseAssetType.unknown => '下载文件',
     };
   }
@@ -162,6 +172,7 @@ class ReleaseAssetInfo {
       ReleaseAssetType.windowsInstaller => '推荐普通用户使用，支持应用内一键更新。',
       ReleaseAssetType.windowsPortable => '解压即用，支持应用内自动更新。',
       ReleaseAssetType.macosPortable => '解压后打开应用，更新时需要手动替换。',
+      ReleaseAssetType.androidApk => '下载后由 Android 系统确认并安装更新。',
       ReleaseAssetType.unknown => '请查看 Release 页面说明。',
     };
   }

@@ -66,8 +66,13 @@ void main() {
 
     expect(find.text('银发少女'), findsOneWidget);
     expect(find.text('S 1.0 · F 0.85'), findsOneWidget);
-    // 角色类型徽标（zh 显示“角色”）
-    expect(find.text('角色'), findsOneWidget);
+    // 触控布局收起徽标文字，但仍保留可访问名称。
+    expect(
+      find.byWidgetPredicate(
+        (widget) => widget is Icon && widget.semanticLabel == '角色',
+      ),
+      findsOneWidget,
+    );
     // 收藏态显示实心星标
     expect(find.byIcon(Icons.star), findsOneWidget);
   });

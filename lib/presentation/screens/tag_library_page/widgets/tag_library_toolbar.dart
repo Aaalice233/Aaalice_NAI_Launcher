@@ -2,15 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 
+import '../../../../core/platform/platform_capabilities.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../providers/tag_library_page_provider.dart';
 import '../../../providers/tag_library_selection_provider.dart';
 import '../../../widgets/autocomplete/autocomplete_config.dart';
+import '../../../widgets/common/input_surface_container.dart';
 import '../../../widgets/autocomplete/autocomplete_wrapper.dart';
 import '../../../widgets/bulk_action_bar.dart';
 
 /// 词库工具栏（搜索、视图切换、批量操作）
 class TagLibraryToolbar extends ConsumerStatefulWidget {
+  /// 紧凑布局中打开分类列表。
+  final VoidCallback? onShowCategories;
+
   /// 进入选择模式按钮回调
   final VoidCallback? onEnterSelectionMode;
 
@@ -40,6 +45,7 @@ class TagLibraryToolbar extends ConsumerStatefulWidget {
 
   const TagLibraryToolbar({
     super.key,
+    this.onShowCategories,
     this.onEnterSelectionMode,
     this.onBulkDelete,
     this.onBulkMoveCategory,
@@ -159,13 +165,21 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
             onPressed: widget.onAddEntry,
             icon: const Icon(Icons.add, size: 18),
             label: Text(context.l10n.tagLibrary_addEntry),
+            style: FilledButton.styleFrom(
+              minimumSize: Size(
+                48,
+                PlatformCapabilities.current.hasTouchInput ? 48 : 36,
+              ),
+            ),
           );
-          final categoriesButton = widget.onOpenCategories == null
+          final openCategories =
+              widget.onShowCategories ?? widget.onOpenCategories;
+          final categoriesButton = openCategories == null
               ? null
               : _CompactIconButton(
                   icon: Icons.account_tree_outlined,
                   label: context.l10n.common_categories,
-                  onPressed: widget.onOpenCategories,
+                  onPressed: openCategories,
                 );
 
           Widget buildActions() {
@@ -225,9 +239,9 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
                       categoriesButton,
                       const SizedBox(width: 8),
                     ],
-                    addButton,
-                    const SizedBox(width: 12),
                     Expanded(child: _buildSearchField(theme, state)),
+                    const SizedBox(width: 8),
+                    addButton,
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -300,14 +314,10 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
         treatSpacesAsSeparators: true,
       ),
       onSuggestionSelected: updateSearch,
-      child: Container(
-        height: 36,
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest.withValues(
-            alpha: 0.4,
-          ),
-          borderRadius: BorderRadius.circular(18),
-        ),
+      child: InputSurfaceContainer(
+        height: PlatformCapabilities.current.hasTouchInput ? 48 : 36,
+        borderRadius: 18,
+        isFocused: _searchFocusNode.hasFocus,
         child: TextField(
           controller: _searchController,
           focusNode: _searchFocusNode,
@@ -338,7 +348,13 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
                     },
                   )
                 : null,
+            filled: false,
             border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            disabledBorder: InputBorder.none,
+            errorBorder: InputBorder.none,
+            focusedErrorBorder: InputBorder.none,
             contentPadding: const EdgeInsets.symmetric(vertical: 8),
             isDense: true,
           ),
@@ -387,7 +403,7 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
   /// 构建排序下拉菜单
   Widget _buildSortDropdown(ThemeData theme, TagLibraryPageState state) {
     return Container(
-      height: 36,
+      height: PlatformCapabilities.current.hasTouchInput ? 48 : 36,
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
@@ -478,7 +494,11 @@ class _ViewModeButton extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
         child: Container(
-          padding: const EdgeInsets.all(8),
+          constraints: BoxConstraints(
+            minWidth: PlatformCapabilities.current.hasTouchInput ? 48 : 34,
+            minHeight: PlatformCapabilities.current.hasTouchInput ? 48 : 34,
+          ),
+          alignment: Alignment.center,
           decoration: BoxDecoration(
             color: isSelected
                 ? theme.colorScheme.primaryContainer.withValues(alpha: 0.5)
@@ -577,6 +597,7 @@ class _CompactIconButtonState extends State<_CompactIconButton>
         message: widget.label ?? '',
         waitDuration: const Duration(milliseconds: 500),
         child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
           onTapDown: isEnabled
               ? (_) {
                   setState(() => _isPressed = true);
@@ -602,8 +623,15 @@ class _CompactIconButtonState extends State<_CompactIconButton>
               return Transform.scale(
                 scale: 1 - ((1 - _scaleAnimation.value) * 0.25),
                 child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
+                  duration: MediaQuery.disableAnimationsOf(context)
+                      ? Duration.zero
+                      : const Duration(milliseconds: 180),
                   curve: Curves.easeOutCubic,
+                  constraints: BoxConstraints(
+                    minHeight: PlatformCapabilities.current.hasTouchInput
+                        ? 48
+                        : 34,
+                  ),
                   padding: EdgeInsets.symmetric(
                     horizontal: hasLabel ? 12 : 9,
                     vertical: 7,

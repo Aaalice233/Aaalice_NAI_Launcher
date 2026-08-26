@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/shortcuts/default_shortcuts.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../data/models/queue/replication_task.dart';
@@ -61,10 +62,11 @@ class _DesktopGenerationLayoutState
     // 从 Provider 读取生成状态（用于快捷键回调）
     final generationState = ref.watch(imageGenerationNotifierProvider);
     final cooldownState = ref.watch(generationCooldownProvider);
-    final kritaBridgeState = ref.watch(kritaBridgeNotifierProvider);
+    final isKritaGenerating =
+        PlatformCapabilities.current.supportsKritaBridge &&
+        ref.watch(kritaBridgeNotifierProvider).isBridgeGenerating;
     final isLauncherGenerating = generationState.isGenerating;
-    final isGenerating =
-        isLauncherGenerating || kritaBridgeState.isBridgeGenerating;
+    final isGenerating = isLauncherGenerating || isKritaGenerating;
 
     // 定义快捷键动作映射（使用 ShortcutIds 常量）
     final shortcuts = <String, VoidCallback>{

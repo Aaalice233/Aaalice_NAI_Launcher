@@ -28,6 +28,7 @@ Aaalice NAI Launcher 是面向高频创作流程的桌面工具，不是营销�
 - `lib/presentation/themes/core/theme_composer.dart` 负责组合颜色、字体、形状与动效，并生成统一的 Material 3 组件主题。
 - `lib/presentation/themes/theme_extension.dart` 只保留已接入消费链路的圆角、动效和低对比分隔语义。
 - `lib/presentation/themes/design_tokens.dart` 提供部分跨界面 token。
+- `lib/presentation/themes/core/input_surface_style.dart` 与 `lib/presentation/widgets/common/input_surface_container.dart` 分别统一原生 Material 输入和公共输入组件的深色填充、无边框结构及内侧焦点发光；旧 `InsetShadowContainer` 仅作为兼容入口保留。
 - `lib/presentation/widgets/common/` 和设置页公共组件承载了部分统一实现。
 - 生成页采用工作区式布局；在线画廊强调内容密度；设置页采用侧栏与受限宽度内容；统计页采用响应式信息网格。
 
@@ -48,7 +49,7 @@ Aaalice NAI Launcher 是面向高频创作流程的桌面工具，不是营销�
 - **在线画廊**：`online_gallery_screen.dart` 使用高密度顶栏与无界图片网格，内容优先最明确。这里的筛选与批量操作需要紧凑色面状态，不适合大量 outlined controls。
 - **设置页**：`settings_screen.dart` 使用侧栏、受限内容宽度和任务分区；`SettingsCard` 以留白和低对比色面分组，不再用常驻外框与底部分隔线重复包围内容。
 - **统计页**：`statistics_screen.dart` 使用响应式瀑布流卡片，适合浏览不同数据模块；卡片层级需要统一，图表本身应高于容器装饰。
-- **公共输入与容器**：`ThemedInput`、`ElevatedCard`、`CompactIconButton` 等已经尝试统一交互，但边框、内凹阴影、悬浮阴影等表达同时存在，导致调用方难以组合出安静的界面。
+- **公共输入与容器**：`ThemedInput` / `ThemedFormInput` 与全局 `InputDecorationTheme` 共同提供统一填充输入表面；`ElevatedCard`、`CompactIconButton` 等普通容器继续保持低装饰，不用阴影或多层边框制造伪层级。
 - **对话框与浮层**：项目同时存在 themed、glass 与功能专用实现。它们应共享遮罩、圆角、操作区、键盘焦点和层级规则，仅在内容材质上保留有限差异。
 
 总体上，项目最适合的不是纯 Material 默认风格、重拟物风格或卡片化后台，而是：**以生成工作台和图片内容为中心，以 Material 3 语义为基础，用低对比色面建立深度的桌面创作工具风格。**
@@ -85,6 +86,7 @@ Aaalice NAI Launcher 是面向高频创作流程的桌面工具，不是营销�
 - 默认容器、工具按钮、导航项、普通卡片使用**无边框**样式。
 - 相邻区域优先使用不同层级的 `surface` 色面区分。
 - 只有色面不足以解释边界时，才使用低对比 1px 分隔线。
+- **可编辑文本表面是明确例外**：搜索框、单/多行文本框与提示词编辑器统一使用独立填充色面和约 `0.5px` 的低对比单层边界，不使用边缘内阴影、外投影或第二层外框。
 - 不允许用纯白或高不透明度浅色线框包围暗色界面中的普通元素。
 - 不允许“外框 + 内框 + 分隔线”同时表达同一个分组。
 
@@ -121,7 +123,7 @@ Aaalice NAI Launcher 是面向高频创作流程的桌面工具，不是营销�
 |---|---|---|---|
 | Canvas | 页面背景、主工作区 | `surface` | 无 |
 | Section | 侧栏、分组色块、静态卡片 | `surfaceContainerLow` | 默认无 |
-| Control | 输入框、hover 项、可交互行 | `surfaceContainer` / `surfaceContainerHighest` | 默认无 |
+| Control | 输入框、hover 项、可交互行 | `surfaceContainer` / `surfaceContainerHighest` | 普通控件默认无；可编辑文本表面无常驻边框，聚焦时仅显示内侧发光 |
 | Overlay | 菜单、浮层、对话框 | `surfaceContainerHigh` | 轻阴影，必要时极细边界 |
 
 使用规则：
@@ -160,7 +162,7 @@ Aaalice NAI Launcher 是面向高频创作流程的桌面工具，不是营销�
 
 ### 5.1 可以使用边框的场景
 
-- 文本输入获得键盘焦点时的焦点环。
+- 搜索框、文本输入框和提示词编辑器不使用常驻边界，仅在键盘焦点或错误状态下绘制不占布局空间的内侧发光。
 - 拖放目标、框选区域或裁剪区域等需要精确边界的交互。
 - 图片与背景颜色过于接近时的 1px 内侧保护线。
 - 表格列、时间轴或复杂数据图中确实承担结构含义的线。
@@ -170,14 +172,15 @@ Aaalice NAI Launcher 是面向高频创作流程的桌面工具，不是营销�
 
 - 普通设置卡片、静态信息块和页面分组。
 - 工具栏图标按钮、导航项和只读 badge。
-- 已经有明显填充色的按钮、选中项和输入框。
-- 外层已有容器，内层只是内容分组时。
+- 已经有明显填充色的按钮和选中项；可编辑文本表面按第 11.4 节使用深色填充与内侧状态反馈。
+- 外层已有容器，内层只是内容分组时；输入框不得再被外框重复包围。
 - 仅为了让界面“看起来完整”时。
 
 ### 5.3 细边框参数
 
-- 常规宽度：`1` logical pixel；不要使用 2px 装饰边框。
-- 默认颜色：`outlineVariant` 的 12%–24%，而不是 `Colors.white`。
+- 常规结构线宽度：`1` logical pixel；不要使用 2px 装饰边框。
+- 可编辑文本表面默认不绘制边界；focus/error 的高亮和柔光必须完全裁切在控件内侧，边界尺寸恒为 `0`，不能引起尺寸变化。
+- 默认结构线颜色：`outlineVariant` 的 12%–24%，而不是 `Colors.white`。
 - 图片保护线：根据图片背景使用黑或白 8%–12% 的内侧线。
 - 焦点边界允许提高对比，但不能再叠加外发光。
 - 分隔线只跨越需要分隔的内容宽度，不必机械地铺满整个容器。
@@ -259,7 +262,8 @@ Aaalice NAI Launcher 是面向高频创作流程的桌面工具，不是营销�
 
 ### 9.1 阴影
 
-- 静态内容默认无阴影。
+- 静态内容和可编辑文本表面默认无阴影；输入能力通过独立的深色填充表达，不模拟凹槽或 elevation。
+- 搜索框、文本框和提示词编辑器不得添加常驻内阴影、外投影或大面积渐变；只允许在 focus/error 状态显示克制且完全位于控件内侧的发光。
 - hover 卡片最多使用非常轻的 elevation 变化，并且不能同时出现亮边框。
 - 下拉菜单、浮动工具条和 tooltip 使用一级柔和阴影。
 - 对话框使用二级阴影；背景同时使用 scrim，不靠更重阴影硬拉开层级。
@@ -326,12 +330,12 @@ Aaalice NAI Launcher 是面向高频创作流程的桌面工具，不是营销�
 
 ### 11.4 输入框
 
-- 默认使用填充式输入面：低对比 Control surface，无常驻描边。
-- hover 轻微提高背景对比；focus 显示清晰但细的 primary 焦点环。
-- 错误状态使用 error 焦点环与字段下方错误文字，不把整片输入框染成高饱和红色。
-- prefix/suffix 图标保持次级视觉权重，获得焦点后可随主色增强。
-- 清空、显示密码等按钮默认无边框、点击区足够大。
-- 多行提示词输入区可以拥有更明显的独立色面，但不能出现多层内凹白框。
+- 搜索框、单/多行文本输入框和提示词编辑器统一使用偏深的填充式 Control surface；三者必须共享同一语义实现，不能按页面各画一套。
+- 默认状态完全无边框、无外投影、无纹理和第二层外框；深色填充与页面背景的克制差异负责识别“这里可以输入”，不能出现突兀的浅灰块。
+- hover 可轻微提高背景对比；focus 只在控件内部边缘显示 primary 柔光和细高亮，error 同理使用 error 内侧发光与字段下方错误文字。所有状态的 border dimensions 恒为 `0`，不得改变控件宽高、padding 或相邻布局。
+- disabled/read-only 通过内容与填充透明度降级，不恢复边框；read-only 内容若不需要呈现编辑能力，应改用普通文本，而不是伪装成输入框。
+- prefix/suffix 图标保持次级视觉权重，获得焦点后可随主色增强；清空、显示密码等按钮默认无边框、点击区足够大。
+- 多行提示词编辑器允许使用更明确但同样偏深的独立色面，并应优先保障正文可视面积；工具操作放在框外的紧凑 footer，不得覆盖正文或形成“大框套小框”。
 
 ### 11.5 Chip、筛选与 segmented control
 
@@ -496,8 +500,8 @@ Aaalice NAI Launcher 是面向高频创作流程的桌面工具，不是营销�
 
 ### 16.2 公共组件原则
 
-- 公共组件默认应当是低装饰、可组合的，不在内部强制常驻描边。
-- 调用方可以提升强调级别，但不能为了去掉公共组件边框而反向覆盖大量样式。
+- 公共组件默认应当是低装饰、可组合的；普通容器不强制常驻描边，可编辑文本组件则必须内建第 11.4 节规定的深色填充与内侧状态发光语义。
+- 调用方可以提升强调级别，但不能绕开统一输入表面、重复套框，或通过局部边框/阴影制造另一套输入样式。
 - 新建通用组件前先检查 `lib/presentation/widgets/common/` 和相邻功能模块。
 - 只抽象真实重复的模式，不为单个页面创建“万能卡片”。
 - 组件 API 表达语义，例如 `selected`、`danger`、`emphasis`，而不是暴露十几个颜色参数。
@@ -509,7 +513,7 @@ Aaalice NAI Launcher 是面向高频创作流程的桌面工具，不是营销�
 | 语义 | 默认选择 | 现阶段约束 |
 |---|---|---|
 | Button | Material 3 `FilledButton` / `.tonal` / `TextButton` / `IconButton`，或现有 `ThemedButton` 兼容入口 | `ThemedButton` 内部同样使用原生 Material 控件，不引入另一套物理/数字按钮交互 |
-| Text input | 复用 `ThemedInput` 或同功能已有输入组件 | focus、error、disabled 由统一语义色面表达；不得再包一层常驻外框 |
+| Text input | 复用 `ThemedInput`、`ThemedFormInput` 或统一 `InputDecorationTheme` | default/focus/error/disabled 共用深色填充输入表面与零尺寸内侧状态发光；搜索框和提示词框不得另画平行样式或再包常驻外框 |
 | Checkbox / Switch / Slider / Radio | Flutter Material 原生控件或现有 themed 兼容入口 | themed 入口内部复用原生控件，保持键盘、Semantics 与状态行为一致 |
 | Card / Panel | 声明 surface 语义的简单容器 | `ElevatedCard` 仅用于确有 elevation 的交互层，普通分组不用它制造阴影 |
 | Dialog | 复用已有 themed dialog shell；确认操作使用 `ThemedConfirmDialog` | 不新增仅外观不同的 dialog shell；功能专用内容仍共享遮罩、焦点和操作区规则 |
@@ -580,7 +584,8 @@ BoxDecoration(
 
 - 是否直接写了 `Colors.white`、`Colors.black` 或固定灰色来表达主题层级？
 - 是否新增了 `Border.all`？如果去掉，层级是否仍然成立？
-- 是否出现外框套内框？
+- 是否出现外框套内框？输入框是否彻底移除了常驻内外边框？
+- 搜索框、文本框、提示词框是否都复用统一深色填充和内侧 focus/error 发光，并且没有局部外投影或改变布局的边界？
 - 是否绕开 `ThemeData`、`AppThemeExtension` 或已有 token？
 - 是否为同类控件引入了新的圆角、间距或动效时长？
 - hover、focus、pressed、disabled、loading 是否完整？

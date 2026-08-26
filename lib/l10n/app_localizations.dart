@@ -587,6 +587,18 @@ abstract class AppLocalizations {
   /// **'GitHub Repository'**
   String get nav_githubRepo;
 
+  /// No description provided for @nav_joinDiscord.
+  ///
+  /// In en, this message translates to:
+  /// **'Join Discord'**
+  String get nav_joinDiscord;
+
+  /// No description provided for @nav_projectRepository.
+  ///
+  /// In en, this message translates to:
+  /// **'Project repository'**
+  String get nav_projectRepository;
+
   /// No description provided for @nav_expandSidebar.
   ///
   /// In en, this message translates to:
@@ -712,6 +724,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'API Token Login'**
   String get auth_tokenLogin;
+
+  /// No description provided for @auth_tokenLoginCompact.
+  ///
+  /// In en, this message translates to:
+  /// **'Token Login'**
+  String get auth_tokenLoginCompact;
 
   /// No description provided for @auth_tokenLoginRecommended.
   ///
@@ -892,12 +910,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Select from Gallery'**
   String get auth_selectFromGallery;
-
-  /// No description provided for @auth_takePhoto.
-  ///
-  /// In en, this message translates to:
-  /// **'Take Photo'**
-  String get auth_takePhoto;
 
   /// No description provided for @auth_quickLogin.
   ///
@@ -1216,6 +1228,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Prompt Assistant'**
   String get settings_promptAssistant;
+
+  /// No description provided for @settings_comfyUiDesktopOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Available on desktop only'**
+  String get settings_comfyUiDesktopOnly;
 
   /// No description provided for @settings_selectStyle.
   ///
@@ -1898,7 +1916,7 @@ abstract class AppLocalizations {
   /// No description provided for @prompt_inputPrompt.
   ///
   /// In en, this message translates to:
-  /// **'Enter prompt...'**
+  /// **'Describe the image you want to create'**
   String get prompt_inputPrompt;
 
   /// No description provided for @prompt_describeImage.
@@ -4922,12 +4940,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Download started...'**
   String get onlineGallery_downloadStarted;
-
-  /// No description provided for @onlineGallery_savedToPath.
-  ///
-  /// In en, this message translates to:
-  /// **'Saved to: {path}'**
-  String onlineGallery_savedToPath(Object path);
 
   /// No description provided for @onlineGallery_downloadFailed.
   ///
@@ -10183,12 +10195,6 @@ abstract class AppLocalizations {
   /// **'Reset Advanced Filters'**
   String get localGallery_resetAdvancedFilters;
 
-  /// No description provided for @localGallery_exportFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Export failed'**
-  String get localGallery_exportFailed;
-
   /// No description provided for @bulkExport_format.
   ///
   /// In en, this message translates to:
@@ -10206,12 +10212,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'CSV'**
   String get bulkExport_csvFormat;
-
-  /// No description provided for @bulkExport_includeMetadataHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Export generation parameters with images'**
-  String get bulkExport_includeMetadataHint;
 
   /// No description provided for @localGallery_group_today.
   ///
@@ -10264,7 +10264,7 @@ abstract class AppLocalizations {
   /// No description provided for @localGallery_firstTimeTipTitle.
   ///
   /// In en, this message translates to:
-  /// **'💡 Tips'**
+  /// **'Tips'**
   String get localGallery_firstTimeTipTitle;
 
   /// No description provided for @localGallery_firstTimeTipContent.
@@ -13066,6 +13066,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Edit Task'**
   String get queue_editTask;
+
+  /// No description provided for @queue_taskDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Task Details'**
+  String get queue_taskDetails;
+
+  /// No description provided for @queue_clearCompletedTasks.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear Completed'**
+  String get queue_clearCompletedTasks;
 
   /// No description provided for @queue_duplicateTask.
   ///
@@ -17365,7 +17377,7 @@ abstract class AppLocalizations {
   /// No description provided for @settings_localOnnxTaggerFolder.
   ///
   /// In en, this message translates to:
-  /// **'Local ONNX tagger model folder'**
+  /// **'Local ONNX tagger model'**
   String get settings_localOnnxTaggerFolder;
 
   /// No description provided for @settings_notConfigured.
@@ -18823,7 +18835,7 @@ abstract class AppLocalizations {
   /// No description provided for @vibeLibrary_emptySaveFromGenerationHint.
   ///
   /// In en, this message translates to:
-  /// **'Save Vibes from the generation page to add them to the library'**
+  /// **'Import a file, or save a Vibe from the generation page'**
   String get vibeLibrary_emptySaveFromGenerationHint;
 
   /// No description provided for @vibe_nameRequired.
@@ -19801,7 +19813,7 @@ abstract class AppLocalizations {
   /// No description provided for @updateNoticeAvailableSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Download and finish the update automatically in the app'**
+  /// **'Download, verify, and safely install the update in the app'**
   String get updateNoticeAvailableSubtitle;
 
   /// No description provided for @updateNoticeManualSubtitle.
@@ -19819,7 +19831,7 @@ abstract class AppLocalizations {
   /// No description provided for @updateNoticeReadySubtitle.
   ///
   /// In en, this message translates to:
-  /// **'The package is verified and ready to install on restart'**
+  /// **'The package is verified and ready to install'**
   String get updateNoticeReadySubtitle;
 
   /// No description provided for @updateNoticeFailed.
@@ -20025,6 +20037,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'You can also right-click images in preview, history, or gallery to save them here'**
   String get preciseRefLib_emptyHint;
+
+  /// No description provided for @preciseRefLib_emptyTouch.
+  ///
+  /// In en, this message translates to:
+  /// **'Import images to build your reference library'**
+  String get preciseRefLib_emptyTouch;
+
+  /// No description provided for @preciseRefLib_emptyHintTouch.
+  ///
+  /// In en, this message translates to:
+  /// **'You can also save images from generation results, history, or the local gallery'**
+  String get preciseRefLib_emptyHintTouch;
 
   /// No description provided for @preciseRefLib_import.
   ///
@@ -22226,6 +22250,12 @@ abstract class AppLocalizations {
   /// **'Search categories, groups, or tags (Ctrl+F)'**
   String get randomManager_searchCategories;
 
+  /// No description provided for @randomManager_searchCategoriesCompact.
+  ///
+  /// In en, this message translates to:
+  /// **'Search categories, groups, or tags'**
+  String get randomManager_searchCategoriesCompact;
+
   /// No description provided for @randomManager_workspaceTitle.
   ///
   /// In en, this message translates to:
@@ -22495,6 +22525,174 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No matching categories, groups, or tags'**
   String get randomManager_noCategoryResults;
+
+  /// No description provided for @common_share.
+  ///
+  /// In en, this message translates to:
+  /// **'Share'**
+  String get common_share;
+
+  /// No description provided for @common_moreActions.
+  ///
+  /// In en, this message translates to:
+  /// **'More actions'**
+  String get common_moreActions;
+
+  /// No description provided for @nav_more.
+  ///
+  /// In en, this message translates to:
+  /// **'More'**
+  String get nav_more;
+
+  /// No description provided for @nav_explore.
+  ///
+  /// In en, this message translates to:
+  /// **'Explore'**
+  String get nav_explore;
+
+  /// No description provided for @image_savedToSystemGallery.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved to your photo gallery'**
+  String get image_savedToSystemGallery;
+
+  /// No description provided for @image_savedAppOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved to the app gallery, but could not export to your photo gallery: {error}'**
+  String image_savedAppOnly(Object error);
+
+  /// No description provided for @image_shareFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Share failed: {error}'**
+  String image_shareFailed(Object error);
+
+  /// No description provided for @onlineGallery_savedFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved {count} files'**
+  String onlineGallery_savedFiles(int count);
+
+  /// No description provided for @statistics_exportJsonHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Exports all calculated statistics and distributions as structured JSON.'**
+  String get statistics_exportJsonHint;
+
+  /// No description provided for @statistics_exportCsvHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Exports sectioned statistics that can be opened in spreadsheet applications.'**
+  String get statistics_exportCsvHint;
+
+  /// No description provided for @queue_reorderTask.
+  ///
+  /// In en, this message translates to:
+  /// **'Reorder task'**
+  String get queue_reorderTask;
+
+  /// No description provided for @queue_moreTaskActions.
+  ///
+  /// In en, this message translates to:
+  /// **'More task actions'**
+  String get queue_moreTaskActions;
+
+  /// No description provided for @queue_selectTask.
+  ///
+  /// In en, this message translates to:
+  /// **'Select task'**
+  String get queue_selectTask;
+
+  /// No description provided for @settings_notificationSoundImportFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t import the sound. Choose the file again.'**
+  String get settings_notificationSoundImportFailed;
+
+  /// No description provided for @settings_androidManagedStorage.
+  ///
+  /// In en, this message translates to:
+  /// **'Securely managed by the system; choose a location when exporting'**
+  String get settings_androidManagedStorage;
+
+  /// No description provided for @settings_importLocalOnnxTaggerFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'Import ONNX model and label files'**
+  String get settings_importLocalOnnxTaggerFiles;
+
+  /// No description provided for @settings_localOnnxFilesImported.
+  ///
+  /// In en, this message translates to:
+  /// **'Imported {count} model files'**
+  String settings_localOnnxFilesImported(int count);
+
+  /// No description provided for @settings_localOnnxManagedFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} model files in app storage'**
+  String settings_localOnnxManagedFiles(int count);
+
+  /// No description provided for @settings_clearLocalOnnxModelsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear local ONNX models?'**
+  String get settings_clearLocalOnnxModelsTitle;
+
+  /// No description provided for @settings_clearLocalOnnxModelsContent.
+  ///
+  /// In en, this message translates to:
+  /// **'This removes the ONNX models and label files imported on this device.'**
+  String get settings_clearLocalOnnxModelsContent;
+
+  /// No description provided for @updateAndroidDownloadedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'v{version} has been downloaded and verified. Open Android\'s system installer to continue the update.'**
+  String updateAndroidDownloadedHint(Object version);
+
+  /// No description provided for @updateAndroidInstallingHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Opening Android\'s system installer. Follow the system prompt to confirm the update.'**
+  String get updateAndroidInstallingHint;
+
+  /// No description provided for @updateAndroidInstallConfirmationBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Android\'s system installer will open. After you confirm, Android will replace the app without clearing local data. Active generation and download tasks may stop, so save anything important first.'**
+  String get updateAndroidInstallConfirmationBody;
+
+  /// No description provided for @preciseRefLib_moreActions.
+  ///
+  /// In en, this message translates to:
+  /// **'More actions'**
+  String get preciseRefLib_moreActions;
+
+  /// No description provided for @vibeDetail_setAsCover.
+  ///
+  /// In en, this message translates to:
+  /// **'Set selected image as cover'**
+  String get vibeDetail_setAsCover;
+
+  /// No description provided for @vibeDetail_bundleChildParameters.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing import parameters for child Vibe {index}.'**
+  String vibeDetail_bundleChildParameters(int index);
+
+  /// No description provided for @vibeDetail_bundleDefaultParameters.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing Bundle default parameters. Select a child below to view its parameters.'**
+  String get vibeDetail_bundleDefaultParameters;
+
+  /// No description provided for @vibeDetail_choosePreviewImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Use the image button to choose a preview'**
+  String get vibeDetail_choosePreviewImage;
 }
 
 class _AppLocalizationsDelegate

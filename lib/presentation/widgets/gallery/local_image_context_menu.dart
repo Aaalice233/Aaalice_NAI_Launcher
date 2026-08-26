@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/utils/localization_extension.dart';
 
 enum LocalImageContextAction {
@@ -103,12 +104,13 @@ class LocalImageContextMenu {
           label: context.l10n.localGallery_copySeed,
         ),
       const PopupMenuDivider(),
-      _item(
-        context,
-        value: LocalImageContextAction.showInFolder,
-        icon: Icons.folder_open,
-        label: context.l10n.localGallery_showInFolder,
-      ),
+      if (PlatformCapabilities.current.supportsOpenFolder)
+        _item(
+          context,
+          value: LocalImageContextAction.showInFolder,
+          icon: Icons.folder_open,
+          label: context.l10n.localGallery_showInFolder,
+        ),
       _item(
         context,
         value: LocalImageContextAction.delete,

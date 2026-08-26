@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-import 'inset_shadow_container.dart';
+import 'input_surface_container.dart';
 
 /// 安全的下拉框 - 自动验证value是否在items中
-/// 包装InsetShadowContainer提供立体感
+/// 复用共享填充色面与状态边界
 class SafeDropdown<T> extends StatefulWidget {
   final T? value;
   final List<DropdownMenuItem<T>> items;
@@ -54,7 +54,7 @@ class _SafeDropdownState<T> extends State<SafeDropdown<T>> {
     final theme = Theme.of(context);
     final validValue = _validateValue();
 
-    return InsetShadowContainer(
+    return InputSurfaceContainer(
       borderRadius: widget.borderRadius,
       isFocused: _focusNode.hasFocus,
       padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -137,7 +137,7 @@ class SafeDropdownFormField<T> extends StatelessWidget {
           ),
           const SizedBox(height: 6),
         ],
-        InsetShadowContainer(
+        InputSurfaceContainer(
           borderRadius: borderRadius,
           child: DropdownButtonFormField<T>(
             initialValue: validValue,

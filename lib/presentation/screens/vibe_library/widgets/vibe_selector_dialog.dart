@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nai_launcher/presentation/themes/core/input_surface_style.dart';
 
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/vibe_performance_diagnostics.dart';
@@ -548,7 +549,7 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
           borderSide: BorderSide.none,
         ),
         filled: true,
-        fillColor: theme.colorScheme.surfaceContainerHighest,
+        fillColor: inputSurfaceFillColor(theme.colorScheme),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 12,

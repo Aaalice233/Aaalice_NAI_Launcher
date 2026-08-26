@@ -2,11 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/constants/community_links.dart';
+import '../../core/platform/platform_capabilities.dart';
 import '../../core/utils/localization_extension.dart';
 import '../../core/services/auth_error_service.dart';
 import '../../core/shortcuts/default_shortcuts.dart';
+import '../adaptive/adaptive_presenter.dart';
+import '../adaptive/window_size_class.dart';
 import '../providers/auth_provider.dart';
+import '../providers/prompt_maximize_provider.dart';
 import '../providers/replication_queue_provider.dart';
 import '../providers/update_provider.dart';
 import '../screens/auth/login_screen.dart';
@@ -22,6 +28,7 @@ import '../screens/precise_ref_library/precise_ref_library_screen.dart';
 import '../screens/tag_library_page/tag_library_page_screen.dart';
 import '../screens/vibe_library/vibe_library_screen.dart';
 import '../widgets/app_branch_visibility.dart';
+import '../widgets/common/app_toast.dart';
 import '../widgets/common/update_notice_banner.dart';
 import '../widgets/drop/global_drop_handler.dart';
 import '../widgets/navigation/main_nav_rail.dart';
@@ -115,6 +122,7 @@ GoRouter appRouter(Ref ref) {
 
   return GoRouter(
     initialLocation: AppRoutes.home,
+    restorationScopeId: 'app_router',
     debugLogDiagnostics: true,
 
     // 使用 refreshListenable 监听状态变化，触发 redirect 重新评估
@@ -350,6 +358,7 @@ class _MainShellState extends ConsumerState<MainShell> {
   @override
   void initState() {
     super.initState();
+    _previousIndex = widget.navigationShell.currentIndex;
     _authPromptSubscription = ref.listenManual<AuthPromptRequest?>(
       authPromptRequestProvider,
       (previous, next) {
@@ -373,9 +382,15 @@ class _MainShellState extends ConsumerState<MainShell> {
     super.didUpdateWidget(oldWidget);
     final currentIndex = widget.navigationShell.currentIndex;
 
-    // 页面切换检测（已移除互锁逻辑，不再需要重置标志）
-    if (_previousIndex != null && _previousIndex != currentIndex) {
-      // 不同页面间的图像详情页不再互锁
+    if (_previousIndex == AppBranch.generation.index &&
+        currentIndex != AppBranch.generation.index) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted ||
+            widget.navigationShell.currentIndex == AppBranch.generation.index) {
+          return;
+        }
+        ref.read(promptMaximizeNotifierProvider.notifier).setMaximized(false);
+      });
     }
     _previousIndex = currentIndex;
   }
@@ -412,8 +427,11 @@ class _MainShellState extends ConsumerState<MainShell> {
       }).toList(),
     );
 
-    // 使用 GlobalDropHandler 包装内容，支持拖拽图片到任意页面
-    final dropEnabledContent = GlobalDropHandler(child: contentStack);
+    // 外部拖放只在系统提供桌面拖放会话时挂载，避免触控平台创建无效通道。
+    final dropEnabledContent =
+        PlatformCapabilities.current.supportsExternalFileDrop
+        ? GlobalDropHandler(child: contentStack)
+        : contentStack;
 
     // 定义全局快捷键动作映射（使用 ShortcutIds 常量）
     final globalShortcuts = <String, VoidCallback>{
@@ -440,15 +458,14 @@ class _MainShellState extends ConsumerState<MainShell> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        // 桌面端：使用侧边导航
-        if (constraints.maxWidth >= 800) {
+        final sizeClass = WindowSizeClass.fromWidth(constraints.maxWidth);
+        if (!sizeClass.isCompact) {
           return DesktopShell(
             navigationShell: widget.navigationShell,
             content: shortcutEnabledContent,
           );
         }
 
-        // 移动端：使用底部导航
         return MobileShell(
           navigationShell: widget.navigationShell,
           content: shortcutEnabledContent,
@@ -573,10 +590,7 @@ class DesktopShell extends ConsumerWidget {
     return Scaffold(
       body: Row(
         children: [
-          // 侧边导航栏
           MainNavRail(navigationShell: navigationShell),
-
-          // 主内容区
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {
@@ -607,7 +621,8 @@ class DesktopShell extends ConsumerWidget {
   }
 }
 
-/// 移动端布局
+/// Compact touch-first shell. Secondary destinations remain explicit in the
+/// labelled “more” panel instead of disappearing behind desktop-only routes.
 class MobileShell extends ConsumerWidget {
   final StatefulNavigationShell navigationShell;
   final Widget content;
@@ -627,11 +642,19 @@ class MobileShell extends ConsumerWidget {
     final queueCount = ref.watch(
       replicationQueueNotifierProvider.select((state) => state.count),
     );
+    final keyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
 
-    return Scaffold(
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          return Stack(
+    return PopScope<void>(
+      canPop: !isQueueVisible,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && isQueueVisible) {
+          ref.read(queueManagementVisibleProvider.notifier).state = false;
+        }
+      },
+      child: Scaffold(
+        body: SafeArea(
+          bottom: false,
+          child: Stack(
             clipBehavior: Clip.none,
             children: [
               content,
@@ -648,70 +671,256 @@ class MobileShell extends ConsumerWidget {
                     navigationShell.goBranch(AppBranch.generation.index),
               ),
             ],
-          );
-        },
+          ),
+        ),
+        bottomNavigationBar: keyboardVisible
+            ? null
+            : NavigationBar(
+                selectedIndex: isQueueVisible
+                    ? mobileMoreNavigationIndex
+                    : mobileNavigationIndexForBranch(
+                        navigationShell.currentIndex,
+                      ),
+                onDestinationSelected: (index) =>
+                    _onNavigate(context, index, ref),
+                destinations: [
+                  NavigationDestination(
+                    icon: const Icon(Icons.auto_awesome_outlined),
+                    selectedIcon: const Icon(Icons.auto_awesome),
+                    label: context.l10n.nav_generate,
+                  ),
+                  NavigationDestination(
+                    icon: const Icon(Icons.photo_library_outlined),
+                    selectedIcon: const Icon(Icons.photo_library),
+                    label: context.l10n.nav_gallery,
+                  ),
+                  NavigationDestination(
+                    icon: const Icon(Icons.travel_explore_outlined),
+                    selectedIcon: const Icon(Icons.travel_explore),
+                    label: context.l10n.nav_explore,
+                  ),
+                  NavigationDestination(
+                    icon: const Icon(Icons.library_books_outlined),
+                    selectedIcon: const Icon(Icons.library_books),
+                    label: context.l10n.nav_dictionary,
+                  ),
+                  NavigationDestination(
+                    icon: Badge(
+                      isLabelVisible: queueCount > 0 || showUpdateBadge,
+                      label: queueCount > 0
+                          ? Text(
+                              queueCount > 99 ? '99+' : queueCount.toString(),
+                            )
+                          : null,
+                      smallSize: 7,
+                      child: const Icon(Icons.apps_outlined),
+                    ),
+                    selectedIcon: Badge(
+                      isLabelVisible: queueCount > 0 || showUpdateBadge,
+                      label: queueCount > 0
+                          ? Text(
+                              queueCount > 99 ? '99+' : queueCount.toString(),
+                            )
+                          : null,
+                      smallSize: 7,
+                      child: const Icon(Icons.apps),
+                    ),
+                    label: context.l10n.nav_more,
+                  ),
+                ],
+              ),
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: isQueueVisible
-            ? 3
-            : mobileNavigationIndexForBranch(navigationShell.currentIndex),
-        onDestinationSelected: (index) =>
-            _onNavigate(index, ref, isQueueVisible),
-        destinations: [
-          NavigationDestination(
-            icon: const Icon(Icons.auto_awesome_outlined),
-            selectedIcon: const Icon(Icons.auto_awesome),
-            label: context.l10n.nav_generate,
+    );
+  }
+
+  void _onNavigate(BuildContext context, int mobileIndex, WidgetRef ref) {
+    if (mobileIndex == mobileMoreNavigationIndex) {
+      ref.read(queueManagementVisibleProvider.notifier).state = false;
+      _showMorePanel(context, ref);
+      return;
+    }
+
+    ref.read(queueManagementVisibleProvider.notifier).state = false;
+    if (mobileIndex < 0 || mobileIndex >= mobileNavigationBranches.length) {
+      return;
+    }
+    navigationShell.goBranch(mobileNavigationBranches[mobileIndex].index);
+  }
+
+  Future<void> _showMorePanel(BuildContext context, WidgetRef ref) {
+    final queueCount = ref.read(replicationQueueNotifierProvider).count;
+    final hasUpdate = ref.read(updateStateProvider).hasNewVersion;
+
+    return AdaptivePresenter.showPanel<void>(
+      context: context,
+      initialChildSize: 0.68,
+      minChildSize: 0.52,
+      titleBuilder: (context) => Text(
+        context.l10n.nav_more,
+        style: Theme.of(context).textTheme.titleLarge,
+      ),
+      builder: (panelContext, scrollController) => ListView(
+        controller: scrollController,
+        padding: const EdgeInsets.fromLTRB(8, 8, 8, 24),
+        children: [
+          _MobileMoreDestination(
+            icon: Icons.playlist_play_rounded,
+            label: panelContext.l10n.queue_management,
+            badgeCount: queueCount,
+            onTap: () {
+              Navigator.of(panelContext).pop();
+              ref.read(queueManagementVisibleProvider.notifier).state = true;
+            },
           ),
-          NavigationDestination(
-            icon: const Icon(Icons.photo_library_outlined),
-            selectedIcon: const Icon(Icons.photo_library),
-            label: context.l10n.nav_gallery,
+          const Divider(indent: 16, endIndent: 16),
+          _MobileMoreDestination(
+            icon: Icons.style_outlined,
+            label: panelContext.l10n.vibeLibrary_title,
+            onTap: () => _selectBranch(panelContext, AppBranch.vibeLibrary),
           ),
-          NavigationDestination(
-            icon: Badge(
-              isLabelVisible: showUpdateBadge,
-              smallSize: 7,
-              child: const Icon(Icons.settings_outlined),
-            ),
-            selectedIcon: Badge(
-              isLabelVisible: showUpdateBadge,
-              smallSize: 7,
-              child: const Icon(Icons.settings),
-            ),
-            label: context.l10n.nav_settings,
+          _MobileMoreDestination(
+            icon: Icons.center_focus_strong_outlined,
+            label: panelContext.l10n.nav_preciseRefLibrary,
+            onTap: () =>
+                _selectBranch(panelContext, AppBranch.preciseRefLibrary),
           ),
-          NavigationDestination(
-            icon: Badge(
-              isLabelVisible: queueCount > 0,
-              label: Text(queueCount > 99 ? '99+' : queueCount.toString()),
-              child: const Icon(Icons.playlist_play_outlined),
+          _MobileMoreDestination(
+            icon: Icons.casino_outlined,
+            label: panelContext.l10n.nav_randomConfig,
+            onTap: () => _selectBranch(panelContext, AppBranch.promptConfig),
+          ),
+          _MobileMoreDestination(
+            icon: Icons.insights_outlined,
+            label: panelContext.l10n.statistics_title,
+            onTap: () => _selectBranch(panelContext, AppBranch.statistics),
+          ),
+          const Divider(indent: 16, endIndent: 16),
+          _MobileMoreDestination(
+            icon: Icons.settings_outlined,
+            label: panelContext.l10n.settings_title,
+            showBadge: hasUpdate,
+            onTap: () => _selectBranch(panelContext, AppBranch.settings),
+          ),
+          const Divider(indent: 16, endIndent: 16),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _MobileCommunityButton(
+                    key: const ValueKey('mobile-more-discord'),
+                    icon: const Icon(Icons.discord, size: 20),
+                    label: panelContext.l10n.nav_joinDiscord,
+                    backgroundColor: const Color(0xFF5865F2),
+                    onPressed: () => _openCommunityLink(
+                      panelContext,
+                      CommunityLinks.discord,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _MobileCommunityButton(
+                    key: const ValueKey('mobile-more-github'),
+                    icon: const GitHubLogo(color: Colors.white, size: 20),
+                    label: panelContext.l10n.nav_projectRepository,
+                    backgroundColor: const Color(0xFF2D333B),
+                    onPressed: () =>
+                        _openCommunityLink(panelContext, CommunityLinks.github),
+                  ),
+                ),
+              ],
             ),
-            selectedIcon: Badge(
-              isLabelVisible: queueCount > 0,
-              label: Text(queueCount > 99 ? '99+' : queueCount.toString()),
-              child: const Icon(Icons.playlist_play_rounded),
-            ),
-            label: context.l10n.queue_management,
           ),
         ],
       ),
     );
   }
 
-  /// 映射 mobile navigation index 到 branch index。
-  void _onNavigate(int mobileIndex, WidgetRef ref, bool isQueueVisible) {
-    if (mobileIndex == 3) {
-      ref.read(queueManagementVisibleProvider.notifier).state = !isQueueVisible;
-      return;
+  Future<void> _openCommunityLink(BuildContext panelContext, String url) async {
+    var opened = false;
+    try {
+      opened = await launchUrl(
+        Uri.parse(url),
+        mode: LaunchMode.externalApplication,
+      );
+    } catch (_) {
+      opened = false;
     }
+    if (!opened && panelContext.mounted) {
+      AppToast.error(panelContext, panelContext.l10n.cannotOpenUrl);
+    }
+  }
 
-    ref.read(queueManagementVisibleProvider.notifier).state = false;
-    final branch =
-        mobileIndex >= 0 && mobileIndex < mobileNavigationBranches.length
-        ? mobileNavigationBranches[mobileIndex]
-        : AppBranch.generation;
+  void _selectBranch(BuildContext panelContext, AppBranch branch) {
+    Navigator.of(panelContext).pop();
     navigationShell.goBranch(branch.index);
+  }
+}
+
+class _MobileCommunityButton extends StatelessWidget {
+  const _MobileCommunityButton({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.backgroundColor,
+    required this.onPressed,
+  });
+
+  final Widget icon;
+  final String label;
+  final Color backgroundColor;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return FilledButton.tonalIcon(
+      onPressed: onPressed,
+      style: FilledButton.styleFrom(
+        backgroundColor: backgroundColor,
+        foregroundColor: Colors.white,
+        minimumSize: const Size.fromHeight(56),
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+      ),
+      icon: icon,
+      label: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+    );
+  }
+}
+
+class _MobileMoreDestination extends StatelessWidget {
+  const _MobileMoreDestination({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.badgeCount = 0,
+    this.showBadge = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final int badgeCount;
+  final bool showBadge;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasCount = badgeCount > 0;
+    return ListTile(
+      minTileHeight: 56,
+      leading: Badge(
+        isLabelVisible: hasCount || showBadge,
+        label: hasCount
+            ? Text(badgeCount > 99 ? '99+' : badgeCount.toString())
+            : null,
+        smallSize: 7,
+        child: Icon(icon),
+      ),
+      title: Text(label),
+      trailing: const Icon(Icons.chevron_right),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      onTap: onTap,
+    );
   }
 }
 
@@ -824,11 +1033,14 @@ class _QueuePanel extends ConsumerWidget {
               curve: Curves.easeOutCubic,
               builder: (context, offset, child) {
                 final hidden = desktop ? offset.dx >= 0.5 : offset.dy >= 0.5;
-                return IgnorePointer(
-                  ignoring: hidden,
-                  child: FractionalTranslation(
-                    translation: offset,
-                    child: child,
+                return ExcludeSemantics(
+                  excluding: hidden,
+                  child: IgnorePointer(
+                    ignoring: hidden,
+                    child: FractionalTranslation(
+                      translation: offset,
+                      child: child,
+                    ),
                   ),
                 );
               },

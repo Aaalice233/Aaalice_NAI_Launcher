@@ -5,6 +5,8 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:nai_launcher/core/platform/platform_capabilities.dart';
+import 'package:nai_launcher/presentation/themes/core/input_surface_style.dart';
 import 'package:nai_launcher/presentation/themes/core/theme_modules.dart';
 import 'package:nai_launcher/presentation/themes/theme_extension.dart';
 
@@ -37,6 +39,7 @@ class ThemeComposer {
   /// match the fallback scheme to avoid assertion errors.
   ThemeData buildTheme(Brightness brightness) {
     final isDark = brightness == Brightness.dark;
+    final hasTouchInput = PlatformCapabilities.current.hasTouchInput;
 
     // Get the appropriate color scheme and effective brightness
     ColorScheme colorScheme;
@@ -72,6 +75,14 @@ class ThemeComposer {
       // Icon theme - ensures icons have good visibility by default
       // Uses onSurface for proper contrast on surface backgrounds
       iconTheme: IconThemeData(color: colorScheme.onSurface, size: 24),
+      iconButtonTheme: hasTouchInput
+          ? const IconButtonThemeData(
+              style: ButtonStyle(
+                minimumSize: WidgetStatePropertyAll(Size.square(48)),
+              ),
+            )
+          : null,
+      materialTapTargetSize: MaterialTapTargetSize.padded,
 
       // Apply divider module colors to Flutter's built-in divider
       dividerColor: colorScheme.onSurface.withValues(alpha: 0.08),
@@ -133,37 +144,42 @@ class ThemeComposer {
         ),
       ),
 
-      // 深度层叠风格：输入框使用纯色背景 + 无边框
+      // Editable surfaces use a restrained deep fill with no resting border.
+      // Focus/error feedback is painted inward with zero border dimensions, so
+      // keyboard focus never shifts surrounding layout.
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: colorScheme.surfaceContainerHighest,
-        // 深度层叠：移除边框，使用纯背景色差
-        border: OutlineInputBorder(
-          borderRadius: _extractBorderRadius(shape.inputShape),
-          borderSide: BorderSide.none,
+        fillColor: inputSurfaceFillColor(colorScheme),
+        border: inputSurfaceBorder(
+          colorScheme,
+          _extractBorderRadius(shape.inputShape),
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: _extractBorderRadius(shape.inputShape),
-          borderSide: BorderSide.none,
+        enabledBorder: inputSurfaceBorder(
+          colorScheme,
+          _extractBorderRadius(shape.inputShape),
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: _extractBorderRadius(shape.inputShape),
-          borderSide: BorderSide(
-            color: colorScheme.primary.withValues(alpha: 0.72),
-          ),
+        disabledBorder: inputSurfaceBorder(
+          colorScheme,
+          _extractBorderRadius(shape.inputShape),
+          enabled: false,
         ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: _extractBorderRadius(shape.inputShape),
-          borderSide: BorderSide(
-            color: colorScheme.error.withValues(alpha: 0.6),
-            width: 1.0,
-          ),
+        focusedBorder: inputSurfaceBorder(
+          colorScheme,
+          _extractBorderRadius(shape.inputShape),
+          focused: true,
         ),
-        focusedErrorBorder: OutlineInputBorder(
-          borderRadius: _extractBorderRadius(shape.inputShape),
-          borderSide: BorderSide(color: colorScheme.error),
+        errorBorder: inputSurfaceBorder(
+          colorScheme,
+          _extractBorderRadius(shape.inputShape),
+          error: true,
         ),
-        // 显式设置 hintStyle，确保在所有主题下都有足够的对比度
+        focusedErrorBorder: inputSurfaceBorder(
+          colorScheme,
+          _extractBorderRadius(shape.inputShape),
+          focused: true,
+          error: true,
+        ),
+        // Explicit contrast keeps placeholders legible in custom themes.
         hintStyle: TextStyle(color: colorScheme.outline, fontSize: 16),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 14,

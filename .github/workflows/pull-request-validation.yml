@@ -6,11 +6,14 @@ on:
       - main
     paths:
       - ".github/actions/prepare-flutter-build/action.yml"
+      - ".github/workflows/android-build.yml"
       - ".github/workflows/pull-request-validation.yml"
       - ".github/workflows/release.yml"
       - ".github/workflows/windows-portable.yml"
       - "analysis_options.yaml"
+      - "android/**"
       - "assets/**"
+      - "build.yaml"
       - "fonts/**"
       - "installer/windows/**"
       - "l10n.yaml"
@@ -56,6 +59,7 @@ jobs:
               - '.github/workflows/release.yml'
               - '.github/workflows/windows-portable.yml'
               - 'assets/**'
+              - 'build.yaml'
               - 'fonts/**'
               - 'l10n.yaml'
               - 'lib/**'

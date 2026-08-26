@@ -5,6 +5,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/platform/platform_capabilities.dart';
+import '../../../../core/services/file_export_service.dart';
 import '../../../../core/utils/app_logger.dart';
 import '../../../../core/utils/file_name_sanitizer.dart';
 import '../../../../core/utils/localization_extension.dart';
@@ -15,6 +17,11 @@ import '../../../../data/models/vibe/vibe_reference.dart';
 
 import '../../../providers/generation/generation_params_notifier.dart';
 import '../../../widgets/common/app_toast.dart';
+
+bool get _usesTouchControls => PlatformCapabilities.current.hasTouchInput;
+double get _compactControlExtent => _usesTouchControls ? 48 : 32;
+VisualDensity get _compactControlDensity =>
+    _usesTouchControls ? VisualDensity.standard : VisualDensity.compact;
 
 /// Vibe 导出格式枚举
 enum VibeExportFormat {
@@ -759,7 +766,11 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
                   });
                 },
                 padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                visualDensity: _compactControlDensity,
+                constraints: BoxConstraints.tightFor(
+                  width: _compactControlExtent,
+                  height: _compactControlExtent,
+                ),
               ),
               SizedBox(
                 width: 40,
@@ -878,7 +889,9 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
             });
           },
           child: Padding(
-            padding: EdgeInsets.only(left: depth * 16.0),
+            padding: EdgeInsets.only(
+              left: (depth * 16.0).clamp(0.0, 64.0).toDouble(),
+            ),
             child: Row(
               children: [
                 // 展开/折叠按钮
@@ -900,13 +913,14 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
                       });
                     },
                     padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(
-                      minWidth: 32,
-                      minHeight: 32,
+                    visualDensity: _compactControlDensity,
+                    constraints: BoxConstraints.tightFor(
+                      width: _compactControlExtent,
+                      height: _compactControlExtent,
                     ),
                   )
                 else
-                  const SizedBox(width: 32),
+                  SizedBox(width: _compactControlExtent),
 
                 // 复选框
                 SizedBox(
@@ -1003,7 +1017,9 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
         });
       },
       child: Padding(
-        padding: EdgeInsets.only(left: depth * 16.0),
+        padding: EdgeInsets.only(
+          left: (depth * 16.0).clamp(0.0, 64.0).toDouble(),
+        ),
         child: Row(
           children: [
             const SizedBox(width: 32),
@@ -1188,7 +1204,7 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
     }
 
     // 选择保存目录
-    final result = await FilePicker.platform.getDirectoryPath(
+    final result = await FileExportService.pickExportDirectory(
       dialogTitle: context.l10n.vibe_export_selectExportFolder,
     );
 

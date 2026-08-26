@@ -677,35 +677,36 @@ class _PreciseReferenceCard extends StatelessWidget {
                   ),
                 ),
 
-                // 右侧：保存到库 + 删除按钮
-                SizedBox(
-                  height: 28,
-                  width: 28,
-                  child: IconButton(
-                    key: Key('precise-reference-save-to-library-$index'),
-                    padding: EdgeInsets.zero,
-                    icon: Icon(
-                      Icons.bookmark_add_outlined,
-                      size: 18,
-                      color: theme.colorScheme.primary,
+                // 纵向排列保留 48dp 触控范围，同时避免压缩窄屏参数区。
+                Column(
+                  children: [
+                    SizedBox.square(
+                      dimension: 48,
+                      child: IconButton(
+                        key: Key('precise-reference-save-to-library-$index'),
+                        icon: Icon(
+                          Icons.bookmark_add_outlined,
+                          size: 18,
+                          color: theme.colorScheme.primary,
+                        ),
+                        onPressed: onSaveToLibrary,
+                        tooltip:
+                            context.l10n.preciseRefLib_saveCurrentToLibrary,
+                      ),
                     ),
-                    onPressed: onSaveToLibrary,
-                    tooltip: context.l10n.preciseRefLib_saveCurrentToLibrary,
-                  ),
-                ),
-                SizedBox(
-                  height: 28,
-                  width: 28,
-                  child: IconButton(
-                    padding: EdgeInsets.zero,
-                    icon: Icon(
-                      Icons.delete_outline,
-                      size: 18,
-                      color: theme.colorScheme.error,
+                    SizedBox.square(
+                      dimension: 48,
+                      child: IconButton(
+                        icon: Icon(
+                          Icons.delete_outline,
+                          size: 18,
+                          color: theme.colorScheme.error,
+                        ),
+                        onPressed: onRemove,
+                        tooltip: context.l10n.preciseRef_remove,
+                      ),
                     ),
-                    onPressed: onRemove,
-                    tooltip: context.l10n.preciseRef_remove,
-                  ),
+                  ],
                 ),
               ],
             ),
@@ -765,27 +766,25 @@ class _PreciseReferenceCard extends StatelessWidget {
 
   Widget _buildEnabledToggle(BuildContext context, ThemeData theme) {
     return Row(
-      mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          context.l10n.reference_enabled,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
+        Expanded(
+          child: Text(
+            context.l10n.reference_enabled,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
+            ),
           ),
         ),
-        const SizedBox(width: 8),
         Tooltip(
           message: reference.enabled
               ? context.l10n.reference_disable
               : context.l10n.reference_enable,
-          child: Transform.scale(
-            scale: 0.78,
-            child: Switch(
-              key: ValueKey('precise-reference-enabled-switch-$index'),
-              value: reference.enabled,
-              onChanged: onEnabledChanged,
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
+          child: Switch(
+            key: ValueKey('precise-reference-enabled-switch-$index'),
+            value: reference.enabled,
+            onChanged: onEnabledChanged,
           ),
         ),
       ],

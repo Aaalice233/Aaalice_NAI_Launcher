@@ -55,90 +55,103 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
           ],
         ),
         padding: const EdgeInsets.all(12),
-        child: GestureDetector(
-          onTap: () {
-            final sidebarExpanded = ref.read(
-              layoutStateNotifierProvider.select(
-                (state) => state.fixedTagsSidebarExpanded,
-              ),
-            );
-            if (!sidebarExpanded) {
-              _showFixedTagsDialog(context);
-            }
-          },
-          onLongPress: () {
-            ref
-                .read(layoutStateNotifierProvider.notifier)
-                .toggleFixedTagsSidebar();
-          },
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: hasEnabled
-                  ? (_isHovering
-                        ? theme.colorScheme.secondary.withValues(alpha: 0.2)
-                        : theme.colorScheme.secondary.withValues(alpha: 0.1))
-                  : (_isHovering
-                        ? theme.colorScheme.surfaceContainerHighest
-                        : Colors.transparent),
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(
-                color: hasEnabled
-                    ? theme.colorScheme.secondary.withValues(alpha: 0.5)
-                    : theme.colorScheme.secondary.withValues(alpha: 0.3),
-              ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  hasEnabled ? Icons.push_pin : Icons.push_pin_outlined,
-                  size: 14,
-                  color: hasEnabled
-                      ? theme.colorScheme.secondary
-                      : theme.colorScheme.onSurface.withValues(alpha: 0.5),
+        child: Semantics(
+          button: true,
+          label: context.l10n.fixedTags_label,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () {
+              final sidebarExpanded = ref.read(
+                layoutStateNotifierProvider.select(
+                  (state) => state.fixedTagsSidebarExpanded,
                 ),
-                const SizedBox(width: 4),
-                Text(
-                  context.l10n.fixedTags_label,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: hasEnabled ? FontWeight.w600 : FontWeight.w500,
+              );
+              if (!sidebarExpanded) {
+                _showFixedTagsDialog(context);
+              }
+            },
+            onLongPress: () => ref
+                .read(layoutStateNotifierProvider.notifier)
+                .toggleFixedTagsSidebar(),
+            child: AnimatedContainer(
+              duration: MediaQuery.disableAnimationsOf(context)
+                  ? Duration.zero
+                  : const Duration(milliseconds: 150),
+              constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+              alignment: Alignment.center,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: hasEnabled
+                    ? (_isHovering
+                          ? theme.colorScheme.secondary.withValues(alpha: 0.2)
+                          : theme.colorScheme.secondary.withValues(alpha: 0.1))
+                    : (_isHovering
+                          ? theme.colorScheme.surfaceContainerHighest
+                          : Colors.transparent),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(
+                  color: hasEnabled
+                      ? theme.colorScheme.secondary.withValues(alpha: 0.5)
+                      : theme.colorScheme.outlineVariant.withValues(
+                          alpha: 0.65,
+                        ),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    hasEnabled ? Icons.push_pin : Icons.push_pin_outlined,
+                    size: 14,
                     color: hasEnabled
                         ? theme.colorScheme.secondary
                         : theme.colorScheme.onSurface.withValues(alpha: 0.5),
                   ),
-                ),
-                if (hasEnabled) ...[
-                  const SizedBox(width: 5),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 2,
+                  const SizedBox(width: 4),
+                  Text(
+                    context.l10n.fixedTags_label,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: hasEnabled
+                          ? FontWeight.w600
+                          : FontWeight.w500,
+                      color: hasEnabled
+                          ? theme.colorScheme.secondary
+                          : theme.colorScheme.onSurface.withValues(alpha: 0.5),
                     ),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.secondary.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      enabledCount.toString(),
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: theme.colorScheme.secondary,
+                  ),
+                  if (hasEnabled) ...[
+                    const SizedBox(width: 5),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.secondary.withValues(
+                          alpha: 0.2,
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        enabledCount.toString(),
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: theme.colorScheme.secondary,
+                        ),
                       ),
                     ),
-                  ),
-                ] else if (hasEntries) ...[
-                  const SizedBox(width: 3),
-                  Icon(
-                    Icons.visibility_off,
-                    size: 14,
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
-                  ),
+                  ] else if (hasEntries) ...[
+                    const SizedBox(width: 3),
+                    Icon(
+                      Icons.visibility_off,
+                      size: 14,
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ),
@@ -515,6 +528,9 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerLow.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.15),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -610,6 +626,9 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.2),
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

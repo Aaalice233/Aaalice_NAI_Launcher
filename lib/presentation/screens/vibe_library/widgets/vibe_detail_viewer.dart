@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/platform/platform_capabilities.dart';
 import '../../../../core/shortcuts/default_shortcuts.dart';
 import '../../../../core/utils/app_logger.dart';
 import '../../../../core/utils/localization_extension.dart';
@@ -600,7 +601,9 @@ class _VibeDetailViewerState extends ConsumerState<VibeDetailViewer> {
       return _buildLoadingView();
     }
 
-    final isDesktop = MediaQuery.sizeOf(context).width > 800;
+    final isDesktop =
+        MediaQuery.sizeOf(context).width > 800 &&
+        PlatformCapabilities.current.hasPrecisePointer;
     final isBundle = _entry.isBundle;
 
     return Dialog.fullscreen(
@@ -710,28 +713,44 @@ class _VibeDetailViewerState extends ConsumerState<VibeDetailViewer> {
     );
   }
 
-  /// 移动端布局：上下分栏
+  /// 触屏布局：竖屏上下分栏，横屏并排，避免低高度设备挤压操作区。
   Widget _buildMobileLayout() {
-    return Column(
-      children: [
-        Expanded(
-          flex: 6,
-          child: VibePreviewDropZone(
-            imageBytes: _imageBytes,
-            onThumbnailChanged: _handleThumbnailChanged,
-            onClose: _close,
-          ),
-        ),
-        Expanded(flex: 4, child: _buildParamPanel()),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final useHorizontal =
+            constraints.maxWidth > constraints.maxHeight * 1.15;
+        final preview = VibePreviewDropZone(
+          imageBytes: _imageBytes,
+          onThumbnailChanged: _handleThumbnailChanged,
+          onClose: _close,
+        );
+        if (useHorizontal) {
+          return Row(
+            children: [
+              Expanded(flex: 6, child: preview),
+              Expanded(flex: 5, child: _buildParamPanel()),
+            ],
+          );
+        }
+
+        final isShort = constraints.maxHeight < 700;
+        return Column(
+          children: [
+            Expanded(flex: isShort ? 4 : 6, child: preview),
+            Expanded(flex: isShort ? 6 : 5, child: _buildParamPanel()),
+          ],
+        );
+      },
     );
   }
 
   Widget _buildParamPanel() {
     final bundleParamHint = _entry.isBundle
         ? _selectedSubVibeIndex >= 0
-              ? 'Showing import parameters for child Vibe ${_selectedSubVibeIndex + 1}.'
-              : 'Showing Bundle default parameters. Click a child item below to view its parameters.'
+              ? context.l10n.vibeDetail_bundleChildParameters(
+                  _selectedSubVibeIndex + 1,
+                )
+              : context.l10n.vibeDetail_bundleDefaultParameters
         : null;
 
     return VibeDetailParamPanel(

@@ -8,6 +8,7 @@ import '../../../core/services/date_formatting_service.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/auth/saved_account.dart';
+import '../../adaptive/adaptive_presenter.dart';
 import '../../providers/account_manager_provider.dart';
 import '../../providers/auth_mode_provider.dart';
 import '../../providers/auth_provider.dart';
@@ -35,12 +36,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   OverlayEntry? _loadingOverlayEntry;
   bool _showTroubleshootingButton = false;
-
-  @override
-  void initState() {
-    super.initState();
-    ref.read(authModeNotifierProvider.notifier).reset();
-  }
 
   @override
   void dispose() {
@@ -93,57 +88,57 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
 
     return Scaffold(
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final isWideScreen =
-                    constraints.maxWidth >= _wideScreenBreakpoint;
+      body: SafeArea(
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final isWideScreen =
+                      constraints.maxWidth >= _wideScreenBreakpoint;
 
-                return Center(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _Header(theme: theme),
-                        const SizedBox(height: 32),
-                        _buildMainContent(
-                          context,
-                          theme,
-                          isWideScreen,
-                          isLoading,
-                          accounts,
-                        ),
-                        const SizedBox(height: 12),
-                        TextButton.icon(
-                          key: const Key('auth-skip-login-button'),
-                          onPressed: _continueWithoutLogin,
-                          icon: const Icon(Icons.arrow_forward_rounded),
-                          label: Text(
-                            context.l10n.auth_continueWithoutLogin,
+                  return Center(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _Header(theme: theme),
+                          const SizedBox(height: 32),
+                          _buildMainContent(
+                            context,
+                            theme,
+                            isWideScreen,
+                            isLoading,
+                            accounts,
                           ),
-                        ),
-                        const SizedBox(height: 16),
-                        if (_showTroubleshootingButton)
-                          _TroubleshootingButton(),
-                        const SizedBox(height: 24),
-                        _LoginTip(theme: theme),
-                      ],
+                          const SizedBox(height: 12),
+                          TextButton.icon(
+                            key: const Key('auth-skip-login-button'),
+                            onPressed: _continueWithoutLogin,
+                            icon: const Icon(Icons.arrow_forward_rounded),
+                            label: Text(context.l10n.auth_continueWithoutLogin),
+                          ),
+                          const SizedBox(height: 16),
+                          if (_showTroubleshootingButton)
+                            _TroubleshootingButton(),
+                          const SizedBox(height: 24),
+                          _LoginTip(theme: theme),
+                        ],
+                      ),
                     ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
-          ),
-          const Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: UpdateNoticeBanner(),
-          ),
-        ],
+            const Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: UpdateNoticeBanner(),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -297,62 +292,45 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       });
     final defaultAccount = sortedAccounts.first;
 
-    showDialog(
+    AdaptivePresenter.showPanel<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Row(
-          children: [
-            Text(context.l10n.auth_selectAccount),
-            const Spacer(),
-            IconButton(
-              icon: const Icon(Icons.close),
-              onPressed: () => Navigator.pop(dialogContext),
+      title: context.l10n.auth_selectAccount,
+      initialChildSize: 0.72,
+      minChildSize: 0.42,
+      builder: (panelContext, scrollController) => ListView(
+        controller: scrollController,
+        padding: const EdgeInsets.only(bottom: 24),
+        children: [
+          ...accounts.map(
+            (account) => _AccountListItem(
+              account: account,
+              isSelected: account.id == currentAccount.id,
+              isDefault: account.id == defaultAccount.id,
+              createdDate: _dateFormattingService.formatDate(account.createdAt),
+              onTap: () {
+                Navigator.pop(panelContext);
+                _handleQuickLogin(context, ref, account);
+              },
+              onDelete: () => _showDeleteAccountDialog(context, ref, account),
             ),
-          ],
-        ),
-        titlePadding: const EdgeInsets.fromLTRB(24, 16, 8, 0),
-        contentPadding: const EdgeInsets.symmetric(vertical: 8),
-        content: SizedBox(
-          width: 350,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ...accounts.map(
-                (account) => _AccountListItem(
-                  account: account,
-                  isSelected: account.id == currentAccount.id,
-                  isDefault: account.id == defaultAccount.id,
-                  createdDate: _dateFormattingService.formatDate(
-                    account.createdAt,
-                  ),
-                  onTap: () {
-                    Navigator.pop(dialogContext);
-                    _handleQuickLogin(context, ref, account);
-                  },
-                  onDelete: () =>
-                      _showDeleteAccountDialog(context, ref, account),
-                ),
-              ),
-              const ThemedDivider(),
-              ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: Theme.of(
-                    context,
-                  ).colorScheme.primaryContainer,
-                  child: Icon(
-                    Icons.add,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                ),
-                title: Text(context.l10n.auth_addAccount),
-                onTap: () {
-                  Navigator.pop(dialogContext);
-                  _showAddAccountDialog(context);
-                },
-              ),
-            ],
           ),
-        ),
+          const ThemedDivider(),
+          ListTile(
+            minTileHeight: 56,
+            leading: CircleAvatar(
+              backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+              child: Icon(
+                Icons.add,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+            title: Text(context.l10n.auth_addAccount),
+            onTap: () {
+              Navigator.pop(panelContext);
+              _showAddAccountDialog(context);
+            },
+          ),
+        ],
       ),
     );
   }
@@ -396,37 +374,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   void _showAddAccountDialog(BuildContext context) {
     ref.read(authModeNotifierProvider.notifier).reset();
-    showDialog(
+    AdaptivePresenter.showPanel<void>(
       context: context,
-      builder: (dialogContext) => Dialog(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 450),
-          child: Padding(
-            padding: const EdgeInsets.all(8),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  children: [
-                    const SizedBox(width: 16),
-                    Text(
-                      context.l10n.auth_addAccount,
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const Spacer(),
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.pop(dialogContext),
-                    ),
-                  ],
-                ),
-                LoginFormContainer(
-                  onLoginSuccess: () => Navigator.pop(dialogContext),
-                ),
-              ],
-            ),
-          ),
-        ),
+      title: context.l10n.auth_addAccount,
+      initialChildSize: 0.9,
+      minChildSize: 0.62,
+      builder: (panelContext, scrollController) => ListView(
+        controller: scrollController,
+        padding: const EdgeInsets.fromLTRB(8, 16, 8, 32),
+        children: [
+          LoginFormContainer(onLoginSuccess: () => Navigator.pop(panelContext)),
+        ],
       ),
     );
   }
@@ -436,42 +394,39 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     WidgetRef ref,
     SavedAccount account,
   ) {
-    showModalBottomSheet(
+    AdaptivePresenter.showPanel<void>(
       context: context,
-      builder: (sheetContext) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
+      title: context.l10n.settings_changeAvatar,
+      initialChildSize: account.avatarPath == null ? 0.32 : 0.42,
+      minChildSize: 0.28,
+      maxChildSize: 0.62,
+      builder: (panelContext, scrollController) => ListView(
+        controller: scrollController,
+        padding: const EdgeInsets.only(bottom: 24),
+        children: [
+          ListTile(
+            minTileHeight: 56,
+            leading: const Icon(Icons.photo_library),
+            title: Text(context.l10n.auth_selectFromGallery),
+            onTap: () {
+              Navigator.pop(panelContext);
+              _pickImageFromGallery(context, ref, account);
+            },
+          ),
+          if (account.avatarPath != null)
             ListTile(
-              leading: const Icon(Icons.photo_library),
-              title: Text(context.l10n.auth_selectFromGallery),
-              onTap: () {
-                Navigator.pop(sheetContext);
-                _pickImageFromGallery(context, ref, account);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.camera_alt),
-              title: Text(context.l10n.auth_takePhoto),
-              onTap: () {
-                Navigator.pop(sheetContext);
-                _pickImageFromGallery(context, ref, account);
-              },
-            ),
-            if (account.avatarPath != null)
-              ListTile(
-                leading: Icon(Icons.delete_outline, color: Colors.red.shade400),
-                title: Text(
-                  context.l10n.auth_removeAvatar,
-                  style: TextStyle(color: Colors.red.shade400),
-                ),
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  _removeAvatar(context, ref, account);
-                },
+              minTileHeight: 56,
+              leading: Icon(Icons.delete_outline, color: Colors.red.shade400),
+              title: Text(
+                context.l10n.auth_removeAvatar,
+                style: TextStyle(color: Colors.red.shade400),
               ),
-          ],
-        ),
+              onTap: () {
+                Navigator.pop(panelContext);
+                _removeAvatar(context, ref, account);
+              },
+            ),
+        ],
       ),
     );
   }

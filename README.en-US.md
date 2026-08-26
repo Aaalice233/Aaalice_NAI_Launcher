@@ -9,17 +9,17 @@
 </p>
 
 <p align="center">
-  <strong>A third-party desktop client for NovelAI image generation</strong>
+  <strong>A third-party cross-platform client for NovelAI image generation</strong>
 </p>
 
 <p align="center">
   <a href="https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases/latest"><img src="https://img.shields.io/github/v/release/Aaalice233/Aaalice_NAI_Launcher?display_name=tag&sort=semver" alt="Latest release"></a>
-  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS-lightgrey" alt="Platforms">
+  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Android-lightgrey" alt="Platforms">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
   <a href="https://discord.gg/R48n6GwXzD"><img src="https://img.shields.io/badge/Discord-Join-5865F2?logo=discord&logoColor=white" alt="Discord"></a>
 </p>
 
-NAI Launcher is a third-party client for NovelAI built with Flutter. It integrates image generation, image-to-image, inpainting, Vibe / Precise Reference, local gallery, online gallery, generation queues, Krita integration, and statistical tools into a single desktop application, making it ideal for daily generation, batch processing, and long-term management of local artwork.
+NAI Launcher is a cross-platform third-party client for NovelAI built with Flutter. It integrates image generation, image-to-image, inpainting, Vibe / Precise Reference, local gallery, online gallery, generation queues, Krita integration, and statistical tools into a single application for daily generation, batch processing, and long-term management of local artwork.
 
 > This project is not an official NovelAI product. Please ensure you have your own NovelAI account and comply with NovelAI's Terms of Service before use.
 
@@ -35,7 +35,7 @@ NAI Launcher is a third-party client for NovelAI built with Flutter. It integrat
 | 📚 Local Gallery | Supports recursive scanning, SQLite full-text search, categories/collections/favorites, metadata parsing, batch operations, and large image previews. |
 | 🌐 Online Gallery | Supports Danbooru / Safebooru / Gelbooru / AI TAG / Codex Gallery search, native rankings, multi-image details, metadata reuse, and batch downloads. |
 | 📦 Generation Queue | Supports task sorting, batch generation, pause/resume, failure handling strategies, progress statistics, and queue import/export. |
-| 🔌 External Integration | Supports local Krita integration, local ComfyUI workflows, system proxy, cross-platform image copying, and file location. |
+| 🔌 External Integration | Desktop builds support local Krita and ComfyUI workflows, while platform integrations include system proxy, image copying, native sharing, file import/export, and file location where available. |
 | 🌏 Interface Languages | Supports Simplified Chinese, Traditional Chinese, English, and Japanese. Traditional Chinese queries can use the optional Simplified Chinese tag translation dictionary. |
 
 ### Online Gallery Sources
@@ -83,8 +83,8 @@ NAI Launcher is a third-party client for NovelAI built with Flutter. It integrat
 | --- | --- | --- |
 | Windows | Available | Primary development and release platform. Supports system tray, window state persistence, video playback, clipboard, and file location. |
 | macOS | Minimal Support | Supports building, launching, login, local database, video playback, Keychain, system proxy, image copying, and file location. System tray support to be added later. |
+| Android | Available | Supports Android 7.0+ phones, landscape layouts, tablets, and large screens. Generation, galleries, libraries, queues, and settings are included, together with system file picking/export, gallery saving, sharing, and APK updates. |
 | Linux | Unreleased | Desktop code branches exist, but official packages are not currently provided. |
-| Android | Planned | Still in the adaptation/planning phase. |
 
 ## 📦 Download & Install
 
@@ -95,8 +95,9 @@ Download the latest version from [Releases](https://github.com/Aaalice233/Aaalic
 | Windows | `NAI_Launcher_Windows_<version>_Setup.exe` | Installer version, recommended for general users. Supports resumable in-app downloads, verification, automatic installation, and restart. Manual setup also detects and closes an older version still running in the tray. |
 | Windows | `NAI_Launcher_Windows_<version>_Portable.zip` | Portable version. In-app updates stage the new version, preserve user files, atomically swap directories, and automatically roll back and restart the previous version on failure. |
 | macOS | `NAI_Launcher_macOS_<version>_Portable.zip` | Portable version. Extract and open `Aaalice NAI Launcher.app`. If an unnotarized build is blocked, you can allow it to open in System Settings > Privacy & Security. |
+| Android | `NAI_Launcher_Android_<version>.apk` | Requires Android 7.0 or later. Let Android confirm the installation after download. First-time installs may require allowing your browser or file manager to install unknown apps; later releases can be downloaded and verified in the app before Android confirms the update. |
 
-You can log in for the first time using your NovelAI account credentials or an API Token. Account data is stored locally on the device only. The desktop app uses the system's secure storage for sensitive information.
+You can log in for the first time using your NovelAI account credentials or an API Token. Account data is stored locally on the device only. Supported platforms use system secure storage for sensitive information.
 
 ### Autocomplete Data & Privacy
 

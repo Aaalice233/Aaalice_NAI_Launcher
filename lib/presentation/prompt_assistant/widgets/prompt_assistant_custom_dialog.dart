@@ -54,8 +54,9 @@ class _PromptAssistantCustomDialogState
     final remaining = _maxImages - _images.length;
     if (remaining <= 0) {
       setState(
-        () => _error =
-            context.l10n.promptAssistant_maxReferenceImages(_maxImages),
+        () => _error = context.l10n.promptAssistant_maxReferenceImages(
+          _maxImages,
+        ),
       );
       return;
     }
@@ -74,8 +75,9 @@ class _PromptAssistantCustomDialogState
       final mimeType = detectImageMime(bytes);
       if (mimeType == null) {
         setState(
-          () => _error =
-              context.l10n.promptAssistant_unsupportedImageFormat(file.name),
+          () => _error = context.l10n.promptAssistant_unsupportedImageFormat(
+            file.name,
+          ),
         );
         continue;
       }
@@ -225,10 +227,7 @@ class _PromptAssistantCustomDialogState
 }
 
 class _ImageChip extends StatelessWidget {
-  const _ImageChip({
-    required this.image,
-    required this.onRemove,
-  });
+  const _ImageChip({required this.image, required this.onRemove});
 
   final PromptAssistantImageInput image;
   final VoidCallback onRemove;
@@ -249,12 +248,30 @@ class _ImageChip extends StatelessWidget {
         Positioned(
           right: 0,
           top: 0,
-          child: IconButton.filledTonal(
-            constraints: const BoxConstraints.tightFor(width: 24, height: 24),
-            padding: EdgeInsets.zero,
-            iconSize: 14,
-            onPressed: onRemove,
-            icon: const Icon(Icons.close),
+          child: Tooltip(
+            message: context.l10n.common_delete,
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: onRemove,
+                borderRadius: BorderRadius.circular(24),
+                child: SizedBox.square(
+                  dimension: 48,
+                  child: Align(
+                    alignment: Alignment.topRight,
+                    child: Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.secondaryContainer,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.close, size: 14),
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
         ),
       ],

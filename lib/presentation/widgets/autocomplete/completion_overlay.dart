@@ -5,9 +5,15 @@ import '../../../core/autocomplete/autocomplete_settings.dart';
 import '../../../core/autocomplete/cooccurrence_data_pack_service.dart';
 import '../../../core/autocomplete/completion_models.dart';
 import '../../../core/autocomplete/zh_dictionary_service.dart';
+import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/utils/localization_extension.dart';
 
 const double autocompleteCandidateExtent = 35;
+
+double get effectiveAutocompleteCandidateExtent =>
+    PlatformCapabilities.current.hasTouchInput
+    ? 48
+    : autocompleteCandidateExtent;
 
 /// Compact completion popup inspired by editor command palettes.
 ///
@@ -56,15 +62,23 @@ class CompletionOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final dark = theme.brightness == Brightness.dark;
+    final touchCompact =
+        PlatformCapabilities.current.hasTouchInput &&
+        MediaQuery.sizeOf(context).width < 600;
     final popupSurface = Color.alphaBlend(
       theme.colorScheme.onSurface.withValues(alpha: dark ? 0.075 : 0.012),
       theme.colorScheme.surface,
     );
-    const radius = BorderRadius.all(Radius.circular(10));
+    final radius = BorderRadius.all(Radius.circular(touchCompact ? 12 : 10));
     return DecoratedBox(
       key: const ValueKey('autocomplete-popup-surface'),
       decoration: BoxDecoration(
         borderRadius: radius,
+        border: touchCompact
+            ? Border.all(
+                color: theme.colorScheme.outlineVariant.withValues(alpha: 0.7),
+              )
+            : null,
         boxShadow: [
           if (dark)
             BoxShadow(
@@ -120,17 +134,19 @@ class CompletionOverlay extends StatelessWidget {
                           controller: scrollController,
                           thumbVisibility: state.candidates.length > 9,
                           trackVisibility: state.candidates.length > 9,
-                          interactive: true,
-                          thickness: 8,
+                          interactive: !touchCompact,
+                          thickness: touchCompact ? 4 : 8,
                           radius: const Radius.circular(8),
                           child: ListView.builder(
                             key: const ValueKey('autocomplete-popup-list'),
                             controller: scrollController,
                             shrinkWrap: true,
-                            padding: const EdgeInsets.only(right: 14),
-                            itemExtent: autocompleteCandidateExtent,
-                            scrollCacheExtent: const ScrollCacheExtent.pixels(
-                              350,
+                            padding: EdgeInsets.only(
+                              right: touchCompact ? 6 : 14,
+                            ),
+                            itemExtent: effectiveAutocompleteCandidateExtent,
+                            scrollCacheExtent: ScrollCacheExtent.pixels(
+                              effectiveAutocompleteCandidateExtent * 10,
                             ),
                             addAutomaticKeepAlives: false,
                             itemCount: state.candidates.length,
@@ -265,10 +281,16 @@ class _CompletionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final touchInput = PlatformCapabilities.current.hasTouchInput;
     return Container(
       key: const ValueKey('autocomplete-popup-header'),
-      height: 36,
-      padding: const EdgeInsets.fromLTRB(8, 5, 4, 5),
+      height: touchInput ? 56 : 36,
+      padding: EdgeInsets.fromLTRB(
+        8,
+        touchInput ? 3 : 5,
+        4,
+        touchInput ? 3 : 5,
+      ),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHigh,
         border: Border(
@@ -279,6 +301,7 @@ class _CompletionHeader extends StatelessWidget {
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
+          final touchCompact = touchInput && constraints.maxWidth < 600;
           final showTitle = constraints.maxWidth >= 440;
           final showFullShortcuts = constraints.maxWidth >= 650;
           final showCompactShortcuts = constraints.maxWidth >= 540;
@@ -336,30 +359,37 @@ class _CompletionHeader extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 9),
-              Text(
-                context.l10n.autocomplete_resultsCount(resultCount),
-                key: const ValueKey('autocomplete-popup-result-count'),
-                maxLines: 1,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                  fontFeatures: const [FontFeature.tabularFigures()],
-                ),
-              ),
-              const SizedBox(width: 9),
-              if (showFullShortcuts)
-                const _KeyboardHints()
-              else if (showCompactShortcuts)
-                const _KeyboardHints(compact: true)
-              else
-                Tooltip(
-                  message: _shortcutDescription(context),
-                  child: Icon(
-                    Icons.keyboard_alt_outlined,
-                    size: 16,
+              Semantics(
+                label: context.l10n.autocomplete_resultsCount(resultCount),
+                child: Text(
+                  touchCompact
+                      ? '$resultCount'
+                      : context.l10n.autocomplete_resultsCount(resultCount),
+                  key: const ValueKey('autocomplete-popup-result-count'),
+                  maxLines: 1,
+                  style: theme.textTheme.labelSmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
+                    fontFeatures: const [FontFeature.tabularFigures()],
                   ),
                 ),
-              const SizedBox(width: 2),
+              ),
+              SizedBox(width: touchCompact ? 4 : 9),
+              if (!touchCompact) ...[
+                if (showFullShortcuts)
+                  const _KeyboardHints()
+                else if (showCompactShortcuts)
+                  const _KeyboardHints(compact: true)
+                else
+                  Tooltip(
+                    message: _shortcutDescription(context),
+                    child: Icon(
+                      Icons.keyboard_alt_outlined,
+                      size: 16,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                const SizedBox(width: 2),
+              ],
               if (related && onToggleRelatedPin != null)
                 _NonFocusableIconButton(
                   key: const ValueKey('autocomplete-popup-related-pin'),
@@ -487,7 +517,7 @@ class _CompletionTile extends StatelessWidget {
         child: InkWell(
           onTap: candidate.isExisting ? null : onTap,
           child: Container(
-            height: 35,
+            height: effectiveAutocompleteCandidateExtent,
             decoration: BoxDecoration(
               color: selected
                   ? categoryColor.withValues(
@@ -509,70 +539,172 @@ class _CompletionTile extends StatelessWidget {
             padding: const EdgeInsets.only(left: 7, right: 8),
             child: Opacity(
               opacity: candidate.isExisting ? 0.46 : 1,
-              child: Row(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  if (constraints.maxWidth < 480) {
+                    return _buildCompactContent(
+                      context,
+                      theme,
+                      categoryColor,
+                      secondary,
+                    );
+                  }
+                  return _buildWideContent(
+                    context,
+                    theme,
+                    categoryColor,
+                    secondary,
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCompactContent(
+    BuildContext context,
+    ThemeData theme,
+    Color categoryColor,
+    List<String> secondary,
+  ) {
+    final hasSecondary =
+        secondary.isNotEmpty || (showTranslations && candidate.isTranslating);
+    return Row(
+      children: [
+        if (showCategory) ...[
+          _buildCategoryIcon(context, categoryColor, size: 16),
+          const SizedBox(width: 8),
+        ],
+        Expanded(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
                 children: [
-                  if (showCategory) ...[
-                    Tooltip(
-                      message: _categoryLabel(context, candidate.category),
-                      child: Icon(
-                        _categoryIcon(candidate.category),
-                        key: ValueKey(
-                          'autocomplete-category-${candidate.category.name}',
-                        ),
-                        size: 15,
-                        color: categoryColor,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                  ],
                   Expanded(
-                    flex: showTranslations ? 5 : 8,
                     child: Text(
                       candidate.canonicalTag,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodySmall?.copyWith(
+                      style: theme.textTheme.bodyMedium?.copyWith(
                         color: categoryColor,
                         fontWeight: FontWeight.w600,
-                        letterSpacing: 0.05,
+                        height: 1.05,
                       ),
                     ),
                   ),
-                  if (showTranslations) ...[
-                    const SizedBox(width: 10),
-                    Expanded(
-                      flex: 4,
-                      child: _CandidateSecondary(
-                        values: secondary,
-                        isTranslating: candidate.isTranslating,
-                        translationMissing:
-                            candidate.translation?.isNotEmpty != true,
-                      ),
-                    ),
-                  ],
                   if (showCount) ...[
                     const SizedBox(width: 8),
-                    Tooltip(
-                      message: _metricTooltip(context, candidate),
-                      child: SizedBox(
-                        width: 54,
-                        child: Text(
-                          _metricLabel(candidate),
-                          maxLines: 1,
-                          textAlign: TextAlign.right,
-                          style: theme.textTheme.labelMedium?.copyWith(
-                            color: _metricColor(context),
-                            fontFeatures: const [FontFeature.tabularFigures()],
-                          ),
-                        ),
-                      ),
-                    ),
+                    _buildMetric(context, theme, width: 52),
                   ],
-                  const SizedBox(width: 8),
-                  _SourceBadges(sources: candidate.sources),
                 ],
               ),
+              const SizedBox(height: 2),
+              Row(
+                children: [
+                  Expanded(
+                    child: hasSecondary
+                        ? _CandidateSecondary(
+                            values: secondary,
+                            isTranslating:
+                                showTranslations && candidate.isTranslating,
+                            translationMissing: false,
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+                  const SizedBox(width: 6),
+                  _SourceBadges(sources: candidate.sources, compact: true),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildWideContent(
+    BuildContext context,
+    ThemeData theme,
+    Color categoryColor,
+    List<String> secondary,
+  ) {
+    return Row(
+      children: [
+        if (showCategory) ...[
+          _buildCategoryIcon(context, categoryColor),
+          const SizedBox(width: 8),
+        ],
+        Expanded(
+          flex: showTranslations ? 5 : 8,
+          child: Text(
+            candidate.canonicalTag,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: categoryColor,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.05,
             ),
+          ),
+        ),
+        if (showTranslations) ...[
+          const SizedBox(width: 10),
+          Expanded(
+            flex: 4,
+            child: _CandidateSecondary(
+              values: secondary,
+              isTranslating: candidate.isTranslating,
+              translationMissing: candidate.translation?.isNotEmpty != true,
+            ),
+          ),
+        ],
+        if (showCount) ...[
+          const SizedBox(width: 8),
+          _buildMetric(context, theme),
+        ],
+        const SizedBox(width: 8),
+        _SourceBadges(sources: candidate.sources),
+      ],
+    );
+  }
+
+  Widget _buildCategoryIcon(
+    BuildContext context,
+    Color categoryColor, {
+    double size = 15,
+  }) {
+    return Tooltip(
+      message: _categoryLabel(context, candidate.category),
+      child: Icon(
+        _categoryIcon(candidate.category),
+        key: ValueKey('autocomplete-category-${candidate.category.name}'),
+        size: size,
+        color: categoryColor,
+      ),
+    );
+  }
+
+  Widget _buildMetric(
+    BuildContext context,
+    ThemeData theme, {
+    double width = 54,
+  }) {
+    return Tooltip(
+      message: _metricTooltip(context, candidate),
+      child: SizedBox(
+        width: width,
+        child: Text(
+          _metricLabel(candidate),
+          maxLines: 1,
+          textAlign: TextAlign.right,
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: _metricColor(context),
+            fontFeatures: const [FontFeature.tabularFigures()],
           ),
         ),
       ),
@@ -743,18 +875,19 @@ class _CandidateSecondary extends StatelessWidget {
 }
 
 class _SourceBadges extends StatelessWidget {
-  const _SourceBadges({required this.sources});
+  const _SourceBadges({required this.sources, this.compact = false});
 
   final Set<CompletionSourceKind> sources;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final ordered = sources.toList()
       ..sort((left, right) => left.index.compareTo(right.index));
-    final visible = ordered.take(4).toList();
+    final visible = ordered.take(compact ? 1 : 4).toList();
     return SizedBox(
-      width: 112,
+      width: compact ? 64 : 112,
       child: Align(
         alignment: Alignment.centerRight,
         child: Row(
@@ -845,7 +978,7 @@ class _CompletionFooter extends StatelessWidget {
     final theme = Theme.of(context);
     return Container(
       key: const ValueKey('autocomplete-popup-footer'),
-      height: 31,
+      height: PlatformCapabilities.current.hasTouchInput ? 48 : 31,
       padding: const EdgeInsets.only(left: 9),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHigh,
@@ -1261,10 +1394,15 @@ class _NonFocusableIconButtonState extends State<_NonFocusableIconButton> {
           ),
           child: IconButton(
             tooltip: widget.tooltip,
-            visualDensity: VisualDensity.compact,
-            constraints: const BoxConstraints.tightFor(width: 28, height: 28),
+            visualDensity: PlatformCapabilities.current.hasTouchInput
+                ? VisualDensity.standard
+                : VisualDensity.compact,
+            constraints: BoxConstraints.tightFor(
+              width: PlatformCapabilities.current.hasTouchInput ? 48 : 28,
+              height: PlatformCapabilities.current.hasTouchInput ? 48 : 28,
+            ),
             padding: EdgeInsets.zero,
-            iconSize: 16,
+            iconSize: PlatformCapabilities.current.hasTouchInput ? 20 : 16,
             color: _hovered || widget.active
                 ? colors.primary
                 : colors.onSurfaceVariant,

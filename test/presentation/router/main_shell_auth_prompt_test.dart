@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nai_launcher/core/shortcuts/shortcut_config.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/providers/account_manager_provider.dart';
 import 'package:nai_launcher/presentation/providers/auth_provider.dart';
 import 'package:nai_launcher/presentation/providers/shortcuts_provider.dart';
 import 'package:nai_launcher/presentation/router/app_router.dart';
@@ -12,6 +13,9 @@ void main() {
   testWidgets('MainShell 消费启动前 pending 提示并顺序处理后续提示', (tester) async {
     final container = ProviderContainer(
       overrides: [
+        accountManagerNotifierProvider.overrideWith(
+          _TestAccountManagerNotifier.new,
+        ),
         authNotifierProvider.overrideWith(_UnauthenticatedAuthNotifier.new),
         shortcutConfigNotifierProvider.overrideWith(
           _TestShortcutConfigNotifier.new,
@@ -83,6 +87,11 @@ void main() {
     await tester.pump();
     expect(find.byType(AlertDialog), findsNothing);
   });
+}
+
+class _TestAccountManagerNotifier extends AccountManagerNotifier {
+  @override
+  AccountManagerState build() => const AccountManagerState();
 }
 
 class _TestShortcutConfigNotifier extends ShortcutConfigNotifier {

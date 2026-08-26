@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
+import '../../../../core/platform/platform_capabilities.dart';
 import '../../../../data/models/tag_library/import_models.dart';
 import '../../../../data/services/tag_library_io_service.dart';
 import '../../../providers/tag_library_page_provider.dart';
@@ -573,6 +574,9 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
         ),
       ],
       child: Container(
+        constraints: BoxConstraints(
+          minHeight: PlatformCapabilities.current.hasTouchInput ? 48 : 0,
+        ),
         margin: const EdgeInsets.only(right: 8),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(

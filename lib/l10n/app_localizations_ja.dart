@@ -262,6 +262,12 @@ class AppLocalizationsJa extends AppLocalizations {
   String get nav_githubRepo => 'GitHub リポジトリ';
 
   @override
+  String get nav_joinDiscord => 'Discord に参加';
+
+  @override
+  String get nav_projectRepository => 'プロジェクトリポジトリ';
+
+  @override
   String get nav_expandSidebar => 'サイドバーを展開';
 
   @override
@@ -330,6 +336,9 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get auth_tokenLogin => 'API トークンのログイン';
+
+  @override
+  String get auth_tokenLoginCompact => 'トークンログイン';
 
   @override
   String get auth_tokenLoginRecommended => 'API トークンのログイン（推奨）';
@@ -426,9 +435,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get auth_selectFromGallery => 'ギャラリーから選択';
-
-  @override
-  String get auth_takePhoto => '写真を撮る';
 
   @override
   String get auth_quickLogin => 'クイックログイン';
@@ -599,6 +605,9 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get settings_promptAssistant => 'プロンプトアシスタント';
+
+  @override
+  String get settings_comfyUiDesktopOnly => 'デスクトップ版でのみ利用できます';
 
   @override
   String get settings_selectStyle => 'スタイルの選択';
@@ -974,7 +983,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get prompt_appliedToMainPrompt => 'メイン プロンプトに適用されます';
 
   @override
-  String get prompt_inputPrompt => 'プロンプトを入力してください...';
+  String get prompt_inputPrompt => '生成したい画像を説明';
 
   @override
   String get prompt_describeImage => '生成したい画像を説明してください...';
@@ -2671,11 +2680,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get onlineGallery_downloadStarted => 'ダウンロードが開始されました...';
-
-  @override
-  String onlineGallery_savedToPath(Object path) {
-    return '保存先: $path';
-  }
 
   @override
   String onlineGallery_downloadFailed(Object error) {
@@ -5593,9 +5597,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get localGallery_resetAdvancedFilters => '詳細フィルターをリセット';
 
   @override
-  String get localGallery_exportFailed => 'エクスポートに失敗しました';
-
-  @override
   String get bulkExport_format => '形式';
 
   @override
@@ -5603,9 +5604,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get bulkExport_csvFormat => 'CSV';
-
-  @override
-  String get bulkExport_includeMetadataHint => '生成パラメータを画像付きでエクスポート';
 
   @override
   String get localGallery_group_today => '今日';
@@ -5635,7 +5633,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get localGallery_openSettings => '設定を開く';
 
   @override
-  String get localGallery_firstTimeTipTitle => '💡 ヒント';
+  String get localGallery_firstTimeTipTitle => 'ヒント';
 
   @override
   String get localGallery_firstTimeTipContent =>
@@ -7208,6 +7206,12 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get queue_editTask => 'タスクの編集';
+
+  @override
+  String get queue_taskDetails => 'タスク詳細';
+
+  @override
+  String get queue_clearCompletedTasks => '完了履歴をクリア';
 
   @override
   String get queue_duplicateTask => 'タスクを複製';
@@ -9690,7 +9694,7 @@ class AppLocalizationsJa extends AppLocalizations {
       'ONNX タガー モデル フォルダーが保存されました';
 
   @override
-  String get settings_localOnnxTaggerFolder => 'ローカル ONNX タガー モデル フォルダー';
+  String get settings_localOnnxTaggerFolder => 'ローカル ONNX タガー モデル';
 
   @override
   String get settings_notConfigured => '未構成';
@@ -10545,7 +10549,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get vibeLibrary_emptySaveFromGenerationHint =>
-      '生成ページから Vibe を保存してライブラリに追加します';
+      'ファイルからインポートするか、生成ページから Vibe を保存できます';
 
   @override
   String get vibe_nameRequired => '名前は必須です';
@@ -11089,7 +11093,8 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get updateNoticeAvailableSubtitle => 'アプリ内でダウンロードして自動的に更新できます';
+  String get updateNoticeAvailableSubtitle =>
+      'アプリ内で更新をダウンロード、検証し、安全にインストールできます';
 
   @override
   String get updateNoticeManualSubtitle =>
@@ -11101,7 +11106,7 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get updateNoticeReadySubtitle => 'パッケージは検証済みです。再起動してインストールできます';
+  String get updateNoticeReadySubtitle => 'パッケージは検証済みで、インストールできます';
 
   @override
   String get updateNoticeFailed => '前回の更新は完了しませんでした';
@@ -11209,6 +11214,12 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get preciseRefLib_emptyHint => 'プレビュー・履歴・ギャラリーで右クリックして保存もできます';
+
+  @override
+  String get preciseRefLib_emptyTouch => '画像を読み込んで参照ライブラリを作成';
+
+  @override
+  String get preciseRefLib_emptyHintTouch => '生成結果、履歴、ローカルギャラリーから保存することもできます';
 
   @override
   String get preciseRefLib_import => '画像をインポート';
@@ -12474,6 +12485,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get randomManager_searchCategories => 'カテゴリ、グループ、タグを検索（Ctrl+F）';
 
   @override
+  String get randomManager_searchCategoriesCompact => 'カテゴリ、グループ、タグを検索';
+
+  @override
   String get randomManager_workspaceTitle => 'ランダムライブラリ';
 
   @override
@@ -12619,4 +12633,108 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get randomManager_noCategoryResults => '一致するカテゴリ、グループ、タグがありません';
+
+  @override
+  String get common_share => '共有';
+
+  @override
+  String get common_moreActions => 'その他の操作';
+
+  @override
+  String get nav_more => 'その他';
+
+  @override
+  String get nav_explore => '探索';
+
+  @override
+  String get image_savedToSystemGallery => 'システムギャラリーに保存しました';
+
+  @override
+  String image_savedAppOnly(Object error) {
+    return 'アプリ内ギャラリーには保存しましたが、システムギャラリーに書き出せませんでした: $error';
+  }
+
+  @override
+  String image_shareFailed(Object error) {
+    return '共有に失敗しました: $error';
+  }
+
+  @override
+  String onlineGallery_savedFiles(int count) {
+    return '$count 個のファイルを保存しました';
+  }
+
+  @override
+  String get statistics_exportJsonHint => 'すべての統計結果と分布データを構造化 JSON として書き出します。';
+
+  @override
+  String get statistics_exportCsvHint => 'セクション別の統計を表計算アプリで開ける CSV として書き出します。';
+
+  @override
+  String get queue_reorderTask => 'タスクの順序を変更';
+
+  @override
+  String get queue_moreTaskActions => 'その他のタスク操作';
+
+  @override
+  String get queue_selectTask => 'タスクを選択';
+
+  @override
+  String get settings_notificationSoundImportFailed =>
+      'サウンドを読み込めませんでした。ファイルを選び直してください。';
+
+  @override
+  String get settings_androidManagedStorage =>
+      'システムが安全に管理します。エクスポート時に保存先を選択できます';
+
+  @override
+  String get settings_importLocalOnnxTaggerFiles => 'ONNX モデルとラベルファイルをインポート';
+
+  @override
+  String settings_localOnnxFilesImported(int count) {
+    return 'モデルファイルを $count 件インポートしました';
+  }
+
+  @override
+  String settings_localOnnxManagedFiles(int count) {
+    return 'アプリストレージ内のモデルファイル: $count 件';
+  }
+
+  @override
+  String get settings_clearLocalOnnxModelsTitle => 'ローカル ONNX モデルを消去しますか？';
+
+  @override
+  String get settings_clearLocalOnnxModelsContent =>
+      'この端末にインポートした ONNX モデルとラベルファイルを削除します。';
+
+  @override
+  String updateAndroidDownloadedHint(Object version) {
+    return 'v$version をダウンロードし、検証が完了しました。Android のシステムインストーラーを開いて更新を続行できます。';
+  }
+
+  @override
+  String get updateAndroidInstallingHint =>
+      'Android のシステムインストーラーを開いています。システムの案内に従って更新を確認してください。';
+
+  @override
+  String get updateAndroidInstallConfirmationBody =>
+      'Android のシステムインストーラーを開きます。確認後、ローカルデータを消去せずにアプリが更新されます。実行中の生成・ダウンロードタスクが停止する場合があるため、必要な内容を先に保存してください。';
+
+  @override
+  String get preciseRefLib_moreActions => 'その他の操作';
+
+  @override
+  String get vibeDetail_setAsCover => '選択した画像をカバーに設定';
+
+  @override
+  String vibeDetail_bundleChildParameters(int index) {
+    return '子 Vibe $index のインポートパラメーターを表示しています。';
+  }
+
+  @override
+  String get vibeDetail_bundleDefaultParameters =>
+      'Bundle の既定パラメーターを表示しています。下の子項目を選択すると、そのパラメーターを確認できます。';
+
+  @override
+  String get vibeDetail_choosePreviewImage => '画像ボタンからプレビューを選択してください';
 }

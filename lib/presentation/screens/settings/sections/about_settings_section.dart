@@ -4,6 +4,7 @@ import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/constants/app_version.dart';
+import '../../../../core/constants/community_links.dart';
 import '../../../../core/services/update_check_service.dart';
 import '../../../../core/storage/local_storage_service.dart';
 import '../../../../core/utils/app_logger.dart';
@@ -131,9 +132,7 @@ class _AboutSettingsSectionState extends ConsumerState<AboutSettingsSection> {
             subtitle: Text(context.l10n.settings_openSourceSubtitle),
             trailing: const Icon(Icons.open_in_new),
             onTap: () async {
-              final uri = Uri.parse(
-                'https://github.com/Aaalice233/Aaalice_NAI_Launcher',
-              );
+              final uri = Uri.parse(CommunityLinks.github);
               if (await canLaunchUrl(uri)) {
                 await launchUrl(uri, mode: LaunchMode.externalApplication);
               }

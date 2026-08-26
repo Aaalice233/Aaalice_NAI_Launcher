@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../../core/platform/platform_capabilities.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/tag_library/tag_library_entry.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/thumbnail_display.dart';
+
+enum _EntryListAction { select, edit, favorite, copy, delete }
 
 /// 词库条目列表项
 class EntryListItem extends StatefulWidget {
@@ -56,6 +59,7 @@ class _EntryListItemState extends State<EntryListItem> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final entry = widget.entry;
+    final isTouch = PlatformCapabilities.current.hasTouchInput;
 
     final backgroundColor = widget.isSelected
         ? theme.colorScheme.primary.withValues(alpha: 0.12)
@@ -116,8 +120,8 @@ class _EntryListItemState extends State<EntryListItem> {
               // 信息
               Expanded(child: _buildInfo(theme, entry)),
 
-              // 操作按钮（非选择模式悬停时显示）
-              if (!widget.isSelectionMode && _isHovering) ...[
+              // 精确指针悬浮时显示完整操作；触屏始终显示菜单入口。
+              if (!widget.isSelectionMode && (isTouch || _isHovering)) ...[
                 const SizedBox(width: 12),
                 _buildActions(theme),
               ],
@@ -130,8 +134,8 @@ class _EntryListItemState extends State<EntryListItem> {
     // 保持根节点稳定，避免切换多选模式时重建缩略图子树。
     return Draggable<TagLibraryEntry>(
       data: entry,
-      maxSimultaneousDrags: widget.enableDrag ? null : 0,
-      feedback: widget.enableDrag
+      maxSimultaneousDrags: widget.enableDrag && !isTouch ? null : 0,
+      feedback: widget.enableDrag && !isTouch
           ? _buildDragFeedback(theme, entry)
           : const SizedBox.shrink(),
       childWhenDragging: Opacity(opacity: 0.4, child: itemContent),
@@ -393,6 +397,89 @@ class _EntryListItemState extends State<EntryListItem> {
   }
 
   Widget _buildActions(ThemeData theme) {
+    if (PlatformCapabilities.current.hasTouchInput) {
+      final l10n = context.l10n;
+      return PopupMenuButton<_EntryListAction>(
+        tooltip: l10n.common_moreActions,
+        constraints: const BoxConstraints(minWidth: 200),
+        onSelected: (action) {
+          switch (action) {
+            case _EntryListAction.select:
+              widget.onToggleSelection?.call();
+              break;
+            case _EntryListAction.edit:
+              widget.onEdit?.call();
+              break;
+            case _EntryListAction.favorite:
+              widget.onToggleFavorite();
+              break;
+            case _EntryListAction.copy:
+              _copyToClipboard(widget.entry.content);
+              break;
+            case _EntryListAction.delete:
+              widget.onDelete();
+              break;
+          }
+        },
+        itemBuilder: (context) => [
+          if (widget.onToggleSelection != null)
+            PopupMenuItem(
+              value: _EntryListAction.select,
+              child: ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.check_circle_outline),
+                title: Text(l10n.common_select),
+              ),
+            ),
+          if (widget.onEdit != null)
+            PopupMenuItem(
+              value: _EntryListAction.edit,
+              child: ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.edit_outlined),
+                title: Text(l10n.common_edit),
+              ),
+            ),
+          PopupMenuItem(
+            value: _EntryListAction.favorite,
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(
+                widget.entry.isFavorite
+                    ? Icons.favorite
+                    : Icons.favorite_border,
+                color: widget.entry.isFavorite ? Colors.redAccent : null,
+              ),
+              title: Text(
+                widget.entry.isFavorite
+                    ? l10n.common_unfavorite
+                    : l10n.common_favorite,
+              ),
+            ),
+          ),
+          PopupMenuItem(
+            value: _EntryListAction.copy,
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.content_copy),
+              title: Text(l10n.common_copy),
+            ),
+          ),
+          PopupMenuItem(
+            value: _EntryListAction.delete,
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(
+                Icons.delete_outline,
+                color: theme.colorScheme.error,
+              ),
+              title: Text(l10n.common_delete),
+            ),
+          ),
+        ],
+      );
+    }
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,

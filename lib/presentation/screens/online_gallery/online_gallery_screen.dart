@@ -16,11 +16,13 @@ import '../../../core/cache/gallery_image_request.dart';
 import '../../../core/cache/online_gallery_image_cache_manager.dart';
 import '../../../core/cache/online_gallery_detail_coordinator.dart';
 import '../../../core/online_gallery/gallery_tag_query.dart';
+import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/cache/online_gallery_prefetch_coordinator.dart';
 import '../../../core/cache/online_gallery_preload_policy.dart';
 import '../../../core/services/date_formatting_service.dart';
+import '../../../core/services/file_export_service.dart';
 import '../../../core/utils/app_logger.dart';
-import '../../../core/utils/file_picker_utils.dart';
+import '../../../core/utils/media_mime_type.dart';
 import '../../../data/datasources/remote/danbooru_api_service.dart';
 import '../../../data/models/character/character_prompt.dart';
 import '../../../data/models/online_gallery/danbooru_post.dart';
@@ -42,6 +44,7 @@ import '../../providers/quick_tag_cloud_gallery_provider.dart';
 import '../../providers/replication_queue_provider.dart';
 import '../../providers/reverse_prompt_provider.dart';
 import '../../providers/selection_mode_provider.dart';
+import '../../adaptive/adaptive_presenter.dart';
 import '../../services/gallery_prompt_projection_service.dart';
 import '../../widgets/app_branch_visibility.dart';
 import '../../widgets/danbooru_login_dialog.dart';
@@ -55,9 +58,27 @@ import '../../widgets/online_gallery/quick_tag_cloud_toolbar.dart';
 
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/bulk_action_bar.dart';
+import '../../widgets/common/input_surface_container.dart';
 import '../../widgets/common/themed_input.dart';
 import '../../widgets/autocomplete/autocomplete_config.dart';
 import '../../widgets/autocomplete/autocomplete_wrapper.dart';
+
+double get _galleryToolbarControlHeight =>
+    PlatformCapabilities.current.isMobile ? 48 : 40;
+
+double get _gallerySearchFieldHeight =>
+    PlatformCapabilities.current.isMobile ? 48 : 36;
+
+double get _gallerySecondaryToolbarHeight =>
+    PlatformCapabilities.current.isMobile ? 56 : 40;
+
+String _resolveGalleryDownloadExtension(GalleryMedia media, String url) {
+  final candidate = (media.extension ?? path.extension(Uri.parse(url).path))
+      .trim()
+      .toLowerCase()
+      .replaceFirst(RegExp(r'^\.'), '');
+  return RegExp(r'^[a-z0-9]{1,10}$').hasMatch(candidate) ? candidate : 'webp';
+}
 
 /// 在线画廊页面
 class OnlineGalleryScreen extends ConsumerStatefulWidget {
@@ -424,6 +445,9 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     final state = ref.read(onlineGalleryNotifierProvider);
     final authState = ref.watch(danbooruAuthProvider);
     final gelbooruAuthState = ref.watch(gelbooruAuthProvider);
+    final isSelectionMode = ref.watch(
+      onlineGallerySelectionNotifierProvider.select((value) => value.isActive),
+    );
 
     ref.listen<OnlineGalleryNotice?>(
       onlineGalleryNotifierProvider.select((value) => value.notice),
@@ -480,36 +504,45 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     _lastRandomDrawRevision = state.randomSession.drawRevision;
     _scheduleAutoLoadIfUnderfilled(state);
 
-    return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
-      body: Column(
-        children: [
-          // 顶部工具栏
-          Consumer(
-            builder: (context, toolbarRef, _) {
-              final selectionState = toolbarRef.watch(
-                onlineGallerySelectionNotifierProvider,
-              );
-              return _buildToolbar(
-                theme,
-                state,
-                authState,
-                gelbooruAuthState,
-                selectionState,
-              );
-            },
-          ),
-          // 图片网格
-          Expanded(child: _buildContent(theme, state)),
-          // 底部分页条
-          _buildPaginationBar(theme, state),
-        ],
+    return PopScope<void>(
+      canPop: !isSelectionMode,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && isSelectionMode) {
+          _selectionNotifier.exit();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: theme.scaffoldBackgroundColor,
+        body: Column(
+          children: [
+            // 顶部工具栏
+            Consumer(
+              builder: (context, toolbarRef, _) {
+                final selectionState = toolbarRef.watch(
+                  onlineGallerySelectionNotifierProvider,
+                );
+                return _buildToolbar(
+                  theme,
+                  state,
+                  authState,
+                  gelbooruAuthState,
+                  selectionState,
+                );
+              },
+            ),
+            // 图片网格
+            Expanded(child: _buildContent(theme, state)),
+            // 底部分页条
+            _buildPaginationBar(theme, state),
+          ],
+        ),
       ),
     );
   }
 
   /// 构建底部分页条
   Widget _buildPaginationBar(ThemeData theme, OnlineGalleryState state) {
+    final isCompact = MediaQuery.sizeOf(context).width < 400;
     if (state.randomEnabled) {
       return Container(
         key: const ValueKey('online-gallery-random-status-bar'),
@@ -551,7 +584,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     return Container(
       key: const ValueKey('online-gallery-pagination-bar'),
       height: 48,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: EdgeInsets.symmetric(horizontal: isCompact ? 4 : 16),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         border: Border(
@@ -569,12 +602,12 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             icon: const Icon(Icons.chevron_left, size: 24),
             tooltip: context.l10n.onlineGallery_previousPage,
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: isCompact ? 4 : 8),
           // 页码显示/输入
           _isEditingPage
               ? _buildPageInput(theme, state)
               : _buildPageDisplay(theme, state),
-          const SizedBox(width: 8),
+          SizedBox(width: isCompact ? 4 : 8),
           // 下一页
           IconButton(
             onPressed: state.hasMore && !state.isLoading
@@ -583,7 +616,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             icon: const Icon(Icons.chevron_right, size: 24),
             tooltip: context.l10n.onlineGallery_nextPage,
           ),
-          const SizedBox(width: 24),
+          SizedBox(width: isCompact ? 12 : 24),
           // 图片计数
           Text(
             context.l10n.onlineGallery_imageCount(
@@ -751,9 +784,11 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
               state.viewMode == GalleryViewMode.favorites ||
               (state.viewMode == GalleryViewMode.popular &&
                   state.popularSourceId == GallerySourceId.aiTag);
-          final queryFieldWidth = _activeSource(state) == GallerySourceId.aiTag
-              ? 520.0
-              : 280.0;
+          final queryFieldWidth = switch (_activeSource(state)) {
+            GallerySourceId.aiTag => 520.0,
+            GallerySourceId.quickTagCloud => 420.0,
+            _ => 280.0,
+          };
           final secondaryControls = _buildSecondaryControls(theme, state);
           final leadingControls = Row(
             mainAxisSize: MainAxisSize.min,
@@ -787,34 +822,25 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
               ? SingleChildScrollView(
                   key: const ValueKey('online-gallery-primary-controls-scroll'),
                   scrollDirection: Axis.horizontal,
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(minWidth: constraints.maxWidth),
-                    child: IntrinsicWidth(
-                      child: Row(
-                        children: [
-                          leadingControls,
-                          if (showQueryFields) ...[
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: ConstrainedBox(
-                                constraints: BoxConstraints(
-                                  minWidth: queryFieldWidth,
-                                ),
-                                child: KeyedSubtree(
-                                  key: const ValueKey(
-                                    'online-gallery-primary-search',
-                                  ),
-                                  child: _buildSearchFields(theme, state),
-                                ),
-                              ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      leadingControls,
+                      if (showQueryFields) ...[
+                        const SizedBox(width: 12),
+                        SizedBox(
+                          width: queryFieldWidth,
+                          child: KeyedSubtree(
+                            key: const ValueKey(
+                              'online-gallery-primary-search',
                             ),
-                          ] else
-                            const Spacer(),
-                          const SizedBox(width: 8),
-                          trailingControls,
-                        ],
-                      ),
-                    ),
+                            child: _buildSearchFields(theme, state),
+                          ),
+                        ),
+                      ],
+                      const SizedBox(width: 8),
+                      trailingControls,
+                    ],
                   ),
                 )
               : Row(
@@ -840,13 +866,13 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             children: [
               SizedBox(
                 key: const ValueKey('online-gallery-toolbar-primary-row'),
-                height: 40,
+                height: _galleryToolbarControlHeight,
                 child: primaryControls,
               ),
               const SizedBox(height: 8),
               SizedBox(
                 key: const ValueKey('online-gallery-toolbar-secondary-row'),
-                height: 40,
+                height: _gallerySecondaryToolbarHeight,
                 child: Row(
                   children: [
                     if (collapseSecondaryControls) ...[
@@ -858,7 +884,9 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
                         label: Text(context.l10n.common_filter),
                         style: FilledButton.styleFrom(
                           padding: const EdgeInsets.symmetric(horizontal: 12),
-                          visualDensity: VisualDensity.compact,
+                          visualDensity: PlatformCapabilities.current.isMobile
+                              ? VisualDensity.standard
+                              : VisualDensity.compact,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(6),
                           ),
@@ -1060,14 +1088,9 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         treatSpacesAsSeparators: treatSpacesAsSeparators,
       ),
       onSuggestionSelected: (_) => onSubmitted(),
-      child: Container(
-        height: 36,
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest.withValues(
-            alpha: 0.4,
-          ),
-          borderRadius: BorderRadius.circular(18),
-        ),
+      child: InputSurfaceContainer(
+        height: _gallerySearchFieldHeight,
+        borderRadius: _gallerySearchFieldHeight / 2,
         child: ValueListenableBuilder<TextEditingValue>(
           valueListenable: controller,
           builder: (context, value, _) => TextField(
@@ -1108,7 +1131,13 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
                         focusNode.requestFocus();
                       },
                     ),
+              filled: false,
               border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              disabledBorder: InputBorder.none,
+              errorBorder: InputBorder.none,
+              focusedErrorBorder: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(vertical: 8),
               isDense: true,
             ),
@@ -1120,13 +1149,10 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
   }
 
   Widget _buildCodexSearchField(ThemeData theme) {
-    return Container(
-      height: 36,
+    return InputSurfaceContainer(
+      height: _gallerySearchFieldHeight,
       constraints: const BoxConstraints(maxWidth: 520),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
-        borderRadius: BorderRadius.circular(18),
-      ),
+      borderRadius: _gallerySearchFieldHeight / 2,
       child: ValueListenableBuilder<TextEditingValue>(
         valueListenable: _searchController,
         builder: (context, value, _) => TextField(
@@ -1136,6 +1162,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           textInputAction: TextInputAction.search,
           decoration: InputDecoration(
             hintText: context.l10n.onlineGallery_codexSearchHint,
+            filled: false,
             hintStyle: TextStyle(
               color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
               fontSize: 13,
@@ -1154,6 +1181,11 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
               },
             ),
             border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            disabledBorder: InputBorder.none,
+            errorBorder: InputBorder.none,
+            focusedErrorBorder: InputBorder.none,
             contentPadding: const EdgeInsets.symmetric(vertical: 8),
             isDense: true,
           ),
@@ -1229,21 +1261,17 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         _searchDebounceTimer?.cancel();
         _submitTagSearch(value, onValid: onSubmitted);
       },
-      child: Container(
-        height: 36,
+      child: InputSurfaceContainer(
+        height: _gallerySearchFieldHeight,
         constraints: const BoxConstraints(maxWidth: 400),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest.withValues(
-            alpha: 0.4,
-          ),
-          borderRadius: BorderRadius.circular(18),
-        ),
+        borderRadius: _gallerySearchFieldHeight / 2,
         child: TextField(
           controller: controller,
           focusNode: focusNode,
           style: theme.textTheme.bodyMedium,
           decoration: InputDecoration(
             hintText: context.l10n.onlineGallery_searchTags,
+            filled: false,
             hintStyle: TextStyle(
               color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
               fontSize: 13,
@@ -1264,6 +1292,11 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             ),
             suffixIconConstraints: const BoxConstraints(minWidth: 64),
             border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            disabledBorder: InputBorder.none,
+            errorBorder: InputBorder.none,
+            focusedErrorBorder: InputBorder.none,
             contentPadding: const EdgeInsets.symmetric(vertical: 8),
             isDense: true,
           ),
@@ -1305,9 +1338,11 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
                 foregroundColor: state.randomEnabled
                     ? theme.colorScheme.onPrimaryContainer
                     : theme.colorScheme.onSurfaceVariant,
-                minimumSize: const Size(0, 40),
+                minimumSize: Size(0, _galleryToolbarControlHeight),
                 padding: const EdgeInsets.symmetric(horizontal: 8),
-                visualDensity: VisualDensity.compact,
+                visualDensity: PlatformCapabilities.current.isMobile
+                    ? VisualDensity.standard
+                    : VisualDensity.compact,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(6),
                 ),
@@ -1337,7 +1372,9 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
                   horizontal: 10,
                   vertical: 7,
                 ),
-                visualDensity: VisualDensity.compact,
+                visualDensity: PlatformCapabilities.current.isMobile
+                    ? VisualDensity.standard
+                    : VisualDensity.compact,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(6),
                 ),
@@ -1403,9 +1440,11 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             key: const ValueKey('online-gallery-refresh'),
             onPressed: refreshAction,
             style: FilledButton.styleFrom(
-              minimumSize: const Size(0, 40),
+              minimumSize: Size(0, _galleryToolbarControlHeight),
               padding: const EdgeInsets.symmetric(horizontal: 8),
-              visualDensity: VisualDensity.compact,
+              visualDensity: PlatformCapabilities.current.isMobile
+                  ? VisualDensity.standard
+                  : VisualDensity.compact,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(6),
               ),
@@ -1430,7 +1469,9 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             ),
             style: FilledButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              visualDensity: VisualDensity.compact,
+              visualDensity: PlatformCapabilities.current.isMobile
+                  ? VisualDensity.standard
+                  : VisualDensity.compact,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(6),
               ),
@@ -1443,9 +1484,11 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             onPressed: _selectionNotifier.enter,
             style: TextButton.styleFrom(
               foregroundColor: theme.colorScheme.onSurfaceVariant,
-              minimumSize: const Size(0, 40),
+              minimumSize: Size(0, _galleryToolbarControlHeight),
               padding: const EdgeInsets.symmetric(horizontal: 8),
-              visualDensity: VisualDensity.compact,
+              visualDensity: PlatformCapabilities.current.isMobile
+                  ? VisualDensity.standard
+                  : VisualDensity.compact,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(6),
               ),
@@ -1461,7 +1504,9 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             style: TextButton.styleFrom(
               foregroundColor: theme.colorScheme.onSurfaceVariant,
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              visualDensity: VisualDensity.compact,
+              visualDensity: PlatformCapabilities.current.isMobile
+                  ? VisualDensity.standard
+                  : VisualDensity.compact,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(6),
               ),
@@ -1506,7 +1551,9 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
                 ? theme.colorScheme.onPrimaryContainer
                 : theme.colorScheme.onSurfaceVariant,
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-            visualDensity: VisualDensity.compact,
+            visualDensity: PlatformCapabilities.current.isMobile
+                ? VisualDensity.standard
+                : VisualDensity.compact,
           ),
         ),
       ),
@@ -1620,7 +1667,9 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           child: Chip(
             avatar: Icon(icon, size: 16),
             label: Text(label),
-            visualDensity: VisualDensity.compact,
+            visualDensity: PlatformCapabilities.current.isMobile
+                ? VisualDensity.standard
+                : VisualDensity.compact,
           ),
         );
       }
@@ -1629,8 +1678,8 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         child: Semantics(
           label: '$label. $tooltip',
           child: Container(
-            width: 40,
-            height: 40,
+            width: _galleryToolbarControlHeight,
+            height: _galleryToolbarControlHeight,
             decoration: BoxDecoration(
               color: theme.colorScheme.surfaceContainerHighest.withValues(
                 alpha: 0.4,
@@ -1701,7 +1750,9 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           alpha: 0.4,
         ),
         padding: EdgeInsets.symmetric(horizontal: compact ? 8 : 12),
-        visualDensity: VisualDensity.compact,
+        visualDensity: PlatformCapabilities.current.isMobile
+            ? VisualDensity.standard
+            : VisualDensity.compact,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
       );
       final button = compact
@@ -1750,37 +1801,38 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
   }
 
   Future<void> _showSourceFilters() async {
-    await showDialog<void>(
+    await AdaptivePresenter.showPanel<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Row(
-          children: [
-            const Icon(Icons.tune_rounded, size: 20),
-            const SizedBox(width: 8),
-            Text(context.l10n.common_filter),
-          ],
-        ),
-        content: SizedBox(
-          width: min(720, MediaQuery.sizeOf(dialogContext).width - 80),
-          child: SingleChildScrollView(
-            child: Consumer(
-              builder: (context, ref, _) {
-                final state = ref.watch(onlineGalleryNotifierProvider);
-                return _buildSecondaryControls(
+      initialChildSize: 0.38,
+      minChildSize: 0.28,
+      maxChildSize: 0.92,
+      sideSheetWidth: 480,
+      titleBuilder: (panelContext) => Row(
+        children: [
+          const Icon(Icons.tune_rounded, size: 20),
+          const SizedBox(width: 8),
+          Text(panelContext.l10n.common_filter),
+        ],
+      ),
+      builder: (panelContext, scrollController) => Consumer(
+        builder: (context, ref, _) {
+          final state = ref.watch(onlineGalleryNotifierProvider);
+          return Scrollbar(
+            controller: scrollController,
+            thumbVisibility: PlatformCapabilities.current.isMobile,
+            child: ListView(
+              controller: scrollController,
+              padding: const EdgeInsets.all(20),
+              children: [
+                _buildSecondaryControls(
                   Theme.of(context),
                   state,
                   wrapControls: true,
-                );
-              },
+                ),
+              ],
             ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: Text(context.l10n.common_close),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -1909,7 +1961,9 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             tooltip: context.l10n.common_retry,
             onPressed: state.isLoading ? null : _galleryNotifier.refresh,
             icon: const Icon(Icons.refresh_rounded, size: 17),
-            visualDensity: VisualDensity.compact,
+            visualDensity: PlatformCapabilities.current.isMobile
+                ? VisualDensity.standard
+                : VisualDensity.compact,
           ),
         ],
       ),
@@ -2002,7 +2056,9 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
               backgroundColor: theme.colorScheme.surfaceContainerHighest
                   .withValues(alpha: 0.4),
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-              visualDensity: VisualDensity.compact,
+              visualDensity: PlatformCapabilities.current.isMobile
+                  ? VisualDensity.standard
+                  : VisualDensity.compact,
             ),
           ),
         );
@@ -2077,7 +2133,9 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
                   alpha: 0.4,
                 ),
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          visualDensity: VisualDensity.compact,
+          visualDensity: PlatformCapabilities.current.isMobile
+              ? VisualDensity.standard
+              : VisualDensity.compact,
         ),
       ),
     );
@@ -2168,8 +2226,8 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     }) {
       final content = SizedBox(
         key: const ValueKey('online-gallery-account-avatar'),
-        width: 40,
-        height: 40,
+        width: _galleryToolbarControlHeight,
+        height: _galleryToolbarControlHeight,
         child: Center(
           child: Container(
             width: 34,
@@ -2440,9 +2498,13 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           onSelectionChanged: (selected) {
             _galleryNotifier.setPopularScale(selected.first);
           },
-          style: const ButtonStyle(
-            visualDensity: VisualDensity.compact,
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          style: ButtonStyle(
+            visualDensity: PlatformCapabilities.current.isMobile
+                ? VisualDensity.standard
+                : VisualDensity.compact,
+            tapTargetSize: PlatformCapabilities.current.isMobile
+                ? MaterialTapTargetSize.padded
+                : MaterialTapTargetSize.shrinkWrap,
           ),
         ),
         TextButton.icon(
@@ -2461,7 +2523,9 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             backgroundColor: theme.colorScheme.surfaceContainerHighest
                 .withValues(alpha: 0.4),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            visualDensity: VisualDensity.compact,
+            visualDensity: PlatformCapabilities.current.isMobile
+                ? VisualDensity.standard
+                : VisualDensity.compact,
           ),
         ),
         if (state.popularDate != null)
@@ -2755,34 +2819,46 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
 
   /// 构建图片网格
   Widget _buildImageGrid(ThemeData theme, OnlineGalleryState state) {
-    final screenWidth = MediaQuery.of(context).size.width - 60;
-    final columnCount = (screenWidth / 200).floor().clamp(2, 8);
-    final itemWidth = (screenWidth - 24 - (columnCount - 1) * 6) / columnCount;
-    final viewportHeight = _scrollController.hasClients
-        ? _scrollController.position.viewportDimension
-        : MediaQuery.sizeOf(context).height;
-    _lookaheadItemCount = OnlineGalleryPreloadPolicy.lookaheadItemCount(
-      viewportHeight: viewportHeight,
-      itemWidth: itemWidth,
-      columnCount: columnCount,
-    );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const padding = 24.0;
+        const spacing = 6.0;
+        final availableWidth = (constraints.maxWidth - padding).clamp(
+          0.0,
+          double.infinity,
+        );
+        final columnCount = ((availableWidth + spacing) / (160 + spacing))
+            .floor()
+            .clamp(1, 8);
+        final itemWidth =
+            (availableWidth - (columnCount - 1) * spacing) / columnCount;
+        final viewportHeight = _scrollController.hasClients
+            ? _scrollController.position.viewportDimension
+            : constraints.maxHeight;
+        _lookaheadItemCount = OnlineGalleryPreloadPolicy.lookaheadItemCount(
+          viewportHeight: viewportHeight,
+          itemWidth: itemWidth,
+          columnCount: columnCount,
+        );
 
-    final storageScope = state.randomEnabled
-        ? 'random:${state.randomSession.scopeKey}'
-        : 'normal';
-    return MasonryGridView.count(
-      key: PageStorageKey<String>(
-        'online_gallery_$storageScope:${state.currentCacheKey}',
-      ),
-      controller: _scrollController,
-      cacheExtent: OnlineGalleryPreloadPolicy.cacheExtent(viewportHeight),
-      padding: const EdgeInsets.all(12),
-      crossAxisCount: columnCount,
-      mainAxisSpacing: 6,
-      crossAxisSpacing: 6,
-      itemCount: state.posts.length + 1,
-      itemBuilder: (context, index) =>
-          _buildGridItem(theme, state, index, itemWidth),
+        final storageScope = state.randomEnabled
+            ? 'random:${state.randomSession.scopeKey}'
+            : 'normal';
+        return MasonryGridView.count(
+          key: PageStorageKey<String>(
+            'online_gallery_$storageScope:${state.currentCacheKey}',
+          ),
+          controller: _scrollController,
+          cacheExtent: OnlineGalleryPreloadPolicy.cacheExtent(viewportHeight),
+          padding: const EdgeInsets.all(12),
+          crossAxisCount: columnCount,
+          mainAxisSpacing: spacing,
+          crossAxisSpacing: spacing,
+          itemCount: state.posts.length + 1,
+          itemBuilder: (context, index) =>
+              _buildGridItem(theme, state, index, itemWidth),
+        );
+      },
     );
   }
 
@@ -3694,7 +3770,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     GalleryItem item,
     List<GalleryMedia> mediaItems,
   ) async {
-    final directory = await FilePickerUtils.pickDirectoryModal(
+    final directory = await FileExportService.pickExportDirectory(
       dialogTitle: dialogContext.l10n.onlineGallery_chooseDownloadDirectory,
     );
     if (directory == null) return;
@@ -3720,24 +3796,19 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           RegExp(r'[^A-Za-z0-9._-]+'),
           '_',
         );
-        final extensionCandidate =
-            media.extension ??
-            path.extension(Uri.parse(url).path).replaceFirst('.', '');
-        final extension =
-            RegExp(r'^[A-Za-z0-9]{1,10}$').hasMatch(extensionCandidate)
-            ? extensionCandidate.toLowerCase()
-            : 'webp';
-        await file.copy(
-          path.join(
-            directory,
-            '${item.sourceId.key}_${safeWorkId}_$safeMediaId.$extension',
-          ),
+        final extension = _resolveGalleryDownloadExtension(media, url);
+        await FileExportService.writeFileToDirectory(
+          directory: directory,
+          sourcePath: file.path,
+          fileName:
+              '${item.sourceId.key}_${safeWorkId}_$safeMediaId.$extension',
+          mimeType: mediaMimeTypeForExtension(extension),
         );
       }
       if (dialogContext.mounted) {
         AppToast.success(
           dialogContext,
-          dialogContext.l10n.onlineGallery_savedToPath(directory),
+          dialogContext.l10n.onlineGallery_savedFiles(mediaItems.length),
         );
       }
     } catch (error) {
@@ -3947,10 +4018,6 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     GalleryItem item,
     GalleryMedia media,
   ) async {
-    final directory = await FilePickerUtils.pickDirectoryModal(
-      dialogTitle: dialogContext.l10n.onlineGallery_chooseDownloadDirectory,
-    );
-    if (directory == null) return;
     final url = media.downloadUrl;
     try {
       final file = await OnlineGalleryImageCacheManager.instance.getSingleFile(
@@ -3958,27 +4025,25 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         key: onlineGalleryImageCacheKeyForUrl(url),
         headers: onlineGalleryImageHeadersForUrl(url),
       );
+      if (!dialogContext.mounted) return;
       final safeWorkId = item.sourceWorkId.replaceAll(
         RegExp(r'[^A-Za-z0-9._-]+'),
         '_',
       );
-      final extensionCandidate =
-          media.extension ??
-          path.extension(Uri.parse(url).path).replaceFirst('.', '');
-      final extension =
-          RegExp(r'^[A-Za-z0-9]{1,10}$').hasMatch(extensionCandidate)
-          ? extensionCandidate.toLowerCase()
-          : 'webp';
+      final extension = _resolveGalleryDownloadExtension(media, url);
       final safeMediaId = media.id.replaceAll(RegExp(r'[^A-Za-z0-9._-]+'), '_');
-      final destination = path.join(
-        directory,
-        '${item.sourceId.key}_${safeWorkId}_$safeMediaId.$extension',
+      final savedLocation = await FileExportService.saveFileFromPath(
+        sourcePath: file.path,
+        fileName: '${item.sourceId.key}_${safeWorkId}_$safeMediaId.$extension',
+        dialogTitle: dialogContext.l10n.onlineGallery_chooseDownloadDirectory,
+        mimeType: mediaMimeTypeForExtension(extension),
+        allowedExtensions: [extension],
       );
-      await file.copy(destination);
+      if (savedLocation == null) return;
       if (dialogContext.mounted) {
         AppToast.success(
           dialogContext,
-          dialogContext.l10n.onlineGallery_savedToPath(destination),
+          dialogContext.l10n.onlineGallery_savedFiles(1),
         );
       }
     } catch (error) {
@@ -4236,7 +4301,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
 
     String? result;
     try {
-      result = await FilePickerUtils.pickDirectoryModal(
+      result = await FileExportService.pickExportDirectory(
         dialogTitle: context.l10n.onlineGallery_chooseDownloadDirectory,
       );
     } catch (e) {
@@ -4387,18 +4452,19 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
                   key: onlineGalleryImageCacheKeyForUrl(url),
                   headers: onlineGalleryImageHeadersForUrl(url),
                 );
-            final extension =
-                job.media.extension ??
-                path.extension(Uri.parse(url).path).replaceFirst('.', '');
+            final extension = _resolveGalleryDownloadExtension(job.media, url);
             final safeWorkId = job.post.sourceWorkId.replaceAll(
               RegExp(r'[^A-Za-z0-9._-]+'),
               '_',
             );
-            final destination = path.join(
-              destinationDir,
-              '${job.post.sourceId.key}_${safeWorkId}_p${job.mediaIndex.toString().padLeft(2, '0')}.${extension.isEmpty ? 'webp' : extension}',
+            final resolvedExtension = extension.isEmpty ? 'webp' : extension;
+            await FileExportService.writeFileToDirectory(
+              directory: destinationDir,
+              sourcePath: file.path,
+              fileName:
+                  '${job.post.sourceId.key}_${safeWorkId}_p${job.mediaIndex.toString().padLeft(2, '0')}.$resolvedExtension',
+              mimeType: mediaMimeTypeForExtension(resolvedExtension),
             );
-            await file.copy(destination);
             successCount++;
           } catch (error) {
             failCount++;
@@ -4491,7 +4557,9 @@ class _ModeButton extends StatelessWidget {
                 : selectedBackgroundColor.withValues(alpha: 0.08),
             focusColor: selectedBackgroundColor.withValues(alpha: 0.14),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(minHeight: 40),
+              constraints: BoxConstraints(
+                minHeight: _galleryToolbarControlHeight,
+              ),
               child: Padding(
                 padding: EdgeInsets.symmetric(horizontal: compact ? 10 : 14),
                 child: Row(
@@ -4540,7 +4608,7 @@ class _SourceDropdown extends StatelessWidget {
     return PopupMenuButton<GallerySourceId>(
       key: const ValueKey('online-gallery-source-selector'),
       onSelected: onChanged,
-      offset: const Offset(0, 44),
+      offset: Offset(0, _galleryToolbarControlHeight + 4),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       itemBuilder: (context) => sources.entries.map((e) {
         final isSelected = selected == e.key;
@@ -4563,7 +4631,7 @@ class _SourceDropdown extends StatelessWidget {
         );
       }).toList(),
       child: Container(
-        height: 40,
+        height: _galleryToolbarControlHeight,
         padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
           color: theme.colorScheme.surfaceContainerHighest.withValues(
@@ -4627,8 +4695,12 @@ class _FuzzySearchToggle extends StatelessWidget {
       ),
       tooltip: context.l10n.onlineGallery_fuzzySearchTooltip,
       onSelected: onChanged,
-      visualDensity: VisualDensity.compact,
-      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      visualDensity: PlatformCapabilities.current.isMobile
+          ? VisualDensity.standard
+          : VisualDensity.compact,
+      materialTapTargetSize: PlatformCapabilities.current.isMobile
+          ? MaterialTapTargetSize.padded
+          : MaterialTapTargetSize.shrinkWrap,
       labelPadding: const EdgeInsets.symmetric(horizontal: 2),
       padding: const EdgeInsets.symmetric(horizontal: 4),
       selectedColor: theme.colorScheme.secondaryContainer,
@@ -4740,7 +4812,9 @@ class _DateRangePopupState extends State<_DateRangePopup> {
                   IconButton(
                     onPressed: widget.onClose,
                     icon: const Icon(Icons.close, size: 18),
-                    visualDensity: VisualDensity.compact,
+                    visualDensity: PlatformCapabilities.current.isMobile
+                        ? VisualDensity.standard
+                        : VisualDensity.compact,
                     tooltip: context.l10n.common_close,
                   ),
                 ],
@@ -4947,7 +5021,7 @@ class _RatingDropdown extends StatelessWidget {
       }).toList(),
       tooltip: buttonText(),
       child: Container(
-        height: 40,
+        height: _galleryToolbarControlHeight,
         padding: EdgeInsets.symmetric(horizontal: compact ? 8 : 10),
         decoration: BoxDecoration(
           color: theme.colorScheme.surfaceContainerHighest.withValues(

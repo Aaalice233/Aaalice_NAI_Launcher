@@ -7,6 +7,8 @@ import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
+
+import '../../core/constants/community_links.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/constants/storage_keys.dart';
@@ -16,7 +18,7 @@ import '../../core/utils/image_share_sanitizer.dart';
 
 const discordShareRelayUrl =
     'https://aaalice-discord-share.ljk2515448788ljk.workers.dev';
-const discordCommunityUrl = 'https://discord.gg/R48n6GwXzD';
+const discordCommunityUrl = CommunityLinks.discord;
 const _discordOAuthOrigin = 'http://127.0.0.1';
 
 class DiscordShareUser {

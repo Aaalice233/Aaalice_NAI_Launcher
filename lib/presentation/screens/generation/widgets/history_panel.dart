@@ -9,6 +9,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
 import '../../../../core/enums/precise_ref_type.dart';
+import '../../../../core/platform/platform_capabilities.dart';
+import '../../../../core/services/android_media_store_service.dart';
+import '../../../../core/services/file_export_service.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/file_explorer_utils.dart';
 import '../../../../core/utils/image_save_utils.dart';
@@ -74,7 +77,9 @@ class _HistoryRowDescriptor {
 
 /// 历史面板组件
 class HistoryPanel extends ConsumerStatefulWidget {
-  const HistoryPanel({super.key});
+  const HistoryPanel({super.key, this.onClose});
+
+  final VoidCallback? onClose;
 
   @override
   ConsumerState<HistoryPanel> createState() => _HistoryPanelState();
@@ -220,8 +225,12 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
                   style: IconButton.styleFrom(
                     foregroundColor: theme.colorScheme.primary,
                   ),
-                  visualDensity: VisualDensity.compact,
-                  constraints: const BoxConstraints(),
+                  visualDensity: PlatformCapabilities.current.hasTouchInput
+                      ? VisualDensity.standard
+                      : VisualDensity.compact,
+                  constraints: PlatformCapabilities.current.hasTouchInput
+                      ? const BoxConstraints.tightFor(width: 48, height: 48)
+                      : const BoxConstraints(),
                   padding: const EdgeInsets.all(8),
                 ),
               if (state.history.isNotEmpty || state.currentImages.isNotEmpty)
@@ -234,8 +243,12 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
                   style: IconButton.styleFrom(
                     foregroundColor: theme.colorScheme.error,
                   ),
-                  visualDensity: VisualDensity.compact,
-                  constraints: const BoxConstraints(),
+                  visualDensity: PlatformCapabilities.current.hasTouchInput
+                      ? VisualDensity.standard
+                      : VisualDensity.compact,
+                  constraints: PlatformCapabilities.current.hasTouchInput
+                      ? const BoxConstraints.tightFor(width: 48, height: 48)
+                      : const BoxConstraints(),
                   padding: const EdgeInsets.all(8),
                 ),
             ],
@@ -264,6 +277,16 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
   }
 
   Widget _buildCollapseButton(ThemeData theme) {
+    final onClose = widget.onClose;
+    if (onClose != null) {
+      return IconButton(
+        onPressed: onClose,
+        icon: const Icon(Icons.chevron_right_rounded),
+        tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+        constraints: const BoxConstraints.tightFor(width: 48, height: 48),
+      );
+    }
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -821,7 +844,11 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
                                     name: 'history_${historyImage.id}.png',
                                   )
                                 : null,
-                            onOpenInExplorer: historyImage.canSave
+                            onOpenInExplorer:
+                                historyImage.canSave &&
+                                    PlatformCapabilities
+                                        .current
+                                        .supportsOpenFolder
                                 ? () => _openImageInExplorer(
                                     context,
                                     historyImage,
@@ -1016,7 +1043,8 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
                   name: 'history_${image.id}.png',
                 )
               : null,
-          onOpenInExplorer: image.canSave
+          onOpenInExplorer:
+              image.canSave && PlatformCapabilities.current.supportsOpenFolder
               ? () => _openImageInExplorer(context, image)
               : null,
           onSaveToLibrary: image.canUseAsGenerationInput
@@ -1435,10 +1463,11 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
           .where((img) => _selectedIds.contains(img.id))
           .toList();
 
+      Object? systemGalleryError;
       // 原子保存：日期分类路径 + 独占防冲突 + 失败清理，全部在工具内完成
       for (int i = 0; i < selectedImages.length; i++) {
         final image = selectedImages[i];
-        await ImageSaveUtils.saveBytesToDatedPath(
+        final filePath = await ImageSaveUtils.saveBytesToDatedPath(
           rootPath: saveDirPath,
           bytes: image.bytes,
           seed: await ImageSaveUtils.resolveSeed(
@@ -1446,12 +1475,34 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
             bytes: image.bytes,
           ),
         );
+        if (PlatformCapabilities.current.supportsSystemGalleryExport) {
+          try {
+            await AndroidMediaStoreService.savePng(
+              bytes: image.bytes,
+              fileName: p.basename(filePath),
+            );
+          } catch (error) {
+            systemGalleryError ??= error;
+          }
+        }
       }
 
       ref.read(localGalleryNotifierProvider.notifier).refresh();
 
       if (context.mounted) {
-        AppToast.success(context, context.l10n.image_imageSaved(saveDirPath));
+        if (systemGalleryError != null) {
+          AppToast.warning(
+            context,
+            context.l10n.image_savedAppOnly(systemGalleryError.toString()),
+          );
+        } else {
+          AppToast.success(
+            context,
+            PlatformCapabilities.current.supportsSystemGalleryExport
+                ? context.l10n.image_savedToSystemGallery
+                : context.l10n.image_imageSaved(saveDirPath),
+          );
+        }
         setState(() {
           _selectedIds.clear();
         });
@@ -1470,21 +1521,21 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
   ) async {
     if (_selectedIds.isEmpty) return;
 
-    // 直接使用保存文件对话框，用户可以选择路径并输入文件名
     final defaultName = 'images_${DateTime.now().millisecondsSinceEpoch}';
-    final outputPath = await FilePicker.platform.saveFile(
-      dialogTitle: context.l10n.localGallery_saveZipArchive,
-      fileName: '$defaultName.zip',
-      type: FileType.custom,
-      allowedExtensions: ['zip'],
-    );
-
-    if (outputPath == null || !context.mounted) return;
-
-    // 确保文件名以 .zip 结尾
-    final finalPath = outputPath.endsWith('.zip')
-        ? outputPath
-        : '$outputPath.zip';
+    final fileName = '$defaultName.zip';
+    String? desktopOutputPath;
+    if (!PlatformCapabilities.current.supportsDocumentFileExport) {
+      final outputPath = await FilePicker.platform.saveFile(
+        dialogTitle: context.l10n.localGallery_saveZipArchive,
+        fileName: fileName,
+        type: FileType.custom,
+        allowedExtensions: ['zip'],
+      );
+      if (outputPath == null || !context.mounted) return;
+      desktopOutputPath = outputPath.endsWith('.zip')
+          ? outputPath
+          : '$outputPath.zip';
+    }
 
     // 显示打包进度
     AppToast.info(
@@ -1492,9 +1543,10 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
       context.l10n.toast_packingImages(_selectedIds.length),
     );
 
+    Directory? tempDir;
     try {
       // 先将选中的图片保存到临时目录
-      final tempDir = await Directory.systemTemp.createTemp('nai_pack_');
+      tempDir = await Directory.systemTemp.createTemp('nai_pack_');
       final imagePaths = <String>[];
 
       final allImages = _getAllSelectableImages(state);
@@ -1504,20 +1556,42 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
 
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       for (int i = 0; i < selectedImages.length; i++) {
-        final fileName = 'NAI_${timestamp}_${i + 1}.png';
-        final file = File('${tempDir.path}/$fileName');
+        final imageFileName = 'NAI_${timestamp}_${i + 1}.png';
+        final file = File('${tempDir.path}/$imageFileName');
         await file.writeAsBytes(selectedImages[i].bytes);
         imagePaths.add(file.path);
       }
 
-      // 执行打包
-      final success = await ZipUtils.createZipFromImages(imagePaths, finalPath);
-
-      // 清理临时文件
-      await tempDir.delete(recursive: true);
+      late bool success;
+      String? savedLocation;
+      if (PlatformCapabilities.current.supportsDocumentFileExport) {
+        savedLocation = await FileExportService.withTemporaryOutput(
+          fileName: fileName,
+          action: (temporaryPath) async {
+            success = await ZipUtils.createZipFromImages(
+              imagePaths,
+              temporaryPath,
+            );
+            if (!success || !context.mounted) return null;
+            return FileExportService.saveFileFromPath(
+              sourcePath: temporaryPath,
+              fileName: fileName,
+              dialogTitle: context.l10n.localGallery_saveZipArchive,
+              mimeType: 'application/zip',
+              allowedExtensions: const ['zip'],
+            );
+          },
+        );
+      } else {
+        success = await ZipUtils.createZipFromImages(
+          imagePaths,
+          desktopOutputPath!,
+        );
+        savedLocation = desktopOutputPath;
+      }
 
       if (context.mounted) {
-        if (success) {
+        if (success && savedLocation != null) {
           AppToast.success(
             context,
             context.l10n.toast_packedImages(selectedImages.length),
@@ -1525,7 +1599,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
           setState(() {
             _selectedIds.clear();
           });
-        } else {
+        } else if (!success) {
           AppToast.error(context, context.l10n.toast_packFailed);
         }
       }
@@ -1535,6 +1609,10 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
           context,
           context.l10n.toast_packFailedWithError(e.toString()),
         );
+      }
+    } finally {
+      if (tempDir != null && await tempDir.exists()) {
+        await tempDir.delete(recursive: true);
       }
     }
   }

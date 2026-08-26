@@ -44,6 +44,14 @@ function Get-AssetInfo {
       description = '解压后打开应用，更新时需要手动替换。'
     }
   }
+  if ($name -match '_Android_.*\.apk$') {
+    return [ordered]@{
+      platform = 'android'
+      type = 'android-apk'
+      label = 'Android APK'
+      description = '下载后由 Android 系统确认并安装更新。'
+    }
+  }
   return $null
 }
 
@@ -93,7 +101,7 @@ New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
 $outputPath = Resolve-Path $OutputDirectory
 
 $releaseFiles = Get-ChildItem -Path $assetPath -File |
-  Where-Object { $_.Extension -in @('.exe', '.zip') } |
+  Where-Object { $_.Extension -in @('.exe', '.zip', '.apk') } |
   Sort-Object Name
 
 if (-not $releaseFiles) {
@@ -158,6 +166,9 @@ function Get-DownloadBadge {
     'macos-portable' {
       return "[![macOS Portable ZIP](https://img.shields.io/badge/Portable-ZIP-555555?style=flat-square&logo=apple&logoColor=white)]($url)"
     }
+    'android-apk' {
+      return "[![Android APK](https://img.shields.io/badge/Android-APK-3DDC84?style=flat-square&logo=android&logoColor=white)]($url)"
+    }
     default {
       throw "Cannot create download badge for asset type: $type"
     }
@@ -174,12 +185,20 @@ $macosBadges = @(
     Where-Object { $_['platform'] -eq 'macos' } |
     ForEach-Object { Get-DownloadBadge -Asset $_ }
 )
+$androidBadges = @(
+  $assets |
+    Where-Object { $_['platform'] -eq 'android' } |
+    ForEach-Object { Get-DownloadBadge -Asset $_ }
+)
 $downloadRows = @()
 if ($windowsBadges.Count -gt 0) {
   $downloadRows += "| **Windows** | $($windowsBadges -join '<br>') |"
 }
 if ($macosBadges.Count -gt 0) {
   $downloadRows += "| **macOS** | $($macosBadges -join '<br>') |"
+}
+if ($androidBadges.Count -gt 0) {
+  $downloadRows += "| **Android** | $($androidBadges -join '<br>') |"
 }
 $releaseLines = @(
   "# NAI Launcher $Tag",
@@ -196,7 +215,7 @@ $releaseLines += @(
   "",
   "> **应用内更新：** Windows 安装版用户无需手动下载。应用会自动选择 Setup x64，完成下载与 SHA256 校验后退出旧版本、静默安装并重新启动。Portable 版也支持应用内自动更新和失败回滚。",
   "",
-  "> **安装提示：** macOS 当前需下载 ZIP 后手动替换应用。Windows Setup 为普通用户的推荐版本，Portable 适合放在自定义目录。",
+  "> **安装提示：** Android 下载 APK 后由系统确认更新；macOS 当前需下载 ZIP 后手动替换应用。Windows Setup 为普通用户的推荐版本，Portable 适合放在自定义目录。",
   "",
   "## 📝 更新内容",
   "",

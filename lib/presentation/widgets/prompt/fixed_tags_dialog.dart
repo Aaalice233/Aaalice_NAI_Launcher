@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../data/models/fixed_tag/fixed_tag_entry.dart';
@@ -1598,7 +1599,10 @@ class _FixedTagEntryTileState extends State<_FixedTagEntryTile> {
 
                 // 操作按钮 - 紧凑
                 AnimatedOpacity(
-                  opacity: _isHovering ? 1.0 : 0.4,
+                  opacity:
+                      PlatformCapabilities.current.hasTouchInput || _isHovering
+                      ? 1.0
+                      : 0.4,
                   duration: const Duration(milliseconds: 120),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -1670,12 +1674,16 @@ class _CompactIconButtonState extends State<_CompactIconButton> {
         cursor: SystemMouseCursors.click,
         child: GestureDetector(
           onTap: widget.onPressed,
-          child: Padding(
-            padding: const EdgeInsets.all(5),
-            child: Icon(
-              widget.icon,
-              size: 15,
-              color: _isHovering ? widget.hoverColor : widget.color,
+          behavior: HitTestBehavior.opaque,
+          child: SizedBox(
+            width: PlatformCapabilities.current.hasTouchInput ? 48 : 25,
+            height: PlatformCapabilities.current.hasTouchInput ? 48 : 25,
+            child: Center(
+              child: Icon(
+                widget.icon,
+                size: 15,
+                color: _isHovering ? widget.hoverColor : widget.color,
+              ),
             ),
           ),
         ),

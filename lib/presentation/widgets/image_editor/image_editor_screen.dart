@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
+import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/services/anlas_calculator.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/contiguous_region_selector.dart';
@@ -18,6 +19,7 @@ import '../../../core/utils/inpaint_outpaint_utils.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../core/utils/nai_resolution_adapter.dart';
 import '../../../data/services/efficient_vit_sam_service.dart';
+import '../../adaptive/adaptive_presenter.dart';
 import '../../utils/dropped_file_reader.dart';
 import '../../utils/internal_drag_protocol.dart';
 import '../../providers/image_generation_provider.dart';
@@ -133,8 +135,7 @@ class ImageEditorScreen extends StatefulWidget {
     ImageEditorMode mode = ImageEditorMode.edit,
     String? title,
   }) {
-    return Navigator.push<ImageEditorResult>(
-      context,
+    return Navigator.of(context, rootNavigator: true).push<ImageEditorResult>(
       MaterialPageRoute(
         builder: (context) => ImageEditorScreen(
           initialImage: initialImage,
@@ -195,6 +196,8 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
   bool _hasOutpaintChanges = false;
   bool _isImportingDroppedImage = false;
   bool _isMagicWandProcessing = false;
+  bool _allowRoutePop = false;
+  bool _exitDialogVisible = false;
   EfficientVitSamProgress? _magicWandProgress;
   bool _hasTransparentCutout = false;
   late final EfficientVitSamService _efficientVitSamService;
@@ -708,12 +711,22 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
       );
     }
 
-    return _buildDroppedImageLayerRegion(
-      LayoutBuilder(
-        builder: (context, constraints) {
-          final isDesktop = constraints.maxWidth > 900;
-          return isDesktop ? _buildDesktopLayout() : _buildMobileLayout();
-        },
+    return PopScope<ImageEditorResult>(
+      canPop: _allowRoutePop,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) unawaited(_confirmExit());
+      },
+      child: _buildDroppedImageLayerRegion(
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final useDesktopLayout =
+                constraints.maxWidth > 900 &&
+                PlatformCapabilities.current.hasPrecisePointer;
+            return useDesktopLayout
+                ? _buildDesktopLayout()
+                : _buildMobileLayout();
+          },
+        ),
       ),
     );
   }
@@ -806,8 +819,17 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
     }
   }
 
+  Future<void> _completeAndPop([ImageEditorResult? result]) async {
+    if (!mounted) return;
+    setState(() => _allowRoutePop = true);
+    await WidgetsBinding.instance.endOfFrame;
+    if (mounted) Navigator.of(context).pop(result);
+  }
+
   /// 确认退出
   Future<void> _confirmExit() async {
+    if (_exitDialogVisible || _allowRoutePop) return;
+
     // 检查是否有修改：检查历史记录或图层内容
     final hasChanges =
         _state.historyManager.canUndo ||
@@ -816,6 +838,7 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
         );
 
     if (hasChanges) {
+      _exitDialogVisible = true;
       final shouldExit = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
@@ -842,13 +865,12 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
           ],
         ),
       );
+      _exitDialogVisible = false;
 
       if (shouldExit != true) return;
     }
 
-    if (mounted) {
-      Navigator.pop(context);
-    }
+    await _completeAndPop();
   }
 
   /// 导出并关闭
@@ -943,7 +965,7 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
       }
 
       if (mounted) {
-        Navigator.of(context).pop(
+        await _completeAndPop(
           ImageEditorResult(
             modifiedImage: modifiedImage,
             maskImage: maskImage,
@@ -1536,7 +1558,9 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
   }
 
   Widget _buildDroppedImageLayerRegion(Widget child) {
-    if (_isInpaintMode || widget.debugDisableDropRegion) {
+    if (_isInpaintMode ||
+        widget.debugDisableDropRegion ||
+        !PlatformCapabilities.current.supportsExternalFileDrop) {
       return child;
     }
 

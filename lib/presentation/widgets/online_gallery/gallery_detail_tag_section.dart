@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/platform/platform_capabilities.dart';
 import '../tag_chip.dart';
 
 @immutable
@@ -151,14 +152,15 @@ class _CopyButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return SizedBox(
-      width: 40,
-      height: 40,
+    return SizedBox.square(
+      dimension: 48,
       child: IconButton(
         onPressed: onPressed,
         padding: EdgeInsets.zero,
-        constraints: const BoxConstraints.tightFor(width: 40, height: 40),
-        visualDensity: VisualDensity.compact,
+        constraints: const BoxConstraints.tightFor(width: 48, height: 48),
+        visualDensity: PlatformCapabilities.current.hasTouchInput
+            ? VisualDensity.standard
+            : VisualDensity.compact,
         tooltip: tooltip,
         icon: Icon(
           Icons.content_copy_rounded,

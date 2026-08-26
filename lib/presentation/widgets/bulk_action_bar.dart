@@ -82,6 +82,22 @@ class BulkActionBar extends StatelessWidget {
           ),
           child: LayoutBuilder(
             builder: (context, constraints) {
+              if (constraints.maxWidth < 700) {
+                return _CompactBulkActions(
+                  selectedCount: selectedCount,
+                  isAllSelected: isAllSelected,
+                  isAllAvailableSelected: isAllAvailableSelected,
+                  onExit: onExit,
+                  onSelectAll: onSelectAll,
+                  onSelectAllAvailable: onSelectAllAvailable,
+                  selectAllLabel: selectAllLabel,
+                  deselectAllLabel: deselectAllLabel,
+                  selectAllAvailableLabel: selectAllAvailableLabel,
+                  deselectAllAvailableLabel: deselectAllAvailableLabel,
+                  actions: actions,
+                );
+              }
+
               final showSelectionLabels = constraints.maxWidth >= 1180;
               final compactActions = constraints.maxWidth < 1180;
 
@@ -207,6 +223,132 @@ class BulkActionBar extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _CompactBulkActions extends StatelessWidget {
+  const _CompactBulkActions({
+    required this.selectedCount,
+    required this.isAllSelected,
+    required this.isAllAvailableSelected,
+    required this.onExit,
+    required this.onSelectAll,
+    required this.onSelectAllAvailable,
+    required this.selectAllLabel,
+    required this.deselectAllLabel,
+    required this.selectAllAvailableLabel,
+    required this.deselectAllAvailableLabel,
+    required this.actions,
+  });
+
+  final int selectedCount;
+  final bool isAllSelected;
+  final bool isAllAvailableSelected;
+  final VoidCallback? onExit;
+  final VoidCallback? onSelectAll;
+  final VoidCallback? onSelectAllAvailable;
+  final String? selectAllLabel;
+  final String? deselectAllLabel;
+  final String? selectAllAvailableLabel;
+  final String? deselectAllAvailableLabel;
+  final List<BulkActionItem> actions;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final theme = Theme.of(context);
+    final hasSelection = selectedCount > 0;
+
+    return Row(
+      children: [
+        IconButton(
+          onPressed: onExit,
+          tooltip: l10n.common_exit,
+          icon: const Icon(Icons.close),
+        ),
+        const SizedBox(width: 4),
+        Expanded(
+          child: Text(
+            l10n.bulkAction_selectedCount(selectedCount),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.labelLarge?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        PopupMenuButton<int>(
+          tooltip: l10n.common_selectAll,
+          icon: const Icon(Icons.library_add_check_outlined),
+          onSelected: (value) {
+            if (value == 0) {
+              onSelectAll?.call();
+            } else {
+              onSelectAllAvailable?.call();
+            }
+          },
+          itemBuilder: (context) => [
+            PopupMenuItem(
+              value: 0,
+              enabled: onSelectAll != null,
+              child: ListTile(
+                leading: Icon(
+                  isAllSelected
+                      ? Icons.indeterminate_check_box_outlined
+                      : Icons.check_box_outlined,
+                ),
+                title: Text(
+                  isAllSelected
+                      ? deselectAllLabel ?? l10n.common_deselectAll
+                      : selectAllLabel ?? l10n.common_selectAll,
+                ),
+              ),
+            ),
+            if (onSelectAllAvailable != null)
+              PopupMenuItem(
+                value: 1,
+                child: ListTile(
+                  leading: Icon(
+                    isAllAvailableSelected ? Icons.remove_done : Icons.done_all,
+                  ),
+                  title: Text(
+                    isAllAvailableSelected
+                        ? deselectAllAvailableLabel ?? l10n.common_deselectAll
+                        : selectAllAvailableLabel ?? l10n.common_selectAll,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        PopupMenuButton<int>(
+          enabled: hasSelection && actions.isNotEmpty,
+          tooltip: l10n.nav_more,
+          icon: const Icon(Icons.more_vert),
+          onSelected: (index) => actions[index].onPressed?.call(),
+          itemBuilder: (context) => [
+            for (int index = 0; index < actions.length; index++)
+              PopupMenuItem(
+                value: index,
+                enabled: actions[index].onPressed != null,
+                child: ListTile(
+                  leading: Icon(
+                    actions[index].icon,
+                    color: actions[index].isDanger
+                        ? theme.colorScheme.error
+                        : actions[index].color,
+                  ),
+                  title: Text(
+                    actions[index].label,
+                    style: actions[index].isDanger
+                        ? TextStyle(color: theme.colorScheme.error)
+                        : null,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ],
     );
   }
 }

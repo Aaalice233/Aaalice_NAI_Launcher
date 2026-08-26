@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/prompt/random_preset.dart';
 import '../../../providers/random_preset_provider.dart';
+import '../../../themes/core/input_surface_style.dart';
 import '../../../providers/tag_group_sync_provider.dart';
 import '../../common/app_toast.dart';
 import '../new_preset_dialog.dart';
@@ -28,21 +29,78 @@ class PresetSelectorBar extends ConsumerWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
+        final compact = constraints.maxWidth < 560;
         final showDescription = constraints.maxWidth >= 760;
+        final dropdown = _PresetDropdown(
+          presets: state.presets,
+          selectedPreset: selected,
+          onSelected: (preset) => ref
+              .read(randomPresetNotifierProvider.notifier)
+              .selectPreset(preset.id),
+          onCreateNew: () => _showCreatePresetDialog(context, ref),
+        );
+        final menu = _buildPresetMenu(
+          context,
+          ref,
+          selected,
+          syncState,
+          includeSync: !showDescription,
+        );
+
+        if (compact) {
+          final previewButton = FilledButton.tonalIcon(
+            onPressed: onGeneratePreview,
+            icon: const Icon(Icons.shuffle_rounded),
+            label: Text(context.l10n.randomManager_generatePreview),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(48),
+            ),
+          );
+          final importExportButton = OutlinedButton.icon(
+            onPressed: onImportExport,
+            icon: const Icon(Icons.swap_vert_rounded),
+            label: Text(context.l10n.randomManager_importExport),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size.fromHeight(48),
+            ),
+          );
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              dropdown,
+              const SizedBox(height: 8),
+              if (constraints.maxWidth < 460) ...[
+                previewButton,
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(child: importExportButton),
+                    const SizedBox(width: 4),
+                    menu,
+                  ],
+                ),
+              ] else
+                Row(
+                  children: [
+                    Expanded(child: previewButton),
+                    const SizedBox(width: 8),
+                    Expanded(child: importExportButton),
+                    const SizedBox(width: 4),
+                    menu,
+                  ],
+                ),
+            ],
+          );
+        }
+
         return Row(
           children: [
             Flexible(
               flex: showDescription ? 0 : 1,
               child: SizedBox(
                 width: showDescription ? 250 : double.infinity,
-                child: _PresetDropdown(
-                  presets: state.presets,
-                  selectedPreset: selected,
-                  onSelected: (preset) => ref
-                      .read(randomPresetNotifierProvider.notifier)
-                      .selectPreset(preset.id),
-                  onCreateNew: () => _showCreatePresetDialog(context, ref),
-                ),
+                child: dropdown,
               ),
             ),
             if (showDescription && selected != null) ...[
@@ -86,57 +144,79 @@ class PresetSelectorBar extends ConsumerWidget {
                     ? () => _syncDanbooru(context, ref)
                     : null,
               ),
-            PopupMenuButton<_PresetAction>(
-              tooltip: context.l10n.randomManager_presetActions,
-              onSelected: (action) =>
-                  _handleAction(context, ref, action, selected),
-              itemBuilder: (context) => [
-                PopupMenuItem(
-                  value: _PresetAction.create,
-                  child: ListTile(
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.add_rounded),
-                    title: Text(context.l10n.config_newPreset),
-                  ),
-                ),
-                if (selected != null && !selected.isDefault) ...[
-                  if (selected.isBasedOnDefault)
-                    PopupMenuItem(
-                      value: _PresetAction.reset,
-                      child: ListTile(
-                        dense: true,
-                        contentPadding: EdgeInsets.zero,
-                        leading: const Icon(Icons.restart_alt_rounded),
-                        title: Text(
-                          context.l10n.randomManager_resetDefaultConfirm,
-                        ),
-                      ),
-                    ),
-                  PopupMenuItem(
-                    value: _PresetAction.delete,
-                    child: ListTile(
-                      dense: true,
-                      contentPadding: EdgeInsets.zero,
-                      leading: Icon(
-                        Icons.delete_outline_rounded,
-                        color: Theme.of(context).colorScheme.error,
-                      ),
-                      title: Text(
-                        context.l10n.common_delete,
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.error,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-              icon: const Icon(Icons.more_horiz_rounded),
-            ),
+            menu,
           ],
         );
       },
+    );
+  }
+
+  Widget _buildPresetMenu(
+    BuildContext context,
+    WidgetRef ref,
+    RandomPreset? selected,
+    TagGroupSyncState syncState, {
+    required bool includeSync,
+  }) {
+    return PopupMenuButton<_PresetAction>(
+      tooltip: context.l10n.randomManager_presetActions,
+      onSelected: (action) => _handleAction(context, ref, action, selected),
+      itemBuilder: (context) => [
+        PopupMenuItem(
+          value: _PresetAction.create,
+          child: ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.add_rounded),
+            title: Text(context.l10n.config_newPreset),
+          ),
+        ),
+        if (includeSync)
+          PopupMenuItem(
+            value: _PresetAction.sync,
+            enabled:
+                selected != null && !selected.isDefault && !syncState.isSyncing,
+            child: ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              leading: syncState.isSyncing
+                  ? const SizedBox.square(
+                      dimension: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.sync_rounded),
+              title: Text(context.l10n.randomManager_syncDanbooruTags),
+            ),
+          ),
+        if (selected != null && !selected.isDefault) ...[
+          if (selected.isBasedOnDefault)
+            PopupMenuItem(
+              value: _PresetAction.reset,
+              child: ListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.restart_alt_rounded),
+                title: Text(context.l10n.randomManager_resetDefaultConfirm),
+              ),
+            ),
+          PopupMenuItem(
+            value: _PresetAction.delete,
+            child: ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(
+                Icons.delete_outline_rounded,
+                color: Theme.of(context).colorScheme.error,
+              ),
+              title: Text(
+                context.l10n.common_delete,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ),
+          ),
+        ],
+      ],
+      icon: const Icon(Icons.more_horiz_rounded),
     );
   }
 
@@ -170,6 +250,8 @@ class PresetSelectorBar extends ConsumerWidget {
     switch (action) {
       case _PresetAction.create:
         await _showCreatePresetDialog(context, ref);
+      case _PresetAction.sync:
+        await _syncDanbooru(context, ref);
       case _PresetAction.reset:
         if (preset != null) await _resetToDefault(context, ref, preset);
       case _PresetAction.delete:
@@ -282,23 +364,11 @@ class _PresetDropdown extends StatelessWidget {
       icon: const Icon(Icons.unfold_more_rounded, size: 18),
       decoration: InputDecoration(
         filled: true,
-        fillColor: colors.surfaceContainer,
+        fillColor: inputSurfaceFillColor(colors),
         isDense: true,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 12,
           vertical: 10,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(9),
-          borderSide: BorderSide.none,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(9),
-          borderSide: BorderSide.none,
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(9),
-          borderSide: BorderSide(color: colors.primary, width: 1),
         ),
       ),
       items: [
@@ -420,4 +490,4 @@ class _ToolbarAction extends StatelessWidget {
   }
 }
 
-enum _PresetAction { create, reset, delete }
+enum _PresetAction { create, sync, reset, delete }

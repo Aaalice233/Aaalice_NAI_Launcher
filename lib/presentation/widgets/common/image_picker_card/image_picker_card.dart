@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
+import '../../../../core/platform/platform_capabilities.dart';
 import '_internal/loading_overlay.dart';
 import '_internal/picker_handler.dart';
 import '_internal/preview_thumbnail.dart';
@@ -152,8 +153,8 @@ class _ImagePickerCardState extends State<ImagePickerCard> {
               // 加载状态覆盖层
               if (_isLoading) const LoadingOverlay(),
 
-              // 清除按钮（有选择且悬浮时）
-              if (_hasSelection && _isHovered && widget.onClear != null)
+              // 触屏没有 hover，已选内容必须始终保留可见的清除入口。
+              if (_hasSelection && widget.onClear != null)
                 _buildClearButton(theme),
 
               // 拖拽覆盖层
@@ -165,7 +166,9 @@ class _ImagePickerCardState extends State<ImagePickerCard> {
     );
 
     // 包装拖拽支持
-    if (widget.enableDragDrop && widget.type != ImagePickerType.directory) {
+    if (widget.enableDragDrop &&
+        widget.type != ImagePickerType.directory &&
+        PlatformCapabilities.current.supportsExternalFileDrop) {
       card = _wrapWithDropRegion(card);
     }
 
@@ -292,15 +295,15 @@ class _ImagePickerCardState extends State<ImagePickerCard> {
       right: 4,
       child: Material(
         color: theme.colorScheme.surface.withValues(alpha: 0.9),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(24),
         child: InkWell(
           onTap: widget.onClear,
-          borderRadius: BorderRadius.circular(12),
-          child: Padding(
-            padding: const EdgeInsets.all(4),
+          borderRadius: BorderRadius.circular(24),
+          child: SizedBox.square(
+            dimension: 48,
             child: Icon(
               Icons.close,
-              size: 14,
+              size: 18,
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),

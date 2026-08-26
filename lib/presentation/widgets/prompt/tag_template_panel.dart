@@ -364,11 +364,14 @@ class _TagTemplatePanelState extends ConsumerState<TagTemplatePanel> {
               ),
               const SizedBox(width: 4),
 
-              // 更多操作提示
-              Icon(
-                Icons.more_vert,
-                size: 18,
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+              IconButton(
+                onPressed: () => _deleteTemplate(template),
+                tooltip: context.l10n.tag_templateDeleteTitle,
+                icon: Icon(
+                  Icons.delete_outline,
+                  size: 20,
+                  color: theme.colorScheme.error,
+                ),
               ),
             ],
           ),

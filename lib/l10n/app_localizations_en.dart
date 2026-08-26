@@ -266,6 +266,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get nav_githubRepo => 'GitHub Repository';
 
   @override
+  String get nav_joinDiscord => 'Join Discord';
+
+  @override
+  String get nav_projectRepository => 'Project repository';
+
+  @override
   String get nav_expandSidebar => 'Expand sidebar';
 
   @override
@@ -334,6 +340,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get auth_tokenLogin => 'API Token Login';
+
+  @override
+  String get auth_tokenLoginCompact => 'Token Login';
 
   @override
   String get auth_tokenLoginRecommended => 'API Token Login (Recommended)';
@@ -434,9 +443,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get auth_selectFromGallery => 'Select from Gallery';
-
-  @override
-  String get auth_takePhoto => 'Take Photo';
 
   @override
   String get auth_quickLogin => 'Quick Login';
@@ -608,6 +614,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settings_promptAssistant => 'Prompt Assistant';
+
+  @override
+  String get settings_comfyUiDesktopOnly => 'Available on desktop only';
 
   @override
   String get settings_selectStyle => 'Select Style';
@@ -989,7 +998,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get prompt_appliedToMainPrompt => 'Applied to main prompt';
 
   @override
-  String get prompt_inputPrompt => 'Enter prompt...';
+  String get prompt_inputPrompt => 'Describe the image you want to create';
 
   @override
   String get prompt_describeImage =>
@@ -2727,11 +2736,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get onlineGallery_downloadStarted => 'Download started...';
-
-  @override
-  String onlineGallery_savedToPath(Object path) {
-    return 'Saved to: $path';
-  }
 
   @override
   String onlineGallery_downloadFailed(Object error) {
@@ -5723,9 +5727,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get localGallery_resetAdvancedFilters => 'Reset Advanced Filters';
 
   @override
-  String get localGallery_exportFailed => 'Export failed';
-
-  @override
   String get bulkExport_format => 'Format';
 
   @override
@@ -5733,10 +5734,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get bulkExport_csvFormat => 'CSV';
-
-  @override
-  String get bulkExport_includeMetadataHint =>
-      'Export generation parameters with images';
 
   @override
   String get localGallery_group_today => 'Today';
@@ -5767,7 +5764,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get localGallery_openSettings => 'Open Settings';
 
   @override
-  String get localGallery_firstTimeTipTitle => '💡 Tips';
+  String get localGallery_firstTimeTipTitle => 'Tips';
 
   @override
   String get localGallery_firstTimeTipContent =>
@@ -7377,6 +7374,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get queue_editTask => 'Edit Task';
+
+  @override
+  String get queue_taskDetails => 'Task Details';
+
+  @override
+  String get queue_clearCompletedTasks => 'Clear Completed';
 
   @override
   String get queue_duplicateTask => 'Duplicate Task';
@@ -9913,7 +9916,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'ONNX tagger model folder saved';
 
   @override
-  String get settings_localOnnxTaggerFolder => 'Local ONNX tagger model folder';
+  String get settings_localOnnxTaggerFolder => 'Local ONNX tagger model';
 
   @override
   String get settings_notConfigured => 'Not configured';
@@ -10784,7 +10787,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get vibeLibrary_emptySaveFromGenerationHint =>
-      'Save Vibes from the generation page to add them to the library';
+      'Import a file, or save a Vibe from the generation page';
 
   @override
   String get vibe_nameRequired => 'Name is required';
@@ -11349,7 +11352,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get updateNoticeAvailableSubtitle =>
-      'Download and finish the update automatically in the app';
+      'Download, verify, and safely install the update in the app';
 
   @override
   String get updateNoticeManualSubtitle =>
@@ -11362,7 +11365,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get updateNoticeReadySubtitle =>
-      'The package is verified and ready to install on restart';
+      'The package is verified and ready to install';
 
   @override
   String get updateNoticeFailed => 'The previous update did not finish';
@@ -11475,6 +11478,14 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get preciseRefLib_emptyHint =>
       'You can also right-click images in preview, history, or gallery to save them here';
+
+  @override
+  String get preciseRefLib_emptyTouch =>
+      'Import images to build your reference library';
+
+  @override
+  String get preciseRefLib_emptyHintTouch =>
+      'You can also save images from generation results, history, or the local gallery';
 
   @override
   String get preciseRefLib_import => 'Import Images';
@@ -12795,6 +12806,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Search categories, groups, or tags (Ctrl+F)';
 
   @override
+  String get randomManager_searchCategoriesCompact =>
+      'Search categories, groups, or tags';
+
+  @override
   String get randomManager_workspaceTitle => 'Random library';
 
   @override
@@ -12944,4 +12959,112 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get randomManager_noCategoryResults =>
       'No matching categories, groups, or tags';
+
+  @override
+  String get common_share => 'Share';
+
+  @override
+  String get common_moreActions => 'More actions';
+
+  @override
+  String get nav_more => 'More';
+
+  @override
+  String get nav_explore => 'Explore';
+
+  @override
+  String get image_savedToSystemGallery => 'Saved to your photo gallery';
+
+  @override
+  String image_savedAppOnly(Object error) {
+    return 'Saved to the app gallery, but could not export to your photo gallery: $error';
+  }
+
+  @override
+  String image_shareFailed(Object error) {
+    return 'Share failed: $error';
+  }
+
+  @override
+  String onlineGallery_savedFiles(int count) {
+    return 'Saved $count files';
+  }
+
+  @override
+  String get statistics_exportJsonHint =>
+      'Exports all calculated statistics and distributions as structured JSON.';
+
+  @override
+  String get statistics_exportCsvHint =>
+      'Exports sectioned statistics that can be opened in spreadsheet applications.';
+
+  @override
+  String get queue_reorderTask => 'Reorder task';
+
+  @override
+  String get queue_moreTaskActions => 'More task actions';
+
+  @override
+  String get queue_selectTask => 'Select task';
+
+  @override
+  String get settings_notificationSoundImportFailed =>
+      'Couldn\'t import the sound. Choose the file again.';
+
+  @override
+  String get settings_androidManagedStorage =>
+      'Securely managed by the system; choose a location when exporting';
+
+  @override
+  String get settings_importLocalOnnxTaggerFiles =>
+      'Import ONNX model and label files';
+
+  @override
+  String settings_localOnnxFilesImported(int count) {
+    return 'Imported $count model files';
+  }
+
+  @override
+  String settings_localOnnxManagedFiles(int count) {
+    return '$count model files in app storage';
+  }
+
+  @override
+  String get settings_clearLocalOnnxModelsTitle => 'Clear local ONNX models?';
+
+  @override
+  String get settings_clearLocalOnnxModelsContent =>
+      'This removes the ONNX models and label files imported on this device.';
+
+  @override
+  String updateAndroidDownloadedHint(Object version) {
+    return 'v$version has been downloaded and verified. Open Android\'s system installer to continue the update.';
+  }
+
+  @override
+  String get updateAndroidInstallingHint =>
+      'Opening Android\'s system installer. Follow the system prompt to confirm the update.';
+
+  @override
+  String get updateAndroidInstallConfirmationBody =>
+      'Android\'s system installer will open. After you confirm, Android will replace the app without clearing local data. Active generation and download tasks may stop, so save anything important first.';
+
+  @override
+  String get preciseRefLib_moreActions => 'More actions';
+
+  @override
+  String get vibeDetail_setAsCover => 'Set selected image as cover';
+
+  @override
+  String vibeDetail_bundleChildParameters(int index) {
+    return 'Showing import parameters for child Vibe $index.';
+  }
+
+  @override
+  String get vibeDetail_bundleDefaultParameters =>
+      'Showing Bundle default parameters. Select a child below to view its parameters.';
+
+  @override
+  String get vibeDetail_choosePreviewImage =>
+      'Use the image button to choose a preview';
 }

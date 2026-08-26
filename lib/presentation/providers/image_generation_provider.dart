@@ -9,6 +9,7 @@ import 'package:image/image.dart' as img;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/constants/model_capabilities.dart';
+import '../../core/services/android_generation_foreground_service.dart';
 import '../../core/services/anlas_calculator.dart';
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/image_save_utils.dart';
@@ -34,6 +35,7 @@ import 'auth_provider.dart';
 import 'fixed_tags_provider.dart';
 import 'image_save_settings_provider.dart';
 import 'local_gallery_provider.dart';
+import '../services/generation_history_storage_service.dart';
 import 'prompt_config_provider.dart';
 import 'quality_preset_provider.dart';
 import 'queue_execution_provider.dart';
@@ -77,9 +79,91 @@ class _RememberedStreamPreview {
 /// 图像生成状态 Notifier
 @Riverpod(keepAlive: true)
 class ImageGenerationNotifier extends _$ImageGenerationNotifier {
+  Future<void>? _historyRestoreInFlight;
+  bool _hasRestoredHistory = false;
+  bool _generationInvocationStarting = false;
+  int _generationInvocationCounter = 0;
+  int _activeGenerationInvocationId = 0;
+  final Set<int> _foregroundServiceInvocationIds = <int>{};
+  final Map<String, String?> _persistedHistoryFilePaths = <String, String?>{};
+
   @override
   ImageGenerationState build() {
+    Future.microtask(ensureGenerationHistoryRestored);
     return const ImageGenerationState();
+  }
+
+  Future<void> ensureGenerationHistoryRestored() {
+    if (_hasRestoredHistory) return Future<void>.value();
+    final inFlight = _historyRestoreInFlight;
+    if (inFlight != null) return inFlight;
+
+    late final Future<void> restore;
+    restore = _restoreGenerationHistory().whenComplete(() {
+      if (identical(_historyRestoreInFlight, restore)) {
+        _historyRestoreInFlight = null;
+      }
+    });
+    _historyRestoreInFlight = restore;
+    return restore;
+  }
+
+  Future<void> _restoreGenerationHistory() async {
+    try {
+      final restored = await ref
+          .read(generationHistoryStorageServiceProvider)
+          .load();
+      _hasRestoredHistory = true;
+      if (restored.isEmpty) return;
+
+      final seen = <String>{};
+      final merged = <GeneratedImage>[
+        for (final image in state.history)
+          if (seen.add(image.id)) image,
+        for (final image in restored)
+          if (seen.add(image.id)) image,
+      ].take(GenerationHistoryStorageService.maxEntries).toList();
+      final shouldRestorePreview =
+          !state.isGenerating &&
+          state.displayImages.isEmpty &&
+          merged.isNotEmpty;
+      _persistedHistoryFilePaths
+        ..clear()
+        ..addEntries(
+          restored.map((image) => MapEntry(image.id, image.filePath)),
+        );
+      state = state.copyWith(
+        status: state.status == GenerationStatus.idle && merged.isNotEmpty
+            ? GenerationStatus.completed
+            : state.status,
+        history: merged,
+        displayImages: shouldRestorePreview
+            ? [merged.first]
+            : state.displayImages,
+        displayWidth: shouldRestorePreview
+            ? merged.first.width
+            : state.displayWidth,
+        displayHeight: shouldRestorePreview
+            ? merged.first.height
+            : state.displayHeight,
+      );
+      _retainSharePreparationCacheForCurrentHistory();
+    } catch (error, stackTrace) {
+      AppLogger.e('Failed to restore generation history', error, stackTrace);
+    }
+  }
+
+  Future<void> _persistHistoryImages(Iterable<GeneratedImage> changedImages) {
+    return ref
+        .read(generationHistoryStorageServiceProvider)
+        .persistImages(
+          changedImages: changedImages,
+          order: state.history.map((image) => image.id).toList(),
+        );
+  }
+
+  Future<void> flushGenerationHistory() {
+    return ref.read(generationHistoryStorageServiceProvider).flush();
   }
 
   void _retainSharePreparationCacheForCurrentHistory() {
@@ -91,6 +175,28 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       ShareImagePreparationService.instance.retainHistoryImageIds(
         retainedImageIds,
       ),
+    );
+
+    final changedImages = state.history
+        .where(
+          (image) =>
+              !_persistedHistoryFilePaths.containsKey(image.id) ||
+              _persistedHistoryFilePaths[image.id] != image.filePath,
+        )
+        .toList();
+    final retainedHistoryIds = state.history.map((image) => image.id).toSet();
+    unawaited(
+      _persistHistoryImages(changedImages)
+          .then((_) {
+            _persistedHistoryFilePaths
+              ..removeWhere((id, _) => !retainedHistoryIds.contains(id))
+              ..addEntries(
+                changedImages.map(
+                  (image) => MapEntry(image.id, image.filePath),
+                ),
+              );
+          })
+          .catchError((Object _) {}),
     );
   }
 
@@ -496,8 +602,84 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     );
   }
 
-  Future<void> generate(ImageParams params) {
-    return _generate(params).whenComplete(() {
+  Future<void> generate(ImageParams params) async {
+    if (_generationInvocationStarting || state.isGenerating) return;
+    _generationInvocationStarting = true;
+    final invocationId = ++_generationInvocationCounter;
+    _activeGenerationInvocationId = invocationId;
+
+    var foregroundServiceStarted = false;
+    try {
+      // Authentication is a generation precondition. Check it before restoring
+      // state or starting Android's foreground service so a logged-out tap only
+      // opens the login prompt and never flashes a system notification.
+      if (!requireAuthenticatedAction(ref, AuthPromptReason.imageGeneration)) {
+        return;
+      }
+
+      final liveParamsBeforeRestore = ref.read(
+        generationParamsNotifierProvider,
+      );
+      final shouldUseRestoredLiveParams = identical(
+        params,
+        liveParamsBeforeRestore,
+      );
+      if (ref.read(generationSessionPersistenceEnabledProvider)) {
+        await Future.wait<void>([
+          ensureGenerationHistoryRestored(),
+          ref
+              .read(generationParamsNotifierProvider.notifier)
+              .restoreGenerationState(),
+        ]);
+        if (_activeGenerationInvocationId != invocationId) return;
+      }
+
+      final effectiveParams = shouldUseRestoredLiveParams
+          ? ref.read(generationParamsNotifierProvider)
+          : params;
+      if (!state.isGenerating &&
+          NaiResolutionAdapter.validateGenerationResolution(
+                effectiveParams.width,
+                effectiveParams.height,
+              ) ==
+              null) {
+        try {
+          await AndroidGenerationForegroundService.start();
+          foregroundServiceStarted =
+              AndroidGenerationForegroundService.isSupported;
+          if (foregroundServiceStarted) {
+            _foregroundServiceInvocationIds.add(invocationId);
+          }
+        } catch (error, stackTrace) {
+          AppLogger.e(
+            'Unable to start Android generation foreground service',
+            error,
+            stackTrace,
+          );
+        }
+      }
+      if (_activeGenerationInvocationId != invocationId) return;
+      await _generate(effectiveParams);
+    } finally {
+      if (_activeGenerationInvocationId == invocationId) {
+        _activeGenerationInvocationId = 0;
+        _generationInvocationStarting = false;
+      }
+      if (foregroundServiceStarted) {
+        _foregroundServiceInvocationIds.remove(invocationId);
+        if (_foregroundServiceInvocationIds.isEmpty) {
+          try {
+            await AndroidGenerationForegroundService.stop();
+          } catch (error, stackTrace) {
+            AppLogger.e(
+              'Unable to stop Android generation foreground service',
+              error,
+              stackTrace,
+            );
+          }
+        }
+      }
+      await flushGenerationHistory();
       // App 根节点常驻监听该 provider。独立测试/工具未启动订阅链路时，
       // 不应仅为记账刷新而触发认证和平台存储初始化。
       if (ref.exists(subscriptionNotifierProvider)) {
@@ -505,14 +687,10 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
             .read(subscriptionNotifierProvider.notifier)
             .schedulePostBillingRefresh();
       }
-    });
+    }
   }
 
   Future<void> _generate(ImageParams params) async {
-    if (!requireAuthenticatedAction(ref, AuthPromptReason.imageGeneration)) {
-      return;
-    }
-
     final resolutionIssue = NaiResolutionAdapter.validateGenerationResolution(
       params.width,
       params.height,
@@ -1895,6 +2073,8 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     final generationRunId = _activeGenerationRunId;
     final apiService = ref.read(naiImageGenerationApiServiceProvider);
 
+    _activeGenerationInvocationId = 0;
+    _generationInvocationStarting = false;
     _appendFailedStreamSnapshotsForCurrentSlots(generationRunId);
     _invalidateGenerationRun();
     apiService.cancelGeneration();

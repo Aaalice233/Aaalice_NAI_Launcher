@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:nai_launcher/presentation/themes/core/input_surface_style.dart';
 
 import '../../../../core/utils/localization_extension.dart';
 import '../../../providers/random_preset_provider.dart';
@@ -201,7 +202,7 @@ class _AddTagGroupDialogState extends ConsumerState<AddTagGroupDialog>
                 hintText: context.l10n.randomManager_tagGroupNameHint,
                 border: InputBorder.none,
                 filled: true,
-                fillColor: colorScheme.surfaceContainerLow,
+                fillColor: inputSurfaceFillColor(colorScheme),
               ),
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
@@ -297,7 +298,7 @@ class _AddTagGroupDialogState extends ConsumerState<AddTagGroupDialog>
                 )
               : null,
           filled: true,
-          fillColor: colorScheme.surfaceContainerHighest,
+          fillColor: inputSurfaceFillColor(colorScheme),
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 12,
             vertical: 10,
@@ -352,7 +353,7 @@ class _AddTagGroupDialogState extends ConsumerState<AddTagGroupDialog>
               decoration: InputDecoration(
                 hintText: 'red hair\nblue eyes:2\nlong hair',
                 filled: true,
-                fillColor: colorScheme.surfaceContainerHighest,
+                fillColor: inputSurfaceFillColor(colorScheme),
                 contentPadding: const EdgeInsets.all(12),
               ),
             ),

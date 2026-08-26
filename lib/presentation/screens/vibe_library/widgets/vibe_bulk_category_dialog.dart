@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/platform/platform_capabilities.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/vibe/vibe_library_category.dart';
 
@@ -254,7 +255,9 @@ class _VibeBulkCategoryDialogState
                 },
           borderRadius: BorderRadius.circular(8),
           child: Container(
-            padding: EdgeInsets.only(left: depth * 16.0),
+            padding: EdgeInsets.only(
+              left: (depth * 16.0).clamp(0.0, 64.0).toDouble(),
+            ),
             child: Opacity(
               opacity: isExcluded ? 0.5 : 1.0,
               child: Container(
@@ -295,13 +298,25 @@ class _VibeBulkCategoryDialogState
                           });
                         },
                         padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(
-                          minWidth: 32,
-                          minHeight: 32,
+                        visualDensity:
+                            PlatformCapabilities.current.hasTouchInput
+                            ? VisualDensity.standard
+                            : VisualDensity.compact,
+                        constraints: BoxConstraints.tightFor(
+                          width: PlatformCapabilities.current.hasTouchInput
+                              ? 48
+                              : 32,
+                          height: PlatformCapabilities.current.hasTouchInput
+                              ? 48
+                              : 32,
                         ),
                       )
                     else
-                      const SizedBox(width: 32),
+                      SizedBox(
+                        width: PlatformCapabilities.current.hasTouchInput
+                            ? 48
+                            : 32,
+                      ),
 
                     // 单选按钮
                     Radio<String?>(value: category.id, enabled: !isExcluded),

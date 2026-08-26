@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'inset_shadow_container.dart';
+import 'input_surface_container.dart';
 
-/// 带内阴影效果的下拉选择器
-///
-/// 自动从主题扩展读取内阴影配置，提供统一的立体感效果。
+/// 使用共享深色填充与内侧焦点发光的下拉选择器。
 class ThemedDropdown<T> extends StatelessWidget {
   /// 当前选中的值
   final T? value;
@@ -47,7 +45,7 @@ class ThemedDropdown<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InsetShadowContainer(
+    return InputSurfaceContainer(
       borderRadius: borderRadius,
       child: DropdownButtonFormField<T>(
         initialValue: value,
@@ -73,9 +71,7 @@ class ThemedDropdown<T> extends StatelessWidget {
   }
 }
 
-/// 带内阴影效果的文本输入框
-///
-/// 自动从主题扩展读取内阴影配置，提供统一的立体感效果。
+/// 使用共享深色填充与内侧焦点发光的文本输入框。
 class ThemedTextField extends StatelessWidget {
   /// 控制器
   final TextEditingController? controller;
@@ -149,7 +145,7 @@ class ThemedTextField extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return InsetShadowContainer(
+    return InputSurfaceContainer(
       borderRadius: borderRadius,
       child: TextField(
         controller: controller,

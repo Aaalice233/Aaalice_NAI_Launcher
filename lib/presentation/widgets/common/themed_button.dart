@@ -41,22 +41,11 @@ class ThemedButton extends StatelessWidget {
     final foreground = style == ThemedButtonStyle.filled
         ? theme.colorScheme.onPrimary
         : theme.colorScheme.primary;
-    final content = Row(
-      mainAxisSize: MainAxisSize.min,
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        if (isLoading) ...[
-          SizedBox.square(
-            dimension: 16,
-            child: CircularProgressIndicator(strokeWidth: 2, color: foreground),
-          ),
-          const SizedBox(width: 8),
-        ] else if (icon != null) ...[
-          icon!,
-          const SizedBox(width: 8),
-        ],
-        label,
-      ],
+    final content = _ThemedButtonContent(
+      isLoading: isLoading,
+      loadingColor: foreground,
+      icon: icon,
+      label: label,
     );
 
     final button = switch (style) {
@@ -85,5 +74,55 @@ class ThemedButton extends StatelessWidget {
       return Tooltip(message: tooltip!, child: button);
     }
     return button;
+  }
+}
+
+class _ThemedButtonContent extends StatelessWidget {
+  const _ThemedButtonContent({
+    required this.isLoading,
+    required this.loadingColor,
+    required this.icon,
+    required this.label,
+  });
+
+  final bool isLoading;
+  final Color loadingColor;
+  final Widget? icon;
+  final Widget label;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final hasLeading = isLoading || icon != null;
+        final leading = isLoading
+            ? SizedBox.square(
+                dimension: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: loadingColor,
+                ),
+              )
+            : icon;
+        final labelWidget = DefaultTextStyle.merge(
+          textAlign: TextAlign.center,
+          child: label,
+        );
+
+        return Row(
+          mainAxisSize: constraints.hasBoundedWidth
+              ? MainAxisSize.max
+              : MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (hasLeading) ...[leading!, const SizedBox(width: 8)],
+            if (constraints.hasBoundedWidth)
+              Flexible(child: labelWidget)
+            else
+              labelWidget,
+          ],
+        );
+      },
+    );
   }
 }

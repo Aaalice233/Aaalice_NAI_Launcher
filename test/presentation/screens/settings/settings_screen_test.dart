@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -10,6 +11,7 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/account_manager_provider.dart';
 import 'package:nai_launcher/presentation/providers/auth_provider.dart';
 import 'package:nai_launcher/presentation/providers/subscription_provider.dart';
+import 'package:nai_launcher/presentation/screens/settings/sections/account_settings_section.dart';
 import 'package:nai_launcher/presentation/screens/settings/sections/integrations_settings_section.dart';
 import 'package:nai_launcher/presentation/screens/settings/sections/prompt_assistant_settings_section.dart';
 import 'package:nai_launcher/presentation/screens/settings/settings_screen.dart';
@@ -50,6 +52,7 @@ void main() {
   });
 
   testWidgets('设置页导航为 9 个分类', (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.windows;
     await tester.binding.setSurfaceSize(const Size(1280, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
@@ -154,5 +157,73 @@ void main() {
       findsOneWidget,
     );
     expect(segmentLabels, const ['提示词助手', 'ComfyUI', 'Krita']);
+    debugDefaultTargetPlatformOverride = null;
+  });
+
+  testWidgets('紧凑布局使用单页分类并由系统返回手势回到列表', (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    await tester.binding.setSurfaceSize(const Size(390, 820));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authNotifierProvider.overrideWith(_FakeAuthNotifier.new),
+          accountManagerNotifierProvider.overrideWith(
+            _FakeAccountManagerNotifier.new,
+          ),
+          subscriptionNotifierProvider.overrideWith(
+            _FakeSubscriptionNotifier.new,
+          ),
+        ],
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: SettingsScreen(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(NavigationRail), findsNothing);
+    expect(find.text('账户'), findsOneWidget);
+    expect(find.text('关于'), findsOneWidget);
+
+    await tester.tap(find.text('账户'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AccountSettingsSection), findsOneWidget);
+    expect(find.byType(BackButton), findsOneWidget);
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AccountSettingsSection), findsNothing);
+    expect(find.text('账户'), findsOneWidget);
+    expect(find.text('关于'), findsOneWidget);
+
+    await tester.tap(find.text('集成'));
+    await tester.pumpAndSettle();
+
+    final integrations = find.byType(IntegrationsSettingsSection);
+    expect(integrations, findsOneWidget);
+    final segmentedButton = tester.widget<SegmentedButton<int>>(
+      find.descendant(
+        of: integrations,
+        matching: find.byType(SegmentedButton<int>),
+      ),
+    );
+    expect(segmentedButton.segments.map((segment) => segment.enabled), [
+      isTrue,
+      isFalse,
+    ]);
+    expect(find.text('桌面浮层交互'), findsNothing);
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(find.byType(IntegrationsSettingsSection), findsNothing);
+    expect(find.text('集成'), findsOneWidget);
+    debugDefaultTargetPlatformOverride = null;
   });
 }

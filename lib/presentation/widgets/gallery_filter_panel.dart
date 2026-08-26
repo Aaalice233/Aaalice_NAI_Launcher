@@ -762,8 +762,11 @@ void showGalleryFilterPanel(BuildContext context) {
   showDialog(
     context: context,
     barrierColor: Colors.black54,
-    builder: (context) => const Center(
-      child: Material(color: Colors.transparent, child: GalleryFilterPanel()),
+    builder: (context) => const Dialog(
+      elevation: 0,
+      backgroundColor: Colors.transparent,
+      insetPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      child: GalleryFilterPanel(),
     ),
   );
 }

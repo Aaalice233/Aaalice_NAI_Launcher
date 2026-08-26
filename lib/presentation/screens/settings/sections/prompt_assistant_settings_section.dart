@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/platform/platform_capabilities.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../prompt_assistant/models/prompt_assistant_models.dart';
 import '../../../prompt_assistant/providers/prompt_assistant_config_provider.dart';
@@ -30,12 +31,15 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
             ),
             onChanged: notifier.setEnabled,
           ),
-          SwitchListTile(
-            value: state.desktopOverlayEnabled,
-            title: Text(context.l10n.promptAssistant_desktopOverlayTitle),
-            subtitle: Text(context.l10n.promptAssistant_desktopOverlaySubtitle),
-            onChanged: notifier.setDesktopOverlayEnabled,
-          ),
+          if (PlatformCapabilities.current.supportsDesktopOverlayInteractions)
+            SwitchListTile(
+              value: state.desktopOverlayEnabled,
+              title: Text(context.l10n.promptAssistant_desktopOverlayTitle),
+              subtitle: Text(
+                context.l10n.promptAssistant_desktopOverlaySubtitle,
+              ),
+              onChanged: notifier.setDesktopOverlayEnabled,
+            ),
           const SizedBox(height: 24),
           _buildRouting(context, state, notifier),
           const SizedBox(height: 24),

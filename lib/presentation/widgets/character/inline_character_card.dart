@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/platform/platform_capabilities.dart';
 import '../../../data/models/character/character_prompt.dart';
 import '../../providers/character_position_canvas_provider.dart';
 import '../../providers/character_prompt_provider.dart';
@@ -465,7 +466,10 @@ class _CharacterActionsMenu extends StatelessWidget {
       tooltip: MaterialLocalizations.of(context).moreButtonTooltip,
       onSelected: onSelected,
       padding: EdgeInsets.zero,
-      constraints: const BoxConstraints.tightFor(width: 36, height: 36),
+      constraints: BoxConstraints.tightFor(
+        width: PlatformCapabilities.current.hasTouchInput ? 56 : 36,
+        height: PlatformCapabilities.current.hasTouchInput ? 56 : 36,
+      ),
       icon: Icon(Icons.more_horiz, size: 19, color: onHeader),
       itemBuilder: (context) => [
         PopupMenuItem(

@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
+import '../../themes/core/input_surface_style.dart';
+
 /// 权重调整工具条包装器
 ///
 /// 为任意文本输入框提供权重调整功能
@@ -576,28 +578,18 @@ class _WeightAdjustToolbarState extends State<_WeightAdjustToolbar> {
                               horizontal: 4,
                               vertical: 6,
                             ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(4),
-                              borderSide: BorderSide(
-                                color: colorScheme.outline.withValues(
-                                  alpha: 0.5,
-                                ),
-                              ),
+                            border: inputSurfaceBorder(
+                              colorScheme,
+                              BorderRadius.circular(4),
                             ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(4),
-                              borderSide: BorderSide(
-                                color: colorScheme.outline.withValues(
-                                  alpha: 0.3,
-                                ),
-                              ),
+                            enabledBorder: inputSurfaceBorder(
+                              colorScheme,
+                              BorderRadius.circular(4),
                             ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(4),
-                              borderSide: BorderSide(
-                                color: colorScheme.primary,
-                                width: 1.5,
-                              ),
+                            focusedBorder: inputSurfaceBorder(
+                              colorScheme,
+                              BorderRadius.circular(4),
+                              focused: true,
                             ),
                           ),
                           onSubmitted: (value) {

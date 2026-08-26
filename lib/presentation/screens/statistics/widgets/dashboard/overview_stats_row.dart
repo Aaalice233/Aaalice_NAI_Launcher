@@ -10,49 +10,59 @@ import '../cards/metric_card.dart';
 class OverviewStatsRow extends StatelessWidget {
   final GalleryStatistics stats;
 
-  const OverviewStatsRow({
-    super.key,
-    required this.stats,
-  });
+  const OverviewStatsRow({super.key, required this.stats});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context)!;
 
-    return Row(
-      children: [
-        Expanded(
-          child: MetricCard(
-            icon: Icons.photo_library_outlined,
-            label: l10n.statistics_totalImages,
-            value: '${stats.totalImages}',
-            iconColor: theme.colorScheme.primary,
-            compact: true,
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: MetricCard(
-            icon: Icons.storage_outlined,
-            label: l10n.statistics_totalSize,
-            value: StatisticsFormatter.formatBytes(stats.totalSizeBytes),
-            iconColor: theme.colorScheme.secondary,
-            compact: true,
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: MetricCard(
-            icon: Icons.favorite_outline,
-            label: l10n.statistics_favorites,
-            value:
-                '${stats.favoriteCount} (${stats.favoritePercentage.toStringAsFixed(1)}%)',
-            iconColor: Colors.red,
-            compact: true,
-          ),
-        ),
-      ],
+    final cards = [
+      MetricCard(
+        icon: Icons.photo_library_outlined,
+        label: l10n.statistics_totalImages,
+        value: '${stats.totalImages}',
+        iconColor: theme.colorScheme.primary,
+        compact: true,
+      ),
+      MetricCard(
+        icon: Icons.storage_outlined,
+        label: l10n.statistics_totalSize,
+        value: StatisticsFormatter.formatBytes(stats.totalSizeBytes),
+        iconColor: theme.colorScheme.secondary,
+        compact: true,
+      ),
+      MetricCard(
+        icon: Icons.favorite_outline,
+        label: l10n.statistics_favorites,
+        value:
+            '${stats.favoriteCount} (${stats.favoritePercentage.toStringAsFixed(1)}%)',
+        iconColor: Colors.red,
+        compact: true,
+      ),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 600) {
+          return Column(
+            children: [
+              for (var index = 0; index < cards.length; index++) ...[
+                cards[index],
+                if (index < cards.length - 1) const SizedBox(height: 12),
+              ],
+            ],
+          );
+        }
+        return Row(
+          children: [
+            for (var index = 0; index < cards.length; index++) ...[
+              Expanded(child: cards[index]),
+              if (index < cards.length - 1) const SizedBox(width: 16),
+            ],
+          ],
+        );
+      },
     );
   }
 }

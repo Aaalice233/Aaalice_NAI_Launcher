@@ -104,11 +104,19 @@ class _PreciseRefSelectorDialogState
     final state = ref.watch(preciseRefLibraryNotifierProvider);
     final entries = _visibleEntries(state.entries);
 
+    final mediaQuery = MediaQuery.of(context);
+    final dialogWidth = (mediaQuery.size.width - 48).clamp(280.0, 560.0);
+    final dialogHeight =
+        ((mediaQuery.size.height - mediaQuery.viewInsets.bottom) * 0.62).clamp(
+          280.0,
+          520.0,
+        );
+
     return AlertDialog(
       title: Text(l10n.preciseRefLib_selectorTitle),
       content: SizedBox(
-        width: 560,
-        height: 420,
+        width: dialogWidth,
+        height: dialogHeight,
         child: Column(
           children: [
             TextField(
@@ -144,32 +152,41 @@ class _PreciseRefSelectorDialogState
                         ),
                       ),
                     )
-                  : GridView.builder(
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 4,
-                            mainAxisSpacing: 8,
-                            crossAxisSpacing: 8,
-                            childAspectRatio: 0.85,
-                          ),
-                      itemCount: entries.length,
-                      itemBuilder: (context, index) {
-                        final entry = entries[index];
-                        return _SelectorItem(
-                          entry: entry,
-                          selected:
-                              widget.multiSelect &&
-                              _selectedIds.contains(entry.id),
-                          onTap: () {
-                            if (!widget.multiSelect) {
-                              Navigator.of(context).pop([entry]);
-                              return;
-                            }
-                            setState(() {
-                              if (!_selectedIds.remove(entry.id)) {
-                                _selectedIds.add(entry.id);
-                              }
-                            });
+                  : LayoutBuilder(
+                      builder: (context, constraints) {
+                        final crossAxisCount = constraints.maxWidth < 340
+                            ? 2
+                            : constraints.maxWidth < 500
+                            ? 3
+                            : 4;
+                        return GridView.builder(
+                          gridDelegate:
+                              SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: crossAxisCount,
+                                mainAxisSpacing: 8,
+                                crossAxisSpacing: 8,
+                                childAspectRatio: 0.85,
+                              ),
+                          itemCount: entries.length,
+                          itemBuilder: (context, index) {
+                            final entry = entries[index];
+                            return _SelectorItem(
+                              entry: entry,
+                              selected:
+                                  widget.multiSelect &&
+                                  _selectedIds.contains(entry.id),
+                              onTap: () {
+                                if (!widget.multiSelect) {
+                                  Navigator.of(context).pop([entry]);
+                                  return;
+                                }
+                                setState(() {
+                                  if (!_selectedIds.remove(entry.id)) {
+                                    _selectedIds.add(entry.id);
+                                  }
+                                });
+                              },
+                            );
                           },
                         );
                       },

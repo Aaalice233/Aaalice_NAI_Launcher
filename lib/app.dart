@@ -1,10 +1,17 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'core/autocomplete/cooccurrence_data_pack_provider.dart';
+import 'core/cache/gallery_cache_manager.dart';
+import 'core/utils/app_logger.dart';
+import 'core/platform/platform_capabilities.dart';
 import 'core/shortcuts/default_shortcuts.dart';
+import 'presentation/adaptive/window_size_class.dart';
 import 'presentation/router/app_router.dart';
 import 'presentation/providers/theme_provider.dart';
 import 'presentation/providers/font_provider.dart';
@@ -12,6 +19,7 @@ import 'presentation/providers/font_scale_provider.dart';
 import 'presentation/providers/locale_provider.dart';
 import 'presentation/providers/background_refresh_provider.dart';
 import 'presentation/providers/krita/krita_bridge_notifier.dart';
+import 'presentation/providers/image_generation_provider.dart';
 import 'presentation/providers/queue_execution_provider.dart';
 import 'presentation/providers/subscription_provider.dart'
     hide anlasBalanceProvider;
@@ -43,15 +51,18 @@ class AppBootstrapEffects extends ConsumerStatefulWidget {
       _AppBootstrapEffectsState();
 }
 
-class _AppBootstrapEffectsState extends ConsumerState<AppBootstrapEffects> {
+class _AppBootstrapEffectsState extends ConsumerState<AppBootstrapEffects>
+    with WidgetsBindingObserver {
   ProviderSubscription<dynamic>? _anlasWatcherSubscription;
   ProviderSubscription<dynamic>? _backgroundRefreshSubscription;
   ProviderSubscription<dynamic>? _kritaBridgeSubscription;
   ProviderSubscription<dynamic>? _cooccurrenceDataPackSubscription;
+  bool _queuePausedForBackground = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _anlasWatcherSubscription = ref.listenManual(
@@ -62,10 +73,13 @@ class _AppBootstrapEffectsState extends ConsumerState<AppBootstrapEffects> {
         widget.backgroundRefresh ?? backgroundRefreshNotifierProvider,
         (_, __) {},
       );
-      _kritaBridgeSubscription = ref.listenManual(
-        widget.kritaBridge ?? kritaBridgeNotifierProvider,
-        (_, __) {},
-      );
+      if (widget.kritaBridge != null ||
+          PlatformCapabilities.current.supportsKritaBridge) {
+        _kritaBridgeSubscription = ref.listenManual(
+          widget.kritaBridge ?? kritaBridgeNotifierProvider,
+          (_, __) {},
+        );
+      }
       _cooccurrenceDataPackSubscription = ref.listenManual(
         widget.cooccurrenceDataPack ?? cooccurrenceDataPackStartupProvider,
         (_, __) {},
@@ -74,7 +88,65 @@ class _AppBootstrapEffectsState extends ConsumerState<AppBootstrapEffects> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final isForeground =
+        state == AppLifecycleState.resumed ||
+        state == AppLifecycleState.inactive;
+    ref
+        .read(subscriptionNotifierProvider.notifier)
+        .setAppForeground(isForeground);
+
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_resumeQueueAfterBackground());
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.detached) {
+      unawaited(_persistAndPauseForBackground());
+    }
+  }
+
+  Future<void> _persistAndPauseForBackground() async {
+    final queueState = ref.read(queueExecutionNotifierProvider);
+    if (!_queuePausedForBackground &&
+        (queueState.isRunning || queueState.isReady)) {
+      _queuePausedForBackground = true;
+      await ref.read(queueExecutionNotifierProvider.notifier).pause();
+    }
+
+    await ref
+        .read(generationParamsNotifierProvider.notifier)
+        .saveGenerationState();
+    if (ref.exists(imageGenerationNotifierProvider)) {
+      await ref
+          .read(imageGenerationNotifierProvider.notifier)
+          .flushGenerationHistory();
+    }
+  }
+
+  Future<void> _resumeQueueAfterBackground() async {
+    if (!_queuePausedForBackground) return;
+    _queuePausedForBackground = false;
+    await ref.read(queueExecutionNotifierProvider.notifier).resume();
+  }
+
+  @override
+  void didHaveMemoryPressure() {
+    PaintingBinding.instance.imageCache
+      ..clear()
+      ..clearLiveImages();
+    unawaited(
+      GalleryCacheManager().clearL1MemoryCache().catchError((Object error) {
+        AppLogger.w(
+          'Failed to release gallery memory after system pressure: $error',
+          'AppLifecycle',
+        );
+      }),
+    );
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _anlasWatcherSubscription?.close();
     _backgroundRefreshSubscription?.close();
     _kritaBridgeSubscription?.close();
@@ -131,11 +203,13 @@ class NAILauncherApp extends ConsumerWidget {
       ShortcutIds.showShortcutHelp: () {
         ShortcutHelpDialog.show(context);
       },
-      ShortcutIds.minimizeToTray: () {
-        windowManager.hide();
-      },
-      ShortcutIds.quitApp: () {
-        windowManager.close();
+      if (PlatformCapabilities.current.supportsDesktopWindowControls) ...{
+        ShortcutIds.minimizeToTray: () {
+          windowManager.hide();
+        },
+        ShortcutIds.quitApp: () {
+          windowManager.close();
+        },
       },
       ShortcutIds.toggleQueue: () {
         final isVisible = ref.read(queueManagementVisibleProvider);
@@ -160,6 +234,7 @@ class NAILauncherApp extends ConsumerWidget {
         child: MaterialApp.router(
           title: 'NAI Launcher',
           debugShowCheckedModeBanner: false,
+          restorationScopeId: 'nai_launcher',
 
           // 主题 (fontFamily 为空时使用主题原生字体)
           theme: AppTheme.getTheme(
@@ -183,11 +258,31 @@ class NAILauncherApp extends ConsumerWidget {
 
           // 字体缩放全局应用
           builder: (context, child) {
-            return MediaQuery(
-              data: MediaQuery.of(
-                context,
-              ).copyWith(textScaler: TextScaler.linear(fontScale)),
-              child: child!,
+            final mediaQuery = MediaQuery.of(context);
+            final platformScale = mediaQuery.textScaler.scale(16) / 16;
+            final effectiveScale = (platformScale * fontScale)
+                .clamp(0.8, 3.0)
+                .toDouble();
+            final brightness = Theme.of(context).brightness;
+            final iconBrightness = brightness == Brightness.dark
+                ? Brightness.light
+                : Brightness.dark;
+            return AnnotatedRegion<SystemUiOverlayStyle>(
+              value: SystemUiOverlayStyle(
+                statusBarColor: Colors.transparent,
+                statusBarIconBrightness: iconBrightness,
+                statusBarBrightness: brightness,
+                systemNavigationBarColor: Colors.transparent,
+                systemNavigationBarDividerColor: Colors.transparent,
+                systemNavigationBarIconBrightness: iconBrightness,
+                systemNavigationBarContrastEnforced: false,
+              ),
+              child: MediaQuery(
+                data: mediaQuery.copyWith(
+                  textScaler: TextScaler.linear(effectiveScale),
+                ),
+                child: LargestDisplayFeatureSubScreen(child: child!),
+              ),
             );
           },
         ),

@@ -39,6 +39,9 @@ class PromptEditorToolbar extends StatelessWidget {
   /// 全屏按钮点击回调
   final VoidCallback? onFullscreenPressed;
 
+  /// 当前是否已处于全屏编辑状态。
+  final bool isFullscreen;
+
   /// 清空按钮点击回调
   final VoidCallback? onClearPressed;
 
@@ -57,6 +60,7 @@ class PromptEditorToolbar extends StatelessWidget {
     this.onRandomPressed,
     this.onRandomLongPressed,
     this.onFullscreenPressed,
+    this.isFullscreen = false,
     this.onClearPressed,
     this.onSettingsPressed,
     this.leadingActions,
@@ -75,7 +79,8 @@ class PromptEditorToolbar extends StatelessWidget {
     final showSettingsButton = config.showSettingsButton && !isCompact;
 
     // 检查是否有任何按钮需要显示
-    final hasAnyButton = showRandomButton ||
+    final hasAnyButton =
+        showRandomButton ||
         showFullscreenButton ||
         showClearButton ||
         showSettingsButton ||
@@ -152,7 +157,7 @@ class PromptEditorToolbar extends StatelessWidget {
 
     return IconButton(
       icon: Icon(
-        Icons.fullscreen,
+        isFullscreen ? Icons.fullscreen_exit : Icons.fullscreen,
         size: iconSize,
         color: onFullscreenPressed != null
             ? theme.colorScheme.onSurface.withValues(alpha: 0.6)
@@ -161,8 +166,9 @@ class PromptEditorToolbar extends StatelessWidget {
       tooltip: l10n.toolbar_fullscreenEdit,
       onPressed: onFullscreenPressed,
       visualDensity: VisualDensity.compact,
-      constraints:
-          isCompact ? const BoxConstraints(minWidth: 32, minHeight: 32) : null,
+      constraints: isCompact
+          ? const BoxConstraints(minWidth: 32, minHeight: 32)
+          : null,
       padding: isCompact ? const EdgeInsets.all(4) : null,
     );
   }
@@ -191,8 +197,9 @@ class PromptEditorToolbar extends StatelessWidget {
       tooltip: l10n.toolbar_clear,
       onPressed: onClearPressed,
       visualDensity: VisualDensity.compact,
-      constraints:
-          isCompact ? const BoxConstraints(minWidth: 32, minHeight: 32) : null,
+      constraints: isCompact
+          ? const BoxConstraints(minWidth: 32, minHeight: 32)
+          : null,
       padding: isCompact ? const EdgeInsets.all(4) : null,
     );
   }
@@ -219,8 +226,9 @@ class PromptEditorToolbar extends StatelessWidget {
       enabled: onClearPressed != null,
       offset: Offset(0, menuOffset),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      constraints:
-          isCompact ? const BoxConstraints(minWidth: 32, minHeight: 32) : null,
+      constraints: isCompact
+          ? const BoxConstraints(minWidth: 32, minHeight: 32)
+          : null,
       padding: isCompact ? const EdgeInsets.all(4) : const EdgeInsets.all(8),
       itemBuilder: (context) => [
         PopupMenuItem<bool>(

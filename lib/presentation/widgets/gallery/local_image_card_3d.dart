@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/cache/local_gallery_thumbnail_provider.dart';
+import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/image_share_sanitizer.dart';
 import '../../../core/utils/localization_extension.dart';
@@ -18,6 +19,8 @@ import '../common/card_action_buttons.dart';
 import '../common/image_card_hover_motion.dart';
 import 'local_image_context_menu.dart';
 import 'local_image_hover_preview.dart';
+
+enum _LocalCardAction { favorite, copyImage }
 
 /// 本地图片卡片，提供稳定的选择、快捷操作和键盘交互。
 class LocalImageCard3D extends ConsumerStatefulWidget {
@@ -214,6 +217,7 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
     final theme = Theme.of(context);
     final cardHeight = widget.height ?? widget.width;
     final colorScheme = theme.colorScheme;
+    final isTouch = PlatformCapabilities.current.hasTouchInput;
     final aspectRatio = widget.width / cardHeight;
     final buttonDirection = aspectRatio > 1.3 ? Axis.horizontal : Axis.vertical;
     final reducedMotion = MediaQuery.disableAnimationsOf(context);
@@ -264,7 +268,9 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
                   top: 4,
                   right: buttonDirection == Axis.vertical ? 4 : null,
                   left: buttonDirection == Axis.horizontal ? 4 : null,
-                  child: _buildActionButtons(buttonDirection),
+                  child: isTouch
+                      ? _buildTouchActionMenu()
+                      : _buildActionButtons(buttonDirection),
                 ),
                 if (widget.isSelected)
                   Positioned(
@@ -427,6 +433,90 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
         );
         return _buildErrorPlaceholder();
       },
+    );
+  }
+
+  Widget _buildTouchActionMenu() {
+    PopupMenuItem<Object> item({
+      required Object value,
+      required IconData icon,
+      required String label,
+      Color? color,
+    }) {
+      return PopupMenuItem<Object>(
+        value: value,
+        child: ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: Icon(icon, color: color),
+          title: Text(label),
+        ),
+      );
+    }
+
+    return Listener(
+      behavior: HitTestBehavior.opaque,
+      onPointerDown: (_) => _suppressCardTap = true,
+      onPointerUp: (_) {
+        scheduleMicrotask(() => _suppressCardTap = false);
+      },
+      onPointerCancel: (_) => _suppressCardTap = false,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: PopupMenuButton<Object>(
+          tooltip: context.l10n.common_moreActions,
+          constraints: const BoxConstraints(minWidth: 280, maxWidth: 340),
+          icon: const Icon(Icons.more_vert_rounded, color: Colors.white),
+          onSelected: (action) async {
+            if (action == _LocalCardAction.favorite) {
+              widget.onFavoriteToggle?.call();
+            } else if (action == _LocalCardAction.copyImage) {
+              await _copyImageToClipboard();
+            } else if (action is LocalImageContextAction) {
+              await widget.onSendAction?.call(action);
+            }
+          },
+          itemBuilder: (context) => <PopupMenuEntry<Object>>[
+            if (widget.onFavoriteToggle != null)
+              item(
+                value: _LocalCardAction.favorite,
+                icon: widget.record.isFavorite
+                    ? Icons.favorite
+                    : Icons.favorite_border,
+                label: widget.record.isFavorite
+                    ? context.l10n.common_unfavorite
+                    : context.l10n.common_favorite,
+                color: widget.record.isFavorite ? Colors.redAccent : null,
+              ),
+            item(
+              value: _LocalCardAction.copyImage,
+              icon: Icons.copy,
+              label: context.l10n.shortcut_action_copy_image,
+            ),
+            if (widget.onSendAction != null) ...[
+              const PopupMenuDivider(),
+              ...LocalImageContextMenu.buildSendEntries(
+                context,
+                isKritaConnected: widget.isKritaConnected,
+              ),
+              const PopupMenuDivider(),
+              item(
+                value: LocalImageContextAction.copyPrompt,
+                icon: Icons.text_snippet_outlined,
+                label: context.l10n.localGallery_copyPrompt,
+              ),
+              item(
+                value: LocalImageContextAction.delete,
+                icon: Icons.delete_outline,
+                label: context.l10n.common_delete,
+                color: Theme.of(context).colorScheme.error,
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 

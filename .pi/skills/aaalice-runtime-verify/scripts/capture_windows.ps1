@@ -61,7 +61,7 @@ $processInfo = Get-CimInstance Win32_Process |
     Sort-Object CreationDate -Descending |
     Select-Object -First 1
 if (-not $processInfo) {
-    throw 'Debug launcher window not found. Start scripts/dev_hot_reload_window.ps1 first.'
+    throw 'Debug launcher window not found. Load the aaalice-dev-sessions skill first.'
 }
 
 $process = Get-Process -Id $processInfo.ProcessId

@@ -13,6 +13,14 @@ class _SupportedInstallationService extends AppInstallationService {
   bool get supportsInAppInstall => true;
 }
 
+class _AndroidInstallationService extends AppInstallationService {
+  @override
+  AppInstallationType getInstallationType() => AppInstallationType.androidApk;
+
+  @override
+  bool get supportsInAppInstall => true;
+}
+
 void main() {
   group('UpdateInstallerService', () {
     late Directory tempDir;
@@ -185,6 +193,37 @@ void main() {
       } finally {
         await server.close(force: true);
       }
+    });
+
+    test('hands a verified Android APK to the system installer', () async {
+      final updateDir = Directory('${tempDir.path}/updates')..createSync();
+      final apk = File('${updateDir.path}/launcher.apk');
+      await apk.writeAsString('verified apk');
+      final hash = await UpdateInstallerService.calculateSha256(apk);
+      String? installedPath;
+      var shutdownCalled = false;
+      final service = UpdateInstallerService(
+        dio: Dio(),
+        installationService: _AndroidInstallationService(),
+        updateDirectory: updateDir,
+        androidApkInstaller: (path) async => installedPath = path,
+        shutdownHandler: (_) async => shutdownCalled = true,
+      );
+      final asset = ReleaseAssetInfo(
+        type: ReleaseAssetType.androidApk,
+        platform: 'android',
+        fileName: 'launcher.apk',
+        downloadUrl: 'https://example.com/launcher.apk',
+        sha256: hash,
+        size: await apk.length(),
+      );
+
+      await service.installAndRestart(
+        DownloadedUpdate(file: apk, asset: asset, version: '2.0.0'),
+      );
+
+      expect(installedPath, apk.path);
+      expect(shutdownCalled, isFalse);
     });
 
     test('consumes updater result exactly once', () async {

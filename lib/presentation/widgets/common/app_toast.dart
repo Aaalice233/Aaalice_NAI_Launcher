@@ -1,6 +1,6 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
+
+import '../../../core/platform/platform_capabilities.dart';
 
 /// Toast 类型
 enum ToastType { success, error, warning, info, progress }
@@ -114,8 +114,7 @@ class AppToast {
   static final List<_ActiveToast> _activeToasts = [];
 
   /// 判断是否为桌面端
-  static bool get _isDesktop =>
-      Platform.isWindows || Platform.isMacOS || Platform.isLinux;
+  static bool get _isDesktop => PlatformCapabilities.current.isDesktop;
 
   /// 显示成功通知
   static void success(BuildContext context, String message) {

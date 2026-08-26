@@ -376,6 +376,164 @@ jobs:
           path: dist/NAI_Launcher_macOS_*_Portable.zip
           if-no-files-found: error
 
+  build-android:
+    name: Build Android
+    runs-on: ubuntu-latest
+    needs: prepare
+    env:
+      ANDROID_SIGNING_KEYSTORE_BASE64: ${{ secrets.ANDROID_SIGNING_KEYSTORE_BASE64 }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_SIGNING_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_SIGNING_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_SIGNING_KEY_PASSWORD }}
+
+    steps:
+      - name: Checkout immutable release commit
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.release_sha }}
+          lfs: true
+
+      - name: Verify checked out release commit
+        run: |
+          set -euo pipefail
+          head="$(git rev-parse --verify HEAD | tr '[:upper:]' '[:lower:]')"
+          expected='${{ needs.prepare.outputs.release_sha }}'
+          if [[ "$head" != "$expected" ]]; then
+            echo "Checked out commit $head does not match immutable release commit $expected." >&2
+            exit 1
+          fi
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Pull LFS database
+        run: |
+          git lfs install
+          git lfs pull --include="assets/databases/tag_catalog.db"
+
+      - name: Verify bundled database
+        run: |
+          set -euo pipefail
+          file='assets/databases/tag_catalog.db'
+          test -f "$file"
+          test "$(wc -c < "$file")" -ge 1024
+          test "$(dd if="$file" bs=15 count=1 2>/dev/null)" = 'SQLite format 3'
+
+      - name: Resolve dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Validate bundled autocomplete databases
+        run: dart run tool/tag_catalog/verify_bundled_databases.dart
+
+      - name: Generate localizations
+        run: flutter gen-l10n
+
+      - name: Generate code
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Verify generated files
+        run: git diff --exit-code
+
+      - name: Prepare Android signing
+        run: |
+          set -euo pipefail
+          if [[ -z "$ANDROID_SIGNING_KEYSTORE_BASE64" || \
+                -z "$ANDROID_KEYSTORE_PASSWORD" || \
+                -z "$ANDROID_KEY_ALIAS" || \
+                -z "$ANDROID_KEY_PASSWORD" ]]; then
+            echo 'Android release signing secrets are required.' >&2
+            exit 1
+          fi
+          keystore="$RUNNER_TEMP/nai-launcher-release.keystore"
+          printf '%s' "$ANDROID_SIGNING_KEYSTORE_BASE64" | base64 --decode > "$keystore"
+          test -s "$keystore"
+
+          # Validate the configured store, alias, and passwords before starting a long build.
+          keytool -list \
+            -keystore "$keystore" \
+            -storepass "$ANDROID_KEYSTORE_PASSWORD" \
+            -alias "$ANDROID_KEY_ALIAS" \
+            -keypass "$ANDROID_KEY_PASSWORD" >/dev/null
+          expected_signer_sha256="$({
+            keytool -exportcert \
+              -keystore "$keystore" \
+              -storepass "$ANDROID_KEYSTORE_PASSWORD" \
+              -alias "$ANDROID_KEY_ALIAS" \
+              -keypass "$ANDROID_KEY_PASSWORD"
+          } | openssl dgst -sha256 -r | awk '{print tolower($1)}')"
+          if [[ ! "$expected_signer_sha256" =~ ^[0-9a-f]{64}$ ]]; then
+            echo 'Unable to derive the Android release signer digest.' >&2
+            exit 1
+          fi
+          echo "ANDROID_KEYSTORE_PATH=$keystore" >> "$GITHUB_ENV"
+          echo "ANDROID_EXPECTED_SIGNER_SHA256=$expected_signer_sha256" >> "$GITHUB_ENV"
+
+      - name: Build signed Android APK
+        run: flutter build apk --release
+
+      - name: Verify and package Android APK
+        run: |
+          set -euo pipefail
+          apk='build/app/outputs/flutter-apk/app-release.apk'
+          test -s "$apk"
+          apksigner="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          test -x "$apksigner"
+          verification="$("$apksigner" verify --verbose --print-certs "$apk" 2>&1)"
+          printf '%s\n' "$verification"
+          actual_signer_sha256="$(
+            sed -nE 's/^Signer #1 certificate SHA-256 digest: ([0-9a-fA-F]+)$/\1/p' \
+              <<< "$verification" | head -n 1 | tr '[:upper:]' '[:lower:]'
+          )"
+          if [[ "$actual_signer_sha256" != "$ANDROID_EXPECTED_SIGNER_SHA256" ]]; then
+            echo 'Android release APK signer does not match the configured keystore.' >&2
+            exit 1
+          fi
+          if grep -qi 'CN=Android Debug' <<< "$verification"; then
+            echo 'Android release APK was signed with the debug certificate.' >&2
+            exit 1
+          fi
+
+          expected_version='${{ needs.prepare.outputs.version }}'
+          if [[ ! "$expected_version" =~ ^(.+)\+([0-9]+)$ ]]; then
+            echo "Android release version must include a numeric build number: $expected_version" >&2
+            exit 1
+          fi
+          expected_version_name="${BASH_REMATCH[1]}"
+          expected_version_code="${BASH_REMATCH[2]}"
+          aapt="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -n 1)"
+          test -x "$aapt"
+          package_line="$("$aapt" dump badging "$apk" | head -n 1)"
+          if [[ "$package_line" != *"name='com.aaalice.nai_launcher'"* || \
+                "$package_line" != *"versionCode='$expected_version_code'"* || \
+                "$package_line" != *"versionName='$expected_version_name'"* ]]; then
+            echo "Android APK package/version mismatch: $package_line" >&2
+            exit 1
+          fi
+
+          mkdir -p dist
+          cp "$apk" "dist/NAI_Launcher_Android_${{ needs.prepare.outputs.version }}.apk"
+
+      - name: Remove Android signing key
+        if: ${{ always() }}
+        run: rm -f "$RUNNER_TEMP/nai-launcher-release.keystore"
+
+      - name: Upload Android artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-release
+          path: dist/NAI_Launcher_Android_*.apk
+          if-no-files-found: error
+
   publish:
     name: Publish GitHub Release
     runs-on: ubuntu-latest
@@ -383,6 +541,7 @@ jobs:
       - prepare
       - build-windows
       - build-macos
+      - build-android
 
     steps:
       - name: Checkout immutable release commit

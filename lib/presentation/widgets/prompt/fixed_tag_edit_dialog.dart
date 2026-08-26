@@ -6,6 +6,7 @@ import '../../../core/constants/api_constants.dart';
 import '../../../data/models/fixed_tag/fixed_tag_entry.dart';
 import '../../../data/models/fixed_tag/fixed_tag_prompt_type.dart';
 import '../../providers/image_generation_provider.dart';
+import '../../themes/core/input_surface_style.dart';
 import '../../providers/tag_library_page_provider.dart';
 import '../autocomplete/autocomplete.dart';
 import '../common/prefix_suffix_switch.dart';
@@ -630,7 +631,7 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
             value: category.id,
             child: Row(
               children: [
-                SizedBox(width: depth * 14.0),
+                SizedBox(width: (depth * 14.0).clamp(0.0, 56.0).toDouble()),
                 Icon(
                   Icons.folder_outlined,
                   size: 16,
@@ -671,21 +672,9 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
               horizontal: 10,
               vertical: 6,
             ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(
-                color: theme.colorScheme.outline.withValues(alpha: 0.3),
-              ),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(
-                color: theme.colorScheme.outline.withValues(alpha: 0.3),
-              ),
-            ),
             isDense: true,
             filled: true,
-            fillColor: theme.colorScheme.surface,
+            fillColor: inputSurfaceFillColor(theme.colorScheme),
           ),
           items: items,
           onChanged: (value) => setState(() => _selectedCategoryId = value),

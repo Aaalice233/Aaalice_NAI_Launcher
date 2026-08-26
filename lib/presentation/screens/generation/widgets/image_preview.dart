@@ -8,6 +8,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
 import '../../../../core/enums/precise_ref_type.dart';
+import '../../../../core/platform/platform_capabilities.dart';
+import '../../../../core/services/android_media_store_service.dart';
 import '../../../../core/shortcuts/default_shortcuts.dart';
 import '../../../../core/shortcuts/shortcut_config.dart';
 import '../../../../core/shortcuts/shortcut_manager.dart';
@@ -702,7 +704,8 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
       onShareToDiscord: image.canSave
           ? () => unawaited(_sharePreviewImageToDiscord(context, image))
           : null,
-      onOpenInExplorer: image.canSave
+      onOpenInExplorer:
+          image.canSave && PlatformCapabilities.current.supportsOpenFolder
           ? () => _openImageInExplorer(context, image)
           : null,
       onSaveToLibrary: canUseAsInput
@@ -1187,6 +1190,18 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
         seed: actualSeed,
       );
 
+      Object? systemGalleryError;
+      if (PlatformCapabilities.current.supportsSystemGalleryExport) {
+        try {
+          await AndroidMediaStoreService.savePng(
+            bytes: finalBytes,
+            fileName: p.basename(filePath),
+          );
+        } catch (error) {
+          systemGalleryError = error;
+        }
+      }
+
       // 立即解析并缓存刚保存图像的元数据
       unawaited(
         ImageMetadataService()
@@ -1220,7 +1235,19 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
       ref.read(localGalleryNotifierProvider.notifier).refresh();
 
       if (context.mounted) {
-        AppToast.success(context, context.l10n.image_imageSaved(saveDir.path));
+        if (systemGalleryError != null) {
+          AppToast.warning(
+            context,
+            context.l10n.image_savedAppOnly(systemGalleryError.toString()),
+          );
+        } else {
+          AppToast.success(
+            context,
+            PlatformCapabilities.current.supportsSystemGalleryExport
+                ? context.l10n.image_savedToSystemGallery
+                : context.l10n.image_imageSaved(saveDir.path),
+          );
+        }
       }
     } catch (e) {
       if (context.mounted) {

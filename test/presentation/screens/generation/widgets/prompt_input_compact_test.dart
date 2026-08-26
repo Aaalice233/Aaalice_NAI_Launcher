@@ -84,12 +84,170 @@ void main() {
     expect(find.text('12 / 703'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('手机紧凑输入面填满可用高度并显示完整引导文案', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          localStorageServiceProvider.overrideWith(
+            (ref) => _TestLocalStorageService(),
+          ),
+          promptTokenUsageProvider(
+            PromptTokenCountTarget.positive,
+          ).overrideWith(
+            (ref) async => const PromptTokenUsage(usedTokens: 0, limit: 512),
+          ),
+        ],
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          home: Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: 360,
+                height: 160,
+                child: PromptInputWidget(compact: true),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    final compactInput = find.byKey(
+      const ValueKey('generation_prompt_compact_input'),
+    );
+    final textField = find.descendant(
+      of: compactInput,
+      matching: find.byType(TextField),
+    );
+    expect(compactInput, findsOneWidget);
+    expect(textField, findsOneWidget);
+    final field = tester.widget<TextField>(textField);
+    final fieldSize = tester.getSize(textField);
+    expect(fieldSize.height, greaterThan(90));
+    expect(fieldSize.width, greaterThanOrEqualTo(358));
+    expect(
+      fieldSize.height - 24,
+      greaterThanOrEqualTo(70),
+      reason: '12px 上下内边距后仍应保留至少 70px 的可读高度',
+    );
+    expect(field.decoration?.contentPadding, const EdgeInsets.all(12));
+    expect(field.decoration?.hintText, '描述你想生成的画面');
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('紧凑输入操作栏位于编辑面外且保留完整触控区域', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          localStorageServiceProvider.overrideWith(
+            (ref) => _TestLocalStorageService(lastPrompt: '1girl'),
+          ),
+          promptTokenUsageProvider(
+            PromptTokenCountTarget.positive,
+          ).overrideWith(
+            (ref) async => const PromptTokenUsage(usedTokens: 1, limit: 512),
+          ),
+        ],
+        child: const MaterialApp(
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          home: Scaffold(
+            body: SizedBox(
+              width: 360,
+              height: 220,
+              child: PromptInputWidget(compact: true),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    final inputRect = tester.getRect(
+      find.byKey(const ValueKey('generation_prompt_compact_input')),
+    );
+    final assistantButton = find.widgetWithIcon(
+      IconButton,
+      Icons.auto_awesome_rounded,
+    );
+    final fullscreenButton = find.widgetWithIcon(IconButton, Icons.fullscreen);
+    final clearButton = find.widgetWithIcon(IconButton, Icons.clear);
+    final assistantRect = tester.getRect(assistantButton);
+    final fullscreenRect = tester.getRect(fullscreenButton);
+    final clearRect = tester.getRect(clearButton);
+
+    expect(assistantButton, findsOneWidget);
+    expect(fullscreenButton, findsOneWidget);
+    expect(clearButton, findsOneWidget);
+    expect(assistantRect.top, greaterThanOrEqualTo(inputRect.bottom));
+    expect(fullscreenRect.top, greaterThanOrEqualTo(inputRect.bottom));
+    expect(clearRect.top, greaterThanOrEqualTo(inputRect.bottom));
+    expect(assistantRect.size, const Size(48, 48));
+    expect(fullscreenRect.size, const Size(48, 48));
+    expect(clearRect.size, const Size(48, 48));
+
+    await tester.tap(assistantButton);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(BottomSheet), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('键盘过渡的极小高度不会让紧凑输入区溢出', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          localStorageServiceProvider.overrideWith(
+            (ref) => _TestLocalStorageService(),
+          ),
+          promptTokenUsageProvider(
+            PromptTokenCountTarget.positive,
+          ).overrideWith(
+            (ref) async => const PromptTokenUsage(usedTokens: 0, limit: 512),
+          ),
+        ],
+        child: const MaterialApp(
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          home: Scaffold(
+            body: SizedBox(
+              width: 360,
+              height: 40,
+              child: PromptInputWidget(compact: true),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(
+      find.byKey(const ValueKey('generation_prompt_compact_input')),
+      findsOneWidget,
+    );
+    expect(find.text('0 / 512'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
 }
 
 class _TestLocalStorageService extends LocalStorageService {
-  _TestLocalStorageService({this.defaultModel = 'nai-diffusion-4-5-full'});
+  _TestLocalStorageService({
+    this.defaultModel = 'nai-diffusion-4-5-full',
+    this.lastPrompt = '',
+  });
 
   final String defaultModel;
+  final String lastPrompt;
 
   @override
   bool getEnablePromptWeightScroll() => true;
@@ -110,7 +268,7 @@ class _TestLocalStorageService extends LocalStorageService {
   bool getEnableCooccurrenceRecommendation() => false;
 
   @override
-  String getLastPrompt() => '';
+  String getLastPrompt() => lastPrompt;
 
   @override
   String getLastNegativePrompt() => '';

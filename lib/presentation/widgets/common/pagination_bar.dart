@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
@@ -131,9 +132,16 @@ class _PaginationBarState extends State<PaginationBar> {
           top: BorderSide(color: theme.dividerColor.withValues(alpha: 0.2)),
         ),
       ),
-      child: widget.compact
-          ? _buildCompactLayout(theme, colorScheme)
-          : _buildFullLayout(theme, colorScheme),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          if (constraints.maxWidth < 520) {
+            return _buildNarrowLayout(theme, colorScheme);
+          }
+          return widget.compact
+              ? _buildCompactLayout(theme, colorScheme)
+              : _buildFullLayout(theme, colorScheme);
+        },
+      ),
     );
   }
 
@@ -162,6 +170,58 @@ class _PaginationBarState extends State<PaginationBar> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [_buildPageNavigation(theme, colorScheme)],
+    );
+  }
+
+  Widget _buildNarrowLayout(ThemeData theme, ColorScheme colorScheme) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        _buildNavButton(
+          icon: Icons.chevron_left,
+          tooltip: context.l10n.pagination_previousPage,
+          onPressed: widget.currentPage > 0
+              ? () => widget.onPageChanged(widget.currentPage - 1)
+              : null,
+        ),
+        const SizedBox(width: 8),
+        _buildCurrentPageJump(theme, colorScheme),
+        const SizedBox(width: 8),
+        _buildNavButton(
+          icon: Icons.chevron_right,
+          tooltip: context.l10n.pagination_nextPage,
+          onPressed: widget.currentPage < widget.totalPages - 1
+              ? () => widget.onPageChanged(widget.currentPage + 1)
+              : null,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCurrentPageJump(ThemeData theme, ColorScheme colorScheme) {
+    final extent = PlatformCapabilities.current.hasTouchInput ? 48.0 : 32.0;
+    if (_isEditing) {
+      return SizedBox(width: 72, height: extent, child: _buildJumpInput(theme));
+    }
+
+    return Tooltip(
+      message: context.l10n.pagination_jumpToPage,
+      child: InkWell(
+        onTap: widget.totalPages > 1 ? _startEditing : null,
+        borderRadius: BorderRadius.circular(6),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minWidth: 72, minHeight: extent),
+          child: Center(
+            child: Text(
+              '${widget.currentPage + 1} / ${widget.totalPages}',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: colorScheme.onSurface,
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -259,13 +319,16 @@ class _PaginationBarState extends State<PaginationBar> {
     required String tooltip,
     VoidCallback? onPressed,
   }) {
+    final extent = PlatformCapabilities.current.hasTouchInput ? 48.0 : 32.0;
     return IconButton(
       icon: Icon(icon, size: 20),
       tooltip: tooltip,
       onPressed: onPressed,
-      visualDensity: VisualDensity.compact,
+      visualDensity: PlatformCapabilities.current.hasTouchInput
+          ? VisualDensity.standard
+          : VisualDensity.compact,
       padding: const EdgeInsets.all(6),
-      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+      constraints: BoxConstraints(minWidth: extent, minHeight: extent),
     );
   }
 
@@ -326,7 +389,10 @@ class _PaginationBarState extends State<PaginationBar> {
           onTap: isSelected ? null : () => widget.onPageChanged(page),
           borderRadius: BorderRadius.circular(6),
           child: Container(
-            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            constraints: BoxConstraints(
+              minWidth: PlatformCapabilities.current.hasTouchInput ? 48 : 32,
+              minHeight: PlatformCapabilities.current.hasTouchInput ? 48 : 32,
+            ),
             alignment: Alignment.center,
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             child: Text(
@@ -357,29 +423,10 @@ class _PaginationBarState extends State<PaginationBar> {
   }
 
   Widget _buildJumpToPage(ThemeData theme, ColorScheme colorScheme) {
+    final touchInput = PlatformCapabilities.current.hasTouchInput;
+    final extent = touchInput ? 48.0 : 32.0;
     if (_isEditing) {
-      return SizedBox(
-        width: 60,
-        height: 32,
-        child: ThemedInput(
-          controller: _controller,
-          focusNode: _focusNode,
-          keyboardType: TextInputType.number,
-          textAlign: TextAlign.center,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
-          decoration: const InputDecoration(
-            isDense: true,
-            contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-          ),
-          inputFormatters: [
-            FilteringTextInputFormatter.digitsOnly,
-            LengthLimitingTextInputFormatter(5),
-          ],
-          onSubmitted: (_) => _submitPage(),
-        ),
-      );
+      return SizedBox(width: 60, height: extent, child: _buildJumpInput(theme));
     }
 
     return Tooltip(
@@ -392,10 +439,31 @@ class _PaginationBarState extends State<PaginationBar> {
           foregroundColor: colorScheme.onSurfaceVariant,
           textStyle: theme.textTheme.bodySmall,
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-          minimumSize: Size.zero,
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          minimumSize: Size(0, extent),
+          tapTargetSize: touchInput
+              ? MaterialTapTargetSize.padded
+              : MaterialTapTargetSize.shrinkWrap,
         ),
       ),
+    );
+  }
+
+  Widget _buildJumpInput(ThemeData theme) {
+    return ThemedInput(
+      controller: _controller,
+      focusNode: _focusNode,
+      keyboardType: TextInputType.number,
+      textAlign: TextAlign.center,
+      style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+      decoration: const InputDecoration(
+        isDense: true,
+        contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      ),
+      inputFormatters: [
+        FilteringTextInputFormatter.digitsOnly,
+        LengthLimitingTextInputFormatter(5),
+      ],
+      onSubmitted: (_) => _submitPage(),
     );
   }
 

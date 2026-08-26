@@ -15,6 +15,8 @@ import 'package:nai_launcher/presentation/providers/character_prompt_provider.da
 import 'package:nai_launcher/presentation/providers/prompt_token_counter_provider.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/generation_toggle_button.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/prompt_input.dart';
+import 'package:nai_launcher/presentation/themes/core/input_surface_style.dart';
+import 'package:nai_launcher/presentation/widgets/common/input_surface_container.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 import 'package:nai_launcher/presentation/widgets/common/weight_adjust_toolbar.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/unified/unified_prompt_config.dart';
@@ -67,6 +69,146 @@ void main() {
     expect(
       find.byKey(const ValueKey('generation_prompt_negative_input')),
       findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('紧凑提示词编辑器使用区别于页面的输入色面', (tester) async {
+    const colorScheme = ColorScheme.dark(
+      surface: Color(0xFF1A1A1A),
+      onSurface: Color(0xFFF4EEDC),
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          localStorageServiceProvider.overrideWith((ref) {
+            return _TestLocalStorageService();
+          }),
+          characterPromptNotifierProvider.overrideWith(
+            _TestCharacterPromptNotifier.new,
+          ),
+          promptTokenUsageProvider(
+            PromptTokenCountTarget.positive,
+          ).overrideWith(
+            (ref) async => const PromptTokenUsage(usedTokens: 0, limit: 512),
+          ),
+        ],
+        child: MaterialApp(
+          theme: ThemeData(colorScheme: colorScheme),
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          home: const Scaffold(
+            body: SizedBox(
+              width: 400,
+              height: 180,
+              child: PromptInputWidget(compact: true),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    final expectedColor = inputSurfaceFillColor(colorScheme, prominent: true);
+    final surface = find.byKey(
+      const ValueKey('generation_prompt_compact_surface'),
+    );
+    final input = tester.widget<UnifiedPromptInput>(
+      find.byKey(const ValueKey('generation_prompt_compact_input')),
+    );
+    expect(surface, findsOneWidget);
+    expect(
+      find.descendant(
+        of: surface,
+        matching: find.byType(InputSurfaceContainer),
+      ),
+      findsOneWidget,
+    );
+    expect(input.surfaceColor, expectedColor);
+    expect(input.surfaceColor, isNot(colorScheme.surface));
+  });
+
+  testWidgets('手机最大化提示词工具区固定为主次两行且不挤占编辑区', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          localStorageServiceProvider.overrideWith((ref) {
+            return _TestLocalStorageService();
+          }),
+          characterPromptNotifierProvider.overrideWith(
+            _TestCharacterPromptNotifier.new,
+          ),
+          promptTokenUsageProvider(
+            PromptTokenCountTarget.positive,
+          ).overrideWith(
+            (ref) async => const PromptTokenUsage(usedTokens: 0, limit: 512),
+          ),
+          promptTokenUsageProvider(
+            PromptTokenCountTarget.negative,
+          ).overrideWith(
+            (ref) async => const PromptTokenUsage(usedTokens: 0, limit: 512),
+          ),
+        ],
+        child: const MaterialApp(
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.topLeft,
+              child: SizedBox(
+                width: 380,
+                height: 420,
+                child: PromptInputWidget(isMaximized: true),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    final primaryRow = find.byKey(
+      const ValueKey('generation_prompt_mobile_primary_row'),
+    );
+    final secondaryScroll = find.byKey(
+      const ValueKey('generation_prompt_mobile_secondary_scroll'),
+    );
+    final secondaryActions = [
+      find.byKey(const ValueKey('generation_prompt_mobile_fixed_tags_action')),
+      find.byKey(const ValueKey('generation_prompt_mobile_quality_action')),
+      find.byKey(const ValueKey('generation_prompt_mobile_uc_action')),
+      find.byKey(const ValueKey('generation_prompt_mobile_character_action')),
+    ];
+    final editor = find.byKey(
+      const ValueKey('generation_prompt_positive_input'),
+    );
+
+    expect(primaryRow, findsOneWidget);
+    expect(
+      find.descendant(
+        of: primaryRow,
+        matching: find.byIcon(Icons.fullscreen_exit),
+      ),
+      findsOneWidget,
+    );
+    expect(secondaryScroll, findsOneWidget);
+    expect(tester.getSize(secondaryScroll).height, 48);
+    expect(tester.getSize(secondaryScroll).width, 380);
+    for (final action in secondaryActions) {
+      expect(action, findsOneWidget);
+      expect(tester.getSize(action).height, 48);
+      expect(
+        tester.getCenter(action).dy,
+        closeTo(tester.getCenter(secondaryActions.first).dy, 0.1),
+      );
+    }
+    expect(
+      tester.getBottomLeft(secondaryScroll).dy,
+      lessThan(tester.getTopLeft(editor).dy),
     );
     expect(tester.takeException(), isNull);
   });

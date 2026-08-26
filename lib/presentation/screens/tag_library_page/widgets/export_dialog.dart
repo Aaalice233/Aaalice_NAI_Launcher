@@ -1,13 +1,19 @@
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/platform/platform_capabilities.dart';
+import '../../../../core/services/file_export_service.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/tag_library/tag_library_category.dart';
 import '../../../../data/models/tag_library/tag_library_entry.dart';
 import '../../../../data/services/tag_library_io_service.dart';
 
 import '../../../widgets/common/app_toast.dart';
+
+bool get _usesTouchControls => PlatformCapabilities.current.hasTouchInput;
+double get _compactControlExtent => _usesTouchControls ? 48 : 32;
+VisualDensity get _compactControlDensity =>
+    _usesTouchControls ? VisualDensity.standard : VisualDensity.compact;
 
 /// 导出对话框
 class ExportDialog extends ConsumerStatefulWidget {
@@ -147,7 +153,8 @@ class _ExportDialogState extends ConsumerState<ExportDialog> {
                     ),
                     const SizedBox(width: 8),
                     FilledButton.icon(
-                      onPressed: _selectedEntryIds.isNotEmpty ||
+                      onPressed:
+                          _selectedEntryIds.isNotEmpty ||
                               _selectedCategoryIds.isNotEmpty
                           ? _export
                           : null,
@@ -235,12 +242,14 @@ class _ExportDialogState extends ConsumerState<ExportDialog> {
   /// 构建选择列表
   Widget _buildSelectionList(ThemeData theme) {
     // 构建分类树结构
-    final rootCategories =
-        widget.categories.where((c) => c.parentId == null).toList();
+    final rootCategories = widget.categories
+        .where((c) => c.parentId == null)
+        .toList();
 
     // 获取无分类的条目
-    final uncategorizedEntries =
-        widget.entries.where((e) => e.categoryId == null).toList();
+    final uncategorizedEntries = widget.entries
+        .where((e) => e.categoryId == null)
+        .toList();
 
     return ListView.builder(
       itemCount:
@@ -264,8 +273,9 @@ class _ExportDialogState extends ConsumerState<ExportDialog> {
     List<TagLibraryEntry> entries,
   ) {
     final isExpanded = _expandedCategories.contains('__uncategorized__');
-    final selectedCount =
-        entries.where((e) => _selectedEntryIds.contains(e.id)).length;
+    final selectedCount = entries
+        .where((e) => _selectedEntryIds.contains(e.id))
+        .length;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -303,9 +313,10 @@ class _ExportDialogState extends ConsumerState<ExportDialog> {
                   });
                 },
                 padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(
-                  minWidth: 32,
-                  minHeight: 32,
+                visualDensity: _compactControlDensity,
+                constraints: BoxConstraints.tightFor(
+                  width: _compactControlExtent,
+                  height: _compactControlExtent,
                 ),
               ),
               SizedBox(
@@ -314,8 +325,8 @@ class _ExportDialogState extends ConsumerState<ExportDialog> {
                   value: selectedCount == 0
                       ? false
                       : selectedCount == entries.length
-                          ? true
-                          : null,
+                      ? true
+                      : null,
                   tristate: true,
                   onChanged: (value) {
                     setState(() {
@@ -368,27 +379,30 @@ class _ExportDialogState extends ConsumerState<ExportDialog> {
     final isExpanded = _expandedCategories.contains(category.id);
 
     // 获取子分类
-    final childCategories =
-        widget.categories.where((c) => c.parentId == category.id).toList();
+    final childCategories = widget.categories
+        .where((c) => c.parentId == category.id)
+        .toList();
 
     // 获取该分类下的条目
-    final categoryEntries =
-        widget.entries.where((e) => e.categoryId == category.id).toList();
+    final categoryEntries = widget.entries
+        .where((e) => e.categoryId == category.id)
+        .toList();
 
     // 计算选中状态（用于indeterminate状态）
     final childSelectedCount = childCategories
         .where((c) => _selectedCategoryIds.contains(c.id))
         .length;
-    final entrySelectedCount =
-        categoryEntries.where((e) => _selectedEntryIds.contains(e.id)).length;
+    final entrySelectedCount = categoryEntries
+        .where((e) => _selectedEntryIds.contains(e.id))
+        .length;
     final totalChildren = childCategories.length + categoryEntries.length;
     final totalSelected = childSelectedCount + entrySelectedCount;
 
     final bool? checkboxValue = totalSelected == 0
         ? false
         : totalSelected == totalChildren && isSelected
-            ? true
-            : null;
+        ? true
+        : null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -418,7 +432,9 @@ class _ExportDialogState extends ConsumerState<ExportDialog> {
             });
           },
           child: Padding(
-            padding: EdgeInsets.only(left: depth * 16.0),
+            padding: EdgeInsets.only(
+              left: (depth * 16.0).clamp(0.0, 64.0).toDouble(),
+            ),
             child: Row(
               children: [
                 // 展开/折叠按钮
@@ -440,13 +456,14 @@ class _ExportDialogState extends ConsumerState<ExportDialog> {
                       });
                     },
                     padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(
-                      minWidth: 32,
-                      minHeight: 32,
+                    visualDensity: _compactControlDensity,
+                    constraints: BoxConstraints.tightFor(
+                      width: _compactControlExtent,
+                      height: _compactControlExtent,
                     ),
                   )
                 else
-                  const SizedBox(width: 32),
+                  SizedBox(width: _compactControlExtent),
 
                 // 复选框
                 SizedBox(
@@ -512,8 +529,9 @@ class _ExportDialogState extends ConsumerState<ExportDialog> {
         // 子项
         if (isExpanded) ...[
           // 子分类
-          ...childCategories
-              .map((child) => _buildCategoryTile(child, depth + 1)),
+          ...childCategories.map(
+            (child) => _buildCategoryTile(child, depth + 1),
+          ),
 
           // 条目
           ...categoryEntries.map((entry) => _buildEntryTile(entry, depth + 1)),
@@ -538,7 +556,9 @@ class _ExportDialogState extends ConsumerState<ExportDialog> {
         });
       },
       child: Padding(
-        padding: EdgeInsets.only(left: depth * 16.0),
+        padding: EdgeInsets.only(
+          left: (depth * 16.0).clamp(0.0, 64.0).toDouble(),
+        ),
         child: Row(
           children: [
             const SizedBox(width: 32),
@@ -606,21 +626,15 @@ class _ExportDialogState extends ConsumerState<ExportDialog> {
 
   Future<void> _export() async {
     // 过滤选中的条目和分类
-    final selectedEntries =
-        widget.entries.where((e) => _selectedEntryIds.contains(e.id)).toList();
+    final selectedEntries = widget.entries
+        .where((e) => _selectedEntryIds.contains(e.id))
+        .toList();
     final selectedCategories = widget.categories
         .where((c) => _selectedCategoryIds.contains(c.id))
         .toList();
 
-    // 选择保存位置
-    final result = await FilePicker.platform.saveFile(
-      dialogTitle: context.l10n.tagLibrary_selectSaveLocation,
-      fileName: TagLibraryIOService().generateExportFileName(),
-      type: FileType.custom,
-      allowedExtensions: ['zip'],
-    );
-
-    if (result == null) return;
+    final service = TagLibraryIOService();
+    final fileName = service.generateExportFileName();
 
     setState(() {
       _isExporting = true;
@@ -629,19 +643,36 @@ class _ExportDialogState extends ConsumerState<ExportDialog> {
     });
 
     try {
-      final service = TagLibraryIOService();
-      await service.exportLibrary(
-        entries: selectedEntries,
-        categories: selectedCategories,
-        includeThumbnails: _includeThumbnails,
-        outputPath: result,
-        onProgress: (progress, message) {
-          setState(() {
-            _progress = progress;
-            _progressMessage = message;
-          });
+      final savedLocation = await FileExportService.withTemporaryOutput(
+        fileName: fileName,
+        action: (path) async {
+          await service.exportLibrary(
+            entries: selectedEntries,
+            categories: selectedCategories,
+            includeThumbnails: _includeThumbnails,
+            outputPath: path,
+            onProgress: (progress, message) {
+              if (!mounted) return;
+              setState(() {
+                _progress = progress;
+                _progressMessage = message;
+              });
+            },
+          );
+          if (!mounted) return null;
+          return FileExportService.saveFileFromPath(
+            sourcePath: path,
+            fileName: fileName,
+            dialogTitle: context.l10n.tagLibrary_selectSaveLocation,
+            mimeType: 'application/zip',
+            allowedExtensions: const ['zip'],
+          );
         },
       );
+      if (savedLocation == null) {
+        if (mounted) setState(() => _isExporting = false);
+        return;
+      }
 
       if (mounted) {
         Navigator.of(context).pop();

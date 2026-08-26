@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import 'package:nai_launcher/data/models/auth/saved_account.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/account_manager_provider.dart';
-import 'package:nai_launcher/presentation/providers/auth_mode_provider.dart';
 import 'package:nai_launcher/presentation/providers/auth_provider.dart';
 import 'package:nai_launcher/presentation/screens/auth/login_screen.dart';
 
@@ -28,14 +27,6 @@ class _SavedAccountManagerNotifier extends AccountManagerNotifier {
   );
 }
 
-class _TestAuthModeNotifier extends AuthModeNotifier {
-  @override
-  AuthModeState build() => const AuthModeState();
-
-  @override
-  void reset() {}
-}
-
 Widget _buildApp(GoRouter router) {
   return ProviderScope(
     overrides: [
@@ -43,7 +34,6 @@ Widget _buildApp(GoRouter router) {
       accountManagerNotifierProvider.overrideWith(
         _SavedAccountManagerNotifier.new,
       ),
-      authModeNotifierProvider.overrideWith(_TestAuthModeNotifier.new),
     ],
     child: MaterialApp.router(
       locale: const Locale('zh'),
@@ -76,9 +66,8 @@ void main() {
         GoRoute(
           path: '/',
           name: 'home',
-          builder: (context, state) => const Scaffold(
-            body: Text('MAIN_SCREEN_OPENED'),
-          ),
+          builder: (context, state) =>
+              const Scaffold(body: Text('MAIN_SCREEN_OPENED')),
         ),
       ],
     );
@@ -115,9 +104,8 @@ void main() {
         GoRoute(
           path: '/',
           name: 'home',
-          builder: (context, state) => const Scaffold(
-            body: Text('MAIN_SCREEN_OPENED'),
-          ),
+          builder: (context, state) =>
+              const Scaffold(body: Text('MAIN_SCREEN_OPENED')),
         ),
       ],
     );

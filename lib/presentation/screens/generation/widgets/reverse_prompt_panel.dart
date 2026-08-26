@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
+import '../../../../core/platform/platform_capabilities.dart';
 import '../../../../data/models/character/character_prompt.dart';
 import '../../../../data/models/tag_library/tag_library_entry.dart';
 import '../../../../data/services/local_onnx_model_service.dart';
@@ -69,7 +70,7 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const ThemedDivider(),
-            _buildDropArea(theme, state),
+            _buildDropArea(state),
             if (hasImages) ...[
               const SizedBox(height: 10),
               _buildImageStrip(state),
@@ -154,7 +155,21 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
     );
   }
 
-  Widget _buildDropArea(ThemeData theme, ReversePromptState state) {
+  Widget _buildDropArea(ReversePromptState state) {
+    final button = FilledButton.tonalIcon(
+      onPressed: state.isProcessing ? null : _pickImages,
+      icon: Icon(
+        _isDragging ? Icons.file_download_rounded : Icons.add_photo_alternate,
+        size: 18,
+      ),
+      label: Text(
+        _isDragging
+            ? context.l10n.reversePrompt_dropToAdd
+            : context.l10n.reversePrompt_addOrDropImages,
+      ),
+    );
+    if (!PlatformCapabilities.current.supportsExternalFileDrop) return button;
+
     return DropRegion(
       formats: Formats.standardFormats,
       hitTestBehavior: HitTestBehavior.opaque,
@@ -176,18 +191,7 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
         setState(() => _isDragging = false);
         unawaited(_handleDrop(event));
       },
-      child: FilledButton.tonalIcon(
-        onPressed: state.isProcessing ? null : _pickImages,
-        icon: Icon(
-          _isDragging ? Icons.file_download_rounded : Icons.add_photo_alternate,
-          size: 18,
-        ),
-        label: Text(
-          _isDragging
-              ? context.l10n.reversePrompt_dropToAdd
-              : context.l10n.reversePrompt_addOrDropImages,
-        ),
-      ),
+      child: button,
     );
   }
 
@@ -215,24 +219,30 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
                 ),
               ),
               Positioned(
-                top: 2,
-                right: 2,
+                top: 0,
+                right: 0,
                 child: InkWell(
                   onTap: () => ref
                       .read(reversePromptProvider.notifier)
                       .removeImage(image.id),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.65),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    padding: const EdgeInsets.all(2),
-                    // 底色是写死的半透明黑，图标也必须写死浅色，
-                    // 否则浅色主题下会继承成近黑色，变成黑底黑图标。
-                    child: const Icon(
-                      Icons.close,
-                      size: 14,
-                      color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  child: SizedBox.square(
+                    dimension: 48,
+                    child: Align(
+                      alignment: Alignment.topRight,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.65),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        padding: const EdgeInsets.all(2),
+                        // 固定深色底必须搭配固定浅色图标，避免浅色主题下失去对比。
+                        child: const Icon(
+                          Icons.close,
+                          size: 14,
+                          color: Colors.white,
+                        ),
+                      ),
                     ),
                   ),
                 ),

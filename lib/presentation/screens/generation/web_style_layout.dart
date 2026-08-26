@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:nai_launcher/core/utils/localization_extension.dart';
+import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/shortcuts/default_shortcuts.dart';
 import '../../../data/models/queue/replication_task.dart';
 import '../../providers/character_prompt_provider.dart';
@@ -56,10 +57,11 @@ class _WebStyleGenerationLayoutState
     final layoutState = ref.watch(layoutStateNotifierProvider);
     final generationState = ref.watch(imageGenerationNotifierProvider);
     final cooldownState = ref.watch(generationCooldownProvider);
-    final kritaBridgeState = ref.watch(kritaBridgeNotifierProvider);
+    final isKritaGenerating =
+        PlatformCapabilities.current.supportsKritaBridge &&
+        ref.watch(kritaBridgeNotifierProvider).isBridgeGenerating;
     final isLauncherGenerating = generationState.isGenerating;
-    final isGenerating =
-        isLauncherGenerating || kritaBridgeState.isBridgeGenerating;
+    final isGenerating = isLauncherGenerating || isKritaGenerating;
 
     final shortcuts = <String, VoidCallback>{
       ShortcutIds.generateImage: () {

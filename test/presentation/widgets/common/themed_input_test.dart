@@ -1,30 +1,106 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nai_launcher/presentation/widgets/common/inset_shadow_container.dart';
+import 'package:nai_launcher/presentation/themes/core/input_surface_style.dart';
+import 'package:nai_launcher/presentation/widgets/common/input_surface_container.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 void main() {
-  group('ThemedInput 语义色面', () {
-    testWidgets('默认无完整边框，聚焦时才显示状态边界', (tester) async {
+  group('ThemedInput 平面输入色面', () {
+    testWidgets('默认不绘制内阴影并使用极细边界，聚焦时强化状态边界', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(body: ThemedInput(hintText: 'Prompt')),
         ),
       );
 
-      var surface = tester.widget<InsetShadowContainer>(
-        find.byType(InsetShadowContainer),
+      var surface = tester.widget<InputSurfaceContainer>(
+        find.byType(InputSurfaceContainer),
       );
       expect(surface.borderWidth, 0);
       expect(surface.isFocused, isFalse);
+      expect(
+        find.descendant(
+          of: find.byType(InputSurfaceContainer),
+          matching: find.byKey(const ValueKey('input_surface_inner_shadow')),
+        ),
+        findsNothing,
+      );
+      var borderDecoration = tester
+          .widgetList<AnimatedContainer>(
+            find.descendant(
+              of: find.byType(InputSurfaceContainer),
+              matching: find.byType(AnimatedContainer),
+            ),
+          )
+          .map((widget) => widget.decoration)
+          .whereType<BoxDecoration>()
+          .singleWhere((decoration) => decoration.border != null);
+      expect(borderDecoration.border!.top.width, 0.55);
 
       await tester.tap(find.byType(TextField));
       await tester.pump();
 
-      surface = tester.widget<InsetShadowContainer>(
-        find.byType(InsetShadowContainer),
+      surface = tester.widget<InputSurfaceContainer>(
+        find.byType(InputSurfaceContainer),
       );
       expect(surface.isFocused, isTrue);
+      borderDecoration = tester
+          .widgetList<AnimatedContainer>(
+            find.descendant(
+              of: find.byType(InputSurfaceContainer),
+              matching: find.byType(AnimatedContainer),
+            ),
+          )
+          .map((widget) => widget.decoration)
+          .whereType<BoxDecoration>()
+          .singleWhere((decoration) => decoration.border != null);
+      expect(borderDecoration.border!.top.width, 1.0);
+    });
+
+    testWidgets('内部输入装饰不继承全局填充层遮挡圆角边界', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData(
+            inputDecorationTheme: const InputDecorationTheme(
+              filled: true,
+              fillColor: Colors.red,
+            ),
+          ),
+          home: const Scaffold(body: ThemedInput(hintText: 'Prompt')),
+        ),
+      );
+
+      final field = tester.widget<TextField>(find.byType(TextField));
+      expect(field.decoration?.filled, isFalse);
+
+      final inputContext = tester.element(find.byType(ThemedInput));
+      final colors = Theme.of(inputContext).colorScheme;
+      final surface = tester
+          .widgetList<AnimatedContainer>(
+            find.descendant(
+              of: find.byType(InputSurfaceContainer),
+              matching: find.byType(AnimatedContainer),
+            ),
+          )
+          .singleWhere(
+            (widget) =>
+                widget.decoration is BoxDecoration &&
+                (widget.decoration! as BoxDecoration).color != null,
+          );
+      final decoration = surface.decoration! as BoxDecoration;
+      expect(decoration.color, isNot(colors.surfaceContainerLowest));
+      expect(decoration.color, inputSurfaceFillColor(colors));
+
+      await tester.tap(find.byType(TextField));
+      await tester.pump();
+
+      expect(
+        find.descendant(
+          of: find.byType(InputSurfaceContainer),
+          matching: find.byKey(const ValueKey('input_surface_inner_shadow')),
+        ),
+        findsNothing,
+      );
     });
   });
 

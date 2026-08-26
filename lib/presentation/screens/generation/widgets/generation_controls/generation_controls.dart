@@ -2,9 +2,12 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:nai_launcher/presentation/providers/generation/image_workflow_controller.dart';
+import 'package:nai_launcher/presentation/providers/auth_provider.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/providers/krita/krita_bridge_notifier.dart';
 import 'package:nai_launcher/presentation/utils/asset_protection_guard.dart';
@@ -34,13 +37,17 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
   Widget build(BuildContext context) {
     final generationState = ref.watch(imageGenerationNotifierProvider);
     final cooldownState = ref.watch(generationCooldownProvider);
-    final kritaBridgeState = ref.watch(kritaBridgeNotifierProvider);
+    final isAuthenticated = ref.watch(
+      authNotifierProvider.select((state) => state.isAuthenticated),
+    );
+    final isKritaGenerating =
+        PlatformCapabilities.current.supportsKritaBridge &&
+        ref.watch(kritaBridgeNotifierProvider).isBridgeGenerating;
     final nSamples = ref.watch(
       generationParamsNotifierProvider.select((params) => params.nSamples),
     );
     final isLauncherGenerating = generationState.isGenerating;
-    final isGenerating =
-        isLauncherGenerating || kritaBridgeState.isBridgeGenerating;
+    final isGenerating = isLauncherGenerating || isKritaGenerating;
 
     // 生成中常驻显示取消入口（与移动端一致）
     final showCancel = isLauncherGenerating;
@@ -72,6 +79,7 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
               .read(imageGenerationNotifierProvider.notifier)
               .skipCurrentRequest(),
           showCost: !isUpscaleMode,
+          requiresLogin: !isAuthenticated && !isGenerating,
         );
 
         if (isNarrow) {
@@ -240,6 +248,11 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
   }
 
   Future<void> _handleGenerate(BuildContext context, WidgetRef ref) async {
+    if (!ref.read(authNotifierProvider).isAuthenticated) {
+      await context.pushNamed('login');
+      return;
+    }
+
     final params = ref.read(generationParamsNotifierProvider);
     if (params.prompt.isEmpty) {
       AppToast.warning(context, context.l10n.generation_pleaseInputPrompt);

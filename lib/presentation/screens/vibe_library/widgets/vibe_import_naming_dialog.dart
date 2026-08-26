@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nai_launcher/presentation/themes/core/input_surface_style.dart';
 import 'package:flutter/services.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
@@ -263,7 +264,7 @@ class _VibeImportNamingDialogState extends State<VibeImportNamingDialog> {
         prefixIcon: const Icon(Icons.label_outline),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         filled: true,
-        fillColor: theme.colorScheme.surfaceContainerHighest,
+        fillColor: inputSurfaceFillColor(theme.colorScheme),
       ),
       textInputAction: TextInputAction.done,
       onSubmitted: (_) => _confirm(),

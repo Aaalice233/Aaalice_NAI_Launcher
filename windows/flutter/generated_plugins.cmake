@@ -23,7 +23,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
 
 list(APPEND FLUTTER_FFI_PLUGIN_LIST
   jni
-  onnxruntime
+  onnxruntime_v2
 )
 
 set(PLUGIN_BUNDLED_LIBRARIES)

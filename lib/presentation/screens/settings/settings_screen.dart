@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/localization_extension.dart';
+import '../../adaptive/window_size_class.dart';
 import 'sections/account_settings_section.dart';
 import 'sections/appearance_settings_section.dart';
 import 'sections/generation_settings_section.dart';
@@ -41,11 +42,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   late int _selectedIndex;
   final _contentScrollController = ScrollController();
   bool _isContentScrolled = false;
+  bool _showCompactDetail = false;
 
   @override
   void initState() {
     super.initState();
     _selectedIndex = widget.initialSectionIndex.clamp(0, 8);
+    _showCompactDetail = widget.initialSectionIndex != 0;
     _contentScrollController.addListener(_onContentScroll);
   }
 
@@ -54,6 +57,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.initialSectionIndex != widget.initialSectionIndex) {
       _selectedIndex = widget.initialSectionIndex.clamp(0, 8);
+      _showCompactDetail = widget.initialSectionIndex != 0;
     }
   }
 
@@ -130,11 +134,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
-  void _onSectionSelected(int index) {
+  void _onSectionSelected(int index, {bool showCompactDetail = false}) {
     setState(() {
       _selectedIndex = index;
-      // 切换 section 时重置滚动位置
-      _contentScrollController.jumpTo(0);
+      _showCompactDetail = showCompactDetail;
+      if (_contentScrollController.hasClients) {
+        _contentScrollController.jumpTo(0);
+      }
       _isContentScrolled = false;
     });
   }
@@ -142,68 +148,126 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final screenWidth = MediaQuery.of(context).size.width;
     final sections = _buildSections(context);
-    if (_selectedIndex >= sections.length) {
-      _selectedIndex = sections.length - 1;
-    }
+    final selectedIndex = _selectedIndex.clamp(0, sections.length - 1);
 
-    // 响应式断点
-    // >800px: 扩展模式（显示标签）
-    // 600-800px: 图标模式（仅图标）
-    // <600px: 使用 Drawer
-    final isExtended = screenWidth > 800;
-    final isMobile = screenWidth < 600;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final sizeClass = WindowSizeClass.fromWidth(constraints.maxWidth);
+        if (sizeClass.isCompact) {
+          return _buildCompactSettings(context, theme, sections, selectedIndex);
+        }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(context.l10n.settings_title),
-        // 滚动后变暗色
-        backgroundColor: _isContentScrolled
-            ? theme.colorScheme.surfaceContainerHighest
-            : null,
-        surfaceTintColor: Colors.transparent,
-        // 移动端显示抽屉菜单按钮
-        leading: isMobile
-            ? Builder(
-                builder: (context) {
-                  return IconButton(
-                    icon: const Icon(Icons.menu),
-                    onPressed: () => Scaffold.of(context).openDrawer(),
-                  );
-                },
-              )
-            : null,
-      ),
-      // 移动端使用 Drawer
-      drawer: isMobile ? _buildDrawer(context, sections) : null,
-      body: Row(
-        children: [
-          // 桌面/平板端显示 NavigationRail
-          if (!isMobile) _buildNavigationRail(context, isExtended, sections),
-          if (!isMobile) const VerticalDivider(thickness: 1, width: 1),
-          // 内容区 - 置顶排列，限制最大宽度
-          Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                return SingleChildScrollView(
-                  controller: _contentScrollController,
-                  padding: const EdgeInsets.all(24),
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      minHeight: constraints.maxHeight,
-                      maxWidth: 900,
-                    ),
-                    child: Align(
-                      alignment: Alignment.topCenter,
-                      child: sections[_selectedIndex].widget,
-                    ),
-                  ),
-                );
-              },
-            ),
+        return Scaffold(
+          appBar: AppBar(
+            title: Text(context.l10n.settings_title),
+            backgroundColor: _isContentScrolled
+                ? theme.colorScheme.surfaceContainerHighest
+                : null,
+            surfaceTintColor: Colors.transparent,
           ),
-        ],
+          body: Row(
+            children: [
+              _buildNavigationRail(context, sizeClass.isExpanded, sections),
+              const VerticalDivider(thickness: 1, width: 1),
+              Expanded(
+                child: _buildSectionContent(
+                  sections[selectedIndex].widget,
+                  padding: const EdgeInsets.all(24),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _returnToCompactSettingsList() {
+    if (!_showCompactDetail) return;
+    setState(() {
+      _showCompactDetail = false;
+      _isContentScrolled = false;
+    });
+  }
+
+  Widget _buildCompactSettings(
+    BuildContext context,
+    ThemeData theme,
+    List<_SettingsSection> sections,
+    int selectedIndex,
+  ) {
+    return PopScope<void>(
+      canPop: !_showCompactDetail,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _returnToCompactSettingsList();
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          leading: _showCompactDetail
+              ? BackButton(onPressed: _returnToCompactSettingsList)
+              : null,
+          title: Text(
+            _showCompactDetail
+                ? sections[selectedIndex].label
+                : context.l10n.settings_title,
+          ),
+          backgroundColor: _isContentScrolled
+              ? theme.colorScheme.surfaceContainerHighest
+              : null,
+          surfaceTintColor: Colors.transparent,
+        ),
+        body: AnimatedSwitcher(
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 180),
+          switchInCurve: Curves.easeOutCubic,
+          switchOutCurve: Curves.easeInCubic,
+          child: _showCompactDetail
+              ? KeyedSubtree(
+                  key: ValueKey('settings-detail-$selectedIndex'),
+                  child: _buildSectionContent(
+                    sections[selectedIndex].widget,
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                  ),
+                )
+              : ListView.separated(
+                  key: const ValueKey('settings-section-list'),
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
+                  itemCount: sections.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 4),
+                  itemBuilder: (context, index) {
+                    final section = sections[index];
+                    return ListTile(
+                      minTileHeight: 56,
+                      leading: Icon(section.icon),
+                      title: Text(section.label),
+                      trailing: const Icon(Icons.chevron_right),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      onTap: () =>
+                          _onSectionSelected(index, showCompactDetail: true),
+                    );
+                  },
+                ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionContent(Widget section, {required EdgeInsets padding}) {
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        controller: _contentScrollController,
+        padding: padding,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            minHeight: constraints.maxHeight,
+            maxWidth: 900,
+          ),
+          child: Align(alignment: Alignment.topCenter, child: section),
+        ),
       ),
     );
   }
@@ -242,85 +306,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           label: Text(section.label),
         );
       }).toList(),
-    );
-  }
-
-  /// 构建移动端 Drawer
-  Widget _buildDrawer(BuildContext context, List<_SettingsSection> sections) {
-    final theme = Theme.of(context);
-
-    return Drawer(
-      child: SafeArea(
-        child: Column(
-          children: [
-            DrawerHeader(
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primaryContainer.withValues(
-                  alpha: 0.3,
-                ),
-              ),
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.settings,
-                      size: 48,
-                      color: theme.colorScheme.primary,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      context.l10n.settings_title,
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            Expanded(
-              child: ListView.builder(
-                itemCount: sections.length,
-                itemBuilder: (context, index) {
-                  final section = sections[index];
-                  final isSelected = _selectedIndex == index;
-
-                  return ListTile(
-                    leading: Icon(
-                      isSelected ? section.selectedIcon : section.icon,
-                      color: isSelected
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                    ),
-                    title: Text(
-                      section.label,
-                      style: TextStyle(
-                        color: isSelected
-                            ? theme.colorScheme.primary
-                            : theme.colorScheme.onSurface,
-                        fontWeight: isSelected
-                            ? FontWeight.w600
-                            : FontWeight.normal,
-                      ),
-                    ),
-                    selected: isSelected,
-                    selectedTileColor: theme.colorScheme.primaryContainer
-                        .withValues(alpha: 0.3),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    onTap: () {
-                      _onSectionSelected(index);
-                      Navigator.of(context).pop();
-                    },
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

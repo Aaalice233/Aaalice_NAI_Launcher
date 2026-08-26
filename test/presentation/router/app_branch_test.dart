@@ -16,22 +16,31 @@ void main() {
     });
   });
 
-  test('mobile navigation maps settings and gallery branches correctly', () {
-    expect(
-      mobileNavigationIndexForBranch(AppBranch.generation.index),
-      mobileNavigationBranches.indexOf(AppBranch.generation),
-    );
-    expect(
-      mobileNavigationIndexForBranch(AppBranch.localGallery.index),
-      mobileNavigationBranches.indexOf(AppBranch.localGallery),
-    );
-    expect(
-      mobileNavigationIndexForBranch(AppBranch.onlineGallery.index),
-      mobileNavigationBranches.indexOf(AppBranch.localGallery),
-    );
-    expect(
-      mobileNavigationIndexForBranch(AppBranch.settings.index),
-      mobileNavigationBranches.indexOf(AppBranch.settings),
-    );
-  });
+  test(
+    'compact navigation keeps core branches visible and routes the rest to more',
+    () {
+      expect(mobileNavigationBranches, [
+        AppBranch.generation,
+        AppBranch.localGallery,
+        AppBranch.onlineGallery,
+        AppBranch.tagLibrary,
+      ]);
+
+      for (final branch in mobileNavigationBranches) {
+        expect(
+          mobileNavigationIndexForBranch(branch.index),
+          mobileNavigationBranches.indexOf(branch),
+        );
+      }
+
+      expect(
+        mobileNavigationIndexForBranch(AppBranch.settings.index),
+        mobileMoreNavigationIndex,
+      );
+      expect(
+        mobileNavigationIndexForBranch(AppBranch.vibeLibrary.index),
+        mobileMoreNavigationIndex,
+      );
+    },
+  );
 }

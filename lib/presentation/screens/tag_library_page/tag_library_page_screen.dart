@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,6 +8,7 @@ import '../../../core/utils/comfyui_prompt_parser/pipe_parser.dart';
 import '../../../core/utils/sd_to_nai_converter.dart';
 import '../../../core/shortcuts/default_shortcuts.dart';
 import '../../../data/models/tag_library/tag_library_entry.dart';
+import '../../adaptive/adaptive_presenter.dart';
 import '../../providers/fixed_tags_provider.dart';
 import '../../providers/pending_prompt_provider.dart';
 import '../../providers/tag_library_page_provider.dart';
@@ -40,8 +39,6 @@ class TagLibraryPageScreen extends ConsumerStatefulWidget {
 }
 
 class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
-  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-
   /// 搜索框焦点节点
   final FocusNode _searchFocusNode = FocusNode();
 
@@ -55,6 +52,9 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final state = ref.watch(tagLibraryPageNotifierProvider);
+    final isSelectionMode = ref.watch(
+      tagLibrarySelectionNotifierProvider.select((value) => value.isActive),
+    );
 
     // 定义快捷键映射
     final shortcuts = <String, VoidCallback>{
@@ -119,62 +119,52 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
       },
     };
 
-    return PageShortcuts(
-      contextType: ShortcutContext.tagLibrary,
-      shortcuts: shortcuts,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final compact = constraints.maxWidth < 840;
-          final drawerWidth = math.max(
-            160.0,
-            math.min(280.0, constraints.maxWidth - 48),
-          );
-
-          return Scaffold(
-            key: _scaffoldKey,
-            drawer: compact
-                ? Drawer(
-                    key: const Key('tag-library-category-drawer'),
-                    width: drawerWidth,
-                    child: SafeArea(
-                      child: _buildCategorySidebar(
-                        theme,
-                        state,
-                        width: double.infinity,
-                        showDivider: false,
-                      ),
+    return PopScope<void>(
+      canPop: !isSelectionMode,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && isSelectionMode) {
+          ref.read(tagLibrarySelectionNotifierProvider.notifier).exit();
+        }
+      },
+      child: PageShortcuts(
+        contextType: ShortcutContext.tagLibrary,
+        shortcuts: shortcuts,
+        child: Scaffold(
+          body: LayoutBuilder(
+            builder: (context, constraints) {
+              final showSidebar = constraints.maxWidth >= 840;
+              return Row(
+                children: [
+                  if (showSidebar) _buildCategorySidebar(theme, state),
+                  Expanded(
+                    child: Column(
+                      children: [
+                        TagLibraryToolbar(
+                          onShowCategories: showSidebar
+                              ? null
+                              : () => _showCategoryPanel(theme, state),
+                          onEnterSelectionMode: () => ref
+                              .read(
+                                tagLibrarySelectionNotifierProvider.notifier,
+                              )
+                              .enter(),
+                          onBulkDelete: _handleBulkDelete,
+                          onBulkMoveCategory: _handleBulkMoveCategory,
+                          onBulkToggleFavorite: _handleBulkToggleFavorite,
+                          onBulkCopy: _handleBulkCopy,
+                          onImport: _handleImport,
+                          onExport: _handleExport,
+                          onAddEntry: _showAddEntryDialog,
+                        ),
+                        Expanded(child: _buildContent(theme, state)),
+                      ],
                     ),
-                  )
-                : null,
-            body: Row(
-              children: [
-                if (!compact) _buildCategorySidebar(theme, state),
-                Expanded(
-                  child: Column(
-                    children: [
-                      TagLibraryToolbar(
-                        onOpenCategories: compact
-                            ? () => _scaffoldKey.currentState?.openDrawer()
-                            : null,
-                        onEnterSelectionMode: () => ref
-                            .read(tagLibrarySelectionNotifierProvider.notifier)
-                            .enter(),
-                        onBulkDelete: _handleBulkDelete,
-                        onBulkMoveCategory: _handleBulkMoveCategory,
-                        onBulkToggleFavorite: _handleBulkToggleFavorite,
-                        onBulkCopy: _handleBulkCopy,
-                        onImport: _handleImport,
-                        onExport: _handleExport,
-                        onAddEntry: _showAddEntryDialog,
-                      ),
-                      Expanded(child: _buildContent(theme, state)),
-                    ],
                   ),
-                ),
-              ],
-            ),
-          );
-        },
+                ],
+              );
+            },
+          ),
+        ),
       ),
     );
   }
@@ -235,48 +225,49 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
   Widget _buildCategorySidebar(
     ThemeData theme,
     TagLibraryPageState state, {
-    double width = 240,
-    bool showDivider = true,
+    bool forPanel = false,
   }) {
     return Container(
-      key: const Key('tag-library-category-sidebar'),
-      width: width,
+      key: forPanel ? null : const Key('tag-library-category-sidebar'),
+      width: forPanel ? double.infinity : 240,
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerLow,
-        border: showDivider
-            ? Border(
+        border: forPanel
+            ? null
+            : Border(
                 right: BorderSide(
                   color: theme.colorScheme.outlineVariant.withValues(
                     alpha: 0.3,
                   ),
                 ),
-              )
-            : null,
+              ),
       ),
       child: Column(
         children: [
-          // 分类标题
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             constraints: const BoxConstraints(minHeight: 62),
             child: Row(
               children: [
-                Icon(
-                  Icons.folder_outlined,
-                  size: 20,
-                  color: theme.colorScheme.primary,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    context.l10n.tagLibrary_categories,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                if (!forPanel) ...[
+                  Icon(
+                    Icons.folder_outlined,
+                    size: 20,
+                    color: theme.colorScheme.primary,
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      context.l10n.tagLibrary_categories,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ] else
+                  const Spacer(),
                 FilledButton.tonalIcon(
                   onPressed: () => _showAddCategoryDialog(),
                   icon: const Icon(Icons.add, size: 18),
@@ -307,6 +298,9 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
                 ref
                     .read(tagLibraryPageNotifierProvider.notifier)
                     .selectCategory(id);
+                if (forPanel) {
+                  Navigator.of(context).pop();
+                }
               },
               onCategoryRename: (id, name) {
                 ref
@@ -339,6 +333,16 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _showCategoryPanel(ThemeData theme, TagLibraryPageState state) {
+    return AdaptivePresenter.showPanel<void>(
+      context: context,
+      title: context.l10n.tagLibrary_categories,
+      initialChildSize: 0.76,
+      builder: (context, scrollController) =>
+          _buildCategorySidebar(theme, state, forPanel: true),
     );
   }
 
@@ -402,14 +406,6 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
               color: theme.colorScheme.outline.withValues(alpha: 0.7),
             ),
           ),
-          if (!hasSearch) ...[
-            const SizedBox(height: 24),
-            FilledButton.icon(
-              onPressed: () => _showAddEntryDialog(),
-              icon: const Icon(Icons.add),
-              label: Text(context.l10n.tagLibrary_addEntry),
-            ),
-          ],
         ],
       ),
     );

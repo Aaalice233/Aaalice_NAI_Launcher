@@ -16,11 +16,14 @@ class VibeLibraryEmptyView extends StatelessWidget {
   /// 显示的图标名称（在build中映射为实际IconData）
   final String iconName;
 
+  final VoidCallback? onImport;
+
   const VibeLibraryEmptyView({
     super.key,
     this.title,
     this.subtitle,
     this.iconName = 'auto_awesome_outlined',
+    this.onImport,
   });
 
   /// 将图标名称映射为 IconData
@@ -68,10 +71,20 @@ class VibeLibraryEmptyView extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             resolvedSubtitle,
+            textAlign: TextAlign.center,
             style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.outline,
             ),
           ),
+          if (onImport != null) ...[
+            const SizedBox(height: 20),
+            FilledButton.icon(
+              key: const ValueKey('vibe-library-empty-import'),
+              onPressed: onImport,
+              icon: const Icon(Icons.file_download_outlined),
+              label: Text(l10n.common_import),
+            ),
+          ],
         ],
       ),
     );

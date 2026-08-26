@@ -10,6 +10,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/enums/precise_ref_type.dart';
+import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/data/datasources/remote/nai_image_enhancement_api_service.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_library_entry.dart';
@@ -40,7 +41,14 @@ void main() {
     await Hive.openBox(StorageKeys.historyBox);
   });
 
+  setUp(() {
+    PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
+      TargetPlatform.windows,
+    );
+  });
+
   tearDown(() async {
+    PlatformCapabilities.debugOverride = null;
     await Hive.box(StorageKeys.settingsBox).clear();
     await Hive.box(StorageKeys.historyBox).clear();
   });

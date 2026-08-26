@@ -1,11 +1,11 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../widgets/common/app_toast.dart';
+import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/character/character_prompt.dart';
 import '../../../data/models/tag_library/tag_library_entry.dart';
@@ -23,10 +23,9 @@ import 'prompt_assistant_custom_dialog.dart';
 class PromptAssistantOverlay extends ConsumerStatefulWidget {
   /// Bottom inset the prompt editor reserves while this overlay is visible.
   ///
-  /// The expanded toolbar is 32 logical pixels tall before hover scaling and
-  /// sits 8 pixels above the input edge. The remaining clearance keeps prompt
-  /// text and selection highlights out from underneath the toolbar.
-  static const double contentBottomClearance = 48;
+  /// Keeps prompt text and selection highlights clear of the overlay toolbar.
+  static double get contentBottomClearance =>
+      PlatformCapabilities.current.hasTouchInput ? 68 : 56;
 
   const PromptAssistantOverlay({
     super.key,
@@ -34,6 +33,8 @@ class PromptAssistantOverlay extends ConsumerStatefulWidget {
     required this.controller,
     this.onOpenSettings,
     this.enabled = true,
+    this.floatOverEditor = true,
+    this.expandInPlace = true,
   });
 
   final String sessionId;
@@ -41,40 +42,28 @@ class PromptAssistantOverlay extends ConsumerStatefulWidget {
   final VoidCallback? onOpenSettings;
   final bool enabled;
 
+  /// Whether the trigger floats over the bottom-right corner of an editor.
+  final bool floatOverEditor;
+
+  /// Whether the trigger expands into an inline toolbar.
+  ///
+  /// Compact editors use the existing bottom-sheet menu instead, keeping the
+  /// prompt surface free of controls and preserving its readable area.
+  final bool expandInPlace;
+
   @override
   ConsumerState<PromptAssistantOverlay> createState() =>
       _PromptAssistantOverlayState();
 }
 
-class _PromptAssistantOverlayState extends ConsumerState<PromptAssistantOverlay>
-    with SingleTickerProviderStateMixin {
+class _PromptAssistantOverlayState extends ConsumerState<PromptAssistantOverlay> {
   StreamSubscription? _streamSub;
-  late final AnimationController _breathController;
 
-  bool get _isDesktop {
-    switch (defaultTargetPlatform) {
-      case TargetPlatform.windows:
-      case TargetPlatform.macOS:
-      case TargetPlatform.linux:
-        return true;
-      default:
-        return false;
-    }
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _breathController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1800),
-    )..repeat(reverse: true);
-  }
+  bool get _isDesktop => PlatformCapabilities.current.hasPrecisePointer;
 
   @override
   void dispose() {
     _streamSub?.cancel();
-    _breathController.dispose();
     super.dispose();
   }
 
@@ -83,10 +72,8 @@ class _PromptAssistantOverlayState extends ConsumerState<PromptAssistantOverlay>
     await _runAction(
       context.l10n.promptAssistant_translateProcessing,
       inputText,
-      (service, input) => service.translatePrompt(
-        input,
-        sessionId: widget.sessionId,
-      ),
+      (service, input) =>
+          service.translatePrompt(input, sessionId: widget.sessionId),
     );
   }
 
@@ -95,10 +82,8 @@ class _PromptAssistantOverlayState extends ConsumerState<PromptAssistantOverlay>
     await _runAction(
       context.l10n.promptAssistant_optimizeProcessing,
       inputText,
-      (service, input) => service.optimizePrompt(
-        input,
-        sessionId: widget.sessionId,
-      ),
+      (service, input) =>
+          service.optimizePrompt(input, sessionId: widget.sessionId),
     );
   }
 
@@ -133,9 +118,9 @@ class _PromptAssistantOverlayState extends ConsumerState<PromptAssistantOverlay>
     final enabledProviders = config.providers.where((p) => p.enabled).toList();
     if (enabledProviders.isEmpty) return null;
     return enabledProviders.cast<ProviderConfig?>().firstWhere(
-          (provider) => provider?.id == providerId,
-          orElse: () => enabledProviders.first,
-        );
+      (provider) => provider?.id == providerId,
+      orElse: () => enabledProviders.first,
+    );
   }
 
   Future<void> _runCharacterReplace() async {
@@ -160,8 +145,9 @@ class _PromptAssistantOverlayState extends ConsumerState<PromptAssistantOverlay>
   }
 
   Future<CharacterPrompt?> _selectCharacterForReplacement() async {
-    final character =
-        ref.read(reversePromptCharacterProvider.notifier).selectedCharacter;
+    final character = ref
+        .read(reversePromptCharacterProvider.notifier)
+        .selectedCharacter;
     if (character != null) {
       return character;
     }
@@ -198,7 +184,7 @@ class _PromptAssistantOverlayState extends ConsumerState<PromptAssistantOverlay>
     String label,
     String inputText,
     Stream<dynamic> Function(PromptAssistantService service, String input)
-        builder,
+    builder,
   ) async {
     final text = inputText.trim();
     if (text.isEmpty) {
@@ -240,20 +226,22 @@ class _PromptAssistantOverlayState extends ConsumerState<PromptAssistantOverlay>
         if (buffer.isNotEmpty) {
           final finalText = buffer.toString();
           widget.controller.text = finalText;
-          widget.controller.selection =
-              TextSelection.collapsed(offset: widget.controller.text.length);
+          widget.controller.selection = TextSelection.collapsed(
+            offset: widget.controller.text.length,
+          );
         }
         stateNotifier.finishProcessing(widget.sessionId);
         final afterText = widget.controller.text;
-        ref.read(promptAssistantHistoryProvider.notifier).recordExternalChange(
+        ref
+            .read(promptAssistantHistoryProvider.notifier)
+            .recordExternalChange(
               widget.sessionId,
               before: beforeText,
               after: afterText,
             );
-        ref.read(promptAssistantHistoryProvider.notifier).push(
-              widget.sessionId,
-              afterText,
-            );
+        ref
+            .read(promptAssistantHistoryProvider.notifier)
+            .push(widget.sessionId, afterText);
       },
       cancelOnError: true,
     );
@@ -280,48 +268,50 @@ class _PromptAssistantOverlayState extends ConsumerState<PromptAssistantOverlay>
     await _streamSub?.cancel();
     _streamSub = service
         .customPrompt(
-      inputText,
-      sessionId: widget.sessionId,
-      userRequest: result.userRequest,
-      images: result.images,
-    )
+          inputText,
+          sessionId: widget.sessionId,
+          userRequest: result.userRequest,
+          images: result.images,
+        )
         .listen(
-      (chunk) {
-        if (chunk.done == true) return;
-        final delta = chunk.delta as String? ?? '';
-        if (delta.isEmpty) return;
-        buffer.write(delta);
-      },
-      onError: (e) {
-        stateNotifier.setError(widget.sessionId, e.toString());
-        if (mounted) {
-          AppToast.error(
-            context,
-            context.l10n.promptAssistant_requestFailed(e),
-          );
-        }
-      },
-      onDone: () {
-        if (buffer.isNotEmpty) {
-          final finalText = buffer.toString();
-          widget.controller.text = finalText;
-          widget.controller.selection =
-              TextSelection.collapsed(offset: widget.controller.text.length);
-        }
-        stateNotifier.finishProcessing(widget.sessionId);
-        final afterText = widget.controller.text;
-        ref.read(promptAssistantHistoryProvider.notifier).recordExternalChange(
-              widget.sessionId,
-              before: beforeText,
-              after: afterText,
-            );
-        ref.read(promptAssistantHistoryProvider.notifier).push(
-              widget.sessionId,
-              afterText,
-            );
-      },
-      cancelOnError: true,
-    );
+          (chunk) {
+            if (chunk.done == true) return;
+            final delta = chunk.delta as String? ?? '';
+            if (delta.isEmpty) return;
+            buffer.write(delta);
+          },
+          onError: (e) {
+            stateNotifier.setError(widget.sessionId, e.toString());
+            if (mounted) {
+              AppToast.error(
+                context,
+                context.l10n.promptAssistant_requestFailed(e),
+              );
+            }
+          },
+          onDone: () {
+            if (buffer.isNotEmpty) {
+              final finalText = buffer.toString();
+              widget.controller.text = finalText;
+              widget.controller.selection = TextSelection.collapsed(
+                offset: widget.controller.text.length,
+              );
+            }
+            stateNotifier.finishProcessing(widget.sessionId);
+            final afterText = widget.controller.text;
+            ref
+                .read(promptAssistantHistoryProvider.notifier)
+                .recordExternalChange(
+                  widget.sessionId,
+                  before: beforeText,
+                  after: afterText,
+                );
+            ref
+                .read(promptAssistantHistoryProvider.notifier)
+                .push(widget.sessionId, afterText);
+          },
+          cancelOnError: true,
+        );
   }
 
   String _assistantInputText() {
@@ -336,8 +326,9 @@ class _PromptAssistantOverlayState extends ConsumerState<PromptAssistantOverlay>
         .undo(widget.sessionId, widget.controller.text);
     if (value != null) {
       widget.controller.text = value;
-      widget.controller.selection =
-          TextSelection.collapsed(offset: value.length);
+      widget.controller.selection = TextSelection.collapsed(
+        offset: value.length,
+      );
     }
   }
 
@@ -347,8 +338,9 @@ class _PromptAssistantOverlayState extends ConsumerState<PromptAssistantOverlay>
         .redo(widget.sessionId, widget.controller.text);
     if (value != null) {
       widget.controller.text = value;
-      widget.controller.selection =
-          TextSelection.collapsed(offset: value.length);
+      widget.controller.selection = TextSelection.collapsed(
+        offset: value.length,
+      );
     }
   }
 
@@ -364,15 +356,12 @@ class _PromptAssistantOverlayState extends ConsumerState<PromptAssistantOverlay>
           itemBuilder: (context, index) {
             final entry = history[history.length - 1 - index];
             return ListTile(
-              title: Text(
-                entry,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
+              title: Text(entry, maxLines: 2, overflow: TextOverflow.ellipsis),
               onTap: () {
                 widget.controller.text = entry;
-                widget.controller.selection =
-                    TextSelection.collapsed(offset: entry.length);
+                widget.controller.selection = TextSelection.collapsed(
+                  offset: entry.length,
+                );
                 Navigator.pop(context);
               },
             );
@@ -413,9 +402,9 @@ class _PromptAssistantOverlayState extends ConsumerState<PromptAssistantOverlay>
         ],
       ).then((value) async {
         if (value == 'cancel') {
-          await ref.read(promptAssistantServiceProvider).cancelCurrentTask(
-                sessionId: widget.sessionId,
-              );
+          await ref
+              .read(promptAssistantServiceProvider)
+              .cancelCurrentTask(sessionId: widget.sessionId);
           ref
               .read(promptAssistantStateProvider.notifier)
               .finishProcessing(widget.sessionId);
@@ -426,51 +415,114 @@ class _PromptAssistantOverlayState extends ConsumerState<PromptAssistantOverlay>
       return;
     }
 
+    final operationState = ref.read(
+      promptAssistantStateProvider.select(
+        (states) =>
+            states[widget.sessionId] ?? const PromptAssistantOperationState(),
+      ),
+    );
+    final history = ref.read(promptAssistantHistoryProvider)[widget.sessionId];
     showModalBottomSheet<void>(
       context: context,
+      useRootNavigator: true,
       showDragHandle: true,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.settings),
-              title: Text(context.l10n.promptAssistant_assistantSettings),
-              onTap: () {
-                Navigator.pop(context);
-                widget.onOpenSettings?.call();
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.cloud),
-              title: Text(context.l10n.promptAssistant_serviceSettings),
-              onTap: () {
-                Navigator.pop(context);
-                widget.onOpenSettings?.call();
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.rule),
-              title: Text(context.l10n.promptAssistant_ruleSettings),
-              onTap: () {
-                Navigator.pop(context);
-                widget.onOpenSettings?.call();
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.stop_circle),
-              title: Text(context.l10n.promptAssistant_cancelCurrentTask),
-              onTap: () async {
-                Navigator.pop(context);
-                await ref
-                    .read(promptAssistantServiceProvider)
-                    .cancelCurrentTask(sessionId: widget.sessionId);
-                ref
-                    .read(promptAssistantStateProvider.notifier)
-                    .finishProcessing(widget.sessionId);
-              },
-            ),
-          ],
+      isScrollControlled: true,
+      builder: (sheetContext) => SafeArea(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(sheetContext).height * 0.8,
+          ),
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.history),
+                title: Text(context.l10n.promptAssistant_history),
+                enabled: history?.history.isNotEmpty ?? false,
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _showHistory();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.undo),
+                title: Text(context.l10n.promptAssistant_undo),
+                enabled: history?.canUndo ?? false,
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _undo();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.redo),
+                title: Text(context.l10n.promptAssistant_redo),
+                enabled: history?.canRedo ?? false,
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _redo();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.translate),
+                title: Text(context.l10n.promptAssistant_translate),
+                enabled: !operationState.processing,
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  unawaited(_runTranslate());
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.auto_fix_high),
+                title: Text(context.l10n.promptAssistant_optimize),
+                enabled: !operationState.processing,
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  unawaited(_runOptimize());
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.tune_rounded),
+                title: Text(context.l10n.promptAssistant_custom),
+                enabled: !operationState.processing,
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  unawaited(_runCustom());
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.manage_accounts_rounded),
+                title: Text(context.l10n.promptAssistant_characterReplace),
+                enabled: !operationState.processing,
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  unawaited(_runCharacterReplace());
+                },
+              ),
+              const Divider(),
+              ListTile(
+                leading: const Icon(Icons.settings),
+                title: Text(context.l10n.promptAssistant_assistantSettings),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  widget.onOpenSettings?.call();
+                },
+              ),
+              if (operationState.processing)
+                ListTile(
+                  leading: const Icon(Icons.stop_circle),
+                  title: Text(context.l10n.promptAssistant_cancelCurrentTask),
+                  onTap: () async {
+                    Navigator.pop(sheetContext);
+                    await ref
+                        .read(promptAssistantServiceProvider)
+                        .cancelCurrentTask(sessionId: widget.sessionId);
+                    ref
+                        .read(promptAssistantStateProvider.notifier)
+                        .finishProcessing(widget.sessionId);
+                  },
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -498,8 +550,9 @@ class _PromptAssistantOverlayState extends ConsumerState<PromptAssistantOverlay>
     );
     final notifier = ref.read(promptAssistantStateProvider.notifier);
 
-    final isExpanded = state.expanded;
+    final isExpanded = widget.expandInPlace && state.expanded;
     final isProcessing = state.processing;
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
 
     final child = Focus(
       onKeyEvent: (node, event) {
@@ -518,129 +571,142 @@ class _PromptAssistantOverlayState extends ConsumerState<PromptAssistantOverlay>
         }
         return KeyEventResult.ignored;
       },
-      child: MouseRegion(
-        onEnter: (_) => notifier.setHovering(widget.sessionId, true),
-        onExit: (_) => notifier.setHovering(widget.sessionId, false),
-        child: GestureDetector(
-          onSecondaryTapDown: _isDesktop
-              ? (details) => _showMenu(details.globalPosition)
-              : null,
-          child: AnimatedBuilder(
-            animation: _breathController,
-            builder: (context, child) {
-              final breath = 0.85 + _breathController.value * 0.15;
-              final glowBoost = state.hovering ? 1.35 : 1.0;
-              return AnimatedScale(
-                duration: const Duration(milliseconds: 140),
-                scale: state.hovering ? 1.05 : 1.01,
-                child: AnimatedContainer(
-                  key: ValueKey<String>(
-                    'prompt_assistant_toolbar_${widget.sessionId}',
-                  ),
-                  duration: const Duration(milliseconds: 160),
-                  padding: isExpanded
-                      ? const EdgeInsets.symmetric(horizontal: 6, vertical: 4)
-                      : const EdgeInsets.all(2),
-                  decoration: BoxDecoration(
-                    color: isExpanded
-                        ? Theme.of(context)
-                            .colorScheme
-                            .surfaceContainerHighest
-                            .withValues(alpha: state.hovering ? 0.9 : 0.82)
-                        : Theme.of(context)
-                            .colorScheme
-                            .surface
-                            .withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(isExpanded ? 12 : 15),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Theme.of(context).colorScheme.primary.withValues(
-                              alpha: isExpanded
-                                  ? 0.09
-                                  : (0.10 * breath * glowBoost),
-                            ),
-                        blurRadius: isExpanded ? 8 : (10 * breath * glowBoost),
-                        spreadRadius: isExpanded ? 0 : 0.2,
-                      ),
-                    ],
-                  ),
-                  child: child,
-                ),
-              );
-            },
+      child: GestureDetector(
+        onSecondaryTapDown: _isDesktop
+            ? (details) => _showMenu(details.globalPosition)
+            : null,
+        child: AnimatedContainer(
+          key: ValueKey<String>(
+            'prompt_assistant_toolbar_${widget.sessionId}',
+          ),
+          duration: reduceMotion
+              ? Duration.zero
+              : const Duration(milliseconds: 160),
+          padding: !widget.floatOverEditor
+              ? EdgeInsets.zero
+              : isExpanded
+              ? const EdgeInsets.symmetric(horizontal: 6, vertical: 4)
+              : const EdgeInsets.all(2),
+          decoration: BoxDecoration(
+            color: !widget.floatOverEditor
+                ? Colors.transparent
+                : isExpanded
+                ? Theme.of(context).colorScheme.surfaceContainerHighest
+                      .withValues(alpha: 0.82)
+                : Theme.of(context).colorScheme.surface.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(isExpanded ? 12 : 15),
+          ),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            reverse: isExpanded,
+            clipBehavior: Clip.none,
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _miniButton(
-                  icon: isExpanded
-                      ? Icons.close_rounded
-                      : Icons.auto_awesome_rounded,
-                  tooltip: isExpanded
-                      ? context.l10n.promptAssistant_collapseAssistant
-                      : context.l10n.promptAssistant_expandAssistant,
-                  onPressed: () =>
-                      notifier.setExpanded(widget.sessionId, !isExpanded),
-                  iconColor: isExpanded
-                      ? Theme.of(context).colorScheme.onSurface
-                      : Theme.of(context)
-                          .colorScheme
-                          .onSurface
-                          .withValues(alpha: 0.78),
-                  iconSize: isExpanded ? 14 : 13,
-                  buttonSize: isExpanded ? 24 : 26,
-                ),
-                if (isExpanded) ...[
-                  _miniButton(
-                    icon: Icons.history,
-                    tooltip: context.l10n.promptAssistant_history,
-                    onPressed: _showHistory,
-                  ),
-                  _miniButton(
-                    icon: Icons.undo,
-                    tooltip: context.l10n.promptAssistant_undo,
-                    onPressed: history.canUndo ? _undo : null,
-                  ),
-                  _miniButton(
-                    icon: Icons.redo,
-                    tooltip: context.l10n.promptAssistant_redo,
-                    onPressed: history.canRedo ? _redo : null,
-                  ),
-                  _miniButton(
-                    icon: Icons.translate,
-                    tooltip: context.l10n.promptAssistant_translate,
-                    onPressed: isProcessing ? null : _runTranslate,
-                  ),
-                  _miniButton(
-                    icon: Icons.auto_fix_high,
-                    tooltip: context.l10n.promptAssistant_optimize,
-                    onPressed: isProcessing ? null : _runOptimize,
-                  ),
-                  _miniButton(
-                    icon: Icons.tune_rounded,
-                    tooltip: context.l10n.promptAssistant_custom,
-                    onPressed: isProcessing ? null : _runCustom,
-                  ),
-                  _miniButton(
-                    icon: Icons.manage_accounts_rounded,
-                    tooltip: context.l10n.promptAssistant_characterReplace,
-                    onPressed: isProcessing ? null : _runCharacterReplace,
-                  ),
-                  _miniButton(
-                    icon: isProcessing ? Icons.stop_circle : Icons.more_horiz,
-                    tooltip: isProcessing
-                        ? context.l10n.promptAssistant_cancelTask
-                        : context.l10n.promptAssistant_menu,
-                    onPressed: isProcessing
-                        ? () async {
-                            await ref
-                                .read(promptAssistantServiceProvider)
-                                .cancelCurrentTask(
-                                  sessionId: widget.sessionId,
-                                );
-                            notifier.finishProcessing(widget.sessionId);
-                          }
-                        : () => _showMenu(),
-                  ),
+                  if (!isExpanded)
+                    _miniButton(
+                      icon: Icons.auto_awesome_rounded,
+                      tooltip: widget.expandInPlace
+                          ? context.l10n.promptAssistant_expandAssistant
+                          : context.l10n.promptAssistant_menu,
+                      onPressed: widget.expandInPlace
+                          ? () => notifier.setExpanded(widget.sessionId, true)
+                          : () => _showMenu(),
+                      iconColor: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.78),
+                    ),
+                  if (isExpanded && !_isDesktop) ...[
+                    _miniButton(
+                      icon: Icons.translate,
+                      tooltip: context.l10n.promptAssistant_translate,
+                      onPressed: isProcessing ? null : _runTranslate,
+                    ),
+                    _miniButton(
+                      icon: Icons.auto_fix_high,
+                      tooltip: context.l10n.promptAssistant_optimize,
+                      onPressed: isProcessing ? null : _runOptimize,
+                    ),
+                    _miniButton(
+                      icon: isProcessing ? Icons.stop_circle : Icons.more_horiz,
+                      tooltip: isProcessing
+                          ? context.l10n.promptAssistant_cancelTask
+                          : context.l10n.promptAssistant_menu,
+                      onPressed: isProcessing
+                          ? () async {
+                              await ref
+                                  .read(promptAssistantServiceProvider)
+                                  .cancelCurrentTask(
+                                    sessionId: widget.sessionId,
+                                  );
+                              notifier.finishProcessing(widget.sessionId);
+                            }
+                          : () => _showMenu(),
+                    ),
+                    _miniButton(
+                      icon: Icons.keyboard_arrow_down_rounded,
+                      tooltip: context.l10n.promptAssistant_collapseAssistant,
+                      onPressed: () =>
+                          notifier.setExpanded(widget.sessionId, false),
+                    ),
+                  ] else if (isExpanded) ...[
+                    _miniButton(
+                      icon: Icons.history,
+                      tooltip: context.l10n.promptAssistant_history,
+                      onPressed: _showHistory,
+                    ),
+                    _miniButton(
+                      icon: Icons.undo,
+                      tooltip: context.l10n.promptAssistant_undo,
+                      onPressed: history.canUndo ? _undo : null,
+                    ),
+                    _miniButton(
+                      icon: Icons.redo,
+                      tooltip: context.l10n.promptAssistant_redo,
+                      onPressed: history.canRedo ? _redo : null,
+                    ),
+                    _miniButton(
+                      icon: Icons.translate,
+                      tooltip: context.l10n.promptAssistant_translate,
+                      onPressed: isProcessing ? null : _runTranslate,
+                    ),
+                    _miniButton(
+                      icon: Icons.auto_fix_high,
+                      tooltip: context.l10n.promptAssistant_optimize,
+                      onPressed: isProcessing ? null : _runOptimize,
+                    ),
+                    _miniButton(
+                      icon: Icons.tune_rounded,
+                      tooltip: context.l10n.promptAssistant_custom,
+                      onPressed: isProcessing ? null : _runCustom,
+                    ),
+                    _miniButton(
+                      icon: Icons.manage_accounts_rounded,
+                      tooltip: context.l10n.promptAssistant_characterReplace,
+                      onPressed: isProcessing ? null : _runCharacterReplace,
+                    ),
+                    _miniButton(
+                      icon: isProcessing ? Icons.stop_circle : Icons.more_horiz,
+                      tooltip: isProcessing
+                          ? context.l10n.promptAssistant_cancelTask
+                          : context.l10n.promptAssistant_menu,
+                      onPressed: isProcessing
+                          ? () async {
+                              await ref
+                                  .read(promptAssistantServiceProvider)
+                                  .cancelCurrentTask(
+                                    sessionId: widget.sessionId,
+                                  );
+                              notifier.finishProcessing(widget.sessionId);
+                            }
+                          : () => _showMenu(),
+                    ),
+                    _miniButton(
+                      icon: Icons.keyboard_arrow_down_rounded,
+                      tooltip: context.l10n.promptAssistant_collapseAssistant,
+                      onPressed: () =>
+                          notifier.setExpanded(widget.sessionId, false),
+                    ),
                 ],
               ],
             ),
@@ -649,11 +715,11 @@ class _PromptAssistantOverlayState extends ConsumerState<PromptAssistantOverlay>
       ),
     );
 
-    return Positioned(
-      right: 8,
-      bottom: 8,
-      child: child,
-    );
+    if (!widget.floatOverEditor) {
+      return child;
+    }
+
+    return Positioned(right: 8, bottom: 8, child: child);
   }
 
   Widget _miniButton({
@@ -661,9 +727,11 @@ class _PromptAssistantOverlayState extends ConsumerState<PromptAssistantOverlay>
     required String tooltip,
     required VoidCallback? onPressed,
     Color? iconColor,
-    double iconSize = 14,
-    double buttonSize = 24,
+    double iconSize = 17,
+    double buttonSize = 36,
   }) {
+    final effectiveButtonSize = _isDesktop ? buttonSize : 48.0;
+    final effectiveIconSize = _isDesktop ? iconSize : 20.0;
     return Tooltip(
       message: tooltip,
       waitDuration: const Duration(milliseconds: 180),
@@ -674,17 +742,16 @@ class _PromptAssistantOverlayState extends ConsumerState<PromptAssistantOverlay>
         color: Colors.black.withValues(alpha: 0.88),
         borderRadius: BorderRadius.circular(8),
       ),
-      textStyle: const TextStyle(
-        color: Colors.white,
-        fontSize: 12,
-      ),
+      textStyle: const TextStyle(color: Colors.white, fontSize: 12),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 1),
         child: IconButton(
-          constraints:
-              BoxConstraints.tightFor(width: buttonSize, height: buttonSize),
+          constraints: BoxConstraints.tightFor(
+            width: effectiveButtonSize,
+            height: effectiveButtonSize,
+          ),
           padding: EdgeInsets.zero,
-          icon: Icon(icon, size: iconSize, color: iconColor),
+          icon: Icon(icon, size: effectiveIconSize, color: iconColor),
           onPressed: onPressed,
         ),
       ),

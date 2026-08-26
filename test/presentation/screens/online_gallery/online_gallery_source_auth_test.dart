@@ -1,11 +1,10 @@
-import 'dart:ui';
-
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/cache/online_gallery_detail_coordinator.dart';
+import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/data/datasources/remote/online_gallery/gallery_source_adapter.dart';
 import 'package:nai_launcher/data/datasources/remote/online_gallery/quick_tag_cloud_gallery_source_adapter.dart';
@@ -31,7 +30,7 @@ void main() {
   setUp(() {
     VisibilityDetectorController.instance.updateInterval = Duration.zero;
   });
-  for (final width in [700.0, 840.0, 1180.0, 1600.0]) {
+  for (final width in [360.0, 700.0, 840.0, 1180.0, 1600.0]) {
     testWidgets('Gelbooru search uses its API account entry at width $width', (
       tester,
     ) async {
@@ -124,8 +123,14 @@ void main() {
       final secondaryRow = tester.getRect(
         find.byKey(const ValueKey('online-gallery-toolbar-secondary-row')),
       );
-      expect(primaryRow.height, 40);
-      expect(secondaryRow.height, 40);
+      final expectedPrimaryHeight = PlatformCapabilities.current.isMobile
+          ? 48.0
+          : 40.0;
+      final expectedSecondaryHeight = PlatformCapabilities.current.isMobile
+          ? 56.0
+          : 40.0;
+      expect(primaryRow.height, expectedPrimaryHeight);
+      expect(secondaryRow.height, expectedSecondaryHeight);
       expect(secondaryRow.top - primaryRow.bottom, 8);
       final visibleKeys = <String>[
         'online-gallery-source-selector',
@@ -159,18 +164,18 @@ void main() {
         );
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 300));
-        final filterDialog = find.byType(AlertDialog);
-        expect(filterDialog, findsOneWidget);
+        final filterPanel = find.byType(DraggableScrollableSheet);
+        expect(filterPanel, findsOneWidget);
         expect(
           find.descendant(
-            of: filterDialog,
+            of: filterPanel,
             matching: find.byKey(const ValueKey('online-gallery-blacklist')),
           ),
           findsNothing,
         );
         expect(
           find.descendant(
-            of: filterDialog,
+            of: filterPanel,
             matching: find.byKey(
               const ValueKey('online-gallery-output-filter'),
             ),
@@ -487,7 +492,7 @@ void main() {
         isTrue,
       );
       if (width < 1100) {
-        Navigator.of(tester.element(find.byType(AlertDialog))).pop();
+        Navigator.of(tester.element(artistHuntToggle)).pop();
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 250));
       }
@@ -633,16 +638,24 @@ void main() {
     expect(find.text('1 artists'), findsOneWidget);
 
     final card = find.byType(DanbooruPostCard);
-    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
-    await mouse.addPointer(location: tester.getCenter(card));
-    await tester.pump();
-    await tester.tap(find.byTooltip('Copy artist chain'));
+    final directCopyAction = find.byTooltip('Copy artist chain');
+    if (directCopyAction.evaluate().isNotEmpty) {
+      await tester.tap(directCopyAction);
+    } else {
+      await tester.tap(
+        find.descendant(
+          of: card,
+          matching: find.byIcon(Icons.more_vert_rounded),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(find.text('Copy artist chain'));
+    }
     await tester.pump();
     expect(clipboardText, '1.2::artist:target::');
     await tester.pump(const Duration(seconds: 3));
 
-    await mouse.moveTo(Offset.zero);
-    await mouse.removePointer();
     await tester.pump();
     await tester.tap(card);
     await tester.pump();
