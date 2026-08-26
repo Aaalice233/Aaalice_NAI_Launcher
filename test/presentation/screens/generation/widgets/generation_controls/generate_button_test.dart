@@ -5,6 +5,7 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/cost_estimate_provider.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/generation_controls/generate_button.dart';
+import 'package:nai_launcher/presentation/widgets/common/anlas_cost_badge.dart';
 
 void main() {
   late AppLocalizations l10n;
@@ -22,6 +23,7 @@ void main() {
     VoidCallback? onGenerate,
     VoidCallback? onCancel,
     VoidCallback? onSkipCurrent,
+    bool showCost = true,
   }) async {
     await tester.pumpWidget(
       ProviderScope(
@@ -43,6 +45,7 @@ void main() {
                 onGenerate: onGenerate ?? () {},
                 onCancel: onCancel ?? () {},
                 onSkipCurrent: onSkipCurrent ?? () {},
+                showCost: showCost,
               ),
             ),
           ),
@@ -209,5 +212,18 @@ void main() {
 
     expect(generateCalled, isFalse);
     expect(cancelCalled, isFalse);
+  });
+
+  testWidgets('upscale mode owner can hide the regular generate cost badge', (
+    tester,
+  ) async {
+    await pumpButton(
+      tester,
+      isGenerating: false,
+      showCancel: false,
+      showCost: false,
+    );
+
+    expect(find.byType(AnlasCostBadge), findsNothing);
   });
 }

@@ -77,16 +77,16 @@ void main() {
       final migrated = state.presets.firstWhere((preset) => preset.isDefault);
 
       expect(state.selectedPresetId, selected.id);
-      expect(migrated.version, 3);
+      expect(migrated.version, 4);
       expect(migrated.name, oldDefault.name);
       expect(migrated.algorithmConfig, oldDefault.algorithmConfig);
-      expect(migrated.categories.single.id, 'stable-category');
-      expect(migrated.categories.single.probability, 0.42);
-      expect(migrated.categories.single.groups.single.id, 'stable-group');
-      expect(
-        migrated.categories.single.groups.single.tags.single.tag,
-        'keep me',
+      final stableCategory = migrated.categories.firstWhere(
+        (category) => category.id == 'stable-category',
       );
+      expect(migrated.categories.length, greaterThan(1));
+      expect(stableCategory.probability, 0.42);
+      expect(stableCategory.groups.single.id, 'stable-group');
+      expect(stableCategory.groups.single.tags.single.tag, 'keep me');
     },
   );
 }

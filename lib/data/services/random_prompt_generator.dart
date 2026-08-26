@@ -46,6 +46,8 @@ class RandomPromptGenerator {
   final CharacterTagGenerator _characterTagGenerator;
   final NoRepeatRoundSampler _noRepeatRoundSampler;
   final CatalogRandomGeneratorStrategy _catalogRandomGenerator;
+  final Expando<Map<TagSubCategory, List<WeightedTag>>> _builtinCandidateCache =
+      Expando('random-prompt-builtin-candidates');
 
   RandomPromptGenerator(
     this._libraryService,
@@ -256,7 +258,10 @@ class RandomPromptGenerator {
       }
     }
 
-    return RandomPromptResult(mainPrompt: tags.join(', '), seed: seed);
+    return RandomPromptResult(
+      mainPrompt: _stableUniquePrompt(tags.join(', ')),
+      seed: seed,
+    );
   }
 
   /// 生成多角色提示词（V4+ 模式）
@@ -381,7 +386,7 @@ class RandomPromptGenerator {
     }
 
     return RandomPromptResult.multiCharacter(
-      mainPrompt: mainTags.join(', '),
+      mainPrompt: _stableUniquePrompt(mainTags.join(', ')),
       characters: characters,
       seed: seed,
     );
@@ -731,8 +736,14 @@ class RandomPromptGenerator {
     }
 
     return RandomPromptResult.multiCharacter(
-      mainPrompt: mainTags.join(', '),
-      characters: characters,
+      mainPrompt: _stableUniquePrompt(mainTags.join(', ')),
+      characters: characters
+          .map(
+            (character) => character.copyWith(
+              prompt: _stableUniquePrompt(character.prompt),
+            ),
+          )
+          .toList(),
       seed: seed,
     ).copyWith(mode: mode);
   }
@@ -769,7 +780,7 @@ class RandomPromptGenerator {
     allTags.addAll(tags);
 
     return RandomPromptResult(
-      mainPrompt: allTags.join(', '),
+      mainPrompt: _stableUniquePrompt(allTags.join(', ')),
       mode: mode,
       seed: seed,
     );
@@ -803,7 +814,7 @@ class RandomPromptGenerator {
     mainTags.addAll(globalTags);
 
     return RandomPromptResult(
-      mainPrompt: mainTags.join(', '),
+      mainPrompt: _stableUniquePrompt(mainTags.join(', ')),
       noHumans: true,
       mode: mode,
       seed: seed,
@@ -898,7 +909,7 @@ class RandomPromptGenerator {
     // 应用变量替换
     final replaced = await _applyVariableReplacement(processed, preset, random);
     return _applyEmphasis(
-      replaced,
+      _stableUniqueTags(replaced),
       preset.algorithmConfig.globalEmphasisProbability,
       preset.algorithmConfig.globalEmphasisBracketCount,
       random,
@@ -1251,7 +1262,9 @@ class RandomPromptGenerator {
     if (items.isEmpty) return [];
 
     return switch (mode) {
-      SelectionMode.single => [_weightedSelect(items, random, weightGetter)],
+      SelectionMode.single => [
+        _weightedSelect(items, random, weightGetter, cacheIndex: true),
+      ],
       SelectionMode.all => List.from(items),
       SelectionMode.multipleNum => _selectByCount(
         items,
@@ -1274,29 +1287,37 @@ class RandomPromptGenerator {
   }
 
   /// 加权随机选择单个项目
+  final Expando<_WeightedSelectionIndex> _weightedSelectionIndexes =
+      Expando<_WeightedSelectionIndex>('random-prompt-weight-index');
+
   T _weightedSelect<T>(
     List<T> items,
     Random random,
-    double Function(T) weightGetter,
-  ) {
+    double Function(T) weightGetter, {
+    bool cacheIndex = false,
+  }) {
     if (items.length == 1) return items.first;
 
-    final weightedItems = items
-        .map((item) => (item: item, weight: weightGetter(item)))
-        .where((entry) => entry.weight.isFinite && entry.weight > 0)
-        .toList(growable: false);
-    if (weightedItems.isEmpty) return items[random.nextInt(items.length)];
+    final index = cacheIndex
+        ? (_weightedSelectionIndexes[items] ??= _WeightedSelectionIndex.build(
+            items,
+            weightGetter,
+          ))
+        : _WeightedSelectionIndex.build(items, weightGetter);
+    if (index.totalWeight <= 0) return items[random.nextInt(items.length)];
 
-    final totalWeight = weightedItems.fold<double>(
-      0,
-      (sum, entry) => sum + entry.weight,
-    );
-    var target = random.nextDouble() * totalWeight;
-    for (final entry in weightedItems) {
-      if (target < entry.weight) return entry.item;
-      target -= entry.weight;
+    final target = random.nextDouble() * index.totalWeight;
+    var low = 0;
+    var high = index.cumulativeWeights.length - 1;
+    while (low < high) {
+      final middle = (low + high) >> 1;
+      if (target < index.cumulativeWeights[middle]) {
+        high = middle;
+      } else {
+        low = middle + 1;
+      }
     }
-    return weightedItems.last.item;
+    return items[index.itemIndexes[low]];
   }
 
   /// 按数量选择（不重复）
@@ -1478,12 +1499,18 @@ class RandomPromptGenerator {
         return [];
       }
 
-      // 从 TagLibrary 获取标签（排除 Danbooru 补充标签）
+      // 候选列表随不可变 TagLibrary 生命周期复用；大分类只过滤并建立一次权重索引。
       final library = await _libraryService.getAvailableLibrary();
-      return library
-          .getCategory(category)
-          .where((t) => !t.isDanbooruSupplement)
-          .toList();
+      final categoryCache = _builtinCandidateCache[library] ??=
+          <TagSubCategory, List<WeightedTag>>{};
+      return categoryCache.putIfAbsent(
+        category,
+        () => List.unmodifiable(
+          library
+              .getCategory(category)
+              .where((tag) => !tag.isDanbooruSupplement),
+        ),
+      );
     }
 
     return group.tags;
@@ -1543,6 +1570,51 @@ class RandomPromptGenerator {
       random: random,
     );
   }
+
+  List<String> _stableUniqueTags(Iterable<String> tags) {
+    final seen = <String>{};
+    return [
+      for (final tag in tags)
+        if (tag.trim().isNotEmpty && seen.add(tag.trim())) tag.trim(),
+    ];
+  }
+
+  String _stableUniquePrompt(String prompt) {
+    return _stableUniqueTags(prompt.split(',')).join(', ');
+  }
+}
+
+class _WeightedSelectionIndex {
+  const _WeightedSelectionIndex({
+    required this.cumulativeWeights,
+    required this.itemIndexes,
+    required this.totalWeight,
+  });
+
+  static _WeightedSelectionIndex build<T>(
+    List<T> items,
+    double Function(T) weightGetter,
+  ) {
+    final cumulativeWeights = <double>[];
+    final itemIndexes = <int>[];
+    var totalWeight = 0.0;
+    for (var index = 0; index < items.length; index++) {
+      final weight = weightGetter(items[index]);
+      if (!weight.isFinite || weight <= 0) continue;
+      totalWeight += weight;
+      cumulativeWeights.add(totalWeight);
+      itemIndexes.add(index);
+    }
+    return _WeightedSelectionIndex(
+      cumulativeWeights: cumulativeWeights,
+      itemIndexes: itemIndexes,
+      totalWeight: totalWeight,
+    );
+  }
+
+  final List<double> cumulativeWeights;
+  final List<int> itemIndexes;
+  final double totalWeight;
 }
 
 /// Provider

@@ -799,6 +799,44 @@ class LocalStorageService {
     await setSetting(StorageKeys.previewTransparencyBackground, style);
   }
 
+  /// 获取构图参考线档位
+  ///
+  /// 未设置时返回 null，默认值与合法性由 `CompositionGuideMode` 解析，
+  /// 避免在 core 层重复定义档位表。
+  String? getCompositionGuideMode() {
+    return getSetting<String>(StorageKeys.compositionGuideMode);
+  }
+
+  /// 保存构图参考线档位
+  Future<void> setCompositionGuideMode(String mode) async {
+    await setSetting(StorageKeys.compositionGuideMode, mode);
+  }
+
+  /// 获取构图参考线自定义网格列数 (默认3)
+  int getCompositionGuideColumns() {
+    return getSetting<int>(
+          StorageKeys.compositionGuideColumns,
+          defaultValue: 3,
+        ) ??
+        3;
+  }
+
+  /// 保存构图参考线自定义网格列数
+  Future<void> setCompositionGuideColumns(int columns) async {
+    await setSetting(StorageKeys.compositionGuideColumns, columns);
+  }
+
+  /// 获取构图参考线自定义网格行数 (默认3)
+  int getCompositionGuideRows() {
+    return getSetting<int>(StorageKeys.compositionGuideRows, defaultValue: 3) ??
+        3;
+  }
+
+  /// 保存构图参考线自定义网格行数
+  Future<void> setCompositionGuideRows(int rows) async {
+    await setSetting(StorageKeys.compositionGuideRows, rows);
+  }
+
   /// 获取官网式布局左栏宽度 (默认400)
   double getWebLeftPanelWidth() {
     return getSetting<double>(

@@ -1453,7 +1453,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get img2img_disabled => '未启用';
 
   @override
-  String get img2img_novelAiCloudUpscale => 'NovelAI 云端超分 (固定 4x 放大)';
+  String get img2img_novelAiCloudUpscale => 'NovelAI 云端超分 (固定 2x 放大)';
 
   @override
   String get img2img_comfyuiEnableHint => '请先在「设置 > ComfyUI」中启用并连接服务器。';
@@ -3882,6 +3882,27 @@ class AppLocalizationsZh extends AppLocalizations {
   String get characterCanvas_dragHint => '拖动锚点设置角色位置，松开即生效';
 
   @override
+  String get characterCanvas_guide => '构图参考线';
+
+  @override
+  String get characterCanvas_guideNone => '无';
+
+  @override
+  String get characterCanvas_guideThirds => '三分法';
+
+  @override
+  String get characterCanvas_guidePhi => '黄金比';
+
+  @override
+  String get characterCanvas_guideGrid => '网格';
+
+  @override
+  String get characterCanvas_guideColumns => '列';
+
+  @override
+  String get characterCanvas_guideRows => '行';
+
+  @override
   String get characterEditor_genderFemale => '女性';
 
   @override
@@ -3959,7 +3980,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get randomMode_title => '选择随机模式';
 
   @override
-  String get randomMode_naiOfficial => '离线词库';
+  String get randomMode_naiOfficial => '官网模式';
 
   @override
   String get randomMode_custom => '自定义模式';
@@ -3968,25 +3989,22 @@ class AppLocalizationsZh extends AppLocalizations {
   String get randomMode_hybrid => '混合模式';
 
   @override
-  String get randomMode_naiOfficialDesc => '使用已验证的完整离线标签 catalog';
+  String get randomMode_naiOfficialDesc => '按当前模型使用 NovelAI 官网随机词库';
 
   @override
-  String get randomMode_customDesc => '使用自定义预设生成';
+  String get randomMode_customDesc => '使用完整离线标签 catalog 与自定义预设生成';
 
   @override
-  String get randomMode_hybridDesc => '结合离线词库和自定义预设';
+  String get randomMode_hybridDesc => '同时使用官网词库与 catalog 扩展';
 
   @override
-  String get randomMode_naiIndicator => '离线';
+  String get randomMode_naiIndicator => '官网';
 
   @override
   String get randomMode_customIndicator => '自定义';
 
   @override
   String get naiMode_noTags => '暂无标签';
-
-  @override
-  String get naiAlgorithm_characterCount => '角色数量分布';
 
   @override
   String get naiAlgorithm_mainPrompt => '主提示词';
@@ -4266,9 +4284,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get randomManager_genderWeight => '性别权重';
 
   @override
-  String get randomManager_globalSettings => '全局设置';
-
-  @override
   String get randomManager_enableSeasonalWordlists => '启用季节性词库';
 
   @override
@@ -4276,18 +4291,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get randomManager_globalEmphasisProbability => '全局强调概率';
-
-  @override
-  String get randomManager_soloGenderOptions => '单人性别选项';
-
-  @override
-  String get randomManager_femaleShort => '女';
-
-  @override
-  String get randomManager_maleShort => '男';
-
-  @override
-  String get randomManager_other => '其他';
 
   @override
   String get randomManager_tagGroupList => '词组列表';
@@ -4331,9 +4334,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get randomManager_globalPeopleSettings => '全局人数设置';
-
-  @override
-  String get randomManager_closePreview => '关闭预览';
 
   @override
   String get randomManager_importPreset => '导入预设';
@@ -4467,9 +4467,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get randomManager_importExport => '导入/导出';
-
-  @override
-  String get randomManager_syncing => '同步中';
 
   @override
   String get randomManager_syncDanbooruTags => '同步 Danbooru 标签';
@@ -4635,16 +4632,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get randomManager_selectionMode => '选择模式';
-
-  @override
-  String randomManager_editHint(Object name) {
-    return '$name (点击编辑)';
-  }
-
-  @override
-  String randomManager_emphasisProbabilityValue(Object percent) {
-    return '强调概率: $percent%';
-  }
 
   @override
   String get randomManager_previewGeneration => '预览生成';
@@ -5485,6 +5472,59 @@ class AppLocalizationsZh extends AppLocalizations {
   String get statistics_noAnlasData => '暂无点数消耗数据';
 
   @override
+  String get statistics_noAnlasInPeriod => '该周期暂无点数消耗';
+
+  @override
+  String get statistics_periodSelectorTooltip => '选择统计周期';
+
+  @override
+  String get statistics_periodWeek => '近一周';
+
+  @override
+  String get statistics_periodMonth => '近一个月';
+
+  @override
+  String get statistics_periodThreeMonths => '近三个月';
+
+  @override
+  String get statistics_periodYear => '近一年';
+
+  @override
+  String get statistics_periodAll => '全部';
+
+  @override
+  String get statistics_periodCustom => '自定义天数';
+
+  @override
+  String statistics_periodDays(int count) {
+    return '最近 $count 天';
+  }
+
+  @override
+  String statistics_periodSummary(String start, String end, int count) {
+    return '$start 至 $end · $count 天';
+  }
+
+  @override
+  String statistics_partialCoverage(String date, int count) {
+    return '现有记录始于 $date，日均按现有 $count 天计算';
+  }
+
+  @override
+  String get statistics_customPeriodTitle => '自定义统计周期';
+
+  @override
+  String get statistics_customDaysHint => '统计天数';
+
+  @override
+  String statistics_customDaysError(int max) {
+    return '请输入 1 至 $max 之间的整数';
+  }
+
+  @override
+  String get statistics_daysUnit => '天';
+
+  @override
   String get statistics_peakActivity => '活跃高峰';
 
   @override
@@ -6143,9 +6183,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get reversePrompt_title => '反推';
-
-  @override
-  String get reversePrompt_pending => '待添加';
 
   @override
   String reversePrompt_imageCount(Object count) {
@@ -7359,13 +7396,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settings_notificationResetSound => '恢复默认';
 
   @override
-  String get categoryConfiguration => '类别配置';
-
-  @override
   String get resetToDefault => '重置为默认';
-
-  @override
-  String get resetToDefaultTooltip => '重置为默认配置';
 
   @override
   String get toggleGroupEnabled => '切换词组启用状态';
@@ -11858,12 +11889,6 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get randomManager_releaseToDelete => '松开删除';
-
-  @override
-  String get randomManager_dragHereToDelete => '拖到这里删除';
-
-  @override
   String get randomManager_keyboardShortcutsHint => '键盘快捷键（按 ? 查看）';
 
   @override
@@ -12326,7 +12351,123 @@ class AppLocalizationsZh extends AppLocalizations {
   String get randomManager_searchCategories => '搜索类别、词组或标签（Ctrl+F）';
 
   @override
-  String get randomManager_verifiedOfflineLibrary => '已验证的离线随机词库';
+  String get randomManager_workspaceTitle => '随机词库';
+
+  @override
+  String get randomManager_workspaceSubtitle => '用完整离线 catalog 组合可复用的随机生成配方';
+
+  @override
+  String get randomManager_recipeTitle => '生成配方';
+
+  @override
+  String get randomManager_recipeSubtitle => '每个阶段独立控制一类语义标签的触发概率与抽取范围';
+
+  @override
+  String get randomManager_inspectorTitle => '生成设置';
+
+  @override
+  String get randomManager_inspectorSubtitle => '调整当前预设的角色分布与全局输出行为';
+
+  @override
+  String get randomManager_previewEmptyDescription => '生成一次样例，检查当前配方的实际输出。';
+
+  @override
+  String get randomManager_category_composition => '构图';
+
+  @override
+  String get randomManager_category_camera => '视角';
+
+  @override
+  String get randomManager_category_framing => '景别';
+
+  @override
+  String get randomManager_category_focus => '焦点';
+
+  @override
+  String get randomManager_category_eyeFeature => '眼睛特征';
+
+  @override
+  String get randomManager_category_hairLength => '发长';
+
+  @override
+  String get randomManager_category_hairTexture => '发质';
+
+  @override
+  String get randomManager_category_bangs => '刘海';
+
+  @override
+  String get randomManager_category_skinTone => '肤色';
+
+  @override
+  String get randomManager_category_species => '物种';
+
+  @override
+  String get randomManager_category_headwear => '帽子';
+
+  @override
+  String get randomManager_category_hairAccessory => '发饰';
+
+  @override
+  String get randomManager_category_prop => '道具';
+
+  @override
+  String get randomManager_category_effect => '特效';
+
+  @override
+  String get randomManager_category_year => '年代';
+
+  @override
+  String get randomManager_category_detail => '创意细节';
+
+  @override
+  String randomManager_sourceOfficial(String wordlist) {
+    return '官网 · $wordlist';
+  }
+
+  @override
+  String get randomManager_sourceCatalog => '自定义 · Catalog 扩展';
+
+  @override
+  String randomManager_sourceHybrid(String wordlist) {
+    return '混合 · $wordlist + Catalog';
+  }
+
+  @override
+  String get randomManager_currentMode => '当前模式';
+
+  @override
+  String get randomManager_officialWordlist => '当前模型官网词库';
+
+  @override
+  String randomManager_officialWordlistCount(String wordlist, int count) {
+    return '$wordlist：$count 条原始记录';
+  }
+
+  @override
+  String get randomManager_officialAsset => '完整官网资产';
+
+  @override
+  String randomManager_officialAssetCount(int entries, int groups) {
+    return '$entries 条记录，$groups 个原始数组';
+  }
+
+  @override
+  String get randomManager_sourceFile => '来源文件';
+
+  @override
+  String get randomManager_sourceSha256 => '来源 SHA-256';
+
+  @override
+  String get randomManager_catalogExtension => 'Catalog 扩展';
+
+  @override
+  String get randomManager_wordlistLegacyAnime => 'Legacy Anime';
+
+  @override
+  String get randomManager_wordlistFurryV3 => 'Furry V3';
+
+  @override
+  String get randomManager_wordlistCharacterPrompts => 'Character Prompts';
 
   @override
   String get randomManager_sourceDetails => '数据来源详情';
@@ -12347,14 +12488,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String randomManager_catalogCounts(Object tags, Object aliases) {
     return '完整 catalog：$tags 个标签，$aliases 个别名';
   }
-
-  @override
-  String randomManager_libraryVersion(String version, String count) {
-    return '规则 v$version · $count 个标签';
-  }
-
-  @override
-  String get randomManager_preview => '随机结果预览';
 
   @override
   String get randomManager_libraryUnavailable => '随机词库无法使用';
@@ -13812,7 +13945,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get img2img_disabled => '未啟用';
 
   @override
-  String get img2img_novelAiCloudUpscale => 'NovelAI 雲端超分 (固定 4x 放大)';
+  String get img2img_novelAiCloudUpscale => 'NovelAI 雲端超分 (固定 2x 放大)';
 
   @override
   String get img2img_comfyuiEnableHint => '請先在「設定 > ComfyUI」中啟用並連線伺服器。';
@@ -16241,6 +16374,27 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get characterCanvas_dragHint => '拖動錨點設定角色位置，鬆開即生效';
 
   @override
+  String get characterCanvas_guide => '構圖參考線';
+
+  @override
+  String get characterCanvas_guideNone => '無';
+
+  @override
+  String get characterCanvas_guideThirds => '三分法';
+
+  @override
+  String get characterCanvas_guidePhi => '黃金比';
+
+  @override
+  String get characterCanvas_guideGrid => '格線';
+
+  @override
+  String get characterCanvas_guideColumns => '欄';
+
+  @override
+  String get characterCanvas_guideRows => '列';
+
+  @override
   String get characterEditor_genderFemale => '女性';
 
   @override
@@ -16318,7 +16472,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get randomMode_title => '選擇隨機模式';
 
   @override
-  String get randomMode_naiOfficial => '離線詞庫';
+  String get randomMode_naiOfficial => '官網模式';
 
   @override
   String get randomMode_custom => '自定義模式';
@@ -16327,25 +16481,22 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get randomMode_hybrid => '混合模式';
 
   @override
-  String get randomMode_naiOfficialDesc => '使用已驗證的完整離線標籤 catalog';
+  String get randomMode_naiOfficialDesc => '按目前模型使用 NovelAI 官網隨機詞庫';
 
   @override
-  String get randomMode_customDesc => '使用自定義預設生成';
+  String get randomMode_customDesc => '使用完整離線標籤 catalog 與自定義預設生成';
 
   @override
-  String get randomMode_hybridDesc => '結合離線詞庫和自定義預設';
+  String get randomMode_hybridDesc => '同時使用官網詞庫與 catalog 擴展';
 
   @override
-  String get randomMode_naiIndicator => '離線';
+  String get randomMode_naiIndicator => '官網';
 
   @override
   String get randomMode_customIndicator => '自定義';
 
   @override
   String get naiMode_noTags => '暫無標籤';
-
-  @override
-  String get naiAlgorithm_characterCount => '角色數量分佈';
 
   @override
   String get naiAlgorithm_mainPrompt => '主提示詞';
@@ -16625,9 +16776,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get randomManager_genderWeight => '性別權重';
 
   @override
-  String get randomManager_globalSettings => '全域性設定';
-
-  @override
   String get randomManager_enableSeasonalWordlists => '啟用季節性詞庫';
 
   @override
@@ -16635,18 +16783,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get randomManager_globalEmphasisProbability => '全域性強調機率';
-
-  @override
-  String get randomManager_soloGenderOptions => '單人性別選項';
-
-  @override
-  String get randomManager_femaleShort => '女';
-
-  @override
-  String get randomManager_maleShort => '男';
-
-  @override
-  String get randomManager_other => '其他';
 
   @override
   String get randomManager_tagGroupList => '片語列表';
@@ -16690,9 +16826,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get randomManager_globalPeopleSettings => '全域性人數設定';
-
-  @override
-  String get randomManager_closePreview => '關閉預覽';
 
   @override
   String get randomManager_importPreset => '匯入預設';
@@ -16826,9 +16959,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get randomManager_importExport => '匯入/匯出';
-
-  @override
-  String get randomManager_syncing => '同步中';
 
   @override
   String get randomManager_syncDanbooruTags => '同步 Danbooru 標籤';
@@ -16994,16 +17124,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get randomManager_selectionMode => '選擇模式';
-
-  @override
-  String randomManager_editHint(Object name) {
-    return '$name (點選編輯)';
-  }
-
-  @override
-  String randomManager_emphasisProbabilityValue(Object percent) {
-    return '強調機率: $percent%';
-  }
 
   @override
   String get randomManager_previewGeneration => '預覽生成';
@@ -17844,6 +17964,59 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get statistics_noAnlasData => '暫無點數消耗資料';
 
   @override
+  String get statistics_noAnlasInPeriod => '該週期暫無點數消耗';
+
+  @override
+  String get statistics_periodSelectorTooltip => '選擇統計週期';
+
+  @override
+  String get statistics_periodWeek => '近一週';
+
+  @override
+  String get statistics_periodMonth => '近一個月';
+
+  @override
+  String get statistics_periodThreeMonths => '近三個月';
+
+  @override
+  String get statistics_periodYear => '近一年';
+
+  @override
+  String get statistics_periodAll => '全部';
+
+  @override
+  String get statistics_periodCustom => '自訂天數';
+
+  @override
+  String statistics_periodDays(int count) {
+    return '最近 $count 天';
+  }
+
+  @override
+  String statistics_periodSummary(String start, String end, int count) {
+    return '$start 至 $end · $count 天';
+  }
+
+  @override
+  String statistics_partialCoverage(String date, int count) {
+    return '現有記錄始於 $date，日均按現有 $count 天計算';
+  }
+
+  @override
+  String get statistics_customPeriodTitle => '自訂統計週期';
+
+  @override
+  String get statistics_customDaysHint => '統計天數';
+
+  @override
+  String statistics_customDaysError(int max) {
+    return '請輸入 1 至 $max 之間的整數';
+  }
+
+  @override
+  String get statistics_daysUnit => '天';
+
+  @override
   String get statistics_peakActivity => '活躍高峰';
 
   @override
@@ -18502,9 +18675,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get reversePrompt_title => '反推';
-
-  @override
-  String get reversePrompt_pending => '待新增';
 
   @override
   String reversePrompt_imageCount(Object count) {
@@ -19718,13 +19888,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get settings_notificationResetSound => '恢復預設';
 
   @override
-  String get categoryConfiguration => '類別配置';
-
-  @override
   String get resetToDefault => '重置為預設';
-
-  @override
-  String get resetToDefaultTooltip => '重置為預設配置';
 
   @override
   String get toggleGroupEnabled => '切換片語啟用狀態';
@@ -24217,12 +24381,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
-  String get randomManager_releaseToDelete => '鬆開刪除';
-
-  @override
-  String get randomManager_dragHereToDelete => '拖到這裡刪除';
-
-  @override
   String get randomManager_keyboardShortcutsHint => '鍵盤快捷鍵（按 ? 檢視）';
 
   @override
@@ -24685,7 +24843,123 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get randomManager_searchCategories => '搜尋類別、詞組或標籤（Ctrl+F）';
 
   @override
-  String get randomManager_verifiedOfflineLibrary => '已驗證的離線隨機詞庫';
+  String get randomManager_workspaceTitle => '隨機詞庫';
+
+  @override
+  String get randomManager_workspaceSubtitle => '用完整離線 catalog 組合可重用的隨機生成配方';
+
+  @override
+  String get randomManager_recipeTitle => '生成配方';
+
+  @override
+  String get randomManager_recipeSubtitle => '每個階段獨立控制一類語義標籤的觸發機率與抽取範圍';
+
+  @override
+  String get randomManager_inspectorTitle => '生成設定';
+
+  @override
+  String get randomManager_inspectorSubtitle => '調整目前預設的角色分佈與全域輸出行為';
+
+  @override
+  String get randomManager_previewEmptyDescription => '生成一次範例，檢查目前配方的實際輸出。';
+
+  @override
+  String get randomManager_category_composition => '構圖';
+
+  @override
+  String get randomManager_category_camera => '視角';
+
+  @override
+  String get randomManager_category_framing => '景別';
+
+  @override
+  String get randomManager_category_focus => '焦點';
+
+  @override
+  String get randomManager_category_eyeFeature => '眼睛特徵';
+
+  @override
+  String get randomManager_category_hairLength => '髮長';
+
+  @override
+  String get randomManager_category_hairTexture => '髮質';
+
+  @override
+  String get randomManager_category_bangs => '瀏海';
+
+  @override
+  String get randomManager_category_skinTone => '膚色';
+
+  @override
+  String get randomManager_category_species => '物種';
+
+  @override
+  String get randomManager_category_headwear => '帽子';
+
+  @override
+  String get randomManager_category_hairAccessory => '髮飾';
+
+  @override
+  String get randomManager_category_prop => '道具';
+
+  @override
+  String get randomManager_category_effect => '特效';
+
+  @override
+  String get randomManager_category_year => '年代';
+
+  @override
+  String get randomManager_category_detail => '創意細節';
+
+  @override
+  String randomManager_sourceOfficial(String wordlist) {
+    return '官網 · $wordlist';
+  }
+
+  @override
+  String get randomManager_sourceCatalog => '自訂 · Catalog 擴充';
+
+  @override
+  String randomManager_sourceHybrid(String wordlist) {
+    return '混合 · $wordlist + Catalog';
+  }
+
+  @override
+  String get randomManager_currentMode => '目前模式';
+
+  @override
+  String get randomManager_officialWordlist => '目前模型官網詞庫';
+
+  @override
+  String randomManager_officialWordlistCount(String wordlist, int count) {
+    return '$wordlist：$count 條原始記錄';
+  }
+
+  @override
+  String get randomManager_officialAsset => '完整官網資產';
+
+  @override
+  String randomManager_officialAssetCount(int entries, int groups) {
+    return '$entries 條記錄，$groups 個原始陣列';
+  }
+
+  @override
+  String get randomManager_sourceFile => '來源檔案';
+
+  @override
+  String get randomManager_sourceSha256 => '來源 SHA-256';
+
+  @override
+  String get randomManager_catalogExtension => 'Catalog 擴充';
+
+  @override
+  String get randomManager_wordlistLegacyAnime => 'Legacy Anime';
+
+  @override
+  String get randomManager_wordlistFurryV3 => 'Furry V3';
+
+  @override
+  String get randomManager_wordlistCharacterPrompts => 'Character Prompts';
 
   @override
   String get randomManager_sourceDetails => '資料來源詳情';
@@ -24706,14 +24980,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String randomManager_catalogCounts(Object tags, Object aliases) {
     return '完整 catalog：$tags 個標籤，$aliases 個別名';
   }
-
-  @override
-  String randomManager_libraryVersion(String version, String count) {
-    return '規則 v$version · $count 個標籤';
-  }
-
-  @override
-  String get randomManager_preview => '隨機結果預覽';
 
   @override
   String get randomManager_libraryUnavailable => '隨機詞庫無法使用';

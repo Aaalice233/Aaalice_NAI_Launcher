@@ -2816,7 +2816,7 @@ abstract class AppLocalizations {
   /// No description provided for @img2img_novelAiCloudUpscale.
   ///
   /// In en, this message translates to:
-  /// **'NovelAI cloud upscale (fixed 4x)'**
+  /// **'NovelAI cloud upscale (fixed 2x)'**
   String get img2img_novelAiCloudUpscale;
 
   /// No description provided for @img2img_comfyuiEnableHint.
@@ -7249,6 +7249,48 @@ abstract class AppLocalizations {
   /// **'Drag anchors to position characters; release to apply'**
   String get characterCanvas_dragHint;
 
+  /// No description provided for @characterCanvas_guide.
+  ///
+  /// In en, this message translates to:
+  /// **'Composition Guide'**
+  String get characterCanvas_guide;
+
+  /// No description provided for @characterCanvas_guideNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get characterCanvas_guideNone;
+
+  /// No description provided for @characterCanvas_guideThirds.
+  ///
+  /// In en, this message translates to:
+  /// **'Thirds'**
+  String get characterCanvas_guideThirds;
+
+  /// No description provided for @characterCanvas_guidePhi.
+  ///
+  /// In en, this message translates to:
+  /// **'Phi'**
+  String get characterCanvas_guidePhi;
+
+  /// No description provided for @characterCanvas_guideGrid.
+  ///
+  /// In en, this message translates to:
+  /// **'Grid'**
+  String get characterCanvas_guideGrid;
+
+  /// No description provided for @characterCanvas_guideColumns.
+  ///
+  /// In en, this message translates to:
+  /// **'Columns'**
+  String get characterCanvas_guideColumns;
+
+  /// No description provided for @characterCanvas_guideRows.
+  ///
+  /// In en, this message translates to:
+  /// **'Rows'**
+  String get characterCanvas_guideRows;
+
   /// No description provided for @characterEditor_genderFemale.
   ///
   /// In en, this message translates to:
@@ -7390,7 +7432,7 @@ abstract class AppLocalizations {
   /// No description provided for @randomMode_naiOfficial.
   ///
   /// In en, this message translates to:
-  /// **'Offline Library'**
+  /// **'Official Mode'**
   String get randomMode_naiOfficial;
 
   /// No description provided for @randomMode_custom.
@@ -7408,25 +7450,25 @@ abstract class AppLocalizations {
   /// No description provided for @randomMode_naiOfficialDesc.
   ///
   /// In en, this message translates to:
-  /// **'Use the verified complete offline tag catalog'**
+  /// **'Use the NovelAI official random wordlist for the current model'**
   String get randomMode_naiOfficialDesc;
 
   /// No description provided for @randomMode_customDesc.
   ///
   /// In en, this message translates to:
-  /// **'Generate using custom presets'**
+  /// **'Generate from the complete offline tag catalog and custom presets'**
   String get randomMode_customDesc;
 
   /// No description provided for @randomMode_hybridDesc.
   ///
   /// In en, this message translates to:
-  /// **'Combine the offline library with custom presets'**
+  /// **'Combine the official wordlist with the catalog extension'**
   String get randomMode_hybridDesc;
 
   /// No description provided for @randomMode_naiIndicator.
   ///
   /// In en, this message translates to:
-  /// **'Offline'**
+  /// **'Official'**
   String get randomMode_naiIndicator;
 
   /// No description provided for @randomMode_customIndicator.
@@ -7440,12 +7482,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No tags'**
   String get naiMode_noTags;
-
-  /// No description provided for @naiAlgorithm_characterCount.
-  ///
-  /// In en, this message translates to:
-  /// **'Character Count Distribution'**
-  String get naiAlgorithm_characterCount;
 
   /// No description provided for @naiAlgorithm_mainPrompt.
   ///
@@ -7951,12 +7987,6 @@ abstract class AppLocalizations {
   /// **'Gender Weight'**
   String get randomManager_genderWeight;
 
-  /// No description provided for @randomManager_globalSettings.
-  ///
-  /// In en, this message translates to:
-  /// **'Global Settings'**
-  String get randomManager_globalSettings;
-
   /// No description provided for @randomManager_enableSeasonalWordlists.
   ///
   /// In en, this message translates to:
@@ -7974,30 +8004,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Global Emphasis Probability'**
   String get randomManager_globalEmphasisProbability;
-
-  /// No description provided for @randomManager_soloGenderOptions.
-  ///
-  /// In en, this message translates to:
-  /// **'Solo Gender Options'**
-  String get randomManager_soloGenderOptions;
-
-  /// No description provided for @randomManager_femaleShort.
-  ///
-  /// In en, this message translates to:
-  /// **'F'**
-  String get randomManager_femaleShort;
-
-  /// No description provided for @randomManager_maleShort.
-  ///
-  /// In en, this message translates to:
-  /// **'M'**
-  String get randomManager_maleShort;
-
-  /// No description provided for @randomManager_other.
-  ///
-  /// In en, this message translates to:
-  /// **'Other'**
-  String get randomManager_other;
 
   /// No description provided for @randomManager_tagGroupList.
   ///
@@ -8076,12 +8082,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Global Character Settings'**
   String get randomManager_globalPeopleSettings;
-
-  /// No description provided for @randomManager_closePreview.
-  ///
-  /// In en, this message translates to:
-  /// **'Close preview'**
-  String get randomManager_closePreview;
 
   /// No description provided for @randomManager_importPreset.
   ///
@@ -8322,12 +8322,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Import / Export'**
   String get randomManager_importExport;
-
-  /// No description provided for @randomManager_syncing.
-  ///
-  /// In en, this message translates to:
-  /// **'Syncing'**
-  String get randomManager_syncing;
 
   /// No description provided for @randomManager_syncDanbooruTags.
   ///
@@ -8646,18 +8640,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Selection Mode'**
   String get randomManager_selectionMode;
-
-  /// No description provided for @randomManager_editHint.
-  ///
-  /// In en, this message translates to:
-  /// **'{name} (click to edit)'**
-  String randomManager_editHint(Object name);
-
-  /// No description provided for @randomManager_emphasisProbabilityValue.
-  ///
-  /// In en, this message translates to:
-  /// **'Emphasis probability: {percent}%'**
-  String randomManager_emphasisProbabilityValue(Object percent);
 
   /// No description provided for @randomManager_previewGeneration.
   ///
@@ -10165,6 +10147,96 @@ abstract class AppLocalizations {
   /// **'No Anlas consumption data'**
   String get statistics_noAnlasData;
 
+  /// No description provided for @statistics_noAnlasInPeriod.
+  ///
+  /// In en, this message translates to:
+  /// **'No Anlas consumption in this period'**
+  String get statistics_noAnlasInPeriod;
+
+  /// No description provided for @statistics_periodSelectorTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Select statistics period'**
+  String get statistics_periodSelectorTooltip;
+
+  /// No description provided for @statistics_periodWeek.
+  ///
+  /// In en, this message translates to:
+  /// **'Last week'**
+  String get statistics_periodWeek;
+
+  /// No description provided for @statistics_periodMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'Last month'**
+  String get statistics_periodMonth;
+
+  /// No description provided for @statistics_periodThreeMonths.
+  ///
+  /// In en, this message translates to:
+  /// **'Last 3 months'**
+  String get statistics_periodThreeMonths;
+
+  /// No description provided for @statistics_periodYear.
+  ///
+  /// In en, this message translates to:
+  /// **'Last year'**
+  String get statistics_periodYear;
+
+  /// No description provided for @statistics_periodAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All time'**
+  String get statistics_periodAll;
+
+  /// No description provided for @statistics_periodCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom days'**
+  String get statistics_periodCustom;
+
+  /// No description provided for @statistics_periodDays.
+  ///
+  /// In en, this message translates to:
+  /// **'Last {count} days'**
+  String statistics_periodDays(int count);
+
+  /// No description provided for @statistics_periodSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{start} to {end} · {count} days'**
+  String statistics_periodSummary(String start, String end, int count);
+
+  /// No description provided for @statistics_partialCoverage.
+  ///
+  /// In en, this message translates to:
+  /// **'Available records begin on {date}. The daily average uses the available {count} days.'**
+  String statistics_partialCoverage(String date, int count);
+
+  /// No description provided for @statistics_customPeriodTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom statistics period'**
+  String get statistics_customPeriodTitle;
+
+  /// No description provided for @statistics_customDaysHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Number of days'**
+  String get statistics_customDaysHint;
+
+  /// No description provided for @statistics_customDaysError.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter an integer from 1 to {max}'**
+  String statistics_customDaysError(int max);
+
+  /// No description provided for @statistics_daysUnit.
+  ///
+  /// In en, this message translates to:
+  /// **'days'**
+  String get statistics_daysUnit;
+
   /// No description provided for @statistics_peakActivity.
   ///
   /// In en, this message translates to:
@@ -11344,12 +11416,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Reverse Prompt'**
   String get reversePrompt_title;
-
-  /// No description provided for @reversePrompt_pending.
-  ///
-  /// In en, this message translates to:
-  /// **'Pending'**
-  String get reversePrompt_pending;
 
   /// No description provided for @reversePrompt_imageCount.
   ///
@@ -13559,23 +13625,11 @@ abstract class AppLocalizations {
   /// **'Reset to Default'**
   String get settings_notificationResetSound;
 
-  /// No description provided for @categoryConfiguration.
-  ///
-  /// In en, this message translates to:
-  /// **'Category Configuration'**
-  String get categoryConfiguration;
-
   /// No description provided for @resetToDefault.
   ///
   /// In en, this message translates to:
   /// **'Reset to Default'**
   String get resetToDefault;
-
-  /// No description provided for @resetToDefaultTooltip.
-  ///
-  /// In en, this message translates to:
-  /// **'Reset to default configuration'**
-  String get resetToDefaultTooltip;
 
   /// No description provided for @toggleGroupEnabled.
   ///
@@ -21544,18 +21598,6 @@ abstract class AppLocalizations {
   /// **'Failed to re-encode Vibe: {name}'**
   String vibe_import_reencodeFailed(String name);
 
-  /// No description provided for @randomManager_releaseToDelete.
-  ///
-  /// In en, this message translates to:
-  /// **'Release to delete'**
-  String get randomManager_releaseToDelete;
-
-  /// No description provided for @randomManager_dragHereToDelete.
-  ///
-  /// In en, this message translates to:
-  /// **'Drag here to delete'**
-  String get randomManager_dragHereToDelete;
-
   /// No description provided for @randomManager_keyboardShortcutsHint.
   ///
   /// In en, this message translates to:
@@ -22346,11 +22388,227 @@ abstract class AppLocalizations {
   /// **'Search categories, groups, or tags (Ctrl+F)'**
   String get randomManager_searchCategories;
 
-  /// No description provided for @randomManager_verifiedOfflineLibrary.
+  /// No description provided for @randomManager_workspaceTitle.
   ///
   /// In en, this message translates to:
-  /// **'Verified offline random library'**
-  String get randomManager_verifiedOfflineLibrary;
+  /// **'Random library'**
+  String get randomManager_workspaceTitle;
+
+  /// No description provided for @randomManager_workspaceSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Build reusable recipes from the complete offline catalog'**
+  String get randomManager_workspaceSubtitle;
+
+  /// No description provided for @randomManager_recipeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Generation recipe'**
+  String get randomManager_recipeTitle;
+
+  /// No description provided for @randomManager_recipeSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Each stage controls the chance and sampling range of one semantic tag group'**
+  String get randomManager_recipeSubtitle;
+
+  /// No description provided for @randomManager_inspectorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Generation setup'**
+  String get randomManager_inspectorTitle;
+
+  /// No description provided for @randomManager_inspectorSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Adjust character distribution and global output behavior for this preset'**
+  String get randomManager_inspectorSubtitle;
+
+  /// No description provided for @randomManager_previewEmptyDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate a sample to inspect the actual output of this recipe.'**
+  String get randomManager_previewEmptyDescription;
+
+  /// No description provided for @randomManager_category_composition.
+  ///
+  /// In en, this message translates to:
+  /// **'Composition'**
+  String get randomManager_category_composition;
+
+  /// No description provided for @randomManager_category_camera.
+  ///
+  /// In en, this message translates to:
+  /// **'Camera angle'**
+  String get randomManager_category_camera;
+
+  /// No description provided for @randomManager_category_framing.
+  ///
+  /// In en, this message translates to:
+  /// **'Framing'**
+  String get randomManager_category_framing;
+
+  /// No description provided for @randomManager_category_focus.
+  ///
+  /// In en, this message translates to:
+  /// **'Focus'**
+  String get randomManager_category_focus;
+
+  /// No description provided for @randomManager_category_eyeFeature.
+  ///
+  /// In en, this message translates to:
+  /// **'Eye features'**
+  String get randomManager_category_eyeFeature;
+
+  /// No description provided for @randomManager_category_hairLength.
+  ///
+  /// In en, this message translates to:
+  /// **'Hair length'**
+  String get randomManager_category_hairLength;
+
+  /// No description provided for @randomManager_category_hairTexture.
+  ///
+  /// In en, this message translates to:
+  /// **'Hair texture'**
+  String get randomManager_category_hairTexture;
+
+  /// No description provided for @randomManager_category_bangs.
+  ///
+  /// In en, this message translates to:
+  /// **'Bangs'**
+  String get randomManager_category_bangs;
+
+  /// No description provided for @randomManager_category_skinTone.
+  ///
+  /// In en, this message translates to:
+  /// **'Skin tone'**
+  String get randomManager_category_skinTone;
+
+  /// No description provided for @randomManager_category_species.
+  ///
+  /// In en, this message translates to:
+  /// **'Species'**
+  String get randomManager_category_species;
+
+  /// No description provided for @randomManager_category_headwear.
+  ///
+  /// In en, this message translates to:
+  /// **'Headwear'**
+  String get randomManager_category_headwear;
+
+  /// No description provided for @randomManager_category_hairAccessory.
+  ///
+  /// In en, this message translates to:
+  /// **'Hair accessories'**
+  String get randomManager_category_hairAccessory;
+
+  /// No description provided for @randomManager_category_prop.
+  ///
+  /// In en, this message translates to:
+  /// **'Props'**
+  String get randomManager_category_prop;
+
+  /// No description provided for @randomManager_category_effect.
+  ///
+  /// In en, this message translates to:
+  /// **'Effects'**
+  String get randomManager_category_effect;
+
+  /// No description provided for @randomManager_category_year.
+  ///
+  /// In en, this message translates to:
+  /// **'Era'**
+  String get randomManager_category_year;
+
+  /// No description provided for @randomManager_category_detail.
+  ///
+  /// In en, this message translates to:
+  /// **'Creative details'**
+  String get randomManager_category_detail;
+
+  /// No description provided for @randomManager_sourceOfficial.
+  ///
+  /// In en, this message translates to:
+  /// **'Official · {wordlist}'**
+  String randomManager_sourceOfficial(String wordlist);
+
+  /// No description provided for @randomManager_sourceCatalog.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom · Catalog extension'**
+  String get randomManager_sourceCatalog;
+
+  /// No description provided for @randomManager_sourceHybrid.
+  ///
+  /// In en, this message translates to:
+  /// **'Hybrid · {wordlist} + Catalog'**
+  String randomManager_sourceHybrid(String wordlist);
+
+  /// No description provided for @randomManager_currentMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Current mode'**
+  String get randomManager_currentMode;
+
+  /// No description provided for @randomManager_officialWordlist.
+  ///
+  /// In en, this message translates to:
+  /// **'Official wordlist for current model'**
+  String get randomManager_officialWordlist;
+
+  /// No description provided for @randomManager_officialWordlistCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{wordlist}: {count} raw records'**
+  String randomManager_officialWordlistCount(String wordlist, int count);
+
+  /// No description provided for @randomManager_officialAsset.
+  ///
+  /// In en, this message translates to:
+  /// **'Complete official asset'**
+  String get randomManager_officialAsset;
+
+  /// No description provided for @randomManager_officialAssetCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{entries} records in {groups} source arrays'**
+  String randomManager_officialAssetCount(int entries, int groups);
+
+  /// No description provided for @randomManager_sourceFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Source file'**
+  String get randomManager_sourceFile;
+
+  /// No description provided for @randomManager_sourceSha256.
+  ///
+  /// In en, this message translates to:
+  /// **'Source SHA-256'**
+  String get randomManager_sourceSha256;
+
+  /// No description provided for @randomManager_catalogExtension.
+  ///
+  /// In en, this message translates to:
+  /// **'Catalog extension'**
+  String get randomManager_catalogExtension;
+
+  /// No description provided for @randomManager_wordlistLegacyAnime.
+  ///
+  /// In en, this message translates to:
+  /// **'Legacy Anime'**
+  String get randomManager_wordlistLegacyAnime;
+
+  /// No description provided for @randomManager_wordlistFurryV3.
+  ///
+  /// In en, this message translates to:
+  /// **'Furry V3'**
+  String get randomManager_wordlistFurryV3;
+
+  /// No description provided for @randomManager_wordlistCharacterPrompts.
+  ///
+  /// In en, this message translates to:
+  /// **'Character Prompts'**
+  String get randomManager_wordlistCharacterPrompts;
 
   /// No description provided for @randomManager_sourceDetails.
   ///
@@ -22387,18 +22645,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Complete catalog: {tags} tags, {aliases} aliases'**
   String randomManager_catalogCounts(Object tags, Object aliases);
-
-  /// No description provided for @randomManager_libraryVersion.
-  ///
-  /// In en, this message translates to:
-  /// **'Rules v{version} · {count} tags'**
-  String randomManager_libraryVersion(String version, String count);
-
-  /// No description provided for @randomManager_preview.
-  ///
-  /// In en, this message translates to:
-  /// **'Random result preview'**
-  String get randomManager_preview;
 
   /// No description provided for @randomManager_libraryUnavailable.
   ///

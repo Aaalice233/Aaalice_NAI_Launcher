@@ -13,8 +13,8 @@ import '../../models/prompt/weighted_tag.dart';
 part 'random_tag_library_data_source.g.dart';
 
 const _randomTagLibraryAsset = 'assets/data/random_tag_library.json';
-const _supportedRandomTagLibrarySchema = 1;
-const _generalCatalogCategories = [0, 7, 8, 9, 10, 11, 12, 14, 15];
+const _supportedRandomTagLibrarySchemas = {1, 2};
+const _legacyCatalogCategories = [0, 7, 12];
 
 class RandomTagLibrarySource {
   const RandomTagLibrarySource({
@@ -40,18 +40,23 @@ class RandomTagLibrarySource {
 
 class RandomTagCategoryRule {
   const RandomTagCategoryRule({
+    this.catalogCategories = const [],
+    this.includeAll = false,
     this.includeGlobs = const [],
     this.includeExact = const [],
     this.includeTokens = const [],
     this.excludeTokens = const [],
   });
 
+  final List<int> catalogCategories;
+  final bool includeAll;
   final List<String> includeGlobs;
   final List<String> includeExact;
   final List<String> includeTokens;
   final List<String> excludeTokens;
 
-  bool get isEmpty => includeGlobs.isEmpty && includeExact.isEmpty;
+  bool get isEmpty =>
+      !includeAll && includeGlobs.isEmpty && includeExact.isEmpty;
 }
 
 class RandomTagLibraryManifest {
@@ -69,7 +74,7 @@ class RandomTagLibraryManifest {
 
   factory RandomTagLibraryManifest.fromJson(Map<String, dynamic> json) {
     final schemaVersion = _requiredInt(json, 'schemaVersion');
-    if (schemaVersion != _supportedRandomTagLibrarySchema) {
+    if (!_supportedRandomTagLibrarySchemas.contains(schemaVersion)) {
       throw FormatException(
         'Unsupported random tag library schema: $schemaVersion',
       );
@@ -84,6 +89,8 @@ class RandomTagLibraryManifest {
     for (final entry in categoryJson.entries) {
       final ruleJson = Map<String, dynamic>.from(entry.value as Map);
       final rule = RandomTagCategoryRule(
+        catalogCategories: _intList(ruleJson, 'catalogCategories'),
+        includeAll: ruleJson['includeAll'] == true,
         includeGlobs: _stringList(ruleJson, 'includeGlobs'),
         includeExact: _stringList(ruleJson, 'includeExact'),
         includeTokens: _stringList(ruleJson, 'includeTokens'),
@@ -241,7 +248,9 @@ class RandomTagLibraryDataSource {
       includes.add('name = ?');
       arguments.add(name);
     }
-    where.add('(${includes.join(' OR ')})');
+    if (!rule.includeAll) {
+      where.add('(${includes.join(' OR ')})');
+    }
 
     if (rule.includeTokens.isNotEmpty) {
       where.add(_tokenClause(rule.includeTokens, arguments, negate: false));
@@ -250,15 +259,18 @@ class RandomTagLibraryDataSource {
       where.add(_tokenClause(rule.excludeTokens, arguments, negate: true));
     }
 
+    final catalogCategories = rule.catalogCategories.isEmpty
+        ? _legacyCatalogCategories
+        : rule.catalogCategories;
     final categoryPlaceholders = List.filled(
-      _generalCatalogCategories.length,
+      catalogCategories.length,
       '?',
     ).join(',');
-    arguments.addAll(_generalCatalogCategories);
+    arguments.addAll(catalogCategories);
+    where.add('category IN ($categoryPlaceholders)');
     final rows = await database.rawQuery(
       'SELECT name, post_count FROM tags '
       'WHERE ${where.join(' AND ')} '
-      'AND category IN ($categoryPlaceholders) '
       'ORDER BY post_count DESC, name ASC',
       arguments,
     );
@@ -325,6 +337,19 @@ Map<String, dynamic> _requiredMap(Map<String, dynamic> json, String key) {
   final value = json[key];
   if (value is! Map) throw FormatException('Missing object: $key');
   return Map<String, dynamic>.from(value);
+}
+
+List<int> _intList(Map<String, dynamic> json, String key) {
+  final value = json[key];
+  if (value == null) return const [];
+  if (value is! List || value.any((item) => item is! int)) {
+    throw FormatException('$key must be an integer array');
+  }
+  final result = value.cast<int>();
+  if (result.isEmpty || result.toSet().length != result.length) {
+    throw FormatException('$key must contain unique values');
+  }
+  return List.unmodifiable(result);
 }
 
 List<String> _stringList(Map<String, dynamic> json, String key) {

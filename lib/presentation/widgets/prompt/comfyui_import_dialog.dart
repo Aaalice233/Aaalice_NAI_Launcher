@@ -27,10 +27,7 @@ class ComfyuiImportDialog extends StatefulWidget {
   /// 解析结果
   final ComfyuiParseResult parseResult;
 
-  const ComfyuiImportDialog({
-    super.key,
-    required this.parseResult,
-  });
+  const ComfyuiImportDialog({super.key, required this.parseResult});
 
   /// 显示导入弹窗
   ///
@@ -82,7 +79,11 @@ class _ComfyuiImportDialogState extends State<ComfyuiImportDialog> {
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: Text(l10n.comfyImport_detectedTitle),
+            child: Text(
+              widget.parseResult.syntaxType == ComfyuiSyntaxType.pipe
+                  ? l10n.prompt_characterPrompts
+                  : l10n.comfyImport_detectedTitle,
+            ),
           ),
         ],
       ),
@@ -203,21 +204,14 @@ class _GlobalPromptCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: theme.colorScheme.outlineVariant,
-          width: 1,
-        ),
+        border: Border.all(color: theme.colorScheme.outlineVariant, width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(
-                Icons.public,
-                size: 14,
-                color: theme.colorScheme.primary,
-              ),
+              Icon(Icons.public, size: 14, color: theme.colorScheme.primary),
               const SizedBox(width: 6),
               Text(
                 context.l10n.comfyImport_globalPrompt,
@@ -248,10 +242,7 @@ class _CharacterCard extends StatelessWidget {
   final int index;
   final ParsedCharacter character;
 
-  const _CharacterCard({
-    required this.index,
-    required this.character,
-  });
+  const _CharacterCard({required this.index, required this.character});
 
   @override
   Widget build(BuildContext context) {
@@ -316,8 +307,9 @@ class _CharacterCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Text(
-                PositionConverter.toNaiPosition(character.position!)
-                    .toNaiString(),
+                PositionConverter.toNaiPosition(
+                  character.position!,
+                ).toNaiString(),
                 style: theme.textTheme.labelSmall?.copyWith(
                   color: theme.colorScheme.onSecondaryContainer,
                   fontSize: 10,

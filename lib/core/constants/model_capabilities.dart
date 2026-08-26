@@ -9,6 +9,17 @@ enum PromptStructure {
   v4,
 }
 
+/// 官网随机提示词生成器分派。
+///
+/// NovelAI 当前仅有三套词库；V4、V4.5 与 V5 共用角色独立词库。
+enum RandomPromptProfile {
+  legacyAnime,
+  furryV3,
+  characterPrompts;
+
+  bool get supportsCharacterPrompts => this == characterPrompts;
+}
+
 /// 提示词 token 计数使用的分词器。
 enum TokenizerKind { clip, t5, qwen35 }
 
@@ -34,6 +45,7 @@ class ModelCapabilities {
     required this.tokenLimit,
     required this.defaultScale,
     required this.defaultSteps,
+    this.randomPromptProfile = RandomPromptProfile.legacyAnime,
     this.paramsVersion = 3,
     this.maxCharacters = 0,
     this.supportsVibeTransfer = false,
@@ -46,8 +58,11 @@ class ModelCapabilities {
     this.supportsMaxEnhance = false,
     this.supportsEnhancePromptAdd = false,
     this.supportsTextRendering = false,
+    this.supportsAutoText = false,
     this.supportsNoiseSchedule = true,
     this.supportsVarietyPlus = false,
+    this.retainsVarietyPlus = true,
+    this.cfgDelaySigma = 19.0,
     this.anlasMultiplier = 1.0,
     this.hasOpusUsageLimit = false,
   });
@@ -58,6 +73,7 @@ class ModelCapabilities {
   final PromptStructure promptStructure;
   final AnlasFormula anlasFormula;
   final TokenizerKind tokenizer;
+  final RandomPromptProfile randomPromptProfile;
 
   /// 提示词 token 上限。
   final int tokenLimit;
@@ -109,15 +125,34 @@ class ModelCapabilities {
   /// `text:` 之前，否则会被模型当成要画进图里的文字。
   final bool supportsTextRendering;
 
+  /// Whether quoted text is automatically mirrored into a trailing `teXt:`
+  /// block. The production web client enables this for V5.
+  final bool supportsAutoText;
+
   /// 噪声调度是否可选。
-  ///
-  /// V5 不开放选择，网页端请求归一化会强制写入 karras。
   final bool supportsNoiseSchedule;
 
   /// 是否支持 Variety+（`skip_cfg_above_sigma`）。
   ///
-  /// 网页端能力位 `cfgDelay`，V3 起为 true，V5 又收回了。
+  /// 网页端能力位 `cfgDelay`。
   final bool supportsVarietyPlus;
+
+  /// 该模型是否保留已开启的 Variety+。
+  ///
+  /// V5 的 Variety+ 是越过网页端额外放开的，效果未经验证，切换或恢复到这类
+  /// 模型时一律关闭，避免从别的模型带着开启状态静默生效。
+  final bool retainsVarietyPlus;
+
+  /// Variety+ 的 sigma 基数，实际发送值再按分辨率缩放。
+  ///
+  /// 网页端能力位 `cfgDelaySigma`：V4.5 起 58，更早的模型 19。
+  final double cfgDelaySigma;
+
+  /// Native 噪声调度是否在候选里。
+  ///
+  /// 网页端从 V4 起把它从下拉框剔除，选中残留值时按 karras 处理。
+  bool get allowsNativeNoiseSchedule =>
+      promptStructure == PromptStructure.legacy;
 
   /// Anlas 基础价倍率。V5 正式版在现代公式之上乘 1.5。
   final double anlasMultiplier;
@@ -176,6 +211,7 @@ class ModelCapabilityRegistry {
     tokenLimit: 225,
     defaultScale: 6.2,
     defaultSteps: 23,
+    randomPromptProfile: RandomPromptProfile.furryV3,
     supportsVibeTransfer: true,
     supportsImg2ImgInpainting: true,
     supportsVarietyPlus: true,
@@ -189,6 +225,7 @@ class ModelCapabilityRegistry {
     tokenLimit: 512,
     defaultScale: 5.5,
     defaultSteps: 23,
+    randomPromptProfile: RandomPromptProfile.characterPrompts,
     maxCharacters: 6,
     supportsVibeTransfer: true,
     supportsEncodedVibeTransfer: true,
@@ -205,6 +242,7 @@ class ModelCapabilityRegistry {
     tokenLimit: 512,
     defaultScale: 5.5,
     defaultSteps: 23,
+    randomPromptProfile: RandomPromptProfile.characterPrompts,
     maxCharacters: 6,
     supportsVibeTransfer: true,
     supportsEncodedVibeTransfer: true,
@@ -221,6 +259,7 @@ class ModelCapabilityRegistry {
     tokenLimit: 512,
     defaultScale: 5.0,
     defaultSteps: 23,
+    randomPromptProfile: RandomPromptProfile.characterPrompts,
     maxCharacters: 6,
     supportsVibeTransfer: true,
     supportsEncodedVibeTransfer: true,
@@ -229,6 +268,7 @@ class ModelCapabilityRegistry {
     supportsEnhancePromptAdd: true,
     supportsTextRendering: true,
     supportsVarietyPlus: true,
+    cfgDelaySigma: 58.0,
   );
 
   static const ModelCapabilities v45Full = ModelCapabilities(
@@ -239,6 +279,7 @@ class ModelCapabilityRegistry {
     tokenLimit: 512,
     defaultScale: 5.0,
     defaultSteps: 23,
+    randomPromptProfile: RandomPromptProfile.characterPrompts,
     maxCharacters: 6,
     supportsVibeTransfer: true,
     supportsEncodedVibeTransfer: true,
@@ -247,13 +288,13 @@ class ModelCapabilityRegistry {
     supportsEnhancePromptAdd: true,
     supportsTextRendering: true,
     supportsVarietyPlus: true,
+    cfgDelaySigma: 58.0,
   );
 
   /// V5 Curated（正式版，网页端 build 65441ab-production 实测）。
   ///
   /// Vibe 与角色参考正式版明确不支持；端到端 ×2 放大未上线，增强 max 档
-  /// 保留。噪声调度不可选，请求固定发 karras。基础价在现代公式之上
-  /// 乘 1.5，Opus 免费受配额池限制。
+  /// 保留。基础价在现代公式之上乘 1.5，Opus 免费受配额池限制。
   static const ModelCapabilities v5Curated = ModelCapabilities(
     id: ImageModels.animeDiffusionV5Curated,
     promptStructure: PromptStructure.v4,
@@ -263,13 +304,19 @@ class ModelCapabilityRegistry {
     paramsVersion: 4,
     defaultScale: 7.0,
     defaultSteps: 23,
+    randomPromptProfile: RandomPromptProfile.characterPrompts,
     maxCharacters: 32,
     supportsImg2ImgInpainting: true,
     supportsTransparentBackground: true,
     supportsMaxEnhance: true,
     supportsEnhancePromptAdd: true,
     supportsTextRendering: true,
-    supportsNoiseSchedule: false,
+    supportsAutoText: true,
+    // 网页端对 V5 隐藏了噪声调度与 Variety+，这里刻意放开供手动尝试。
+    supportsNoiseSchedule: true,
+    supportsVarietyPlus: true,
+    retainsVarietyPlus: false,
+    cfgDelaySigma: 58.0,
     anlasMultiplier: 1.5,
     hasOpusUsageLimit: true,
   );
@@ -283,13 +330,19 @@ class ModelCapabilityRegistry {
     paramsVersion: 4,
     defaultScale: 7.0,
     defaultSteps: 23,
+    randomPromptProfile: RandomPromptProfile.characterPrompts,
     maxCharacters: 32,
     supportsImg2ImgInpainting: true,
     supportsTransparentBackground: true,
     supportsMaxEnhance: true,
     supportsEnhancePromptAdd: true,
     supportsTextRendering: true,
-    supportsNoiseSchedule: false,
+    supportsAutoText: true,
+    // 网页端对 V5 隐藏了噪声调度与 Variety+，这里刻意放开供手动尝试。
+    supportsNoiseSchedule: true,
+    supportsVarietyPlus: true,
+    retainsVarietyPlus: false,
+    cfgDelaySigma: 58.0,
     anlasMultiplier: 1.5,
     hasOpusUsageLimit: true,
   );
@@ -345,28 +398,48 @@ class ModelCapabilityRegistry {
 
 /// 模型切换时需要跟随调整的参数，字段为 null 表示保持当前值。
 class ModelSwitchFollowUps {
-  const ModelSwitchFollowUps({this.scale, this.steps});
+  const ModelSwitchFollowUps({
+    this.scale,
+    this.steps,
+    this.noiseSchedule,
+    this.varietyPlus,
+  });
 
   final double? scale;
   final int? steps;
+  final String? noiseSchedule;
+  final bool? varietyPlus;
 
-  bool get isEmpty => scale == null && steps == null;
+  bool get isEmpty =>
+      scale == null &&
+      steps == null &&
+      noiseSchedule == null &&
+      varietyPlus == null;
 }
 
 /// 计算模型切换后应当跟随的默认参数。
 ///
-/// 只有当前值仍停留在旧模型的出厂默认时才跟随，用户手动调过的参数一律保留——
-/// V5 默认 CFG 是 7 而 V4.5 是 5，不跟随会让用户在没察觉的情况下废图。
+/// CFG 与步数只有当前值仍停留在旧模型的出厂默认时才跟随，用户手动调过的一律
+/// 保留——V5 默认 CFG 是 7 而 V4.5 是 5，不跟随会让用户在没察觉的情况下废图。
+/// 噪声调度与 Variety+ 是另一套规则：目标模型上不合法或不推荐的取值必须无条件
+/// 纠正，否则界面显示的和实际发送的会对不上。
 ModelSwitchFollowUps resolveModelSwitchFollowUps({
   required ModelCapabilities from,
   required ModelCapabilities to,
   required double currentScale,
   required int currentSteps,
+  required String currentNoiseSchedule,
+  required bool currentVarietyPlus,
 }) {
   const scaleTolerance = 0.001;
   final scaleUntouched =
       (currentScale - from.defaultScale).abs() < scaleTolerance;
   final stepsUntouched = currentSteps == from.defaultSteps;
+  final resolvedNoiseSchedule = NoiseSchedules.resolve(
+    currentNoiseSchedule,
+    allowNative: to.allowsNativeNoiseSchedule,
+  );
+  final dropsVarietyPlus = currentVarietyPlus && !to.retainsVarietyPlus;
 
   return ModelSwitchFollowUps(
     scale: scaleUntouched && to.defaultScale != from.defaultScale
@@ -375,5 +448,9 @@ ModelSwitchFollowUps resolveModelSwitchFollowUps({
     steps: stepsUntouched && to.defaultSteps != from.defaultSteps
         ? to.defaultSteps
         : null,
+    noiseSchedule: resolvedNoiseSchedule != currentNoiseSchedule
+        ? resolvedNoiseSchedule
+        : null,
+    varietyPlus: dropsVarietyPlus ? false : null,
   );
 }

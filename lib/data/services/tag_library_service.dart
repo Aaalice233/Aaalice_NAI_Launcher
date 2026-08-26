@@ -32,6 +32,8 @@ class TagLibraryService {
   final RandomTagLibraryDataSource _randomTagLibraryDataSource;
   Box? _box;
   Future<void>? _initFuture;
+  RandomTagLibraryData? _mappedRandomData;
+  TagLibrary? _mappedRandomLibrary;
 
   TagLibraryService(this._randomTagLibraryDataSource);
 
@@ -385,7 +387,13 @@ class TagLibraryService {
   /// 校验失败会显式抛错，由状态层展示错误；不得静默切换到过期数据。
   Future<TagLibrary> getAvailableLibrary() async {
     final data = await _randomTagLibraryDataSource.loadData();
-    return _libraryFromData(data);
+    if (identical(data, _mappedRandomData) && _mappedRandomLibrary != null) {
+      return _mappedRandomLibrary!;
+    }
+    final library = _libraryFromData(data);
+    _mappedRandomData = data;
+    _mappedRandomLibrary = library;
+    return library;
   }
 
   TagLibrary _libraryFromData(RandomTagLibraryData data) {
@@ -448,6 +456,9 @@ class TagLibraryService {
   Future<void> clearCache() async {
     await _ensureInit();
     await _box?.delete(_libraryKey);
+    _mappedRandomData = null;
+    _mappedRandomLibrary = null;
+    _randomTagLibraryDataSource.clearCache();
     AppLogger.d('Library cache cleared', 'TagLibrary');
   }
 

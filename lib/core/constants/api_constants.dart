@@ -270,6 +270,12 @@ class NoiseSchedules {
     exponential: 'Exponential',
     polyexponential: 'Polyexponential',
   };
+
+  /// 把取值规整到目标模型的候选范围内。
+  ///
+  /// 噪声调度是跨模型共用的持久化值，切到不开放 Native 的模型时会残留。
+  static String resolve(String schedule, {required bool allowNative}) =>
+      !allowNative && schedule == native ? karras : schedule;
 }
 
 /// UC 预设枚举 (Undesired Content Preset)
@@ -1172,16 +1178,6 @@ class EnhanceScales {
   /// 网页端候选倍率，从大到小。
   static const List<double> candidates = [2.0, 1.5, 1.0];
 
-  /// 网页端对最常用的 832×1216（含转置）直接给固定档位。
-  ///
-  /// 这个尺寸乘 1.5 得到 1248×1824，本来过不了 64 对齐的筛选，
-  /// 网页端专门开了口子，这里照抄。
-  static const List<double> _portraitDefaults = [1.5, 1.0];
-
-  static bool _isDefaultPortrait(int width, int height) {
-    return (width == 832 && height == 1216) || (width == 1216 && height == 832);
-  }
-
   /// 当前源图尺寸下可用的倍率，从大到小。
   ///
   /// 源图尺寸未知时只给 1x——网页端在拿到图片前也不会给放大档。
@@ -1191,23 +1187,39 @@ class EnhanceScales {
     if (width <= 0 || height <= 0) {
       return const [1.0];
     }
-    if (_isDefaultPortrait(width, height)) {
-      return _portraitDefaults;
-    }
 
     final available = candidates
         .where((factor) {
-          final scaledWidth = width * factor;
-          final scaledHeight = height * factor;
-          if (scaledWidth * scaledHeight > ApiConstants.maxImagePixels) {
-            return false;
-          }
-          return scaledWidth % ApiConstants.dimensionGrid == 0 &&
-              scaledHeight % ApiConstants.dimensionGrid == 0;
+          final target = resolveTargetSize(
+            sourceWidth: width,
+            sourceHeight: height,
+            factor: factor,
+          );
+          return target.width * target.height <= ApiConstants.maxImagePixels;
         })
         .toList(growable: false);
 
     return available.isEmpty ? const [1.0] : available;
+  }
+
+  /// 计算增强请求实际使用的 64-grid 目标尺寸。
+  static ({int width, int height}) resolveTargetSize({
+    required int sourceWidth,
+    required int sourceHeight,
+    required double factor,
+  }) {
+    return (
+      width: _normalizeDimension((sourceWidth * factor).round()),
+      height: _normalizeDimension((sourceHeight * factor).round()),
+    );
+  }
+
+  static int _normalizeDimension(int value) {
+    final normalized =
+        ((value + ApiConstants.dimensionGrid ~/ 2) ~/
+            ApiConstants.dimensionGrid) *
+        ApiConstants.dimensionGrid;
+    return normalized.clamp(ApiConstants.dimensionGrid, 4096);
   }
 
   /// 把持久化的倍率约束到当前源图可用的档位。

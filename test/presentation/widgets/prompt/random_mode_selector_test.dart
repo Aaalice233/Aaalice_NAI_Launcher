@@ -6,18 +6,16 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/random_mode_selector.dart';
 
 void main() {
-  testWidgets('RandomModeSelector exposes official, custom, and hybrid modes',
-      (tester) async {
+  testWidgets('RandomModeSelector exposes official, custom, and hybrid modes', (
+    tester,
+  ) async {
     final storage = _FakeRandomModeStorage();
 
     await tester.pumpWidget(
-      _buildTestApp(
-        storage: storage,
-        child: const RandomModeSelector(),
-      ),
+      _buildTestApp(storage: storage, child: const RandomModeSelector()),
     );
 
-    expect(find.text('Offline Library'), findsOneWidget);
+    expect(find.text('Official Mode'), findsOneWidget);
     expect(find.text('Custom Mode'), findsOneWidget);
     expect(find.text('Hybrid Mode'), findsOneWidget);
   });
@@ -28,29 +26,25 @@ void main() {
     await tester.pumpWidget(
       _buildTestApp(
         storage: storage,
-        child: const RandomModePopupMenu(
-          child: Text('mode menu'),
-        ),
+        child: const RandomModePopupMenu(child: Text('mode menu')),
       ),
     );
 
     await tester.tap(find.text('mode menu'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Offline Library'), findsOneWidget);
+    expect(find.text('Official Mode'), findsOneWidget);
     expect(find.text('Custom Mode'), findsOneWidget);
     expect(find.text('Hybrid Mode'), findsOneWidget);
   });
 
-  testWidgets('RandomModeIndicator displays a distinct hybrid label',
-      (tester) async {
+  testWidgets('RandomModeIndicator displays a distinct hybrid label', (
+    tester,
+  ) async {
     final storage = _FakeRandomModeStorage(initialMode: 'hybrid');
 
     await tester.pumpWidget(
-      _buildTestApp(
-        storage: storage,
-        child: const RandomModeIndicator(),
-      ),
+      _buildTestApp(storage: storage, child: const RandomModeIndicator()),
     );
 
     expect(find.text('Hybrid Mode'), findsOneWidget);
@@ -63,23 +57,19 @@ Widget _buildTestApp({
   required Widget child,
 }) {
   return ProviderScope(
-    overrides: [
-      localStorageServiceProvider.overrideWith((ref) => storage),
-    ],
+    overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
     child: MaterialApp(
       locale: const Locale('en'),
       supportedLocales: AppLocalizations.supportedLocales,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
-      home: Scaffold(
-        body: Center(child: child),
-      ),
+      home: Scaffold(body: Center(child: child)),
     ),
   );
 }
 
 class _FakeRandomModeStorage extends LocalStorageService {
   _FakeRandomModeStorage({String initialMode = 'nai_official'})
-      : mode = initialMode;
+    : mode = initialMode;
 
   String mode;
 

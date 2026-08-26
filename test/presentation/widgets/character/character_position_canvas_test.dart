@@ -3,12 +3,14 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/data/models/character/character_prompt.dart';
 import 'package:nai_launcher/data/repositories/character_prompt_repository.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/character_prompt_provider.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/widgets/character/character_position_canvas.dart';
+import 'package:nai_launcher/presentation/widgets/common/composition_guide.dart';
 import 'package:nai_launcher/presentation/widgets/common/decoded_memory_image.dart';
 
 /// 惰性生成状态：真实 Notifier 内部有持续性任务会阻止测试进程退出
@@ -53,6 +55,32 @@ class _PortraitPreviewImageGenerationNotifier extends ImageGenerationNotifier {
       ],
     );
   }
+}
+
+/// 构图参考线设置走 Hive，测试里没开 box，写入会抛，用内存版顶掉
+class _MemoryStorage extends LocalStorageService {
+  String? guideMode;
+  int guideColumns = CompositionGuide.defaultDivisions;
+  int guideRows = CompositionGuide.defaultDivisions;
+
+  @override
+  String? getCompositionGuideMode() => guideMode;
+
+  @override
+  Future<void> setCompositionGuideMode(String value) async => guideMode = value;
+
+  @override
+  int getCompositionGuideColumns() => guideColumns;
+
+  @override
+  Future<void> setCompositionGuideColumns(int value) async =>
+      guideColumns = value;
+
+  @override
+  int getCompositionGuideRows() => guideRows;
+
+  @override
+  Future<void> setCompositionGuideRows(int value) async => guideRows = value;
 }
 
 class _MemoryCharacterPromptRepository extends CharacterPromptRepository {
@@ -208,6 +236,7 @@ void main() {
           imageGenerationNotifierProvider.overrideWith(
             _IdleImageGenerationNotifier.new,
           ),
+          localStorageServiceProvider.overrideWith((ref) => _MemoryStorage()),
         ],
         child: const MaterialApp(
           localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -331,6 +360,70 @@ void main() {
             .customPosition,
         isNotNull,
       );
+    });
+
+    testWidgets('构图参考线选档后叠到画布，且不吃锚点手势', (tester) async {
+      await tester.pumpWidget(buildTestApp());
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(CharacterPositionCanvasView)),
+      );
+      final notifier = container.read(characterPromptNotifierProvider.notifier);
+      notifier.addCharacter(CharacterGender.female, name: 'Alice');
+      notifier.setGlobalAiChoice(false);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      final guideLayer = find.byWidgetPredicate(
+        (widget) =>
+            widget is CustomPaint && widget.painter is CompositionGuidePainter,
+      );
+      expect(guideLayer, findsNothing);
+
+      final characterId = container
+          .read(characterPromptNotifierProvider)
+          .characters
+          .single
+          .id;
+      double columnOf() => container
+          .read(characterPromptNotifierProvider)
+          .characters
+          .single
+          .customPosition!
+          .column;
+      // 分多段推：单次位移要超过 kPanSlop 才会被识别成 pan
+      Future<void> dragAnchor() async {
+        final gesture = await tester.startGesture(
+          tester.getCenter(
+            find.byKey(ValueKey<String>('canvas-anchor-$characterId')),
+          ),
+        );
+        for (var step = 0; step < 3; step++) {
+          await gesture.moveBy(const Offset(20, 20));
+          await tester.pump();
+        }
+        await gesture.up();
+        await tester.pump();
+      }
+
+      final origin = columnOf();
+      await dragAnchor();
+      final withoutGuide = columnOf();
+      expect(withoutGuide, greaterThan(origin));
+
+      await tester.tap(find.byTooltip('Composition Guide'));
+      await tester.pump();
+      await tester.tap(find.text('Thirds'));
+      await tester.pump();
+
+      expect(guideLayer, findsOneWidget);
+
+      // 收起浮层回到画布：参考线盖在锚点之上，但不能截走拖动
+      await tester.tap(find.byTooltip('Composition Guide'));
+      await tester.pump();
+      expect(find.text('Thirds'), findsNothing);
+
+      await dragAnchor();
+      expect(columnOf(), greaterThan(withoutGuide));
     });
 
     testWidgets('极矮画布真实拖动不抛异常并限制背景解码尺寸', (tester) async {

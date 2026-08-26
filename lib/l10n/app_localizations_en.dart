@@ -1510,7 +1510,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get img2img_disabled => 'Disabled';
 
   @override
-  String get img2img_novelAiCloudUpscale => 'NovelAI cloud upscale (fixed 4x)';
+  String get img2img_novelAiCloudUpscale => 'NovelAI cloud upscale (fixed 2x)';
 
   @override
   String get img2img_comfyuiEnableHint =>
@@ -4061,6 +4061,27 @@ class AppLocalizationsEn extends AppLocalizations {
       'Drag anchors to position characters; release to apply';
 
   @override
+  String get characterCanvas_guide => 'Composition Guide';
+
+  @override
+  String get characterCanvas_guideNone => 'None';
+
+  @override
+  String get characterCanvas_guideThirds => 'Thirds';
+
+  @override
+  String get characterCanvas_guidePhi => 'Phi';
+
+  @override
+  String get characterCanvas_guideGrid => 'Grid';
+
+  @override
+  String get characterCanvas_guideColumns => 'Columns';
+
+  @override
+  String get characterCanvas_guideRows => 'Rows';
+
+  @override
   String get characterEditor_genderFemale => 'Female';
 
   @override
@@ -4139,7 +4160,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get randomMode_title => 'Select Random Mode';
 
   @override
-  String get randomMode_naiOfficial => 'Offline Library';
+  String get randomMode_naiOfficial => 'Official Mode';
 
   @override
   String get randomMode_custom => 'Custom Mode';
@@ -4149,26 +4170,24 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get randomMode_naiOfficialDesc =>
-      'Use the verified complete offline tag catalog';
+      'Use the NovelAI official random wordlist for the current model';
 
   @override
-  String get randomMode_customDesc => 'Generate using custom presets';
+  String get randomMode_customDesc =>
+      'Generate from the complete offline tag catalog and custom presets';
 
   @override
   String get randomMode_hybridDesc =>
-      'Combine the offline library with custom presets';
+      'Combine the official wordlist with the catalog extension';
 
   @override
-  String get randomMode_naiIndicator => 'Offline';
+  String get randomMode_naiIndicator => 'Official';
 
   @override
   String get randomMode_customIndicator => 'Custom';
 
   @override
   String get naiMode_noTags => 'No tags';
-
-  @override
-  String get naiAlgorithm_characterCount => 'Character Count Distribution';
 
   @override
   String get naiAlgorithm_mainPrompt => 'Main Prompt';
@@ -4453,9 +4472,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get randomManager_genderWeight => 'Gender Weight';
 
   @override
-  String get randomManager_globalSettings => 'Global Settings';
-
-  @override
   String get randomManager_enableSeasonalWordlists =>
       'Enable Seasonal Wordlists';
 
@@ -4466,18 +4482,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get randomManager_globalEmphasisProbability =>
       'Global Emphasis Probability';
-
-  @override
-  String get randomManager_soloGenderOptions => 'Solo Gender Options';
-
-  @override
-  String get randomManager_femaleShort => 'F';
-
-  @override
-  String get randomManager_maleShort => 'M';
-
-  @override
-  String get randomManager_other => 'Other';
 
   @override
   String get randomManager_tagGroupList => 'Tag Groups';
@@ -4522,9 +4526,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get randomManager_globalPeopleSettings => 'Global Character Settings';
-
-  @override
-  String get randomManager_closePreview => 'Close preview';
 
   @override
   String get randomManager_importPreset => 'Import Preset';
@@ -4660,9 +4661,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get randomManager_importExport => 'Import / Export';
-
-  @override
-  String get randomManager_syncing => 'Syncing';
 
   @override
   String get randomManager_syncDanbooruTags => 'Sync Danbooru Tags';
@@ -4841,16 +4839,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get randomManager_selectionMode => 'Selection Mode';
-
-  @override
-  String randomManager_editHint(Object name) {
-    return '$name (click to edit)';
-  }
-
-  @override
-  String randomManager_emphasisProbabilityValue(Object percent) {
-    return 'Emphasis probability: $percent%';
-  }
 
   @override
   String get randomManager_previewGeneration => 'Preview Generation';
@@ -5712,6 +5700,60 @@ class AppLocalizationsEn extends AppLocalizations {
   String get statistics_noAnlasData => 'No Anlas consumption data';
 
   @override
+  String get statistics_noAnlasInPeriod =>
+      'No Anlas consumption in this period';
+
+  @override
+  String get statistics_periodSelectorTooltip => 'Select statistics period';
+
+  @override
+  String get statistics_periodWeek => 'Last week';
+
+  @override
+  String get statistics_periodMonth => 'Last month';
+
+  @override
+  String get statistics_periodThreeMonths => 'Last 3 months';
+
+  @override
+  String get statistics_periodYear => 'Last year';
+
+  @override
+  String get statistics_periodAll => 'All time';
+
+  @override
+  String get statistics_periodCustom => 'Custom days';
+
+  @override
+  String statistics_periodDays(int count) {
+    return 'Last $count days';
+  }
+
+  @override
+  String statistics_periodSummary(String start, String end, int count) {
+    return '$start to $end · $count days';
+  }
+
+  @override
+  String statistics_partialCoverage(String date, int count) {
+    return 'Available records begin on $date. The daily average uses the available $count days.';
+  }
+
+  @override
+  String get statistics_customPeriodTitle => 'Custom statistics period';
+
+  @override
+  String get statistics_customDaysHint => 'Number of days';
+
+  @override
+  String statistics_customDaysError(int max) {
+    return 'Enter an integer from 1 to $max';
+  }
+
+  @override
+  String get statistics_daysUnit => 'days';
+
+  @override
   String get statistics_peakActivity => 'Peak Activity';
 
   @override
@@ -6392,9 +6434,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get reversePrompt_title => 'Reverse Prompt';
-
-  @override
-  String get reversePrompt_pending => 'Pending';
 
   @override
   String reversePrompt_imageCount(Object count) {
@@ -7651,13 +7690,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settings_notificationResetSound => 'Reset to Default';
 
   @override
-  String get categoryConfiguration => 'Category Configuration';
-
-  @override
   String get resetToDefault => 'Reset to Default';
-
-  @override
-  String get resetToDefaultTooltip => 'Reset to default configuration';
 
   @override
   String get toggleGroupEnabled => 'Toggle group enabled state';
@@ -12359,12 +12392,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get randomManager_releaseToDelete => 'Release to delete';
-
-  @override
-  String get randomManager_dragHereToDelete => 'Drag here to delete';
-
-  @override
   String get randomManager_keyboardShortcutsHint =>
       'Keyboard Shortcuts (press ? to view)';
 
@@ -12854,8 +12881,128 @@ class AppLocalizationsEn extends AppLocalizations {
       'Search categories, groups, or tags (Ctrl+F)';
 
   @override
-  String get randomManager_verifiedOfflineLibrary =>
-      'Verified offline random library';
+  String get randomManager_workspaceTitle => 'Random library';
+
+  @override
+  String get randomManager_workspaceSubtitle =>
+      'Build reusable recipes from the complete offline catalog';
+
+  @override
+  String get randomManager_recipeTitle => 'Generation recipe';
+
+  @override
+  String get randomManager_recipeSubtitle =>
+      'Each stage controls the chance and sampling range of one semantic tag group';
+
+  @override
+  String get randomManager_inspectorTitle => 'Generation setup';
+
+  @override
+  String get randomManager_inspectorSubtitle =>
+      'Adjust character distribution and global output behavior for this preset';
+
+  @override
+  String get randomManager_previewEmptyDescription =>
+      'Generate a sample to inspect the actual output of this recipe.';
+
+  @override
+  String get randomManager_category_composition => 'Composition';
+
+  @override
+  String get randomManager_category_camera => 'Camera angle';
+
+  @override
+  String get randomManager_category_framing => 'Framing';
+
+  @override
+  String get randomManager_category_focus => 'Focus';
+
+  @override
+  String get randomManager_category_eyeFeature => 'Eye features';
+
+  @override
+  String get randomManager_category_hairLength => 'Hair length';
+
+  @override
+  String get randomManager_category_hairTexture => 'Hair texture';
+
+  @override
+  String get randomManager_category_bangs => 'Bangs';
+
+  @override
+  String get randomManager_category_skinTone => 'Skin tone';
+
+  @override
+  String get randomManager_category_species => 'Species';
+
+  @override
+  String get randomManager_category_headwear => 'Headwear';
+
+  @override
+  String get randomManager_category_hairAccessory => 'Hair accessories';
+
+  @override
+  String get randomManager_category_prop => 'Props';
+
+  @override
+  String get randomManager_category_effect => 'Effects';
+
+  @override
+  String get randomManager_category_year => 'Era';
+
+  @override
+  String get randomManager_category_detail => 'Creative details';
+
+  @override
+  String randomManager_sourceOfficial(String wordlist) {
+    return 'Official · $wordlist';
+  }
+
+  @override
+  String get randomManager_sourceCatalog => 'Custom · Catalog extension';
+
+  @override
+  String randomManager_sourceHybrid(String wordlist) {
+    return 'Hybrid · $wordlist + Catalog';
+  }
+
+  @override
+  String get randomManager_currentMode => 'Current mode';
+
+  @override
+  String get randomManager_officialWordlist =>
+      'Official wordlist for current model';
+
+  @override
+  String randomManager_officialWordlistCount(String wordlist, int count) {
+    return '$wordlist: $count raw records';
+  }
+
+  @override
+  String get randomManager_officialAsset => 'Complete official asset';
+
+  @override
+  String randomManager_officialAssetCount(int entries, int groups) {
+    return '$entries records in $groups source arrays';
+  }
+
+  @override
+  String get randomManager_sourceFile => 'Source file';
+
+  @override
+  String get randomManager_sourceSha256 => 'Source SHA-256';
+
+  @override
+  String get randomManager_catalogExtension => 'Catalog extension';
+
+  @override
+  String get randomManager_wordlistLegacyAnime => 'Legacy Anime';
+
+  @override
+  String get randomManager_wordlistFurryV3 => 'Furry V3';
+
+  @override
+  String get randomManager_wordlistCharacterPrompts => 'Character Prompts';
 
   @override
   String get randomManager_sourceDetails => 'Data source details';
@@ -12876,14 +13023,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String randomManager_catalogCounts(Object tags, Object aliases) {
     return 'Complete catalog: $tags tags, $aliases aliases';
   }
-
-  @override
-  String randomManager_libraryVersion(String version, String count) {
-    return 'Rules v$version · $count tags';
-  }
-
-  @override
-  String get randomManager_preview => 'Random result preview';
 
   @override
   String get randomManager_libraryUnavailable => 'Random library unavailable';

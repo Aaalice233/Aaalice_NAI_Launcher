@@ -1474,7 +1474,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get img2img_disabled => '無効';
 
   @override
-  String get img2img_novelAiCloudUpscale => 'NovelAI クラウド拡大 (4x 固定)';
+  String get img2img_novelAiCloudUpscale => 'NovelAI クラウド拡大 (2x 固定)';
 
   @override
   String get img2img_comfyuiEnableHint =>
@@ -3962,6 +3962,27 @@ class AppLocalizationsJa extends AppLocalizations {
   String get characterCanvas_dragHint => 'アンカーをドラッグして位置を設定し、離すと反映されます';
 
   @override
+  String get characterCanvas_guide => '構図ガイド';
+
+  @override
+  String get characterCanvas_guideNone => 'なし';
+
+  @override
+  String get characterCanvas_guideThirds => '三分割';
+
+  @override
+  String get characterCanvas_guidePhi => '黄金比';
+
+  @override
+  String get characterCanvas_guideGrid => 'グリッド';
+
+  @override
+  String get characterCanvas_guideColumns => '列';
+
+  @override
+  String get characterCanvas_guideRows => '行';
+
+  @override
   String get characterEditor_genderFemale => '女性';
 
   @override
@@ -4039,7 +4060,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get randomMode_title => 'ランダム モードを選択';
 
   @override
-  String get randomMode_naiOfficial => 'オフラインライブラリ';
+  String get randomMode_naiOfficial => '公式モード';
 
   @override
   String get randomMode_custom => 'カスタムモード';
@@ -4048,25 +4069,23 @@ class AppLocalizationsJa extends AppLocalizations {
   String get randomMode_hybrid => 'ハイブリッド モード';
 
   @override
-  String get randomMode_naiOfficialDesc => '検証済みの完全なオフラインタグカタログを使用';
+  String get randomMode_naiOfficialDesc =>
+      '現在のモデルに対応する NovelAI 公式ランダムワードリストを使用';
 
   @override
-  String get randomMode_customDesc => 'カスタム プリセットを使用して生成';
+  String get randomMode_customDesc => '完全なオフラインタグカタログとカスタムプリセットから生成';
 
   @override
-  String get randomMode_hybridDesc => 'オフラインライブラリとカスタムプリセットを組み合わせる';
+  String get randomMode_hybridDesc => '公式ワードリストとカタログ拡張を組み合わせる';
 
   @override
-  String get randomMode_naiIndicator => 'オフライン';
+  String get randomMode_naiIndicator => '公式';
 
   @override
   String get randomMode_customIndicator => 'カスタム';
 
   @override
   String get naiMode_noTags => 'タグがありません';
-
-  @override
-  String get naiAlgorithm_characterCount => 'キャラクター数の分布';
 
   @override
   String get naiAlgorithm_mainPrompt => 'メイン プロンプト';
@@ -4347,9 +4366,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get randomManager_genderWeight => '性別の重み';
 
   @override
-  String get randomManager_globalSettings => 'グローバル設定';
-
-  @override
   String get randomManager_enableSeasonalWordlists => '季節の単語リストを有効にする';
 
   @override
@@ -4358,18 +4374,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get randomManager_globalEmphasisProbability => 'グローバル強調確率';
-
-  @override
-  String get randomManager_soloGenderOptions => 'ソロジェンダーのオプション';
-
-  @override
-  String get randomManager_femaleShort => 'F';
-
-  @override
-  String get randomManager_maleShort => 'M';
-
-  @override
-  String get randomManager_other => 'その他';
 
   @override
   String get randomManager_tagGroupList => 'タググループ';
@@ -4413,9 +4417,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get randomManager_globalPeopleSettings => 'グローバルキャラクター設定';
-
-  @override
-  String get randomManager_closePreview => 'プレビューを閉じる';
 
   @override
   String get randomManager_importPreset => 'プリセットのインポート';
@@ -4551,9 +4552,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get randomManager_importExport => 'インポート / エクスポート';
-
-  @override
-  String get randomManager_syncing => '同期中';
 
   @override
   String get randomManager_syncDanbooruTags => 'Danbooru タグを同期';
@@ -4721,16 +4719,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get randomManager_selectionMode => '選択モード';
-
-  @override
-  String randomManager_editHint(Object name) {
-    return '$name (クリックして編集)';
-  }
-
-  @override
-  String randomManager_emphasisProbabilityValue(Object percent) {
-    return '強調確率: $percent%';
-  }
 
   @override
   String get randomManager_previewGeneration => 'プレビューの生成';
@@ -5579,6 +5567,59 @@ class AppLocalizationsJa extends AppLocalizations {
   String get statistics_noAnlasData => 'Anlas 消費データがありません';
 
   @override
+  String get statistics_noAnlasInPeriod => '選択した期間に Anlas 消費はありません';
+
+  @override
+  String get statistics_periodSelectorTooltip => '集計期間を選択';
+
+  @override
+  String get statistics_periodWeek => '直近 1 週間';
+
+  @override
+  String get statistics_periodMonth => '直近 1 か月';
+
+  @override
+  String get statistics_periodThreeMonths => '直近 3 か月';
+
+  @override
+  String get statistics_periodYear => '直近 1 年';
+
+  @override
+  String get statistics_periodAll => '全期間';
+
+  @override
+  String get statistics_periodCustom => '日数を指定';
+
+  @override
+  String statistics_periodDays(int count) {
+    return '直近 $count 日';
+  }
+
+  @override
+  String statistics_periodSummary(String start, String end, int count) {
+    return '$start～$end・$count 日間';
+  }
+
+  @override
+  String statistics_partialCoverage(String date, int count) {
+    return '利用可能な記録は $date からです。1 日の平均は既存の $count 日間で計算されます';
+  }
+
+  @override
+  String get statistics_customPeriodTitle => '集計日数を指定';
+
+  @override
+  String get statistics_customDaysHint => '日数';
+
+  @override
+  String statistics_customDaysError(int max) {
+    return '1 から $max までの整数を入力してください';
+  }
+
+  @override
+  String get statistics_daysUnit => '日';
+
+  @override
   String get statistics_peakActivity => 'ピークアクティビティ';
 
   @override
@@ -6240,9 +6281,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get reversePrompt_title => '逆プロンプト';
-
-  @override
-  String get reversePrompt_pending => '保留中';
 
   @override
   String reversePrompt_imageCount(Object count) {
@@ -7473,13 +7511,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settings_notificationResetSound => 'デフォルトにリセット';
 
   @override
-  String get categoryConfiguration => 'カテゴリ構成';
-
-  @override
   String get resetToDefault => 'デフォルトにリセット';
-
-  @override
-  String get resetToDefaultTooltip => 'デフォルト構成にリセット';
 
   @override
   String get toggleGroupEnabled => 'グループ有効状態の切り替え';
@@ -12056,12 +12088,6 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get randomManager_releaseToDelete => '離すと削除';
-
-  @override
-  String get randomManager_dragHereToDelete => 'ここにドラッグして削除';
-
-  @override
   String get randomManager_keyboardShortcutsHint => 'キーボードショートカット（? キーで表示）';
 
   @override
@@ -12529,7 +12555,125 @@ class AppLocalizationsJa extends AppLocalizations {
   String get randomManager_searchCategories => 'カテゴリ、グループ、タグを検索（Ctrl+F）';
 
   @override
-  String get randomManager_verifiedOfflineLibrary => '検証済みオフラインランダムライブラリ';
+  String get randomManager_workspaceTitle => 'ランダムライブラリ';
+
+  @override
+  String get randomManager_workspaceSubtitle =>
+      '完全なオフラインカタログから再利用可能な生成レシピを構成します';
+
+  @override
+  String get randomManager_recipeTitle => '生成レシピ';
+
+  @override
+  String get randomManager_recipeSubtitle => '各ステージで意味カテゴリごとの発動確率と抽出範囲を設定します';
+
+  @override
+  String get randomManager_inspectorTitle => '生成設定';
+
+  @override
+  String get randomManager_inspectorSubtitle => '現在のプリセットのキャラクター分布と出力動作を調整します';
+
+  @override
+  String get randomManager_previewEmptyDescription =>
+      'サンプルを生成して、現在のレシピの出力を確認します。';
+
+  @override
+  String get randomManager_category_composition => '構図';
+
+  @override
+  String get randomManager_category_camera => 'カメラアングル';
+
+  @override
+  String get randomManager_category_framing => 'フレーミング';
+
+  @override
+  String get randomManager_category_focus => 'フォーカス';
+
+  @override
+  String get randomManager_category_eyeFeature => '目の特徴';
+
+  @override
+  String get randomManager_category_hairLength => '髪の長さ';
+
+  @override
+  String get randomManager_category_hairTexture => '髪質';
+
+  @override
+  String get randomManager_category_bangs => '前髪';
+
+  @override
+  String get randomManager_category_skinTone => '肌の色';
+
+  @override
+  String get randomManager_category_species => '種族';
+
+  @override
+  String get randomManager_category_headwear => '帽子';
+
+  @override
+  String get randomManager_category_hairAccessory => '髪飾り';
+
+  @override
+  String get randomManager_category_prop => '小道具';
+
+  @override
+  String get randomManager_category_effect => 'エフェクト';
+
+  @override
+  String get randomManager_category_year => '年代';
+
+  @override
+  String get randomManager_category_detail => 'クリエイティブ詳細';
+
+  @override
+  String randomManager_sourceOfficial(String wordlist) {
+    return '公式 · $wordlist';
+  }
+
+  @override
+  String get randomManager_sourceCatalog => 'カスタム · Catalog 拡張';
+
+  @override
+  String randomManager_sourceHybrid(String wordlist) {
+    return 'ハイブリッド · $wordlist + Catalog';
+  }
+
+  @override
+  String get randomManager_currentMode => '現在のモード';
+
+  @override
+  String get randomManager_officialWordlist => '現在のモデルの公式ワードリスト';
+
+  @override
+  String randomManager_officialWordlistCount(String wordlist, int count) {
+    return '$wordlist：元データ $count 件';
+  }
+
+  @override
+  String get randomManager_officialAsset => '公式アセット全体';
+
+  @override
+  String randomManager_officialAssetCount(int entries, int groups) {
+    return '$entries 件、元配列 $groups 個';
+  }
+
+  @override
+  String get randomManager_sourceFile => 'ソースファイル';
+
+  @override
+  String get randomManager_sourceSha256 => 'ソース SHA-256';
+
+  @override
+  String get randomManager_catalogExtension => 'Catalog 拡張';
+
+  @override
+  String get randomManager_wordlistLegacyAnime => 'Legacy Anime';
+
+  @override
+  String get randomManager_wordlistFurryV3 => 'Furry V3';
+
+  @override
+  String get randomManager_wordlistCharacterPrompts => 'Character Prompts';
 
   @override
   String get randomManager_sourceDetails => 'データソースの詳細';
@@ -12550,14 +12694,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String randomManager_catalogCounts(Object tags, Object aliases) {
     return '完全なカタログ：$tags タグ、$aliases エイリアス';
   }
-
-  @override
-  String randomManager_libraryVersion(String version, String count) {
-    return 'ルール v$version · $count タグ';
-  }
-
-  @override
-  String get randomManager_preview => 'ランダム結果のプレビュー';
 
   @override
   String get randomManager_libraryUnavailable => 'ランダムライブラリを利用できません';

@@ -1,100 +1,132 @@
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import '../datasources/local/random_tag_library_data_source.dart';
+import '../models/prompt/official_wordlist.dart';
 import '../models/prompt/wordlist_entry.dart';
 
 part 'wordlist_service.g.dart';
 
-/// Legacy model variants retained for persisted settings and external callers.
 enum WordlistType {
-  v4('wordlists_v4.csv'),
-  legacy('wordlists_legacy.csv'),
-  furry('wordlists_furry.csv');
+  v4('characterPrompts', 'wordlists_v4.csv'),
+  legacy('legacyAnime', 'wordlists_legacy.csv'),
+  furry('furryV3', 'wordlists_furry.csv');
 
-  const WordlistType(this.fileName);
+  const WordlistType(this.generatorId, this.fileName);
 
+  final String generatorId;
   final String fileName;
 
-  @Deprecated('Bundled CSV wordlists were removed; use the catalog source')
-  String get assetPath => 'assets/data/wordlists/$fileName';
+  @Deprecated('Use officialWordlistAssetPath')
+  String get assetPath => officialWordlistAssetPath;
 }
 
-/// Compatibility facade over the verified catalog-backed random library.
-///
-/// The former CSV assets are no longer distributed. Explicit legacy callers
-/// still receive indexed [WordlistEntry] values without activating a parallel
-/// data pipeline; model variants share data but retain their algorithm config.
+/// Loads the source-locked NovelAI random wordlists without normalizing,
+/// deduplicating, or reordering their records.
 class WordlistService {
-  WordlistService(this._randomTagLibraryDataSource);
+  WordlistService({AssetBundle? assetBundle})
+    : _assetBundle = assetBundle ?? rootBundle;
 
-  final RandomTagLibraryDataSource _randomTagLibraryDataSource;
-  final Map<WordlistType, List<WordlistEntry>> _cache = {};
+  final AssetBundle _assetBundle;
+  final Map<WordlistType, OfficialWordlist> _officialCache = {};
+  final Map<WordlistType, List<WordlistEntry>> _compatibilityCache = {};
   final Map<WordlistType, Map<String, List<WordlistEntry>>> _variableIndex = {};
   final Map<WordlistType, Map<String, List<WordlistEntry>>> _categoryIndex = {};
-  final Map<WordlistType, Future<void>> _loading = {};
-  bool _isInitialized = false;
 
-  bool get isInitialized => _isInitialized;
-  bool get isLoading => _loading.isNotEmpty;
+  OfficialWordlistData? _data;
+  Future<OfficialWordlistData>? _loadingFuture;
+  var _cacheEpoch = 0;
 
-  int getEntryCount(WordlistType type) => _cache[type]?.length ?? 0;
+  bool get isInitialized => _data != null;
+  OfficialWordlistData? get data => _data;
 
   Future<void> initialize({bool loadAll = false}) async {
-    if (_isInitialized) return;
-    await loadWordlist(WordlistType.v4);
     if (loadAll) {
-      await Future.wait([
-        loadWordlist(WordlistType.legacy),
-        loadWordlist(WordlistType.furry),
-      ]);
+      await loadAllWordlists();
+    } else {
+      await loadWordlist(WordlistType.v4);
     }
-    _isInitialized = true;
   }
 
-  Future<void> loadWordlist(WordlistType type) {
-    if (_cache.containsKey(type)) return Future.value();
-    return _loading[type] ??= _load(type).whenComplete(() {
-      _loading.remove(type);
-    });
+  Future<void> loadAllWordlists() async {
+    final data = await _loadData();
+    for (final type in WordlistType.values) {
+      _cacheType(type, data);
+    }
   }
 
-  Future<void> _load(WordlistType type) async {
-    final data = await _randomTagLibraryDataSource.loadData();
-    final entries = <WordlistEntry>[
-      for (final category in data.categories.entries)
-        for (final tag in category.value)
-          WordlistEntry(
-            variable: _legacyVariableForCategory(category.key),
-            category: category.key,
-            tag: tag.tag,
-            weight: tag.weight,
-            require: tag.conditions ?? const [],
-          ),
-    ];
-    final immutableEntries = List<WordlistEntry>.unmodifiable(entries);
-    _cache[type] = immutableEntries;
-    _buildIndices(type, immutableEntries);
+  Future<void> loadWordlist(WordlistType type) async {
+    if (_officialCache.containsKey(type)) return;
+    _cacheType(type, await _loadData());
   }
 
-  String _legacyVariableForCategory(String category) {
-    return switch (category) {
-      'background' || 'scene' || 'style' || 'characterCount' => 'tk',
-      _ => 'char',
-    };
+  Future<OfficialWordlist> getOfficialWordlist(WordlistType type) async {
+    await loadWordlist(type);
+    return _officialCache[type]!;
   }
 
-  void _buildIndices(WordlistType type, List<WordlistEntry> entries) {
+  OfficialWordlist? getLoadedOfficialWordlist(WordlistType type) =>
+      _officialCache[type];
+
+  Future<OfficialWordlistData> _loadData() async {
+    final cached = _data;
+    if (cached != null) return cached;
+    final epoch = _cacheEpoch;
+    final future = _loadingFuture ??= _readAsset();
+    try {
+      final loaded = await future;
+      if (epoch != _cacheEpoch) {
+        throw StateError('Official wordlist load was invalidated');
+      }
+      _data = loaded;
+      return loaded;
+    } finally {
+      if (identical(_loadingFuture, future)) _loadingFuture = null;
+    }
+  }
+
+  Future<OfficialWordlistData> _readAsset() async {
+    final content = await _assetBundle.loadString(officialWordlistAssetPath);
+    return compute(_parseOfficialWordlist, content);
+  }
+
+  void _cacheType(WordlistType type, OfficialWordlistData data) {
+    final official = data.generatorsById[type.generatorId];
+    if (official == null) {
+      throw FormatException(
+        'Official wordlist generator is missing: ${type.generatorId}',
+      );
+    }
+    _officialCache[type] = official;
+    final compatibilityEntries = <WordlistEntry>[];
     final variableIndex = <String, List<WordlistEntry>>{};
     final categoryIndex = <String, List<WordlistEntry>>{};
-    for (final entry in entries) {
-      variableIndex.putIfAbsent(entry.variable, () => []).add(entry);
-      categoryIndex.putIfAbsent(entry.category, () => []).add(entry);
+    for (final group in official.groups) {
+      final groupEntries = <WordlistEntry>[];
+      for (final entry in group.entries) {
+        final isCharacterPrompt = type == WordlistType.v4;
+        final compatibilityEntry = WordlistEntry(
+          variable: group.id,
+          category: group.semantic,
+          tag: entry.text,
+          weight: entry.weight,
+          require: entry.stringFieldValues(isCharacterPrompt ? 3 : 2),
+          exclude: isCharacterPrompt ? entry.stringFieldValues(4) : const [],
+          extra: isCharacterPrompt ? entry.stringFieldValues(2) : const [],
+        );
+        compatibilityEntries.add(compatibilityEntry);
+        groupEntries.add(compatibilityEntry);
+        categoryIndex
+            .putIfAbsent(group.semantic, () => [])
+            .add(compatibilityEntry);
+      }
+      variableIndex[group.id] = List.unmodifiable(groupEntries);
     }
-    _variableIndex[type] = {
-      for (final entry in variableIndex.entries)
-        entry.key: List.unmodifiable(entry.value),
-    };
+    _compatibilityCache[type] = List.unmodifiable(compatibilityEntries);
+    _variableIndex[type] = Map.unmodifiable(variableIndex);
     _categoryIndex[type] = {
       for (final entry in categoryIndex.entries)
         entry.key: List.unmodifiable(entry.value),
@@ -102,7 +134,7 @@ class WordlistService {
   }
 
   List<WordlistEntry> getAllEntries(WordlistType type) =>
-      _cache[type] ?? const [];
+      _compatibilityCache[type] ?? const [];
 
   List<WordlistEntry> getEntriesByVariable(
     WordlistType type,
@@ -124,12 +156,10 @@ class WordlistService {
     WordlistType type,
     String variable,
     String category,
-  ) {
-    return getEntriesByVariable(
-      type,
-      variable,
-    ).where((entry) => entry.category == category).toList(growable: false);
-  }
+  ) => getEntriesByVariable(
+    type,
+    variable,
+  ).where((entry) => entry.category == category).toList(growable: false);
 
   List<WordlistEntry> search(
     WordlistType type,
@@ -164,13 +194,17 @@ class WordlistService {
 
   void clearCache([WordlistType? type]) {
     if (type == null) {
-      _cache.clear();
+      _cacheEpoch++;
+      _data = null;
+      _loadingFuture = null;
+      _officialCache.clear();
+      _compatibilityCache.clear();
       _variableIndex.clear();
       _categoryIndex.clear();
-      _isInitialized = false;
       return;
     }
-    _cache.remove(type);
+    _officialCache.remove(type);
+    _compatibilityCache.remove(type);
     _variableIndex.remove(type);
     _categoryIndex.remove(type);
   }
@@ -178,14 +212,26 @@ class WordlistService {
   Future<void> refresh([WordlistType? type]) async {
     clearCache(type);
     if (type == null) {
-      await initialize(loadAll: true);
+      await loadAllWordlists();
     } else {
       await loadWordlist(type);
     }
   }
 }
 
-@Riverpod(keepAlive: true)
-WordlistService wordlistService(Ref ref) {
-  return WordlistService(ref.watch(randomTagLibraryDataSourceProvider));
+OfficialWordlistData _parseOfficialWordlist(String content) {
+  return OfficialWordlistData.fromJson(
+    jsonDecode(content) as Map<String, dynamic>,
+  );
 }
+
+@Riverpod(keepAlive: true)
+WordlistService wordlistService(Ref ref) => WordlistService();
+
+final officialWordlistDataProvider = FutureProvider<OfficialWordlistData>((
+  ref,
+) async {
+  final service = ref.watch(wordlistServiceProvider);
+  await service.loadAllWordlists();
+  return service.data!;
+});

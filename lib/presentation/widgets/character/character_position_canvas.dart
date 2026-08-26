@@ -8,9 +8,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/models/character/character_prompt.dart';
 import '../../providers/character_position_canvas_provider.dart';
 import '../../providers/character_prompt_provider.dart';
+import '../../providers/composition_guide_provider.dart';
 import '../../providers/generation/generation_params_selectors.dart';
 import '../../providers/image_generation_provider.dart';
+import '../common/composition_guide.dart';
 import '../common/decoded_memory_image.dart';
+import 'composition_guide_button.dart';
 
 /// 芯片显示信息：性别符号 + 显示名
 typedef CharacterChipDisplay = ({IconData? genderIcon, String? label});
@@ -128,6 +131,7 @@ class _CharacterPositionCanvasViewState
             ),
           ),
           const Spacer(),
+          const CompositionGuideButton(),
           IconButton(
             onPressed: () =>
                 ref.read(characterPositionCanvasProvider.notifier).close(),
@@ -155,6 +159,7 @@ class _CharacterPositionCanvasViewState
     final previewDimensions = ref.watch(
       generationParamsNotifierProvider.select(selectPreviewDimensionsViewData),
     );
+    final guide = ref.watch(compositionGuideNotifierProvider);
 
     final backgroundImage = generationState.displayImages.isNotEmpty
         ? generationState.displayImages.first
@@ -204,7 +209,7 @@ class _CharacterPositionCanvasViewState
                       ),
                     ),
                   )
-                else ...[
+                else
                   for (var i = 0; i < config.characters.length; i++)
                     _buildAnchor(
                       context,
@@ -213,10 +218,16 @@ class _CharacterPositionCanvasViewState
                       i,
                       size,
                     ),
-                  // 浮签独立成层且始终位于列表尾部：拖动开始时插入它
-                  // 不会挤动锚点的 Element 位置（锚点手势不被打断）
-                  if (_draggingId != null) _buildDragLabel(size),
-                ],
+                // 参考线压在锚点之上，才看得清锚点落在哪条线的哪一侧
+                CompositionGuideOverlay(
+                  mode: guide.mode,
+                  columns: guide.columns,
+                  rows: guide.rows,
+                ),
+                // 浮签独立成层且始终位于列表尾部：拖动开始时插入它
+                // 不会挤动锚点的 Element 位置（锚点手势不被打断）
+                if (!config.globalAiChoice && _draggingId != null)
+                  _buildDragLabel(size),
               ],
             );
           },

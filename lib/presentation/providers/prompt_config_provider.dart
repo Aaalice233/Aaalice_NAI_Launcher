@@ -4,17 +4,18 @@ import 'dart:convert';
 import 'package:hive/hive.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../core/constants/model_capabilities.dart';
 import '../../core/utils/app_logger.dart';
 import '../../data/models/prompt/default_presets.dart';
 import '../../data/models/prompt/prompt_config.dart';
 import '../../data/models/prompt/random_preset.dart';
 import '../../data/models/prompt/random_prompt_result.dart';
-import '../../data/services/random_preset_merger.dart';
+import '../../data/services/official_random_prompt_generator.dart';
 import '../../data/services/random_prompt_legacy_adapter.dart';
 import '../../data/services/random_prompt_generator.dart';
+import '../../data/services/wordlist_service.dart';
 import 'random_mode_provider.dart';
 import 'random_preset_provider.dart';
-import 'tag_library_provider.dart';
 
 part 'prompt_config_provider.g.dart';
 
@@ -141,36 +142,38 @@ class PromptConfigNotifier extends _$PromptConfigNotifier {
   ///
   /// 根据当前模式（官网/自定义/混合）生成随机提示词
   /// [seed] 随机种子（可选）
-  /// [isV4Model] 是否为 V4+ 模型（可选，默认 true）
+  /// [modelProfile] 由统一模型能力注册表提供的官网随机生成器分派。
   Future<RandomPromptResult> generateRandomPrompt({
     int? seed,
-    bool isV4Model = true,
+    RandomPromptProfile modelProfile = RandomPromptProfile.characterPrompts,
   }) async {
     final mode = ref.read(randomModeNotifierProvider);
-    final presetNotifier = ref.read(randomPresetNotifierProvider.notifier);
-    await presetNotifier.whenLoaded;
+    if (mode != RandomGenerationMode.naiOfficial) {
+      final presetNotifier = ref.read(randomPresetNotifierProvider.notifier);
+      await presetNotifier.whenLoaded;
 
-    final presetState = ref.read(randomPresetNotifierProvider);
-    if (presetState.error != null) {
-      AppLogger.w(
-        'random preset state failed to load: ${presetState.error}',
-        'RandomGen',
-      );
-      throw StateError(presetState.error!);
+      final presetState = ref.read(randomPresetNotifierProvider);
+      if (presetState.error != null) {
+        AppLogger.w(
+          'random preset state failed to load: ${presetState.error}',
+          'RandomGen',
+        );
+        throw StateError(presetState.error!);
+      }
     }
 
     return switch (mode) {
       RandomGenerationMode.naiOfficial => _generateOfficialPrompt(
         seed: seed,
-        isV4Model: isV4Model,
+        modelProfile: modelProfile,
       ),
       RandomGenerationMode.custom => _generateCustomPresetPrompt(
         seed: seed,
-        isV4Model: isV4Model,
+        modelProfile: modelProfile,
       ),
       RandomGenerationMode.hybrid => _generateHybridPrompt(
         seed: seed,
-        isV4Model: isV4Model,
+        modelProfile: modelProfile,
       ),
     };
   }
@@ -178,47 +181,31 @@ class PromptConfigNotifier extends _$PromptConfigNotifier {
   /// 官网模式生成
   Future<RandomPromptResult> _generateOfficialPrompt({
     int? seed,
-    bool isV4Model = true,
+    required RandomPromptProfile modelProfile,
   }) async {
-    final generator = ref.read(randomPromptGeneratorProvider);
-    final presetState = ref.read(randomPresetNotifierProvider);
-
-    final preset = presetState.defaultPreset;
-    if (preset.categories.isNotEmpty) {
-      final result = await generator.generateFromPreset(
-        preset: preset,
-        isV4Model: isV4Model,
-        seed: seed,
-        mode: RandomGenerationMode.naiOfficial,
-      );
-      AppLogger.d(
-        'official preset result: ${result.characterCount} characters, '
-            'mainPrompt: ${result.mainPrompt}',
-        'RandomGen',
-      );
-      return result;
-    }
-
-    // 默认预设异常为空时，保留原始 TagLibrary 生成能力作为兜底。
-    final filterConfig = ref
-        .read(tagLibraryNotifierProvider)
-        .categoryFilterConfig;
-    return generator.generateFromCatalog(
-      seed: seed,
-      isV4Model: isV4Model,
-      categoryFilterConfig: filterConfig,
+    final generator = OfficialRandomPromptGenerator(
+      ref.read(wordlistServiceProvider),
     );
+    final result = await generator.generate(profile: modelProfile, seed: seed);
+    AppLogger.d(
+      'official ${modelProfile.name} result: '
+          '${result.characterCount} characters',
+      'RandomGen',
+    );
+    return result;
   }
 
   /// 自定义模式生成
   Future<RandomPromptResult> _generateCustomPresetPrompt({
     int? seed,
-    bool isV4Model = true,
+    required RandomPromptProfile modelProfile,
   }) async {
     final generator = ref.read(randomPromptGeneratorProvider);
-    final preset = _selectedCustomRandomPreset();
+    final preset =
+        _selectedCustomRandomPreset() ??
+        ref.read(randomPresetNotifierProvider).defaultPreset;
 
-    if (preset == null || preset.categories.isEmpty) {
+    if (preset.categories.isEmpty) {
       return RandomPromptResult(
         mainPrompt: '',
         mode: RandomGenerationMode.custom,
@@ -228,40 +215,95 @@ class PromptConfigNotifier extends _$PromptConfigNotifier {
 
     return generator.generateFromPreset(
       preset: preset,
-      isV4Model: isV4Model,
+      isV4Model: modelProfile.supportsCharacterPrompts,
       seed: seed,
       mode: RandomGenerationMode.custom,
     );
   }
 
-  /// 混合模式生成
+  /// 混合模式先执行官网 recipe，再以 catalog preset 补充同一提示词结构。
   Future<RandomPromptResult> _generateHybridPrompt({
     int? seed,
-    bool isV4Model = true,
+    required RandomPromptProfile modelProfile,
   }) async {
+    final official = await _generateOfficialPrompt(
+      seed: seed,
+      modelProfile: modelProfile,
+    );
     final generator = ref.read(randomPromptGeneratorProvider);
     final presetState = ref.read(randomPresetNotifierProvider);
-    final customPreset = _selectedCustomRandomPreset();
+    final extensionPreset =
+        _selectedCustomRandomPreset() ?? presetState.defaultPreset;
+    final extension = await generator.generateFromPreset(
+      preset: extensionPreset,
+      isV4Model: modelProfile.supportsCharacterPrompts,
+      seed: seed == null ? null : seed ^ 0x5f3759df,
+      mode: RandomGenerationMode.hybrid,
+    );
+    return _mergeHybridResults(official, extension, seed: seed);
+  }
 
-    if (customPreset == null || customPreset.categories.isEmpty) {
-      return RandomPromptResult(
-        mainPrompt: '',
-        mode: RandomGenerationMode.hybrid,
-        seed: seed,
+  RandomPromptResult _mergeHybridResults(
+    RandomPromptResult official,
+    RandomPromptResult extension, {
+    required int? seed,
+  }) {
+    final mainPrompt = _mergePromptTags(
+      official.mainPrompt,
+      _withoutStructureTags(extension.mainPrompt),
+    );
+    final characters = <GeneratedCharacter>[];
+    for (var index = 0; index < official.characters.length; index++) {
+      final officialCharacter = official.characters[index];
+      final extensionPrompt = index < extension.characters.length
+          ? _withoutRoleTag(extension.characters[index].prompt)
+          : '';
+      characters.add(
+        officialCharacter.copyWith(
+          prompt: _mergePromptTags(officialCharacter.prompt, extensionPrompt),
+        ),
       );
     }
-
-    final mergedPreset = RandomPresetMerger.merge(
-      officialPreset: presetState.defaultPreset,
-      customPreset: customPreset,
-    );
-
-    return generator.generateFromPreset(
-      preset: mergedPreset,
-      isV4Model: isV4Model,
+    return RandomPromptResult(
+      mainPrompt: mainPrompt,
+      characters: characters,
+      noHumans: official.noHumans,
       seed: seed,
       mode: RandomGenerationMode.hybrid,
     );
+  }
+
+  String _withoutStructureTags(String prompt) {
+    final countPattern = RegExp(r'^\d+(?:girl|girls|boy|boys|other|others)$');
+    const structural = {
+      'no humans',
+      'zero pictured',
+      'solo',
+      'duo',
+      'trio',
+      'female',
+      'male',
+      'ambiguous gender',
+    };
+    return prompt
+        .split(', ')
+        .where(
+          (tag) => !structural.contains(tag) && !countPattern.hasMatch(tag),
+        )
+        .join(', ');
+  }
+
+  String _withoutRoleTag(String prompt) => prompt
+      .split(', ')
+      .where((tag) => tag != 'girl' && tag != 'boy' && tag != 'other')
+      .join(', ');
+
+  String _mergePromptTags(String primary, String extension) {
+    final seen = <String>{};
+    return [primary, extension]
+        .expand((prompt) => prompt.split(', '))
+        .where((tag) => tag.isNotEmpty && seen.add(tag))
+        .join(', ');
   }
 
   RandomPreset? _selectedCustomRandomPreset() {
