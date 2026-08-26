@@ -205,12 +205,11 @@ class NoiseScheduleSection extends ConsumerWidget {
       generationParamsNotifierProvider.select(
         (params) => (
           noiseSchedule: params.noiseSchedule,
-          isV4Model: params.isV4Model,
+          allowsNative: params.capabilities.allowsNativeNoiseSchedule,
           supportsNoiseSchedule: params.capabilities.supportsNoiseSchedule,
         ),
       ),
     );
-    // V5 不开放噪声调度选择，请求固定发 karras。
     if (!data.supportsNoiseSchedule) {
       return const SizedBox.shrink();
     }
@@ -220,21 +219,25 @@ class NoiseScheduleSection extends ConsumerWidget {
         ParamSectionTitle(context.l10n.generation_noiseSchedule),
         const SizedBox(height: 8),
         ThemedDropdown<String>(
-          // V4/V4.5 模型不支持 native，如果当前值是 native 则显示 karras
-          value: data.isV4Model && data.noiseSchedule == 'native'
-              ? 'karras'
-              : data.noiseSchedule,
+          value: NoiseSchedules.resolve(
+            data.noiseSchedule,
+            allowNative: data.allowsNative,
+          ),
           items: [
-            // V3 模型多一个 Native 选项
-            if (!data.isV4Model)
+            if (data.allowsNative)
               DropdownMenuItem(
-                value: 'native',
+                value: NoiseSchedules.native,
                 child: Text(
-                  NoiseSchedules.displayNames['native'] ?? 'Native',
+                  NoiseSchedules.displayNames[NoiseSchedules.native] ??
+                      'Native',
                   style: const TextStyle(fontSize: 13),
                 ),
               ),
-            ...['karras', 'exponential', 'polyexponential'].map((schedule) {
+            ...const [
+              NoiseSchedules.karras,
+              NoiseSchedules.exponential,
+              NoiseSchedules.polyexponential,
+            ].map((schedule) {
               return DropdownMenuItem(
                 value: schedule,
                 child: Text(
@@ -325,7 +328,7 @@ class CfgScaleSection extends ConsumerWidget {
               ),
               const SizedBox(width: 8),
             ],
-            // Variety+ (V3-V4.5；V5 不支持 skip_cfg_above_sigma)
+            // Variety+ (V3 起；V5 网页端隐藏，启动器刻意保留)
             if (data.supportsVarietyPlus)
               GenerationToggleButton(
                 label: 'Variety+',

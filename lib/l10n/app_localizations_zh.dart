@@ -1347,7 +1347,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get img2img_disabled => '未启用';
 
   @override
-  String get img2img_novelAiCloudUpscale => 'NovelAI 云端超分 (固定 4x 放大)';
+  String get img2img_novelAiCloudUpscale => 'NovelAI 云端超分 (固定 2x 放大)';
 
   @override
   String get img2img_comfyuiEnableHint => '请先在「设置 > ComfyUI」中启用并连接服务器。';
@@ -3776,6 +3776,27 @@ class AppLocalizationsZh extends AppLocalizations {
   String get characterCanvas_dragHint => '拖动锚点设置角色位置，松开即生效';
 
   @override
+  String get characterCanvas_guide => '构图参考线';
+
+  @override
+  String get characterCanvas_guideNone => '无';
+
+  @override
+  String get characterCanvas_guideThirds => '三分法';
+
+  @override
+  String get characterCanvas_guidePhi => '黄金比';
+
+  @override
+  String get characterCanvas_guideGrid => '网格';
+
+  @override
+  String get characterCanvas_guideColumns => '列';
+
+  @override
+  String get characterCanvas_guideRows => '行';
+
+  @override
   String get characterEditor_genderFemale => '女性';
 
   @override
@@ -5345,6 +5366,59 @@ class AppLocalizationsZh extends AppLocalizations {
   String get statistics_noAnlasData => '暂无点数消耗数据';
 
   @override
+  String get statistics_noAnlasInPeriod => '该周期暂无点数消耗';
+
+  @override
+  String get statistics_periodSelectorTooltip => '选择统计周期';
+
+  @override
+  String get statistics_periodWeek => '近一周';
+
+  @override
+  String get statistics_periodMonth => '近一个月';
+
+  @override
+  String get statistics_periodThreeMonths => '近三个月';
+
+  @override
+  String get statistics_periodYear => '近一年';
+
+  @override
+  String get statistics_periodAll => '全部';
+
+  @override
+  String get statistics_periodCustom => '自定义天数';
+
+  @override
+  String statistics_periodDays(int count) {
+    return '最近 $count 天';
+  }
+
+  @override
+  String statistics_periodSummary(String start, String end, int count) {
+    return '$start 至 $end · $count 天';
+  }
+
+  @override
+  String statistics_partialCoverage(String date, int count) {
+    return '现有记录始于 $date，日均按现有 $count 天计算';
+  }
+
+  @override
+  String get statistics_customPeriodTitle => '自定义统计周期';
+
+  @override
+  String get statistics_customDaysHint => '统计天数';
+
+  @override
+  String statistics_customDaysError(int max) {
+    return '请输入 1 至 $max 之间的整数';
+  }
+
+  @override
+  String get statistics_daysUnit => '天';
+
+  @override
   String get statistics_peakActivity => '活跃高峰';
 
   @override
@@ -6003,9 +6077,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get reversePrompt_title => '反推';
-
-  @override
-  String get reversePrompt_pending => '待添加';
 
   @override
   String reversePrompt_imageCount(Object count) {
@@ -13662,7 +13733,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get img2img_disabled => '未啟用';
 
   @override
-  String get img2img_novelAiCloudUpscale => 'NovelAI 雲端超分 (固定 4x 放大)';
+  String get img2img_novelAiCloudUpscale => 'NovelAI 雲端超分 (固定 2x 放大)';
 
   @override
   String get img2img_comfyuiEnableHint => '請先在「設定 > ComfyUI」中啟用並連線伺服器。';
@@ -16091,6 +16162,27 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get characterCanvas_dragHint => '拖動錨點設定角色位置，鬆開即生效';
 
   @override
+  String get characterCanvas_guide => '構圖參考線';
+
+  @override
+  String get characterCanvas_guideNone => '無';
+
+  @override
+  String get characterCanvas_guideThirds => '三分法';
+
+  @override
+  String get characterCanvas_guidePhi => '黃金比';
+
+  @override
+  String get characterCanvas_guideGrid => '格線';
+
+  @override
+  String get characterCanvas_guideColumns => '欄';
+
+  @override
+  String get characterCanvas_guideRows => '列';
+
+  @override
   String get characterEditor_genderFemale => '女性';
 
   @override
@@ -17660,6 +17752,59 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get statistics_noAnlasData => '暫無點數消耗資料';
 
   @override
+  String get statistics_noAnlasInPeriod => '該週期暫無點數消耗';
+
+  @override
+  String get statistics_periodSelectorTooltip => '選擇統計週期';
+
+  @override
+  String get statistics_periodWeek => '近一週';
+
+  @override
+  String get statistics_periodMonth => '近一個月';
+
+  @override
+  String get statistics_periodThreeMonths => '近三個月';
+
+  @override
+  String get statistics_periodYear => '近一年';
+
+  @override
+  String get statistics_periodAll => '全部';
+
+  @override
+  String get statistics_periodCustom => '自訂天數';
+
+  @override
+  String statistics_periodDays(int count) {
+    return '最近 $count 天';
+  }
+
+  @override
+  String statistics_periodSummary(String start, String end, int count) {
+    return '$start 至 $end · $count 天';
+  }
+
+  @override
+  String statistics_partialCoverage(String date, int count) {
+    return '現有記錄始於 $date，日均按現有 $count 天計算';
+  }
+
+  @override
+  String get statistics_customPeriodTitle => '自訂統計週期';
+
+  @override
+  String get statistics_customDaysHint => '統計天數';
+
+  @override
+  String statistics_customDaysError(int max) {
+    return '請輸入 1 至 $max 之間的整數';
+  }
+
+  @override
+  String get statistics_daysUnit => '天';
+
+  @override
   String get statistics_peakActivity => '活躍高峰';
 
   @override
@@ -18318,9 +18463,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get reversePrompt_title => '反推';
-
-  @override
-  String get reversePrompt_pending => '待新增';
 
   @override
   String reversePrompt_imageCount(Object count) {

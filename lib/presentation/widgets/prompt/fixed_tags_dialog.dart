@@ -195,7 +195,8 @@ class _FixedTagsDialogState extends ConsumerState<FixedTagsDialog> {
 
                 // 列表区域
                 Flexible(
-                  child: entries.isEmpty
+                  child:
+                      entries.isEmpty && !fixedTagsState.negativePanelExpanded
                       ? _buildEmptyState(theme, isDark)
                       : _buildListBody(theme, fixedTagsState, isDark),
                 ),

@@ -158,10 +158,14 @@ void main() {
       expect(caps.supportsE2eUpscale, isFalse);
       expect(caps.supportsMaxEnhance, isTrue);
       expect(caps.maxCharacters, 32);
-      // 正式版专属：噪声调度不可选、Variety+ 不支持、计价 1.5 倍、
-      // Opus 免费受配额池限制。
-      expect(caps.supportsNoiseSchedule, isFalse);
-      expect(caps.supportsVarietyPlus, isFalse);
+      expect(caps.supportsAutoText, isTrue);
+      expect(
+        ModelCapabilityRegistry.of(
+          ImageModels.animeDiffusionV45Full,
+        ).supportsAutoText,
+        isFalse,
+      );
+      // 正式版专属：计价 1.5 倍、Opus 免费受配额池限制。
       expect(caps.anlasMultiplier, 1.5);
       expect(caps.hasOpusUsageLimit, isTrue);
       expect(
@@ -169,6 +173,66 @@ void main() {
           ImageModels.animeDiffusionV45Full,
         ).supportsVarietyPlus,
         isTrue,
+      );
+    });
+
+    test('V5 keeps the noise schedule and Variety+ the web client hides', () {
+      for (final model in [
+        ImageModels.animeDiffusionV5Curated,
+        ImageModels.animeDiffusionV5Full,
+      ]) {
+        final caps = ModelCapabilityRegistry.of(model);
+
+        expect(caps.supportsNoiseSchedule, isTrue, reason: model);
+        expect(caps.supportsVarietyPlus, isTrue, reason: model);
+        // Native 仍然跟 V4 家族一样不在候选里。
+        expect(caps.allowsNativeNoiseSchedule, isFalse, reason: model);
+      }
+    });
+
+    test('the Variety+ sigma base follows the model generation', () {
+      const legacySigma = 19.0;
+      const modernSigma = 58.0;
+
+      for (final model in [
+        ImageModels.animeDiffusionV3,
+        ImageModels.furryDiffusionV3,
+        ImageModels.animeDiffusionV4Curated,
+        ImageModels.animeDiffusionV4Full,
+      ]) {
+        expect(
+          ModelCapabilityRegistry.of(model).cfgDelaySigma,
+          legacySigma,
+          reason: model,
+        );
+      }
+
+      for (final model in [
+        ImageModels.animeDiffusionV45Curated,
+        ImageModels.animeDiffusionV45Full,
+        ImageModels.animeDiffusionV5Curated,
+        ImageModels.animeDiffusionV5Full,
+      ]) {
+        expect(
+          ModelCapabilityRegistry.of(model).cfgDelaySigma,
+          modernSigma,
+          reason: model,
+        );
+      }
+    });
+
+    test('only pre-V4 models keep Native in the noise schedule list', () {
+      expect(
+        ModelCapabilityRegistry.of(
+          ImageModels.animeDiffusionV3,
+        ).allowsNativeNoiseSchedule,
+        isTrue,
+      );
+      expect(
+        ModelCapabilityRegistry.of(
+          ImageModels.animeDiffusionV45Full,
+        ).allowsNativeNoiseSchedule,
+        isFalse,
       );
     });
 
@@ -327,6 +391,8 @@ void main() {
         to: v45,
         currentScale: v4.defaultScale,
         currentSteps: v4.defaultSteps,
+        currentNoiseSchedule: NoiseSchedules.karras,
+        currentVarietyPlus: false,
       );
 
       expect(followUps.scale, v45.defaultScale);
@@ -339,6 +405,8 @@ void main() {
         to: v45,
         currentScale: 7.5,
         currentSteps: 40,
+        currentNoiseSchedule: NoiseSchedules.karras,
+        currentVarietyPlus: false,
       );
 
       expect(followUps.isEmpty, isTrue);
@@ -350,6 +418,8 @@ void main() {
         to: v5,
         currentScale: v45.defaultScale,
         currentSteps: v45.defaultSteps,
+        currentNoiseSchedule: NoiseSchedules.karras,
+        currentVarietyPlus: false,
       );
 
       expect(followUps.scale, v5.defaultScale);
@@ -362,6 +432,8 @@ void main() {
         to: v5,
         currentScale: 7.5,
         currentSteps: 40,
+        currentNoiseSchedule: NoiseSchedules.karras,
+        currentVarietyPlus: false,
       );
 
       expect(followUps.isEmpty, isTrue);
@@ -373,6 +445,8 @@ void main() {
         to: ModelCapabilityRegistry.of(ImageModels.animeDiffusionV45Curated),
         currentScale: v45.defaultScale,
         currentSteps: v45.defaultSteps,
+        currentNoiseSchedule: NoiseSchedules.karras,
+        currentVarietyPlus: false,
       );
 
       expect(followUps.isEmpty, isTrue);
@@ -384,6 +458,8 @@ void main() {
         to: v45,
         currentScale: v45.defaultScale,
         currentSteps: v45.defaultSteps,
+        currentNoiseSchedule: NoiseSchedules.karras,
+        currentVarietyPlus: false,
       );
 
       expect(followUps.isEmpty, isTrue);
@@ -395,9 +471,94 @@ void main() {
         to: v5,
         currentScale: v45.defaultScale + 0.0000001,
         currentSteps: v45.defaultSteps,
+        currentNoiseSchedule: NoiseSchedules.karras,
+        currentVarietyPlus: false,
       );
 
       expect(followUps.scale, v5.defaultScale);
+    });
+
+    test('drops a leftover Native schedule when the target hides it', () {
+      final v3 = ModelCapabilityRegistry.of(ImageModels.animeDiffusionV3);
+
+      for (final target in [v45, v5]) {
+        final followUps = resolveModelSwitchFollowUps(
+          from: v3,
+          to: target,
+          currentScale: v3.defaultScale,
+          currentSteps: v3.defaultSteps,
+          currentNoiseSchedule: NoiseSchedules.native,
+          currentVarietyPlus: false,
+        );
+
+        expect(followUps.noiseSchedule, NoiseSchedules.karras);
+      }
+    });
+
+    test('keeps Native when switching between pre-V4 models', () {
+      final v3 = ModelCapabilityRegistry.of(ImageModels.animeDiffusionV3);
+      final followUps = resolveModelSwitchFollowUps(
+        from: v3,
+        to: ModelCapabilityRegistry.of(ImageModels.furryDiffusionV3),
+        currentScale: v3.defaultScale,
+        currentSteps: v3.defaultSteps,
+        currentNoiseSchedule: NoiseSchedules.native,
+        currentVarietyPlus: false,
+      );
+
+      expect(followUps.noiseSchedule, isNull);
+    });
+
+    test('leaves a schedule the target model accepts untouched', () {
+      final followUps = resolveModelSwitchFollowUps(
+        from: v45,
+        to: v5,
+        currentScale: v45.defaultScale,
+        currentSteps: v45.defaultSteps,
+        currentNoiseSchedule: NoiseSchedules.exponential,
+        currentVarietyPlus: false,
+      );
+
+      expect(followUps.noiseSchedule, isNull);
+    });
+
+    test('turns Variety+ off when switching to V5', () {
+      final followUps = resolveModelSwitchFollowUps(
+        from: v45,
+        to: v5,
+        currentScale: v45.defaultScale,
+        currentSteps: v45.defaultSteps,
+        currentNoiseSchedule: NoiseSchedules.karras,
+        currentVarietyPlus: true,
+      );
+
+      expect(followUps.varietyPlus, isFalse);
+    });
+
+    test('keeps Variety+ on when the target model recommends it', () {
+      final followUps = resolveModelSwitchFollowUps(
+        from: v4,
+        to: v45,
+        currentScale: v4.defaultScale,
+        currentSteps: v4.defaultSteps,
+        currentNoiseSchedule: NoiseSchedules.karras,
+        currentVarietyPlus: true,
+      );
+
+      expect(followUps.varietyPlus, isNull);
+    });
+
+    test('does not report a Variety+ change when it is already off', () {
+      final followUps = resolveModelSwitchFollowUps(
+        from: v45,
+        to: v5,
+        currentScale: v45.defaultScale,
+        currentSteps: v45.defaultSteps,
+        currentNoiseSchedule: NoiseSchedules.karras,
+        currentVarietyPlus: false,
+      );
+
+      expect(followUps.varietyPlus, isNull);
     });
   });
 }

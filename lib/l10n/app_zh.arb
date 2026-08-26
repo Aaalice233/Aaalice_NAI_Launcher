@@ -541,7 +541,7 @@
   "img2img_focusedInpaintEnabledHint": "已启用。请在重绘编辑器左上角按钮里调整聚焦区域与 Minimum Context Area。",
   "img2img_focusedInpaintDisabledHint": "默认是普通重绘；如需聚焦重绘，请在重绘编辑器左上角按钮中开启并框选区域。",
   "img2img_disabled": "未启用",
-  "img2img_novelAiCloudUpscale": "NovelAI 云端超分 (固定 4x 放大)",
+  "img2img_novelAiCloudUpscale": "NovelAI 云端超分 (固定 2x 放大)",
   "img2img_comfyuiEnableHint": "请先在「设置 > ComfyUI」中启用并连接服务器。",
   "img2img_upscaleMode": "放大方式",
   "img2img_upscaleRegularModel": "普通模型",
@@ -1758,6 +1758,13 @@
   "characterCanvas_custom": "自定义",
   "characterCanvas_aiHint": "AI 将自动安排角色位置",
   "characterCanvas_dragHint": "拖动锚点设置角色位置，松开即生效",
+  "characterCanvas_guide": "构图参考线",
+  "characterCanvas_guideNone": "无",
+  "characterCanvas_guideThirds": "三分法",
+  "characterCanvas_guidePhi": "黄金比",
+  "characterCanvas_guideGrid": "网格",
+  "characterCanvas_guideColumns": "列",
+  "characterCanvas_guideRows": "行",
   "characterEditor_genderFemale": "女性",
   "characterEditor_genderMale": "男性",
   "characterEditor_genderOther": "其他",
@@ -2508,6 +2515,44 @@
   "statistics_totalAnlasCost": "总消耗",
   "statistics_avgDailyCost": "日均消耗",
   "statistics_noAnlasData": "暂无点数消耗数据",
+  "statistics_noAnlasInPeriod": "该周期暂无点数消耗",
+  "statistics_periodSelectorTooltip": "选择统计周期",
+  "statistics_periodWeek": "近一周",
+  "statistics_periodMonth": "近一个月",
+  "statistics_periodThreeMonths": "近三个月",
+  "statistics_periodYear": "近一年",
+  "statistics_periodAll": "全部",
+  "statistics_periodCustom": "自定义天数",
+  "statistics_periodDays": "最近 {count} 天",
+  "@statistics_periodDays": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "statistics_periodSummary": "{start} 至 {end} · {count} 天",
+  "@statistics_periodSummary": {
+    "placeholders": {
+      "start": {"type": "String"},
+      "end": {"type": "String"},
+      "count": {"type": "int"}
+    }
+  },
+  "statistics_partialCoverage": "现有记录始于 {date}，日均按现有 {count} 天计算",
+  "@statistics_partialCoverage": {
+    "placeholders": {
+      "date": {"type": "String"},
+      "count": {"type": "int"}
+    }
+  },
+  "statistics_customPeriodTitle": "自定义统计周期",
+  "statistics_customDaysHint": "统计天数",
+  "statistics_customDaysError": "请输入 1 至 {max} 之间的整数",
+  "@statistics_customDaysError": {
+    "placeholders": {
+      "max": {"type": "int"}
+    }
+  },
+  "statistics_daysUnit": "天",
   "statistics_peakActivity": "活跃高峰",
   "statistics_timeMorning": "上午",
   "statistics_timeAfternoon": "下午",
@@ -2974,7 +3019,6 @@
   "fixedTags_noMatchingResults": "无匹配结果",
 
   "reversePrompt_title": "反推",
-  "reversePrompt_pending": "待添加",
   "reversePrompt_imageCount": "{count} 张",
   "@reversePrompt_imageCount": {
     "placeholders": {

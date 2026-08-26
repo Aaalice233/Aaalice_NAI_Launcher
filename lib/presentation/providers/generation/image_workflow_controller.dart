@@ -1639,13 +1639,20 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
     // 自动退回倍率档，避免 upscaled_enhance 发给不认识它的模型。
     final useMaxScale = state.enhance.maxScale && isMaxEnhanceAvailable;
     final factor = useMaxScale ? 1.0 : effectiveEnhanceFactor;
-    final requestWidth = _normalizeDimension((baseWidth * factor).round());
-    final requestHeight = _normalizeDimension((baseHeight * factor).round());
+    final targetSize = EnhanceScales.resolveTargetSize(
+      sourceWidth: baseWidth,
+      sourceHeight: baseHeight,
+      factor: factor,
+    );
     final resolved = state.enhance.showIndividualSettings
         ? (strength: state.enhance.strength, noise: state.enhance.noise)
         : EnhanceLevels.resolve(state.enhance.level);
 
-    _paramsNotifier.updateSize(requestWidth, requestHeight, persist: false);
+    _paramsNotifier.updateSize(
+      targetSize.width,
+      targetSize.height,
+      persist: false,
+    );
     _paramsNotifier.updateStrength(resolved.strength);
     _paramsNotifier.updateNoise(resolved.noise);
     _paramsNotifier.updateUpscaledEnhance(useMaxScale);
@@ -1689,11 +1696,6 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
 
     _paramsNotifier.updateIsOutpaint(false);
     _paramsNotifier.updateAction(ImageGenerationAction.img2img);
-  }
-
-  int _normalizeDimension(int value) {
-    final normalized = ((value + 32) ~/ 64) * 64;
-    return normalized.clamp(64, 4096);
   }
 
   bool _usesStableDiffusionImportBounds(String model) {

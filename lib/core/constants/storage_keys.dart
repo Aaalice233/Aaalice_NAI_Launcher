@@ -53,6 +53,9 @@ class StorageKeys {
   static const String historyClickBehavior = 'history_click_behavior';
   static const String previewTransparencyBackground =
       'preview_transparency_background';
+  static const String compositionGuideMode = 'composition_guide_mode';
+  static const String compositionGuideColumns = 'composition_guide_columns';
+  static const String compositionGuideRows = 'composition_guide_rows';
   static const String mainNavRailExpanded = 'main_nav_rail_expanded';
   static const String webLeftPanelWidth = 'web_left_panel_width';
   static const String webLeftPanelExpanded = 'web_left_panel_expanded';

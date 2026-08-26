@@ -535,7 +535,7 @@
   "img2img_focusedInpaintEnabledHint": "已啟用。請在重繪編輯器左上角按鈕裡調整聚焦區域與 Minimum Context Area。",
   "img2img_focusedInpaintDisabledHint": "預設是普通重繪；如需聚焦重繪，請在重繪編輯器左上角按鈕中開啟並框選區域。",
   "img2img_disabled": "未啟用",
-  "img2img_novelAiCloudUpscale": "NovelAI 雲端超分 (固定 4x 放大)",
+  "img2img_novelAiCloudUpscale": "NovelAI 雲端超分 (固定 2x 放大)",
   "img2img_comfyuiEnableHint": "請先在「設定 > ComfyUI」中啟用並連線伺服器。",
   "img2img_upscaleMode": "放大方式",
   "img2img_upscaleRegularModel": "普通模型",
@@ -1790,6 +1790,13 @@
   "characterCanvas_custom": "自定義",
   "characterCanvas_aiHint": "AI 將自動安排角色位置",
   "characterCanvas_dragHint": "拖動錨點設定角色位置，鬆開即生效",
+  "characterCanvas_guide": "構圖參考線",
+  "characterCanvas_guideNone": "無",
+  "characterCanvas_guideThirds": "三分法",
+  "characterCanvas_guidePhi": "黃金比",
+  "characterCanvas_guideGrid": "格線",
+  "characterCanvas_guideColumns": "欄",
+  "characterCanvas_guideRows": "列",
   "characterEditor_genderFemale": "女性",
   "characterEditor_genderMale": "男性",
   "characterEditor_genderOther": "其他",
@@ -2522,6 +2529,44 @@
   "statistics_totalAnlasCost": "總消耗",
   "statistics_avgDailyCost": "日均消耗",
   "statistics_noAnlasData": "暫無點數消耗資料",
+  "statistics_noAnlasInPeriod": "該週期暫無點數消耗",
+  "statistics_periodSelectorTooltip": "選擇統計週期",
+  "statistics_periodWeek": "近一週",
+  "statistics_periodMonth": "近一個月",
+  "statistics_periodThreeMonths": "近三個月",
+  "statistics_periodYear": "近一年",
+  "statistics_periodAll": "全部",
+  "statistics_periodCustom": "自訂天數",
+  "statistics_periodDays": "最近 {count} 天",
+  "@statistics_periodDays": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "statistics_periodSummary": "{start} 至 {end} · {count} 天",
+  "@statistics_periodSummary": {
+    "placeholders": {
+      "start": {"type": "String"},
+      "end": {"type": "String"},
+      "count": {"type": "int"}
+    }
+  },
+  "statistics_partialCoverage": "現有記錄始於 {date}，日均按現有 {count} 天計算",
+  "@statistics_partialCoverage": {
+    "placeholders": {
+      "date": {"type": "String"},
+      "count": {"type": "int"}
+    }
+  },
+  "statistics_customPeriodTitle": "自訂統計週期",
+  "statistics_customDaysHint": "統計天數",
+  "statistics_customDaysError": "請輸入 1 至 {max} 之間的整數",
+  "@statistics_customDaysError": {
+    "placeholders": {
+      "max": {"type": "int"}
+    }
+  },
+  "statistics_daysUnit": "天",
   "statistics_peakActivity": "活躍高峰",
   "statistics_timeMorning": "上午",
   "statistics_timeAfternoon": "下午",
@@ -2989,7 +3034,6 @@
   "fixedTags_searchLibraryEntries": "搜尋詞庫條目...",
   "fixedTags_noMatchingResults": "無匹配結果",
   "reversePrompt_title": "反推",
-  "reversePrompt_pending": "待新增",
   "reversePrompt_imageCount": "{count} 張",
   "@reversePrompt_imageCount": {
     "placeholders": {

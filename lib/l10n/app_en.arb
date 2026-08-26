@@ -616,7 +616,7 @@
   "img2img_focusedInpaintEnabledHint": "Enabled. Adjust the focus area and Minimum Context Area from the top-left control in the inpaint editor.",
   "img2img_focusedInpaintDisabledHint": "Regular inpaint is the default. To use Focused Inpaint, enable it from the top-left control in the inpaint editor and draw a focus area.",
   "img2img_disabled": "Disabled",
-  "img2img_novelAiCloudUpscale": "NovelAI cloud upscale (fixed 4x)",
+  "img2img_novelAiCloudUpscale": "NovelAI cloud upscale (fixed 2x)",
   "img2img_comfyuiEnableHint": "Enable and connect ComfyUI in Settings > ComfyUI first.",
   "img2img_upscaleMode": "Upscale Mode",
   "img2img_upscaleRegularModel": "Regular Model",
@@ -1748,6 +1748,13 @@
   "characterCanvas_custom": "Custom",
   "characterCanvas_aiHint": "AI will place all characters automatically",
   "characterCanvas_dragHint": "Drag anchors to position characters; release to apply",
+  "characterCanvas_guide": "Composition Guide",
+  "characterCanvas_guideNone": "None",
+  "characterCanvas_guideThirds": "Thirds",
+  "characterCanvas_guidePhi": "Phi",
+  "characterCanvas_guideGrid": "Grid",
+  "characterCanvas_guideColumns": "Columns",
+  "characterCanvas_guideRows": "Rows",
   "characterEditor_genderFemale": "Female",
   "characterEditor_genderMale": "Male",
   "characterEditor_genderOther": "Other",
@@ -2576,6 +2583,44 @@
   "statistics_totalAnlasCost": "Total Cost",
   "statistics_avgDailyCost": "Daily Average",
   "statistics_noAnlasData": "No Anlas consumption data",
+  "statistics_noAnlasInPeriod": "No Anlas consumption in this period",
+  "statistics_periodSelectorTooltip": "Select statistics period",
+  "statistics_periodWeek": "Last week",
+  "statistics_periodMonth": "Last month",
+  "statistics_periodThreeMonths": "Last 3 months",
+  "statistics_periodYear": "Last year",
+  "statistics_periodAll": "All time",
+  "statistics_periodCustom": "Custom days",
+  "statistics_periodDays": "Last {count} days",
+  "@statistics_periodDays": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "statistics_periodSummary": "{start} to {end} · {count} days",
+  "@statistics_periodSummary": {
+    "placeholders": {
+      "start": {"type": "String"},
+      "end": {"type": "String"},
+      "count": {"type": "int"}
+    }
+  },
+  "statistics_partialCoverage": "Available records begin on {date}. The daily average uses the available {count} days.",
+  "@statistics_partialCoverage": {
+    "placeholders": {
+      "date": {"type": "String"},
+      "count": {"type": "int"}
+    }
+  },
+  "statistics_customPeriodTitle": "Custom statistics period",
+  "statistics_customDaysHint": "Number of days",
+  "statistics_customDaysError": "Enter an integer from 1 to {max}",
+  "@statistics_customDaysError": {
+    "placeholders": {
+      "max": {"type": "int"}
+    }
+  },
+  "statistics_daysUnit": "days",
   "statistics_peakActivity": "Peak Activity",
   "statistics_timeMorning": "Morning",
   "statistics_timeAfternoon": "Afternoon",
@@ -2956,7 +3001,6 @@
   "fixedTags_noMatchingResults": "No matching results",
 
   "reversePrompt_title": "Reverse Prompt",
-  "reversePrompt_pending": "Pending",
   "reversePrompt_imageCount": "{count} image(s)",
   "@reversePrompt_imageCount": {
     "placeholders": {

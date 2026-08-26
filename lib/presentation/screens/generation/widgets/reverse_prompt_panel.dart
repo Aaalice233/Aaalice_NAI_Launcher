@@ -62,7 +62,7 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
               decodeScale: 0.75,
             )
           : null,
-      badge: _buildBadge(context, state, showBackground),
+      badge: hasImages ? _buildBadge(context, state, showBackground) : null,
       childBuilder: (context) => Padding(
         padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
         child: Column(
@@ -144,9 +144,7 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
-        state.images.isEmpty
-            ? context.l10n.reversePrompt_pending
-            : context.l10n.reversePrompt_imageCount(state.images.length),
+        context.l10n.reversePrompt_imageCount(state.images.length),
         style: theme.textTheme.labelSmall?.copyWith(
           color: showBackground
               ? Colors.white

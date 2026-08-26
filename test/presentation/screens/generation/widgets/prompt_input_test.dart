@@ -1,3 +1,5 @@
+import 'dart:ui' show PointerDeviceKind;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -128,6 +130,17 @@ void main() {
       closeTo(tester.getTopLeft(promptField).dx, 1),
     );
     expect(tester.widget<GenerationToggleButton>(toggle).isEnabled, isFalse);
+
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(location: Offset.zero);
+    await mouse.moveTo(tester.getCenter(toggle));
+    await tester.pump(const Duration(milliseconds: 301));
+
+    expect(find.text(', transparent background'), findsOneWidget);
+
+    await mouse.moveTo(const Offset(950, 400));
+    await tester.pump();
 
     await tester.tap(toggle);
     await tester.pump();

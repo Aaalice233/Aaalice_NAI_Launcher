@@ -120,6 +120,7 @@ class ParseStatistics {
 class UnifiedMetadataParser {
   static const String _tag = 'UnifiedMetadataParser';
   static const String _magic = 'stealth_pngcomp';
+  static const int _maxStealthDecodePixels = 0x1000000;
 
   // PNG 文件头签名
   static const List<int> _pngSignature = [
@@ -601,6 +602,51 @@ class UnifiedMetadataParser {
         parseTime: stopwatch.elapsed,
       );
     }
+  }
+
+  /// 从任意可解码图像的 alpha LSB 中读取 NovelAI stealth 元数据。
+  ///
+  /// Discord 的 lossless WebP 会移除 PNG 文本块，但通常仍保留原始 alpha
+  /// 像素，因此该路径可以直接使用拖拽字节，不需要重新下载原始 PNG。
+  static MetadataParseResult parseStealthFromImageBytes(Uint8List bytes) {
+    final stopwatch = Stopwatch()..start();
+    _statistics.totalAttempts++;
+
+    final stealthText = _extractStealthMetadataText(bytes);
+    if (stealthText == null) {
+      final result = MetadataParseResult.failed(
+        const ['NovelAI stealth_pngcomp'],
+        'No NovelAI stealth_pngcomp metadata found',
+        parseTime: stopwatch.elapsed,
+        bytesRead: bytes.length,
+      );
+      _updateStatistics(result, stopwatch.elapsed);
+      return result;
+    }
+
+    final parsed = parseFromTextData({'Comment': stealthText});
+    final metadata = parsed.metadata;
+    if (!parsed.success || metadata == null) {
+      final result = MetadataParseResult.failed(
+        [...parsed.triedParsers, 'NovelAI stealth_pngcomp'],
+        parsed.errorMessage ?? 'Failed to parse NovelAI stealth metadata',
+        parseTime: stopwatch.elapsed,
+        bytesRead: bytes.length,
+      );
+      _updateStatistics(result, stopwatch.elapsed);
+      return result;
+    }
+
+    final result = MetadataParseResult.success(
+      metadata,
+      'NovelAI stealth_pngcomp',
+      stealthText,
+      [...parsed.triedParsers, 'NovelAI stealth_pngcomp'],
+      parseTime: stopwatch.elapsed,
+      bytesRead: bytes.length,
+    );
+    _updateStatistics(result, stopwatch.elapsed);
+    return result;
   }
 
   /// 将元数据嵌入 PNG 图片
@@ -1320,8 +1366,11 @@ class UnifiedMetadataParser {
   /// 从 NovelAI stealth_pngcomp alpha LSB 数据中读取元数据。
   static String? _extractStealthMetadataText(Uint8List imageBytes) {
     try {
-      final image = img.decodePng(imageBytes);
-      if (image == null) return null;
+      final image = img.decodeImage(imageBytes);
+      if (image == null ||
+          image.width * image.height > _maxStealthDecodePixels) {
+        return null;
+      }
 
       final magicBytes = utf8.encode(_magic);
       final headerBytes = _readAlphaLsbBytes(image, magicBytes.length + 4);

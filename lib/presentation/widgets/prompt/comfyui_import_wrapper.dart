@@ -38,13 +38,13 @@ class ComfyuiImportWrapper extends StatefulWidget {
 }
 
 class _ComfyuiImportWrapperState extends State<ComfyuiImportWrapper> {
-  String _previousText = '';
+  TextEditingValue _previousValue = const TextEditingValue();
   bool _isProcessing = false;
 
   @override
   void initState() {
     super.initState();
-    _previousText = widget.controller.text;
+    _previousValue = widget.controller.value;
     widget.controller.addListener(_onTextChanged);
   }
 
@@ -53,7 +53,7 @@ class _ComfyuiImportWrapperState extends State<ComfyuiImportWrapper> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.controller != widget.controller) {
       oldWidget.controller.removeListener(_onTextChanged);
-      _previousText = widget.controller.text;
+      _previousValue = widget.controller.value;
       widget.controller.addListener(_onTextChanged);
     }
   }
@@ -65,54 +65,63 @@ class _ComfyuiImportWrapperState extends State<ComfyuiImportWrapper> {
   }
 
   void _onTextChanged() {
-    if (!widget.enabled || _isProcessing) return;
+    final newValue = widget.controller.value;
+    final oldValue = _previousValue;
+    _previousValue = newValue;
+    if (!widget.enabled || _isProcessing || newValue.text == oldValue.text) {
+      return;
+    }
 
-    final newText = widget.controller.text;
-    final oldText = _previousText;
-    _previousText = newText;
-
-    // 检测粘贴行为：文本长度变化超过阈值
-    // 粘贴通常是一次性添加大量文本
-    final insertedText = _insertedText(oldText, newText);
+    final newText = newValue.text;
+    final insertedText = _insertedText(oldValue, newValue);
     if (insertedText.contains('|')) {
       final naiPrompt = NaiMultiCharacterPromptCodec.tryDecode(newText);
       if (naiPrompt != null) {
-        _applyNaiMultiCharacterPrompt(naiPrompt);
+        _showImportDialog(
+          _toPipeParseResult(naiPrompt),
+          useEmptyNegativePrompts: true,
+        );
         return;
       }
     }
 
-    final lengthDiff = newText.length - oldText.length;
-    if (lengthDiff < 20) return; // 忽略较短的非 NAI 文本变化
+    // Use the inserted payload rather than net length growth. Replacing a
+    // selection with a paste may leave the total length unchanged or shorter.
+    if (insertedText.length < 20) return;
     if (!ComfyuiPromptParser.isComfyuiMultiCharacter(newText)) return;
     final parseResult = ComfyuiPromptParser.tryParse(newText);
     if (parseResult == null || !parseResult.hasCharacters) return;
     _showImportDialog(parseResult);
   }
 
-  void _applyNaiMultiCharacterPrompt(NaiMultiCharacterPrompt prompt) {
-    _isProcessing = true;
-    try {
-      final characters = [
-        for (var index = 0; index < prompt.characterPrompts.length; index++)
-          CharacterPrompt.create(
-            name: 'Character ${index + 1}',
-            prompt: prompt.characterPrompts[index],
-            negativePrompt: '',
-          ),
-      ];
-      widget.onImport?.call(prompt.basePrompt, characters);
-      widget.controller.value = TextEditingValue(
-        text: prompt.basePrompt,
-        selection: TextSelection.collapsed(offset: prompt.basePrompt.length),
-      );
-    } finally {
-      _isProcessing = false;
-      _previousText = widget.controller.text;
-    }
+  ComfyuiParseResult _toPipeParseResult(NaiMultiCharacterPrompt prompt) {
+    return ComfyuiParseResult(
+      globalPrompt: prompt.basePrompt,
+      characters: [
+        for (final characterPrompt in prompt.characterPrompts)
+          ParsedCharacter(prompt: characterPrompt),
+      ],
+      syntaxType: ComfyuiSyntaxType.pipe,
+    );
   }
 
-  String _insertedText(String before, String after) {
+  String _insertedText(TextEditingValue before, TextEditingValue after) {
+    final selection = before.selection;
+    if (selection.isValid && selection.end <= before.text.length) {
+      final prefix = before.text.substring(0, selection.start);
+      final suffix = before.text.substring(selection.end);
+      final suffixStart = after.text.length - suffix.length;
+      if (suffixStart >= prefix.length &&
+          after.text.startsWith(prefix) &&
+          after.text.endsWith(suffix)) {
+        return after.text.substring(prefix.length, suffixStart);
+      }
+    }
+
+    return _insertedTextFromDiff(before.text, after.text);
+  }
+
+  String _insertedTextFromDiff(String before, String after) {
     var prefixLength = 0;
     final commonLength = before.length < after.length
         ? before.length
@@ -132,7 +141,10 @@ class _ComfyuiImportWrapperState extends State<ComfyuiImportWrapper> {
     return after.substring(prefixLength, after.length - suffixLength);
   }
 
-  Future<void> _showImportDialog(ComfyuiParseResult parseResult) async {
+  Future<void> _showImportDialog(
+    ComfyuiParseResult parseResult, {
+    bool useEmptyNegativePrompts = false,
+  }) async {
     _isProcessing = true;
 
     try {
@@ -143,10 +155,16 @@ class _ComfyuiImportWrapperState extends State<ComfyuiImportWrapper> {
 
       if (result != null && mounted) {
         // 转换为 NAI 角色列表
-        final characters = ComfyuiPromptParser.toNaiCharacters(
+        var characters = ComfyuiPromptParser.toNaiCharacters(
           result.parseResult,
           usePosition: result.usePosition,
         );
+        if (useEmptyNegativePrompts) {
+          characters = [
+            for (final character in characters)
+              character.copyWith(negativePrompt: ''),
+          ];
+        }
 
         // 触发回调
         widget.onImport?.call(result.parseResult.globalPrompt, characters);
@@ -156,7 +174,7 @@ class _ComfyuiImportWrapperState extends State<ComfyuiImportWrapper> {
       }
     } finally {
       _isProcessing = false;
-      _previousText = widget.controller.text;
+      _previousValue = widget.controller.value;
     }
   }
 

@@ -90,6 +90,39 @@ void main() {
   });
 
   testWidgets(
+    'empty expanded management dialog keeps column creation actions visible',
+    (tester) async {
+      final storage = _SidebarTestStorage(
+        fixedEntries: const [],
+        categories: const [],
+        libraryEntries: const [],
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            localStorageServiceProvider.overrideWith((ref) => storage),
+          ],
+          child: const MaterialApp(
+            locale: Locale('zh'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(body: FixedTagsDialog()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('正向固定词 · 0/0'), findsOneWidget);
+      expect(find.text('负向固定词 · 0/0'), findsOneWidget);
+      expect(find.text('新建'), findsNWidgets(2));
+      expect(find.text('词库'), findsNWidgets(2));
+      expect(find.text('暂无固定词'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
     'renders enabled categorized entries without duplicate key errors',
     (tester) async {
       final category = TagLibraryCategory.create(name: '画师');

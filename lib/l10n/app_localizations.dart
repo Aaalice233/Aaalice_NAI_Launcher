@@ -2612,7 +2612,7 @@ abstract class AppLocalizations {
   /// No description provided for @img2img_novelAiCloudUpscale.
   ///
   /// In en, this message translates to:
-  /// **'NovelAI cloud upscale (fixed 4x)'**
+  /// **'NovelAI cloud upscale (fixed 2x)'**
   String get img2img_novelAiCloudUpscale;
 
   /// No description provided for @img2img_comfyuiEnableHint.
@@ -7045,6 +7045,48 @@ abstract class AppLocalizations {
   /// **'Drag anchors to position characters; release to apply'**
   String get characterCanvas_dragHint;
 
+  /// No description provided for @characterCanvas_guide.
+  ///
+  /// In en, this message translates to:
+  /// **'Composition Guide'**
+  String get characterCanvas_guide;
+
+  /// No description provided for @characterCanvas_guideNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get characterCanvas_guideNone;
+
+  /// No description provided for @characterCanvas_guideThirds.
+  ///
+  /// In en, this message translates to:
+  /// **'Thirds'**
+  String get characterCanvas_guideThirds;
+
+  /// No description provided for @characterCanvas_guidePhi.
+  ///
+  /// In en, this message translates to:
+  /// **'Phi'**
+  String get characterCanvas_guidePhi;
+
+  /// No description provided for @characterCanvas_guideGrid.
+  ///
+  /// In en, this message translates to:
+  /// **'Grid'**
+  String get characterCanvas_guideGrid;
+
+  /// No description provided for @characterCanvas_guideColumns.
+  ///
+  /// In en, this message translates to:
+  /// **'Columns'**
+  String get characterCanvas_guideColumns;
+
+  /// No description provided for @characterCanvas_guideRows.
+  ///
+  /// In en, this message translates to:
+  /// **'Rows'**
+  String get characterCanvas_guideRows;
+
   /// No description provided for @characterEditor_genderFemale.
   ///
   /// In en, this message translates to:
@@ -9901,6 +9943,96 @@ abstract class AppLocalizations {
   /// **'No Anlas consumption data'**
   String get statistics_noAnlasData;
 
+  /// No description provided for @statistics_noAnlasInPeriod.
+  ///
+  /// In en, this message translates to:
+  /// **'No Anlas consumption in this period'**
+  String get statistics_noAnlasInPeriod;
+
+  /// No description provided for @statistics_periodSelectorTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Select statistics period'**
+  String get statistics_periodSelectorTooltip;
+
+  /// No description provided for @statistics_periodWeek.
+  ///
+  /// In en, this message translates to:
+  /// **'Last week'**
+  String get statistics_periodWeek;
+
+  /// No description provided for @statistics_periodMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'Last month'**
+  String get statistics_periodMonth;
+
+  /// No description provided for @statistics_periodThreeMonths.
+  ///
+  /// In en, this message translates to:
+  /// **'Last 3 months'**
+  String get statistics_periodThreeMonths;
+
+  /// No description provided for @statistics_periodYear.
+  ///
+  /// In en, this message translates to:
+  /// **'Last year'**
+  String get statistics_periodYear;
+
+  /// No description provided for @statistics_periodAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All time'**
+  String get statistics_periodAll;
+
+  /// No description provided for @statistics_periodCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom days'**
+  String get statistics_periodCustom;
+
+  /// No description provided for @statistics_periodDays.
+  ///
+  /// In en, this message translates to:
+  /// **'Last {count} days'**
+  String statistics_periodDays(int count);
+
+  /// No description provided for @statistics_periodSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{start} to {end} · {count} days'**
+  String statistics_periodSummary(String start, String end, int count);
+
+  /// No description provided for @statistics_partialCoverage.
+  ///
+  /// In en, this message translates to:
+  /// **'Available records begin on {date}. The daily average uses the available {count} days.'**
+  String statistics_partialCoverage(String date, int count);
+
+  /// No description provided for @statistics_customPeriodTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom statistics period'**
+  String get statistics_customPeriodTitle;
+
+  /// No description provided for @statistics_customDaysHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Number of days'**
+  String get statistics_customDaysHint;
+
+  /// No description provided for @statistics_customDaysError.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter an integer from 1 to {max}'**
+  String statistics_customDaysError(int max);
+
+  /// No description provided for @statistics_daysUnit.
+  ///
+  /// In en, this message translates to:
+  /// **'days'**
+  String get statistics_daysUnit;
+
   /// No description provided for @statistics_peakActivity.
   ///
   /// In en, this message translates to:
@@ -11080,12 +11212,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Reverse Prompt'**
   String get reversePrompt_title;
-
-  /// No description provided for @reversePrompt_pending.
-  ///
-  /// In en, this message translates to:
-  /// **'Pending'**
-  String get reversePrompt_pending;
 
   /// No description provided for @reversePrompt_imageCount.
   ///

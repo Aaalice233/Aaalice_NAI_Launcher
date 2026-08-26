@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:nai_launcher/core/utils/localization_extension.dart';
+import 'package:nai_launcher/presentation/providers/generation/image_workflow_controller.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/providers/krita/krita_bridge_notifier.dart';
 import 'package:nai_launcher/presentation/utils/asset_protection_guard.dart';
@@ -46,6 +47,9 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
 
     final randomMode = ref.watch(randomPromptModeProvider);
     final showRandomTools = ref.watch(randomPromptToolsVisibilityProvider);
+    final isUpscaleMode = ref.watch(
+      imageWorkflowControllerProvider.select((workflow) => workflow.isUpscale),
+    );
 
     // 快捷键已由父级 DesktopGenerationLayout 统一处理
     // 这里只负责布局
@@ -67,6 +71,7 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
           onSkipCurrent: () => ref
               .read(imageGenerationNotifierProvider.notifier)
               .skipCurrentRequest(),
+          showCost: !isUpscaleMode,
         );
 
         if (isNarrow) {
