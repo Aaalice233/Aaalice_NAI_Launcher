@@ -232,7 +232,6 @@ class _RegexRulesDialogState extends ConsumerState<RegexRulesDialog> {
           maxLines: 4,
           decoration: InputDecoration(
             hintText: l10n.regexRules_testInputHint,
-            border: const OutlineInputBorder(),
             isDense: true,
           ),
           onChanged: (_) => setState(() {}),
@@ -245,9 +244,6 @@ class _RegexRulesDialogState extends ConsumerState<RegexRulesDialog> {
             decoration: BoxDecoration(
               color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: colorScheme.outlineVariant.withValues(alpha: 0.5),
-              ),
             ),
             child: SelectableText(
               preview,

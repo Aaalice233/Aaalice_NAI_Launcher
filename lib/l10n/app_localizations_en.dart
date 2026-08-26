@@ -3994,40 +3994,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get toolbar_settings => 'Settings';
 
   @override
-  String get characterTooltip_noCharacters => 'No characters configured';
-
-  @override
-  String get characterTooltip_clickToConfig =>
-      'Click to configure multi-character prompts';
-
-  @override
-  String get characterTooltip_globalAiLabel => 'Global AI Position:';
-
-  @override
-  String get characterTooltip_enabled => 'Enabled';
-
-  @override
-  String get characterTooltip_disabled => 'Disabled';
-
-  @override
-  String get characterTooltip_positionAi => 'AI';
-
-  @override
   String get characterTooltip_disabledLabel => 'Disabled';
 
   @override
-  String get characterTooltip_promptLabel => 'Prompt';
-
-  @override
-  String get characterTooltip_negativeLabel => 'Undesired Content';
-
-  @override
   String get characterTooltip_notSet => 'Not set';
-
-  @override
-  String characterTooltip_summary(Object total, Object enabled) {
-    return '$total characters ($enabled enabled)';
-  }
 
   @override
   String get characterTooltip_previewTitle => 'Character preview';
@@ -4041,9 +4011,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String characterTooltip_more(int count) {
     return '$count more characters';
   }
-
-  @override
-  String get characterTooltip_viewFullConfig => 'Click for full configuration';
 
   @override
   String tagLibrary_generatedCharacters(Object count) {

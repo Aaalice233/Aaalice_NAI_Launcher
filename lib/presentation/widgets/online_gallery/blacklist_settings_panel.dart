@@ -68,12 +68,8 @@ class _OnlineGalleryBlacklistSettingsPanelState
           ? EdgeInsets.zero
           : const EdgeInsets.symmetric(vertical: 8),
       elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: BorderSide(
-          color: theme.colorScheme.outline.withValues(alpha: 0.2),
-        ),
-      ),
+      color: theme.colorScheme.surfaceContainer,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -231,7 +227,6 @@ class _OnlineGalleryBlacklistSettingsPanelState
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: theme.colorScheme.outlineVariant),
       ),
       child: tags.isEmpty
           ? Center(

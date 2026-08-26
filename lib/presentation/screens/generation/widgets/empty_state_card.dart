@@ -53,15 +53,9 @@ class _EmptyStateCardState extends State<EmptyStateCard> {
         curve: Curves.easeInOut,
         decoration: BoxDecoration(
           color: _isHovered
-              ? theme.colorScheme.surfaceContainerLow
-              : theme.colorScheme.surfaceContainerLowest,
+              ? theme.colorScheme.surfaceContainerHigh
+              : theme.colorScheme.surfaceContainerLow,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: _isHovered
-                ? theme.colorScheme.primary.withValues(alpha: 0.5)
-                : theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
-            width: _isHovered ? 2 : 1,
-          ),
         ),
         child: InkWell(
           onTap: _isLoading ? null : _handleTap,
@@ -84,18 +78,13 @@ class _EmptyStateCardState extends State<EmptyStateCard> {
                             ),
                           ),
                         )
-                      : AnimatedScale(
+                      : Icon(
                           key: const ValueKey('icon'),
-                          scale: _isHovered ? 1.1 : 1.0,
-                          duration: const Duration(milliseconds: 150),
-                          child: Icon(
-                            widget.icon,
-                            size: 40,
-                            color: _isHovered
-                                ? theme.colorScheme.primary
-                                : theme.colorScheme.outline
-                                    .withValues(alpha: 0.6),
-                          ),
+                          widget.icon,
+                          size: 40,
+                          color: _isHovered
+                              ? theme.colorScheme.primary
+                              : theme.colorScheme.onSurfaceVariant,
                         ),
                 ),
                 const SizedBox(height: 12),

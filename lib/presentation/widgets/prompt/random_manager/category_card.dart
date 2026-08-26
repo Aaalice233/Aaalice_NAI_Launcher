@@ -392,7 +392,7 @@ class _TrashDropZoneState extends State<_TrashDropZone>
       duration: const Duration(milliseconds: 200),
       vsync: this,
     );
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.1).animate(
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.02).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic),
     );
   }
@@ -436,21 +436,12 @@ class _TrashDropZoneState extends State<_TrashDropZone>
                 ? colorScheme.errorContainer
                 : colorScheme.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: _isHovering
-                  ? colorScheme.error
-                  : colorScheme.outline.withValues(alpha: 0.3),
-              width: _isHovering ? 2 : 1,
-              strokeAlign: BorderSide.strokeAlignInside,
-            ),
-            boxShadow: _isHovering
-                ? [
-                    BoxShadow(
-                      color: colorScheme.error.withValues(alpha: 0.3),
-                      blurRadius: 12,
-                      spreadRadius: 2,
-                    ),
-                  ]
+            border: _isHovering
+                ? Border.all(
+                    color: colorScheme.error,
+                    width: 1.5,
+                    strokeAlign: BorderSide.strokeAlignInside,
+                  )
                 : null,
           ),
           child: Column(

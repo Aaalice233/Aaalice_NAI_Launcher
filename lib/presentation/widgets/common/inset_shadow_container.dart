@@ -1,239 +1,66 @@
 import 'package:flutter/material.dart';
-import 'package:nai_launcher/presentation/themes/theme_extension.dart';
 
-/// 内阴影容器 - 创造凹陷立体感效果
+/// 输入与选择控件的语义色面容器。
 ///
-/// 通过边缘渐变模拟内阴影效果，让容器看起来像是"凹陷"在界面中。
-/// 适用于输入框、编辑区域等需要立体感的场景。
-///
-/// 默认从主题扩展 [AppThemeExtension] 读取配置：
-/// - enableInsetShadow: 是否启用内阴影
-/// - insetShadowDepth: 阴影深度
-/// - insetShadowBlur: 阴影模糊范围
-///
-/// 也可以通过参数手动覆盖这些值。
-///
-/// 设计理念：深度层叠风格
-/// - 小圆角（6px）
-/// - 无边框或极细边框
-/// - 用内阴影创造凹陷感
+/// 名称为兼容旧调用方保留；组件不再绘制凹槽内阴影或常驻完整边框。错误与
+/// 焦点是唯一默认显示完整状态边界的场景。
 class InsetShadowContainer extends StatelessWidget {
-  /// 子组件
-  final Widget child;
-
-  /// 容器圆角（默认6px - 深度层叠风格）
-  final double borderRadius;
-
-  /// 内阴影深度（0.0-1.0），值越大阴影越明显
-  /// 如果为 null，从主题扩展读取
-  final double? shadowDepth;
-
-  /// 阴影模糊范围
-  /// 如果为 null，从主题扩展读取
-  final double? shadowBlur;
-
-  /// 是否启用内阴影
-  /// 如果为 null，从主题扩展读取
-  final bool? enabled;
-
-  /// 背景颜色（如果为 null，使用主题的 surfaceContainerLowest）
-  final Color? backgroundColor;
-
-  /// 边框颜色（如果为 null，使用主题的 outline）
-  final Color? borderColor;
-
-  /// 边框宽度（默认0.5px - 极细边框）
-  final double borderWidth;
-
-  /// 内边距
-  final EdgeInsetsGeometry? padding;
-
-  /// 是否处于错误状态
-  final bool hasError;
-
   const InsetShadowContainer({
     super.key,
     required this.child,
-    this.borderRadius = 6.0,
+    this.borderRadius = 8,
     this.shadowDepth,
     this.shadowBlur,
     this.enabled,
     this.backgroundColor,
     this.borderColor,
-    this.borderWidth = 0.5,
+    this.borderWidth = 0,
     this.padding,
     this.hasError = false,
+    this.isFocused = false,
   });
+
+  final Widget child;
+  final double borderRadius;
+
+  /// 保留旧构造 API；统一色面不再渲染内阴影，因此这些参数不会改变外观。
+  final double? shadowDepth;
+  final double? shadowBlur;
+  final bool? enabled;
+
+  final Color? backgroundColor;
+  final Color? borderColor;
+  final double borderWidth;
+  final EdgeInsetsGeometry? padding;
+  final bool hasError;
+  final bool isFocused;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final appExt = theme.extension<AppThemeExtension>();
-    final isDark = theme.brightness == Brightness.dark;
+    final colors = Theme.of(context).colorScheme;
+    final effectiveBorderWidth = hasError || isFocused ? 1.2 : borderWidth;
+    final effectiveBorderColor = hasError
+        ? colors.error
+        : isFocused
+        ? colors.primary
+        : borderColor ?? colors.outlineVariant.withValues(alpha: 0.28);
 
-    // 从主题扩展读取配置，允许参数覆盖
-    final isEnabled = enabled ?? appExt?.enableInsetShadow ?? true;
-    final depth = shadowDepth ?? appExt?.insetShadowDepth ?? 0.12;
-    final blur = shadowBlur ?? appExt?.insetShadowBlur ?? 8.0;
-
-    // 背景色 - 深色主题用更深的颜色，浅色主题用更浅的颜色
-    final bgColor = backgroundColor ??
-        (isDark
-            ? Color.lerp(theme.colorScheme.surface, Colors.black, 0.3)!
-            : Color.lerp(theme.colorScheme.surface, Colors.black, 0.02)!);
-
-    // 边框色 - 错误状态用红色，否则用极淡的边框
-    final border = hasError
-        ? theme.colorScheme.error
-        : (borderColor ?? theme.colorScheme.outline.withValues(alpha: 0.1));
-
-    // 如果禁用内阴影，直接返回简单容器
-    if (!isEnabled) {
-      return Container(
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(borderRadius),
-          border: borderWidth > 0
-              ? Border.all(color: border, width: borderWidth)
-              : null,
-        ),
-        child: Padding(
-          padding: padding ?? EdgeInsets.zero,
-          child: child,
-        ),
-      );
-    }
-
-    // 阴影色 - 深色主题用黑色，浅色主题用深灰色
-    final shadowColor = isDark
-        ? Colors.black.withValues(alpha: depth * 1.5)
-        : Colors.black.withValues(alpha: depth);
-
-    return Container(
+    return AnimatedContainer(
+      duration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : const Duration(milliseconds: 120),
       decoration: BoxDecoration(
-        color: bgColor,
+        color: backgroundColor ?? colors.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(borderRadius),
-        border: borderWidth > 0
-            ? Border.all(color: border, width: borderWidth)
+        border: effectiveBorderWidth > 0
+            ? Border.all(
+                color: effectiveBorderColor,
+                width: effectiveBorderWidth,
+              )
             : null,
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(
-          borderRadius - (borderWidth > 0 ? borderWidth : 0),
-        ),
-        child: CustomPaint(
-          foregroundPainter: _InsetShadowPainter(
-            shadowColor: shadowColor,
-            shadowBlur: blur,
-            borderRadius: borderRadius - (borderWidth > 0 ? borderWidth : 0),
-          ),
-          child: Padding(
-            padding: padding ?? EdgeInsets.zero,
-            child: child,
-          ),
-        ),
-      ),
+      padding: padding,
+      child: child,
     );
-  }
-}
-
-/// 内阴影绘制器
-class _InsetShadowPainter extends CustomPainter {
-  final Color shadowColor;
-  final double shadowBlur;
-  final double borderRadius;
-
-  _InsetShadowPainter({
-    required this.shadowColor,
-    required this.shadowBlur,
-    required this.borderRadius,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
-    final rrect = RRect.fromRectAndRadius(rect, Radius.circular(borderRadius));
-
-    // 保存画布状态，应用圆角裁剪
-    canvas.save();
-    canvas.clipRRect(rrect);
-
-    // 顶部内阴影 - 最明显
-    final topGradient = LinearGradient(
-      begin: Alignment.topCenter,
-      end: Alignment.bottomCenter,
-      colors: [
-        shadowColor,
-        shadowColor.withValues(alpha: shadowColor.a * 0.3),
-        Colors.transparent,
-      ],
-      stops: const [0.0, 0.3, 1.0],
-    );
-
-    final topRect = Rect.fromLTWH(0, 0, size.width, shadowBlur * 2);
-    final topPaint = Paint()..shader = topGradient.createShader(topRect);
-    canvas.drawRect(topRect, topPaint);
-
-    // 左侧内阴影
-    final leftGradient = LinearGradient(
-      begin: Alignment.centerLeft,
-      end: Alignment.centerRight,
-      colors: [
-        shadowColor.withValues(alpha: shadowColor.a * 0.7),
-        Colors.transparent,
-      ],
-    );
-
-    final leftRect = Rect.fromLTWH(0, 0, shadowBlur * 1.5, size.height);
-    final leftPaint = Paint()..shader = leftGradient.createShader(leftRect);
-    canvas.drawRect(leftRect, leftPaint);
-
-    // 右侧内阴影（更轻微）
-    final rightGradient = LinearGradient(
-      begin: Alignment.centerRight,
-      end: Alignment.centerLeft,
-      colors: [
-        shadowColor.withValues(alpha: shadowColor.a * 0.4),
-        Colors.transparent,
-      ],
-    );
-
-    final rightRect =
-        Rect.fromLTWH(size.width - shadowBlur, 0, shadowBlur, size.height);
-    final rightPaint = Paint()..shader = rightGradient.createShader(rightRect);
-    canvas.drawRect(rightRect, rightPaint);
-
-    // 底部高光（模拟光源从上方照射）- 可选的微妙效果
-    // 在深色主题中添加底部微弱高光增加立体感
-    if (shadowColor.a > 0.1) {
-      final bottomHighlight = LinearGradient(
-        begin: Alignment.bottomCenter,
-        end: Alignment.topCenter,
-        colors: [
-          Colors.white.withValues(alpha: 0.02),
-          Colors.transparent,
-        ],
-      );
-
-      final bottomRect = Rect.fromLTWH(
-        0,
-        size.height - shadowBlur * 0.5,
-        size.width,
-        shadowBlur * 0.5,
-      );
-      final bottomPaint = Paint()
-        ..shader = bottomHighlight.createShader(bottomRect);
-      canvas.drawRect(bottomRect, bottomPaint);
-    }
-
-    // 恢复画布状态
-    canvas.restore();
-  }
-
-  @override
-  bool shouldRepaint(covariant _InsetShadowPainter oldDelegate) {
-    return oldDelegate.shadowColor != shadowColor ||
-        oldDelegate.shadowBlur != shadowBlur ||
-        oldDelegate.borderRadius != borderRadius;
   }
 }

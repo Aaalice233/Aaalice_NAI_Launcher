@@ -1,5 +1,3 @@
-import 'dart:ui' as ui;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
@@ -37,6 +35,9 @@ class TagLibraryToolbar extends ConsumerStatefulWidget {
   /// 添加条目回调
   final VoidCallback? onAddEntry;
 
+  /// 窄屏分类抽屉入口
+  final VoidCallback? onOpenCategories;
+
   const TagLibraryToolbar({
     super.key,
     this.onEnterSelectionMode,
@@ -47,6 +48,7 @@ class TagLibraryToolbar extends ConsumerStatefulWidget {
     this.onImport,
     this.onExport,
     this.onAddEntry,
+    this.onOpenCategories,
   });
 
   @override
@@ -139,113 +141,121 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
     }
 
     // 普通工具栏
-    return ClipRRect(
-      child: BackdropFilter(
-        filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          constraints: const BoxConstraints(minHeight: 62),
-          decoration: BoxDecoration(
-            color: isDark
-                ? theme.colorScheme.surfaceContainerHigh.withValues(alpha: 0.9)
-                : theme.colorScheme.surface.withValues(alpha: 0.8),
-            border: Border(
-              bottom: BorderSide(
-                color: theme.dividerColor.withValues(alpha: isDark ? 0.2 : 0.3),
-              ),
-            ),
-          ),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final compact = constraints.maxWidth < 900;
-              final addButton = FilledButton.icon(
-                onPressed: widget.onAddEntry,
-                icon: const Icon(Icons.add, size: 18),
-                label: Text(context.l10n.tagLibrary_addEntry),
-              );
-
-              Widget buildActions() {
-                return Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // 排序下拉菜单
-                    _buildSortDropdown(theme, state),
-                    const SizedBox(width: 8),
-
-                    // 视图切换
-                    _buildViewModeToggle(theme, state),
-
-                    const SizedBox(width: 8),
-
-                    // 分隔线
-                    Container(
-                      width: 1,
-                      height: 24,
-                      color: theme.dividerColor.withValues(alpha: 0.3),
-                    ),
-                    const SizedBox(width: 8),
-
-                    // 多选按钮
-                    _CompactIconButton(
-                      icon: Icons.checklist,
-                      label: context.l10n.common_multiSelect,
-                      onPressed: widget.onEnterSelectionMode,
-                    ),
-                    const SizedBox(width: 6),
-
-                    // 导入按钮
-                    _CompactIconButton(
-                      icon: Icons.file_upload_outlined,
-                      label: context.l10n.common_import,
-                      onPressed: widget.onImport,
-                    ),
-                    const SizedBox(width: 6),
-
-                    // 导出按钮
-                    _CompactIconButton(
-                      icon: Icons.file_download_outlined,
-                      label: context.l10n.common_export,
-                      onPressed: state.entries.isEmpty ? null : widget.onExport,
-                    ),
-                  ],
-                );
-              }
-
-              if (compact) {
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      children: [
-                        addButton,
-                        const SizedBox(width: 12),
-                        Expanded(child: _buildSearchField(theme, state)),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: buildActions(),
-                      ),
-                    ),
-                  ],
-                );
-              }
-
-              return Row(
-                children: [
-                  addButton,
-                  const SizedBox(width: 12),
-                  Expanded(child: _buildSearchField(theme, state)),
-                  const SizedBox(width: 12),
-                  buildActions(),
-                ],
-              );
-            },
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      constraints: const BoxConstraints(minHeight: 62),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerLow,
+        border: Border(
+          bottom: BorderSide(
+            color: theme.dividerColor.withValues(alpha: isDark ? 0.2 : 0.3),
           ),
         ),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 900;
+          final addButton = FilledButton.icon(
+            onPressed: widget.onAddEntry,
+            icon: const Icon(Icons.add, size: 18),
+            label: Text(context.l10n.tagLibrary_addEntry),
+          );
+          final categoriesButton = widget.onOpenCategories == null
+              ? null
+              : _CompactIconButton(
+                  icon: Icons.account_tree_outlined,
+                  label: context.l10n.common_categories,
+                  onPressed: widget.onOpenCategories,
+                );
+
+          Widget buildActions() {
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 排序下拉菜单
+                _buildSortDropdown(theme, state),
+                const SizedBox(width: 8),
+
+                // 视图切换
+                _buildViewModeToggle(theme, state),
+
+                const SizedBox(width: 8),
+
+                // 分隔线
+                Container(
+                  width: 1,
+                  height: 24,
+                  color: theme.dividerColor.withValues(alpha: 0.3),
+                ),
+                const SizedBox(width: 8),
+
+                // 多选按钮
+                _CompactIconButton(
+                  icon: Icons.checklist,
+                  label: context.l10n.common_multiSelect,
+                  onPressed: widget.onEnterSelectionMode,
+                ),
+                const SizedBox(width: 6),
+
+                // 导入按钮
+                _CompactIconButton(
+                  icon: Icons.file_upload_outlined,
+                  label: context.l10n.common_import,
+                  onPressed: widget.onImport,
+                ),
+                const SizedBox(width: 6),
+
+                // 导出按钮
+                _CompactIconButton(
+                  icon: Icons.file_download_outlined,
+                  label: context.l10n.common_export,
+                  onPressed: state.entries.isEmpty ? null : widget.onExport,
+                ),
+              ],
+            );
+          }
+
+          if (compact) {
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    if (categoriesButton != null) ...[
+                      categoriesButton,
+                      const SizedBox(width: 8),
+                    ],
+                    addButton,
+                    const SizedBox(width: 12),
+                    Expanded(child: _buildSearchField(theme, state)),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: buildActions(),
+                  ),
+                ),
+              ],
+            );
+          }
+
+          return Row(
+            children: [
+              if (categoriesButton != null) ...[
+                categoriesButton,
+                const SizedBox(width: 8),
+              ],
+              addButton,
+              const SizedBox(width: 12),
+              Expanded(child: _buildSearchField(theme, state)),
+              const SizedBox(width: 12),
+              buildActions(),
+            ],
+          );
+        },
       ),
     );
   }
@@ -382,10 +392,6 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: theme.colorScheme.outline.withValues(alpha: 0.1),
-          width: 1,
-        ),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<TagLibrarySortBy>(
@@ -539,8 +545,6 @@ class _CompactIconButtonState extends State<_CompactIconButton>
     Color iconColor;
     Color labelColor;
     Color bgColor;
-    Color borderColor;
-    List<BoxShadow>? shadows;
 
     iconColor = isEnabled
         ? (_isHovered
@@ -565,22 +569,6 @@ class _CompactIconButtonState extends State<_CompactIconButton>
               : (isDark
                     ? Colors.white.withValues(alpha: 0.04)
                     : Colors.white.withValues(alpha: 0.6)));
-    borderColor = _isHovered
-        ? theme.colorScheme.primary.withValues(alpha: isDark ? 0.5 : 0.35)
-        : theme.colorScheme.outline.withValues(alpha: isDark ? 0.2 : 0.15);
-    if (_isHovered && isEnabled) {
-      shadows = [
-        BoxShadow(
-          color: theme.colorScheme.shadow.withValues(
-            alpha: isDark ? 0.15 : 0.08,
-          ),
-          blurRadius: 6,
-          spreadRadius: 0,
-          offset: const Offset(0, 2),
-        ),
-      ];
-    }
-
     return MouseRegion(
       onEnter: isEnabled ? (_) => setState(() => _isHovered = true) : null,
       onExit: isEnabled ? (_) => setState(() => _isHovered = false) : null,
@@ -612,7 +600,7 @@ class _CompactIconButtonState extends State<_CompactIconButton>
             animation: _scaleAnimation,
             builder: (context, child) {
               return Transform.scale(
-                scale: _scaleAnimation.value,
+                scale: 1 - ((1 - _scaleAnimation.value) * 0.25),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 180),
                   curve: Curves.easeOutCubic,
@@ -623,11 +611,6 @@ class _CompactIconButtonState extends State<_CompactIconButton>
                   decoration: BoxDecoration(
                     color: bgColor,
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: borderColor,
-                      width: _isHovered ? 1.4 : 1.0,
-                    ),
-                    boxShadow: shadows,
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -640,9 +623,7 @@ class _CompactIconButtonState extends State<_CompactIconButton>
                           style: theme.textTheme.labelMedium?.copyWith(
                             color: labelColor,
                             fontSize: 12.5,
-                            fontWeight: _isHovered
-                                ? FontWeight.w600
-                                : FontWeight.w500,
+                            fontWeight: FontWeight.w500,
                             letterSpacing: 0.2,
                           ),
                         ),

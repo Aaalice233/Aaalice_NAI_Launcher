@@ -230,7 +230,6 @@ class _AddTagGroupDialogState extends ConsumerState<AddTagGroupDialog>
               decoration: InputDecoration(
                 labelText: context.l10n.randomManager_tagGroupName,
                 hintText: context.l10n.randomManager_tagGroupNameHint,
-                border: const OutlineInputBorder(),
                 filled: true,
                 fillColor: colorScheme.surfaceContainerHighest,
                 contentPadding: const EdgeInsets.symmetric(
@@ -330,7 +329,6 @@ class _AddTagGroupDialogState extends ConsumerState<AddTagGroupDialog>
                   },
                 )
               : null,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
           filled: true,
           fillColor: colorScheme.surfaceContainerHighest,
           contentPadding: const EdgeInsets.symmetric(
@@ -386,7 +384,6 @@ class _AddTagGroupDialogState extends ConsumerState<AddTagGroupDialog>
               textAlignVertical: TextAlignVertical.top,
               decoration: InputDecoration(
                 hintText: 'red hair\nblue eyes:2\nlong hair',
-                border: const OutlineInputBorder(),
                 filled: true,
                 fillColor: colorScheme.surfaceContainerHighest,
                 contentPadding: const EdgeInsets.all(12),
@@ -530,7 +527,7 @@ class _AddTagGroupDialogState extends ConsumerState<AddTagGroupDialog>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          OutlinedButton(
+          TextButton(
             onPressed: () => Navigator.pop(context),
             child: Text(context.l10n.common_cancel),
           ),
@@ -683,12 +680,6 @@ class _EmojiPickerButtonState extends State<_EmojiPickerButton> {
                 ? colorScheme.primaryContainer
                 : colorScheme.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: _isHovered
-                  ? colorScheme.primary
-                  : colorScheme.outline.withValues(alpha: 0.3),
-              width: _isHovered ? 2 : 1,
-            ),
           ),
           child: Center(
             child: widget.emoji.isEmpty
@@ -772,12 +763,6 @@ class _DanbooruListTileState extends State<_DanbooruListTile> {
                 ? colorScheme.surfaceContainerHigh
                 : colorScheme.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: widget.isSelected
-                  ? colorScheme.primary
-                  : Colors.transparent,
-              width: widget.isSelected ? 2 : 0,
-            ),
           ),
           child: Row(
             children: [

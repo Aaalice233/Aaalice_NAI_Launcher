@@ -3821,39 +3821,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get toolbar_settings => '设置';
 
   @override
-  String get characterTooltip_noCharacters => '未配置角色';
-
-  @override
-  String get characterTooltip_clickToConfig => '点击按钮开始配置多人角色';
-
-  @override
-  String get characterTooltip_globalAiLabel => '全局 AI 位置:';
-
-  @override
-  String get characterTooltip_enabled => '启用';
-
-  @override
-  String get characterTooltip_disabled => '禁用';
-
-  @override
-  String get characterTooltip_positionAi => 'AI';
-
-  @override
   String get characterTooltip_disabledLabel => '已禁用';
 
   @override
-  String get characterTooltip_promptLabel => '正向';
-
-  @override
-  String get characterTooltip_negativeLabel => '负面';
-
-  @override
   String get characterTooltip_notSet => '未设置';
-
-  @override
-  String characterTooltip_summary(Object total, Object enabled) {
-    return '共 $total 个角色 ($enabled 个启用)';
-  }
 
   @override
   String get characterTooltip_previewTitle => '角色预览';
@@ -3867,9 +3838,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String characterTooltip_more(int count) {
     return '还有 $count 个角色';
   }
-
-  @override
-  String get characterTooltip_viewFullConfig => '点击查看完整配置';
 
   @override
   String tagLibrary_generatedCharacters(Object count) {
@@ -16106,39 +16074,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get toolbar_settings => '設定';
 
   @override
-  String get characterTooltip_noCharacters => '未配置角色';
-
-  @override
-  String get characterTooltip_clickToConfig => '點選按鈕開始配置多人角色';
-
-  @override
-  String get characterTooltip_globalAiLabel => '全域性 AI 位置:';
-
-  @override
-  String get characterTooltip_enabled => '啟用';
-
-  @override
-  String get characterTooltip_disabled => '禁用';
-
-  @override
-  String get characterTooltip_positionAi => 'AI';
-
-  @override
   String get characterTooltip_disabledLabel => '已禁用';
 
   @override
-  String get characterTooltip_promptLabel => '正向';
-
-  @override
-  String get characterTooltip_negativeLabel => '負面';
-
-  @override
   String get characterTooltip_notSet => '未設定';
-
-  @override
-  String characterTooltip_summary(Object total, Object enabled) {
-    return '共 $total 個角色 ($enabled 個啟用)';
-  }
 
   @override
   String get characterTooltip_previewTitle => '角色預覽';
@@ -16152,9 +16091,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String characterTooltip_more(int count) {
     return '還有 $count 個角色';
   }
-
-  @override
-  String get characterTooltip_viewFullConfig => '點選檢視完整配置';
 
   @override
   String tagLibrary_generatedCharacters(Object count) {

@@ -1745,23 +1745,8 @@
   "toolbar_clear": "クリア",
   "toolbar_confirmClear": "クリアの確認",
   "toolbar_settings": "設定",
-  "characterTooltip_noCharacters": "キャラクターが設定されていません",
-  "characterTooltip_clickToConfig": "クリックして複数キャラクタープロンプトを設定します",
-  "characterTooltip_globalAiLabel": "グローバル AI のポジション:",
-  "characterTooltip_enabled": "有効",
-  "characterTooltip_disabled": "無効",
-  "characterTooltip_positionAi": "AI",
   "characterTooltip_disabledLabel": "無効",
-  "characterTooltip_promptLabel": "プロンプト",
-  "characterTooltip_negativeLabel": "除外したい要素",
   "characterTooltip_notSet": "未設定",
-  "characterTooltip_summary": "{total} キャラクター ({enabled} 有効)",
-  "@characterTooltip_summary": {
-    "placeholders": {
-      "total": {},
-      "enabled": {}
-    }
-  },
   "characterTooltip_previewTitle": "キャラクタープレビュー",
   "characterTooltip_enabledSummary": "{enabled} / {total} 有効",
   "@characterTooltip_enabledSummary": {
@@ -1776,7 +1761,6 @@
       "count": {"type": "int"}
     }
   },
-  "characterTooltip_viewFullConfig": "クリックすると完全な構成が表示されます",
   "tagLibrary_generatedCharacters": "{count} キャラクターを生成しました",
   "@tagLibrary_generatedCharacters": {
     "placeholders": {

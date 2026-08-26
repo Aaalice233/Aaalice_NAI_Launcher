@@ -50,7 +50,8 @@ class _TagGroupCardState extends ConsumerState<TagGroupCard> {
     final colorScheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context)!;
     final tagGroup = widget.tagGroup;
-    final hasDiyAbility = tagGroup.hasConditionalBranch ||
+    final hasDiyAbility =
+        tagGroup.hasConditionalBranch ||
         tagGroup.hasDependency ||
         tagGroup.hasVisibilityRules ||
         tagGroup.hasTimeCondition ||
@@ -113,8 +114,9 @@ class _TagGroupCardState extends ConsumerState<TagGroupCard> {
                           Container(
                             padding: const EdgeInsets.all(2),
                             decoration: BoxDecoration(
-                              color: colorScheme.primaryContainer
-                                  .withValues(alpha: 0.3),
+                              color: colorScheme.primaryContainer.withValues(
+                                alpha: 0.3,
+                              ),
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
@@ -205,21 +207,19 @@ class _TagGroupCardState extends ConsumerState<TagGroupCard> {
   }
 
   /// 构建标签预览文本
-  String _buildTagPreview(
-    AppLocalizations l10n,
-    RandomTagGroup tagGroup,
-  ) {
+  String _buildTagPreview(AppLocalizations l10n, RandomTagGroup tagGroup) {
     List<String> tags = [];
 
     if (tagGroup.sourceType == TagGroupSourceType.builtin) {
       // 内置词库类型：从 TagLibrary 获取
       final libraryState = ref.read(tagLibraryNotifierProvider);
       if (libraryState.library != null && tagGroup.sourceId != null) {
-        final category =
-            TagSubCategory.values.cast<TagSubCategory?>().firstWhere(
-                  (c) => c?.name == tagGroup.sourceId,
-                  orElse: () => null,
-                );
+        final category = TagSubCategory.values
+            .cast<TagSubCategory?>()
+            .firstWhere(
+              (c) => c?.name == tagGroup.sourceId,
+              orElse: () => null,
+            );
         if (category != null) {
           tags = libraryState.library!
               .getCategory(category)
@@ -337,11 +337,7 @@ class _TagGroupCardState extends ConsumerState<TagGroupCard> {
 }
 
 class _DiyIcon extends StatefulWidget {
-  const _DiyIcon({
-    required this.icon,
-    required this.tooltip,
-    this.onTap,
-  });
+  const _DiyIcon({required this.icon, required this.tooltip, this.onTap});
 
   final IconData icon;
   final String tooltip;
@@ -429,8 +425,9 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
   /// 获取当前预设的类别名称列表
   List<String> get _availableCategories {
     final state = ref.read(randomPresetNotifierProvider);
-    final preset =
-        state.presets.firstWhereOrNull((p) => p.id == widget.presetId);
+    final preset = state.presets.firstWhereOrNull(
+      (p) => p.id == widget.presetId,
+    );
     if (preset == null) return [];
     return preset.categories.map((c) => c.name).toList();
   }
@@ -495,8 +492,9 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
                     colorScheme.secondaryContainer.withValues(alpha: 0.2),
                   ],
                 ),
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(8)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(8),
+                ),
                 border: Border(
                   bottom: BorderSide(
                     color: colorScheme.outlineVariant.withValues(alpha: 0.2),
@@ -593,8 +591,9 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: colorScheme.surfaceContainerHighest,
-                borderRadius:
-                    const BorderRadius.vertical(bottom: Radius.circular(8)),
+                borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(8),
+                ),
                 border: Border(
                   top: BorderSide(
                     color: colorScheme.outlineVariant.withValues(alpha: 0.2),
@@ -604,7 +603,7 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  OutlinedButton(
+                  TextButton(
                     onPressed: () => Navigator.pop(context),
                     child: Text(
                       widget.isPresetDefault
@@ -646,7 +645,6 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
             enabled: !isReadOnly,
             decoration: InputDecoration(
               labelText: l10n.randomManager_tagGroupName,
-              border: const OutlineInputBorder(),
               suffixIcon: isReadOnly
                   ? Icon(
                       Icons.lock_outline,
@@ -685,8 +683,9 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
                         ? null
                         : (value) {
                             setState(() {
-                              _editingTagGroup =
-                                  _editingTagGroup.copyWith(probability: value);
+                              _editingTagGroup = _editingTagGroup.copyWith(
+                                probability: value,
+                              );
                             });
                           },
                   ),
@@ -720,25 +719,25 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
                   items: SelectionMode.values.map((mode) {
                     final (label, desc) = switch (mode) {
                       SelectionMode.single => (
-                          l10n.randomManager_selectionSingle,
-                          l10n.randomManager_selectionSingleDesc,
-                        ),
+                        l10n.randomManager_selectionSingle,
+                        l10n.randomManager_selectionSingleDesc,
+                      ),
                       SelectionMode.all => (
-                          l10n.randomManager_selectionAll,
-                          l10n.randomManager_selectionAllDesc,
-                        ),
+                        l10n.randomManager_selectionAll,
+                        l10n.randomManager_selectionAllDesc,
+                      ),
                       SelectionMode.multipleNum => (
-                          l10n.randomManager_selectionMultipleCount,
-                          l10n.randomManager_selectionMultipleCountDesc,
-                        ),
+                        l10n.randomManager_selectionMultipleCount,
+                        l10n.randomManager_selectionMultipleCountDesc,
+                      ),
                       SelectionMode.multipleProb => (
-                          l10n.randomManager_selectionMultipleProbability,
-                          l10n.randomManager_selectionMultipleProbabilityDesc,
-                        ),
+                        l10n.randomManager_selectionMultipleProbability,
+                        l10n.randomManager_selectionMultipleProbabilityDesc,
+                      ),
                       SelectionMode.sequential => (
-                          l10n.randomManager_selectionSequential,
-                          l10n.randomManager_selectionSequentialDesc,
-                        ),
+                        l10n.randomManager_selectionSequential,
+                        l10n.randomManager_selectionSequentialDesc,
+                      ),
                     };
                     return DropdownMenuItem(
                       value: mode,
@@ -779,11 +778,12 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
       // 内置词库类型：从 TagLibrary 获取
       final libraryState = ref.watch(tagLibraryNotifierProvider);
       if (libraryState.library != null && _editingTagGroup.sourceId != null) {
-        final category =
-            TagSubCategory.values.cast<TagSubCategory?>().firstWhere(
-                  (c) => c?.name == _editingTagGroup.sourceId,
-                  orElse: () => null,
-                );
+        final category = TagSubCategory.values
+            .cast<TagSubCategory?>()
+            .firstWhere(
+              (c) => c?.name == _editingTagGroup.sourceId,
+              orElse: () => null,
+            );
         if (category != null) {
           tagList = libraryState.library!
               .getCategory(category)
@@ -841,10 +841,7 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
                         final tag = tagList[index];
                         return Padding(
                           padding: const EdgeInsets.symmetric(vertical: 4),
-                          child: Text(
-                            tag,
-                            style: theme.textTheme.bodyMedium,
-                          ),
+                          child: Text(tag, style: theme.textTheme.bodyMedium),
                         );
                       },
                     ),
@@ -866,11 +863,7 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.lock_outline,
-              size: 48,
-              color: colorScheme.outline,
-            ),
+            Icon(Icons.lock_outline, size: 48, color: colorScheme.outline),
             const SizedBox(height: 16),
             Text(
               l10n.diyNotAvailableForDefault,
@@ -992,8 +985,8 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
                     data: SliderTheme.of(context).copyWith(
                       trackHeight: 4,
                       activeTrackColor: colorScheme.tertiary,
-                      inactiveTrackColor:
-                          colorScheme.tertiaryContainer.withValues(alpha: 0.3),
+                      inactiveTrackColor: colorScheme.tertiaryContainer
+                          .withValues(alpha: 0.3),
                       thumbColor: colorScheme.tertiary,
                       overlayColor: colorScheme.tertiary.withValues(alpha: 0.1),
                     ),
@@ -1140,8 +1133,9 @@ class _TagGroupEditDialogState extends ConsumerState<_TagGroupEditDialog>
     final notifier = ref.read(randomPresetNotifierProvider.notifier);
     final state = ref.read(randomPresetNotifierProvider);
     final preset = state.presets.firstWhere((p) => p.id == widget.presetId);
-    final category =
-        preset.categories.firstWhere((c) => c.id == widget.categoryId);
+    final category = preset.categories.firstWhere(
+      (c) => c.id == widget.categoryId,
+    );
     final updatedCategory = category.updateGroup(_editingTagGroup);
     notifier.updateCategory(updatedCategory);
     Navigator.pop(context);
@@ -1187,8 +1181,8 @@ class _DiySectionState extends State<_DiySection> {
           color: widget.enabled
               ? colorScheme.primaryContainer.withValues(alpha: 0.3)
               : _isHovered
-                  ? colorScheme.surfaceContainerHighest
-                  : colorScheme.surfaceContainerHigh,
+              ? colorScheme.surfaceContainerHighest
+              : colorScheme.surfaceContainerHigh,
           borderRadius: BorderRadius.circular(6),
           boxShadow: [
             BoxShadow(
@@ -1276,9 +1270,9 @@ class _DiySectionState extends State<_DiySection> {
                 ],
               )
             else
-              OutlinedButton(
+              FilledButton.tonal(
                 onPressed: widget.onAdd,
-                style: OutlinedButton.styleFrom(
+                style: FilledButton.styleFrom(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
                     vertical: 6,
@@ -1297,10 +1291,7 @@ class _DiySectionState extends State<_DiySection> {
 
 /// DIY 配置对话框
 class _DiyConfigDialog extends StatelessWidget {
-  const _DiyConfigDialog({
-    required this.title,
-    required this.child,
-  });
+  const _DiyConfigDialog({required this.title, required this.child});
 
   final String title;
   final Widget child;
@@ -1345,8 +1336,9 @@ class _DiyConfigDialog extends StatelessWidget {
                     colorScheme.tertiaryContainer.withValues(alpha: 0.2),
                   ],
                 ),
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(8)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(8),
+                ),
                 border: Border(
                   bottom: BorderSide(
                     color: colorScheme.outlineVariant.withValues(alpha: 0.2),
@@ -1399,8 +1391,9 @@ class _DiyConfigDialog extends StatelessWidget {
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: colorScheme.surfaceContainerHighest,
-                borderRadius:
-                    const BorderRadius.vertical(bottom: Radius.circular(8)),
+                borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(8),
+                ),
                 border: Border(
                   top: BorderSide(
                     color: colorScheme.outlineVariant.withValues(alpha: 0.2),

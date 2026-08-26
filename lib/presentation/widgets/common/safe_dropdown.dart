@@ -4,7 +4,7 @@ import 'inset_shadow_container.dart';
 
 /// 安全的下拉框 - 自动验证value是否在items中
 /// 包装InsetShadowContainer提供立体感
-class SafeDropdown<T> extends StatelessWidget {
+class SafeDropdown<T> extends StatefulWidget {
   final T? value;
   final List<DropdownMenuItem<T>> items;
   final ValueChanged<T?>? onChanged;
@@ -25,55 +25,72 @@ class SafeDropdown<T> extends StatelessWidget {
   });
 
   @override
+  State<SafeDropdown<T>> createState() => _SafeDropdownState<T>();
+}
+
+class _SafeDropdownState<T> extends State<SafeDropdown<T>> {
+  final FocusNode _focusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode.addListener(_handleFocusChanged);
+  }
+
+  @override
+  void dispose() {
+    _focusNode
+      ..removeListener(_handleFocusChanged)
+      ..dispose();
+    super.dispose();
+  }
+
+  void _handleFocusChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
-    // 验证value是否在items中
     final validValue = _validateValue();
 
     return InsetShadowContainer(
-      borderRadius: borderRadius,
+      borderRadius: widget.borderRadius,
+      isFocused: _focusNode.hasFocus,
       padding: const EdgeInsets.symmetric(horizontal: 12),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<T>(
           value: validValue,
-          items: items,
-          onChanged: onChanged,
-          isExpanded: isExpanded,
-          hint: hintText != null
+          items: widget.items,
+          onChanged: widget.onChanged,
+          isExpanded: widget.isExpanded,
+          focusNode: _focusNode,
+          hint: widget.hintText != null
               ? Text(
-                  hintText!,
+                  widget.hintText!,
                   style: TextStyle(
                     color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
                     fontSize: 14,
                   ),
                 )
               : null,
-          icon: icon ??
+          icon:
+              widget.icon ??
               Icon(
                 Icons.keyboard_arrow_down,
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
               ),
           dropdownColor: theme.colorScheme.surfaceContainerHigh,
           borderRadius: BorderRadius.zero,
-          style: TextStyle(
-            color: theme.colorScheme.onSurface,
-            fontSize: 14,
-          ),
+          style: TextStyle(color: theme.colorScheme.onSurface, fontSize: 14),
         ),
       ),
     );
   }
 
   T? _validateValue() {
-    // 检查value是否在items中（包括null作为有效选项的情况）
-    final itemValues = items.map((item) => item.value).toList();
-    if (itemValues.contains(value)) {
-      return value;
-    }
-
-    // 如果不在，返回null (显示hint或第一个item)
-    return null;
+    final itemValues = widget.items.map((item) => item.value).toList();
+    return itemValues.contains(widget.value) ? widget.value : null;
   }
 }
 
@@ -132,8 +149,6 @@ class SafeDropdownFormField<T> extends StatelessWidget {
               hintText: hintText,
               border: InputBorder.none,
               enabledBorder: InputBorder.none,
-              focusedBorder: InputBorder.none,
-              errorBorder: InputBorder.none,
               disabledBorder: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 12,

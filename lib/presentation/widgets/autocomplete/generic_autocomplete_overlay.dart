@@ -43,14 +43,8 @@ class GenericAutocompleteOverlay extends StatelessWidget {
       elevation: 8,
       borderRadius: BorderRadius.circular(4),
       color: theme.colorScheme.surfaceContainerHigh,
-      child: Container(
+      child: ConstrainedBox(
         constraints: BoxConstraints(maxHeight: maxHeight, maxWidth: 400),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(4),
-          border: Border.all(
-            color: theme.colorScheme.outline.withValues(alpha: 0.3),
-          ),
-        ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(4),
           child: Column(
@@ -161,9 +155,6 @@ class GenericAutocompleteOverlay extends StatelessWidget {
           decoration: BoxDecoration(
             color: theme.colorScheme.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(2),
-            border: Border.all(
-              color: theme.colorScheme.outline.withValues(alpha: 0.3),
-            ),
           ),
           child: Text(
             key,

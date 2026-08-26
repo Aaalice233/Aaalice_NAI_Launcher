@@ -22,17 +22,20 @@ InputDecoration _buildSettingsInputDecoration(
     labelText: labelText,
     hintText: hintText,
     isDense: true,
+    filled: true,
+    fillColor: theme.colorScheme.surfaceContainer,
     contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: BorderSide.none,
+    ),
     enabledBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(8),
-      borderSide: BorderSide(
-        color: theme.colorScheme.outline.withValues(alpha: 0.3),
-      ),
+      borderSide: BorderSide.none,
     ),
     focusedBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(8),
-      borderSide: BorderSide(color: theme.colorScheme.primary, width: 1.5),
+      borderSide: BorderSide(color: theme.colorScheme.primary),
     ),
   );
 }

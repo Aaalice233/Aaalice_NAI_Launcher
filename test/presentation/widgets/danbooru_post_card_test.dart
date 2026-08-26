@@ -7,6 +7,7 @@ import 'package:nai_launcher/data/models/online_gallery/danbooru_post.dart';
 import 'package:nai_launcher/data/models/queue/replication_task.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/replication_queue_provider.dart';
+import 'package:nai_launcher/presentation/widgets/common/image_card_hover_motion.dart';
 import 'package:nai_launcher/presentation/widgets/danbooru_post_card.dart';
 
 void main() {
@@ -50,6 +51,57 @@ void main() {
           .height,
       200,
     );
+  });
+
+  testWidgets('online gallery cards use the shared hover scale', (
+    tester,
+  ) async {
+    const post = DanbooruPost(
+      id: 123,
+      width: 600,
+      height: 900,
+      rating: 'g',
+      previewFileUrl: 'https://example.com/portrait.jpg',
+      tagString: 'test_tag',
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: DanbooruPostCard(
+              post: post,
+              itemWidth: 200,
+              isFavorited: false,
+              onTap: () {},
+              onTagTap: (_) {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(location: Offset.zero);
+    await mouse.moveTo(tester.getCenter(find.byType(DanbooruPostCard)));
+    await tester.pump();
+
+    final motion = find.byType(ImageCardHoverMotion);
+    expect(tester.widget<ImageCardHoverMotion>(motion).hovered, isTrue);
+    expect(
+      tester
+          .widget<AnimatedScale>(
+            find.descendant(of: motion, matching: find.byType(AnimatedScale)),
+          )
+          .scale,
+      ImageCardHoverMotion.hoverScale,
+    );
+
+    await mouse.moveTo(Offset.zero);
+    await tester.pump();
   });
 
   testWidgets('passes Gelbooru image headers and cache key to preview image', (

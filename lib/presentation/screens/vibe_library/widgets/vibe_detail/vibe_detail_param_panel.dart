@@ -192,9 +192,8 @@ class VibeDetailParamPanel extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -382,7 +381,7 @@ class VibeDetailParamPanel extends StatelessWidget {
         children: [
           SizedBox(
             width: double.infinity,
-            child: FilledButton.icon(
+            child: FilledButton.tonalIcon(
               onPressed: canSaveParams && !isSavingParams ? onSaveParams : null,
               icon: isSavingParams
                   ? const SizedBox(
@@ -407,7 +406,7 @@ class VibeDetailParamPanel extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: OutlinedButton.icon(
+                child: TextButton.icon(
                   onPressed: isRenaming ? null : onRename,
                   icon: isRenaming
                       ? const SizedBox(
@@ -421,7 +420,7 @@ class VibeDetailParamPanel extends StatelessWidget {
               ),
               const SizedBox(width: DesignTokens.spacingSm),
               Expanded(
-                child: OutlinedButton.icon(
+                child: TextButton.icon(
                   onPressed: onExport,
                   icon: const Icon(Icons.file_download_outlined),
                   label: Text(l10n.common_export),
@@ -429,11 +428,11 @@ class VibeDetailParamPanel extends StatelessWidget {
               ),
               const SizedBox(width: DesignTokens.spacingSm),
               Expanded(
-                child: OutlinedButton.icon(
+                child: TextButton.icon(
                   onPressed: onDelete,
                   icon: const Icon(Icons.delete_outline),
                   label: Text(l10n.common_delete),
-                  style: OutlinedButton.styleFrom(
+                  style: TextButton.styleFrom(
                     foregroundColor: theme.colorScheme.error,
                   ),
                 ),

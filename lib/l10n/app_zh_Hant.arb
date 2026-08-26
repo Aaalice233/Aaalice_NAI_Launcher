@@ -1805,23 +1805,8 @@
   "toolbar_clear": "清空",
   "toolbar_confirmClear": "確認清空",
   "toolbar_settings": "設定",
-  "characterTooltip_noCharacters": "未配置角色",
-  "characterTooltip_clickToConfig": "點選按鈕開始配置多人角色",
-  "characterTooltip_globalAiLabel": "全域性 AI 位置:",
-  "characterTooltip_enabled": "啟用",
-  "characterTooltip_disabled": "禁用",
-  "characterTooltip_positionAi": "AI",
   "characterTooltip_disabledLabel": "已禁用",
-  "characterTooltip_promptLabel": "正向",
-  "characterTooltip_negativeLabel": "負面",
   "characterTooltip_notSet": "未設定",
-  "characterTooltip_summary": "共 {total} 個角色 ({enabled} 個啟用)",
-  "@characterTooltip_summary": {
-    "placeholders": {
-      "total": {},
-      "enabled": {}
-    }
-  },
   "characterTooltip_previewTitle": "角色預覽",
   "characterTooltip_enabledSummary": "{enabled} / {total} 啟用",
   "@characterTooltip_enabledSummary": {
@@ -1836,7 +1821,6 @@
       "count": {"type": "int"}
     }
   },
-  "characterTooltip_viewFullConfig": "點選檢視完整配置",
   "tagLibrary_generatedCharacters": "已生成 {count} 個角色",
   "@tagLibrary_generatedCharacters": {
     "placeholders": {

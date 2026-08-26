@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/cache/local_gallery_thumbnail_provider.dart';
@@ -10,13 +11,15 @@ import '../../../core/utils/image_share_sanitizer.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/gallery/local_image_record.dart';
 import '../../providers/share_image_settings_provider.dart';
+import '../../themes/theme_extension.dart';
 import '../../utils/clipboard_image.dart';
 import '../common/app_toast.dart';
 import '../common/card_action_buttons.dart';
+import '../common/image_card_hover_motion.dart';
 import 'local_image_context_menu.dart';
 import 'local_image_hover_preview.dart';
 
-/// Steam风格本地图片卡片，包含边缘发光、光泽扫过、悬停动画效果
+/// 本地图片卡片，提供稳定的选择、快捷操作和键盘交互。
 class LocalImageCard3D extends ConsumerStatefulWidget {
   final LocalImageRecord record;
   final double width;
@@ -62,6 +65,7 @@ class LocalImageCard3D extends ConsumerStatefulWidget {
 
 class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
   bool _isHovered = false;
+  bool _isFocused = false;
   bool _isCopyingImage = false;
   bool _suppressCardTap = false;
   bool _hasDecodedFrame = false;
@@ -212,6 +216,10 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
     final colorScheme = theme.colorScheme;
     final aspectRatio = widget.width / cardHeight;
     final buttonDirection = aspectRatio > 1.3 ? Axis.horizontal : Axis.vertical;
+    final reducedMotion = MediaQuery.disableAnimationsOf(context);
+    final motion = theme.appTheme;
+    final interactive = widget.onTap != null;
+    final fileName = widget.record.path.split(RegExp(r'[/\\]')).last;
 
     Widget cardContent = GestureDetector(
       onTap: widget.onTap == null ? null : _handleCardTap,
@@ -219,86 +227,92 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
       onDoubleTap: widget.onDoubleTap,
       onLongPress: widget.onLongPress,
       onSecondaryTapDown: widget.onSecondaryTapDown,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        curve: Curves.easeOut,
-        width: widget.width,
-        height: cardHeight,
-        transform: Matrix4.identity()
-          ..translateByDouble(0, _isHovered ? -4 : 0, 0, 1)
-          ..scaleByDouble(
-            _isHovered ? 1.02 : 1.0,
-            _isHovered ? 1.02 : 1.0,
-            _isHovered ? 1.02 : 1.0,
-            1,
-          ),
-        transformAlignment: Alignment.center,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: _isHovered
-              ? [
-                  BoxShadow(
-                    color: colorScheme.primary.withValues(alpha: 0.3),
-                    blurRadius: 16,
-                    offset: const Offset(0, 8),
-                    spreadRadius: 2,
-                  ),
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.15),
-                    blurRadius: 24,
-                    offset: const Offset(0, 12),
-                  ),
-                ]
-              : [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.2),
-                    blurRadius: 4,
-                  ),
-                ],
-        ),
-        foregroundDecoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          border: widget.isSelected
-              ? Border.all(color: colorScheme.primary, width: 3)
-              : _isHovered
-              ? Border.all(
-                  color: colorScheme.primary.withValues(alpha: 0.4),
-                  width: 1.5,
-                )
-              : null,
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(10),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              _buildImageLayer(),
-              Positioned(
-                top: 4,
-                right: buttonDirection == Axis.vertical ? 4 : null,
-                left: buttonDirection == Axis.horizontal ? 4 : null,
-                child: _buildActionButtons(buttonDirection),
-              ),
-              if (widget.isSelected)
-                Positioned(
-                  top: 8,
-                  left: 8,
-                  child: _buildSelectionIndicator(colorScheme),
+      child: ImageCardHoverMotion(
+        hovered: _isHovered,
+        enabled: interactive,
+        child: AnimatedContainer(
+          duration: reducedMotion ? Duration.zero : motion.fastDuration,
+          curve: motion.standardCurve,
+          width: widget.width,
+          height: cardHeight,
+          decoration: BoxDecoration(
+            color: colorScheme.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(
+                  alpha: _isHovered && interactive ? 0.16 : 0,
                 ),
-              if (widget.isSelected)
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: colorScheme.primary.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(12),
+                blurRadius: _isHovered && interactive ? 14 : 0,
+                offset: Offset(0, _isHovered && interactive ? 6 : 0),
+              ),
+            ],
+          ),
+          foregroundDecoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: _isFocused
+                ? Border.all(color: colorScheme.primary, width: 1)
+                : null,
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                _buildImageLayer(),
+                Positioned(
+                  top: 4,
+                  right: buttonDirection == Axis.vertical ? 4 : null,
+                  left: buttonDirection == Axis.horizontal ? 4 : null,
+                  child: _buildActionButtons(buttonDirection),
+                ),
+                if (widget.isSelected)
+                  Positioned(
+                    top: 8,
+                    left: 8,
+                    child: _buildSelectionIndicator(colorScheme),
+                  ),
+                if (widget.isSelected)
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: colorScheme.primary.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                     ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
+      ),
+    );
+
+    cardContent = Semantics(
+      label: fileName,
+      button: interactive,
+      enabled: interactive,
+      selected: widget.isSelected,
+      child: FocusableActionDetector(
+        enabled: interactive,
+        shortcuts: const {
+          SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
+          SingleActivator(LogicalKeyboardKey.space): ActivateIntent(),
+        },
+        onFocusChange: (focused) {
+          if (_isFocused != focused) setState(() => _isFocused = focused);
+        },
+        actions: {
+          ActivateIntent: CallbackAction<ActivateIntent>(
+            onInvoke: (_) {
+              _handleCardTap();
+              return null;
+            },
+          ),
+        },
+        child: cardContent,
       ),
     );
 
@@ -313,7 +327,7 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
       child: MouseRegion(
         onEnter: _onHoverEnter,
         onExit: _onHoverExit,
-        cursor: SystemMouseCursors.click,
+        cursor: interactive ? SystemMouseCursors.click : MouseCursor.defer,
         child: cardContent,
       ),
     );
@@ -425,7 +439,7 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
       },
       onPointerCancel: (_) => _suppressCardTap = false,
       child: CardActionButtons(
-        visible: _isHovered,
+        visible: _isHovered || _isFocused,
         direction: direction,
         buttons: [
           if (widget.onFavoriteToggle != null)
@@ -493,29 +507,14 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
   }
 
   Widget _buildSelectionIndicator(ColorScheme colorScheme) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0.0, end: 1.0),
-      duration: const Duration(milliseconds: 150),
-      curve: Curves.easeOutBack,
-      builder: (context, value, child) =>
-          Transform.scale(scale: value, child: child),
-      child: Container(
-        width: 28,
-        height: 28,
-        decoration: BoxDecoration(
-          color: colorScheme.primary,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.white, width: 2),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.2),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Icon(Icons.check, color: colorScheme.onPrimary, size: 18),
+    return Container(
+      width: 28,
+      height: 28,
+      decoration: BoxDecoration(
+        color: colorScheme.primary,
+        borderRadius: BorderRadius.circular(14),
       ),
+      child: Icon(Icons.check, color: colorScheme.onPrimary, size: 18),
     );
   }
 }

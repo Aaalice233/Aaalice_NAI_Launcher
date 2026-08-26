@@ -199,17 +199,11 @@ class _GalleryFilterPanelState extends ConsumerState<GalleryFilterPanel>
                 ? colorScheme.surfaceContainerHigh
                 : colorScheme.surface,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: isDark
-                  ? colorScheme.outline.withValues(alpha: 0.2)
-                  : colorScheme.outline.withValues(alpha: 0.1),
-            ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.15),
-                blurRadius: 30,
+                color: Colors.black.withValues(alpha: isDark ? 0.28 : 0.12),
+                blurRadius: 24,
                 offset: const Offset(0, 10),
-                spreadRadius: 0,
               ),
             ],
           ),
@@ -377,7 +371,7 @@ class _GalleryFilterPanelState extends ConsumerState<GalleryFilterPanel>
     );
   }
 
-  /// Build header with gradient background
+  /// Build the panel header.
   Widget _buildHeader(
     ThemeData theme,
     AppLocalizations l10n,
@@ -387,19 +381,7 @@ class _GalleryFilterPanelState extends ConsumerState<GalleryFilterPanel>
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 16, 12, 16),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: isDark
-              ? [
-                  colorScheme.primary.withValues(alpha: 0.15),
-                  colorScheme.secondary.withValues(alpha: 0.1),
-                ]
-              : [
-                  colorScheme.primary.withValues(alpha: 0.08),
-                  colorScheme.secondary.withValues(alpha: 0.05),
-                ],
-        ),
+        color: colorScheme.surfaceContainerHigh,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: Row(
@@ -459,7 +441,7 @@ class _GalleryFilterPanelState extends ConsumerState<GalleryFilterPanel>
     );
   }
 
-  /// Build a modern filter card
+  /// Build a grouped filter surface.
   Widget _buildFilterCard({
     required ThemeData theme,
     required bool isDark,
@@ -477,9 +459,6 @@ class _GalleryFilterPanelState extends ConsumerState<GalleryFilterPanel>
             ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.4)
             : colorScheme.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: colorScheme.outline.withValues(alpha: isDark ? 0.15 : 0.08),
-        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -514,7 +493,7 @@ class _GalleryFilterPanelState extends ConsumerState<GalleryFilterPanel>
     );
   }
 
-  /// Build a modern text field
+  /// Build a filter text field.
   Widget _buildModernTextField({
     required TextEditingController controller,
     required String hintText,
@@ -522,50 +501,37 @@ class _GalleryFilterPanelState extends ConsumerState<GalleryFilterPanel>
     required bool isDark,
     required ColorScheme colorScheme,
   }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark
-            ? colorScheme.surface.withValues(alpha: 0.5)
-            : colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: colorScheme.outline.withValues(alpha: isDark ? 0.2 : 0.1),
+    return ThemedInput(
+      controller: controller,
+      style: theme.textTheme.bodyMedium?.copyWith(color: colorScheme.onSurface),
+      decoration: InputDecoration(
+        hintText: hintText,
+        hintStyle: TextStyle(
+          color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+          fontSize: 13,
         ),
+        border: InputBorder.none,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 12,
+        ),
+        isDense: true,
+        suffixIcon: controller.text.isNotEmpty
+            ? IconButton(
+                icon: Icon(
+                  Icons.clear_rounded,
+                  size: 18,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+                onPressed: () {
+                  setState(() {
+                    controller.clear();
+                  });
+                },
+              )
+            : null,
       ),
-      child: ThemedInput(
-        controller: controller,
-        style: theme.textTheme.bodyMedium?.copyWith(
-          color: colorScheme.onSurface,
-        ),
-        decoration: InputDecoration(
-          hintText: hintText,
-          hintStyle: TextStyle(
-            color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
-            fontSize: 13,
-          ),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 14,
-            vertical: 12,
-          ),
-          isDense: true,
-          suffixIcon: controller.text.isNotEmpty
-              ? IconButton(
-                  icon: Icon(
-                    Icons.clear_rounded,
-                    size: 18,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      controller.clear();
-                    });
-                  },
-                )
-              : null,
-        ),
-        onChanged: (_) => setState(() {}),
-      ),
+      onChanged: (_) => setState(() {}),
     );
   }
 
@@ -624,17 +590,8 @@ class _GalleryFilterPanelState extends ConsumerState<GalleryFilterPanel>
     bool isNumber = false,
     bool isInteger = true,
   }) {
-    return Container(
+    return SizedBox(
       height: 40,
-      decoration: BoxDecoration(
-        color: isDark
-            ? colorScheme.surface.withValues(alpha: 0.5)
-            : colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: colorScheme.outline.withValues(alpha: isDark ? 0.2 : 0.1),
-        ),
-      ),
       child: ThemedInput(
         controller: controller,
         textAlign: TextAlign.center,
@@ -700,11 +657,6 @@ class _GalleryFilterPanelState extends ConsumerState<GalleryFilterPanel>
                   ? colorScheme.primary.withValues(alpha: 0.15)
                   : colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
               borderRadius: BorderRadius.circular(6),
-              border: Border.all(
-                color: isSelected
-                    ? colorScheme.primary.withValues(alpha: 0.5)
-                    : colorScheme.outline.withValues(alpha: 0.1),
-              ),
             ),
             child: Text(
               preset,
@@ -712,7 +664,7 @@ class _GalleryFilterPanelState extends ConsumerState<GalleryFilterPanel>
                 color: isSelected
                     ? colorScheme.primary
                     : colorScheme.onSurfaceVariant,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                fontWeight: FontWeight.w500,
                 fontSize: 11,
               ),
             ),

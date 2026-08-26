@@ -142,24 +142,14 @@ class _InlineCharacterCardState extends ConsumerState<InlineCharacterCard> {
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: Color.alphaBlend(
-          genderColor.withValues(alpha: 0.035),
-          colorScheme.surface,
+          genderColor.withValues(alpha: isEditing ? 0.08 : 0.035),
+          isEditing
+              ? colorScheme.primary.withValues(alpha: 0.08)
+              : colorScheme.surfaceContainerLow,
         ),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: isEditing
-              ? colorScheme.primary
-              : genderColor.withValues(alpha: 0.28),
-          width: 1.5,
-        ),
-        boxShadow: isEditing
-            ? [
-                BoxShadow(
-                  color: colorScheme.primary.withValues(alpha: 0.12),
-                  blurRadius: 10,
-                  offset: const Offset(0, 3),
-                ),
-              ]
+        border: isEditing
+            ? Border.all(color: colorScheme.primary, width: 1.5)
             : null,
       ),
       child: Column(
@@ -427,11 +417,6 @@ class _GenderBadge extends StatelessWidget {
             ? Colors.black.withValues(alpha: 0.34)
             : color.withValues(alpha: 0.13),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: onImage
-              ? Colors.white.withValues(alpha: 0.35)
-              : color.withValues(alpha: 0.3),
-        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

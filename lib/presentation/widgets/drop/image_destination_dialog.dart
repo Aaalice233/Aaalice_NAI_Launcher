@@ -276,9 +276,6 @@ class ImageDestinationDialog extends ConsumerWidget {
       decoration: BoxDecoration(
         color: theme.colorScheme.errorContainer.withValues(alpha: 0.55),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: theme.colorScheme.error.withValues(alpha: 0.35),
-        ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -405,13 +402,7 @@ class ImageDestinationDialog extends ConsumerWidget {
                           key: const ValueKey('drop-metadata-content-pane'),
                           child: _buildMetadataContent(context, promptMetadata),
                         ),
-                        const SizedBox(width: 16),
-                        VerticalDivider(
-                          width: 1,
-                          thickness: 1,
-                          color: theme.colorScheme.outlineVariant,
-                        ),
-                        const SizedBox(width: 16),
+                        const SizedBox(width: 20),
                         SizedBox(
                           key: const ValueKey('drop-metadata-action-rail'),
                           width: railWidth,
@@ -493,13 +484,9 @@ class ImageDestinationDialog extends ConsumerWidget {
         Container(
           width: width,
           height: height,
-          padding: const EdgeInsets.all(1),
           decoration: BoxDecoration(
             color: theme.colorScheme.surfaceContainerLowest,
             borderRadius: BorderRadius.circular(11),
-            border: Border.all(
-              color: theme.colorScheme.outlineVariant.withValues(alpha: 0.75),
-            ),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.16),
@@ -562,9 +549,6 @@ class ImageDestinationDialog extends ConsumerWidget {
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(11),
-        border: Border.all(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.7),
-        ),
       ),
       padding: const EdgeInsets.all(12),
       child: Column(
@@ -590,7 +574,7 @@ class ImageDestinationDialog extends ConsumerWidget {
           const SizedBox(height: 10),
           Divider(
             height: 1,
-            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.65),
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.08),
           ),
           const SizedBox(height: 10),
           if (fillHeight)
@@ -664,10 +648,6 @@ class ImageDestinationDialog extends ConsumerWidget {
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Colors.amber.withValues(alpha: 0.3),
-          width: 1,
-        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -714,9 +694,6 @@ class ImageDestinationDialog extends ConsumerWidget {
                     height: 64,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: theme.colorScheme.outline.withValues(alpha: 0.3),
-                      ),
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(8),
@@ -1158,7 +1135,6 @@ class _PromptSelectionCardState extends State<_PromptSelectionCard> {
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: theme.colorScheme.outlineVariant),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1188,7 +1164,7 @@ class _PromptSelectionCardState extends State<_PromptSelectionCard> {
               margin: const EdgeInsets.fromLTRB(10, 0, 10, 8),
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: theme.colorScheme.surface,
+                color: theme.colorScheme.surfaceContainerLowest,
                 borderRadius: BorderRadius.circular(7),
               ),
               child: Listener(
