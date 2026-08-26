@@ -37,7 +37,7 @@ class RandomPreset with _$RandomPreset {
     @Default(false) bool isBasedOnDefault,
 
     /// 数据版本
-    @Default(2) int version,
+    @Default(4) int version,
 
     /// 算法配置
     @Default(AlgorithmConfig()) AlgorithmConfig algorithmConfig,
@@ -77,7 +77,7 @@ class RandomPreset with _$RandomPreset {
       id: const Uuid().v4(),
       name: name,
       description: description,
-      version: 3,
+      version: 4,
       algorithmConfig: algorithmConfig ?? const AlgorithmConfig(),
       categories: categories ?? [],
       createdAt: now,
@@ -94,7 +94,7 @@ class RandomPreset with _$RandomPreset {
       name: _getDefaultPresetName(version),
       description: _getDefaultPresetDescription(version),
       isDefault: true,
-      version: 3,
+      version: 4,
       algorithmConfig: _getDefaultAlgorithmConfig(version),
       categories: DefaultCategories.createDefaultForVersion(version),
       tagGroupMappings: DefaultTagGroupMappings.createDefaultMappings(),

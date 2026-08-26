@@ -64,11 +64,8 @@ void main() {
 
     await tester.tap(find.byTooltip('数据来源详情'));
     await _pumpBounded(tester);
-    expect(
-      find.textContaining('https://example.com/catalog.csv'),
-      findsOneWidget,
-    );
-    expect(find.textContaining('221787'), findsOneWidget);
+    expect(find.text('Character Prompts：2456 条原始记录'), findsOneWidget);
+    expect(find.text('5960 条记录，118 个原始数组'), findsOneWidget);
     await tester.tap(find.text('关闭'));
     await _pumpBounded(tester);
 
@@ -139,7 +136,7 @@ void main() {
       );
       await _pumpBounded(tester);
 
-      expect(find.text('已验证的离线随机词库'), findsOneWidget);
+      expect(find.text('官网 · Character Prompts'), findsOneWidget);
       expect(find.byTooltip('数据来源详情'), findsOneWidget);
       expect(find.byType(TextField), findsWidgets);
       expect(tester.takeException(), isNull);

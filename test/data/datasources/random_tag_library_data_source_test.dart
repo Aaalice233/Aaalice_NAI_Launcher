@@ -63,6 +63,12 @@ void main() {
         'blue eyes',
         'red eyes',
       ]);
+      expect(first.categories['detail']!.map((tag) => tag.tag), [
+        'blue eyeshadow',
+        'blue eyes',
+        'red eyes',
+      ]);
+      expect(first.totalTagCount, 5);
       expect(
         first.categories['eyes']!.every(
           (tag) => tag.source == TagSource.catalog && tag.weight > 0,
@@ -117,7 +123,7 @@ void main() {
     gate.complete();
 
     await expectLater(staleLoad, throwsA(isA<RandomTagLibraryLoadCancelled>()));
-    expect((await source.loadData()).totalTagCount, 2);
+    expect((await source.loadData()).totalTagCount, 5);
     expect(openCount, 2);
   });
 
@@ -175,6 +181,11 @@ String _manifest({String commit = 'abc123'}) => jsonEncode({
       'includeGlobs': ['*_eyes'],
       'includeTokens': ['eyes'],
       'excludeTokens': [],
+    },
+    'detail': {
+      'name': 'Detail',
+      'catalogCategories': [0],
+      'includeAll': true,
     },
   },
 });
