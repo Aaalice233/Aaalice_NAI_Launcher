@@ -369,10 +369,6 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
             decoration: BoxDecoration(
               color: theme.colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: theme.colorScheme.outlineVariant,
-                style: BorderStyle.solid,
-              ),
             ),
             child: _thumbnailPath != null
                 ? Stack(

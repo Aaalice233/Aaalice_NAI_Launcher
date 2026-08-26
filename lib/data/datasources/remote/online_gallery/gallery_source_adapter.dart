@@ -111,6 +111,7 @@ class GalleryRandomSearchRequest extends GalleryRandomRequest {
     this.timeRange = 'all',
     this.dateStart,
     this.dateEnd,
+    this.cursor,
   });
 
   final String query;
@@ -118,6 +119,7 @@ class GalleryRandomSearchRequest extends GalleryRandomRequest {
   final String timeRange;
   final DateTime? dateStart;
   final DateTime? dateEnd;
+  final String? cursor;
 }
 
 class GalleryRandomRankingRequest extends GalleryRandomRequest {
@@ -147,9 +149,11 @@ class GalleryRandomFavoritesRequest extends GalleryRandomRequest {
     super.ratings,
     super.blacklistTags,
     required this.username,
+    this.cursor,
   });
 
   final String username;
+  final String? cursor;
 }
 
 class AiTagSourceConfig {

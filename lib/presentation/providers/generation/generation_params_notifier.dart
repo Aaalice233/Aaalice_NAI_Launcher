@@ -141,12 +141,15 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
 
     // 从本地存储加载默认参数和上次使用的参数
     final storage = ref.read(localStorageServiceProvider);
+    // 测试期持久化的 custom 键迁移到正式 ID。
+    final model = ImageModels.migrateLegacyModel(storage.getDefaultModel());
+    // 存档里可能留着上一个模型才成立的取值，恢复时按当前模型纠正一次。
+    final capabilities = ModelCapabilityRegistry.of(model);
 
     return ImageParams(
       prompt: storage.getLastPrompt(),
       negativePrompt: storage.getLastNegativePrompt(),
-      // 测试期持久化的 custom 键迁移到正式 ID。
-      model: ImageModels.migrateLegacyModel(storage.getDefaultModel()),
+      model: model,
       sampler: storage.getDefaultSampler(),
       steps: storage.getDefaultSteps(),
       scale: storage.getDefaultScale(),
@@ -155,8 +158,12 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
       smea: storage.getLastSmea(),
       smeaDyn: storage.getLastSmeaDyn(),
       cfgRescale: storage.getLastCfgRescale(),
-      noiseSchedule: storage.getLastNoiseSchedule(),
-      varietyPlus: storage.getLastVarietyPlus(),
+      noiseSchedule: NoiseSchedules.resolve(
+        storage.getLastNoiseSchedule(),
+        allowNative: capabilities.allowsNativeNoiseSchedule,
+      ),
+      varietyPlus:
+          capabilities.retainsVarietyPlus && storage.getLastVarietyPlus(),
       straightAlpha: storage.getImageStraightAlpha(),
       transparentBackground: storage.getLastTransparentBackground(),
       qualityTier: storage.getQualityPresetNaiTier(),
@@ -233,6 +240,8 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
             to: ModelCapabilityRegistry.of(model),
             currentScale: state.scale,
             currentSteps: state.steps,
+            currentNoiseSchedule: state.noiseSchedule,
+            currentVarietyPlus: state.varietyPlus,
           )
         : const ModelSwitchFollowUps();
 
@@ -241,6 +250,12 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
     }
     if (followUps.steps != null) {
       next = next.copyWith(steps: followUps.steps!);
+    }
+    if (followUps.noiseSchedule != null) {
+      next = next.copyWith(noiseSchedule: followUps.noiseSchedule!);
+    }
+    if (followUps.varietyPlus != null) {
+      next = next.copyWith(varietyPlus: followUps.varietyPlus!);
     }
     state = next;
 
@@ -251,6 +266,12 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
       }
       if (followUps.steps != null) {
         _storage.setDefaultSteps(followUps.steps!);
+      }
+      if (followUps.noiseSchedule != null) {
+        _storage.setLastNoiseSchedule(followUps.noiseSchedule!);
+      }
+      if (followUps.varietyPlus != null) {
+        _storage.setLastVarietyPlus(followUps.varietyPlus!);
       }
     }
   }

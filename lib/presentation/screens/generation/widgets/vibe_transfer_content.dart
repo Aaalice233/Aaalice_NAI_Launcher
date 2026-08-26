@@ -164,7 +164,7 @@ class _VibeTransferContentState extends ConsumerState<VibeTransferContent> {
         // 添加按钮（有数据时显示）
         if (hasVibes && vibes.length < 16)
           _wrapWithFileDropRegion(
-            child: OutlinedButton.icon(
+            child: FilledButton.tonalIcon(
               onPressed: widget.onAddVibe,
               icon: Icon(
                 _isFileDraggingOver ? Icons.file_download_rounded : Icons.add,
@@ -176,9 +176,9 @@ class _VibeTransferContentState extends ConsumerState<VibeTransferContent> {
                     : context.l10n.vibe_addReference,
               ),
               style: showBackground
-                  ? OutlinedButton.styleFrom(
+                  ? FilledButton.styleFrom(
                       foregroundColor: Colors.white,
-                      side: const BorderSide(color: Colors.white38),
+                      backgroundColor: Colors.white.withValues(alpha: 0.12),
                     )
                   : null,
             ),
@@ -353,11 +353,11 @@ class _VibeTransferContentState extends ConsumerState<VibeTransferContent> {
       children: [
         // 保存到库按钮
         Expanded(
-          child: OutlinedButton.icon(
+          child: FilledButton.tonalIcon(
             onPressed: vibes.isNotEmpty ? widget.onSaveToLibrary : null,
             icon: const Icon(Icons.save_outlined, size: 16),
             label: Text(l10n.vibeLibrary_save),
-            style: OutlinedButton.styleFrom(
+            style: FilledButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 8),
             ),
           ),
@@ -365,11 +365,11 @@ class _VibeTransferContentState extends ConsumerState<VibeTransferContent> {
         const SizedBox(width: 8),
         // 从库导入按钮
         Expanded(
-          child: OutlinedButton.icon(
+          child: FilledButton.tonalIcon(
             onPressed: widget.onImportFromLibrary,
             icon: const Icon(Icons.folder_open_outlined, size: 16),
             label: Text(l10n.vibeLibrary_import),
-            style: OutlinedButton.styleFrom(
+            style: FilledButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 8),
             ),
           ),
@@ -552,15 +552,9 @@ class _EmptyStateCardState extends State<_EmptyStateCard> {
         curve: Curves.easeInOut,
         decoration: BoxDecoration(
           color: _isHovered
-              ? theme.colorScheme.surfaceContainerLow
-              : theme.colorScheme.surfaceContainerLowest,
+              ? theme.colorScheme.surfaceContainerHigh
+              : theme.colorScheme.surfaceContainerLow,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: _isHovered
-                ? theme.colorScheme.primary.withValues(alpha: 0.5)
-                : theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
-            width: _isHovered ? 2 : 1,
-          ),
         ),
         child: InkWell(
           onTap: widget.onTap,
@@ -569,16 +563,12 @@ class _EmptyStateCardState extends State<_EmptyStateCard> {
             padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 12),
             child: Column(
               children: [
-                AnimatedScale(
-                  scale: _isHovered ? 1.1 : 1.0,
-                  duration: const Duration(milliseconds: 150),
-                  child: Icon(
-                    widget.icon,
-                    size: 40,
-                    color: _isHovered
-                        ? theme.colorScheme.primary
-                        : theme.colorScheme.outline.withValues(alpha: 0.6),
-                  ),
+                Icon(
+                  widget.icon,
+                  size: 40,
+                  color: _isHovered
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.onSurfaceVariant,
                 ),
                 const SizedBox(height: 12),
                 Text(

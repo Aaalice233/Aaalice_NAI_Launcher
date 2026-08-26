@@ -77,6 +77,7 @@ class GalleryMedia {
 class GalleryItem {
   const GalleryItem({
     required this.id,
+    this.workId,
     GallerySourceId? sourceId,
     this.site = 'danbooru',
     this.title,
@@ -95,6 +96,8 @@ class GalleryItem {
     int? height,
     this.tagString = '',
     List<String>? tags,
+    this.searchTerms = const [],
+    this.tagsComplete = true,
     this.tagStringGeneral = '',
     this.tagStringCharacter = '',
     this.tagStringCopyright = '',
@@ -126,7 +129,11 @@ class GalleryItem {
        _cover = cover,
        favoriteCount = favoriteCount ?? favCount;
 
+  /// Legacy numeric identifier used by booru APIs.
   final int id;
+
+  /// Source-native work identifier. Non-numeric sources must set this value.
+  final String? workId;
   final GallerySourceId? _sourceId;
   final String site;
   final String? title;
@@ -143,6 +150,10 @@ class GalleryItem {
   final int imageHeight;
   final String tagString;
   final List<String>? _tags;
+
+  /// Source-defined searchable text that is not necessarily a display tag.
+  final List<String> searchTerms;
+  final bool tagsComplete;
   final String tagStringGeneral;
   final String tagStringCharacter;
   final String tagStringCopyright;
@@ -170,13 +181,19 @@ class GalleryItem {
   final Map<String, dynamic> rawSourceMetadata;
 
   GallerySourceId get sourceId => _sourceId ?? GallerySourceId.fromKey(site);
-  String get detailStableKey => sourceId.stableItemKey(id);
-  String get stableKey => detailStableKey;
+  String get sourceWorkId => workId ?? id.toString();
+  String get stableKey => sourceId.stableItemKey(sourceWorkId);
+  String get detailStableKey {
+    final revision = rawSourceMetadata['detailRevision']?.toString() ?? '';
+    return sourceId == GallerySourceId.quickTagCloud && revision.isNotEmpty
+        ? '$stableKey@$revision'
+        : stableKey;
+  }
 
   int? get favCount => favoriteCount;
   int get width => _cover?.width ?? imageWidth;
   int get height => _cover?.height ?? imageHeight;
-  String get postUrl => sourceId.itemPageUrl(id);
+  String get postUrl => sourceId.itemPageUrl(sourceWorkId);
   List<String> get tags => List.unmodifiable(
     _tags ??
         tagString
@@ -304,6 +321,7 @@ class GalleryItem {
 
   GalleryItem copyWith({
     int? id,
+    String? workId,
     GallerySourceId? sourceId,
     String? site,
     String? title,
@@ -320,6 +338,8 @@ class GalleryItem {
     int? imageHeight,
     String? tagString,
     List<String>? tags,
+    List<String>? searchTerms,
+    bool? tagsComplete,
     String? tagStringGeneral,
     String? tagStringCharacter,
     String? tagStringCopyright,
@@ -347,6 +367,7 @@ class GalleryItem {
   }) {
     return GalleryItem(
       id: id ?? this.id,
+      workId: workId ?? this.workId,
       sourceId: sourceId ?? _sourceId,
       site: site ?? this.site,
       title: title ?? this.title,
@@ -363,6 +384,8 @@ class GalleryItem {
       imageHeight: imageHeight ?? this.imageHeight,
       tagString: tagString ?? this.tagString,
       tags: tags ?? _tags,
+      searchTerms: searchTerms ?? this.searchTerms,
+      tagsComplete: tagsComplete ?? this.tagsComplete,
       tagStringGeneral: tagStringGeneral ?? this.tagStringGeneral,
       tagStringCharacter: tagStringCharacter ?? this.tagStringCharacter,
       tagStringCopyright: tagStringCopyright ?? this.tagStringCopyright,
@@ -402,6 +425,26 @@ int? _galleryNullableInt(Object? value) {
   return _galleryInt(value);
 }
 
+class GalleryCharacterPrompt {
+  const GalleryCharacterPrompt({
+    required this.label,
+    required this.prompt,
+    this.negativePrompt = '',
+  });
+
+  final String label;
+  final String prompt;
+  final String negativePrompt;
+}
+
+class GalleryContributor {
+  const GalleryContributor({required this.name, this.role = '', this.url});
+
+  final String name;
+  final String role;
+  final String? url;
+}
+
 class GalleryDetail {
   const GalleryDetail({
     required this.item,
@@ -409,6 +452,12 @@ class GalleryDetail {
     this.prompt,
     this.negativePrompt,
     this.description,
+    this.categoryPath = const [],
+    this.note,
+    this.rawTags = const [],
+    this.characterPrompts = const [],
+    this.contributors = const [],
+    this.sourceUrl,
     this.rawSourceMetadata = const {},
   });
 
@@ -417,6 +466,12 @@ class GalleryDetail {
   final String? prompt;
   final String? negativePrompt;
   final String? description;
+  final List<String> categoryPath;
+  final String? note;
+  final List<String> rawTags;
+  final List<GalleryCharacterPrompt> characterPrompts;
+  final List<GalleryContributor> contributors;
+  final String? sourceUrl;
   final Map<String, dynamic> rawSourceMetadata;
 }
 
@@ -428,6 +483,7 @@ class GalleryPage {
     required this.hasMore,
     this.total,
     this.rawItemCount = 0,
+    this.rawPageIdentity,
   });
 
   final List<GalleryItem> items;
@@ -436,4 +492,7 @@ class GalleryPage {
   final bool hasMore;
   final int? total;
   final int rawItemCount;
+
+  /// Stable identity of the upstream page before adapter-side filtering.
+  final String? rawPageIdentity;
 }

@@ -617,7 +617,7 @@
   "img2img_focusedInpaintEnabledHint": "Enabled. Adjust the focus area and Minimum Context Area from the top-left control in the inpaint editor.",
   "img2img_focusedInpaintDisabledHint": "Regular inpaint is the default. To use Focused Inpaint, enable it from the top-left control in the inpaint editor and draw a focus area.",
   "img2img_disabled": "Disabled",
-  "img2img_novelAiCloudUpscale": "NovelAI cloud upscale (fixed 4x)",
+  "img2img_novelAiCloudUpscale": "NovelAI cloud upscale (fixed 2x)",
   "img2img_comfyuiEnableHint": "Enable and connect ComfyUI in Settings > ComfyUI first.",
   "img2img_upscaleMode": "Upscale Mode",
   "img2img_upscaleRegularModel": "Regular Model",
@@ -1089,6 +1089,28 @@
       "index": {}
     }
   },
+  "character_summaryEmpty": "No characters added",
+  "character_summaryEnabled": "{count} enabled · {name}",
+  "@character_summaryEnabled": {
+    "placeholders": {
+      "count": {"type": "int"},
+      "name": {"type": "String"}
+    }
+  },
+  "character_summaryMore": "{count} enabled · {name} +{additional}",
+  "@character_summaryMore": {
+    "placeholders": {
+      "count": {"type": "int"},
+      "name": {"type": "String"},
+      "additional": {"type": "int"}
+    }
+  },
+  "character_summaryAllDisabled": "0 enabled · {count} disabled",
+  "@character_summaryAllDisabled": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
   "gallery_generationParams": "Generation Parameters",
   "gallery_metaModel": "Model",
   "gallery_metaResolution": "Resolution",
@@ -1128,15 +1150,52 @@
   "preset_presetName": "Preset Name",
   "onlineGallery_search": "Search",
   "onlineGallery_popular": "Popular",
+  "onlineGallery_sourceDoesNotSupportPopular": "The current source does not provide popular rankings",
   "onlineGallery_favorites": "Favorites",
+  "onlineGallery_searchFavorites": "Search favorites by title, author, or tag…",
+  "onlineGallery_savedLocally": "Saved locally",
+  "onlineGallery_savedInCloud": "Saved in cloud",
+  "onlineGallery_saveVisibleLocally": "Save page locally",
+  "onlineGallery_visibleFavoritesAlreadySaved": "Everything on this page is already saved locally",
+  "onlineGallery_localFavoritesPartialFailure": "Local favorites failed to load; cloud results are still available",
+  "onlineGallery_cloudFavoritesPartialFailure": "Cloud favorites failed to load; local results are still available",
+  "onlineGallery_visibleFavoritesSaved": "Saved {count} items to local favorites",
+  "@onlineGallery_visibleFavoritesSaved": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "onlineGallery_saveFavoritesFailed": "Failed to save local favorites: {error}",
+  "@onlineGallery_saveFavoritesFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
   "onlineGallery_searchTags": "Search tags...",
+  "onlineGallery_maxTagsExceeded": "You can combine up to {max} tags in one search",
+  "@onlineGallery_maxTagsExceeded": {
+    "placeholders": {
+      "max": {"type": "int"}
+    }
+  },
+  "onlineGallery_tagDetailsIncomplete": "Some complete tag lists could not be loaded. Unverified works were excluded; retry to complete the results.",
+  "onlineGallery_unsupportedMetatag": "This source or mode does not support metatag syntax. Use ordinary tags or switch to the source search.",
+  "onlineGallery_multiTagScanning": "Combining tags: requested {requests} pages and checked {candidates} candidate works",
+  "onlineGallery_scanPaused": "Several candidate pages were checked without enough matches. You can continue scanning later pages.",
+  "onlineGallery_continueScanning": "Continue scanning",
+  "@onlineGallery_multiTagScanning": {
+    "placeholders": {
+      "requests": {"type": "int"},
+      "candidates": {"type": "int"}
+    }
+  },
   "onlineGallery_refresh": "Refresh",
   "onlineGallery_random": "Random",
   "onlineGallery_randomRedraw": "Draw again",
   "onlineGallery_randomDrawing": "Drawing…",
   "onlineGallery_randomExhausted": "No more unseen images in this range",
+  "onlineGallery_randomDrawNoMatch": "This draw found no matching images. You can draw again.",
   "onlineGallery_randomRestart": "Start over",
-  "onlineGallery_originalRetry": "Original failed to load — retry",
   "onlineGallery_login": "Login",
   "onlineGallery_logout": "Logout",
   "onlineGallery_dayRank": "Day",
@@ -1153,10 +1212,9 @@
   "onlineGallery_favoritesEmpty": "Favorites is empty",
   "onlineGallery_noResults": "No images found",
   "onlineGallery_pleaseLogin": "Please login first",
-  "onlineGallery_size": "Size",
   "onlineGallery_score": "Score",
+  "onlineGallery_ratingLabel": "Rating",
   "onlineGallery_favCount": "Favorites",
-  "onlineGallery_type": "Type",
   "mediaType_video": "Video",
   "mediaType_gif": "GIF",
   "onlineGallery_tags": "Tags",
@@ -1169,8 +1227,6 @@
   "onlineGallery_promptTagCategories": "Prompt tag categories",
   "onlineGallery_promptTagCategoriesTooltip": "Choose which tag categories are included when copying, sending, or adding to the queue",
   "onlineGallery_keepOnePromptTagCategory": "Keep at least one prompt tag category selected",
-  "onlineGallery_open": "Open",
-  "onlineGallery_send": "Send",
   "onlineGallery_addToQueue": "Add to Queue",
   "onlineGallery_sendToTextToImage": "Send to Text to Image",
   "onlineGallery_sentToTextToImage": "Sent to text-to-image",
@@ -1183,9 +1239,7 @@
     }
   },
   "onlineGallery_noTagInfo": "This image has no tag information",
-  "onlineGallery_promptSentToGeneration": "Prompt sent to generation page",
   "onlineGallery_noImageUrl": "This image has no available URL",
-  "onlineGallery_gifLoadFailed": "Failed to load GIF",
   "onlineGallery_pinchToZoom": "Pinch to zoom",
   "onlineGallery_metadata": "Metadata",
   "onlineGallery_addedToQueueWithCount": "Added to queue. {count} tasks are now pending",
@@ -1215,6 +1269,9 @@
   "onlineGallery_ratingSensitive": "Sensitive",
   "onlineGallery_ratingQuestionable": "Questionable",
   "onlineGallery_ratingExplicit": "Explicit",
+  "onlineGallery_sourceGeneralOnly": "This source only provides general content",
+  "onlineGallery_sourceUnrated": "Source unrated",
+  "onlineGallery_sourceUnratedTooltip": "This source does not provide a reliable content rating, so the app cannot infer one accurately",
   "onlineGallery_clear": "Clear",
   "onlineGallery_previousPage": "Previous Page",
   "onlineGallery_nextPage": "Next Page",
@@ -1227,8 +1284,10 @@
   "onlineGallery_dateRange": "Date Range",
   "onlineGallery_fuzzySearch": "Fuzzy Match",
   "onlineGallery_fuzzySearchTooltip": "Use *tag* matching for related tags when enabled; search exact Danbooru tags when disabled",
+  "onlineGallery_blacklistShort": "Block",
   "onlineGallery_blacklistTags": "Blacklist Tags",
   "onlineGallery_outputFilter": "Output Filter",
+  "onlineGallery_outputFilterShort": "Output",
   "onlineGallery_outputFilterTooltip": "Manage tags removed automatically when copying, sending, or adding to the queue",
   "onlineGallery_outputFilterTitle": "Output filter tags",
   "onlineGallery_outputFilterSubtitle": "Images remain visible. Exact matching tags are removed only from copied, sent, and queued prompts.",
@@ -1259,26 +1318,24 @@
     }
   },
   "onlineGallery_blacklistTitle": "Online Gallery Blacklist",
-  "onlineGallery_blacklistSubtitle": "Choose the blacklist used to hide images. Local and Danbooru cloud lists remain independent.",
-  "onlineGallery_blacklistSourceLocal": "Local",
-  "onlineGallery_blacklistSourceCloud": "Danbooru Cloud",
-  "onlineGallery_blacklistLocalDescription": "Stored only on this device and works without signing in",
-  "onlineGallery_blacklistCloudDescription": "Use and edit the blacklist stored in your Danbooru account",
-  "onlineGallery_blacklistCloudLoginRequired": "Sign in to Danbooru to use the cloud blacklist",
+  "onlineGallery_blacklistSubtitle": "One list is shared by every online gallery and keeps filtering while offline.",
+  "onlineGallery_blacklistCloudDescription": "Danbooru is connected; local changes sync after a safe merge",
+  "onlineGallery_blacklistCloudLoginRequired": "The local blacklist still works; sign in to Danbooru to sync",
+  "onlineGallery_blacklistCloudUnavailable": "The local blacklist is active. Cloud sync will resume after Danbooru can be verified.",
   "onlineGallery_addBlacklistTagHint": "Add blacklist tag",
-  "onlineGallery_noLocalBlacklistTags": "No local blacklist tags",
-  "onlineGallery_noCloudBlacklistTags": "No cloud blacklist tags",
+  "onlineGallery_noLocalBlacklistTags": "No blacklist tags",
   "onlineGallery_pullBlacklist": "Pull cloud",
-  "onlineGallery_pullBlacklistTooltip": "Refresh the Danbooru cloud blacklist without changing the local list",
   "onlineGallery_pushBlacklist": "Push to cloud",
-  "onlineGallery_pushBlacklistTooltip": "Replace the Danbooru cloud blacklist with the local list",
-  "onlineGallery_pushBlacklistConfirmTitle": "Replace cloud with local?",
-  "onlineGallery_pushBlacklistConfirmBody": "The Danbooru cloud blacklist will be completely replaced by your current local list. Make sure the local list is ready.",
-  "onlineGallery_blacklistPullSucceeded": "Danbooru cloud blacklist refreshed",
+  "onlineGallery_pushBlacklistConfirmTitle": "Replace cloud with the unified list?",
+  "onlineGallery_pushBlacklistConfirmBody": "This completely replaces the Danbooru cloud blacklist. Routine syncing preserves unrecognized advanced rules, but this full push removes them.",
   "onlineGallery_blacklistPushSucceeded": "Cloud blacklist replaced with local list",
   "onlineGallery_blacklistSyncFailedMessage": "Blacklist sync failed. Check your sign-in and network connection.",
+  "onlineGallery_blacklistSaveFailed": "Failed to save blacklist: {error}",
+  "@onlineGallery_blacklistSaveFailed": {
+    "placeholders": {"error": {"type": "String"}}
+  },
   "onlineGallery_autoSyncOnStartup": "Refresh cloud list on startup",
-  "onlineGallery_autoSyncOnStartupSubtitle": "Refreshes only the cloud cache and never overwrites the local blacklist",
+  "onlineGallery_autoSyncOnStartupSubtitle": "Safely merges new cloud tags without deleting local tags",
   "onlineGallery_lastSyncFailed": "Last sync failed: {error}",
   "@onlineGallery_lastSyncFailed": {
     "placeholders": {
@@ -1293,7 +1350,18 @@
     }
   },
   "onlineGallery_blacklistSettingsTitle": "Online Gallery Blacklist Settings",
-  "onlineGallery_blacklistLoginHint": "You are not logged in to Danbooru. The local blacklist still works, but syncing requires login.",
+  "onlineGallery_blacklistImportTitle": "Import tags",
+  "onlineGallery_blacklistImportHint": "Enter one tag per line or separate tags with commas",
+  "onlineGallery_blacklistImported": "Added {count} tags",
+  "@onlineGallery_blacklistImported": {"placeholders": {"count": {}}},
+  "onlineGallery_blacklistClearTitle": "Clear the unified blacklist?",
+  "onlineGallery_blacklistClearBody": "The gallery will immediately stop filtering by these tags. The cloud list will not be cleared automatically, and this action can be undone.",
+  "onlineGallery_blacklistPullSummary": "Added {added}, already had {existing}, skipped {skipped} deleted tags; preserved {opaque} advanced cloud rules",
+  "@onlineGallery_blacklistPullSummary": {"placeholders": {"added": {}, "existing": {}, "skipped": {}, "opaque": {}}},
+  "onlineGallery_blacklistPushDiff": "Cloud will add {added}, remove {removed}, and delete {opaque} advanced rules.",
+  "@onlineGallery_blacklistPushDiff": {"placeholders": {"added": {}, "removed": {}, "opaque": {}}},
+  "onlineGallery_blacklistCloudEmptyConfirm": "Confirm clearing the cloud blacklist",
+  "onlineGallery_blacklistMigrationConfirm": "This list includes cloud tags migrated from an unknown account. Confirm syncing them to the current account",
   "onlineGallery_bulkFavorite": "Favorite Selected",
   "onlineGallery_bulkDownload": "Download Selected",
   "onlineGallery_addedTasksToQueue": "Added {count} tasks to queue",
@@ -1302,11 +1370,12 @@
       "count": {}
     }
   },
-  "onlineGallery_partiallyAddedTasksToQueue": "Added {added} tasks; {skipped} were skipped because the queue is full",
-  "@onlineGallery_partiallyAddedTasksToQueue": {
+  "onlineGallery_queueBatchCompleted": "Added {added}; {prepareFailed} could not be prepared; {queueSkipped} were skipped because the queue is full",
+  "@onlineGallery_queueBatchCompleted": {
     "placeholders": {
       "added": {},
-      "skipped": {}
+      "prepareFailed": {},
+      "queueSkipped": {}
     }
   },
   "onlineGallery_unfavorited": "Unfavorited",
@@ -1329,11 +1398,12 @@
       "count": {}
     }
   },
-  "onlineGallery_downloadSelectedCompleted": "Download complete: {success} succeeded, {failed} failed",
-  "@onlineGallery_downloadSelectedCompleted": {
+  "onlineGallery_downloadSelectedCompletedWithSkipped": "Download complete: {success} succeeded, {failed} failed, {skipped} text-only items skipped",
+  "@onlineGallery_downloadSelectedCompletedWithSkipped": {
     "placeholders": {
       "success": {},
-      "failed": {}
+      "failed": {},
+      "skipped": {}
     }
   },
   "onlineGallery_startDate": "Start Date",
@@ -1354,9 +1424,54 @@
   "onlineGallery_gelbooruRequestFailed": "The Gelbooru request failed. Try again later.",
   "onlineGallery_aiTagQuery": "Search works, artists, titles, tags, or models",
   "onlineGallery_aiTagPromptQuery": "AI Prompt search (search raw Prompt text such as artist:)",
+  "onlineGallery_sourceQuickTagCloud": "Codex Gallery",
+  "onlineGallery_codexSearchHint": "Search titles, prompts, notes, categories, or contributors",
+  "onlineGallery_codexLabel": "Codex",
+  "onlineGallery_codexSelect": "Select codex",
+  "onlineGallery_codexAll": "All codexes",
+  "onlineGallery_codexBrowse": "Browse",
+  "onlineGallery_codexLatest": "Latest update",
+  "onlineGallery_codexRecent": "Recently viewed",
+  "onlineGallery_codexCategory": "Category",
+  "onlineGallery_codexAllCategories": "All categories",
+  "onlineGallery_codexUpdateBatch": "Update batch",
+  "onlineGallery_codexMediaFilter": "Images",
+  "onlineGallery_codexAllEntries": "All entries",
+  "onlineGallery_codexWithImages": "With images",
+  "onlineGallery_codexWithoutImages": "Without images",
+  "onlineGallery_codexOffline": "Offline cache",
+  "onlineGallery_codexContributors": "Contributors and source",
+  "onlineGallery_codexEntryCount": "{entries} entries · {images} with images",
+  "@onlineGallery_codexEntryCount": {"placeholders": {"entries": {}, "images": {}}},
+  "onlineGallery_codexNoImage": "Entry without images",
+  "onlineGallery_codexNoImageDescription": "This is a text-only entry. Its prompts and metadata remain fully available.",
+  "onlineGallery_codexAuthor": "Author",
+  "onlineGallery_codexImageFile": "Image file",
+  "onlineGallery_codexOriginalFile": "Original file",
+  "onlineGallery_codexDeclaredSource": "Data source",
+  "onlineGallery_codexPrompt": "Positive prompt",
+  "onlineGallery_codexNegativePrompt": "Negative prompt",
+  "onlineGallery_negativePromptCopyHeading": "Negative Prompt",
+  "onlineGallery_codexCharacterPrompts": "Character prompts",
+  "onlineGallery_codexNote": "Notes",
+  "onlineGallery_codexCopyPositive": "Copy positive",
+  "onlineGallery_codexCopyNegative": "Copy negative",
+  "onlineGallery_codexCopyCharacter": "Copy this character",
+  "onlineGallery_codexCopyAll": "Copy all",
+  "onlineGallery_codexSendToGeneration": "Send to Generate",
+  "onlineGallery_codexAddToQueue": "Add to generation queue",
+  "onlineGallery_codexDownloadOriginal": "Download current original",
+  "onlineGallery_codexOpenSource": "Open source",
+  "onlineGallery_codexOpenOrigin": "Open original page",
+  "onlineGallery_codexOpenSourceFailed": "Could not open the declared source.",
+  "onlineGallery_codexBookLocked": "This codex contains adult content. Select Questionable or Explicit in the rating filter to view it.",
+  "onlineGallery_codexNoData": "No codex entries match these filters",
+  "onlineGallery_codexExternalFallback": "The external source is unavailable. Showing the codex site's cached version.",
+  "onlineGallery_codexPreviousRelease": "The current version is unavailable. Showing the previous verified release.",
+  "onlineGallery_codexCachedBadge": "cached release",
+  "onlineGallery_codexUntitled": "Untitled entry",
   "onlineGallery_artistHunt": "Artist chains only",
   "onlineGallery_artistHuntTooltip": "Show only images whose positive Prompt contains explicit artist: tags",
-  "onlineGallery_artistChain": "Artist chain",
   "onlineGallery_copyArtistChain": "Copy artist chain",
   "onlineGallery_copyFullPrompt": "Copy full Prompt",
   "onlineGallery_copyRawArtistFragments": "Copy original artist fragments",
@@ -1376,19 +1491,19 @@
   "onlineGallery_sourceRateLimited": "Too many requests. Please try again later.",
   "onlineGallery_sourceTimeout": "The request timed out. Check your connection.",
   "onlineGallery_sourceNetworkError": "Could not connect to this gallery source. Check your network or proxy.",
+  "onlineGallery_sourceRequestFailed": "The request failed. Please try again later.",
+  "onlineGallery_actionFailed": "Action failed: {error}",
+  "@onlineGallery_actionFailed": {"placeholders": {"error": {}}},
   "onlineGallery_sourceMalformedResponse": "The source response format has changed and cannot be parsed.",
   "onlineGallery_detailNotFound": "This work does not exist or has been removed.",
   "onlineGallery_imageUnavailable": "This image is currently unavailable.",
   "onlineGallery_loadedAll": "All items loaded",
   "onlineGallery_retryAppend": "Load failed. Click to retry",
-  "onlineGallery_rankNumber": "Rank #{rank}",
-  "@onlineGallery_rankNumber": {"placeholders": {"rank": {}}},
   "onlineGallery_multipleImages": "{count} images",
   "@onlineGallery_multipleImages": {"placeholders": {"count": {}}},
   "onlineGallery_views": "Views",
   "onlineGallery_downloadAllMedia": "Download all images in this work",
   "onlineGallery_copyFullMetadata": "Copy full metadata",
-  "onlineGallery_metadataParseFailed": "Metadata parsing failed. The original content is preserved and can be copied.",
   "onlineGallery_gelbooruReadOnly": "Read-only favorites",
   "onlineGallery_gelbooruFavoritesSortHint": "Sorted by post ID, newest first. This may differ from website favorite-time order.",
 
@@ -1634,6 +1749,13 @@
   "characterCanvas_custom": "Custom",
   "characterCanvas_aiHint": "AI will place all characters automatically",
   "characterCanvas_dragHint": "Drag anchors to position characters; release to apply",
+  "characterCanvas_guide": "Composition Guide",
+  "characterCanvas_guideNone": "None",
+  "characterCanvas_guideThirds": "Thirds",
+  "characterCanvas_guidePhi": "Phi",
+  "characterCanvas_guideGrid": "Grid",
+  "characterCanvas_guideColumns": "Columns",
+  "characterCanvas_guideRows": "Rows",
   "characterEditor_genderFemale": "Female",
   "characterEditor_genderMale": "Male",
   "characterEditor_genderOther": "Other",
@@ -1650,24 +1772,22 @@
   "toolbar_confirmClear": "Confirm Clear",
   "toolbar_settings": "Settings",
 
-  "characterTooltip_noCharacters": "No characters configured",
-  "characterTooltip_clickToConfig": "Click to configure multi-character prompts",
-  "characterTooltip_globalAiLabel": "Global AI Position:",
-  "characterTooltip_enabled": "Enabled",
-  "characterTooltip_disabled": "Disabled",
-  "characterTooltip_positionAi": "AI",
   "characterTooltip_disabledLabel": "Disabled",
-  "characterTooltip_promptLabel": "Prompt",
-  "characterTooltip_negativeLabel": "Undesired Content",
   "characterTooltip_notSet": "Not set",
-  "characterTooltip_summary": "{total} characters ({enabled} enabled)",
-  "@characterTooltip_summary": {
+  "characterTooltip_previewTitle": "Character preview",
+  "characterTooltip_enabledSummary": "{enabled} / {total} enabled",
+  "@characterTooltip_enabledSummary": {
     "placeholders": {
-      "total": {},
-      "enabled": {}
+      "enabled": {"type": "int"},
+      "total": {"type": "int"}
     }
   },
-  "characterTooltip_viewFullConfig": "Click for full configuration",
+  "characterTooltip_more": "{count} more characters",
+  "@characterTooltip_more": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
 
   "tagLibrary_generatedCharacters": "Generated {count} characters",
   "@tagLibrary_generatedCharacters": {
@@ -1686,14 +1806,13 @@
   "randomMode_naiOfficial": "Official Mode",
   "randomMode_custom": "Custom Mode",
   "randomMode_hybrid": "Hybrid Mode",
-  "randomMode_naiOfficialDesc": "Replicate NovelAI official random algorithm",
-  "randomMode_customDesc": "Generate using custom presets",
-  "randomMode_hybridDesc": "Combine official algorithm with custom presets",
-  "randomMode_naiIndicator": "NAI",
+  "randomMode_naiOfficialDesc": "Use the NovelAI official random wordlist for the current model",
+  "randomMode_customDesc": "Generate from the complete offline tag catalog and custom presets",
+  "randomMode_hybridDesc": "Combine the official wordlist with the catalog extension",
+  "randomMode_naiIndicator": "Official",
   "randomMode_customIndicator": "Custom",
 
   "naiMode_noTags": "No tags",
-  "naiAlgorithm_characterCount": "Character Count Distribution",
   "naiAlgorithm_mainPrompt": "Main Prompt",
   "tagGroup_tagCount": "{count} tags",
   "@tagGroup_tagCount": {
@@ -1847,14 +1966,9 @@
   "randomManager_algorithmConfig": "Algorithm Config",
   "randomManager_characterCountWeight": "Character Count Weight",
   "randomManager_genderWeight": "Gender Weight",
-  "randomManager_globalSettings": "Global Settings",
   "randomManager_enableSeasonalWordlists": "Enable Seasonal Wordlists",
   "randomManager_enableSeasonalWordlistsDesc": "Wordlists for Christmas, Halloween, and other special dates",
   "randomManager_globalEmphasisProbability": "Global Emphasis Probability",
-  "randomManager_soloGenderOptions": "Solo Gender Options",
-  "randomManager_femaleShort": "F",
-  "randomManager_maleShort": "M",
-  "randomManager_other": "Other",
   "randomManager_tagGroupList": "Tag Groups",
   "randomManager_deleteTagGroupTitle": "Delete Tag Group",
   "randomManager_deleteTagGroupConfirm": "Delete tag group \"{name}\"? This action cannot be undone.",
@@ -1878,7 +1992,6 @@
   "randomManager_noCategories": "No categories",
   "randomManager_noCategoriesHint": "Click \"Add Category\" to start configuring",
   "randomManager_globalPeopleSettings": "Global Character Settings",
-  "randomManager_closePreview": "Close preview",
   "randomManager_importPreset": "Import Preset",
   "randomManager_importPresetSubtitle": "Import random config preset from JSON text",
   "randomManager_exportCurrentPreset": "Export Current Preset",
@@ -1939,8 +2052,6 @@
   "randomManager_resetDefaultDone": "Reset to default configuration",
   "randomManager_generatePreview": "Generate Preview",
   "randomManager_importExport": "Import / Export",
-  "randomManager_syncing": "Syncing",
-  "randomManager_syncingWithEllipsis": "Syncing...",
   "randomManager_syncDanbooruTags": "Sync Danbooru Tags",
   "randomManager_unknownError": "Unknown error",
   "randomManager_readOnlyMode": "Read-only Mode",
@@ -2009,18 +2120,6 @@
   "randomManager_emphasisProbability": "Emphasis Probability",
   "randomManager_probability": "Probability",
   "randomManager_selectionMode": "Selection Mode",
-  "randomManager_editHint": "{name} (click to edit)",
-  "@randomManager_editHint": {
-    "placeholders": {
-      "name": {}
-    }
-  },
-  "randomManager_emphasisProbabilityValue": "Emphasis probability: {percent}%",
-  "@randomManager_emphasisProbabilityValue": {
-    "placeholders": {
-      "percent": {}
-    }
-  },
   "randomManager_previewGeneration": "Preview Generation",
   "randomManager_generating": "Generating",
   "randomManager_generate": "Generate",
@@ -2485,6 +2584,44 @@
   "statistics_totalAnlasCost": "Total Cost",
   "statistics_avgDailyCost": "Daily Average",
   "statistics_noAnlasData": "No Anlas consumption data",
+  "statistics_noAnlasInPeriod": "No Anlas consumption in this period",
+  "statistics_periodSelectorTooltip": "Select statistics period",
+  "statistics_periodWeek": "Last week",
+  "statistics_periodMonth": "Last month",
+  "statistics_periodThreeMonths": "Last 3 months",
+  "statistics_periodYear": "Last year",
+  "statistics_periodAll": "All time",
+  "statistics_periodCustom": "Custom days",
+  "statistics_periodDays": "Last {count} days",
+  "@statistics_periodDays": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "statistics_periodSummary": "{start} to {end} · {count} days",
+  "@statistics_periodSummary": {
+    "placeholders": {
+      "start": {"type": "String"},
+      "end": {"type": "String"},
+      "count": {"type": "int"}
+    }
+  },
+  "statistics_partialCoverage": "Available records begin on {date}. The daily average uses the available {count} days.",
+  "@statistics_partialCoverage": {
+    "placeholders": {
+      "date": {"type": "String"},
+      "count": {"type": "int"}
+    }
+  },
+  "statistics_customPeriodTitle": "Custom statistics period",
+  "statistics_customDaysHint": "Number of days",
+  "statistics_customDaysError": "Enter an integer from 1 to {max}",
+  "@statistics_customDaysError": {
+    "placeholders": {
+      "max": {"type": "int"}
+    }
+  },
+  "statistics_daysUnit": "days",
   "statistics_peakActivity": "Peak Activity",
   "statistics_timeMorning": "Morning",
   "statistics_timeAfternoon": "Afternoon",
@@ -2865,7 +3002,6 @@
   "fixedTags_noMatchingResults": "No matching results",
 
   "reversePrompt_title": "Reverse Prompt",
-  "reversePrompt_pending": "Pending",
   "reversePrompt_imageCount": "{count} image(s)",
   "@reversePrompt_imageCount": {
     "placeholders": {
@@ -3495,9 +3631,7 @@
   "settings_notificationSelectSound": "Select Sound",
   "settings_notificationResetSound": "Reset to Default",
 
-  "categoryConfiguration": "Category Configuration",
   "resetToDefault": "Reset to Default",
-  "resetToDefaultTooltip": "Reset to default configuration",
   "toggleGroupEnabled": "Toggle group enabled state",
   "diyNotAvailableForDefault": "DIY not available for default preset",
   "diyNotAvailableHint": "Please copy to a custom preset to edit",
@@ -3752,6 +3886,7 @@
   },
 
   "drop_dialogTitle": "How to use this image?",
+  "drop_actions": "Actions",
   "drop_hint": "Drop image here",
   "drop_img2img": "Image2Image",
   "drop_reversePrompt": "Reverse Prompt",
@@ -3790,6 +3925,49 @@
   "drop_useAsRawImage": "Use as Raw Image",
   "drop_useAsRawImageSubtitle": "Re-encode (costs 2 Anlas)",
   "drop_dragToImg2ImgOrOther": "Drag to Image2Image or another target",
+  "drop_metadataDetected": "NovelAI metadata detected",
+  "drop_metadataParseFailed": "Metadata could not be parsed",
+  "drop_metadataParseFailedHint": "The image contains metadata fields that cannot currently be read. Other image actions remain available.",
+  "drop_metadataErrorDetails": "View error details",
+  "drop_positivePrompt": "Prompt",
+  "drop_negativePrompt": "Undesired Content",
+  "drop_characterPrompts": "Character Prompts ({count})",
+  "@drop_characterPrompts": {"placeholders": {"count": {"type": "int"}}},
+  "drop_characterPositivePrompt": "Character {index} Positive Prompt",
+  "@drop_characterPositivePrompt": {"placeholders": {"index": {"type": "int"}}},
+  "drop_characterNegativePrompt": "Character {index} Undesired Content",
+  "@drop_characterNegativePrompt": {"placeholders": {"index": {"type": "int"}}},
+  "drop_promptNotRecorded": "Not recorded",
+  "drop_promptCopy": "Copy",
+  "drop_promptAddWhole": "Add full prompt to library",
+  "drop_promptAddSelection": "Add to library",
+  "drop_promptLibraryTitle": "Add to Library",
+  "drop_promptLibraryWriteMode": "Write mode",
+  "drop_promptLibraryCreate": "New",
+  "drop_promptLibraryAppend": "Append",
+  "drop_promptLibraryOverwrite": "Replace",
+  "drop_promptLibraryAliasHint": "This name is also used by <library name> references",
+  "drop_promptLibraryTarget": "Target entry",
+  "drop_promptLibrarySelectTarget": "Select an entry to update",
+  "drop_promptLibrarySeparator": "Separator",
+  "drop_promptLibrarySeparatorComma": "Comma + space",
+  "drop_promptLibrarySeparatorNewline": "New line",
+  "drop_promptLibrarySeparatorNone": "No separator",
+  "drop_promptLibraryCharacterCount": "{count} characters",
+  "@drop_promptLibraryCharacterCount": {"placeholders": {"count": {"type": "int"}}},
+  "drop_promptLibraryExactContentHint": "Saves this text without cleaning, reordering, or completing it",
+  "drop_promptLibraryResultPreview": "Result preview",
+  "drop_promptLibraryDuplicate": "The same content already exists in “{name}”",
+  "@drop_promptLibraryDuplicate": {"placeholders": {"name": {}}},
+  "drop_promptLibraryNameConflict": "This name already exists. Rename it, append, or replace",
+  "drop_promptLibraryOverwriteWarning": "This will replace all prompt content in “{name}”",
+  "@drop_promptLibraryOverwriteWarning": {"placeholders": {"name": {}}},
+  "drop_promptLibraryMore": "More options",
+  "drop_promptLibraryConfirmOverwrite": "Replace",
+  "drop_promptLibrarySaved": "Saved to library",
+  "drop_promptLibrarySaveFailed": "Failed to save the library entry",
+  "drop_promptLibraryPositiveName": "Prompt snippet",
+  "drop_promptLibraryNegativeName": "Undesired content snippet",
 
   "preciseRef_title": "Precise Reference",
   "preciseRef_description": "Add reference images and set type and parameters. Multiple references can be used simultaneously.",
@@ -4651,6 +4829,8 @@
   "discordShare_errorBrowser": "Could not open your browser. Check the system default browser setting.",
   "discordShare_errorTimeout": "Discord verification timed out. Please verify again.",
   "discordShare_errorRateLimited": "You are sharing too quickly. Please try again shortly.",
+  "discordShare_errorRateLimitedRetry": "You are sharing too quickly. Try again in {seconds} seconds.",
+  "@discordShare_errorRateLimitedRetry": {"placeholders": {"seconds": {"type": "int"}}},
   "discordShare_errorNoChannels": "No Discord share channels are currently available.",
   "discordShare_errorSession": "Your Discord verification expired. Please verify again.",
   "discordShare_errorRelay": "The Discord share service is temporarily unavailable. Please try again later.",
@@ -5936,8 +6116,6 @@
     }
   },
 
-  "randomManager_releaseToDelete": "Release to delete",
-  "randomManager_dragHereToDelete": "Drag here to delete",
   "randomManager_keyboardShortcutsHint": "Keyboard Shortcuts (press ? to view)",
 
   "localGallery_createFolder": "Create Folder",
@@ -6159,6 +6337,57 @@
   "autocomplete_statusDisabled": "Off",
   "autocomplete_statusSearching": "Searching",
   "autocomplete_statusTranslating": "Translating",
-  "autocomplete_openSettings": "Open autocomplete and data source settings"
+  "autocomplete_openSettings": "Open autocomplete and data source settings",
+  "randomManager_searchCategories": "Search categories, groups, or tags (Ctrl+F)",
+  "randomManager_workspaceTitle": "Random library",
+  "randomManager_workspaceSubtitle": "Build reusable recipes from the complete offline catalog",
+  "randomManager_recipeTitle": "Generation recipe",
+  "randomManager_recipeSubtitle": "Each stage controls the chance and sampling range of one semantic tag group",
+  "randomManager_inspectorTitle": "Generation setup",
+  "randomManager_inspectorSubtitle": "Adjust character distribution and global output behavior for this preset",
+  "randomManager_previewEmptyDescription": "Generate a sample to inspect the actual output of this recipe.",
+  "randomManager_category_composition": "Composition",
+  "randomManager_category_camera": "Camera angle",
+  "randomManager_category_framing": "Framing",
+  "randomManager_category_focus": "Focus",
+  "randomManager_category_eyeFeature": "Eye features",
+  "randomManager_category_hairLength": "Hair length",
+  "randomManager_category_hairTexture": "Hair texture",
+  "randomManager_category_bangs": "Bangs",
+  "randomManager_category_skinTone": "Skin tone",
+  "randomManager_category_species": "Species",
+  "randomManager_category_headwear": "Headwear",
+  "randomManager_category_hairAccessory": "Hair accessories",
+  "randomManager_category_prop": "Props",
+  "randomManager_category_effect": "Effects",
+  "randomManager_category_year": "Era",
+  "randomManager_category_detail": "Creative details",
+  "randomManager_sourceOfficial": "Official · {wordlist}",
+  "@randomManager_sourceOfficial": {"placeholders": {"wordlist": {"type": "String"}}},
+  "randomManager_sourceCatalog": "Custom · Catalog extension",
+  "randomManager_sourceHybrid": "Hybrid · {wordlist} + Catalog",
+  "@randomManager_sourceHybrid": {"placeholders": {"wordlist": {"type": "String"}}},
+  "randomManager_currentMode": "Current mode",
+  "randomManager_officialWordlist": "Official wordlist for current model",
+  "randomManager_officialWordlistCount": "{wordlist}: {count} raw records",
+  "@randomManager_officialWordlistCount": {"placeholders": {"wordlist": {"type": "String"}, "count": {"type": "int"}}},
+  "randomManager_officialAsset": "Complete official asset",
+  "randomManager_officialAssetCount": "{entries} records in {groups} source arrays",
+  "@randomManager_officialAssetCount": {"placeholders": {"entries": {"type": "int"}, "groups": {"type": "int"}}},
+  "randomManager_sourceFile": "Source file",
+  "randomManager_sourceSha256": "Source SHA-256",
+  "randomManager_catalogExtension": "Catalog extension",
+  "randomManager_wordlistLegacyAnime": "Legacy Anime",
+  "randomManager_wordlistFurryV3": "Furry V3",
+  "randomManager_wordlistCharacterPrompts": "Character Prompts",
+  "randomManager_sourceDetails": "Data source details",
+  "randomManager_sourceUrl": "Source URL",
+  "randomManager_sourceCommit": "Source commit",
+  "randomManager_sourceDate": "Source date",
+  "randomManager_sourceLicense": "License",
+  "randomManager_catalogCounts": "Complete catalog: {tags} tags, {aliases} aliases",
+  "@randomManager_catalogCounts": {"placeholders": {"tags": {}, "aliases": {}}},
+  "randomManager_libraryUnavailable": "Random library unavailable",
+  "randomManager_noCategoryResults": "No matching categories, groups, or tags"
 
 }

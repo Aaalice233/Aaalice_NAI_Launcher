@@ -169,9 +169,6 @@ class _BulkMetadataEditDialogState
               ? theme.colorScheme.surfaceContainerHigh
               : theme.colorScheme.surface,
           borderRadius: const BorderRadius.all(Radius.circular(16)),
-          border: Border.all(
-            color: theme.dividerColor.withValues(alpha: isDark ? 0.3 : 0.2),
-          ),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,

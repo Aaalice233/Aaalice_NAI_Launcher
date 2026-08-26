@@ -72,6 +72,9 @@ class _DiscordShareDialogState extends ConsumerState<DiscordShareDialog> {
   Object? _error;
   CancelToken? _authenticationCancelToken;
   Future<void> _preferenceWrite = Future<void>.value();
+  Timer? _rateLimitTimer;
+  Stopwatch? _rateLimitStopwatch;
+  Duration? _rateLimitDuration;
 
   late final Map<_PromptCategory, String> _categoryContent;
   late final Set<_PromptCategory> _preferredCategories;
@@ -99,6 +102,7 @@ class _DiscordShareDialogState extends ConsumerState<DiscordShareDialog> {
   @override
   void dispose() {
     _authenticationCancelToken?.cancel('Discord share dialog closed');
+    _rateLimitTimer?.cancel();
     _captionController.dispose();
     _promptController.dispose();
     super.dispose();
@@ -270,20 +274,25 @@ class _DiscordShareDialogState extends ConsumerState<DiscordShareDialog> {
 
   Future<void> _send() async {
     final session = _session;
-    if (session == null || _selectedTargets.isEmpty || _sending) return;
-    final confirmed = await AssetProtectionGuard.confirmExternalImageSend(
-      context: context,
-      ref: ref,
-      targetName: 'Discord',
-    );
-    if (!confirmed || !mounted) return;
-
+    if (session == null ||
+        _selectedTargets.isEmpty ||
+        _sending ||
+        _rateLimitSecondsRemaining > 0) {
+      return;
+    }
     setState(() {
       _sending = true;
       _error = null;
     });
     final service = ref.read(discordShareServiceProvider);
     try {
+      final confirmed = await AssetProtectionGuard.confirmExternalImageSend(
+        context: context,
+        ref: ref,
+        targetName: 'Discord',
+      );
+      if (!confirmed || !mounted) return;
+
       final image = await ImageShareSanitizer.prepareForCopyOrDragInBackground(
         widget.imageBytes,
         fileName: widget.fileName,
@@ -318,6 +327,8 @@ class _DiscordShareDialogState extends ConsumerState<DiscordShareDialog> {
           _joinRequired = error.isNotMember;
           _error = error.isNotMember ? null : error;
         });
+      } else if (error.code == 'rate_limited' && error.retryAfter != null) {
+        _startRateLimitCooldown(error);
       } else {
         setState(() => _error = error);
       }
@@ -326,6 +337,41 @@ class _DiscordShareDialogState extends ConsumerState<DiscordShareDialog> {
     } finally {
       if (mounted) setState(() => _sending = false);
     }
+  }
+
+  int get _rateLimitSecondsRemaining {
+    final duration = _rateLimitDuration;
+    final stopwatch = _rateLimitStopwatch;
+    if (duration == null || stopwatch == null) return 0;
+    final remaining = duration - stopwatch.elapsed;
+    if (remaining <= Duration.zero) return 0;
+    return (remaining.inMilliseconds / 1000).ceil();
+  }
+
+  void _startRateLimitCooldown(DiscordShareException error) {
+    _rateLimitTimer?.cancel();
+    _rateLimitDuration = error.retryAfter;
+    _rateLimitStopwatch = Stopwatch()..start();
+    setState(() => _error = error);
+    _rateLimitTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_rateLimitSecondsRemaining <= 0) {
+        timer.cancel();
+        _rateLimitDuration = null;
+        _rateLimitStopwatch = null;
+        setState(() {
+          if (_error is DiscordShareException &&
+              (_error! as DiscordShareException).code == 'rate_limited') {
+            _error = null;
+          }
+        });
+        return;
+      }
+      setState(() {});
+    });
   }
 
   @override
@@ -758,7 +804,12 @@ class _DiscordShareDialogState extends ConsumerState<DiscordShareDialog> {
           ),
           const SizedBox(width: 8),
           FilledButton.icon(
-            onPressed: _sending || _selectedTargets.isEmpty ? null : _send,
+            onPressed:
+                _sending ||
+                    _selectedTargets.isEmpty ||
+                    _rateLimitSecondsRemaining > 0
+                ? null
+                : _send,
             icon: _sending
                 ? const SizedBox.square(
                     dimension: 16,
@@ -781,7 +832,13 @@ class _DiscordShareDialogState extends ConsumerState<DiscordShareDialog> {
     return switch (error.code) {
       'browser_unavailable' => context.l10n.discordShare_errorBrowser,
       'timeout' => context.l10n.discordShare_errorTimeout,
-      'rate_limited' => context.l10n.discordShare_errorRateLimited,
+      'share_in_progress' => context.l10n.discordShare_sending,
+      'rate_limited' =>
+        _rateLimitSecondsRemaining > 0
+            ? context.l10n.discordShare_errorRateLimitedRetry(
+                _rateLimitSecondsRemaining,
+              )
+            : context.l10n.discordShare_errorRateLimited,
       'no_targets' ||
       'invalid_targets' => context.l10n.discordShare_errorNoChannels,
       'unauthorized' ||

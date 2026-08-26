@@ -355,14 +355,6 @@ class _FolderTabState extends State<_FolderTab> {
                 : _isHovered
                 ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.5)
                 : Colors.transparent,
-            border: Border.all(
-              color: widget.isActive
-                  ? colorScheme.primary
-                  : _isHovered
-                  ? colorScheme.outline.withValues(alpha: 0.3)
-                  : colorScheme.outline.withValues(alpha: 0.15),
-              width: widget.isActive ? 1.5 : 1,
-            ),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(

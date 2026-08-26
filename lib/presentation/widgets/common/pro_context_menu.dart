@@ -20,12 +20,12 @@ class ProMenuItem {
   });
 
   const ProMenuItem.divider()
-      : id = '_divider',
-        label = '',
-        icon = null,
-        onTap = null,
-        isDivider = true,
-        isDanger = false;
+    : id = '_divider',
+      label = '',
+      icon = null,
+      onTap = null,
+      isDivider = true,
+      isDanger = false;
 }
 
 /// 专业上下文菜单组件
@@ -58,10 +58,6 @@ class ProContextMenu extends StatelessWidget {
                 ? colorScheme.surface.withValues(alpha: 0.98)
                 : colorScheme.surface,
             borderRadius: BorderRadius.circular(6),
-            border: Border.all(
-              color: colorScheme.outlineVariant
-                  .withValues(alpha: isDark ? 0.15 : 0.2),
-            ),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.12),
@@ -79,10 +75,7 @@ class ProContextMenu extends StatelessWidget {
                 if (item.isDivider) {
                   return const ThemedDivider(height: 1);
                 }
-                return _ContextMenuItem(
-                  item: item,
-                  onSelect: onSelect,
-                );
+                return _ContextMenuItem(item: item, onSelect: onSelect);
               }).toList(),
             ),
           ),
@@ -96,10 +89,7 @@ class _ContextMenuItem extends StatefulWidget {
   final ProMenuItem item;
   final void Function(ProMenuItem) onSelect;
 
-  const _ContextMenuItem({
-    required this.item,
-    required this.onSelect,
-  });
+  const _ContextMenuItem({required this.item, required this.onSelect});
 
   @override
   State<_ContextMenuItem> createState() => _ContextMenuItemState();
@@ -112,8 +102,9 @@ class _ContextMenuItemState extends State<_ContextMenuItem> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final itemColor =
-        widget.item.isDanger ? colorScheme.error : colorScheme.onSurface;
+    final itemColor = widget.item.isDanger
+        ? colorScheme.error
+        : colorScheme.onSurface;
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
@@ -127,8 +118,10 @@ class _ContextMenuItemState extends State<_ContextMenuItem> {
           curve: Curves.easeOut,
           color: _isHovered
               ? (widget.item.isDanger
-                  ? colorScheme.error.withValues(alpha: isDark ? 0.15 : 0.1)
-                  : colorScheme.primary.withValues(alpha: isDark ? 0.15 : 0.08))
+                    ? colorScheme.error.withValues(alpha: isDark ? 0.15 : 0.1)
+                    : colorScheme.primary.withValues(
+                        alpha: isDark ? 0.15 : 0.08,
+                      ))
               : Colors.transparent,
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: Row(
@@ -137,8 +130,9 @@ class _ContextMenuItemState extends State<_ContextMenuItem> {
                 Icon(
                   widget.item.icon,
                   size: 16,
-                  color:
-                      _isHovered ? itemColor : itemColor.withValues(alpha: 0.8),
+                  color: _isHovered
+                      ? itemColor
+                      : itemColor.withValues(alpha: 0.8),
                 ),
                 const SizedBox(width: 8),
               ],
@@ -148,8 +142,9 @@ class _ContextMenuItemState extends State<_ContextMenuItem> {
                   style: TextStyle(
                     fontSize: 13,
                     color: itemColor,
-                    fontWeight:
-                        _isHovered ? FontWeight.w500 : FontWeight.normal,
+                    fontWeight: _isHovered
+                        ? FontWeight.w500
+                        : FontWeight.normal,
                   ),
                 ),
               ),

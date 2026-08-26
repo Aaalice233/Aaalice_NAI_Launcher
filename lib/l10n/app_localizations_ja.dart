@@ -1369,7 +1369,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get img2img_disabled => '無効';
 
   @override
-  String get img2img_novelAiCloudUpscale => 'NovelAI クラウド拡大 (4x 固定)';
+  String get img2img_novelAiCloudUpscale => 'NovelAI クラウド拡大 (2x 固定)';
 
   @override
   String get img2img_comfyuiEnableHint =>
@@ -2337,6 +2337,24 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
+  String get character_summaryEmpty => 'キャラクター未追加';
+
+  @override
+  String character_summaryEnabled(int count, String name) {
+    return '$count人有効 · $name';
+  }
+
+  @override
+  String character_summaryMore(int count, String name, int additional) {
+    return '$count人有効 · $name +$additional';
+  }
+
+  @override
+  String character_summaryAllDisabled(int count) {
+    return '0人有効 · $count人無効';
+  }
+
+  @override
   String get gallery_generationParams => '生成パラメータ';
 
   @override
@@ -2412,10 +2430,73 @@ class AppLocalizationsJa extends AppLocalizations {
   String get onlineGallery_popular => '人気';
 
   @override
+  String get onlineGallery_sourceDoesNotSupportPopular =>
+      '現在のサイトは人気ランキングに対応していません';
+
+  @override
   String get onlineGallery_favorites => 'お気に入り';
 
   @override
+  String get onlineGallery_searchFavorites => 'お気に入りのタイトル・作者・タグを検索…';
+
+  @override
+  String get onlineGallery_savedLocally => 'ローカルに保存済み';
+
+  @override
+  String get onlineGallery_savedInCloud => 'クラウドに保存済み';
+
+  @override
+  String get onlineGallery_saveVisibleLocally => 'このページをローカル保存';
+
+  @override
+  String get onlineGallery_visibleFavoritesAlreadySaved =>
+      'このページはすべてローカル保存済みです';
+
+  @override
+  String get onlineGallery_localFavoritesPartialFailure =>
+      'ローカルお気に入りの読み込みに失敗しました。クラウドの結果は保持されています';
+
+  @override
+  String get onlineGallery_cloudFavoritesPartialFailure =>
+      'クラウドお気に入りの読み込みに失敗しました。ローカルの結果は保持されています';
+
+  @override
+  String onlineGallery_visibleFavoritesSaved(int count) {
+    return '$count 件をローカルお気に入りに保存しました';
+  }
+
+  @override
+  String onlineGallery_saveFavoritesFailed(String error) {
+    return 'ローカルお気に入りの保存に失敗しました：$error';
+  }
+
+  @override
   String get onlineGallery_searchTags => 'タグを検索...';
+
+  @override
+  String onlineGallery_maxTagsExceeded(int max) {
+    return '一度に組み合わせて検索できるタグは最大 $max 個です';
+  }
+
+  @override
+  String get onlineGallery_tagDetailsIncomplete =>
+      '一部の作品で完全なタグ一覧を取得できませんでした。未確認の作品は除外されています。再試行してください。';
+
+  @override
+  String get onlineGallery_unsupportedMetatag =>
+      'このソースまたはモードではメタタグ構文を使用できません。通常のタグを使うか、ソース検索に切り替えてください。';
+
+  @override
+  String onlineGallery_multiTagScanning(int requests, int candidates) {
+    return 'タグを組み合わせて検索中：$requests ページを取得し、$candidates 件の候補を確認しました';
+  }
+
+  @override
+  String get onlineGallery_scanPaused =>
+      '複数ページの候補を確認しましたが、十分な結果が見つかりませんでした。後続ページの検索を続けられます。';
+
+  @override
+  String get onlineGallery_continueScanning => '検索を続ける';
 
   @override
   String get onlineGallery_refresh => '更新';
@@ -2433,10 +2514,11 @@ class AppLocalizationsJa extends AppLocalizations {
   String get onlineGallery_randomExhausted => 'この範囲に未表示の画像はありません';
 
   @override
-  String get onlineGallery_randomRestart => '最初から';
+  String get onlineGallery_randomDrawNoMatch =>
+      '今回は条件に合う画像を取得できませんでした。続けて抽選できます。';
 
   @override
-  String get onlineGallery_originalRetry => '元画像の読み込みに失敗しました。再試行';
+  String get onlineGallery_randomRestart => '最初から';
 
   @override
   String get onlineGallery_login => 'ログイン';
@@ -2474,16 +2556,13 @@ class AppLocalizationsJa extends AppLocalizations {
   String get onlineGallery_pleaseLogin => 'まずログインしてください';
 
   @override
-  String get onlineGallery_size => 'サイズ';
-
-  @override
   String get onlineGallery_score => 'スコア';
 
   @override
-  String get onlineGallery_favCount => 'お気に入り';
+  String get onlineGallery_ratingLabel => 'レーティング';
 
   @override
-  String get onlineGallery_type => 'タイプ';
+  String get onlineGallery_favCount => 'お気に入り';
 
   @override
   String get mediaType_video => 'ビデオ';
@@ -2524,12 +2603,6 @@ class AppLocalizationsJa extends AppLocalizations {
       'プロンプトタグのカテゴリを1つ以上選択してください';
 
   @override
-  String get onlineGallery_open => '開く';
-
-  @override
-  String get onlineGallery_send => '送信';
-
-  @override
   String get onlineGallery_addToQueue => 'キューに追加';
 
   @override
@@ -2553,13 +2626,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get onlineGallery_noTagInfo => 'この画像にはタグ情報がありません';
 
   @override
-  String get onlineGallery_promptSentToGeneration => 'プロンプトが生成ページに送信されました';
-
-  @override
   String get onlineGallery_noImageUrl => 'この画像には利用可能な URL がありません';
-
-  @override
-  String get onlineGallery_gifLoadFailed => 'GIFのロードに失敗しました';
 
   @override
   String get onlineGallery_pinchToZoom => 'ピンチしてズーム';
@@ -2610,6 +2677,16 @@ class AppLocalizationsJa extends AppLocalizations {
   String get onlineGallery_ratingExplicit => '露骨';
 
   @override
+  String get onlineGallery_sourceGeneralOnly => 'このソースは全年齢向けコンテンツのみ提供します';
+
+  @override
+  String get onlineGallery_sourceUnrated => 'ソース未分類';
+
+  @override
+  String get onlineGallery_sourceUnratedTooltip =>
+      'このソースには信頼できるコンテンツ分類がないため、アプリで正確に推定できません';
+
+  @override
   String get onlineGallery_clear => 'クリア';
 
   @override
@@ -2634,10 +2711,16 @@ class AppLocalizationsJa extends AppLocalizations {
       '有効な場合は、関連タグに *tag* マッチングを使用します。無効になっている場合は、正確な Danbooru タグを検索します';
 
   @override
+  String get onlineGallery_blacklistShort => '除外';
+
+  @override
   String get onlineGallery_blacklistTags => 'ブラックリスト タグ';
 
   @override
   String get onlineGallery_outputFilter => '出力フィルター';
+
+  @override
+  String get onlineGallery_outputFilterShort => '出力';
 
   @override
   String get onlineGallery_outputFilterTooltip =>
@@ -2710,59 +2793,38 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get onlineGallery_blacklistSubtitle =>
-      '画像の非表示に使用するリストを選択します。ローカルと Danbooru クラウドのリストは個別に保持されます。';
-
-  @override
-  String get onlineGallery_blacklistSourceLocal => 'ローカル';
-
-  @override
-  String get onlineGallery_blacklistSourceCloud => 'Danbooru クラウド';
-
-  @override
-  String get onlineGallery_blacklistLocalDescription =>
-      'このデバイスにのみ保存され、ログインせずに使用できます';
+      'すべてのオンラインギャラリーで共有され、オフラインでもフィルタリングします。';
 
   @override
   String get onlineGallery_blacklistCloudDescription =>
-      'Danbooru アカウントのブラックリストを直接使用・編集します';
+      'Danbooru に接続済みです。ローカルの変更は安全にマージして同期します';
 
   @override
   String get onlineGallery_blacklistCloudLoginRequired =>
-      'クラウドブラックリストを使用するには Danbooru にログインしてください';
+      'ローカルのブラックリストは有効です。Danbooru にログインすると同期できます';
+
+  @override
+  String get onlineGallery_blacklistCloudUnavailable =>
+      'ローカルのブラックリストは有効です。Danbooru の接続確認後にクラウド同期を再開します';
 
   @override
   String get onlineGallery_addBlacklistTagHint => 'ブラックリスト タグを追加';
 
   @override
-  String get onlineGallery_noLocalBlacklistTags => 'ローカル ブラックリスト タグがありません';
-
-  @override
-  String get onlineGallery_noCloudBlacklistTags => 'クラウド ブラックリスト タグがありません';
+  String get onlineGallery_noLocalBlacklistTags => 'ブラックリスト タグがありません';
 
   @override
   String get onlineGallery_pullBlacklist => 'クラウドを取得';
 
   @override
-  String get onlineGallery_pullBlacklistTooltip =>
-      'ローカルを変更せず Danbooru クラウドのリストを更新します';
-
-  @override
   String get onlineGallery_pushBlacklist => 'クラウドへ送信';
 
   @override
-  String get onlineGallery_pushBlacklistTooltip =>
-      'ローカルのリストで Danbooru クラウドを置き換えます';
-
-  @override
-  String get onlineGallery_pushBlacklistConfirmTitle => 'ローカルでクラウドを置き換えますか？';
+  String get onlineGallery_pushBlacklistConfirmTitle => '統一リストでクラウドを置き換えますか？';
 
   @override
   String get onlineGallery_pushBlacklistConfirmBody =>
-      'Danbooru クラウドのブラックリストは現在のローカルリストで完全に置き換えられます。';
-
-  @override
-  String get onlineGallery_blacklistPullSucceeded =>
-      'Danbooru クラウドのブラックリストを更新しました';
+      'Danbooru クラウドのブラックリストを完全に置き換えます。通常の同期では不明な高度なルールを保持しますが、今回の完全送信では削除されます。';
 
   @override
   String get onlineGallery_blacklistPushSucceeded =>
@@ -2773,11 +2835,16 @@ class AppLocalizationsJa extends AppLocalizations {
       '同期に失敗しました。ログイン状態とネットワーク接続を確認してください。';
 
   @override
+  String onlineGallery_blacklistSaveFailed(String error) {
+    return 'ブラックリストの保存に失敗しました：$error';
+  }
+
+  @override
   String get onlineGallery_autoSyncOnStartup => '起動時にクラウドリストを更新';
 
   @override
   String get onlineGallery_autoSyncOnStartupSubtitle =>
-      'クラウドキャッシュのみ更新し、ローカルのリストは上書きしません';
+      'ローカルタグを削除せず、クラウドの新しいタグを安全にマージします';
 
   @override
   String onlineGallery_lastSyncFailed(Object error) {
@@ -2797,8 +2864,49 @@ class AppLocalizationsJa extends AppLocalizations {
   String get onlineGallery_blacklistSettingsTitle => 'オンライン ギャラリーのブラックリスト設定';
 
   @override
-  String get onlineGallery_blacklistLoginHint =>
-      'Danbooru にログインしていません。ローカルのブラックリストは引き続き機能しますが、同期にはログインが必要です。';
+  String get onlineGallery_blacklistImportTitle => 'タグを一括インポート';
+
+  @override
+  String get onlineGallery_blacklistImportHint => '1 行に 1 タグ、またはカンマで区切って入力します';
+
+  @override
+  String onlineGallery_blacklistImported(Object count) {
+    return '$count 個のタグを追加しました';
+  }
+
+  @override
+  String get onlineGallery_blacklistClearTitle => '統一ブラックリストをクリアしますか？';
+
+  @override
+  String get onlineGallery_blacklistClearBody =>
+      'ギャラリーはこれらのタグによるフィルタリングを直ちに停止します。クラウドは自動的にクリアされず、この操作は元に戻せます。';
+
+  @override
+  String onlineGallery_blacklistPullSummary(
+    Object added,
+    Object existing,
+    Object skipped,
+    Object opaque,
+  ) {
+    return '$added 件追加、$existing 件は登録済み、削除済み $skipped 件をスキップし、高度なクラウドルール $opaque 件を保持しました';
+  }
+
+  @override
+  String onlineGallery_blacklistPushDiff(
+    Object added,
+    Object removed,
+    Object opaque,
+  ) {
+    return 'クラウドに $added 件追加、$removed 件削除し、高度なルール $opaque 件を削除します。';
+  }
+
+  @override
+  String get onlineGallery_blacklistCloudEmptyConfirm =>
+      'クラウドのブラックリストをクリアすることを確認';
+
+  @override
+  String get onlineGallery_blacklistMigrationConfirm =>
+      'このリストにはアカウントを特定できない旧バージョンのクラウドタグが含まれます。現在のアカウントへの同期を確認してください';
 
   @override
   String get onlineGallery_bulkFavorite => '選択項目をお気に入りに追加';
@@ -2812,11 +2920,12 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String onlineGallery_partiallyAddedTasksToQueue(
+  String onlineGallery_queueBatchCompleted(
     Object added,
-    Object skipped,
+    Object prepareFailed,
+    Object queueSkipped,
   ) {
-    return '$added 件を追加しました。キューがいっぱいのため $skipped 件は追加されませんでした';
+    return '$added 件を追加しました。$prepareFailed 件は準備できず、$queueSkipped 件はキューがいっぱいのため追加されませんでした';
   }
 
   @override
@@ -2841,11 +2950,12 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String onlineGallery_downloadSelectedCompleted(
+  String onlineGallery_downloadSelectedCompletedWithSkipped(
     Object success,
     Object failed,
+    Object skipped,
   ) {
-    return 'ダウンロード完了: $success 成功、$failed 失敗';
+    return 'ダウンロード完了：$success 件成功、$failed 件失敗、テキストのみの項目 $skipped 件をスキップ';
   }
 
   @override
@@ -2911,14 +3021,152 @@ class AppLocalizationsJa extends AppLocalizations {
       'AI Prompt 検索（artist: などの Prompt 原文を検索）';
 
   @override
+  String get onlineGallery_sourceQuickTagCloud => '法典図鑑';
+
+  @override
+  String get onlineGallery_codexSearchHint => 'タイトル、プロンプト、メモ、カテゴリ、投稿者を検索';
+
+  @override
+  String get onlineGallery_codexLabel => '法典';
+
+  @override
+  String get onlineGallery_codexSelect => '法典を選択';
+
+  @override
+  String get onlineGallery_codexAll => 'すべての法典';
+
+  @override
+  String get onlineGallery_codexBrowse => '閲覧';
+
+  @override
+  String get onlineGallery_codexLatest => '今回の更新';
+
+  @override
+  String get onlineGallery_codexRecent => '最近見た項目';
+
+  @override
+  String get onlineGallery_codexCategory => 'カテゴリ';
+
+  @override
+  String get onlineGallery_codexAllCategories => 'すべてのカテゴリ';
+
+  @override
+  String get onlineGallery_codexUpdateBatch => '更新バッチ';
+
+  @override
+  String get onlineGallery_codexMediaFilter => '画像';
+
+  @override
+  String get onlineGallery_codexAllEntries => 'すべての項目';
+
+  @override
+  String get onlineGallery_codexWithImages => '画像ありのみ';
+
+  @override
+  String get onlineGallery_codexWithoutImages => '画像なしのみ';
+
+  @override
+  String get onlineGallery_codexOffline => 'オフラインキャッシュ';
+
+  @override
+  String get onlineGallery_codexContributors => '協力者と出典';
+
+  @override
+  String onlineGallery_codexEntryCount(Object entries, Object images) {
+    return '$entries 項目 · 画像あり $images 件';
+  }
+
+  @override
+  String get onlineGallery_codexNoImage => '画像なし項目';
+
+  @override
+  String get onlineGallery_codexNoImageDescription =>
+      'テキストのみの項目です。プロンプトとメタデータはすべて利用できます。';
+
+  @override
+  String get onlineGallery_codexAuthor => '作者';
+
+  @override
+  String get onlineGallery_codexImageFile => '画像ファイル';
+
+  @override
+  String get onlineGallery_codexOriginalFile => '原画像ファイル';
+
+  @override
+  String get onlineGallery_codexDeclaredSource => 'データ提供元';
+
+  @override
+  String get onlineGallery_codexPrompt => 'ポジティブプロンプト';
+
+  @override
+  String get onlineGallery_codexNegativePrompt => 'ネガティブプロンプト';
+
+  @override
+  String get onlineGallery_negativePromptCopyHeading => 'ネガティブプロンプト';
+
+  @override
+  String get onlineGallery_codexCharacterPrompts => 'キャラクタープロンプト';
+
+  @override
+  String get onlineGallery_codexNote => 'メモ';
+
+  @override
+  String get onlineGallery_codexCopyPositive => 'ポジティブをコピー';
+
+  @override
+  String get onlineGallery_codexCopyNegative => 'ネガティブをコピー';
+
+  @override
+  String get onlineGallery_codexCopyCharacter => 'このキャラクターをコピー';
+
+  @override
+  String get onlineGallery_codexCopyAll => 'すべてコピー';
+
+  @override
+  String get onlineGallery_codexSendToGeneration => '生成画面へ送る';
+
+  @override
+  String get onlineGallery_codexAddToQueue => '生成キューに追加';
+
+  @override
+  String get onlineGallery_codexDownloadOriginal => '現在の原画像を保存';
+
+  @override
+  String get onlineGallery_codexOpenSource => '出典を開く';
+
+  @override
+  String get onlineGallery_codexOpenOrigin => '元のページを開く';
+
+  @override
+  String get onlineGallery_codexOpenSourceFailed => '指定された出典を開けません。';
+
+  @override
+  String get onlineGallery_codexBookLocked =>
+      'この法典には成人向けコンテンツが含まれます。レーティングで「疑問あり」または「露骨」を選択してください。';
+
+  @override
+  String get onlineGallery_codexNoData => '条件に一致する法典項目がありません';
+
+  @override
+  String get onlineGallery_codexExternalFallback =>
+      '外部ソースを利用できないため、法典サイトのキャッシュ版を表示しています。';
+
+  @override
+  String get onlineGallery_codexPreviousRelease =>
+      '現在のバージョンを利用できないため、検証済みの前バージョンを表示しています。';
+
+  @override
+  String get onlineGallery_codexCachedBadge => '旧版キャッシュ';
+
+  @override
+  String get onlineGallery_codexUntitled => '無題の項目';
+
+  @override
   String get onlineGallery_artistHunt => '絵師タグのみ';
 
   @override
   String get onlineGallery_artistHuntTooltip =>
       'ポジティブ Prompt に明示的な artist: タグがある画像のみ表示';
-
-  @override
-  String get onlineGallery_artistChain => '絵師タグ列';
 
   @override
   String get onlineGallery_copyArtistChain => '絵師タグ列をコピー';
@@ -2981,6 +3229,15 @@ class AppLocalizationsJa extends AppLocalizations {
       'ギャラリーソースに接続できません。ネットワークまたはプロキシを確認してください。';
 
   @override
+  String get onlineGallery_sourceRequestFailed =>
+      'リクエストに失敗しました。しばらくしてから再試行してください。';
+
+  @override
+  String onlineGallery_actionFailed(Object error) {
+    return '操作に失敗しました: $error';
+  }
+
+  @override
   String get onlineGallery_sourceMalformedResponse =>
       'ソースのレスポンス形式が変更され、解析できません。';
 
@@ -2997,11 +3254,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get onlineGallery_retryAppend => '読み込みに失敗しました。クリックして再試行';
 
   @override
-  String onlineGallery_rankNumber(Object rank) {
-    return '第 $rank 位';
-  }
-
-  @override
   String onlineGallery_multipleImages(Object count) {
     return '$count 枚の画像';
   }
@@ -3014,10 +3266,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get onlineGallery_copyFullMetadata => '完全なメタデータをコピー';
-
-  @override
-  String get onlineGallery_metadataParseFailed =>
-      'メタデータの解析に失敗しました。元の内容は保持され、コピーできます。';
 
   @override
   String get onlineGallery_gelbooruReadOnly => '読み取り専用のお気に入り';
@@ -3609,6 +3857,27 @@ class AppLocalizationsJa extends AppLocalizations {
   String get characterCanvas_dragHint => 'アンカーをドラッグして位置を設定し、離すと反映されます';
 
   @override
+  String get characterCanvas_guide => '構図ガイド';
+
+  @override
+  String get characterCanvas_guideNone => 'なし';
+
+  @override
+  String get characterCanvas_guideThirds => '三分割';
+
+  @override
+  String get characterCanvas_guidePhi => '黄金比';
+
+  @override
+  String get characterCanvas_guideGrid => 'グリッド';
+
+  @override
+  String get characterCanvas_guideColumns => '列';
+
+  @override
+  String get characterCanvas_guideRows => '行';
+
+  @override
   String get characterEditor_genderFemale => '女性';
 
   @override
@@ -3654,42 +3923,23 @@ class AppLocalizationsJa extends AppLocalizations {
   String get toolbar_settings => '設定';
 
   @override
-  String get characterTooltip_noCharacters => 'キャラクターが設定されていません';
-
-  @override
-  String get characterTooltip_clickToConfig => 'クリックして複数キャラクタープロンプトを設定します';
-
-  @override
-  String get characterTooltip_globalAiLabel => 'グローバル AI のポジション:';
-
-  @override
-  String get characterTooltip_enabled => '有効';
-
-  @override
-  String get characterTooltip_disabled => '無効';
-
-  @override
-  String get characterTooltip_positionAi => 'AI';
-
-  @override
   String get characterTooltip_disabledLabel => '無効';
-
-  @override
-  String get characterTooltip_promptLabel => 'プロンプト';
-
-  @override
-  String get characterTooltip_negativeLabel => '除外したい要素';
 
   @override
   String get characterTooltip_notSet => '未設定';
 
   @override
-  String characterTooltip_summary(Object total, Object enabled) {
-    return '$total キャラクター ($enabled 有効)';
+  String get characterTooltip_previewTitle => 'キャラクタープレビュー';
+
+  @override
+  String characterTooltip_enabledSummary(int enabled, int total) {
+    return '$enabled / $total 有効';
   }
 
   @override
-  String get characterTooltip_viewFullConfig => 'クリックすると完全な構成が表示されます';
+  String characterTooltip_more(int count) {
+    return '他 $count 人のキャラクター';
+  }
 
   @override
   String tagLibrary_generatedCharacters(Object count) {
@@ -3714,25 +3964,23 @@ class AppLocalizationsJa extends AppLocalizations {
   String get randomMode_hybrid => 'ハイブリッド モード';
 
   @override
-  String get randomMode_naiOfficialDesc => 'NovelAI 公式ランダム アルゴリズムを複製する';
+  String get randomMode_naiOfficialDesc =>
+      '現在のモデルに対応する NovelAI 公式ランダムワードリストを使用';
 
   @override
-  String get randomMode_customDesc => 'カスタム プリセットを使用して生成';
+  String get randomMode_customDesc => '完全なオフラインタグカタログとカスタムプリセットから生成';
 
   @override
-  String get randomMode_hybridDesc => '公式アルゴリズムとカスタム プリセットを組み合わせる';
+  String get randomMode_hybridDesc => '公式ワードリストとカタログ拡張を組み合わせる';
 
   @override
-  String get randomMode_naiIndicator => 'NAI';
+  String get randomMode_naiIndicator => '公式';
 
   @override
   String get randomMode_customIndicator => 'カスタム';
 
   @override
   String get naiMode_noTags => 'タグがありません';
-
-  @override
-  String get naiAlgorithm_characterCount => 'キャラクター数の分布';
 
   @override
   String get naiAlgorithm_mainPrompt => 'メイン プロンプト';
@@ -4013,9 +4261,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get randomManager_genderWeight => '性別の重み';
 
   @override
-  String get randomManager_globalSettings => 'グローバル設定';
-
-  @override
   String get randomManager_enableSeasonalWordlists => '季節の単語リストを有効にする';
 
   @override
@@ -4024,18 +4269,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get randomManager_globalEmphasisProbability => 'グローバル強調確率';
-
-  @override
-  String get randomManager_soloGenderOptions => 'ソロジェンダーのオプション';
-
-  @override
-  String get randomManager_femaleShort => 'F';
-
-  @override
-  String get randomManager_maleShort => 'M';
-
-  @override
-  String get randomManager_other => 'その他';
 
   @override
   String get randomManager_tagGroupList => 'タググループ';
@@ -4079,9 +4312,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get randomManager_globalPeopleSettings => 'グローバルキャラクター設定';
-
-  @override
-  String get randomManager_closePreview => 'プレビューを閉じる';
 
   @override
   String get randomManager_importPreset => 'プリセットのインポート';
@@ -4217,12 +4447,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get randomManager_importExport => 'インポート / エクスポート';
-
-  @override
-  String get randomManager_syncing => '同期中';
-
-  @override
-  String get randomManager_syncingWithEllipsis => '同期中...';
 
   @override
   String get randomManager_syncDanbooruTags => 'Danbooru タグを同期';
@@ -4390,16 +4614,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get randomManager_selectionMode => '選択モード';
-
-  @override
-  String randomManager_editHint(Object name) {
-    return '$name (クリックして編集)';
-  }
-
-  @override
-  String randomManager_emphasisProbabilityValue(Object percent) {
-    return '強調確率: $percent%';
-  }
 
   @override
   String get randomManager_previewGeneration => 'プレビューの生成';
@@ -5248,6 +5462,59 @@ class AppLocalizationsJa extends AppLocalizations {
   String get statistics_noAnlasData => 'Anlas 消費データがありません';
 
   @override
+  String get statistics_noAnlasInPeriod => '選択した期間に Anlas 消費はありません';
+
+  @override
+  String get statistics_periodSelectorTooltip => '集計期間を選択';
+
+  @override
+  String get statistics_periodWeek => '直近 1 週間';
+
+  @override
+  String get statistics_periodMonth => '直近 1 か月';
+
+  @override
+  String get statistics_periodThreeMonths => '直近 3 か月';
+
+  @override
+  String get statistics_periodYear => '直近 1 年';
+
+  @override
+  String get statistics_periodAll => '全期間';
+
+  @override
+  String get statistics_periodCustom => '日数を指定';
+
+  @override
+  String statistics_periodDays(int count) {
+    return '直近 $count 日';
+  }
+
+  @override
+  String statistics_periodSummary(String start, String end, int count) {
+    return '$start～$end・$count 日間';
+  }
+
+  @override
+  String statistics_partialCoverage(String date, int count) {
+    return '利用可能な記録は $date からです。1 日の平均は既存の $count 日間で計算されます';
+  }
+
+  @override
+  String get statistics_customPeriodTitle => '集計日数を指定';
+
+  @override
+  String get statistics_customDaysHint => '日数';
+
+  @override
+  String statistics_customDaysError(int max) {
+    return '1 から $max までの整数を入力してください';
+  }
+
+  @override
+  String get statistics_daysUnit => '日';
+
+  @override
   String get statistics_peakActivity => 'ピークアクティビティ';
 
   @override
@@ -5909,9 +6176,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get reversePrompt_title => '逆プロンプト';
-
-  @override
-  String get reversePrompt_pending => '保留中';
 
   @override
   String reversePrompt_imageCount(Object count) {
@@ -7142,13 +7406,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settings_notificationResetSound => 'デフォルトにリセット';
 
   @override
-  String get categoryConfiguration => 'カテゴリ構成';
-
-  @override
   String get resetToDefault => 'デフォルトにリセット';
-
-  @override
-  String get resetToDefaultTooltip => 'デフォルト構成にリセット';
 
   @override
   String get toggleGroupEnabled => 'グループ有効状態の切り替え';
@@ -7641,6 +7899,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get drop_dialogTitle => 'この画像はどのように使用しますか?';
 
   @override
+  String get drop_actions => '操作';
+
+  @override
   String get drop_hint => 'ここに画像をドロップしてください';
 
   @override
@@ -7714,6 +7975,131 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get drop_dragToImg2ImgOrOther => 'Image2Image または別のターゲットにドラッグします';
+
+  @override
+  String get drop_metadataDetected => 'NovelAI メタデータを検出しました';
+
+  @override
+  String get drop_metadataParseFailed => 'メタデータを解析できませんでした';
+
+  @override
+  String get drop_metadataParseFailedHint =>
+      '画像にメタデータ項目がありますが、現在は読み取れません。他の画像操作は引き続き使用できます。';
+
+  @override
+  String get drop_metadataErrorDetails => 'エラー詳細を表示';
+
+  @override
+  String get drop_positivePrompt => 'プロンプト';
+
+  @override
+  String get drop_negativePrompt => '除外したい要素';
+
+  @override
+  String drop_characterPrompts(int count) {
+    return 'キャラクタープロンプト（$count）';
+  }
+
+  @override
+  String drop_characterPositivePrompt(int index) {
+    return 'キャラクター $index プロンプト';
+  }
+
+  @override
+  String drop_characterNegativePrompt(int index) {
+    return 'キャラクター $index の除外したい要素';
+  }
+
+  @override
+  String get drop_promptNotRecorded => '記録なし';
+
+  @override
+  String get drop_promptCopy => 'コピー';
+
+  @override
+  String get drop_promptAddWhole => '全文をライブラリに追加';
+
+  @override
+  String get drop_promptAddSelection => 'ライブラリに追加';
+
+  @override
+  String get drop_promptLibraryTitle => 'ライブラリに追加';
+
+  @override
+  String get drop_promptLibraryWriteMode => '書き込み方法';
+
+  @override
+  String get drop_promptLibraryCreate => '新規';
+
+  @override
+  String get drop_promptLibraryAppend => '追記';
+
+  @override
+  String get drop_promptLibraryOverwrite => '置換';
+
+  @override
+  String get drop_promptLibraryAliasHint => 'この名前は <ライブラリ名> の参照にも使用されます';
+
+  @override
+  String get drop_promptLibraryTarget => '対象エントリ';
+
+  @override
+  String get drop_promptLibrarySelectTarget => '更新するエントリを選択';
+
+  @override
+  String get drop_promptLibrarySeparator => '区切り';
+
+  @override
+  String get drop_promptLibrarySeparatorComma => 'カンマ + スペース';
+
+  @override
+  String get drop_promptLibrarySeparatorNewline => '改行';
+
+  @override
+  String get drop_promptLibrarySeparatorNone => '区切りなし';
+
+  @override
+  String drop_promptLibraryCharacterCount(int count) {
+    return '$count 文字';
+  }
+
+  @override
+  String get drop_promptLibraryExactContentHint => 'テキストを整形、並べ替え、補完せずに保存します';
+
+  @override
+  String get drop_promptLibraryResultPreview => '結果プレビュー';
+
+  @override
+  String drop_promptLibraryDuplicate(Object name) {
+    return '同じ内容が「$name」に既にあります';
+  }
+
+  @override
+  String get drop_promptLibraryNameConflict =>
+      '同じ名前があります。名前の変更、追記、または置換を選択してください';
+
+  @override
+  String drop_promptLibraryOverwriteWarning(Object name) {
+    return '「$name」のプロンプト内容をすべて置き換えます';
+  }
+
+  @override
+  String get drop_promptLibraryMore => 'その他のオプション';
+
+  @override
+  String get drop_promptLibraryConfirmOverwrite => '置換を確認';
+
+  @override
+  String get drop_promptLibrarySaved => 'ライブラリに保存しました';
+
+  @override
+  String get drop_promptLibrarySaveFailed => 'ライブラリへの保存に失敗しました';
+
+  @override
+  String get drop_promptLibraryPositiveName => 'プロンプト抜粋';
+
+  @override
+  String get drop_promptLibraryNegativeName => '除外したい要素の抜粋';
 
   @override
   String get preciseRef_title => '精密参照';
@@ -9154,6 +9540,11 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get discordShare_errorRateLimited => '共有回数が多すぎます。しばらくしてから再試行してください。';
+
+  @override
+  String discordShare_errorRateLimitedRetry(int seconds) {
+    return '共有回数が多すぎます。$seconds 秒後に再試行してください。';
+  }
 
   @override
   String get discordShare_errorNoChannels => '現在利用できる Discord 共有チャンネルがありません。';
@@ -11592,12 +11983,6 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get randomManager_releaseToDelete => '離すと削除';
-
-  @override
-  String get randomManager_dragHereToDelete => 'ここにドラッグして削除';
-
-  @override
   String get randomManager_keyboardShortcutsHint => 'キーボードショートカット（? キーで表示）';
 
   @override
@@ -12060,4 +12445,154 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get autocomplete_openSettings => '補完とデータソース設定を開く';
+
+  @override
+  String get randomManager_searchCategories => 'カテゴリ、グループ、タグを検索（Ctrl+F）';
+
+  @override
+  String get randomManager_workspaceTitle => 'ランダムライブラリ';
+
+  @override
+  String get randomManager_workspaceSubtitle =>
+      '完全なオフラインカタログから再利用可能な生成レシピを構成します';
+
+  @override
+  String get randomManager_recipeTitle => '生成レシピ';
+
+  @override
+  String get randomManager_recipeSubtitle => '各ステージで意味カテゴリごとの発動確率と抽出範囲を設定します';
+
+  @override
+  String get randomManager_inspectorTitle => '生成設定';
+
+  @override
+  String get randomManager_inspectorSubtitle => '現在のプリセットのキャラクター分布と出力動作を調整します';
+
+  @override
+  String get randomManager_previewEmptyDescription =>
+      'サンプルを生成して、現在のレシピの出力を確認します。';
+
+  @override
+  String get randomManager_category_composition => '構図';
+
+  @override
+  String get randomManager_category_camera => 'カメラアングル';
+
+  @override
+  String get randomManager_category_framing => 'フレーミング';
+
+  @override
+  String get randomManager_category_focus => 'フォーカス';
+
+  @override
+  String get randomManager_category_eyeFeature => '目の特徴';
+
+  @override
+  String get randomManager_category_hairLength => '髪の長さ';
+
+  @override
+  String get randomManager_category_hairTexture => '髪質';
+
+  @override
+  String get randomManager_category_bangs => '前髪';
+
+  @override
+  String get randomManager_category_skinTone => '肌の色';
+
+  @override
+  String get randomManager_category_species => '種族';
+
+  @override
+  String get randomManager_category_headwear => '帽子';
+
+  @override
+  String get randomManager_category_hairAccessory => '髪飾り';
+
+  @override
+  String get randomManager_category_prop => '小道具';
+
+  @override
+  String get randomManager_category_effect => 'エフェクト';
+
+  @override
+  String get randomManager_category_year => '年代';
+
+  @override
+  String get randomManager_category_detail => 'クリエイティブ詳細';
+
+  @override
+  String randomManager_sourceOfficial(String wordlist) {
+    return '公式 · $wordlist';
+  }
+
+  @override
+  String get randomManager_sourceCatalog => 'カスタム · Catalog 拡張';
+
+  @override
+  String randomManager_sourceHybrid(String wordlist) {
+    return 'ハイブリッド · $wordlist + Catalog';
+  }
+
+  @override
+  String get randomManager_currentMode => '現在のモード';
+
+  @override
+  String get randomManager_officialWordlist => '現在のモデルの公式ワードリスト';
+
+  @override
+  String randomManager_officialWordlistCount(String wordlist, int count) {
+    return '$wordlist：元データ $count 件';
+  }
+
+  @override
+  String get randomManager_officialAsset => '公式アセット全体';
+
+  @override
+  String randomManager_officialAssetCount(int entries, int groups) {
+    return '$entries 件、元配列 $groups 個';
+  }
+
+  @override
+  String get randomManager_sourceFile => 'ソースファイル';
+
+  @override
+  String get randomManager_sourceSha256 => 'ソース SHA-256';
+
+  @override
+  String get randomManager_catalogExtension => 'Catalog 拡張';
+
+  @override
+  String get randomManager_wordlistLegacyAnime => 'Legacy Anime';
+
+  @override
+  String get randomManager_wordlistFurryV3 => 'Furry V3';
+
+  @override
+  String get randomManager_wordlistCharacterPrompts => 'Character Prompts';
+
+  @override
+  String get randomManager_sourceDetails => 'データソースの詳細';
+
+  @override
+  String get randomManager_sourceUrl => 'ソース URL';
+
+  @override
+  String get randomManager_sourceCommit => 'ソースコミット';
+
+  @override
+  String get randomManager_sourceDate => 'ソース日付';
+
+  @override
+  String get randomManager_sourceLicense => 'ライセンス';
+
+  @override
+  String randomManager_catalogCounts(Object tags, Object aliases) {
+    return '完全なカタログ：$tags タグ、$aliases エイリアス';
+  }
+
+  @override
+  String get randomManager_libraryUnavailable => 'ランダムライブラリを利用できません';
+
+  @override
+  String get randomManager_noCategoryResults => '一致するカテゴリ、グループ、タグがありません';
 }

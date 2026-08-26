@@ -271,7 +271,7 @@ class ReplicationQueueNotifier extends _$ReplicationQueueNotifier {
       orElse: () => ReplicationTask.create(prompt: ''),
     );
 
-    if (task.prompt.isEmpty) return;
+    if (!_hasGeneratableContent(task)) return;
 
     final failedTask = task.copyWith(
       status: ReplicationTaskStatus.failed,
@@ -294,7 +294,7 @@ class ReplicationQueueNotifier extends _$ReplicationQueueNotifier {
       orElse: () => ReplicationTask.create(prompt: ''),
     );
 
-    if (task.prompt.isEmpty || state.isFull) return;
+    if (!_hasGeneratableContent(task) || state.isFull) return;
 
     final retriedTask = task.copyWith(
       status: ReplicationTaskStatus.pending,
@@ -318,7 +318,7 @@ class ReplicationQueueNotifier extends _$ReplicationQueueNotifier {
       orElse: () => ReplicationTask.create(prompt: ''),
     );
 
-    if (task.prompt.isEmpty || state.isFull) return;
+    if (!_hasGeneratableContent(task) || state.isFull) return;
 
     final requeuedTask = task.copyWith(
       status: ReplicationTaskStatus.pending,
@@ -436,11 +436,12 @@ class ReplicationQueueNotifier extends _$ReplicationQueueNotifier {
       orElse: () => ReplicationTask.create(prompt: ''),
     );
 
-    if (task.prompt.isEmpty) return false;
+    if (!_hasGeneratableContent(task)) return false;
 
     final newTask = ReplicationTask.create(
       prompt: task.prompt,
       negativePrompt: task.negativePrompt,
+      applyNegativePrompt: task.applyNegativePrompt,
       thumbnailUrl: task.thumbnailUrl,
       source: task.source,
       seed: task.seed,
@@ -450,6 +451,7 @@ class ReplicationQueueNotifier extends _$ReplicationQueueNotifier {
       model: task.model,
       width: task.width,
       height: task.height,
+      characterPrompts: task.characterPrompts,
     );
 
     final taskIndex = state.tasks.indexWhere((t) => t.id == taskId);
@@ -459,6 +461,20 @@ class ReplicationQueueNotifier extends _$ReplicationQueueNotifier {
     state = state.copyWith(tasks: tasks);
     await _saveToStorage();
     return true;
+  }
+
+  bool _hasGeneratableContent(ReplicationTask task) {
+    if (task.prompt.trim().isNotEmpty) return true;
+    if (task.applyNegativePrompt && task.negativePrompt.trim().isNotEmpty) {
+      return true;
+    }
+    return task.characterPrompts?.any(
+          (character) =>
+              character.enabled &&
+              (character.prompt.trim().isNotEmpty ||
+                  character.negativePrompt.trim().isNotEmpty),
+        ) ??
+        false;
   }
 
   /// 设置加载状态（用于持久化加载）

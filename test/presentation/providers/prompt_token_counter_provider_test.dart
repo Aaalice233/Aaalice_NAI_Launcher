@@ -163,6 +163,23 @@ void main() {
       },
     );
 
+    test('positive V5 payload should count the generated text block', () {
+      final payload = buildPromptTokenCountPayload(
+        target: PromptTokenCountTarget.positive,
+        prompt: 'chinese text, "圣女"',
+        negativePrompt: '',
+        model: api.ImageModels.animeDiffusionV5Curated,
+        fixedTagsState: const FixedTagsState(),
+        qualityToggle: false,
+        ucPreset: api.UcPresets.noneApiValue,
+        characters: const [],
+        resolveAliases: _resolveAliases,
+      );
+
+      expect(payload.mainText, 'chinese text, "圣女", teXt: 圣女');
+      expect(payload.breakdown.map((item) => item.label), contains('文字转录'));
+    });
+
     test('positive payload should include the effective enhance prompt', () {
       final payload = buildPromptTokenCountPayload(
         target: PromptTokenCountTarget.positive,

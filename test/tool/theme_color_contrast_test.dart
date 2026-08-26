@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:nai_launcher/presentation/providers/font_provider.dart';
 import 'package:nai_launcher/presentation/themes/app_theme.dart';
+import 'package:nai_launcher/presentation/themes/theme_extension.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_text_selection_toolbar.dart';
 
 /// 主题配色对比度守卫。
@@ -30,6 +31,77 @@ void main() {
   GoogleFonts.config.allowRuntimeFetching = false;
 
   group('主题配色对比度', () {
+    testWidgets('所有主题必须挂载统一语义 token', (tester) async {
+      for (final style in AppStyle.values) {
+        for (final brightness in Brightness.values) {
+          final theme = AppTheme.getTheme(style, brightness);
+          final extension = theme.extension<AppThemeExtension>();
+
+          expect(
+            extension,
+            isNotNull,
+            reason: '${style.name}/${brightness.name}',
+          );
+          expect(extension!.controlRadius, greaterThanOrEqualTo(0));
+          expect(extension.cardRadius, greaterThanOrEqualTo(0));
+          expect(extension.dialogRadius, greaterThanOrEqualTo(0));
+          expect(extension.menuRadius, greaterThanOrEqualTo(0));
+          expect(
+            extension.fastDuration.inMicroseconds,
+            lessThanOrEqualTo(extension.normalDuration.inMicroseconds),
+          );
+          expect(
+            extension.normalDuration.inMicroseconds,
+            lessThanOrEqualTo(extension.slowDuration.inMicroseconds),
+          );
+          expect(extension.dividerThickness, greaterThan(0));
+          expect(extension.dividerColor.a, lessThan(0.2));
+        }
+      }
+    });
+
+    testWidgets('普通组件不得恢复常驻完整描边', (tester) async {
+      for (final style in AppStyle.values) {
+        for (final brightness in Brightness.values) {
+          final theme = AppTheme.getTheme(style, brightness);
+          final cardShape = theme.cardTheme.shape;
+          final outlinedSide = theme.outlinedButtonTheme.style?.side?.resolve(
+            {},
+          );
+          final inputBorder = theme.inputDecorationTheme.enabledBorder;
+          final tooltipDecoration = theme.tooltipTheme.decoration;
+
+          expect(
+            cardShape,
+            isA<RoundedRectangleBorder>(),
+            reason: '${style.name}/${brightness.name}',
+          );
+          expect(
+            (cardShape! as RoundedRectangleBorder).side.style,
+            BorderStyle.none,
+            reason: '${style.name}/${brightness.name} card',
+          );
+          expect(
+            outlinedSide?.style,
+            BorderStyle.none,
+            reason: '${style.name}/${brightness.name} outlined button',
+          );
+          expect(
+            (inputBorder! as OutlineInputBorder).borderSide.style,
+            BorderStyle.none,
+            reason: '${style.name}/${brightness.name} input',
+          );
+          if (tooltipDecoration is BoxDecoration) {
+            expect(
+              tooltipDecoration.border,
+              isNull,
+              reason: '${style.name}/${brightness.name} tooltip',
+            );
+          }
+        }
+      }
+    });
+
     // 用 testWidgets 而非 test：构建主题会触发 GoogleFonts 的异步加载，
     // 裸 test 里这些异步异常会逸出并把用例判失败。
     testWidgets('colorScheme 的 onXxx 对 Xxx 必须达 WCAG AA', (tester) async {

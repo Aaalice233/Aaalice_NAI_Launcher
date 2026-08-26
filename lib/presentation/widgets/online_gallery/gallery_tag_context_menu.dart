@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/localization_extension.dart';
@@ -6,13 +7,14 @@ import '../../providers/online_gallery_blacklist_provider.dart';
 import '../../providers/online_gallery_output_filter_provider.dart';
 import '../common/app_toast.dart';
 
-enum OnlineGalleryTagContextAction { outputFilter, blacklist }
+enum OnlineGalleryTagContextAction { copy, search, outputFilter, blacklist }
 
 Future<OnlineGalleryTagContextAction?> showOnlineGalleryTagContextMenu({
   required BuildContext context,
   required WidgetRef ref,
   required String tag,
   required Offset globalPosition,
+  ValueChanged<String>? onSearch,
 }) async {
   final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
   final outputFilter = ref.read(onlineGalleryOutputFilterProvider);
@@ -20,7 +22,7 @@ Future<OnlineGalleryTagContextAction?> showOnlineGalleryTagContextMenu({
   final normalized = OnlineGalleryOutputFilterSettings.normalizeTag(tag);
   final isOutputFiltered = outputFilter.contains(tag);
   final isBlacklisted =
-      normalized != null && blacklist.effectiveTags.contains(normalized);
+      normalized != null && blacklist.tags.contains(normalized);
 
   final action = await showMenu<OnlineGalleryTagContextAction>(
     context: context,
@@ -29,6 +31,26 @@ Future<OnlineGalleryTagContextAction?> showOnlineGalleryTagContextMenu({
       Offset.zero & overlay.size,
     ),
     items: [
+      PopupMenuItem(
+        value: OnlineGalleryTagContextAction.copy,
+        child: ListTile(
+          contentPadding: EdgeInsets.zero,
+          dense: true,
+          leading: const Icon(Icons.content_copy_outlined, size: 20),
+          title: Text(context.l10n.common_copy),
+        ),
+      ),
+      PopupMenuItem(
+        value: OnlineGalleryTagContextAction.search,
+        enabled: onSearch != null,
+        child: ListTile(
+          contentPadding: EdgeInsets.zero,
+          dense: true,
+          leading: const Icon(Icons.search, size: 20),
+          title: Text(context.l10n.common_search),
+        ),
+      ),
+      const PopupMenuDivider(),
       PopupMenuItem(
         value: OnlineGalleryTagContextAction.outputFilter,
         enabled: !isOutputFiltered,
@@ -70,7 +92,14 @@ Future<OnlineGalleryTagContextAction?> showOnlineGalleryTagContextMenu({
     ],
   );
 
-  if (action == OnlineGalleryTagContextAction.outputFilter) {
+  if (action == OnlineGalleryTagContextAction.copy) {
+    await Clipboard.setData(ClipboardData(text: tag));
+    if (context.mounted) {
+      AppToast.success(context, context.l10n.onlineGallery_copied);
+    }
+  } else if (action == OnlineGalleryTagContextAction.search) {
+    onSearch?.call(tag);
+  } else if (action == OnlineGalleryTagContextAction.outputFilter) {
     final added = await ref
         .read(onlineGalleryOutputFilterProvider.notifier)
         .addTag(tag);
@@ -81,14 +110,25 @@ Future<OnlineGalleryTagContextAction?> showOnlineGalleryTagContextMenu({
       );
     }
   } else if (action == OnlineGalleryTagContextAction.blacklist) {
-    final added = await ref
-        .read(onlineGalleryBlacklistNotifierProvider.notifier)
-        .addTag(tag);
-    if (added && context.mounted) {
-      AppToast.success(
-        context,
-        context.l10n.onlineGallery_blacklistTagAdded(tag),
-      );
+    try {
+      final added = await ref
+          .read(onlineGalleryBlacklistNotifierProvider.notifier)
+          .addTag(tag);
+      if (!added) return null;
+      if (context.mounted) {
+        AppToast.success(
+          context,
+          context.l10n.onlineGallery_blacklistTagAdded(tag),
+        );
+      }
+    } catch (error) {
+      if (context.mounted) {
+        AppToast.error(
+          context,
+          context.l10n.onlineGallery_blacklistSaveFailed('$error'),
+        );
+      }
+      return null;
     }
   }
   return action;

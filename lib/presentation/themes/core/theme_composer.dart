@@ -1,41 +1,14 @@
-/// ThemeComposer - Modular Theme Composition
+/// 将颜色、排版、形状和动效四类有效模块组合成完整主题。
 ///
-/// The ThemeComposer takes 7 independent modules and combines them into
-/// a complete [ThemeData] and [AppThemeExtension].
-///
-/// ## Usage
-///
-/// ```dart
-/// final composer = ThemeComposer(
-///   color: RetroPalette(),
-///   typography: RetroTypography(),
-///   shape: StandardShapes(),
-///   shadow: SoftShadow(),
-///   effect: NoneEffect(),
-///   motion: SnappyMotion(),
-///   divider: SoftDividerModule.standard(Colors.white),
-/// );
-///
-/// final lightTheme = composer.buildTheme(Brightness.light);
-/// final extension = composer.buildExtension(Brightness.light);
-/// ```
+/// 阴影、纹理、玻璃和主题专属分割线模块曾经只声明不消费，现已移除；
+/// 浮层深度与结构分隔统一由语义组件主题控制。
 library;
 
 import 'package:flutter/material.dart';
-import 'package:nai_launcher/presentation/themes/core/divider_module.dart';
 import 'package:nai_launcher/presentation/themes/core/theme_modules.dart';
 import 'package:nai_launcher/presentation/themes/theme_extension.dart';
 
-/// Composes multiple theme modules into a complete [ThemeData].
-///
-/// Each module handles a specific aspect of theming:
-/// - [color] - Color palette (ColorScheme)
-/// - [typography] - Font families and text styles
-/// - [shape] - Border radius and component shapes
-/// - [shadow] - Elevation and shadow styles
-/// - [effect] - Special visual effects
-/// - [motion] - Animation parameters
-/// - [divider] - Divider and border styles
+/// Composes the effective theme modules into a complete [ThemeData].
 class ThemeComposer {
   /// The color module providing ColorScheme.
   final ColorSchemeModule color;
@@ -46,27 +19,15 @@ class ThemeComposer {
   /// The shape module providing border radius and ShapeBorder.
   final ShapeModule shape;
 
-  /// The shadow module providing BoxShadow lists.
-  final ShadowModule shadow;
-
-  /// The effect module providing special visual effects.
-  final EffectModule effect;
-
   /// The motion module providing animation parameters.
   final MotionModule motion;
 
-  /// The divider module providing divider and border styles.
-  final DividerModule divider;
-
-  /// Creates a ThemeComposer with all required modules.
+  /// Creates a ThemeComposer with all effective modules.
   const ThemeComposer({
     required this.color,
     required this.typography,
     required this.shape,
-    required this.shadow,
-    required this.effect,
     required this.motion,
-    required this.divider,
   });
 
   /// Builds a complete [ThemeData] for the given brightness.
@@ -106,31 +67,30 @@ class ThemeComposer {
       brightness: effectiveBrightness,
       colorScheme: colorScheme,
       textTheme: textTheme,
+      extensions: [buildExtension(effectiveBrightness)],
 
       // Icon theme - ensures icons have good visibility by default
       // Uses onSurface for proper contrast on surface backgrounds
       iconTheme: IconThemeData(color: colorScheme.onSurface, size: 24),
 
       // Apply divider module colors to Flutter's built-in divider
-      dividerColor: divider.dividerColor,
+      dividerColor: colorScheme.onSurface.withValues(alpha: 0.08),
       dividerTheme: DividerThemeData(
-        color: divider.dividerColor,
-        thickness: divider.thickness,
-        space: divider.thickness,
+        color: colorScheme.onSurface.withValues(alpha: 0.08),
+        thickness: 1,
+        space: 1,
       ),
 
-      // 深度层叠风格：卡片使用纯色背景 + 无边框 + 边缘阴影
+      // 普通卡片依靠语义色面区分层级，不叠加常驻描边和阴影。
       cardTheme: CardThemeData(
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(shape.largeRadius),
           side: BorderSide.none,
         ),
-        elevation: 4,
-        color: effectiveBrightness == Brightness.dark
-            ? const Color(0xFF2A2A2A)
-            : const Color(0xFFFFFFFF),
+        elevation: 0,
+        color: colorScheme.surfaceContainerLow,
         surfaceTintColor: Colors.transparent,
-        shadowColor: Colors.black.withValues(alpha: 0.25),
+        shadowColor: Colors.transparent,
         margin: EdgeInsets.zero,
       ),
 
@@ -138,8 +98,8 @@ class ThemeComposer {
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           shape: shape.buttonShape as OutlinedBorder?,
-          elevation: 2,
-          shadowColor: Colors.black.withValues(alpha: 0.15),
+          elevation: 0,
+          shadowColor: Colors.transparent,
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         ),
       ),
@@ -151,12 +111,16 @@ class ThemeComposer {
         ),
       ),
 
+      // OutlinedButton 作为兼容入口保留，但视觉统一为次级 tonal action，
+      // 避免页面上出现成排的白色空心框。
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           shape: shape.buttonShape as OutlinedBorder?,
-          side: BorderSide(
-            color: colorScheme.outline.withValues(alpha: 0.3),
-            width: 1,
+          side: BorderSide.none,
+          foregroundColor: colorScheme.onSurfaceVariant,
+          backgroundColor: colorScheme.surfaceContainerHighest,
+          disabledBackgroundColor: colorScheme.onSurface.withValues(
+            alpha: 0.04,
           ),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         ),
@@ -172,9 +136,7 @@ class ThemeComposer {
       // 深度层叠风格：输入框使用纯色背景 + 无边框
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: effectiveBrightness == Brightness.dark
-            ? const Color(0xFF1A1A1A)
-            : const Color(0xFFF5F5F5),
+        fillColor: colorScheme.surfaceContainerHighest,
         // 深度层叠：移除边框，使用纯背景色差
         border: OutlineInputBorder(
           borderRadius: _extractBorderRadius(shape.inputShape),
@@ -187,8 +149,7 @@ class ThemeComposer {
         focusedBorder: OutlineInputBorder(
           borderRadius: _extractBorderRadius(shape.inputShape),
           borderSide: BorderSide(
-            color: colorScheme.primary.withValues(alpha: 0.6),
-            width: 1.5,
+            color: colorScheme.primary.withValues(alpha: 0.72),
           ),
         ),
         errorBorder: OutlineInputBorder(
@@ -200,7 +161,7 @@ class ThemeComposer {
         ),
         focusedErrorBorder: OutlineInputBorder(
           borderRadius: _extractBorderRadius(shape.inputShape),
-          borderSide: BorderSide(color: colorScheme.error, width: 1.5),
+          borderSide: BorderSide(color: colorScheme.error),
         ),
         // 显式设置 hintStyle，确保在所有主题下都有足够的对比度
         hintStyle: TextStyle(color: colorScheme.outline, fontSize: 16),
@@ -362,29 +323,24 @@ class ThemeComposer {
   /// The extension contains additional theme properties not covered
   /// by standard [ThemeData].
   AppThemeExtension buildExtension(Brightness brightness) {
-    final isLight = brightness == Brightness.light;
-
-    // Determine container decoration based on shadow module
-    final containerDecoration = BoxDecoration(
-      borderRadius: BorderRadius.circular(shape.mediumRadius),
-      boxShadow: shadow.cardShadow,
-    );
-
+    final colorScheme = brightness == Brightness.dark && color.supportsDarkMode
+        ? color.darkScheme
+        : color.lightScheme;
     return AppThemeExtension(
-      containerDecoration: containerDecoration,
-      blurStrength: effect.blurStrength,
-      isLightTheme: isLight,
-      enableNeonGlow: effect.enableNeonGlow,
-      glowColor: effect.glowColor,
-      shadowIntensity: shadow.cardShadow.isNotEmpty ? 1.0 : 0.0,
-      // Divider module properties
-      dividerColor: divider.dividerColor,
-      dividerThickness: divider.thickness,
-      useDivider: divider.useDivider,
-      // Inset shadow properties from effect module
-      enableInsetShadow: effect.enableInsetShadow,
-      insetShadowDepth: effect.insetShadowDepth,
-      insetShadowBlur: effect.insetShadowBlur,
+      borderColor: colorScheme.outlineVariant,
+      dividerColor: colorScheme.onSurface.withValues(alpha: 0.08),
+      dividerThickness: 1,
+      useDivider: true,
+      controlRadius: shape.smallRadius,
+      cardRadius: shape.largeRadius,
+      dialogRadius: shape.mediumRadius,
+      menuRadius: shape.menuRadius,
+      fastDuration: motion.fastDuration,
+      normalDuration: motion.normalDuration,
+      slowDuration: motion.slowDuration,
+      standardCurve: motion.standardCurve,
+      enterCurve: motion.enterCurve,
+      exitCurve: motion.exitCurve,
     );
   }
 

@@ -608,7 +608,7 @@
   "img2img_focusedInpaintEnabledHint": "有効になりました。インペイント エディターの左上のコントロールからフォーカス エリアと最小コンテキスト エリアを調整します。",
   "img2img_focusedInpaintDisabledHint": "通常のインペイントがデフォルトです。Focused インペイントを使うには、インペイントエディター左上のコントロールから有効にし、フォーカスエリアを描画します。",
   "img2img_disabled": "無効",
-  "img2img_novelAiCloudUpscale": "NovelAI クラウド拡大 (4x 固定)",
+  "img2img_novelAiCloudUpscale": "NovelAI クラウド拡大 (2x 固定)",
   "img2img_comfyuiEnableHint": "まず、[設定] > [ComfyUI] で ComfyUI を有効にして接続します。",
   "img2img_upscaleMode": "拡大モード",
   "img2img_upscaleRegularModel": "レギュラーモデル",
@@ -1078,6 +1078,28 @@
       "index": {}
     }
   },
+  "character_summaryEmpty": "キャラクター未追加",
+  "character_summaryEnabled": "{count}人有効 · {name}",
+  "@character_summaryEnabled": {
+    "placeholders": {
+      "count": {"type": "int"},
+      "name": {"type": "String"}
+    }
+  },
+  "character_summaryMore": "{count}人有効 · {name} +{additional}",
+  "@character_summaryMore": {
+    "placeholders": {
+      "count": {"type": "int"},
+      "name": {"type": "String"},
+      "additional": {"type": "int"}
+    }
+  },
+  "character_summaryAllDisabled": "0人有効 · {count}人無効",
+  "@character_summaryAllDisabled": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
   "gallery_generationParams": "生成パラメータ",
   "gallery_metaModel": "モデル",
   "gallery_metaResolution": "解像度",
@@ -1116,15 +1138,52 @@
   "preset_presetName": "プリセット名",
   "onlineGallery_search": "検索",
   "onlineGallery_popular": "人気",
+  "onlineGallery_sourceDoesNotSupportPopular": "現在のサイトは人気ランキングに対応していません",
   "onlineGallery_favorites": "お気に入り",
+  "onlineGallery_searchFavorites": "お気に入りのタイトル・作者・タグを検索…",
+  "onlineGallery_savedLocally": "ローカルに保存済み",
+  "onlineGallery_savedInCloud": "クラウドに保存済み",
+  "onlineGallery_saveVisibleLocally": "このページをローカル保存",
+  "onlineGallery_visibleFavoritesAlreadySaved": "このページはすべてローカル保存済みです",
+  "onlineGallery_localFavoritesPartialFailure": "ローカルお気に入りの読み込みに失敗しました。クラウドの結果は保持されています",
+  "onlineGallery_cloudFavoritesPartialFailure": "クラウドお気に入りの読み込みに失敗しました。ローカルの結果は保持されています",
+  "onlineGallery_visibleFavoritesSaved": "{count} 件をローカルお気に入りに保存しました",
+  "@onlineGallery_visibleFavoritesSaved": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "onlineGallery_saveFavoritesFailed": "ローカルお気に入りの保存に失敗しました：{error}",
+  "@onlineGallery_saveFavoritesFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
   "onlineGallery_searchTags": "タグを検索...",
+  "onlineGallery_maxTagsExceeded": "一度に組み合わせて検索できるタグは最大 {max} 個です",
+  "@onlineGallery_maxTagsExceeded": {
+    "placeholders": {
+      "max": {"type": "int"}
+    }
+  },
+  "onlineGallery_tagDetailsIncomplete": "一部の作品で完全なタグ一覧を取得できませんでした。未確認の作品は除外されています。再試行してください。",
+  "onlineGallery_unsupportedMetatag": "このソースまたはモードではメタタグ構文を使用できません。通常のタグを使うか、ソース検索に切り替えてください。",
+  "onlineGallery_multiTagScanning": "タグを組み合わせて検索中：{requests} ページを取得し、{candidates} 件の候補を確認しました",
+  "onlineGallery_scanPaused": "複数ページの候補を確認しましたが、十分な結果が見つかりませんでした。後続ページの検索を続けられます。",
+  "onlineGallery_continueScanning": "検索を続ける",
+  "@onlineGallery_multiTagScanning": {
+    "placeholders": {
+      "requests": {"type": "int"},
+      "candidates": {"type": "int"}
+    }
+  },
   "onlineGallery_refresh": "更新",
   "onlineGallery_random": "ランダム",
   "onlineGallery_randomRedraw": "もう一度抽選",
   "onlineGallery_randomDrawing": "抽選中…",
   "onlineGallery_randomExhausted": "この範囲に未表示の画像はありません",
+  "onlineGallery_randomDrawNoMatch": "今回は条件に合う画像を取得できませんでした。続けて抽選できます。",
   "onlineGallery_randomRestart": "最初から",
-  "onlineGallery_originalRetry": "元画像の読み込みに失敗しました。再試行",
   "onlineGallery_login": "ログイン",
   "onlineGallery_logout": "ログアウト",
   "onlineGallery_dayRank": "日",
@@ -1141,10 +1200,9 @@
   "onlineGallery_favoritesEmpty": "お気に入りが空です",
   "onlineGallery_noResults": "画像が見つかりませんでした",
   "onlineGallery_pleaseLogin": "まずログインしてください",
-  "onlineGallery_size": "サイズ",
   "onlineGallery_score": "スコア",
+  "onlineGallery_ratingLabel": "レーティング",
   "onlineGallery_favCount": "お気に入り",
-  "onlineGallery_type": "タイプ",
   "mediaType_video": "ビデオ",
   "mediaType_gif": "GIF",
   "onlineGallery_tags": "タグ",
@@ -1157,8 +1215,6 @@
   "onlineGallery_promptTagCategories": "プロンプトタグのカテゴリ",
   "onlineGallery_promptTagCategoriesTooltip": "コピー、送信、キューへの追加時に含めるタグカテゴリを選択します",
   "onlineGallery_keepOnePromptTagCategory": "プロンプトタグのカテゴリを1つ以上選択してください",
-  "onlineGallery_open": "開く",
-  "onlineGallery_send": "送信",
   "onlineGallery_addToQueue": "キューに追加",
   "onlineGallery_sendToTextToImage": "テキストから画像へ送信",
   "onlineGallery_sentToTextToImage": "text-to-image に送信されました",
@@ -1171,9 +1227,7 @@
     }
   },
   "onlineGallery_noTagInfo": "この画像にはタグ情報がありません",
-  "onlineGallery_promptSentToGeneration": "プロンプトが生成ページに送信されました",
   "onlineGallery_noImageUrl": "この画像には利用可能な URL がありません",
-  "onlineGallery_gifLoadFailed": "GIFのロードに失敗しました",
   "onlineGallery_pinchToZoom": "ピンチしてズーム",
   "onlineGallery_metadata": "メタデータ",
   "onlineGallery_addedToQueueWithCount": "キューに追加しました。現在 {count} 件が実行待ちです",
@@ -1203,6 +1257,9 @@
   "onlineGallery_ratingSensitive": "センシティブ",
   "onlineGallery_ratingQuestionable": "疑問あり",
   "onlineGallery_ratingExplicit": "露骨",
+  "onlineGallery_sourceGeneralOnly": "このソースは全年齢向けコンテンツのみ提供します",
+  "onlineGallery_sourceUnrated": "ソース未分類",
+  "onlineGallery_sourceUnratedTooltip": "このソースには信頼できるコンテンツ分類がないため、アプリで正確に推定できません",
   "onlineGallery_clear": "クリア",
   "onlineGallery_previousPage": "前のページ",
   "onlineGallery_nextPage": "次のページ",
@@ -1215,8 +1272,10 @@
   "onlineGallery_dateRange": "日付範囲",
   "onlineGallery_fuzzySearch": "ファジーマッチ",
   "onlineGallery_fuzzySearchTooltip": "有効な場合は、関連タグに *tag* マッチングを使用します。無効になっている場合は、正確な Danbooru タグを検索します",
+  "onlineGallery_blacklistShort": "除外",
   "onlineGallery_blacklistTags": "ブラックリスト タグ",
   "onlineGallery_outputFilter": "出力フィルター",
+  "onlineGallery_outputFilterShort": "出力",
   "onlineGallery_outputFilterTooltip": "コピー、送信、キュー追加時に自動で除外するタグを管理します",
   "onlineGallery_outputFilterTitle": "出力フィルタータグ",
   "onlineGallery_outputFilterSubtitle": "画像は表示されたまま、完全一致するタグだけをコピー・送信・キューのプロンプトから除外します。",
@@ -1247,26 +1306,24 @@
     }
   },
   "onlineGallery_blacklistTitle": "オンライン ギャラリー ブラックリスト",
-  "onlineGallery_blacklistSubtitle": "画像の非表示に使用するリストを選択します。ローカルと Danbooru クラウドのリストは個別に保持されます。",
-  "onlineGallery_blacklistSourceLocal": "ローカル",
-  "onlineGallery_blacklistSourceCloud": "Danbooru クラウド",
-  "onlineGallery_blacklistLocalDescription": "このデバイスにのみ保存され、ログインせずに使用できます",
-  "onlineGallery_blacklistCloudDescription": "Danbooru アカウントのブラックリストを直接使用・編集します",
-  "onlineGallery_blacklistCloudLoginRequired": "クラウドブラックリストを使用するには Danbooru にログインしてください",
+  "onlineGallery_blacklistSubtitle": "すべてのオンラインギャラリーで共有され、オフラインでもフィルタリングします。",
+  "onlineGallery_blacklistCloudDescription": "Danbooru に接続済みです。ローカルの変更は安全にマージして同期します",
+  "onlineGallery_blacklistCloudLoginRequired": "ローカルのブラックリストは有効です。Danbooru にログインすると同期できます",
+  "onlineGallery_blacklistCloudUnavailable": "ローカルのブラックリストは有効です。Danbooru の接続確認後にクラウド同期を再開します",
   "onlineGallery_addBlacklistTagHint": "ブラックリスト タグを追加",
-  "onlineGallery_noLocalBlacklistTags": "ローカル ブラックリスト タグがありません",
-  "onlineGallery_noCloudBlacklistTags": "クラウド ブラックリスト タグがありません",
+  "onlineGallery_noLocalBlacklistTags": "ブラックリスト タグがありません",
   "onlineGallery_pullBlacklist": "クラウドを取得",
-  "onlineGallery_pullBlacklistTooltip": "ローカルを変更せず Danbooru クラウドのリストを更新します",
   "onlineGallery_pushBlacklist": "クラウドへ送信",
-  "onlineGallery_pushBlacklistTooltip": "ローカルのリストで Danbooru クラウドを置き換えます",
-  "onlineGallery_pushBlacklistConfirmTitle": "ローカルでクラウドを置き換えますか？",
-  "onlineGallery_pushBlacklistConfirmBody": "Danbooru クラウドのブラックリストは現在のローカルリストで完全に置き換えられます。",
-  "onlineGallery_blacklistPullSucceeded": "Danbooru クラウドのブラックリストを更新しました",
+  "onlineGallery_pushBlacklistConfirmTitle": "統一リストでクラウドを置き換えますか？",
+  "onlineGallery_pushBlacklistConfirmBody": "Danbooru クラウドのブラックリストを完全に置き換えます。通常の同期では不明な高度なルールを保持しますが、今回の完全送信では削除されます。",
   "onlineGallery_blacklistPushSucceeded": "クラウドをローカルのブラックリストで置き換えました",
   "onlineGallery_blacklistSyncFailedMessage": "同期に失敗しました。ログイン状態とネットワーク接続を確認してください。",
+  "onlineGallery_blacklistSaveFailed": "ブラックリストの保存に失敗しました：{error}",
+  "@onlineGallery_blacklistSaveFailed": {
+    "placeholders": {"error": {"type": "String"}}
+  },
   "onlineGallery_autoSyncOnStartup": "起動時にクラウドリストを更新",
-  "onlineGallery_autoSyncOnStartupSubtitle": "クラウドキャッシュのみ更新し、ローカルのリストは上書きしません",
+  "onlineGallery_autoSyncOnStartupSubtitle": "ローカルタグを削除せず、クラウドの新しいタグを安全にマージします",
   "onlineGallery_lastSyncFailed": "最後の同期に失敗しました: {error}",
   "@onlineGallery_lastSyncFailed": {
     "placeholders": {
@@ -1281,7 +1338,18 @@
     }
   },
   "onlineGallery_blacklistSettingsTitle": "オンライン ギャラリーのブラックリスト設定",
-  "onlineGallery_blacklistLoginHint": "Danbooru にログインしていません。ローカルのブラックリストは引き続き機能しますが、同期にはログインが必要です。",
+  "onlineGallery_blacklistImportTitle": "タグを一括インポート",
+  "onlineGallery_blacklistImportHint": "1 行に 1 タグ、またはカンマで区切って入力します",
+  "onlineGallery_blacklistImported": "{count} 個のタグを追加しました",
+  "@onlineGallery_blacklistImported": {"placeholders": {"count": {}}},
+  "onlineGallery_blacklistClearTitle": "統一ブラックリストをクリアしますか？",
+  "onlineGallery_blacklistClearBody": "ギャラリーはこれらのタグによるフィルタリングを直ちに停止します。クラウドは自動的にクリアされず、この操作は元に戻せます。",
+  "onlineGallery_blacklistPullSummary": "{added} 件追加、{existing} 件は登録済み、削除済み {skipped} 件をスキップし、高度なクラウドルール {opaque} 件を保持しました",
+  "@onlineGallery_blacklistPullSummary": {"placeholders": {"added": {}, "existing": {}, "skipped": {}, "opaque": {}}},
+  "onlineGallery_blacklistPushDiff": "クラウドに {added} 件追加、{removed} 件削除し、高度なルール {opaque} 件を削除します。",
+  "@onlineGallery_blacklistPushDiff": {"placeholders": {"added": {}, "removed": {}, "opaque": {}}},
+  "onlineGallery_blacklistCloudEmptyConfirm": "クラウドのブラックリストをクリアすることを確認",
+  "onlineGallery_blacklistMigrationConfirm": "このリストにはアカウントを特定できない旧バージョンのクラウドタグが含まれます。現在のアカウントへの同期を確認してください",
   "onlineGallery_bulkFavorite": "選択項目をお気に入りに追加",
   "onlineGallery_bulkDownload": "選択項目をダウンロード",
   "onlineGallery_addedTasksToQueue": "{count} タスクをキューに追加しました",
@@ -1290,11 +1358,12 @@
       "count": {}
     }
   },
-  "onlineGallery_partiallyAddedTasksToQueue": "{added} 件を追加しました。キューがいっぱいのため {skipped} 件は追加されませんでした",
-  "@onlineGallery_partiallyAddedTasksToQueue": {
+  "onlineGallery_queueBatchCompleted": "{added} 件を追加しました。{prepareFailed} 件は準備できず、{queueSkipped} 件はキューがいっぱいのため追加されませんでした",
+  "@onlineGallery_queueBatchCompleted": {
     "placeholders": {
       "added": {},
-      "skipped": {}
+      "prepareFailed": {},
+      "queueSkipped": {}
     }
   },
   "onlineGallery_unfavorited": "お気に入りから削除しました",
@@ -1317,11 +1386,12 @@
       "count": {}
     }
   },
-  "onlineGallery_downloadSelectedCompleted": "ダウンロード完了: {success} 成功、{failed} 失敗",
-  "@onlineGallery_downloadSelectedCompleted": {
+  "onlineGallery_downloadSelectedCompletedWithSkipped": "ダウンロード完了：{success} 件成功、{failed} 件失敗、テキストのみの項目 {skipped} 件をスキップ",
+  "@onlineGallery_downloadSelectedCompletedWithSkipped": {
     "placeholders": {
       "success": {},
-      "failed": {}
+      "failed": {},
+      "skipped": {}
     }
   },
   "onlineGallery_startDate": "開始日",
@@ -1342,9 +1412,54 @@
   "onlineGallery_gelbooruRequestFailed": "Gelbooru リクエストに失敗しました。しばらくしてから再試行してください。",
   "onlineGallery_aiTagQuery": "作品、作者、タイトル、タグ、モデルを検索",
   "onlineGallery_aiTagPromptQuery": "AI Prompt 検索（artist: などの Prompt 原文を検索）",
+  "onlineGallery_sourceQuickTagCloud": "法典図鑑",
+  "onlineGallery_codexSearchHint": "タイトル、プロンプト、メモ、カテゴリ、投稿者を検索",
+  "onlineGallery_codexLabel": "法典",
+  "onlineGallery_codexSelect": "法典を選択",
+  "onlineGallery_codexAll": "すべての法典",
+  "onlineGallery_codexBrowse": "閲覧",
+  "onlineGallery_codexLatest": "今回の更新",
+  "onlineGallery_codexRecent": "最近見た項目",
+  "onlineGallery_codexCategory": "カテゴリ",
+  "onlineGallery_codexAllCategories": "すべてのカテゴリ",
+  "onlineGallery_codexUpdateBatch": "更新バッチ",
+  "onlineGallery_codexMediaFilter": "画像",
+  "onlineGallery_codexAllEntries": "すべての項目",
+  "onlineGallery_codexWithImages": "画像ありのみ",
+  "onlineGallery_codexWithoutImages": "画像なしのみ",
+  "onlineGallery_codexOffline": "オフラインキャッシュ",
+  "onlineGallery_codexContributors": "協力者と出典",
+  "onlineGallery_codexEntryCount": "{entries} 項目 · 画像あり {images} 件",
+  "@onlineGallery_codexEntryCount": {"placeholders": {"entries": {}, "images": {}}},
+  "onlineGallery_codexNoImage": "画像なし項目",
+  "onlineGallery_codexNoImageDescription": "テキストのみの項目です。プロンプトとメタデータはすべて利用できます。",
+  "onlineGallery_codexAuthor": "作者",
+  "onlineGallery_codexImageFile": "画像ファイル",
+  "onlineGallery_codexOriginalFile": "原画像ファイル",
+  "onlineGallery_codexDeclaredSource": "データ提供元",
+  "onlineGallery_codexPrompt": "ポジティブプロンプト",
+  "onlineGallery_codexNegativePrompt": "ネガティブプロンプト",
+  "onlineGallery_negativePromptCopyHeading": "ネガティブプロンプト",
+  "onlineGallery_codexCharacterPrompts": "キャラクタープロンプト",
+  "onlineGallery_codexNote": "メモ",
+  "onlineGallery_codexCopyPositive": "ポジティブをコピー",
+  "onlineGallery_codexCopyNegative": "ネガティブをコピー",
+  "onlineGallery_codexCopyCharacter": "このキャラクターをコピー",
+  "onlineGallery_codexCopyAll": "すべてコピー",
+  "onlineGallery_codexSendToGeneration": "生成画面へ送る",
+  "onlineGallery_codexAddToQueue": "生成キューに追加",
+  "onlineGallery_codexDownloadOriginal": "現在の原画像を保存",
+  "onlineGallery_codexOpenSource": "出典を開く",
+  "onlineGallery_codexOpenOrigin": "元のページを開く",
+  "onlineGallery_codexOpenSourceFailed": "指定された出典を開けません。",
+  "onlineGallery_codexBookLocked": "この法典には成人向けコンテンツが含まれます。レーティングで「疑問あり」または「露骨」を選択してください。",
+  "onlineGallery_codexNoData": "条件に一致する法典項目がありません",
+  "onlineGallery_codexExternalFallback": "外部ソースを利用できないため、法典サイトのキャッシュ版を表示しています。",
+  "onlineGallery_codexPreviousRelease": "現在のバージョンを利用できないため、検証済みの前バージョンを表示しています。",
+  "onlineGallery_codexCachedBadge": "旧版キャッシュ",
+  "onlineGallery_codexUntitled": "無題の項目",
   "onlineGallery_artistHunt": "絵師タグのみ",
   "onlineGallery_artistHuntTooltip": "ポジティブ Prompt に明示的な artist: タグがある画像のみ表示",
-  "onlineGallery_artistChain": "絵師タグ列",
   "onlineGallery_copyArtistChain": "絵師タグ列をコピー",
   "onlineGallery_copyFullPrompt": "完全な Prompt をコピー",
   "onlineGallery_copyRawArtistFragments": "元の絵師タグ断片をコピー",
@@ -1364,19 +1479,19 @@
   "onlineGallery_sourceRateLimited": "リクエストが多すぎます。しばらくしてから再試行してください。",
   "onlineGallery_sourceTimeout": "リクエストがタイムアウトしました。接続を確認してください。",
   "onlineGallery_sourceNetworkError": "ギャラリーソースに接続できません。ネットワークまたはプロキシを確認してください。",
+  "onlineGallery_sourceRequestFailed": "リクエストに失敗しました。しばらくしてから再試行してください。",
+  "onlineGallery_actionFailed": "操作に失敗しました: {error}",
+  "@onlineGallery_actionFailed": {"placeholders": {"error": {}}},
   "onlineGallery_sourceMalformedResponse": "ソースのレスポンス形式が変更され、解析できません。",
   "onlineGallery_detailNotFound": "作品が存在しないか、削除されています。",
   "onlineGallery_imageUnavailable": "画像は現在利用できません。",
   "onlineGallery_loadedAll": "すべて読み込み済み",
   "onlineGallery_retryAppend": "読み込みに失敗しました。クリックして再試行",
-  "onlineGallery_rankNumber": "第 {rank} 位",
-  "@onlineGallery_rankNumber": {"placeholders": {"rank": {}}},
   "onlineGallery_multipleImages": "{count} 枚の画像",
   "@onlineGallery_multipleImages": {"placeholders": {"count": {}}},
   "onlineGallery_views": "閲覧数",
   "onlineGallery_downloadAllMedia": "作品の全画像をダウンロード",
   "onlineGallery_copyFullMetadata": "完全なメタデータをコピー",
-  "onlineGallery_metadataParseFailed": "メタデータの解析に失敗しました。元の内容は保持され、コピーできます。",
   "onlineGallery_gelbooruReadOnly": "読み取り専用のお気に入り",
   "onlineGallery_gelbooruFavoritesSortHint": "投稿 ID の新しい順です。ウェブサイトのお気に入り登録時刻順とは異なる場合があります。",
   "tooltip_fullscreenEdit": "フルスクリーン編集",
@@ -1616,6 +1731,13 @@
   "characterCanvas_custom": "カスタム",
   "characterCanvas_aiHint": "AIがすべてのキャラクターの位置を自動で決めます",
   "characterCanvas_dragHint": "アンカーをドラッグして位置を設定し、離すと反映されます",
+  "characterCanvas_guide": "構図ガイド",
+  "characterCanvas_guideNone": "なし",
+  "characterCanvas_guideThirds": "三分割",
+  "characterCanvas_guidePhi": "黄金比",
+  "characterCanvas_guideGrid": "グリッド",
+  "characterCanvas_guideColumns": "列",
+  "characterCanvas_guideRows": "行",
   "characterEditor_genderFemale": "女性",
   "characterEditor_genderMale": "男性",
   "characterEditor_genderOther": "その他",
@@ -1631,24 +1753,22 @@
   "toolbar_clear": "クリア",
   "toolbar_confirmClear": "クリアの確認",
   "toolbar_settings": "設定",
-  "characterTooltip_noCharacters": "キャラクターが設定されていません",
-  "characterTooltip_clickToConfig": "クリックして複数キャラクタープロンプトを設定します",
-  "characterTooltip_globalAiLabel": "グローバル AI のポジション:",
-  "characterTooltip_enabled": "有効",
-  "characterTooltip_disabled": "無効",
-  "characterTooltip_positionAi": "AI",
   "characterTooltip_disabledLabel": "無効",
-  "characterTooltip_promptLabel": "プロンプト",
-  "characterTooltip_negativeLabel": "除外したい要素",
   "characterTooltip_notSet": "未設定",
-  "characterTooltip_summary": "{total} キャラクター ({enabled} 有効)",
-  "@characterTooltip_summary": {
+  "characterTooltip_previewTitle": "キャラクタープレビュー",
+  "characterTooltip_enabledSummary": "{enabled} / {total} 有効",
+  "@characterTooltip_enabledSummary": {
     "placeholders": {
-      "total": {},
-      "enabled": {}
+      "enabled": {"type": "int"},
+      "total": {"type": "int"}
     }
   },
-  "characterTooltip_viewFullConfig": "クリックすると完全な構成が表示されます",
+  "characterTooltip_more": "他 {count} 人のキャラクター",
+  "@characterTooltip_more": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
   "tagLibrary_generatedCharacters": "{count} キャラクターを生成しました",
   "@tagLibrary_generatedCharacters": {
     "placeholders": {
@@ -1665,13 +1785,12 @@
   "randomMode_naiOfficial": "公式モード",
   "randomMode_custom": "カスタムモード",
   "randomMode_hybrid": "ハイブリッド モード",
-  "randomMode_naiOfficialDesc": "NovelAI 公式ランダム アルゴリズムを複製する",
-  "randomMode_customDesc": "カスタム プリセットを使用して生成",
-  "randomMode_hybridDesc": "公式アルゴリズムとカスタム プリセットを組み合わせる",
-  "randomMode_naiIndicator": "NAI",
+  "randomMode_naiOfficialDesc": "現在のモデルに対応する NovelAI 公式ランダムワードリストを使用",
+  "randomMode_customDesc": "完全なオフラインタグカタログとカスタムプリセットから生成",
+  "randomMode_hybridDesc": "公式ワードリストとカタログ拡張を組み合わせる",
+  "randomMode_naiIndicator": "公式",
   "randomMode_customIndicator": "カスタム",
   "naiMode_noTags": "タグがありません",
-  "naiAlgorithm_characterCount": "キャラクター数の分布",
   "naiAlgorithm_mainPrompt": "メイン プロンプト",
   "tagGroup_tagCount": "{count} タグ",
   "@tagGroup_tagCount": {
@@ -1816,14 +1935,9 @@
   "randomManager_algorithmConfig": "アルゴリズム構成",
   "randomManager_characterCountWeight": "キャラクター数の重み",
   "randomManager_genderWeight": "性別の重み",
-  "randomManager_globalSettings": "グローバル設定",
   "randomManager_enableSeasonalWordlists": "季節の単語リストを有効にする",
   "randomManager_enableSeasonalWordlistsDesc": "クリスマス、ハロウィーン、その他の特別な日の単語リスト",
   "randomManager_globalEmphasisProbability": "グローバル強調確率",
-  "randomManager_soloGenderOptions": "ソロジェンダーのオプション",
-  "randomManager_femaleShort": "F",
-  "randomManager_maleShort": "M",
-  "randomManager_other": "その他",
   "randomManager_tagGroupList": "タググループ",
   "randomManager_deleteTagGroupTitle": "タググループの削除",
   "randomManager_deleteTagGroupConfirm": "タグ グループ「{name}」を削除しますか?この操作は元に戻すことができません。",
@@ -1847,7 +1961,6 @@
   "randomManager_noCategories": "カテゴリがありません",
   "randomManager_noCategoriesHint": "[カテゴリを追加] をクリックして設定を開始してください",
   "randomManager_globalPeopleSettings": "グローバルキャラクター設定",
-  "randomManager_closePreview": "プレビューを閉じる",
   "randomManager_importPreset": "プリセットのインポート",
   "randomManager_importPresetSubtitle": "JSON テキストからランダムな構成プリセットをインポートします",
   "randomManager_exportCurrentPreset": "現在のプリセットをエクスポート",
@@ -1908,8 +2021,6 @@
   "randomManager_resetDefaultDone": "デフォルト構成にリセット",
   "randomManager_generatePreview": "プレビューの生成",
   "randomManager_importExport": "インポート / エクスポート",
-  "randomManager_syncing": "同期中",
-  "randomManager_syncingWithEllipsis": "同期中...",
   "randomManager_syncDanbooruTags": "Danbooru タグを同期",
   "randomManager_unknownError": "不明なエラー",
   "randomManager_readOnlyMode": "読み取り専用モード",
@@ -1978,18 +2089,6 @@
   "randomManager_emphasisProbability": "強調確率",
   "randomManager_probability": "確率",
   "randomManager_selectionMode": "選択モード",
-  "randomManager_editHint": "{name} (クリックして編集)",
-  "@randomManager_editHint": {
-    "placeholders": {
-      "name": {}
-    }
-  },
-  "randomManager_emphasisProbabilityValue": "強調確率: {percent}%",
-  "@randomManager_emphasisProbabilityValue": {
-    "placeholders": {
-      "percent": {}
-    }
-  },
   "randomManager_previewGeneration": "プレビューの生成",
   "randomManager_generating": "生成中",
   "randomManager_generate": "生成",
@@ -2446,6 +2545,44 @@
   "statistics_totalAnlasCost": "総コスト",
   "statistics_avgDailyCost": "1 日の平均",
   "statistics_noAnlasData": "Anlas 消費データがありません",
+  "statistics_noAnlasInPeriod": "選択した期間に Anlas 消費はありません",
+  "statistics_periodSelectorTooltip": "集計期間を選択",
+  "statistics_periodWeek": "直近 1 週間",
+  "statistics_periodMonth": "直近 1 か月",
+  "statistics_periodThreeMonths": "直近 3 か月",
+  "statistics_periodYear": "直近 1 年",
+  "statistics_periodAll": "全期間",
+  "statistics_periodCustom": "日数を指定",
+  "statistics_periodDays": "直近 {count} 日",
+  "@statistics_periodDays": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "statistics_periodSummary": "{start}～{end}・{count} 日間",
+  "@statistics_periodSummary": {
+    "placeholders": {
+      "start": {"type": "String"},
+      "end": {"type": "String"},
+      "count": {"type": "int"}
+    }
+  },
+  "statistics_partialCoverage": "利用可能な記録は {date} からです。1 日の平均は既存の {count} 日間で計算されます",
+  "@statistics_partialCoverage": {
+    "placeholders": {
+      "date": {"type": "String"},
+      "count": {"type": "int"}
+    }
+  },
+  "statistics_customPeriodTitle": "集計日数を指定",
+  "statistics_customDaysHint": "日数",
+  "statistics_customDaysError": "1 から {max} までの整数を入力してください",
+  "@statistics_customDaysError": {
+    "placeholders": {
+      "max": {"type": "int"}
+    }
+  },
+  "statistics_daysUnit": "日",
   "statistics_peakActivity": "ピークアクティビティ",
   "statistics_timeMorning": "朝",
   "statistics_timeAfternoon": "午後",
@@ -2816,7 +2953,6 @@
   "fixedTags_searchLibraryEntries": "ライブラリ エントリを検索します...",
   "fixedTags_noMatchingResults": "一致する結果はありません",
   "reversePrompt_title": "逆プロンプト",
-  "reversePrompt_pending": "保留中",
   "reversePrompt_imageCount": "{count} 画像",
   "@reversePrompt_imageCount": {
     "placeholders": {
@@ -3424,9 +3560,7 @@
   "settings_notificationCustomSound": "カスタムサウンド",
   "settings_notificationSelectSound": "サウンドの選択",
   "settings_notificationResetSound": "デフォルトにリセット",
-  "categoryConfiguration": "カテゴリ構成",
   "resetToDefault": "デフォルトにリセット",
-  "resetToDefaultTooltip": "デフォルト構成にリセット",
   "toggleGroupEnabled": "グループ有効状態の切り替え",
   "diyNotAvailableForDefault": "DIY はデフォルトのプリセットでは使用できません",
   "diyNotAvailableHint": "編集するにはカスタム プリセットにコピーしてください",
@@ -3696,6 +3830,7 @@
     }
   },
   "drop_dialogTitle": "この画像はどのように使用しますか?",
+  "drop_actions": "操作",
   "drop_hint": "ここに画像をドロップしてください",
   "drop_img2img": "Image2Image",
   "drop_reversePrompt": "逆プロンプト",
@@ -3736,6 +3871,49 @@
   "drop_useAsRawImage": "Raw 画像として使用",
   "drop_useAsRawImageSubtitle": "再エンコード (2 Anlas を消費します)",
   "drop_dragToImg2ImgOrOther": "Image2Image または別のターゲットにドラッグします",
+  "drop_metadataDetected": "NovelAI メタデータを検出しました",
+  "drop_metadataParseFailed": "メタデータを解析できませんでした",
+  "drop_metadataParseFailedHint": "画像にメタデータ項目がありますが、現在は読み取れません。他の画像操作は引き続き使用できます。",
+  "drop_metadataErrorDetails": "エラー詳細を表示",
+  "drop_positivePrompt": "プロンプト",
+  "drop_negativePrompt": "除外したい要素",
+  "drop_characterPrompts": "キャラクタープロンプト（{count}）",
+  "@drop_characterPrompts": {"placeholders": {"count": {"type": "int"}}},
+  "drop_characterPositivePrompt": "キャラクター {index} プロンプト",
+  "@drop_characterPositivePrompt": {"placeholders": {"index": {"type": "int"}}},
+  "drop_characterNegativePrompt": "キャラクター {index} の除外したい要素",
+  "@drop_characterNegativePrompt": {"placeholders": {"index": {"type": "int"}}},
+  "drop_promptNotRecorded": "記録なし",
+  "drop_promptCopy": "コピー",
+  "drop_promptAddWhole": "全文をライブラリに追加",
+  "drop_promptAddSelection": "ライブラリに追加",
+  "drop_promptLibraryTitle": "ライブラリに追加",
+  "drop_promptLibraryWriteMode": "書き込み方法",
+  "drop_promptLibraryCreate": "新規",
+  "drop_promptLibraryAppend": "追記",
+  "drop_promptLibraryOverwrite": "置換",
+  "drop_promptLibraryAliasHint": "この名前は <ライブラリ名> の参照にも使用されます",
+  "drop_promptLibraryTarget": "対象エントリ",
+  "drop_promptLibrarySelectTarget": "更新するエントリを選択",
+  "drop_promptLibrarySeparator": "区切り",
+  "drop_promptLibrarySeparatorComma": "カンマ + スペース",
+  "drop_promptLibrarySeparatorNewline": "改行",
+  "drop_promptLibrarySeparatorNone": "区切りなし",
+  "drop_promptLibraryCharacterCount": "{count} 文字",
+  "@drop_promptLibraryCharacterCount": {"placeholders": {"count": {"type": "int"}}},
+  "drop_promptLibraryExactContentHint": "テキストを整形、並べ替え、補完せずに保存します",
+  "drop_promptLibraryResultPreview": "結果プレビュー",
+  "drop_promptLibraryDuplicate": "同じ内容が「{name}」に既にあります",
+  "@drop_promptLibraryDuplicate": {"placeholders": {"name": {}}},
+  "drop_promptLibraryNameConflict": "同じ名前があります。名前の変更、追記、または置換を選択してください",
+  "drop_promptLibraryOverwriteWarning": "「{name}」のプロンプト内容をすべて置き換えます",
+  "@drop_promptLibraryOverwriteWarning": {"placeholders": {"name": {}}},
+  "drop_promptLibraryMore": "その他のオプション",
+  "drop_promptLibraryConfirmOverwrite": "置換を確認",
+  "drop_promptLibrarySaved": "ライブラリに保存しました",
+  "drop_promptLibrarySaveFailed": "ライブラリへの保存に失敗しました",
+  "drop_promptLibraryPositiveName": "プロンプト抜粋",
+  "drop_promptLibraryNegativeName": "除外したい要素の抜粋",
   "preciseRef_title": "精密参照",
   "preciseRef_description": "参照画像を追加し、タイプとパラメータを設定します。複数の参照を同時に使用できます。",
   "preciseRef_addReference": "参照の追加",
@@ -4679,6 +4857,8 @@
   "discordShare_errorBrowser": "ブラウザーを開けません。システムの既定のブラウザー設定を確認してください。",
   "discordShare_errorTimeout": "Discord の確認がタイムアウトしました。もう一度確認してください。",
   "discordShare_errorRateLimited": "共有回数が多すぎます。しばらくしてから再試行してください。",
+  "discordShare_errorRateLimitedRetry": "共有回数が多すぎます。{seconds} 秒後に再試行してください。",
+  "@discordShare_errorRateLimitedRetry": {"placeholders": {"seconds": {"type": "int"}}},
   "discordShare_errorNoChannels": "現在利用できる Discord 共有チャンネルがありません。",
   "discordShare_errorSession": "Discord の確認が期限切れです。もう一度確認してください。",
   "discordShare_errorRelay": "Discord 共有サービスは一時的に利用できません。後でもう一度お試しください。",
@@ -5961,8 +6141,6 @@
     }
   },
 
-  "randomManager_releaseToDelete": "離すと削除",
-  "randomManager_dragHereToDelete": "ここにドラッグして削除",
   "randomManager_keyboardShortcutsHint": "キーボードショートカット（? キーで表示）",
 
   "localGallery_createFolder": "フォルダーを作成",
@@ -6184,5 +6362,56 @@
   "autocomplete_statusDisabled": "オフ",
   "autocomplete_statusSearching": "検索中",
   "autocomplete_statusTranslating": "翻訳中",
-  "autocomplete_openSettings": "補完とデータソース設定を開く"
+  "autocomplete_openSettings": "補完とデータソース設定を開く",
+  "randomManager_searchCategories": "カテゴリ、グループ、タグを検索（Ctrl+F）",
+  "randomManager_workspaceTitle": "ランダムライブラリ",
+  "randomManager_workspaceSubtitle": "完全なオフラインカタログから再利用可能な生成レシピを構成します",
+  "randomManager_recipeTitle": "生成レシピ",
+  "randomManager_recipeSubtitle": "各ステージで意味カテゴリごとの発動確率と抽出範囲を設定します",
+  "randomManager_inspectorTitle": "生成設定",
+  "randomManager_inspectorSubtitle": "現在のプリセットのキャラクター分布と出力動作を調整します",
+  "randomManager_previewEmptyDescription": "サンプルを生成して、現在のレシピの出力を確認します。",
+  "randomManager_category_composition": "構図",
+  "randomManager_category_camera": "カメラアングル",
+  "randomManager_category_framing": "フレーミング",
+  "randomManager_category_focus": "フォーカス",
+  "randomManager_category_eyeFeature": "目の特徴",
+  "randomManager_category_hairLength": "髪の長さ",
+  "randomManager_category_hairTexture": "髪質",
+  "randomManager_category_bangs": "前髪",
+  "randomManager_category_skinTone": "肌の色",
+  "randomManager_category_species": "種族",
+  "randomManager_category_headwear": "帽子",
+  "randomManager_category_hairAccessory": "髪飾り",
+  "randomManager_category_prop": "小道具",
+  "randomManager_category_effect": "エフェクト",
+  "randomManager_category_year": "年代",
+  "randomManager_category_detail": "クリエイティブ詳細",
+  "randomManager_sourceOfficial": "公式 · {wordlist}",
+  "@randomManager_sourceOfficial": {"placeholders": {"wordlist": {"type": "String"}}},
+  "randomManager_sourceCatalog": "カスタム · Catalog 拡張",
+  "randomManager_sourceHybrid": "ハイブリッド · {wordlist} + Catalog",
+  "@randomManager_sourceHybrid": {"placeholders": {"wordlist": {"type": "String"}}},
+  "randomManager_currentMode": "現在のモード",
+  "randomManager_officialWordlist": "現在のモデルの公式ワードリスト",
+  "randomManager_officialWordlistCount": "{wordlist}：元データ {count} 件",
+  "@randomManager_officialWordlistCount": {"placeholders": {"wordlist": {"type": "String"}, "count": {"type": "int"}}},
+  "randomManager_officialAsset": "公式アセット全体",
+  "randomManager_officialAssetCount": "{entries} 件、元配列 {groups} 個",
+  "@randomManager_officialAssetCount": {"placeholders": {"entries": {"type": "int"}, "groups": {"type": "int"}}},
+  "randomManager_sourceFile": "ソースファイル",
+  "randomManager_sourceSha256": "ソース SHA-256",
+  "randomManager_catalogExtension": "Catalog 拡張",
+  "randomManager_wordlistLegacyAnime": "Legacy Anime",
+  "randomManager_wordlistFurryV3": "Furry V3",
+  "randomManager_wordlistCharacterPrompts": "Character Prompts",
+  "randomManager_sourceDetails": "データソースの詳細",
+  "randomManager_sourceUrl": "ソース URL",
+  "randomManager_sourceCommit": "ソースコミット",
+  "randomManager_sourceDate": "ソース日付",
+  "randomManager_sourceLicense": "ライセンス",
+  "randomManager_catalogCounts": "完全なカタログ：{tags} タグ、{aliases} エイリアス",
+  "@randomManager_catalogCounts": {"placeholders": {"tags": {}, "aliases": {}}},
+  "randomManager_libraryUnavailable": "ランダムライブラリを利用できません",
+  "randomManager_noCategoryResults": "一致するカテゴリ、グループ、タグがありません"
 }

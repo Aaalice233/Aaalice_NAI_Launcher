@@ -1,16 +1,11 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
+
 import '../../themes/theme_extension.dart';
 
+/// 统一语义色面容器。
+///
+/// 默认只用色面和圆角表达层级；调用方传入的装饰会覆盖对应属性。
 class ThemedContainer extends StatelessWidget {
-  final Widget? child;
-  final double? width;
-  final double? height;
-  final EdgeInsetsGeometry? padding;
-  final EdgeInsetsGeometry? margin;
-  final BoxDecoration? decoration;
-  final Clip clipBehavior;
-
   const ThemedContainer({
     super.key,
     this.child,
@@ -22,69 +17,46 @@ class ThemedContainer extends StatelessWidget {
     this.clipBehavior = Clip.antiAlias,
   });
 
+  final Widget? child;
+  final double? width;
+  final double? height;
+  final EdgeInsetsGeometry? padding;
+  final EdgeInsetsGeometry? margin;
+  final BoxDecoration? decoration;
+  final Clip clipBehavior;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final extension = theme.extension<AppThemeExtension>();
+    final base = BoxDecoration(
+      color: theme.colorScheme.surfaceContainerLow,
+      borderRadius: BorderRadius.circular(theme.appTheme.cardRadius),
+    );
+    final custom = decoration;
+    final effectiveDecoration = custom == null
+        ? base
+        : BoxDecoration(
+            color: custom.color ?? base.color,
+            border: custom.border ?? base.border,
+            borderRadius: custom.shape == BoxShape.circle
+                ? null
+                : custom.borderRadius ?? base.borderRadius,
+            boxShadow: custom.boxShadow ?? base.boxShadow,
+            gradient: custom.gradient ?? base.gradient,
+            image: custom.image ?? base.image,
+            backgroundBlendMode:
+                custom.backgroundBlendMode ?? base.backgroundBlendMode,
+            shape: custom.shape,
+          );
 
-    // 合并默认装饰和传入的装饰
-    final defaultDecoration = extension?.containerDecoration ??
-        BoxDecoration(
-          color: theme.cardColor,
-          borderRadius: BorderRadius.circular(8),
-        );
-
-    final effectiveDecoration = decoration != null
-        ? defaultDecoration.copyWith(
-            color: decoration!.color,
-            border: decoration!.border,
-            borderRadius: decoration!.borderRadius,
-            boxShadow: decoration!.boxShadow,
-            gradient: decoration!.gradient,
-            image: decoration!.image,
-          )
-        : defaultDecoration;
-
-    final double blur = extension?.blurStrength ?? 0.0;
-
-    final Widget content = Container(
+    return Container(
       width: width,
       height: height,
       padding: padding,
       margin: margin,
-      decoration: effectiveDecoration.copyWith(
-        // 如果启用了模糊，背景色应该由内部 Container 处理或者半透明
-        color: blur > 0
-            ? effectiveDecoration.color?.withValues(alpha: 0.5)
-            : effectiveDecoration.color,
-      ),
+      clipBehavior: clipBehavior,
+      decoration: effectiveDecoration,
       child: child,
     );
-
-    // 如果有模糊效果 (Linear Style)
-    if (blur > 0) {
-      return Container(
-        margin: margin, // Margin 需要在外部
-        child: ClipRRect(
-          borderRadius: effectiveDecoration.borderRadius as BorderRadius? ??
-              BorderRadius.zero,
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-            child: Container(
-              width: width,
-              height: height,
-              padding: padding,
-              decoration: effectiveDecoration.copyWith(
-                color: effectiveDecoration.color?.withValues(alpha: 0.3) ??
-                    Colors.transparent,
-              ),
-              child: child,
-            ),
-          ),
-        ),
-      );
-    }
-
-    return content;
   }
 }

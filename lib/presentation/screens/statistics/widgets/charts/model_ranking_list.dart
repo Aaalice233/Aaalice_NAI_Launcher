@@ -82,9 +82,6 @@ class _ModelRankRow extends StatelessWidget {
           decoration: BoxDecoration(
             color: colorScheme.surfaceContainerLow.withValues(alpha: 0.5),
             borderRadius: BorderRadius.circular(6),
-            border: Border.all(
-              color: colorScheme.outlineVariant.withValues(alpha: 0.2),
-            ),
           ),
           child: Row(
             children: [

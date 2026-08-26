@@ -1,35 +1,23 @@
 import 'package:flutter/material.dart';
-import 'package:nai_launcher/presentation/themes/utils/layered_surfaces.dart';
-import 'package:nai_launcher/presentation/themes/utils/subtle_borders.dart';
+import 'package:nai_launcher/presentation/themes/theme_extension.dart';
 
-/// 层叠卡片层级枚举
-enum CardElevation {
-  /// 基础层级 - 轻微阴影
-  level1,
+/// 卡片语义层级。
+enum CardElevation { level1, level2, level3, level4 }
 
-  /// 中等层级 - 标准阴影
-  level2,
-
-  /// 高层级 - 明显阴影
-  level3,
-
-  /// 最高层级 - 强烈阴影
-  level4,
-}
-
-/// Dimensional Layering 风格的层叠卡片组件
+/// 项目统一的 surface card。
 ///
-/// 支持4级阴影系统、悬停提升效果、渐变边框和动态背景
+/// 默认卡片只使用语义色面，不绘制完整边框或阴影。可点击卡片默认响应
+/// hover，静态卡片仅在显式启用时响应；焦点、选中等明确状态可显示状态边界。
 class ElevatedCard extends StatefulWidget {
   const ElevatedCard({
     super.key,
     required this.child,
     this.elevation = CardElevation.level1,
     this.hoverElevation,
-    this.enableHoverEffect = true,
-    this.hoverTranslateY = -4.0,
-    this.hoverScale = 1.0,
-    this.borderRadius = 6.0,
+    this.enableHoverEffect,
+    this.hoverTranslateY = -2,
+    this.hoverScale = 1,
+    this.borderRadius,
     this.padding,
     this.margin,
     this.backgroundColor,
@@ -39,63 +27,30 @@ class ElevatedCard extends StatefulWidget {
     this.onTap,
     this.onDoubleTap,
     this.onLongPress,
-    this.animationDuration = const Duration(milliseconds: 200),
-    this.animationCurve = Curves.easeOutCubic,
+    this.animationDuration,
+    this.animationCurve,
   });
 
-  /// 子组件
   final Widget child;
-
-  /// 默认层级
   final CardElevation elevation;
-
-  /// 悬停时的层级 (默认为当前层级+1)
   final CardElevation? hoverElevation;
 
-  /// 是否启用悬停效果
-  final bool enableHoverEffect;
-
-  /// 悬停时的Y轴位移
+  /// null 时只让卡片级可点击组件响应 hover；静态卡片可显式设为 true。
+  final bool? enableHoverEffect;
   final double hoverTranslateY;
-
-  /// 悬停时的缩放比例 (1.0表示不缩放)
   final double hoverScale;
-
-  /// 圆角半径
-  final double borderRadius;
-
-  /// 内边距
+  final double? borderRadius;
   final EdgeInsetsGeometry? padding;
-
-  /// 外边距
   final EdgeInsetsGeometry? margin;
-
-  /// 背景颜色 (默认使用主题色)
   final Color? backgroundColor;
-
-  /// 渐变边框 (可选)
   final Gradient? gradientBorder;
-
-  /// 渐变边框宽度
   final double gradientBorderWidth;
-
-  /// 是否启用微光边框（默认启用）
   final bool enableSubtleBorder;
-
-  /// 点击回调
   final VoidCallback? onTap;
-
-  /// 双击回调
   final VoidCallback? onDoubleTap;
-
-  /// 长按回调
   final VoidCallback? onLongPress;
-
-  /// 动画时长
-  final Duration animationDuration;
-
-  /// 动画曲线
-  final Curve animationCurve;
+  final Duration? animationDuration;
+  final Curve? animationCurve;
 
   @override
   State<ElevatedCard> createState() => _ElevatedCardState();
@@ -103,217 +58,155 @@ class ElevatedCard extends StatefulWidget {
 
 class _ElevatedCardState extends State<ElevatedCard> {
   bool _isHovered = false;
+  bool _isFocused = false;
+
+  bool get _isInteractive =>
+      widget.onTap != null ||
+      widget.onDoubleTap != null ||
+      widget.onLongPress != null;
+
+  bool get _hoverEnabled => widget.enableHoverEffect ?? _isInteractive;
 
   CardElevation get _currentElevation {
-    if (!_isHovered || !widget.enableHoverEffect) {
+    if (!_isHovered || !_hoverEnabled) {
       return widget.elevation;
     }
-    return widget.hoverElevation ?? _getNextElevation(widget.elevation);
+    return widget.hoverElevation ??
+        switch (widget.elevation) {
+          CardElevation.level1 => CardElevation.level2,
+          CardElevation.level2 => CardElevation.level3,
+          CardElevation.level3 || CardElevation.level4 => CardElevation.level4,
+        };
   }
 
-  CardElevation _getNextElevation(CardElevation current) {
-    switch (current) {
-      case CardElevation.level1:
-        return CardElevation.level2;
-      case CardElevation.level2:
-        return CardElevation.level3;
-      case CardElevation.level3:
-        return CardElevation.level4;
-      case CardElevation.level4:
-        return CardElevation.level4;
-    }
-  }
-
-  List<BoxShadow> _getShadows(ColorScheme colorScheme) {
-    final isDark = colorScheme.brightness == Brightness.dark;
-    // 暗色主题阴影透明度提升约 50%
-    final baseOpacity = isDark ? 1.5 : 1.0;
-
-    switch (_currentElevation) {
-      case CardElevation.level1:
-        // Level 1: 轻微层叠（2层阴影）
-        return [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04 * baseOpacity),
-            blurRadius: 2,
-            offset: const Offset(0, 1),
-          ),
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06 * baseOpacity),
-            blurRadius: 4,
-            spreadRadius: -0.5,
-            offset: const Offset(0, 2),
-          ),
-        ];
-      case CardElevation.level2:
-        // Level 2: 标准层叠（3层阴影）
-        return [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04 * baseOpacity),
-            blurRadius: 3,
-            offset: const Offset(0, 1),
-          ),
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08 * baseOpacity),
-            blurRadius: 6,
-            spreadRadius: -1,
-            offset: const Offset(0, 3),
-          ),
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.12 * baseOpacity),
-            blurRadius: 12,
-            spreadRadius: -2,
-            offset: const Offset(0, 6),
-          ),
-        ];
-      case CardElevation.level3:
-        // Level 3: 明显层叠（4层阴影）
-        return [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04 * baseOpacity),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08 * baseOpacity),
-            blurRadius: 8,
-            spreadRadius: -1,
-            offset: const Offset(0, 4),
-          ),
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.12 * baseOpacity),
-            blurRadius: 16,
-            spreadRadius: -2,
-            offset: const Offset(0, 8),
-          ),
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.16 * baseOpacity),
-            blurRadius: 24,
-            spreadRadius: -3,
-            offset: const Offset(0, 12),
-          ),
-        ];
-      case CardElevation.level4:
-        // Level 4: 极致层叠（4层阴影，更强）
-        return [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06 * baseOpacity),
-            blurRadius: 6,
-            offset: const Offset(0, 3),
-          ),
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.10 * baseOpacity),
-            blurRadius: 12,
-            spreadRadius: -1,
-            offset: const Offset(0, 6),
-          ),
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.14 * baseOpacity),
-            blurRadius: 20,
-            spreadRadius: -2,
-            offset: const Offset(0, 12),
-          ),
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.20 * baseOpacity),
-            blurRadius: 32,
-            spreadRadius: -4,
-            offset: const Offset(0, 18),
-          ),
-        ];
-    }
+  List<BoxShadow> _shadows(ThemeData theme) {
+    final opacity = theme.brightness == Brightness.dark ? 0.18 : 0.1;
+    return switch (_currentElevation) {
+      CardElevation.level1 => const [],
+      CardElevation.level2 => [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: opacity * 0.55),
+          blurRadius: 8,
+          offset: const Offset(0, 3),
+        ),
+      ],
+      CardElevation.level3 => [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: opacity * 0.75),
+          blurRadius: 14,
+          offset: const Offset(0, 6),
+        ),
+      ],
+      CardElevation.level4 => [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: opacity),
+          blurRadius: 20,
+          offset: const Offset(0, 9),
+        ),
+      ],
+    };
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    final translateY =
-        _isHovered && widget.enableHoverEffect ? widget.hoverTranslateY : 0.0;
-    final scale =
-        _isHovered && widget.enableHoverEffect ? widget.hoverScale : 1.0;
-
-    // 使用层次化背景色系统：卡片比页面亮 10%
-    final baseBackgroundColor =
-        widget.backgroundColor ?? LayeredSurfaces.cardBackground(colorScheme);
-    // 悬停时背景再提亮
-    final backgroundColor = _isHovered && widget.enableHoverEffect
-        ? LayeredSurfaces.brighten(
-            baseBackgroundColor,
-            colorScheme.brightness == Brightness.dark ? 5 : 2,
+    final tokens = theme.appTheme;
+    final reducedMotion = MediaQuery.disableAnimationsOf(context);
+    final radius = widget.borderRadius ?? tokens.cardRadius;
+    final hoverActive = _isHovered && _hoverEnabled;
+    final background =
+        widget.backgroundColor ??
+        (hoverActive
+            ? theme.colorScheme.surfaceContainerHigh
+            : theme.colorScheme.surfaceContainerLow);
+    final statusBorder = _isFocused
+        ? Border.all(color: theme.colorScheme.primary, width: 1)
+        : widget.enableSubtleBorder
+        ? Border.all(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.16),
           )
-        : baseBackgroundColor;
+        : null;
 
-    // 边框逻辑：优先渐变边框，其次微光边框，否则无边框
-    BoxBorder? border;
-    if (widget.gradientBorder == null && widget.enableSubtleBorder) {
-      border = SubtleBorders.auto(colorScheme);
+    Widget content = widget.padding == null
+        ? widget.child
+        : Padding(padding: widget.padding!, child: widget.child);
+
+    if (_isInteractive) {
+      content = Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(radius),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: widget.onTap,
+          onDoubleTap: widget.onDoubleTap,
+          onLongPress: widget.onLongPress,
+          onFocusChange: (value) {
+            if (_isFocused != value) setState(() => _isFocused = value);
+          },
+          borderRadius: BorderRadius.circular(radius),
+          child: content,
+        ),
+      );
     }
 
     Widget card = AnimatedContainer(
-      duration: widget.animationDuration,
-      curve: widget.animationCurve,
+      duration: reducedMotion
+          ? Duration.zero
+          : widget.animationDuration ?? tokens.normalDuration,
+      curve: widget.animationCurve ?? tokens.standardCurve,
       transform: Matrix4.identity()
-        ..translateByDouble(0.0, translateY, 0, 1)
-        ..scaleByDouble(scale, scale, scale, 1),
+        ..translateByDouble(
+          0,
+          reducedMotion || !hoverActive ? 0 : widget.hoverTranslateY,
+          0,
+          1,
+        )
+        ..scaleByDouble(
+          reducedMotion || !hoverActive ? 1 : widget.hoverScale,
+          reducedMotion || !hoverActive ? 1 : widget.hoverScale,
+          1,
+          1,
+        ),
       transformAlignment: Alignment.center,
       margin: widget.margin,
       decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(widget.borderRadius),
-        boxShadow: _getShadows(colorScheme),
-        border: border,
+        color: background,
+        borderRadius: BorderRadius.circular(radius),
+        boxShadow: _shadows(theme),
+        border: statusBorder,
       ),
-      child: widget.gradientBorder != null
-          ? _GradientBorderWrapper(
+      child: widget.gradientBorder == null
+          ? content
+          : _GradientBorderWrapper(
               gradient: widget.gradientBorder!,
-              borderRadius: widget.borderRadius,
+              borderRadius: radius,
               borderWidth: widget.gradientBorderWidth,
-              backgroundColor: backgroundColor,
-              child: _buildContent(),
-            )
-          : _buildContent(),
+              backgroundColor: background,
+              child: content,
+            ),
     );
 
-    // 添加悬停检测
-    if (widget.enableHoverEffect) {
+    if (_hoverEnabled) {
       card = MouseRegion(
-        cursor: widget.onTap != null
+        cursor: _isInteractive
             ? SystemMouseCursors.click
             : SystemMouseCursors.basic,
-        onEnter: (_) => setState(() => _isHovered = true),
-        onExit: (_) => setState(() => _isHovered = false),
+        onEnter: (_) {
+          if (!_isHovered) setState(() => _isHovered = true);
+        },
+        onExit: (_) {
+          if (_isHovered) setState(() => _isHovered = false);
+        },
         child: card,
       );
     }
-
-    // 添加点击事件
-    if (widget.onTap != null ||
-        widget.onDoubleTap != null ||
-        widget.onLongPress != null) {
-      card = GestureDetector(
-        onTap: widget.onTap,
-        onDoubleTap: widget.onDoubleTap,
-        onLongPress: widget.onLongPress,
-        child: card,
-      );
+    if (_isInteractive) {
+      card = Semantics(button: true, enabled: true, child: card);
     }
-
     return card;
-  }
-
-  Widget _buildContent() {
-    if (widget.padding != null) {
-      return Padding(
-        padding: widget.padding!,
-        child: widget.child,
-      );
-    }
-    return widget.child;
   }
 }
 
-/// 渐变边框包装器
 class _GradientBorderWrapper extends StatelessWidget {
   const _GradientBorderWrapper({
     required this.gradient,
@@ -340,7 +233,9 @@ class _GradientBorderWrapper extends StatelessWidget {
         margin: EdgeInsets.all(borderWidth),
         decoration: BoxDecoration(
           color: backgroundColor,
-          borderRadius: BorderRadius.circular(borderRadius - borderWidth),
+          borderRadius: BorderRadius.circular(
+            (borderRadius - borderWidth).clamp(0, double.infinity),
+          ),
         ),
         child: child,
       ),
@@ -348,11 +243,9 @@ class _GradientBorderWrapper extends StatelessWidget {
   }
 }
 
-/// 预设的渐变边框样式
 class CardGradients {
   CardGradients._();
 
-  /// 主题色渐变边框
   static Gradient primary(ColorScheme colorScheme) {
     return LinearGradient(
       begin: Alignment.topLeft,
@@ -363,59 +256,4 @@ class CardGradients {
       ],
     );
   }
-
-  /// 彩虹渐变边框
-  static const Gradient rainbow = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [
-      Color(0xFFFF6B6B),
-      Color(0xFFFFE66D),
-      Color(0xFF4ECDC4),
-      Color(0xFF45B7D1),
-      Color(0xFF96CEB4),
-    ],
-  );
-
-  /// 极光渐变边框
-  static const Gradient aurora = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [
-      Color(0xFF00FFFF),
-      Color(0xFF0080FF),
-      Color(0xFFFF00FF),
-    ],
-  );
-
-  /// 金色渐变边框
-  static const Gradient gold = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [
-      Color(0xFFFFD700),
-      Color(0xFFFFA500),
-      Color(0xFFFF8C00),
-    ],
-  );
-
-  /// 成功状态渐变边框
-  static const Gradient success = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [
-      Color(0xFF22C55E),
-      Color(0xFF16A34A),
-    ],
-  );
-
-  /// 警告状态渐变边框
-  static const Gradient warning = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [
-      Color(0xFFF59E0B),
-      Color(0xFFD97706),
-    ],
-  );
 }

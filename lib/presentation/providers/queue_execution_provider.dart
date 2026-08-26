@@ -9,6 +9,7 @@ import '../../core/storage/queue_state_storage.dart';
 import '../../data/models/queue/replication_task.dart';
 import '../../data/models/queue/replication_task_status.dart';
 import '../../data/models/queue/failure_handling_strategy.dart';
+import 'character_prompt_provider.dart';
 import 'image_generation_provider.dart';
 import 'auth_provider.dart';
 import 'krita/krita_bridge_notifier.dart';
@@ -357,12 +358,23 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
 
   /// 填充提示词到主界面
   void _fillPrompt(ReplicationTask task) {
-    // 队列任务只回填用户基础正向提示词。
-    // 固定词、质量词和 UC 预设由生成链路统一组装，避免队列执行时重复拼接。
-    // 负向提示词沿用主界面设置，符合任务编辑器“负面提示词从主界面读取”的语义。
-    ref
-        .read(generationParamsNotifierProvider.notifier)
-        .updatePrompt(task.prompt);
+    // 队列任务只回填用户基础提示词；固定词、质量词和 UC 预设仍由生成链路统一组装。
+    final paramsNotifier = ref.read(generationParamsNotifierProvider.notifier);
+    paramsNotifier.updatePrompt(task.prompt);
+    if (task.applyNegativePrompt) {
+      paramsNotifier.updateNegativePrompt(task.negativePrompt);
+    }
+
+    final characterPrompts = task.characterPrompts;
+    if (characterPrompts != null) {
+      ref.read(characterPromptNotifierProvider.notifier).replaceAll([
+        for (var index = 0; index < characterPrompts.length; index++)
+          characterPrompts[index].toCharacterPrompt(
+            id: '${task.id}-character-$index',
+            index: index,
+          ),
+      ]);
+    }
   }
 
   /// 触发队列当前任务生成。
@@ -385,7 +397,6 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
       }
 
       final params = ref.read(generationParamsNotifierProvider);
-      if (params.prompt.isEmpty) return;
 
       // generate() 在首次异步让出前会把状态切到 generating；此后由生成状态
       // 本身阻止重复提交，不要让该锁跨越整次生成而吞掉下一任务的触发。

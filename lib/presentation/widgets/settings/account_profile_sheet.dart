@@ -25,10 +25,7 @@ class AccountProfileBottomSheet extends ConsumerStatefulWidget {
   /// 当前账号
   final SavedAccount account;
 
-  const AccountProfileBottomSheet({
-    super.key,
-    required this.account,
-  });
+  const AccountProfileBottomSheet({super.key, required this.account});
 
   /// 显示底部操作面板
   static Future<void> show({
@@ -39,9 +36,7 @@ class AccountProfileBottomSheet extends ConsumerStatefulWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => AccountProfileBottomSheet(
-        account: account,
-      ),
+      builder: (context) => AccountProfileBottomSheet(account: account),
     );
   }
 
@@ -210,7 +205,9 @@ class _AccountProfileBottomSheetState
       return;
     }
 
-    final success = await ref.read(authNotifierProvider.notifier).switchAccount(
+    final success = await ref
+        .read(authNotifierProvider.notifier)
+        .switchAccount(
           account.id,
           token,
           displayName: account.displayName,
@@ -241,8 +238,9 @@ class _AccountProfileBottomSheetState
     final currentAccountId = authState.accountId;
     final isCurrentAccount =
         authState.isAuthenticated && currentAccountId == currentAccount.id;
-    final defaultAccount =
-        ref.read(accountManagerNotifierProvider.notifier).defaultAccount;
+    final defaultAccount = ref
+        .read(accountManagerNotifierProvider.notifier)
+        .defaultAccount;
     final isDefaultAccount = defaultAccount?.id == currentAccount.id;
     final hasMultipleAccounts = accounts.length > 1;
 
@@ -359,8 +357,8 @@ class _AccountProfileBottomSheetState
         Text(
           context.l10n.settings_tapToChangeAvatar,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.outline,
-              ),
+            color: Theme.of(context).colorScheme.outline,
+          ),
         ),
       ],
     );
@@ -419,10 +417,7 @@ class _AccountProfileBottomSheetState
               ),
             ),
             const Spacer(),
-            Text(
-              currentAccount.displayName,
-              style: theme.textTheme.bodyMedium,
-            ),
+            Text(currentAccount.displayName, style: theme.textTheme.bodyMedium),
             Icon(
               Icons.chevron_right,
               size: 20,
@@ -459,8 +454,8 @@ class _AccountProfileBottomSheetState
           value: isThirdParty
               ? context.l10n.settings_thirdPartyApiAccount
               : currentAccount.accountType == AccountType.credentials
-                  ? context.l10n.settings_emailAccount
-                  : context.l10n.settings_tokenAccount,
+              ? context.l10n.settings_emailAccount
+              : context.l10n.settings_tokenAccount,
         ),
         if (isThirdParty && endpoint != null) ...[
           const SizedBox(height: 8),
@@ -488,11 +483,7 @@ class _AccountProfileBottomSheetState
       padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
       child: Row(
         children: [
-          Icon(
-            icon,
-            size: 20,
-            color: theme.colorScheme.outline,
-          ),
+          Icon(icon, size: 20, color: theme.colorScheme.outline),
           const SizedBox(width: 12),
           Text(
             label,
@@ -501,20 +492,14 @@ class _AccountProfileBottomSheetState
             ),
           ),
           const Spacer(),
-          Text(
-            value,
-            style: theme.textTheme.bodyMedium,
-          ),
+          Text(value, style: theme.textTheme.bodyMedium),
         ],
       ),
     );
   }
 
   /// 构建设为默认行
-  Widget _buildSetAsDefaultRow(
-    BuildContext context,
-    bool isDefault,
-  ) {
+  Widget _buildSetAsDefaultRow(BuildContext context, bool isDefault) {
     final theme = Theme.of(context);
 
     return InkWell(
@@ -583,9 +568,7 @@ class _AccountProfileBottomSheetState
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // 分隔线和标题
-        Divider(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
-        ),
+        Divider(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5)),
         const SizedBox(height: 8),
         Text(
           context.l10n.auth_switchAccount,
@@ -622,21 +605,22 @@ class _AccountProfileBottomSheetState
 
     // 检查头像文件是否存在
     final avatarPath = account.avatarPath;
-    final hasValidAvatar = avatarPath != null &&
+    final hasValidAvatar =
+        avatarPath != null &&
         avatarPath.isNotEmpty &&
         File(avatarPath).existsSync();
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4),
       elevation: 0,
+      color: isCurrent
+          ? theme.colorScheme.primaryContainer
+          : theme.colorScheme.surfaceContainerLow,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: isCurrent
-              ? theme.colorScheme.primary
-              : theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
-          width: isCurrent ? 2 : 1,
-        ),
+        side: isCurrent
+            ? BorderSide(color: theme.colorScheme.primary)
+            : BorderSide.none,
       ),
       child: InkWell(
         onTap: isCurrent ? null : () => _switchToAccount(account),
@@ -654,8 +638,10 @@ class _AccountProfileBottomSheetState
               else
                 CircleAvatar(
                   radius: 20,
-                  backgroundColor:
-                      _getColorFromName(account.displayName, theme),
+                  backgroundColor: _getColorFromName(
+                    account.displayName,
+                    theme,
+                  ),
                   child: Text(
                     account.displayName.isNotEmpty
                         ? account.displayName.characters.first.toUpperCase()

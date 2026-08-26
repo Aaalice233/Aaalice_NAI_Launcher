@@ -251,7 +251,6 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
             horizontal: 12,
             vertical: 10,
           ),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
         ),
         onChanged: (value) => setState(() => _searchQuery = value.trim()),
       ),
@@ -336,9 +335,6 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
       decoration: BoxDecoration(
         color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.22),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: theme.colorScheme.secondary.withValues(alpha: 0.22),
-        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

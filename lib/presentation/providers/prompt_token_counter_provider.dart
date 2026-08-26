@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/api_constants.dart';
 import '../../core/constants/model_capabilities.dart';
 import '../../core/services/prompt_token_counter_service.dart';
+import '../../core/utils/novelai_auto_text.dart';
 import '../../core/utils/prompt_preset_resolution.dart';
 import '../../core/utils/prompt_semantics_utils.dart';
 import '../../data/models/character/character_prompt.dart' as ui_character;
@@ -104,6 +105,7 @@ final promptTokenUsageProvider =
         transparentBackground: promptState.transparentBackground,
         qualityTier: promptState.qualityTier,
         characters: characterConfig.characters,
+        useCoords: !characterConfig.globalAiChoice,
         resolveAliases: aliasResolver.resolveAliases,
       );
 
@@ -156,6 +158,7 @@ PromptTokenCountPayload buildPromptTokenCountPayload({
   required String Function(String text) resolveAliases,
   bool transparentBackground = false,
   String qualityTier = QualityTags.standardTier,
+  bool useCoords = false,
 }) {
   return switch (target) {
     PromptTokenCountTarget.positive => _buildPositiveTokenCountPayload(
@@ -174,6 +177,7 @@ PromptTokenCountPayload buildPromptTokenCountPayload({
       transparentBackground: transparentBackground,
       qualityTier: qualityTier,
       characters: characters,
+      useCoords: useCoords,
       resolveAliases: resolveAliases,
     ),
     PromptTokenCountTarget.negative => _buildNegativeTokenCountPayload(
@@ -211,6 +215,7 @@ PromptTokenCountPayload _buildPositiveTokenCountPayload({
   required String Function(String text) resolveAliases,
   bool transparentBackground = false,
   String qualityTier = QualityTags.standardTier,
+  bool useCoords = false,
 }) {
   final resolvedPrompt = resolveAliases(prompt).trim();
   final resolvedNegativePrompt = resolveAliases(negativePrompt).trim();
@@ -236,6 +241,33 @@ PromptTokenCountPayload _buildPositiveTokenCountPayload({
     ucPresetContent: resolvedUcPresetContent,
     useCustomUcPreset: useCustomUcPreset,
   );
+  final enabledCharacters = characters
+      .where((character) => character.enabled && character.prompt.isNotEmpty)
+      .toList(growable: false);
+  final resolvedCharacters = <NovelAiAutoTextCharacter>[];
+  final extraTexts = <String>[];
+  for (var index = 0; index < enabledCharacters.length; index++) {
+    final character = enabledCharacters[index];
+    final resolvedPrompt = resolveAliases(character.prompt).trim();
+    final customPosition = character.customPosition;
+    final position =
+        character.positionMode == ui_character.CharacterPositionMode.custom &&
+            customPosition != null
+        ? ui_character.CharacterPositionLayout.clampPosition(customPosition)
+        : ui_character.CharacterPositionLayout.positionForIndex(
+            index,
+            enabledCharacters.length,
+          );
+    resolvedCharacters.add(
+      NovelAiAutoTextCharacter(
+        prompt: resolvedPrompt,
+        centerX: position.column,
+        centerY: position.row,
+      ),
+    );
+    if (resolvedPrompt.isNotEmpty) extraTexts.add(resolvedPrompt);
+  }
+
   final promptSemantics = buildPromptSemanticsSnapshot(
     prompt: presetResolution.prompt,
     negativePrompt: presetResolution.negativePrompt,
@@ -245,20 +277,9 @@ PromptTokenCountPayload _buildPositiveTokenCountPayload({
     isEnhanceRequest: isEnhanceRequest,
     transparentBackground: transparentBackground,
     qualityTier: qualityTier,
+    characters: resolvedCharacters,
+    useCoords: useCoords,
   );
-
-  final extraTexts = characters
-      .where((character) => character.enabled)
-      .map((character) {
-        final resolvedCharacterPrompt = resolveAliases(character.prompt).trim();
-        if (resolvedCharacterPrompt.isEmpty) {
-          return null;
-        }
-        return resolvedCharacterPrompt;
-      })
-      .whereType<String>()
-      .where((text) => text.isNotEmpty)
-      .toList(growable: false);
   final fixedTagTexts = [
     ...fixedTagsState.enabledPrefixes
         .map((entry) => entry.weightedContent.trim())
@@ -293,6 +314,11 @@ PromptTokenCountPayload _buildPositiveTokenCountPayload({
         label: '质量预设',
         texts: [qualityBreakdownText],
       ),
+      if (promptSemantics.autoTextBlock != null)
+        PromptTokenCountBreakdownGroup(
+          label: '文字转录',
+          texts: [promptSemantics.autoTextBlock!],
+        ),
       PromptTokenCountBreakdownGroup(label: '角色', texts: extraTexts),
     ],
   );

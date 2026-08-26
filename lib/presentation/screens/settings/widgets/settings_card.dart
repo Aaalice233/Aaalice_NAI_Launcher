@@ -16,7 +16,7 @@ class SettingsCard extends StatelessWidget {
   /// 内容区
   final Widget child;
 
-  /// 是否显示底部分隔线（默认 true）
+  /// 是否显示底部分隔线。仅在与后续内容存在真实结构边界时开启。
   final bool showDivider;
 
   const SettingsCard({
@@ -25,7 +25,7 @@ class SettingsCard extends StatelessWidget {
     this.icon,
     this.trailing,
     required this.child,
-    this.showDivider = true,
+    this.showDivider = false,
   });
 
   @override
@@ -33,14 +33,9 @@ class SettingsCard extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: theme.colorScheme.outline.withValues(alpha: 0.2),
-        ),
-      ),
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      color: theme.colorScheme.surfaceContainerLow,
+      clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -51,11 +46,7 @@ class SettingsCard extends StatelessWidget {
               child: Row(
                 children: [
                   if (icon != null) ...[
-                    Icon(
-                      icon,
-                      size: 20,
-                      color: theme.colorScheme.primary,
-                    ),
+                    Icon(icon, size: 20, color: theme.colorScheme.primary),
                     const SizedBox(width: 8),
                   ],
                   Expanded(
@@ -84,7 +75,7 @@ class SettingsCard extends StatelessWidget {
               height: 1,
               indent: 16,
               endIndent: 16,
-              color: theme.colorScheme.outline.withValues(alpha: 0.1),
+              color: theme.dividerColor,
             ),
         ],
       ),

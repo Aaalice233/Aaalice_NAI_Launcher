@@ -17,6 +17,7 @@ class StatItem extends StatelessWidget {
     required this.color,
     this.layout = StatItemLayout.horizontal,
     this.expanded = false,
+    this.compact = false,
   });
 
   final IconData icon;
@@ -30,14 +31,22 @@ class StatItem extends StatelessWidget {
   /// 是否使用 Expanded 包装（仅垂直布局有效）
   final bool expanded;
 
+  /// 紧凑模式只显示图标和数值，但保留完整语义标签。
+  final bool compact;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    final content = layout == StatItemLayout.horizontal
+    final visual = layout == StatItemLayout.horizontal
         ? _buildHorizontal(theme)
         : _buildVertical(theme, colorScheme);
+    final content = Semantics(
+      label: '$label: $value',
+      excludeSemantics: compact,
+      child: visual,
+    );
 
     if (expanded && layout == StatItemLayout.vertical) {
       return Expanded(child: content);
@@ -51,12 +60,13 @@ class StatItem extends StatelessWidget {
       children: [
         Icon(icon, size: 16, color: color),
         const SizedBox(width: 4),
-        Text(
-          '$label: ',
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
+        if (!compact)
+          Text(
+            '$label: ',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
-        ),
         Text(
           value,
           style: theme.textTheme.bodySmall?.copyWith(
@@ -127,11 +137,7 @@ class SectionHeader extends StatelessWidget {
             color: color.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(6),
           ),
-          child: Icon(
-            icon,
-            size: 16,
-            color: color,
-          ),
+          child: Icon(icon, size: 16, color: color),
         ),
         const SizedBox(width: 10),
         Text(
@@ -150,11 +156,7 @@ class SectionHeader extends StatelessWidget {
 ///
 /// 标准的对话框标题栏（标题 + 关闭按钮）
 class DialogTitleBar extends StatelessWidget {
-  const DialogTitleBar({
-    super.key,
-    required this.title,
-    required this.onClose,
-  });
+  const DialogTitleBar({super.key, required this.title, required this.onClose});
 
   final String title;
   final VoidCallback onClose;
@@ -233,12 +235,15 @@ class ProbabilityBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final primaryColor =
-        enabled ? colorScheme.primary : colorScheme.onSurfaceVariant;
-    final secondaryColor =
-        enabled ? colorScheme.secondary : colorScheme.onSurfaceVariant;
-    final tertiaryColor =
-        enabled ? colorScheme.tertiary : colorScheme.onSurfaceVariant;
+    final primaryColor = enabled
+        ? colorScheme.primary
+        : colorScheme.onSurfaceVariant;
+    final secondaryColor = enabled
+        ? colorScheme.secondary
+        : colorScheme.onSurfaceVariant;
+    final tertiaryColor = enabled
+        ? colorScheme.tertiary
+        : colorScheme.onSurfaceVariant;
 
     final percentValue = (probability * 100).toInt();
 
@@ -265,14 +270,14 @@ class ProbabilityBar extends StatelessWidget {
                     colors: isHovered
                         ? [primaryColor, tertiaryColor]
                         : enabled
-                            ? [
-                                primaryColor.withValues(alpha: 0.9),
-                                secondaryColor.withValues(alpha: 0.7),
-                              ]
-                            : [
-                                primaryColor.withValues(alpha: 0.4),
-                                secondaryColor.withValues(alpha: 0.3),
-                              ],
+                        ? [
+                            primaryColor.withValues(alpha: 0.9),
+                            secondaryColor.withValues(alpha: 0.7),
+                          ]
+                        : [
+                            primaryColor.withValues(alpha: 0.4),
+                            secondaryColor.withValues(alpha: 0.3),
+                          ],
                   ),
                   borderRadius: BorderRadius.circular(height / 2),
                   boxShadow: (isHovered || enabled)
@@ -356,11 +361,7 @@ class ChartLegendItem extends StatelessWidget {
             color: color.withValues(alpha: 0.2),
             borderRadius: BorderRadius.circular(4),
           ),
-          child: Icon(
-            icon,
-            size: 12,
-            color: color,
-          ),
+          child: Icon(icon, size: 12, color: color),
         ),
         const SizedBox(width: 4),
         Text(

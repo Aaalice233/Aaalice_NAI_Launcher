@@ -10,17 +10,13 @@ import '../cards/chart_card.dart';
 class OtherStatsCard extends StatelessWidget {
   final GalleryStatistics stats;
 
-  const OtherStatsCard({
-    super.key,
-    required this.stats,
-  });
+  const OtherStatsCard({super.key, required this.stats});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context)!;
-    final isDark = theme.brightness == Brightness.dark;
 
     return ChartCard(
       title: l10n.statistics_additionalStats,
@@ -36,7 +32,6 @@ class OtherStatsCard extends StatelessWidget {
                     ? stats.totalSizeBytes ~/ stats.totalImages
                     : 0,
               ),
-              isDark: isDark,
               colorScheme: colorScheme,
               textTheme: theme.textTheme,
             ),
@@ -46,7 +41,6 @@ class OtherStatsCard extends StatelessWidget {
             child: _StatItem(
               label: l10n.statistics_withMetadata,
               value: '${stats.imagesWithMetadata}',
-              isDark: isDark,
               colorScheme: colorScheme,
               textTheme: theme.textTheme,
             ),
@@ -60,14 +54,12 @@ class OtherStatsCard extends StatelessWidget {
 class _StatItem extends StatelessWidget {
   final String label;
   final String value;
-  final bool isDark;
   final ColorScheme colorScheme;
   final TextTheme textTheme;
 
   const _StatItem({
     required this.label,
     required this.value,
-    required this.isDark,
     required this.colorScheme,
     required this.textTheme,
   });
@@ -79,11 +71,6 @@ class _StatItem extends StatelessWidget {
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color:
-              colorScheme.outlineVariant.withValues(alpha: isDark ? 0.08 : 0.1),
-          width: 1,
-        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

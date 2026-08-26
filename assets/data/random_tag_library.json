@@ -1,0 +1,148 @@
+{
+  "schemaVersion": 2,
+  "dataVersion": "42f35be9d394",
+  "source": {
+    "name": "danbooru_e621_merged.csv",
+    "url": "https://raw.githubusercontent.com/willmiao/ComfyUI-Lora-Manager/42f35be9d394ff62fc9e9a39b8c500b8f9b67bfe/refs/danbooru_e621_merged.csv",
+    "commit": "42f35be9d394ff62fc9e9a39b8c500b8f9b67bfe",
+    "versionDate": "2026-01-26T05:51:45Z",
+    "sha256": "71297f7e4adaeae005cba1259b25a10374ed01e071cb4801a6195e709c32a9e5",
+    "license": "Unlicense",
+    "catalogTagCount": 221787,
+    "catalogAliasCount": 71504
+  },
+  "eligibility": {
+    "description": "All descriptive Danbooru general, e621 general, and e621 species rows remain available in the detail pool. Artist, copyright, character, meta, contributor, and lore rows are explicitly excluded from random generation.",
+    "catalogCategories": [0, 7, 12]
+  },
+  "categories": {
+    "hairColor": {
+      "catalogCategories": [0, 7],
+      "includeGlobs": ["*_hair"],
+      "includeTokens": ["aqua", "black", "blonde", "blue", "brown", "green", "grey", "gray", "orange", "pink", "purple", "red", "silver", "white", "yellow", "multicolored", "two-tone", "gradient", "streaked"]
+    },
+    "eyeColor": {
+      "catalogCategories": [0, 7],
+      "includeGlobs": ["*_eyes"],
+      "includeTokens": ["aqua", "black", "blue", "brown", "green", "grey", "gray", "orange", "pink", "purple", "red", "silver", "white", "yellow", "amber", "gold", "heterochromia"]
+    },
+    "eyeFeature": {
+      "catalogCategories": [0, 7],
+      "includeGlobs": ["*_pupils", "*_sclera", "*_eyes", "heterochromia", "eyeless", "no_eyes", "extra_eyes", "one-eyed", "half-closed_eyes", "closed_eyes"],
+      "excludeTokens": ["aqua", "black", "blue", "brown", "green", "grey", "gray", "orange", "pink", "purple", "red", "silver", "white", "yellow", "amber", "gold"]
+    },
+    "hairLength": {
+      "catalogCategories": [0, 7],
+      "includeExact": ["bald", "very_short_hair", "short_hair", "medium_hair", "long_hair", "very_long_hair", "absurdly_long_hair", "big_hair"]
+    },
+    "hairStyle": {
+      "catalogCategories": [0, 7],
+      "includeGlobs": ["*_hair", "*_ponytail", "*_twintails", "*_braid", "hair_bun", "ahoge"],
+      "excludeTokens": ["aqua", "black", "blonde", "blue", "brown", "green", "grey", "gray", "orange", "pink", "purple", "red", "silver", "white", "yellow", "multicolored", "two-tone", "gradient", "streaked", "short", "medium", "long"]
+    },
+    "hairTexture": {
+      "catalogCategories": [0, 7],
+      "includeGlobs": ["curly_hair", "wavy_hair", "straight_hair", "spiked_hair", "fluffy_hair", "messy_hair", "shiny_hair", "wet_hair", "floating_hair", "hair_flaps"]
+    },
+    "bangs": {
+      "catalogCategories": [0, 7],
+      "includeGlobs": ["*bangs", "sidelocks", "hair_over_*", "hair_between_eyes", "parted_bangs"]
+    },
+    "clothingFemale": {
+      "catalogCategories": [0, 7],
+      "includeGlobs": ["*_dress", "*_skirt", "*_bikini", "*_swimsuit", "*_lingerie", "*_panties", "*_bra", "maid*", "female_*clothes"]
+    },
+    "clothingMale": {
+      "catalogCategories": [0, 7],
+      "includeGlobs": ["*_suit", "male_*clothes", "tuxedo", "necktie", "bow_tie", "menswear", "male_underwear"]
+    },
+    "clothingGeneral": {
+      "catalogCategories": [0, 7],
+      "includeGlobs": ["*_shirt", "*_jacket", "*_hoodie", "*_sweater", "*_coat", "*_pants", "*_shorts", "*_uniform", "*_kimono", "*_robe", "*_armor", "*_dress", "*_skirt", "*_suit", "*_swimsuit", "*_bikini", "*_bodysuit", "*_leotard", "*_vest", "*_apron"]
+    },
+    "expression": {
+      "catalogCategories": [0, 7],
+      "includeGlobs": ["*smile*", "*blush*", "*laugh*", "*cry*", "*angry*", "*expression*", "*frown*", "*grin*", "*pout*", "*smirk*", "*surprised*", "*tears*", "*tongue_out*", "*wince*", "*open_mouth*", "*parted_lips*", "*wide-eyed*", "*nervous*", "*embarrassed*"]
+    },
+    "pose": {
+      "catalogCategories": [0, 7],
+      "includeGlobs": ["*_pose", "*sitting*", "*standing*", "*kneeling*", "*lying*", "*walking*", "*running*", "*crouching*", "*jumping*", "*gesture", "looking_at_viewer", "looking_away", "looking_back", "looking_up", "looking_down", "arms_*", "hands_*", "crossed_arms", "hand_on_*"]
+    },
+    "camera": {
+      "catalogCategories": [0, 7],
+      "includeGlobs": ["from_above", "from_below", "from_behind", "from_side", "dutch_angle", "front_view", "side_view", "rear_view", "overhead_view", "three-quarter_view", "straight-on", "*_angle"]
+    },
+    "framing": {
+      "catalogCategories": [0, 7],
+      "includeExact": ["portrait", "headshot", "upper_body", "cowboy_shot", "full_body", "close-up", "bust", "half-length_portrait", "three-quarter_length_portrait", "full-length_portrait"]
+    },
+    "focus": {
+      "catalogCategories": [0, 7],
+      "includeGlobs": ["*_focus", "solo_focus"]
+    },
+    "background": {
+      "catalogCategories": [0, 7],
+      "includeGlobs": ["*_background"]
+    },
+    "scene": {
+      "catalogCategories": [0, 7],
+      "includeGlobs": ["indoors", "outdoors", "scenery", "nature", "city", "cityscape", "landscape", "forest", "beach", "mountain", "ocean", "sky", "clouds", "sunset", "sunrise", "night", "rain", "snow", "underwater", "space", "room", "street", "*_interior", "*_exterior", "*_room", "*_landscape", "*_city", "*_forest", "*_beach", "*_mountain", "*_ocean", "*_sky", "*_street", "*_garden", "*_field"]
+    },
+    "style": {
+      "catalogCategories": [0, 7],
+      "includeGlobs": ["*_style", "*_medium", "*_(medium)", "*_(artwork)", "monochrome", "greyscale", "lineart", "pixel_art", "photorealistic", "realistic", "anime_coloring", "flat_color", "sketch", "cel_shading", "minimalism", "surreal", "abstract"]
+    },
+    "skinTone": {
+      "catalogCategories": [0, 7],
+      "includeGlobs": ["*_skin", "tan", "pale", "dark-skinned_*", "light-skinned_*", "skin_color"]
+    },
+    "bodyFeatureFemale": {
+      "catalogCategories": [0, 7],
+      "includeGlobs": ["*_breasts", "pregnant", "wide_hips", "narrow_waist", "female_pubic_hair", "female_*"]
+    },
+    "bodyFeatureMale": {
+      "catalogCategories": [0, 7],
+      "includeGlobs": ["muscular_male", "facial_hair", "beard", "mustache", "male_pubic_hair", "male_*"]
+    },
+    "bodyFeatureGeneral": {
+      "catalogCategories": [0, 7],
+      "includeGlobs": ["muscular", "slim", "fat", "tall", "short", "mature", "young", "freckles", "dark_skin", "pale_skin", "tan", "*_body", "body_*", "wide_hips", "narrow_waist", "abs", "navel"]
+    },
+    "species": {
+      "catalogCategories": [12],
+      "includeAll": true
+    },
+    "headwear": {
+      "catalogCategories": [0, 7],
+      "includeGlobs": ["*_hat", "*_cap", "*_helmet", "*_hood", "*_crown", "*_tiara", "headwear", "headgear"]
+    },
+    "hairAccessory": {
+      "catalogCategories": [0, 7],
+      "includeGlobs": ["*_hair_ornament", "*_hairpin", "*_headband", "hair_ribbon", "hair_bow", "hair_flower", "hair_ornament"]
+    },
+    "accessory": {
+      "catalogCategories": [0, 7],
+      "includeGlobs": ["*_hat", "*_glasses", "*_earrings", "*_necklace", "*_bracelet", "*_ring", "*_ribbon", "*_bow", "*_hair_ornament", "*_headband", "*_crown", "*_tiara", "*_mask", "*_collar", "*_choker", "*_scarf", "*_belt", "*_gloves", "*_wings", "*_tail", "*_horns", "*_ears"]
+    },
+    "prop": {
+      "catalogCategories": [0, 7],
+      "includeGlobs": ["*_sword", "*_gun", "*_rifle", "*_pistol", "*_weapon", "*_book", "*_phone", "*_camera", "*_umbrella", "*_bag", "*_cup", "*_bottle", "*_food", "*_fruit", "*_flower", "*_chair", "*_table", "*_instrument", "holding_*", "weapon", "sword", "gun", "book", "phone", "umbrella"]
+    },
+    "effect": {
+      "catalogCategories": [0, 7],
+      "includeGlobs": ["*_effect", "*_lighting", "*_theme", "*_particles", "glowing_*", "sparkle*", "motion_blur", "depth_of_field", "lens_flare", "chromatic_aberration", "bokeh", "fog", "mist", "smoke", "fire", "lightning", "rain", "snow"]
+    },
+    "year": {
+      "catalogCategories": [0, 7],
+      "includeGlobs": ["year_*"]
+    },
+    "characterCount": {
+      "catalogCategories": [0, 7],
+      "includeExact": ["solo", "1girl", "1boy", "2girls", "2boys", "3girls", "3boys", "multiple_girls", "multiple_boys", "group", "crowd", "no_humans"]
+    },
+    "detail": {
+      "catalogCategories": [0, 7, 12],
+      "includeAll": true
+    }
+  }
+}

@@ -43,6 +43,26 @@ void main() {
     expect(state.currentCache.page, 9);
   });
 
+  test('QuickTagCloud filters own independent list caches', () {
+    const firstFilter = OnlineGalleryState(
+      sourceId: GallerySourceId.quickTagCloud,
+      quickTagCloudFilterKey: 'book-a|people',
+    );
+    final withFirst = firstFilter.updateCurrentCache(
+      ModeCache(posts: [_item(1)], page: 2),
+    );
+    final secondFilter = withFirst.copyWith(
+      quickTagCloudFilterKey: 'book-b|concepts',
+    );
+
+    expect(secondFilter.currentCache.posts, isEmpty);
+    final restored = secondFilter.copyWith(
+      quickTagCloudFilterKey: 'book-a|people',
+    );
+    expect(restored.currentCache.posts.single.id, 1);
+    expect(restored.currentCache.page, 2);
+  });
+
   test(
     'mode cache preserves post anchor and uses pixel offset as fallback',
     () {

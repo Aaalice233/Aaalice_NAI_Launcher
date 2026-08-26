@@ -56,6 +56,7 @@ class DetailThumbnailBar extends StatelessWidget {
           itemCount: images.length,
           itemBuilder: (context, index) {
             return _ThumbnailItem(
+              key: ValueKey(images[index].identifier),
               image: images[index],
               index: index,
               isSelected: index == currentIndex,
@@ -76,6 +77,7 @@ class _ThumbnailItem extends StatefulWidget {
   final VoidCallback onTap;
 
   const _ThumbnailItem({
+    super.key,
     required this.image,
     required this.index,
     required this.isSelected,

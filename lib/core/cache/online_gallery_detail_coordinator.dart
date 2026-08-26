@@ -118,6 +118,25 @@ class OnlineGalleryDetailCoordinator {
     }
   }
 
+  void cancel(GalleryItem item, {String reason = 'Detail request cancelled'}) {
+    final key = item.detailStableKey;
+    final task = _tasks.remove(key);
+    if (task == null) return;
+    _revisions[key] = (_revisions[key] ?? task.revision) + 1;
+    _interactiveQueue.remove(task);
+    _visibleQueue.remove(task);
+    if (!task.cancelToken.isCancelled) task.cancelToken.cancel(reason);
+    if (!task.completer.isCompleted) {
+      task.completer.completeError(
+        DioException.requestCancelled(
+          requestOptions: RequestOptions(path: item.postUrl),
+          reason: reason,
+        ),
+      );
+    }
+    _pump();
+  }
+
   void clear() {
     for (final task in _tasks.values) {
       if (!task.cancelToken.isCancelled) task.cancelToken.cancel('Disposed');

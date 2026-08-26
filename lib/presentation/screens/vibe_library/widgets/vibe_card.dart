@@ -207,13 +207,7 @@ class _VibeCardState extends ConsumerState<VibeCard>
             width: widget.width,
             height: cardHeight,
             transform: Matrix4.identity()
-              ..translateByDouble(0, _isHovered ? -4 : 0, 0, 1)
-              ..scaleByDouble(
-                _isHovered ? 1.02 : 1.0,
-                _isHovered ? 1.02 : 1.0,
-                _isHovered ? 1.02 : 1.0,
-                1,
-              ),
+              ..translateByDouble(0, _isHovered ? -2 : 0, 0, 1),
             transformAlignment: Alignment.center,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
@@ -262,36 +256,18 @@ class _VibeCardState extends ConsumerState<VibeCard>
   }
 
   Border? _buildBorder(ColorScheme colorScheme) {
-    if (widget.isSelected) {
-      return Border.all(color: colorScheme.primary, width: 3);
-    }
-    if (_isHovered) {
-      return Border.all(
-        color: colorScheme.primary.withValues(alpha: 0.4),
-        width: 1.5,
-      );
-    }
-    return null;
+    if (!widget.isSelected) return null;
+    return Border.all(color: colorScheme.primary, width: 1);
   }
 
   List<BoxShadow> _buildShadows(ColorScheme colorScheme) {
-    if (_isHovered) {
-      return [
-        BoxShadow(
-          color: colorScheme.primary.withValues(alpha: 0.3),
-          blurRadius: 16,
-          offset: const Offset(0, 8),
-          spreadRadius: 2,
-        ),
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.15),
-          blurRadius: 24,
-          offset: const Offset(0, 12),
-        ),
-      ];
-    }
+    if (!_isHovered) return const [];
     return [
-      BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 4),
+      BoxShadow(
+        color: colorScheme.shadow.withValues(alpha: 0.12),
+        blurRadius: 10,
+        offset: const Offset(0, 4),
+      ),
     ];
   }
 
@@ -867,25 +843,11 @@ class _VibeHoverPreviewContentState extends State<_VibeHoverPreviewContent> {
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.55),
-              blurRadius: 32,
-              spreadRadius: 6,
-              offset: const Offset(0, 16),
-            ),
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.3),
-              blurRadius: 54,
-              spreadRadius: 10,
-              offset: const Offset(0, 22),
+              color: Colors.black.withValues(alpha: 0.32),
+              blurRadius: 28,
+              offset: const Offset(0, 14),
             ),
           ],
-        ),
-        foregroundDecoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: theme.colorScheme.primary.withValues(alpha: 0.3),
-            width: 2,
-          ),
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(10),
@@ -1220,12 +1182,7 @@ class _ActionButtonState extends State<_ActionButton> {
                   ),
                 ],
               ),
-              child: AnimatedScale(
-                duration: const Duration(milliseconds: 120),
-                curve: Curves.easeOut,
-                scale: _isHovered ? 1.08 : 1.0,
-                child: Icon(widget.icon, size: 16, color: iconColor),
-              ),
+              child: Icon(widget.icon, size: 16, color: iconColor),
             ),
             // 自定义 Tooltip
             if (_showTooltip)

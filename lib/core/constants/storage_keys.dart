@@ -53,6 +53,9 @@ class StorageKeys {
   static const String historyClickBehavior = 'history_click_behavior';
   static const String previewTransparencyBackground =
       'preview_transparency_background';
+  static const String compositionGuideMode = 'composition_guide_mode';
+  static const String compositionGuideColumns = 'composition_guide_columns';
+  static const String compositionGuideRows = 'composition_guide_rows';
   static const String mainNavRailExpanded = 'main_nav_rail_expanded';
   static const String webLeftPanelWidth = 'web_left_panel_width';
   static const String webLeftPanelExpanded = 'web_left_panel_expanded';
@@ -61,8 +64,12 @@ class StorageKeys {
   static const String fixedTagsSidebarViewMode = 'fixed_tags_sidebar_view_mode';
   static const String fixedTagsNegativeHeight = 'fixed_tags_negative_height';
 
-  // Panel Expansion State Keys (面板展开状态)
+  // Generation Workbench Panel Expansion State Keys (生图工作台面板展开状态)
   static const String advancedOptionsExpanded = 'advanced_options_expanded';
+  static const String generationParamsMenuExpanded =
+      'generation_params_menu_expanded';
+  static const String characterPanelExpanded = 'character_panel_expanded';
+  static const String reversePromptExpanded = 'reverse_prompt_expanded';
   static const String img2imgExpanded = 'img2img_expanded';
   static const String vibeTransferExpanded = 'vibe_transfer_expanded';
   static const String preciseRefExpanded = 'precise_ref_expanded';
@@ -280,6 +287,9 @@ class StorageKeys {
   // 在线画廊黑名单设置
   static const String onlineGalleryBlacklistTags =
       'online_gallery_blacklist_tags';
+  static const String onlineGalleryBlacklistV2 = 'online_gallery_blacklist_v2';
+  static const String onlineGalleryBlacklistRollbackShadow =
+      'online_gallery_blacklist_rollback_shadow_v2';
   static const String onlineGalleryRemoteBlacklistTags =
       'online_gallery_remote_blacklist_tags';
   static const String onlineGalleryBlacklistAutoSync =
@@ -296,6 +306,12 @@ class StorageKeys {
       'online_gallery_output_filter_tags';
   static const String onlineGalleryBrowsingSessionV1 =
       'online_gallery_browsing_session_v1';
+  static const String quickTagCloudFavoritesV1 = 'quick_tag_cloud_favorites_v1';
+  static const String quickTagCloudRecentV1 = 'quick_tag_cloud_recent_v1';
+  static const String quickTagCloudContentAccessV1 =
+      'quick_tag_cloud_content_access_v1';
+  static const String quickTagCloudBrowsingFiltersV1 =
+      'quick_tag_cloud_browsing_filters_v1';
 
   // ComfyUI 设置
   static const String comfyuiEnabled = 'comfyui_enabled';

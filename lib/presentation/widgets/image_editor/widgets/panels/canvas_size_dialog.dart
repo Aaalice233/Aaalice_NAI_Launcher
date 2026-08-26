@@ -29,10 +29,7 @@ class CanvasSizeResult {
   final Size size;
   final ContentHandlingMode mode;
 
-  const CanvasSizeResult({
-    required this.size,
-    required this.mode,
-  });
+  const CanvasSizeResult({required this.size, required this.mode});
 }
 
 /// 画布尺寸预设
@@ -217,9 +214,7 @@ class _CanvasSizeDialogState extends State<CanvasSizeDialog> {
                       isDense: true,
                     ),
                     keyboardType: TextInputType.number,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly,
-                    ],
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     onChanged: (value) {
                       _selectedPreset = null;
                       if (_linkDimensions) {
@@ -272,9 +267,7 @@ class _CanvasSizeDialogState extends State<CanvasSizeDialog> {
                       isDense: true,
                     ),
                     keyboardType: TextInputType.number,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly,
-                    ],
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     onChanged: (value) {
                       _selectedPreset = null;
                       if (_linkDimensions) {
@@ -419,10 +412,7 @@ class _RatioChip extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
 
-  const _RatioChip({
-    required this.label,
-    required this.onTap,
-  });
+  const _RatioChip({required this.label, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -456,12 +446,8 @@ class _CanvasSizePreview extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
+        color: theme.colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: theme.colorScheme.outlineVariant,
-          width: 1,
-        ),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -530,8 +516,9 @@ class _SizeComparison extends StatelessWidget {
     const maxPreviewHeight = 120.0;
 
     // 找出两个尺寸中最大的宽高
-    final maxWidth =
-        originalSize.width > newSize.width ? originalSize.width : newSize.width;
+    final maxWidth = originalSize.width > newSize.width
+        ? originalSize.width
+        : newSize.width;
     final maxHeight = originalSize.height > newSize.height
         ? originalSize.height
         : newSize.height;
@@ -546,10 +533,7 @@ class _SizeComparison extends StatelessWidget {
       originalSize.width * scale,
       originalSize.height * scale,
     );
-    final newDisplaySize = Size(
-      newSize.width * scale,
-      newSize.height * scale,
-    );
+    final newDisplaySize = Size(newSize.width * scale, newSize.height * scale);
 
     return CustomPaint(
       size: const Size(maxPreviewWidth, maxPreviewHeight),
@@ -680,9 +664,11 @@ class _SizeComparisonPainter extends CustomPainter {
     // 下方填充区域
     if (outerRect.bottom > innerRect.bottom) {
       for (double x = outerRect.left; x <= outerRect.right; x += dotSpacing) {
-        for (double y = innerRect.bottom;
-            y <= outerRect.bottom;
-            y += dotSpacing) {
+        for (
+          double y = innerRect.bottom;
+          y <= outerRect.bottom;
+          y += dotSpacing
+        ) {
           canvas.drawCircle(Offset(x, y), dotRadius, patternPaint);
         }
       }

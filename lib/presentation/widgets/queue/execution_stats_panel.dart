@@ -79,10 +79,6 @@ class _ExecutionStatsPanelState extends ConsumerState<ExecutionStatsPanel>
           alpha: 0.35,
         ),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: theme.colorScheme.outline.withValues(alpha: 0.08),
-          width: 1,
-        ),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,

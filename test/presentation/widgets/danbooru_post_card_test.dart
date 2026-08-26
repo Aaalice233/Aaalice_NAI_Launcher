@@ -4,7 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/online_gallery/danbooru_post.dart';
+import 'package:nai_launcher/data/models/queue/replication_task.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/providers/replication_queue_provider.dart';
+import 'package:nai_launcher/presentation/widgets/common/image_card_hover_motion.dart';
 import 'package:nai_launcher/presentation/widgets/danbooru_post_card.dart';
 
 void main() {
@@ -48,6 +51,57 @@ void main() {
           .height,
       200,
     );
+  });
+
+  testWidgets('online gallery cards use the shared hover scale', (
+    tester,
+  ) async {
+    const post = DanbooruPost(
+      id: 123,
+      width: 600,
+      height: 900,
+      rating: 'g',
+      previewFileUrl: 'https://example.com/portrait.jpg',
+      tagString: 'test_tag',
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: DanbooruPostCard(
+              post: post,
+              itemWidth: 200,
+              isFavorited: false,
+              onTap: () {},
+              onTagTap: (_) {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(location: Offset.zero);
+    await mouse.moveTo(tester.getCenter(find.byType(DanbooruPostCard)));
+    await tester.pump();
+
+    final motion = find.byType(ImageCardHoverMotion);
+    expect(tester.widget<ImageCardHoverMotion>(motion).hovered, isTrue);
+    expect(
+      tester
+          .widget<AnimatedScale>(
+            find.descendant(of: motion, matching: find.byType(AnimatedScale)),
+          )
+          .scale,
+      ImageCardHoverMotion.hoverScale,
+    );
+
+    await mouse.moveTo(Offset.zero);
+    await tester.pump();
   });
 
   testWidgets('passes Gelbooru image headers and cache key to preview image', (
@@ -136,6 +190,60 @@ void main() {
 
     expect(find.byTooltip('Favorite'), findsNothing);
     expect(find.byTooltip('Unfavorite'), findsNothing);
+  });
+
+  testWidgets('queue does not apply an omitted negative prompt', (
+    tester,
+  ) async {
+    const post = DanbooruPost(
+      id: 125,
+      width: 600,
+      height: 900,
+      rating: 'g',
+      previewFileUrl: 'https://example.com/thumbnail.jpg',
+      tagString: 'solo',
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          replicationQueueNotifierProvider.overrideWith(
+            _TestReplicationQueueNotifier.new,
+          ),
+        ],
+        child: MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: DanbooruPostCard(
+              post: post,
+              itemWidth: 200,
+              isFavorited: false,
+              promptOverride: 'solo',
+              negativePromptOverride: '',
+              onTap: () {},
+              onTagTap: (_) {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final card = find.byType(DanbooruPostCard);
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(location: tester.getCenter(card));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 301));
+    await tester.tap(find.byTooltip('Add to Queue'));
+    await tester.pump();
+
+    final container = ProviderScope.containerOf(tester.element(card));
+    final task = container.read(replicationQueueNotifierProvider).tasks.single;
+    expect(task.negativePrompt, isEmpty);
+    expect(task.applyNegativePrompt, isFalse);
+    await tester.pump(const Duration(seconds: 3));
   });
 
   testWidgets('hover preview remains inside a small app viewport', (
@@ -403,4 +511,16 @@ void main() {
     expect(find.byTooltip('Read-only favorites'), findsOneWidget);
     expect(find.byTooltip('Unfavorite'), findsNothing);
   });
+}
+
+class _TestReplicationQueueNotifier extends ReplicationQueueNotifier {
+  @override
+  ReplicationQueueState build() =>
+      const ReplicationQueueState(isLoading: false);
+
+  @override
+  Future<bool> add(ReplicationTask task) async {
+    state = state.copyWith(tasks: [...state.tasks, task]);
+    return true;
+  }
 }

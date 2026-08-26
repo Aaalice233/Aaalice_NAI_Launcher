@@ -263,9 +263,8 @@ extension _ImageEditorScreenEffects on _ImageEditorScreenState {
     final theme = Theme.of(context);
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: theme.colorScheme.outlineVariant),
+        color: theme.colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Padding(
         padding: const EdgeInsets.all(14),
@@ -327,13 +326,11 @@ extension _ImageEditorScreenEffects on _ImageEditorScreenState {
     return ChoiceChip(
       selected: selected,
       showCheckmark: false,
-      selectedColor: colorScheme.secondaryContainer,
-      backgroundColor: colorScheme.surfaceContainerHighest.withValues(
-        alpha: 0.55,
-      ),
-      side: BorderSide(
-        color: selected ? colorScheme.secondary : colorScheme.outlineVariant,
-      ),
+      selectedColor: colorScheme.primary.withValues(alpha: 0.12),
+      backgroundColor: colorScheme.surfaceContainer,
+      side: selected
+          ? BorderSide(color: colorScheme.primary, width: 1)
+          : BorderSide.none,
       padding: EdgeInsets.symmetric(
         horizontal: prominent ? 14 : 10,
         vertical: prominent ? 10 : 7,
@@ -364,9 +361,8 @@ extension _ImageEditorScreenEffects on _ImageEditorScreenState {
     if (!_effectHasIntensity(effectType)) {
       return DecoratedBox(
         decoration: BoxDecoration(
-          color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: colorScheme.outlineVariant),
+          color: colorScheme.surfaceContainer,
+          borderRadius: BorderRadius.circular(12),
         ),
         child: Padding(
           padding: const EdgeInsets.all(14),
@@ -390,9 +386,8 @@ extension _ImageEditorScreenEffects on _ImageEditorScreenState {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colorScheme.outlineVariant),
+        color: colorScheme.surfaceContainer,
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
@@ -511,9 +506,8 @@ extension _ImageEditorScreenEffects on _ImageEditorScreenState {
     final theme = Theme.of(context);
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        color: theme.colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.colorScheme.outlineVariant),
       ),
       child: Stack(
         children: [

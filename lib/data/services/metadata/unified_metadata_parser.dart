@@ -6,6 +6,7 @@ import 'package:image/image.dart' as img;
 
 import '../../../core/utils/portable_logger.dart';
 import '../../models/gallery/nai_image_metadata.dart';
+import 'webp_exif_metadata_extractor.dart';
 
 /// 元数据解析结果
 class MetadataParseResult {
@@ -119,6 +120,7 @@ class ParseStatistics {
 class UnifiedMetadataParser {
   static const String _tag = 'UnifiedMetadataParser';
   static const String _magic = 'stealth_pngcomp';
+  static const int _maxStealthDecodePixels = 0x1000000;
 
   // PNG 文件头签名
   static const List<int> _pngSignature = [
@@ -289,7 +291,43 @@ class UnifiedMetadataParser {
     }
   }
 
-  /// 从 PNG 字节中提取元数据
+  /// 根据文件签名从 PNG 或 WebP 字节中提取元数据。
+  ///
+  /// 格式判断只依据容器签名，因此剪贴板图像没有路径或文件扩展名时也能解析。
+  static MetadataParseResult parseFromImage(
+    Uint8List bytes, {
+    String? filePathForLog,
+    bool useCache = false,
+  }) {
+    if (isPngHeader(bytes)) {
+      return parseFromPng(
+        bytes,
+        filePathForLog: filePathForLog,
+        useCache: useCache,
+      );
+    }
+    if (WebpExifMetadataExtractor.hasWebpHeader(bytes)) {
+      return parseFromWebp(
+        bytes,
+        filePathForLog: filePathForLog,
+        useCache: useCache,
+      );
+    }
+
+    final stopwatch = Stopwatch()..start();
+    _statistics.totalAttempts++;
+    final fileInfo = filePathForLog != null ? 'file=$filePathForLog, ' : '';
+    final result = MetadataParseResult.failed(
+      const [],
+      'Unsupported image container, ${fileInfo}bytes length=${bytes.length}',
+      parseTime: stopwatch.elapsed,
+      bytesRead: bytes.length,
+    );
+    _updateStatistics(result, stopwatch.elapsed);
+    return result;
+  }
+
+  /// 从 PNG 字节中提取元数据。
   ///
   /// [bytes] PNG 字节数据
   /// [filePathForLog] 可选的文件路径，用于错误日志记录
@@ -412,7 +450,82 @@ class UnifiedMetadataParser {
     }
   }
 
-  /// 从 PNG textData Map 中解析元数据
+  /// 从 WebP EXIF `UserComment` 中提取元数据。
+  static MetadataParseResult parseFromWebp(
+    Uint8List bytes, {
+    String? filePathForLog,
+    bool useCache = false,
+  }) {
+    final stopwatch = Stopwatch()..start();
+    _statistics.totalAttempts++;
+
+    if (useCache) {
+      final cached = _resultCache[_generateBytesCacheKey(bytes)];
+      if (cached != null) return cached;
+    }
+
+    try {
+      final extraction = WebpExifMetadataExtractor.extract(bytes);
+      if (extraction.errorMessage != null) {
+        final result = MetadataParseResult.failed(
+          const ['WebP EXIF'],
+          extraction.errorMessage!,
+          parseTime: stopwatch.elapsed,
+          bytesRead: bytes.length,
+        );
+        _updateStatistics(result, stopwatch.elapsed);
+        return result;
+      }
+      if (!extraction.hasMetadata) {
+        final result = MetadataParseResult.failed(
+          const ['WebP EXIF'],
+          'No EXIF UserComment metadata found in WebP',
+          parseTime: stopwatch.elapsed,
+          bytesRead: bytes.length,
+        );
+        _updateStatistics(result, stopwatch.elapsed);
+        return result;
+      }
+
+      final parsed = parseFromTextData(extraction.textData);
+      final result = parsed.success && parsed.metadata != null
+          ? MetadataParseResult.success(
+              parsed.metadata!,
+              '${parsed.sourceFormat} WebP EXIF',
+              extraction.textData['Comment']!,
+              ['WebP EXIF', ...parsed.triedParsers],
+              parseTime: stopwatch.elapsed,
+              bytesRead: bytes.length,
+            )
+          : MetadataParseResult.failed(
+              ['WebP EXIF', ...parsed.triedParsers],
+              parsed.errorMessage ?? 'Invalid WebP EXIF metadata',
+              parseTime: stopwatch.elapsed,
+              bytesRead: bytes.length,
+            );
+
+      if (useCache && result.success) {
+        _resultCache[_generateBytesCacheKey(bytes)] = result;
+      }
+      _updateStatistics(result, stopwatch.elapsed);
+      return result;
+    } catch (e, stack) {
+      final fileInfo = filePathForLog != null ? 'file=$filePathForLog, ' : '';
+      final error =
+          'Error parsing metadata from WebP (${fileInfo}bytes=${bytes.length}): $e';
+      PortableLogger.e(error, e, stack, _tag);
+      final result = MetadataParseResult.failed(
+        const ['WebP EXIF'],
+        error,
+        parseTime: stopwatch.elapsed,
+        bytesRead: bytes.length,
+      );
+      _updateStatistics(result, stopwatch.elapsed);
+      return result;
+    }
+  }
+
+  /// 从容器文本字段 Map 中解析元数据
   ///
   /// 这是主要的解析入口，可以被 PngMetadataExtractor 和其他服务直接使用
   static MetadataParseResult parseFromTextData(Map<String, String> textData) {
@@ -489,6 +602,51 @@ class UnifiedMetadataParser {
         parseTime: stopwatch.elapsed,
       );
     }
+  }
+
+  /// 从任意可解码图像的 alpha LSB 中读取 NovelAI stealth 元数据。
+  ///
+  /// Discord 的 lossless WebP 会移除 PNG 文本块，但通常仍保留原始 alpha
+  /// 像素，因此该路径可以直接使用拖拽字节，不需要重新下载原始 PNG。
+  static MetadataParseResult parseStealthFromImageBytes(Uint8List bytes) {
+    final stopwatch = Stopwatch()..start();
+    _statistics.totalAttempts++;
+
+    final stealthText = _extractStealthMetadataText(bytes);
+    if (stealthText == null) {
+      final result = MetadataParseResult.failed(
+        const ['NovelAI stealth_pngcomp'],
+        'No NovelAI stealth_pngcomp metadata found',
+        parseTime: stopwatch.elapsed,
+        bytesRead: bytes.length,
+      );
+      _updateStatistics(result, stopwatch.elapsed);
+      return result;
+    }
+
+    final parsed = parseFromTextData({'Comment': stealthText});
+    final metadata = parsed.metadata;
+    if (!parsed.success || metadata == null) {
+      final result = MetadataParseResult.failed(
+        [...parsed.triedParsers, 'NovelAI stealth_pngcomp'],
+        parsed.errorMessage ?? 'Failed to parse NovelAI stealth metadata',
+        parseTime: stopwatch.elapsed,
+        bytesRead: bytes.length,
+      );
+      _updateStatistics(result, stopwatch.elapsed);
+      return result;
+    }
+
+    final result = MetadataParseResult.success(
+      metadata,
+      'NovelAI stealth_pngcomp',
+      stealthText,
+      [...parsed.triedParsers, 'NovelAI stealth_pngcomp'],
+      parseTime: stopwatch.elapsed,
+      bytesRead: bytes.length,
+    );
+    _updateStatistics(result, stopwatch.elapsed);
+    return result;
   }
 
   /// 将元数据嵌入 PNG 图片
@@ -631,6 +789,11 @@ class UnifiedMetadataParser {
         _statistics.gradualReadSuccesses++;
         return result;
       }
+      // A conclusive signature mismatch cannot change by reading more bytes.
+      if (result.errorMessage?.startsWith('Unsupported image container') ??
+          false) {
+        return result;
+      }
 
       // PortableLogger.d(
       //   '[UnifiedMetadataParser] No metadata in first ${threshold ~/ 1024}KB, will expand...',
@@ -655,7 +818,7 @@ class UnifiedMetadataParser {
       //   '[UnifiedMetadataParser] Full read: ${bytes.length} bytes',
       //   _tag,
       // );
-      return parseFromPng(bytes, filePathForLog: filePath);
+      return parseFromImage(bytes, filePathForLog: filePath);
     } catch (e) {
       final error = 'Error reading full file: $e';
       PortableLogger.e(error, e, null, _tag);
@@ -706,7 +869,7 @@ class UnifiedMetadataParser {
       //   _tag,
       // );
 
-      return parseFromPng(bytes, filePathForLog: filePath);
+      return parseFromImage(bytes, filePathForLog: filePath);
     } catch (e) {
       final error = 'Error with ${maxBytes ~/ 1024}KB read: $e';
       PortableLogger.d(error, _tag);
@@ -1203,8 +1366,11 @@ class UnifiedMetadataParser {
   /// 从 NovelAI stealth_pngcomp alpha LSB 数据中读取元数据。
   static String? _extractStealthMetadataText(Uint8List imageBytes) {
     try {
-      final image = img.decodePng(imageBytes);
-      if (image == null) return null;
+      final image = img.decodeImage(imageBytes);
+      if (image == null ||
+          image.width * image.height > _maxStealthDecodePixels) {
+        return null;
+      }
 
       final magicBytes = utf8.encode(_magic);
       final headerBytes = _readAlphaLsbBytes(image, magicBytes.length + 4);

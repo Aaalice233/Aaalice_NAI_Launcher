@@ -1,4 +1,6 @@
 /# Auto detect text files and perform LF normalization
 * text=auto
 assets/databases/*.db filter=lfs diff=lfs merge=lfs -text
+assets/data/nai_official_random_wordlists.json text eol=lf
+assets/data/random_tag_library.json text eol=lf
 assets/data/tokenizers/* -text

@@ -347,12 +347,6 @@ class _EntryListTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(6),
-        border: hasThumbnail
-            ? null
-            : Border.all(
-                color: theme.colorScheme.outlineVariant,
-                style: BorderStyle.solid,
-              ),
       ),
       child: hasThumbnail
           ? ThumbnailDisplay(

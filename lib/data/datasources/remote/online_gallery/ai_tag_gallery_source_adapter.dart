@@ -121,7 +121,7 @@ class AiTagGallerySourceAdapter implements GallerySourceAdapter {
       queryParameters: {
         'page': page,
         'page_size': config.pageSize,
-        'q': request.query,
+        'q': _toAiTagWeightedQuery(request.query),
         'prompt': request.prompt,
         'sort': 'new',
         'time_range': request.timeRange,
@@ -145,7 +145,7 @@ class AiTagGallerySourceAdapter implements GallerySourceAdapter {
     final queryParameters = <String, dynamic>{
       'page': page,
       'page_size': config.pageSize,
-      'q': request.query,
+      'q': _toAiTagWeightedQuery(request.query),
       'prompt': request.prompt,
     };
     if (period == 'current') {
@@ -241,6 +241,9 @@ class AiTagGallerySourceAdapter implements GallerySourceAdapter {
         total: total,
         hasMore: hasMore,
         rawItemCount: rawItems.length,
+        rawPageIdentity: rawItems
+            .map((value) => value is Map ? value['id'] : null)
+            .join(','),
       );
     } on GallerySourceException {
       rethrow;
@@ -297,8 +300,9 @@ class AiTagGallerySourceAdapter implements GallerySourceAdapter {
         );
       }
       final work = Map<String, dynamic>.from(payload['work'] as Map);
+      final imageRows = payload['images'] as List;
       final media = <GalleryMedia>[];
-      for (final raw in payload['images'] as List) {
+      for (final raw in imageRows) {
         if (raw is! Map) continue;
         try {
           media.add(
@@ -322,9 +326,37 @@ class AiTagGallerySourceAdapter implements GallerySourceAdapter {
           source: GallerySourceId.aiTag,
         );
       }
-      final detailedItem = _parseListItem(
-        work,
-      ).copyWith(cover: media.first, mediaCount: media.length, rank: item.rank);
+      final listItem = _parseListItem(work);
+      final searchableTags = <String>{
+        ...listItem.tags,
+        for (final image in media)
+          if (image.prompt != null) ..._parsePromptTags(image.prompt!),
+      };
+      final searchTerms = <String>{
+        ...listItem.searchTerms,
+        ...searchableTags,
+        for (final tag in searchableTags) ..._searchTextTerms(tag),
+        for (final image in media) ...[
+          ..._searchTextTerms(image.metadata['model']?.toString()),
+          ..._searchTextTerms(image.metadata['source_model']?.toString()),
+        ],
+      };
+      final promptMetadataComplete =
+          media.length == imageRows.length &&
+          media.every(
+            (image) =>
+                image.metadataError == null &&
+                image.prompt != null &&
+                image.prompt!.trim().isNotEmpty,
+          );
+      final detailedItem = listItem.copyWith(
+        cover: media.first,
+        mediaCount: media.length,
+        rank: item.rank,
+        tags: List.unmodifiable(searchableTags),
+        searchTerms: List.unmodifiable(searchTerms),
+        tagsComplete: promptMetadataComplete,
+      );
       return GalleryDetail(
         item: detailedItem,
         media: List.unmodifiable(media),
@@ -354,6 +386,23 @@ class AiTagGallerySourceAdapter implements GallerySourceAdapter {
     if (id == null || id <= 0) {
       throw const FormatException('AI TAG work id is invalid');
     }
+    final caption = json['caption']?.toString() ?? '';
+    final description = _plainText(caption);
+    final title = json['title']?.toString().trim();
+    final author = json['userName']?.toString().trim();
+    final aiType = (json['AI_type'] ?? json['ai_type'])?.toString();
+    final searchableTags = <String>{..._parseStringList(json['tags'])};
+    final searchTerms = <String>{
+      ...searchableTags,
+      for (final tag in searchableTags) ..._searchTextTerms(tag),
+      ..._searchTextTerms(title),
+      ..._searchTextTerms(author),
+      ..._searchTextTerms(description),
+      ..._searchTextTerms(aiType),
+      ..._searchTextTerms(
+        (json['model'] ?? json['model_name'] ?? json['modelName'])?.toString(),
+      ),
+    };
     return GalleryItem(
       id: id,
       sourceId: GallerySourceId.aiTag,
@@ -361,15 +410,19 @@ class AiTagGallerySourceAdapter implements GallerySourceAdapter {
       uploaderId: _asInt(json['userId'] ?? json['userid']) ?? 0,
       score: _asNum(json['score'])?.round(),
       rating: null,
-      title: json['title']?.toString().trim(),
-      author: json['userName']?.toString().trim(),
-      description: _plainText(json['caption']?.toString() ?? ''),
+      title: title,
+      author: author,
+      description: description,
       viewCount: _asInt(json['total_view']),
       favCount: _asInt(json['total_bookmarks']),
-      aiType: (json['AI_type'] ?? json['ai_type'])?.toString(),
+      aiType: aiType,
       mediaCount: (_asInt(json['image_count']) ?? 1).clamp(1, 10000),
       rank: rank,
-      tags: _parseStringList(json['tags']),
+      tags: List<String>.unmodifiable(searchableTags),
+      searchTerms: List<String>.unmodifiable(searchTerms),
+      // The list payload omits per-media prompts searched by the upstream q
+      // endpoint. Detail loading must aggregate every media prompt first.
+      tagsComplete: false,
       cover: GalleryMedia(
         id: '${id}_pending',
         previewUrl: '',
@@ -500,6 +553,15 @@ class AiTagGallerySourceAdapter implements GallerySourceAdapter {
     return int.tryParse(match?.group(1) ?? '') ?? 0;
   }
 
+  String _toAiTagWeightedQuery(String query) {
+    return query
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((term) => term.isNotEmpty)
+        .map((term) => '$term::1')
+        .join(' ');
+  }
+
   static int? _asInt(Object? value) {
     if (value is int) return value;
     if (value is num) return value.toInt();
@@ -593,65 +655,28 @@ class AiTagGallerySourceAdapter implements GallerySourceAdapter {
     // Select random page
     final randomPage = randomGenerator.nextInt(totalInfo.totalPages) + 1;
 
-    try {
-      final searchRequest = GallerySearchRequest(
-        cursor: randomPage.toString(),
-        pageSize: request.pageSize,
-        query: request.query,
-        prompt: request.prompt,
-        timeRange: request.timeRange,
-        ratings: request.ratings,
-        blacklistTags: request.blacklistTags,
-      );
+    final searchRequest = GallerySearchRequest(
+      cursor: randomPage.toString(),
+      pageSize: request.pageSize,
+      query: request.query,
+      prompt: request.prompt,
+      timeRange: request.timeRange,
+      ratings: request.ratings,
+      blacklistTags: request.blacklistTags,
+    );
 
-      final pageResult = randomPage == 1 && totalInfo.probedPage != null
-          ? totalInfo.probedPage!
-          : await search(
-              searchRequest,
-              cancelToken: cancelToken,
-              noCache: true,
-            );
-      final shuffled = shuffleGalleryItems(pageResult.items, randomGenerator);
+    final pageResult = randomPage == 1 && totalInfo.probedPage != null
+        ? totalInfo.probedPage!
+        : await search(searchRequest, cancelToken: cancelToken, noCache: true);
+    final shuffled = shuffleGalleryItems(pageResult.items, randomGenerator);
 
-      return GalleryPage(
-        items: shuffled,
-        cursor: 'random',
-        nextCursor: null,
-        hasMore: false,
-        rawItemCount: pageResult.rawItemCount,
-      );
-    } catch (error) {
-      if (error is DioException && error.type == DioExceptionType.cancel) {
-        rethrow;
-      }
-      // Fallback to first page on error
-      final firstPageRequest = GallerySearchRequest(
-        cursor: '1',
-        pageSize: request.pageSize,
-        query: request.query,
-        prompt: request.prompt,
-        timeRange: request.timeRange,
-        ratings: request.ratings,
-        blacklistTags: request.blacklistTags,
-      );
-
-      final firstPage =
-          totalInfo.probedPage ??
-          await search(
-            firstPageRequest,
-            cancelToken: cancelToken,
-            noCache: true,
-          );
-      final shuffled = shuffleGalleryItems(firstPage.items, randomGenerator);
-
-      return GalleryPage(
-        items: shuffled,
-        cursor: 'random',
-        nextCursor: null,
-        hasMore: false,
-        rawItemCount: firstPage.rawItemCount,
-      );
-    }
+    return GalleryPage(
+      items: shuffled,
+      cursor: 'random',
+      nextCursor: null,
+      hasMore: false,
+      rawItemCount: pageResult.rawItemCount,
+    );
   }
 
   Future<GalleryPage> _randomRanking(
@@ -716,69 +741,34 @@ class AiTagGallerySourceAdapter implements GallerySourceAdapter {
     // Select random page
     final randomPage = randomGenerator.nextInt(totalInfo.totalPages) + 1;
 
-    try {
-      final rankingRequest = GalleryRankingRequest(
-        cursor: randomPage.toString(),
-        pageSize: request.pageSize,
-        kind: request.kind,
-        date: request.date,
-        period: request.period,
-        query: request.query,
-        prompt: request.prompt,
-        ratings: request.ratings,
-        blacklistTags: request.blacklistTags,
-      );
+    final rankingRequest = GalleryRankingRequest(
+      cursor: randomPage.toString(),
+      pageSize: request.pageSize,
+      kind: request.kind,
+      date: request.date,
+      period: request.period,
+      query: request.query,
+      prompt: request.prompt,
+      ratings: request.ratings,
+      blacklistTags: request.blacklistTags,
+    );
 
-      final pageResult = randomPage == 1 && totalInfo.probedPage != null
-          ? totalInfo.probedPage!
-          : await ranking(
-              rankingRequest,
-              cancelToken: cancelToken,
-              noCache: true,
-            );
-      final shuffled = shuffleGalleryItems(pageResult.items, randomGenerator);
-
-      return GalleryPage(
-        items: shuffled,
-        cursor: 'random',
-        nextCursor: null,
-        hasMore: false,
-        rawItemCount: pageResult.rawItemCount,
-      );
-    } catch (error) {
-      if (error is DioException && error.type == DioExceptionType.cancel) {
-        rethrow;
-      }
-      // Fallback to first page on error
-      final firstPageRequest = GalleryRankingRequest(
-        cursor: '1',
-        pageSize: request.pageSize,
-        kind: request.kind,
-        date: request.date,
-        period: request.period,
-        query: request.query,
-        prompt: request.prompt,
-        ratings: request.ratings,
-        blacklistTags: request.blacklistTags,
-      );
-
-      final firstPage =
-          totalInfo.probedPage ??
-          await ranking(
-            firstPageRequest,
+    final pageResult = randomPage == 1 && totalInfo.probedPage != null
+        ? totalInfo.probedPage!
+        : await ranking(
+            rankingRequest,
             cancelToken: cancelToken,
             noCache: true,
           );
-      final shuffled = shuffleGalleryItems(firstPage.items, randomGenerator);
+    final shuffled = shuffleGalleryItems(pageResult.items, randomGenerator);
 
-      return GalleryPage(
-        items: shuffled,
-        cursor: 'random',
-        nextCursor: null,
-        hasMore: false,
-        rawItemCount: firstPage.rawItemCount,
-      );
-    }
+    return GalleryPage(
+      items: shuffled,
+      cursor: 'random',
+      nextCursor: null,
+      hasMore: false,
+      rawItemCount: pageResult.rawItemCount,
+    );
   }
 
   Future<AiTagTotalInfo> _probeTotalCount(
@@ -786,78 +776,96 @@ class AiTagGallerySourceAdapter implements GallerySourceAdapter {
     AiTagSourceConfig config,
     CancelToken? cancelToken,
   ) async {
-    try {
-      final firstPageRequest = GallerySearchRequest(
-        cursor: '1',
-        pageSize: config.pageSize, // Use config page size for probe
-        query: request.query,
-        prompt: request.prompt,
-        timeRange: request.timeRange,
-        ratings: request.ratings,
-        blacklistTags: const {}, // Don't apply blacklist during probe
-      );
+    final firstPageRequest = GallerySearchRequest(
+      cursor: '1',
+      pageSize: config.pageSize,
+      query: request.query,
+      prompt: request.prompt,
+      timeRange: request.timeRange,
+      ratings: request.ratings,
+      blacklistTags: const {},
+    );
 
-      final firstPage = await search(
-        firstPageRequest,
-        cancelToken: cancelToken,
-        noCache: true,
-      );
+    final firstPage = await search(
+      firstPageRequest,
+      cancelToken: cancelToken,
+      noCache: true,
+    );
 
-      return AiTagTotalInfo(
-        totalCount: firstPage.total ?? firstPage.rawItemCount,
-        pageSize: config.pageSize,
-        probedPage: firstPage,
-      );
-    } on DioException catch (error) {
-      if (error.type == DioExceptionType.cancel) rethrow;
-      return const AiTagTotalInfo(totalCount: 0, pageSize: 0);
-    } catch (_) {
-      return const AiTagTotalInfo(totalCount: 0, pageSize: 0);
-    }
+    return AiTagTotalInfo(
+      totalCount: firstPage.total ?? firstPage.rawItemCount,
+      pageSize: config.pageSize,
+      probedPage: firstPage,
+    );
   }
 
   Future<AiTagTotalInfo> _probeRankingTotalCount(
     GalleryRandomRankingRequest request,
     CancelToken? cancelToken,
   ) async {
-    try {
-      final firstPageRequest = GalleryRankingRequest(
-        cursor: '1',
-        pageSize: 60, // Standard page size for probe
-        kind: request.kind,
-        date: request.date,
-        period: request.period,
-        query: request.query,
-        prompt: request.prompt,
-        ratings: request.ratings,
-        blacklistTags: const {}, // Don't apply blacklist during probe
-      );
+    final firstPageRequest = GalleryRankingRequest(
+      cursor: '1',
+      pageSize: 60,
+      kind: request.kind,
+      date: request.date,
+      period: request.period,
+      query: request.query,
+      prompt: request.prompt,
+      ratings: request.ratings,
+      blacklistTags: const {},
+    );
 
-      final firstPage = await ranking(
-        firstPageRequest,
-        cancelToken: cancelToken,
-        noCache: true,
-      );
+    final firstPage = await ranking(
+      firstPageRequest,
+      cancelToken: cancelToken,
+      noCache: true,
+    );
 
-      return AiTagTotalInfo(
-        totalCount: firstPage.total ?? firstPage.rawItemCount,
-        pageSize: 60,
-        probedPage: firstPage,
-      );
-    } on DioException catch (error) {
-      if (error.type == DioExceptionType.cancel) rethrow;
-      return const AiTagTotalInfo(totalCount: 0, pageSize: 0);
-    } catch (_) {
-      return const AiTagTotalInfo(totalCount: 0, pageSize: 0);
-    }
+    return AiTagTotalInfo(
+      totalCount: firstPage.total ?? firstPage.rawItemCount,
+      pageSize: 60,
+      probedPage: firstPage,
+    );
+  }
+
+  List<String> _parsePromptTags(String raw) {
+    if (raw.trim().isEmpty) return const [];
+    return _plainText(raw)
+        .split(RegExp(r'[,\n]+'))
+        .map(_cleanPromptTag)
+        .where((tag) => tag.isNotEmpty && tag.length <= 200)
+        .toList(growable: false);
+  }
+
+  static List<String> _searchTextTerms(String? raw) {
+    final value = raw?.trim() ?? '';
+    if (value.isEmpty) return const [];
+    return <String>{
+      value,
+      ...value
+          .split(RegExp(r'[\s,，;；/|:：\-—]+'))
+          .map((term) => term.trim())
+          .where((term) => term.isNotEmpty),
+    }.toList(growable: false);
   }
 
   static List<String> _parseStringList(Object? value) {
     final decoded = _decodeList(value);
     return decoded
-        .map((item) => item?.toString().trim() ?? '')
+        .map((item) => _cleanPromptTag(item?.toString() ?? ''))
         .where((item) => item.isNotEmpty)
         .toList(growable: false);
+  }
+
+  static String _cleanPromptTag(String raw) {
+    var value = raw.trim();
+    value = value.replaceAll(RegExp(r'^[{}\[\]()\s]+|[{}\[\]()\s]+$'), '');
+    value = value.replaceFirst(RegExp(r'^-?\d+(?:\.\d+)?::'), '');
+    value = value.replaceFirst(RegExp(r'::$'), '');
+    value = value.replaceFirst(RegExp(r'::-?\d+(?:\.\d+)?$'), '');
+    value = value.replaceFirst(RegExp(r':-?\d+(?:\.\d+)?$'), '');
+    value = value.replaceAll(RegExp(r'^[{}\[\]()\s]+|[{}\[\]()\s,，;；]+$'), '');
+    return value.trim();
   }
 
   static List<dynamic> _decodeList(Object? value) {

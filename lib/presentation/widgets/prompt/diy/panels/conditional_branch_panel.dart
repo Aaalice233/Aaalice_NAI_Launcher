@@ -251,12 +251,6 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
                                     colors[1].withValues(alpha: 0.4),
                                   ],
                           ),
-                          border: isSelected
-                              ? Border.all(
-                                  color: Colors.white.withValues(alpha: 0.5),
-                                  width: 2,
-                                )
-                              : null,
                         ),
                         child: Center(
                           child: branch.probability >= 10

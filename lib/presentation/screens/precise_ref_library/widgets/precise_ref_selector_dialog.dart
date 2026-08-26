@@ -278,13 +278,13 @@ class _SelectorItemState extends ConsumerState<_SelectorItem> {
       borderRadius: BorderRadius.circular(8),
       child: Container(
         decoration: BoxDecoration(
+          color: widget.selected
+              ? theme.colorScheme.primaryContainer
+              : theme.colorScheme.surfaceContainerLow,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: widget.selected
-                ? theme.colorScheme.primary
-                : theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
-            width: widget.selected ? 2 : 1,
-          ),
+          border: widget.selected
+              ? Border.all(color: theme.colorScheme.primary, width: 1)
+              : null,
         ),
         clipBehavior: Clip.antiAlias,
         child: Column(

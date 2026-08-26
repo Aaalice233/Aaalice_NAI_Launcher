@@ -95,8 +95,9 @@ class _ScopeTripleSwitchState extends State<ScopeTripleSwitch> {
     final colorScheme = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context)!;
     final currentScope = _scopeOrder[_currentIndex];
-    final currentColor =
-        widget.enabled ? _scopeColors[currentScope]! : colorScheme.outline;
+    final currentColor = widget.enabled
+        ? _scopeColors[currentScope]!
+        : colorScheme.outline;
 
     return Opacity(
       opacity: widget.enabled ? 1.0 : 0.6,
@@ -105,11 +106,6 @@ class _ScopeTripleSwitchState extends State<ScopeTripleSwitch> {
         decoration: BoxDecoration(
           color: colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: colorScheme.outline
-                .withValues(alpha: widget.enabled ? 0.1 : 0.05),
-            width: 1,
-          ),
         ),
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -126,24 +122,8 @@ class _ScopeTripleSwitchState extends State<ScopeTripleSwitch> {
                   width: itemWidth - 4,
                   child: Container(
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          currentColor.withValues(alpha: 0.9),
-                          currentColor.withValues(alpha: 0.7),
-                        ],
-                      ),
+                      color: currentColor.withValues(alpha: 0.18),
                       borderRadius: BorderRadius.circular(6),
-                      boxShadow: widget.enabled
-                          ? [
-                              BoxShadow(
-                                color: currentColor.withValues(alpha: 0.4),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
-                              ),
-                            ]
-                          : null,
                     ),
                   ),
                 ),
@@ -160,9 +140,22 @@ class _ScopeTripleSwitchState extends State<ScopeTripleSwitch> {
                         message: tooltip,
                         preferBelow: false,
                         verticalOffset: 20,
-                        child: GestureDetector(
-                          onTap: () => _onTap(index),
-                          behavior: HitTestBehavior.opaque,
+                        child: TextButton(
+                          onPressed: widget.enabled
+                              ? () => _onTap(index)
+                              : null,
+                          style: TextButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                            foregroundColor: isSelected
+                                ? currentColor
+                                : colorScheme.onSurfaceVariant,
+                            backgroundColor: Colors.transparent,
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                          ),
                           child: Center(
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -171,7 +164,7 @@ class _ScopeTripleSwitchState extends State<ScopeTripleSwitch> {
                                   icon,
                                   size: 14,
                                   color: isSelected
-                                      ? Colors.white
+                                      ? currentColor
                                       : colorScheme.onSurfaceVariant,
                                 ),
                                 const SizedBox(width: 3),
@@ -181,11 +174,9 @@ class _ScopeTripleSwitchState extends State<ScopeTripleSwitch> {
                                     overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
                                       fontSize: 12,
-                                      fontWeight: isSelected
-                                          ? FontWeight.bold
-                                          : FontWeight.normal,
+                                      fontWeight: FontWeight.w500,
                                       color: isSelected
-                                          ? Colors.white
+                                          ? currentColor
                                           : colorScheme.onSurfaceVariant,
                                     ),
                                   ),
@@ -229,10 +220,12 @@ class ColorfulProbabilitySlider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final primaryColor =
-        enabled ? colorScheme.primary : colorScheme.onSurfaceVariant;
-    final secondaryColor =
-        enabled ? colorScheme.secondary : colorScheme.onSurfaceVariant;
+    final primaryColor = enabled
+        ? colorScheme.primary
+        : colorScheme.onSurfaceVariant;
+    final secondaryColor = enabled
+        ? colorScheme.secondary
+        : colorScheme.onSurfaceVariant;
 
     return Row(
       children: [
@@ -339,11 +332,7 @@ class ColorfulProbabilitySlider extends StatelessWidget {
 ///
 /// 放置在词组列表末尾，点击后打开添加词组对话框
 class AddTagGroupCard extends StatefulWidget {
-  const AddTagGroupCard({
-    super.key,
-    required this.onTap,
-    this.enabled = true,
-  });
+  const AddTagGroupCard({super.key, required this.onTap, this.enabled = true});
 
   final VoidCallback onTap;
 
@@ -365,8 +354,9 @@ class _AddTagGroupCardState extends State<AddTagGroupCard> {
     final l10n = AppLocalizations.of(context)!;
 
     return MouseRegion(
-      cursor:
-          isEnabled ? SystemMouseCursors.click : SystemMouseCursors.forbidden,
+      cursor: isEnabled
+          ? SystemMouseCursors.click
+          : SystemMouseCursors.forbidden,
       onEnter: isEnabled ? (_) => setState(() => _isHovered = true) : null,
       onExit: isEnabled ? (_) => setState(() => _isHovered = false) : null,
       child: GestureDetector(
@@ -551,8 +541,9 @@ class EmptyCategoryPlaceholder extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color:
-                    colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                color: colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.5,
+                ),
                 shape: BoxShape.circle,
               ),
               child: Icon(

@@ -8,11 +8,13 @@ import 'package:flutter/material.dart';
 /// The follower stays attached to its card while its layout delegate keeps the
 /// preview inside the visible window, including when neither side has enough
 /// room for the preferred size.
-class GalleryHoverController {
+class GalleryHoverController with WidgetsBindingObserver {
   OverlayEntry? _entry;
   Timer? _showTimer;
   int _revision = 0;
   String? _stableKey;
+  bool _observingMetrics = false;
+  bool _metricsRebuildScheduled = false;
 
   String? get activeStableKey => _stableKey;
   bool get isShowing => _entry != null;
@@ -31,8 +33,13 @@ class GalleryHoverController {
     dismiss();
     final revision = ++_revision;
     _stableKey = stableKey;
+    _startObservingMetrics();
     _showTimer = Timer(delay, () {
-      if (_revision != revision || _stableKey != stableKey) return;
+      if (_revision != revision ||
+          _stableKey != stableKey ||
+          !context.mounted) {
+        return;
+      }
       final overlay = Overlay.of(context, rootOverlay: true);
       _entry = OverlayEntry(
         builder: (overlayContext) {
@@ -48,6 +55,9 @@ class GalleryHoverController {
               renderObject is RenderBox && renderObject.attached
               ? renderObject.localToGlobal(Offset.zero) & renderObject.size
               : targetRect;
+          if (!liveTargetRect.overlaps(Offset.zero & mediaSize)) {
+            return const SizedBox.shrink();
+          }
           return Positioned.fill(
             child: IgnorePointer(
               child: CompositedTransformFollower(
@@ -76,6 +86,31 @@ class GalleryHoverController {
     if (_stableKey == stableKey) dismiss();
   }
 
+  void markNeedsBuild() => _entry?.markNeedsBuild();
+
+  void _startObservingMetrics() {
+    if (_observingMetrics) return;
+    WidgetsBinding.instance.addObserver(this);
+    _observingMetrics = true;
+  }
+
+  void _stopObservingMetrics() {
+    if (!_observingMetrics) return;
+    WidgetsBinding.instance.removeObserver(this);
+    _observingMetrics = false;
+    _metricsRebuildScheduled = false;
+  }
+
+  @override
+  void didChangeMetrics() {
+    if (_metricsRebuildScheduled) return;
+    _metricsRebuildScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _metricsRebuildScheduled = false;
+      _entry?.markNeedsBuild();
+    });
+  }
+
   void dismiss() {
     _revision++;
     _showTimer?.cancel();
@@ -83,6 +118,7 @@ class GalleryHoverController {
     _entry?.remove();
     _entry = null;
     _stableKey = null;
+    _stopObservingMetrics();
   }
 
   void dispose() => dismiss();

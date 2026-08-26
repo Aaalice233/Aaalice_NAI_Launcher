@@ -795,7 +795,7 @@ class _NavIconState extends State<_NavIcon> {
     // 计算背景色：选中状态优先，其次是 Hover 状态
     Color backgroundColor = Colors.transparent;
     if (widget.isSelected) {
-      backgroundColor = theme.colorScheme.primary.withValues(alpha: 0.1);
+      backgroundColor = theme.colorScheme.primary.withValues(alpha: 0.16);
     } else if (_isHovering) {
       backgroundColor = theme.colorScheme.surfaceContainerHighest.withValues(
         alpha: 0.5,
@@ -826,14 +826,6 @@ class _NavIconState extends State<_NavIcon> {
                 decoration: BoxDecoration(
                   color: backgroundColor,
                   borderRadius: BorderRadius.circular(8),
-                  border: widget.isSelected
-                      ? Border.all(
-                          color: theme.colorScheme.primary.withValues(
-                            alpha: 0.5,
-                          ),
-                          width: 1,
-                        )
-                      : null,
                 ),
                 child: LayoutBuilder(
                   builder: (context, constraints) {

@@ -54,10 +54,7 @@ class _SidebarEntryTileState extends State<SidebarEntryTile> {
         : theme.colorScheme.onSurfaceVariant;
     final background = enabled
         ? widget.categoryColor.withValues(alpha: 0.12)
-        : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.45);
-    final borderColor = enabled
-        ? widget.categoryColor.withValues(alpha: 0.55)
-        : theme.colorScheme.outlineVariant.withValues(alpha: 0.55);
+        : theme.colorScheme.surfaceContainerHigh;
     final hasThumbnailBackground = _hasThumbnailBackground;
     final contentPadding = EdgeInsets.symmetric(
       horizontal: widget.isListMode ? 10 : 8,
@@ -77,9 +74,13 @@ class _SidebarEntryTileState extends State<SidebarEntryTile> {
           duration: const Duration(milliseconds: 120),
           clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
-            color: background,
+            color: _isHovering
+                ? Color.alphaBlend(
+                    theme.colorScheme.onSurface.withValues(alpha: 0.05),
+                    background,
+                  )
+                : background,
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: borderColor),
           ),
           child: Stack(
             children: [

@@ -129,9 +129,6 @@ class _TagRankRow extends StatelessWidget {
           decoration: BoxDecoration(
             color: colorScheme.surfaceContainerLow.withValues(alpha: 0.3),
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: colorScheme.outlineVariant.withValues(alpha: 0.15),
-            ),
           ),
           child: Row(
             children: [

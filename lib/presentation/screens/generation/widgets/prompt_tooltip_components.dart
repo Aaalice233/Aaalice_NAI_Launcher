@@ -24,14 +24,8 @@ class TooltipHeader extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            color.withValues(alpha: isDark ? 0.2 : 0.1),
-            color.withValues(alpha: isDark ? 0.1 : 0.05),
-          ],
-        ),
+        color: color.withValues(alpha: isDark ? 0.14 : 0.08),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -158,22 +152,10 @@ class TooltipFinalPromptSection extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            theme.colorScheme.primaryContainer.withValues(
-              alpha: isDark ? 0.3 : 0.4,
-            ),
-            theme.colorScheme.secondaryContainer.withValues(
-              alpha: isDark ? 0.2 : 0.3,
-            ),
-          ],
+        color: theme.colorScheme.primaryContainer.withValues(
+          alpha: isDark ? 0.3 : 0.4,
         ),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: theme.colorScheme.primary.withValues(alpha: 0.2),
-        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

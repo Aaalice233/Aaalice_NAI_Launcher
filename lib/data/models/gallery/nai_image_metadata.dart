@@ -5,7 +5,9 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:hive/hive.dart';
 
 import '../../../core/constants/api_constants.dart';
+import '../../../core/constants/model_capabilities.dart';
 import '../../../core/enums/precise_ref_type.dart';
+import '../../../core/utils/novelai_auto_text.dart';
 import '../../../core/utils/portable_logger.dart';
 import '../image/image_params.dart';
 import '../vibe/vibe_reference.dart';
@@ -209,6 +211,11 @@ class NaiImageMetadata with _$NaiImageMetadata {
       if (reparsed == null || !reparsed.hasData) return base;
 
       return base.copyWith(
+        prompt:
+            base.prompt == base.originalPrompt &&
+                reparsed.prompt != reparsed.originalPrompt
+            ? reparsed.prompt
+            : base.prompt,
         model: base.model ?? reparsed.model,
         characterPrompts: base.characterPrompts.isEmpty
             ? reparsed.characterPrompts
@@ -352,9 +359,9 @@ class NaiImageMetadata with _$NaiImageMetadata {
     }
 
     // 安全获取字段值
-    String prompt = '';
+    String rawPrompt = '';
     try {
-      prompt = commentData['prompt'] as String? ?? '';
+      rawPrompt = commentData['prompt'] as String? ?? '';
     } catch (e) {
       PortableLogger.d('Failed to parse prompt field: $e', 'NaiImageMetadata');
     }
@@ -370,6 +377,28 @@ class NaiImageMetadata with _$NaiImageMetadata {
     }
 
     final sourceModel = _modelIdFromSource(source);
+    final prompt =
+        sourceModel != null &&
+            ModelCapabilityRegistry.of(sourceModel).supportsAutoText
+        ? NovelAiAutoText.stripGeneratedBlock(
+            rawPrompt,
+            characters: List<NovelAiAutoTextCharacter>.generate(
+              characterPrompts.length,
+              (index) {
+                final info = index < characterInfos.length
+                    ? characterInfos[index]
+                    : null;
+                return NovelAiAutoTextCharacter(
+                  prompt: characterPrompts[index],
+                  centerX: info?.centerX ?? 0.5,
+                  centerY: info?.centerY ?? 0.5,
+                );
+              },
+              growable: false,
+            ),
+            useCoords: characterUseCoords == true,
+          )
+        : rawPrompt;
     final importedUcPreset = _toInt(commentData['uc_preset']);
     final importedQualityToggle =
         _safeGetBool(commentData, 'quality_toggle') ??
@@ -431,7 +460,7 @@ class NaiImageMetadata with _$NaiImageMetadata {
         characterInfos: characterInfos,
         characterUseCoords: characterUseCoords,
         vibeReferences: vibeReferences,
-        originalPrompt: prompt,
+        originalPrompt: rawPrompt,
         preciseReferenceImages: preciseReferenceMetadata.images,
         preciseReferenceTypes: preciseReferenceMetadata.types,
         preciseReferenceStrengths: preciseReferenceMetadata.strengths,
@@ -449,7 +478,7 @@ class NaiImageMetadata with _$NaiImageMetadata {
         prompt: prompt,
         negativePrompt: negativePrompt,
         rawJson: rawJson,
-        originalPrompt: prompt,
+        originalPrompt: rawPrompt,
       );
     }
   }
@@ -1406,6 +1435,10 @@ class NaiImageMetadata with _$NaiImageMetadata {
   /// 是否有有效数据
   bool get hasData =>
       prompt.isNotEmpty ||
+      negativePrompt.isNotEmpty ||
+      characterPrompts.isNotEmpty ||
+      characterNegativePrompts.isNotEmpty ||
+      characterInfos.isNotEmpty ||
       seed != null ||
       vibeReferences.isNotEmpty ||
       preciseReferenceImages.isNotEmpty;
