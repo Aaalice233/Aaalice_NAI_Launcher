@@ -15,6 +15,7 @@ import 'package:nai_launcher/data/datasources/remote/nai_image_enhancement_api_s
 import 'package:nai_launcher/data/models/user/user_subscription.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 import 'package:nai_launcher/data/services/vibe_library_storage_service.dart';
+import 'package:nai_launcher/presentation/providers/auth_provider.dart';
 import 'package:nai_launcher/presentation/providers/generation/generation_params_notifier.dart';
 import 'package:nai_launcher/presentation/providers/subscription_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -93,6 +94,7 @@ void main() {
     final apiService = _FakeEnhancementApiService();
     final container = ProviderContainer(
       overrides: [
+        authNotifierProvider.overrideWith(_AuthenticatedAuthNotifier.new),
         naiImageEnhancementApiServiceProvider.overrideWithValue(apiService),
         subscriptionNotifierProvider.overrideWith(
           _TestSubscriptionNotifier.new,
@@ -135,6 +137,67 @@ void main() {
     expect(repeatFirst, first);
     expect(apiService.callCount, 3);
     expect(apiService.requestedInformationExtracted, [0.2, 0.5, 0.5]);
+  });
+
+  for (final status in [AuthStatus.unauthenticated, AuthStatus.loading]) {
+    test('Vibe cache miss 在 $status 时拒绝 API 调用', () async {
+      final apiService = _FakeEnhancementApiService();
+      final container = ProviderContainer(
+        overrides: [
+          authNotifierProvider.overrideWith(() => _TestAuthNotifier(status)),
+          naiImageEnhancementApiServiceProvider.overrideWithValue(apiService),
+        ],
+      );
+      addTearDown(container.dispose);
+      final notifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
+
+      final encoding = await notifier.encodeVibeWithCache(
+        Uint8List.fromList([7, 8, 9]),
+        model: ImageModels.animeDiffusionV4Full,
+        informationExtracted: 0.7,
+        vibeName: 'private-vibe',
+      );
+
+      expect(encoding, isNull);
+      expect(apiService.callCount, 0);
+      expect(notifier.vibeEncodingCacheSize, 0);
+      expect(
+        container.read(authPromptRequestProvider)?.reason,
+        AuthPromptReason.vibeEncoding,
+      );
+    });
+  }
+
+  test('Vibe cache hit 可在未登录时匿名复用', () async {
+    final apiService = _FakeEnhancementApiService();
+    final container = ProviderContainer(
+      overrides: [
+        authNotifierProvider.overrideWith(_UnauthenticatedAuthNotifier.new),
+        naiImageEnhancementApiServiceProvider.overrideWithValue(apiService),
+      ],
+    );
+    addTearDown(container.dispose);
+    final notifier = container.read(generationParamsNotifierProvider.notifier);
+    final image = Uint8List.fromList([4, 3, 2, 1]);
+    notifier.storeVibeEncodingInCache(
+      image,
+      'cached-encoding',
+      model: ImageModels.animeDiffusionV4Full,
+      informationExtracted: 0.7,
+    );
+
+    final encoding = await notifier.encodeVibeWithCache(
+      image,
+      model: ImageModels.animeDiffusionV4Full,
+      informationExtracted: 0.7,
+      vibeName: 'cached-vibe',
+    );
+
+    expect(encoding, 'cached-encoding');
+    expect(apiService.callCount, 0);
+    expect(container.read(authPromptRequestProvider), isNull);
   });
 
   test('V3 原图 Vibe 不调用预编码接口', () async {
@@ -436,6 +499,7 @@ void main() {
     final apiService = _FakeEnhancementApiService();
     final container = ProviderContainer(
       overrides: [
+        authNotifierProvider.overrideWith(_AuthenticatedAuthNotifier.new),
         naiImageEnhancementApiServiceProvider.overrideWithValue(apiService),
         subscriptionNotifierProvider.overrideWith(
           _TestSubscriptionNotifier.new,
@@ -496,6 +560,7 @@ void main() {
     final apiService = _FakeEnhancementApiService();
     final container = ProviderContainer(
       overrides: [
+        authNotifierProvider.overrideWith(_AuthenticatedAuthNotifier.new),
         naiImageEnhancementApiServiceProvider.overrideWithValue(apiService),
         subscriptionNotifierProvider.overrideWith(
           _TestSubscriptionNotifier.new,
@@ -533,6 +598,7 @@ void main() {
     final apiService = _FakeEnhancementApiService();
     final container = ProviderContainer(
       overrides: [
+        authNotifierProvider.overrideWith(_AuthenticatedAuthNotifier.new),
         naiImageEnhancementApiServiceProvider.overrideWithValue(apiService),
         subscriptionNotifierProvider.overrideWith(
           _TestSubscriptionNotifier.new,
@@ -898,6 +964,23 @@ void main() {
 
 Uint8List _validPngBytes({required int width, required int height}) =>
     Uint8List.fromList(img.encodePng(img.Image(width: width, height: height)));
+
+class _TestAuthNotifier extends AuthNotifier {
+  _TestAuthNotifier(this.authStatus);
+
+  final AuthStatus authStatus;
+
+  @override
+  AuthState build() => AuthState(status: authStatus);
+}
+
+class _AuthenticatedAuthNotifier extends _TestAuthNotifier {
+  _AuthenticatedAuthNotifier() : super(AuthStatus.authenticated);
+}
+
+class _UnauthenticatedAuthNotifier extends _TestAuthNotifier {
+  _UnauthenticatedAuthNotifier() : super(AuthStatus.unauthenticated);
+}
 
 class _TestSubscriptionNotifier extends SubscriptionNotifier {
   @override

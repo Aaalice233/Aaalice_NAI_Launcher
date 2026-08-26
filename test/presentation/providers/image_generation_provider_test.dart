@@ -21,6 +21,7 @@ import 'package:nai_launcher/data/models/image/image_params.dart';
 import 'package:nai_launcher/data/models/image/image_stream_chunk.dart';
 import 'package:nai_launcher/data/models/user/user_subscription.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
+import 'package:nai_launcher/presentation/providers/auth_provider.dart';
 import 'package:nai_launcher/presentation/providers/generation/image_workflow_controller.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/providers/image_save_settings_provider.dart';
@@ -30,6 +31,22 @@ import 'package:nai_launcher/presentation/providers/notification_settings_provid
 
 class MockNAIImageGenerationApiService extends Mock
     implements NAIImageGenerationApiService {}
+
+class _AuthenticatedAuthNotifier extends AuthNotifier {
+  @override
+  AuthState build() => const AuthState(status: AuthStatus.authenticated);
+}
+
+ProviderContainer _createAuthenticatedContainer({
+  List<Override> overrides = const [],
+}) {
+  return ProviderContainer(
+    overrides: [
+      authNotifierProvider.overrideWith(_AuthenticatedAuthNotifier.new),
+      ...overrides,
+    ],
+  );
+}
 
 class FakeNAIImageEnhancementApiService extends Mock
     implements NAIImageEnhancementApiService {}
@@ -99,7 +116,7 @@ void main() {
     late ProviderContainer container;
 
     setUp(() {
-      container = ProviderContainer(
+      container = _createAuthenticatedContainer(
         overrides: [
           subscriptionNotifierProvider.overrideWith(
             TestSubscriptionNotifier.new,
@@ -240,7 +257,7 @@ void main() {
         );
 
         container.dispose();
-        container = ProviderContainer(
+        container = _createAuthenticatedContainer(
           overrides: [
             naiImageGenerationApiServiceProvider.overrideWithValue(
               mockApiService,
@@ -325,7 +342,7 @@ void main() {
         });
 
         container.dispose();
-        container = ProviderContainer(
+        container = _createAuthenticatedContainer(
           overrides: [
             naiImageGenerationApiServiceProvider.overrideWithValue(
               mockApiService,
@@ -638,7 +655,7 @@ void main() {
       );
 
       container.dispose();
-      container = ProviderContainer(
+      container = _createAuthenticatedContainer(
         overrides: [
           naiImageGenerationApiServiceProvider.overrideWithValue(
             mockApiService,
@@ -779,7 +796,7 @@ void main() {
         });
 
         container.dispose();
-        container = ProviderContainer(
+        container = _createAuthenticatedContainer(
           overrides: [
             naiImageGenerationApiServiceProvider.overrideWithValue(
               mockApiService,
@@ -879,7 +896,7 @@ void main() {
         ).thenAnswer((_) => controller.stream);
 
         container.dispose();
-        container = ProviderContainer(
+        container = _createAuthenticatedContainer(
           overrides: [
             naiImageGenerationApiServiceProvider.overrideWithValue(
               mockApiService,
@@ -974,7 +991,7 @@ void main() {
       ).thenAnswer((_) => const Stream.empty());
 
       container.dispose();
-      container = ProviderContainer(
+      container = _createAuthenticatedContainer(
         overrides: [
           naiImageGenerationApiServiceProvider.overrideWithValue(
             mockApiService,
@@ -1074,7 +1091,7 @@ void main() {
       ).thenAnswer((_) => const Stream.empty());
 
       container.dispose();
-      container = ProviderContainer(
+      container = _createAuthenticatedContainer(
         overrides: [
           naiImageGenerationApiServiceProvider.overrideWithValue(
             mockApiService,

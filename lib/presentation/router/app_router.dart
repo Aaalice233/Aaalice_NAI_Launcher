@@ -345,6 +345,28 @@ class MainShell extends ConsumerStatefulWidget {
 class _MainShellState extends ConsumerState<MainShell> {
   int? _previousIndex;
   bool _authPromptVisible = false;
+  ProviderSubscription<AuthPromptRequest?>? _authPromptSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _authPromptSubscription = ref.listenManual<AuthPromptRequest?>(
+      authPromptRequestProvider,
+      (previous, next) {
+        if (next == null || next.id == previous?.id) return;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _showAuthPrompt(next);
+        });
+      },
+      fireImmediately: true,
+    );
+  }
+
+  @override
+  void dispose() {
+    _authPromptSubscription?.close();
+    super.dispose();
+  }
 
   @override
   void didUpdateWidget(MainShell oldWidget) {
@@ -360,13 +382,6 @@ class _MainShellState extends ConsumerState<MainShell> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<AuthPromptRequest?>(authPromptRequestProvider, (previous, next) {
-      if (next == null || next.id == previous?.id) return;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _showAuthPrompt(next);
-      });
-    });
-
     final currentIndex = widget.navigationShell.currentIndex;
 
     // 构建混合保活内容栈
@@ -447,9 +462,19 @@ class _MainShellState extends ConsumerState<MainShell> {
     _authPromptVisible = true;
     try {
       final details = switch (request.reason) {
+        AuthPromptReason.imageGeneration =>
+          context.l10n.auth_loginRequiredImageGeneration,
+        AuthPromptReason.queueExecution =>
+          context.l10n.auth_loginRequiredQueueExecution,
+        AuthPromptReason.directorTools =>
+          context.l10n.auth_loginRequiredDirectorTools,
+        AuthPromptReason.novelAiUpscale =>
+          context.l10n.auth_loginRequiredNovelAiUpscale,
+        AuthPromptReason.kritaBridge =>
+          context.l10n.auth_loginRequiredKritaBridge,
+        AuthPromptReason.vibeEncoding =>
+          context.l10n.auth_loginRequiredVibeEncoding,
         AuthPromptReason.sessionExpired => context.l10n.api_error_401_hint,
-        AuthPromptReason.imageGeneration ||
-        AuthPromptReason.queueExecution => context.l10n.settings_pleaseLoginFirst,
       };
       final openLogin = await showDialog<bool>(
         context: context,
@@ -472,7 +497,14 @@ class _MainShellState extends ConsumerState<MainShell> {
         context.push(AppRoutes.login);
       }
     } finally {
+      ref.read(authPromptRequestProvider.notifier).consume(request.id);
       _authPromptVisible = false;
+      final pending = ref.read(authPromptRequestProvider);
+      if (pending != null && mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _showAuthPrompt(pending);
+        });
+      }
     }
   }
 }

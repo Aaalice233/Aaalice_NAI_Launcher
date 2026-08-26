@@ -3,8 +3,11 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/data/models/image/image_params.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/providers/auth_provider.dart';
+import 'package:nai_launcher/presentation/providers/generation/generation_params_notifier.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/vibe_card.dart';
 import 'package:nai_launcher/presentation/widgets/common/editable_double_field.dart';
 import 'package:nai_launcher/presentation/widgets/common/hover_image_preview.dart';
@@ -170,6 +173,75 @@ void main() {
     expect(find.byType(AlertDialog), findsNothing);
   });
 
+  testWidgets('未登录手动编码不会进入 encoding 状态或调用上传', (tester) async {
+    final container = ProviderContainer(
+      overrides: [
+        authNotifierProvider.overrideWith(_UnauthenticatedAuthNotifier.new),
+        generationParamsNotifierProvider.overrideWith(
+          _TestGenerationParamsNotifier.new,
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    var encodeCalls = 0;
+    final vibe = VibeReference(
+      displayName: 'private-vibe',
+      vibeEncoding: '',
+      rawImageData: Uint8List.fromList(const [1, 2, 3]),
+      thumbnail: Uint8List.fromList(const [1, 2, 3]),
+      strength: 0.6,
+      infoExtracted: 0.7,
+      sourceType: VibeSourceType.rawImage,
+    );
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          home: Scaffold(
+            body: VibeCard(
+              index: 0,
+              vibe: vibe,
+              onRemove: () {},
+              onStrengthChanged: (_) {},
+              onInfoExtractedChanged: (_) {},
+              onEncode:
+                  (
+                    _, {
+                    required informationExtracted,
+                    required vibeName,
+                  }) async {
+                    encodeCalls++;
+                    return 'should-not-run';
+                  },
+              onUpdateEncoding: (_, {required vibeEncoding}) {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byIcon(Icons.pending));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.byType(FilledButton),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(encodeCalls, 0);
+    expect(find.byIcon(Icons.pending), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(
+      container.read(authPromptRequestProvider)?.reason,
+      AuthPromptReason.vibeEncoding,
+    );
+  });
+
   testWidgets('宽版卡片将缩略图与参数区垂直居中', (tester) async {
     final vibe = VibeReference(
       displayName: 'wide-card',
@@ -302,4 +374,14 @@ void main() {
 
     expect(opacity.opacity, lessThan(1.0));
   });
+}
+
+class _UnauthenticatedAuthNotifier extends AuthNotifier {
+  @override
+  AuthState build() => const AuthState(status: AuthStatus.unauthenticated);
+}
+
+class _TestGenerationParamsNotifier extends GenerationParamsNotifier {
+  @override
+  ImageParams build() => const ImageParams(model: 'nai-diffusion-4-full');
 }

@@ -285,6 +285,10 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
       return;
     }
 
+    if (!requireAuthenticatedAction(ref, AuthPromptReason.queueExecution)) {
+      return;
+    }
+
     if (state.currentTaskId == null) {
       _processNextTask();
     } else {
@@ -299,8 +303,7 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
     final queueState = ref.read(replicationQueueNotifierProvider);
     if (queueState.isEmpty) return QueueStartResult.empty;
 
-    if (ref.exists(authNotifierProvider) &&
-        !requireAuthenticatedAction(ref, AuthPromptReason.queueExecution)) {
+    if (!requireAuthenticatedAction(ref, AuthPromptReason.queueExecution)) {
       return QueueStartResult.authRequired;
     }
 

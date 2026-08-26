@@ -617,6 +617,42 @@ abstract class AppLocalizations {
   /// **'Continue without signing in'**
   String get auth_continueWithoutLogin;
 
+  /// No description provided for @auth_loginRequiredImageGeneration.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to generate images with NovelAI.'**
+  String get auth_loginRequiredImageGeneration;
+
+  /// No description provided for @auth_loginRequiredQueueExecution.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to start the NovelAI generation queue.'**
+  String get auth_loginRequiredQueueExecution;
+
+  /// No description provided for @auth_loginRequiredDirectorTools.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to use NovelAI Director Tools.'**
+  String get auth_loginRequiredDirectorTools;
+
+  /// No description provided for @auth_loginRequiredNovelAiUpscale.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to use NovelAI cloud upscale.'**
+  String get auth_loginRequiredNovelAiUpscale;
+
+  /// No description provided for @auth_loginRequiredKritaBridge.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to generate images from Krita Bridge.'**
+  String get auth_loginRequiredKritaBridge;
+
+  /// No description provided for @auth_loginRequiredVibeEncoding.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to encode Vibe images with NovelAI.'**
+  String get auth_loginRequiredVibeEncoding;
+
   /// No description provided for @auth_email.
   ///
   /// In en, this message translates to:

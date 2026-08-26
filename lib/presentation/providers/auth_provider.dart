@@ -21,7 +21,15 @@ part 'auth_provider.g.dart';
 enum AuthStatus { initial, loading, authenticated, unauthenticated, error }
 
 /// 需要认证后才能继续的在线操作。
-enum AuthPromptReason { imageGeneration, queueExecution, sessionExpired }
+enum AuthPromptReason {
+  imageGeneration,
+  queueExecution,
+  directorTools,
+  novelAiUpscale,
+  kritaBridge,
+  vibeEncoding,
+  sessionExpired,
+}
 
 /// 发给主界面的登录提示请求。
 ///
@@ -33,22 +41,59 @@ class AuthPromptRequest {
   final AuthPromptReason reason;
 }
 
-final authPromptRequestProvider = StateProvider<AuthPromptRequest?>((ref) {
-  return null;
-});
+class AuthPromptRequestNotifier extends Notifier<AuthPromptRequest?> {
+  int _nextId = 0;
+
+  @override
+  AuthPromptRequest? build() => null;
+
+  void publish(AuthPromptReason reason) {
+    state = AuthPromptRequest(id: ++_nextId, reason: reason);
+  }
+
+  void consume(int id) {
+    if (state?.id == id) {
+      state = null;
+    }
+  }
+}
+
+final authPromptRequestProvider =
+    NotifierProvider<AuthPromptRequestNotifier, AuthPromptRequest?>(
+      AuthPromptRequestNotifier.new,
+    );
+
+void publishAuthPrompt(Ref ref, AuthPromptReason reason) {
+  ref.read(authPromptRequestProvider.notifier).publish(reason);
+}
+
+bool _requireAuthenticatedAction({
+  required AuthState authState,
+  required AuthPromptReason reason,
+  required void Function(AuthPromptReason reason) publish,
+}) {
+  if (authState.isAuthenticated) return true;
+  publish(reason);
+  return false;
+}
 
 /// 在线操作的统一认证门禁。
 ///
-/// 返回 false 时只发布登录提示，不修改用户正在编辑的生成参数或队列。
+/// 返回 false 时只发布登录提示，不修改用户正在编辑的业务状态。
 bool requireAuthenticatedAction(Ref ref, AuthPromptReason reason) {
-  if (ref.read(authNotifierProvider).isAuthenticated) return true;
-
-  final previous = ref.read(authPromptRequestProvider);
-  ref.read(authPromptRequestProvider.notifier).state = AuthPromptRequest(
-    id: (previous?.id ?? 0) + 1,
+  return _requireAuthenticatedAction(
+    authState: ref.read(authNotifierProvider),
     reason: reason,
+    publish: (reason) => publishAuthPrompt(ref, reason),
   );
-  return false;
+}
+
+bool requireAuthenticatedWidgetAction(WidgetRef ref, AuthPromptReason reason) {
+  return _requireAuthenticatedAction(
+    authState: ref.read(authNotifierProvider),
+    reason: reason,
+    publish: ref.read(authPromptRequestProvider.notifier).publish,
+  );
 }
 
 /// 认证错误码
@@ -1009,11 +1054,7 @@ class AuthNotifier extends _$AuthNotifier {
       if (errorCode == AuthErrorCode.authFailed ||
           errorCode == AuthErrorCode.tokenInvalid ||
           httpStatusCode == 401) {
-        final previous = ref.read(authPromptRequestProvider);
-        ref.read(authPromptRequestProvider.notifier).state = AuthPromptRequest(
-          id: (previous?.id ?? 0) + 1,
-          reason: AuthPromptReason.sessionExpired,
-        );
+        publishAuthPrompt(ref, AuthPromptReason.sessionExpired);
       }
     } else {
       state = const AuthState(status: AuthStatus.unauthenticated);

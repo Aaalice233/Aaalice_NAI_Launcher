@@ -509,15 +509,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
   }
 
   Future<void> _generate(ImageParams params) async {
-    // App 主界面会先初始化认证 provider。独立测试和离线工具没有认证
-    // provider 时保持原有行为，避免为了本地状态操作启动平台存储。
-    if (ref.exists(authNotifierProvider) &&
-        !requireAuthenticatedAction(ref, AuthPromptReason.imageGeneration)) {
-      state = state.copyWith(
-        status: GenerationStatus.error,
-        errorMessage: 'AUTH_REQUIRED',
-        progress: 0,
-      );
+    if (!requireAuthenticatedAction(ref, AuthPromptReason.imageGeneration)) {
       return;
     }
 

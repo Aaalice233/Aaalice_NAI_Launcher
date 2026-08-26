@@ -20,6 +20,7 @@ import '../../../data/models/image/image_params.dart';
 import '../../../data/models/vibe/vibe_library_entry.dart';
 import '../../../data/models/vibe/vibe_reference.dart';
 import '../../../data/services/vibe_library_storage_service.dart';
+import '../auth_provider.dart';
 import '../quality_preset_provider.dart';
 import '../subscription_provider.dart';
 import '../uc_preset_provider.dart';
@@ -622,11 +623,16 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
       informationExtracted: informationExtracted,
     );
 
-    // 检查缓存
-    if (_vibeEncodingCache.containsKey(cacheKey)) {
+    // 缓存命中只复用本地数据，不需要登录。
+    final cachedEncoding = _vibeEncodingCache[cacheKey];
+    if (cachedEncoding != null) {
       AppLogger.i('Vibe 编码缓存命中: ${vibeName ?? 'unknown'}', 'VibeCache');
       _showCacheHitNotification(vibeName ?? 'unknown');
-      return _vibeEncodingCache[cacheKey];
+      return cachedEncoding;
+    }
+
+    if (!requireAuthenticatedAction(ref, AuthPromptReason.vibeEncoding)) {
+      return null;
     }
 
     // 缓存未命中，调用 API
@@ -650,6 +656,19 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
       AppLogger.e('Vibe 编码失败: ${vibeName ?? 'unknown'}', e, stack, 'VibeCache');
       return null;
     }
+  }
+
+  bool hasCachedVibeEncoding(
+    Uint8List imageData, {
+    required String model,
+    double informationExtracted = 1.0,
+  }) {
+    final cacheKey = _buildVibeEncodingCacheKey(
+      imageData,
+      model: model,
+      informationExtracted: informationExtracted,
+    );
+    return _vibeEncodingCache.containsKey(cacheKey);
   }
 
   /// 将编码存入缓存（供外部调用）

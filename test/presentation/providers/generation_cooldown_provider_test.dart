@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/data/models/image/image_params.dart';
+import 'package:nai_launcher/presentation/providers/auth_provider.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/providers/share_image_settings_provider.dart';
 
@@ -94,7 +95,10 @@ void main() {
   test('image generation rejects a second start during cooldown', () async {
     final now = DateTime.utc(2026, 7, 27, 12);
     final container = ProviderContainer(
-      overrides: [generationCooldownClockProvider.overrideWithValue(() => now)],
+      overrides: [
+        authNotifierProvider.overrideWith(_AuthenticatedAuthNotifier.new),
+        generationCooldownClockProvider.overrideWithValue(() => now),
+      ],
     );
     addTearDown(container.dispose);
 
@@ -113,4 +117,9 @@ void main() {
       GenerationStatus.idle,
     );
   });
+}
+
+class _AuthenticatedAuthNotifier extends AuthNotifier {
+  @override
+  AuthState build() => const AuthState(status: AuthStatus.authenticated);
 }

@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/datasources/remote/nai_image_enhancement_api_service.dart';
 import 'package:nai_launcher/data/models/image/image_params.dart';
 import 'package:nai_launcher/data/models/user/user_subscription.dart';
+import 'package:nai_launcher/presentation/providers/auth_provider.dart';
 import 'package:nai_launcher/presentation/providers/generation/novel_ai_upscale_task_provider.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/providers/image_save_settings_provider.dart';
@@ -56,6 +57,32 @@ void main() {
     },
   );
 
+  for (final status in [AuthStatus.unauthenticated, AuthStatus.loading]) {
+    test('blocks NovelAI upscale while auth is $status', () async {
+      final apiService = _BlockingEnhancementApiService();
+      final container = _createContainer(apiService, authStatus: status);
+      addTearDown(container.dispose);
+      const initialState = NovelAiUpscaleTaskState();
+
+      await container
+          .read(novelAiUpscaleTaskProvider.notifier)
+          .execute(
+            params: const ImageParams(width: 640, height: 832),
+            sourceImage: Uint8List.fromList([1, 2, 3]),
+          );
+
+      final state = container.read(novelAiUpscaleTaskProvider);
+      expect(state.status, initialState.status);
+      expect(state.errorMessage, initialState.errorMessage);
+      expect(state.isRunning, isFalse);
+      expect(apiService.requestedScale, isNull);
+      expect(
+        container.read(authPromptRequestProvider)?.reason,
+        AuthPromptReason.novelAiUpscale,
+      );
+    });
+  }
+
   test('retains a failure state after UI listeners are removed', () async {
     final apiService = _BlockingEnhancementApiService();
     final container = _createContainer(apiService);
@@ -88,9 +115,13 @@ void main() {
   });
 }
 
-ProviderContainer _createContainer(_BlockingEnhancementApiService apiService) {
+ProviderContainer _createContainer(
+  _BlockingEnhancementApiService apiService, {
+  AuthStatus authStatus = AuthStatus.authenticated,
+}) {
   return ProviderContainer(
     overrides: [
+      authNotifierProvider.overrideWith(() => _TestAuthNotifier(authStatus)),
       naiImageEnhancementApiServiceProvider.overrideWithValue(apiService),
       imageGenerationNotifierProvider.overrideWith(
         _RecordingImageGenerationNotifier.new,
@@ -101,6 +132,15 @@ ProviderContainer _createContainer(_BlockingEnhancementApiService apiService) {
       subscriptionNotifierProvider.overrideWith(_TestSubscriptionNotifier.new),
     ],
   );
+}
+
+class _TestAuthNotifier extends AuthNotifier {
+  _TestAuthNotifier(this.authStatus);
+
+  final AuthStatus authStatus;
+
+  @override
+  AuthState build() => AuthState(status: authStatus);
 }
 
 class _BlockingEnhancementApiService extends NAIImageEnhancementApiService {
