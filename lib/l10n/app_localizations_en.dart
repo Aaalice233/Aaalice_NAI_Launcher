@@ -833,6 +833,64 @@ class AppLocalizationsEn extends AppLocalizations {
   String get agentChat_toolRunning => 'Running tool';
 
   @override
+  String get agentChat_toolGenerateImage => 'Generate image';
+
+  @override
+  String get agentChat_toolQueueImageTask => 'Queue image task';
+
+  @override
+  String get agentChat_toolInterrogateImage => 'Analyze image prompt';
+
+  @override
+  String get agentChat_toolRecentImages => 'View recent images';
+
+  @override
+  String get agentChat_toolGenerationStatus => 'Check generation status';
+
+  @override
+  String get agentChat_toolGetGenerationSettings => 'View generation settings';
+
+  @override
+  String get agentChat_toolUpdateGenerationSettings =>
+      'Update generation settings';
+
+  @override
+  String get agentChat_toolPromptState => 'View prompt state';
+
+  @override
+  String get agentChat_toolSetPositivePrompt => 'Set positive prompt';
+
+  @override
+  String get agentChat_toolSetNegativePrompt => 'Set negative prompt';
+
+  @override
+  String get agentChat_toolAddCharacter => 'Add character';
+
+  @override
+  String get agentChat_toolUpdateCharacter => 'Update character';
+
+  @override
+  String get agentChat_toolRemoveCharacter => 'Remove character';
+
+  @override
+  String get agentChat_toolReadSkill => 'Read skill';
+
+  @override
+  String get agentChat_toolReadSkillResource => 'Read skill resource';
+
+  @override
+  String get agentChat_toolSkillDiagnostics => 'View skill diagnostics';
+
+  @override
+  String get agentChat_toolReloadSkills => 'Reload skills';
+
+  @override
+  String get agentChat_toolSearchTags => 'Search tags';
+
+  @override
+  String get agentChat_toolReadFile => 'Read file';
+
+  @override
   String get agentChat_needSetup =>
       'No chat model configured. Add a provider with tool-calling support in Settings first.';
 

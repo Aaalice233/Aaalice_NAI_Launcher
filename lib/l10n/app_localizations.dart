@@ -1631,6 +1631,120 @@ abstract class AppLocalizations {
   /// **'Running tool'**
   String get agentChat_toolRunning;
 
+  /// No description provided for @agentChat_toolGenerateImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate image'**
+  String get agentChat_toolGenerateImage;
+
+  /// No description provided for @agentChat_toolQueueImageTask.
+  ///
+  /// In en, this message translates to:
+  /// **'Queue image task'**
+  String get agentChat_toolQueueImageTask;
+
+  /// No description provided for @agentChat_toolInterrogateImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Analyze image prompt'**
+  String get agentChat_toolInterrogateImage;
+
+  /// No description provided for @agentChat_toolRecentImages.
+  ///
+  /// In en, this message translates to:
+  /// **'View recent images'**
+  String get agentChat_toolRecentImages;
+
+  /// No description provided for @agentChat_toolGenerationStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Check generation status'**
+  String get agentChat_toolGenerationStatus;
+
+  /// No description provided for @agentChat_toolGetGenerationSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'View generation settings'**
+  String get agentChat_toolGetGenerationSettings;
+
+  /// No description provided for @agentChat_toolUpdateGenerationSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Update generation settings'**
+  String get agentChat_toolUpdateGenerationSettings;
+
+  /// No description provided for @agentChat_toolPromptState.
+  ///
+  /// In en, this message translates to:
+  /// **'View prompt state'**
+  String get agentChat_toolPromptState;
+
+  /// No description provided for @agentChat_toolSetPositivePrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Set positive prompt'**
+  String get agentChat_toolSetPositivePrompt;
+
+  /// No description provided for @agentChat_toolSetNegativePrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Set negative prompt'**
+  String get agentChat_toolSetNegativePrompt;
+
+  /// No description provided for @agentChat_toolAddCharacter.
+  ///
+  /// In en, this message translates to:
+  /// **'Add character'**
+  String get agentChat_toolAddCharacter;
+
+  /// No description provided for @agentChat_toolUpdateCharacter.
+  ///
+  /// In en, this message translates to:
+  /// **'Update character'**
+  String get agentChat_toolUpdateCharacter;
+
+  /// No description provided for @agentChat_toolRemoveCharacter.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove character'**
+  String get agentChat_toolRemoveCharacter;
+
+  /// No description provided for @agentChat_toolReadSkill.
+  ///
+  /// In en, this message translates to:
+  /// **'Read skill'**
+  String get agentChat_toolReadSkill;
+
+  /// No description provided for @agentChat_toolReadSkillResource.
+  ///
+  /// In en, this message translates to:
+  /// **'Read skill resource'**
+  String get agentChat_toolReadSkillResource;
+
+  /// No description provided for @agentChat_toolSkillDiagnostics.
+  ///
+  /// In en, this message translates to:
+  /// **'View skill diagnostics'**
+  String get agentChat_toolSkillDiagnostics;
+
+  /// No description provided for @agentChat_toolReloadSkills.
+  ///
+  /// In en, this message translates to:
+  /// **'Reload skills'**
+  String get agentChat_toolReloadSkills;
+
+  /// No description provided for @agentChat_toolSearchTags.
+  ///
+  /// In en, this message translates to:
+  /// **'Search tags'**
+  String get agentChat_toolSearchTags;
+
+  /// No description provided for @agentChat_toolReadFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Read file'**
+  String get agentChat_toolReadFile;
+
   /// No description provided for @agentChat_needSetup.
   ///
   /// In en, this message translates to:

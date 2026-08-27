@@ -822,6 +822,63 @@ class AppLocalizationsJa extends AppLocalizations {
   String get agentChat_toolRunning => 'ツール実行中';
 
   @override
+  String get agentChat_toolGenerateImage => '画像を生成';
+
+  @override
+  String get agentChat_toolQueueImageTask => '画像タスクをキューに追加';
+
+  @override
+  String get agentChat_toolInterrogateImage => '画像プロンプトを解析';
+
+  @override
+  String get agentChat_toolRecentImages => '最近の画像を表示';
+
+  @override
+  String get agentChat_toolGenerationStatus => '生成状態を確認';
+
+  @override
+  String get agentChat_toolGetGenerationSettings => '生成設定を表示';
+
+  @override
+  String get agentChat_toolUpdateGenerationSettings => '生成設定を更新';
+
+  @override
+  String get agentChat_toolPromptState => 'プロンプト状態を表示';
+
+  @override
+  String get agentChat_toolSetPositivePrompt => 'ポジティブプロンプトを設定';
+
+  @override
+  String get agentChat_toolSetNegativePrompt => 'ネガティブプロンプトを設定';
+
+  @override
+  String get agentChat_toolAddCharacter => 'キャラクターを追加';
+
+  @override
+  String get agentChat_toolUpdateCharacter => 'キャラクターを更新';
+
+  @override
+  String get agentChat_toolRemoveCharacter => 'キャラクターを削除';
+
+  @override
+  String get agentChat_toolReadSkill => 'スキルを読み込む';
+
+  @override
+  String get agentChat_toolReadSkillResource => 'スキルリソースを読み込む';
+
+  @override
+  String get agentChat_toolSkillDiagnostics => 'スキル診断を表示';
+
+  @override
+  String get agentChat_toolReloadSkills => 'スキルを再読み込み';
+
+  @override
+  String get agentChat_toolSearchTags => 'タグを検索';
+
+  @override
+  String get agentChat_toolReadFile => 'ファイルを読み込む';
+
+  @override
   String get agentChat_needSetup =>
       'チャットモデルが未設定です。先に設定でツール呼び出しに対応したプロバイダーを追加してください。';
 

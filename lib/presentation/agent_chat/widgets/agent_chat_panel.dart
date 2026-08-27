@@ -1315,7 +1315,9 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  l10n.agentChat_approvalTitle(request.toolName),
+                  l10n.agentChat_approvalTitle(
+                    _agentToolLabel(l10n, request.toolName),
+                  ),
                   style: theme.textTheme.titleSmall?.copyWith(
                     color: theme.colorScheme.onTertiaryContainer,
                   ),
@@ -2028,6 +2030,31 @@ class _AgentToolVisual {
   final Color color;
 }
 
+String _agentToolLabel(AppLocalizations l10n, String toolName) {
+  return switch (toolName) {
+    'generate_image' => l10n.agentChat_toolGenerateImage,
+    'queue_image_task' => l10n.agentChat_toolQueueImageTask,
+    'interrogate_image' => l10n.agentChat_toolInterrogateImage,
+    'get_recent_images' => l10n.agentChat_toolRecentImages,
+    'get_generation_status' => l10n.agentChat_toolGenerationStatus,
+    'get_generation_settings' => l10n.agentChat_toolGetGenerationSettings,
+    'update_generation_settings' => l10n.agentChat_toolUpdateGenerationSettings,
+    'get_prompt_state' => l10n.agentChat_toolPromptState,
+    'set_positive_prompt' => l10n.agentChat_toolSetPositivePrompt,
+    'set_negative_prompt' => l10n.agentChat_toolSetNegativePrompt,
+    'add_character' => l10n.agentChat_toolAddCharacter,
+    'update_character' => l10n.agentChat_toolUpdateCharacter,
+    'remove_character' => l10n.agentChat_toolRemoveCharacter,
+    'read_skill' => l10n.agentChat_toolReadSkill,
+    'read_skill_resource' => l10n.agentChat_toolReadSkillResource,
+    'get_skill_diagnostics' => l10n.agentChat_toolSkillDiagnostics,
+    'reload_skills' => l10n.agentChat_toolReloadSkills,
+    'search_tags' => l10n.agentChat_toolSearchTags,
+    'read' => l10n.agentChat_toolReadFile,
+    _ => toolName,
+  };
+}
+
 _AgentToolVisual _agentToolVisual(ThemeData theme, String toolName) {
   final colors = theme.colorScheme;
   Color muted(Color accent) =>
@@ -2149,6 +2176,7 @@ class _ToolActivityTileState extends State<_ToolActivityTile>
     final theme = Theme.of(context);
     final l10n = context.l10n;
     final activity = widget.activity;
+    final toolLabel = _agentToolLabel(l10n, activity.toolName);
     final visual = _agentToolVisual(theme, activity.toolName);
     final statusColor = activity.status == AgentToolActivityStatus.failed
         ? Color.lerp(
@@ -2159,8 +2187,8 @@ class _ToolActivityTileState extends State<_ToolActivityTile>
         : visual.color;
     final statusLabel = switch (activity.status) {
       AgentToolActivityStatus.running => l10n.agentChat_toolRunning,
-      AgentToolActivityStatus.succeeded => activity.toolName,
-      AgentToolActivityStatus.failed => activity.toolName,
+      AgentToolActivityStatus.succeeded => toolLabel,
+      AgentToolActivityStatus.failed => toolLabel,
     };
     final icon = activity.status == AgentToolActivityStatus.failed
         ? Icons.error_outline
@@ -2260,7 +2288,7 @@ class _ToolActivityTileState extends State<_ToolActivityTile>
                     child: Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
-                        _summarize(activity),
+                        _summarize(activity, toolLabel),
                         style: theme.textTheme.labelSmall?.copyWith(
                           color: statusColor.withValues(alpha: 0.9),
                           fontFamily: 'monospace',
@@ -2280,13 +2308,13 @@ class _ToolActivityTileState extends State<_ToolActivityTile>
     );
   }
 
-  String _summarize(AgentToolActivity activity) {
+  String _summarize(AgentToolActivity activity, String toolLabel) {
     if (activity.status == AgentToolActivityStatus.running) {
-      return activity.toolName;
+      return toolLabel;
     }
     final text = activity.content.trim();
     if (text.isEmpty) {
-      return activity.toolName;
+      return toolLabel;
     }
     final normalized = text.replaceAll(RegExp(r'\s+'), ' ');
     return normalized.length <= 60
@@ -2304,6 +2332,7 @@ class _ToolResultTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final toolLabel = _agentToolLabel(context.l10n, result.toolName);
     final visual = _agentToolVisual(theme, result.toolName);
     final color = result.isError
         ? Color.lerp(
@@ -2342,10 +2371,9 @@ class _ToolResultTile extends StatelessWidget {
                   child: Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      result.toolName,
+                      toolLabel,
                       style: theme.textTheme.labelSmall?.copyWith(
                         color: color.withValues(alpha: 0.78),
-                        fontFamily: 'monospace',
                         height: 1,
                       ),
                       overflow: TextOverflow.ellipsis,

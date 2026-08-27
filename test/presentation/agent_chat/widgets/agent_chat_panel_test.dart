@@ -156,6 +156,7 @@ void main() {
         ),
       );
       expect(resultIcon.icon, Icons.description_outlined);
+      expect(find.text('Read file'), findsOneWidget);
 
       notifier.setRunningActivity(
         const AgentToolActivity(
@@ -177,6 +178,7 @@ void main() {
       );
       expect(activityIcon.icon, Icons.auto_awesome);
       expect(activityIcon.color, isNot(resultIcon.color));
+      expect(find.text('Generate image'), findsOneWidget);
 
       final firstDecoration = tester.widget<Container>(activity).decoration;
       expect(firstDecoration, isA<BoxDecoration>());

@@ -807,6 +807,63 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agentChat_toolRunning => '调用工具中';
 
   @override
+  String get agentChat_toolGenerateImage => '生成图片';
+
+  @override
+  String get agentChat_toolQueueImageTask => '添加图片任务';
+
+  @override
+  String get agentChat_toolInterrogateImage => '反推图片提示词';
+
+  @override
+  String get agentChat_toolRecentImages => '查看最近图片';
+
+  @override
+  String get agentChat_toolGenerationStatus => '查看生成状态';
+
+  @override
+  String get agentChat_toolGetGenerationSettings => '查看生成设置';
+
+  @override
+  String get agentChat_toolUpdateGenerationSettings => '更新生成设置';
+
+  @override
+  String get agentChat_toolPromptState => '查看提示词状态';
+
+  @override
+  String get agentChat_toolSetPositivePrompt => '设置正向提示词';
+
+  @override
+  String get agentChat_toolSetNegativePrompt => '设置负向提示词';
+
+  @override
+  String get agentChat_toolAddCharacter => '添加角色';
+
+  @override
+  String get agentChat_toolUpdateCharacter => '更新角色';
+
+  @override
+  String get agentChat_toolRemoveCharacter => '删除角色';
+
+  @override
+  String get agentChat_toolReadSkill => '读取 Skill';
+
+  @override
+  String get agentChat_toolReadSkillResource => '读取 Skill 资源';
+
+  @override
+  String get agentChat_toolSkillDiagnostics => '查看 Skill 诊断';
+
+  @override
+  String get agentChat_toolReloadSkills => '重新加载 Skills';
+
+  @override
+  String get agentChat_toolSearchTags => '搜索标签';
+
+  @override
+  String get agentChat_toolReadFile => '读取文件';
+
+  @override
   String get agentChat_needSetup => '未配置聊天模型。请先在设置中添加支持工具调用的供应商。';
 
   @override
@@ -13319,6 +13376,63 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get agentChat_toolRunning => '呼叫工具中';
+
+  @override
+  String get agentChat_toolGenerateImage => '生成圖片';
+
+  @override
+  String get agentChat_toolQueueImageTask => '新增圖片任務';
+
+  @override
+  String get agentChat_toolInterrogateImage => '反推圖片提示詞';
+
+  @override
+  String get agentChat_toolRecentImages => '檢視最近圖片';
+
+  @override
+  String get agentChat_toolGenerationStatus => '檢視生成狀態';
+
+  @override
+  String get agentChat_toolGetGenerationSettings => '檢視生成設定';
+
+  @override
+  String get agentChat_toolUpdateGenerationSettings => '更新生成設定';
+
+  @override
+  String get agentChat_toolPromptState => '檢視提示詞狀態';
+
+  @override
+  String get agentChat_toolSetPositivePrompt => '設定正向提示詞';
+
+  @override
+  String get agentChat_toolSetNegativePrompt => '設定負向提示詞';
+
+  @override
+  String get agentChat_toolAddCharacter => '新增角色';
+
+  @override
+  String get agentChat_toolUpdateCharacter => '更新角色';
+
+  @override
+  String get agentChat_toolRemoveCharacter => '刪除角色';
+
+  @override
+  String get agentChat_toolReadSkill => '讀取 Skill';
+
+  @override
+  String get agentChat_toolReadSkillResource => '讀取 Skill 資源';
+
+  @override
+  String get agentChat_toolSkillDiagnostics => '檢視 Skill 診斷';
+
+  @override
+  String get agentChat_toolReloadSkills => '重新載入 Skills';
+
+  @override
+  String get agentChat_toolSearchTags => '搜尋標籤';
+
+  @override
+  String get agentChat_toolReadFile => '讀取檔案';
 
   @override
   String get agentChat_needSetup => '未設定聊天模型。請先在設定中新增支援工具呼叫的供應商。';
