@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/utils/localization_extension.dart';
+import '../../../../data/models/prompt/random_prompt_result.dart';
 import '../../../../data/models/prompt/random_preset.dart';
+import '../../../providers/random_mode_provider.dart';
 import '../../../providers/random_preset_provider.dart';
 import '../../../themes/core/input_surface_style.dart';
 import '../../../providers/tag_group_sync_provider.dart';
@@ -16,28 +18,33 @@ class PresetSelectorBar extends ConsumerWidget {
     super.key,
     this.onGeneratePreview,
     this.onImportExport,
+    this.showWorkspaceHeading = false,
   });
 
   final VoidCallback? onGeneratePreview;
   final VoidCallback? onImportExport;
+  final bool showWorkspaceHeading;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(randomPresetNotifierProvider);
     final syncState = ref.watch(tagGroupSyncNotifierProvider);
+    final mode = ref.watch(randomModeNotifierProvider);
     final selected = state.selectedPreset;
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final compact = constraints.maxWidth < 560;
         final showDescription = constraints.maxWidth >= 760;
-        final dropdown = _PresetDropdown(
-          presets: state.presets,
-          selectedPreset: selected,
-          onSelected: (preset) => ref
-              .read(randomPresetNotifierProvider.notifier)
-              .selectPreset(preset.id),
-          onCreateNew: () => _showCreatePresetDialog(context, ref),
+        final dropdown = KeyedSubtree(
+          key: const ValueKey('random-manager-mode-selector'),
+          child: _PresetDropdown(
+            presets: state.presets,
+            selectedPreset: selected,
+            onSelected: (preset) => ref
+                .read(randomPresetNotifierProvider.notifier)
+                .selectPreset(preset.id),
+            onCreateNew: () => _showCreatePresetDialog(context, ref),
+          ),
         );
         final menu = _buildPresetMenu(
           context,
@@ -46,50 +53,61 @@ class PresetSelectorBar extends ConsumerWidget {
           syncState,
           includeSync: !showDescription,
         );
+        final previewButton = FilledButton.icon(
+          key: const ValueKey('random-manager-preview-action'),
+          onPressed: onGeneratePreview,
+          icon: const Icon(Icons.shuffle_rounded),
+          label: Text(context.l10n.randomManager_generatePreview),
+          style: FilledButton.styleFrom(minimumSize: const Size(0, 44)),
+        );
 
-        if (compact) {
-          final previewButton = FilledButton.tonalIcon(
-            onPressed: onGeneratePreview,
-            icon: const Icon(Icons.shuffle_rounded),
-            label: Text(context.l10n.randomManager_generatePreview),
-            style: FilledButton.styleFrom(
-              minimumSize: const Size.fromHeight(48),
-            ),
-          );
-          final importExportButton = OutlinedButton.icon(
-            onPressed: onImportExport,
-            icon: const Icon(Icons.swap_vert_rounded),
-            label: Text(context.l10n.randomManager_importExport),
-            style: OutlinedButton.styleFrom(
-              minimumSize: const Size.fromHeight(48),
-            ),
-          );
-
+        if (showWorkspaceHeading) {
+          final controls = constraints.maxWidth < 360
+              ? Column(
+                  key: const ValueKey('random-manager-controls-row'),
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    dropdown,
+                    const SizedBox(height: 8),
+                    previewButton,
+                  ],
+                )
+              : Row(
+                  key: const ValueKey('random-manager-controls-row'),
+                  children: [
+                    Expanded(child: dropdown),
+                    const SizedBox(width: 8),
+                    previewButton,
+                  ],
+                );
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              dropdown,
+              Row(
+                key: const ValueKey('random-manager-heading-row'),
+                children: [
+                  Text(
+                    context.l10n.randomManager_workspaceTitle,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      '${context.l10n.randomManager_currentMode} · ${mode.getName(context.l10n)}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                  menu,
+                ],
+              ),
               const SizedBox(height: 8),
-              if (constraints.maxWidth < 460) ...[
-                previewButton,
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(child: importExportButton),
-                    const SizedBox(width: 4),
-                    menu,
-                  ],
-                ),
-              ] else
-                Row(
-                  children: [
-                    Expanded(child: previewButton),
-                    const SizedBox(width: 8),
-                    Expanded(child: importExportButton),
-                    const SizedBox(width: 4),
-                    menu,
-                  ],
-                ),
+              controls,
             ],
           );
         }
@@ -130,11 +148,6 @@ class PresetSelectorBar extends ConsumerWidget {
               emphasized: true,
               onPressed: onGeneratePreview,
             ),
-            _ToolbarAction(
-              icon: Icons.swap_vert_rounded,
-              tooltip: context.l10n.randomManager_importExport,
-              onPressed: onImportExport,
-            ),
             if (showDescription)
               _ToolbarAction(
                 icon: Icons.sync_rounded,
@@ -159,9 +172,19 @@ class PresetSelectorBar extends ConsumerWidget {
     required bool includeSync,
   }) {
     return PopupMenuButton<_PresetAction>(
-      tooltip: context.l10n.randomManager_presetActions,
+      key: const ValueKey('random-manager-more-actions'),
+      tooltip: context.l10n.randomManager_moreActions,
       onSelected: (action) => _handleAction(context, ref, action, selected),
       itemBuilder: (context) => [
+        PopupMenuItem(
+          value: _PresetAction.importExport,
+          child: ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.swap_vert_rounded),
+            title: Text(context.l10n.randomManager_importExport),
+          ),
+        ),
         PopupMenuItem(
           value: _PresetAction.create,
           child: ListTile(
@@ -248,6 +271,8 @@ class PresetSelectorBar extends ConsumerWidget {
     RandomPreset? preset,
   ) async {
     switch (action) {
+      case _PresetAction.importExport:
+        onImportExport?.call();
       case _PresetAction.create:
         await _showCreatePresetDialog(context, ref);
       case _PresetAction.sync:
@@ -490,4 +515,4 @@ class _ToolbarAction extends StatelessWidget {
   }
 }
 
-enum _PresetAction { create, sync, reset, delete }
+enum _PresetAction { importExport, create, sync, reset, delete }

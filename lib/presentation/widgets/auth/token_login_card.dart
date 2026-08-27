@@ -112,21 +112,24 @@ class _TokenLoginCardState extends ConsumerState<TokenLoginCard> {
           const SizedBox(height: 16),
 
           // 登录按钮
-          FilledButton.icon(
-            onPressed: authState.isLoading ? null : _handleLogin,
-            icon: authState.isLoading
-                ? const SizedBox(
-                    height: 18,
-                    width: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
-                : const Icon(Icons.login),
-            label: Text(context.l10n.auth_validateAndLogin),
-            style: FilledButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: authState.isLoading ? null : _handleLogin,
+              icon: authState.isLoading
+                  ? const SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.login_rounded),
+              label: Text(context.l10n.auth_validateAndLogin),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(52),
+              ),
             ),
           ),
 

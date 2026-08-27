@@ -25,10 +25,18 @@ import '../providers/agent_chat_session_view.dart';
 /// 布局：顶部会话工具行 → 消息区（空态为居中欢迎屏）→ 底部圆角
 /// 输入容器（内嵌无边框输入框 + 模型标签 + 发送/停止按钮）。
 class AgentChatPanel extends ConsumerStatefulWidget {
-  const AgentChatPanel({super.key, this.onClose, this.mobile = false});
+  const AgentChatPanel({
+    super.key,
+    this.onClose,
+    this.onOpenSettings,
+    this.mobile = false,
+    this.fullScreen = false,
+  });
 
   final VoidCallback? onClose;
+  final VoidCallback? onOpenSettings;
   final bool mobile;
+  final bool fullScreen;
 
   @override
   ConsumerState<AgentChatPanel> createState() => _AgentChatPanelState();
@@ -407,12 +415,13 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
             if (state.compacting) _buildCompactingBar(theme, l10n),
             if (state.approvalRequest != null)
               _buildApprovalBar(theme, l10n, state.approvalRequest!),
-            _buildInputContainer(
-              theme,
-              l10n,
-              state,
-              compactMobile: compactMobile,
-            ),
+            if (state.routeReady)
+              _buildInputContainer(
+                theme,
+                l10n,
+                state,
+                compactMobile: compactMobile,
+              ),
           ],
         );
       },
@@ -545,69 +554,47 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
 
     return Padding(
       key: const ValueKey('agent-chat-mobile-header'),
-      padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+      padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
+      child: Row(
         children: [
-          Row(
-            children: [
-              IconButton(
-                key: const ValueKey('agent-chat-mobile-close'),
-                onPressed:
-                    onClose ??
-                    () => ref
-                        .read(layoutStateNotifierProvider.notifier)
-                        .setRightPanelExpanded(false),
-                icon: const Icon(Icons.chevron_right_rounded),
-                tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
-                constraints: const BoxConstraints.tightFor(
-                  width: 48,
-                  height: 48,
-                ),
-              ),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  l10n.agentChat_tab,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              IconButton(
-                key: const ValueKey('agent-chat-mobile-new-session'),
-                onPressed: sessionActionsEnabled
-                    ? () => ref
-                          .read(agentChatNotifierProvider.notifier)
-                          .newSession()
-                    : null,
-                icon: const Icon(Icons.add_comment_outlined),
-                tooltip: l10n.agentChat_newChat,
-                constraints: const BoxConstraints.tightFor(
-                  width: 48,
-                  height: 48,
-                ),
-              ),
-              if (state.skills.isNotEmpty)
-                SizedBox(
-                  width: 48,
-                  height: 48,
-                  child: Tooltip(
-                    message: state.skills
-                        .map((skill) => skill.name)
-                        .take(6)
-                        .join(', '),
-                    child: const Icon(Icons.extension_outlined, size: 18),
-                  ),
-                ),
-            ],
+          IconButton(
+            key: const ValueKey('agent-chat-mobile-close'),
+            onPressed:
+                onClose ??
+                () => ref
+                    .read(layoutStateNotifierProvider.notifier)
+                    .setRightPanelExpanded(false),
+            icon: Icon(
+              widget.fullScreen
+                  ? Icons.arrow_back_rounded
+                  : Icons.chevron_right_rounded,
+            ),
+            tooltip: widget.fullScreen
+                ? MaterialLocalizations.of(context).backButtonTooltip
+                : MaterialLocalizations.of(context).closeButtonTooltip,
+            constraints: const BoxConstraints.tightFor(width: 48, height: 48),
           ),
-          const SizedBox(height: 2),
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: _buildSessionSelector(theme, l10n, state),
+          const SizedBox(width: 4),
+          Expanded(
+            child: SizedBox(
+              height: 48,
+              child: _buildSessionSelector(
+                theme,
+                l10n,
+                state,
+                mobileHeader: true,
+              ),
+            ),
+          ),
+          IconButton(
+            key: const ValueKey('agent-chat-mobile-new-session'),
+            onPressed: sessionActionsEnabled
+                ? () =>
+                      ref.read(agentChatNotifierProvider.notifier).newSession()
+                : null,
+            icon: const Icon(Icons.add_comment_outlined),
+            tooltip: l10n.agentChat_newChat,
+            constraints: const BoxConstraints.tightFor(width: 48, height: 48),
           ),
         ],
       ),
@@ -719,8 +706,9 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
   Widget _buildSessionSelector(
     ThemeData theme,
     AppLocalizations l10n,
-    AgentChatState state,
-  ) {
+    AgentChatState state, {
+    bool mobileHeader = false,
+  }) {
     final current = state.sessions
         .where((s) => s.id == state.activeSessionId)
         .firstOrNull;
@@ -792,35 +780,72 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
             ? const BoxConstraints(minHeight: 48)
             : const BoxConstraints(),
         padding: EdgeInsets.symmetric(
-          horizontal: widget.mobile ? 12 : 8,
-          vertical: 6,
+          horizontal: mobileHeader ? 4 : (widget.mobile ? 12 : 8),
+          vertical: mobileHeader ? 2 : 6,
         ),
         margin: EdgeInsets.symmetric(horizontal: widget.mobile ? 0 : 4),
         decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest.withValues(
-            alpha: 0.4,
-          ),
+          color: mobileHeader
+              ? Colors.transparent
+              : theme.colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.4,
+                ),
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Row(
-          children: [
-            Flexible(
-              child: Text(
-                label,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
-                ),
-                overflow: TextOverflow.ellipsis,
+        child: mobileHeader
+            ? Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    l10n.settings_promptAssistant,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          label,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 2),
+                      Icon(
+                        Icons.expand_more_rounded,
+                        size: 14,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ],
+                  ),
+                ],
+              )
+            : Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      label,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.8,
+                        ),
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(
+                    Icons.expand_more,
+                    size: 14,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(width: 4),
-            Icon(
-              Icons.expand_more,
-              size: 14,
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -993,27 +1018,63 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
 
   Widget _buildSetupHint(ThemeData theme, {required bool compact}) {
     return Center(
-      child: Padding(
-        padding: EdgeInsets.all(compact ? 8 : 16),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.smart_toy_outlined,
-              size: compact ? 32 : 40,
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.25),
-            ),
-            SizedBox(height: compact ? 6 : 12),
-            Text(
-              context.l10n.agentChat_needSetup,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.55),
+      child: SingleChildScrollView(
+        padding: EdgeInsets.symmetric(
+          horizontal: compact ? 20 : 28,
+          vertical: compact ? 12 : 24,
+        ),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 360),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: compact ? 52 : 64,
+                height: compact ? 52 : 64,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primaryContainer.withValues(
+                    alpha: 0.7,
+                  ),
+                  borderRadius: BorderRadius.circular(compact ? 16 : 20),
+                ),
+                child: Icon(
+                  Icons.smart_toy_outlined,
+                  size: compact ? 26 : 32,
+                  color: theme.colorScheme.onPrimaryContainer,
+                ),
               ),
-              textAlign: TextAlign.center,
-              maxLines: compact ? 3 : null,
-              overflow: compact ? TextOverflow.ellipsis : TextOverflow.visible,
-            ),
-          ],
+              SizedBox(height: compact ? 12 : 18),
+              Text(
+                context.l10n.settings_promptAssistant,
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                context.l10n.agentChat_needSetup,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  height: 1.45,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              if (widget.onOpenSettings != null) ...[
+                SizedBox(height: compact ? 14 : 22),
+                FilledButton.icon(
+                  key: const ValueKey('agent-chat-open-settings'),
+                  onPressed: widget.onOpenSettings,
+                  icon: const Icon(Icons.tune_rounded, size: 18),
+                  label: Text(context.l10n.promptAssistant_assistantSettings),
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size(0, 48),
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );
@@ -1028,7 +1089,10 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
     // 布局，避免 ListView.builder 在滚动时重新估算总高度导致滑块忽长忽短。
     return SingleChildScrollView(
       controller: _scrollController,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: EdgeInsets.symmetric(
+        horizontal: widget.mobile ? 16 : 10,
+        vertical: widget.mobile ? 12 : 8,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -1238,10 +1302,14 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
               if (hasText)
                 Text(
                   message.text,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onPrimaryContainer,
-                    height: 1.4,
-                  ),
+                  style:
+                      (widget.mobile
+                              ? theme.textTheme.bodyMedium
+                              : theme.textTheme.bodySmall)
+                          ?.copyWith(
+                            color: theme.colorScheme.onPrimaryContainer,
+                            height: 1.45,
+                          ),
                 ),
             ],
           ),
@@ -1262,12 +1330,20 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
           imageBuilder: (uri, _, alt) =>
               _buildMarkdownMessageImage(theme, uri, alt),
           styleSheet: md.MarkdownStyleSheet.fromTheme(theme).copyWith(
-            p: theme.textTheme.bodySmall?.copyWith(height: 1.5),
-            code: theme.textTheme.bodySmall?.copyWith(
-              fontFamily: 'monospace',
-              backgroundColor: theme.colorScheme.surfaceContainerHighest
-                  .withValues(alpha: 0.6),
-            ),
+            p:
+                (widget.mobile
+                        ? theme.textTheme.bodyMedium
+                        : theme.textTheme.bodySmall)
+                    ?.copyWith(height: 1.55),
+            code:
+                (widget.mobile
+                        ? theme.textTheme.bodyMedium
+                        : theme.textTheme.bodySmall)
+                    ?.copyWith(
+                      fontFamily: 'monospace',
+                      backgroundColor: theme.colorScheme.surfaceContainerHighest
+                          .withValues(alpha: 0.6),
+                    ),
             codeblockDecoration: BoxDecoration(
               color: theme.colorScheme.surfaceContainerHighest.withValues(
                 alpha: 0.6,
@@ -1314,7 +1390,11 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
             child: Text(
               state.streamingText,
-              style: theme.textTheme.bodySmall?.copyWith(height: 1.5),
+              style:
+                  (widget.mobile
+                          ? theme.textTheme.bodyMedium
+                          : theme.textTheme.bodySmall)
+                      ?.copyWith(height: 1.55),
             ),
           ),
         if (running && !hasStreaming && !hasActivities)
@@ -1496,15 +1576,18 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
         state.routeReady && state.initialized && !state.sessionTransitioning;
     return Padding(
       key: const ValueKey('agent-chat-input-container'),
-      padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
+      padding: EdgeInsets.fromLTRB(
+        widget.mobile ? 12 : 8,
+        6,
+        widget.mobile ? 12 : 8,
+        widget.mobile ? 10 : 8,
+      ),
       child: Container(
         decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: theme.colorScheme.outline.withValues(alpha: 0.3),
-            width: 1.5,
-          ),
+          color: widget.mobile
+              ? theme.colorScheme.surfaceContainerHigh
+              : theme.colorScheme.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(widget.mobile ? 16 : 12),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -1541,27 +1624,34 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
                 enabled: state.initialized,
                 minLines: compactMobile ? 1 : (widget.mobile ? 2 : 3),
                 maxLines: compactMobile ? 3 : (widget.mobile ? 5 : 8),
-                style: theme.textTheme.bodySmall?.copyWith(height: 1.45),
+                style:
+                    (widget.mobile
+                            ? theme.textTheme.bodyMedium
+                            : theme.textTheme.bodySmall)
+                        ?.copyWith(height: 1.45),
                 textInputAction: TextInputAction.newline,
                 decoration: InputDecoration(
                   isDense: true,
                   hintText: l10n.agentChat_inputHint,
-                  hintStyle: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.35),
+                  hintStyle:
+                      (widget.mobile
+                              ? theme.textTheme.bodyMedium
+                              : theme.textTheme.bodySmall)
+                          ?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant
+                                .withValues(alpha: 0.75),
+                          ),
+                  contentPadding: EdgeInsets.fromLTRB(
+                    widget.mobile ? 14 : 12,
+                    widget.mobile ? 12 : 10,
+                    widget.mobile ? 14 : 12,
+                    6,
                   ),
-                  contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
                   border: InputBorder.none,
                 ),
               ),
             ),
-            if (widget.mobile) ...[
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: SizedBox(
-                  height: 48,
-                  child: _buildModelSelector(theme, l10n, state),
-                ),
-              ),
+            if (widget.mobile)
               Padding(
                 padding: const EdgeInsets.fromLTRB(4, 0, 4, 4),
                 child: Row(
@@ -1569,18 +1659,14 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
                     _buildAttachButton(theme, l10n, state),
                     _buildPlusMenu(theme, l10n, state),
                     _buildPermissionModeButton(theme, l10n, controlsLocked),
-                    if (state.queuedCount > 0)
-                      Expanded(
-                        child: Text(
-                          l10n.agentChat_queued,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: theme.colorScheme.tertiary,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      )
-                    else
-                      const Spacer(),
+                    const SizedBox(width: 2),
+                    Expanded(
+                      child: SizedBox(
+                        height: 48,
+                        child: _buildModelSelector(theme, l10n, state),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
                     _SendButton(
                       running: running,
                       enabled: canSend,
@@ -1591,8 +1677,8 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
                     ),
                   ],
                 ),
-              ),
-            ] else
+              )
+            else
               // 控制行：附件、「+」操作菜单与权限模式居左；模型选择 + 发送居右
               Padding(
                 padding: const EdgeInsets.fromLTRB(4, 0, 8, 6),
@@ -1781,10 +1867,14 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
               color: theme.colorScheme.error.withValues(alpha: 0.8),
             ),
             const SizedBox(width: 4),
-            Text(
-              l10n.agentChat_noModel,
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
+            Flexible(
+              child: Text(
+                l10n.agentChat_noModel,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.55),
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],
@@ -2077,11 +2167,22 @@ class _SendButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final l10n = context.l10n;
-    final color = running
+    final foregroundColor = touchOptimized
+        ? running
+              ? theme.colorScheme.onErrorContainer
+              : enabled
+              ? theme.colorScheme.onPrimary
+              : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.45)
+        : running
         ? theme.colorScheme.error
         : enabled
         ? theme.colorScheme.primary
         : theme.colorScheme.onSurface.withValues(alpha: 0.3);
+    final backgroundColor = running
+        ? theme.colorScheme.errorContainer
+        : enabled
+        ? theme.colorScheme.primary
+        : theme.colorScheme.surfaceContainerHighest;
     return Tooltip(
       message: running ? l10n.agentChat_stop : l10n.agentChat_send,
       waitDuration: const Duration(milliseconds: 500),
@@ -2089,13 +2190,23 @@ class _SendButton extends StatelessWidget {
         key: const ValueKey('agent-chat-send'),
         width: touchOptimized ? 48 : 30,
         height: touchOptimized ? 48 : 30,
-        child: InkWell(
-          onTap: running ? onStop : (enabled ? onSend : null),
-          borderRadius: BorderRadius.circular(8),
-          child: Icon(
-            running ? Icons.stop_rounded : Icons.arrow_upward_rounded,
-            size: touchOptimized ? 20 : 18,
-            color: color,
+        child: Center(
+          child: Material(
+            color: touchOptimized ? backgroundColor : Colors.transparent,
+            borderRadius: BorderRadius.circular(touchOptimized ? 14 : 8),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: running ? onStop : (enabled ? onSend : null),
+              child: SizedBox(
+                width: touchOptimized ? 40 : 30,
+                height: touchOptimized ? 40 : 30,
+                child: Icon(
+                  running ? Icons.stop_rounded : Icons.arrow_upward_rounded,
+                  size: touchOptimized ? 20 : 18,
+                  color: foregroundColor,
+                ),
+              ),
+            ),
           ),
         ),
       ),
@@ -2291,7 +2402,9 @@ class _ToolResultTile extends StatelessWidget {
                 child: Text(
                   result.toolName,
                   style: theme.textTheme.labelSmall?.copyWith(
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
+                    color: result.isError
+                        ? theme.colorScheme.error
+                        : theme.colorScheme.onSurfaceVariant,
                     fontFamily: 'monospace',
                   ),
                   overflow: TextOverflow.ellipsis,

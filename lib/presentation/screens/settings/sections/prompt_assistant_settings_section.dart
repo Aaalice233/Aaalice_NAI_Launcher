@@ -258,113 +258,136 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
             context.l10n.promptAssistant_providerManagementSubtitle,
           ),
           trailing: IconButton(
+            key: const ValueKey('prompt-assistant-add-provider'),
             icon: const Icon(Icons.add),
             onPressed: () => _showProviderDialog(context, notifier, state),
           ),
         ),
         ...state.providers.map((provider) {
           final hasApiKey = state.providerHasApiKey[provider.id] ?? false;
-          return Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
+
+          Widget buildDetails() {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Switch(
+                Text(
+                  provider.name,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${provider.protocol.label}  ${provider.baseUrl}',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  [
+                    hasApiKey
+                        ? context.l10n.promptAssistant_apiKeyConfigured
+                        : context.l10n.promptAssistant_apiKeyNotConfigured,
+                    provider.allowImageInput
+                        ? context.l10n.promptAssistant_supportsImageInput
+                        : context.l10n.promptAssistant_textOnly,
+                  ].join(' · '),
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            );
+          }
+
+          Widget buildActions() {
+            return Wrap(
+              spacing: 4,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              alignment: WrapAlignment.end,
+              children: [
+                TextButton.icon(
+                  onPressed: () => _showConnectionDialog(
+                    context,
+                    notifier,
+                    provider: provider,
+                  ),
+                  icon: const Icon(Icons.link, size: 16),
+                  label: Text(context.l10n.promptAssistant_connectionConfig),
+                ),
+                Icon(hasApiKey ? Icons.key : Icons.key_off, size: 18),
+                IconButton(
+                  icon: const Icon(Icons.download_for_offline_outlined),
+                  tooltip: context.l10n.promptAssistant_pullModelList,
+                  onPressed: () =>
+                      _pullProviderModels(context, ref, notifier, provider.id),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.edit),
+                  tooltip: context.l10n.promptAssistant_editProvider,
+                  onPressed: () => _showProviderDialog(
+                    context,
+                    notifier,
+                    state,
+                    provider: provider,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete_outline),
+                  tooltip: context.l10n.promptAssistant_deleteProvider,
+                  onPressed: () => notifier.deleteProvider(provider.id),
+                ),
+              ],
+            );
+          }
+
+          return Container(
+            key: ValueKey('prompt-assistant-provider-${provider.id}'),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final useStackedLayout = constraints.maxWidth < 720;
+                final toggle = Switch(
                   value: provider.enabled,
                   onChanged: (value) {
                     notifier.upsertProvider(provider.copyWith(enabled: value));
                   },
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
+                );
+
+                if (useStackedLayout) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text(
-                        provider.name,
-                        style: Theme.of(context).textTheme.titleMedium,
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          toggle,
+                          const SizedBox(width: 8),
+                          Expanded(child: buildDetails()),
+                        ],
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '${provider.protocol.label}  ${provider.baseUrl}',
-                        style: Theme.of(context).textTheme.bodyMedium,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        [
-                          hasApiKey
-                              ? context.l10n.promptAssistant_apiKeyConfigured
-                              : context
-                                    .l10n
-                                    .promptAssistant_apiKeyNotConfigured,
-                          provider.allowImageInput
-                              ? context.l10n.promptAssistant_supportsImageInput
-                              : context.l10n.promptAssistant_textOnly,
-                        ].join(' · '),
-                        style: Theme.of(context).textTheme.bodySmall,
+                      const SizedBox(height: 4),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: buildActions(),
                       ),
                     ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                ConstrainedBox(
-                  constraints: const BoxConstraints(
-                    minWidth: 240,
-                    maxWidth: 360,
-                  ),
-                  child: Align(
-                    alignment: Alignment.centerRight,
-                    child: Wrap(
-                      spacing: 4,
-                      runSpacing: 4,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      alignment: WrapAlignment.end,
-                      children: [
-                        TextButton.icon(
-                          onPressed: () => _showConnectionDialog(
-                            context,
-                            notifier,
-                            provider: provider,
-                          ),
-                          icon: const Icon(Icons.link, size: 16),
-                          label: Text(
-                            context.l10n.promptAssistant_connectionConfig,
-                          ),
-                        ),
-                        Icon(hasApiKey ? Icons.key : Icons.key_off, size: 18),
-                        IconButton(
-                          icon: const Icon(Icons.download_for_offline_outlined),
-                          tooltip: context.l10n.promptAssistant_pullModelList,
-                          onPressed: () => _pullProviderModels(
-                            context,
-                            ref,
-                            notifier,
-                            provider.id,
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.edit),
-                          tooltip: context.l10n.promptAssistant_editProvider,
-                          onPressed: () => _showProviderDialog(
-                            context,
-                            notifier,
-                            state,
-                            provider: provider,
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.delete_outline),
-                          tooltip: context.l10n.promptAssistant_deleteProvider,
-                          onPressed: () => notifier.deleteProvider(provider.id),
-                        ),
-                      ],
+                  );
+                }
+
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    toggle,
+                    const SizedBox(width: 8),
+                    Expanded(child: buildDetails()),
+                    const SizedBox(width: 8),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 360),
+                      child: buildActions(),
                     ),
-                  ),
-                ),
-              ],
+                  ],
+                );
+              },
             ),
           );
         }),
@@ -500,64 +523,88 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
         return StatefulBuilder(
           builder: (context, setState) {
             return AlertDialog(
+              key: const ValueKey('prompt-assistant-provider-dialog'),
+              insetPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 24,
+              ),
+              titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+              contentPadding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+              actionsPadding: const EdgeInsets.fromLTRB(12, 12, 20, 16),
               title: Text(
                 provider == null
                     ? context.l10n.promptAssistant_addProvider
                     : context.l10n.promptAssistant_editProviderTitle,
               ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      controller: nameController,
-                      decoration: InputDecoration(
-                        labelText: context.l10n.promptAssistant_name,
+              content: SizedBox(
+                width: 440,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextField(
+                        controller: nameController,
+                        decoration: InputDecoration(
+                          labelText: context.l10n.promptAssistant_name,
+                        ),
                       ),
-                    ),
-                    DropdownButtonFormField<ProviderPreset>(
-                      initialValue: preset,
-                      items: ProviderPreset.values
-                          .map(
-                            (e) => DropdownMenuItem(
-                              value: e,
-                              child: Text(e.label),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (value) {
-                        if (value != null) {
-                          setState(() => applyProtocol(value));
-                        }
-                      },
-                      decoration: InputDecoration(
-                        labelText: context.l10n.promptAssistant_protocol,
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<ProviderPreset>(
+                        initialValue: preset,
+                        isExpanded: true,
+                        items: ProviderPreset.values
+                            .map(
+                              (e) => DropdownMenuItem(
+                                value: e,
+                                child: Text(
+                                  e.label,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (value) {
+                          if (value != null) {
+                            setState(() => applyProtocol(value));
+                          }
+                        },
+                        decoration: InputDecoration(
+                          labelText: context.l10n.promptAssistant_protocol,
+                        ),
                       ),
-                    ),
-                    TextField(
-                      controller: baseController,
-                      decoration: const InputDecoration(labelText: 'Base URL'),
-                    ),
-                    SwitchListTile(
-                      value: allowImageInput,
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(context.l10n.promptAssistant_allowImageInput),
-                      subtitle: Text(
-                        context.l10n.promptAssistant_allowImageInputSubtitle,
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: baseController,
+                        decoration: const InputDecoration(
+                          labelText: 'Base URL',
+                        ),
                       ),
-                      onChanged: (value) {
-                        setState(() => allowImageInput = value);
-                      },
-                    ),
-                    TextField(
-                      controller: keyController,
-                      decoration: InputDecoration(
-                        labelText:
-                            context.l10n.promptAssistant_apiKeyLeaveEmpty,
+                      const SizedBox(height: 8),
+                      SwitchListTile(
+                        value: allowImageInput,
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(
+                          context.l10n.promptAssistant_allowImageInput,
+                        ),
+                        subtitle: Text(
+                          context.l10n.promptAssistant_allowImageInputSubtitle,
+                        ),
+                        onChanged: (value) {
+                          setState(() => allowImageInput = value);
+                        },
                       ),
-                      obscureText: true,
-                    ),
-                  ],
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: keyController,
+                        decoration: InputDecoration(
+                          labelText:
+                              context.l10n.promptAssistant_apiKeyLeaveEmpty,
+                        ),
+                        obscureText: true,
+                      ),
+                    ],
+                  ),
                 ),
               ),
               actions: [

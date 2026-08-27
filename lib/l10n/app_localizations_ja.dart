@@ -753,6 +753,11 @@ class AppLocalizationsJa extends AppLocalizations {
   String get generation_title => '生成';
 
   @override
+  String generation_promptOverviewCharacters(Object count) {
+    return '$count 文字';
+  }
+
+  @override
   String get generation_generate => '生成';
 
   @override

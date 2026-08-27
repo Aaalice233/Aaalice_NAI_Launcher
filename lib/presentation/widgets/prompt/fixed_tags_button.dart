@@ -77,32 +77,25 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
               duration: MediaQuery.disableAnimationsOf(context)
                   ? Duration.zero
                   : const Duration(milliseconds: 150),
-              constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+              constraints: const BoxConstraints(minHeight: 44),
               alignment: Alignment.center,
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
                 color: hasEnabled
-                    ? (_isHovering
-                          ? theme.colorScheme.secondary.withValues(alpha: 0.2)
-                          : theme.colorScheme.secondary.withValues(alpha: 0.1))
+                    ? theme.colorScheme.secondary.withValues(
+                        alpha: _isHovering ? 0.18 : 0.12,
+                      )
                     : (_isHovering
-                          ? theme.colorScheme.surfaceContainerHighest
-                          : Colors.transparent),
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(
-                  color: hasEnabled
-                      ? theme.colorScheme.secondary.withValues(alpha: 0.5)
-                      : theme.colorScheme.outlineVariant.withValues(
-                          alpha: 0.65,
-                        ),
-                ),
+                          ? theme.colorScheme.surfaceContainerHigh
+                          : theme.colorScheme.surfaceContainerLow),
+                borderRadius: BorderRadius.circular(10),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
                     hasEnabled ? Icons.push_pin : Icons.push_pin_outlined,
-                    size: 14,
+                    size: 16,
                     color: hasEnabled
                         ? theme.colorScheme.secondary
                         : theme.colorScheme.onSurface.withValues(alpha: 0.5),
@@ -111,7 +104,7 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
                   Text(
                     context.l10n.fixedTags_label,
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: 12,
                       fontWeight: hasEnabled
                           ? FontWeight.w600
                           : FontWeight.w500,

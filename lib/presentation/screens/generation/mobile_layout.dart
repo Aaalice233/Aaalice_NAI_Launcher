@@ -4,14 +4,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/constants/api_constants.dart';
 import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../agent_chat/widgets/agent_chat_panel.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/character_prompt_provider.dart';
+import '../../providers/fixed_tags_provider.dart';
 import '../../providers/generation/image_workflow_controller.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/krita/krita_bridge_notifier.dart';
+import '../../providers/mobile_shell_overlay_provider.dart';
 import '../../providers/prompt_maximize_provider.dart';
+import '../../providers/quality_preset_provider.dart';
+import '../../providers/uc_preset_provider.dart';
 import '../../utils/asset_protection_guard.dart';
 import '../../widgets/anlas/anlas_balance_chip.dart';
 import '../../widgets/anlas/opus_usage_chip.dart';
@@ -25,8 +31,6 @@ import 'widgets/parameter_panel.dart';
 
 import '../../widgets/common/app_toast.dart';
 
-enum _MobileAuxiliaryView { agent, history }
-
 /// 移动端单栏布局
 class MobileGenerationLayout extends ConsumerStatefulWidget {
   const MobileGenerationLayout({super.key});
@@ -38,19 +42,30 @@ class MobileGenerationLayout extends ConsumerStatefulWidget {
 
 class _MobileGenerationLayoutState extends ConsumerState<MobileGenerationLayout>
     with WidgetsBindingObserver {
+  static const double _verticalShortcutVelocity = 700;
+
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  _MobileAuxiliaryView _auxiliaryView = _MobileAuxiliaryView.history;
+  bool _agentFullScreen = false;
+  bool _agentHasOpened = false;
+  double _workspaceVerticalDragDistance = 0;
+  late final MobileShellOverlayNotifier _shellOverlayNotifier;
 
   @override
   void initState() {
     super.initState();
+    _shellOverlayNotifier = ref.read(
+      mobileShellOverlayNotifierProvider.notifier,
+    );
     WidgetsBinding.instance.addObserver(this);
     // Phone generation always opens in the image-first collapsed state. The
     // previous desktop-style persisted maximize flag must not summon the
     // keyboard or hide the preview during a later mobile launch.
-    unawaited(
-      ref.read(promptMaximizeNotifierProvider.notifier).setMaximized(false),
-    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(
+        ref.read(promptMaximizeNotifierProvider.notifier).setMaximized(false),
+      );
+    });
   }
 
   @override
@@ -63,32 +78,88 @@ class _MobileGenerationLayoutState extends ConsumerState<MobileGenerationLayout>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _shellOverlayNotifier.clearGenerationOverlays();
     super.dispose();
+  }
+
+  void _setShellOverlay(MobileShellOverlay overlay, bool active) {
+    _shellOverlayNotifier.setActive(overlay, active);
+  }
+
+  void _openPromptEditor() {
+    FocusManager.instance.primaryFocus?.unfocus();
+    _setShellOverlay(MobileShellOverlay.promptEditor, true);
+    unawaited(
+      ref.read(promptMaximizeNotifierProvider.notifier).setMaximized(true),
+    );
   }
 
   void _closePromptEditor() {
     FocusManager.instance.primaryFocus?.unfocus();
+    _setShellOverlay(MobileShellOverlay.promptEditor, false);
     unawaited(
       ref.read(promptMaximizeNotifierProvider.notifier).setMaximized(false),
     );
   }
 
-  void _openAuxiliaryDrawer(_MobileAuxiliaryView view) {
-    if (_auxiliaryView == view) {
-      _scaffoldKey.currentState?.openEndDrawer();
-      return;
-    }
-    setState(() => _auxiliaryView = view);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        _scaffoldKey.currentState?.openEndDrawer();
-      }
+  void _openAgentChat() {
+    FocusManager.instance.primaryFocus?.unfocus();
+    _setShellOverlay(MobileShellOverlay.agentChat, true);
+    setState(() {
+      _agentHasOpened = true;
+      _agentFullScreen = true;
     });
   }
 
-  void _closeAuxiliaryDrawer() {
+  void _closeAgentChat() {
     FocusManager.instance.primaryFocus?.unfocus();
-    _scaffoldKey.currentState?.closeEndDrawer();
+    _setShellOverlay(MobileShellOverlay.agentChat, false);
+    setState(() => _agentFullScreen = false);
+  }
+
+  void _openAgentSettings() {
+    _closeAgentChat();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.goNamed(
+        'settings',
+        queryParameters: const {'section': 'integrations'},
+      );
+    });
+  }
+
+  void _openParameterDrawer() {
+    FocusManager.instance.primaryFocus?.unfocus();
+    _scaffoldKey.currentState?.openDrawer();
+  }
+
+  void _openHistoryDrawer() {
+    FocusManager.instance.primaryFocus?.unfocus();
+    _scaffoldKey.currentState?.openEndDrawer();
+  }
+
+  void _handleWorkspaceVerticalDragStart(DragStartDetails _) {
+    _workspaceVerticalDragDistance = 0;
+  }
+
+  void _handleWorkspaceVerticalDragUpdate(DragUpdateDetails details) {
+    _workspaceVerticalDragDistance += details.primaryDelta ?? 0;
+  }
+
+  void _handleWorkspaceVerticalDragEnd(DragEndDetails details) {
+    final distance = _workspaceVerticalDragDistance;
+    _workspaceVerticalDragDistance = 0;
+    final velocity = details.primaryVelocity ?? 0;
+    final direction = distance.abs() >= 72 ? distance : velocity;
+    if (direction <= -_verticalShortcutVelocity || distance <= -72) {
+      _openAgentChat();
+    } else if (direction >= _verticalShortcutVelocity || distance >= 72) {
+      _openPromptEditor();
+    }
+  }
+
+  void _handleWorkspaceVerticalDragCancel() {
+    _workspaceVerticalDragDistance = 0;
   }
 
   @override
@@ -120,152 +191,251 @@ class _MobileGenerationLayoutState extends ConsumerState<MobileGenerationLayout>
     final promptSummary = ref.watch(
       generationParamsNotifierProvider.select((params) => params.prompt.trim()),
     );
+    final enabledCharacterCount = ref.watch(
+      characterPromptNotifierProvider.select(
+        (config) =>
+            config.characters.where((character) => character.enabled).length,
+      ),
+    );
+    final qualityEnabled = ref.watch(
+      qualityPresetNotifierProvider.select((state) => state.isEnabled),
+    );
+    final ucPresetState = ref.watch(ucPresetNotifierProvider);
+    final fixedTagCount = ref.watch(
+      fixedTagsNotifierProvider.select(
+        (state) => state.enabledCount + state.negativeEnabledCount,
+      ),
+    );
+    final negativePresetLabel = ucPresetState.isCustom
+        ? context.l10n.ucPreset_label
+        : switch (ucPresetState.presetType) {
+            UcPresetType.heavy => context.l10n.ucPreset_heavy,
+            UcPresetType.light => context.l10n.ucPreset_light,
+            UcPresetType.furryFocus => context.l10n.ucPreset_furryFocus,
+            UcPresetType.humanFocus => context.l10n.ucPreset_humanFocus,
+            UcPresetType.none => null,
+          };
 
     return PopScope<void>(
-      canPop: !isPromptMaximized,
+      canPop: !isPromptMaximized && !_agentFullScreen,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop && isPromptMaximized) {
+        if (didPop) return;
+        if (_agentFullScreen) {
+          _closeAgentChat();
+        } else if (isPromptMaximized) {
           _closePromptEditor();
         }
       },
       child: ThemedScaffold(
         scaffoldKey: _scaffoldKey,
-        drawer: isPromptMaximized ? null : _buildParameterDrawer(context),
-        endDrawer: isPromptMaximized ? null : _buildAuxiliaryDrawer(context),
-        appBar: AppBar(
-          automaticallyImplyLeading: false,
-          leading: isPromptMaximized
-              ? IconButton(
-                  key: const ValueKey('generation-prompt-editor-close'),
-                  icon: const Icon(Icons.arrow_back_rounded),
-                  tooltip: context.l10n.toolbar_fullscreenEdit,
-                  onPressed: _closePromptEditor,
-                )
-              : null,
-          title: Text(
-            isPromptMaximized
-                ? context.l10n.toolbar_fullscreenEdit
-                : context.l10n.generation_title,
-          ),
-          actions: isPromptMaximized
-              ? null
-              : [
-                  IconButton(
-                    key: const ValueKey('generation-parameters-drawer-action'),
-                    icon: const Icon(Icons.tune_rounded),
-                    onPressed: () => _scaffoldKey.currentState?.openDrawer(),
-                    tooltip: context.l10n.generation_paramsSettings,
-                  ),
-                  IconButton(
-                    key: const ValueKey('generation-agent-drawer-action'),
-                    icon: const Icon(Icons.smart_toy_outlined),
-                    onPressed: () =>
-                        _openAuxiliaryDrawer(_MobileAuxiliaryView.agent),
-                    tooltip: context.l10n.agentChat_tab,
-                  ),
-                  IconButton(
-                    key: const ValueKey('generation-history-drawer-action'),
-                    icon: const Icon(Icons.history_rounded),
-                    onPressed: () =>
-                        _openAuxiliaryDrawer(_MobileAuxiliaryView.history),
-                    tooltip: context.l10n.generation_history,
-                  ),
-                ],
-        ),
-        body: Stack(
+        drawer: isPromptMaximized || _agentFullScreen
+            ? null
+            : _buildParameterDrawer(context),
+        endDrawer: isPromptMaximized || _agentFullScreen
+            ? null
+            : _buildHistoryDrawer(context),
+        appBar: _agentFullScreen
+            ? null
+            : AppBar(
+                automaticallyImplyLeading: false,
+                leading: isPromptMaximized
+                    ? IconButton(
+                        key: const ValueKey('generation-prompt-editor-close'),
+                        icon: const Icon(Icons.arrow_back_rounded),
+                        tooltip: context.l10n.toolbar_fullscreenEdit,
+                        onPressed: _closePromptEditor,
+                      )
+                    : null,
+                title: Text(
+                  isPromptMaximized
+                      ? context.l10n.promptToken_prompt
+                      : context.l10n.generation_title,
+                ),
+                actions: isPromptMaximized
+                    ? null
+                    : [
+                        IconButton(
+                          key: const ValueKey(
+                            'generation-parameters-drawer-action',
+                          ),
+                          icon: const Icon(Icons.tune_rounded),
+                          onPressed: _openParameterDrawer,
+                          tooltip: context.l10n.generation_paramsSettings,
+                        ),
+                        IconButton(
+                          key: const ValueKey('generation-agent-drawer-action'),
+                          icon: const Icon(Icons.smart_toy_outlined),
+                          onPressed: _openAgentChat,
+                          tooltip: context.l10n.agentChat_tab,
+                        ),
+                        IconButton(
+                          key: const ValueKey(
+                            'generation-history-drawer-action',
+                          ),
+                          icon: const Icon(Icons.history_rounded),
+                          onPressed: _openHistoryDrawer,
+                          tooltip: context.l10n.generation_history,
+                        ),
+                      ],
+              ),
+        body: IndexedStack(
+          key: const ValueKey('generation-mobile-primary-workspaces'),
+          index: _agentFullScreen ? 1 : 0,
           children: [
-            AnimatedSwitcher(
-              duration: MediaQuery.disableAnimationsOf(context)
-                  ? Duration.zero
-                  : const Duration(milliseconds: 180),
-              switchInCurve: Curves.easeOutCubic,
-              switchOutCurve: Curves.easeInCubic,
-              child: isPromptMaximized
-                  ? const Padding(
-                      key: ValueKey('maximized-prompt'),
-                      padding: EdgeInsets.all(12),
-                      child: PromptInputWidget(
-                        isMaximized: true,
-                        showMaximizeButton: false,
-                        autofocus: true,
-                      ),
-                    )
-                  : LayoutBuilder(
-                      key: const ValueKey('generation-workspace'),
-                      builder: (context, constraints) {
-                        final useHorizontalLayout =
-                            constraints.maxWidth >= 640 &&
-                            constraints.maxWidth > constraints.maxHeight * 1.15;
-                        if (useHorizontalLayout) {
-                          return Row(
-                            children: [
-                              const Expanded(
-                                flex: 6,
-                                child: ImagePreviewWidget(),
-                              ),
-                              VerticalDivider(
-                                width: 1,
-                                color: theme.dividerColor,
-                              ),
-                              Expanded(
-                                flex: 5,
-                                child: Column(
+            TickerMode(
+              enabled: !_agentFullScreen,
+              child: Stack(
+                children: [
+                  AnimatedSwitcher(
+                    duration: MediaQuery.disableAnimationsOf(context)
+                        ? Duration.zero
+                        : const Duration(milliseconds: 180),
+                    switchInCurve: Curves.easeOutCubic,
+                    switchOutCurve: Curves.easeInCubic,
+                    child: isPromptMaximized
+                        ? const Padding(
+                            key: ValueKey('maximized-prompt'),
+                            padding: EdgeInsets.all(12),
+                            child: PromptInputWidget(
+                              isMaximized: true,
+                              showMaximizeButton: false,
+                              autofocus: true,
+                            ),
+                          )
+                        : GestureDetector(
+                            key: const ValueKey(
+                              'generation-vertical-shortcuts',
+                            ),
+                            behavior: HitTestBehavior.translucent,
+                            onVerticalDragStart:
+                                _handleWorkspaceVerticalDragStart,
+                            onVerticalDragUpdate:
+                                _handleWorkspaceVerticalDragUpdate,
+                            onVerticalDragEnd: _handleWorkspaceVerticalDragEnd,
+                            onVerticalDragCancel:
+                                _handleWorkspaceVerticalDragCancel,
+                            child: LayoutBuilder(
+                              key: const ValueKey('generation-workspace'),
+                              builder: (context, constraints) {
+                                final useHorizontalLayout =
+                                    constraints.maxWidth >= 640 &&
+                                    constraints.maxWidth >
+                                        constraints.maxHeight * 1.15;
+                                if (useHorizontalLayout) {
+                                  return Row(
+                                    children: [
+                                      const Expanded(
+                                        flex: 6,
+                                        child: ImagePreviewWidget(),
+                                      ),
+                                      VerticalDivider(
+                                        width: 1,
+                                        color: theme.dividerColor,
+                                      ),
+                                      Expanded(
+                                        flex: 5,
+                                        child: Column(
+                                          children: [
+                                            const Expanded(
+                                              child: Padding(
+                                                padding: EdgeInsets.all(12),
+                                                child: PromptInputWidget(
+                                                  compact: true,
+                                                ),
+                                              ),
+                                            ),
+                                            if (generationState.isGenerating)
+                                              _GenerationProgress(
+                                                progress:
+                                                    generationState.progress,
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                }
+
+                                return Column(
                                   children: [
-                                    const Expanded(
-                                      child: Padding(
-                                        padding: EdgeInsets.all(12),
-                                        child: PromptInputWidget(compact: true),
+                                    Padding(
+                                      padding: const EdgeInsets.fromLTRB(
+                                        12,
+                                        12,
+                                        12,
+                                        8,
+                                      ),
+                                      child: _CollapsedPromptLauncher(
+                                        prompt: promptSummary,
+                                        characterCount: enabledCharacterCount,
+                                        qualityEnabled: qualityEnabled,
+                                        negativePresetLabel:
+                                            negativePresetLabel,
+                                        fixedTagCount: fixedTagCount,
+                                        onTap: _openPromptEditor,
                                       ),
                                     ),
+                                    const Expanded(child: ImagePreviewWidget()),
                                     if (generationState.isGenerating)
                                       _GenerationProgress(
                                         progress: generationState.progress,
                                       ),
                                   ],
-                                ),
-                              ),
-                            ],
-                          );
-                        }
-
-                        return Column(
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
-                              child: _CollapsedPromptLauncher(
-                                prompt: promptSummary,
-                                onTap: () => ref
-                                    .read(
-                                      promptMaximizeNotifierProvider.notifier,
-                                    )
-                                    .setMaximized(true),
-                              ),
+                                );
+                              },
                             ),
-                            const Expanded(child: ImagePreviewWidget()),
-                            if (generationState.isGenerating)
-                              _GenerationProgress(
-                                progress: generationState.progress,
-                              ),
-                          ],
-                        );
-                      },
-                    ),
+                          ),
+                  ),
+                ],
+              ),
+            ),
+            TickerMode(
+              enabled: _agentFullScreen,
+              child: _agentHasOpened
+                  ? SafeArea(
+                      key: const ValueKey('generation-agent-fullscreen'),
+                      child: AgentChatPanel(
+                        mobile: true,
+                        fullScreen: true,
+                        onClose: _closeAgentChat,
+                        onOpenSettings: _openAgentSettings,
+                      ),
+                    )
+                  : const SizedBox.shrink(),
             ),
           ],
         ),
-        bottomNavigationBar: keyboardVisible
+        bottomNavigationBar: keyboardVisible || _agentFullScreen
             ? null
             : SafeArea(
                 top: false,
                 child: Container(
-                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                  key: const ValueKey('generation-mobile-bottom-bar'),
+                  padding: const EdgeInsets.fromLTRB(12, 6, 12, 7),
                   decoration: BoxDecoration(
                     color: theme.colorScheme.surface,
                     border: Border(top: BorderSide(color: theme.dividerColor)),
                   ),
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final generateButton = _MobileGenerateButton(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          const OpusUsageChip(compact: true),
+                          const SizedBox(width: 4),
+                          const AnlasBalanceChip(compact: true),
+                          if (showRandomTools) ...[
+                            const Spacer(),
+                            _MobileRandomModeToggle(
+                              enabled: randomModeEnabled,
+                              showLabel: true,
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 5),
+                      _MobileGenerateButton(
                         isGenerating: isGenerating,
                         showCancel: isLauncherGenerating,
                         generationState: generationState,
@@ -280,49 +450,8 @@ class _MobileGenerationLayoutState extends ConsumerState<MobileGenerationLayout>
                             .skipCurrentRequest(),
                         showCost: !isUpscaleMode,
                         requiresLogin: requiresLogin,
-                      );
-                      final randomToggle = _MobileRandomModeToggle(
-                        enabled: randomModeEnabled,
-                      );
-
-                      if (constraints.maxWidth < 520) {
-                        return Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Align(
-                              alignment: Alignment.centerLeft,
-                              child: Wrap(
-                                crossAxisAlignment: WrapCrossAlignment.center,
-                                spacing: 6,
-                                runSpacing: 6,
-                                children: [
-                                  const OpusUsageChip(compact: true),
-                                  const AnlasBalanceChip(compact: true),
-                                  if (showRandomTools) randomToggle,
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            generateButton,
-                          ],
-                        );
-                      }
-
-                      return Row(
-                        children: [
-                          const OpusUsageChip(compact: true),
-                          const SizedBox(width: 6),
-                          const AnlasBalanceChip(compact: true),
-                          const SizedBox(width: 8),
-                          if (showRandomTools) ...[
-                            randomToggle,
-                            const SizedBox(width: 8),
-                          ],
-                          Expanded(child: generateButton),
-                        ],
-                      );
-                    },
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -333,22 +462,21 @@ class _MobileGenerationLayoutState extends ConsumerState<MobileGenerationLayout>
   Widget _buildParameterDrawer(BuildContext context) {
     final theme = Theme.of(context);
     return Drawer(
-      width: (MediaQuery.sizeOf(context).width * 0.9)
-          .clamp(280.0, 420.0)
-          .toDouble(),
+      key: const ValueKey('generation-parameters-drawer'),
+      width: MediaQuery.sizeOf(context).width * 0.9,
       child: SafeArea(
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(8, 8, 12, 8),
+              padding: const EdgeInsets.fromLTRB(8, 6, 12, 6),
               child: Row(
                 children: [
                   IconButton(
                     onPressed: () => _scaffoldKey.currentState?.closeDrawer(),
-                    icon: const Icon(Icons.chevron_left_rounded),
+                    icon: const Icon(Icons.arrow_back_rounded),
                     tooltip: MaterialLocalizations.of(
                       context,
-                    ).closeButtonTooltip,
+                    ).backButtonTooltip,
                     constraints: const BoxConstraints.tightFor(
                       width: 48,
                       height: 48,
@@ -374,29 +502,19 @@ class _MobileGenerationLayoutState extends ConsumerState<MobileGenerationLayout>
     );
   }
 
-  Widget _buildAuxiliaryDrawer(BuildContext context) {
-    final isAgent = _auxiliaryView == _MobileAuxiliaryView.agent;
+  Widget _buildHistoryDrawer(BuildContext context) {
     return Drawer(
-      key: ValueKey(
-        isAgent ? 'generation-agent-drawer' : 'generation-history-drawer',
-      ),
-      width: (MediaQuery.sizeOf(context).width * 0.92)
-          .clamp(280.0, 480.0)
-          .toDouble(),
+      key: const ValueKey('generation-history-drawer'),
+      width: MediaQuery.sizeOf(context).width * 0.9,
       child: SafeArea(
-        child: isAgent
-            ? AgentChatPanel(mobile: true, onClose: _closeAuxiliaryDrawer)
-            : HistoryPanel(onClose: _closeAuxiliaryDrawer),
+        child: HistoryPanel(
+          onClose: () => _scaffoldKey.currentState?.closeEndDrawer(),
+        ),
       ),
     );
   }
 
   Future<void> _handleGenerate(BuildContext context, WidgetRef ref) async {
-    if (!ref.read(authNotifierProvider).isAuthenticated) {
-      await context.pushNamed('login');
-      return;
-    }
-
     final params = ref.read(generationParamsNotifierProvider);
     if (PlatformCapabilities.current.supportsKritaBridge &&
         ref.read(kritaBridgeNotifierProvider).isBridgeGenerating) {
@@ -405,6 +523,17 @@ class _MobileGenerationLayoutState extends ConsumerState<MobileGenerationLayout>
     }
     if (params.prompt.isEmpty) {
       AppToast.info(context, context.l10n.generation_pleaseInputPrompt);
+      return;
+    }
+
+    if (ref.read(promptMaximizeNotifierProvider)) {
+      _closePromptEditor();
+      await Future<void>.delayed(Duration.zero);
+      if (!context.mounted) return;
+    }
+
+    if (!ref.read(authNotifierProvider).isAuthenticated) {
+      await context.pushNamed('login');
       return;
     }
 
@@ -422,9 +551,20 @@ class _MobileGenerationLayoutState extends ConsumerState<MobileGenerationLayout>
 }
 
 class _CollapsedPromptLauncher extends StatelessWidget {
-  const _CollapsedPromptLauncher({required this.prompt, required this.onTap});
+  const _CollapsedPromptLauncher({
+    required this.prompt,
+    required this.characterCount,
+    required this.qualityEnabled,
+    required this.negativePresetLabel,
+    required this.fixedTagCount,
+    required this.onTap,
+  });
 
   final String prompt;
+  final int characterCount;
+  final bool qualityEnabled;
+  final String? negativePresetLabel;
+  final int fixedTagCount;
   final VoidCallback onTap;
 
   @override
@@ -432,10 +572,36 @@ class _CollapsedPromptLauncher extends StatelessWidget {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
     final hasPrompt = prompt.isNotEmpty;
+    final statusItems = <Widget>[
+      if (characterCount > 0)
+        _PromptOverviewItem(
+          icon: Icons.people_alt_rounded,
+          label: '${context.l10n.character_buttonLabel} $characterCount',
+          color: colors.primary,
+        ),
+      if (qualityEnabled)
+        _PromptOverviewItem(
+          icon: Icons.auto_awesome_rounded,
+          label: context.l10n.qualityTags_label,
+          color: const Color(0xFF67A87A),
+        ),
+      if (negativePresetLabel case final label?)
+        _PromptOverviewItem(
+          icon: Icons.shield_rounded,
+          label: label,
+          color: colors.error.withValues(alpha: 0.82),
+        ),
+      if (fixedTagCount > 0)
+        _PromptOverviewItem(
+          icon: Icons.push_pin_rounded,
+          label: '${context.l10n.fixedTags_label} $fixedTagCount',
+          color: colors.onSurfaceVariant,
+        ),
+    ];
 
     return Semantics(
       button: true,
-      label: context.l10n.toolbar_fullscreenEdit,
+      label: context.l10n.promptToken_prompt,
       child: Material(
         color: colors.surfaceContainerHigh.withValues(alpha: 0.72),
         borderRadius: BorderRadius.circular(12),
@@ -444,64 +610,146 @@ class _CollapsedPromptLauncher extends StatelessWidget {
           key: const ValueKey('generation-collapsed-prompt-launcher'),
           onTap: onTap,
           child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 68),
+            constraints: const BoxConstraints(minHeight: 56),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
               child: Row(
                 children: [
                   Container(
-                    width: 40,
-                    height: 40,
+                    width: 32,
+                    height: 32,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                       color: colors.primaryContainer.withValues(alpha: 0.62),
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(9),
                     ),
                     child: Icon(
                       Icons.edit_rounded,
-                      size: 20,
+                      size: 17,
                       color: colors.onPrimaryContainer,
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          context.l10n.toolbar_fullscreenEdit,
-                          style: theme.textTheme.labelLarge?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
+                        Row(
+                          children: [
+                            Text(
+                              context.l10n.promptToken_prompt,
+                              maxLines: 1,
+                              style: theme.textTheme.labelMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                hasPrompt
+                                    ? prompt.replaceAll(RegExp(r'\s+'), ' ')
+                                    : context.l10n.prompt_describeImage,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: colors.onSurfaceVariant.withValues(
+                                    alpha: hasPrompt ? 0.8 : 0.56,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            if (hasPrompt) ...[
+                              const SizedBox(width: 8),
+                              Text(
+                                context.l10n
+                                    .generation_promptOverviewCharacters(
+                                      prompt.runes.length,
+                                    ),
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: colors.onSurfaceVariant,
+                                  fontFeatures: const [
+                                    FontFeature.tabularFigures(),
+                                  ],
+                                ),
+                              ),
+                            ],
+                            const SizedBox(width: 6),
+                            Icon(
+                              Icons.open_in_full_rounded,
+                              size: 15,
+                              color: colors.onSurfaceVariant.withValues(
+                                alpha: 0.68,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          hasPrompt
-                              ? prompt.replaceAll(RegExp(r'\s+'), ' ')
-                              : context.l10n.prompt_describeImage,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: colors.onSurfaceVariant.withValues(
-                              alpha: hasPrompt ? 0.82 : 0.58,
+                        if (statusItems.isNotEmpty) ...[
+                          const SizedBox(height: 3),
+                          SizedBox(
+                            height: 17,
+                            child: SingleChildScrollView(
+                              key: const ValueKey(
+                                'generation-prompt-overview-statuses',
+                              ),
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                children: [
+                                  for (
+                                    var index = 0;
+                                    index < statusItems.length;
+                                    index++
+                                  ) ...[
+                                    if (index > 0) const SizedBox(width: 11),
+                                    statusItems[index],
+                                  ],
+                                ],
+                              ),
                             ),
                           ),
-                        ),
+                        ],
                       ],
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Icon(
-                    Icons.open_in_full_rounded,
-                    size: 18,
-                    color: colors.onSurfaceVariant.withValues(alpha: 0.72),
                   ),
                 ],
               ),
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _PromptOverviewItem extends StatelessWidget {
+  const _PromptOverviewItem({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = Theme.of(context).textTheme.labelSmall;
+    return Semantics(
+      label: label,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.fade,
+            softWrap: false,
+            style: style?.copyWith(color: color, fontWeight: FontWeight.w500),
+          ),
+        ],
       ),
     );
   }
@@ -546,8 +794,12 @@ class _GenerationProgress extends StatelessWidget {
 /// 移动端抽卡模式开关
 class _MobileRandomModeToggle extends ConsumerWidget {
   final bool enabled;
+  final bool showLabel;
 
-  const _MobileRandomModeToggle({required this.enabled});
+  const _MobileRandomModeToggle({
+    required this.enabled,
+    this.showLabel = false,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -575,20 +827,41 @@ class _MobileRandomModeToggle extends ConsumerWidget {
                   ? Duration.zero
                   : const Duration(milliseconds: 140),
               curve: Curves.easeOutCubic,
-              width: 48,
-              height: 48,
+              width: showLabel ? null : 44,
+              height: 44,
+              padding: showLabel
+                  ? const EdgeInsets.symmetric(horizontal: 12)
+                  : EdgeInsets.zero,
               decoration: BoxDecoration(
                 color: enabled
                     ? theme.colorScheme.primaryContainer
                     : theme.colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(
-                Icons.casino_outlined,
-                size: 22,
-                color: enabled
-                    ? theme.colorScheme.onPrimaryContainer
-                    : theme.colorScheme.onSurfaceVariant,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.casino_outlined,
+                    size: 20,
+                    color: enabled
+                        ? theme.colorScheme.onPrimaryContainer
+                        : theme.colorScheme.onSurfaceVariant,
+                  ),
+                  if (showLabel) ...[
+                    const SizedBox(width: 7),
+                    Text(
+                      context.l10n.toolbar_randomPrompt,
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: enabled
+                            ? theme.colorScheme.onPrimaryContainer
+                            : theme.colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
           ),

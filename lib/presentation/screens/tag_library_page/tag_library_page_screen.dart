@@ -394,7 +394,7 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
                       ? context.l10n.tagLibrary_categoryEmpty
                       : context.l10n.tagLibrary_empty),
             style: theme.textTheme.bodyLarge?.copyWith(
-              color: theme.colorScheme.outline,
+              color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: 8),
@@ -403,7 +403,7 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
                 ? context.l10n.tagLibrary_tryDifferentSearch
                 : context.l10n.tagLibrary_addFirstEntry,
             style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.outline.withValues(alpha: 0.7),
+              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.75),
             ),
           ),
         ],

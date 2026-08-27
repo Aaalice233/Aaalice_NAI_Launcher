@@ -35,7 +35,24 @@ enum _CharacterAddAction {
 ///
 /// 全屏编辑与非全屏共用此组件，始终紧贴提示词区下方。
 class InlineCharacterRow extends ConsumerWidget {
-  const InlineCharacterRow({super.key});
+  const InlineCharacterRow({
+    super.key,
+    this.showWhenEmpty = false,
+    this.compactHeader = false,
+    this.managerLayout = false,
+  });
+
+  /// Character managers need to keep the add entry visible before the first
+  /// character exists; inline workspace rows retain their zero-height default.
+  final bool showWhenEmpty;
+
+  /// Omits the redundant count badge where phone width is better spent on the
+  /// position controls and destructive action.
+  final bool compactHeader;
+
+  /// Phone managers use one full-width card per row so names and direct actions
+  /// stay readable instead of becoming a dense desktop grid.
+  final bool managerLayout;
 
   static const double _cardWidth = 190;
 
@@ -52,7 +69,7 @@ class InlineCharacterRow extends ConsumerWidget {
     }
 
     final characters = ref.watch(characterPromptNotifierProvider).characters;
-    if (characters.isEmpty) {
+    if (characters.isEmpty && !showWhenEmpty) {
       return const SizedBox.shrink();
     }
 
@@ -70,71 +87,96 @@ class InlineCharacterRow extends ConsumerWidget {
     return Container(
       // 拉满可用宽度，确保顶部分隔线始终横贯整个工作区
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface.withValues(alpha: 0.5),
-        border: Border(
-          top: BorderSide(
-            color: theme.dividerColor.withValues(alpha: 0.5),
-            width: 1,
-          ),
-        ),
-      ),
+      padding: managerLayout
+          ? const EdgeInsets.fromLTRB(16, 12, 16, 6)
+          : const EdgeInsets.fromLTRB(12, 6, 12, 6),
+      decoration: managerLayout
+          ? null
+          : BoxDecoration(
+              color: theme.colorScheme.surface.withValues(alpha: 0.5),
+              border: Border(
+                top: BorderSide(
+                  color: theme.dividerColor.withValues(alpha: 0.5),
+                  width: 1,
+                ),
+              ),
+            ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // 头部：位置模式分段 + 计数徽章 + 清空全部
-          Padding(
-            padding: const EdgeInsets.only(bottom: 6),
-            child: Row(
-              children: [
-                const CharacterPositionModeSegments(),
-                const Spacer(),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    '${characters.length}',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: theme.colorScheme.onPrimaryContainer,
+          if (!managerLayout || characters.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  if (characters.isEmpty) ...[
+                    Icon(
+                      Icons.people_outline_rounded,
+                      size: 18,
+                      color: theme.colorScheme.onSurfaceVariant,
                     ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Tooltip(
-                  message: AppLocalizations.of(
-                    context,
-                  )!.characterEditor_clearAll,
-                  waitDuration: const Duration(milliseconds: 500),
-                  child: InkWell(
-                    onTap: () => confirmClearAllCharacters(context, ref),
-                    borderRadius: BorderRadius.circular(4),
-                    child: Padding(
-                      padding: const EdgeInsets.all(2),
-                      child: Icon(
-                        Icons.delete_sweep,
-                        size: 16,
-                        color: theme.colorScheme.error,
+                    const SizedBox(width: 8),
+                    Text(
+                      AppLocalizations.of(context)!.prompt_characterPrompts,
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                  ),
-                ),
-              ],
+                  ] else
+                    CharacterPositionModeSegments(
+                      forceExitMaximizedPrompt: managerLayout,
+                    ),
+                  const Spacer(),
+                  if (!compactHeader || characters.isEmpty)
+                    Container(
+                      constraints: const BoxConstraints(minWidth: 24),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primaryContainer,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        '${characters.length}',
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.onPrimaryContainer,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                    ),
+                  if (characters.isNotEmpty) ...[
+                    SizedBox(width: compactHeader ? 4 : 8),
+                    IconButton(
+                      onPressed: () => confirmClearAllCharacters(context, ref),
+                      icon: const Icon(Icons.delete_sweep_outlined),
+                      iconSize: 18,
+                      tooltip: AppLocalizations.of(
+                        context,
+                      )!.characterEditor_clearAll,
+                      color: theme.colorScheme.error,
+                      constraints: const BoxConstraints.tightFor(
+                        width: 40,
+                        height: 40,
+                      ),
+                      padding: EdgeInsets.zero,
+                    ),
+                  ],
+                ],
+              ),
             ),
-          ),
           // 等宽占满网格：每排卡片等分行宽（含尾部添加卡），排列整齐
           LayoutBuilder(
             builder: (context, constraints) {
               const spacing = 6.0;
               final maxW = constraints.maxWidth;
               final itemCount = characters.length + 1;
-              var columns = ((maxW + spacing) / (_cardWidth + spacing)).floor();
+              var columns = managerLayout
+                  ? 1
+                  : ((maxW + spacing) / (_cardWidth + spacing)).floor();
               columns = columns.clamp(1, itemCount);
               final cellWidth = (maxW - (columns - 1) * spacing) / columns;
 
@@ -152,9 +194,13 @@ class InlineCharacterRow extends ConsumerWidget {
                         total: characters.length,
                         compact: true,
                         inlineEditor: false,
+                        showSelectionBorder: !managerLayout,
                       ),
                     ),
-                  SizedBox(width: cellWidth, child: const _AddCharacterChip()),
+                  SizedBox(
+                    width: cellWidth,
+                    child: _AddCharacterChip(showLabel: managerLayout),
+                  ),
                 ],
               );
             },
@@ -179,6 +225,7 @@ class InlineCharacterRow extends ConsumerWidget {
                           character: editingCharacter,
                           index: editingIndex,
                           total: characters.length,
+                          borderless: managerLayout,
                         ),
                       ),
                     ),
@@ -197,11 +244,13 @@ class _RowEditorPanel extends ConsumerStatefulWidget {
   final CharacterPrompt character;
   final int index;
   final int total;
+  final bool borderless;
 
   const _RowEditorPanel({
     required this.character,
     required this.index,
     required this.total,
+    required this.borderless,
   });
 
   @override
@@ -261,9 +310,13 @@ class _RowEditorPanelState extends ConsumerState<_RowEditorPanel> {
         child: Container(
           padding: const EdgeInsets.fromLTRB(10, 6, 10, 8),
           decoration: BoxDecoration(
-            color: colorScheme.surface,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: colorScheme.primary, width: 1.5),
+            color: widget.borderless
+                ? colorScheme.surfaceContainerLow
+                : colorScheme.surface,
+            borderRadius: BorderRadius.circular(widget.borderless ? 12 : 8),
+            border: widget.borderless
+                ? null
+                : Border.all(color: colorScheme.primary, width: 1.5),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -295,6 +348,7 @@ class _RowEditorPanelState extends ConsumerState<_RowEditorPanel> {
                     color: iconColor,
                     tooltip: l10n.characterEditor_moveUp,
                     enabled: widget.index > 0,
+                    comfortable: widget.borderless,
                     onTap: () => notifier.moveCharacterUp(widget.index),
                   ),
                   _PanelIconButton(
@@ -302,12 +356,14 @@ class _RowEditorPanelState extends ConsumerState<_RowEditorPanel> {
                     color: iconColor,
                     tooltip: l10n.characterEditor_moveDown,
                     enabled: widget.index < widget.total - 1,
+                    comfortable: widget.borderless,
                     onTap: () => notifier.moveCharacterDown(widget.index),
                   ),
                   _PanelIconButton(
                     icon: Icons.library_add_outlined,
                     color: iconColor,
                     tooltip: l10n.tagLibrary_addToLibrary,
+                    comfortable: widget.borderless,
                     onTap: () => _openModal(
                       () => AddToLibraryDialog.show(
                         context,
@@ -320,13 +376,17 @@ class _RowEditorPanelState extends ConsumerState<_RowEditorPanel> {
                     icon: Icons.close,
                     color: iconColor,
                     tooltip: l10n.characterEditor_close,
+                    comfortable: widget.borderless,
                     onTap: () =>
                         ref.read(selectedCharacterIdProvider.notifier).clear(),
                   ),
                 ],
               ),
               const SizedBox(height: 6),
-              CharacterPromptEditor(character: widget.character, compact: true),
+              CharacterPromptEditor(
+                character: widget.character,
+                compact: !widget.borderless,
+              ),
             ],
           ),
         ),
@@ -353,6 +413,7 @@ class _PanelIconButton extends StatelessWidget {
   final String tooltip;
   final VoidCallback onTap;
   final bool enabled;
+  final bool comfortable;
 
   const _PanelIconButton({
     required this.icon,
@@ -360,6 +421,7 @@ class _PanelIconButton extends StatelessWidget {
     required this.tooltip,
     required this.onTap,
     this.enabled = true,
+    this.comfortable = false,
   });
 
   @override
@@ -369,12 +431,12 @@ class _PanelIconButton extends StatelessWidget {
       waitDuration: const Duration(milliseconds: 500),
       child: InkWell(
         onTap: enabled ? onTap : null,
-        borderRadius: BorderRadius.circular(4),
-        child: Padding(
-          padding: const EdgeInsets.all(4),
+        borderRadius: BorderRadius.circular(8),
+        child: SizedBox.square(
+          dimension: comfortable ? 40 : 23,
           child: Icon(
             icon,
-            size: 15,
+            size: comfortable ? 20 : 15,
             color: enabled ? color : color.withValues(alpha: 0.3),
           ),
         ),
@@ -385,7 +447,9 @@ class _PanelIconButton extends StatelessWidget {
 
 /// 行尾添加芯片（弹出 女/男/其他/词库 菜单）
 class _AddCharacterChip extends ConsumerWidget {
-  const _AddCharacterChip();
+  const _AddCharacterChip({this.showLabel = false});
+
+  final bool showLabel;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -411,6 +475,8 @@ class _AddCharacterChip extends ConsumerWidget {
       key: const Key('character-add-menu'),
       tooltip: l10n.character_addCharacter,
       padding: EdgeInsets.zero,
+      position: PopupMenuPosition.under,
+      offset: const Offset(0, 4),
       onSelected: (action) => _handleAdd(context, ref, action),
       itemBuilder: (context) => [
         PopupMenuItem(
@@ -459,10 +525,25 @@ class _AddCharacterChip extends ConsumerWidget {
         borderRadius: BorderRadius.circular(8),
       ),
       child: Center(
-        child: Icon(
-          Icons.add,
-          size: 18,
-          color: theme.colorScheme.onSurfaceVariant,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.add,
+              size: 18,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            if (showLabel) ...[
+              const SizedBox(width: 8),
+              Text(
+                l10n.character_addCharacter,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ],
         ),
       ),
     );

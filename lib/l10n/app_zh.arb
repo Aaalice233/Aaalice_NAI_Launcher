@@ -259,7 +259,7 @@
   "settings_removeAvatar": "移除头像",
   "settings_accountEmail": "账号邮箱",
   "settings_emailAccount": "邮箱登录",
-  "settings_tokenAccount": "Token登录",
+  "settings_tokenAccount": "Token 账号",
   "settings_setAsDefault": "设为默认",
   "settings_defaultAccount": "默认",
   "settings_editNickname": "编辑昵称",
@@ -278,6 +278,12 @@
   "settings_setAsDefaultSuccess": "已设为默认账号",
 
   "generation_title": "生成",
+  "generation_promptOverviewCharacters": "{count} 字",
+  "@generation_promptOverviewCharacters": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "generation_generate": "生成",
   "generation_cooldownRemaining": "等待 {seconds} 秒",
   "@generation_cooldownRemaining": {

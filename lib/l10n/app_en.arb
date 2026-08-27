@@ -293,6 +293,12 @@
   "settings_setAsDefaultSuccess": "Set as default account",
 
   "generation_title": "Generate",
+  "generation_promptOverviewCharacters": "{count} chars",
+  "@generation_promptOverviewCharacters": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "generation_generate": "Generate",
   "generation_cooldownRemaining": "Wait {seconds}s",
   "@generation_cooldownRemaining": {

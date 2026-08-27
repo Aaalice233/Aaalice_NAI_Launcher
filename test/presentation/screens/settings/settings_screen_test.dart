@@ -12,6 +12,7 @@ import 'package:nai_launcher/presentation/providers/account_manager_provider.dar
 import 'package:nai_launcher/presentation/providers/auth_provider.dart';
 import 'package:nai_launcher/presentation/providers/subscription_provider.dart';
 import 'package:nai_launcher/presentation/screens/settings/sections/account_settings_section.dart';
+import 'package:nai_launcher/presentation/screens/settings/sections/appearance_settings_section.dart';
 import 'package:nai_launcher/presentation/screens/settings/sections/integrations_settings_section.dart';
 import 'package:nai_launcher/presentation/screens/settings/sections/prompt_assistant_settings_section.dart';
 import 'package:nai_launcher/presentation/screens/settings/settings_screen.dart';
@@ -160,6 +161,70 @@ void main() {
     debugDefaultTargetPlatformOverride = null;
   });
 
+  testWidgets('新增服务商弹窗在移动端完整适配窄屏', (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    await tester.binding.setSurfaceSize(const Size(390, 700));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authNotifierProvider.overrideWith(_FakeAuthNotifier.new),
+          accountManagerNotifierProvider.overrideWith(
+            _FakeAccountManagerNotifier.new,
+          ),
+          subscriptionNotifierProvider.overrideWith(
+            _FakeSubscriptionNotifier.new,
+          ),
+        ],
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: SettingsScreen(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('集成'));
+    await tester.pumpAndSettle();
+
+    final addProvider = find.byKey(
+      const ValueKey('prompt-assistant-add-provider'),
+    );
+    await tester.scrollUntilVisible(addProvider, 200);
+    await tester.tap(addProvider);
+    await tester.pumpAndSettle();
+
+    final dialog = find.byKey(
+      const ValueKey('prompt-assistant-provider-dialog'),
+    );
+    expect(dialog, findsOneWidget);
+    expect(find.text('OpenAI Chat Completions'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    final selectedProtocolRect = tester.getRect(
+      find.text('OpenAI Chat Completions'),
+    );
+    expect(selectedProtocolRect.left, greaterThanOrEqualTo(36));
+    expect(selectedProtocolRect.right, lessThanOrEqualTo(330));
+
+    await tester.tap(find.text('保存'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('prompt-assistant-provider-openai_chat')),
+      findsOneWidget,
+    );
+    expect(find.text('连接配置'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpAndSettle();
+    debugDefaultTargetPlatformOverride = null;
+  });
+
   testWidgets('紧凑布局使用单页分类并由系统返回手势回到列表', (tester) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.android;
     await tester.binding.setSurfaceSize(const Size(390, 820));
@@ -189,6 +254,16 @@ void main() {
     expect(find.byType(NavigationRail), findsNothing);
     expect(find.text('账户'), findsOneWidget);
     expect(find.text('关于'), findsOneWidget);
+
+    await tester.tap(find.text('外观'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AppearanceSettingsSection), findsOneWidget);
+    expect(find.text('外观'), findsOneWidget);
+    expect(find.bySemanticsLabel('外观'), findsWidgets);
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('账户'));
     await tester.pumpAndSettle();

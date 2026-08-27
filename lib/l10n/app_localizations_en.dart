@@ -764,6 +764,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get generation_title => 'Generate';
 
   @override
+  String generation_promptOverviewCharacters(Object count) {
+    return '$count chars';
+  }
+
+  @override
   String get generation_generate => 'Generate';
 
   @override

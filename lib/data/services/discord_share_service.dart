@@ -220,15 +220,34 @@ class DiscordShareService {
           message: 'Discord verification was cancelled.',
         );
       }
-      final response = await _dio.post<Map<String, dynamic>>(
-        '/v1/oauth/result',
-        data: {'nonce': nonce, 'verifier': verifier},
-        options: Options(
-          headers: {'Origin': _discordOAuthOrigin},
-          validateStatus: (status) => status != null && status < 500,
-        ),
-        cancelToken: cancelToken,
-      );
+      late final Response<Map<String, dynamic>> response;
+      try {
+        response = await _dio.post<Map<String, dynamic>>(
+          '/v1/oauth/result',
+          data: {'nonce': nonce, 'verifier': verifier},
+          options: Options(
+            headers: {'Origin': _discordOAuthOrigin},
+            validateStatus: (status) => status != null && status < 500,
+          ),
+          cancelToken: cancelToken,
+        );
+      } on DioException catch (error) {
+        if (CancelToken.isCancel(error)) {
+          throw const DiscordShareException(
+            code: 'cancelled',
+            message: 'Discord verification was cancelled.',
+          );
+        }
+        final payload = error.response?.data is Map
+            ? Map<String, dynamic>.from(error.response!.data as Map)
+            : <String, dynamic>{};
+        throw _exceptionFromPayload(
+          payload,
+          error.response?.statusCode,
+          fallback: error.message ?? 'Discord verification failed.',
+          retryAfterHeader: error.response?.headers.value('retry-after'),
+        );
+      }
       final payload = response.data ?? const <String, dynamic>{};
       if (response.statusCode == 202 || payload['pending'] == true) continue;
       if (response.statusCode != null && response.statusCode! >= 400) {

@@ -60,12 +60,12 @@ class InputSurfaceContainer extends StatelessWidget {
         ? (borderColor ?? colors.error).withValues(alpha: focused ? 0.9 : 0.62)
         : focused
         ? colors.primary.withValues(alpha: 0.68)
-        : (borderColor ?? colors.outlineVariant).withValues(alpha: 0.32);
+        : (borderColor ?? colors.outlineVariant).withValues(alpha: 0.4);
     final effectiveBorderWidth = hasError || focused
         ? 1.0
         : borderWidth > 0
         ? borderWidth
-        : 0.55;
+        : 0.0;
     final duration = MediaQuery.disableAnimationsOf(context)
         ? Duration.zero
         : const Duration(milliseconds: 120);
@@ -81,11 +81,13 @@ class InputSurfaceContainer extends StatelessWidget {
       decoration: BoxDecoration(
         color: backgroundColor ?? inputSurfaceFillColor(colors),
         borderRadius: BorderRadius.circular(borderRadius),
-        border: Border.all(
-          color: effectiveBorderColor,
-          width: effectiveBorderWidth,
-          strokeAlign: BorderSide.strokeAlignInside,
-        ),
+        border: effectiveBorderWidth > 0
+            ? Border.all(
+                color: effectiveBorderColor,
+                width: effectiveBorderWidth,
+                strokeAlign: BorderSide.strokeAlignInside,
+              )
+            : null,
       ),
       child: child,
     );

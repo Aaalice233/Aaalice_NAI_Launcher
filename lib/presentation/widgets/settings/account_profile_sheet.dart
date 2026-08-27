@@ -53,6 +53,11 @@ class _AccountProfileBottomSheetState
   /// 操作锁定（防止竞态条件）
   bool _isOperationInProgress = false;
 
+  void _setOperationInProgress(bool value) {
+    if (!mounted || _isOperationInProgress == value) return;
+    setState(() => _isOperationInProgress = value);
+  }
+
   /// 当前账号（从 Provider 获取最新数据）
   SavedAccount get currentAccount {
     final accounts = ref.read(accountManagerNotifierProvider).accounts;
@@ -66,7 +71,7 @@ class _AccountProfileBottomSheetState
   Future<void> _changeAvatar() async {
     // 防止重复点击
     if (_isOperationInProgress) return;
-    _isOperationInProgress = true;
+    _setOperationInProgress(true);
 
     try {
       final result = await _avatarService.pickAndSaveAvatar(currentAccount);
@@ -96,7 +101,7 @@ class _AccountProfileBottomSheetState
         AppToast.error(context, context.l10n.common_error);
       }
     } finally {
-      _isOperationInProgress = false;
+      _setOperationInProgress(false);
     }
   }
 
@@ -104,7 +109,7 @@ class _AccountProfileBottomSheetState
   Future<void> _removeAvatar() async {
     // 防止重复点击
     if (_isOperationInProgress) return;
-    _isOperationInProgress = true;
+    _setOperationInProgress(true);
 
     try {
       await _avatarService.removeAvatar(currentAccount);
@@ -125,7 +130,7 @@ class _AccountProfileBottomSheetState
         AppToast.error(context, context.l10n.common_error);
       }
     } finally {
-      _isOperationInProgress = false;
+      _setOperationInProgress(false);
     }
   }
 
@@ -138,7 +143,7 @@ class _AccountProfileBottomSheetState
       context: context,
       account: currentAccount,
       onSave: (newNickname) async {
-        _isOperationInProgress = true;
+        _setOperationInProgress(true);
         try {
           final updatedAccount = currentAccount.copyWith(nickname: newNickname);
           await ref
@@ -156,7 +161,7 @@ class _AccountProfileBottomSheetState
             AppToast.error(context, context.l10n.common_error);
           }
         } finally {
-          _isOperationInProgress = false;
+          _setOperationInProgress(false);
         }
       },
     );
@@ -166,7 +171,7 @@ class _AccountProfileBottomSheetState
   Future<void> _setAsDefault() async {
     // 防止重复点击
     if (_isOperationInProgress) return;
-    _isOperationInProgress = true;
+    _setOperationInProgress(true);
 
     try {
       await ref
@@ -184,7 +189,7 @@ class _AccountProfileBottomSheetState
         AppToast.error(context, context.l10n.common_error);
       }
     } finally {
-      _isOperationInProgress = false;
+      _setOperationInProgress(false);
     }
   }
 
@@ -319,15 +324,14 @@ class _AccountProfileBottomSheetState
         padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
         child: SizedBox(
           width: double.infinity,
-          child: OutlinedButton.icon(
+          child: TextButton.icon(
             key: const Key('account-profile-logout-button'),
             onPressed: _isOperationInProgress ? null : _logout,
-            icon: const Icon(Icons.logout),
+            icon: const Icon(Icons.logout_rounded),
             label: Text(context.l10n.auth_logout),
-            style: OutlinedButton.styleFrom(
+            style: TextButton.styleFrom(
               foregroundColor: theme.colorScheme.error,
-              side: BorderSide(color: theme.colorScheme.error),
-              padding: const EdgeInsets.symmetric(vertical: 12),
+              minimumSize: const Size.fromHeight(48),
             ),
           ),
         ),
@@ -337,19 +341,39 @@ class _AccountProfileBottomSheetState
 
   /// 构建头像区域
   Widget _buildAvatarSection(BuildContext context) {
+    final theme = Theme.of(context);
     return Column(
       children: [
-        // 大头像（可点击）
-        GestureDetector(
-          onTap: _changeAvatar,
-          child: Stack(
-            children: [
-              AccountAvatar(
-                account: currentAccount,
-                size: 100,
-                showEditBadge: true,
-              ),
-            ],
+        Semantics(
+          button: true,
+          label: context.l10n.settings_changeAvatar,
+          child: InkResponse(
+            onTap: _isOperationInProgress ? null : _changeAvatar,
+            radius: 58,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                AccountAvatar(
+                  account: currentAccount,
+                  size: 100,
+                  showEditBadge: !_isOperationInProgress,
+                ),
+                if (_isOperationInProgress)
+                  Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: theme.colorScheme.scrim.withValues(alpha: 0.38),
+                    ),
+                    alignment: Alignment.center,
+                    child: const SizedBox.square(
+                      dimension: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2.5),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
         const SizedBox(height: 8),
@@ -366,29 +390,30 @@ class _AccountProfileBottomSheetState
 
   /// 构建头像操作按钮
   Widget _buildAvatarActions(BuildContext context) {
+    final theme = Theme.of(context);
     final hasCustomAvatar = currentAccount.avatarPath != null;
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+    return Wrap(
+      alignment: WrapAlignment.center,
+      spacing: 8,
+      runSpacing: 8,
       children: [
-        // 更换头像按钮
         TextButton.icon(
-          onPressed: _changeAvatar,
-          icon: const Icon(Icons.photo_library),
+          onPressed: _isOperationInProgress ? null : _changeAvatar,
+          icon: const Icon(Icons.photo_library_outlined),
           label: Text(context.l10n.settings_changeAvatar),
+          style: TextButton.styleFrom(minimumSize: const Size(0, 44)),
         ),
-        if (hasCustomAvatar) ...[
-          const SizedBox(width: 16),
-          // 移除头像按钮
+        if (hasCustomAvatar)
           TextButton.icon(
-            onPressed: _removeAvatar,
-            icon: Icon(Icons.delete_outline, color: Colors.red.shade400),
-            label: Text(
-              context.l10n.settings_removeAvatar,
-              style: TextStyle(color: Colors.red.shade400),
+            onPressed: _isOperationInProgress ? null : _removeAvatar,
+            icon: const Icon(Icons.delete_outline_rounded),
+            label: Text(context.l10n.settings_removeAvatar),
+            style: TextButton.styleFrom(
+              foregroundColor: theme.colorScheme.error,
+              minimumSize: const Size(0, 44),
             ),
           ),
-        ],
       ],
     );
   }
@@ -417,7 +442,15 @@ class _AccountProfileBottomSheetState
               ),
             ),
             const Spacer(),
-            Text(currentAccount.displayName, style: theme.textTheme.bodyMedium),
+            Flexible(
+              child: Text(
+                currentAccount.displayName,
+                style: theme.textTheme.bodyMedium,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.end,
+              ),
+            ),
             Icon(
               Icons.chevron_right,
               size: 20,
@@ -438,14 +471,15 @@ class _AccountProfileBottomSheetState
 
     return Column(
       children: [
-        // 邮箱
-        _buildDetailRow(
-          context,
-          icon: Icons.email_outlined,
-          label: context.l10n.settings_accountEmail,
-          value: currentAccount.email,
-        ),
-        const SizedBox(height: 8),
+        if (currentAccount.accountType == AccountType.credentials) ...[
+          _buildDetailRow(
+            context,
+            icon: Icons.email_outlined,
+            label: context.l10n.settings_accountEmail,
+            value: currentAccount.maskedEmail,
+          ),
+          const SizedBox(height: 8),
+        ],
         // 账号类型
         _buildDetailRow(
           context,
@@ -480,19 +514,50 @@ class _AccountProfileBottomSheetState
     final theme = Theme.of(context);
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 20, color: theme.colorScheme.outline),
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Icon(icon, size: 20, color: theme.colorScheme.outline),
+          ),
           const SizedBox(width: 12),
-          Text(
-            label,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.outline,
+          Expanded(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final compact = constraints.maxWidth < 420;
+                final labelText = Text(
+                  label,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                );
+                final valueText = SelectableText(
+                  value,
+                  maxLines: 2,
+                  style: theme.textTheme.bodyMedium,
+                  textAlign: compact ? TextAlign.start : TextAlign.end,
+                );
+
+                if (compact) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [labelText, const SizedBox(height: 2), valueText],
+                  );
+                }
+
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    labelText,
+                    const SizedBox(width: 16),
+                    Expanded(child: valueText),
+                  ],
+                );
+              },
             ),
           ),
-          const Spacer(),
-          Text(value, style: theme.textTheme.bodyMedium),
         ],
       ),
     );

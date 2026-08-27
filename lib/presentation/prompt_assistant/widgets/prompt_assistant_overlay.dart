@@ -384,6 +384,17 @@ class _PromptAssistantOverlayState
         ),
         items: [
           PopupMenuItem(
+            value: 'history',
+            enabled:
+                ref
+                    .read(promptAssistantHistoryProvider)[widget.sessionId]
+                    ?.history
+                    .isNotEmpty ??
+                false,
+            child: Text(context.l10n.promptAssistant_history),
+          ),
+          const PopupMenuDivider(),
+          PopupMenuItem(
             value: 'assistant_settings',
             child: Text(context.l10n.promptAssistant_assistantSettings),
           ),
@@ -402,7 +413,9 @@ class _PromptAssistantOverlayState
           ),
         ],
       ).then((value) async {
-        if (value == 'cancel') {
+        if (value == 'history') {
+          _showHistory();
+        } else if (value == 'cancel') {
           await ref
               .read(promptAssistantServiceProvider)
               .cancelCurrentTask(sessionId: widget.sessionId);
@@ -648,11 +661,8 @@ class _PromptAssistantOverlayState
                         notifier.setExpanded(widget.sessionId, false),
                   ),
                 ] else if (isExpanded) ...[
-                  _miniButton(
-                    icon: Icons.history,
-                    tooltip: context.l10n.promptAssistant_history,
-                    onPressed: _showHistory,
-                  ),
+                  // History stays in the overflow menu so the full action row
+                  // remains inside narrow desktop generation sidebars.
                   _miniButton(
                     icon: Icons.undo,
                     tooltip: context.l10n.promptAssistant_undo,
@@ -732,8 +742,11 @@ class _PromptAssistantOverlayState
     required VoidCallback? onPressed,
     Color? iconColor,
     double iconSize = 17,
-    double buttonSize = 36,
+    double buttonSize = 32,
   }) {
+    // The full desktop assistant has nine actions. A 36px button plus spacing
+    // pushes the leading action outside narrow generation sidebars at common
+    // Windows display scales; 32px preserves every action without scrolling.
     final effectiveButtonSize = _isDesktop ? buttonSize : 48.0;
     final effectiveIconSize = _isDesktop ? iconSize : 20.0;
     return Tooltip(

@@ -37,72 +37,76 @@ class _AppearanceSettingsSectionState
       historyClickBehaviorNotifierProvider,
     );
 
-    return SettingsCard(
-      title: context.l10n.settings_appearance,
-      icon: Icons.palette_outlined,
-      child: Column(
-        children: [
-          // 主题选择
-          ListTile(
-            leading: const Icon(Icons.palette_outlined),
-            title: Text(context.l10n.settings_style),
-            subtitle: Text(
-              currentTheme == AppStyle.grungeCollage
-                  ? context.l10n.settings_defaultPreset
-                  : currentTheme.displayName,
+    return Semantics(
+      container: true,
+      label: context.l10n.settings_appearance,
+      child: SettingsCard(
+        child: Column(
+          children: [
+            // 主题选择
+            ListTile(
+              leading: const Icon(Icons.palette_outlined),
+              title: Text(context.l10n.settings_style),
+              subtitle: Text(
+                currentTheme == AppStyle.grungeCollage
+                    ? context.l10n.settings_defaultPreset
+                    : currentTheme.displayName,
+              ),
+              onTap: () => _showThemeDialog(context, currentTheme),
             ),
-            onTap: () => _showThemeDialog(context, currentTheme),
-          ),
 
-          // 字体选择
-          ListTile(
-            leading: const Icon(Icons.text_fields),
-            title: Text(context.l10n.settings_font),
-            subtitle: Text(currentFont.displayName),
-            onTap: () => _showFontDialog(context, currentFont),
-          ),
-
-          // 字体大小选择
-          ListTile(
-            leading: const Icon(Icons.format_size),
-            title: Text(context.l10n.settings_fontScale),
-            subtitle: Text(context.l10n.settings_fontScale_description),
-            trailing: Text('${(fontScale * 100).round()}%'),
-            onTap: () => _showFontScaleDialog(context, fontScale),
-          ),
-
-          // 语言选择
-          ListTile(
-            leading: const Icon(Icons.language),
-            title: Text(context.l10n.settings_language),
-            subtitle: Text(_languageLabel(context, currentLocale)),
-            onTap: () => _showLanguageDialog(context, currentLocale),
-          ),
-
-          // 生成页布局选择
-          ListTile(
-            leading: const Icon(Icons.view_sidebar_outlined),
-            title: Text(context.l10n.settings_generationLayout),
-            subtitle: Text(
-              layoutMode == GenerationLayoutMode.webStyle
-                  ? context.l10n.settings_generationLayout_webStyle
-                  : context.l10n.settings_generationLayout_classic,
+            // 字体选择
+            ListTile(
+              leading: const Icon(Icons.text_fields),
+              title: Text(context.l10n.settings_font),
+              subtitle: Text(currentFont.displayName),
+              onTap: () => _showFontDialog(context, currentFont),
             ),
-            onTap: () => _showGenerationLayoutDialog(context, layoutMode),
-          ),
 
-          ListTile(
-            leading: const Icon(Icons.photo_library_outlined),
-            title: Text(context.l10n.settings_historyClickBehavior),
-            subtitle: Text(
-              historyClickBehavior == HistoryClickBehavior.selectPreview
-                  ? context.l10n.settings_historyClickBehavior_linked
-                  : context.l10n.settings_historyClickBehavior_classic,
+            // 字体大小选择
+            ListTile(
+              leading: const Icon(Icons.format_size),
+              title: Text(context.l10n.settings_fontScale),
+              subtitle: Text(context.l10n.settings_fontScale_description),
+              trailing: Text('${(fontScale * 100).round()}%'),
+              onTap: () => _showFontScaleDialog(context, fontScale),
             ),
-            onTap: () =>
-                _showHistoryClickBehaviorDialog(context, historyClickBehavior),
-          ),
-        ],
+
+            // 语言选择
+            ListTile(
+              leading: const Icon(Icons.language),
+              title: Text(context.l10n.settings_language),
+              subtitle: Text(_languageLabel(context, currentLocale)),
+              onTap: () => _showLanguageDialog(context, currentLocale),
+            ),
+
+            // 生成页布局选择
+            ListTile(
+              leading: const Icon(Icons.view_sidebar_outlined),
+              title: Text(context.l10n.settings_generationLayout),
+              subtitle: Text(
+                layoutMode == GenerationLayoutMode.webStyle
+                    ? context.l10n.settings_generationLayout_webStyle
+                    : context.l10n.settings_generationLayout_classic,
+              ),
+              onTap: () => _showGenerationLayoutDialog(context, layoutMode),
+            ),
+
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: Text(context.l10n.settings_historyClickBehavior),
+              subtitle: Text(
+                historyClickBehavior == HistoryClickBehavior.selectPreview
+                    ? context.l10n.settings_historyClickBehavior_linked
+                    : context.l10n.settings_historyClickBehavior_classic,
+              ),
+              onTap: () => _showHistoryClickBehaviorDialog(
+                context,
+                historyClickBehavior,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

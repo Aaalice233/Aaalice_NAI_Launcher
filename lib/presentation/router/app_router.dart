@@ -12,6 +12,7 @@ import '../../core/shortcuts/default_shortcuts.dart';
 import '../adaptive/adaptive_presenter.dart';
 import '../adaptive/window_size_class.dart';
 import '../providers/auth_provider.dart';
+import '../providers/mobile_shell_overlay_provider.dart';
 import '../providers/prompt_maximize_provider.dart';
 import '../providers/replication_queue_provider.dart';
 import '../providers/update_provider.dart';
@@ -252,7 +253,11 @@ GoRouter appRouter(Ref ref) {
                 name: 'settings',
                 builder: (context, state) => SettingsScreen(
                   initialSectionIndex:
-                      state.uri.queryParameters['section'] == 'storage' ? 3 : 0,
+                      switch (state.uri.queryParameters['section']) {
+                        'storage' => 3,
+                        'integrations' => 7,
+                        _ => 0,
+                      },
                 ),
               ),
             ],
@@ -409,21 +414,33 @@ class _MainShellState extends ConsumerState<MainShell> {
         final index = entry.key;
         final child = entry.value;
         final isActive = index == currentIndex;
+        final branchNavigator =
+            widget.navigationShell.route.branches[index].navigatorKey;
 
+        Widget branchContent;
         // 保活页面：画廊（1, 2）、Vibe 库（7）和精准参考库（8）
         // 始终保持在树中，通过 TickerMode 控制动画
         if (index == 1 || index == 2 || index == 7 || index == 8) {
-          return AppBranchVisibility(
+          branchContent = AppBranchVisibility(
             isVisible: isActive,
             child: TickerMode(enabled: isActive, child: child),
           );
+        } else if (!isActive) {
+          // 其他索引：非活动时显示空容器（不保活）
+          branchContent = const SizedBox.shrink();
+        } else {
+          branchContent = AppBranchVisibility(isVisible: true, child: child);
         }
 
-        // 其他索引：非活动时显示空容器（不保活）
-        if (!isActive) {
-          return const SizedBox.shrink();
-        }
-        return AppBranchVisibility(isVisible: true, child: child);
+        // 分支根页面中的 PopScope 不能直接接收根 Router 的系统返回。
+        // 由 Shell 把当前分支的返回能力提升到根路由，再交还对应 Navigator。
+        return NavigatorPopHandler<void>(
+          enabled: isActive,
+          onPopWithResult: (_) {
+            if (isActive) branchNavigator.currentState?.maybePop();
+          },
+          child: branchContent,
+        );
       }).toList(),
     );
 
@@ -554,20 +571,114 @@ class _AuthRecoveryBanner extends ConsumerWidget {
       errorCode,
       authState.httpStatusCode,
     );
-    return MaterialBanner(
-      content: Text(message),
-      leading: const Icon(Icons.cloud_off_rounded),
-      actions: [
-        TextButton(
-          onPressed: () =>
-              ref.read(authNotifierProvider.notifier).retryAutoLogin(),
-          child: Text(context.l10n.common_retry),
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final authNotifier = ref.read(authNotifierProvider.notifier);
+
+    return SafeArea(
+      bottom: false,
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 440),
+            child: Material(
+              key: const ValueKey('auth-recovery-banner'),
+              color: colorScheme.surfaceContainerHigh,
+              elevation: 4,
+              shadowColor: colorScheme.shadow.withValues(alpha: 0.22),
+              borderRadius: BorderRadius.circular(14),
+              clipBehavior: Clip.antiAlias,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final compact = MediaQuery.sizeOf(context).width < 520;
+                  final messageRow = Row(
+                    children: [
+                      Icon(
+                        Icons.error_outline_rounded,
+                        size: 20,
+                        color: colorScheme.error,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          message,
+                          maxLines: compact ? 2 : 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      if (compact)
+                        IconButton(
+                          key: const ValueKey('auth-recovery-dismiss'),
+                          onPressed: () => authNotifier.clearError(delayMs: 0),
+                          icon: const Icon(Icons.close_rounded),
+                          tooltip: MaterialLocalizations.of(
+                            context,
+                          ).closeButtonTooltip,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                    ],
+                  );
+                  final actions = [
+                    TextButton.icon(
+                      key: const ValueKey('auth-recovery-retry'),
+                      onPressed: authNotifier.retryAutoLogin,
+                      icon: const Icon(Icons.refresh_rounded, size: 18),
+                      label: Text(context.l10n.common_retry),
+                    ),
+                    FilledButton.tonalIcon(
+                      key: const ValueKey('auth-recovery-login'),
+                      onPressed: () => context.push(AppRoutes.login),
+                      icon: const Icon(Icons.login_rounded, size: 18),
+                      label: Text(context.l10n.settings_goToLogin),
+                    ),
+                  ];
+
+                  if (compact) {
+                    return Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 6, 8, 8),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          messageRow,
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: Wrap(spacing: 8, children: actions),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  return Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 6, 8, 6),
+                    child: Row(
+                      children: [
+                        Expanded(child: messageRow),
+                        const SizedBox(width: 8),
+                        ...actions,
+                        IconButton(
+                          key: const ValueKey('auth-recovery-dismiss'),
+                          onPressed: () => authNotifier.clearError(delayMs: 0),
+                          icon: const Icon(Icons.close_rounded),
+                          tooltip: MaterialLocalizations.of(
+                            context,
+                          ).closeButtonTooltip,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
         ),
-        TextButton(
-          onPressed: () => context.push(AppRoutes.login),
-          child: Text(context.l10n.settings_goToLogin),
-        ),
-      ],
+      ),
     );
   }
 }
@@ -643,6 +754,11 @@ class MobileShell extends ConsumerWidget {
       replicationQueueNotifierProvider.select((state) => state.count),
     );
     final keyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
+    final shellOverlayActive = ref.watch(
+      mobileShellOverlayNotifierProvider.select(
+        (overlays) => overlays.isNotEmpty,
+      ),
+    );
 
     return PopScope<void>(
       canPop: !isQueueVisible,
@@ -673,7 +789,7 @@ class MobileShell extends ConsumerWidget {
             ],
           ),
         ),
-        bottomNavigationBar: keyboardVisible
+        bottomNavigationBar: keyboardVisible || shellOverlayActive
             ? null
             : NavigationBar(
                 selectedIndex: isQueueVisible

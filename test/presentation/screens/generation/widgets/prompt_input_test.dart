@@ -11,6 +11,7 @@ import 'package:nai_launcher/data/models/character/character_prompt.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/providers/prompt_assistant_state_provider.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/widgets/prompt_assistant_overlay.dart';
+import 'package:nai_launcher/presentation/providers/character_position_canvas_provider.dart';
 import 'package:nai_launcher/presentation/providers/character_prompt_provider.dart';
 import 'package:nai_launcher/presentation/providers/prompt_token_counter_provider.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/generation_toggle_button.dart';
@@ -19,6 +20,7 @@ import 'package:nai_launcher/presentation/themes/core/input_surface_style.dart';
 import 'package:nai_launcher/presentation/widgets/common/input_surface_container.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 import 'package:nai_launcher/presentation/widgets/common/weight_adjust_toolbar.dart';
+import 'package:nai_launcher/presentation/widgets/character/inline_character_editor.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/unified/unified_prompt_config.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/unified/unified_prompt_input.dart';
 
@@ -130,7 +132,7 @@ void main() {
     expect(input.surfaceColor, isNot(colorScheme.surface));
   });
 
-  testWidgets('手机最大化提示词工具区固定为主次两行且不挤占编辑区', (tester) async {
+  testWidgets('手机最大化提示词工作台把预设工具放在编辑区下方', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -178,10 +180,10 @@ void main() {
       const ValueKey('generation_prompt_mobile_secondary_scroll'),
     );
     final secondaryActions = [
+      find.byKey(const ValueKey('generation_prompt_mobile_character_action')),
       find.byKey(const ValueKey('generation_prompt_mobile_fixed_tags_action')),
       find.byKey(const ValueKey('generation_prompt_mobile_quality_action')),
       find.byKey(const ValueKey('generation_prompt_mobile_uc_action')),
-      find.byKey(const ValueKey('generation_prompt_mobile_character_action')),
     ];
     final editor = find.byKey(
       const ValueKey('generation_prompt_positive_input'),
@@ -193,23 +195,212 @@ void main() {
         of: primaryRow,
         matching: find.byIcon(Icons.fullscreen_exit),
       ),
-      findsOneWidget,
+      findsNothing,
     );
     expect(secondaryScroll, findsOneWidget);
-    expect(tester.getSize(secondaryScroll).height, 48);
+    expect(tester.getSize(secondaryScroll).height, 44);
     expect(tester.getSize(secondaryScroll).width, 380);
     for (final action in secondaryActions) {
       expect(action, findsOneWidget);
-      expect(tester.getSize(action).height, 48);
+      expect(tester.getSize(action).height, 44);
       expect(
         tester.getCenter(action).dy,
         closeTo(tester.getCenter(secondaryActions.first).dy, 0.1),
       );
     }
     expect(
-      tester.getBottomLeft(secondaryScroll).dy,
+      tester.getBottomLeft(primaryRow).dy,
       lessThan(tester.getTopLeft(editor).dy),
     );
+    expect(
+      tester.getBottomLeft(editor).dy,
+      lessThan(tester.getTopLeft(secondaryScroll).dy),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('手机角色按钮直接展开单个已有角色的完整编辑器', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(380, 800);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          localStorageServiceProvider.overrideWith((ref) {
+            return _TestLocalStorageService();
+          }),
+          characterPromptNotifierProvider.overrideWith(
+            _TestCharacterPromptNotifier.new,
+          ),
+          promptTokenUsageProvider(
+            PromptTokenCountTarget.positive,
+          ).overrideWith(
+            (ref) async => const PromptTokenUsage(usedTokens: 0, limit: 512),
+          ),
+          promptTokenUsageProvider(
+            PromptTokenCountTarget.negative,
+          ).overrideWith(
+            (ref) async => const PromptTokenUsage(usedTokens: 0, limit: 512),
+          ),
+        ],
+        child: const MaterialApp(
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          home: Scaffold(
+            body: SizedBox(
+              width: 380,
+              height: 720,
+              child: PromptInputWidget(isMaximized: true),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.pump();
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(PromptInputWidget)),
+    );
+    final notifier = container.read(characterPromptNotifierProvider.notifier);
+    (notifier as _TestCharacterPromptNotifier).seed([
+      CharacterPrompt.create(name: '测试角色', prompt: '1girl, blue hair'),
+    ]);
+    await tester.pump();
+
+    await tester.tap(
+      find.byKey(const ValueKey('generation_prompt_mobile_character_action')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('测试角色'), findsWidgets);
+    expect(find.byType(CharacterPromptEditor), findsOneWidget);
+    expect(
+      tester
+          .getSize(
+            find.byKey(
+              const ValueKey('generation_mobile_character_manager_sheet'),
+            ),
+          )
+          .height,
+      greaterThan(600),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('手机多角色管理先显示概览，选择角色后展开编辑器', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(380, 800);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+
+    final container = await _pumpMobilePromptHarness(tester);
+    final notifier = container.read(characterPromptNotifierProvider.notifier);
+    (notifier as _TestCharacterPromptNotifier).seed([
+      CharacterPrompt.create(name: '角色甲', prompt: '1girl'),
+      CharacterPrompt.create(name: '角色乙', prompt: '1boy'),
+    ]);
+    await tester.pump();
+
+    await tester.tap(
+      find.byKey(const ValueKey('generation_prompt_mobile_character_action')),
+    );
+    await tester.pumpAndSettle();
+
+    final sheet = find.byKey(
+      const ValueKey('generation_mobile_character_manager_sheet'),
+    );
+    final overviewHeight = tester.getSize(sheet).height;
+    expect(find.text('角色甲'), findsOneWidget);
+    expect(find.text('角色乙'), findsOneWidget);
+    expect(find.byType(CharacterPromptEditor), findsNothing);
+    expect(overviewHeight, lessThan(600));
+
+    await tester.tap(find.text('角色乙'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(CharacterPromptEditor), findsOneWidget);
+    expect(tester.getSize(sheet).height, greaterThan(overviewHeight + 100));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('手机角色位置入口关闭管理层并显示预览画布', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(380, 800);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+
+    final container = await _pumpMobilePromptHarness(tester);
+    final canvasSubscription = container.listen<bool>(
+      characterPositionCanvasProvider,
+      (_, __) {},
+      fireImmediately: true,
+    );
+    addTearDown(canvasSubscription.close);
+    final notifier = container.read(characterPromptNotifierProvider.notifier);
+    (notifier as _TestCharacterPromptNotifier).seed([
+      CharacterPrompt.create(name: '角色甲', prompt: '1girl'),
+    ]);
+    await tester.pump();
+
+    await tester.tap(
+      find.byKey(const ValueKey('generation_prompt_mobile_character_action')),
+    );
+    await tester.pumpAndSettle();
+
+    final sheet = find.byKey(
+      const ValueKey('generation_mobile_character_manager_sheet'),
+    );
+    expect(sheet, findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.control_camera));
+    await tester.pumpAndSettle();
+
+    expect(sheet, findsNothing);
+    expect(container.read(characterPositionCanvasProvider), isTrue);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('手机空角色管理可直接添加并进入新角色编辑器', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(380, 800);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+
+    final container = await _pumpMobilePromptHarness(tester);
+    await tester.tap(
+      find.byKey(const ValueKey('generation_prompt_mobile_character_action')),
+    );
+    await tester.pumpAndSettle();
+
+    final sheet = find.byKey(
+      const ValueKey('generation_mobile_character_manager_sheet'),
+    );
+    final l10n = AppLocalizations.of(tester.element(sheet))!;
+    final addMenu = find.byKey(const Key('character-add-menu'));
+    expect(addMenu, findsOneWidget);
+    expect(find.byType(CharacterPromptEditor), findsNothing);
+    final addEntryRect = tester.getRect(addMenu);
+
+    await tester.tap(addMenu);
+    await tester.pumpAndSettle();
+    final addFemale = find.text(l10n.characterEditor_addFemale);
+    expect(addFemale, findsOneWidget);
+    expect(
+      tester.getRect(addFemale).top,
+      greaterThanOrEqualTo(addEntryRect.bottom),
+    );
+
+    await tester.tap(addFemale);
+    await tester.pumpAndSettle();
+
+    expect(
+      container.read(characterPromptNotifierProvider).characters,
+      hasLength(1),
+    );
+    expect(find.byType(CharacterPromptEditor), findsOneWidget);
+    expect(tester.getSize(sheet).height, greaterThan(600));
     expect(tester.takeException(), isNull);
   });
 
@@ -646,6 +837,42 @@ void main() {
   });
 }
 
+Future<ProviderContainer> _pumpMobilePromptHarness(WidgetTester tester) async {
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        localStorageServiceProvider.overrideWith(
+          (ref) => _TestLocalStorageService(),
+        ),
+        characterPromptNotifierProvider.overrideWith(
+          _TestCharacterPromptNotifier.new,
+        ),
+        promptTokenUsageProvider(PromptTokenCountTarget.positive).overrideWith(
+          (ref) async => const PromptTokenUsage(usedTokens: 0, limit: 512),
+        ),
+        promptTokenUsageProvider(PromptTokenCountTarget.negative).overrideWith(
+          (ref) async => const PromptTokenUsage(usedTokens: 0, limit: 512),
+        ),
+      ],
+      child: const MaterialApp(
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        home: Scaffold(
+          body: SizedBox(
+            width: 380,
+            height: 720,
+            child: PromptInputWidget(isMaximized: true),
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.pump();
+  return ProviderScope.containerOf(
+    tester.element(find.byType(PromptInputWidget)),
+  );
+}
+
 class _TestLocalStorageService extends LocalStorageService {
   _TestLocalStorageService({
     this.enablePromptWeightScroll = true,
@@ -734,4 +961,23 @@ class _TestLocalStorageService extends LocalStorageService {
 class _TestCharacterPromptNotifier extends CharacterPromptNotifier {
   @override
   CharacterPromptConfig build() => const CharacterPromptConfig();
+
+  void seed(List<CharacterPrompt> characters) {
+    state = CharacterPromptConfig(characters: characters);
+  }
+
+  @override
+  void addCharacter(
+    CharacterGender gender, {
+    String? name,
+    String? prompt,
+    String? thumbnailPath,
+  }) {
+    state = state.addCharacter(
+      gender: gender,
+      name: name,
+      prompt: prompt,
+      thumbnailPath: thumbnailPath,
+    );
+  }
 }

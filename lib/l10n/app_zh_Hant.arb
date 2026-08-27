@@ -254,7 +254,7 @@
   "settings_removeAvatar": "移除頭像",
   "settings_accountEmail": "賬號郵箱",
   "settings_emailAccount": "郵箱登入",
-  "settings_tokenAccount": "Token登入",
+  "settings_tokenAccount": "Token 帳號",
   "settings_setAsDefault": "設為預設",
   "settings_defaultAccount": "預設",
   "settings_editNickname": "編輯暱稱",
@@ -274,6 +274,12 @@
   "settings_avatarRemoved": "頭像已移除",
   "settings_setAsDefaultSuccess": "已設為預設賬號",
   "generation_title": "生成",
+  "generation_promptOverviewCharacters": "{count} 字",
+  "@generation_promptOverviewCharacters": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "generation_generate": "生成",
   "generation_cooldownRemaining": "等待 {seconds} 秒",
   "@generation_cooldownRemaining": {

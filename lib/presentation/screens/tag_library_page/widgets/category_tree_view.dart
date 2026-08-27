@@ -599,7 +599,12 @@ class _CategoryItemState extends State<_CategoryItem> {
                       widget.count.toString(),
                       style: TextStyle(
                         fontSize: 11,
-                        color: theme.colorScheme.outline,
+                        fontWeight: widget.isSelected
+                            ? FontWeight.w600
+                            : FontWeight.w500,
+                        color: widget.isSelected
+                            ? theme.colorScheme.primary
+                            : theme.colorScheme.onSurfaceVariant,
                       ),
                     ),
                     if (showActions)

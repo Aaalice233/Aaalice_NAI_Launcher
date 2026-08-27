@@ -277,16 +277,10 @@ class _StudioHeader extends StatelessWidget {
           );
 
           if (compact) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                title,
-                const SizedBox(height: 10),
-                PresetSelectorBar(
-                  onGeneratePreview: onGeneratePreview,
-                  onImportExport: onImportExport,
-                ),
-              ],
+            return PresetSelectorBar(
+              onGeneratePreview: onGeneratePreview,
+              onImportExport: onImportExport,
+              showWorkspaceHeading: true,
             );
           }
           return Row(

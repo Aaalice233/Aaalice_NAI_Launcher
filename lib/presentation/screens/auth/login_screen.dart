@@ -190,9 +190,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _removeLoadingOverlay();
     }
 
-    // 监听登录成功
+    // 登录页既可能是根路由，也可能从业务页 push 打开；成功后主动完成
+    // 返回，避免只依赖全局 redirect 时已认证账号仍停留在登录页。
     if (next.isAuthenticated && !(previous?.isAuthenticated ?? false)) {
       _hideTroubleshootingButton();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _continueWithoutLogin();
+      });
     }
 
     // 监听登录错误

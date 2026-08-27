@@ -561,69 +561,85 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
 
   // 筛选工具条 (Step 2)
   Widget _buildFilterToolbar(ThemeData theme) {
+    final favoriteFilter = FilterChip(
+      selected: _favoritesOnly,
+      onSelected: (_) => _toggleFavoriteFilter(),
+      label: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            _favoritesOnly ? Icons.favorite : Icons.favorite_border,
+            size: 16,
+            color: _favoritesOnly ? Colors.red : null,
+          ),
+          const SizedBox(width: 4),
+          Text(context.l10n.vibeSelectorFilterFavorites),
+        ],
+      ),
+      padding: EdgeInsets.zero,
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    );
+    final sourceFilter = _buildSourceTypeFilter(theme);
+    final tagFilters = _topTags.map((tag) {
+      final isSelected = _selectedTags.contains(tag);
+      return Padding(
+        padding: const EdgeInsets.only(right: 6),
+        child: FilterChip(
+          selected: isSelected,
+          onSelected: (_) => _toggleTag(tag),
+          label: Text(tag),
+          padding: EdgeInsets.zero,
+          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+      );
+    }).toList();
+    final sortButton = _buildSortButton(theme);
+    final itemCount = Text(
+      context.l10n.vibeSelectorItemsCount(_filteredEntries.length),
+      style: theme.textTheme.bodySmall?.copyWith(
+        color: theme.colorScheme.outline,
+      ),
+    );
+
     return SizedBox(
       height: 40,
-      child: Row(
-        children: [
-          // 收藏 FilterChip
-          FilterChip(
-            selected: _favoritesOnly,
-            onSelected: (_) => _toggleFavoriteFilter(),
-            label: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  _favoritesOnly ? Icons.favorite : Icons.favorite_border,
-                  size: 16,
-                  color: _favoritesOnly ? Colors.red : null,
-                ),
-                const SizedBox(width: 4),
-                Text(context.l10n.vibeSelectorFilterFavorites),
-              ],
-            ),
-            padding: EdgeInsets.zero,
-            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          ),
-          const SizedBox(width: 8),
-
-          // 来源类型 PopupMenuButton
-          _buildSourceTypeFilter(theme),
-          const SizedBox(width: 8),
-
-          // 高频标签 FilterChip 列表
-          Expanded(
-            child: SingleChildScrollView(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          if (constraints.maxWidth < 600) {
+            return SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
-                children: _topTags.map((tag) {
-                  final isSelected = _selectedTags.contains(tag);
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 6),
-                    child: FilterChip(
-                      selected: isSelected,
-                      onSelected: (_) => _toggleTag(tag),
-                      label: Text(tag),
-                      padding: EdgeInsets.zero,
-                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                  );
-                }).toList(),
+                children: [
+                  favoriteFilter,
+                  const SizedBox(width: 8),
+                  sourceFilter,
+                  const SizedBox(width: 8),
+                  sortButton,
+                  if (tagFilters.isNotEmpty) const SizedBox(width: 8),
+                  ...tagFilters,
+                ],
               ),
-            ),
-          ),
+            );
+          }
 
-          // 排序 PopupMenuButton
-          _buildSortButton(theme),
-          const SizedBox(width: 8),
-
-          // 结果计数
-          Text(
-            context.l10n.vibeSelectorItemsCount(_filteredEntries.length),
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.outline,
-            ),
-          ),
-        ],
+          return Row(
+            children: [
+              favoriteFilter,
+              const SizedBox(width: 8),
+              sourceFilter,
+              const SizedBox(width: 8),
+              Expanded(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(children: tagFilters),
+                ),
+              ),
+              sortButton,
+              const SizedBox(width: 8),
+              itemCount,
+            ],
+          );
+        },
       ),
     );
   }

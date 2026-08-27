@@ -697,7 +697,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settings_emailAccount => '邮箱登录';
 
   @override
-  String get settings_tokenAccount => 'Token登录';
+  String get settings_tokenAccount => 'Token 账号';
 
   @override
   String get settings_setAsDefault => '设为默认';
@@ -736,6 +736,11 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get generation_title => '生成';
+
+  @override
+  String generation_promptOverviewCharacters(Object count) {
+    return '$count 字';
+  }
 
   @override
   String get generation_generate => '生成';
@@ -13323,7 +13328,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get settings_emailAccount => '郵箱登入';
 
   @override
-  String get settings_tokenAccount => 'Token登入';
+  String get settings_tokenAccount => 'Token 帳號';
 
   @override
   String get settings_setAsDefault => '設為預設';
@@ -13362,6 +13367,11 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get generation_title => '生成';
+
+  @override
+  String generation_promptOverviewCharacters(Object count) {
+    return '$count 字';
+  }
 
   @override
   String get generation_generate => '生成';

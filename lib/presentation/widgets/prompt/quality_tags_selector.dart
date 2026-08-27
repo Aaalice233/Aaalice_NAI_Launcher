@@ -41,6 +41,9 @@ class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
     final presetState = ref.watch(qualityPresetNotifierProvider);
     final customEntries = ref.watch(qualityCustomEntriesProvider);
     final isEnabled = presetState.mode != PromptPresetMode.none;
+    final qualityColor = theme.brightness == Brightness.dark
+        ? Colors.green.shade300
+        : Colors.green.shade700;
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovering = true),
@@ -75,21 +78,15 @@ class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
             link: _layerLink,
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 150),
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              constraints: const BoxConstraints(minHeight: 44),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
                 color: isEnabled
-                    ? (_isHovering
-                          ? Colors.green.withValues(alpha: 0.2)
-                          : Colors.green.withValues(alpha: 0.1))
+                    ? qualityColor.withValues(alpha: _isHovering ? 0.18 : 0.12)
                     : (_isHovering
-                          ? theme.colorScheme.surfaceContainerHighest
-                          : Colors.transparent),
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(
-                  color: isEnabled
-                      ? Colors.green.withValues(alpha: 0.3)
-                      : Colors.transparent,
-                ),
+                          ? theme.colorScheme.surfaceContainerHigh
+                          : theme.colorScheme.surfaceContainerLow),
+                borderRadius: BorderRadius.circular(10),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -98,20 +95,20 @@ class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
                     isEnabled
                         ? Icons.auto_awesome
                         : Icons.auto_awesome_outlined,
-                    size: 14,
+                    size: 16,
                     color: isEnabled
-                        ? Colors.green.shade700
-                        : theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                        ? qualityColor
+                        : theme.colorScheme.onSurfaceVariant,
                   ),
                   const SizedBox(width: 4),
                   Text(
                     _getDisplayLabel(context, presetState, customEntries),
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: 12,
                       fontWeight: isEnabled ? FontWeight.w600 : FontWeight.w500,
                       color: isEnabled
-                          ? Colors.green.shade700
-                          : theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                          ? qualityColor
+                          : theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
                   const SizedBox(width: 2),
@@ -119,8 +116,8 @@ class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
                     Icons.arrow_drop_down,
                     size: 14,
                     color: isEnabled
-                        ? Colors.green.shade700
-                        : theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                        ? qualityColor
+                        : theme.colorScheme.onSurfaceVariant,
                   ),
                 ],
               ),

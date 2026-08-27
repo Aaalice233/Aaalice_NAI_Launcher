@@ -24,12 +24,16 @@ import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 const double _fixedTagDialogCollapsedWidth = 520;
 const double _fixedTagDialogExpandedWidth = 980;
-const double _fixedTagDialogHorizontalInset = 32;
+const double _fixedTagDialogHorizontalInset = 80;
 const double _fixedTagColumnGap = 28;
 const double _fixedTagLinkAnchorInset = 31;
 const double _fixedTagLinkRowHeight = 64;
 const double _fixedTagLinkTopOffset = 136;
 const double _fixedTagLinkBottomPadding = 16;
+
+enum _FixedTagHeaderAction { undo, redo, toggleAll, clearAll }
+
+enum _FixedTagEntryAction { edit, delete }
 
 /// 固定词管理对话框
 class FixedTagsDialog extends ConsumerStatefulWidget {
@@ -49,6 +53,7 @@ class _FixedTagsDialogState extends ConsumerState<FixedTagsDialog> {
   final _negativeAnchorKeys = <String, GlobalKey>{};
   String _positiveSearchQuery = '';
   String _negativeSearchQuery = '';
+  FixedTagPromptType _mobilePromptType = FixedTagPromptType.positive;
   int? _scheduledLinkGeometryHash;
   bool _scrollLinkRepaintScheduled = false;
 
@@ -141,17 +146,23 @@ class _FixedTagsDialogState extends ConsumerState<FixedTagsDialog> {
     final fixedTagsState = ref.watch(fixedTagsNotifierProvider);
     final entries = fixedTagsState.entries;
     final isDark = theme.brightness == Brightness.dark;
-    final screenWidth = MediaQuery.sizeOf(context).width;
-    final availableWidth = math.max(
-      320.0,
-      screenWidth - _fixedTagDialogHorizontalInset,
-    );
-    final targetWidth = fixedTagsState.negativePanelExpanded
+    final screenSize = MediaQuery.sizeOf(context);
+    final isCompact = screenSize.width < 600;
+    final horizontalInset = isCompact ? 24.0 : _fixedTagDialogHorizontalInset;
+    final availableWidth = math.max(0.0, screenSize.width - horizontalInset);
+    final targetWidth = isCompact
+        ? availableWidth
+        : fixedTagsState.negativePanelExpanded
         ? _fixedTagDialogExpandedWidth
         : _fixedTagDialogCollapsedWidth;
     final dialogWidth = math.min(targetWidth, availableWidth);
+    final maxHeight = isCompact ? math.max(0.0, screenSize.height - 24) : 620.0;
 
     return Dialog(
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: isCompact ? 12 : 40,
+        vertical: isCompact ? 12 : 24,
+      ),
       backgroundColor: Colors.transparent,
       elevation: 0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -160,13 +171,14 @@ class _FixedTagsDialogState extends ConsumerState<FixedTagsDialog> {
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
           child: AnimatedContainer(
+            key: const ValueKey('fixed-tags-dialog-surface'),
             duration: const Duration(milliseconds: 220),
             curve: Curves.easeOutCubic,
             width: dialogWidth,
             constraints: BoxConstraints(
               minWidth: dialogWidth,
               maxWidth: dialogWidth,
-              maxHeight: 620,
+              maxHeight: maxHeight,
             ),
             decoration: BoxDecoration(
               color: isDark
@@ -192,18 +204,25 @@ class _FixedTagsDialogState extends ConsumerState<FixedTagsDialog> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 // 标题栏
-                _buildHeader(theme, isDark),
+                _buildHeader(theme, isDark, isCompact),
 
                 // 列表区域
                 Flexible(
                   child:
-                      entries.isEmpty && !fixedTagsState.negativePanelExpanded
+                      entries.isEmpty &&
+                          !fixedTagsState.negativePanelExpanded &&
+                          !isCompact
                       ? _buildEmptyState(theme, isDark)
-                      : _buildListBody(theme, fixedTagsState, isDark),
+                      : _buildListBody(
+                          theme,
+                          fixedTagsState,
+                          isDark,
+                          isCompact,
+                        ),
                 ),
 
                 // 底部操作栏
-                _buildFooter(theme, isDark),
+                _buildFooter(theme, isDark, isCompact),
               ],
             ),
           ),
@@ -212,13 +231,23 @@ class _FixedTagsDialogState extends ConsumerState<FixedTagsDialog> {
     );
   }
 
-  Widget _buildHeader(ThemeData theme, bool isDark) {
+  Widget _buildHeader(ThemeData theme, bool isDark, bool isCompact) {
     final fixedTagsState = ref.watch(fixedTagsNotifierProvider);
     final enabledCount = fixedTagsState.entries
         .where((entry) => entry.enabled)
         .length;
     final totalCount = fixedTagsState.entries.length;
     final linkCount = fixedTagsState.links.length;
+
+    if (isCompact) {
+      return _buildCompactHeader(
+        theme,
+        fixedTagsState,
+        enabledCount,
+        totalCount,
+        linkCount,
+      );
+    }
 
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 18, 12, 14),
@@ -390,7 +419,159 @@ class _FixedTagsDialogState extends ConsumerState<FixedTagsDialog> {
     );
   }
 
-  Widget _buildListBody(ThemeData theme, FixedTagsState state, bool isDark) {
+  Widget _buildCompactHeader(
+    ThemeData theme,
+    FixedTagsState state,
+    int enabledCount,
+    int totalCount,
+    int linkCount,
+  ) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 10, 6, 10),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerLow,
+        border: Border(
+          bottom: BorderSide(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: theme.colorScheme.secondaryContainer,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              Icons.push_pin_rounded,
+              size: 18,
+              color: theme.colorScheme.onSecondaryContainer,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  context.l10n.fixedTags_manage,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${context.l10n.fixedTags_enabledCount(enabledCount.toString(), totalCount.toString())} · ${context.l10n.fixedTags_linkCount(linkCount)}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          PopupMenuButton<_FixedTagHeaderAction>(
+            tooltip: MaterialLocalizations.of(context).moreButtonTooltip,
+            onSelected: (action) {
+              final notifier = ref.read(fixedTagsNotifierProvider.notifier);
+              switch (action) {
+                case _FixedTagHeaderAction.undo:
+                  notifier.undo();
+                  break;
+                case _FixedTagHeaderAction.redo:
+                  notifier.redo();
+                  break;
+                case _FixedTagHeaderAction.toggleAll:
+                  notifier.setAllEnabled(enabledCount != totalCount);
+                  break;
+                case _FixedTagHeaderAction.clearAll:
+                  _showClearAllConfirmation();
+                  break;
+              }
+            },
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: _FixedTagHeaderAction.undo,
+                enabled: state.canUndo,
+                child: ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.undo_rounded),
+                  title: Text(context.l10n.fixedTags_undoTooltip),
+                ),
+              ),
+              PopupMenuItem(
+                value: _FixedTagHeaderAction.redo,
+                enabled: state.canRedo,
+                child: ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.redo_rounded),
+                  title: Text(context.l10n.fixedTags_redoTooltip),
+                ),
+              ),
+              if (totalCount > 0)
+                PopupMenuItem(
+                  value: _FixedTagHeaderAction.toggleAll,
+                  child: ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(
+                      enabledCount == totalCount
+                          ? Icons.toggle_off_outlined
+                          : Icons.toggle_on_outlined,
+                    ),
+                    title: Text(
+                      enabledCount == totalCount
+                          ? context.l10n.fixedTags_disableAll
+                          : context.l10n.fixedTags_enableAll,
+                    ),
+                  ),
+                ),
+              if (totalCount > 0)
+                PopupMenuItem(
+                  value: _FixedTagHeaderAction.clearAll,
+                  child: ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(
+                      Icons.delete_sweep_outlined,
+                      color: theme.colorScheme.error,
+                    ),
+                    title: Text(
+                      context.l10n.fixedTags_clearAll,
+                      style: TextStyle(color: theme.colorScheme.error),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          IconButton(
+            tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+            onPressed: () => Navigator.of(context).pop(),
+            icon: const Icon(Icons.close_rounded),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildListBody(
+    ThemeData theme,
+    FixedTagsState state,
+    bool isDark,
+    bool isCompact,
+  ) {
+    if (isCompact) {
+      _scheduledLinkGeometryHash = null;
+      return _buildCompactListBody(theme, state, isDark);
+    }
     if (!state.negativePanelExpanded) {
       _scheduledLinkGeometryHash = null;
     }
@@ -444,6 +625,7 @@ class _FixedTagsDialogState extends ConsumerState<FixedTagsDialog> {
     ScrollController? scrollController,
     bool allowReorder = true,
     bool showLinkAnchors = false,
+    bool compact = false,
   }) {
     final libraryEntries = ref.watch(
       tagLibraryPageNotifierProvider.select((state) => state.entries),
@@ -454,7 +636,10 @@ class _FixedTagsDialogState extends ConsumerState<FixedTagsDialog> {
         entry: entry,
         index: index,
         isDark: isDark,
-        linkAnchor: showLinkAnchors ? _buildLinkAnchor(theme, entry) : null,
+        compact: compact,
+        linkAnchor: showLinkAnchors
+            ? _buildLinkAnchor(theme, entry, mobile: compact)
+            : null,
         onToggleEnabled: () {
           ref.read(fixedTagsNotifierProvider.notifier).toggleEnabled(entry.id);
         },
@@ -497,6 +682,142 @@ class _FixedTagsDialogState extends ConsumerState<FixedTagsDialog> {
             .read(fixedTagsNotifierProvider.notifier)
             .reorderWithinPromptType(promptType, oldIndex, newIndex);
       },
+    );
+  }
+
+  Widget _buildCompactListBody(
+    ThemeData theme,
+    FixedTagsState state,
+    bool isDark,
+  ) {
+    final isPositive = _mobilePromptType == FixedTagPromptType.positive;
+    final entries = isPositive
+        ? _filterEntries(
+            state.positiveEntries.sortedByOrder(),
+            _positiveSearchQuery,
+          )
+        : _filterEntries(
+            state.negativeEntries.sortedByOrder(),
+            _negativeSearchQuery,
+          );
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(10, 10, 10, 4),
+          child: Row(
+            children: [
+              Expanded(
+                child: _buildCompactPromptTypeTab(
+                  theme: theme,
+                  promptType: FixedTagPromptType.positive,
+                  label: context.l10n.fixedTags_positiveTitle,
+                  count: state.positiveEntries.length,
+                  icon: Icons.auto_awesome_rounded,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildCompactPromptTypeTab(
+                  theme: theme,
+                  promptType: FixedTagPromptType.negative,
+                  label: context.l10n.fixedTags_negativeTitle,
+                  count: state.negativeEntries.length,
+                  icon: Icons.block_rounded,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: _buildFixedTagColumn(
+            theme: theme,
+            title: isPositive
+                ? context.l10n.fixedTags_positiveTitle
+                : context.l10n.fixedTags_negativeTitle,
+            promptType: _mobilePromptType,
+            entries: entries,
+            searchController: isPositive
+                ? _positiveSearchController
+                : _negativeSearchController,
+            searchQuery: isPositive
+                ? _positiveSearchQuery
+                : _negativeSearchQuery,
+            isDark: isDark,
+            scrollController: isPositive
+                ? _positiveListController
+                : _negativeListController,
+            onSearchChanged: (value) {
+              setState(() {
+                if (isPositive) {
+                  _positiveSearchQuery = value;
+                } else {
+                  _negativeSearchQuery = value;
+                }
+              });
+            },
+            compact: true,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCompactPromptTypeTab({
+    required ThemeData theme,
+    required FixedTagPromptType promptType,
+    required String label,
+    required int count,
+    required IconData icon,
+  }) {
+    final selected = _mobilePromptType == promptType;
+    final color = promptType == FixedTagPromptType.positive
+        ? theme.colorScheme.secondary
+        : theme.colorScheme.error;
+    return Material(
+      key: ValueKey('fixed-tags-mobile-tab-${promptType.name}'),
+      color: selected
+          ? color.withValues(alpha: 0.14)
+          : theme.colorScheme.surfaceContainerLow,
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: () => setState(() => _mobilePromptType = promptType),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 16,
+                color: selected ? color : theme.colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: selected
+                        ? color
+                        : theme.colorScheme.onSurfaceVariant,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 5),
+              Text(
+                count.toString(),
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: selected ? color : theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -617,6 +938,7 @@ class _FixedTagsDialogState extends ConsumerState<FixedTagsDialog> {
     required bool isDark,
     required ScrollController scrollController,
     required ValueChanged<String> onSearchChanged,
+    bool compact = false,
   }) {
     final state = ref.watch(fixedTagsNotifierProvider);
     final allEntries = promptType == FixedTagPromptType.positive
@@ -631,6 +953,23 @@ class _FixedTagsDialogState extends ConsumerState<FixedTagsDialog> {
             entries.length,
           )
         : context.l10n.fixedTags_columnCount(enabledCount, allEntries.length);
+
+    if (compact) {
+      return _buildCompactFixedTagColumn(
+        theme: theme,
+        title: title,
+        promptType: promptType,
+        entries: entries,
+        searchController: searchController,
+        searchQuery: searchQuery,
+        isDark: isDark,
+        scrollController: scrollController,
+        onSearchChanged: onSearchChanged,
+        enabledCount: enabledCount,
+        allEntries: allEntries,
+        totalText: totalText,
+      );
+    }
 
     return Column(
       children: [
@@ -740,6 +1079,144 @@ class _FixedTagsDialogState extends ConsumerState<FixedTagsDialog> {
     );
   }
 
+  Widget _buildCompactFixedTagColumn({
+    required ThemeData theme,
+    required String title,
+    required FixedTagPromptType promptType,
+    required List<FixedTagEntry> entries,
+    required TextEditingController searchController,
+    required String searchQuery,
+    required bool isDark,
+    required ScrollController scrollController,
+    required ValueChanged<String> onSearchChanged,
+    required int enabledCount,
+    required List<FixedTagEntry> allEntries,
+    required String totalText,
+  }) {
+    final hasSearch = searchQuery.trim().isNotEmpty;
+    final enableAll = enabledCount != allEntries.length;
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '$title · $totalText',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              IconButton(
+                tooltip: enableAll
+                    ? context.l10n.fixedTags_enableAll
+                    : context.l10n.fixedTags_disableAll,
+                visualDensity: VisualDensity.compact,
+                onPressed: () {
+                  final notifier = ref.read(fixedTagsNotifierProvider.notifier);
+                  if (promptType == FixedTagPromptType.positive) {
+                    notifier.setAllPositiveEnabled(enableAll);
+                  } else {
+                    notifier.setAllNegativeEnabled(enableAll);
+                  }
+                },
+                icon: Icon(
+                  enableAll
+                      ? Icons.toggle_on_outlined
+                      : Icons.toggle_off_outlined,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Row(
+            children: [
+              Expanded(
+                child: FilledButton.tonalIcon(
+                  onPressed: () =>
+                      _showEditDialog(null, initialPromptType: promptType),
+                  icon: const Icon(Icons.add_rounded, size: 17),
+                  label: Text(
+                    context.l10n.fixedTags_new,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextButton.icon(
+                  onPressed: () => _showLibraryPicker(theme, promptType),
+                  icon: const Icon(Icons.playlist_add_rounded, size: 17),
+                  label: Text(
+                    context.l10n.fixedTags_addFromLibrary,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: ThemedInput(
+            controller: searchController,
+            decoration: InputDecoration(
+              hintText: context.l10n.fixedTags_searchTarget(title),
+              prefixIcon: const Icon(Icons.search_rounded, size: 18),
+              suffixIcon: hasSearch
+                  ? IconButton(
+                      icon: const Icon(Icons.close_rounded, size: 16),
+                      onPressed: () {
+                        searchController.clear();
+                        onSearchChanged('');
+                      },
+                    )
+                  : null,
+              isDense: true,
+            ),
+            onChanged: onSearchChanged,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Expanded(
+          child: entries.isEmpty
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Text(
+                      hasSearch
+                          ? context.l10n.fixedTags_noMatching
+                          : context.l10n.fixedTags_emptyTarget(title),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: theme.colorScheme.outline),
+                    ),
+                  ),
+                )
+              : _buildEntryList(
+                  theme,
+                  entries,
+                  isDark,
+                  promptType,
+                  scrollController: scrollController,
+                  allowReorder: !hasSearch,
+                  showLinkAnchors: true,
+                  compact: true,
+                ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildColumnActionButton({
     required ThemeData theme,
     required IconData icon,
@@ -762,7 +1239,11 @@ class _FixedTagsDialogState extends ConsumerState<FixedTagsDialog> {
     );
   }
 
-  Widget _buildLinkAnchor(ThemeData theme, FixedTagEntry entry) {
+  Widget _buildLinkAnchor(
+    ThemeData theme,
+    FixedTagEntry entry, {
+    bool mobile = false,
+  }) {
     final state = ref.watch(fixedTagsNotifierProvider);
     final linkCount = entry.promptType == FixedTagPromptType.positive
         ? state.linkedNegativesOf(entry.id).length
@@ -781,13 +1262,14 @@ class _FixedTagsDialogState extends ConsumerState<FixedTagsDialog> {
         : context.l10n.fixedTags_linkedToNames(linkedNames);
 
     final anchorVisual = SizedBox(
-      width: 22,
-      height: 22,
+      width: mobile ? 40 : 22,
+      height: mobile ? 40 : 22,
       child: Center(
         child: GestureDetector(
-          onTap: () => _showLinkMenu(entry),
+          onTap: () =>
+              mobile ? _showCompactLinkManager(entry) : _showLinkMenu(entry),
           child: Tooltip(
-            message: tooltip,
+            message: mobile ? context.l10n.fixedTags_manageLinks : tooltip,
             child: Stack(
               clipBehavior: Clip.none,
               children: [
@@ -827,6 +1309,13 @@ class _FixedTagsDialogState extends ConsumerState<FixedTagsDialog> {
         ),
       ),
     );
+
+    if (mobile) {
+      return KeyedSubtree(
+        key: ValueKey('fixed-tag-mobile-link-${entry.id}'),
+        child: anchorVisual,
+      );
+    }
 
     if (entry.promptType == FixedTagPromptType.positive) {
       return KeyedSubtree(
@@ -874,6 +1363,163 @@ class _FixedTagsDialogState extends ConsumerState<FixedTagsDialog> {
           );
         },
       ),
+    );
+  }
+
+  void _showCompactLinkManager(FixedTagEntry entry) {
+    showModalBottomSheet<void>(
+      context: context,
+      useRootNavigator: true,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        return Consumer(
+          builder: (context, ref, _) {
+            final state = ref.watch(fixedTagsNotifierProvider);
+            final oppositeType = entry.promptType == FixedTagPromptType.positive
+                ? FixedTagPromptType.negative
+                : FixedTagPromptType.positive;
+            final oppositeTitle = oppositeType == FixedTagPromptType.positive
+                ? context.l10n.fixedTags_positiveTitle
+                : context.l10n.fixedTags_negativeTitle;
+            final candidates = state.entries
+                .where((candidate) => candidate.promptType == oppositeType)
+                .toList()
+                .sortedByOrder();
+            final linkedIds = entry.promptType == FixedTagPromptType.positive
+                ? state
+                      .linkedNegativesOf(entry.id)
+                      .map((item) => item.id)
+                      .toSet()
+                : state
+                      .linkedPositivesOf(entry.id)
+                      .map((item) => item.id)
+                      .toSet();
+
+            return SafeArea(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.sizeOf(context).height * 0.72,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 4, 8, 12),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.link_rounded,
+                            color: Theme.of(context).colorScheme.secondary,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  context.l10n.fixedTags_manageLinks,
+                                  style: Theme.of(context).textTheme.titleMedium
+                                      ?.copyWith(fontWeight: FontWeight.w700),
+                                ),
+                                Text(
+                                  '${entry.displayName} · $oppositeTitle',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onSurfaceVariant,
+                                      ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: MaterialLocalizations.of(
+                              context,
+                            ).closeButtonTooltip,
+                            onPressed: () => Navigator.of(sheetContext).pop(),
+                            icon: const Icon(Icons.close_rounded),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Divider(height: 1),
+                    if (candidates.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 40,
+                        ),
+                        child: Text(
+                          context.l10n.fixedTags_emptyTarget(oppositeTitle),
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.outline,
+                          ),
+                        ),
+                      )
+                    else
+                      Flexible(
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          itemCount: candidates.length,
+                          itemBuilder: (context, index) {
+                            final candidate = candidates[index];
+                            final linked = linkedIds.contains(candidate.id);
+                            return CheckboxListTile(
+                              key: ValueKey(
+                                'fixed-tag-link-option-${candidate.id}',
+                              ),
+                              value: linked,
+                              controlAffinity: ListTileControlAffinity.leading,
+                              title: Text(candidate.displayName),
+                              subtitle: candidate.content.isEmpty
+                                  ? null
+                                  : Text(
+                                      candidate.content.replaceAll('\n', ' '),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                              onChanged: (selected) async {
+                                final notifier = ref.read(
+                                  fixedTagsNotifierProvider.notifier,
+                                );
+                                final positiveId =
+                                    entry.promptType ==
+                                        FixedTagPromptType.positive
+                                    ? entry.id
+                                    : candidate.id;
+                                final negativeId =
+                                    entry.promptType ==
+                                        FixedTagPromptType.negative
+                                    ? entry.id
+                                    : candidate.id;
+                                if (selected ?? false) {
+                                  await notifier.createLink(
+                                    positiveEntryId: positiveId,
+                                    negativeEntryId: negativeId,
+                                  );
+                                } else {
+                                  await notifier.removeLinkByPair(
+                                    positiveEntryId: positiveId,
+                                    negativeEntryId: negativeId,
+                                  );
+                                }
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -933,7 +1579,31 @@ class _FixedTagsDialogState extends ConsumerState<FixedTagsDialog> {
     );
   }
 
-  Widget _buildFooter(ThemeData theme, bool isDark) {
+  Widget _buildFooter(ThemeData theme, bool isDark, bool isCompact) {
+    if (isCompact) {
+      return Container(
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+        decoration: BoxDecoration(
+          border: Border(
+            top: BorderSide(
+              color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+            ),
+          ),
+        ),
+        child: SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: () {
+              Navigator.of(context).pop();
+              context.go(AppRoutes.tagLibraryPage);
+            },
+            icon: const Icon(Icons.library_books_outlined, size: 17),
+            label: Text(context.l10n.fixedTags_openLibrary),
+          ),
+        ),
+      );
+    }
+
     final hasEntries = ref.watch(fixedTagsNotifierProvider).entries.isNotEmpty;
     final negativeExpanded = ref
         .watch(fixedTagsNotifierProvider)
@@ -1347,6 +2017,7 @@ class _FixedTagEntryTile extends StatefulWidget {
   final FixedTagEntry entry;
   final int index;
   final bool isDark;
+  final bool compact;
   final Widget? linkAnchor;
   final VoidCallback onToggleEnabled;
   final VoidCallback onEdit;
@@ -1356,6 +2027,7 @@ class _FixedTagEntryTile extends StatefulWidget {
     required this.entry,
     required this.index,
     required this.isDark,
+    this.compact = false,
     this.linkAnchor,
     required this.onToggleEnabled,
     required this.onEdit,
@@ -1397,8 +2069,14 @@ class _FixedTagEntryTileState extends State<_FixedTagEntryTile> {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
           curve: Curves.easeOut,
-          margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          margin: EdgeInsets.symmetric(
+            horizontal: widget.compact ? 6 : 10,
+            vertical: 4,
+          ),
+          padding: EdgeInsets.symmetric(
+            horizontal: widget.compact ? 8 : 12,
+            vertical: 8,
+          ),
           decoration: BoxDecoration(
             // 色差背景：启用时用主题色深背景，禁用时发灰
             color: entry.enabled
@@ -1438,205 +2116,360 @@ class _FixedTagEntryTileState extends State<_FixedTagEntryTile> {
           ),
           child: Opacity(
             opacity: disabledOpacity,
-            child: Row(
-              children: [
-                if (hasNegativeAnchor) ...[
-                  widget.linkAnchor!,
-                  const SizedBox(width: 10),
-                ],
+            child: widget.compact
+                ? _buildCompactContent(theme, entry, posColor)
+                : Row(
+                    children: [
+                      if (hasNegativeAnchor) ...[
+                        widget.linkAnchor!,
+                        const SizedBox(width: 10),
+                      ],
 
-                // 启用开关
-                ThemedSwitch(
-                  value: entry.enabled,
-                  onChanged: (_) => widget.onToggleEnabled(),
-                  scale: 0.7,
-                ),
+                      // 启用开关
+                      ThemedSwitch(
+                        value: entry.enabled,
+                        onChanged: (_) => widget.onToggleEnabled(),
+                        scale: 0.7,
+                      ),
 
-                // 名称、内容和标签区域都可切换启用状态；开关、操作按钮和
-                // 连线锚点仍保留各自独立交互。
-                Expanded(
-                  child: MouseRegion(
-                    cursor: SystemMouseCursors.click,
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: widget.onToggleEnabled,
-                      child: Padding(
-                        padding: const EdgeInsets.only(left: 10, right: 8),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
+                      // 名称、内容和标签区域都可切换启用状态；开关、操作按钮和
+                      // 连线锚点仍保留各自独立交互。
+                      Expanded(
+                        child: MouseRegion(
+                          cursor: SystemMouseCursors.click,
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: widget.onToggleEnabled,
+                            child: Padding(
+                              padding: const EdgeInsets.only(
+                                left: 10,
+                                right: 8,
+                              ),
+                              child: Row(
                                 children: [
-                                  Text(
-                                    entry.displayName,
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w500,
-                                      color: entry.enabled
-                                          ? theme.colorScheme.onSurface
-                                          : theme.colorScheme.onSurface
-                                                .withValues(alpha: 0.5),
-                                      decoration: entry.enabled
-                                          ? null
-                                          : TextDecoration.lineThrough,
-                                      decorationColor: theme.colorScheme.outline
-                                          .withValues(alpha: 0.6),
-                                      decorationThickness: 2,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                    maxLines: 1,
-                                  ),
-                                  if (entry.content.isNotEmpty)
-                                    Padding(
-                                      padding: const EdgeInsets.only(top: 2),
-                                      child: Text(
-                                        entry.content.replaceAll('\n', ' '),
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          color: entry.enabled
-                                              ? theme.colorScheme.outline
-                                                    .withValues(alpha: 0.8)
-                                              : theme.colorScheme.outline
-                                                    .withValues(alpha: 0.5),
-                                          height: 1.2,
-                                          decoration: entry.enabled
-                                              ? null
-                                              : TextDecoration.lineThrough,
-                                          decorationColor: theme
-                                              .colorScheme
-                                              .outline
-                                              .withValues(alpha: 0.4),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          entry.displayName,
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w500,
+                                            color: entry.enabled
+                                                ? theme.colorScheme.onSurface
+                                                : theme.colorScheme.onSurface
+                                                      .withValues(alpha: 0.5),
+                                            decoration: entry.enabled
+                                                ? null
+                                                : TextDecoration.lineThrough,
+                                            decorationColor: theme
+                                                .colorScheme
+                                                .outline
+                                                .withValues(alpha: 0.6),
+                                            decorationThickness: 2,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                          maxLines: 1,
                                         ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
+                                        if (entry.content.isNotEmpty)
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                              top: 2,
+                                            ),
+                                            child: Text(
+                                              entry.content.replaceAll(
+                                                '\n',
+                                                ' ',
+                                              ),
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                color: entry.enabled
+                                                    ? theme.colorScheme.outline
+                                                          .withValues(
+                                                            alpha: 0.8,
+                                                          )
+                                                    : theme.colorScheme.outline
+                                                          .withValues(
+                                                            alpha: 0.5,
+                                                          ),
+                                                height: 1.2,
+                                                decoration: entry.enabled
+                                                    ? null
+                                                    : TextDecoration
+                                                          .lineThrough,
+                                                decorationColor: theme
+                                                    .colorScheme
+                                                    .outline
+                                                    .withValues(alpha: 0.4),
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                      ],
                                     ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                          vertical: 3,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: entry.enabled
+                                              ? posColor.withValues(alpha: 0.15)
+                                              : theme.colorScheme.outline
+                                                    .withValues(alpha: 0.1),
+                                          borderRadius: BorderRadius.circular(
+                                            6,
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              entry.isPrefix
+                                                  ? Icons.arrow_forward_rounded
+                                                  : Icons.arrow_back_rounded,
+                                              size: 10,
+                                              color: entry.enabled
+                                                  ? posColor
+                                                  : theme.colorScheme.outline,
+                                            ),
+                                            const SizedBox(width: 3),
+                                            Text(
+                                              entry.isPrefix
+                                                  ? context
+                                                        .l10n
+                                                        .fixedTags_prefix
+                                                  : context
+                                                        .l10n
+                                                        .fixedTags_suffix,
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w600,
+                                                color: entry.enabled
+                                                    ? posColor
+                                                    : theme.colorScheme.outline,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      if (entry.weight != 1.0) ...[
+                                        const SizedBox(width: 4),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 6,
+                                            vertical: 3,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: entry.enabled
+                                                ? theme.colorScheme.secondary
+                                                      .withValues(alpha: 0.15)
+                                                : theme.colorScheme.outline
+                                                      .withValues(alpha: 0.1),
+                                            borderRadius: BorderRadius.circular(
+                                              6,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            '${entry.weight.toStringAsFixed(1)}x',
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w600,
+                                              color: entry.enabled
+                                                  ? theme.colorScheme.secondary
+                                                  : theme.colorScheme.outline,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
                                 ],
                               ),
                             ),
-                            const SizedBox(width: 8),
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 6,
-                                    vertical: 3,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: entry.enabled
-                                        ? posColor.withValues(alpha: 0.15)
-                                        : theme.colorScheme.outline.withValues(
-                                            alpha: 0.1,
-                                          ),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        entry.isPrefix
-                                            ? Icons.arrow_forward_rounded
-                                            : Icons.arrow_back_rounded,
-                                        size: 10,
-                                        color: entry.enabled
-                                            ? posColor
-                                            : theme.colorScheme.outline,
-                                      ),
-                                      const SizedBox(width: 3),
-                                      Text(
-                                        entry.isPrefix
-                                            ? context.l10n.fixedTags_prefix
-                                            : context.l10n.fixedTags_suffix,
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w600,
-                                          color: entry.enabled
-                                              ? posColor
-                                              : theme.colorScheme.outline,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                if (entry.weight != 1.0) ...[
-                                  const SizedBox(width: 4),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 6,
-                                      vertical: 3,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: entry.enabled
-                                          ? theme.colorScheme.secondary
-                                                .withValues(alpha: 0.15)
-                                          : theme.colorScheme.outline
-                                                .withValues(alpha: 0.1),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Text(
-                                      '${entry.weight.toStringAsFixed(1)}x',
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w600,
-                                        color: entry.enabled
-                                            ? theme.colorScheme.secondary
-                                            : theme.colorScheme.outline,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ],
+                          ),
+                        ),
+                      ),
+
+                      // 操作按钮 - 紧凑
+                      AnimatedOpacity(
+                        opacity:
+                            PlatformCapabilities.current.hasTouchInput ||
+                                _isHovering
+                            ? 1.0
+                            : 0.4,
+                        duration: const Duration(milliseconds: 120),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _CompactIconButton(
+                              icon: Icons.edit_outlined,
+                              onPressed: widget.onEdit,
+                              tooltip: context.l10n.common_edit,
+                              color: theme.colorScheme.onSurface.withValues(
+                                alpha: 0.6,
+                              ),
+                              hoverColor: theme.colorScheme.primary,
+                            ),
+                            _CompactIconButton(
+                              icon: Icons.close_rounded,
+                              onPressed: widget.onDelete,
+                              tooltip: context.l10n.common_delete,
+                              color: theme.colorScheme.onSurface.withValues(
+                                alpha: 0.5,
+                              ),
+                              hoverColor: theme.colorScheme.error,
                             ),
                           ],
                         ),
                       ),
-                    ),
-                  ),
-                ),
-
-                // 操作按钮 - 紧凑
-                AnimatedOpacity(
-                  opacity:
-                      PlatformCapabilities.current.hasTouchInput || _isHovering
-                      ? 1.0
-                      : 0.4,
-                  duration: const Duration(milliseconds: 120),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _CompactIconButton(
-                        icon: Icons.edit_outlined,
-                        onPressed: widget.onEdit,
-                        tooltip: context.l10n.common_edit,
-                        color: theme.colorScheme.onSurface.withValues(
-                          alpha: 0.6,
-                        ),
-                        hoverColor: theme.colorScheme.primary,
-                      ),
-                      _CompactIconButton(
-                        icon: Icons.close_rounded,
-                        onPressed: widget.onDelete,
-                        tooltip: context.l10n.common_delete,
-                        color: theme.colorScheme.onSurface.withValues(
-                          alpha: 0.5,
-                        ),
-                        hoverColor: theme.colorScheme.error,
-                      ),
+                      if (hasPositiveAnchor) ...[
+                        const SizedBox(width: 6),
+                        widget.linkAnchor!,
+                      ],
                     ],
                   ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCompactContent(
+    ThemeData theme,
+    FixedTagEntry entry,
+    Color positionColor,
+  ) {
+    return Row(
+      children: [
+        ThemedSwitch(
+          value: entry.enabled,
+          onChanged: (_) => widget.onToggleEnabled(),
+          scale: 0.62,
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: widget.onToggleEnabled,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  entry.displayName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    decoration: entry.enabled
+                        ? null
+                        : TextDecoration.lineThrough,
+                  ),
                 ),
-                if (hasPositiveAnchor) ...[
-                  const SizedBox(width: 6),
-                  widget.linkAnchor!,
-                ],
+                const SizedBox(height: 3),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        entry.content.isEmpty
+                            ? context.l10n.fixedTags_empty
+                            : entry.content.replaceAll('\n', ' '),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Icon(
+                      entry.isPrefix
+                          ? Icons.arrow_forward_rounded
+                          : Icons.arrow_back_rounded,
+                      size: 12,
+                      color: positionColor,
+                    ),
+                    const SizedBox(width: 2),
+                    Text(
+                      entry.isPrefix
+                          ? context.l10n.fixedTags_prefix
+                          : context.l10n.fixedTags_suffix,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: positionColor,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (entry.weight != 1.0) ...[
+                      const SizedBox(width: 5),
+                      Text(
+                        '${entry.weight.toStringAsFixed(1)}×',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.secondary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ],
             ),
           ),
         ),
-      ),
+        if (widget.linkAnchor != null) ...[
+          const SizedBox(width: 8),
+          widget.linkAnchor!,
+        ],
+        PopupMenuButton<_FixedTagEntryAction>(
+          tooltip: MaterialLocalizations.of(context).moreButtonTooltip,
+          padding: EdgeInsets.zero,
+          onSelected: (action) {
+            switch (action) {
+              case _FixedTagEntryAction.edit:
+                widget.onEdit();
+                break;
+              case _FixedTagEntryAction.delete:
+                widget.onDelete();
+                break;
+            }
+          },
+          itemBuilder: (context) => [
+            PopupMenuItem(
+              value: _FixedTagEntryAction.edit,
+              child: ListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.edit_outlined),
+                title: Text(context.l10n.common_edit),
+              ),
+            ),
+            PopupMenuItem(
+              value: _FixedTagEntryAction.delete,
+              child: ListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(
+                  Icons.delete_outline_rounded,
+                  color: theme.colorScheme.error,
+                ),
+                title: Text(
+                  context.l10n.common_delete,
+                  style: TextStyle(color: theme.colorScheme.error),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

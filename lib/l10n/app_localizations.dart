@@ -1505,6 +1505,12 @@ abstract class AppLocalizations {
   /// **'Generate'**
   String get generation_title;
 
+  /// No description provided for @generation_promptOverviewCharacters.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} chars'**
+  String generation_promptOverviewCharacters(Object count);
+
   /// No description provided for @generation_generate.
   ///
   /// In en, this message translates to:

@@ -108,7 +108,7 @@ class _NoOpToastController implements ToastController {
 }
 
 /// 全局 Toast 通知服务
-/// 桌面端显示右上角可堆叠toast，移动端显示底部SnackBar
+/// 桌面端与移动端均显示顶部可堆叠 Toast，避免遮挡底部主操作区。
 class AppToast {
   static OverlayEntry? _progressEntry;
   static final List<_ActiveToast> _activeToasts = [];
@@ -184,11 +184,11 @@ class AppToast {
   }
 
   static void _show(BuildContext context, String message, ToastType type) {
-    if (_isDesktop) {
-      _showDesktopToast(context, message, type);
-    } else {
-      _showMobileSnackBar(context, message, type);
+    final overlay = Overlay.maybeOf(context, rootOverlay: true);
+    if (overlay == null) {
+      return;
     }
+    _showToastInOverlay(overlay, message, type, mobile: !_isDesktop);
   }
 
   static void _showOnOverlay(
@@ -199,30 +199,18 @@ class AppToast {
     if (overlay == null || !overlay.mounted) {
       return;
     }
-    _showDesktopToastInOverlay(overlay, message, type);
+    _showToastInOverlay(overlay, message, type, mobile: !_isDesktop);
   }
 
   /// 用于生成唯一 toast ID 的计数器
   static int _toastIdCounter = 0;
 
-  /// 桌面端：右上角堆叠toast
-  static void _showDesktopToast(
-    BuildContext context,
-    String message,
-    ToastType type,
-  ) {
-    final overlay = Overlay.maybeOf(context, rootOverlay: true);
-    if (overlay == null) {
-      return;
-    }
-    _showDesktopToastInOverlay(overlay, message, type);
-  }
-
-  static void _showDesktopToastInOverlay(
+  static void _showToastInOverlay(
     OverlayState overlay,
     String message,
-    ToastType type,
-  ) {
+    ToastType type, {
+    required bool mobile,
+  }) {
     // 使用递增计数器确保 ID 唯一，避免同一毫秒内创建的 toast 有相同 ID
     final id = _toastIdCounter++;
 
@@ -244,6 +232,7 @@ class AppToast {
           message: message,
           type: type,
           index: currentIndex,
+          mobile: mobile,
           onDismiss: () {
             entry.remove();
             _activeToasts.remove(activeToast);
@@ -261,35 +250,6 @@ class AppToast {
 
     overlay.insert(entry);
   }
-
-  /// 移动端：底部SnackBar
-  static void _showMobileSnackBar(
-    BuildContext context,
-    String message,
-    ToastType type,
-  ) {
-    final (icon, color) = _getTypeStyle(Theme.of(context), type);
-
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(icon, color: Colors.white, size: 20),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(message, style: const TextStyle(color: Colors.white)),
-            ),
-          ],
-        ),
-        backgroundColor: color,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        margin: const EdgeInsets.all(12),
-        duration: const Duration(seconds: 3),
-      ),
-    );
-  }
 }
 
 class _ActiveToast {
@@ -305,6 +265,7 @@ class _SingleToastWidget extends StatefulWidget {
   final ToastType type;
   final VoidCallback onDismiss;
   final int index;
+  final bool mobile;
 
   const _SingleToastWidget({
     super.key,
@@ -312,6 +273,7 @@ class _SingleToastWidget extends StatefulWidget {
     required this.type,
     required this.onDismiss,
     required this.index,
+    required this.mobile,
   });
 
   @override
@@ -364,11 +326,16 @@ class _SingleToastWidgetState extends State<_SingleToastWidget>
   @override
   Widget build(BuildContext context) {
     final (icon, color) = _getTypeStyle(Theme.of(context), widget.type);
-    final topOffset = 16.0 + (widget.index >= 0 ? widget.index : 0) * 64.0;
+    final safeTop = widget.mobile ? MediaQuery.paddingOf(context).top : 0.0;
+    final topOffset =
+        safeTop +
+        (widget.mobile ? 12.0 : 16.0) +
+        (widget.index >= 0 ? widget.index : 0) * 64.0;
 
     return Positioned(
       top: topOffset,
-      right: 16,
+      left: widget.mobile ? 12 : null,
+      right: widget.mobile ? 12 : 16,
       child: SlideTransition(
         position: _slideAnimation,
         child: FadeTransition(
@@ -535,10 +502,12 @@ class _ProgressToastWidgetState extends State<_ProgressToastWidget>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final (icon, color) = _getTypeStyle(theme, _type);
+    final isMobile = !PlatformCapabilities.current.isDesktop;
 
     return Positioned(
-      bottom: 16,
-      right: 16,
+      top: isMobile ? MediaQuery.paddingOf(context).top + 12 : 16,
+      left: isMobile ? 12 : null,
+      right: isMobile ? 12 : 16,
       child: SlideTransition(
         position: _slideAnimation,
         child: FadeTransition(

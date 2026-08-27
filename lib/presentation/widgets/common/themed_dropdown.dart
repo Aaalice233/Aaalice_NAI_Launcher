@@ -59,7 +59,10 @@ class ThemedDropdown<T> extends StatelessWidget {
           hintText: hintText,
           border: InputBorder.none,
           enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
           disabledBorder: InputBorder.none,
+          errorBorder: InputBorder.none,
+          focusedErrorBorder: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 12,
             vertical: 8,
@@ -166,7 +169,10 @@ class ThemedTextField extends StatelessWidget {
           suffixIcon: suffixIcon,
           border: InputBorder.none,
           enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
           disabledBorder: InputBorder.none,
+          errorBorder: InputBorder.none,
+          focusedErrorBorder: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 12,
             vertical: 8,

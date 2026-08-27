@@ -70,6 +70,18 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File .pi/skills/aaalice-runtime-verify/
 
 脚本支持 `tap`、`text`、`key`、`swipe`、`wait`，产出 screenshot、window tree、Activity 和有界日志到 `tool/.tmp/android-e2e/`，发现 rendering exception、overflow 或原生崩溃时失败。
 
+### Android 软键盘与手动输入
+
+开发 runner 启用了 Flutter Driver extension，但 `lib/main.dart` 必须通过 `enableTextEntryEmulation: false` 默认保留真实平台输入通道。文本输入模拟一旦开启，输入框可以获得焦点并显示光标，但系统 IME 不会正常接管；此时修改 `show_ime_with_hard_keyboard` 或重复点击输入框都不能解决问题。
+
+- 自动化确需使用 `enter_text` 时，先对目标 App 显式执行 `set_text_entry_emulation(enabled: true)`；场景结束后立即恢复 `false`。
+- 用户需要亲自使用模拟器键盘时，先确认输入模拟为 `false`。如果输入框曾在模拟模式下获得焦点，应让它真实失焦后重新点击；无法可靠重建平台输入连接时，热重启现有 runner，不在残留的模拟连接上继续尝试。
+- 使用 Flutter Widget 的实时 `ValueKey`/语义定位点击目标输入框，不使用旧截图坐标。
+- 同时确认新截图中键盘实际可见、按键后字符确实进入目标输入框，并检查 `dumpsys input_method` 的 `mInputShown=true`、`mIsInputViewShown=true`；仅有焦点、光标、键盘外观或命令成功都不能判定输入链路正常。
+- 将控制权交还用户并停止自动操作。
+
+不要为此 `am force-stop`、禁用或重置 LatinIME，也不要发送返回键、切换页面或使用过期坐标尝试“唤醒”键盘。
+
 规则：
 
 - 坐标只能来自本次设备 tree 的 bounds 或设备截图。

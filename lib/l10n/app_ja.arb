@@ -286,6 +286,12 @@
   "settings_avatarRemoved": "アバターが削除されました",
   "settings_setAsDefaultSuccess": "デフォルトのアカウントとして設定",
   "generation_title": "生成",
+  "generation_promptOverviewCharacters": "{count} 文字",
+  "@generation_promptOverviewCharacters": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "generation_generate": "生成",
   "generation_cooldownRemaining": "あと{seconds}秒",
   "@generation_cooldownRemaining": {

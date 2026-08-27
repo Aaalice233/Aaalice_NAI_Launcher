@@ -17,8 +17,6 @@ import 'package:nai_launcher/data/models/tag_library/tag_library_entry.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/fixed_tags_provider.dart';
 import 'package:nai_launcher/presentation/providers/layout_state_provider.dart';
-import 'package:nai_launcher/presentation/screens/generation/generation_screen.dart';
-import 'package:nai_launcher/presentation/screens/generation/mobile_layout.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/fixed_tags_sidebar.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/sidebar_entry_tile.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/sidebar_link_painter.dart';
@@ -118,6 +116,124 @@ void main() {
       expect(find.text('新建'), findsNWidgets(2));
       expect(find.text('词库'), findsNWidgets(2));
       expect(find.text('暂无固定词'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'mobile fixed-tag manager uses one adaptive column without overflow',
+    (tester) async {
+      tester.view.physicalSize = const Size(320, 700);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final storage = _SidebarTestStorage(
+        fixedEntries: const [],
+        categories: const [],
+        libraryEntries: const [],
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            localStorageServiceProvider.overrideWith((ref) => storage),
+          ],
+          child: const MaterialApp(
+            locale: Locale('zh'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(body: FixedTagsDialog()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('fixed-tags-mobile-tab-positive')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('fixed-tags-mobile-tab-negative')),
+        findsOneWidget,
+      );
+      expect(find.text('新建'), findsOneWidget);
+      expect(find.text('从词库添加'), findsOneWidget);
+      final dialogRect = tester.getRect(
+        find.byKey(const ValueKey('fixed-tags-dialog-surface')),
+      );
+      expect(dialogRect.left, greaterThanOrEqualTo(12));
+      expect(dialogRect.right, lessThanOrEqualTo(308));
+      expect(tester.takeException(), isNull);
+
+      await tester.tap(
+        find.byKey(const ValueKey('fixed-tags-mobile-tab-negative')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('新建'), findsOneWidget);
+      expect(find.text('从词库添加'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'mobile fixed-tag cards keep actions and link management usable',
+    (tester) async {
+      tester.view.physicalSize = const Size(320, 700);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final positive = FixedTagEntry.create(
+        name: '很长的正向固定词名称用于验证手机窄屏布局',
+        content: 'masterpiece, best quality, extremely detailed',
+      );
+      final negative = FixedTagEntry.create(
+        name: '负向固定词',
+        content: 'bad hands, low quality',
+        promptType: FixedTagPromptType.negative,
+      );
+      final storage = _SidebarTestStorage(
+        fixedEntries: [positive, negative],
+        categories: const [],
+        libraryEntries: const [],
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            localStorageServiceProvider.overrideWith((ref) => storage),
+          ],
+          child: const MaterialApp(
+            locale: Locale('zh'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(body: FixedTagsDialog()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text(positive.name), findsOneWidget);
+      expect(tester.takeException(), isNull);
+
+      await tester.tap(
+        find.byKey(ValueKey('fixed-tag-mobile-link-${positive.id}')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('管理联动'), findsOneWidget);
+      expect(find.text(negative.name), findsWidgets);
+      expect(tester.takeException(), isNull);
+
+      await tester.tap(
+        find.byKey(ValueKey('fixed-tag-link-option-${negative.id}')),
+      );
+      await tester.pumpAndSettle();
+
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(FixedTagsDialog)),
+      );
+      expect(container.read(fixedTagsNotifierProvider).links, hasLength(1));
       expect(tester.takeException(), isNull);
     },
   );
@@ -322,141 +438,6 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
-
-  testWidgets('GenerationScreen shows sidebar in narrow layout when expanded', (
-    tester,
-  ) async {
-    final storage = _SidebarTestStorage(
-      fixedEntries: const [],
-      categories: const [],
-      libraryEntries: const [],
-    )..fixedSidebarExpanded = true;
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
-        child: const MaterialApp(
-          locale: Locale('zh'),
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: SizedBox(width: 900, height: 700, child: GenerationScreen()),
-          ),
-        ),
-      ),
-    );
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 50));
-
-    expect(find.byType(FixedTagsSidebar), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('Android phone keeps prompt collapsed until the user opens it', (
-    tester,
-  ) async {
-    final storage = _SidebarTestStorage(
-      fixedEntries: const [],
-      categories: const [],
-      libraryEntries: const [],
-    )..fixedSidebarExpanded = false;
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
-        child: const MaterialApp(
-          locale: Locale('zh'),
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: SizedBox(width: 360, height: 700, child: GenerationScreen()),
-          ),
-        ),
-      ),
-    );
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 220));
-
-    final launcher = find.byKey(
-      const ValueKey('generation-collapsed-prompt-launcher'),
-    );
-    expect(launcher, findsOneWidget);
-    expect(
-      find.byKey(const ValueKey('generation-agent-drawer-action')),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(const ValueKey('generation-history-drawer-action')),
-      findsOneWidget,
-    );
-    expect(find.byKey(const ValueKey('maximized-prompt')), findsNothing);
-
-    await tester.tap(launcher);
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 220));
-
-    expect(find.byKey(const ValueKey('maximized-prompt')), findsOneWidget);
-    final closeButton = find.byKey(
-      const ValueKey('generation-prompt-editor-close'),
-    );
-    expect(closeButton, findsOneWidget);
-
-    await tester.tap(closeButton);
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 220));
-
-    expect(launcher, findsOneWidget);
-    expect(find.byKey(const ValueKey('maximized-prompt')), findsNothing);
-    expect(storage.promptMaximized, isFalse);
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('GenerationScreen overlays the sidebar on very narrow layouts', (
-    tester,
-  ) async {
-    final storage = _SidebarTestStorage(
-      fixedEntries: const [],
-      categories: const [],
-      libraryEntries: const [],
-    )..fixedSidebarExpanded = true;
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
-        child: const MaterialApp(
-          locale: Locale('zh'),
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: SizedBox(width: 600, height: 700, child: GenerationScreen()),
-          ),
-        ),
-      ),
-    );
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 50));
-
-    expect(
-      find.byKey(const ValueKey('generation-fixed-tags-overlay')),
-      findsOneWidget,
-    );
-    expect(tester.getSize(find.byType(MobileGenerationLayout)).width, 600);
-    expect(find.byType(FixedTagsSidebar), findsOneWidget);
-    expect(tester.takeException(), isNull);
-
-    final container = ProviderScope.containerOf(
-      tester.element(find.byType(GenerationScreen)),
-    );
-    await tester.tapAt(const Offset(20, 350));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
-
-    expect(
-      container.read(layoutStateNotifierProvider).fixedTagsSidebarExpanded,
-      isFalse,
-    );
-    expect(find.byType(FixedTagsSidebar), findsNothing);
-  });
 
   testWidgets(
     'list mode reorders from tile body without default drag handles',

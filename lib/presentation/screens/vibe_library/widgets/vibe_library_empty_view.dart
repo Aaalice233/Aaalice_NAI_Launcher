@@ -59,7 +59,7 @@ class VibeLibraryEmptyView extends StatelessWidget {
           Icon(
             _getIconData(iconName),
             size: 64,
-            color: theme.colorScheme.outline.withAlpha(128),
+            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
           ),
           const SizedBox(height: 16),
           Text(
@@ -73,7 +73,7 @@ class VibeLibraryEmptyView extends StatelessWidget {
             resolvedSubtitle,
             textAlign: TextAlign.center,
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.outline,
+              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.75),
             ),
           ),
           if (onImport != null) ...[

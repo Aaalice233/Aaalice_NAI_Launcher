@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
@@ -8,7 +9,10 @@ import 'package:nai_launcher/data/models/gallery/local_image_record.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/local_gallery_provider.dart';
 import 'package:nai_launcher/presentation/providers/selection_mode_provider.dart';
+import 'package:nai_launcher/presentation/widgets/common/input_surface_container.dart';
 import 'package:nai_launcher/presentation/widgets/gallery/local_gallery_toolbar.dart';
+
+void _noop() {}
 
 void main() {
   late Directory hiveDir;
@@ -61,6 +65,51 @@ void main() {
     expect(find.byType(LocalGalleryToolbar), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  for (final width in [360.0, 390.0]) {
+    testWidgets(
+      'mobile toolbar keeps search count and complete actions at ${width.toInt()}px',
+      (tester) async {
+        await tester.binding.setSurfaceSize(Size(width, 500));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+
+        await _pumpToolbar(tester, selectionActive: false);
+
+        expect(
+          find.byKey(const ValueKey('localGalleryMobileSearchRow')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const ValueKey('localGalleryMobileActionBar')),
+          findsOneWidget,
+        );
+
+        final resultCount = find.byKey(
+          const ValueKey('localGalleryMobileSearchResultCount'),
+        );
+        final searchSurface = find.ancestor(
+          of: resultCount,
+          matching: find.byType(InputSurfaceContainer),
+        );
+        expect(resultCount, findsOneWidget);
+        expect(searchSurface, findsOneWidget);
+        expect(
+          tester.getRect(searchSurface).contains(tester.getCenter(resultCount)),
+          isTrue,
+        );
+
+        for (final label in ['分类', '筛选', '日期', '多选', '刷新']) {
+          final labelFinder = find.text(label);
+          expect(labelFinder, findsOneWidget);
+          expect(
+            tester.renderObject<RenderParagraph>(labelFinder).didExceedMaxLines,
+            isFalse,
+          );
+        }
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
 
   testWidgets('select all replaces selection with all filtered result paths', (
     tester,
@@ -125,7 +174,10 @@ Future<ProviderContainer> _pumpToolbar(
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(
-          body: LocalGalleryToolbar(enableSearchAutocomplete: false),
+          body: LocalGalleryToolbar(
+            enableSearchAutocomplete: false,
+            onToggleCategoryPanel: _noop,
+          ),
         ),
       ),
     ),

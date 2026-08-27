@@ -14,6 +14,7 @@ import '../../../providers/generation/generation_settings_notifiers.dart'
     as generation_settings;
 import '../../../widgets/common/app_toast.dart';
 import 'settings_card.dart';
+import 'settings_data_status_tile.dart';
 
 class DataSourceCacheSettings extends ConsumerWidget {
   const DataSourceCacheSettings({super.key});
@@ -235,7 +236,7 @@ class _CooccurrenceDataPackStatus extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        ListTile(
+        SettingsDataStatusTile(
           leading: busy
               ? const SizedBox.square(
                   dimension: 24,
@@ -248,50 +249,46 @@ class _CooccurrenceDataPackStatus extends ConsumerWidget {
                 ),
           title: Text(context.l10n.autocomplete_cooccurrence),
           subtitle: Text(subtitle),
-          trailing: Wrap(
-            spacing: 6,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              if (state.status == CooccurrenceDataPackStatus.downloading)
-                IconButton(
-                  tooltip: context.l10n.common_cancel,
-                  onPressed: service.cancelDownload,
-                  icon: const Icon(Icons.pause),
-                )
-              else if (!busy && !state.hasInstalledData)
-                FilledButton.tonal(
-                  onPressed: service.install,
-                  child: Text(
-                    state.status == CooccurrenceDataPackStatus.error
-                        ? context.l10n.common_retry
-                        : context.l10n.autocomplete_downloadNow,
-                  ),
-                )
-              else if (!busy && state.hasInstalledData) ...[
-                IconButton(
-                  tooltip: context.l10n.autocomplete_checkUpdate,
-                  onPressed: service.checkForUpdate,
-                  icon: const Icon(Icons.refresh),
+          actions: [
+            if (state.status == CooccurrenceDataPackStatus.downloading)
+              IconButton(
+                tooltip: context.l10n.common_cancel,
+                onPressed: service.cancelDownload,
+                icon: const Icon(Icons.pause),
+              )
+            else if (!busy && !state.hasInstalledData)
+              FilledButton.tonal(
+                onPressed: service.install,
+                child: Text(
+                  state.status == CooccurrenceDataPackStatus.error
+                      ? context.l10n.common_retry
+                      : context.l10n.autocomplete_downloadNow,
                 ),
-                FilledButton.tonal(
-                  onPressed:
-                      state.status == CooccurrenceDataPackStatus.updateAvailable
-                      ? service.install
-                      : service.repair,
-                  child: Text(
+              )
+            else if (!busy && state.hasInstalledData) ...[
+              IconButton(
+                tooltip: context.l10n.autocomplete_checkUpdate,
+                onPressed: service.checkForUpdate,
+                icon: const Icon(Icons.refresh),
+              ),
+              FilledButton.tonal(
+                onPressed:
                     state.status == CooccurrenceDataPackStatus.updateAvailable
-                        ? context.l10n.autocomplete_update
-                        : context.l10n.autocomplete_repair,
-                  ),
+                    ? service.install
+                    : service.repair,
+                child: Text(
+                  state.status == CooccurrenceDataPackStatus.updateAvailable
+                      ? context.l10n.autocomplete_update
+                      : context.l10n.autocomplete_repair,
                 ),
-                IconButton(
-                  tooltip: context.l10n.autocomplete_remove,
-                  onPressed: () => _confirmDelete(context, ref, service),
-                  icon: const Icon(Icons.delete_outline),
-                ),
-              ],
+              ),
+              IconButton(
+                tooltip: context.l10n.autocomplete_remove,
+                onPressed: () => _confirmDelete(context, ref, service),
+                icon: const Icon(Icons.delete_outline),
+              ),
             ],
-          ),
+          ],
         ),
         if (state.status == CooccurrenceDataPackStatus.downloading)
           Padding(
@@ -443,7 +440,7 @@ class _ZhDictionaryStatus extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final service = ref.read(zhDictionaryServiceProvider);
-    return ListTile(
+    return SettingsDataStatusTile(
       leading: state.isBusy
           ? SizedBox(
               width: 24,
@@ -468,88 +465,85 @@ class _ZhDictionaryStatus extends ConsumerWidget {
                   )
                 : context.l10n.autocomplete_zhNotInstalled),
       ),
-      trailing: Wrap(
-        spacing: 6,
-        children: [
-          if (state.isBusy)
+      actions: [
+        if (state.isBusy)
+          IconButton(
+            tooltip: context.l10n.common_cancel,
+            onPressed: service.cancelInstall,
+            icon: const Icon(Icons.close),
+          )
+        else ...[
+          if (state.isInstalled)
             IconButton(
-              tooltip: context.l10n.common_cancel,
-              onPressed: service.cancelInstall,
-              icon: const Icon(Icons.close),
-            )
-          else ...[
-            if (state.isInstalled)
-              IconButton(
-                tooltip: context.l10n.autocomplete_checkUpdate,
-                onPressed: () => service.checkForUpdate(force: true),
-                icon: const Icon(Icons.refresh),
-              ),
-            FilledButton.tonal(
-              onPressed: () async {
-                if (!state.isInstalled) {
-                  final confirmed = await showDialog<bool>(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: Text(context.l10n.autocomplete_zhDictionary),
-                      content: Text(context.l10n.autocomplete_zhInstallPrompt),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          child: Text(context.l10n.common_cancel),
-                        ),
-                        FilledButton(
-                          onPressed: () => Navigator.pop(context, true),
-                          child: Text(context.l10n.autocomplete_install),
-                        ),
-                      ],
-                    ),
-                  );
-                  if (confirmed != true) return;
-                }
-                try {
-                  await service.installOrUpdate();
-                } catch (error) {
-                  if (context.mounted) {
-                    AppToast.error(context, error.toString());
-                  }
-                }
-              },
-              child: Text(
-                state.isInstalled
-                    ? state.updateAvailable
-                          ? context.l10n.autocomplete_update
-                          : context.l10n.autocomplete_repair
-                    : context.l10n.autocomplete_install,
-              ),
+              tooltip: context.l10n.autocomplete_checkUpdate,
+              onPressed: () => service.checkForUpdate(force: true),
+              icon: const Icon(Icons.refresh),
             ),
-            if (state.isInstalled)
-              IconButton(
-                tooltip: context.l10n.autocomplete_remove,
-                onPressed: () async {
-                  final confirmed = await showDialog<bool>(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: Text(context.l10n.autocomplete_remove),
-                      content: Text(context.l10n.autocomplete_removeConfirm),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          child: Text(context.l10n.common_cancel),
-                        ),
-                        FilledButton(
-                          onPressed: () => Navigator.pop(context, true),
-                          child: Text(context.l10n.common_confirm),
-                        ),
-                      ],
-                    ),
-                  );
-                  if (confirmed == true) await service.remove();
-                },
-                icon: const Icon(Icons.delete_outline),
-              ),
-          ],
+          FilledButton.tonal(
+            onPressed: () async {
+              if (!state.isInstalled) {
+                final confirmed = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: Text(context.l10n.autocomplete_zhDictionary),
+                    content: Text(context.l10n.autocomplete_zhInstallPrompt),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: Text(context.l10n.common_cancel),
+                      ),
+                      FilledButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        child: Text(context.l10n.autocomplete_install),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirmed != true) return;
+              }
+              try {
+                await service.installOrUpdate();
+              } catch (error) {
+                if (context.mounted) {
+                  AppToast.error(context, error.toString());
+                }
+              }
+            },
+            child: Text(
+              state.isInstalled
+                  ? state.updateAvailable
+                        ? context.l10n.autocomplete_update
+                        : context.l10n.autocomplete_repair
+                  : context.l10n.autocomplete_install,
+            ),
+          ),
+          if (state.isInstalled)
+            IconButton(
+              tooltip: context.l10n.autocomplete_remove,
+              onPressed: () async {
+                final confirmed = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: Text(context.l10n.autocomplete_remove),
+                    content: Text(context.l10n.autocomplete_removeConfirm),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: Text(context.l10n.common_cancel),
+                      ),
+                      FilledButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        child: Text(context.l10n.common_confirm),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirmed == true) await service.remove();
+              },
+              icon: const Icon(Icons.delete_outline),
+            ),
         ],
-      ),
+      ],
     );
   }
 }

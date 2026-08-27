@@ -272,7 +272,17 @@ class _EntryCardState extends State<EntryCard> {
 
   /// 构建轻微暗化遮罩
   Widget _buildDarkenOverlay() {
-    return Container(color: Colors.black.withValues(alpha: 0.35));
+    // 标题固定在左侧；只加强文字所在区域，避免为了可读性整体压暗缩略图。
+    return const DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: [Color(0xA6000000), Color(0x52000000)],
+          stops: [0, 0.72],
+        ),
+      ),
+    );
   }
 
   /// 构建名称显示区域

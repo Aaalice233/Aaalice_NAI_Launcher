@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
+import '../../../data/models/auth/saved_account.dart';
 import '../../../data/models/user/user_subscription.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/account_manager_provider.dart';
@@ -19,15 +20,7 @@ class AccountDetailTile extends ConsumerWidget {
   /// 登录按钮点击回调（未登录状态）
   final VoidCallback? onLogin;
 
-  /// 退出登录按钮点击回调（已登录状态）
-  final VoidCallback? onLogout;
-
-  const AccountDetailTile({
-    super.key,
-    this.onEdit,
-    this.onLogin,
-    this.onLogout,
-  });
+  const AccountDetailTile({super.key, this.onEdit, this.onLogin});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -60,7 +53,6 @@ class AccountDetailTile extends ConsumerWidget {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        // 使用主题颜色，无边框
         color: theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(14),
       ),
@@ -74,70 +66,50 @@ class AccountDetailTile extends ConsumerWidget {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 头像
-                AccountAvatar(account: account, size: 44),
+                AccountAvatar(account: account, size: 48),
                 const SizedBox(width: 12),
-                // 用户信息
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // 名字 + 徽章
                       Row(
                         children: [
-                          Flexible(
+                          Expanded(
                             child: Text(
                               account.displayName,
                               style: theme.textTheme.titleSmall?.copyWith(
                                 fontWeight: FontWeight.w600,
                               ),
-                              maxLines: 1,
+                              maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
                           const SizedBox(width: 8),
-                          // 订阅徽章
-                          _buildCompactBadges(context, subscriptionState),
+                          Icon(
+                            Icons.chevron_right_rounded,
+                            color: theme.colorScheme.onSurfaceVariant,
+                            size: 20,
+                          ),
                         ],
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        account.email,
+                        account.accountType == AccountType.credentials
+                            ? account.maskedEmail
+                            : context.l10n.settings_tokenAccount,
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurface
-                              .withValues(alpha: 0.5),
-                          fontSize: 12,
+                          color: theme.colorScheme.onSurfaceVariant,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
+                      const SizedBox(height: 8),
+                      _buildCompactBadges(context, subscriptionState),
                     ],
                   ),
-                ),
-                const SizedBox(width: 8),
-                if (onLogout != null) ...[
-                  TextButton.icon(
-                    key: const Key('account-settings-logout-button'),
-                    onPressed: onLogout,
-                    icon: const Icon(Icons.logout, size: 18),
-                    label: Text(context.l10n.auth_logout),
-                    style: TextButton.styleFrom(
-                      foregroundColor: theme.colorScheme.error,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                ],
-                // 编辑箭头
-                Icon(
-                  Icons.chevron_right_rounded,
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
-                  size: 20,
                 ),
               ],
             ),
@@ -166,8 +138,10 @@ class AccountDetailTile extends ConsumerWidget {
       ),
       loaded: (subscription) {
         final tierColor = _getTierColor(subscription.tier);
-        return Row(
-          mainAxisSize: MainAxisSize.min,
+        return Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             // Tier 徽章
             Container(
@@ -185,7 +159,6 @@ class AccountDetailTile extends ConsumerWidget {
                 ),
               ),
             ),
-            const SizedBox(width: 6),
             // Anlas
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -216,11 +189,8 @@ class AccountDetailTile extends ConsumerWidget {
           ],
         );
       },
-      error: (_) => Icon(
-        Icons.error_outline,
-        size: 16,
-        color: theme.colorScheme.error,
-      ),
+      error: (_) =>
+          Icon(Icons.error_outline, size: 16, color: theme.colorScheme.error),
     );
   }
 
@@ -256,65 +226,64 @@ class AccountDetailTile extends ConsumerWidget {
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(14),
       ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(14),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onLogin,
-          borderRadius: BorderRadius.circular(14),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            child: Row(
-              children: [
-                // 头像占位
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: theme.colorScheme.outline.withValues(alpha: 0.1),
-                  ),
-                  child: Icon(
-                    Icons.person_outline_rounded,
-                    size: 24,
-                    color: theme.colorScheme.outline,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final identity = Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: theme.colorScheme.surfaceContainerHigh,
+                ),
+                child: Icon(
+                  Icons.person_outline_rounded,
+                  size: 24,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  context.l10n.settings_notLoggedIn,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
-                const SizedBox(width: 12),
-                // 提示文本
-                Expanded(
-                  child: Text(
-                    context.l10n.settings_notLoggedIn,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                    ),
-                  ),
-                ),
-                // 登录按钮
-                FilledButton.tonal(
-                  onPressed: onLogin,
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  child: Text(
-                    context.l10n.settings_goToLogin,
-                    style: const TextStyle(fontSize: 13),
-                  ),
-                ),
-              ],
+              ),
+            ],
+          );
+          final loginButton = FilledButton.tonal(
+            onPressed: onLogin,
+            style: FilledButton.styleFrom(
+              minimumSize: const Size(88, 44),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
             ),
-          ),
-        ),
+            child: Text(context.l10n.settings_goToLogin),
+          );
+
+          if (constraints.maxWidth < 340) {
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [identity, const SizedBox(height: 12), loginButton],
+            );
+          }
+
+          return Row(
+            children: [
+              Expanded(child: identity),
+              const SizedBox(width: 12),
+              loginButton,
+            ],
+          );
+        },
       ),
     );
   }

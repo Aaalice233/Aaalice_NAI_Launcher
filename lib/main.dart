@@ -505,7 +505,7 @@ void main() {
 
 Future<void> _bootstrapApplication() async {
   if (const bool.fromEnvironment('ENABLE_FLUTTER_DRIVER')) {
-    enableFlutterDriverExtension();
+    enableFlutterDriverExtension(enableTextEntryEmulation: false);
   }
   WidgetsFlutterBinding.ensureInitialized();
   WindowsClipboardHistoryKeyFix.instance.install();

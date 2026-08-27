@@ -37,6 +37,7 @@ import '../../../widgets/prompt/regex_rules_dialog.dart';
 import '../../../widgets/prompt/toolbar/toolbar.dart';
 import '../../../widgets/prompt/uc_preset_selector.dart';
 import '../../../widgets/character/character_prompt_button.dart';
+import '../../../widgets/character/mobile_character_manager_sheet.dart';
 import '../../../widgets/prompt/fixed_tags_button.dart';
 import '../../../providers/pending_prompt_provider.dart';
 import '../../../themes/core/input_surface_style.dart';
@@ -462,25 +463,162 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     final editor = _isNegativeMode
         ? _buildTextNegativeInput(theme, numericEmphasisEnabled)
         : _buildTextPromptInput(theme, numericEmphasisEnabled);
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (widget.isMaximized && constraints.maxWidth < 600) {
+          return _buildMobileFullscreenLayout(theme, editor);
+        }
+
+        return Column(
+          mainAxisSize: widget.autoGrow ? MainAxisSize.min : MainAxisSize.max,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildTopBar(theme),
+            const SizedBox(height: 8),
+            if (widget.autoGrow) editor else Expanded(child: editor),
+            _PromptFooter(
+              target: _isNegativeMode
+                  ? PromptTokenCountTarget.negative
+                  : PromptTokenCountTarget.positive,
+              topPadding: 6,
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildMobileFullscreenLayout(ThemeData theme, Widget editor) {
+    final promptCount = _promptController.text
+        .split(',')
+        .where((tag) => tag.trim().isNotEmpty)
+        .length;
+    final negativeCount = _negativeController.text
+        .split(',')
+        .where((tag) => tag.trim().isNotEmpty)
+        .length;
+    final model = ref.watch(
+      generationParamsNotifierProvider.select((params) => params.model),
+    );
+    final showRandomTools = ref.watch(randomPromptToolsVisibilityProvider);
+    final primaryToolbar = PromptEditorToolbar(
+      config: PromptEditorToolbarConfig.mainEditor.copyWith(
+        showRandomButton: false,
+        showFullscreenButton: false,
+      ),
+      onClearPressed: _isNegativeMode ? _clearNegative : _clearPrompt,
+      onSettingsPressed: () => _showSettingsMenu(context, theme),
+    );
+    final randomAction = PromptEditorToolbar(
+      config: PromptEditorToolbarConfig.mainEditor.copyWith(
+        showRandomButton: showRandomTools,
+        showFullscreenButton: false,
+        showClearButton: false,
+        showSettingsButton: false,
+      ),
+      onRandomPressed: showRandomTools ? _generateRandomPrompt : null,
+      onRandomLongPressed: showRandomTools ? _showRandomModeSelector : null,
+    );
+
     return Column(
-      mainAxisSize: widget.autoGrow ? MainAxisSize.min : MainAxisSize.max,
+      key: const ValueKey('generation_prompt_mobile_workbench'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // 顶栏：正面/负面切换 + 操作按钮
-        _buildTopBar(theme),
-
+        Row(
+          key: const ValueKey('generation_prompt_mobile_primary_row'),
+          children: [
+            Expanded(
+              child: _buildPromptTypeSwitch(
+                theme,
+                promptCount,
+                negativeCount,
+                expand: true,
+                compact: true,
+              ),
+            ),
+            const SizedBox(width: 4),
+            primaryToolbar,
+          ],
+        ),
         const SizedBox(height: 8),
-
-        // 提示词编辑区域（autoGrow 时随内容自增高，否则填充可用高度）
-        if (widget.autoGrow) editor else Expanded(child: editor),
+        Expanded(child: editor),
         _PromptFooter(
           target: _isNegativeMode
               ? PromptTokenCountTarget.negative
               : PromptTokenCountTarget.positive,
           topPadding: 6,
         ),
+        const SizedBox(height: 8),
+        SizedBox(
+          key: const ValueKey('generation_prompt_mobile_context_bar'),
+          height: 44,
+          child: SingleChildScrollView(
+            key: const ValueKey('generation_prompt_mobile_secondary_scroll'),
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              key: const ValueKey('generation_prompt_mobile_secondary_row'),
+              children: [
+                _MobilePromptToolbarAction(
+                  actionKey: const ValueKey(
+                    'generation_prompt_mobile_character_action',
+                  ),
+                  child: CharacterPromptButton(
+                    onManage: _showMobileCharacterManager,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                const _MobilePromptToolbarAction(
+                  actionKey: ValueKey(
+                    'generation_prompt_mobile_fixed_tags_action',
+                  ),
+                  child: FixedTagsButton(),
+                ),
+                const SizedBox(width: 6),
+                _MobilePromptToolbarAction(
+                  actionKey: const ValueKey(
+                    'generation_prompt_mobile_quality_action',
+                  ),
+                  child: QualityTagsSelector(model: model),
+                ),
+                const SizedBox(width: 6),
+                _MobilePromptToolbarAction(
+                  actionKey: const ValueKey(
+                    'generation_prompt_mobile_uc_action',
+                  ),
+                  child: UcPresetSelector(model: model),
+                ),
+                if (showRandomTools) ...[
+                  const SizedBox(width: 4),
+                  _MobilePromptToolbarAction(
+                    actionKey: const ValueKey(
+                      'generation_prompt_mobile_random_action',
+                    ),
+                    child: randomAction,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
       ],
     );
+  }
+
+  Future<void> _showMobileCharacterManager() async {
+    FocusManager.instance.primaryFocus?.unfocus();
+    ref.read(selectedCharacterIdProvider.notifier).clear();
+    await showModalBottomSheet<void>(
+      context: context,
+      useRootNavigator: true,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => const MobileCharacterManagerSheet(),
+    );
+    if (mounted) {
+      ref.read(selectedCharacterIdProvider.notifier).clear();
+    }
   }
 
   Widget _buildTopBar(ThemeData theme) {
@@ -1168,7 +1306,7 @@ class _MobilePromptToolbarAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(key: actionKey, height: 48, child: child);
+    return SizedBox(key: actionKey, height: 44, child: child);
   }
 }
 
@@ -2113,19 +2251,8 @@ class _PromptTypeButtonState extends State<_PromptTypeButton>
               vertical: 8,
             ),
             decoration: BoxDecoration(
-              // 选中时使用渐变背景
-              gradient: widget.isSelected
-                  ? LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        widget.color.withValues(alpha: 0.2),
-                        widget.color.withValues(alpha: 0.1),
-                      ],
-                    )
-                  : null,
               color: widget.isSelected
-                  ? null
+                  ? widget.color.withValues(alpha: 0.16)
                   : (_isHovering
                         ? theme.colorScheme.surfaceContainerHighest
                         : theme.colorScheme.surfaceContainerHigh),

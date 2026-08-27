@@ -30,7 +30,7 @@ void main() {
   setUp(() {
     VisibilityDetectorController.instance.updateInterval = Duration.zero;
   });
-  for (final width in [360.0, 700.0, 840.0, 1180.0, 1600.0]) {
+  for (final width in [320.0, 360.0, 700.0, 840.0, 1180.0, 1600.0]) {
     testWidgets('Gelbooru search uses its API account entry at width $width', (
       tester,
     ) async {
@@ -51,6 +51,94 @@ void main() {
         ),
       );
       await tester.pump();
+
+      if (width < 600) {
+        final primaryRow = find.byKey(
+          const ValueKey('online-gallery-mobile-primary-row'),
+        );
+        final searchRow = find.byKey(
+          const ValueKey('online-gallery-mobile-search-row'),
+        );
+        expect(primaryRow, findsOneWidget);
+        expect(searchRow, findsOneWidget);
+        expect(
+          find.byKey(const ValueKey('online-gallery-mobile-source')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const ValueKey('online-gallery-mobile-mode-selector')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const ValueKey('online-gallery-rating-filter')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const ValueKey('online-gallery-account-avatar')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const ValueKey('online-gallery-mobile-search')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const ValueKey('online-gallery-mobile-filter')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const ValueKey('online-gallery-mobile-more')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const ValueKey('online-gallery-primary-controls-scroll')),
+          findsNothing,
+        );
+
+        final primaryRect = tester.getRect(primaryRow);
+        for (final finder in [
+          find.byKey(const ValueKey('online-gallery-mobile-source')),
+          find.byKey(const ValueKey('online-gallery-mobile-mode-selector')),
+          find.byKey(const ValueKey('online-gallery-rating-filter')),
+          find.byKey(const ValueKey('online-gallery-account-avatar')),
+        ]) {
+          final rect = tester.getRect(finder);
+          expect(rect.left, greaterThanOrEqualTo(primaryRect.left));
+          expect(rect.right, lessThanOrEqualTo(primaryRect.right));
+          expect(
+            (rect.center.dy - primaryRect.center.dy).abs(),
+            lessThanOrEqualTo(1.0),
+          );
+        }
+
+        final searchRect = tester.getRect(
+          find.byKey(const ValueKey('online-gallery-mobile-search')),
+        );
+        final filterRect = tester.getRect(
+          find.byKey(const ValueKey('online-gallery-mobile-filter')),
+        );
+        expect(searchRect.width, greaterThan(filterRect.width));
+        expect(tester.takeException(), isNull);
+
+        await tester.tap(
+          find.byKey(const ValueKey('online-gallery-mobile-filter')),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 400));
+        expect(
+          find.byKey(const ValueKey('online-gallery-mobile-blacklist-filter')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const ValueKey('online-gallery-mobile-output-filter')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const ValueKey('online-gallery-mobile-source-filters')),
+          findsOneWidget,
+        );
+        expect(tester.takeException(), isNull);
+        return;
+      }
 
       expect(
         _selectedModeColor(tester, 'online-gallery-mode-search'),
@@ -979,7 +1067,7 @@ void main() {
     );
   });
 
-  for (final width in [360.0, 700.0, 840.0, 1180.0, 1600.0]) {
+  for (final width in [320.0, 360.0, 700.0, 840.0, 1180.0, 1600.0]) {
     testWidgets(
       'QuickTagCloud toolbar keeps every global control in row one at $width',
       (tester) async {
@@ -1019,6 +1107,56 @@ void main() {
           ]) {
             expect(find.byIcon(icon), findsOneWidget);
           }
+        }
+        if (width < 600) {
+          for (final key in const [
+            'online-gallery-mobile-primary-row',
+            'online-gallery-mobile-source',
+            'online-gallery-mobile-mode-selector',
+            'online-gallery-rating-filter',
+            'online-gallery-account-avatar',
+            'online-gallery-mobile-search-row',
+            'online-gallery-mobile-search',
+            'online-gallery-mobile-filter',
+            'online-gallery-mobile-more',
+          ]) {
+            expect(find.byKey(ValueKey(key)), findsOneWidget);
+          }
+          expect(
+            tester
+                .getRect(
+                  find.byKey(const ValueKey('online-gallery-mobile-search')),
+                )
+                .width,
+            greaterThan(
+              tester
+                  .getRect(
+                    find.byKey(const ValueKey('online-gallery-mobile-filter')),
+                  )
+                  .width,
+            ),
+          );
+          expect(tester.takeException(), isNull);
+
+          await tester.tap(
+            find.byKey(const ValueKey('online-gallery-mobile-filter')),
+          );
+          await tester.pump();
+          await tester.pump(const Duration(milliseconds: 400));
+          expect(
+            find.byKey(
+              const ValueKey('online-gallery-mobile-blacklist-filter'),
+            ),
+            findsOneWidget,
+          );
+          expect(
+            find.byKey(const ValueKey('online-gallery-mobile-source-filters')),
+            findsOneWidget,
+          );
+          expect(find.text('Leaf category'), findsOneWidget);
+          expect(find.text('Fallback codex title'), findsNothing);
+          expect(tester.takeException(), isNull);
+          return;
         }
         for (final key in const [
           'online-gallery-source-selector',

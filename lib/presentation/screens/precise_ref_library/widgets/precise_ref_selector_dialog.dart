@@ -147,7 +147,7 @@ class _PreciseRefSelectorDialogState
                   : entries.isEmpty
                   ? Center(
                       child: Text(
-                        l10n.preciseRefLib_empty,
+                        l10n.preciseRefLib_emptyTouch,
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),

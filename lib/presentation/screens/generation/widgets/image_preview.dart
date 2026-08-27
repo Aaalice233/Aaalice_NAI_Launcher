@@ -435,20 +435,20 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
         Icon(
           Icons.image_outlined,
           size: 80,
-          color: theme.colorScheme.onSurface.withValues(alpha: 0.2),
+          color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.65),
         ),
         const SizedBox(height: 16),
         Text(
           context.l10n.generation_emptyPromptHint,
           style: theme.textTheme.bodyLarge?.copyWith(
-            color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+            color: theme.colorScheme.onSurfaceVariant,
           ),
         ),
         const SizedBox(height: 8),
         Text(
           context.l10n.generation_imageWillShowHere,
           style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
+            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.75),
           ),
         ),
       ],

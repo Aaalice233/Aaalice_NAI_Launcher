@@ -279,6 +279,12 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
        _providedWorkspaceDir = workspaceDir,
        _providedSessionRepo = sessionRepo,
        super(const AgentChatState()) {
+    _ref.listen<PromptAssistantConfigState>(promptAssistantConfigProvider, (
+      previous,
+      next,
+    ) {
+      _refreshRoute();
+    });
     _init(presetSkills: presetSkills);
   }
 

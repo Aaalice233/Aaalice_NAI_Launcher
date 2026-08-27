@@ -477,69 +477,115 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
       mainAxisSize: MainAxisSize.min,
       children: [
         Row(
+          key: const ValueKey('localGalleryMobileSearchRow'),
           children: [
+            Text(
+              l10n.localGallery_title,
+              maxLines: 1,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(width: 12),
             Expanded(
-              child: Row(
-                children: [
-                  Flexible(
-                    child: Text(
-                      l10n.localGallery_title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  if (!state.isIndexing) ...[
-                    const SizedBox(width: 8),
-                    Text(
-                      state.hasFilters
-                          ? '${state.filteredCount}/${state.totalCount}'
-                          : '${state.totalCount}',
-                      style: theme.textTheme.labelMedium,
-                    ),
-                  ],
-                ],
+              child: _buildSearchField(
+                theme,
+                state,
+                touch: true,
+                showResultCount: true,
               ),
             ),
-            if (widget.onToggleCategoryPanel != null)
-              IconButton(
-                onPressed: widget.onToggleCategoryPanel,
-                tooltip: l10n.common_categories,
-                icon: Icon(
-                  widget.showCategoryPanel
-                      ? Icons.view_sidebar
-                      : Icons.view_sidebar_outlined,
-                ),
-              ),
-            IconButton(
-              onPressed: widget.onEnterSelectionMode,
-              tooltip: l10n.localGallery_enterSelectionMode,
-              icon: const Icon(Icons.checklist),
-            ),
-            _buildCompactOverflow(theme, state),
           ],
         ),
         const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(child: _buildSearchField(theme, state, touch: true)),
-            const SizedBox(width: 8),
-            IconButton.filledTonal(
-              onPressed: () => showGalleryFilterPanel(context),
-              tooltip: l10n.localGallery_openFilterPanel,
-              icon: const Icon(Icons.tune),
+        SizedBox(
+          height: 44,
+          child: SingleChildScrollView(
+            key: const ValueKey('localGalleryMobileActionBar'),
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                if (widget.onToggleCategoryPanel != null) ...[
+                  _buildCompactActionButton(
+                    icon: widget.showCategoryPanel
+                        ? Icons.view_sidebar
+                        : Icons.view_sidebar_outlined,
+                    label: l10n.common_categories,
+                    tooltip: widget.showCategoryPanel
+                        ? l10n.localGallery_hideCategoryPanel
+                        : l10n.localGallery_showCategoryPanel,
+                    onPressed: widget.onToggleCategoryPanel,
+                  ),
+                  const SizedBox(width: 4),
+                ],
+                _buildCompactActionButton(
+                  icon: Icons.tune,
+                  label: l10n.common_filter,
+                  tooltip: l10n.localGallery_openFilterPanel,
+                  onPressed: () => showGalleryFilterPanel(context),
+                ),
+                const SizedBox(width: 4),
+                _buildCompactActionButton(
+                  icon: state.isGroupedView
+                      ? Icons.view_module
+                      : Icons.calendar_today,
+                  label: state.isGroupedView
+                      ? l10n.common_grid
+                      : l10n.common_date,
+                  tooltip: state.isGroupedView
+                      ? l10n.localGallery_switchToGridView
+                      : l10n.localGallery_switchToDateGroupedView,
+                  onPressed: () {
+                    if (state.isGroupedView) {
+                      ref
+                          .read(localGalleryNotifierProvider.notifier)
+                          .setGroupedView(false);
+                    } else {
+                      _pickDateAndJump(context);
+                    }
+                  },
+                ),
+                const SizedBox(width: 4),
+                _buildCompactActionButton(
+                  icon: Icons.checklist,
+                  label: l10n.common_multiSelect,
+                  tooltip: l10n.localGallery_enterSelectionMode,
+                  onPressed: widget.onEnterSelectionMode,
+                ),
+                const SizedBox(width: 4),
+                _buildCompactActionButton(
+                  icon: Icons.refresh,
+                  label: l10n.common_refresh,
+                  tooltip: l10n.localGallery_refreshTooltip,
+                  onPressed: widget.onRefresh,
+                ),
+                _buildCompactOverflow(theme, state),
+              ],
             ),
-            const SizedBox(width: 4),
-            IconButton(
-              onPressed: widget.onRefresh,
-              tooltip: l10n.localGallery_refreshTooltip,
-              icon: const Icon(Icons.refresh),
-            ),
-          ],
+          ),
         ),
       ],
+    );
+  }
+
+  Widget _buildCompactActionButton({
+    required IconData icon,
+    required String label,
+    required String tooltip,
+    required VoidCallback? onPressed,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: TextButton.icon(
+        onPressed: onPressed,
+        icon: Icon(icon, size: 18),
+        label: Text(label),
+        style: TextButton.styleFrom(
+          minimumSize: const Size(0, 44),
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          visualDensity: VisualDensity.compact,
+        ),
+      ),
     );
   }
 
@@ -640,12 +686,19 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
     );
   }
 
+  void _clearSearch() {
+    _searchController.clear();
+    ref.read(localGalleryNotifierProvider.notifier).setSearchQuery('');
+    setState(() {});
+  }
+
   /// Build search field
   /// 构建搜索框 - 类似在线画廊的简洁圆角样式
   Widget _buildSearchField(
     ThemeData theme,
     LocalGalleryState state, {
     bool touch = false,
+    bool showResultCount = false,
   }) {
     final searchField = InputSurfaceContainer(
       height: touch ? 48 : 36,
@@ -667,7 +720,39 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
             size: 18,
             color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
           ),
-          suffixIcon: _searchController.text.isNotEmpty
+          suffixIcon: showResultCount
+              ? Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (!state.isIndexing)
+                      Text(
+                        state.hasFilters
+                            ? '${state.filteredCount}/${state.totalCount}'
+                            : '${state.totalCount}',
+                        key: const ValueKey(
+                          'localGalleryMobileSearchResultCount',
+                        ),
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    if (_searchController.text.isNotEmpty)
+                      IconButton(
+                        icon: Icon(
+                          Icons.close,
+                          size: 16,
+                          color: theme.colorScheme.onSurfaceVariant.withValues(
+                            alpha: 0.6,
+                          ),
+                        ),
+                        tooltip: context.l10n.common_clear,
+                        onPressed: _clearSearch,
+                      )
+                    else
+                      const SizedBox(width: 12),
+                  ],
+                )
+              : _searchController.text.isNotEmpty
               ? IconButton(
                   icon: Icon(
                     Icons.close,
@@ -676,13 +761,8 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
                       alpha: 0.6,
                     ),
                   ),
-                  onPressed: () {
-                    _searchController.clear();
-                    ref
-                        .read(localGalleryNotifierProvider.notifier)
-                        .setSearchQuery('');
-                    setState(() {});
-                  },
+                  tooltip: context.l10n.common_clear,
+                  onPressed: _clearSearch,
                 )
               : null,
           filled: false,

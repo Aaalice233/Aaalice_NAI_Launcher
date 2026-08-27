@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/cache/local_gallery_thumbnail_provider.dart';
 import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/utils/app_logger.dart';
+import '../../../core/utils/byte_format.dart';
 import '../../../core/utils/image_share_sanitizer.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/gallery/local_image_record.dart';
@@ -265,9 +266,19 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
               children: [
                 _buildImageLayer(),
                 Positioned(
+                  key: const ValueKey('local-image-card-metadata-safe-area'),
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: _buildMetadataSafeArea(),
+                ),
+                Positioned(
+                  key: const ValueKey('local-image-card-actions'),
                   top: 4,
-                  right: buttonDirection == Axis.vertical ? 4 : null,
-                  left: buttonDirection == Axis.horizontal ? 4 : null,
+                  right: buttonDirection == Axis.vertical || isTouch ? 4 : null,
+                  left: buttonDirection == Axis.horizontal && !isTouch
+                      ? 4
+                      : null,
                   child: isTouch
                       ? _buildTouchActionMenu()
                       : _buildActionButtons(buttonDirection),
@@ -433,6 +444,119 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
         );
         return _buildErrorPlaceholder();
       },
+    );
+  }
+
+  Widget _buildMetadataSafeArea() {
+    final metadata = widget.record.metadata;
+    final resolution = metadata?.width != null && metadata?.height != null
+        ? '${metadata!.width}×${metadata.height}'
+        : null;
+    final badge = _metadataBadge();
+
+    return IgnorePointer(
+      child: Container(
+        height: 48,
+        padding: const EdgeInsets.fromLTRB(8, 17, 8, 7),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.transparent, Colors.black.withValues(alpha: 0.76)],
+          ),
+        ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxWidth < 160;
+            return Row(
+              children: [
+                if (badge != null) ...[
+                  _buildMetadataBadge(badge, showLabel: !compact),
+                  const SizedBox(width: 7),
+                ],
+                if (resolution != null)
+                  Flexible(
+                    child: _MetadataValue(
+                      key: const ValueKey('local-image-card-resolution'),
+                      icon: Icons.photo_size_select_actual_outlined,
+                      value: resolution,
+                    ),
+                  ),
+                if (!compact && resolution != null) const SizedBox(width: 9),
+                if (!compact)
+                  Flexible(
+                    child: _MetadataValue(
+                      key: const ValueKey('local-image-card-file-size'),
+                      icon: Icons.data_usage_outlined,
+                      value: formatBytes(widget.record.size),
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  ({IconData icon, String label, Color color})? _metadataBadge() {
+    final colors = Theme.of(context).colorScheme;
+    if (widget.record.hasVibeMetadata) {
+      return (
+        icon: Icons.auto_awesome_outlined,
+        label: 'Vibe',
+        color: colors.tertiary,
+      );
+    }
+
+    return switch (widget.record.metadataStatus) {
+      MetadataStatus.success => (
+        icon: Icons.auto_awesome_outlined,
+        label: 'NAI',
+        color: colors.primary,
+      ),
+      MetadataStatus.failed => (
+        icon: Icons.error_outline_rounded,
+        label: 'Meta',
+        color: colors.error,
+      ),
+      MetadataStatus.transientFailure => (
+        icon: Icons.sync_problem_rounded,
+        label: 'Meta',
+        color: colors.error,
+      ),
+      MetadataStatus.none => null,
+    };
+  }
+
+  Widget _buildMetadataBadge(
+    ({IconData icon, String label, Color color}) badge, {
+    required bool showLabel,
+  }) {
+    return Container(
+      key: const ValueKey('local-image-card-source-status-badge'),
+      padding: EdgeInsets.symmetric(horizontal: showLabel ? 6 : 4, vertical: 3),
+      decoration: BoxDecoration(
+        color: badge.color.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(badge.icon, size: 12, color: badge.color),
+          if (showLabel) ...[
+            const SizedBox(width: 3),
+            Text(
+              badge.label,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: Colors.white,
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 
@@ -605,6 +729,36 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
         borderRadius: BorderRadius.circular(14),
       ),
       child: Icon(Icons.check, color: colorScheme.onPrimary, size: 18),
+    );
+  }
+}
+
+class _MetadataValue extends StatelessWidget {
+  const _MetadataValue({super.key, required this.icon, required this.value});
+
+  final IconData icon;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 12, color: Colors.white.withValues(alpha: 0.84)),
+        const SizedBox(width: 3),
+        Flexible(
+          child: Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: Colors.white.withValues(alpha: 0.9),
+              fontSize: 10,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
