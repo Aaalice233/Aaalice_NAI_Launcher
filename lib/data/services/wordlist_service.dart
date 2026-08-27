@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../models/prompt/official_wordlist.dart';
-import '../models/prompt/wordlist_entry.dart';
 
 part 'wordlist_service.g.dart';
 
@@ -19,9 +18,6 @@ enum WordlistType {
 
   final String generatorId;
   final String fileName;
-
-  @Deprecated('Use officialWordlistAssetPath')
-  String get assetPath => officialWordlistAssetPath;
 }
 
 /// Loads the source-locked NovelAI random wordlists without normalizing,
@@ -32,9 +28,6 @@ class WordlistService {
 
   final AssetBundle _assetBundle;
   final Map<WordlistType, OfficialWordlist> _officialCache = {};
-  final Map<WordlistType, List<WordlistEntry>> _compatibilityCache = {};
-  final Map<WordlistType, Map<String, List<WordlistEntry>>> _variableIndex = {};
-  final Map<WordlistType, Map<String, List<WordlistEntry>>> _categoryIndex = {};
 
   OfficialWordlistData? _data;
   Future<OfficialWordlistData>? _loadingFuture;
@@ -101,95 +94,6 @@ class WordlistService {
       );
     }
     _officialCache[type] = official;
-    final compatibilityEntries = <WordlistEntry>[];
-    final variableIndex = <String, List<WordlistEntry>>{};
-    final categoryIndex = <String, List<WordlistEntry>>{};
-    for (final group in official.groups) {
-      final groupEntries = <WordlistEntry>[];
-      for (final entry in group.entries) {
-        final isCharacterPrompt = type == WordlistType.v4;
-        final compatibilityEntry = WordlistEntry(
-          variable: group.id,
-          category: group.semantic,
-          tag: entry.text,
-          weight: entry.weight,
-          require: entry.stringFieldValues(isCharacterPrompt ? 3 : 2),
-          exclude: isCharacterPrompt ? entry.stringFieldValues(4) : const [],
-          extra: isCharacterPrompt ? entry.stringFieldValues(2) : const [],
-        );
-        compatibilityEntries.add(compatibilityEntry);
-        groupEntries.add(compatibilityEntry);
-        categoryIndex
-            .putIfAbsent(group.semantic, () => [])
-            .add(compatibilityEntry);
-      }
-      variableIndex[group.id] = List.unmodifiable(groupEntries);
-    }
-    _compatibilityCache[type] = List.unmodifiable(compatibilityEntries);
-    _variableIndex[type] = Map.unmodifiable(variableIndex);
-    _categoryIndex[type] = {
-      for (final entry in categoryIndex.entries)
-        entry.key: List.unmodifiable(entry.value),
-    };
-  }
-
-  List<WordlistEntry> getAllEntries(WordlistType type) =>
-      _compatibilityCache[type] ?? const [];
-
-  List<WordlistEntry> getEntriesByVariable(
-    WordlistType type,
-    String variable,
-  ) => _variableIndex[type]?[variable] ?? const [];
-
-  List<WordlistEntry> getEntriesByCategory(
-    WordlistType type,
-    String category,
-  ) => _categoryIndex[type]?[category] ?? const [];
-
-  List<String> getVariables(WordlistType type) =>
-      _variableIndex[type]?.keys.toList(growable: false) ?? const [];
-
-  List<String> getCategories(WordlistType type) =>
-      _categoryIndex[type]?.keys.toList(growable: false) ?? const [];
-
-  List<WordlistEntry> getEntriesByVariableAndCategory(
-    WordlistType type,
-    String variable,
-    String category,
-  ) => getEntriesByVariable(
-    type,
-    variable,
-  ).where((entry) => entry.category == category).toList(growable: false);
-
-  List<WordlistEntry> search(
-    WordlistType type,
-    String query, {
-    int limit = 20,
-  }) {
-    if (query.trim().isEmpty || limit <= 0) return const [];
-    final normalizedQuery = query.trim().toLowerCase();
-    return getAllEntries(type)
-        .where((entry) => entry.tag.toLowerCase().contains(normalizedQuery))
-        .take(limit)
-        .toList(growable: false);
-  }
-
-  WordlistEntry? weightedRandomSelect(
-    List<WordlistEntry> entries,
-    int Function() randomInt,
-  ) {
-    final eligible = entries.where((entry) => entry.weight > 0).toList();
-    if (eligible.isEmpty) return null;
-    final totalWeight = eligible.fold<int>(
-      0,
-      (total, entry) => total + entry.weight,
-    );
-    var target = randomInt().abs() % totalWeight;
-    for (final entry in eligible) {
-      if (target < entry.weight) return entry;
-      target -= entry.weight;
-    }
-    throw StateError('Wordlist weighted selection exhausted unexpectedly');
   }
 
   void clearCache([WordlistType? type]) {
@@ -198,15 +102,9 @@ class WordlistService {
       _data = null;
       _loadingFuture = null;
       _officialCache.clear();
-      _compatibilityCache.clear();
-      _variableIndex.clear();
-      _categoryIndex.clear();
       return;
     }
     _officialCache.remove(type);
-    _compatibilityCache.remove(type);
-    _variableIndex.remove(type);
-    _categoryIndex.remove(type);
   }
 
   Future<void> refresh([WordlistType? type]) async {

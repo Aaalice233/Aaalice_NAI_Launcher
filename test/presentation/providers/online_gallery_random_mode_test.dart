@@ -169,7 +169,7 @@ void main() {
     addTearDown(container.dispose);
     await container
         .read(onlineGalleryBlacklistNotifierProvider.notifier)
-        .addLocalTag('blocked_tag');
+        .addTag('blocked_tag');
 
     await container
         .read(onlineGalleryNotifierProvider.notifier)
@@ -216,7 +216,7 @@ void main() {
     addTearDown(container.dispose);
     await container
         .read(onlineGalleryBlacklistNotifierProvider.notifier)
-        .addLocalTag('blocked_tag');
+        .addTag('blocked_tag');
 
     await container
         .read(onlineGalleryNotifierProvider.notifier)
@@ -391,7 +391,7 @@ void main() {
     addTearDown(container.dispose);
     await container
         .read(onlineGalleryBlacklistNotifierProvider.notifier)
-        .addLocalTag('blocked_tag');
+        .addTag('blocked_tag');
 
     await container
         .read(onlineGalleryNotifierProvider.notifier)

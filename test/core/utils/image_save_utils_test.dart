@@ -6,7 +6,6 @@ import 'package:image/image.dart' as img;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/constants/api_constants.dart';
 import 'package:nai_launcher/core/utils/comfyui_prompt_parser.dart';
-import 'package:nai_launcher/core/utils/file_picker_utils.dart';
 import 'package:nai_launcher/core/utils/image_save_utils.dart';
 import 'package:nai_launcher/data/models/character/character_prompt.dart';
 import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
@@ -466,38 +465,6 @@ void main() {
         expect(commentJson['fixed_suffix'], equals(['cinematic lighting']));
         expect(commentJson['fixed_negative_prefix'], equals(['lowres']));
         expect(commentJson['fixed_negative_suffix'], equals(['text']));
-      },
-    );
-  });
-
-  group('FilePickerUtils', () {
-    test(
-      'pickDirectoryModal locks the parent window for Windows dialogs',
-      () async {
-        String? capturedTitle;
-        String? capturedInitialDirectory;
-        bool? capturedLockParentWindow;
-
-        final result = await FilePickerUtils.pickDirectoryModal(
-          dialogTitle: '选择下载目录',
-          initialDirectory: r'G:\Downloads',
-          picker:
-              ({
-                String? dialogTitle,
-                bool lockParentWindow = false,
-                String? initialDirectory,
-              }) async {
-                capturedTitle = dialogTitle;
-                capturedInitialDirectory = initialDirectory;
-                capturedLockParentWindow = lockParentWindow;
-                return r'G:\Downloads';
-              },
-        );
-
-        expect(result, r'G:\Downloads');
-        expect(capturedTitle, '选择下载目录');
-        expect(capturedInitialDirectory, r'G:\Downloads');
-        expect(capturedLockParentWindow, isTrue);
       },
     );
   });

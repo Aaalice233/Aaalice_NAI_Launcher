@@ -205,7 +205,6 @@ void main() {
     expect(chinese.diy_branchDefaultName(2), '分支 2');
     expect(japanese.statistics_monday, '月');
     expect(chinese.common_enabled, '已启用');
-    expect(japanese.diy_positionCoordinates('50', '25'), '行: 50%、列: 25%');
     expect(
       english.diy_emphasisProbabilityHint('10.0'),
       'Each selected tag has a 10.0% chance of receiving emphasis brackets',
@@ -218,14 +217,10 @@ void main() {
     expect(chinese.networkError_insufficientAnlas, 'Anlas 不足');
   });
 
-  test('Vibe bulk and detail surfaces use generated translations', () {
+  test('Vibe detail surfaces use generated translations', () {
     final english = lookupAppLocalizations(const Locale('en'));
     final japanese = lookupAppLocalizations(const Locale('ja'));
-    final chinese = lookupAppLocalizations(const Locale('zh'));
 
-    expect(english.vibeBulkTag_selectedCount(3), '3 Vibes selected');
-    expect(japanese.vibeBulkCategory_moveCount(2), '2 件の Vibe の移動先:');
-    expect(chinese.vibeBulk_processingProgress(1, 4), '正在处理：1 / 4');
     expect(english.vibeDetail_timesUsed(5), '5 times');
     expect(japanese.vibeDetail_saveParameters, 'パラメーターを保存');
   });

@@ -3,7 +3,9 @@ param(
     [string[]]$Path = @(),
     [string[]]$Include = @(),
     [string]$BaseRef,
-    [int]$Concurrency = [Math]::Min(8, [Environment]::ProcessorCount),
+    [int]$Concurrency = [Math]::Min(4, [Environment]::ProcessorCount),
+    [ValidateRange(1, 600)]
+    [int]$TimeoutSeconds = 120,
     [switch]$Analyze,
     [switch]$ListOnly,
     [switch]$NoTestAssets
@@ -136,29 +138,28 @@ try {
         exit 0
     }
 
-    $baseFlutterArguments = @(
-        'test'
-        '--reporter=compact'
-        "--concurrency=$Concurrency"
+    $baseRunnerArguments = @(
+        '-TimeoutSeconds'
+        $TimeoutSeconds
+        '-Concurrency'
+        $Concurrency
     )
     if ($NoTestAssets) {
-        $baseFlutterArguments += '--no-test-assets'
+        $baseRunnerArguments += '-NoTestAssets'
     }
 
-    # flutter.bat is launched through cmd.exe on Windows, whose command line is
-    # limited to 8191 characters. Large platform changes can legitimately
-    # select hundreds of tests, so keep each invocation comfortably below that
-    # limit instead of failing before Flutter starts.
+    # Windows command lines are limited. Large platform changes can select
+    # hundreds of tests, so keep each watchdog invocation comfortably bounded.
     $maxBatchArgumentLength = 6000
     $testBatches = [System.Collections.Generic.List[object]]::new()
     $currentBatch = [System.Collections.Generic.List[string]]::new()
-    $currentLength = ($baseFlutterArguments -join ' ').Length
+    $currentLength = ($baseRunnerArguments -join ' ').Length
     foreach ($testFile in $orderedTests) {
         $nextLength = $currentLength + $testFile.Length + 3
         if ($currentBatch.Count -gt 0 -and $nextLength -gt $maxBatchArgumentLength) {
             $testBatches.Add($currentBatch.ToArray())
             $currentBatch = [System.Collections.Generic.List[string]]::new()
-            $currentLength = ($baseFlutterArguments -join ' ').Length
+            $currentLength = ($baseRunnerArguments -join ' ').Length
         }
         $currentBatch.Add($testFile)
         $currentLength += $testFile.Length + 3
@@ -170,7 +171,23 @@ try {
     for ($index = 0; $index -lt $testBatches.Count; $index++) {
         $batch = @($testBatches[$index])
         Write-Host "Running affected test batch $($index + 1)/$($testBatches.Count) ($($batch.Count) files)..."
-        & flutter @baseFlutterArguments @batch
+        $runnerArguments = @(
+            '-NoProfile'
+            '-ExecutionPolicy'
+            'Bypass'
+            '-File'
+            (Join-Path $PSScriptRoot 'run_flutter_tests.ps1')
+            '-TimeoutSeconds'
+            $TimeoutSeconds
+            '-Concurrency'
+            $Concurrency
+        )
+        if ($NoTestAssets) {
+            $runnerArguments += '-NoTestAssets'
+        }
+        $runnerArguments += '-Path'
+        $runnerArguments += $batch
+        & pwsh @runnerArguments
         if ($LASTEXITCODE -ne 0) {
             exit $LASTEXITCODE
         }

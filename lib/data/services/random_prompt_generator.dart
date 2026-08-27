@@ -7,7 +7,6 @@ import '../../core/utils/app_logger.dart';
 import '../datasources/local/pool_cache_service.dart';
 import '../datasources/local/tag_group_cache_service.dart';
 import '../models/character/character_prompt.dart';
-import '../models/prompt/algorithm_config.dart';
 import '../models/prompt/category_filter_config.dart';
 import '../models/prompt/character_count_config.dart';
 import '../models/prompt/random_category.dart';
@@ -16,7 +15,6 @@ import '../models/prompt/random_prompt_result.dart';
 import '../models/prompt/random_tag_group.dart';
 import '../models/prompt/tag_category.dart';
 import '../models/prompt/tag_group.dart';
-import '../models/prompt/tag_library.dart';
 import '../models/prompt/tag_scope.dart';
 import '../models/prompt/weighted_tag.dart';
 import 'bracket_formatter.dart';
@@ -24,12 +22,10 @@ import 'character_count_resolver.dart';
 import 'no_repeat_round_sampler.dart';
 import 'random_preset_generation_context.dart';
 import 'sequential_state_service.dart';
-import 'strategies/character_tag_generator.dart';
 import 'strategies/catalog_random_generator_strategy.dart';
 import 'tag_library_service.dart';
 import 'variable_replacement_service.dart';
 import 'weighted_selector.dart';
-import 'wordlist_service.dart';
 
 part 'random_prompt_generator.g.dart';
 
@@ -43,7 +39,6 @@ class RandomPromptGenerator {
   final BracketFormatter _bracketFormatter;
   final CharacterCountResolver _characterCountResolver;
   final VariableReplacementService _variableReplacementService;
-  final CharacterTagGenerator _characterTagGenerator;
   final NoRepeatRoundSampler _noRepeatRoundSampler;
   final CatalogRandomGeneratorStrategy _catalogRandomGenerator;
   final Expando<Map<TagSubCategory, List<WeightedTag>>> _builtinCandidateCache =
@@ -53,28 +48,13 @@ class RandomPromptGenerator {
     this._libraryService,
     this._sequentialService,
     this._tagGroupCacheService,
-    this._poolCacheService, [
-    WordlistService? wordlistService,
-  ]) : _weightedSelector = WeightedSelector(),
-       _bracketFormatter = BracketFormatter(),
-       _characterCountResolver = CharacterCountResolver(),
-       _variableReplacementService = VariableReplacementService(),
-       _characterTagGenerator = CharacterTagGenerator(),
-       _noRepeatRoundSampler = const NoRepeatRoundSampler(),
-       _catalogRandomGenerator = CatalogRandomGeneratorStrategy();
-
-  /// 获取过滤后的类别标签（根据分类级 Danbooru 补充配置）
-  List<WeightedTag> _getFilteredCategory(
-    TagLibrary library,
-    TagSubCategory category,
-    CategoryFilterConfig filterConfig,
-  ) {
-    final includeSupplement = filterConfig.isEnabled(category);
-    return library.getFilteredCategory(
-      category,
-      includeDanbooruSupplement: includeSupplement,
-    );
-  }
+    this._poolCacheService,
+  ) : _weightedSelector = WeightedSelector(),
+      _bracketFormatter = BracketFormatter(),
+      _characterCountResolver = CharacterCountResolver(),
+      _variableReplacementService = VariableReplacementService(),
+      _noRepeatRoundSampler = const NoRepeatRoundSampler(),
+      _catalogRandomGenerator = CatalogRandomGeneratorStrategy();
 
   /// 基于整数累积权重的随机选择算法
   ///
@@ -127,271 +107,6 @@ class RandomPromptGenerator {
     );
   }
 
-  @Deprecated('Use generateFromCatalog')
-  Future<RandomPromptResult> generateNaiStyle({
-    bool isV4Model = true,
-    int? seed,
-    CategoryFilterConfig categoryFilterConfig = const CategoryFilterConfig(),
-  }) {
-    return generateFromCatalog(
-      isV4Model: isV4Model,
-      seed: seed,
-      categoryFilterConfig: categoryFilterConfig,
-    );
-  }
-
-  /// 生成无人物场景提示词
-  // ignore: unused_element
-  RandomPromptResult _generateNoHumanPrompt(
-    TagLibrary library,
-    Random random,
-    int? seed,
-    CategoryFilterConfig filterConfig,
-  ) {
-    final tags = <String>['no humans'];
-
-    // 添加场景（必选）
-    final sceneTags = _getFilteredCategory(
-      library,
-      TagSubCategory.scene,
-      filterConfig,
-    );
-    if (sceneTags.isNotEmpty) {
-      tags.add(getWeightedChoice(sceneTags, random: random));
-    }
-
-    // 添加背景（90%）
-    if (random.nextDouble() < 0.9) {
-      final bgTags = _getFilteredCategory(
-        library,
-        TagSubCategory.background,
-        filterConfig,
-      );
-      if (bgTags.isNotEmpty) {
-        tags.add(getWeightedChoice(bgTags, random: random));
-      }
-    }
-
-    // 添加风格（50%）
-    if (random.nextDouble() < 0.5) {
-      final styleTags = _getFilteredCategory(
-        library,
-        TagSubCategory.style,
-        filterConfig,
-      );
-      if (styleTags.isNotEmpty) {
-        tags.add(getWeightedChoice(styleTags, random: random));
-      }
-    }
-
-    // 额外添加1-3个场景元素（50%）
-    if (random.nextDouble() < 0.5) {
-      final sceneTagsExtra = _getFilteredCategory(
-        library,
-        TagSubCategory.scene,
-        filterConfig,
-      );
-      if (sceneTagsExtra.length > 1) {
-        final count = random.nextInt(3) + 1;
-        final selected = <String>{};
-        for (
-          var i = 0;
-          i < count && selected.length < sceneTagsExtra.length;
-          i++
-        ) {
-          final tag = getWeightedChoice(sceneTagsExtra, random: random);
-          if (!tags.contains(tag)) {
-            selected.add(tag);
-          }
-        }
-        tags.addAll(selected);
-      }
-    }
-
-    return RandomPromptResult.noHuman(prompt: tags.join(', '), seed: seed);
-  }
-
-  /// 生成传统单提示词（用于非 V4 模型）
-  // ignore: unused_element
-  RandomPromptResult _generateLegacyPrompt(
-    TagLibrary library,
-    Random random,
-    int characterCount,
-    int? seed,
-    CategoryFilterConfig filterConfig,
-  ) {
-    final tags = <String>[];
-
-    // 添加人数标签
-    tags.add(_getCountTag(characterCount));
-
-    // 添加角色特征
-    final charTags = _generateCharacterTags(
-      library,
-      random,
-      CharacterGender.female,
-      filterConfig,
-    );
-    tags.addAll(charTags);
-
-    // 添加背景
-    if (random.nextDouble() < 0.9) {
-      final bgTags = _getFilteredCategory(
-        library,
-        TagSubCategory.background,
-        filterConfig,
-      );
-      if (bgTags.isNotEmpty) {
-        tags.add(getWeightedChoice(bgTags, random: random));
-      }
-    }
-
-    // 添加场景
-    if (random.nextDouble() < 0.5) {
-      final sceneTags = _getFilteredCategory(
-        library,
-        TagSubCategory.scene,
-        filterConfig,
-      );
-      if (sceneTags.isNotEmpty) {
-        tags.add(getWeightedChoice(sceneTags, random: random));
-      }
-    }
-
-    return RandomPromptResult(
-      mainPrompt: _stableUniquePrompt(tags.join(', ')),
-      seed: seed,
-    );
-  }
-
-  /// 生成多角色提示词（V4+ 模式）
-  ///
-  /// [characterCountConfig] 可选的人数类别配置，如果为空则使用默认逻辑
-  // ignore: unused_element
-  RandomPromptResult _generateMultiCharacterPrompt(
-    TagLibrary library,
-    Random random,
-    int characterCount,
-    int? seed,
-    CategoryFilterConfig filterConfig, {
-    CharacterCountConfig? characterCountConfig,
-  }) {
-    // 根据角色数量生成角色列表
-    final characters = <GeneratedCharacter>[];
-    final genders = <CharacterGender>[];
-
-    // 如果有配置，尝试从配置中获取匹配的类别和标签选项
-    CharacterTagOption? selectedTagOption;
-    if (characterCountConfig != null) {
-      // 查找匹配人数的类别
-      final matchingCategory = characterCountConfig.categories
-          .where((c) => c.count == characterCount && c.enabled && c.weight > 0)
-          .toList();
-
-      if (matchingCategory.isNotEmpty) {
-        // 按权重选择一个类别
-        final category = _selectWeightedCategory(matchingCategory, random);
-        // 从类别中按权重选择一个标签选项
-        final enabledOptions = category.enabledTagOptions;
-        if (enabledOptions.isNotEmpty) {
-          selectedTagOption = _selectWeightedTagOption(enabledOptions, random);
-        }
-      }
-    }
-
-    // 根据选中的标签选项或默认逻辑生成角色
-    for (var i = 0; i < characterCount; i++) {
-      CharacterGender gender;
-      String genderTag;
-
-      if (selectedTagOption != null && i < selectedTagOption.slotTags.length) {
-        // 使用配置中的槽位标签
-        genderTag = selectedTagOption.slotTags[i].characterTag;
-        gender = genderTag.contains('girl')
-            ? CharacterGender.female
-            : CharacterGender.male;
-      } else {
-        // 默认逻辑：随机分配性别
-        gender = random.nextBool()
-            ? CharacterGender.female
-            : CharacterGender.male;
-        genderTag = gender == CharacterGender.female ? '1girl' : '1boy';
-      }
-
-      genders.add(gender);
-      final charTags = _generateCharacterTags(
-        library,
-        random,
-        gender,
-        filterConfig,
-      );
-
-      // 添加人物标签到开头
-      charTags.insert(0, genderTag);
-
-      characters.add(
-        GeneratedCharacter(prompt: charTags.join(', '), gender: gender),
-      );
-    }
-
-    // 生成主提示词
-    final mainTags = <String>[];
-
-    // 使用配置中的主提示词标签，或根据性别组合生成
-    if (selectedTagOption != null &&
-        selectedTagOption.mainPromptTags.isNotEmpty) {
-      mainTags.add(selectedTagOption.mainPromptTags);
-    } else {
-      mainTags.add(_getCountTagForCharacters(genders));
-    }
-
-    // 添加风格（30%）
-    if (random.nextDouble() < 0.3) {
-      final styleTags = _getFilteredCategory(
-        library,
-        TagSubCategory.style,
-        filterConfig,
-      );
-      if (styleTags.isNotEmpty) {
-        mainTags.add(getWeightedChoice(styleTags, random: random));
-      }
-    }
-
-    // 添加背景（90%）
-    if (random.nextDouble() < 0.9) {
-      final bgTags = _getFilteredCategory(
-        library,
-        TagSubCategory.background,
-        filterConfig,
-      );
-      if (bgTags.isNotEmpty) {
-        final bg = getWeightedChoice(bgTags, random: random);
-        mainTags.add(bg);
-
-        // 如果是详细背景，添加额外场景元素
-        if (bg.contains('detailed') || bg.contains('amazing')) {
-          final sceneTags = _getFilteredCategory(
-            library,
-            TagSubCategory.scene,
-            filterConfig,
-          );
-          if (sceneTags.isNotEmpty) {
-            final count = random.nextInt(2) + 1;
-            for (var i = 0; i < count; i++) {
-              mainTags.add(getWeightedChoice(sceneTags, random: random));
-            }
-          }
-        }
-      }
-    }
-
-    return RandomPromptResult.multiCharacter(
-      mainPrompt: _stableUniquePrompt(mainTags.join(', ')),
-      characters: characters,
-      seed: seed,
-    );
-  }
-
   /// 按权重选择人数类别
   CharacterCountCategory _selectWeightedCategory(
     List<CharacterCountCategory> categories,
@@ -436,107 +151,6 @@ class RandomPromptGenerator {
     }
 
     return options.last;
-  }
-
-  /// 生成单个角色的特征标签
-  List<String> _generateCharacterTags(
-    TagLibrary library,
-    Random random,
-    CharacterGender gender,
-    CategoryFilterConfig filterConfig,
-  ) {
-    // 准备类别标签映射
-    final categoryTags = <TagSubCategory, List<WeightedTag>>{};
-
-    // 发色
-    final hairColors = _getFilteredCategory(
-      library,
-      TagSubCategory.hairColor,
-      filterConfig,
-    );
-    if (hairColors.isNotEmpty) {
-      categoryTags[TagSubCategory.hairColor] = hairColors;
-    }
-
-    // 瞳色
-    final eyeColors = _getFilteredCategory(
-      library,
-      TagSubCategory.eyeColor,
-      filterConfig,
-    );
-    if (eyeColors.isNotEmpty) {
-      categoryTags[TagSubCategory.eyeColor] = eyeColors;
-    }
-
-    // 发型
-    final hairStyles = _getFilteredCategory(
-      library,
-      TagSubCategory.hairStyle,
-      filterConfig,
-    );
-    if (hairStyles.isNotEmpty) {
-      categoryTags[TagSubCategory.hairStyle] = hairStyles;
-    }
-
-    // 表情
-    final expressions = _getFilteredCategory(
-      library,
-      TagSubCategory.expression,
-      filterConfig,
-    );
-    if (expressions.isNotEmpty) {
-      categoryTags[TagSubCategory.expression] = expressions;
-    }
-
-    // 姿势
-    final poses = _getFilteredCategory(
-      library,
-      TagSubCategory.pose,
-      filterConfig,
-    );
-    if (poses.isNotEmpty) {
-      categoryTags[TagSubCategory.pose] = poses;
-    }
-
-    // 使用 CharacterTagGenerator 生成标签
-    return _characterTagGenerator.generate(
-      categoryTags: categoryTags,
-      random: random,
-    );
-  }
-
-  /// 获取人数标签
-  ///
-  /// 注意: "duo" 和 "trio" 是 Danbooru 已废弃的标签，不应使用
-  /// 参考: https://danbooru.donmai.us/wiki_pages/duo
-  /// NAI 官网使用具体的角色组合标签如 2girls, 1girl 1boy 等
-  String _getCountTag(int count) {
-    return switch (count) {
-      1 => 'solo',
-      2 => '2girls', // 默认使用 2girls，V4模式会根据实际性别生成
-      3 => 'multiple girls',
-      _ => 'group',
-    };
-  }
-
-  /// 根据角色性别组合获取精确的人数标签（用于 V4 多角色模式）
-  ///
-  /// 返回逗号分隔的标签字符串，例如 "1girl, 1boy"
-  ///
-  /// 所有可能的组合：
-  /// - 0人: "no humans"
-  /// - 1人: "solo"
-  /// - 2女: "2girls"
-  /// - 2男: "2boys"
-  /// - 1女1男: "1girl, 1boy"
-  /// - 3女: "3girls"
-  /// - 3男: "3boys"
-  /// - 2女1男: "2girls, 1boy"
-  /// - 1女2男: "1girl, 2boys"
-  /// - 更多同性: "multiple girls" 或 "multiple boys"
-  /// - 混合多人: "group"
-  String _getCountTagForCharacters(List<CharacterGender> genders) {
-    return _characterCountResolver.getCountTag(genders);
   }
 
   /// 使用自定义预设生成（包装现有功能）
@@ -1544,18 +1158,6 @@ class RandomPromptGenerator {
     return 10;
   }
 
-  /// 旧 CSV 入口的迁移兼容层。
-  ///
-  /// 旧版打包的站点词库已移除。只有显式调用旧 API 时才会转入经过
-  /// 来源校验的完整离线 catalog，现有调用方无需立即迁移。
-  @Deprecated('Use generateFromCatalog or generateFromPreset')
-  Future<RandomPromptResult> generateFromWordlist({
-    AlgorithmConfig config = const AlgorithmConfig(),
-    int? seed,
-  }) {
-    return generateFromCatalog(isV4Model: config.isV4Model, seed: seed);
-  }
-
   /// 应用强调括号
   List<String> _applyEmphasis(
     List<String> tags,
@@ -1624,12 +1226,10 @@ RandomPromptGenerator randomPromptGenerator(Ref ref) {
   final sequentialService = ref.watch(sequentialStateServiceProvider);
   final tagGroupCacheService = ref.watch(tagGroupCacheServiceProvider);
   final poolCacheService = ref.watch(poolCacheServiceProvider);
-  final wordlistService = ref.watch(wordlistServiceProvider);
   return RandomPromptGenerator(
     libraryService,
     sequentialService,
     tagGroupCacheService,
     poolCacheService,
-    wordlistService,
   );
 }

@@ -302,8 +302,6 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     // 监听焦点变化（用于失焦格式化）
     _effectiveFocusNode.addListener(_onFocusChanged);
 
-    // 初始化自动补全策略（延迟到第一次 build 后，因为需要 ref）
-    // 策略将在 _ensureAutocompleteStrategy 中惰性创建
     HardwareKeyboard.instance.addHandler(_handleHardwareKeyEvent);
   }
 

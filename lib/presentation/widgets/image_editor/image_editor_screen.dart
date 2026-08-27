@@ -1198,7 +1198,6 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
     );
   }
 
-  // ignore: unused_element
   Future<void> _applyOutpaintEdges(
     OutpaintEdges edges, {
     OutpaintHorizontalSnapTarget horizontalSnapTarget =

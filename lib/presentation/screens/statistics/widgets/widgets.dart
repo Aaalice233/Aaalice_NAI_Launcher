@@ -14,7 +14,6 @@ export 'charts/heatmap_chart.dart';
 export 'charts/radar_chart.dart';
 export 'charts/stacked_area_chart.dart';
 export 'charts/funnel_chart.dart';
-export 'charts/tag_cloud_widget.dart';
 export 'charts/model_ranking_list.dart';
 export 'charts/parameter_distribution_bar.dart';
 export 'charts/polar_activity_chart.dart';

@@ -14,6 +14,14 @@ GalleryImageRequest _request(
   targetDecodeWidth: 320,
 );
 
+Future<void> _waitUntil(bool Function() condition) async {
+  for (var attempt = 0; attempt < 100; attempt++) {
+    if (condition()) return;
+    await Future<void>.delayed(Duration.zero);
+  }
+  fail('Expected queued preload was not started');
+}
+
 void main() {
   test('limits active preloads to four', () async {
     var active = 0;
@@ -39,15 +47,9 @@ void main() {
     expect(coordinator.activeCount, 4);
     expect(maxActive, 4);
 
-    for (var index = 0; index < gates.length; index++) {
-      if (!gates[index].isCompleted) gates[index].complete();
-      await Future<void>.delayed(Duration.zero);
-    }
-    while (gates.any((gate) => !gate.isCompleted)) {
-      for (final gate in gates.where((gate) => !gate.isCompleted).toList()) {
-        gate.complete();
-      }
-      await Future<void>.delayed(Duration.zero);
+    for (var index = 0; index < futures.length; index++) {
+      await _waitUntil(() => gates.length > index);
+      gates[index].complete();
     }
     expect(await Future.wait(futures), everyElement(isTrue));
     expect(maxActive, 4);

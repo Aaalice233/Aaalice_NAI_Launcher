@@ -172,9 +172,6 @@ class OnlineGalleryBlacklistNotifier
     });
   }
 
-  @Deprecated('Use addTag; the unified blacklist has no separate local list.')
-  Future<bool> addLocalTag(String input) => addTag(input);
-
   Future<bool> removeTag(String input) async {
     final normalized = GalleryBlacklistTagNormalizer.normalize(input);
     if (normalized == null) return false;
@@ -190,11 +187,6 @@ class OnlineGalleryBlacklistNotifier
       return true;
     });
   }
-
-  @Deprecated(
-    'Use removeTag; the unified blacklist has no separate local list.',
-  )
-  Future<bool> removeLocalTag(String input) => removeTag(input);
 
   Future<int> importTags(Iterable<String> inputs) async {
     final normalized = GalleryBlacklistTagNormalizer.normalizeAll(inputs);
@@ -226,11 +218,6 @@ class OnlineGalleryBlacklistNotifier
       return true;
     });
   }
-
-  @Deprecated(
-    'Use clearTags; the unified blacklist has no separate local list.',
-  )
-  Future<bool> clearLocalTags() => clearTags();
 
   Future<bool> undoLastMutation() async {
     return _enqueueMutation(() async {

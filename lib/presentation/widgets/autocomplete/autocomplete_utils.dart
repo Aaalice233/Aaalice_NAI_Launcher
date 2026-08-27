@@ -3,7 +3,7 @@ import 'package:flutter/rendering.dart';
 
 import '../../../core/utils/tag_normalizer.dart';
 import '../../../data/models/tag/local_tag.dart';
-import 'autocomplete_controller.dart';
+import 'autocomplete_config.dart';
 
 /// 自动补全工具类
 /// 提供标签提取、光标定位、建议应用等公共方法

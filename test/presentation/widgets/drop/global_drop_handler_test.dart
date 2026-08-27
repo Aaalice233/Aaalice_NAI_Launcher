@@ -9,6 +9,7 @@ import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/enums/precise_ref_type.dart';
 import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
+import 'package:nai_launcher/presentation/utils/internal_drag_protocol.dart';
 import 'package:nai_launcher/presentation/widgets/drop/global_drop_handler.dart';
 import 'package:nai_launcher/presentation/widgets/drop/image_destination_dialog.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';

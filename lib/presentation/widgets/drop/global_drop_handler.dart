@@ -32,7 +32,7 @@ import '../../providers/reverse_prompt_provider.dart';
 import '../../providers/vibe_library_provider.dart';
 import '../../router/app_router.dart';
 import '../../utils/dropped_file_reader.dart';
-import '../../utils/internal_drag_protocol.dart' as internal_drag;
+import '../../utils/internal_drag_protocol.dart';
 import '../../utils/metadata_import_coordinator.dart';
 import '../../utils/precise_ref_library_import_helper.dart';
 import '../common/app_toast.dart';
@@ -191,10 +191,6 @@ bool imageDestinationRequiresOriginalBytes(ImageDestination destination) {
     ImageDestination.extractMetadata ||
     ImageDestination.addToQueue => false,
   };
-}
-
-bool isGalleryInternalDragLocalData(Object? localData) {
-  return internal_drag.isGalleryInternalDragLocalData(localData);
 }
 
 class _PasteImageIntent extends Intent {
@@ -453,7 +449,7 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
     try {
       var handledAny = false;
       for (final item in event.session.items) {
-        final internalPayload = internal_drag.resolveInternalHistoryDropPayload(
+        final internalPayload = resolveInternalHistoryDropPayload(
           item.localData,
           ref.read(imageGenerationNotifierProvider),
         );

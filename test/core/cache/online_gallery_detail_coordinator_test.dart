@@ -9,6 +9,14 @@ GalleryItem _item(int id) => GalleryItem(id: id, site: 'danbooru');
 GalleryDetail _detail(GalleryItem item, [String? marker]) =>
     GalleryDetail(item: item, media: const [], description: marker);
 
+Future<void> _waitUntil(bool Function() condition) async {
+  for (var attempt = 0; attempt < 100; attempt++) {
+    if (condition()) return;
+    await Future<void>.delayed(Duration.zero);
+  }
+  fail('Expected queued detail request was not started');
+}
+
 void main() {
   test('limits active detail requests to four', () async {
     var active = 0;
@@ -28,13 +36,9 @@ void main() {
     expect(coordinator.activeCount, 4);
     expect(maxActive, 4);
 
-    var completed = 0;
-    while (completed < gates.length) {
-      final current = gates.length;
-      for (; completed < current; completed++) {
-        gates[completed].complete(_detail(_item(completed)));
-      }
-      await Future<void>.delayed(Duration.zero);
+    for (var index = 0; index < futures.length; index++) {
+      await _waitUntil(() => gates.length > index);
+      gates[index].complete(_detail(_item(index)));
     }
     expect(await Future.wait(futures), hasLength(6));
     expect(maxActive, 4);
