@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart' as md;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/agent/agent_types.dart';
@@ -229,6 +230,12 @@ void main() {
           container.read(agentChatNotifierProvider.notifier)
               as _TestAgentChatNotifier;
       notifier.setMessages([
+        AssistantMessage(
+          content: const [
+            ToolCallContent(id: 'read-image', name: 'read', arguments: {}),
+          ],
+          stopReason: StopReason.toolUse,
+        ),
         ToolResultMessage(
           toolCallId: 'read-image',
           toolName: 'read',
@@ -254,6 +261,7 @@ void main() {
       );
       await tester.pump();
 
+      expect(find.byType(md.MarkdownBody), findsNothing);
       final resultIcon = tester.widget<Icon>(
         find.descendant(
           of: find.byKey(const ValueKey('agent-tool-result-icon-read-image')),

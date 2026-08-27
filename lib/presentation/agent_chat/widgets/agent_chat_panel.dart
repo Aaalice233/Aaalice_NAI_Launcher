@@ -1628,7 +1628,7 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
       );
     }
     if (message is AssistantMessage) {
-      if (message.text.trim().isEmpty && message.toolCalls.isEmpty) {
+      if (message.text.trim().isEmpty) {
         return const SizedBox.shrink();
       }
       return Container(
