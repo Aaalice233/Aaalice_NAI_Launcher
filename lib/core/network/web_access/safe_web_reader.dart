@@ -189,13 +189,10 @@ class SafeWebReader {
     }
     final literalAddress = InternetAddress.tryParse(hostname);
     if (literalAddress != null) {
-      if (_isBlockedAddress(literalAddress)) {
-        throw WebAccessException(
-          WebAccessErrorKind.blockedAddress,
-          'Blocked internal address: $hostname.',
-          backend: WebSearchBackend.localReader,
-        );
-      }
+      await resolvePublicAddresses(
+        hostname,
+        resolveAddresses: _resolveAddresses,
+      );
       return;
     }
     // The configured proxy resolves hostnames at the transport boundary. A
@@ -203,20 +200,46 @@ class SafeWebReader {
     // the address that receives the request.
     if (_trustProxyForHostnames) return;
 
-    final addresses = <InternetAddress>[];
-    try {
-      addresses.addAll(await _resolveAddresses(hostname));
-    } on SocketException catch (error) {
+    await resolvePublicAddresses(hostname, resolveAddresses: _resolveAddresses);
+  }
+
+  /// Resolves [hostname] and rejects every address class that must not be
+  /// reachable through the local page reader. The returned addresses are safe
+  /// to pass directly to a socket connection without another DNS lookup.
+  static Future<List<InternetAddress>> resolvePublicAddresses(
+    String hostname, {
+    WebAddressResolver? resolveAddresses,
+  }) async {
+    final normalizedHost = hostname.toLowerCase();
+    if (normalizedHost == 'localhost' ||
+        normalizedHost.endsWith('.localhost')) {
       throw WebAccessException(
-        WebAccessErrorKind.network,
-        'Unable to resolve $hostname: ${error.message}.',
+        WebAccessErrorKind.blockedAddress,
+        'Blocked internal hostname: $normalizedHost.',
         backend: WebSearchBackend.localReader,
       );
+    }
+    final literalAddress = InternetAddress.tryParse(normalizedHost);
+    final addresses = <InternetAddress>[];
+    if (literalAddress != null) {
+      addresses.add(literalAddress);
+    } else {
+      final resolver =
+          resolveAddresses ?? ((hostname) => InternetAddress.lookup(hostname));
+      try {
+        addresses.addAll(await resolver(normalizedHost));
+      } on SocketException catch (error) {
+        throw WebAccessException(
+          WebAccessErrorKind.network,
+          'Unable to resolve $normalizedHost: ${error.message}.',
+          backend: WebSearchBackend.localReader,
+        );
+      }
     }
     if (addresses.isEmpty) {
       throw WebAccessException(
         WebAccessErrorKind.network,
-        'Unable to resolve $hostname.',
+        'Unable to resolve $normalizedHost.',
         backend: WebSearchBackend.localReader,
       );
     }
@@ -224,11 +247,14 @@ class SafeWebReader {
       if (_isBlockedAddress(address)) {
         throw WebAccessException(
           WebAccessErrorKind.blockedAddress,
-          'Blocked internal address resolved for $hostname.',
+          literalAddress == null
+              ? 'Blocked internal address resolved for $normalizedHost.'
+              : 'Blocked internal address: $normalizedHost.',
           backend: WebSearchBackend.localReader,
         );
       }
     }
+    return List.unmodifiable(addresses);
   }
 
   static bool _isBlockedAddress(InternetAddress address) {

@@ -73,7 +73,8 @@ class WebAccessToolbox {
         description:
             'Read one public HTTP(S) page after a search result needs deeper '
             'inspection. Extracts readable text locally and never sends the '
-            'URL to Exa. Private, loopback, and link-local targets are blocked. '
+            'URL to Exa. Private IP literals and direct connections to private '
+            'networks are blocked; an enabled app proxy resolves hostnames. '
             'Do not call this for every search result. max_chars is 500-30000 '
             '(default 12000).',
         parameters: const {

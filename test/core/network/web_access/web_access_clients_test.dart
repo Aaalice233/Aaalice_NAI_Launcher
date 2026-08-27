@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/network/web_access/exa_search_client.dart';
 import 'package:nai_launcher/core/network/web_access/safe_web_reader.dart';
 import 'package:nai_launcher/core/network/web_access/searxng_search_client.dart';
+import 'package:nai_launcher/core/network/web_access/web_access_http_transport.dart';
 import 'package:nai_launcher/core/network/web_access/web_access_models.dart';
 import 'package:nai_launcher/core/network/web_access/web_access_service.dart';
 
@@ -222,6 +223,72 @@ void main() {
       expect(keyLoads, 0);
     },
   );
+
+  group('WebAccessHttpTransport', () {
+    test('checks and pins the resolved address at connect time', () async {
+      var requests = 0;
+      var lookups = 0;
+      Future<List<InternetAddress>> resolve(String _) async {
+        lookups++;
+        return [
+          lookups == 1
+              ? InternetAddress('93.184.216.34')
+              : InternetAddress.loopbackIPv4,
+        ];
+      }
+
+      final server = await _serve((request) async {
+        requests++;
+        request.response.write('must not be reached');
+        await request.response.close();
+      });
+      addTearDown(() => server.close(force: true));
+      final dio = createWebAccessDio(
+        options: BaseOptions(connectTimeout: const Duration(seconds: 2)),
+        protectPublicTargetsAtConnect: true,
+        resolveAddresses: resolve,
+      );
+      addTearDown(() => dio.close(force: true));
+      final reader = SafeWebReader(dio, resolveAddresses: resolve);
+
+      await expectLater(
+        reader.read('http://public.example.test:${server.port}/page'),
+        throwsA(
+          isA<WebAccessException>().having(
+            (error) => error.kind,
+            'kind',
+            WebAccessErrorKind.blockedAddress,
+          ),
+        ),
+      );
+      expect(lookups, 2);
+      expect(requests, 0);
+    });
+
+    test('uses the selected proxy instead of the global transport', () async {
+      final hostSeen = Completer<String>();
+      final proxy = await _serve((request) async {
+        hostSeen.complete(request.headers.host);
+        request.response.headers.contentType = ContentType.text;
+        request.response.write('proxied');
+        await request.response.close();
+      });
+      addTearDown(() => proxy.close(force: true));
+      final dio = createWebAccessDio(
+        options: BaseOptions(connectTimeout: const Duration(seconds: 2)),
+        proxyAddress: '${proxy.address.host}:${proxy.port}',
+      );
+      addTearDown(() => dio.close(force: true));
+
+      final response = await dio.get<String>(
+        'http://unresolvable.invalid/page',
+        options: Options(responseType: ResponseType.plain),
+      );
+
+      expect(response.data, 'proxied');
+      expect(await hostSeen.future, 'unresolvable.invalid');
+    });
+  });
 
   group('SafeWebReader', () {
     test('blocks loopback targets by default', () async {

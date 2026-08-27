@@ -77,6 +77,10 @@ WebAccessException mapWebDioException(
   WebSearchBackend backend, {
   String service = 'Web service',
 }) {
+  final cause = error.error;
+  if (cause is WebAccessException) {
+    return cause;
+  }
   if (CancelToken.isCancel(error)) {
     return WebAccessException(
       WebAccessErrorKind.aborted,

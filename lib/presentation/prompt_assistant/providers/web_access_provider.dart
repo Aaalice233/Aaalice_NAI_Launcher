@@ -6,6 +6,7 @@ import '../../../core/network/web_access/exa_search_client.dart';
 import '../../../core/network/web_access/safe_web_reader.dart';
 import '../../../core/network/web_access/searxng_search_client.dart';
 import '../../../core/network/web_access/web_access_models.dart';
+import '../../../core/network/web_access/web_access_http_transport.dart';
 import '../../../core/network/web_access/web_access_service.dart';
 import '../../../core/storage/local_storage_service.dart';
 import '../../../core/storage/secure_storage_service.dart';
@@ -107,29 +108,44 @@ class WebAccessConfigNotifier extends StateNotifier<WebAccessConfigState> {
 }
 
 final webAccessDioProvider = Provider<Dio>((ref) {
-  ref.watch(currentProxyAddressProvider);
-  final dio = Dio(
-    BaseOptions(
-      connectTimeout: const Duration(seconds: 20),
-      sendTimeout: const Duration(seconds: 30),
-      receiveTimeout: const Duration(seconds: 60),
-    ),
+  final proxyAddress = ref.watch(currentProxyAddressProvider);
+  final dio = createWebAccessDio(
+    options: _webAccessBaseOptions(),
+    proxyAddress: proxyAddress,
+  );
+  ref.onDispose(() => dio.close(force: true));
+  return dio;
+});
+
+final webReaderDioProvider = Provider<Dio>((ref) {
+  final proxyAddress = ref.watch(currentProxyAddressProvider);
+  final dio = createWebAccessDio(
+    options: _webAccessBaseOptions(),
+    proxyAddress: proxyAddress,
+    protectPublicTargetsAtConnect: true,
   );
   ref.onDispose(() => dio.close(force: true));
   return dio;
 });
 
 final webAccessGatewayProvider = Provider<WebAccessGateway>((ref) {
-  final dio = ref.watch(webAccessDioProvider);
+  final searchDio = ref.watch(webAccessDioProvider);
+  final readerDio = ref.watch(webReaderDioProvider);
   final proxyAddress = ref.watch(currentProxyAddressProvider);
   final secureStorage = ref.watch(secureStorageServiceProvider);
   return WebAccessService(
-    searxng: SearxngSearchClient(dio),
-    exa: ExaSearchClient(dio),
+    searxng: SearxngSearchClient(searchDio),
+    exa: ExaSearchClient(searchDio),
     reader: SafeWebReader(
-      dio,
+      readerDio,
       trustProxyForHostnames: proxyAddress != null && proxyAddress.isNotEmpty,
     ),
     loadExaApiKey: secureStorage.getAgentWebAccessExaApiKey,
   );
 });
+
+BaseOptions _webAccessBaseOptions() => BaseOptions(
+  connectTimeout: const Duration(seconds: 20),
+  sendTimeout: const Duration(seconds: 30),
+  receiveTimeout: const Duration(seconds: 60),
+);
