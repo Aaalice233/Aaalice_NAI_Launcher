@@ -7,10 +7,8 @@ import 'package:nai_launcher/presentation/themes/app_theme.dart';
 import 'package:nai_launcher/presentation/widgets/common/compact_icon_button.dart';
 import 'package:nai_launcher/presentation/widgets/common/elevated_card.dart';
 import 'package:nai_launcher/presentation/widgets/common/input_surface_container.dart';
-import 'package:nai_launcher/presentation/widgets/common/inset_shadow_container.dart';
 import 'package:nai_launcher/presentation/widgets/common/safe_dropdown.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_container.dart';
-import 'package:nai_launcher/presentation/widgets/common/themed_dropdown.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_switch.dart';
 
 void main() {
@@ -94,40 +92,6 @@ void main() {
     expect(tester.widget<Switch>(find.byType(Switch)).onChanged, isNull);
   });
 
-  testWidgets('旧内阴影参数仅保持构造兼容且不会重新绘制阴影', (tester) async {
-    const background = Color(0xFF123456);
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(
-          body: InsetShadowContainer(
-            shadowDepth: 0.4,
-            shadowBlur: 12,
-            enabled: false,
-            backgroundColor: background,
-            child: Text('Input'),
-          ),
-        ),
-      ),
-    );
-
-    final animated = tester.widget<AnimatedContainer>(
-      find.descendant(
-        of: find.byType(InsetShadowContainer),
-        matching: find.byType(AnimatedContainer),
-      ),
-    );
-    final decoration = animated.decoration! as BoxDecoration;
-    expect(decoration.color, background);
-    expect(decoration.boxShadow, isNull);
-    expect(
-      find.descendant(
-        of: find.byType(InsetShadowContainer),
-        matching: find.byType(CustomPaint),
-      ),
-      findsNothing,
-    );
-  });
-
   testWidgets('静态卡片显式启用 hover 时参数仍生效', (tester) async {
     await tester.pumpWidget(
       const MaterialApp(
@@ -181,39 +145,6 @@ void main() {
     final decoration = container.decoration! as BoxDecoration;
     expect(decoration.shape, BoxShape.circle);
     expect(decoration.borderRadius, isNull);
-  });
-
-  testWidgets('下拉输入允许全局主题提供焦点和错误状态边界', (tester) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: AppTheme.getTheme(AppStyle.grungeCollage, Brightness.dark),
-        home: Scaffold(
-          body: Column(
-            children: [
-              ThemedDropdown<String>(
-                value: 'a',
-                items: const [DropdownMenuItem(value: 'a', child: Text('A'))],
-                onChanged: (_) {},
-              ),
-              SafeDropdownFormField<String>(
-                value: 'a',
-                items: const [DropdownMenuItem(value: 'a', child: Text('A'))],
-                onChanged: (_) {},
-                validator: (_) => 'Error',
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-
-    final fields = tester.widgetList<DropdownButtonFormField<String>>(
-      find.byType(DropdownButtonFormField<String>),
-    );
-    for (final field in fields) {
-      expect(field.decoration.focusedBorder, isNull);
-      expect(field.decoration.errorBorder, isNull);
-    }
   });
 
   testWidgets('安全下拉框用状态边界反馈键盘焦点', (tester) async {

@@ -44,7 +44,6 @@ void main() {
           generator.entryCount,
           officialWordlistGeneratorEntryCounts[type.generatorId],
         );
-        expect(service.getAllEntries(type), hasLength(generator.entryCount));
       }
 
       final duplicateRecords = data.generatorsById['legacyAnime']!

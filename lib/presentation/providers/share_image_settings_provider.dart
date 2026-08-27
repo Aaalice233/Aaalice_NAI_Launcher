@@ -43,9 +43,6 @@ class ShareImageSettings {
   int get effectiveGenerationIntervalSeconds =>
       protectionMode && limitGenerationInterval ? generationIntervalSeconds : 0;
 
-  @Deprecated('Use protectionMode instead.')
-  bool get assetProtectionMode => protectionMode;
-
   ShareImageSettings copyWith({
     bool? protectionMode,
     bool? stripMetadataForCopyAndDrag,
@@ -212,10 +209,5 @@ class ShareImageSettingsNotifier extends Notifier<ShareImageSettings> {
       StorageKeys.protectionGenerationIntervalSeconds,
       clamped,
     );
-  }
-
-  @Deprecated('Use setProtectionMode instead.')
-  Future<void> setAssetProtectionMode(bool value) async {
-    await setProtectionMode(value);
   }
 }

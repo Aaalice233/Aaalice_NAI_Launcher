@@ -644,9 +644,7 @@ void main() {
     final notifier = container.read(onlineGalleryNotifierProvider.notifier);
 
     final staleSearch = notifier.search('a b c');
-    while (danbooru.detailRequests == 0) {
-      await Future<void>.delayed(Duration.zero);
-    }
+    await _waitUntil(() => danbooru.detailRequests > 0);
     await notifier.setSource(GallerySourceId.safebooru);
 
     expect(detailCancelToken?.isCancelled, isTrue);
@@ -792,9 +790,7 @@ void main() {
       final auth =
           container.read(danbooruAuthProvider.notifier) as _MutableDanbooruAuth;
       auth.authenticate(name: 'alice', level: 30);
-      while (adapter.searchCursors.length < 2) {
-        await Future<void>.delayed(Duration.zero);
-      }
+      await _waitUntil(() => adapter.searchCursors.length >= 2);
 
       final state = container.read(onlineGalleryNotifierProvider);
       expect(state.danbooruAuthScope, 'alice:30:authenticated');
@@ -830,15 +826,11 @@ void main() {
     final notifier = container.read(onlineGalleryNotifierProvider.notifier);
 
     final firstLoad = notifier.loadPosts();
-    while (firstToken == null) {
-      await Future<void>.delayed(Duration.zero);
-    }
+    await _waitUntil(() => firstToken != null);
     final auth =
         container.read(danbooruAuthProvider.notifier) as _MutableDanbooruAuth;
     auth.authenticate(name: 'alice', level: 30);
-    while (requestCount < 2) {
-      await Future<void>.delayed(Duration.zero);
-    }
+    await _waitUntil(() => requestCount >= 2);
     await firstLoad;
 
     expect(firstToken!.isCancelled, isTrue);
@@ -899,9 +891,7 @@ void main() {
       final auth =
           container.read(danbooruAuthProvider.notifier) as _MutableDanbooruAuth;
       auth.authenticate(name: 'alice', level: 30);
-      while (requestCount < 3) {
-        await Future<void>.delayed(Duration.zero);
-      }
+      await _waitUntil(() => requestCount >= 3);
       await notifier.setRandomEnabled(false);
 
       final state = container.read(onlineGalleryNotifierProvider);
@@ -1248,6 +1238,14 @@ GalleryItem _item(
       extension: 'webp',
     ),
   );
+}
+
+Future<void> _waitUntil(bool Function() condition) async {
+  for (var attempt = 0; attempt < 100; attempt++) {
+    if (condition()) return;
+    await Future<void>.delayed(Duration.zero);
+  }
+  fail('Expected asynchronous condition was not reached');
 }
 
 class _FakeGalleryAdapter implements GallerySourceAdapter {

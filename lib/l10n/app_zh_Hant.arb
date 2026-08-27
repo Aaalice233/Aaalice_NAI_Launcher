@@ -7,7 +7,6 @@
   "common_continue": "繼續",
   "common_selectAll": "全選",
   "common_deselectAll": "全不選",
-  "common_collapseAll": "收起全部",
   "common_save": "儲存",
   "common_delete": "刪除",
   "common_edit": "編輯",
@@ -72,7 +71,6 @@
   "common_multiSelect": "多選",
   "common_category": "分類",
   "common_categories": "分類",
-  "common_items": "項",
   "networkError_connectionTimeout": "連線超時，請檢查網路連線。",
   "networkError_sendTimeout": "傳送超時，請重試。",
   "networkError_receiveTimeout": "接收超時，影象生成可能需要更長時間。",
@@ -122,11 +120,9 @@
   "auth_loginButton": "登入",
   "auth_loginFailed": "登入失敗",
   "auth_loginTip": "使用你的 NovelAI 賬戶登入\n所有資料僅儲存在本地裝置",
-  "auth_loggedIn": "已登入",
   "auth_emailRequired": "請輸入郵箱",
   "auth_emailInvalid": "請輸入有效的郵箱地址",
   "auth_passwordRequired": "請輸入密碼",
-  "auth_tokenLogin": "API Token 登入",
   "auth_tokenLoginCompact": "Token登入",
   "auth_tokenLoginRecommended": "API Token 登入（推薦）",
   "auth_credentialsLogin": "郵箱密碼登入",
@@ -146,10 +142,7 @@
   "auth_thirdPartyApiSiteRequired": "請輸入第三方 API 站點地址",
   "auth_validateAndLogin": "驗證並登入",
   "auth_tokenGuide": "從 NovelAI 賬戶設定獲取 Token",
-  "auth_savedAccounts": "已儲存的賬號",
   "auth_addAccount": "新增賬號",
-  "auth_manageAccounts": "管理",
-  "auth_moreAccounts": "還有 {count} 個賬號",
   "auth_tokenNotFound": "未找到此賬號的 Token",
   "auth_switchAccount": "切換賬號",
   "auth_currentAccount": "當前賬號",
@@ -2163,13 +2156,7 @@
   "randomManager_unknownError": "未知錯誤",
   "randomManager_readOnlyMode": "只讀模式",
   "randomManager_readOnlyTooltip": "當前預設為預設預設，所有配置項已鎖定",
-  "randomManager_searchCategoryOrTagGroup": "搜尋類別或標籤組...",
-  "randomManager_scope": "作用域",
   "randomManager_global": "全域性",
-  "randomManager_private": "私有",
-  "randomManager_status": "狀態",
-  "randomManager_enabledOnly": "僅啟用",
-  "randomManager_diyCapable": "有 DIY 能力",
   "randomManager_addTagGroupSubtitle": "新增到 \"{category}\"",
   "@randomManager_addTagGroupSubtitle": {
     "placeholders": {
@@ -2249,59 +2236,14 @@
   },
   "randomManager_previewHint": "點選\"生成\"預覽隨機標籤",
   "randomManager_generateNow": "立即生成",
-  "randomManager_batchOperations": "批次操作",
-  "randomManager_selectedItems": "已選擇 {count} 項",
-  "@randomManager_selectedItems": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "randomManager_totalItems": "共 {count} 項",
-  "@randomManager_totalItems": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "randomManager_enabledItems": "已啟用 {count} 個專案",
-  "@randomManager_enabledItems": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "randomManager_disabledItems": "已禁用 {count} 個專案",
-  "@randomManager_disabledItems": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "randomManager_batchDeleteTitle": "批次刪除",
-  "randomManager_batchDeleteContent": "確定要刪除選中的 {count} 個專案嗎？此操作不可撤銷。",
-  "@randomManager_batchDeleteContent": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "randomManager_deletedItems": "已刪除 {count} 個專案",
-  "@randomManager_deletedItems": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "randomManager_invertSelection": "反選",
   "randomManager_moreActions": "更多操作",
-  "randomManager_enableSelected": "啟用選中",
-  "randomManager_disableSelected": "禁用選中",
   "randomManager_deleteSelected": "刪除選中",
-  "randomManager_noHistory": "無歷史記錄",
-  "randomManager_operationHistory": "操作歷史",
   "randomManager_keyboardShortcuts": "鍵盤快捷鍵",
   "randomManager_generalShortcuts": "通用",
   "randomManager_presetActions": "預設操作",
   "randomManager_selectionActions": "選擇操作",
   "randomManager_closeWindow": "關閉視窗",
   "randomManager_refreshOrSync": "重新整理/同步",
-  "gender_female": "女性",
-  "gender_male": "男性",
   "scope_global": "主提示詞",
   "scope_globalTooltip": "提示詞將出現在主提示詞區域\n適合：背景、場景、畫面風格等",
   "scope_character": "角色",
@@ -2491,60 +2433,12 @@
   "localGallery_copySeed": "複製 Seed",
   "localGallery_dragToShare": "拖拽以分享",
   "localGallery_moveToRoot": "移至根目錄",
-  "localGallery_folderName": "資料夾名稱",
-  "localGallery_newFolderName": "新名稱",
-  "localGallery_folderNameHint": "輸入資料夾名稱",
-  "localGallery_folderCreated": "資料夾建立成功",
-  "localGallery_folderCreateFailed": "資料夾建立失敗",
-  "localGallery_renameFolderTitle": "重新命名資料夾",
-  "localGallery_renameSuccess": "重新命名成功",
-  "localGallery_renameFailed": "重新命名失敗",
-  "localGallery_deleteFolderTitle": "刪除資料夾",
-  "localGallery_deleteFolderWithImagesContent": "資料夾「{name}」包含 {count} 張圖片，確定要刪除嗎？\n\n注意：此操作會刪除資料夾及其中的所有圖片，無法恢復。",
-  "@localGallery_deleteFolderWithImagesContent": {
-    "placeholders": {
-      "name": {},
-      "count": {}
-    }
-  },
-  "localGallery_deleteEmptyFolderContent": "確定要刪除空資料夾「{name}」嗎？",
-  "@localGallery_deleteEmptyFolderContent": {
-    "placeholders": {
-      "name": {}
-    }
-  },
-  "localGallery_folderDeleted": "資料夾已刪除",
-  "localGallery_folderDeleteFailed": "刪除資料夾失敗",
   "localGallery_cachingMetadata": "正在快取後設資料...",
   "localGallery_metadataCacheStats": "後設資料快取統計",
   "localGallery_totalImages": "總圖片",
   "localGallery_withMetadata": "有後設資料",
   "localGallery_skipped": "跳過",
   "localGallery_remaining": "剩餘",
-  "localGallery_cacheMonitor": "快取監控",
-  "localGallery_threeLayerCacheStats": "三層快取統計",
-  "localGallery_updatedAt": "更新: {time}",
-  "@localGallery_updatedAt": {
-    "placeholders": {
-      "time": {}
-    }
-  },
-  "localGallery_memoryCache": "記憶體快取",
-  "localGallery_hiveCache": "Hive 快取",
-  "localGallery_sqliteDatabase": "SQLite 資料庫",
-  "localGallery_imageUnit": "圖片",
-  "localGallery_metadataUnit": "後設資料",
-  "localGallery_entriesUnit": "條目",
-  "localGallery_hitRate": "命中率",
-  "localGallery_performanceStats": "效能監控統計",
-  "localGallery_cacheHit": "命中",
-  "localGallery_cacheMiss": "未命中",
-  "localGallery_clearL1": "清除 L1",
-  "localGallery_clearL2": "清除 L2",
-  "localGallery_clearAll": "清除全部",
-  "localGallery_resetStats": "重置統計",
-  "localGallery_confirmClearCache": "確認清除",
-  "localGallery_confirmClearCacheContent": "確定要清除所有快取嗎？這將重新掃描所有圖片。",
   "localGallery_clearFilters": "清除篩選",
   "slideshow_of": "/",
   "slideshow_play": "播放",
@@ -2562,20 +2456,6 @@
   "comparison_loadError": "載入圖片失敗",
   "statistics_title": "統計儀表盤",
   "statistics_noData": "暫無統計資料",
-  "statistics_generatedCount": "生成數量",
-  "statistics_favoriteCount": "收藏數",
-  "statistics_tooltipGenerated": "生成數量: {count}",
-  "@statistics_tooltipGenerated": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "statistics_tooltipFavorite": "收藏數: {count}",
-  "@statistics_tooltipFavorite": {
-    "placeholders": {
-      "count": {}
-    }
-  },
   "statistics_noTagData": "暫無標籤資料",
   "statistics_generateFirst": "先生成一些圖片吧",
   "statistics_totalImages": "總圖片數",
@@ -2659,75 +2539,6 @@
   "layer_rename": "重新命名",
   "layer_moveUp": "上移",
   "layer_moveDown": "下移",
-  "tagGroupBrowser_searchHint": "搜尋標籤...",
-  "tagGroupBrowser_tagCount": "{count}個標籤",
-  "@tagGroupBrowser_tagCount": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "tagGroupBrowser_filteredTagCount": "顯示 {filtered} 個，共 {total} 個標籤",
-  "@tagGroupBrowser_filteredTagCount": {
-    "placeholders": {
-      "filtered": {},
-      "total": {}
-    }
-  },
-  "tagGroupBrowser_noTags": "暫無標籤",
-  "tagGroupBrowser_noLibrary": "詞庫未載入",
-  "tagGroupBrowser_importLibraryHint": "請先匯入標籤詞庫",
-  "tagGroupBrowser_noCategories": "沒有啟用的標籤分類",
-  "tagGroupBrowser_enableCategoriesHint": "請在設定中啟用標籤分類",
-  "tagGroupBrowser_danbooruSuggestions": "Danbooru 建議",
-  "tag_favoritesTitle": "收藏標籤",
-  "tag_favoritesEmpty": "暫無收藏標籤",
-  "tag_favoritesEmptyHint": "長按標籤即可新增到收藏",
-  "tag_alreadyAdded": "該標籤已在當前提示詞中",
-  "tag_removeFavoriteTitle": "移除收藏",
-  "tag_removeFavoriteMessage": "確定要移除收藏的標籤「{tag}」嗎？",
-  "@tag_removeFavoriteMessage": {
-    "placeholders": {
-      "tag": {}
-    }
-  },
-  "tag_templatesTitle": "標籤模板",
-  "tag_templatesEmpty": "暫無標籤模板",
-  "tag_templatesEmptyHint": "選擇標籤後點選右上角的 + 按鈕建立模板",
-  "tag_templateCreate": "建立模板",
-  "tag_templateNameLabel": "模板名稱",
-  "tag_templateNameHint": "輸入模板名稱",
-  "tag_templateNameRequired": "請輸入模板名稱",
-  "tag_templateDescLabel": "模板描述（可選）",
-  "tag_templateDescHint": "輸入模板描述",
-  "tag_templatePreview": "標籤預覽",
-  "tag_templateTagCount": "{count} 個標籤",
-  "@tag_templateTagCount": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "tag_templateMoreTags": "還有 {count} 個標籤...",
-  "@tag_templateMoreTags": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "tag_templateInserted": "已插入模板「{name}」",
-  "@tag_templateInserted": {
-    "placeholders": {
-      "name": {}
-    }
-  },
-  "tag_templateNoTags": "沒有可儲存的標籤",
-  "tag_templateSaved": "模板已儲存",
-  "tag_templateNameExists": "模板名稱已存在",
-  "tag_templateDeleteTitle": "刪除模板",
-  "tag_templateDeleteMessage": "確定要刪除模板「{name}」嗎？",
-  "@tag_templateDeleteMessage": {
-    "placeholders": {
-      "name": {}
-    }
-  },
   "tag_categoryGeneral": "通用",
   "tag_categoryArtist": "畫師",
   "tag_categoryCopyright": "版權",
@@ -3283,11 +3094,9 @@
       "count": {}
     }
   },
-  "autocomplete_keyNavigate": "↑↓/滾輪",
   "autocomplete_actionSelect": "選擇",
   "autocomplete_actionConfirm": "確認",
   "autocomplete_actionClose": "關閉",
-  "autocomplete_categoryRecommended": "推薦",
   "autocomplete_categoryCharacter": "角色",
   "autocomplete_categoryCopyright": "版權",
   "autocomplete_categoryArtist": "藝術家",
@@ -3670,53 +3479,6 @@
       "count": {}
     }
   },
-  "queue_export": "匯出",
-  "queue_import": "匯入",
-  "queue_exportImport": "佇列匯入/匯出",
-  "queue_exportFormat": "匯出格式",
-  "queue_exportFormatJson": "JSON",
-  "queue_exportFormatJsonDesc": "完整資料，包含所有引數",
-  "queue_exportFormatCsv": "CSV",
-  "queue_exportFormatCsvDesc": "表格格式，含提示詞和基本資訊",
-  "queue_exportFormatText": "純文字",
-  "queue_exportFormatTextDesc": "僅提示詞，每行一個",
-  "queue_importStrategy": "匯入策略",
-  "queue_importStrategyMerge": "合併",
-  "queue_importStrategyMergeDesc": "將匯入的任務新增到現有佇列末尾",
-  "queue_importStrategyReplace": "替換",
-  "queue_importStrategyReplaceDesc": "清空現有佇列，使用匯入的任務替換",
-  "queue_supportedFormats": "支援的格式：",
-  "queue_supportedFormatJson": "• JSON 檔案 (.json)",
-  "queue_supportedFormatCsv": "• CSV 檔案 (.csv)",
-  "queue_supportedFormatText": "• 純文字檔案 (.txt) - 每行一個提示詞",
-  "queue_shareSubject": "佇列匯出",
-  "queue_unsupportedFileFormat": "不支援的檔案格式: {extension}",
-  "@queue_unsupportedFileFormat": {
-    "placeholders": {
-      "extension": {}
-    }
-  },
-  "queue_exportSuccess": "匯出成功",
-  "queue_exportFailed": "匯出失敗：{error}",
-  "@queue_exportFailed": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "queue_importSuccess": "成功匯入 {count} 個任務",
-  "@queue_importSuccess": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "queue_importFailed": "匯入失敗：{error}",
-  "@queue_importFailed": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "queue_selectFile": "選擇要匯入的檔案",
-  "queue_noValidTasks": "檔案中沒有有效任務",
   "settings_queueRetryCount": "重試次數",
   "settings_queueRetryInterval": "重試間隔",
   "settings_showRandomPromptTools": "顯示隨機提示詞工具",
@@ -3737,12 +3499,6 @@
   },
   "unit_times": "次",
   "unit_seconds": "秒",
-  "queue_currentQueueInfo": "當前佇列包含 {count} 個任務",
-  "@queue_currentQueueInfo": {
-    "placeholders": {
-      "count": {}
-    }
-  },
   "settings_notificationSound": "完成音效",
   "settings_notificationSoundSubtitle": "生成完成時播放提示音效",
   "settings_notificationCustomSound": "自定義音效",
@@ -4223,39 +3979,6 @@
       }
     }
   },
-  "vibeBulk_titleDelete": "批次刪除",
-  "vibeBulk_titleMove": "批次移動",
-  "vibeBulk_titleToggleFavorite": "批次更新收藏",
-  "vibeBulk_titleAddTags": "批次新增標籤",
-  "vibeBulk_titleRemoveTags": "批次移除標籤",
-  "vibeBulk_titleExport": "批次匯出",
-  "vibeBulk_titleImport": "批次匯入",
-  "vibeBulk_processingProgress": "正在處理：{current} / {total}",
-  "@vibeBulk_processingProgress": {
-    "placeholders": {
-      "current": {
-        "type": "int"
-      },
-      "total": {
-        "type": "int"
-      }
-    }
-  },
-  "vibeBulk_completed": "操作完成",
-  "vibeBulk_completedWithFailures": "操作完成（部分失敗）",
-  "vibeBulk_successful": "成功",
-  "vibeBulk_failed": "失敗",
-  "vibeBulk_errorDetails": "錯誤詳情：",
-  "vibeBulk_moreErrors": "……另有 {count} 個錯誤",
-  "@vibeBulk_moreErrors": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "vibeBulk_operationFailed": "操作失敗",
-  "vibeBulk_operationFailedHint": "請檢查操作設定後重試。",
   "vibeBulk_errorEntryNotFoundOrDeleteFailed": "未找到 {item} 或刪除失敗",
   "@vibeBulk_errorEntryNotFoundOrDeleteFailed": {
     "placeholders": {
@@ -4398,63 +4121,7 @@
       }
     }
   },
-  "vibeBulkTag_title": "批次編輯標籤",
-  "vibeBulkTag_selectedCount": "已選中 {count} 個 Vibe",
-  "@vibeBulkTag_selectedCount": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "vibeBulkTag_inputHint": "輸入新標籤……",
-  "vibeBulkTag_noTags": "暫無標籤",
-  "vibeBulkTag_noTagsHint": "新增標籤以方便篩選和管理",
-  "vibeBulkTag_currentTags": "當前標籤（{count}）",
-  "@vibeBulkTag_currentTags": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "vibeBulkTag_pendingRemoval": "待移除標籤（{count}）",
-  "@vibeBulkTag_pendingRemoval": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "vibeBulkTag_removeTag": "移除標籤",
   "vibeBulkTag_actionPreview": "操作預覽",
-  "vibeBulkTag_addTagsSummary": "新增標籤：{tags}",
-  "@vibeBulkTag_addTagsSummary": {
-    "placeholders": {
-      "tags": {
-        "type": "String"
-      }
-    }
-  },
-  "vibeBulkTag_removeTagsSummary": "移除標籤：{tags}",
-  "@vibeBulkTag_removeTagsSummary": {
-    "placeholders": {
-      "tags": {
-        "type": "String"
-      }
-    }
-  },
-  "vibeBulkTag_noChanges": "沒有要應用的更改",
-  "vibeBulkCategory_title": "選擇目標分類",
-  "vibeBulkCategory_moveCount": "將 {count} 個 Vibe 移動到：",
-  "@vibeBulkCategory_moveCount": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "vibeBulkCategory_cannotMoveToCurrent": "不能移動到當前所在分類",
   "vibeDetail_strengthDescription": "控制 Vibe 對生成結果的影響強度",
   "vibeDetail_infoExtractedDescription": "控制從原圖提取的資訊量（消耗 2 Anlas）",
   "vibeDetail_statistics": "統計資訊",
@@ -5916,51 +5583,6 @@
       }
     }
   },
-  "diy_characterPositionTitle": "角色位置",
-  "diy_characterPositionSubtitle": "視覺化編輯角色位置",
-  "diy_addCharacterPosition": "新增角色位置",
-  "diy_addCharacterPositionHint": "點選下方按鈕新增角色位置",
-  "diy_characterIndex": "角色 {index}",
-  "@diy_characterIndex": {
-    "placeholders": {
-      "index": {
-        "type": "int"
-      }
-    }
-  },
-  "diy_aiPositionChoice": "AI 自動選擇",
-  "diy_positionCoordinates": "行：{row}%，列：{column}%",
-  "@diy_positionCoordinates": {
-    "placeholders": {
-      "row": {
-        "type": "String"
-      },
-      "column": {
-        "type": "String"
-      }
-    }
-  },
-  "diy_customPosition": "自定義",
-  "diy_emphasisPercent": "強調 {percent}%",
-  "@diy_emphasisPercent": {
-    "placeholders": {
-      "percent": {
-        "type": "String"
-      }
-    }
-  },
-  "diy_characterCountWeight": "角色數量權重",
-  "diy_peopleCount": "{count} 人",
-  "@diy_peopleCount": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "diy_genderProbability": "性別機率",
-  "diy_noWeightsConfigured": "未設定權重",
-  "diy_genderOther": "其他",
   "diy_emphasisTitle": "全域性強調配置",
   "diy_emphasisSubtitle": "調整標籤強調效果",
   "diy_emphasisProbability": "強調機率",
@@ -6081,11 +5703,6 @@
     }
   },
   "diy_activeBadge": "生效中",
-  "@auth_moreAccounts": {
-    "placeholders": {
-      "count": {}
-    }
-  },
   "@character_number": {
     "placeholders": {
       "index": {}
@@ -6411,7 +6028,6 @@
   "common_optional": "可選",
   "common_emptyValue": "（空）",
   "common_previewLoadFailed": "無法載入預覽",
-  "common_clickToRefresh": "點選重新整理",
   "common_clickToRetry": "點選重試",
   "common_opening": "正在開啟...",
   "common_swap": "交換",
@@ -6456,7 +6072,6 @@
     }
   },
   "randomManager_keyboardShortcutsHint": "鍵盤快捷鍵（按 ? 檢視）",
-  "localGallery_createFolder": "建立資料夾",
   "galleryScan_skipped": "跳過 {count}",
   "@galleryScan_skipped": {
     "placeholders": {

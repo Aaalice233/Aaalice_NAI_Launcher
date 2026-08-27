@@ -123,21 +123,6 @@ class PromptConfigNotifier extends _$PromptConfigNotifier {
     await _box?.put(_presetsKey, json);
   }
 
-  /// 生成随机提示词
-  String generatePrompt({int? seed}) {
-    // 如果预设还没加载完成，使用默认预设
-    if (state.presets.isEmpty || state.isLoading) {
-      return DefaultPresets.createDefaultPreset().generate(seed: seed);
-    }
-
-    final preset = state.selectedPreset;
-    if (preset == null) {
-      return state.presets.first.generate(seed: seed);
-    }
-
-    return preset.generate(seed: seed);
-  }
-
   /// 统一随机提示词生成入口
   ///
   /// 根据当前模式（官网/自定义/混合）生成随机提示词

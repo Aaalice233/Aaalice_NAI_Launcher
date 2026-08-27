@@ -9,7 +9,6 @@
   "common_continue": "Continue",
   "common_selectAll": "Select All",
   "common_deselectAll": "Deselect All",
-  "common_collapseAll": "Collapse All",
   "common_save": "Save",
   "common_delete": "Delete",
   "common_edit": "Edit",
@@ -74,7 +73,6 @@
   "common_multiSelect": "Multi-select",
   "common_category": "Category",
   "common_categories": "Categories",
-  "common_items": "items",
   "networkError_connectionTimeout": "Connection timed out. Check your network connection.",
   "networkError_sendTimeout": "Sending timed out. Try again.",
   "networkError_receiveTimeout": "Receiving timed out. Image generation may take longer than expected.",
@@ -124,12 +122,10 @@
   "auth_loginButton": "Sign In",
   "auth_loginFailed": "Login failed",
   "auth_loginTip": "Sign in with your NovelAI account\nAll data is stored locally only",
-  "auth_loggedIn": "Logged in",
   "auth_emailRequired": "Please enter email",
   "auth_emailInvalid": "Please enter a valid email address",
   "auth_passwordRequired": "Please enter password",
 
-  "auth_tokenLogin": "API Token Login",
   "auth_tokenLoginCompact": "Token Login",
   "auth_tokenLoginRecommended": "API Token Login (Recommended)",
   "auth_credentialsLogin": "Email & Password",
@@ -149,15 +145,7 @@
   "auth_thirdPartyApiSiteRequired": "Enter third-party API site URL",
   "auth_validateAndLogin": "Validate & Login",
   "auth_tokenGuide": "Get Token from NovelAI settings",
-  "auth_savedAccounts": "Saved Accounts",
   "auth_addAccount": "Add Account",
-  "auth_manageAccounts": "Manage",
-  "auth_moreAccounts": "{count} more accounts",
-  "@auth_moreAccounts": {
-    "placeholders": {
-      "count": {}
-    }
-  },
   "auth_tokenNotFound": "Token not found for this account",
   "auth_switchAccount": "Switch Account",
   "auth_currentAccount": "Current Account",
@@ -2134,13 +2122,7 @@
   "randomManager_unknownError": "Unknown error",
   "randomManager_readOnlyMode": "Read-only Mode",
   "randomManager_readOnlyTooltip": "The current preset is a default preset, so all configuration items are locked",
-  "randomManager_searchCategoryOrTagGroup": "Search categories or tag groups...",
-  "randomManager_scope": "Scope",
   "randomManager_global": "Global",
-  "randomManager_private": "Private",
-  "randomManager_status": "Status",
-  "randomManager_enabledOnly": "Enabled only",
-  "randomManager_diyCapable": "Has DIY capabilities",
   "randomManager_addTagGroupSubtitle": "Add to \"{category}\"",
   "@randomManager_addTagGroupSubtitle": {
     "placeholders": {
@@ -2220,51 +2202,8 @@
   },
   "randomManager_previewHint": "Click \"Generate\" to preview random tags",
   "randomManager_generateNow": "Generate Now",
-  "randomManager_batchOperations": "Batch Operations",
-  "randomManager_selectedItems": "{count} selected",
-  "@randomManager_selectedItems": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "randomManager_totalItems": "{count} total",
-  "@randomManager_totalItems": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "randomManager_enabledItems": "Enabled {count} items",
-  "@randomManager_enabledItems": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "randomManager_disabledItems": "Disabled {count} items",
-  "@randomManager_disabledItems": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "randomManager_batchDeleteTitle": "Batch Delete",
-  "randomManager_batchDeleteContent": "Delete {count} selected items? This action cannot be undone.",
-  "@randomManager_batchDeleteContent": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "randomManager_deletedItems": "Deleted {count} items",
-  "@randomManager_deletedItems": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "randomManager_invertSelection": "Invert Selection",
   "randomManager_moreActions": "More Actions",
-  "randomManager_enableSelected": "Enable Selected",
-  "randomManager_disableSelected": "Disable Selected",
   "randomManager_deleteSelected": "Delete Selected",
-  "randomManager_noHistory": "No history",
-  "randomManager_operationHistory": "Operation History",
   "randomManager_keyboardShortcuts": "Keyboard Shortcuts",
   "randomManager_generalShortcuts": "General",
   "randomManager_presetActions": "Preset Actions",
@@ -2272,8 +2211,6 @@
   "randomManager_closeWindow": "Close Window",
   "randomManager_refreshOrSync": "Refresh / Sync",
 
-  "gender_female": "Female",
-  "gender_male": "Male",
   "scope_global": "Main",
   "scope_globalTooltip": "Prompt will appear in main prompt area\nSuitable for: background, scene, style, etc.",
   "scope_character": "Char",
@@ -2283,77 +2220,8 @@
 
   "vibeParseFailed": "Failed to parse Vibe file",
 
-  "tagGroupBrowser_searchHint": "Search tags...",
-  "tagGroupBrowser_tagCount": "{count} tags",
-  "@tagGroupBrowser_tagCount": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "tagGroupBrowser_filteredTagCount": "Showing {filtered} of {total} tags",
-  "@tagGroupBrowser_filteredTagCount": {
-    "placeholders": {
-      "filtered": {},
-      "total": {}
-    }
-  },
-  "tagGroupBrowser_noTags": "No tags",
-  "tagGroupBrowser_noLibrary": "Tag library not loaded",
-  "tagGroupBrowser_importLibraryHint": "Please import a tag library first",
-  "tagGroupBrowser_noCategories": "No enabled tag categories",
-  "tagGroupBrowser_enableCategoriesHint": "Please enable tag categories in settings",
-  "tagGroupBrowser_danbooruSuggestions": "Danbooru Suggestions",
 
-  "tag_favoritesTitle": "Favorite Tags",
-  "tag_favoritesEmpty": "No favorite tags yet",
-  "tag_favoritesEmptyHint": "Long-press on a tag to add it to favorites",
-  "tag_alreadyAdded": "Tag already added to current prompt",
-  "tag_removeFavoriteTitle": "Remove from Favorites",
-  "tag_removeFavoriteMessage": "Remove \"{tag}\" from favorites?",
-  "@tag_removeFavoriteMessage": {
-    "placeholders": {
-      "tag": {}
-    }
-  },
 
-  "tag_templatesTitle": "Tag Templates",
-  "tag_templatesEmpty": "No tag templates yet",
-  "tag_templatesEmptyHint": "Select tags and click the + button to create a template",
-  "tag_templateCreate": "Create Template",
-  "tag_templateNameLabel": "Template Name",
-  "tag_templateNameHint": "Enter template name",
-  "tag_templateNameRequired": "Please enter a template name",
-  "tag_templateDescLabel": "Description (Optional)",
-  "tag_templateDescHint": "Enter template description",
-  "tag_templatePreview": "Tag Preview",
-  "tag_templateTagCount": "{count} tags",
-  "@tag_templateTagCount": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "tag_templateMoreTags": "{count} more tags...",
-  "@tag_templateMoreTags": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "tag_templateInserted": "Inserted template \"{name}\"",
-  "@tag_templateInserted": {
-    "placeholders": {
-      "name": {}
-    }
-  },
-  "tag_templateNoTags": "No tags to save",
-  "tag_templateSaved": "Template saved",
-  "tag_templateNameExists": "Template name already exists",
-  "tag_templateDeleteTitle": "Delete Template",
-  "tag_templateDeleteMessage": "Delete template \"{name}\"?",
-  "@tag_templateDeleteMessage": {
-    "placeholders": {
-      "name": {}
-    }
-  },
 
   "tag_categoryGeneral": "General",
   "tag_categoryArtist": "Artist",
@@ -2543,60 +2411,12 @@
   "localGallery_copySeed": "Copy Seed",
   "localGallery_dragToShare": "Drag to share",
   "localGallery_moveToRoot": "Move to Root",
-  "localGallery_folderName": "Folder Name",
-  "localGallery_newFolderName": "New Name",
-  "localGallery_folderNameHint": "Enter folder name",
-  "localGallery_folderCreated": "Folder created",
-  "localGallery_folderCreateFailed": "Failed to create folder",
-  "localGallery_renameFolderTitle": "Rename Folder",
-  "localGallery_renameSuccess": "Renamed",
-  "localGallery_renameFailed": "Rename failed",
-  "localGallery_deleteFolderTitle": "Delete Folder",
-  "localGallery_deleteFolderWithImagesContent": "Folder \"{name}\" contains {count} images. Delete it?\n\nNote: this will delete the folder and all images in it. This cannot be undone.",
-  "@localGallery_deleteFolderWithImagesContent": {
-    "placeholders": {
-      "name": {},
-      "count": {}
-    }
-  },
-  "localGallery_deleteEmptyFolderContent": "Delete empty folder \"{name}\"?",
-  "@localGallery_deleteEmptyFolderContent": {
-    "placeholders": {
-      "name": {}
-    }
-  },
-  "localGallery_folderDeleted": "Folder deleted",
-  "localGallery_folderDeleteFailed": "Failed to delete folder",
   "localGallery_cachingMetadata": "Caching metadata...",
   "localGallery_metadataCacheStats": "Metadata Cache Stats",
   "localGallery_totalImages": "Total Images",
   "localGallery_withMetadata": "With Metadata",
   "localGallery_skipped": "Skipped",
   "localGallery_remaining": "Remaining",
-  "localGallery_cacheMonitor": "Cache Monitor",
-  "localGallery_threeLayerCacheStats": "Three-layer Cache Stats",
-  "localGallery_updatedAt": "Updated: {time}",
-  "@localGallery_updatedAt": {
-    "placeholders": {
-      "time": {}
-    }
-  },
-  "localGallery_memoryCache": "Memory Cache",
-  "localGallery_hiveCache": "Hive Cache",
-  "localGallery_sqliteDatabase": "SQLite Database",
-  "localGallery_imageUnit": "images",
-  "localGallery_metadataUnit": "metadata",
-  "localGallery_entriesUnit": "entries",
-  "localGallery_hitRate": "Hit Rate",
-  "localGallery_performanceStats": "Performance Stats",
-  "localGallery_cacheHit": "Hit",
-  "localGallery_cacheMiss": "Miss",
-  "localGallery_clearL1": "Clear L1",
-  "localGallery_clearL2": "Clear L2",
-  "localGallery_clearAll": "Clear All",
-  "localGallery_resetStats": "Reset Stats",
-  "localGallery_confirmClearCache": "Confirm Clear",
-  "localGallery_confirmClearCacheContent": "Clear all caches? This will rescan all images.",
   "localGallery_clearFilters": "Clear filters",
 
   "slideshow_of": "of",
@@ -2616,20 +2436,6 @@
 
   "statistics_title": "Statistics",
   "statistics_noData": "No statistics available",
-  "statistics_generatedCount": "Generated",
-  "statistics_favoriteCount": "Favorites",
-  "statistics_tooltipGenerated": "Generated: {count}",
-  "@statistics_tooltipGenerated": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "statistics_tooltipFavorite": "Favorites: {count}",
-  "@statistics_tooltipFavorite": {
-    "placeholders": {
-      "count": {}
-    }
-  },
   "statistics_noTagData": "No tag data",
   "statistics_generateFirst": "Generate some images first",
   "statistics_totalImages": "Total Images",
@@ -3261,11 +3067,9 @@
       "count": {}
     }
   },
-  "autocomplete_keyNavigate": "↑↓/Scroll",
   "autocomplete_actionSelect": "Select",
   "autocomplete_actionConfirm": "Confirm",
   "autocomplete_actionClose": "Close",
-  "autocomplete_categoryRecommended": "Recommended",
   "autocomplete_categoryCharacter": "Character",
   "autocomplete_categoryCopyright": "Copyright",
   "autocomplete_categoryArtist": "Artist",
@@ -3661,53 +3465,6 @@
     }
   },
 
-  "queue_export": "Export",
-  "queue_import": "Import",
-  "queue_exportImport": "Import/Export Queue",
-  "queue_exportFormat": "Export Format",
-  "queue_exportFormatJson": "JSON",
-  "queue_exportFormatJsonDesc": "Complete data with all parameters",
-  "queue_exportFormatCsv": "CSV",
-  "queue_exportFormatCsvDesc": "Table format with prompts and basic info",
-  "queue_exportFormatText": "Plain Text",
-  "queue_exportFormatTextDesc": "Prompts only, one per line",
-  "queue_importStrategy": "Import Strategy",
-  "queue_importStrategyMerge": "Merge",
-  "queue_importStrategyMergeDesc": "Add imported tasks to end of existing queue",
-  "queue_importStrategyReplace": "Replace",
-  "queue_importStrategyReplaceDesc": "Clear existing queue and replace with imported",
-  "queue_supportedFormats": "Supported formats:",
-  "queue_supportedFormatJson": "• JSON file (.json)",
-  "queue_supportedFormatCsv": "• CSV file (.csv)",
-  "queue_supportedFormatText": "• Plain text file (.txt) - one prompt per line",
-  "queue_shareSubject": "Queue Export",
-  "queue_unsupportedFileFormat": "Unsupported file format: {extension}",
-  "@queue_unsupportedFileFormat": {
-    "placeholders": {
-      "extension": {}
-    }
-  },
-  "queue_exportSuccess": "Export successful",
-  "queue_exportFailed": "Export failed: {error}",
-  "@queue_exportFailed": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "queue_importSuccess": "Successfully imported {count} tasks",
-  "@queue_importSuccess": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "queue_importFailed": "Import failed: {error}",
-  "@queue_importFailed": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "queue_selectFile": "Select file to import",
-  "queue_noValidTasks": "No valid tasks in file",
 
   "settings_queueRetryCount": "Retry Count",
   "settings_queueRetryInterval": "Retry Interval",
@@ -3729,12 +3486,6 @@
   },
   "unit_times": "times",
   "unit_seconds": "seconds",
-  "queue_currentQueueInfo": "Current queue contains {count} tasks",
-  "@queue_currentQueueInfo": {
-    "placeholders": {
-      "count": {}
-    }
-  },
 
 
   "settings_notificationSound": "Completion Sound",
@@ -4302,33 +4053,6 @@
       "error": {"type": "String"}
     }
   },
-  "vibeBulk_titleDelete": "Delete Vibes",
-  "vibeBulk_titleMove": "Move Vibes",
-  "vibeBulk_titleToggleFavorite": "Update Favorites",
-  "vibeBulk_titleAddTags": "Add Tags",
-  "vibeBulk_titleRemoveTags": "Remove Tags",
-  "vibeBulk_titleExport": "Export Vibes",
-  "vibeBulk_titleImport": "Import Vibes",
-  "vibeBulk_processingProgress": "Processing: {current} / {total}",
-  "@vibeBulk_processingProgress": {
-    "placeholders": {
-      "current": {"type": "int"},
-      "total": {"type": "int"}
-    }
-  },
-  "vibeBulk_completed": "Operation complete",
-  "vibeBulk_completedWithFailures": "Operation complete with some failures",
-  "vibeBulk_successful": "Succeeded",
-  "vibeBulk_failed": "Failed",
-  "vibeBulk_errorDetails": "Error details:",
-  "vibeBulk_moreErrors": "...and {count} more errors",
-  "@vibeBulk_moreErrors": {
-    "placeholders": {
-      "count": {"type": "int"}
-    }
-  },
-  "vibeBulk_operationFailed": "Operation failed",
-  "vibeBulk_operationFailedHint": "Check the operation settings and try again.",
   "vibeBulk_errorEntryNotFoundOrDeleteFailed": "{item} was not found or could not be deleted",
   "@vibeBulk_errorEntryNotFoundOrDeleteFailed": {
     "placeholders": {
@@ -4427,51 +4151,7 @@
       "error": {"type": "String"}
     }
   },
-  "vibeBulkTag_title": "Edit Tags in Bulk",
-  "vibeBulkTag_selectedCount": "{count} Vibes selected",
-  "@vibeBulkTag_selectedCount": {
-    "placeholders": {
-      "count": {"type": "int"}
-    }
-  },
-  "vibeBulkTag_inputHint": "Enter a new tag...",
-  "vibeBulkTag_noTags": "No tags",
-  "vibeBulkTag_noTagsHint": "Add tags to make filtering and management easier",
-  "vibeBulkTag_currentTags": "Current tags ({count})",
-  "@vibeBulkTag_currentTags": {
-    "placeholders": {
-      "count": {"type": "int"}
-    }
-  },
-  "vibeBulkTag_pendingRemoval": "Tags to remove ({count})",
-  "@vibeBulkTag_pendingRemoval": {
-    "placeholders": {
-      "count": {"type": "int"}
-    }
-  },
-  "vibeBulkTag_removeTag": "Remove tag",
   "vibeBulkTag_actionPreview": "Change preview",
-  "vibeBulkTag_addTagsSummary": "Add tags: {tags}",
-  "@vibeBulkTag_addTagsSummary": {
-    "placeholders": {
-      "tags": {"type": "String"}
-    }
-  },
-  "vibeBulkTag_removeTagsSummary": "Remove tags: {tags}",
-  "@vibeBulkTag_removeTagsSummary": {
-    "placeholders": {
-      "tags": {"type": "String"}
-    }
-  },
-  "vibeBulkTag_noChanges": "There are no changes to apply",
-  "vibeBulkCategory_title": "Select Target Category",
-  "vibeBulkCategory_moveCount": "Move {count} Vibes to:",
-  "@vibeBulkCategory_moveCount": {
-    "placeholders": {
-      "count": {"type": "int"}
-    }
-  },
-  "vibeBulkCategory_cannotMoveToCurrent": "Cannot move to the current category",
   "vibeDetail_strengthDescription": "Controls how strongly this Vibe influences generated results",
   "vibeDetail_infoExtractedDescription": "Controls how much information is extracted from the source image (costs 2 Anlas)",
   "vibeDetail_statistics": "Statistics",
@@ -6044,41 +5724,6 @@
     }
   },
 
-  "diy_characterPositionTitle": "Character Position",
-  "diy_characterPositionSubtitle": "Visually edit character positions",
-  "diy_addCharacterPosition": "Add Character Position",
-  "diy_addCharacterPositionHint": "Use the button below to add a character position",
-  "diy_characterIndex": "Character {index}",
-  "@diy_characterIndex": {
-    "placeholders": {
-      "index": {"type": "int"}
-    }
-  },
-  "diy_aiPositionChoice": "AI chooses automatically",
-  "diy_positionCoordinates": "Row: {row}%, Column: {column}%",
-  "@diy_positionCoordinates": {
-    "placeholders": {
-      "row": {"type": "String"},
-      "column": {"type": "String"}
-    }
-  },
-  "diy_customPosition": "Custom",
-  "diy_emphasisPercent": "Emphasis {percent}%",
-  "@diy_emphasisPercent": {
-    "placeholders": {
-      "percent": {"type": "String"}
-    }
-  },
-  "diy_characterCountWeight": "Character Count Weights",
-  "diy_peopleCount": "{count} people",
-  "@diy_peopleCount": {
-    "placeholders": {
-      "count": {"type": "int"}
-    }
-  },
-  "diy_genderProbability": "Gender Probability",
-  "diy_noWeightsConfigured": "No weights configured",
-  "diy_genderOther": "Other",
   "diy_emphasisTitle": "Global Emphasis",
   "diy_emphasisSubtitle": "Adjust tag emphasis effects",
   "diy_emphasisProbability": "Emphasis Probability",
@@ -6186,7 +5831,6 @@
   "common_optional": "Optional",
   "common_emptyValue": "(Empty)",
   "common_previewLoadFailed": "Failed to load preview",
-  "common_clickToRefresh": "Click to refresh",
   "common_clickToRetry": "Click to retry",
   "common_opening": "Opening...",
   "common_swap": "Swap",
@@ -6232,7 +5876,6 @@
 
   "randomManager_keyboardShortcutsHint": "Keyboard Shortcuts (press ? to view)",
 
-  "localGallery_createFolder": "Create Folder",
   "galleryScan_skipped": "Skipped {count}",
   "@galleryScan_skipped": {
     "placeholders": {

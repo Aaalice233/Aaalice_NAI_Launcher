@@ -39,7 +39,7 @@ flutter pub get
 dart run build_runner build --delete-conflicting-outputs
 flutter run -d windows
 flutter run -d <android-device-id>
-flutter test
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/run_flutter_tests.ps1
 pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/test_affected.ps1
 flutter analyze
 flutter build windows --release
@@ -90,7 +90,9 @@ UI 任务的完成条件包含双端真实运行验收：共享改动必须分�
 
 测试使用 `flutter_test`，需要 mock 时使用 `mocktail`。测试文件以 `_test.dart` 结尾，并放在对应功能路径下，例如 `test/core/utils/`、`test/data/services/`、`test/presentation/providers/`。UI 行为变更尽量补 widget test；状态管理、请求构造、文件处理等逻辑变更应补 provider 或 service 回归测试。
 
-日常局部修改优先运行 `scripts/test_affected.ps1`：不传 `-Path` 时根据当前 Git 改动选择镜像测试和直接 import 受影响源码的测试；需要限制本次范围时用 `-Path "lib/foo.dart,lib/bar.dart"`，额外回归测试用 `-Include "test/foo_test.dart"`，只查看选择结果用 `-ListOnly`。这个入口用于快速回归，不替代发布前、核心公共模块大改或明确要求时的完整 `flutter test`。
+测试必须快速、确定且可终止：禁止在 Widget test 中依赖真实时间长轮询、未受控 isolate、网络、平台插件、文件选择器或无法取消的 `tester.runAsync` 链；这类跨异步边界的完整流程应拆成可直接测试的 service/utility，真实 UI 流程放入有明确超时和清理步骤的 runtime/integration verification。单测不得把默认十分钟超时当作等待机制，不得在失败后遗留 timer、isolate、进程、ProviderContainer 或未完成 Future。新增测试正常环境下单文件应在 30 秒内结束；若做不到，应先简化被测边界，而不是提高超时。
+
+`dart_test.yaml` 将单个测试硬限制为 30 秒并把默认并发限制为 4。禁止直接运行无总时限的 `flutter test`：全量测试统一使用 `scripts/run_flutter_tests.ps1`，总时限最多 600 秒，超时必须终止整个进程树并失败；不得提高此上限。日常局部修改优先运行 `scripts/test_affected.ps1`，每批默认 120 秒 watchdog：不传 `-Path` 时根据当前 Git 改动选择镜像测试和直接 import 受影响源码的测试；需要限制本次范围时用 `-Path "lib/foo.dart,lib/bar.dart"`，额外回归测试用 `-Include "test/foo_test.dart"`，只查看选择结果用 `-ListOnly`。测试卡住或超时后禁止原样重跑；先终止残留进程树，定位未完成异步资源，并修复或删除脆弱测试。
 
 ### Android 运行时测试规范
 
