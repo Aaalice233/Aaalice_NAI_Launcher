@@ -286,6 +286,8 @@
   "settings_avatarRemoved": "アバターが削除されました",
   "settings_setAsDefaultSuccess": "デフォルトのアカウントとして設定",
   "generation_title": "生成",
+  "generation_gestureEditPrompt": "下にスワイプしてプロンプトを編集",
+  "generation_gestureOpenAgent": "上にスワイプして AI アシスタントを開く",
   "generation_promptOverviewCharacters": "{count} 文字",
   "@generation_promptOverviewCharacters": {
     "placeholders": {

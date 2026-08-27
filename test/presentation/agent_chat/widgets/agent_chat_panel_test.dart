@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
@@ -259,6 +260,28 @@ void main() {
       );
       await tester.pump();
 
+      var hapticCount = 0;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'HapticFeedback.vibrate') hapticCount++;
+          return null;
+        },
+      );
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        ),
+      );
+
+      expect(
+        find.byKey(const ValueKey('generation-gesture-hint')),
+        findsOneWidget,
+      );
+      expect(find.text('下滑编辑提示词'), findsWidgets);
+      expect(find.text('上滑打开 AI 助手'), findsWidgets);
+
       await tester.tap(
         find.byKey(const ValueKey('generation-agent-drawer-action')),
       );
@@ -286,7 +309,6 @@ void main() {
       await tester.binding.handlePopRoute();
       await tester.pump();
 
-      expect(fullScreen, findsNothing);
       expect(
         find.byKey(const ValueKey('generation-agent-drawer-action')),
         findsOneWidget,
@@ -304,39 +326,247 @@ void main() {
         const Duration(milliseconds: 300),
       );
       await tester.pump();
-      expect(fullScreen, findsNothing);
+      expect(
+        find.byKey(const ValueKey('generation-agent-drawer-action')),
+        findsOneWidget,
+      );
       expect(find.byKey(const ValueKey('maximized-prompt')), findsNothing);
+
+      await tester.timedDrag(
+        verticalShortcuts,
+        const Offset(0, -80),
+        const Duration(milliseconds: 500),
+      );
+      await tester.pump(const Duration(milliseconds: 220));
+      expect(
+        find.byKey(const ValueKey('generation-agent-drawer-action')),
+        findsOneWidget,
+      );
+      expect(hapticCount, 0);
+
+      final reverseDrag = await tester.startGesture(
+        tester.getCenter(verticalShortcuts),
+      );
+      await reverseDrag.moveBy(const Offset(0, -100));
+      await tester.pump();
+      await reverseDrag.moveBy(const Offset(0, 100));
+      await reverseDrag.up();
+      await tester.pump(const Duration(milliseconds: 220));
+      expect(
+        find.byKey(const ValueKey('generation-agent-drawer-action')),
+        findsOneWidget,
+      );
+      expect(hapticCount, 1);
+
+      await tester.timedDrag(
+        verticalShortcuts,
+        const Offset(0, -48),
+        const Duration(milliseconds: 40),
+      );
+      await tester.pump();
+      expect(fullScreen, findsOneWidget);
+      expect(hapticCount, 2);
+      expect(
+        storage.getSetting<bool>(
+          StorageKeys.mobileGenerationGestureHintCompleted,
+        ),
+        isTrue,
+      );
+      expect(
+        container.read(mobileShellOverlayNotifierProvider),
+        contains(MobileShellOverlay.agentChat),
+      );
+
+      final notifier =
+          container.read(agentChatNotifierProvider.notifier)
+              as _TestAgentChatNotifier;
+      notifier.setRouteReady(true);
+      await tester.pump();
+      final chatInput = find.byKey(const ValueKey('agent-chat-input'));
+      await tester.enterText(chatInput, '保留的会话草稿');
+      await tester.timedDrag(
+        chatInput,
+        const Offset(0, 120),
+        const Duration(milliseconds: 500),
+      );
+      await tester.pump();
+      expect(fullScreen, findsOneWidget);
+
+      final agentCloseHandle = find.byKey(
+        const ValueKey('generation-agent-close-drag-handle'),
+      );
+      await tester.timedDrag(
+        agentCloseHandle,
+        const Offset(0, 120),
+        const Duration(milliseconds: 500),
+      );
+      await tester.pump(const Duration(milliseconds: 220));
+      expect(
+        find.byKey(const ValueKey('generation-agent-drawer-action')),
+        findsOneWidget,
+      );
+      expect(hapticCount, 3);
 
       await tester.timedDrag(
         verticalShortcuts,
         const Offset(0, -120),
         const Duration(milliseconds: 500),
       );
-      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 220));
       expect(fullScreen, findsOneWidget);
-      expect(
-        container.read(mobileShellOverlayNotifierProvider),
-        contains(MobileShellOverlay.agentChat),
+      final editable = tester.widget<EditableText>(
+        find.descendant(of: chatInput, matching: find.byType(EditableText)),
       );
-
+      expect(editable.controller.text, '保留的会话草稿');
       await tester.binding.handlePopRoute();
-      await tester.pump();
-      expect(fullScreen, findsNothing);
+      await tester.pump(const Duration(milliseconds: 220));
+      expect(
+        find.byKey(const ValueKey('generation-agent-drawer-action')),
+        findsOneWidget,
+      );
 
       await tester.timedDrag(
         verticalShortcuts,
         const Offset(0, 120),
         const Duration(milliseconds: 500),
       );
-      await tester.pump();
       await tester.pump(const Duration(milliseconds: 220));
-      expect(find.byKey(const ValueKey('maximized-prompt')), findsOneWidget);
-      expect(fullScreen, findsNothing);
+      final maximizedPrompt = find.byKey(const ValueKey('maximized-prompt'));
+      expect(maximizedPrompt, findsOneWidget);
+      expect(
+        container.read(mobileShellOverlayNotifierProvider),
+        isNot(contains(MobileShellOverlay.agentChat)),
+      );
       expect(
         container.read(mobileShellOverlayNotifierProvider),
         contains(MobileShellOverlay.promptEditor),
       );
+
+      await tester.timedDrag(
+        find.byKey(const ValueKey('generation_prompt_positive_input')),
+        const Offset(0, -120),
+        const Duration(milliseconds: 500),
+      );
+      await tester.pump();
+      expect(maximizedPrompt, findsOneWidget);
+
+      await tester.timedDrag(
+        find.byKey(const ValueKey('generation-prompt-editor-drag-handle')),
+        const Offset(0, -120),
+        const Duration(milliseconds: 500),
+      );
+      await tester.pump(const Duration(milliseconds: 220));
+      expect(maximizedPrompt, findsNothing);
+      expect(container.read(mobileShellOverlayNotifierProvider), isEmpty);
+      expect(hapticCount, greaterThanOrEqualTo(4));
       expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'mobile shortcuts respect keyboard, reduce motion, landscape and text scale',
+    (tester) async {
+      final tempDir = Directory.systemTemp.createTempSync(
+        'generation_gesture_accessibility_test_',
+      );
+      final storage = _MemoryLocalStorage();
+      await storage.setSetting(
+        StorageKeys.mobileGenerationGestureHintCompleted,
+        true,
+      );
+      final container = ProviderContainer(
+        overrides: [
+          localStorageServiceProvider.overrideWithValue(storage),
+          agentChatNotifierProvider.overrideWith((ref) {
+            return _TestAgentChatNotifier(
+              ref,
+              supportDir: tempDir,
+              workspaceDir: tempDir,
+            );
+          }),
+        ],
+      );
+      addTearDown(() {
+        container.dispose();
+        if (tempDir.existsSync()) tempDir.deleteSync(recursive: true);
+      });
+      await tester.runAsync(() async {
+        container.read(agentChatNotifierProvider);
+        await _waitForInitialized(container);
+      });
+
+      Widget app({required double keyboardInset}) {
+        return UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            locale: const Locale('en'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: MediaQuery(
+              data: MediaQueryData(
+                size: const Size(800, 500),
+                viewInsets: EdgeInsets.only(bottom: keyboardInset),
+                disableAnimations: true,
+                textScaler: const TextScaler.linear(1.5),
+              ),
+              child: const Scaffold(
+                body: SizedBox(
+                  width: 800,
+                  height: 500,
+                  child: MobileGenerationLayout(),
+                ),
+              ),
+            ),
+          ),
+        );
+      }
+
+      tester.view.viewInsets = const FakeViewPadding(bottom: 280);
+      addTearDown(() => tester.view.resetViewInsets());
+      await tester.pumpWidget(app(keyboardInset: 280));
+      await tester.pump();
+      final hintOpacity = tester.widget<AnimatedOpacity>(
+        find.byKey(const ValueKey('generation-gesture-hint')),
+      );
+      expect(hintOpacity.opacity, 0);
+      final shortcuts = find.byKey(
+        const ValueKey('generation-vertical-shortcuts'),
+      );
+      await tester.timedDrag(
+        shortcuts,
+        const Offset(0, -140),
+        const Duration(milliseconds: 400),
+      );
+      await tester.pump();
+      expect(
+        find.byKey(const ValueKey('generation-agent-fullscreen')),
+        findsNothing,
+      );
+
+      tester.view.viewInsets = const FakeViewPadding();
+      await tester.pumpWidget(app(keyboardInset: 0));
+      await tester.pump();
+      final motionWidgets = tester.widgetList<AnimatedSlide>(
+        find.byType(AnimatedSlide),
+      );
+      expect(motionWidgets, isNotEmpty);
+      expect(
+        motionWidgets.every((widget) => widget.duration == Duration.zero),
+        isTrue,
+      );
+
+      await tester.timedDrag(
+        shortcuts,
+        const Offset(0, -120),
+        const Duration(milliseconds: 400),
+      );
+      await tester.pump();
+      expect(
+        find.byKey(const ValueKey('generation-agent-fullscreen')),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+      await tester.pump(const Duration(seconds: 5));
     },
   );
 }

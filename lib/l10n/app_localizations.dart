@@ -1505,6 +1505,18 @@ abstract class AppLocalizations {
   /// **'Generate'**
   String get generation_title;
 
+  /// No description provided for @generation_gestureEditPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Swipe down to edit prompt'**
+  String get generation_gestureEditPrompt;
+
+  /// No description provided for @generation_gestureOpenAgent.
+  ///
+  /// In en, this message translates to:
+  /// **'Swipe up to open AI assistant'**
+  String get generation_gestureOpenAgent;
+
   /// No description provided for @generation_promptOverviewCharacters.
   ///
   /// In en, this message translates to:

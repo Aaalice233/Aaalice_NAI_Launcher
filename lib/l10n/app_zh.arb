@@ -278,6 +278,8 @@
   "settings_setAsDefaultSuccess": "已设为默认账号",
 
   "generation_title": "生成",
+  "generation_gestureEditPrompt": "下滑编辑提示词",
+  "generation_gestureOpenAgent": "上滑打开 AI 助手",
   "generation_promptOverviewCharacters": "{count} 字",
   "@generation_promptOverviewCharacters": {
     "placeholders": {
