@@ -318,6 +318,53 @@ class SecureStorageService {
     }
   }
 
+  // ==================== Agent Web Access ====================
+
+  Future<void> saveAgentWebAccessExaApiKey(String apiKey) async {
+    final value = apiKey.trim();
+    if (value.isEmpty) {
+      await deleteAgentWebAccessExaApiKey();
+      return;
+    }
+    try {
+      await _storage.write(
+        key: StorageKeys.agentWebAccessExaApiKey,
+        value: value,
+      );
+      _memoryCache[StorageKeys.agentWebAccessExaApiKey] = value;
+    } catch (e) {
+      AppLogger.w('Failed to save Exa API key: $e', 'SecureStorage');
+      rethrow;
+    }
+  }
+
+  Future<String?> getAgentWebAccessExaApiKey() async {
+    final cached = _memoryCache[StorageKeys.agentWebAccessExaApiKey];
+    if (cached != null) return cached;
+    try {
+      final value = await _storage.read(
+        key: StorageKeys.agentWebAccessExaApiKey,
+      );
+      if (value != null) {
+        _memoryCache[StorageKeys.agentWebAccessExaApiKey] = value;
+      }
+      return value;
+    } catch (e) {
+      AppLogger.w('Failed to read Exa API key: $e', 'SecureStorage');
+      return null;
+    }
+  }
+
+  Future<void> deleteAgentWebAccessExaApiKey() async {
+    try {
+      await _storage.delete(key: StorageKeys.agentWebAccessExaApiKey);
+      _memoryCache.remove(StorageKeys.agentWebAccessExaApiKey);
+    } catch (e) {
+      AppLogger.w('Failed to delete Exa API key: $e', 'SecureStorage');
+      rethrow;
+    }
+  }
+
   // ==================== Account Access Key 存储 ====================
   // 用于 JWT token 刷新，accessKey 可用于重新获取 token
 

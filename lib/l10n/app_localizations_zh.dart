@@ -784,6 +784,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agentChat_attachImage => '添加图片';
 
   @override
+  String get agentChat_enableWebAccess => '开启联网';
+
+  @override
+  String get agentChat_disableWebAccess => '关闭联网';
+
+  @override
   String agentChat_unsupportedImageFormat(Object fileName) {
     return '不支持的图片格式：$fileName';
   }
@@ -862,6 +868,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get agentChat_toolReadFile => '读取文件';
+
+  @override
+  String get agentChat_toolWebSearch => '联网搜索';
+
+  @override
+  String get agentChat_toolWebRead => '读取网页';
 
   @override
   String get agentChat_needSetup => '未配置聊天模型。请先在设置中添加支持工具调用的供应商。';
@@ -6473,6 +6485,86 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get promptAssistant_desktopOverlaySubtitle => '启用 hover / 右键 / 快捷键行为';
+
+  @override
+  String get promptAssistant_webAccessTitle => 'Agent 联网';
+
+  @override
+  String get promptAssistant_webAccessSubtitle => '通过 SearXNG 或 Exa 搜索实时信息';
+
+  @override
+  String get promptAssistant_webAccessEnable => '允许 Agent 联网';
+
+  @override
+  String get promptAssistant_webAccessEnableSubtitle => '启用后，搜索和读取公网网页不再逐次确认';
+
+  @override
+  String get promptAssistant_webAccessBackend => '搜索后端';
+
+  @override
+  String get promptAssistant_webAccessBackendAuto => '自动';
+
+  @override
+  String get promptAssistant_webAccessBackendSearxng => 'SearXNG';
+
+  @override
+  String get promptAssistant_webAccessBackendExaMcp => 'Exa 免费 MCP';
+
+  @override
+  String get promptAssistant_webAccessBackendExaApi => 'Exa API';
+
+  @override
+  String get promptAssistant_webAccessBackendAutoDescription =>
+      '优先使用已配置的 SearXNG，失败后回退到 Exa 匿名 MCP 额度';
+
+  @override
+  String get promptAssistant_webAccessBackendSearxngDescription =>
+      '仅使用配置的私有 SearXNG 实例';
+
+  @override
+  String get promptAssistant_webAccessBackendExaMcpDescription =>
+      '无需 API Key，使用 Exa 托管的免费额度并受其限流约束';
+
+  @override
+  String get promptAssistant_webAccessBackendExaApiDescription =>
+      '使用你的 Exa 账号与 API 额度，此模式可能产生费用';
+
+  @override
+  String get promptAssistant_webAccessResultCount => '默认结果数';
+
+  @override
+  String get promptAssistant_webAccessSearxngUrl => 'SearXNG 地址';
+
+  @override
+  String get promptAssistant_webAccessExaApiKey => 'Exa API Key';
+
+  @override
+  String get promptAssistant_webAccessApiKeyConfigured => '已安全保存';
+
+  @override
+  String get promptAssistant_webAccessApiKeyMissing => '未配置';
+
+  @override
+  String get promptAssistant_webAccessConfigureKey => '配置';
+
+  @override
+  String get promptAssistant_webAccessClearKey => '清除 Key';
+
+  @override
+  String get promptAssistant_webAccessTestConnection => '测试连接';
+
+  @override
+  String get promptAssistant_webAccessTesting => '正在测试...';
+
+  @override
+  String promptAssistant_webAccessTestSucceeded(Object provider) {
+    return '已通过 $provider 连接';
+  }
+
+  @override
+  String promptAssistant_webAccessTestFailed(Object error) {
+    return '连接失败：$error';
+  }
 
   @override
   String get promptAssistant_taskRouting => '任务路由';
@@ -13355,6 +13447,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get agentChat_attachImage => '新增圖片';
 
   @override
+  String get agentChat_enableWebAccess => '開啟聯網';
+
+  @override
+  String get agentChat_disableWebAccess => '關閉聯網';
+
+  @override
   String agentChat_unsupportedImageFormat(Object fileName) {
     return '不支援的圖片格式：$fileName';
   }
@@ -13433,6 +13531,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get agentChat_toolReadFile => '讀取檔案';
+
+  @override
+  String get agentChat_toolWebSearch => '聯網搜尋';
+
+  @override
+  String get agentChat_toolWebRead => '讀取網頁';
 
   @override
   String get agentChat_needSetup => '未設定聊天模型。請先在設定中新增支援工具呼叫的供應商。';
@@ -19044,6 +19148,86 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get promptAssistant_desktopOverlaySubtitle => '啟用 hover / 右鍵 / 快捷鍵行為';
+
+  @override
+  String get promptAssistant_webAccessTitle => 'Agent 聯網';
+
+  @override
+  String get promptAssistant_webAccessSubtitle => '透過 SearXNG 或 Exa 搜尋即時資訊';
+
+  @override
+  String get promptAssistant_webAccessEnable => '允許 Agent 聯網';
+
+  @override
+  String get promptAssistant_webAccessEnableSubtitle => '啟用後，搜尋和讀取公網網頁不再逐次確認';
+
+  @override
+  String get promptAssistant_webAccessBackend => '搜尋後端';
+
+  @override
+  String get promptAssistant_webAccessBackendAuto => '自動';
+
+  @override
+  String get promptAssistant_webAccessBackendSearxng => 'SearXNG';
+
+  @override
+  String get promptAssistant_webAccessBackendExaMcp => 'Exa 免費 MCP';
+
+  @override
+  String get promptAssistant_webAccessBackendExaApi => 'Exa API';
+
+  @override
+  String get promptAssistant_webAccessBackendAutoDescription =>
+      '優先使用已設定的 SearXNG，失敗後回退到 Exa 匿名 MCP 額度';
+
+  @override
+  String get promptAssistant_webAccessBackendSearxngDescription =>
+      '僅使用設定的私有 SearXNG 實例';
+
+  @override
+  String get promptAssistant_webAccessBackendExaMcpDescription =>
+      '無需 API Key，使用 Exa 託管的免費額度並受其限流約束';
+
+  @override
+  String get promptAssistant_webAccessBackendExaApiDescription =>
+      '使用你的 Exa 帳號與 API 額度，此模式可能產生費用';
+
+  @override
+  String get promptAssistant_webAccessResultCount => '預設結果數';
+
+  @override
+  String get promptAssistant_webAccessSearxngUrl => 'SearXNG 位址';
+
+  @override
+  String get promptAssistant_webAccessExaApiKey => 'Exa API Key';
+
+  @override
+  String get promptAssistant_webAccessApiKeyConfigured => '已安全儲存';
+
+  @override
+  String get promptAssistant_webAccessApiKeyMissing => '未設定';
+
+  @override
+  String get promptAssistant_webAccessConfigureKey => '設定';
+
+  @override
+  String get promptAssistant_webAccessClearKey => '清除 Key';
+
+  @override
+  String get promptAssistant_webAccessTestConnection => '測試連線';
+
+  @override
+  String get promptAssistant_webAccessTesting => '正在測試...';
+
+  @override
+  String promptAssistant_webAccessTestSucceeded(Object provider) {
+    return '已透過 $provider 連線';
+  }
+
+  @override
+  String promptAssistant_webAccessTestFailed(Object error) {
+    return '連線失敗：$error';
+  }
 
   @override
   String get promptAssistant_taskRouting => '任務路由';

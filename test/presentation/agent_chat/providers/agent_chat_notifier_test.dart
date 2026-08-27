@@ -6,10 +6,13 @@ import 'package:nai_launcher/core/agent/harness/session/session_jsonl.dart';
 import 'package:nai_launcher/core/agent/harness/session/session_types.dart';
 import 'package:nai_launcher/core/agent/llm_types.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
+import 'package:nai_launcher/core/storage/secure_storage_service.dart';
 import 'package:nai_launcher/presentation/agent_chat/providers/agent_chat_notifier.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/models/prompt_assistant_models.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('agent tool permission policy', () {
     test('confirmation mode asks only for sensitive actions', () {
       const mode = AgentPermissionMode.askBeforeSensitiveActions;
@@ -23,6 +26,8 @@ void main() {
         'update_character',
         'read_skill',
         'read_skill_resource',
+        'web_search',
+        'web_read',
       ]) {
         expect(
           agentToolPermissionPolicyFor(mode, tool),
@@ -142,7 +147,10 @@ Legacy instructions.
       );
     });
     final container = ProviderContainer(
-      overrides: [localStorageServiceProvider.overrideWithValue(storage)],
+      overrides: [
+        localStorageServiceProvider.overrideWithValue(storage),
+        secureStorageServiceProvider.overrideWithValue(_MemorySecureStorage()),
+      ],
     );
     addTearDown(container.dispose);
     container.read(provider);
@@ -175,7 +183,12 @@ Legacy instructions.
         );
       });
       container = ProviderContainer(
-        overrides: [localStorageServiceProvider.overrideWithValue(storage)],
+        overrides: [
+          localStorageServiceProvider.overrideWithValue(storage),
+          secureStorageServiceProvider.overrideWithValue(
+            _MemorySecureStorage(),
+          ),
+        ],
       );
       container.read(provider);
       await _waitForInitialized(container, provider);
@@ -321,6 +334,11 @@ Legacy instructions.
       expect((await file.readAsLines()).first, contains('"op":"header"'));
     });
   });
+}
+
+class _MemorySecureStorage extends SecureStorageService {
+  @override
+  Future<String?> getAgentWebAccessExaApiKey() async => null;
 }
 
 AssistantMessage _assistant(Usage usage) {

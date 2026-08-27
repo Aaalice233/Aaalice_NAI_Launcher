@@ -810,6 +810,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get agentChat_attachImage => 'Attach images';
 
   @override
+  String get agentChat_enableWebAccess => 'Enable web access';
+
+  @override
+  String get agentChat_disableWebAccess => 'Disable web access';
+
+  @override
   String agentChat_unsupportedImageFormat(Object fileName) {
     return 'Unsupported image format: $fileName';
   }
@@ -889,6 +895,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get agentChat_toolReadFile => 'Read file';
+
+  @override
+  String get agentChat_toolWebSearch => 'Search web';
+
+  @override
+  String get agentChat_toolWebRead => 'Read web page';
 
   @override
   String get agentChat_needSetup =>
@@ -6745,6 +6757,88 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get promptAssistant_desktopOverlaySubtitle =>
       'Enable hover, right-click, and shortcut behavior';
+
+  @override
+  String get promptAssistant_webAccessTitle => 'Agent Web Access';
+
+  @override
+  String get promptAssistant_webAccessSubtitle =>
+      'Search current information through SearXNG or Exa';
+
+  @override
+  String get promptAssistant_webAccessEnable => 'Allow Agent web access';
+
+  @override
+  String get promptAssistant_webAccessEnableSubtitle =>
+      'Once enabled, public searches and page reads do not ask for confirmation each time';
+
+  @override
+  String get promptAssistant_webAccessBackend => 'Search backend';
+
+  @override
+  String get promptAssistant_webAccessBackendAuto => 'Auto';
+
+  @override
+  String get promptAssistant_webAccessBackendSearxng => 'SearXNG';
+
+  @override
+  String get promptAssistant_webAccessBackendExaMcp => 'Exa free MCP';
+
+  @override
+  String get promptAssistant_webAccessBackendExaApi => 'Exa API';
+
+  @override
+  String get promptAssistant_webAccessBackendAutoDescription =>
+      'Use configured SearXNG first, then fall back to Exa\'s anonymous MCP allowance';
+
+  @override
+  String get promptAssistant_webAccessBackendSearxngDescription =>
+      'Use only the configured private SearXNG instance';
+
+  @override
+  String get promptAssistant_webAccessBackendExaMcpDescription =>
+      'Use Exa\'s hosted free allowance without an API key; rate limits apply';
+
+  @override
+  String get promptAssistant_webAccessBackendExaApiDescription =>
+      'Use your Exa account and API quota; this mode may incur charges';
+
+  @override
+  String get promptAssistant_webAccessResultCount => 'Default results';
+
+  @override
+  String get promptAssistant_webAccessSearxngUrl => 'SearXNG Base URL';
+
+  @override
+  String get promptAssistant_webAccessExaApiKey => 'Exa API Key';
+
+  @override
+  String get promptAssistant_webAccessApiKeyConfigured => 'Stored securely';
+
+  @override
+  String get promptAssistant_webAccessApiKeyMissing => 'Not configured';
+
+  @override
+  String get promptAssistant_webAccessConfigureKey => 'Configure';
+
+  @override
+  String get promptAssistant_webAccessClearKey => 'Clear key';
+
+  @override
+  String get promptAssistant_webAccessTestConnection => 'Test connection';
+
+  @override
+  String get promptAssistant_webAccessTesting => 'Testing...';
+
+  @override
+  String promptAssistant_webAccessTestSucceeded(Object provider) {
+    return 'Connected through $provider';
+  }
+
+  @override
+  String promptAssistant_webAccessTestFailed(Object error) {
+    return 'Connection failed: $error';
+  }
 
   @override
   String get promptAssistant_taskRouting => 'Task Routing';

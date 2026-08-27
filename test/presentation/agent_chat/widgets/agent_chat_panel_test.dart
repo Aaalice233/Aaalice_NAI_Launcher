@@ -9,9 +9,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/agent/agent_types.dart';
 import 'package:nai_launcher/core/shortcuts/shortcut_config.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
+import 'package:nai_launcher/core/storage/secure_storage_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/agent_chat/providers/agent_chat_notifier.dart';
 import 'package:nai_launcher/presentation/agent_chat/widgets/agent_chat_panel.dart';
+import 'package:nai_launcher/presentation/prompt_assistant/providers/web_access_provider.dart';
 import 'package:nai_launcher/presentation/providers/shortcuts_provider.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_card_hover_motion.dart';
 import 'package:nai_launcher/presentation/widgets/common/draggable_memory_image.dart';
@@ -85,6 +87,86 @@ void main() {
     notifier.setSessionTransitioning(false);
     await tester.pump();
     expect(selector().enabled, isTrue);
+  });
+
+  testWidgets('web access button toggles the shared agent configuration', (
+    tester,
+  ) async {
+    final tempDir = Directory.systemTemp.createTempSync(
+      'agent_chat_panel_web_access_test_',
+    );
+    late ProviderContainer container;
+    addTearDown(() {
+      container.dispose();
+      if (tempDir.existsSync()) {
+        tempDir.deleteSync(recursive: true);
+      }
+    });
+    container = ProviderContainer(
+      overrides: [
+        localStorageServiceProvider.overrideWithValue(_MemoryLocalStorage()),
+        secureStorageServiceProvider.overrideWithValue(_MemorySecureStorage()),
+        agentChatNotifierProvider.overrideWith((ref) {
+          return _TestAgentChatNotifier(
+            ref,
+            supportDir: tempDir,
+            workspaceDir: tempDir,
+          );
+        }),
+      ],
+    );
+    await tester.runAsync(() async {
+      container.read(agentChatNotifierProvider);
+      await _waitForInitialized(container);
+      await _waitForWebAccessInitialized(container);
+    });
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(
+          locale: Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: SizedBox(width: 360, height: 720, child: AgentChatPanel()),
+          ),
+        ),
+      ),
+    );
+
+    const key = ValueKey('agent-chat-web-access-toggle');
+    IconButton toggle() => tester.widget(find.byKey(key));
+    expect(toggle().isSelected, isFalse);
+    expect(toggle().iconSize, 18);
+    expect(
+      toggle().style?.overlayColor?.resolve({WidgetState.hovered}),
+      Colors.transparent,
+    );
+    expect(
+      tester
+          .getSize(find.byKey(const ValueKey('agent-chat-composer-controls')))
+          .height,
+      30,
+    );
+    expect(
+      tester.getCenter(find.byKey(key)).dy,
+      tester.getCenter(find.byIcon(Icons.image_outlined)).dy,
+    );
+    expect(container.read(webAccessConfigProvider).config.enabled, isFalse);
+
+    await tester.tap(find.byKey(key));
+    await tester.pump();
+
+    expect(toggle().isSelected, isTrue);
+    expect(container.read(webAccessConfigProvider).config.enabled, isTrue);
+
+    await tester.tap(find.byKey(key));
+    await tester.pump();
+
+    expect(toggle().isSelected, isFalse);
+    expect(container.read(webAccessConfigProvider).config.enabled, isFalse);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets(
@@ -409,6 +491,14 @@ Future<void> _waitForInitialized(ProviderContainer container) async {
   fail('AgentChatNotifier did not initialize');
 }
 
+Future<void> _waitForWebAccessInitialized(ProviderContainer container) async {
+  for (var attempt = 0; attempt < 200; attempt++) {
+    if (container.read(webAccessConfigProvider).initialized) return;
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+  }
+  fail('WebAccessConfigNotifier did not initialize');
+}
+
 class _TestAgentChatNotifier extends AgentChatNotifier {
   _TestAgentChatNotifier(
     super.ref, {
@@ -465,6 +555,11 @@ class _MemoryLocalStorage extends LocalStorageService {
   Future<void> setSetting<T>(String key, T value) async {
     _values[key] = value;
   }
+}
+
+class _MemorySecureStorage extends SecureStorageService {
+  @override
+  Future<String?> getAgentWebAccessExaApiKey() async => null;
 }
 
 class _TestShortcutConfigNotifier extends ShortcutConfigNotifier {

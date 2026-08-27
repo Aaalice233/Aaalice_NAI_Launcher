@@ -24,6 +24,7 @@ import '../../widgets/gallery/draggable_image_card.dart';
 import '../../widgets/gallery/local_image_context_menu.dart';
 import '../../prompt_assistant/models/prompt_assistant_models.dart';
 import '../../prompt_assistant/providers/prompt_assistant_config_provider.dart';
+import '../../prompt_assistant/providers/web_access_provider.dart';
 import '../../prompt_assistant/services/provider_adapters/prompt_assistant_adapter.dart';
 import '../../providers/layout_state_provider.dart';
 import '../../providers/krita/krita_bridge_notifier.dart';
@@ -600,6 +601,71 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
           size: 17,
           color: theme.colorScheme.onSurface.withValues(
             alpha: running ? 0.25 : 0.6,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWebAccessToggle(
+    ThemeData theme,
+    AppLocalizations l10n,
+    bool controlsLocked,
+  ) {
+    final state = ref.watch(webAccessConfigProvider);
+    final enabled = state.config.enabled;
+    final interactive = state.initialized && !controlsLocked;
+    final tooltip = enabled
+        ? l10n.agentChat_disableWebAccess
+        : l10n.agentChat_enableWebAccess;
+    final iconColor = enabled
+        ? theme.colorScheme.primary.withValues(alpha: 0.82)
+        : theme.colorScheme.onSurface.withValues(alpha: 0.55);
+    return Semantics(
+      button: true,
+      toggled: enabled,
+      label: tooltip,
+      child: SizedBox.square(
+        dimension: 30,
+        child: IconButton(
+          key: const ValueKey('agent-chat-web-access-toggle'),
+          tooltip: tooltip,
+          onPressed: interactive
+              ? () => ref
+                    .read(webAccessConfigProvider.notifier)
+                    .setEnabled(!enabled)
+              : null,
+          isSelected: enabled,
+          icon: const Icon(Icons.public_off_outlined),
+          selectedIcon: const Icon(Icons.public),
+          iconSize: 18,
+          alignment: Alignment.center,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints.tightFor(width: 30, height: 30),
+          style: ButtonStyle(
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            splashFactory: NoSplash.splashFactory,
+            shape: const WidgetStatePropertyAll(CircleBorder()),
+            foregroundColor: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.disabled)) {
+                return theme.colorScheme.onSurface.withValues(alpha: 0.25);
+              }
+              if (states.contains(WidgetState.hovered)) {
+                return enabled
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.onSurface.withValues(alpha: 0.72);
+              }
+              return iconColor;
+            }),
+            overlayColor: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.focused)) {
+                return iconColor.withValues(alpha: 0.12);
+              }
+              if (states.contains(WidgetState.pressed)) {
+                return iconColor.withValues(alpha: 0.08);
+              }
+              return Colors.transparent;
+            }),
           ),
         ),
       ),
@@ -1664,37 +1730,44 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
                 ),
               ),
             ),
-            // 控制行：附件、「+」操作菜单与权限模式居左；模型选择 + 发送居右
+            // 控制行：附件、「+」、权限与联网开关居左；模型选择 + 发送居右
             Padding(
               padding: const EdgeInsets.fromLTRB(4, 0, 8, 6),
-              child: Row(
-                children: [
-                  _buildAttachButton(theme, l10n, state),
-                  _buildPlusMenu(theme, l10n, state),
-                  const SizedBox(width: 2),
-                  _buildPermissionModeButton(theme, l10n, controlsLocked),
-                  const SizedBox(width: 2),
-                  if (state.queuedCount > 0)
-                    Flexible(
-                      child: Text(
-                        l10n.agentChat_queued,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: theme.colorScheme.tertiary,
+              child: SizedBox(
+                key: const ValueKey('agent-chat-composer-controls'),
+                height: 30,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    _buildAttachButton(theme, l10n, state),
+                    _buildPlusMenu(theme, l10n, state),
+                    const SizedBox(width: 2),
+                    _buildPermissionModeButton(theme, l10n, controlsLocked),
+                    const SizedBox(width: 2),
+                    _buildWebAccessToggle(theme, l10n, controlsLocked),
+                    const SizedBox(width: 2),
+                    if (state.queuedCount > 0)
+                      Flexible(
+                        child: Text(
+                          l10n.agentChat_queued,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.colorScheme.tertiary,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        overflow: TextOverflow.ellipsis,
                       ),
+                    const Spacer(),
+                    _buildModelSelector(theme, l10n, state),
+                    const SizedBox(width: 4),
+                    _SendButton(
+                      running: running,
+                      enabled: canSend,
+                      onSend: _send,
+                      onStop: () =>
+                          ref.read(agentChatNotifierProvider.notifier).abort(),
                     ),
-                  const Spacer(),
-                  _buildModelSelector(theme, l10n, state),
-                  const SizedBox(width: 4),
-                  _SendButton(
-                    running: running,
-                    enabled: canSend,
-                    onSend: _send,
-                    onStop: () =>
-                        ref.read(agentChatNotifierProvider.notifier).abort(),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ],
@@ -2315,6 +2388,8 @@ String _agentToolLabel(AppLocalizations l10n, String toolName) {
     'reload_skills' => l10n.agentChat_toolReloadSkills,
     'search_tags' => l10n.agentChat_toolSearchTags,
     'read' => l10n.agentChat_toolReadFile,
+    'web_search' => l10n.agentChat_toolWebSearch,
+    'web_read' => l10n.agentChat_toolWebRead,
     _ => toolName,
   };
 }
@@ -2333,6 +2408,7 @@ _AgentToolVisual _agentToolVisual(ThemeData theme, String toolName) {
   final skillColor = muted(Color.lerp(colors.secondary, colors.tertiary, 0.5)!);
   final tagColor = muted(Color.lerp(colors.secondary, colors.error, 0.22)!);
   final readColor = muted(Color.lerp(colors.tertiary, colors.onSurface, 0.3)!);
+  final webColor = muted(Color.lerp(colors.secondary, colors.primary, 0.4)!);
   return switch (toolName) {
     'generate_image' => _AgentToolVisual(
       icon: Icons.auto_awesome,
@@ -2386,6 +2462,14 @@ _AgentToolVisual _agentToolVisual(ThemeData theme, String toolName) {
     'read' => _AgentToolVisual(
       icon: Icons.description_outlined,
       color: readColor,
+    ),
+    'web_search' => _AgentToolVisual(
+      icon: Icons.travel_explore_outlined,
+      color: webColor,
+    ),
+    'web_read' => _AgentToolVisual(
+      icon: Icons.language_outlined,
+      color: webColor,
     ),
     _ => _AgentToolVisual(
       icon: Icons.build_outlined,

@@ -24,6 +24,7 @@ import '../../../data/repositories/gallery_folder_repository.dart';
 import '../../prompt_assistant/models/agent_protocol.dart';
 import '../../prompt_assistant/models/prompt_assistant_models.dart';
 import '../../prompt_assistant/providers/prompt_assistant_config_provider.dart';
+import '../../prompt_assistant/providers/web_access_provider.dart';
 import '../../prompt_assistant/services/provider_adapters/anthropic_messages_adapter.dart';
 import '../../prompt_assistant/services/provider_adapters/gemini_generate_content_adapter.dart';
 import '../../prompt_assistant/services/provider_adapters/openai_chat_completions_adapter.dart';
@@ -35,6 +36,7 @@ import '../services/execution_toolbox.dart';
 import '../services/generation_toolbox.dart';
 import '../services/prompt_toolbox.dart';
 import '../services/tag_toolbox.dart';
+import '../services/web_access_toolbox.dart';
 import 'agent_chat_session_view.dart';
 
 /// Agent 会话 UI 状态。
@@ -283,6 +285,9 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
        _providedWorkspaceDir = workspaceDir,
        _providedSessionRepo = sessionRepo,
        super(const AgentChatState()) {
+    _ref.listen<WebAccessConfigState>(webAccessConfigProvider, (_, _) {
+      unawaited(_refreshWebAccessTools());
+    });
     _init(presetSkills: presetSkills);
   }
 
@@ -468,6 +473,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
   }
 
   List<AgentTool> _buildTools({required bool fullAccess}) {
+    final webAccess = _ref.read(webAccessConfigProvider).config;
     return [
       ...PromptToolbox(
         _ref,
@@ -485,7 +491,22 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
         allowOutsideWorkspace: fullAccess,
       ).tools(),
       ...TagToolbox(_ref).tools(),
+      if (webAccess.enabled)
+        ...WebAccessToolbox(
+          config: webAccess,
+          gateway: _ref.read(webAccessGatewayProvider),
+        ).tools(),
     ];
+  }
+
+  Future<void> _refreshWebAccessTools() async {
+    final agent = _agent;
+    if (agent == null) return;
+    final mode = _ref.read(promptAssistantConfigProvider).agentPermissionMode;
+    agent.state.tools = _buildTools(
+      fullAccess: mode == AgentPermissionMode.fullAccess,
+    );
+    agent.setSystemPrompt(await _buildSystemPrompt());
   }
 
   Future<void> _loadSkillsFromDisk() async {
@@ -771,6 +792,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       _routeCache = (route.$1, route.$2, apiKey);
     }
     final workspacePath = _workspaceDir.path;
+    final webAccessEnabled = _ref.read(webAccessConfigProvider).config.enabled;
     final skillBlock = formatSkillsForSystemPrompt(
       _skills.values.toList(growable: false),
     );
@@ -828,6 +850,15 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       '- search_tags looks up danbooru tags as a reference (English fuzzy '
           'search, Chinese translation, co-occurrence suggestions); newer '
           'models also understand natural language, so use whichever fits.',
+      if (webAccessEnabled) ...[
+        '',
+        'Web tools:',
+        '- web_search returns a bounded list of current search results. Use '
+            'a small result count and inspect snippets before reading pages.',
+        '- Call web_read only for individual sources that need deeper '
+            'inspection. Never read every search result automatically.',
+        '- Cite source URLs when an answer depends on web research.',
+      ],
       '- Generated images appear as thumbnails in this chat automatically; '
           'the user can expand them to view the full image.',
       '',
