@@ -32,6 +32,33 @@ void main() {
     );
   });
 
+  test('declares strict schemas for generation parameters', () {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final tools = GenerationToolbox(_makeRef(container)).tools();
+    final generate = tools.firstWhere((tool) => tool.name == 'generate_image');
+    final generateProperties = generate.parameters['properties'] as Map;
+    expect(generateProperties['width'], containsPair('type', 'integer'));
+    expect(generateProperties['height'], containsPair('type', 'integer'));
+    expect(generateProperties['count'], containsPair('type', 'integer'));
+    expect(generateProperties['strength'], containsPair('minimum', 0));
+    expect(generateProperties['strength'], containsPair('maximum', 0.99));
+
+    final queue = tools.firstWhere((tool) => tool.name == 'queue_image_task');
+    final queueProperties = queue.parameters['properties'] as Map;
+    expect(queueProperties['count'], containsPair('type', 'integer'));
+
+    final settings = tools.firstWhere(
+      (tool) => tool.name == 'update_generation_settings',
+    );
+    final settingProperties = settings.parameters['properties'] as Map;
+    expect(settingProperties['steps'], containsPair('type', 'integer'));
+    expect(settingProperties['steps'], containsPair('maximum', 50));
+    expect(settingProperties['scale'], containsPair('maximum', 10));
+    expect(settingProperties['noise_schedule'], contains('enum'));
+    expect(settingProperties['sampler'], contains('enum'));
+  });
+
   test('queue_image_task rejects empty prompt', () async {
     final container = ProviderContainer();
     addTearDown(container.dispose);

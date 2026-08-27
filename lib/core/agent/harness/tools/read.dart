@@ -79,15 +79,18 @@ class ReadHarnessTool extends AgentHarnessTool {
               'description': 'Path to the file to read (relative or absolute)',
             },
             'offset': {
-              'type': 'number',
+              'type': 'integer',
+              'minimum': 1,
               'description': 'Line number to start reading from (1-indexed)',
             },
             'limit': {
-              'type': 'number',
+              'type': 'integer',
+              'minimum': 1,
               'description': 'Maximum number of lines to read',
             },
             'character_offset': {
-              'type': 'number',
+              'type': 'integer',
+              'minimum': 0,
               'description':
                   'Zero-based Unicode character offset within the first '
                   'selected line. Use this to continue a very long line.',

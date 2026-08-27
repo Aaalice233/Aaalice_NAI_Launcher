@@ -329,11 +329,14 @@ class PromptToolbox {
                 'description': 'Path relative to the skill directory.',
               },
               'offset': {
-                'type': 'number',
+                'type': 'integer',
+                'minimum': 0,
                 'description': 'Zero-based starting line. Default 0.',
               },
               'limit': {
-                'type': 'number',
+                'type': 'integer',
+                'minimum': 1,
+                'maximum': 1000,
                 'description': 'Maximum lines to return, 1-1000. Default 200.',
               },
             },

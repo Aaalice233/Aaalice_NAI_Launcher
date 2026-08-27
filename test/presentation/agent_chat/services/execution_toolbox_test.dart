@@ -30,6 +30,12 @@ void main() {
 
   test('exposes only the read tool (write/edit/bash disabled)', () {
     expect(tools.map((t) => t.name), ['read']);
+    final properties = tool('read').parameters['properties'] as Map;
+    expect(properties['offset'], containsPair('type', 'integer'));
+    expect(properties['offset'], containsPair('minimum', 1));
+    expect(properties['limit'], containsPair('type', 'integer'));
+    expect(properties['limit'], containsPair('minimum', 1));
+    expect(properties['character_offset'], containsPair('minimum', 0));
   });
 
   test('read round-trips via workspace-relative path', () async {

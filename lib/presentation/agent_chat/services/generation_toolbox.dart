@@ -147,7 +147,7 @@ class GenerationToolbox {
                   'prompt.',
             },
             'width': {
-              'type': 'number',
+              'type': 'integer',
               'minimum': 64,
               'maximum': NaiResolutionAdapter.generationMaxSide,
               'description':
@@ -155,7 +155,7 @@ class GenerationToolbox {
                   'values (512/640/768/832/1024/1088/1216/1472/1536/1920).',
             },
             'height': {
-              'type': 'number',
+              'type': 'integer',
               'minimum': 64,
               'maximum': NaiResolutionAdapter.generationMaxSide,
               'description':
@@ -163,7 +163,7 @@ class GenerationToolbox {
                   'values (768/640/512/1216/1024/832/1536/1472/1920/1088).',
             },
             'count': {
-              'type': 'number',
+              'type': 'integer',
               'minimum': 1,
               'maximum': maxGenerateCount,
               'description':
@@ -172,7 +172,8 @@ class GenerationToolbox {
                   'prompts, call the tool once per prompt.',
             },
             'seed': {
-              'type': 'number',
+              'type': 'integer',
+              'minimum': -1,
               'description':
                   'Omit or -1 for random. A fixed seed only '
                   'applies when count = 1.',
@@ -189,16 +190,22 @@ class GenerationToolbox {
             },
             'strength': {
               'type': 'number',
+              'minimum': 0,
+              'maximum': 0.99,
               'description':
                   'img2img strength 0-0.99. Higher = further from '
                   'the source image.',
             },
             'noise': {
               'type': 'number',
+              'minimum': 0,
+              'maximum': 0.99,
               'description': 'Extra img2img noise 0-0.99.',
             },
             'inpaint_strength': {
               'type': 'number',
+              'minimum': 0,
+              'maximum': 0.99,
               'description':
                   'Inpaint strength 0-0.99 (only with '
                   'mask_image).',
@@ -239,7 +246,7 @@ class GenerationToolbox {
                   'prompt.',
             },
             'count': {
-              'type': 'number',
+              'type': 'integer',
               'minimum': 1,
               'maximum': kMaxQueueCapacity,
               'description':
@@ -335,19 +342,32 @@ class GenerationToolbox {
           'type': 'object',
           'properties': {
             'model': {'type': 'string'},
-            'sampler': {'type': 'string'},
-            'steps': {'type': 'number'},
-            'scale': {'type': 'number'},
-            'cfg_rescale': {'type': 'number'},
-            'noise_schedule': {'type': 'string'},
-            'uc_preset': {'type': 'number'},
+            'sampler': {'type': 'string', 'enum': Samplers.allSamplers},
+            'steps': {'type': 'integer', 'minimum': 1, 'maximum': 50},
+            'scale': {'type': 'number', 'minimum': 0, 'maximum': 10},
+            'cfg_rescale': {'type': 'number', 'minimum': 0, 'maximum': 1},
+            'noise_schedule': {'type': 'string', 'enum': NoiseSchedules.all},
+            'uc_preset': {
+              'type': 'integer',
+              'enum': [
+                UcPresets.heavyApiValue,
+                UcPresets.lightApiValue,
+                UcPresets.humanFocusApiValue,
+                UcPresets.noneApiValue,
+                UCPresets.furryFocus,
+              ],
+            },
             'quality_toggle': {'type': 'boolean'},
             'variety_plus': {'type': 'boolean'},
             'decrisp': {'type': 'boolean'},
             'transparent_background': {'type': 'boolean'},
             'smea': {'type': 'boolean'},
             'smea_dyn': {'type': 'boolean'},
-            'seed': {'type': 'number', 'description': '-1 for random.'},
+            'seed': {
+              'type': 'integer',
+              'minimum': -1,
+              'description': '-1 for random.',
+            },
           },
           'required': <String>[],
         },

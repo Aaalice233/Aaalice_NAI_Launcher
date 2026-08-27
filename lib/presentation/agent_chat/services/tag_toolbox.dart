@@ -72,7 +72,9 @@ class TagToolbox {
                   'input, otherwise search.',
             },
             'limit': {
-              'type': 'number',
+              'type': 'integer',
+              'minimum': 1,
+              'maximum': 30,
               'description': 'Max results, 1-30. Default 10.',
             },
           },
