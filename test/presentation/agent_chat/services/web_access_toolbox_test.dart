@@ -8,7 +8,7 @@ void main() {
   test('does not expose web tools while web access is disabled', () {
     final tools = WebAccessToolbox(
       config: const WebAccessConfig(),
-      gateway: _FakeWebAccessGateway(),
+      loadGateway: _FakeWebAccessGateway.new,
     ).tools();
 
     expect(tools, isEmpty);
@@ -20,7 +20,7 @@ void main() {
       final gateway = _FakeWebAccessGateway();
       final tools = WebAccessToolbox(
         config: const WebAccessConfig(enabled: true, defaultResultCount: 8),
-        gateway: gateway,
+        loadGateway: () => gateway,
       ).tools();
       final search = tools.singleWhere((tool) => tool.name == 'web_search');
 
@@ -40,7 +40,7 @@ void main() {
     final gateway = _FakeWebAccessGateway();
     final tools = WebAccessToolbox(
       config: const WebAccessConfig(enabled: true),
-      gateway: gateway,
+      loadGateway: () => gateway,
     ).tools();
     final read = tools.singleWhere((tool) => tool.name == 'web_read');
 
@@ -53,11 +53,30 @@ void main() {
     expect(gateway.lastReadMaxCharacters, 900);
     expect((result.details as Map)['content'], 'Page content');
   });
+
+  test('resolves the current gateway for each tool invocation', () async {
+    final first = _FakeWebAccessGateway();
+    final second = _FakeWebAccessGateway();
+    var current = first;
+    final search = WebAccessToolbox(
+      config: const WebAccessConfig(enabled: true),
+      loadGateway: () => current,
+    ).tools().singleWhere((tool) => tool.name == 'web_search');
+
+    await search.execute('first', {'query': 'before proxy change'});
+    current = second;
+    await search.execute('second', {'query': 'after proxy change'});
+
+    expect(first.searchCalls, 1);
+    expect(second.searchCalls, 1);
+    expect(second.lastSearch?.query, 'after proxy change');
+  });
 }
 
 class _FakeWebAccessGateway implements WebAccessGateway {
   WebSearchRequest? lastSearch;
   int? lastReadMaxCharacters;
+  int searchCalls = 0;
 
   @override
   Future<WebSearchResponse> search({
@@ -65,6 +84,7 @@ class _FakeWebAccessGateway implements WebAccessGateway {
     required WebSearchRequest request,
     CancelToken? cancelToken,
   }) async {
+    searchCalls++;
     lastSearch = request;
     return WebSearchResponse(
       query: request.query,

@@ -500,7 +500,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       if (webAccess.enabled)
         ...WebAccessToolbox(
           config: webAccess,
-          gateway: _ref.read(webAccessGatewayProvider),
+          loadGateway: () => _ref.read(webAccessGatewayProvider),
         ).tools(),
     ];
   }

@@ -12,12 +12,12 @@ import 'prompt_toolbox.dart';
 class WebAccessToolbox {
   WebAccessToolbox({
     required WebAccessConfig config,
-    required WebAccessGateway gateway,
+    required WebAccessGateway Function() loadGateway,
   }) : _config = config,
-       _gateway = gateway;
+       _loadGateway = loadGateway;
 
   final WebAccessConfig _config;
-  final WebAccessGateway _gateway;
+  final WebAccessGateway Function() _loadGateway;
 
   List<AgentTool> tools() {
     if (!_config.enabled) return const [];
@@ -118,7 +118,7 @@ class WebAccessToolbox {
             );
     final cancel = _cancelTokenFor(signal);
     try {
-      final response = await _gateway.search(
+      final response = await _loadGateway().search(
         config: _config,
         request: WebSearchRequest(
           query: query,
@@ -153,7 +153,7 @@ class WebAccessToolbox {
         );
     final cancel = _cancelTokenFor(signal);
     try {
-      final page = await _gateway.read(
+      final page = await _loadGateway().read(
         config: _config,
         url: url,
         maxCharacters: maxCharacters,
