@@ -60,8 +60,6 @@ Windows release 产物位于 `build/windows/x64/runner/Release/`。macOS 使用 
 
 普通 Dart 方法、Widget 布局、样式和文案使用 `Reload`；状态字段、`initState`、Provider/依赖注入、路由/启动流程、静态缓存或生成 Dart 代码使用 `Restart`；依赖、Windows C++/插件注册、Android Kotlin/Manifest/Gradle/插件注册变化必须重建受影响会话。共享代码默认作用于 `All`，平台实现只作用于对应端。
 
-每轮 UI 修改后必须同时刷新所有受影响的现有 runner，并证明运行界面已加载本轮代码：重新进入目标页面、重新执行目标交互、生成带本轮名称的新截图，并用本轮新增或变化的可见结构/文案/状态与源码逐项核对；热重载日志成功、测试通过或截图文件存在都不能替代这项新鲜度证明。复用会话时若 runner 启动提交早于待验收提交、已提交源码因时间戳未进入增量 kernel，或真实界面与当前源码不一致，应立即判定会话过期并通过项目 skill 重建原有会话，不得继续在旧界面上验收，也不得另开第二个 `flutter run` / `attach`。Android 与 Windows 必须分别完成新鲜度核对，不能以一端生效推断另一端生效。
-
 两个 runner 都通过 `--dart-define=ENABLE_FLUTTER_DRIVER=true` 启用仅限开发会话的 Flutter Driver extension，供官方 Dart and Flutter MCP server 在不抢占用户键鼠和桌面焦点的情况下截图、点击、输入、滚动与检查运行中 Flutter UI。禁止使用 Computer Use。稳定场景应固化为 `integration_test`；Android 系统界面场景继续使用 ADB。Android 项目 emulator 首次使用无 Quick Boot 快照、host GPU、无设备外框的干净启动，之后默认保留并复用暖机实例；复用前停止旧 App 并返回 Home，显式传 `-StopEmulatorOnExit` 时才跟随会话关闭。`-DeviceId` 仅用于明确复用外部设备。
 
 ## 代码风格与命名约定
@@ -92,17 +90,9 @@ Windows release 产物位于 `build/windows/x64/runner/Release/`。macOS 使用 
 
 ### Android 运行时测试规范
 
-Android 界面与原生能力验收必须在实际运行的 emulator 或已连接设备上执行，widget test 只能作为回归补充，不能替代运行时结果。开发会话、热重载与日志读取分别遵循 `aaalice-dev-sessions`、`aaalice-hot-reload`；普通 Flutter UI 优先由 Dart and Flutter MCP server 驱动，系统界面由 ADB 驱动，禁止使用 Computer Use。首次启动 AVD 使用 `-EmulatorId Aaalice_API35`，`-DeviceId emulator-5554` 只选择已运行的外部设备；脚本只关闭由本次会话启动的 emulator。
-
-保持一个 `flutter run` Android 开发会话，普通 Dart/UI 修改优先热重载，只有状态初始化或生成代码变化才热重启；Kotlin、Manifest、Gradle、插件或依赖变化才重新构建和安装，禁止为每次点击测试重复启动、构建或安装应用。页面退到后台后只用 `adb shell am start -n com.aaalice.nai_launcher/.MainActivity` 恢复前台，不得用 `am force-stop` 破坏调试会话；验证命令超过 10 秒没有明确构建进度时立即失败并排查流程，不得盲等。
-
 Android 系统界面快速回归使用 `.pi/skills/aaalice-runtime-verify/scripts/android_verify.ps1`：`-HotReload` 后约 1.2 秒开始操作，`-Foreground` 只把现有应用带回前台，`-Action` 接受 `tap:x,y`、`text:value`、`key:KEYCODE`、`swipe:x1,y1,x2,y2,duration` 和 `wait:milliseconds`。脚本会清理日志基线并保存截图、窗口树、Activity 状态和有界日志，发现 overflow、Flutter rendering exception 或原生崩溃时失败。
 
 运行时交互统一使用 `adb` CLI，并尽量在一条 PowerShell 命令中批量完成一个确定场景的点击、输入、等待、状态采集、截图和日志读取，避免逐个命令往返。操作前先用 `uiautomator dump` 和当前窗口信息确认页面、文本与控件边界；点击坐标必须来自本次设备的实际树或截图，不得把某一分辨率的坐标当作跨尺寸稳定选择器。常用命令包括 `adb shell input tap/text/keyevent/swipe`、`adb shell uiautomator dump`、`adb shell dumpsys window`、`adb exec-out screencap -p` 和 `adb logcat`。
-
-每个关键场景至少验证：目标 Activity/窗口仍在前台、预期控件或文案可见、操作后状态正确、截图无截断/重叠/overflow、日志无新的 Flutter exception 或原生崩溃。UI 验收必须先建立“页面 × 子部件 × 可操作状态 × 展开层级”的覆盖矩阵，不能以访问顶级页面和各截一张首页图代替：进入页面后必须实际操作所有可达的选项卡、模式切换、折叠区、抽屉、菜单、筛选、详情、弹窗和编辑态；生成页还需覆盖文生图/图生图、参数、正负提示词、固定词、角色 0/1/多角色及角色编辑、随机模式、历史和 Agent 等状态。空态、有数据态、窄屏、键盘态及展开前后会显著改变布局时应分别取证；禁止真实扣除 Anlas，临时新增的角色或编辑状态必须可撤销并在验收后恢复，不破坏用户数据。
-
-截图生成后，当前 Agent 必须使用 `read` 逐张实际查看并进行细粒度视觉验收，按区域检查页面四边、标题栏、导航、卡片、输入区、工具栏首尾、弹窗、底栏及展开/折叠前后状态，逐项核对布局层级、间距密度、基线与中心对齐、文字/图标对比度、首尾裁切、文字省略、控件遮挡、可点击区域、键盘/弹窗覆盖和整体观感；不能只找黄色 overflow 条，也不能因主要内容可用而忽略边缘图标、工具栏入口或低对比度次要信息。不得只确认截图文件存在、只读取窗口树，或仅把截图当作行为流程证据。未实际查看本轮新截图、未确认本轮代码可见时不得声称 UI 验收通过。每轮发现问题后由主 Agent 修复并重新采集双端截图，再让 Android / Windows 审查分别复审；循环到两端新一轮均无新增问题才可结束。场景开始前清理或记录 `logcat` 基线，结束后同时保存截图、窗口树和有界日志到 `tool/.tmp/android-e2e/`；这些文件只用于本地验收，完成后删除，不得提交。涉及横竖屏、软键盘、返回手势、系统文件选择器、分享、相册保存、权限或更新安装时，必须实际走对应 Android 系统界面，不能用 mock 结果代替。不得在未获用户明确授权时发起真实扣除 Anlas 的生成请求。
 
 ## 资源、生成文件与发布注意事项
 
@@ -146,7 +136,7 @@ Changelog 条目应面向用户描述结果，不要只写内部实现名。常�
 
 ## 提交与 Pull Request 规范
 
-Git 历史使用 Conventional Commits，例如 `fix(generation): cancel stale results`、`feat(prompt): add random mode`。提交应保持范围清晰、标题简洁。Pull Request 需要说明用户可见变化，列出已运行的验证命令，标注生成文件、LFS 资源或 assets 变更；涉及界面变化时附截图。
+Git 历史使用 Conventional Commits，例如 `fix(generation): cancel stale results`、`feat(prompt): add random mode`。提交应保持范围清晰、标题简洁。Pull Request 需要说明用户可见变化，列出已运行的验证命令，标注生成文件、LFS 资源或 assets 变更。
 
 ## 安全与配置
 
