@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -266,6 +267,47 @@ void main() {
       expect(newest.text, 'world');
       expect(oldest.text, 'hello');
       expect(await reopenedSession.getLeafId(), isNotNull);
+    });
+
+    test('tool result JSON details survive reopen', () async {
+      final file = File('${tmp.path}${Platform.pathSeparator}details.jsonl');
+      const metadata = SessionMetadata(id: 'details', createdAt: 42);
+      final storage = await JsonlSessionStorage.create(file.path, metadata);
+      final session = Session(storage);
+
+      await session.appendMessage(
+        ToolResultMessage(
+          toolCallId: 'read-image',
+          toolName: 'read',
+          content: const [ToolResultTextContent('Read image file [image/png]')],
+          details: const {
+            'files': ['C:/workspace/result.png'],
+          },
+        ),
+      );
+
+      final reopened = JsonlSessionStorage(file, metadata);
+      final entries = await Session(reopened).findEntriesOnBranch();
+      final result = (entries.single as MessageEntry).message;
+
+      expect(result, isA<ToolResultMessage>());
+      expect((result as ToolResultMessage).details, {
+        'files': ['C:/workspace/result.png'],
+      });
+    });
+
+    test('unsupported tool result details do not break persistence', () {
+      final encoded = encodeMessage(
+        ToolResultMessage(
+          toolCallId: 'runtime-details',
+          toolName: 'read',
+          content: const [ToolResultTextContent('text')],
+          details: Object(),
+        ),
+      );
+
+      expect(encoded, isNot(contains('details')));
+      expect(() => jsonEncode(encoded), returnsNormally);
     });
 
     test('append/reopen round-trips every lane record type', () async {

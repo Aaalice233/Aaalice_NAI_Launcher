@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../../../core/agent/agent.dart';
@@ -54,6 +55,7 @@ class AgentChatState {
     this.error = '',
     this.compacting = false,
     this.sessionTransitioning = false,
+    this.sessionContentLoading = false,
     this.approvalRequest,
     this.totalUsage,
   });
@@ -75,6 +77,7 @@ class AgentChatState {
   final String error;
   final bool compacting;
   final bool sessionTransitioning;
+  final bool sessionContentLoading;
   final AgentToolApprovalRequest? approvalRequest;
   final Usage? totalUsage;
 
@@ -94,6 +97,7 @@ class AgentChatState {
     String? error,
     bool? compacting,
     bool? sessionTransitioning,
+    bool? sessionContentLoading,
     AgentToolApprovalRequest? approvalRequest,
     bool clearApprovalRequest = false,
     Usage? totalUsage,
@@ -114,6 +118,8 @@ class AgentChatState {
       error: error ?? this.error,
       compacting: compacting ?? this.compacting,
       sessionTransitioning: sessionTransitioning ?? this.sessionTransitioning,
+      sessionContentLoading:
+          sessionContentLoading ?? this.sessionContentLoading,
       approvalRequest: clearApprovalRequest
           ? null
           : approvalRequest ?? this.approvalRequest,
@@ -152,9 +158,7 @@ enum AgentToolPermissionPolicy { allow, block, ask }
 
 const Set<String> _sensitiveAgentTools = {
   'read',
-  'read_skill',
   'interrogate_image',
-  'update_character',
   'remove_character',
   'generate_image',
   'queue_image_task',
@@ -293,6 +297,8 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
   Agent? _agent;
   dynamic _session;
   final Map<String, HarnessSkill> _skills = {};
+  final List<SkillDiagnostic> _skillDiagnostics = [];
+  bool _usesPresetSkills = false;
   (ProviderConfig, String, String?)? _routeCache;
   Usage _usageTotal = const Usage();
   Completer<bool>? _approvalCompleter;
@@ -339,46 +345,13 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       AppLogger.w('agent workspace create failed: $e', 'AgentChat');
     }
 
+    _usesPresetSkills = presetSkills != null;
     if (presetSkills != null) {
       for (final skill in presetSkills) {
         _skills[skill.name] = skill;
       }
     } else {
-      try {
-        // 代理 目录发现规则：~/.pi/agent/skills、~/.agents/skills、
-        // 项目 .pi/skills（cwd 向上至 git 根）+ 应用托管目录。
-        final env = DartIoExecutionEnv(allowOutsideWorkingDirectory: true);
-        final home =
-            Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'];
-        final appSkills = Directory(
-          '${_supportDir.path}${Platform.pathSeparator}agent'
-          '${Platform.pathSeparator}skills',
-        );
-        final dirs = <({String path, String source})>[
-          (path: appSkills.path, source: 'app'),
-          if (home != null) ...[
-            (
-              path:
-                  '$home${Platform.pathSeparator}.pi${Platform.pathSeparator}agent'
-                  '${Platform.pathSeparator}skills',
-              source: 'user',
-            ),
-            (
-              path:
-                  '$home${Platform.pathSeparator}.agents'
-                  '${Platform.pathSeparator}skills',
-              source: 'user',
-            ),
-          ],
-        ];
-        final loaded = await loadSourcedSkills<String>(env, dirs);
-        for (final item in loaded.skills) {
-          final skill = item.skill;
-          _skills.putIfAbsent(skill.name, () => skill);
-        }
-      } catch (e) {
-        AppLogger.w('agent skills load failed: $e', 'AgentChat');
-      }
+      await _loadSkillsFromDisk();
     }
 
     _client = AgentApiClient(_ref.read(promptAssistantDioProvider));
@@ -401,19 +374,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
         initialSystemPrompt: await _buildSystemPrompt(),
         // 提示词工具（含 read_skill）+ 只读文件工具 + 生成/反推/队列工具
         // + 标签检索工具。
-        initialTools: [
-          ...PromptToolbox(_ref, skills: _skills).tools(),
-          ...ExecutionToolbox(
-            _workspaceDir.path,
-            allowOutsideWorkspace: fullAccess,
-          ).tools(),
-          ...GenerationToolbox(
-            _ref,
-            workspaceDir: _workspaceDir.path,
-            allowOutsideWorkspace: fullAccess,
-          ).tools(),
-          ...TagToolbox(_ref).tools(),
-        ],
+        initialTools: _buildTools(fullAccess: fullAccess),
         convertToLlm: (messages) async => harnessConvertToLlm(messages),
         transformContext: (messages, signal) async =>
             await _maybeCompactContext(messages, signal) ?? messages,
@@ -502,8 +463,18 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       return;
     }
     final fullAccess = mode == AgentPermissionMode.fullAccess;
-    agent.state.tools = [
-      ...PromptToolbox(_ref, skills: _skills).tools(),
+    agent.state.tools = _buildTools(fullAccess: fullAccess);
+    agent.setSystemPrompt(await _buildSystemPrompt());
+  }
+
+  List<AgentTool> _buildTools({required bool fullAccess}) {
+    return [
+      ...PromptToolbox(
+        _ref,
+        skills: _skills,
+        skillDiagnostics: _skillDiagnostics,
+        reloadSkills: reloadSkills,
+      ).tools(),
       ...ExecutionToolbox(
         _workspaceDir.path,
         allowOutsideWorkspace: fullAccess,
@@ -515,7 +486,65 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       ).tools(),
       ...TagToolbox(_ref).tools(),
     ];
-    agent.setSystemPrompt(await _buildSystemPrompt());
+  }
+
+  Future<void> _loadSkillsFromDisk() async {
+    try {
+      final env = DartIoExecutionEnv(allowOutsideWorkingDirectory: true);
+      final home =
+          Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'];
+      final workspaceSkills =
+          '${_workspaceDir.path}${Platform.pathSeparator}.pi'
+          '${Platform.pathSeparator}skills';
+      // Earlier entries win duplicate names: workspace overrides user-global
+      // installations.
+      final dirs = <({String path, String source})>[
+        (path: workspaceSkills, source: 'workspace'),
+        if (home != null) ...[
+          (
+            path:
+                '$home${Platform.pathSeparator}.pi${Platform.pathSeparator}agent'
+                '${Platform.pathSeparator}skills',
+            source: 'user',
+          ),
+          (
+            path:
+                '$home${Platform.pathSeparator}.agents'
+                '${Platform.pathSeparator}skills',
+            source: 'user',
+          ),
+        ],
+      ];
+      final loaded = await loadSourcedSkills<String>(env, dirs);
+      _skills.clear();
+      _skillDiagnostics
+        ..clear()
+        ..addAll([for (final item in loaded.diagnostics) item.diagnostic]);
+      for (final item in loaded.skills) {
+        final skill = item.skill;
+        _skills.putIfAbsent(skill.name, () => skill);
+      }
+    } catch (e) {
+      AppLogger.w('agent skills load failed: $e', 'AgentChat');
+    }
+  }
+
+  Future<int> reloadSkills() async {
+    if (!_usesPresetSkills) {
+      await _loadSkillsFromDisk();
+    }
+    if (mounted) {
+      state = state.copyWith(skills: _skills.values.toList(growable: false));
+    }
+    final agent = _agent;
+    if (agent != null) {
+      final mode = _ref.read(promptAssistantConfigProvider).agentPermissionMode;
+      agent.state.tools = _buildTools(
+        fullAccess: mode == AgentPermissionMode.fullAccess,
+      );
+      agent.setSystemPrompt(await _buildSystemPrompt());
+    }
+    return _skills.length;
   }
 
   /// 代理 compaction：上下文超阈值时折叠旧消息为摘要消息
@@ -784,9 +813,11 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
           'batch. For DIFFERENT prompts, call it once per prompt.',
       '- get_generation_status reports generation progress, queue stats, '
           'and recent output paths (read-only, safe).',
-      '- get_recent_images shows recently generated images (including '
-          'queue results) as thumbnails for history review or when visual '
-          'context is useful.',
+      '- get_recent_images returns the newest saved generation-history '
+          'images (including queue results). Always pass the required '
+          '"limit": use the exact number requested by the user, or choose a '
+          'small reasonable number when unspecified. Never omit "limit" or '
+          'retrieve more than requested.',
       '- get_generation_settings / update_generation_settings read and '
           'change model, sampler, steps, scale and other page settings. '
           'When the user names a model ("use V5", "switch to v4.5 '
@@ -806,8 +837,8 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
           'Wallpaper 1088x1920 / 1920x1088; Small 512x768 / 768x512 / '
           '640x640.',
       '- Custom sizes: width and height MUST be multiples of 64 (minimum '
-          '64); keep each side at most 2048 and total pixels at most '
-          '2088960 (wallpaper level). Oversized or extreme-aspect custom '
+          '64); keep each side at most 4096 and total pixels at most '
+          '3145728. Oversized or extreme-aspect custom '
           'sizes degrade composition and cost more.',
       '- Pick by content: portrait character 832x1216, landscape scene or '
           '3+ characters 1216x832, square avatar 1024x1024, phone '
@@ -945,8 +976,9 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       ),
     );
     final context = buildSessionContext(entries);
+    final restoredMessages = _restoreLegacyReadImageDetails(context.messages);
     final totalUsage = calculateAgentChatSessionUsage(entries);
-    nextAgent.state.messages = context.messages;
+    nextAgent.state.messages = restoredMessages;
     nextAgent.setSystemPrompt(await _buildSystemPrompt());
 
     _session = session;
@@ -956,7 +988,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     await _local.setSetting(StorageKeys.agentChatActiveSession, sessionId);
     state = state.copyWith(
       activeSessionId: sessionId,
-      messages: List.of(context.messages),
+      messages: List.of(restoredMessages),
       activities: const [],
       streamingText: '',
       error: '',
@@ -966,33 +998,92 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     );
   }
 
+  List<AgentMessage> _restoreLegacyReadImageDetails(
+    List<AgentMessage> messages,
+  ) {
+    final readPaths = <String, String>{};
+    for (final message in messages) {
+      if (message is AssistantMessage) {
+        for (final call in message.toolCalls) {
+          final path = call.arguments['path'];
+          if (call.name == 'read' && path is String && path.isNotEmpty) {
+            readPaths[call.id] = path;
+          }
+        }
+        continue;
+      }
+      if (message is! ToolResultMessage ||
+          message.toolName != 'read' ||
+          message.isError ||
+          !message.text.startsWith('Read image file [') ||
+          _hasPersistedImageFiles(message.details)) {
+        continue;
+      }
+      final path = readPaths[message.toolCallId];
+      if (path == null) {
+        continue;
+      }
+      final absolutePath = p.normalize(
+        p.isAbsolute(path) ? path : p.join(_workspaceDir.path, path),
+      );
+      if (File(absolutePath).existsSync()) {
+        message.details = <String, dynamic>{
+          'files': [absolutePath],
+        };
+      }
+    }
+    return messages;
+  }
+
+  bool _hasPersistedImageFiles(dynamic details) {
+    if (details is! Map || details['files'] is! List) {
+      return false;
+    }
+    return (details['files'] as List).any(
+      (file) => file is String && file.isNotEmpty,
+    );
+  }
+
   Future<void> _createAndActivateSession() async {
     final session = await _repo.create();
     final metadata = await session.getMetadata();
     await _activateSession(metadata.id);
   }
 
-  Future<void> _runSessionTransition(Future<void> Function() action) async {
+  Future<void> _runSessionTransition(
+    Future<void> Function() action, {
+    required bool loadsContent,
+  }) async {
     if (!canManageAgentChatSessions(state)) {
       return;
     }
-    state = state.copyWith(sessionTransitioning: true);
+    state = state.copyWith(
+      sessionTransitioning: true,
+      sessionContentLoading: loadsContent,
+    );
     try {
       await action();
     } finally {
       if (mounted) {
-        state = state.copyWith(sessionTransitioning: false);
+        state = state.copyWith(
+          sessionTransitioning: false,
+          sessionContentLoading: false,
+        );
       }
     }
   }
 
-  Future<void> newSession() => _runSessionTransition(_createAndActivateSession);
+  Future<void> newSession() =>
+      _runSessionTransition(_createAndActivateSession, loadsContent: true);
 
   Future<void> switchSession(String sessionId) {
     if (sessionId.isEmpty || sessionId == state.activeSessionId) {
       return Future.value();
     }
-    return _runSessionTransition(() => _activateSession(sessionId));
+    return _runSessionTransition(
+      () => _activateSession(sessionId),
+      loadsContent: true,
+    );
   }
 
   /// 删除指定会话；删除当前会话时自动切到最近剩余会话（无则新建）。
@@ -1000,10 +1091,11 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     if (sessionId.isEmpty) {
       return Future.value();
     }
+    final deletesActiveSession = sessionId == state.activeSessionId;
     return _runSessionTransition(() async {
       // 直接按 id 删文件，不依赖列表匹配（避免表头解析失败导致删不掉）。
       _repo.deleteById(sessionId);
-      if (sessionId != state.activeSessionId) {
+      if (!deletesActiveSession) {
         state = state.copyWith(sessions: await _listSessions());
         return;
       }
@@ -1015,7 +1107,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       } else {
         await _createAndActivateSession();
       }
-    });
+    }, loadsContent: deletesActiveSession);
   }
 
   /// 重命名会话（持久化 name 记录，列表即时刷新）。
@@ -1035,7 +1127,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       } catch (e) {
         AppLogger.w('rename session failed: $e', 'AgentChat');
       }
-    });
+    }, loadsContent: false);
   }
 
   /// 切换聊天模型：写入 chat 任务路由并持久化，随后刷新本地路由缓存。

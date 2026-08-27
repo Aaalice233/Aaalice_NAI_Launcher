@@ -1,18 +1,14 @@
 import 'agent_types.dart';
 
 /// 工具参数校验
-/// 子集实现：type/properties/required/enum/items）。校验失败抛出
+/// 子集实现：type/properties/required/enum/items/minimum/maximum。校验失败抛出
 /// [FormatException]，由 loop 捕获并转为错误工具结果让模型重试。
 Map<String, dynamic> validateToolArguments(
   AgentTool tool,
   ToolCallContent toolCall,
 ) {
   final args = tool.prepareArguments(toolCall.arguments);
-  _validateAgainstSchema(
-    args,
-    tool.parameters,
-    path: tool.name,
-  );
+  _validateAgainstSchema(args, tool.parameters, path: tool.name);
   return args;
 }
 
@@ -23,15 +19,23 @@ void _validateAgainstSchema(
 }) {
   final type = schema['type'];
   if (type is String && !_matchesType(value, type)) {
-    throw FormatException(
-      '$path: expected $type, got ${_typeName(value)}',
-    );
+    throw FormatException('$path: expected $type, got ${_typeName(value)}');
   }
   final enumValues = schema['enum'];
   if (enumValues is List && !enumValues.contains(value)) {
     throw FormatException(
       '$path: value must be one of ${enumValues.join(', ')}',
     );
+  }
+  if (value is num) {
+    final minimum = schema['minimum'];
+    if (minimum is num && value < minimum) {
+      throw FormatException('$path: value must be at least $minimum');
+    }
+    final maximum = schema['maximum'];
+    if (maximum is num && value > maximum) {
+      throw FormatException('$path: value must be at most $maximum');
+    }
   }
   if (value is Map<String, dynamic>) {
     final required = schema['required'];
@@ -60,11 +64,7 @@ void _validateAgainstSchema(
     final items = schema['items'];
     if (items is Map<String, dynamic>) {
       for (var i = 0; i < value.length; i++) {
-        _validateAgainstSchema(
-          value[i],
-          items,
-          path: '$path[$i]',
-        );
+        _validateAgainstSchema(value[i], items, path: '$path[$i]');
       }
     }
   }

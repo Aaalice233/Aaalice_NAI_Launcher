@@ -20,6 +20,9 @@ void main() {
         'get_recent_images',
         'get_generation_status',
         'add_character',
+        'update_character',
+        'read_skill',
+        'read_skill_resource',
       ]) {
         expect(
           agentToolPermissionPolicyFor(mode, tool),
@@ -90,6 +93,66 @@ void main() {
     expect(usage.totalTokens, 28);
   });
 
+  test('loads workspace skills and ignores the legacy app directory', () async {
+    final root = await Directory.systemTemp.createTemp(
+      'agent_chat_skill_sources_',
+    );
+    addTearDown(() => root.delete(recursive: true));
+    final supportDir = Directory(
+      '${root.path}${Platform.pathSeparator}support',
+    );
+    final workspaceDir = Directory(
+      '${root.path}${Platform.pathSeparator}workspace',
+    );
+    final workspaceSkillDir = Directory(
+      '${workspaceDir.path}${Platform.pathSeparator}.pi'
+      '${Platform.pathSeparator}skills${Platform.pathSeparator}workspace-only',
+    );
+    final legacyAppSkillDir = Directory(
+      '${supportDir.path}${Platform.pathSeparator}agent'
+      '${Platform.pathSeparator}skills${Platform.pathSeparator}app-only',
+    );
+    await workspaceSkillDir.create(recursive: true);
+    await legacyAppSkillDir.create(recursive: true);
+    await File(
+      '${workspaceSkillDir.path}${Platform.pathSeparator}SKILL.md',
+    ).writeAsString('''---
+name: workspace-only
+description: Loaded from the image workspace.
+---
+Workspace instructions.
+''');
+    await File(
+      '${legacyAppSkillDir.path}${Platform.pathSeparator}SKILL.md',
+    ).writeAsString('''---
+name: app-only
+description: Must not load from the legacy app directory.
+---
+Legacy instructions.
+''');
+
+    final storage = _MemoryLocalStorage();
+    final provider = StateNotifierProvider<AgentChatNotifier, AgentChatState>((
+      ref,
+    ) {
+      return AgentChatNotifier(
+        ref,
+        supportDir: supportDir,
+        workspaceDir: workspaceDir,
+      );
+    });
+    final container = ProviderContainer(
+      overrides: [localStorageServiceProvider.overrideWithValue(storage)],
+    );
+    addTearDown(container.dispose);
+    container.read(provider);
+    await _waitForInitialized(container, provider);
+
+    final names = container.read(provider).skills.map((skill) => skill.name);
+    expect(names, contains('workspace-only'));
+    expect(names, isNot(contains('app-only')));
+  });
+
   group('AgentChatNotifier sessions', () {
     late Directory tempDir;
     late _MemoryLocalStorage storage;
@@ -149,6 +212,49 @@ void main() {
         expect(container.read(provider).totalUsage?.totalTokens, 0);
       },
     );
+
+    test('restores legacy read image paths when switching sessions', () async {
+      final notifier = container.read(provider.notifier);
+      final repo = JsonlSessionRepo(tempDir);
+      final firstId = container.read(provider).activeSessionId;
+      final firstMetadata = (await repo.list()).single;
+      final firstSession = await repo.open(firstMetadata);
+      final image = File(
+        '${tempDir.path}${Platform.pathSeparator}legacy-result.png',
+      );
+      await image.writeAsBytes(const [0x89, 0x50, 0x4e, 0x47]);
+      await firstSession.appendMessage(
+        AssistantMessage(
+          content: const [
+            ToolCallContent(
+              id: 'legacy-read',
+              name: 'read',
+              arguments: {'path': 'legacy-result.png'},
+            ),
+          ],
+          stopReason: StopReason.toolUse,
+        ),
+      );
+      await firstSession.appendMessage(
+        ToolResultMessage(
+          toolCallId: 'legacy-read',
+          toolName: 'read',
+          content: const [ToolResultTextContent('Read image file [image/png]')],
+        ),
+      );
+
+      await notifier.newSession();
+      await notifier.switchSession(firstId);
+
+      final result = container
+          .read(provider)
+          .messages
+          .whereType<ToolResultMessage>()
+          .single;
+      expect(result.details, {
+        'files': [image.path],
+      });
+    });
 
     test('serializes concurrent session creation', () async {
       final notifier = container.read(provider.notifier);

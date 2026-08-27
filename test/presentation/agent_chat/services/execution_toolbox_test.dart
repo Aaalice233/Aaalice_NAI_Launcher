@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/agent/agent_types.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/execution_toolbox.dart';
 
@@ -140,5 +142,50 @@ void main() {
 
     expect(textOf(result), contains('Image omitted'));
     expect(result.isError, isTrue);
+  });
+
+  test(
+    'read chunks a very long line without suggesting unavailable bash',
+    () async {
+      final file = File('${tmp.path}${Platform.pathSeparator}long-line.txt');
+      await file.writeAsString(List.filled(60 * 1024, 'a').join());
+
+      final first = await tool(
+        'read',
+      ).execute('long-first', {'path': 'long-line.txt'});
+      final second = await tool('read').execute('long-second', {
+        'path': 'long-line.txt',
+        'offset': 1,
+        'character_offset': 50 * 1024,
+      });
+
+      expect(textOf(first), contains('character_offset=51200'));
+      expect(textOf(first), isNot(contains('bash')));
+      expect(textOf(second), hasLength(10 * 1024));
+    },
+  );
+
+  test('read constrains high-resolution image attachments', () async {
+    final file = File('${tmp.path}${Platform.pathSeparator}large-image.png');
+    final source = img.Image(width: 2048, height: 128);
+    await file.writeAsBytes(img.encodePng(source));
+
+    final result = await tool(
+      'read',
+    ).execute('large-image', {'path': 'large-image.png'});
+    final imageContent = result.content
+        .whereType<ToolResultImageContent>()
+        .single
+        .image;
+    final decoded = img.decodeImage(
+      base64Decode(imageContent.source.base64Data!),
+    );
+
+    expect(result.isError, isFalse);
+    expect(textOf(result), contains('1536px'));
+    expect(result.details['files'], [file.absolute.path]);
+    expect(decoded, isNotNull);
+    expect(decoded!.width, lessThanOrEqualTo(1536));
+    expect(decoded.height, lessThanOrEqualTo(1536));
   });
 }
