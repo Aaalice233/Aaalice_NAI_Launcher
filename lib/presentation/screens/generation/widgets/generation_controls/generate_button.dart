@@ -16,6 +16,7 @@ class GenerateButtonWithCost extends ConsumerWidget {
   final VoidCallback onCancel;
   final VoidCallback onSkipCurrent;
   final bool showCost;
+  final bool requiresLogin;
 
   /// 按钮高度（紧凑布局可压低）
   final double height;
@@ -30,6 +31,7 @@ class GenerateButtonWithCost extends ConsumerWidget {
     required this.onCancel,
     required this.onSkipCurrent,
     this.showCost = true,
+    this.requiresLogin = false,
     this.height = 48,
   });
 
@@ -42,6 +44,9 @@ class GenerateButtonWithCost extends ConsumerWidget {
       '${generationState.currentImage}/${generationState.totalImages}';
 
   String _generateLabelText(BuildContext context) {
+    if (requiresLogin && !isGenerating) {
+      return context.l10n.auth_login;
+    }
     if (isGenerating) {
       return generationState.totalImages > 1
           ? _progressText()
@@ -100,6 +105,8 @@ class GenerateButtonWithCost extends ConsumerWidget {
       child: ThemedButton(
         onPressed: showCancel
             ? onCancel
+            : requiresLogin
+            ? onGenerate
             : isGenerating || cooldownRemainingSeconds > 0
             ? null
             : onGenerate,
@@ -113,7 +120,9 @@ class GenerateButtonWithCost extends ConsumerWidget {
               children: [
                 if (!isLoading) ...[
                   Icon(
-                    cooldownRemainingSeconds > 0
+                    requiresLogin
+                        ? Icons.login_rounded
+                        : cooldownRemainingSeconds > 0
                         ? Icons.hourglass_bottom_outlined
                         : Icons.auto_awesome,
                   ),
@@ -124,7 +133,8 @@ class GenerateButtonWithCost extends ConsumerWidget {
                       ? context.l10n.generation_generate
                       : _generateLabelText(context),
                 ),
-                if (showCost) AnlasCostBadge(isGenerating: isLoading),
+                if (showCost && !requiresLogin)
+                  AnlasCostBadge(isGenerating: isLoading),
               ],
             ),
             Row(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/platform/platform_capabilities.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/vibe/vibe_library_entry.dart';
 
@@ -289,7 +290,13 @@ class _VibeBulkTagDialogState extends ConsumerState<VibeBulkTagDialog> {
             onPressed: () => _removeTag(tag),
             tooltip: context.l10n.vibeBulkTag_removeTag,
             padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            visualDensity: PlatformCapabilities.current.hasTouchInput
+                ? VisualDensity.standard
+                : VisualDensity.compact,
+            constraints: BoxConstraints.tightFor(
+              width: PlatformCapabilities.current.hasTouchInput ? 48 : 32,
+              height: PlatformCapabilities.current.hasTouchInput ? 48 : 32,
+            ),
           ),
         ],
       ),

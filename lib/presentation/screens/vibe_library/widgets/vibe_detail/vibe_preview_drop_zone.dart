@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
+import '../../../../../core/platform/platform_capabilities.dart';
 import '../../../../../core/utils/app_logger.dart';
 import '../../../../themes/design_tokens.dart';
 import '../../../../widgets/common/decoded_memory_image.dart';
@@ -183,6 +184,79 @@ class _VibePreviewDropZoneState extends State<VibePreviewDropZone> {
 
   @override
   Widget build(BuildContext context) {
+    final capabilities = PlatformCapabilities.current;
+    final content = Stack(
+      children: [
+        // 图片预览
+        GestureDetector(
+          onDoubleTap: _resetZoom,
+          child: InteractiveViewer(
+            transformationController: _transformationController,
+            minScale: 0.5,
+            maxScale: 4.0,
+            child: Center(
+              child: widget.imageBytes != null
+                  ? DecodedMemoryImage(
+                      bytes: widget.imageBytes!,
+                      fit: BoxFit.contain,
+                      gaplessPlayback: true,
+                      errorBuilder: (_, __, ___) => _buildPlaceholder(),
+                    )
+                  : _buildPlaceholder(),
+            ),
+          ),
+        ),
+
+        if (_isDragging) _buildDragOverlay(),
+
+        Positioned(
+          top: DesignTokens.spacingMd,
+          left: DesignTokens.spacingMd,
+          child: _buildCircularCloseButton(
+            onPressed: widget.onClose ?? () => Navigator.of(context).pop(),
+          ),
+        ),
+
+        Positioned(
+          bottom: DesignTokens.spacingMd,
+          right: DesignTokens.spacingMd,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (capabilities.hasPrecisePointer) ...[
+                _buildIconButton(
+                  icon: Icons.add,
+                  onPressed: _zoomIn,
+                  tooltip: context.l10n.editor_zoomIn,
+                ),
+                const SizedBox(height: DesignTokens.spacingXs),
+                _buildIconButton(
+                  icon: Icons.remove,
+                  onPressed: _zoomOut,
+                  tooltip: context.l10n.editor_zoomOut,
+                ),
+                const SizedBox(height: DesignTokens.spacingXs),
+              ],
+              _buildIconButton(
+                icon: Icons.fit_screen,
+                onPressed: _resetZoom,
+                tooltip: context.l10n.editor_shortcut100Zoom,
+              ),
+              if (widget.onThumbnailChanged != null) ...[
+                const SizedBox(height: DesignTokens.spacingMd),
+                _buildIconButton(
+                  icon: Icons.image_outlined,
+                  onPressed: _pickImage,
+                  tooltip: context.l10n.vibeBulkTag_actionPreview,
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+
+    if (!capabilities.supportsExternalFileDrop) return content;
     return DropRegion(
       formats: Formats.standardFormats,
       hitTestBehavior: HitTestBehavior.opaque,
@@ -197,80 +271,10 @@ class _VibePreviewDropZoneState extends State<VibePreviewDropZone> {
         if (_isDragging) setState(() => _isDragging = false);
       },
       onPerformDrop: (event) async {
-        // 重要：不要等待 _handleDrop 完成，让拖放回调立即返回
+        // 不等待读取，避免阻塞系统拖放会话。
         unawaited(_handleDrop(event));
-        return;
       },
-      child: Stack(
-        children: [
-          // 图片预览
-          GestureDetector(
-            onDoubleTap: _resetZoom,
-            child: InteractiveViewer(
-              transformationController: _transformationController,
-              minScale: 0.5,
-              maxScale: 4.0,
-              child: Center(
-                child: widget.imageBytes != null
-                    ? DecodedMemoryImage(
-                        bytes: widget.imageBytes!,
-                        fit: BoxFit.contain,
-                        gaplessPlayback: true,
-                        errorBuilder: (_, __, ___) => _buildPlaceholder(),
-                      )
-                    : _buildPlaceholder(),
-              ),
-            ),
-          ),
-
-          // 拖拽覆盖层
-          if (_isDragging) _buildDragOverlay(),
-
-          // 关闭按钮（左上角圆形按钮）
-          Positioned(
-            top: DesignTokens.spacingMd,
-            left: DesignTokens.spacingMd,
-            child: _buildCircularCloseButton(
-              onPressed: widget.onClose ?? () => Navigator.of(context).pop(),
-            ),
-          ),
-
-          // 缩放控制 + 更换预览图
-          Positioned(
-            bottom: DesignTokens.spacingMd,
-            right: DesignTokens.spacingMd,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildIconButton(
-                  icon: Icons.add,
-                  onPressed: _zoomIn,
-                  tooltip: context.l10n.editor_zoomIn,
-                ),
-                const SizedBox(height: DesignTokens.spacingXs),
-                _buildIconButton(
-                  icon: Icons.remove,
-                  onPressed: _zoomOut,
-                  tooltip: context.l10n.editor_zoomOut,
-                ),
-                const SizedBox(height: DesignTokens.spacingXs),
-                _buildIconButton(
-                  icon: Icons.fit_screen,
-                  onPressed: _resetZoom,
-                  tooltip: context.l10n.editor_shortcut100Zoom,
-                ),
-                const SizedBox(height: DesignTokens.spacingMd),
-                if (widget.onThumbnailChanged != null)
-                  _buildIconButton(
-                    icon: Icons.image_outlined,
-                    onPressed: _pickImage,
-                    tooltip: context.l10n.vibeBulkTag_actionPreview,
-                  ),
-              ],
-            ),
-          ),
-        ],
-      ),
+      child: content,
     );
   }
 
@@ -286,7 +290,10 @@ class _VibePreviewDropZoneState extends State<VibePreviewDropZone> {
         ),
         const SizedBox(height: DesignTokens.spacingXs),
         Text(
-          context.l10n.vibeDetail_dropPreviewImage,
+          PlatformCapabilities.current.supportsExternalFileDrop
+              ? context.l10n.vibeDetail_dropPreviewImage
+              : context.l10n.vibeDetail_choosePreviewImage,
+          textAlign: TextAlign.center,
           style: const TextStyle(color: Colors.white38, fontSize: 13),
         ),
       ],
@@ -344,8 +351,8 @@ class _VibePreviewDropZoneState extends State<VibePreviewDropZone> {
         child: InkWell(
           onTap: onPressed,
           borderRadius: DesignTokens.borderRadiusLg,
-          child: Padding(
-            padding: const EdgeInsets.all(10),
+          child: SizedBox.square(
+            dimension: 48,
             child: Icon(icon, color: Colors.white, size: 20),
           ),
         ),

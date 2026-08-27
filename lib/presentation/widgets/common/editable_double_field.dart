@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../themes/core/input_surface_style.dart';
+
 class EditableDoubleField extends StatefulWidget {
   const EditableDoubleField({
     super.key,
@@ -109,18 +111,19 @@ class _EditableDoubleFieldState extends State<EditableDoubleField> {
             vertical: 6,
           ),
           filled: true,
-          fillColor: theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide.none,
+          fillColor: inputSurfaceFillColor(theme.colorScheme),
+          border: inputSurfaceBorder(
+            theme.colorScheme,
+            BorderRadius.circular(8),
           ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide.none,
+          enabledBorder: inputSurfaceBorder(
+            theme.colorScheme,
+            BorderRadius.circular(8),
           ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(color: theme.colorScheme.primary),
+          focusedBorder: inputSurfaceBorder(
+            theme.colorScheme,
+            BorderRadius.circular(8),
+            focused: true,
           ),
         ),
         style: widget.textStyle,

@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_driver/driver_extension.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:tray_manager/tray_manager.dart';
@@ -41,6 +42,7 @@ import 'data/services/search_index_service.dart';
 import 'data/services/temp_image_service.dart';
 import 'presentation/providers/online_gallery_blacklist_provider.dart';
 import 'presentation/screens/splash/app_bootstrap.dart';
+import 'presentation/services/generation_history_storage_service.dart';
 
 /// Get localized strings based on the stored locale setting
 /// Used in main() before the app is initialized
@@ -502,6 +504,9 @@ void main() {
 }
 
 Future<void> _bootstrapApplication() async {
+  if (const bool.fromEnvironment('ENABLE_FLUTTER_DRIVER')) {
+    enableFlutterDriverExtension(enableTextEntryEmulation: false);
+  }
   WidgetsFlutterBinding.ensureInitialized();
   WindowsClipboardHistoryKeyFix.instance.install();
   AppErrorReporter.installGlobalHandlers();
@@ -523,9 +528,11 @@ Future<void> _bootstrapApplication() async {
     AppLogger.i('App version: ${AppVersion.fullVersion}', 'Main');
   });
 
-  // 增加图片缓存限制，防止本地画廊滚动时图片被回收变白
-  PaintingBinding.instance.imageCache.maximumSize = 500; // 最大缓存 500 张图片
-  PaintingBinding.instance.imageCache.maximumSizeBytes = 200 << 20; // 200MB
+  // 移动端必须给解码图、WebView、视频与 ONNX 留出足够内存余量。
+  final isMobile = Platform.isAndroid || Platform.isIOS;
+  PaintingBinding.instance.imageCache.maximumSize = isMobile ? 120 : 500;
+  PaintingBinding.instance.imageCache.maximumSizeBytes =
+      (isMobile ? 64 : 200) << 20;
 
   // FFI 注册本身不打开数据库，需在数据库调用方出现前完成。
   await SqfliteBootstrapService.instance.ensureInitialized();
@@ -556,7 +563,11 @@ Future<void> _bootstrapApplication() async {
   timeago.setLocaleMessages('ja', timeago.JaMessages());
 
   final desktopWindow = await desktopWindowFuture;
-  final container = ProviderContainer();
+  final container = ProviderContainer(
+    overrides: [
+      generationSessionPersistenceEnabledProvider.overrideWithValue(true),
+    ],
+  );
   AppLogger.i('Calling runApp; database warmup has not started', 'Main');
   runApp(
     UncontrolledProviderScope(

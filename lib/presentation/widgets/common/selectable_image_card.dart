@@ -6,7 +6,10 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
 
+import '../../../core/platform/platform_capabilities.dart';
+import '../../../core/services/android_media_store_service.dart';
 import '../../../core/utils/image_save_utils.dart';
 import '../../../core/utils/image_share_sanitizer.dart';
 import '../../../core/utils/keyboard_modifier_utils.dart';
@@ -14,6 +17,7 @@ import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/image/image_stream_chunk.dart';
 import '../../../data/repositories/gallery_folder_repository.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../adaptive/adaptive_presenter.dart';
 import '../../providers/share_image_settings_provider.dart';
 import '../../utils/clipboard_image.dart';
 import '../../themes/theme_extension.dart';
@@ -852,12 +856,17 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
       child: GestureDetector(
         onTap: widget.onDoubleTap == null ? _handleLegacyTap : null,
         onTapUp: widget.onDoubleTap != null ? _handleLinkedTapUp : null,
-        onLongPress: widget.onLongPress == null
-            ? null
-            : () {
+        onLongPressStart: widget.onLongPress != null || widget.enableContextMenu
+            ? (details) {
                 _clearPendingDoubleTap();
-                widget.onLongPress?.call();
-              },
+                final onLongPress = widget.onLongPress;
+                if (onLongPress != null) {
+                  onLongPress();
+                } else {
+                  unawaited(_showContextMenu(context, details.globalPosition));
+                }
+              }
+            : null,
         onSecondaryTapDown: widget.enableContextMenu
             ? (details) {
                 unawaited(_showContextMenu(context, details.globalPosition));
@@ -1112,12 +1121,55 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
                         ),
                       ),
                     ),
+
+                  if (PlatformCapabilities.current.hasTouchInput &&
+                      widget.enableContextMenu &&
+                      _hasContextActions)
+                    Positioned(
+                      right: 8,
+                      bottom: 8,
+                      child: _buildTouchActionsButton(context),
+                    ),
                 ],
               ),
             ),
           ),
         ),
       ),
+    );
+  }
+
+  bool get _hasContextActions =>
+      widget.onFullscreen != null ||
+      widget.enableSaveAction ||
+      widget.enableCopyAction ||
+      widget.onShareToDiscord != null ||
+      widget.onOpenInExplorer != null ||
+      widget.onReversePrompt != null ||
+      widget.onImageToImage != null ||
+      widget.onVibeTransfer != null ||
+      widget.onPreciseReference != null ||
+      widget.onSaveToPreciseRefLibrary != null ||
+      widget.onEditImage != null ||
+      widget.onInpaint != null ||
+      widget.onGenerateVariations != null ||
+      widget.onDirectorTools != null ||
+      widget.onEnhance != null ||
+      widget.onUpscale != null ||
+      widget.onSendToKrita != null ||
+      (widget.onSaveToLibrary != null && widget.imageBytes != null);
+
+  Widget _buildTouchActionsButton(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return IconButton.filledTonal(
+      onPressed: () => unawaited(_showContextMenu(context, Offset.zero)),
+      tooltip: context.l10n.common_moreActions,
+      constraints: const BoxConstraints.tightFor(width: 48, height: 48),
+      style: IconButton.styleFrom(
+        backgroundColor: colors.surfaceContainerHigh.withValues(alpha: 0.92),
+        foregroundColor: colors.onSurface,
+      ),
+      icon: const Icon(Icons.more_horiz_rounded),
     );
   }
 
@@ -1394,14 +1446,36 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
       }
 
       // 统一解析 seed 并原子保存：日期分类路径 + 独占防冲突 + 失败清理
-      await ImageSaveUtils.saveBytesToDatedPath(
+      final filePath = await ImageSaveUtils.saveBytesToDatedPath(
         rootPath: rootPath,
         bytes: widget.imageBytes!,
         seed: await ImageSaveUtils.resolveSeed(bytes: widget.imageBytes!),
       );
 
+      if (PlatformCapabilities.current.supportsSystemGalleryExport) {
+        try {
+          await AndroidMediaStoreService.savePng(
+            bytes: widget.imageBytes!,
+            fileName: p.basename(filePath),
+          );
+        } catch (error) {
+          if (context.mounted) {
+            AppToast.warning(
+              context,
+              l10n.image_savedAppOnly(error.toString()),
+            );
+          }
+          return;
+        }
+      }
+
       if (context.mounted) {
-        AppToast.success(context, l10n.toast_savedTo(rootPath));
+        AppToast.success(
+          context,
+          PlatformCapabilities.current.supportsSystemGalleryExport
+              ? l10n.image_savedToSystemGallery
+              : l10n.toast_savedTo(rootPath),
+        );
       }
     } catch (e) {
       if (context.mounted) {
@@ -1546,6 +1620,16 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
           label: context.l10n.discordShare_action,
           icon: Icons.send_rounded,
           onTap: widget.onShareToDiscord,
+        ),
+      );
+    }
+    if (widget.onSaveToLibrary != null && widget.imageBytes != null) {
+      items.add(
+        ProMenuItem(
+          id: 'save_to_library',
+          label: context.l10n.image_saveToLibrary,
+          icon: Icons.bookmark_add_rounded,
+          onTap: () => _saveToLibrary(context),
         ),
       );
     }
@@ -1704,14 +1788,53 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
       return;
     }
 
-    final navigator = Navigator.of(context);
-    final route = _ContextMenuRoute(position: position, items: items);
-    final selectedItem = await navigator.push<ProMenuItem>(route);
-    await route.completed;
-    if (selectedItem == null) {
-      return;
+    final ProMenuItem? selectedItem;
+    if (PlatformCapabilities.current.hasTouchInput) {
+      selectedItem = await AdaptivePresenter.showPanel<ProMenuItem>(
+        context: context,
+        title: context.l10n.common_moreActions,
+        initialChildSize: 0.72,
+        minChildSize: 0.38,
+        maxChildSize: 0.94,
+        builder: (panelContext, scrollController) => ListView(
+          controller: scrollController,
+          padding: const EdgeInsets.only(bottom: 24),
+          children: [
+            for (final item in items)
+              if (item.isDivider)
+                const Divider(height: 1)
+              else
+                ListTile(
+                  minVerticalPadding: 12,
+                  leading: item.icon == null
+                      ? null
+                      : Icon(
+                          item.icon,
+                          color: item.isDanger
+                              ? Theme.of(panelContext).colorScheme.error
+                              : null,
+                        ),
+                  title: Text(
+                    item.label,
+                    style: item.isDanger
+                        ? TextStyle(
+                            color: Theme.of(panelContext).colorScheme.error,
+                          )
+                        : null,
+                  ),
+                  onTap: () => Navigator.of(panelContext).pop(item),
+                ),
+          ],
+        ),
+      );
+    } else {
+      final navigator = Navigator.of(context);
+      final route = _ContextMenuRoute(position: position, items: items);
+      selectedItem = await navigator.push<ProMenuItem>(route);
+      await route.completed;
     }
-    selectedItem.onTap?.call();
+
+    selectedItem?.onTap?.call();
   }
 }
 

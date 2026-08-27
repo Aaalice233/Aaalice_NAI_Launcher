@@ -4,7 +4,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nai_launcher/core/shortcuts/shortcut_config.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/providers/account_manager_provider.dart';
 import 'package:nai_launcher/presentation/providers/auth_provider.dart';
+import 'package:nai_launcher/presentation/providers/mobile_shell_overlay_provider.dart';
 import 'package:nai_launcher/presentation/providers/shortcuts_provider.dart';
 import 'package:nai_launcher/presentation/router/app_router.dart';
 
@@ -12,6 +14,9 @@ void main() {
   testWidgets('MainShell 消费启动前 pending 提示并顺序处理后续提示', (tester) async {
     final container = ProviderContainer(
       overrides: [
+        accountManagerNotifierProvider.overrideWith(
+          _TestAccountManagerNotifier.new,
+        ),
         authNotifierProvider.overrideWith(_UnauthenticatedAuthNotifier.new),
         shortcutConfigNotifierProvider.overrideWith(
           _TestShortcutConfigNotifier.new,
@@ -83,6 +88,190 @@ void main() {
     await tester.pump();
     expect(find.byType(AlertDialog), findsNothing);
   });
+
+  testWidgets('认证恢复提示在桌面和手机保持紧凑并可关闭', (tester) async {
+    final container = ProviderContainer(
+      overrides: [
+        accountManagerNotifierProvider.overrideWith(
+          _TestAccountManagerNotifier.new,
+        ),
+        authNotifierProvider.overrideWith(_ErrorAuthNotifier.new),
+        shortcutConfigNotifierProvider.overrideWith(
+          _TestShortcutConfigNotifier.new,
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final router = GoRouter(
+      routes: [
+        StatefulShellRoute(
+          navigatorContainerBuilder: (context, navigationShell, children) {
+            return MainShell(
+              navigationShell: navigationShell,
+              children: children,
+            );
+          },
+          builder: (context, state, navigationShell) => navigationShell,
+          branches: [
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: '/',
+                  builder: (context, state) => const SizedBox.expand(),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+
+    await tester.binding.setSurfaceSize(const Size(1580, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp.router(
+          routerConfig: router,
+          locale: const Locale('zh'),
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final banner = find.byKey(const ValueKey('auth-recovery-banner'));
+    expect(banner, findsOneWidget);
+    expect(tester.getSize(banner).width, lessThanOrEqualTo(440));
+    expect(tester.getSize(banner).height, lessThan(72));
+    expect(tester.takeException(), isNull);
+
+    await tester.binding.setSurfaceSize(const Size(390, 820));
+    await tester.pumpAndSettle();
+    expect(tester.getSize(banner).width, lessThanOrEqualTo(366));
+    expect(tester.getSize(banner).height, lessThan(120));
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.byKey(const ValueKey('auth-recovery-dismiss')));
+    await tester.pumpAndSettle();
+    expect(banner, findsNothing);
+  });
+
+  testWidgets('MainShell 将系统返回交给当前分支的 PopScope', (tester) async {
+    final container = ProviderContainer(
+      overrides: [
+        accountManagerNotifierProvider.overrideWith(
+          _TestAccountManagerNotifier.new,
+        ),
+        authNotifierProvider.overrideWith(_UnauthenticatedAuthNotifier.new),
+        shortcutConfigNotifierProvider.overrideWith(
+          _TestShortcutConfigNotifier.new,
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final router = GoRouter(
+      routes: [
+        StatefulShellRoute(
+          navigatorContainerBuilder: (context, navigationShell, children) {
+            return MainShell(
+              navigationShell: navigationShell,
+              children: children,
+            );
+          },
+          builder: (context, state, navigationShell) => navigationShell,
+          branches: [
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: '/',
+                  builder: (context, state) => const _BranchDetailPage(),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+
+    await tester.binding.setSurfaceSize(const Size(390, 820));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp.router(
+          routerConfig: router,
+          locale: const Locale('zh'),
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(NavigationBar), findsOneWidget);
+    container
+        .read(mobileShellOverlayNotifierProvider.notifier)
+        .setActive(MobileShellOverlay.agentChat, true);
+    await tester.pumpAndSettle();
+    expect(find.byType(NavigationBar), findsNothing);
+    container
+        .read(mobileShellOverlayNotifierProvider.notifier)
+        .setActive(MobileShellOverlay.agentChat, false);
+    await tester.pumpAndSettle();
+    expect(find.byType(NavigationBar), findsOneWidget);
+
+    await tester.tap(find.text('打开详情'));
+    await tester.pumpAndSettle();
+    expect(find.text('分支详情'), findsOneWidget);
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    expect(find.text('分支详情'), findsNothing);
+    expect(find.text('打开详情'), findsOneWidget);
+  });
+}
+
+class _BranchDetailPage extends StatefulWidget {
+  const _BranchDetailPage();
+
+  @override
+  State<_BranchDetailPage> createState() => _BranchDetailPageState();
+}
+
+class _BranchDetailPageState extends State<_BranchDetailPage> {
+  bool _showDetail = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope<void>(
+      canPop: !_showDetail,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && _showDetail) {
+          setState(() => _showDetail = false);
+        }
+      },
+      child: Center(
+        child: _showDetail
+            ? const Text('分支详情')
+            : FilledButton(
+                onPressed: () => setState(() => _showDetail = true),
+                child: const Text('打开详情'),
+              ),
+      ),
+    );
+  }
+}
+
+class _TestAccountManagerNotifier extends AccountManagerNotifier {
+  @override
+  AccountManagerState build() => const AccountManagerState();
 }
 
 class _TestShortcutConfigNotifier extends ShortcutConfigNotifier {
@@ -93,4 +282,13 @@ class _TestShortcutConfigNotifier extends ShortcutConfigNotifier {
 class _UnauthenticatedAuthNotifier extends AuthNotifier {
   @override
   AuthState build() => const AuthState(status: AuthStatus.unauthenticated);
+}
+
+class _ErrorAuthNotifier extends AuthNotifier {
+  @override
+  AuthState build() => const AuthState(
+    status: AuthStatus.error,
+    errorCode: AuthErrorCode.authFailed,
+    httpStatusCode: 401,
+  );
 }

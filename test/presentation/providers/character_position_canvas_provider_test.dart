@@ -7,53 +7,56 @@ import 'package:nai_launcher/presentation/providers/prompt_maximize_provider.dar
 final _availabilityProvider = StateProvider<bool>((ref) => true);
 
 void main() {
-  test('availability requires positioning support, characters and an idle non-error state', () {
-    expect(
-      isCharacterPositionCanvasAvailable(
-        supportsCharacterPositioning: true,
-        hasCharacters: true,
-        isGenerating: false,
-        hasError: false,
-      ),
-      isTrue,
-    );
-    expect(
-      isCharacterPositionCanvasAvailable(
-        supportsCharacterPositioning: false,
-        hasCharacters: true,
-        isGenerating: false,
-        hasError: false,
-      ),
-      isFalse,
-    );
-    expect(
-      isCharacterPositionCanvasAvailable(
-        supportsCharacterPositioning: true,
-        hasCharacters: false,
-        isGenerating: false,
-        hasError: false,
-      ),
-      isFalse,
-    );
-    expect(
-      isCharacterPositionCanvasAvailable(
-        supportsCharacterPositioning: true,
-        hasCharacters: true,
-        isGenerating: true,
-        hasError: false,
-      ),
-      isFalse,
-    );
-    expect(
-      isCharacterPositionCanvasAvailable(
-        supportsCharacterPositioning: true,
-        hasCharacters: true,
-        isGenerating: false,
-        hasError: true,
-      ),
-      isFalse,
-    );
-  });
+  test(
+    'availability requires positioning support, characters and an idle non-error state',
+    () {
+      expect(
+        isCharacterPositionCanvasAvailable(
+          supportsCharacterPositioning: true,
+          hasCharacters: true,
+          isGenerating: false,
+          hasError: false,
+        ),
+        isTrue,
+      );
+      expect(
+        isCharacterPositionCanvasAvailable(
+          supportsCharacterPositioning: false,
+          hasCharacters: true,
+          isGenerating: false,
+          hasError: false,
+        ),
+        isFalse,
+      );
+      expect(
+        isCharacterPositionCanvasAvailable(
+          supportsCharacterPositioning: true,
+          hasCharacters: false,
+          isGenerating: false,
+          hasError: false,
+        ),
+        isFalse,
+      );
+      expect(
+        isCharacterPositionCanvasAvailable(
+          supportsCharacterPositioning: true,
+          hasCharacters: true,
+          isGenerating: true,
+          hasError: false,
+        ),
+        isFalse,
+      );
+      expect(
+        isCharacterPositionCanvasAvailable(
+          supportsCharacterPositioning: true,
+          hasCharacters: true,
+          isGenerating: false,
+          hasError: true,
+        ),
+        isFalse,
+      );
+    },
+  );
 
   group('CharacterPositionCanvas', () {
     test('web style keeps the persisted classic maximize preference', () async {
@@ -77,6 +80,38 @@ void main() {
       expect(container.read(promptMaximizeNotifierProvider), isTrue);
       expect(storage.promptMaximized, isTrue);
     });
+
+    test(
+      'mobile prompt workbench can force exit and restore maximize',
+      () async {
+        final storage = _FakeCanvasStorage(
+          generationLayoutMode: 'web_style',
+          promptMaximized: true,
+        );
+        final container = _buildContainer(storage);
+        addTearDown(container.dispose);
+        final subscription = container.listen<bool>(
+          characterPositionCanvasProvider,
+          (_, __) {},
+          fireImmediately: true,
+        );
+        addTearDown(subscription.close);
+
+        container
+            .read(characterPositionCanvasProvider.notifier)
+            .open(forceExitMaximizedPrompt: true);
+        await Future<void>.delayed(Duration.zero);
+
+        expect(container.read(characterPositionCanvasProvider), isTrue);
+        expect(container.read(promptMaximizeNotifierProvider), isFalse);
+
+        container.read(characterPositionCanvasProvider.notifier).close();
+        await Future<void>.delayed(Duration.zero);
+
+        expect(container.read(characterPositionCanvasProvider), isFalse);
+        expect(container.read(promptMaximizeNotifierProvider), isTrue);
+      },
+    );
 
     test('classic style exits maximize before opening the canvas', () async {
       final storage = _FakeCanvasStorage(

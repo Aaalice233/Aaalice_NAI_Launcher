@@ -260,6 +260,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get nav_githubRepo => 'GitHub 仓库';
 
   @override
+  String get nav_joinDiscord => '加入 Discord';
+
+  @override
+  String get nav_projectRepository => '项目仓库';
+
+  @override
   String get nav_expandSidebar => '展开侧边栏';
 
   @override
@@ -322,6 +328,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get auth_tokenLogin => 'API Token 登录';
+
+  @override
+  String get auth_tokenLoginCompact => 'Token登录';
 
   @override
   String get auth_tokenLoginRecommended => 'API Token 登录（推荐）';
@@ -417,9 +426,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get auth_selectFromGallery => '从相册选择';
-
-  @override
-  String get auth_takePhoto => '拍摄照片';
 
   @override
   String get auth_quickLogin => '一键登录';
@@ -587,6 +593,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settings_promptAssistant => '提示词助手';
 
   @override
+  String get settings_comfyUiDesktopOnly => '仅桌面端可用';
+
+  @override
   String get settings_selectStyle => '选择风格';
 
   @override
@@ -688,7 +697,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settings_emailAccount => '邮箱登录';
 
   @override
-  String get settings_tokenAccount => 'Token登录';
+  String get settings_tokenAccount => 'Token 账号';
 
   @override
   String get settings_setAsDefault => '设为默认';
@@ -727,6 +736,11 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get generation_title => '生成';
+
+  @override
+  String generation_promptOverviewCharacters(Object count) {
+    return '$count 字';
+  }
 
   @override
   String get generation_generate => '生成';
@@ -1063,7 +1077,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get prompt_appliedToMainPrompt => '已应用到主提示词';
 
   @override
-  String get prompt_inputPrompt => '输入提示词...';
+  String get prompt_inputPrompt => '描述你想生成的画面';
 
   @override
   String get prompt_describeImage => '描述你想要生成的图像...';
@@ -2730,11 +2744,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get onlineGallery_downloadStarted => '开始下载...';
-
-  @override
-  String onlineGallery_savedToPath(Object path) {
-    return '已保存到: $path';
-  }
 
   @override
   String onlineGallery_downloadFailed(Object error) {
@@ -5601,9 +5610,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get localGallery_resetAdvancedFilters => '重置高级筛选';
 
   @override
-  String get localGallery_exportFailed => '导出失败';
-
-  @override
   String get bulkExport_format => '导出格式';
 
   @override
@@ -5611,9 +5617,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get bulkExport_csvFormat => 'CSV';
-
-  @override
-  String get bulkExport_includeMetadataHint => '导出生成参数等信息';
 
   @override
   String get localGallery_group_today => '今天';
@@ -5643,7 +5646,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get localGallery_openSettings => '打开设置';
 
   @override
-  String get localGallery_firstTimeTipTitle => '💡 使用提示';
+  String get localGallery_firstTimeTipTitle => '使用提示';
 
   @override
   String get localGallery_firstTimeTipContent =>
@@ -7198,6 +7201,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get queue_editTask => '编辑任务';
+
+  @override
+  String get queue_taskDetails => '任务详情';
+
+  @override
+  String get queue_clearCompletedTasks => '清空已完成';
 
   @override
   String get queue_duplicateTask => '复制任务';
@@ -9634,7 +9643,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settings_localOnnxTaggerFolderSaved => 'ONNX tagger 模型文件夹已保存';
 
   @override
-  String get settings_localOnnxTaggerFolder => '本地 ONNX tagger 模型文件夹';
+  String get settings_localOnnxTaggerFolder => '本地 ONNX tagger 模型';
 
   @override
   String get settings_notConfigured => '未配置';
@@ -10471,7 +10480,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get vibeLibrary_emptyNoMatchesTitle => '无匹配结果';
 
   @override
-  String get vibeLibrary_emptySaveFromGenerationHint => '从生成页面保存Vibe到库中';
+  String get vibeLibrary_emptySaveFromGenerationHint => '可从文件导入，或从生成页面保存 Vibe';
 
   @override
   String get vibe_nameRequired => '名称不能为空';
@@ -10998,7 +11007,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get updateNoticeAvailableSubtitle => '可在应用内下载并自动完成更新';
+  String get updateNoticeAvailableSubtitle => '可在应用内下载、校验并安全安装更新';
 
   @override
   String get updateNoticeManualSubtitle => '当前平台需要前往 Release 页面手动更新';
@@ -11009,7 +11018,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get updateNoticeReadySubtitle => '更新包已校验，重启即可安装';
+  String get updateNoticeReadySubtitle => '更新包已校验，可以立即安装';
 
   @override
   String get updateNoticeFailed => '上次更新没有完成';
@@ -11117,6 +11126,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get preciseRefLib_emptyHint => '也可以在生成结果、历史记录或本地图库中右键保存';
+
+  @override
+  String get preciseRefLib_emptyTouch => '导入图片建立参考库';
+
+  @override
+  String get preciseRefLib_emptyHintTouch => '也可以从生成结果、历史记录或本地画廊保存';
 
   @override
   String get preciseRefLib_import => '导入图片';
@@ -12373,6 +12388,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get randomManager_searchCategories => '搜索类别、词组或标签（Ctrl+F）';
 
   @override
+  String get randomManager_searchCategoriesCompact => '搜索类别、词组或标签';
+
+  @override
   String get randomManager_workspaceTitle => '随机词库';
 
   @override
@@ -12516,6 +12534,105 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get randomManager_noCategoryResults => '没有匹配的类别、词组或标签';
+
+  @override
+  String get common_share => '分享';
+
+  @override
+  String get common_moreActions => '更多操作';
+
+  @override
+  String get nav_more => '更多';
+
+  @override
+  String get nav_explore => '探索';
+
+  @override
+  String get image_savedToSystemGallery => '已保存到系统相册';
+
+  @override
+  String image_savedAppOnly(Object error) {
+    return '已保存到应用图库，但无法导出到系统相册：$error';
+  }
+
+  @override
+  String image_shareFailed(Object error) {
+    return '分享失败: $error';
+  }
+
+  @override
+  String onlineGallery_savedFiles(int count) {
+    return '已保存 $count 个文件';
+  }
+
+  @override
+  String get statistics_exportJsonHint => '将全部统计结果和分布数据导出为结构化 JSON。';
+
+  @override
+  String get statistics_exportCsvHint => '将分区统计数据导出为可用表格应用打开的 CSV。';
+
+  @override
+  String get queue_reorderTask => '调整任务顺序';
+
+  @override
+  String get queue_moreTaskActions => '更多任务操作';
+
+  @override
+  String get queue_selectTask => '选择任务';
+
+  @override
+  String get settings_notificationSoundImportFailed => '无法导入音效，请重新选择文件。';
+
+  @override
+  String get settings_androidManagedStorage => '由系统安全管理；导出时可选择保存位置';
+
+  @override
+  String get settings_importLocalOnnxTaggerFiles => '导入 ONNX 模型及标签文件';
+
+  @override
+  String settings_localOnnxFilesImported(int count) {
+    return '已导入 $count 个模型文件';
+  }
+
+  @override
+  String settings_localOnnxManagedFiles(int count) {
+    return '应用存储中有 $count 个模型文件';
+  }
+
+  @override
+  String get settings_clearLocalOnnxModelsTitle => '清除本地 ONNX 模型？';
+
+  @override
+  String get settings_clearLocalOnnxModelsContent => '将删除导入到此设备的 ONNX 模型及标签文件。';
+
+  @override
+  String updateAndroidDownloadedHint(Object version) {
+    return '新版本 v$version 已下载并通过校验。可以打开 Android 系统安装界面继续更新。';
+  }
+
+  @override
+  String get updateAndroidInstallingHint => '正在打开 Android 系统安装界面，请按系统提示确认更新。';
+
+  @override
+  String get updateAndroidInstallConfirmationBody =>
+      '将打开 Android 系统安装界面。确认安装后，系统会替换应用且不会清除本地数据；进行中的生成和下载任务可能停止，请先保存必要内容。';
+
+  @override
+  String get preciseRefLib_moreActions => '更多操作';
+
+  @override
+  String get vibeDetail_setAsCover => '将所选图片设为封面';
+
+  @override
+  String vibeDetail_bundleChildParameters(int index) {
+    return '正在显示第 $index 个子 Vibe 的导入参数。';
+  }
+
+  @override
+  String get vibeDetail_bundleDefaultParameters => '正在显示合集默认参数。选择下方子项可查看其参数。';
+
+  @override
+  String get vibeDetail_choosePreviewImage => '点击图片按钮选择预览图';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -12774,6 +12891,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get nav_githubRepo => 'GitHub 倉庫';
 
   @override
+  String get nav_joinDiscord => '加入 Discord';
+
+  @override
+  String get nav_projectRepository => '專案倉庫';
+
+  @override
   String get nav_expandSidebar => '展開側邊欄';
 
   @override
@@ -12836,6 +12959,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get auth_tokenLogin => 'API Token 登入';
+
+  @override
+  String get auth_tokenLoginCompact => 'Token登入';
 
   @override
   String get auth_tokenLoginRecommended => 'API Token 登入（推薦）';
@@ -12931,9 +13057,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get auth_selectFromGallery => '從相簿選擇';
-
-  @override
-  String get auth_takePhoto => '拍攝照片';
 
   @override
   String get auth_quickLogin => '一鍵登入';
@@ -13101,6 +13224,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get settings_promptAssistant => '提示詞助手';
 
   @override
+  String get settings_comfyUiDesktopOnly => '僅桌面版可用';
+
+  @override
   String get settings_selectStyle => '選擇風格';
 
   @override
@@ -13202,7 +13328,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get settings_emailAccount => '郵箱登入';
 
   @override
-  String get settings_tokenAccount => 'Token登入';
+  String get settings_tokenAccount => 'Token 帳號';
 
   @override
   String get settings_setAsDefault => '設為預設';
@@ -13241,6 +13367,11 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get generation_title => '生成';
+
+  @override
+  String generation_promptOverviewCharacters(Object count) {
+    return '$count 字';
+  }
 
   @override
   String get generation_generate => '生成';
@@ -13577,7 +13708,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get prompt_appliedToMainPrompt => '已應用到主提示詞';
 
   @override
-  String get prompt_inputPrompt => '輸入提示詞...';
+  String get prompt_inputPrompt => '描述你想生成的畫面';
 
   @override
   String get prompt_describeImage => '描述你想要生成的影象...';
@@ -15244,11 +15375,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get onlineGallery_downloadStarted => '開始下載...';
-
-  @override
-  String onlineGallery_savedToPath(Object path) {
-    return '已儲存到: $path';
-  }
 
   @override
   String onlineGallery_downloadFailed(Object error) {
@@ -18115,9 +18241,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get localGallery_resetAdvancedFilters => '重置高階篩選';
 
   @override
-  String get localGallery_exportFailed => '匯出失敗';
-
-  @override
   String get bulkExport_format => '匯出格式';
 
   @override
@@ -18125,9 +18248,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get bulkExport_csvFormat => 'CSV';
-
-  @override
-  String get bulkExport_includeMetadataHint => '匯出生成引數等資訊';
 
   @override
   String get localGallery_group_today => '今天';
@@ -18157,7 +18277,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get localGallery_openSettings => '開啟設定';
 
   @override
-  String get localGallery_firstTimeTipTitle => '💡 使用提示';
+  String get localGallery_firstTimeTipTitle => '使用提示';
 
   @override
   String get localGallery_firstTimeTipContent =>
@@ -19712,6 +19832,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get queue_editTask => '編輯任務';
+
+  @override
+  String get queue_taskDetails => '任務詳情';
+
+  @override
+  String get queue_clearCompletedTasks => '清除已完成';
 
   @override
   String get queue_duplicateTask => '複製任務';
@@ -22148,7 +22274,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get settings_localOnnxTaggerFolderSaved => 'ONNX tagger 模型資料夾已儲存';
 
   @override
-  String get settings_localOnnxTaggerFolder => '本地 ONNX tagger 模型資料夾';
+  String get settings_localOnnxTaggerFolder => '本地 ONNX tagger 模型';
 
   @override
   String get settings_notConfigured => '未配置';
@@ -22985,7 +23111,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get vibeLibrary_emptyNoMatchesTitle => '無匹配結果';
 
   @override
-  String get vibeLibrary_emptySaveFromGenerationHint => '從生成頁面儲存Vibe到庫中';
+  String get vibeLibrary_emptySaveFromGenerationHint => '可從檔案匯入，或從生成頁面儲存 Vibe';
 
   @override
   String get vibe_nameRequired => '名稱不能為空';
@@ -23512,7 +23638,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
-  String get updateNoticeAvailableSubtitle => '可在應用內下載並自動完成更新';
+  String get updateNoticeAvailableSubtitle => '可在應用內下載、校驗並安全安裝更新';
 
   @override
   String get updateNoticeManualSubtitle => '當前平臺需要前往 Release 頁面手動更新';
@@ -23523,7 +23649,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
-  String get updateNoticeReadySubtitle => '更新包已校驗，重啟即可安裝';
+  String get updateNoticeReadySubtitle => '更新包已校驗，可以立即安裝';
 
   @override
   String get updateNoticeFailed => '上次更新沒有完成';
@@ -23631,6 +23757,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get preciseRefLib_emptyHint => '也可以在生成結果、歷史記錄或本地相簿中右鍵儲存';
+
+  @override
+  String get preciseRefLib_emptyTouch => '匯入圖片建立參考庫';
+
+  @override
+  String get preciseRefLib_emptyHintTouch => '也可以從生成結果、歷史記錄或本地相簿儲存';
 
   @override
   String get preciseRefLib_import => '匯入圖片';
@@ -24887,6 +25019,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get randomManager_searchCategories => '搜尋類別、詞組或標籤（Ctrl+F）';
 
   @override
+  String get randomManager_searchCategoriesCompact => '搜尋類別、詞組或標籤';
+
+  @override
   String get randomManager_workspaceTitle => '隨機詞庫';
 
   @override
@@ -25030,4 +25165,104 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get randomManager_noCategoryResults => '沒有符合的類別、詞組或標籤';
+
+  @override
+  String get common_share => '分享';
+
+  @override
+  String get common_moreActions => '更多操作';
+
+  @override
+  String get nav_more => '更多';
+
+  @override
+  String get nav_explore => '探索';
+
+  @override
+  String get image_savedToSystemGallery => '已儲存到系統相簿';
+
+  @override
+  String image_savedAppOnly(Object error) {
+    return '已儲存到應用程式圖庫，但無法匯出到系統相簿：$error';
+  }
+
+  @override
+  String image_shareFailed(Object error) {
+    return '分享失敗: $error';
+  }
+
+  @override
+  String onlineGallery_savedFiles(int count) {
+    return '已儲存 $count 個檔案';
+  }
+
+  @override
+  String get statistics_exportJsonHint => '將全部統計結果和分佈資料匯出為結構化 JSON。';
+
+  @override
+  String get statistics_exportCsvHint => '將分區統計資料匯出為可用試算表應用程式開啟的 CSV。';
+
+  @override
+  String get queue_reorderTask => '調整任務順序';
+
+  @override
+  String get queue_moreTaskActions => '更多任務操作';
+
+  @override
+  String get queue_selectTask => '選擇任務';
+
+  @override
+  String get settings_notificationSoundImportFailed => '無法匯入音效，請重新選擇檔案。';
+
+  @override
+  String get settings_androidManagedStorage => '由系統安全管理；匯出時可選擇儲存位置';
+
+  @override
+  String get settings_importLocalOnnxTaggerFiles => '匯入 ONNX 模型及標籤檔案';
+
+  @override
+  String settings_localOnnxFilesImported(int count) {
+    return '已匯入 $count 個模型檔案';
+  }
+
+  @override
+  String settings_localOnnxManagedFiles(int count) {
+    return '應用程式儲存空間中有 $count 個模型檔案';
+  }
+
+  @override
+  String get settings_clearLocalOnnxModelsTitle => '清除本地 ONNX 模型？';
+
+  @override
+  String get settings_clearLocalOnnxModelsContent =>
+      '將刪除此裝置上已匯入的 ONNX 模型及標籤檔案。';
+
+  @override
+  String updateAndroidDownloadedHint(Object version) {
+    return '新版本 v$version 已下載並透過校驗。可以開啟 Android 系統安裝介面繼續更新。';
+  }
+
+  @override
+  String get updateAndroidInstallingHint => '正在開啟 Android 系統安裝介面，請依系統提示確認更新。';
+
+  @override
+  String get updateAndroidInstallConfirmationBody =>
+      '將開啟 Android 系統安裝介面。確認安裝後，系統會替換應用且不會清除本機資料；進行中的生成和下載任務可能停止，請先儲存必要內容。';
+
+  @override
+  String get preciseRefLib_moreActions => '更多操作';
+
+  @override
+  String get vibeDetail_setAsCover => '將所選圖片設為封面';
+
+  @override
+  String vibeDetail_bundleChildParameters(int index) {
+    return '正在顯示第 $index 個子 Vibe 的匯入參數。';
+  }
+
+  @override
+  String get vibeDetail_bundleDefaultParameters => '正在顯示合集預設參數。選擇下方子項可查看其參數。';
+
+  @override
+  String get vibeDetail_choosePreviewImage => '點選圖片按鈕選擇預覽圖';
 }

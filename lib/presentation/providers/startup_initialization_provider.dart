@@ -8,6 +8,7 @@ import '../../core/constants/storage_keys.dart';
 import '../../core/database/database_providers.dart';
 import '../../core/network/proxy_service.dart';
 import '../../core/network/system_proxy_http_overrides.dart';
+import '../../core/platform/platform_capabilities.dart';
 import '../../core/services/data_migration_service.dart';
 import '../../core/shortcuts/shortcut_storage.dart';
 import '../../core/utils/app_logger.dart';
@@ -53,9 +54,10 @@ final startupInitializationTasksProvider = Provider<StartupInitializationTasks>(
         await AppLogger.setFileLoggingEnabled(fileLoggingEnabled);
 
         try {
+          final platform = PlatformCapabilities.operatingSystem;
           VideoPlayerMediaKit.ensureInitialized(
-            windows: Platform.isWindows,
-            macOS: Platform.isMacOS,
+            windows: platform.isWindows,
+            macOS: platform.isMacOS,
           );
         } catch (error, stackTrace) {
           AppLogger.e(
@@ -155,7 +157,7 @@ final startupInitializationTasksProvider = Provider<StartupInitializationTasks>(
 );
 
 void _configureSystemProxy(Box<dynamic> settingsBox) {
-  if (!(Platform.isWindows || Platform.isMacOS || Platform.isLinux)) return;
+  if (!PlatformCapabilities.operatingSystem.isDesktop) return;
 
   final proxyEnabled =
       settingsBox.get(StorageKeys.proxyEnabled, defaultValue: true) as bool;

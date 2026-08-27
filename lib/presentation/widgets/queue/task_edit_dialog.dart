@@ -9,7 +9,6 @@ import '../../providers/replication_queue_provider.dart';
 import '../autocomplete/autocomplete_config.dart';
 import '../common/app_toast.dart';
 import '../autocomplete/autocomplete_wrapper.dart';
-import '../common/inset_shadow_container.dart';
 import '../prompt/prompt_formatter_wrapper.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
@@ -168,22 +167,15 @@ class _TaskEditDialogState extends ConsumerState<TaskEditDialog> {
               maxLines: 6,
               expands: false,
               contentPadding: const EdgeInsets.all(12),
-              child: InsetShadowContainer(
-                borderRadius: 8,
-                child: ThemedInput(
-                  controller: _promptController,
-                  focusNode: _promptFocusNode,
-                  maxLines: 6,
-                  minLines: 6,
-                  textAlignVertical: TextAlignVertical.top,
-                  decoration: InputDecoration(
-                    border: InputBorder.none,
-                    enabledBorder: InputBorder.none,
-                    focusedBorder: InputBorder.none,
-                    disabledBorder: InputBorder.none,
-                    contentPadding: const EdgeInsets.all(12),
-                    hintText: l10n.queue_enterPositivePrompt,
-                  ),
+              child: ThemedInput(
+                controller: _promptController,
+                focusNode: _promptFocusNode,
+                maxLines: 6,
+                minLines: 6,
+                textAlignVertical: TextAlignVertical.top,
+                decoration: InputDecoration(
+                  contentPadding: const EdgeInsets.all(12),
+                  hintText: l10n.queue_enterPositivePrompt,
                 ),
               ),
             ),

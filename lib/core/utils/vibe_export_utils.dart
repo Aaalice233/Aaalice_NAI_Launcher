@@ -4,11 +4,11 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:crypto/crypto.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as p;
 
 import '../../data/models/vibe/vibe_library_entry.dart';
 import '../../data/models/vibe/vibe_reference.dart';
+import '../services/file_export_service.dart';
 import 'app_logger.dart';
 import 'file_name_sanitizer.dart';
 import 'novelai_vibe_codec.dart';
@@ -128,24 +128,23 @@ class VibeExportUtils {
         return null;
       }
 
-      final outputFile = await FilePicker.platform.saveFile(
-        dialogTitle: '导出 PNG Vibe 图片',
+      final embeddedBytes = await buildEmbeddedPngBytes(
+        vibes: vibes,
+        carrierImageBytes: carrierImageBytes,
+        defaultModel: defaultModel,
+      );
+      final outputFile = await FileExportService.saveBytes(
+        bytes: embeddedBytes,
         fileName: fileName,
-        type: FileType.custom,
-        allowedExtensions: ['png'],
+        dialogTitle: '导出 PNG Vibe 图片',
+        mimeType: 'image/png',
+        allowedExtensions: const ['png'],
       );
 
       if (outputFile == null) {
         AppLogger.i('用户取消了 PNG 保存', 'VibeExport');
         return null;
       }
-
-      final embeddedBytes = await buildEmbeddedPngBytes(
-        vibes: vibes,
-        carrierImageBytes: carrierImageBytes,
-        defaultModel: defaultModel,
-      );
-      await File(outputFile).writeAsBytes(embeddedBytes);
 
       AppLogger.i('PNG Vibe 导出成功: $outputFile', 'VibeExport');
       return outputFile;
@@ -166,7 +165,7 @@ class VibeExportUtils {
       return const [];
     }
 
-    final outputDirectory = await FilePicker.platform.getDirectoryPath(
+    final outputDirectory = await FileExportService.pickExportDirectory(
       dialogTitle: '选择 PNG 导出目录',
     );
     if (outputDirectory == null || outputDirectory.isEmpty) {
@@ -181,8 +180,12 @@ class VibeExportUtils {
         carrierImageBytes: plan.carrierImageBytes,
         defaultModel: defaultModel,
       );
-      final outputPath = p.join(outputDirectory, plan.fileName);
-      await File(outputPath).writeAsBytes(embeddedBytes);
+      final outputPath = await FileExportService.writeBytesToDirectory(
+        directory: outputDirectory,
+        bytes: embeddedBytes,
+        fileName: plan.fileName,
+        mimeType: 'image/png',
+      );
       exportedPaths.add(outputPath);
     }
 
@@ -211,28 +214,30 @@ class VibeExportUtils {
       }
 
       final fileName = _generateFileName(name ?? vibe.displayName);
-      final outputFile = await _resolveOutputFilePath(
-        outputDirectory: outputDirectory,
-        fileName: fileName,
-        dialogTitle: '导出 Vibe 文件',
-        allowedExtensions: const ['naiv4vibe'],
-      );
-
-      if (outputFile == null) {
-        AppLogger.i('用户取消了文件保存', 'VibeExport');
-        return null;
-      }
-
-      // 生成 .naiv4vibe JSON 数据
       final jsonData = await _generateNaiv4VibeJson(
         vibe,
         name: name,
         defaultModel: defaultModel,
       );
+      final outputFile = outputDirectory == null
+          ? await FileExportService.saveText(
+              text: jsonData,
+              fileName: fileName,
+              dialogTitle: '导出 Vibe 文件',
+              mimeType: 'application/json',
+              allowedExtensions: const ['naiv4vibe'],
+            )
+          : await FileExportService.writeTextToDirectory(
+              directory: outputDirectory,
+              text: jsonData,
+              fileName: fileName,
+              mimeType: 'application/json',
+            );
 
-      // 写入文件
-      final file = File(outputFile);
-      await file.writeAsString(jsonData);
+      if (outputFile == null) {
+        AppLogger.i('用户取消了文件保存', 'VibeExport');
+        return null;
+      }
 
       AppLogger.i('Vibe 导出成功: $outputFile', 'VibeExport');
       return outputFile;
@@ -261,27 +266,29 @@ class VibeExportUtils {
       }
 
       final fileName = _generateBundleFileName(bundleName);
-      final outputFile = await _resolveOutputFilePath(
-        outputDirectory: outputDirectory,
-        fileName: fileName,
-        dialogTitle: '导出 Vibe Bundle',
-        allowedExtensions: const ['naiv4vibebundle'],
+      final bundleData = await _generateBundleJson(
+        vibes,
+        defaultModel: defaultModel,
       );
+      final outputFile = outputDirectory == null
+          ? await FileExportService.saveText(
+              text: bundleData,
+              fileName: fileName,
+              dialogTitle: '导出 Vibe Bundle',
+              mimeType: 'application/json',
+              allowedExtensions: const ['naiv4vibebundle'],
+            )
+          : await FileExportService.writeTextToDirectory(
+              directory: outputDirectory,
+              text: bundleData,
+              fileName: fileName,
+              mimeType: 'application/json',
+            );
 
       if (outputFile == null) {
         AppLogger.i('用户取消了文件保存', 'VibeExport');
         return null;
       }
-
-      // 生成 bundle JSON 数据
-      final bundleData = await _generateBundleJson(
-        vibes,
-        defaultModel: defaultModel,
-      );
-
-      // 写入文件
-      final file = File(outputFile);
-      await file.writeAsString(bundleData);
 
       AppLogger.i('Vibe Bundle 导出成功: $outputFile', 'VibeExport');
       return outputFile;
@@ -310,10 +317,17 @@ class VibeExportUtils {
       }
 
       final fileName = _generateZipFileName(name ?? 'vibe_library_export');
-      final outputFile = await _resolveOutputFilePath(
-        outputDirectory: null,
+      final zipBytes = await buildVibeZipArchiveBytes(
+        entries,
+        includeThumbnails: includeThumbnails,
+        compress: compress,
+        defaultModel: defaultModel,
+      );
+      final outputFile = await FileExportService.saveBytes(
+        bytes: zipBytes,
         fileName: fileName,
         dialogTitle: '导出 Vibe ZIP',
+        mimeType: 'application/zip',
         allowedExtensions: const ['zip'],
       );
 
@@ -321,14 +335,6 @@ class VibeExportUtils {
         AppLogger.i('用户取消了 ZIP 保存', 'VibeExport');
         return null;
       }
-
-      final zipBytes = await buildVibeZipArchiveBytes(
-        entries,
-        includeThumbnails: includeThumbnails,
-        compress: compress,
-        defaultModel: defaultModel,
-      );
-      await File(outputFile).writeAsBytes(zipBytes);
 
       AppLogger.i('Vibe ZIP 导出成功: $outputFile', 'VibeExport');
       return outputFile;
@@ -606,44 +612,6 @@ class VibeExportUtils {
     );
 
     return '${finalName}_vibe.png';
-  }
-
-  static Future<String?> _resolveOutputFilePath({
-    required String? outputDirectory,
-    required String fileName,
-    required String dialogTitle,
-    required List<String> allowedExtensions,
-  }) async {
-    final directory = outputDirectory?.trim();
-    if (directory != null && directory.isNotEmpty) {
-      final outputDir = Directory(directory);
-      await outputDir.create(recursive: true);
-      return _createUniqueFilePath(outputDir.path, fileName);
-    }
-
-    return FilePicker.platform.saveFile(
-      dialogTitle: dialogTitle,
-      fileName: fileName,
-      type: FileType.custom,
-      allowedExtensions: allowedExtensions,
-    );
-  }
-
-  static Future<String> _createUniqueFilePath(
-    String directoryPath,
-    String fileName,
-  ) async {
-    final extension = p.extension(fileName);
-    final baseName = p.basenameWithoutExtension(fileName);
-    var candidatePath = p.join(directoryPath, fileName);
-    var index = 1;
-
-    while (await File(candidatePath).exists()) {
-      candidatePath = p.join(directoryPath, '$baseName ($index)$extension');
-      index++;
-    }
-
-    return candidatePath;
   }
 
   /// 验证 .naiv4vibe JSON 格式是否有效

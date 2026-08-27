@@ -812,6 +812,7 @@ class GenerationToolbox {
           QueueStartResult.started => 'started',
           QueueStartResult.busy => 'busy (already running)',
           QueueStartResult.empty => 'empty',
+          QueueStartResult.authRequired => 'authentication required',
         };
       }
       final queue = _ref.read(replicationQueueNotifierProvider);

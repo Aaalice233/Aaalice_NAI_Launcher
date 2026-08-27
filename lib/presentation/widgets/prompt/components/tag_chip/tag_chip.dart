@@ -1,10 +1,10 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../core/platform/platform_capabilities.dart';
 import '../../../../../core/utils/localization_extension.dart';
 import '../../../../../core/autocomplete/tag_translation_lookup.dart';
 import '../../../../widgets/common/app_toast.dart';
@@ -88,7 +88,7 @@ class TagChip extends ConsumerStatefulWidget {
   @override
   ConsumerState<TagChip> createState() => _TagChipState();
 
-  static bool get isMobile => Platform.isAndroid || Platform.isIOS;
+  static bool get isMobile => PlatformCapabilities.current.hasTouchInput;
 }
 
 class _TagChipState extends ConsumerState<TagChip>
@@ -268,7 +268,7 @@ class _TagChipState extends ConsumerState<TagChip>
         AppToast.success(context, context.l10n.tag_copiedToClipboard);
       },
       onToggleFavorite: _toggleFavorite,
-      isFavorite: _isFavorite(ref.watch(tagFavoriteNotifierProvider).favorites),
+      isFavorite: _isFavorite(ref.read(tagFavoriteNotifierProvider).favorites),
     );
   }
 
@@ -657,7 +657,9 @@ class _TagChipState extends ConsumerState<TagChip>
         left: widget.compact
             ? TagChipSizes.compactHorizontalPadding
             : TagChipSizes.normalHorizontalPadding,
-        right: (widget.onDelete != null && !widget.compact)
+        right:
+            (TagChip.isMobile && widget.showControls) ||
+                (widget.onDelete != null && !widget.compact)
             ? 4
             : (widget.compact
                   ? TagChipSizes.compactHorizontalPadding
@@ -703,16 +705,23 @@ class _TagChipState extends ConsumerState<TagChip>
               theme: theme,
             ),
           _buildSyntaxHighlightedText(theme, effectiveColor, isEnabled),
-          // 收藏按钮（常驻显示，在标签内部）
-          if (!widget.compact)
-            _FavoriteButton(
-              isFavorite: _isFavorite(favorites),
-              onTap: _toggleFavorite,
-              theme: theme,
-            ),
-          // 删除按钮（常驻显示，在标签内部）
-          if (widget.onDelete != null && !widget.compact)
-            _DeleteButton(onTap: widget.onDelete!, theme: theme),
+          if (TagChip.isMobile && widget.showControls)
+            IconButton(
+              onPressed: _showMobileActionSheet,
+              tooltip: context.l10n.common_moreActions,
+              icon: const Icon(Icons.more_horiz, size: 20),
+            )
+          else ...[
+            // 精确指针下保留快速收藏和删除，触屏统一收进可见操作入口。
+            if (!widget.compact)
+              _FavoriteButton(
+                isFavorite: _isFavorite(favorites),
+                onTap: _toggleFavorite,
+                theme: theme,
+              ),
+            if (widget.onDelete != null && !widget.compact)
+              _DeleteButton(onTap: widget.onDelete!, theme: theme),
+          ],
         ],
       ),
     );

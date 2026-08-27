@@ -91,6 +91,31 @@ void main() {
     expect(find.text('新版本 v2.0.0 可用'), findsNothing);
   });
 
+  testWidgets('uses a stacked compact layout without horizontal overflow', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      app(
+        const UpdateState(
+          status: UpdateStatus.available,
+          versionInfo: info,
+          notificationVisible: true,
+        ),
+      ),
+    );
+
+    expect(tester.takeException(), isNull);
+    final actionSize = tester.getSize(
+      find.widgetWithText(FilledButton, '查看更新'),
+    );
+    expect(actionSize.width, greaterThan(280));
+  });
+
   testWidgets('distinguishes a verified package ready to install', (
     tester,
   ) async {

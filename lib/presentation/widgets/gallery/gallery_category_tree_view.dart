@@ -5,12 +5,15 @@ import 'package:flutter/services.dart';
 import 'package:super_clipboard/super_clipboard.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
+import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/gallery/gallery_category.dart';
 import '../../../data/models/gallery/local_image_record.dart';
 import '../common/themed_divider.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 import 'gallery_scan_progress_panel.dart';
+
+enum _GalleryCategoryAction { rename, addSubCategory, moveToRoot, delete }
 
 String? galleryInternalDragPathFromLocalData(Object? localData) {
   if (localData is! Map) return null;
@@ -386,7 +389,11 @@ class _GalleryCategoryTreeViewState extends State<GalleryCategoryTreeView> {
       },
     );
 
-    // 使用 DropRegion 包裹 DragTarget，支持 super_drag_and_drop 跨应用拖拽
+    // Android 保留应用内分类拖动；跨应用文件拖放只在平台原生支持时启用。
+    if (!PlatformCapabilities.current.supportsExternalFileDrop) {
+      return dragTarget;
+    }
+
     return DropRegion(
       formats: const [Formats.fileUri],
       onDropOver: (event) {
@@ -547,7 +554,8 @@ class _CategoryItemState extends State<_CategoryItem> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final indent = 12.0 + widget.depth * 16.0;
+    final isTouch = PlatformCapabilities.current.hasTouchInput;
+    final indent = (12.0 + widget.depth * 16.0).clamp(12.0, 44.0).toDouble();
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovering = true),
@@ -570,92 +578,174 @@ class _CategoryItemState extends State<_CategoryItem> {
           child: InkWell(
             onTap: widget.onTap,
             borderRadius: BorderRadius.circular(8),
-            child: Padding(
-              padding: EdgeInsets.only(
-                left: indent,
-                right: 8,
-                top: 8,
-                bottom: 8,
-              ),
-              child: Row(
-                children: [
-                  if (widget.hasChildren)
-                    GestureDetector(
-                      onTap: widget.onExpand,
-                      child: Padding(
-                        padding: const EdgeInsets.only(right: 4),
-                        child: Icon(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: isTouch ? 48 : 0),
+              child: Padding(
+                padding: EdgeInsets.only(
+                  left: indent,
+                  right: isTouch ? 0 : 8,
+                  top: isTouch ? 0 : 8,
+                  bottom: isTouch ? 0 : 8,
+                ),
+                child: Row(
+                  children: [
+                    if (widget.hasChildren)
+                      IconButton(
+                        onPressed: widget.onExpand,
+                        tooltip: widget.isExpanded
+                            ? context.l10n.common_collapse
+                            : context.l10n.common_expand,
+                        icon: Icon(
                           widget.isExpanded
                               ? Icons.expand_more
                               : Icons.chevron_right,
-                          size: 16,
+                          size: 18,
                           color: theme.colorScheme.outline,
                         ),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints.tightFor(
+                          width: 48,
+                          height: 48,
+                        ),
+                      )
+                    else
+                      SizedBox(
+                        width: isTouch ? 48 : 20,
+                        height: isTouch ? 48 : 0,
                       ),
-                    )
-                  else
-                    const SizedBox(width: 20),
-                  Icon(
-                    widget.icon,
-                    size: 18,
-                    color:
-                        widget.iconColor ??
-                        (widget.isSelected
-                            ? theme.colorScheme.primary
-                            : theme.colorScheme.onSurfaceVariant),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _isEditing
-                        ? ThemedInput(
-                            controller: _editController,
-                            autofocus: true,
-                            style: const TextStyle(fontSize: 13),
-                            decoration: const InputDecoration(
-                              isDense: true,
-                              border: InputBorder.none,
-                              contentPadding: EdgeInsets.zero,
+                    Icon(
+                      widget.icon,
+                      size: 18,
+                      color:
+                          widget.iconColor ??
+                          (widget.isSelected
+                              ? theme.colorScheme.primary
+                              : theme.colorScheme.onSurfaceVariant),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _isEditing
+                          ? ThemedInput(
+                              controller: _editController,
+                              autofocus: true,
+                              style: const TextStyle(fontSize: 13),
+                              decoration: const InputDecoration(
+                                isDense: true,
+                                border: InputBorder.none,
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                              onSubmitted: (value) {
+                                if (value.trim().isNotEmpty) {
+                                  widget.onRename?.call(value.trim());
+                                }
+                                setState(() => _isEditing = false);
+                              },
+                              onTapOutside: (_) =>
+                                  setState(() => _isEditing = false),
+                            )
+                          : Text(
+                              widget.label,
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: widget.isSelected
+                                    ? FontWeight.w600
+                                    : FontWeight.w500,
+                                color: widget.isSelected
+                                    ? theme.colorScheme.primary
+                                    : theme.colorScheme.onSurface,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            onSubmitted: (value) {
-                              if (value.trim().isNotEmpty) {
-                                widget.onRename?.call(value.trim());
-                              }
-                              setState(() => _isEditing = false);
-                            },
-                            onTapOutside: (_) =>
-                                setState(() => _isEditing = false),
-                          )
-                        : Text(
-                            widget.label,
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: widget.isSelected
-                                  ? FontWeight.w600
-                                  : FontWeight.w500,
-                              color: widget.isSelected
-                                  ? theme.colorScheme.primary
-                                  : theme.colorScheme.onSurface,
-                            ),
-                            overflow: TextOverflow.ellipsis,
+                    ),
+                    if (_isHovering && widget.onRename != null)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 4),
+                        child: Icon(
+                          Icons.drag_indicator,
+                          size: 14,
+                          color: theme.colorScheme.outline.withValues(
+                            alpha: 0.5,
                           ),
-                  ),
-                  if (_isHovering && widget.onRename != null)
-                    Padding(
-                      padding: const EdgeInsets.only(right: 4),
-                      child: Icon(
-                        Icons.drag_indicator,
-                        size: 14,
-                        color: theme.colorScheme.outline.withValues(alpha: 0.5),
+                        ),
+                      ),
+                    Text(
+                      widget.count.toString(),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: theme.colorScheme.outline,
                       ),
                     ),
-                  Text(
-                    widget.count.toString(),
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: theme.colorScheme.outline,
-                    ),
-                  ),
-                ],
+                    if (isTouch &&
+                        (widget.onRename != null ||
+                            widget.onAddSubCategory != null ||
+                            widget.onMoveToRoot != null ||
+                            widget.onDelete != null))
+                      PopupMenuButton<_GalleryCategoryAction>(
+                        tooltip: context.l10n.common_moreActions,
+                        onSelected: (action) {
+                          switch (action) {
+                            case _GalleryCategoryAction.rename:
+                              setState(() => _isEditing = true);
+                            case _GalleryCategoryAction.addSubCategory:
+                              widget.onAddSubCategory?.call();
+                            case _GalleryCategoryAction.moveToRoot:
+                              widget.onMoveToRoot?.call();
+                            case _GalleryCategoryAction.delete:
+                              widget.onDelete?.call();
+                          }
+                        },
+                        itemBuilder: (context) => [
+                          if (widget.onRename != null)
+                            PopupMenuItem(
+                              value: _GalleryCategoryAction.rename,
+                              child: ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                leading: const Icon(Icons.edit),
+                                title: Text(context.l10n.common_rename),
+                              ),
+                            ),
+                          if (widget.onAddSubCategory != null)
+                            PopupMenuItem(
+                              value: _GalleryCategoryAction.addSubCategory,
+                              child: ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                leading: const Icon(Icons.create_new_folder),
+                                title: Text(
+                                  context
+                                      .l10n
+                                      .localGallery_createSubCategoryTitle,
+                                ),
+                              ),
+                            ),
+                          if (widget.onMoveToRoot != null)
+                            PopupMenuItem(
+                              value: _GalleryCategoryAction.moveToRoot,
+                              child: ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                leading: const Icon(
+                                  Icons.drive_file_move_outline,
+                                ),
+                                title: Text(
+                                  context.l10n.localGallery_moveToRoot,
+                                ),
+                              ),
+                            ),
+                          if (widget.onDelete != null)
+                            PopupMenuItem(
+                              value: _GalleryCategoryAction.delete,
+                              child: ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                leading: Icon(
+                                  Icons.delete_outline,
+                                  color: theme.colorScheme.error,
+                                ),
+                                title: Text(context.l10n.common_delete),
+                              ),
+                            ),
+                        ],
+                      ),
+                  ],
+                ),
               ),
             ),
           ),

@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/krita/krita_bridge_notifier.dart';
@@ -13,7 +14,8 @@ Future<void> generateWithProtection(BuildContext context, WidgetRef ref) async {
   if (ref.read(generationCooldownProvider).isActive) {
     return;
   }
-  if (ref.read(kritaBridgeNotifierProvider).isBridgeGenerating) {
+  if (PlatformCapabilities.current.supportsKritaBridge &&
+      ref.read(kritaBridgeNotifierProvider).isBridgeGenerating) {
     AppToast.warning(context, context.l10n.kritaBridge_busyGenerating);
     return;
   }

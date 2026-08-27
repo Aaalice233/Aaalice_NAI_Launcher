@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/utils/localization_extension.dart';
 import '../../common/elevated_card.dart';
+import '../../common/input_surface_container.dart';
 
 /// 搜索和筛选状态
 class SearchFilterState {
@@ -141,10 +142,7 @@ class _SearchFilterBarState extends State<SearchFilterBar> {
 
 /// 搜索输入框
 class _SearchInput extends StatefulWidget {
-  const _SearchInput({
-    required this.controller,
-    required this.onChanged,
-  });
+  const _SearchInput({required this.controller, required this.onChanged});
 
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
@@ -160,29 +158,16 @@ class _SearchInputState extends State<_SearchInput> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      decoration: BoxDecoration(
-        color: _isFocused
-            ? colorScheme.primaryContainer.withValues(alpha: 0.2)
-            : colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: [
-          BoxShadow(
-            color: _isFocused
-                ? colorScheme.primary.withValues(alpha: 0.15)
-                : colorScheme.shadow.withValues(alpha: 0.05),
-            blurRadius: _isFocused ? 8 : 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+    return InputSurfaceContainer(
+      borderRadius: 8,
+      isFocused: _isFocused,
       child: Focus(
         onFocusChange: (focused) => setState(() => _isFocused = focused),
         child: TextField(
           controller: widget.controller,
           onChanged: widget.onChanged,
           style: Theme.of(context).textTheme.bodySmall,
+          textAlignVertical: TextAlignVertical.center,
           decoration: InputDecoration(
             hintText: context.l10n.randomManager_searchCategoryOrTagGroup,
             hintStyle: TextStyle(
@@ -204,7 +189,13 @@ class _SearchInputState extends State<_SearchInput> {
                     },
                   )
                 : null,
+            filled: false,
             border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            disabledBorder: InputBorder.none,
+            errorBorder: InputBorder.none,
+            focusedErrorBorder: InputBorder.none,
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 12,
               vertical: 10,
@@ -261,11 +252,7 @@ class _FilterToggleState extends State<_FilterToggle> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                Icons.filter_list,
-                size: 18,
-                color: activeColor,
-              ),
+              Icon(Icons.filter_list, size: 18, color: activeColor),
               if (widget.hasActiveFilters) ...[
                 const SizedBox(width: 4),
                 Container(
@@ -320,18 +307,11 @@ class _ClearButtonState extends State<_ClearButton> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                Icons.clear_all,
-                size: 14,
-                color: colorScheme.error,
-              ),
+              Icon(Icons.clear_all, size: 14, color: colorScheme.error),
               const SizedBox(width: 4),
               Text(
                 context.l10n.common_clear,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: colorScheme.error,
-                ),
+                style: TextStyle(fontSize: 12, color: colorScheme.error),
               ),
             ],
           ),
@@ -343,10 +323,7 @@ class _ClearButtonState extends State<_ClearButton> {
 
 /// 筛选选项区域
 class _FilterOptions extends StatelessWidget {
-  const _FilterOptions({
-    required this.state,
-    required this.onStateChanged,
-  });
+  const _FilterOptions({required this.state, required this.onStateChanged});
 
   final SearchFilterState state;
   final ValueChanged<SearchFilterState> onStateChanged;
@@ -489,8 +466,8 @@ class _FilterChipState extends State<_FilterChip> {
             color: widget.isSelected
                 ? colorScheme.primary.withValues(alpha: 0.15)
                 : _isHovered
-                    ? colorScheme.surfaceContainerHighest
-                    : colorScheme.surfaceContainer,
+                ? colorScheme.surfaceContainerHighest
+                : colorScheme.surfaceContainer,
             borderRadius: BorderRadius.circular(8),
             boxShadow: widget.isSelected
                 ? [
@@ -523,8 +500,9 @@ class _FilterChipState extends State<_FilterChip> {
                 widget.label,
                 style: TextStyle(
                   fontSize: 12,
-                  fontWeight:
-                      widget.isSelected ? FontWeight.w600 : FontWeight.normal,
+                  fontWeight: widget.isSelected
+                      ? FontWeight.w600
+                      : FontWeight.normal,
                   color: widget.isSelected
                       ? colorScheme.primary
                       : colorScheme.onSurface,

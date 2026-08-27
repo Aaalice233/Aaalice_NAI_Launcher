@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
@@ -84,6 +85,7 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
   final _nameFocusNode = FocusNode();
   final _contentFocusNode = FocusNode();
   final _tagsFocusNode = FocusNode();
+  final _scrollController = ScrollController();
 
   String? _selectedCategoryId;
   String? _thumbnailPath;
@@ -211,138 +213,168 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
     _nameFocusNode.dispose();
     _contentFocusNode.dispose();
     _tagsFocusNode.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final mediaQuery = MediaQuery.of(context);
+    final isCompact = mediaQuery.size.width < 600;
+    final maxHeight = math.min(
+      700.0,
+      mediaQuery.size.height - (isCompact ? 32 : 80),
+    );
     _syncSyntaxHighlightSettings();
 
     return Dialog(
+      insetPadding: isCompact
+          ? const EdgeInsets.symmetric(horizontal: 16, vertical: 16)
+          : const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(
+        constraints: BoxConstraints(
           maxWidth: 700,
-          minWidth: 500,
-          maxHeight: 700,
+          minWidth: isCompact ? 0 : 500,
+          maxHeight: maxHeight,
         ),
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 标题
-                Row(
-                  children: [
-                    Icon(
-                      _isEditing ? Icons.edit_outlined : Icons.add_box_outlined,
-                      color: theme.colorScheme.primary,
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      _isEditing
-                          ? context.l10n.tagLibrary_editEntry
-                          : context.l10n.tagLibrary_addEntry,
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const Spacer(),
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 24),
-
-                // 主要内容区域 - 两列布局
-                Row(
+        child: ScrollbarTheme(
+          data: ScrollbarTheme.of(context).copyWith(
+            thumbColor: WidgetStatePropertyAll(
+              theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.38),
+            ),
+            mainAxisMargin: 20,
+            crossAxisMargin: 4,
+          ),
+          child: Scrollbar(
+            controller: _scrollController,
+            thumbVisibility: isCompact,
+            interactive: true,
+            thickness: 3,
+            radius: const Radius.circular(3),
+            child: SingleChildScrollView(
+              controller: _scrollController,
+              child: Padding(
+                padding: EdgeInsets.all(isCompact ? 20 : 24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 左侧 - 预览图
-                    _buildThumbnailSection(theme),
-                    const SizedBox(width: 24),
-
-                    // 右侧 - 表单
-                    Expanded(child: _buildFormSection(theme)),
-                  ],
-                ),
-
-                const SizedBox(height: 16),
-
-                // 提示词内容
-                Text(
-                  context.l10n.tagLibrary_content,
-                  style: theme.textTheme.labelLarge,
-                ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  height: 150,
-                  child: PromptFormatterWrapper(
-                    controller: _contentController,
-                    focusNode: _contentFocusNode,
-                    enableAutoFormat: ref.watch(
-                      autoFormatPromptSettingsProvider,
+                    // 标题
+                    Row(
+                      children: [
+                        Icon(
+                          _isEditing
+                              ? Icons.edit_outlined
+                              : Icons.add_box_outlined,
+                          color: theme.colorScheme.primary,
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          _isEditing
+                              ? context.l10n.tagLibrary_editEntry
+                              : context.l10n.tagLibrary_addEntry,
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const Spacer(),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.of(context).pop(),
+                        ),
+                      ],
                     ),
-                    child: AutocompleteWrapper.withAlias(
-                      controller: _contentController,
-                      focusNode: _contentFocusNode,
-                      ref: ref,
-                      expands: true,
-                      config: const AutocompleteConfig(
-                        showTranslation: true,
-                        showCategory: true,
-                        autoInsertComma: true,
+
+                    const SizedBox(height: 24),
+
+                    if (isCompact) ...[
+                      _buildThumbnailSection(theme, expand: true),
+                      const SizedBox(height: 24),
+                      _buildFormSection(theme),
+                    ] else
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildThumbnailSection(theme),
+                          const SizedBox(width: 24),
+                          Expanded(child: _buildFormSection(theme)),
+                        ],
                       ),
-                      child: ThemedInput(
+
+                    const SizedBox(height: 16),
+
+                    // 提示词内容
+                    Text(
+                      context.l10n.tagLibrary_content,
+                      style: theme.textTheme.labelLarge,
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      height: 150,
+                      child: PromptFormatterWrapper(
                         controller: _contentController,
                         focusNode: _contentFocusNode,
-                        decoration: InputDecoration(
-                          hintText: context.l10n.tagLibrary_contentHint,
-                          contentPadding: const EdgeInsets.all(12),
+                        enableAutoFormat: ref.watch(
+                          autoFormatPromptSettingsProvider,
                         ),
-                        maxLines: null,
-                        expands: true,
+                        child: AutocompleteWrapper.withAlias(
+                          controller: _contentController,
+                          focusNode: _contentFocusNode,
+                          ref: ref,
+                          expands: true,
+                          config: const AutocompleteConfig(
+                            showTranslation: true,
+                            showCategory: true,
+                            autoInsertComma: true,
+                          ),
+                          child: ThemedInput(
+                            controller: _contentController,
+                            focusNode: _contentFocusNode,
+                            decoration: InputDecoration(
+                              hintText: context.l10n.tagLibrary_contentHint,
+                              contentPadding: const EdgeInsets.all(12),
+                            ),
+                            maxLines: null,
+                            expands: true,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Padding(
-                  padding: const EdgeInsets.only(left: 12),
-                  child: Text(
-                    context.l10n.fixedTags_syntaxHelp,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: theme.colorScheme.outline,
+                    const SizedBox(height: 4),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 12),
+                      child: Text(
+                        context.l10n.fixedTags_syntaxHelp,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: theme.colorScheme.outline,
+                        ),
+                        maxLines: 2,
+                      ),
                     ),
-                    maxLines: 2,
-                  ),
-                ),
 
-                const SizedBox(height: 24),
+                    const SizedBox(height: 24),
 
-                // 操作按钮
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: Text(context.l10n.common_cancel),
-                    ),
-                    const SizedBox(width: 8),
-                    FilledButton(
-                      onPressed: _canSave() ? _save : null,
-                      child: Text(context.l10n.common_save),
+                    // 操作按钮
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: Text(context.l10n.common_cancel),
+                        ),
+                        const SizedBox(width: 8),
+                        FilledButton(
+                          onPressed: _canSave() ? _save : null,
+                          child: Text(context.l10n.common_save),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
+              ),
             ),
           ),
         ),
@@ -350,7 +382,7 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
     );
   }
 
-  Widget _buildThumbnailSection(ThemeData theme) {
+  Widget _buildThumbnailSection(ThemeData theme, {bool expand = false}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -364,8 +396,8 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
               ? _showThumbnailOptions
               : _selectThumbnail,
           child: Container(
-            width: 200,
-            height: 80,
+            width: expand ? double.infinity : 200,
+            height: expand ? 112 : 80,
             decoration: BoxDecoration(
               color: theme.colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(12),

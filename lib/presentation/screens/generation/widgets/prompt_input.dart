@@ -37,10 +37,13 @@ import '../../../widgets/prompt/regex_rules_dialog.dart';
 import '../../../widgets/prompt/toolbar/toolbar.dart';
 import '../../../widgets/prompt/uc_preset_selector.dart';
 import '../../../widgets/character/character_prompt_button.dart';
+import '../../../widgets/character/mobile_character_manager_sheet.dart';
 import '../../../widgets/prompt/fixed_tags_button.dart';
 import '../../../providers/pending_prompt_provider.dart';
+import '../../../themes/core/input_surface_style.dart';
 import '../../../prompt_assistant/providers/prompt_assistant_config_provider.dart';
 import '../../../prompt_assistant/providers/prompt_assistant_history_provider.dart';
+import '../../../prompt_assistant/widgets/prompt_assistant_overlay.dart';
 import 'generation_toggle_button.dart';
 
 bool usesRichPromptTypeTooltip(TargetPlatform platform) =>
@@ -52,6 +55,7 @@ class PromptInputWidget extends ConsumerStatefulWidget {
   final VoidCallback? onToggleMaximize;
   final bool isMaximized;
   final bool showMaximizeButton;
+  final bool autofocus;
   final ValueNotifier<bool>? negativeModeNotifier;
 
   /// 编辑器随内容自增高（用于一体式滚动布局），
@@ -64,6 +68,7 @@ class PromptInputWidget extends ConsumerStatefulWidget {
     this.onToggleMaximize,
     this.isMaximized = false,
     this.showMaximizeButton = true,
+    this.autofocus = false,
     this.negativeModeNotifier,
     this.autoGrow = false,
   });
@@ -96,6 +101,9 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     // 检查并消费待填充提示词（从画廊发送）
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _consumePendingPrompt();
+      if (widget.autofocus && mounted) {
+        _promptFocusNode.requestFocus();
+      }
     });
 
     _isNegativeMode = widget.negativeModeNotifier?.value ?? false;
@@ -455,25 +463,162 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     final editor = _isNegativeMode
         ? _buildTextNegativeInput(theme, numericEmphasisEnabled)
         : _buildTextPromptInput(theme, numericEmphasisEnabled);
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (widget.isMaximized && constraints.maxWidth < 600) {
+          return _buildMobileFullscreenLayout(theme, editor);
+        }
+
+        return Column(
+          mainAxisSize: widget.autoGrow ? MainAxisSize.min : MainAxisSize.max,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildTopBar(theme),
+            const SizedBox(height: 8),
+            if (widget.autoGrow) editor else Expanded(child: editor),
+            _PromptFooter(
+              target: _isNegativeMode
+                  ? PromptTokenCountTarget.negative
+                  : PromptTokenCountTarget.positive,
+              topPadding: 6,
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildMobileFullscreenLayout(ThemeData theme, Widget editor) {
+    final promptCount = _promptController.text
+        .split(',')
+        .where((tag) => tag.trim().isNotEmpty)
+        .length;
+    final negativeCount = _negativeController.text
+        .split(',')
+        .where((tag) => tag.trim().isNotEmpty)
+        .length;
+    final model = ref.watch(
+      generationParamsNotifierProvider.select((params) => params.model),
+    );
+    final showRandomTools = ref.watch(randomPromptToolsVisibilityProvider);
+    final primaryToolbar = PromptEditorToolbar(
+      config: PromptEditorToolbarConfig.mainEditor.copyWith(
+        showRandomButton: false,
+        showFullscreenButton: false,
+      ),
+      onClearPressed: _isNegativeMode ? _clearNegative : _clearPrompt,
+      onSettingsPressed: () => _showSettingsMenu(context, theme),
+    );
+    final randomAction = PromptEditorToolbar(
+      config: PromptEditorToolbarConfig.mainEditor.copyWith(
+        showRandomButton: showRandomTools,
+        showFullscreenButton: false,
+        showClearButton: false,
+        showSettingsButton: false,
+      ),
+      onRandomPressed: showRandomTools ? _generateRandomPrompt : null,
+      onRandomLongPressed: showRandomTools ? _showRandomModeSelector : null,
+    );
+
     return Column(
-      mainAxisSize: widget.autoGrow ? MainAxisSize.min : MainAxisSize.max,
+      key: const ValueKey('generation_prompt_mobile_workbench'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // 顶栏：正面/负面切换 + 操作按钮
-        _buildTopBar(theme),
-
+        Row(
+          key: const ValueKey('generation_prompt_mobile_primary_row'),
+          children: [
+            Expanded(
+              child: _buildPromptTypeSwitch(
+                theme,
+                promptCount,
+                negativeCount,
+                expand: true,
+                compact: true,
+              ),
+            ),
+            const SizedBox(width: 4),
+            primaryToolbar,
+          ],
+        ),
         const SizedBox(height: 8),
-
-        // 提示词编辑区域（autoGrow 时随内容自增高，否则填充可用高度）
-        if (widget.autoGrow) editor else Expanded(child: editor),
+        Expanded(child: editor),
         _PromptFooter(
           target: _isNegativeMode
               ? PromptTokenCountTarget.negative
               : PromptTokenCountTarget.positive,
           topPadding: 6,
         ),
+        const SizedBox(height: 8),
+        SizedBox(
+          key: const ValueKey('generation_prompt_mobile_context_bar'),
+          height: 44,
+          child: SingleChildScrollView(
+            key: const ValueKey('generation_prompt_mobile_secondary_scroll'),
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              key: const ValueKey('generation_prompt_mobile_secondary_row'),
+              children: [
+                _MobilePromptToolbarAction(
+                  actionKey: const ValueKey(
+                    'generation_prompt_mobile_character_action',
+                  ),
+                  child: CharacterPromptButton(
+                    onManage: _showMobileCharacterManager,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                const _MobilePromptToolbarAction(
+                  actionKey: ValueKey(
+                    'generation_prompt_mobile_fixed_tags_action',
+                  ),
+                  child: FixedTagsButton(),
+                ),
+                const SizedBox(width: 6),
+                _MobilePromptToolbarAction(
+                  actionKey: const ValueKey(
+                    'generation_prompt_mobile_quality_action',
+                  ),
+                  child: QualityTagsSelector(model: model),
+                ),
+                const SizedBox(width: 6),
+                _MobilePromptToolbarAction(
+                  actionKey: const ValueKey(
+                    'generation_prompt_mobile_uc_action',
+                  ),
+                  child: UcPresetSelector(model: model),
+                ),
+                if (showRandomTools) ...[
+                  const SizedBox(width: 4),
+                  _MobilePromptToolbarAction(
+                    actionKey: const ValueKey(
+                      'generation_prompt_mobile_random_action',
+                    ),
+                    child: randomAction,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
       ],
     );
+  }
+
+  Future<void> _showMobileCharacterManager() async {
+    FocusManager.instance.primaryFocus?.unfocus();
+    ref.read(selectedCharacterIdProvider.notifier).clear();
+    await showModalBottomSheet<void>(
+      context: context,
+      useRootNavigator: true,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => const MobileCharacterManagerSheet(),
+    );
+    if (mounted) {
+      ref.read(selectedCharacterIdProvider.notifier).clear();
+    }
   }
 
   Widget _buildTopBar(ThemeData theme) {
@@ -510,6 +655,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
       onFullscreenPressed:
           widget.onToggleMaximize ??
           () => ref.read(promptMaximizeNotifierProvider.notifier).toggle(),
+      isFullscreen: widget.isMaximized,
       onClearPressed: _isNegativeMode ? _clearNegative : _clearPrompt,
       onSettingsPressed: () => _showSettingsMenu(context, theme),
     );
@@ -526,6 +672,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
         onFullscreenPressed:
             widget.onToggleMaximize ??
             () => ref.read(promptMaximizeNotifierProvider.notifier).toggle(),
+        isFullscreen: widget.isMaximized,
         onClearPressed: _isNegativeMode ? _clearNegative : _clearPrompt,
         onSettingsPressed: () => _showSettingsMenu(context, theme),
       );
@@ -551,37 +698,133 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
       );
     }
 
-    return Wrap(
-      spacing: 8, // 水平间距
-      runSpacing: 8, // 换行后的垂直间距
-      alignment: WrapAlignment.spaceBetween, // 两端对齐
-      crossAxisAlignment: WrapCrossAlignment.center, // 垂直居中
-      children: [
-        // 正面/负面切换标签 - 左侧
-        typeSwitch,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 600) {
+          final mobileTypeSwitch = _buildPromptTypeSwitch(
+            theme,
+            promptCount,
+            negativeCount,
+            expand: true,
+            compact: true,
+          );
+          final primaryToolbar = PromptEditorToolbar(
+            config: PromptEditorToolbarConfig.mainEditor.copyWith(
+              showRandomButton: false,
+              showFullscreenButton: widget.showMaximizeButton,
+            ),
+            onFullscreenPressed:
+                widget.onToggleMaximize ??
+                () =>
+                    ref.read(promptMaximizeNotifierProvider.notifier).toggle(),
+            isFullscreen: widget.isMaximized,
+            onClearPressed: _isNegativeMode ? _clearNegative : _clearPrompt,
+            onSettingsPressed: () => _showSettingsMenu(context, theme),
+          );
+          final randomAction = PromptEditorToolbar(
+            config: PromptEditorToolbarConfig.mainEditor.copyWith(
+              showRandomButton: showRandomTools,
+              showFullscreenButton: false,
+              showClearButton: false,
+              showSettingsButton: false,
+            ),
+            onRandomPressed: showRandomTools ? _generateRandomPrompt : null,
+            onRandomLongPressed: showRandomTools
+                ? _showRandomModeSelector
+                : null,
+          );
 
-        // 右侧工具按钮组（也用 Wrap 支持极端情况换行）
-        Wrap(
-          spacing: 6,
-          runSpacing: 6,
+          return Column(
+            key: const ValueKey('generation_prompt_mobile_toolbar'),
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                key: const ValueKey('generation_prompt_mobile_primary_row'),
+                children: [
+                  Expanded(child: mobileTypeSwitch),
+                  const SizedBox(width: 6),
+                  primaryToolbar,
+                ],
+              ),
+              const SizedBox(height: 4),
+              SizedBox(
+                height: 48,
+                child: SingleChildScrollView(
+                  key: const ValueKey(
+                    'generation_prompt_mobile_secondary_scroll',
+                  ),
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    key: const ValueKey(
+                      'generation_prompt_mobile_secondary_row',
+                    ),
+                    children: [
+                      if (showRandomTools) ...[
+                        _MobilePromptToolbarAction(
+                          actionKey: const ValueKey(
+                            'generation_prompt_mobile_random_action',
+                          ),
+                          child: randomAction,
+                        ),
+                        const SizedBox(width: 4),
+                      ],
+                      const _MobilePromptToolbarAction(
+                        actionKey: ValueKey(
+                          'generation_prompt_mobile_fixed_tags_action',
+                        ),
+                        child: FixedTagsButton(),
+                      ),
+                      const SizedBox(width: 6),
+                      _MobilePromptToolbarAction(
+                        actionKey: const ValueKey(
+                          'generation_prompt_mobile_quality_action',
+                        ),
+                        child: QualityTagsSelector(model: model),
+                      ),
+                      const SizedBox(width: 6),
+                      _MobilePromptToolbarAction(
+                        actionKey: const ValueKey(
+                          'generation_prompt_mobile_uc_action',
+                        ),
+                        child: UcPresetSelector(model: model),
+                      ),
+                      const SizedBox(width: 6),
+                      const _MobilePromptToolbarAction(
+                        actionKey: ValueKey(
+                          'generation_prompt_mobile_character_action',
+                        ),
+                        child: CharacterPromptButton(),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          );
+        }
+
+        return Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          alignment: WrapAlignment.spaceBetween,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            // 固定词按钮
-            const FixedTagsButton(),
-
-            // 质量词选择器
-            QualityTagsSelector(model: model),
-
-            // UC 预设选择器
-            UcPresetSelector(model: model),
-
-            // 多人角色编辑器按钮
-            const CharacterPromptButton(),
-
-            toolbar,
+            typeSwitch,
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                const FixedTagsButton(),
+                QualityTagsSelector(model: model),
+                UcPresetSelector(model: model),
+                const CharacterPromptButton(),
+                toolbar,
+              ],
+            ),
           ],
-        ),
-      ],
+        );
+      },
     );
   }
 
@@ -666,8 +909,10 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
   Widget _buildPromptTypeSwitch(
     ThemeData theme,
     int promptCount,
-    int negativeCount,
-  ) {
+    int negativeCount, {
+    bool expand = false,
+    bool compact = false,
+  }) {
     // 获取固定词数据
     final fixedTagsState = ref.watch(fixedTagsNotifierProvider);
     final enabledPrefixes = fixedTagsState.enabledPrefixes;
@@ -698,49 +943,52 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     // 预先获取别名解析器，避免在子组件 build 中访问 provider
     final aliasResolver = ref.read(aliasResolverServiceProvider.notifier);
 
+    final positiveButton = _PromptTypeButton(
+      icon: Icons.auto_awesome,
+      label: context.l10n.prompt_positive,
+      count: promptCount,
+      isSelected: !_isNegativeMode,
+      color: theme.colorScheme.primary,
+      compact: compact,
+      onTap: () => _setNegativeMode(false),
+      tooltipBuilder: (theme) => _PositivePromptTooltip(
+        theme: theme,
+        userPrompt: _promptController.text,
+        prefixes: enabledPrefixes,
+        suffixes: enabledSuffixes,
+        qualityMode: qualityState.mode,
+        qualityContent: qualityContent,
+        characters: characterConfig.characters,
+        globalAiChoice: characterConfig.globalAiChoice,
+        l10n: context.l10n,
+        aliasResolver: aliasResolver,
+      ),
+    );
+    final negativeButton = _PromptTypeButton(
+      icon: Icons.block,
+      label: context.l10n.prompt_negative,
+      count: negativeCount,
+      isSelected: _isNegativeMode,
+      color: theme.colorScheme.error,
+      compact: compact,
+      onTap: () => _setNegativeMode(true),
+      tooltipBuilder: (theme) => _NegativePromptTooltip(
+        theme: theme,
+        userNegativePrompt: _negativeController.text,
+        prefixes: negativeEnabledPrefixes,
+        suffixes: negativeEnabledSuffixes,
+        ucPresetContent: ucPresetContent,
+        l10n: context.l10n,
+        aliasResolver: aliasResolver,
+      ),
+    );
+
     return Row(
-      mainAxisSize: MainAxisSize.min,
+      mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
       children: [
-        // 正面提示词按钮
-        _PromptTypeButton(
-          icon: Icons.auto_awesome,
-          label: context.l10n.prompt_positive,
-          count: promptCount,
-          isSelected: !_isNegativeMode,
-          color: theme.colorScheme.primary,
-          onTap: () => _setNegativeMode(false),
-          tooltipBuilder: (theme) => _PositivePromptTooltip(
-            theme: theme,
-            userPrompt: _promptController.text,
-            prefixes: enabledPrefixes,
-            suffixes: enabledSuffixes,
-            qualityMode: qualityState.mode,
-            qualityContent: qualityContent,
-            characters: characterConfig.characters,
-            globalAiChoice: characterConfig.globalAiChoice,
-            l10n: context.l10n,
-            aliasResolver: aliasResolver,
-          ),
-        ),
-        const SizedBox(width: 8),
-        // 负面提示词按钮
-        _PromptTypeButton(
-          icon: Icons.block,
-          label: context.l10n.prompt_negative,
-          count: negativeCount,
-          isSelected: _isNegativeMode,
-          color: theme.colorScheme.error,
-          onTap: () => _setNegativeMode(true),
-          tooltipBuilder: (theme) => _NegativePromptTooltip(
-            theme: theme,
-            userNegativePrompt: _negativeController.text,
-            prefixes: negativeEnabledPrefixes,
-            suffixes: negativeEnabledSuffixes,
-            ucPresetContent: ucPresetContent,
-            l10n: context.l10n,
-            aliasResolver: aliasResolver,
-          ),
-        ),
+        if (expand) Expanded(child: positiveButton) else positiveButton,
+        SizedBox(width: compact ? 6 : 8),
+        if (expand) Expanded(child: negativeButton) else negativeButton,
       ],
     );
   }
@@ -947,90 +1195,131 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     final enableHighlight = ref.watch(highlightEmphasisSettingsProvider);
     final enableAutocomplete = ref.watch(autocompleteSettingsProvider);
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SizedBox(
-          height: 72,
-          child: UnifiedPromptInput(
-            controller: _promptController,
-            focusNode: _promptFocusNode,
-            sessionId: PromptHistorySessionIds.generationPrompt,
-            onOpenAssistantSettings: _openAssistantQuickSettings,
-            config: UnifiedPromptConfig(
-              enableSyntaxHighlight: enableHighlight,
-              numericEmphasisEnabled: numericEmphasisEnabled,
-              enableAutocomplete: enableAutocomplete,
-              enableComfyuiImport: true,
-              autocompleteConfig: const AutocompleteConfig(
-                showTranslation: true,
-                autoInsertComma: true,
-              ),
-              hintText: context.l10n.prompt_inputPrompt,
-            ),
-            decoration: InputDecoration(
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 10,
-              ),
-              suffixIcon: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (widget.showMaximizeButton)
-                    IconButton(
-                      icon: const Icon(Icons.fullscreen),
-                      tooltip: context.l10n.tooltip_fullscreenEdit,
-                      onPressed:
-                          widget.onToggleMaximize ??
-                          () => ref
-                              .read(promptMaximizeNotifierProvider.notifier)
-                              .toggle(),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final showFooter = constraints.maxHeight >= 112;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: KeyedSubtree(
+                key: const ValueKey('generation_prompt_compact_surface'),
+                child: UnifiedPromptInput(
+                  key: const ValueKey('generation_prompt_compact_input'),
+                  controller: _promptController,
+                  focusNode: _promptFocusNode,
+                  surfaceColor: inputSurfaceFillColor(
+                    theme.colorScheme,
+                    prominent: true,
+                  ),
+                  sessionId: PromptHistorySessionIds.generationPrompt,
+                  onOpenAssistantSettings: _openAssistantQuickSettings,
+                  config: UnifiedPromptConfig(
+                    enableSyntaxHighlight: enableHighlight,
+                    numericEmphasisEnabled: numericEmphasisEnabled,
+                    enableAutocomplete: enableAutocomplete,
+                    enableComfyuiImport: true,
+                    autocompleteConfig: const AutocompleteConfig(
+                      showTranslation: true,
+                      autoInsertComma: true,
                     ),
-                  if (_promptController.text.isNotEmpty)
-                    IconButton(
-                      icon: const Icon(Icons.clear, size: 20),
-                      onPressed: _clearPrompt,
-                    ),
-                ],
+                    hintText: context.l10n.prompt_inputPrompt,
+                  ),
+                  decoration: const InputDecoration(
+                    contentPadding: EdgeInsets.all(12),
+                  ),
+                  maxLines: null,
+                  expands: true,
+                  enableAssistant: false,
+                  onComfyuiImport: (globalPrompt, characters) {
+                    ref
+                        .read(characterPromptNotifierProvider.notifier)
+                        .clearAll();
+                    ref
+                        .read(characterPromptNotifierProvider.notifier)
+                        .replaceAll(characters);
+                    ref
+                        .read(generationParamsNotifierProvider.notifier)
+                        .updatePrompt(globalPrompt);
+                    AppToast.success(
+                      context,
+                      context.l10n.prompt_importedCharacters(characters.length),
+                    );
+                  },
+                  onChanged: (value) {
+                    ref
+                        .read(generationParamsNotifierProvider.notifier)
+                        .updatePrompt(value);
+                  },
+                ),
               ),
             ),
-            maxLines: 2,
-            minLines: 1,
-            onComfyuiImport: (globalPrompt, characters) {
-              ref.read(characterPromptNotifierProvider.notifier).clearAll();
-              ref
-                  .read(characterPromptNotifierProvider.notifier)
-                  .replaceAll(characters);
-              ref
-                  .read(generationParamsNotifierProvider.notifier)
-                  .updatePrompt(globalPrompt);
-              AppToast.success(
-                context,
-                context.l10n.prompt_importedCharacters(characters.length),
-              );
-            },
-            onChanged: (value) {
-              ref
-                  .read(generationParamsNotifierProvider.notifier)
-                  .updatePrompt(value);
-            },
-          ),
-        ),
-        const _PromptFooter(
-          target: PromptTokenCountTarget.positive,
-          topPadding: 4,
-        ),
-      ],
+            if (showFooter)
+              _PromptFooter(
+                target: PromptTokenCountTarget.positive,
+                topPadding: 4,
+                leading: Row(
+                  key: const ValueKey('generation_prompt_compact_actions'),
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    PromptAssistantOverlay(
+                      sessionId: PromptHistorySessionIds.generationPrompt,
+                      controller: _promptController,
+                      onOpenSettings: _openAssistantQuickSettings,
+                      floatOverEditor: false,
+                      expandInPlace: false,
+                    ),
+                    if (widget.showMaximizeButton)
+                      IconButton(
+                        icon: const Icon(Icons.fullscreen),
+                        tooltip: context.l10n.tooltip_fullscreenEdit,
+                        onPressed:
+                            widget.onToggleMaximize ??
+                            () => ref
+                                .read(promptMaximizeNotifierProvider.notifier)
+                                .toggle(),
+                      ),
+                    if (_promptController.text.isNotEmpty)
+                      IconButton(
+                        icon: const Icon(Icons.clear, size: 20),
+                        tooltip: context.l10n.common_clear,
+                        onPressed: _clearPrompt,
+                      ),
+                  ],
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 }
 
+class _MobilePromptToolbarAction extends StatelessWidget {
+  const _MobilePromptToolbarAction({
+    required this.actionKey,
+    required this.child,
+  });
+
+  final Key actionKey;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(key: actionKey, height: 44, child: child);
+  }
+}
+
 class _PromptFooter extends ConsumerWidget {
-  const _PromptFooter({required this.target, required this.topPadding});
+  const _PromptFooter({
+    required this.target,
+    required this.topPadding,
+    this.leading,
+  });
 
   final PromptTokenCountTarget target;
   final double topPadding;
+  final Widget? leading;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1052,6 +1341,7 @@ class _PromptFooter extends ConsumerWidget {
       padding: EdgeInsets.only(top: topPadding),
       child: Row(
         children: [
+          if (leading != null) ...[leading!, const SizedBox(width: 4)],
           if (showTransparentBackground) ...[
             Tooltip(
               richMessage: WidgetSpan(
@@ -1890,6 +2180,7 @@ class _PromptTypeButton extends StatefulWidget {
   final bool isSelected;
   final Color color;
   final VoidCallback onTap;
+  final bool compact;
   final Widget Function(ThemeData theme)? tooltipBuilder;
 
   const _PromptTypeButton({
@@ -1899,6 +2190,7 @@ class _PromptTypeButton extends StatefulWidget {
     required this.isSelected,
     required this.color,
     required this.onTap,
+    this.compact = false,
     this.tooltipBuilder,
   });
 
@@ -1919,7 +2211,7 @@ class _PromptTypeButtonState extends State<_PromptTypeButton>
       vsync: this,
       duration: const Duration(milliseconds: 150),
     );
-    _scaleAnim = Tween<double>(begin: 1.0, end: 0.95).animate(
+    _scaleAnim = Tween<double>(begin: 1.0, end: 0.96).animate(
       CurvedAnimation(parent: _animController, curve: Curves.easeInOut),
     );
   }
@@ -1953,28 +2245,23 @@ class _PromptTypeButtonState extends State<_PromptTypeButton>
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             curve: Curves.easeOutCubic,
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            constraints: const BoxConstraints(minHeight: 48),
+            padding: EdgeInsets.symmetric(
+              horizontal: widget.compact ? 8 : 14,
+              vertical: 8,
+            ),
             decoration: BoxDecoration(
-              // 选中时使用渐变背景
-              gradient: widget.isSelected
-                  ? LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        widget.color.withValues(alpha: 0.2),
-                        widget.color.withValues(alpha: 0.1),
-                      ],
-                    )
-                  : null,
               color: widget.isSelected
-                  ? null
+                  ? widget.color.withValues(alpha: 0.16)
                   : (_isHovering
                         ? theme.colorScheme.surfaceContainerHighest
                         : theme.colorScheme.surfaceContainerHigh),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Row(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisSize: widget.compact
+                  ? MainAxisSize.max
+                  : MainAxisSize.min,
               children: [
                 // 图标
                 AnimatedContainer(
@@ -1994,24 +2281,45 @@ class _PromptTypeButtonState extends State<_PromptTypeButton>
                         : theme.colorScheme.onSurface.withValues(alpha: 0.5),
                   ),
                 ),
-                const SizedBox(width: 8),
-                // 文字
-                Text(
-                  widget.label,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: widget.isSelected
-                        ? FontWeight.w600
-                        : FontWeight.w500,
-                    color: widget.isSelected
-                        ? widget.color
-                        : theme.colorScheme.onSurface.withValues(alpha: 0.7),
-                    letterSpacing: 0.3,
+                SizedBox(width: widget.compact ? 5 : 8),
+                // 窄屏保留可读文字，但让长译文自然截断而不是压缩整行。
+                if (widget.compact)
+                  Expanded(
+                    child: Text(
+                      widget.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: widget.isSelected
+                            ? FontWeight.w600
+                            : FontWeight.w500,
+                        color: widget.isSelected
+                            ? widget.color
+                            : theme.colorScheme.onSurface.withValues(
+                                alpha: 0.7,
+                              ),
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  )
+                else
+                  Text(
+                    widget.label,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: widget.isSelected
+                          ? FontWeight.w600
+                          : FontWeight.w500,
+                      color: widget.isSelected
+                          ? widget.color
+                          : theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                      letterSpacing: 0.3,
+                    ),
                   ),
-                ),
-                // 数量徽章
-                if (widget.count > 0) ...[
-                  const SizedBox(width: 6),
+                // 紧凑布局优先保证模式名称完整可辨，数量在编辑器内仍可见。
+                if (widget.count > 0 && !widget.compact) ...[
+                  SizedBox(width: widget.compact ? 4 : 6),
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 6,

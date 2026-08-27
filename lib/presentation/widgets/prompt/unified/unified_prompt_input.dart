@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nai_launcher/presentation/themes/core/input_surface_style.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../../core/utils/nai_prompt_formatter.dart';
@@ -61,6 +62,9 @@ class UnifiedPromptInput extends ConsumerStatefulWidget {
   /// 输入装饰
   final InputDecoration? decoration;
 
+  /// 编辑色面；未指定时沿用共享输入框色面。
+  final Color? surfaceColor;
+
   /// 文本变化回调
   final ValueChanged<String>? onChanged;
 
@@ -105,6 +109,7 @@ class UnifiedPromptInput extends ConsumerStatefulWidget {
     this.controller,
     this.focusNode,
     this.decoration,
+    this.surfaceColor,
     this.onChanged,
     this.onSubmitted,
     this.maxLines,
@@ -1280,11 +1285,8 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
           prefixIcon: Icon(prefixIcon, size: 18),
           isDense: true,
           filled: true,
-          fillColor: colorScheme.surface.withValues(alpha: 0.86),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(9),
-            borderSide: BorderSide.none,
-          ),
+          fillColor: inputSurfaceFillColor(colorScheme),
+          border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 10,
             vertical: 8,
@@ -1351,6 +1353,7 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
       controller: _effectiveController,
       focusNode: _effectiveFocusNode,
       decoration: effectiveDecoration,
+      surfaceColor: widget.surfaceColor,
       maxLines: widget.expands ? null : widget.maxLines,
       minLines: widget.expands ? null : (widget.minLines ?? 1),
       expands: widget.expands,
@@ -1483,7 +1486,6 @@ class _PromptSearchIconButton extends StatelessWidget {
       onPressed: onPressed,
       visualDensity: VisualDensity.compact,
       padding: EdgeInsets.zero,
-      constraints: const BoxConstraints.tightFor(width: 30, height: 30),
     );
   }
 }

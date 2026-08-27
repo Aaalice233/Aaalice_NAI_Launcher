@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../../core/platform/platform_capabilities.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/tag_library/tag_library_entry.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/thumbnail_display.dart';
 import '../../../widgets/tag_library/tag_library_entry_hover_preview.dart';
+
+enum _EntryAction { select, edit, favorite, copy, delete }
 
 /// 词库条目卡片 - 名称居中 + 互斥显示
 ///
@@ -73,6 +76,7 @@ class _EntryCardState extends State<EntryCard> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final entry = widget.entry;
+    final isTouch = PlatformCapabilities.current.hasTouchInput;
 
     // 构建卡片主体内容（在GestureDetector内）
     final cardBody = GestureDetector(
@@ -112,13 +116,21 @@ class _EntryCardState extends State<EntryCard> {
                     _buildNameArea(theme, entry),
 
                   // 4. 收藏图标（常驻显示在右上角，仅非选择模式、非悬浮且已收藏时）
-                  if (!widget.isSelectionMode &&
+                  if (!isTouch &&
+                      !widget.isSelectionMode &&
                       !_isHovering &&
                       widget.entry.isFavorite)
                     const Positioned(
                       top: 8,
                       right: 8,
                       child: _FavoriteIndicator(),
+                    ),
+
+                  if (isTouch && !widget.isSelectionMode)
+                    Positioned(
+                      top: 16,
+                      right: 0,
+                      child: _buildTouchActions(theme, entry),
                     ),
 
                   // 5. 选择模式 Checkbox（右上角）
@@ -172,7 +184,7 @@ class _EntryCardState extends State<EntryCard> {
           fit: StackFit.expand,
           children: [
             cardBody,
-            if (!widget.isSelectionMode)
+            if (!isTouch && !widget.isSelectionMode)
               Positioned.fill(
                 child: IgnorePointer(
                   ignoring: !_isHovering,
@@ -201,8 +213,8 @@ class _EntryCardState extends State<EntryCard> {
     // 保持根节点稳定，避免切换多选模式时重建缩略图子树。
     return Draggable<TagLibraryEntry>(
       data: entry,
-      maxSimultaneousDrags: widget.enableDrag ? null : 0,
-      feedback: widget.enableDrag
+      maxSimultaneousDrags: widget.enableDrag && !isTouch ? null : 0,
+      feedback: widget.enableDrag && !isTouch
           ? _buildDragFeedback(theme, entry)
           : const SizedBox.shrink(),
       childWhenDragging: Opacity(opacity: 0.4, child: cardContent),
@@ -260,13 +272,24 @@ class _EntryCardState extends State<EntryCard> {
 
   /// 构建轻微暗化遮罩
   Widget _buildDarkenOverlay() {
-    return Container(color: Colors.black.withValues(alpha: 0.35));
+    // 标题固定在左侧；只加强文字所在区域，避免为了可读性整体压暗缩略图。
+    return const DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: [Color(0xA6000000), Color(0x52000000)],
+          stops: [0, 0.72],
+        ),
+      ),
+    );
   }
 
   /// 构建名称显示区域
   Widget _buildNameArea(ThemeData theme, TagLibraryEntry entry) {
+    final isTouch = PlatformCapabilities.current.hasTouchInput;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: EdgeInsets.fromLTRB(16, 12, isTouch ? 52 : 16, 12),
       child: Align(
         alignment: Alignment.centerLeft,
         child: Text(
@@ -280,6 +303,89 @@ class _EntryCardState extends State<EntryCard> {
           overflow: TextOverflow.ellipsis,
           textAlign: TextAlign.left,
         ),
+      ),
+    );
+  }
+
+  Widget _buildTouchActions(ThemeData theme, TagLibraryEntry entry) {
+    final l10n = context.l10n;
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.4),
+        borderRadius: const BorderRadius.horizontal(left: Radius.circular(12)),
+      ),
+      child: PopupMenuButton<_EntryAction>(
+        tooltip: l10n.common_moreActions,
+        constraints: const BoxConstraints(minWidth: 200),
+        icon: const Icon(Icons.more_vert_rounded, color: Colors.white),
+        onSelected: (action) {
+          switch (action) {
+            case _EntryAction.select:
+              widget.onToggleSelection?.call();
+            case _EntryAction.edit:
+              widget.onEdit?.call();
+            case _EntryAction.favorite:
+              widget.onToggleFavorite();
+            case _EntryAction.copy:
+              _copyToClipboard(entry.content);
+            case _EntryAction.delete:
+              widget.onDelete();
+          }
+        },
+        itemBuilder: (context) => [
+          if (widget.onToggleSelection != null)
+            PopupMenuItem(
+              value: _EntryAction.select,
+              child: ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.check_circle_outline),
+                title: Text(l10n.common_select),
+              ),
+            ),
+          if (widget.onEdit != null)
+            PopupMenuItem(
+              value: _EntryAction.edit,
+              child: ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.edit_outlined),
+                title: Text(l10n.common_edit),
+              ),
+            ),
+          PopupMenuItem(
+            value: _EntryAction.favorite,
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(
+                entry.isFavorite ? Icons.favorite : Icons.favorite_border,
+                color: entry.isFavorite ? Colors.redAccent : null,
+              ),
+              title: Text(
+                entry.isFavorite
+                    ? l10n.common_unfavorite
+                    : l10n.common_favorite,
+              ),
+            ),
+          ),
+          PopupMenuItem(
+            value: _EntryAction.copy,
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.content_copy),
+              title: Text(l10n.common_copy),
+            ),
+          ),
+          PopupMenuItem(
+            value: _EntryAction.delete,
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(
+                Icons.delete_outline,
+                color: theme.colorScheme.error,
+              ),
+              title: Text(l10n.common_delete),
+            ),
+          ),
+        ],
       ),
     );
   }

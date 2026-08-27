@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/autocomplete/tag_translation_lookup.dart';
+import '../../core/platform/platform_capabilities.dart';
 
 /// 简单标签芯片组件
 ///
@@ -79,6 +80,9 @@ class _SimpleTagChipState extends ConsumerState<SimpleTagChip> {
             ? TagColors.fromCategory(widget.category!)
             : theme.colorScheme.primary);
     final translationText = widget.translation ?? _autoTranslation;
+    final deleteExtent = PlatformCapabilities.current.hasTouchInput
+        ? 48.0
+        : 20.0;
     final stateColor = widget.isOutputFiltered
         ? theme.colorScheme.error
         : chipColor;
@@ -145,17 +149,18 @@ class _SimpleTagChipState extends ConsumerState<SimpleTagChip> {
                 const SizedBox(width: 3),
                 Tooltip(
                   message: widget.deleteTooltip ?? '',
-                  child: SizedBox(
-                    width: 20,
-                    height: 20,
+                  child: SizedBox.square(
+                    dimension: deleteExtent,
                     child: IconButton(
                       onPressed: widget.onDeleted,
                       padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints.tightFor(
-                        width: 20,
-                        height: 20,
+                      constraints: BoxConstraints.tightFor(
+                        width: deleteExtent,
+                        height: deleteExtent,
                       ),
-                      visualDensity: VisualDensity.compact,
+                      visualDensity: PlatformCapabilities.current.hasTouchInput
+                          ? VisualDensity.standard
+                          : VisualDensity.compact,
                       icon: Icon(Icons.close, size: 13, color: stateColor),
                     ),
                   ),

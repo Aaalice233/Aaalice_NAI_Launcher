@@ -26,7 +26,11 @@ enum _CharacterAddAction {
 /// - 无角色时点击弹出添加菜单（女/男/其他/词库）
 /// - 当存在角色时，显示角色数量徽章
 class CharacterPromptButton extends ConsumerWidget {
-  const CharacterPromptButton({super.key});
+  const CharacterPromptButton({super.key, this.onManage});
+
+  /// When supplied, the button opens an existing-character manager instead of
+  /// acting as another add shortcut. The manager owns its own add action.
+  final VoidCallback? onManage;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -37,12 +41,13 @@ class CharacterPromptButton extends ConsumerWidget {
     final colorScheme = theme.colorScheme;
 
     final buttonContent = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      constraints: const BoxConstraints(minHeight: 44),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(10),
         color: hasCharacters
             ? colorScheme.primary.withValues(alpha: 0.12)
-            : colorScheme.surfaceContainer,
+            : colorScheme.surfaceContainerLow,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -74,9 +79,13 @@ class CharacterPromptButton extends ConsumerWidget {
         children: [
           Material(
             color: Colors.transparent,
-            // 无论是否已有角色都弹添加菜单：角色区常显在布局中，
-            // 按钮不再需要「定位」职能
-            child: _AddCharacterMenu(child: buttonContent),
+            child: onManage == null
+                ? _AddCharacterMenu(child: buttonContent)
+                : InkWell(
+                    onTap: onManage,
+                    borderRadius: BorderRadius.circular(10),
+                    child: buttonContent,
+                  ),
           ),
           // 按钮右上角角标
           if (hasCharacters)

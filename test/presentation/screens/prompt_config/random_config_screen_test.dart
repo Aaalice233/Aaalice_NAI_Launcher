@@ -60,7 +60,8 @@ void main() {
     expect(find.text('测试预设'), findsOneWidget);
     expect(find.text('全局人数设置'), findsOneWidget);
     expect(find.byTooltip('生成预览'), findsOneWidget);
-    expect(find.byTooltip('导入/导出'), findsOneWidget);
+    expect(find.byTooltip('更多操作'), findsOneWidget);
+    expect(find.byTooltip('导入/导出'), findsNothing);
 
     await tester.tap(find.byTooltip('数据来源详情'));
     await _pumpBounded(tester);
@@ -80,7 +81,11 @@ void main() {
     Navigator.of(tester.element(find.byType(PromptConfigScreen))).pop();
     await _pumpBounded(tester);
 
-    await tester.tap(find.byTooltip('导入/导出'));
+    await tester.tap(find.byTooltip('更多操作'));
+    await _pumpBounded(tester);
+    expect(find.text('导入/导出'), findsOneWidget);
+
+    await tester.tap(find.text('导入/导出'));
     await _pumpBounded(tester);
 
     expect(find.text('导入预设'), findsOneWidget);
@@ -107,7 +112,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  for (final width in [700.0, 840.0, 1180.0, 1600.0]) {
+  for (final width in [420.0, 700.0, 840.0, 1180.0, 1600.0]) {
     testWidgets('random library remains usable at ${width.toInt()} px', (
       tester,
     ) async {
@@ -139,9 +144,79 @@ void main() {
       expect(find.text('官网 · Character Prompts'), findsOneWidget);
       expect(find.byTooltip('数据来源详情'), findsOneWidget);
       expect(find.byType(TextField), findsWidgets);
+      final searchHints = tester
+          .widgetList<TextField>(find.byType(TextField))
+          .map((field) => field.decoration?.hintText)
+          .whereType<String>();
+      expect(
+        searchHints,
+        contains(width < 1050 ? '搜索类别、词组或标签' : '搜索类别、词组或标签（Ctrl+F）'),
+      );
+      if (width < 840) {
+        final heading = tester.getRect(
+          find.byKey(const ValueKey('random-manager-heading-row')),
+        );
+        final selector = tester.getRect(
+          find.byKey(const ValueKey('random-manager-mode-selector')),
+        );
+        final preview = tester.getRect(
+          find.byKey(const ValueKey('random-manager-preview-action')),
+        );
+        final more = tester.getRect(
+          find.byKey(const ValueKey('random-manager-more-actions')),
+        );
+
+        expect(selector.top, greaterThan(heading.bottom));
+        expect((selector.center.dy - preview.center.dy).abs(), lessThan(1));
+        expect(selector.width, greaterThan(preview.width));
+        expect(selector.height, greaterThanOrEqualTo(44));
+        expect(preview.height, greaterThanOrEqualTo(44));
+        expect(more.width, greaterThanOrEqualTo(44));
+        expect(more.height, greaterThanOrEqualTo(44));
+      }
       expect(tester.takeException(), isNull);
     });
   }
+
+  testWidgets('random library only wraps its primary action at extreme width', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(360, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          randomPresetNotifierProvider.overrideWith(
+            _ScreenTestRandomPresetNotifier.new,
+          ),
+          tagLibraryNotifierProvider.overrideWith(
+            _ScreenTestTagLibraryNotifier.new,
+          ),
+        ],
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: PromptConfigScreen(),
+        ),
+      ),
+    );
+    await _pumpBounded(tester);
+
+    final selector = tester.getRect(
+      find.byKey(const ValueKey('random-manager-mode-selector')),
+    );
+    final preview = tester.getRect(
+      find.byKey(const ValueKey('random-manager-preview-action')),
+    );
+    expect(preview.top, greaterThan(selector.bottom));
+    expect(selector.height, greaterThanOrEqualTo(44));
+    expect(preview.height, greaterThanOrEqualTo(44));
+    expect(tester.takeException(), isNull);
+  });
 }
 
 Future<void> _pumpBounded(WidgetTester tester) async {

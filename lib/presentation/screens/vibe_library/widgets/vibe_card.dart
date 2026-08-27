@@ -6,11 +6,14 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/platform/platform_capabilities.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/vibe/vibe_library_entry.dart';
 import '../../../../data/services/vibe_library_storage_service.dart';
 import '../../../widgets/common/animated_favorite_button.dart';
 import '../../../widgets/common/card_hover_preview_controller.dart';
+
+enum _VibeCardAction { select, favorite, send, export, edit, delete }
 
 /// 统一 Vibe 卡片组件
 ///
@@ -189,6 +192,7 @@ class _VibeCardState extends ConsumerState<VibeCard>
   Widget build(BuildContext context) {
     final cardHeight = widget.height ?? widget.width;
     final colorScheme = Theme.of(context).colorScheme;
+    final isTouch = PlatformCapabilities.current.hasTouchInput;
 
     return CompositedTransformTarget(
       link: _layerLink,
@@ -235,8 +239,9 @@ class _VibeCardState extends ConsumerState<VibeCard>
                   // 信息层
                   _buildInfoOverlay(),
 
-                  // 收藏按钮
-                  if (widget.showFavoriteIndicator) _buildFavoriteButton(),
+                  // 精确指针保留悬浮收藏；触屏合并到常驻操作菜单。
+                  if (widget.showFavoriteIndicator && !isTouch)
+                    _buildFavoriteButton(),
 
                   // Bundle 数量标识
                   if (widget.entry.isBundle) _buildBundleBadge(),
@@ -245,7 +250,18 @@ class _VibeCardState extends ConsumerState<VibeCard>
                   if (widget.isSelected) _buildSelectionOverlay(colorScheme),
 
                   // 操作按钮
-                  if (_isHovered && !widget.isSelected) _buildActionButtons(),
+                  if (isTouch &&
+                      !widget.isSelected &&
+                      (widget.onLongPress != null ||
+                          (widget.showFavoriteIndicator &&
+                              widget.onFavoriteToggle != null) ||
+                          widget.onSendToGeneration != null ||
+                          widget.onExport != null ||
+                          widget.onEdit != null ||
+                          widget.onDelete != null))
+                    _buildTouchActionMenu()
+                  else if (_isHovered && !widget.isSelected)
+                    _buildActionButtons(),
                 ],
               ),
             ),
@@ -647,6 +663,109 @@ class _VibeCardState extends ConsumerState<VibeCard>
               child: Icon(Icons.check, color: colorScheme.onPrimary, size: 18),
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTouchActionMenu() {
+    final l10n = context.l10n;
+    return Positioned(
+      top: 4,
+      right: 4,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.42),
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: PopupMenuButton<_VibeCardAction>(
+          tooltip: l10n.common_moreActions,
+          constraints: const BoxConstraints(minWidth: 210),
+          icon: const Icon(Icons.more_vert_rounded, color: Colors.white),
+          onSelected: (action) {
+            switch (action) {
+              case _VibeCardAction.select:
+                widget.onLongPress?.call();
+              case _VibeCardAction.favorite:
+                widget.onFavoriteToggle?.call();
+              case _VibeCardAction.send:
+                widget.onSendToGeneration?.call();
+              case _VibeCardAction.export:
+                widget.onExport?.call();
+              case _VibeCardAction.edit:
+                widget.onEdit?.call();
+              case _VibeCardAction.delete:
+                widget.onDelete?.call();
+            }
+          },
+          itemBuilder: (context) => [
+            if (widget.onLongPress != null)
+              PopupMenuItem(
+                value: _VibeCardAction.select,
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.check_circle_outline),
+                  title: Text(l10n.common_select),
+                ),
+              ),
+            if (widget.showFavoriteIndicator && widget.onFavoriteToggle != null)
+              PopupMenuItem(
+                value: _VibeCardAction.favorite,
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(
+                    widget.entry.isFavorite
+                        ? Icons.favorite
+                        : Icons.favorite_border,
+                    color: widget.entry.isFavorite ? Colors.redAccent : null,
+                  ),
+                  title: Text(
+                    widget.entry.isFavorite
+                        ? l10n.common_unfavorite
+                        : l10n.common_favorite,
+                  ),
+                ),
+              ),
+            if (widget.onSendToGeneration != null)
+              PopupMenuItem(
+                value: _VibeCardAction.send,
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.send),
+                  title: Text(l10n.vibe_reuseButton),
+                ),
+              ),
+            if (widget.onExport != null)
+              PopupMenuItem(
+                value: _VibeCardAction.export,
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.download),
+                  title: Text(l10n.common_export),
+                ),
+              ),
+            if (widget.onEdit != null)
+              PopupMenuItem(
+                value: _VibeCardAction.edit,
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.edit),
+                  title: Text(l10n.common_edit),
+                ),
+              ),
+            if (widget.onDelete != null)
+              PopupMenuItem(
+                value: _VibeCardAction.delete,
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(
+                    Icons.delete,
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                  title: Text(l10n.common_delete),
+                ),
+              ),
+          ],
         ),
       ),
     );

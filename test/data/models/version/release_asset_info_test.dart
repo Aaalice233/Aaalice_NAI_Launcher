@@ -33,6 +33,20 @@ void main() {
       expect(macosAsset.platform, 'macos');
     });
 
+    test('detects Android APK as a verified system-installed update', () {
+      final asset = ReleaseAssetInfo.fromGitHubAsset({
+        'name': 'NAI_Launcher_Android_1.0.0+17.apk',
+        'browser_download_url': 'https://example.com/launcher.apk',
+        'size': 456,
+      });
+
+      expect(asset.type, ReleaseAssetType.androidApk);
+      expect(asset.platform, 'android');
+      expect(asset.supportsInAppInstall, isTrue);
+      expect(asset.typeId, 'android-apk');
+      expect(asset.label, 'Android APK');
+    });
+
     test('merges manifest metadata with GitHub asset', () {
       final githubAsset = ReleaseAssetInfo.fromGitHubAsset({
         'name': 'NAI_Launcher_Windows_1.0.0_Setup.exe',

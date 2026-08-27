@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
@@ -38,36 +39,42 @@ void main() {
     WidgetTester tester,
     List<String> disposedPanels, {
     Locale locale = const Locale('zh'),
+    TargetPlatform targetPlatform = TargetPlatform.windows,
   }) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        locale: locale,
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: Scaffold(
-          body: IntegrationsSettingsSection(
-            panelBuilders: [
-              (_) => _PanelProbe(
-                key: _promptAssistantPanelKey,
-                label: 'panel-prompt-assistant',
-                onDispose: () => disposedPanels.add('prompt-assistant'),
-              ),
-              (_) => _PanelProbe(
-                key: _comfyUiPanelKey,
-                label: 'panel-comfyui',
-                onDispose: () => disposedPanels.add('comfyui'),
-              ),
-              (_) => _PanelProbe(
-                key: _kritaPanelKey,
-                label: 'panel-krita',
-                onDispose: () => disposedPanels.add('krita'),
-              ),
-            ],
+    debugDefaultTargetPlatformOverride = targetPlatform;
+    try {
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: locale,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: IntegrationsSettingsSection(
+              panelBuilders: [
+                (_) => _PanelProbe(
+                  key: _promptAssistantPanelKey,
+                  label: 'panel-prompt-assistant',
+                  onDispose: () => disposedPanels.add('prompt-assistant'),
+                ),
+                (_) => _PanelProbe(
+                  key: _comfyUiPanelKey,
+                  label: 'panel-comfyui',
+                  onDispose: () => disposedPanels.add('comfyui'),
+                ),
+                (_) => _PanelProbe(
+                  key: _kritaPanelKey,
+                  label: 'panel-krita',
+                  onDispose: () => disposedPanels.add('krita'),
+                ),
+              ],
+            ),
           ),
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
+      );
+      await tester.pumpAndSettle();
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
   }
 
   void expectOnlyPanel(ValueKey<String> expectedKey) {
@@ -147,6 +154,26 @@ void main() {
           'Prompt Assistant=$promptAssistantWidth, '
           'ComfyUI=$comfyUiWidth, Krita=$kritaWidth',
     );
+  });
+
+  testWidgets('Android 保留但禁用 ComfyUI 分段入口', (tester) async {
+    final disposedPanels = <String>[];
+    await pumpSection(
+      tester,
+      disposedPanels,
+      targetPlatform: TargetPlatform.android,
+    );
+
+    final segmentedButton = tester.widget<SegmentedButton<int>>(
+      find.byType(SegmentedButton<int>),
+    );
+    expect(segmentedButton.segments[1].enabled, isFalse);
+    expect(segmentedButton.segments[1].tooltip, '仅桌面端可用');
+
+    await tester.tap(find.text('ComfyUI'), warnIfMissed: false);
+    await tester.pumpAndSettle();
+    expectOnlyPanel(_promptAssistantPanelKey);
+    expect(disposedPanels, isEmpty);
   });
 
   const expectedLabels = <String, List<String>>{

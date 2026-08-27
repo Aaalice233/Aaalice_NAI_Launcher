@@ -3,12 +3,15 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
+import '../../../core/platform/platform_capabilities.dart';
 import '../../../data/models/queue/replication_task.dart';
 import '../../../data/models/queue/replication_task_status.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/queue_execution_provider.dart';
 import '../../providers/replication_queue_provider.dart';
 import 'queue_task_thumbnail.dart';
+
+enum _TaskItemAction { select, edit, delete }
 
 /// 任务列表项 - 紧凑美观的现代设计
 class TaskListItem extends ConsumerStatefulWidget {
@@ -18,6 +21,7 @@ class TaskListItem extends ConsumerStatefulWidget {
   final bool isSelected;
   final VoidCallback? onTap;
   final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
 
   const TaskListItem({
     super.key,
@@ -27,6 +31,7 @@ class TaskListItem extends ConsumerStatefulWidget {
     this.isSelected = false,
     this.onTap,
     this.onEdit,
+    this.onDelete,
   });
 
   @override
@@ -80,12 +85,21 @@ class _TaskListItemState extends ConsumerState<TaskListItem>
     // 获取当前执行任务ID和生成进度
     final (currentTaskId, generationProgress) = _getExecutionProgress();
 
-    // 判断是否是当前正在执行的任务（有实际进度）
-    final isCurrentRunningTask = isRunning && currentTaskId == widget.task.id;
+    // currentTaskId 从 ready 阶段起即锁定任务，避免生成提交前的短暂窗口仍可编辑或删除。
+    final isExecutionLocked = currentTaskId == widget.task.id;
+    final isCurrentRunningTask = isRunning && isExecutionLocked;
+    final canSelect =
+        widget.task.status == ReplicationTaskStatus.pending &&
+        !isExecutionLocked;
+    final canEdit = canSelect && widget.onEdit != null;
+    final canDelete = !isExecutionLocked && widget.onDelete != null;
 
     return ReorderableDragStartListener(
       index: widget.index,
-      enabled: !widget.isSelectionMode && !isRunning,
+      enabled:
+          PlatformCapabilities.current.hasPrecisePointer &&
+          !widget.isSelectionMode &&
+          canSelect,
       child: MouseRegion(
         cursor: widget.isSelectionMode
             ? SystemMouseCursors.click
@@ -94,10 +108,12 @@ class _TaskListItemState extends ConsumerState<TaskListItem>
         onExit: (_) => setState(() => _isHovered = false),
         child: _TaskTooltipWrapper(
           task: widget.task,
-          enabled: !widget.isSelectionMode,
+          enabled:
+              !widget.isSelectionMode &&
+              PlatformCapabilities.current.hasPrecisePointer,
           child: Dismissible(
             key: Key(widget.task.id),
-            direction: widget.isSelectionMode
+            direction: widget.isSelectionMode || !canDelete
                 ? DismissDirection.none
                 : DismissDirection.endToStart,
             background: Container(
@@ -116,11 +132,7 @@ class _TaskListItemState extends ConsumerState<TaskListItem>
             confirmDismiss: (_) async {
               return await _confirmDelete(context, l10n);
             },
-            onDismissed: (_) {
-              ref
-                  .read(replicationQueueNotifierProvider.notifier)
-                  .remove(widget.task.id);
-            },
+            onDismissed: (_) => widget.onDelete?.call(),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
               child: Material(
@@ -129,15 +141,17 @@ class _TaskListItemState extends ConsumerState<TaskListItem>
                 clipBehavior: Clip.antiAlias,
                 child: InkWell(
                   onTap: widget.isSelectionMode
-                      ? () => ref
-                            .read(replicationQueueNotifierProvider.notifier)
-                            .toggleTaskSelection(widget.task.id)
+                      ? canSelect
+                            ? () => ref
+                                  .read(
+                                    replicationQueueNotifierProvider.notifier,
+                                  )
+                                  .toggleTaskSelection(widget.task.id)
+                            : null
                       : widget.onTap,
-                  onLongPress: widget.isSelectionMode
+                  onLongPress: widget.isSelectionMode || !canSelect
                       ? null
-                      : () => ref
-                            .read(replicationQueueNotifierProvider.notifier)
-                            .toggleSelectionMode(),
+                      : _enterSelectionModeForTask,
                   borderRadius: BorderRadius.circular(12),
                   child: AnimatedBuilder(
                     animation: _shimmerController,
@@ -154,9 +168,12 @@ class _TaskListItemState extends ConsumerState<TaskListItem>
                               ? theme.colorScheme.primaryContainer.withValues(
                                   alpha: 0.4,
                                 )
-                              : _isHovered
-                              ? theme.colorScheme.surfaceContainer
-                              : theme.colorScheme.surfaceContainerLow,
+                              : Color.alphaBlend(
+                                  theme.colorScheme.onSurface.withValues(
+                                    alpha: _isHovered ? 0.1 : 0.055,
+                                  ),
+                                  theme.colorScheme.surface,
+                                ),
                         ),
                         child: Stack(
                           children: [
@@ -186,7 +203,7 @@ class _TaskListItemState extends ConsumerState<TaskListItem>
                     child: Row(
                       children: [
                         // 选择框/缩略图
-                        if (widget.isSelectionMode)
+                        if (widget.isSelectionMode && canSelect)
                           _buildCheckbox(theme, ref)
                         else
                           _buildThumbnail(context),
@@ -225,7 +242,13 @@ class _TaskListItemState extends ConsumerState<TaskListItem>
 
                         // 操作按钮
                         if (!widget.isSelectionMode)
-                          _buildActionButtons(theme, l10n),
+                          _buildActionButtons(
+                            theme,
+                            l10n,
+                            canSelect: canSelect,
+                            canEdit: canEdit,
+                            canDelete: canDelete,
+                          ),
                       ],
                     ),
                   ),
@@ -280,20 +303,23 @@ class _TaskListItemState extends ConsumerState<TaskListItem>
       width: 44,
       height: 44,
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.7),
+        color: Color.alphaBlend(
+          theme.colorScheme.onSurface.withValues(alpha: 0.08),
+          theme.colorScheme.surface,
+        ),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Icon(
         Icons.image_rounded,
         size: 20,
-        color: theme.colorScheme.outline.withValues(alpha: 0.5),
+        color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.75),
       ),
     );
   }
 
   /// 构建状态行
   Widget _buildStatusRow(ThemeData theme, AppLocalizations l10n) {
-    final (icon, color) = _getStatusIconAndColor();
+    final (icon, color) = _getStatusIconAndColor(theme);
     final isRunning = widget.task.status == ReplicationTaskStatus.running;
 
     return Row(
@@ -312,8 +338,8 @@ class _TaskListItemState extends ConsumerState<TaskListItem>
         Text(
           '#${widget.index + 1}',
           style: theme.textTheme.labelSmall?.copyWith(
-            color: theme.colorScheme.outline,
-            fontWeight: FontWeight.w500,
+            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.82),
+            fontWeight: FontWeight.w600,
           ),
         ),
         if (widget.task.retryCount > 0) ...[
@@ -353,10 +379,10 @@ class _TaskListItemState extends ConsumerState<TaskListItem>
   }
 
   /// 获取状态图标和颜色
-  (IconData, Color) _getStatusIconAndColor() {
+  (IconData, Color) _getStatusIconAndColor(ThemeData theme) {
     switch (widget.task.status) {
       case ReplicationTaskStatus.pending:
-        return (Icons.schedule_rounded, Colors.grey);
+        return (Icons.schedule_rounded, theme.colorScheme.onSurfaceVariant);
       case ReplicationTaskStatus.running:
         return (Icons.sync_rounded, Colors.blue);
       case ReplicationTaskStatus.completed:
@@ -394,60 +420,153 @@ class _TaskListItemState extends ConsumerState<TaskListItem>
     );
   }
 
-  /// 构建操作按钮组（悬浮时显示）
-  Widget _buildActionButtons(ThemeData theme, AppLocalizations l10n) {
+  /// 构建操作按钮组。触屏设备始终显示明确的排序和操作入口，
+  /// 不要求用户猜测悬浮、整卡拖动或滑动手势。
+  Widget _buildActionButtons(
+    ThemeData theme,
+    AppLocalizations l10n, {
+    required bool canSelect,
+    required bool canEdit,
+    required bool canDelete,
+  }) {
+    if (!canSelect && !canEdit && !canDelete) {
+      return const SizedBox.shrink();
+    }
+
+    if (PlatformCapabilities.current.hasTouchInput) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (canSelect)
+            ReorderableDragStartListener(
+              index: widget.index,
+              child: Tooltip(
+                message: l10n.queue_reorderTask,
+                child: Semantics(
+                  button: true,
+                  label: l10n.queue_reorderTask,
+                  child: SizedBox(
+                    width: 48,
+                    height: 48,
+                    child: Icon(
+                      Icons.drag_handle_rounded,
+                      color: theme.colorScheme.onSurfaceVariant.withValues(
+                        alpha: 0.82,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          PopupMenuButton<_TaskItemAction>(
+            tooltip: l10n.queue_moreTaskActions,
+            constraints: const BoxConstraints(minWidth: 180),
+            onSelected: (action) async {
+              switch (action) {
+                case _TaskItemAction.select:
+                  _enterSelectionModeForTask();
+                case _TaskItemAction.edit:
+                  widget.onEdit?.call();
+                case _TaskItemAction.delete:
+                  await _handleDelete(l10n);
+              }
+            },
+            itemBuilder: (context) => [
+              if (canSelect)
+                PopupMenuItem(
+                  value: _TaskItemAction.select,
+                  child: ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.check_circle_outline_rounded),
+                    title: Text(l10n.queue_selectTask),
+                  ),
+                ),
+              if (canEdit)
+                PopupMenuItem(
+                  value: _TaskItemAction.edit,
+                  child: ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.edit_rounded),
+                    title: Text(l10n.queue_edit),
+                  ),
+                ),
+              if (canDelete)
+                PopupMenuItem(
+                  value: _TaskItemAction.delete,
+                  child: ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(
+                      Icons.delete_outline_rounded,
+                      color: theme.colorScheme.error,
+                    ),
+                    title: Text(l10n.common_delete),
+                  ),
+                ),
+            ],
+            icon: Icon(
+              Icons.more_vert_rounded,
+              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.82),
+            ),
+          ),
+        ],
+      );
+    }
+
     return AnimatedOpacity(
       opacity: _isHovered ? 1.0 : 0.0,
       duration: const Duration(milliseconds: 150),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // 编辑按钮
-          SizedBox(
-            width: 32,
-            height: 32,
-            child: IconButton(
-              icon: Icon(
-                Icons.edit_rounded,
-                size: 18,
-                color: theme.colorScheme.outline,
+          if (canEdit)
+            SizedBox(
+              width: 32,
+              height: 32,
+              child: IconButton(
+                icon: Icon(
+                  Icons.edit_rounded,
+                  size: 18,
+                  color: theme.colorScheme.outline,
+                ),
+                onPressed: widget.onEdit,
+                tooltip: l10n.queue_edit,
+                padding: EdgeInsets.zero,
+                visualDensity: VisualDensity.compact,
               ),
-              onPressed: widget.onEdit,
-              tooltip: l10n.queue_edit,
-              padding: EdgeInsets.zero,
-              visualDensity: VisualDensity.compact,
             ),
-          ),
-          const SizedBox(width: 4),
-          // 删除按钮
-          SizedBox(
-            width: 32,
-            height: 32,
-            child: IconButton(
-              icon: Icon(
-                Icons.delete_outline_rounded,
-                size: 18,
-                color: theme.colorScheme.outline,
+          if (canEdit && canDelete) const SizedBox(width: 4),
+          if (canDelete)
+            SizedBox(
+              width: 32,
+              height: 32,
+              child: IconButton(
+                icon: Icon(
+                  Icons.delete_outline_rounded,
+                  size: 18,
+                  color: theme.colorScheme.outline,
+                ),
+                onPressed: () => _handleDelete(l10n),
+                tooltip: l10n.common_delete,
+                padding: EdgeInsets.zero,
+                visualDensity: VisualDensity.compact,
               ),
-              onPressed: () => _handleDelete(l10n),
-              tooltip: l10n.common_delete,
-              padding: EdgeInsets.zero,
-              visualDensity: VisualDensity.compact,
             ),
-          ),
         ],
       ),
     );
   }
 
+  void _enterSelectionModeForTask() {
+    final notifier = ref.read(replicationQueueNotifierProvider.notifier);
+    notifier.toggleSelectionMode();
+    notifier.toggleTaskSelection(widget.task.id);
+  }
+
   /// 处理删除操作
   Future<void> _handleDelete(AppLocalizations l10n) async {
+    if (widget.onDelete == null) return;
     final confirmed = await _confirmDelete(context, l10n);
-    if (confirmed) {
-      ref
-          .read(replicationQueueNotifierProvider.notifier)
-          .remove(widget.task.id);
-    }
+    if (confirmed) widget.onDelete!.call();
   }
 
   /// 获取当前执行进度
@@ -561,7 +680,7 @@ class _TaskTooltipWrapperState extends State<_TaskTooltipWrapper> {
         return Positioned(
           left: left,
           top: top,
-          child: _TaskTooltipContent(task: widget.task),
+          child: QueueTaskDetailView(task: widget.task),
         );
       },
     );
@@ -593,99 +712,264 @@ class _TaskTooltipWrapperState extends State<_TaskTooltipWrapper> {
   }
 }
 
-/// 悬浮提示内容 - 大图和完整提示词
-class _TaskTooltipContent extends StatelessWidget {
-  final ReplicationTask task;
+/// 队列任务详情。桌面悬浮预览与触屏详情面板共享同一份完整内容。
+class QueueTaskDetailView extends StatelessWidget {
+  const QueueTaskDetailView({
+    super.key,
+    required this.task,
+    this.scrollController,
+    this.framed = true,
+  });
 
-  const _TaskTooltipContent({required this.task});
+  final ReplicationTask task;
+  final ScrollController? scrollController;
+  final bool framed;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = context.l10n;
+    final parameters = <(String, String)>[
+      if (task.model?.trim().isNotEmpty == true)
+        (l10n.queue_model, task.model!.trim()),
+      if (task.seed != null) (l10n.queue_seed, '${task.seed}'),
+      if (task.sampler?.trim().isNotEmpty == true)
+        (l10n.queue_sampler, task.sampler!.trim()),
+      if (task.steps != null) (l10n.queue_steps, '${task.steps}'),
+      if (task.cfgScale != null) (l10n.queue_cfg, '${task.cfgScale}'),
+      if (task.width != null && task.height != null)
+        (l10n.queue_size, '${task.width} × ${task.height}'),
+    ];
 
     return Material(
       color: Colors.transparent,
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 350, maxHeight: 450),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.25),
-              blurRadius: 16,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+        constraints: framed
+            ? const BoxConstraints(maxWidth: 420, maxHeight: 560)
+            : null,
+        decoration: framed
+            ? BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHigh,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.25),
+                    blurRadius: 16,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              )
+            : null,
+        child: ListView(
+          controller: scrollController,
+          padding: const EdgeInsets.all(16),
           children: [
-            // 大图预览
-            if (task.thumbnailUrl != null && task.thumbnailUrl!.isNotEmpty)
+            if (task.thumbnailUrl?.trim().isNotEmpty == true) ...[
               Center(
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(10),
                   child: QueueTaskThumbnail(
                     source: task.thumbnailUrl!,
-                    width: 200,
-                    height: 200,
+                    width: 220,
+                    height: 220,
                   ),
                 ),
               ),
-
-            if (task.thumbnailUrl != null && task.thumbnailUrl!.isNotEmpty)
-              const SizedBox(height: 12),
-
-            // 完整提示词
-            Text(
-              context.l10n.prompt_positivePrompt,
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: theme.colorScheme.primary,
-                fontWeight: FontWeight.w600,
-              ),
+              const SizedBox(height: 16),
+            ],
+            _QueuePromptSection(
+              title: l10n.prompt_positivePrompt,
+              text: task.prompt,
+              color: theme.colorScheme.primary,
             ),
-            const SizedBox(height: 4),
-            Container(
-              constraints: const BoxConstraints(maxHeight: 120),
-              child: SingleChildScrollView(
-                child: SelectableText(
-                  task.prompt,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    height: 1.4,
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.9),
-                  ),
-                ),
-              ),
-            ),
-
-            // 负向提示词
             if (task.negativePrompt.isNotEmpty) ...[
+              const SizedBox(height: 14),
+              _QueuePromptSection(
+                title: l10n.prompt_negativePrompt,
+                text: task.negativePrompt,
+                color: Colors.orange,
+              ),
+            ],
+            if (!task.applyNegativePrompt) ...[
               const SizedBox(height: 10),
               Text(
-                context.l10n.prompt_negativePrompt,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: Colors.orange,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Container(
-                constraints: const BoxConstraints(maxHeight: 80),
-                child: SingleChildScrollView(
-                  child: SelectableText(
-                    task.negativePrompt,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      height: 1.4,
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-                    ),
-                  ),
+                l10n.queue_negativePromptFromMain,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
             ],
+            if (task.characterPrompts case final characters?) ...[
+              if (characters.isNotEmpty) ...[
+                const SizedBox(height: 18),
+                Text(
+                  l10n.prompt_characterPrompts,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                for (var index = 0; index < characters.length; index++) ...[
+                  _QueueCharacterPromptCard(
+                    index: index,
+                    character: characters[index],
+                  ),
+                  if (index + 1 < characters.length) const SizedBox(height: 8),
+                ],
+              ],
+            ],
+            if (parameters.isNotEmpty) ...[
+              const SizedBox(height: 18),
+              Text(
+                l10n.queue_parametersPreview,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final parameter in parameters)
+                    _QueueParameterChip(
+                      label: parameter.$1,
+                      value: parameter.$2,
+                    ),
+                ],
+              ),
+            ],
+            if (task.errorMessage?.trim().isNotEmpty == true) ...[
+              const SizedBox(height: 18),
+              _QueuePromptSection(
+                title: l10n.common_error,
+                text: task.errorMessage!.trim(),
+                color: theme.colorScheme.error,
+              ),
+            ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _QueuePromptSection extends StatelessWidget {
+  const _QueuePromptSection({
+    required this.title,
+    required this.text,
+    required this.color,
+  });
+
+  final String title;
+  final String text;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: color,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 5),
+        SelectableText(
+          text,
+          style: theme.textTheme.bodySmall?.copyWith(
+            height: 1.45,
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.9),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _QueueCharacterPromptCard extends StatelessWidget {
+  const _QueueCharacterPromptCard({
+    required this.index,
+    required this.character,
+  });
+
+  final int index;
+  final ReplicationCharacterPromptSnapshot character;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final l10n = context.l10n;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '${l10n.prompt_characterPrompts} ${index + 1}',
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              if (!character.enabled)
+                Text(
+                  l10n.common_disabled,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+            ],
+          ),
+          if (character.prompt.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            SelectableText(character.prompt, style: theme.textTheme.bodySmall),
+          ],
+          if (character.negativePrompt.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            SelectableText(
+              character.negativePrompt,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _QueueParameterChip extends StatelessWidget {
+  const _QueueParameterChip({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        '$label · $value',
+        style: theme.textTheme.labelMedium?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
         ),
       ),
     );
@@ -771,46 +1055,49 @@ class FailedTaskListItem extends ConsumerWidget {
               const SizedBox(height: 10),
 
               // 操作按钮行
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  _buildCompactButton(
-                    icon: Icons.delete_outline_rounded,
-                    label: l10n.queue_delete,
-                    onPressed: () => ref
-                        .read(replicationQueueNotifierProvider.notifier)
-                        .removeFailedTask(task.id),
-                    color: Colors.grey,
-                  ),
-                  const SizedBox(width: 6),
-                  _buildCompactButton(
-                    icon: Icons.queue_rounded,
-                    label: l10n.queue_requeue,
-                    onPressed:
-                        onRequeue ??
-                        () => ref
-                            .read(replicationQueueNotifierProvider.notifier)
-                            .requeueFailedTask(task.id),
-                    color: theme.colorScheme.primary,
-                  ),
-                  const SizedBox(width: 6),
-                  FilledButton.icon(
-                    onPressed:
-                        onRetry ??
-                        () => ref
-                            .read(replicationQueueNotifierProvider.notifier)
-                            .retryFailedTask(task.id),
-                    icon: const Icon(Icons.refresh_rounded, size: 16),
-                    label: Text(l10n.queue_retry),
-                    style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 0,
-                      ),
-                      minimumSize: const Size(0, 30),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  alignment: WrapAlignment.end,
+                  children: [
+                    _buildCompactButton(
+                      icon: Icons.delete_outline_rounded,
+                      label: l10n.queue_delete,
+                      onPressed: () => ref
+                          .read(replicationQueueNotifierProvider.notifier)
+                          .removeFailedTask(task.id),
+                      color: Colors.grey,
                     ),
-                  ),
-                ],
+                    _buildCompactButton(
+                      icon: Icons.queue_rounded,
+                      label: l10n.queue_requeue,
+                      onPressed:
+                          onRequeue ??
+                          () => ref
+                              .read(replicationQueueNotifierProvider.notifier)
+                              .requeueFailedTask(task.id),
+                      color: theme.colorScheme.primary,
+                    ),
+                    FilledButton.icon(
+                      onPressed:
+                          onRetry ??
+                          () => ref
+                              .read(replicationQueueNotifierProvider.notifier)
+                              .retryFailedTask(task.id),
+                      icon: const Icon(Icons.refresh_rounded, size: 16),
+                      label: Text(l10n.queue_retry),
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        minimumSize: Size(
+                          0,
+                          PlatformCapabilities.current.hasTouchInput ? 48 : 30,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -831,8 +1118,11 @@ class FailedTaskListItem extends ConsumerWidget {
       icon: Icon(icon, size: 16),
       label: Text(label),
       style: TextButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
-        minimumSize: const Size(0, 30),
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        minimumSize: Size(
+          0,
+          PlatformCapabilities.current.hasTouchInput ? 48 : 30,
+        ),
         foregroundColor: color,
       ),
     );

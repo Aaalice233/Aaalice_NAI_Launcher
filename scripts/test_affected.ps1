@@ -136,18 +136,46 @@ try {
         exit 0
     }
 
-    $flutterArguments = @(
+    $baseFlutterArguments = @(
         'test'
         '--reporter=compact'
         "--concurrency=$Concurrency"
     )
     if ($NoTestAssets) {
-        $flutterArguments += '--no-test-assets'
+        $baseFlutterArguments += '--no-test-assets'
     }
-    $flutterArguments += $orderedTests
 
-    & flutter @flutterArguments
-    exit $LASTEXITCODE
+    # flutter.bat is launched through cmd.exe on Windows, whose command line is
+    # limited to 8191 characters. Large platform changes can legitimately
+    # select hundreds of tests, so keep each invocation comfortably below that
+    # limit instead of failing before Flutter starts.
+    $maxBatchArgumentLength = 6000
+    $testBatches = [System.Collections.Generic.List[object]]::new()
+    $currentBatch = [System.Collections.Generic.List[string]]::new()
+    $currentLength = ($baseFlutterArguments -join ' ').Length
+    foreach ($testFile in $orderedTests) {
+        $nextLength = $currentLength + $testFile.Length + 3
+        if ($currentBatch.Count -gt 0 -and $nextLength -gt $maxBatchArgumentLength) {
+            $testBatches.Add($currentBatch.ToArray())
+            $currentBatch = [System.Collections.Generic.List[string]]::new()
+            $currentLength = ($baseFlutterArguments -join ' ').Length
+        }
+        $currentBatch.Add($testFile)
+        $currentLength += $testFile.Length + 3
+    }
+    if ($currentBatch.Count -gt 0) {
+        $testBatches.Add($currentBatch.ToArray())
+    }
+
+    for ($index = 0; $index -lt $testBatches.Count; $index++) {
+        $batch = @($testBatches[$index])
+        Write-Host "Running affected test batch $($index + 1)/$($testBatches.Count) ($($batch.Count) files)..."
+        & flutter @baseFlutterArguments @batch
+        if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+        }
+    }
+    exit 0
 }
 finally {
     Pop-Location

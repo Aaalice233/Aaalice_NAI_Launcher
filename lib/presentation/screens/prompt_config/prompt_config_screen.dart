@@ -8,10 +8,12 @@ import '../../../data/models/prompt/official_wordlist.dart';
 import '../../../data/models/prompt/random_prompt_result.dart';
 import '../../../data/models/prompt/tag_library.dart';
 import '../../../data/services/wordlist_service.dart';
+import '../../adaptive/adaptive_presenter.dart';
 import '../../providers/generation/generation_params_notifier.dart';
 import '../../providers/random_mode_provider.dart';
 import '../../providers/random_preset_provider.dart';
 import '../../providers/tag_library_provider.dart';
+import '../../themes/core/input_surface_style.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/prompt/diy/dialogs/preset_import_dialog.dart';
 import '../../widgets/prompt/global_settings_dialog.dart';
@@ -161,33 +163,34 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
     final selectedPreset = ref
         .read(randomPresetNotifierProvider)
         .selectedPreset;
-    final action = await showModalBottomSheet<String>(
+    final action = await AdaptivePresenter.showPanel<String>(
       context: context,
-      showDragHandle: true,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.download_rounded),
-              title: Text(context.l10n.randomManager_importPreset),
-              subtitle: Text(context.l10n.randomManager_importPresetSubtitle),
-              onTap: () => Navigator.pop(context, 'import'),
+      title: context.l10n.randomManager_importExport,
+      initialChildSize: 0.34,
+      minChildSize: 0.28,
+      maxChildSize: 0.62,
+      builder: (context, scrollController) => ListView(
+        controller: scrollController,
+        children: [
+          ListTile(
+            leading: const Icon(Icons.download_rounded),
+            title: Text(context.l10n.randomManager_importPreset),
+            subtitle: Text(context.l10n.randomManager_importPresetSubtitle),
+            onTap: () => Navigator.pop(context, 'import'),
+          ),
+          ListTile(
+            enabled: selectedPreset != null,
+            leading: const Icon(Icons.upload_rounded),
+            title: Text(context.l10n.randomManager_exportCurrentPreset),
+            subtitle: Text(
+              selectedPreset?.name ??
+                  context.l10n.randomManager_noPresetSelected,
             ),
-            ListTile(
-              enabled: selectedPreset != null,
-              leading: const Icon(Icons.upload_rounded),
-              title: Text(context.l10n.randomManager_exportCurrentPreset),
-              subtitle: Text(
-                selectedPreset?.name ??
-                    context.l10n.randomManager_noPresetSelected,
-              ),
-              onTap: selectedPreset == null
-                  ? null
-                  : () => Navigator.pop(context, 'export'),
-            ),
-          ],
-        ),
+            onTap: selectedPreset == null
+                ? null
+                : () => Navigator.pop(context, 'export'),
+          ),
+        ],
       ),
     );
     if (!mounted || action == null) return;
@@ -274,16 +277,10 @@ class _StudioHeader extends StatelessWidget {
           );
 
           if (compact) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                title,
-                const SizedBox(height: 10),
-                PresetSelectorBar(
-                  onGeneratePreview: onGeneratePreview,
-                  onImportExport: onImportExport,
-                ),
-              ],
+            return PresetSelectorBar(
+              onGeneratePreview: onGeneratePreview,
+              onImportExport: onImportExport,
+              showWorkspaceHeading: true,
             );
           }
           return Row(
@@ -376,6 +373,7 @@ class _CompactWorkspace extends StatelessWidget {
           controller: searchController,
           focusNode: searchFocusNode,
           onChanged: onQueryChanged,
+          showShortcutHint: false,
         ),
         const SizedBox(height: 16),
         const AlgorithmConfigCard(),
@@ -514,25 +512,31 @@ class _LibrarySearchField extends StatelessWidget {
     required this.controller,
     required this.focusNode,
     required this.onChanged,
+    this.showShortcutHint = true,
   });
 
   final String query;
   final TextEditingController controller;
   final FocusNode focusNode;
   final ValueChanged<String> onChanged;
+  final bool showShortcutHint;
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final searchLabel = showShortcutHint
+        ? context.l10n.randomManager_searchCategories
+        : context.l10n.randomManager_searchCategoriesCompact;
     return Semantics(
       textField: true,
-      label: context.l10n.randomManager_searchCategories,
+      label: searchLabel,
       child: TextField(
         controller: controller,
         focusNode: focusNode,
         onChanged: onChanged,
+        textAlignVertical: TextAlignVertical.center,
         decoration: InputDecoration(
-          hintText: context.l10n.randomManager_searchCategories,
+          hintText: searchLabel,
           prefixIcon: const Icon(Icons.search_rounded, size: 20),
           suffixIcon: query.isEmpty
               ? null
@@ -545,18 +549,13 @@ class _LibrarySearchField extends StatelessWidget {
                   icon: const Icon(Icons.close_rounded, size: 18),
                 ),
           filled: true,
-          fillColor: colors.surfaceContainerLow,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: BorderSide.none,
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: BorderSide.none,
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: BorderSide(color: colors.primary, width: 1),
+          fillColor: inputSurfaceFillColor(colors),
+          border: inputSurfaceBorder(colors, BorderRadius.circular(10)),
+          enabledBorder: inputSurfaceBorder(colors, BorderRadius.circular(10)),
+          focusedBorder: inputSurfaceBorder(
+            colors,
+            BorderRadius.circular(10),
+            focused: true,
           ),
         ),
       ),

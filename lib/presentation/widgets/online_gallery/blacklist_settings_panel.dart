@@ -82,6 +82,7 @@ class _OnlineGalleryBlacklistSettingsPanelState
               const SizedBox(height: 10),
               TextField(
                 controller: _filterController,
+                textAlignVertical: TextAlignVertical.center,
                 decoration: InputDecoration(
                   isDense: true,
                   prefixIcon: const Icon(Icons.search, size: 18),

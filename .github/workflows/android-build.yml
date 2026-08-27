@@ -1,0 +1,107 @@
+name: Android Build
+
+on:
+  push:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-build-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: "3.44.2"
+
+jobs:
+  build:
+    name: Build installable Android APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Validate bundled autocomplete databases
+        run: dart run tool/tag_catalog/verify_bundled_databases.dart
+
+      - name: Generate localizations
+        run: flutter gen-l10n
+
+      - name: Generate code
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Verify generated files
+        run: git diff --exit-code
+
+      - name: Build release-mode APK
+        run: flutter build apk --release
+
+      - name: Verify and prepare APK artifact
+        id: artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          apk='build/app/outputs/flutter-apk/app-release.apk'
+          test -s "$apk"
+          apksigner="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          test -x "$apksigner"
+          "$apksigner" verify --verbose --print-certs "$apk"
+
+          app_version="$(sed -nE 's/^version:[[:space:]]*([^[:space:]]+).*/\1/p' pubspec.yaml)"
+          if [[ ! "$app_version" =~ ^(.+)\+([0-9]+)$ ]]; then
+            echo "Unable to read an Android version and numeric build number from pubspec.yaml." >&2
+            exit 1
+          fi
+          version="${BASH_REMATCH[1]}"
+          version_code="${BASH_REMATCH[2]}"
+          aapt="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -n 1)"
+          test -x "$aapt"
+          package_line="$("$aapt" dump badging "$apk" | head -n 1)"
+          if [[ "$package_line" != *"name='com.aaalice.nai_launcher'"* || \
+                "$package_line" != *"versionCode='$version_code'"* || \
+                "$package_line" != *"versionName='$version'"* ]]; then
+            echo "Android APK package/version mismatch: $package_line" >&2
+            exit 1
+          fi
+
+          file_name="NAI_Launcher_Android_${version}_${GITHUB_SHA::7}.apk"
+          output="dist/$file_name"
+          mkdir -p dist
+          cp "$apk" "$output"
+          (cd dist && sha256sum "$file_name" > "$file_name.sha256")
+          echo "path=$output" >> "$GITHUB_OUTPUT"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: NAI-Launcher-Android-${{ github.run_number }}-${{ github.sha }}
+          path: |
+            ${{ steps.artifact.outputs.path }}
+            ${{ steps.artifact.outputs.path }}.sha256
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0

@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 class ThemedScaffold extends StatelessWidget {
   const ThemedScaffold({
     super.key,
+    this.scaffoldKey,
     required this.body,
     this.appBar,
     this.bottomNavigationBar,
@@ -16,6 +17,7 @@ class ThemedScaffold extends StatelessWidget {
     this.backgroundColor,
   });
 
+  final GlobalKey<ScaffoldState>? scaffoldKey;
   final Widget body;
   final PreferredSizeWidget? appBar;
   final Widget? bottomNavigationBar;
@@ -27,6 +29,7 @@ class ThemedScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: scaffoldKey,
       appBar: appBar,
       body: body,
       bottomNavigationBar: bottomNavigationBar,

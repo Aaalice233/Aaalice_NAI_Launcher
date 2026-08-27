@@ -29,6 +29,7 @@ class PromptMaximizeNotifier extends _$PromptMaximizeNotifier {
 
   /// 设置最大化状态
   Future<void> setMaximized(bool value) async {
+    if (state == value) return;
     state = value;
 
     // 保存到本地存储

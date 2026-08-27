@@ -2,15 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 
+import '../../../../core/platform/platform_capabilities.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../providers/tag_library_page_provider.dart';
 import '../../../providers/tag_library_selection_provider.dart';
 import '../../../widgets/autocomplete/autocomplete_config.dart';
+import '../../../widgets/common/input_surface_container.dart';
 import '../../../widgets/autocomplete/autocomplete_wrapper.dart';
 import '../../../widgets/bulk_action_bar.dart';
 
 /// 词库工具栏（搜索、视图切换、批量操作）
 class TagLibraryToolbar extends ConsumerStatefulWidget {
+  /// 紧凑布局中打开分类列表。
+  final VoidCallback? onShowCategories;
+
   /// 进入选择模式按钮回调
   final VoidCallback? onEnterSelectionMode;
 
@@ -40,6 +45,7 @@ class TagLibraryToolbar extends ConsumerStatefulWidget {
 
   const TagLibraryToolbar({
     super.key,
+    this.onShowCategories,
     this.onEnterSelectionMode,
     this.onBulkDelete,
     this.onBulkMoveCategory,
@@ -56,6 +62,8 @@ class TagLibraryToolbar extends ConsumerStatefulWidget {
 }
 
 class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
+  static const double _sortMenuWidth = 176;
+
   final TextEditingController _searchController = TextEditingController();
   late final FocusNode _searchFocusNode;
 
@@ -159,13 +167,22 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
             onPressed: widget.onAddEntry,
             icon: const Icon(Icons.add, size: 18),
             label: Text(context.l10n.tagLibrary_addEntry),
+            style: FilledButton.styleFrom(
+              minimumSize: Size(
+                48,
+                PlatformCapabilities.current.hasTouchInput ? 48 : 36,
+              ),
+            ),
           );
-          final categoriesButton = widget.onOpenCategories == null
+          final openCategories =
+              widget.onShowCategories ?? widget.onOpenCategories;
+          final categoriesButton = openCategories == null
               ? null
               : _CompactIconButton(
+                  key: const Key('tag-library-categories-button'),
                   icon: Icons.account_tree_outlined,
                   label: context.l10n.common_categories,
-                  onPressed: widget.onOpenCategories,
+                  onPressed: openCategories,
                 );
 
           Widget buildActions() {
@@ -225,9 +242,9 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
                       categoriesButton,
                       const SizedBox(width: 8),
                     ],
-                    addButton,
-                    const SizedBox(width: 12),
                     Expanded(child: _buildSearchField(theme, state)),
+                    const SizedBox(width: 8),
+                    addButton,
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -300,18 +317,15 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
         treatSpacesAsSeparators: true,
       ),
       onSuggestionSelected: updateSearch,
-      child: Container(
-        height: 36,
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest.withValues(
-            alpha: 0.4,
-          ),
-          borderRadius: BorderRadius.circular(18),
-        ),
+      child: InputSurfaceContainer(
+        height: PlatformCapabilities.current.hasTouchInput ? 48 : 36,
+        borderRadius: 18,
+        isFocused: _searchFocusNode.hasFocus,
         child: TextField(
           controller: _searchController,
           focusNode: _searchFocusNode,
           style: theme.textTheme.bodyMedium,
+          textAlignVertical: TextAlignVertical.center,
           decoration: InputDecoration(
             hintText: context.l10n.tagLibrary_searchHint,
             hintStyle: TextStyle(
@@ -338,7 +352,13 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
                     },
                   )
                 : null,
+            filled: false,
             border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            disabledBorder: InputBorder.none,
+            errorBorder: InputBorder.none,
+            focusedErrorBorder: InputBorder.none,
             contentPadding: const EdgeInsets.symmetric(vertical: 8),
             isDense: true,
           ),
@@ -384,75 +404,102 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
     );
   }
 
-  /// 构建排序下拉菜单
+  /// 构建排序菜单
   Widget _buildSortDropdown(ThemeData theme, TagLibraryPageState state) {
-    return Container(
-      height: 36,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
-        borderRadius: BorderRadius.circular(8),
+    final items = <(TagLibrarySortBy, IconData, String)>[
+      (TagLibrarySortBy.order, Icons.sort, context.l10n.tagLibrary_sortCustom),
+      (
+        TagLibrarySortBy.name,
+        Icons.sort_by_alpha,
+        context.l10n.tagLibrary_sortName,
       ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<TagLibrarySortBy>(
-          value: state.sortBy,
-          icon: Icon(
-            Icons.arrow_drop_down,
-            size: 18,
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-          borderRadius: BorderRadius.circular(8),
-          style: theme.textTheme.bodyMedium?.copyWith(
-            fontSize: 13,
-            color: theme.colorScheme.onSurface,
-          ),
-          dropdownColor: theme.colorScheme.surfaceContainerHigh,
-          items: [
-            DropdownMenuItem(
-              value: TagLibrarySortBy.order,
-              child: _buildSortItem(
-                Icons.sort,
-                context.l10n.tagLibrary_sortCustom,
-              ),
-            ),
-            DropdownMenuItem(
-              value: TagLibrarySortBy.name,
-              child: _buildSortItem(
-                Icons.sort_by_alpha,
-                context.l10n.tagLibrary_sortName,
-              ),
-            ),
-            DropdownMenuItem(
-              value: TagLibrarySortBy.useCount,
-              child: _buildSortItem(
-                Icons.trending_up,
-                context.l10n.tagLibrary_sortUseCount,
-              ),
-            ),
-            DropdownMenuItem(
-              value: TagLibrarySortBy.updatedAt,
-              child: _buildSortItem(
-                Icons.access_time,
-                context.l10n.tagLibrary_sortUpdatedAt,
-              ),
-            ),
-          ],
-          onChanged: (value) {
-            if (value != null) {
-              ref
-                  .read(tagLibraryPageNotifierProvider.notifier)
-                  .setSortBy(value);
-            }
-          },
+      (
+        TagLibrarySortBy.useCount,
+        Icons.trending_up,
+        context.l10n.tagLibrary_sortUseCount,
+      ),
+      (
+        TagLibrarySortBy.updatedAt,
+        Icons.access_time,
+        context.l10n.tagLibrary_sortUpdatedAt,
+      ),
+    ];
+    final selected = items.firstWhere((item) => item.$1 == state.sortBy);
+
+    return MenuAnchor(
+      key: const Key('tag-library-sort-menu-anchor'),
+      useRootOverlay: true,
+      alignmentOffset: const Offset(0, 6),
+      style: MenuStyle(
+        minimumSize: const WidgetStatePropertyAll(Size(_sortMenuWidth, 0)),
+        maximumSize: const WidgetStatePropertyAll(Size(_sortMenuWidth, 280)),
+        padding: const WidgetStatePropertyAll(
+          EdgeInsets.symmetric(vertical: 4),
+        ),
+        backgroundColor: WidgetStatePropertyAll(
+          theme.colorScheme.surfaceContainerHigh,
         ),
       ),
-    );
-  }
-
-  Widget _buildSortItem(IconData icon, String label) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [Icon(icon, size: 16), const SizedBox(width: 8), Text(label)],
+      menuChildren: [
+        for (final item in items)
+          MenuItemButton(
+            key: ValueKey('tag-library-sort-option-${item.$1.name}'),
+            onPressed: () => ref
+                .read(tagLibraryPageNotifierProvider.notifier)
+                .setSortBy(item.$1),
+            leadingIcon: Icon(item.$2, size: 16),
+            trailingIcon: state.sortBy == item.$1
+                ? Icon(
+                    Icons.check_rounded,
+                    size: 16,
+                    color: theme.colorScheme.primary,
+                  )
+                : null,
+            child: Text(item.$3),
+          ),
+      ],
+      builder: (context, controller, child) {
+        return Material(
+          color: theme.colorScheme.surfaceContainerHighest.withValues(
+            alpha: 0.4,
+          ),
+          borderRadius: BorderRadius.circular(8),
+          child: InkWell(
+            key: const Key('tag-library-sort-menu-button'),
+            onTap: controller.isOpen ? controller.close : controller.open,
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              height: PlatformCapabilities.current.hasTouchInput ? 48 : 36,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              alignment: Alignment.center,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    selected.$2,
+                    size: 16,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    selected.$3,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontSize: 13,
+                      color: theme.colorScheme.onSurface,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(
+                    Icons.arrow_drop_down,
+                    size: 18,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -478,7 +525,11 @@ class _ViewModeButton extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
         child: Container(
-          padding: const EdgeInsets.all(8),
+          constraints: BoxConstraints(
+            minWidth: PlatformCapabilities.current.hasTouchInput ? 48 : 34,
+            minHeight: PlatformCapabilities.current.hasTouchInput ? 48 : 34,
+          ),
+          alignment: Alignment.center,
           decoration: BoxDecoration(
             color: isSelected
                 ? theme.colorScheme.primaryContainer.withValues(alpha: 0.5)
@@ -504,7 +555,12 @@ class _CompactIconButton extends StatefulWidget {
   final String? label;
   final VoidCallback? onPressed;
 
-  const _CompactIconButton({required this.icon, this.label, this.onPressed});
+  const _CompactIconButton({
+    super.key,
+    required this.icon,
+    this.label,
+    this.onPressed,
+  });
 
   @override
   State<_CompactIconButton> createState() => _CompactIconButtonState();
@@ -577,6 +633,7 @@ class _CompactIconButtonState extends State<_CompactIconButton>
         message: widget.label ?? '',
         waitDuration: const Duration(milliseconds: 500),
         child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
           onTapDown: isEnabled
               ? (_) {
                   setState(() => _isPressed = true);
@@ -602,8 +659,15 @@ class _CompactIconButtonState extends State<_CompactIconButton>
               return Transform.scale(
                 scale: 1 - ((1 - _scaleAnimation.value) * 0.25),
                 child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
+                  duration: MediaQuery.disableAnimationsOf(context)
+                      ? Duration.zero
+                      : const Duration(milliseconds: 180),
                   curve: Curves.easeOutCubic,
+                  constraints: BoxConstraints(
+                    minHeight: PlatformCapabilities.current.hasTouchInput
+                        ? 48
+                        : 34,
+                  ),
                   padding: EdgeInsets.symmetric(
                     horizontal: hasLabel ? 12 : 9,
                     vertical: 7,

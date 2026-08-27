@@ -50,6 +50,8 @@ void main() {
 
     expect(find.text('生成页布局'), findsOneWidget);
     expect(find.text('悬浮球背景'), findsNothing);
+    expect(find.text('外观'), findsNothing);
+    expect(find.bySemanticsLabel('外观'), findsOneWidget);
   });
 
   testWidgets('历史点击行为默认经典并可从外观设置切换和持久化', (tester) async {

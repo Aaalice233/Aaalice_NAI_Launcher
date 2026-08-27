@@ -11,8 +11,9 @@ import 'package:path/path.dart' as path;
 import '../../core/cache/gallery_image_request.dart';
 import '../../core/cache/online_gallery_image_cache_manager.dart';
 import '../../core/cache/online_gallery_prefetch_coordinator.dart';
+import '../../core/services/file_export_service.dart';
 import '../../core/utils/localization_extension.dart';
-import '../../core/utils/file_picker_utils.dart';
+import '../../core/utils/media_mime_type.dart';
 import '../../data/models/character/character_prompt.dart';
 import '../../data/models/online_gallery/danbooru_post.dart';
 import '../../data/models/queue/replication_task.dart';
@@ -286,11 +287,6 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
 
     try {
       _removeOverlay();
-      final result = await FilePickerUtils.pickDirectoryModal(
-        dialogTitle: context.l10n.onlineGallery_chooseDownloadDirectory,
-      );
-      if (result == null) return;
-
       if (!mounted) return;
       AppToast.info(context, context.l10n.onlineGallery_downloadStarted);
 
@@ -299,16 +295,25 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
         key: onlineGalleryImageCacheKeyForUrl(url),
         headers: onlineGalleryImageHeadersForUrl(url),
       );
-      final fileName = path.basename(Uri.parse(url).path);
-      final destination = path.join(result, fileName);
-
-      await file.copy(destination);
+      if (!mounted) return;
+      final urlPath = Uri.parse(url).path;
+      final extension = path.extension(urlPath).replaceFirst('.', '');
+      final resolvedExtension = extension.isEmpty ? 'webp' : extension;
+      final urlFileName = path.basename(urlPath);
+      final fileName = urlFileName.isNotEmpty
+          ? urlFileName
+          : '${widget.post.sourceId.key}_${widget.post.sourceWorkId}.$resolvedExtension';
+      final savedLocation = await FileExportService.saveFileFromPath(
+        sourcePath: file.path,
+        fileName: fileName,
+        dialogTitle: context.l10n.onlineGallery_chooseDownloadDirectory,
+        mimeType: mediaMimeTypeForExtension(resolvedExtension),
+        allowedExtensions: [resolvedExtension],
+      );
+      if (savedLocation == null) return;
 
       if (mounted) {
-        AppToast.success(
-          context,
-          context.l10n.onlineGallery_savedToPath(destination),
-        );
+        AppToast.success(context, context.l10n.onlineGallery_savedFiles(1));
       }
     } catch (e) {
       if (mounted) {
@@ -328,42 +333,62 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
     final prompt = _actionPrompt.trim();
     return ColoredBox(
       color: theme.colorScheme.surfaceContainerHigh,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 44, 14, 52),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(
-              Icons.notes_rounded,
-              color: theme.colorScheme.primary,
-              size: 22,
+      child: LayoutBuilder(
+        builder: (context, outerConstraints) {
+          final totalVerticalReserve = (outerConstraints.maxHeight - 64)
+              .clamp(16.0, 96.0)
+              .toDouble();
+          return Padding(
+            padding: EdgeInsets.fromLTRB(
+              14,
+              totalVerticalReserve * 44 / 96,
+              14,
+              totalVerticalReserve * 52 / 96,
             ),
-            const SizedBox(height: 10),
-            if (title.isNotEmpty)
-              Text(
-                title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            if (title.isNotEmpty && prompt.isNotEmpty)
-              const SizedBox(height: 8),
-            if (prompt.isNotEmpty)
-              Expanded(
-                child: Text(
-                  prompt,
-                  maxLines: 7,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                    height: 1.45,
-                  ),
-                ),
-              ),
-          ],
-        ),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final compact = constraints.maxHeight < 96;
+                final showIcon = constraints.maxHeight >= 52;
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (showIcon) ...[
+                      Icon(
+                        Icons.notes_rounded,
+                        color: theme.colorScheme.primary,
+                        size: compact ? 18 : 22,
+                      ),
+                      SizedBox(height: compact ? 4 : 10),
+                    ],
+                    if (title.isNotEmpty)
+                      Text(
+                        title,
+                        maxLines: compact ? 1 : 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    if (title.isNotEmpty && prompt.isNotEmpty)
+                      SizedBox(height: compact ? 4 : 8),
+                    if (prompt.isNotEmpty)
+                      Expanded(
+                        child: Text(
+                          prompt,
+                          maxLines: compact ? 2 : 7,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                            height: compact ? 1.2 : 1.45,
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
+          );
+        },
       ),
     );
   }

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:markdown/markdown.dart' as md;
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/services/update_check_service.dart';
 import '../../../core/utils/byte_format.dart';
 import '../../../core/utils/in_app_release_notes.dart';
@@ -229,9 +230,13 @@ class UpdateCheckDialog extends ConsumerWidget {
           ),
           const SizedBox(height: 14),
           Text(
-            context.l10n.updateDownloadedHint(
-              state.versionInfo?.displayVersion ?? '',
-            ),
+            PlatformCapabilities.current.requiresExternalInstallerFlow
+                ? context.l10n.updateAndroidDownloadedHint(
+                    state.versionInfo?.displayVersion ?? '',
+                  )
+                : context.l10n.updateDownloadedHint(
+                    state.versionInfo?.displayVersion ?? '',
+                  ),
             style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
@@ -281,7 +286,12 @@ class UpdateCheckDialog extends ConsumerWidget {
           children: [
             const CircularProgressIndicator(),
             const SizedBox(height: 16),
-            Text(context.l10n.updateInstallingHint),
+            Text(
+              PlatformCapabilities.current.requiresExternalInstallerFlow
+                  ? context.l10n.updateAndroidInstallingHint
+                  : context.l10n.updateInstallingHint,
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
       ),
@@ -632,7 +642,11 @@ class UpdateCheckDialog extends ConsumerWidget {
         ),
         FilledButton(
           onPressed: () => _confirmInstall(context, ref),
-          child: Text(context.l10n.updateInstallAndRestart),
+          child: Text(
+            PlatformCapabilities.current.requiresExternalInstallerFlow
+                ? context.l10n.updateInstallNow
+                : context.l10n.updateInstallAndRestart,
+          ),
         ),
       ],
       UpdateStatus.installing => const [],
@@ -684,7 +698,11 @@ class UpdateCheckDialog extends ConsumerWidget {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(context.l10n.updateInstallConfirmationTitle),
-        content: Text(context.l10n.updateInstallConfirmationBody),
+        content: Text(
+          PlatformCapabilities.current.requiresExternalInstallerFlow
+              ? context.l10n.updateAndroidInstallConfirmationBody
+              : context.l10n.updateInstallConfirmationBody,
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -692,13 +710,23 @@ class UpdateCheckDialog extends ConsumerWidget {
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: Text(context.l10n.updateInstallAndRestart),
+            child: Text(
+              PlatformCapabilities.current.requiresExternalInstallerFlow
+                  ? context.l10n.updateInstallNow
+                  : context.l10n.updateInstallAndRestart,
+            ),
           ),
         ],
       ),
     );
     if (confirmed == true && context.mounted) {
       await ref.read(updateStateProvider.notifier).installDownloadedUpdate();
+      final status = ref.read(updateStateProvider).status;
+      if (context.mounted &&
+          status != UpdateStatus.error &&
+          PlatformCapabilities.current.requiresExternalInstallerFlow) {
+        Navigator.of(context).pop();
+      }
     }
   }
 

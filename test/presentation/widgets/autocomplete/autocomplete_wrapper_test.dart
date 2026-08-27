@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -1039,6 +1040,83 @@ void main() {
       findsOneWidget,
     );
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('keeps phone suggestions inside the keyboard-visible area', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1;
+    tester.view.viewInsets = const FakeViewPadding(bottom: 320);
+    addTearDown(() {
+      debugDefaultTargetPlatformOverride = null;
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+      tester.view.resetViewInsets();
+    });
+
+    final controller = TextEditingController(text: 'blu');
+    controller.selection = const TextSelection.collapsed(offset: 3);
+    final focusNode = FocusNode();
+    addTearDown(() {
+      controller.dispose();
+      focusNode.dispose();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          autocompleteServicesProvider.overrideWithValue(
+            AutocompleteServices(
+              localSources: [_BaseSource()],
+              dictionaryTranslations: const _NoTranslations(),
+              llmTranslations: const _NoTranslations(),
+              danbooru: _NoDanbooru(),
+            ),
+          ),
+        ],
+        child: MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: Padding(
+              padding: const EdgeInsets.only(top: 72),
+              child: SizedBox(
+                width: 360,
+                height: 300,
+                child: AutocompleteWrapper(
+                  controller: controller,
+                  focusNode: focusNode,
+                  expands: true,
+                  child: TextField(
+                    controller: controller,
+                    focusNode: focusNode,
+                    expands: true,
+                    maxLines: null,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    focusNode.requestFocus();
+    await tester.pump();
+    await _typeCurrentText(tester, controller);
+
+    final popup = find.byKey(const ValueKey('autocomplete-popup-surface'));
+    expect(popup, findsOneWidget);
+    final popupRect = tester.getRect(popup);
+    expect(popupRect.left, 8);
+    expect(popupRect.right, 352);
+    expect(popupRect.bottom, lessThanOrEqualTo(472));
+    expect(find.byIcon(Icons.keyboard_alt_outlined), findsNothing);
+    expect(tester.takeException(), isNull);
+
+    debugDefaultTargetPlatformOverride = null;
   });
 
   testWidgets('keyboard navigation scrolls only at the viewport edge', (

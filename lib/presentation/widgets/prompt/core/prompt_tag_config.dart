@@ -1,4 +1,4 @@
-import 'dart:io';
+import '../../../../core/platform/platform_capabilities.dart';
 
 /// 标签视图配置
 class PromptTagConfig {
@@ -39,7 +39,7 @@ class PromptTagConfig {
 
   /// 根据平台创建默认配置
   factory PromptTagConfig.forPlatform({bool? isMobile}) {
-    final mobile = isMobile ?? (Platform.isAndroid || Platform.isIOS);
+    final mobile = isMobile ?? PlatformCapabilities.current.hasTouchInput;
     return PromptTagConfig(
       isMobile: mobile,
       showTranslation: true,

@@ -60,7 +60,7 @@ void main() {
       }
     });
 
-    testWidgets('普通组件不得恢复常驻完整描边', (tester) async {
+    testWidgets('普通组件保持无描边，输入框使用低对比单层细边界', (tester) async {
       for (final style in AppStyle.values) {
         for (final brightness in Brightness.values) {
           final theme = AppTheme.getTheme(style, brightness);
@@ -87,9 +87,19 @@ void main() {
             reason: '${style.name}/${brightness.name} outlined button',
           );
           expect(
+            inputBorder,
+            isA<OutlineInputBorder>(),
+            reason: '${style.name}/${brightness.name} input type',
+          );
+          expect(
             (inputBorder! as OutlineInputBorder).borderSide.style,
-            BorderStyle.none,
-            reason: '${style.name}/${brightness.name} input',
+            BorderStyle.solid,
+            reason: '${style.name}/${brightness.name} input border',
+          );
+          expect(
+            inputBorder.borderSide.width,
+            lessThan(1),
+            reason: '${style.name}/${brightness.name} input border width',
           );
           if (tooltipDecoration is BoxDecoration) {
             expect(

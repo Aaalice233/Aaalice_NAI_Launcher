@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/platform/platform_capabilities.dart';
 import '../../../../core/utils/localization_extension.dart';
 import 'comfyui_settings_section.dart';
 import 'krita_bridge_settings_section.dart';
@@ -29,6 +30,7 @@ class IntegrationsSettingsSection extends StatefulWidget {
 
 class _IntegrationsSettingsSectionState
     extends State<IntegrationsSettingsSection> {
+  late final PlatformCapabilities _capabilities = PlatformCapabilities.current;
   int _selectedIndex = 0;
 
   List<WidgetBuilder> get _builders =>
@@ -41,7 +43,16 @@ class _IntegrationsSettingsSectionState
 
   @override
   Widget build(BuildContext context) {
-    final labels = [context.l10n.settings_promptAssistant, 'ComfyUI', 'Krita'];
+    final supportsComfyUi = _capabilities.supportsComfyUiIntegration;
+    final showKrita =
+        widget.panelBuilders != null || _capabilities.supportsKritaBridge;
+    final builders = showKrita ? _builders : _builders.take(2).toList();
+    final labels = [
+      context.l10n.settings_promptAssistant,
+      'ComfyUI',
+      if (showKrita) 'Krita',
+    ];
+    final selectedIndex = _selectedIndex.clamp(0, builders.length - 1);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -52,17 +63,26 @@ class _IntegrationsSettingsSectionState
             child: SegmentedButton<int>(
               segments: [
                 for (var i = 0; i < labels.length; i++)
-                  ButtonSegment(value: i, label: Text(labels[i])),
+                  ButtonSegment(
+                    value: i,
+                    enabled: i != 1 || supportsComfyUi,
+                    tooltip: i == 1 && !supportsComfyUi
+                        ? context.l10n.settings_comfyUiDesktopOnly
+                        : null,
+                    label: Text(labels[i]),
+                  ),
               ],
-              selected: {_selectedIndex},
+              selected: {selectedIndex},
               showSelectedIcon: false,
               onSelectionChanged: (selection) {
-                setState(() => _selectedIndex = selection.first);
+                final nextIndex = selection.first;
+                if (nextIndex == 1 && !supportsComfyUi) return;
+                setState(() => _selectedIndex = nextIndex);
               },
             ),
           ),
         ),
-        _builders[_selectedIndex](context),
+        builders[selectedIndex](context),
       ],
     );
   }

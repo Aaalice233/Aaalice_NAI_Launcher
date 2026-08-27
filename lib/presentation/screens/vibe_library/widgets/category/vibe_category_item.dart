@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../../../core/platform/platform_capabilities.dart';
 import '../../../../../core/utils/localization_extension.dart';
+
+enum _VibeCategoryAction { rename, addSubCategory, delete }
 
 /// Vibe分类项组件
 ///
@@ -57,7 +60,8 @@ class _VibeCategoryItemState extends State<VibeCategoryItem> {
   }
 
   KeyEventResult _handleEditKeyEvent(FocusNode node, KeyEvent event) {
-    if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.escape) {
+    if (event is KeyDownEvent &&
+        event.logicalKey == LogicalKeyboardKey.escape) {
       _editController.text = widget.label;
       setState(() => _isEditing = false);
       return KeyEventResult.handled;
@@ -83,13 +87,16 @@ class _VibeCategoryItemState extends State<VibeCategoryItem> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final indent = 12.0 + widget.depth * 16.0;
+    final isTouch = PlatformCapabilities.current.hasTouchInput;
+    // Preserve a usable label/action area for deeply nested imported trees.
+    final indent = (12.0 + widget.depth * 16.0).clamp(12.0, 44.0).toDouble();
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovering = true),
       onExit: (_) => setState(() => _isHovering = false),
       child: GestureDetector(
-        onSecondaryTapUp: widget.onRename != null ||
+        onSecondaryTapUp:
+            widget.onRename != null ||
                 widget.onAddSubCategory != null ||
                 widget.onDelete != null
             ? (details) => _showContextMenu(context, details.globalPosition)
@@ -101,114 +108,174 @@ class _VibeCategoryItemState extends State<VibeCategoryItem> {
             color: widget.isSelected
                 ? theme.colorScheme.primaryContainer
                 : (_isHovering
-                    ? theme.colorScheme.surfaceContainerHighest
-                    : Colors.transparent),
+                      ? theme.colorScheme.surfaceContainerHighest
+                      : Colors.transparent),
             borderRadius: BorderRadius.circular(8),
           ),
           child: InkWell(
             onTap: widget.onTap,
             borderRadius: BorderRadius.circular(8),
-            child: Padding(
-              padding: EdgeInsets.only(
-                left: indent,
-                right: 8,
-                top: 8,
-                bottom: 8,
-              ),
-              child: Row(
-                children: [
-                  // 展开/折叠按钮
-                  if (widget.hasChildren)
-                    GestureDetector(
-                      onTap: widget.onExpand,
-                      child: Padding(
-                        padding: const EdgeInsets.only(right: 4),
-                        child: Icon(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: isTouch ? 48 : 0),
+              child: Padding(
+                padding: EdgeInsets.only(
+                  left: indent,
+                  right: isTouch ? 0 : 8,
+                  top: isTouch ? 0 : 8,
+                  bottom: isTouch ? 0 : 8,
+                ),
+                child: Row(
+                  children: [
+                    // 展开/折叠按钮
+                    if (widget.hasChildren)
+                      IconButton(
+                        onPressed: widget.onExpand,
+                        tooltip: widget.isExpanded
+                            ? context.l10n.common_collapse
+                            : context.l10n.common_expand,
+                        icon: Icon(
                           widget.isExpanded
                               ? Icons.expand_more
                               : Icons.chevron_right,
-                          size: 16,
+                          size: 18,
                           color: theme.colorScheme.outline,
                         ),
-                      ),
-                    )
-                  else
-                    const SizedBox(width: 20),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints.tightFor(
+                          width: 48,
+                          height: 48,
+                        ),
+                      )
+                    else
+                      const SizedBox(width: 48, height: 48),
 
-                  // 图标
-                  Icon(
-                    widget.icon,
-                    size: 18,
-                    color: widget.iconColor ??
-                        (widget.isSelected
-                            ? theme.colorScheme.primary
-                            : theme.colorScheme.onSurfaceVariant),
-                  ),
-                  const SizedBox(width: 8),
+                    // 图标
+                    Icon(
+                      widget.icon,
+                      size: 18,
+                      color:
+                          widget.iconColor ??
+                          (widget.isSelected
+                              ? theme.colorScheme.primary
+                              : theme.colorScheme.onSurfaceVariant),
+                    ),
+                    const SizedBox(width: 8),
 
-                  // 名称（编辑模式或显示模式）
-                  Expanded(
-                    child: _isEditing
-                        ? TextField(
-                            controller: _editController,
-                            focusNode: _editFocusNode,
-                            autofocus: true,
-                            style: const TextStyle(fontSize: 13),
-                            decoration: const InputDecoration(
-                              isDense: true,
-                              border: InputBorder.none,
-                              contentPadding: EdgeInsets.zero,
+                    // 名称（编辑模式或显示模式）
+                    Expanded(
+                      child: _isEditing
+                          ? TextField(
+                              controller: _editController,
+                              focusNode: _editFocusNode,
+                              autofocus: true,
+                              style: const TextStyle(fontSize: 13),
+                              decoration: const InputDecoration(
+                                isDense: true,
+                                border: InputBorder.none,
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                              onSubmitted: (value) {
+                                if (value.trim().isNotEmpty) {
+                                  widget.onRename?.call(value.trim());
+                                }
+                                if (mounted) {
+                                  setState(() => _isEditing = false);
+                                }
+                              },
+                              onTapOutside: (_) {
+                                _editController.text = widget.label;
+                                if (mounted) {
+                                  setState(() => _isEditing = false);
+                                }
+                              },
+                            )
+                          : Text(
+                              widget.label,
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: widget.isSelected
+                                    ? FontWeight.w600
+                                    : FontWeight.w500,
+                                color: widget.isSelected
+                                    ? theme.colorScheme.primary
+                                    : theme.colorScheme.onSurface,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            onSubmitted: (value) {
-                              if (value.trim().isNotEmpty) {
-                                widget.onRename?.call(value.trim());
-                              }
-                              if (mounted) {
-                                setState(() => _isEditing = false);
-                              }
-                            },
-                            onTapOutside: (_) {
-                              _editController.text = widget.label;
-                              if (mounted) {
-                                setState(() => _isEditing = false);
-                              }
-                            },
-                          )
-                        : Text(
-                            widget.label,
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: widget.isSelected
-                                  ? FontWeight.w600
-                                  : FontWeight.w500,
-                              color: widget.isSelected
-                                  ? theme.colorScheme.primary
-                                  : theme.colorScheme.onSurface,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                  ),
-
-                  // 拖拽提示图标（悬停时显示）
-                  if (_isHovering && widget.onRename != null)
-                    Padding(
-                      padding: const EdgeInsets.only(right: 4),
-                      child: Icon(
-                        Icons.drag_indicator,
-                        size: 14,
-                        color: theme.colorScheme.outline.withAlpha(128),
-                      ),
                     ),
 
-                  // 数量
-                  Text(
-                    widget.count.toString(),
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: theme.colorScheme.outline,
+                    // 拖拽提示图标（悬停时显示）
+                    if (_isHovering && widget.onRename != null)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 4),
+                        child: Icon(
+                          Icons.drag_indicator,
+                          size: 14,
+                          color: theme.colorScheme.outline.withAlpha(128),
+                        ),
+                      ),
+
+                    // 数量
+                    Text(
+                      widget.count.toString(),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: theme.colorScheme.outline,
+                      ),
                     ),
-                  ),
-                ],
+                    if (isTouch &&
+                        (widget.onRename != null ||
+                            widget.onAddSubCategory != null ||
+                            widget.onDelete != null))
+                      PopupMenuButton<_VibeCategoryAction>(
+                        tooltip: context.l10n.common_moreActions,
+                        onSelected: (action) {
+                          switch (action) {
+                            case _VibeCategoryAction.rename:
+                              setState(() => _isEditing = true);
+                            case _VibeCategoryAction.addSubCategory:
+                              widget.onAddSubCategory?.call();
+                            case _VibeCategoryAction.delete:
+                              widget.onDelete?.call();
+                          }
+                        },
+                        itemBuilder: (context) => [
+                          if (widget.onRename != null)
+                            PopupMenuItem(
+                              value: _VibeCategoryAction.rename,
+                              child: ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                leading: const Icon(Icons.edit),
+                                title: Text(context.l10n.common_rename),
+                              ),
+                            ),
+                          if (widget.onAddSubCategory != null)
+                            PopupMenuItem(
+                              value: _VibeCategoryAction.addSubCategory,
+                              child: ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                leading: const Icon(Icons.create_new_folder),
+                                title: Text(
+                                  context.l10n.vibeLibrary_newSubCategory,
+                                ),
+                              ),
+                            ),
+                          if (widget.onDelete != null)
+                            PopupMenuItem(
+                              value: _VibeCategoryAction.delete,
+                              child: ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                leading: Icon(
+                                  Icons.delete,
+                                  color: theme.colorScheme.error,
+                                ),
+                                title: Text(context.l10n.common_delete),
+                              ),
+                            ),
+                        ],
+                      ),
+                  ],
+                ),
               ),
             ),
           ),

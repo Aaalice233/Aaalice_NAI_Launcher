@@ -588,11 +588,14 @@ class _TagFavoritePanelState extends ConsumerState<TagFavoritePanel> {
                 const SizedBox(width: 8),
               ],
 
-              // 更多操作提示
-              Icon(
-                Icons.more_vert,
-                size: 18,
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+              IconButton(
+                onPressed: () => _removeFromFavorites(favorite),
+                tooltip: context.l10n.tag_removeFavoriteTitle,
+                icon: Icon(
+                  Icons.heart_broken_outlined,
+                  size: 20,
+                  color: theme.colorScheme.error,
+                ),
               ),
             ],
           ),

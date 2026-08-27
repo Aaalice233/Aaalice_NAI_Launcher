@@ -124,5 +124,24 @@ void main() {
       );
       expect(opacityWidget.opacity, closeTo(0.48, 0.001));
     });
+
+    testWidgets('窄屏三点菜单完整显示所有操作且不 overflow', (tester) async {
+      await tester.binding.setSurfaceSize(const Size(360, 800));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(buildTestApp());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('character-actions-menu')));
+      await tester.pumpAndSettle();
+
+      final l10n = AppLocalizations.of(
+        tester.element(find.byType(InlineCharacterCard)),
+      )!;
+      expect(find.text(l10n.characterEditor_moveUp), findsOneWidget);
+      expect(find.text(l10n.characterEditor_moveDown), findsOneWidget);
+      expect(find.text(l10n.tagLibrary_addToLibrary), findsOneWidget);
+      expect(find.text(l10n.common_delete), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
   });
 }

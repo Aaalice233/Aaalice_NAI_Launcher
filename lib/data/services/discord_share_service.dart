@@ -7,6 +7,8 @@ import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
+
+import '../../core/constants/community_links.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/constants/storage_keys.dart';
@@ -16,7 +18,7 @@ import '../../core/utils/image_share_sanitizer.dart';
 
 const discordShareRelayUrl =
     'https://aaalice-discord-share.ljk2515448788ljk.workers.dev';
-const discordCommunityUrl = 'https://discord.gg/R48n6GwXzD';
+const discordCommunityUrl = CommunityLinks.discord;
 const _discordOAuthOrigin = 'http://127.0.0.1';
 
 class DiscordShareUser {
@@ -218,15 +220,34 @@ class DiscordShareService {
           message: 'Discord verification was cancelled.',
         );
       }
-      final response = await _dio.post<Map<String, dynamic>>(
-        '/v1/oauth/result',
-        data: {'nonce': nonce, 'verifier': verifier},
-        options: Options(
-          headers: {'Origin': _discordOAuthOrigin},
-          validateStatus: (status) => status != null && status < 500,
-        ),
-        cancelToken: cancelToken,
-      );
+      late final Response<Map<String, dynamic>> response;
+      try {
+        response = await _dio.post<Map<String, dynamic>>(
+          '/v1/oauth/result',
+          data: {'nonce': nonce, 'verifier': verifier},
+          options: Options(
+            headers: {'Origin': _discordOAuthOrigin},
+            validateStatus: (status) => status != null && status < 500,
+          ),
+          cancelToken: cancelToken,
+        );
+      } on DioException catch (error) {
+        if (CancelToken.isCancel(error)) {
+          throw const DiscordShareException(
+            code: 'cancelled',
+            message: 'Discord verification was cancelled.',
+          );
+        }
+        final payload = error.response?.data is Map
+            ? Map<String, dynamic>.from(error.response!.data as Map)
+            : <String, dynamic>{};
+        throw _exceptionFromPayload(
+          payload,
+          error.response?.statusCode,
+          fallback: error.message ?? 'Discord verification failed.',
+          retryAfterHeader: error.response?.headers.value('retry-after'),
+        );
+      }
       final payload = response.data ?? const <String, dynamic>{};
       if (response.statusCode == 202 || payload['pending'] == true) continue;
       if (response.statusCode != null && response.statusCode! >= 400) {

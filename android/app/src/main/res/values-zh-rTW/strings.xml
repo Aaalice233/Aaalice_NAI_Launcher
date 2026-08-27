@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Aaalice NAI Launcher</string>
+    <string name="generation_notification_channel">圖像生成</string>
+    <string name="generation_notification_channel_description">讓進行中的圖像生成可在背景繼續執行</string>
+    <string name="generation_notification_title">正在生成圖像</string>
+    <string name="generation_notification_text">生成任務正在進行，點按可返回應用程式。</string>
+</resources>

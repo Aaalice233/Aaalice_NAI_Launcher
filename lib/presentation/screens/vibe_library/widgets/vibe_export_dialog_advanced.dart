@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
+import '../../../../core/services/file_export_service.dart';
 import '../../../../core/utils/app_logger.dart';
 import '../../../../core/utils/vibe_encoding_utils.dart';
 import '../../../../core/utils/vibe_export_utils.dart';
@@ -1225,7 +1226,7 @@ class _VibeExportDialogAdvancedState
     if (selectedIndices.isEmpty) return null;
 
     final outputDirectory = selectedIndices.length > 1
-        ? await FilePicker.platform.getDirectoryPath(
+        ? await FileExportService.pickExportDirectory(
             dialogTitle: context.l10n.vibe_export_selectVibeExportFolder,
           )
         : null;
@@ -1399,19 +1400,13 @@ class _VibeExportDialogAdvancedState
         ? '${entries.first.displayName}_encoding.$extension'
         : 'vibe_encodings_$extension';
 
-    final savePath = await FilePicker.platform.saveFile(
-      dialogTitle: context.l10n.vibe_export_saveEncodingFile,
+    return FileExportService.saveText(
+      text: buffer.toString(),
       fileName: fileName,
-      type: FileType.custom,
+      dialogTitle: context.l10n.vibe_export_saveEncodingFile,
+      mimeType: _encodingAsJson ? 'application/json' : 'text/plain',
       allowedExtensions: [extension],
     );
-
-    if (savePath == null) return null;
-
-    // 保存文件
-    await File(savePath).writeAsString(buffer.toString());
-
-    return savePath;
   }
 }
 

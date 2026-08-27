@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 import '../../../core/utils/app_logger.dart';
+import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/gallery/local_image_record.dart';
 import '../../providers/krita/krita_bridge_notifier.dart';
@@ -539,11 +540,13 @@ class LocalGalleryContentView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(localGalleryNotifierProvider);
     final selectionState = ref.watch(localGallerySelectionNotifierProvider);
-    final isKritaConnected = ref.watch(
-      kritaBridgeNotifierProvider.select(
-        (state) => state.status == KritaBridgeStatus.connected,
-      ),
-    );
+    final isKritaConnected =
+        PlatformCapabilities.current.supportsKritaBridge &&
+        ref.watch(
+          kritaBridgeNotifierProvider.select(
+            (state) => state.status == KritaBridgeStatus.connected,
+          ),
+        );
 
     void showImageDetailViewer(
       List<LocalImageRecord> images,

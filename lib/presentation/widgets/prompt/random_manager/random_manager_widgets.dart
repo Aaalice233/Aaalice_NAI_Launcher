@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/platform/platform_capabilities.dart';
+
 /// 随机词库管理器公共组件库
 ///
 /// 包含可复用的 UI 组件，用于统一设计风格
@@ -166,8 +168,11 @@ class DialogTitleBar extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
+    final controlExtent = PlatformCapabilities.current.hasTouchInput
+        ? 48.0
+        : 32.0;
     return Container(
-      height: 38.0,
+      constraints: BoxConstraints(minHeight: controlExtent),
       padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerLowest,
@@ -192,7 +197,13 @@ class DialogTitleBar extends StatelessWidget {
             iconSize: 18,
             splashRadius: 20,
             padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            visualDensity: PlatformCapabilities.current.hasTouchInput
+                ? VisualDensity.standard
+                : VisualDensity.compact,
+            constraints: BoxConstraints.tightFor(
+              width: controlExtent,
+              height: controlExtent,
+            ),
           ),
         ],
       ),

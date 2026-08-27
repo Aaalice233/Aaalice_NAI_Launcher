@@ -352,7 +352,12 @@ class _CharacterPositionCanvasViewState
 /// 绑定全局 globalAiChoice，常驻在角色模块头部。
 /// 「自定义」右侧的图标是位置画布的唯一入口（官网同款布局）。
 class CharacterPositionModeSegments extends ConsumerWidget {
-  const CharacterPositionModeSegments({super.key});
+  const CharacterPositionModeSegments({
+    super.key,
+    this.forceExitMaximizedPrompt = false,
+  });
+
+  final bool forceExitMaximizedPrompt;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -394,8 +399,9 @@ class CharacterPositionModeSegments extends ConsumerWidget {
           child: _ModeSegment(
             selected: canvasOpen,
             radius: const BorderRadius.horizontal(right: Radius.circular(6)),
-            onTap: () =>
-                ref.read(characterPositionCanvasProvider.notifier).toggle(),
+            onTap: () => ref
+                .read(characterPositionCanvasProvider.notifier)
+                .toggle(forceExitMaximizedPrompt: forceExitMaximizedPrompt),
             child: Icon(
               Icons.control_camera,
               size: 15,

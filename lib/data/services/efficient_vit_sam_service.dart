@@ -1,13 +1,15 @@
+import 'dart:async';
 import 'dart:ffi' as ffi;
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
-import 'package:onnxruntime/onnxruntime.dart';
+import 'package:onnxruntime_v2/onnxruntime_v2.dart';
 // ignore: implementation_imports
-import 'package:onnxruntime/src/bindings/onnxruntime_bindings_generated.dart'
+import 'package:onnxruntime_v2/src/bindings/onnxruntime_bindings_generated.dart'
     as bg;
 
+import '../../core/utils/app_logger.dart';
 import '../../core/utils/contiguous_region_selector.dart';
 import '../../core/utils/efficient_vit_sam_image_processor.dart';
 import 'efficient_vit_sam_model_manager.dart';
@@ -188,8 +190,8 @@ class EfficientVitSamService {
       _encoderSession = encoder;
       _decoderSession = decoder;
     } catch (_) {
-      encoder?.release();
-      decoder?.release();
+      if (encoder != null) await encoder.release();
+      if (decoder != null) await decoder.release();
       rethrow;
     }
   }
@@ -203,9 +205,10 @@ class EfficientVitSamService {
     );
     List<OrtValue?>? outputs;
     try {
-      final future = session.runAsync(
+      final future = session.runAsyncWithTimeout(
         runOptions,
         <String, OrtValue>{'input_image': inputTensor},
+        const Duration(minutes: 2),
         const <String>['image_embeddings'],
       );
       if (future == null) {
@@ -243,13 +246,14 @@ class EfficientVitSamService {
     );
     List<OrtValue?>? outputs;
     try {
-      final future = session.runAsync(
+      final future = session.runAsyncWithTimeout(
         runOptions,
         <String, OrtValue>{
           'image_embeddings': embedding,
           'point_coords': pointTensor,
           'point_labels': labelTensor,
         },
+        const Duration(minutes: 2),
         const <String>['masks'],
       );
       if (future == null) {
@@ -381,9 +385,28 @@ class EfficientVitSamService {
     _cachedEmbedding?.release();
     _cachedEmbedding = null;
     _cachedImageKey = null;
-    _encoderSession?.release();
+    final encoderSession = _encoderSession;
     _encoderSession = null;
-    _decoderSession?.release();
+    final decoderSession = _decoderSession;
     _decoderSession = null;
+    if (encoderSession != null) {
+      unawaited(_releaseSession(encoderSession));
+    }
+    if (decoderSession != null) {
+      unawaited(_releaseSession(decoderSession));
+    }
+  }
+
+  Future<void> _releaseSession(OrtSession session) async {
+    try {
+      await session.release();
+    } catch (error, stackTrace) {
+      AppLogger.e(
+        'Failed to release EfficientViT-SAM ONNX session',
+        error,
+        stackTrace,
+        'EfficientVitSamService',
+      );
+    }
   }
 }

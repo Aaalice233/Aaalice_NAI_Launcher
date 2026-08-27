@@ -10,6 +10,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  # 仅在 ENABLE_FLUTTER_DRIVER 开发标志存在时启用。
+  flutter_driver:
+    sdk: flutter
   flutter_localizations:
     sdk: flutter
 
@@ -55,8 +58,8 @@ dependencies:
   image: ^4.1.7
 
   # 拖拽功能
-  super_clipboard: ^0.8.23
-  super_drag_and_drop: ^0.8.23
+  super_clipboard: ^0.9.1
+  super_drag_and_drop: ^0.9.1
 
   # 路由
   go_router: ^14.2.0
@@ -124,7 +127,8 @@ dependencies:
   # 版本号解析
   pub_semver: ^2.1.4
   web_socket_channel: ^3.0.3
-  onnxruntime: ^1.4.1
+  # Maintained ONNX Runtime fork with Android 16 KB pages and emulator ABIs.
+  onnxruntime_v2: ^1.23.2+2
   # 3D 编辑器 WebView (Windows=WebView2 / macOS=WKWebView / Android=Chromium)
   flutter_inappwebview: ^6.1.5
   markdown: ^7.3.1

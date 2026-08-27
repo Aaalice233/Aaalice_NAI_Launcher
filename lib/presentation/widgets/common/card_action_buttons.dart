@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/platform/platform_capabilities.dart';
+
 /// 卡片操作按钮配置
 class CardActionButtonConfig {
   final IconData icon;
@@ -32,6 +34,42 @@ class CardActionButtons extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (buttons.isEmpty) return const SizedBox.shrink();
+
+    // Touch users cannot reveal hover-only controls. Keep one compact, persistent
+    // entry point and expose every existing card action through a 48dp menu.
+    if (PlatformCapabilities.current.hasTouchInput) {
+      return Container(
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.55),
+          shape: BoxShape.circle,
+        ),
+        child: PopupMenuButton<CardActionButtonConfig>(
+          tooltip: MaterialLocalizations.of(context).showMenuTooltip,
+          constraints: const BoxConstraints(minWidth: 220),
+          onSelected: (button) => button.onPressed(),
+          itemBuilder: (context) => [
+            for (final button in buttons)
+              PopupMenuItem<CardActionButtonConfig>(
+                value: button,
+                enabled: !button.isLoading,
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: button.isLoading
+                      ? const SizedBox.square(
+                          dimension: 24,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Icon(button.icon, color: button.iconColor),
+                  title: Text(button.tooltip),
+                ),
+              ),
+          ],
+          icon: const Icon(Icons.more_vert_rounded, color: Colors.white),
+        ),
+      );
+    }
+
     return IgnorePointer(
       ignoring: !visible,
       child: Opacity(

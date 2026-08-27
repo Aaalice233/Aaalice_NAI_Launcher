@@ -6,6 +6,7 @@ import 'package:nai_launcher/presentation/screens/settings/widgets/settings_card
 import 'package:nai_launcher/presentation/themes/app_theme.dart';
 import 'package:nai_launcher/presentation/widgets/common/compact_icon_button.dart';
 import 'package:nai_launcher/presentation/widgets/common/elevated_card.dart';
+import 'package:nai_launcher/presentation/widgets/common/input_surface_container.dart';
 import 'package:nai_launcher/presentation/widgets/common/inset_shadow_container.dart';
 import 'package:nai_launcher/presentation/widgets/common/safe_dropdown.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_container.dart';
@@ -93,7 +94,7 @@ void main() {
     expect(tester.widget<Switch>(find.byType(Switch)).onChanged, isNull);
   });
 
-  testWidgets('旧内阴影参数保持构造兼容且不会被误解为禁用控件', (tester) async {
+  testWidgets('旧内阴影参数仅保持构造兼容且不会重新绘制阴影', (tester) async {
     const background = Color(0xFF123456);
     await tester.pumpWidget(
       const MaterialApp(
@@ -115,7 +116,16 @@ void main() {
         matching: find.byType(AnimatedContainer),
       ),
     );
-    expect((animated.decoration! as BoxDecoration).color, background);
+    final decoration = animated.decoration! as BoxDecoration;
+    expect(decoration.color, background);
+    expect(decoration.boxShadow, isNull);
+    expect(
+      find.descendant(
+        of: find.byType(InsetShadowContainer),
+        matching: find.byType(CustomPaint),
+      ),
+      findsNothing,
+    );
   });
 
   testWidgets('静态卡片显式启用 hover 时参数仍生效', (tester) async {
@@ -222,8 +232,8 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.tab);
     await tester.pump();
 
-    final surface = tester.widget<InsetShadowContainer>(
-      find.byType(InsetShadowContainer),
+    final surface = tester.widget<InputSurfaceContainer>(
+      find.byType(InputSurfaceContainer),
     );
     expect(surface.isFocused, isTrue);
   });

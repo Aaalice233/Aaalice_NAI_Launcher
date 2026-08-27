@@ -10,10 +10,10 @@ import 'package:csv/csv.dart';
 import 'package:ffi/ffi.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image/image.dart' as img;
-import 'package:onnxruntime/onnxruntime.dart';
+import 'package:onnxruntime_v2/onnxruntime_v2.dart';
 import 'package:path/path.dart' as p;
 // ignore: implementation_imports
-import 'package:onnxruntime/src/bindings/onnxruntime_bindings_generated.dart'
+import 'package:onnxruntime_v2/src/bindings/onnxruntime_bindings_generated.dart'
     as bg;
 
 import '../../core/utils/isolate_pool.dart';
@@ -214,7 +214,7 @@ class LocalOnnxTaggerService {
       }
       inputOrt.release();
       runOptions.release();
-      session?.release();
+      if (session != null) await session.release();
       options.release();
     }
   }

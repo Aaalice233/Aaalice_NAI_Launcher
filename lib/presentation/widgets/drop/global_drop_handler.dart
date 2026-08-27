@@ -12,6 +12,7 @@ import 'package:super_clipboard/super_clipboard.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 import '../../../core/enums/precise_ref_type.dart';
+import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/isolate_pool.dart';
 import '../../../core/utils/vibe_file_parser.dart';
@@ -293,6 +294,45 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
 
   @override
   Widget build(BuildContext context) {
+    final content = Stack(
+      children: [
+        widget.child,
+        if (_isDragging) _buildDropOverlay(context),
+        if (_isProcessing) _buildProcessingOverlay(context),
+      ],
+    );
+    final dropTarget = PlatformCapabilities.current.supportsExternalFileDrop
+        ? DropRegion(
+            formats: Formats.standardFormats,
+            hitTestBehavior: HitTestBehavior.opaque,
+            onDropOver: (event) {
+              // Gallery drags have category-specific targets. History drags
+              // continue through the global image destination flow.
+              final isGalleryInternalDrag = event.session.items.any(
+                (item) => isGalleryInternalDragLocalData(item.localData),
+              );
+              if (isGalleryInternalDrag) return DropOperation.none;
+
+              if (event.session.allowedOperations.contains(
+                DropOperation.copy,
+              )) {
+                if (!_isDragging) setState(() => _isDragging = true);
+                return DropOperation.copy;
+              }
+              return DropOperation.none;
+            },
+            onDropLeave: (_) {
+              if (_isDragging) setState(() => _isDragging = false);
+            },
+            onPerformDrop: (event) async {
+              setState(() => _isDragging = false);
+              // Windows 的系统拖放回调必须立即返回，否则会阻塞资源管理器。
+              unawaited(_handleDrop(event));
+            },
+            child: content,
+          )
+        : content;
+
     return Shortcuts(
       shortcuts: const <ShortcutActivator, Intent>{
         SingleActivator(LogicalKeyboardKey.keyV, control: true):
@@ -312,51 +352,7 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
             },
           ),
         },
-        child: DropRegion(
-          formats: Formats.standardFormats,
-          hitTestBehavior: HitTestBehavior.opaque,
-          onDropOver: (event) {
-            // Gallery drags have category-specific targets. History drags must
-            // continue through the global image destination flow.
-            final isGalleryInternalDrag = event.session.items.any(
-              (item) => isGalleryInternalDragLocalData(item.localData),
-            );
-
-            if (isGalleryInternalDrag) {
-              return DropOperation.none;
-            }
-
-            // 检查是否包含文件
-            if (event.session.allowedOperations.contains(DropOperation.copy)) {
-              if (!_isDragging) {
-                setState(() => _isDragging = true);
-              }
-              return DropOperation.copy;
-            }
-            return DropOperation.none;
-          },
-          onDropLeave: (event) {
-            if (_isDragging) {
-              setState(() => _isDragging = false);
-            }
-          },
-          onPerformDrop: (event) async {
-            setState(() => _isDragging = false);
-            // 重要：不要等待 _handleDrop 完成，让拖放回调立即返回
-            // 否则 Windows 拖放系统会卡死，导致资源管理器无响应
-            unawaited(_handleDrop(event));
-            return;
-          },
-          child: Stack(
-            children: [
-              widget.child,
-              // 拖拽覆盖层
-              if (_isDragging) _buildDropOverlay(context),
-              // 处理中覆盖层
-              if (_isProcessing) _buildProcessingOverlay(context),
-            ],
-          ),
-        ),
+        child: dropTarget,
       ),
     );
   }

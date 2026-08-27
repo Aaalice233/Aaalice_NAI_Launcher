@@ -105,6 +105,8 @@
   "nav_dictionary": "Dictionary",
   "nav_discordCommunity": "Discord Community",
   "nav_githubRepo": "GitHub Repository",
+  "nav_joinDiscord": "Join Discord",
+  "nav_projectRepository": "Project repository",
   "nav_expandSidebar": "Expand sidebar",
   "nav_collapseSidebar": "Collapse sidebar",
 
@@ -128,6 +130,7 @@
   "auth_passwordRequired": "Please enter password",
 
   "auth_tokenLogin": "API Token Login",
+  "auth_tokenLoginCompact": "Token Login",
   "auth_tokenLoginRecommended": "API Token Login (Recommended)",
   "auth_credentialsLogin": "Email & Password",
   "auth_credentialsLoginUnavailable": "Email/password login is currently unavailable. Please use Token login.",
@@ -168,7 +171,6 @@
   },
   "auth_removeAvatar": "Remove Avatar",
   "auth_selectFromGallery": "Select from Gallery",
-  "auth_takePhoto": "Take Photo",
   "auth_quickLogin": "Quick Login",
   "auth_nicknameRequired": "Please enter nickname",
   "auth_createdAt": "Created at {date}",
@@ -229,6 +231,7 @@
   "settings_alphaModeStraightDescription": "Preserve RGB without multiplying by alpha. Best for further editing and the NovelAI website default.",
   "settings_alphaModePremultipliedDescription": "Store RGB multiplied by alpha for compositing and rendering pipelines that expect premultiplied input.",
   "settings_promptAssistant": "Prompt Assistant",
+  "settings_comfyUiDesktopOnly": "Available on desktop only",
   "settings_selectStyle": "Select Style",
   "settings_defaultPreset": "Default",
   "settings_selectFont": "Select Font",
@@ -290,6 +293,12 @@
   "settings_setAsDefaultSuccess": "Set as default account",
 
   "generation_title": "Generate",
+  "generation_promptOverviewCharacters": "{count} chars",
+  "@generation_promptOverviewCharacters": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "generation_generate": "Generate",
   "generation_cooldownRemaining": "Wait {seconds}s",
   "@generation_cooldownRemaining": {
@@ -464,7 +473,7 @@
     }
   },
   "prompt_appliedToMainPrompt": "Applied to main prompt",
-  "prompt_inputPrompt": "Enter prompt...",
+  "prompt_inputPrompt": "Describe the image you want to create",
   "prompt_describeImage": "Describe the image you want to generate...",
   "prompt_describeImageWithHint": "Enter prompt to describe image, type < to reference library, supports tag autocomplete",
   "prompt_searchHint": "Search prompt",
@@ -1301,12 +1310,6 @@
   "onlineGallery_queueFullMax": "Queue is full (maximum 50 items)",
   "onlineGallery_chooseDownloadDirectory": "Choose Download Directory",
   "onlineGallery_downloadStarted": "Download started...",
-  "onlineGallery_savedToPath": "Saved to: {path}",
-  "@onlineGallery_savedToPath": {
-    "placeholders": {
-      "path": {}
-    }
-  },
   "onlineGallery_downloadFailed": "Download failed: {error}",
   "@onlineGallery_downloadFailed": {
     "placeholders": {
@@ -2691,11 +2694,9 @@
   "localGallery_activeFiltersSet": "Filters set",
   "localGallery_applyFilters": "Apply Filters",
   "localGallery_resetAdvancedFilters": "Reset Advanced Filters",
-  "localGallery_exportFailed": "Export failed",
   "bulkExport_format": "Format",
   "bulkExport_jsonFormat": "JSON",
   "bulkExport_csvFormat": "CSV",
-  "bulkExport_includeMetadataHint": "Export generation parameters with images",
 
   "localGallery_group_today": "Today",
   "localGallery_group_yesterday": "Yesterday",
@@ -2710,7 +2711,7 @@
   "localGallery_permissionRequiredTitle": "Storage Permission Required",
   "localGallery_permissionRequiredContent": "Local gallery needs storage permission to scan your generated images.\n\nPlease grant permission in settings and try again.",
   "localGallery_openSettings": "Open Settings",
-  "localGallery_firstTimeTipTitle": "💡 Tips",
+  "localGallery_firstTimeTipTitle": "Tips",
   "localGallery_firstTimeTipContent": "Right-click (desktop) or long-press (mobile) on images to:\n\n• Copy Prompt\n• Copy Seed\n• View full metadata",
   "localGallery_gotIt": "Got it",
   "localGallery_undone": "Undone",
@@ -3564,6 +3565,8 @@
   "queue_noCompletedTasks": "No completed records",
 
   "queue_editTask": "Edit Task",
+  "queue_taskDetails": "Task Details",
+  "queue_clearCompletedTasks": "Clear Completed",
   "queue_duplicateTask": "Duplicate Task",
   "queue_taskDuplicated": "Task duplicated",
   "queue_queueFull": "Queue is full, cannot duplicate",
@@ -4930,7 +4933,7 @@
   "settings_generationIntervalHelper": "Enter 1–3600 seconds. The cooldown starts when generation begins.",
   "settings_selectLocalOnnxTaggerFolder": "Select ONNX tagger model folder",
   "settings_localOnnxTaggerFolderSaved": "ONNX tagger model folder saved",
-  "settings_localOnnxTaggerFolder": "Local ONNX tagger model folder",
+  "settings_localOnnxTaggerFolder": "Local ONNX tagger model",
   "settings_notConfigured": "Not configured",
   "settings_confirmExternalSendTitle": "Protection Mode: Confirm External Send",
   "settings_confirmExternalSendContent": "About to send {count} local image(s) to {target}. The image data will leave the local app boundary. Confirm this is expected.",
@@ -5423,7 +5426,7 @@
   "vibeLibrary_emptyCategoryTitle": "No Vibes in this category",
   "vibeLibrary_emptyCategorySubtitle": "Switch to \"All Vibes\" to see all entries",
   "vibeLibrary_emptyNoMatchesTitle": "No matching results",
-  "vibeLibrary_emptySaveFromGenerationHint": "Save Vibes from the generation page to add them to the library",
+  "vibeLibrary_emptySaveFromGenerationHint": "Import a file, or save a Vibe from the generation page",
 
   "vibe_nameRequired": "Name is required",
   "vibe_import_namingTitle": "Name Vibe",
@@ -5650,13 +5653,13 @@
   "@updateNoticeAvailable": {
     "placeholders": {"version": {}}
   },
-  "updateNoticeAvailableSubtitle": "Download and finish the update automatically in the app",
+  "updateNoticeAvailableSubtitle": "Download, verify, and safely install the update in the app",
   "updateNoticeManualSubtitle": "This platform must be updated manually from the Release page",
   "updateNoticeReady": "Version v{version} is ready",
   "@updateNoticeReady": {
     "placeholders": {"version": {}}
   },
-  "updateNoticeReadySubtitle": "The package is verified and ready to install on restart",
+  "updateNoticeReadySubtitle": "The package is verified and ready to install",
   "updateNoticeFailed": "The previous update did not finish",
   "updateViewDetails": "View Update",
   "updateSettingsAvailable": "v{version} is available; select to view details",
@@ -5699,6 +5702,8 @@
   "preciseRefLib_searchHint": "Search references...",
   "preciseRefLib_empty": "Drop or paste images here to build your library",
   "preciseRefLib_emptyHint": "You can also right-click images in preview, history, or gallery to save them here",
+  "preciseRefLib_emptyTouch": "Import images to build your reference library",
+  "preciseRefLib_emptyHintTouch": "You can also save images from generation results, history, or the local gallery",
   "preciseRefLib_import": "Import Images",
   "preciseRefLib_entryCount": "{count} items",
   "@preciseRefLib_entryCount": {
@@ -6389,6 +6394,7 @@
   "autocomplete_statusTranslating": "Translating",
   "autocomplete_openSettings": "Open autocomplete and data source settings",
   "randomManager_searchCategories": "Search categories, groups, or tags (Ctrl+F)",
+  "randomManager_searchCategoriesCompact": "Search categories, groups, or tags",
   "randomManager_workspaceTitle": "Random library",
   "randomManager_workspaceSubtitle": "Build reusable recipes from the complete offline catalog",
   "randomManager_recipeTitle": "Generation recipe",
@@ -6438,6 +6444,40 @@
   "randomManager_catalogCounts": "Complete catalog: {tags} tags, {aliases} aliases",
   "@randomManager_catalogCounts": {"placeholders": {"tags": {}, "aliases": {}}},
   "randomManager_libraryUnavailable": "Random library unavailable",
-  "randomManager_noCategoryResults": "No matching categories, groups, or tags"
-
+  "randomManager_noCategoryResults": "No matching categories, groups, or tags",
+  "common_share": "Share",
+  "common_moreActions": "More actions",
+  "nav_more": "More",
+  "nav_explore": "Explore",
+  "image_savedToSystemGallery": "Saved to your photo gallery",
+  "image_savedAppOnly": "Saved to the app gallery, but could not export to your photo gallery: {error}",
+  "@image_savedAppOnly": {"placeholders":{"error":{}}},
+  "image_shareFailed": "Share failed: {error}",
+  "@image_shareFailed": {"placeholders":{"error":{}}},
+  "onlineGallery_savedFiles": "Saved {count} files",
+  "@onlineGallery_savedFiles": {"placeholders":{"count":{"type":"int"}}},
+  "statistics_exportJsonHint": "Exports all calculated statistics and distributions as structured JSON.",
+  "statistics_exportCsvHint": "Exports sectioned statistics that can be opened in spreadsheet applications.",
+  "queue_reorderTask": "Reorder task",
+  "queue_moreTaskActions": "More task actions",
+  "queue_selectTask": "Select task",
+  "settings_notificationSoundImportFailed": "Couldn't import the sound. Choose the file again.",
+  "settings_androidManagedStorage": "Securely managed by the system; choose a location when exporting",
+  "settings_importLocalOnnxTaggerFiles": "Import ONNX model and label files",
+  "settings_localOnnxFilesImported": "Imported {count} model files",
+  "@settings_localOnnxFilesImported": {"placeholders":{"count":{"type":"int"}}},
+  "settings_localOnnxManagedFiles": "{count} model files in app storage",
+  "@settings_localOnnxManagedFiles": {"placeholders":{"count":{"type":"int"}}},
+  "settings_clearLocalOnnxModelsTitle": "Clear local ONNX models?",
+  "settings_clearLocalOnnxModelsContent": "This removes the ONNX models and label files imported on this device.",
+  "updateAndroidDownloadedHint": "v{version} has been downloaded and verified. Open Android's system installer to continue the update.",
+  "@updateAndroidDownloadedHint": {"placeholders":{"version":{}}},
+  "updateAndroidInstallingHint": "Opening Android's system installer. Follow the system prompt to confirm the update.",
+  "updateAndroidInstallConfirmationBody": "Android's system installer will open. After you confirm, Android will replace the app without clearing local data. Active generation and download tasks may stop, so save anything important first.",
+  "preciseRefLib_moreActions": "More actions",
+  "vibeDetail_setAsCover": "Set selected image as cover",
+  "vibeDetail_bundleChildParameters": "Showing import parameters for child Vibe {index}.",
+  "@vibeDetail_bundleChildParameters": {"placeholders":{"index":{"type":"int"}}},
+  "vibeDetail_bundleDefaultParameters": "Showing Bundle default parameters. Select a child below to view its parameters.",
+  "vibeDetail_choosePreviewImage": "Use the image button to choose a preview"
 }

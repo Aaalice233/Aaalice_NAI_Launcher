@@ -33,25 +33,48 @@ class HourlyDistributionCard extends StatelessWidget {
       }
     });
 
+    final chart = PolarActivityChart(
+      key: const ValueKey('hourly-distribution-chart'),
+      hourlyData: hourlyData,
+      size: 180,
+    );
+    final summary = PeakTimeIndicator(
+      key: const ValueKey('hourly-distribution-summary'),
+      peakHour: peakHour,
+      count: peakCount,
+      label: l10n.statistics_peakActivity,
+      morningLabel: l10n.statistics_timeMorning,
+      afternoonLabel: l10n.statistics_timeAfternoon,
+      eveningLabel: l10n.statistics_timeEvening,
+      nightLabel: l10n.statistics_timeNight,
+    );
+
     return ChartCard(
       title: l10n.statistics_chartHourlyDistribution,
       titleIcon: Icons.schedule_outlined,
-      child: Row(
-        children: [
-          PolarActivityChart(hourlyData: hourlyData, size: 180),
-          const SizedBox(width: 16),
-          Expanded(
-            child: PeakTimeIndicator(
-              peakHour: peakHour,
-              count: peakCount,
-              label: l10n.statistics_peakActivity,
-              morningLabel: l10n.statistics_timeMorning,
-              afternoonLabel: l10n.statistics_timeAfternoon,
-              eveningLabel: l10n.statistics_timeEvening,
-              nightLabel: l10n.statistics_timeNight,
-            ),
-          ),
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          if (constraints.maxWidth < 460) {
+            return Column(
+              key: const ValueKey('hourly-distribution-narrow-layout'),
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(child: chart),
+                const SizedBox(height: 16),
+                summary,
+              ],
+            );
+          }
+
+          return Row(
+            key: const ValueKey('hourly-distribution-wide-layout'),
+            children: [
+              chart,
+              const SizedBox(width: 16),
+              Expanded(child: summary),
+            ],
+          );
+        },
       ),
     );
   }

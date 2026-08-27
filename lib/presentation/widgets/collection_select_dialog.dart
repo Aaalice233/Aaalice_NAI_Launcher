@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/models/gallery/image_collection.dart';
 import '../providers/collection_provider.dart';
-import 'common/inset_shadow_container.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// 集合选择结果
@@ -25,10 +24,7 @@ class CollectionSelectResult {
 class CollectionSelectDialog extends ConsumerStatefulWidget {
   final ThemeData theme;
 
-  const CollectionSelectDialog({
-    super.key,
-    required this.theme,
-  });
+  const CollectionSelectDialog({super.key, required this.theme});
 
   /// 显示集合选择对话框
   ///
@@ -39,9 +35,7 @@ class CollectionSelectDialog extends ConsumerStatefulWidget {
   }) {
     return showDialog<CollectionSelectResult>(
       context: context,
-      builder: (context) => CollectionSelectDialog(
-        theme: theme,
-      ),
+      builder: (context) => CollectionSelectDialog(theme: theme),
     );
   }
 
@@ -121,28 +115,22 @@ class _CollectionSelectDialogState
         child: Column(
           children: [
             // 搜索框
-            InsetShadowContainer(
-              borderRadius: 8,
-              child: ThemedInput(
-                controller: _filterController,
-                decoration: InputDecoration(
-                  hintText: l10n.collectionSelect_filterHint,
-                  prefixIcon: const Icon(Icons.search),
-                  suffixIcon: _filterQuery.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.clear),
-                          onPressed: () {
-                            _filterController.clear();
-                          },
-                        )
-                      : null,
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 12,
-                  ),
+            ThemedInput(
+              controller: _filterController,
+              decoration: InputDecoration(
+                hintText: l10n.collectionSelect_filterHint,
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _filterQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _filterController.clear();
+                        },
+                      )
+                    : null,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 12,
                 ),
               ),
             ),
@@ -245,15 +233,10 @@ class _CollectionSelectDialogState
     ImageCollection collection,
   ) {
     return ListTile(
-      leading: Icon(
-        Icons.folder_outlined,
-        color: theme.colorScheme.primary,
-      ),
+      leading: Icon(Icons.folder_outlined, color: theme.colorScheme.primary),
       title: Text(
         collection.name,
-        style: theme.textTheme.bodyLarge?.copyWith(
-          fontWeight: FontWeight.w500,
-        ),
+        style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500),
       ),
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

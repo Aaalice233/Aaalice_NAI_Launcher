@@ -12,6 +12,7 @@ import '../../../core/autocomplete/cooccurrence_data_pack_provider.dart';
 import '../../../core/autocomplete/completion_models.dart';
 import '../../../core/autocomplete/completion_orchestrator.dart';
 import '../../../core/autocomplete/prompt_token_parser.dart';
+import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../router/app_router.dart';
@@ -506,23 +507,40 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     final screen = theater.size;
     const viewportInset = 8.0;
     const caretGap = 8.0;
+    final touchCompact =
+        PlatformCapabilities.current.hasTouchInput && screen.width < 600;
+    final flutterView = View.of(overlayContext);
+    final rawKeyboardInset =
+        flutterView.viewInsets.bottom / flutterView.devicePixelRatio;
+    final keyboardInset = math
+        .max(MediaQuery.viewInsetsOf(overlayContext).bottom, rawKeyboardInset)
+        .clamp(0.0, screen.height);
+    final visibleBottom = screen.height - keyboardInset;
     final below = math.max(
-      screen.height - viewportInset - caretBottom - caretGap,
+      visibleBottom - viewportInset - caretBottom - caretGap,
       0.0,
     );
     final above = math.max(caretTop - caretGap - viewportInset, 0.0);
     final placeBelow = below >= 180 || below >= above;
     final availableHeight = placeBelow ? below : above;
-    final maxHeight = math.min(availableHeight, 410.0);
+    final minimumUsableHeight = touchCompact ? 152.0 : 90.0;
+    if (availableHeight < minimumUsableHeight) {
+      return const SizedBox.shrink();
+    }
+    final maxHeight = math.min(availableHeight, touchCompact ? 320.0 : 410.0);
 
-    // Match the ComfyUI popup footprint: a stable 42rem-like preferred width,
-    // capped to 62% of roomy viewports, with some leading text left visible.
+    // Phone completion is a stable edge-aligned panel. Roomy viewports retain
+    // the editor-style footprint and keep some leading text visible.
     final availableWidth = math.max(screen.width - viewportInset * 2, 0.0);
-    final responsiveWidth = math.max(360.0, availableWidth * 0.62);
+    final responsiveWidth = touchCompact
+        ? availableWidth
+        : math.max(360.0, availableWidth * 0.62);
     final width = math.min(672.0, math.min(availableWidth, responsiveWidth));
     final leadingContext = math.min(width * 0.12, 72.0);
     final maxLeft = screen.width - viewportInset - width;
-    final left = (caretLeft - leadingContext).clamp(viewportInset, maxLeft);
+    final left = touchCompact
+        ? viewportInset
+        : (caretLeft - leadingContext).clamp(viewportInset, maxLeft);
     final settings = ref.read(autocompleteSettingsProvider);
     final dictionaryState = ref.read(zhDictionaryServiceProvider).state;
     final cooccurrenceDataPackState = ref.read(
@@ -630,8 +648,9 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     final position = _scrollController.position;
     if (!position.hasContentDimensions) return;
 
-    final itemTop = _selectedIndex * autocompleteCandidateExtent;
-    final itemBottom = itemTop + autocompleteCandidateExtent;
+    final itemExtent = effectiveAutocompleteCandidateExtent;
+    final itemTop = _selectedIndex * itemExtent;
+    final itemBottom = itemTop + itemExtent;
     final viewportTop = position.pixels;
     final viewportBottom = viewportTop + position.viewportDimension;
     double? target;

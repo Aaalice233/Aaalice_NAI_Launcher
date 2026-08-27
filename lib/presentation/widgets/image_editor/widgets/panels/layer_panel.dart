@@ -1,10 +1,10 @@
 import 'dart:async';
-import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart'
     show WebViewEnvironment;
 
+import '../../../../../core/platform/platform_capabilities.dart';
 import '../../../../../core/utils/app_logger.dart';
 import '../../../../../core/utils/localization_extension.dart';
 import '../../core/editor_state.dart';
@@ -101,7 +101,7 @@ class _LayerPanelState extends State<LayerPanel> {
 
   /// Windows 下 WebView2 Runtime 缺失时提前拦截(Win10/11 一般自带)
   Future<bool> _ensureWebView2Available() async {
-    if (!Platform.isWindows) return true;
+    if (!PlatformCapabilities.current.isWindows) return true;
     String? version;
     try {
       version = await WebViewEnvironment.getAvailableVersion();
@@ -428,6 +428,7 @@ class _LayerTileState extends State<_LayerTile>
 
     return ReorderableDragStartListener(
       index: widget.index,
+      enabled: !PlatformCapabilities.current.hasTouchInput,
       child: Material(
         color: widget.isActive
             ? theme.colorScheme.primaryContainer.withValues(alpha: 0.5)
@@ -499,7 +500,8 @@ class _LayerTileState extends State<_LayerTile>
                       : GestureDetector(
                           // 3D 图层(onDoubleTap 非空)双击名字进入 3D 编辑器;
                           // 普通图层保留双击重命名。3D 图层仍可经右键菜单重命名。
-                          onDoubleTap: widget.onDoubleTap ??
+                          onDoubleTap:
+                              widget.onDoubleTap ??
                               () => setState(() => _isEditing = true),
                           child: Text(
                             widget.layer.name,
@@ -527,10 +529,7 @@ class _LayerTileState extends State<_LayerTile>
                       color: theme.colorScheme.primaryContainer,
                       borderRadius: BorderRadius.circular(4),
                     ),
-                    child: Text(
-                      '3D',
-                      style: theme.textTheme.labelSmall,
-                    ),
+                    child: Text('3D', style: theme.textTheme.labelSmall),
                   ),
 
                 // 不透明度指示
@@ -549,7 +548,10 @@ class _LayerTileState extends State<_LayerTile>
                 // 拖动手柄
                 ReorderableDragStartListener(
                   index: widget.index,
-                  child: const Icon(Icons.drag_handle, size: 18),
+                  child: const SizedBox.square(
+                    dimension: 48,
+                    child: Icon(Icons.drag_handle, size: 18),
+                  ),
                 ),
               ],
             ),

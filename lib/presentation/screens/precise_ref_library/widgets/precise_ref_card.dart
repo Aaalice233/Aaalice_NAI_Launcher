@@ -5,8 +5,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../../core/extensions/precise_ref_type_extensions.dart';
+import '../../../../core/platform/platform_capabilities.dart';
 import '../../../../data/models/precise_ref/precise_ref_library_entry.dart';
 import '../../../../data/services/precise_ref_library_storage_service.dart';
+
+enum _PreciseRefCardAction { sendToPreciseRef, sendToImg2Img, edit, delete }
 
 /// 精准参考库条目卡片
 ///
@@ -127,13 +130,16 @@ class _PreciseRefCardState extends ConsumerState<PreciseRefCard> {
                 Icon(
                   entry.type.icon,
                   size: 12,
+                  semanticLabel: _typeDisplayName(context),
                   color: theme.colorScheme.primary,
                 ),
-                const SizedBox(width: 3),
-                Text(
-                  _typeDisplayName(context),
-                  style: theme.textTheme.labelSmall,
-                ),
+                if (!PlatformCapabilities.current.hasTouchInput) ...[
+                  const SizedBox(width: 3),
+                  Text(
+                    _typeDisplayName(context),
+                    style: theme.textTheme.labelSmall,
+                  ),
+                ],
               ],
             ),
           ),
@@ -144,7 +150,12 @@ class _PreciseRefCardState extends ConsumerState<PreciseRefCard> {
           right: 2,
           child: IconButton(
             key: Key('precise-ref-card-favorite-${entry.id}'),
-            visualDensity: VisualDensity.compact,
+            visualDensity: PlatformCapabilities.current.hasTouchInput
+                ? VisualDensity.standard
+                : VisualDensity.compact,
+            constraints: PlatformCapabilities.current.hasTouchInput
+                ? const BoxConstraints.tightFor(width: 48, height: 48)
+                : null,
             iconSize: 18,
             icon: Icon(
               entry.isFavorite ? Icons.star : Icons.star_border,
@@ -213,28 +224,91 @@ class _PreciseRefCardState extends ConsumerState<PreciseRefCard> {
 
   Widget _buildInfoArea(ThemeData theme) {
     final entry = widget.entry;
+    final isTouch = PlatformCapabilities.current.hasTouchInput;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      padding: EdgeInsets.fromLTRB(8, isTouch ? 2 : 6, 4, isTouch ? 2 : 6),
+      child: Row(
         children: [
-          Text(
-            entry.name,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.bodySmall?.copyWith(
-              fontWeight: FontWeight.w600,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  entry.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'S ${_formatParam(entry.strength)} · F ${_formatParam(entry.fidelity)}',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 2),
-          Text(
-            'S ${_formatParam(entry.strength)} · F ${_formatParam(entry.fidelity)}',
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
+          if (isTouch) _buildTouchActions(theme),
         ],
       ),
+    );
+  }
+
+  Widget _buildTouchActions(ThemeData theme) {
+    final l10n = context.l10n;
+    return PopupMenuButton<_PreciseRefCardAction>(
+      key: Key('precise-ref-card-more-${widget.entry.id}'),
+      tooltip: l10n.preciseRefLib_moreActions,
+      constraints: const BoxConstraints(minWidth: 220),
+      onSelected: (action) {
+        switch (action) {
+          case _PreciseRefCardAction.sendToPreciseRef:
+            widget.onSendToPreciseRef?.call();
+          case _PreciseRefCardAction.sendToImg2Img:
+            widget.onSendToImg2Img?.call();
+          case _PreciseRefCardAction.edit:
+            widget.onEdit?.call();
+          case _PreciseRefCardAction.delete:
+            widget.onDelete?.call();
+        }
+      },
+      itemBuilder: (context) => [
+        PopupMenuItem(
+          value: _PreciseRefCardAction.sendToPreciseRef,
+          child: ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.center_focus_strong),
+            title: Text(l10n.preciseRefLib_sendToPreciseRef),
+          ),
+        ),
+        PopupMenuItem(
+          value: _PreciseRefCardAction.sendToImg2Img,
+          child: ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.image_outlined),
+            title: Text(l10n.preciseRefLib_sendToImg2Img),
+          ),
+        ),
+        PopupMenuItem(
+          value: _PreciseRefCardAction.edit,
+          child: ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.edit_outlined),
+            title: Text(l10n.preciseRefLib_editEntry),
+          ),
+        ),
+        PopupMenuItem(
+          value: _PreciseRefCardAction.delete,
+          child: ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(Icons.delete_outline, color: theme.colorScheme.error),
+            title: Text(l10n.preciseRefLib_deleteEntry),
+          ),
+        ),
+      ],
     );
   }
 

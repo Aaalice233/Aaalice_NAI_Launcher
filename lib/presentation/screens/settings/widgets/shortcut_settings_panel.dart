@@ -124,6 +124,7 @@ class _ShortcutSettingsPanelState extends ConsumerState<ShortcutSettingsPanel> {
                   Expanded(
                     child: TextField(
                       controller: _searchController,
+                      textAlignVertical: TextAlignVertical.center,
                       decoration: InputDecoration(
                         hintText: context.l10n.shortcut_settings_search,
                         prefixIcon: const Icon(Icons.search, size: 20),
@@ -166,57 +167,56 @@ class _ShortcutSettingsPanelState extends ConsumerState<ShortcutSettingsPanel> {
                 ],
               ),
               const SizedBox(height: 8),
-              // 其他设置
-              Row(
-                children: [
-                  // 显示在Tooltip中
-                  FilterChip(
-                    label: Text(
-                      context.l10n.shortcut_settings_show_in_tooltips,
+              // 这些选项在手机宽度下需要自然换行，不能把末项挤出面板。
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    FilterChip(
+                      label: Text(
+                        context.l10n.shortcut_settings_show_in_tooltips,
+                      ),
+                      selected: config.showShortcutInTooltip,
+                      onSelected: config.enableShortcuts
+                          ? (value) {
+                              ref
+                                  .read(shortcutConfigNotifierProvider.notifier)
+                                  .updateSettings(showShortcutInTooltip: value);
+                            }
+                          : null,
                     ),
-                    selected: config.showShortcutInTooltip,
-                    onSelected: config.enableShortcuts
-                        ? (value) {
-                            ref
-                                .read(shortcutConfigNotifierProvider.notifier)
-                                .updateSettings(showShortcutInTooltip: value);
-                          }
-                        : null,
-                  ),
-                  const SizedBox(width: 8),
-                  // 显示徽章
-                  FilterChip(
-                    label: Text(context.l10n.shortcut_settings_show_badges),
-                    selected: config.showShortcutBadges,
-                    onSelected: config.enableShortcuts
-                        ? (value) {
-                            ref
-                                .read(shortcutConfigNotifierProvider.notifier)
-                                .updateSettings(showShortcutBadges: value);
-                          }
-                        : null,
-                  ),
-                  const SizedBox(width: 8),
-                  // 在菜单中显示
-                  FilterChip(
-                    label: Text(context.l10n.shortcut_settings_show_in_menus),
-                    selected: config.showInMenus,
-                    onSelected: config.enableShortcuts
-                        ? (value) {
-                            ref
-                                .read(shortcutConfigNotifierProvider.notifier)
-                                .updateSettings(showInMenus: value);
-                          }
-                        : null,
-                  ),
-                  const Spacer(),
-                  // 重置所有按钮
-                  TextButton.icon(
-                    onPressed: _showResetConfirmDialog,
-                    icon: const Icon(Icons.refresh, size: 16),
-                    label: Text(context.l10n.shortcut_settings_reset_all),
-                  ),
-                ],
+                    FilterChip(
+                      label: Text(context.l10n.shortcut_settings_show_badges),
+                      selected: config.showShortcutBadges,
+                      onSelected: config.enableShortcuts
+                          ? (value) {
+                              ref
+                                  .read(shortcutConfigNotifierProvider.notifier)
+                                  .updateSettings(showShortcutBadges: value);
+                            }
+                          : null,
+                    ),
+                    FilterChip(
+                      label: Text(context.l10n.shortcut_settings_show_in_menus),
+                      selected: config.showInMenus,
+                      onSelected: config.enableShortcuts
+                          ? (value) {
+                              ref
+                                  .read(shortcutConfigNotifierProvider.notifier)
+                                  .updateSettings(showInMenus: value);
+                            }
+                          : null,
+                    ),
+                    TextButton.icon(
+                      onPressed: _showResetConfirmDialog,
+                      icon: const Icon(Icons.refresh, size: 16),
+                      label: Text(context.l10n.shortcut_settings_reset_all),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),

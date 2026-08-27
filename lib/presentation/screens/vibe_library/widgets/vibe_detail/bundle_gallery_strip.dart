@@ -85,6 +85,25 @@ class BundleGalleryStrip extends StatelessWidget {
                   itemBuilder: _buildVibeItem,
                 ),
               ),
+              if (onLongPressSetCover != null) ...[
+                Container(
+                  width: 1,
+                  height: 64,
+                  color: theme.colorScheme.outlineVariant.withValues(
+                    alpha: 0.3,
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: IconButton(
+                    onPressed: selectedIndex >= 0
+                        ? () => onLongPressSetCover!(selectedIndex)
+                        : null,
+                    tooltip: context.l10n.vibeDetail_setAsCover,
+                    icon: const Icon(Icons.wallpaper_rounded),
+                  ),
+                ),
+              ],
             ],
           ),
         ),

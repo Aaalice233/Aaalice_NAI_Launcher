@@ -105,6 +105,8 @@
   "nav_dictionary": "词库",
   "nav_discordCommunity": "Discord 社群",
   "nav_githubRepo": "GitHub 仓库",
+  "nav_joinDiscord": "加入 Discord",
+  "nav_projectRepository": "项目仓库",
   "nav_expandSidebar": "展开侧边栏",
   "nav_collapseSidebar": "收起侧边栏",
 
@@ -128,6 +130,7 @@
   "auth_passwordRequired": "请输入密码",
 
   "auth_tokenLogin": "API Token 登录",
+  "auth_tokenLoginCompact": "Token登录",
   "auth_tokenLoginRecommended": "API Token 登录（推荐）",
   "auth_credentialsLogin": "邮箱密码登录",
   "auth_credentialsLoginUnavailable": "账号密码登录当前不可用，请使用 Token 登录",
@@ -163,7 +166,6 @@
   },
   "auth_removeAvatar": "移除头像",
   "auth_selectFromGallery": "从相册选择",
-  "auth_takePhoto": "拍摄照片",
   "auth_quickLogin": "一键登录",
   "auth_nicknameRequired": "请输入昵称",
   "auth_createdAt": "创建于 {date}",
@@ -224,6 +226,7 @@
   "settings_alphaModeStraightDescription": "保留未乘 Alpha 的 RGB，适合继续编辑，也是 NovelAI 官网默认值。",
   "settings_alphaModePremultipliedDescription": "RGB 已乘 Alpha，适合要求预乘输入的合成与渲染流程。",
   "settings_promptAssistant": "提示词助手",
+  "settings_comfyUiDesktopOnly": "仅桌面端可用",
   "settings_selectStyle": "选择风格",
   "settings_defaultPreset": "默认",
   "settings_selectFont": "选择字体",
@@ -256,7 +259,7 @@
   "settings_removeAvatar": "移除头像",
   "settings_accountEmail": "账号邮箱",
   "settings_emailAccount": "邮箱登录",
-  "settings_tokenAccount": "Token登录",
+  "settings_tokenAccount": "Token 账号",
   "settings_setAsDefault": "设为默认",
   "settings_defaultAccount": "默认",
   "settings_editNickname": "编辑昵称",
@@ -275,6 +278,12 @@
   "settings_setAsDefaultSuccess": "已设为默认账号",
 
   "generation_title": "生成",
+  "generation_promptOverviewCharacters": "{count} 字",
+  "@generation_promptOverviewCharacters": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "generation_generate": "生成",
   "generation_cooldownRemaining": "等待 {seconds} 秒",
   "@generation_cooldownRemaining": {
@@ -409,7 +418,7 @@
     }
   },
   "prompt_appliedToMainPrompt": "已应用到主提示词",
-  "prompt_inputPrompt": "输入提示词...",
+  "prompt_inputPrompt": "描述你想生成的画面",
   "prompt_describeImage": "描述你想要生成的图像...",
   "prompt_describeImageWithHint": "输入提示词描述画面，输入 < 引用词库，支持自动补全标签",
   "prompt_searchHint": "搜索提示词",
@@ -1203,12 +1212,6 @@
   "onlineGallery_queueFullMax": "队列已满（最多50项）",
   "onlineGallery_chooseDownloadDirectory": "选择下载目录",
   "onlineGallery_downloadStarted": "开始下载...",
-  "onlineGallery_savedToPath": "已保存到: {path}",
-  "@onlineGallery_savedToPath": {
-    "placeholders": {
-      "path": {}
-    }
-  },
   "onlineGallery_downloadFailed": "下载失败: {error}",
   "@onlineGallery_downloadFailed": {
     "placeholders": {
@@ -2709,11 +2712,9 @@
   "localGallery_activeFiltersSet": "已设置筛选",
   "localGallery_applyFilters": "应用筛选",
   "localGallery_resetAdvancedFilters": "重置高级筛选",
-  "localGallery_exportFailed": "导出失败",
   "bulkExport_format": "导出格式",
   "bulkExport_jsonFormat": "JSON",
   "bulkExport_csvFormat": "CSV",
-  "bulkExport_includeMetadataHint": "导出生成参数等信息",
 
   "localGallery_group_today": "今天",
   "localGallery_group_yesterday": "昨天",
@@ -2728,7 +2729,7 @@
   "localGallery_permissionRequiredTitle": "需要存储权限",
   "localGallery_permissionRequiredContent": "本地画廊需要访问存储权限才能扫描您生成的图片。\n\n请在设置中授予权限后重试。",
   "localGallery_openSettings": "打开设置",
-  "localGallery_firstTimeTipTitle": "💡 使用提示",
+  "localGallery_firstTimeTipTitle": "使用提示",
   "localGallery_firstTimeTipContent": "右键点击（桌面端）或长按（移动端）图片可以：\n\n• 复制 Prompt\n• 复制 Seed\n• 查看完整元数据",
   "localGallery_gotIt": "知道了",
   "localGallery_undone": "已撤销",
@@ -3582,6 +3583,8 @@
   "queue_noCompletedTasks": "暂无完成记录",
 
   "queue_editTask": "编辑任务",
+  "queue_taskDetails": "任务详情",
+  "queue_clearCompletedTasks": "清空已完成",
   "queue_duplicateTask": "复制任务",
   "queue_taskDuplicated": "任务已复制",
   "queue_queueFull": "队列已满，无法复制",
@@ -4713,7 +4716,7 @@
   "settings_generationIntervalHelper": "可设置 1–3600 秒，从开始执行生图时计时。",
   "settings_selectLocalOnnxTaggerFolder": "选择 ONNX tagger 模型文件夹",
   "settings_localOnnxTaggerFolderSaved": "ONNX tagger 模型文件夹已保存",
-  "settings_localOnnxTaggerFolder": "本地 ONNX tagger 模型文件夹",
+  "settings_localOnnxTaggerFolder": "本地 ONNX tagger 模型",
   "settings_notConfigured": "未配置",
   "settings_confirmExternalSendTitle": "保护模式：确认外部发送",
   "settings_confirmExternalSendContent": "即将把 {count} 张本地图片发送到 {target}。图片会离开本地应用边界，请确认这符合你的预期。",
@@ -5206,7 +5209,7 @@
   "vibeLibrary_emptyCategoryTitle": "该分类下暂无 Vibe",
   "vibeLibrary_emptyCategorySubtitle": "尝试切换到\"全部 Vibe\"查看所有内容",
   "vibeLibrary_emptyNoMatchesTitle": "无匹配结果",
-  "vibeLibrary_emptySaveFromGenerationHint": "从生成页面保存Vibe到库中",
+  "vibeLibrary_emptySaveFromGenerationHint": "可从文件导入，或从生成页面保存 Vibe",
 
   "vibe_nameRequired": "名称不能为空",
   "vibe_import_namingTitle": "命名 Vibe",
@@ -5433,13 +5436,13 @@
   "@updateNoticeAvailable": {
     "placeholders": {"version": {}}
   },
-  "updateNoticeAvailableSubtitle": "可在应用内下载并自动完成更新",
+  "updateNoticeAvailableSubtitle": "可在应用内下载、校验并安全安装更新",
   "updateNoticeManualSubtitle": "当前平台需要前往 Release 页面手动更新",
   "updateNoticeReady": "新版本 v{version} 已准备好",
   "@updateNoticeReady": {
     "placeholders": {"version": {}}
   },
-  "updateNoticeReadySubtitle": "更新包已校验，重启即可安装",
+  "updateNoticeReadySubtitle": "更新包已校验，可以立即安装",
   "updateNoticeFailed": "上次更新没有完成",
   "updateViewDetails": "查看更新",
   "updateSettingsAvailable": "发现 v{version}，点击查看更新内容",
@@ -5482,6 +5485,8 @@
   "preciseRefLib_searchHint": "搜索参考图...",
   "preciseRefLib_empty": "拖拽或粘贴图片到此处建立库",
   "preciseRefLib_emptyHint": "也可以在生成结果、历史记录或本地图库中右键保存",
+  "preciseRefLib_emptyTouch": "导入图片建立参考库",
+  "preciseRefLib_emptyHintTouch": "也可以从生成结果、历史记录或本地画廊保存",
   "preciseRefLib_import": "导入图片",
   "preciseRefLib_entryCount": "{count} 个条目",
   "preciseRefLib_sendToPreciseRef": "发送到精准参考",
@@ -6458,6 +6463,7 @@
   "autocomplete_statusTranslating": "翻译中",
   "autocomplete_openSettings": "打开补全与数据源设置",
   "randomManager_searchCategories": "搜索类别、词组或标签（Ctrl+F）",
+  "randomManager_searchCategoriesCompact": "搜索类别、词组或标签",
   "randomManager_workspaceTitle": "随机词库",
   "randomManager_workspaceSubtitle": "用完整离线 catalog 组合可复用的随机生成配方",
   "randomManager_recipeTitle": "生成配方",
@@ -6507,6 +6513,40 @@
   "randomManager_catalogCounts": "完整 catalog：{tags} 个标签，{aliases} 个别名",
   "@randomManager_catalogCounts": {"placeholders": {"tags": {}, "aliases": {}}},
   "randomManager_libraryUnavailable": "随机词库无法使用",
-  "randomManager_noCategoryResults": "没有匹配的类别、词组或标签"
-
+  "randomManager_noCategoryResults": "没有匹配的类别、词组或标签",
+  "common_share": "分享",
+  "common_moreActions": "更多操作",
+  "nav_more": "更多",
+  "nav_explore": "探索",
+  "image_savedToSystemGallery": "已保存到系统相册",
+  "image_savedAppOnly": "已保存到应用图库，但无法导出到系统相册：{error}",
+  "@image_savedAppOnly": {"placeholders":{"error":{}}},
+  "image_shareFailed": "分享失败: {error}",
+  "@image_shareFailed": {"placeholders":{"error":{}}},
+  "onlineGallery_savedFiles": "已保存 {count} 个文件",
+  "@onlineGallery_savedFiles": {"placeholders":{"count":{"type":"int"}}},
+  "statistics_exportJsonHint": "将全部统计结果和分布数据导出为结构化 JSON。",
+  "statistics_exportCsvHint": "将分区统计数据导出为可用表格应用打开的 CSV。",
+  "queue_reorderTask": "调整任务顺序",
+  "queue_moreTaskActions": "更多任务操作",
+  "queue_selectTask": "选择任务",
+  "settings_notificationSoundImportFailed": "无法导入音效，请重新选择文件。",
+  "settings_androidManagedStorage": "由系统安全管理；导出时可选择保存位置",
+  "settings_importLocalOnnxTaggerFiles": "导入 ONNX 模型及标签文件",
+  "settings_localOnnxFilesImported": "已导入 {count} 个模型文件",
+  "@settings_localOnnxFilesImported": {"placeholders":{"count":{"type":"int"}}},
+  "settings_localOnnxManagedFiles": "应用存储中有 {count} 个模型文件",
+  "@settings_localOnnxManagedFiles": {"placeholders":{"count":{"type":"int"}}},
+  "settings_clearLocalOnnxModelsTitle": "清除本地 ONNX 模型？",
+  "settings_clearLocalOnnxModelsContent": "将删除导入到此设备的 ONNX 模型及标签文件。",
+  "updateAndroidDownloadedHint": "新版本 v{version} 已下载并通过校验。可以打开 Android 系统安装界面继续更新。",
+  "@updateAndroidDownloadedHint": {"placeholders":{"version":{}}},
+  "updateAndroidInstallingHint": "正在打开 Android 系统安装界面，请按系统提示确认更新。",
+  "updateAndroidInstallConfirmationBody": "将打开 Android 系统安装界面。确认安装后，系统会替换应用且不会清除本地数据；进行中的生成和下载任务可能停止，请先保存必要内容。",
+  "preciseRefLib_moreActions": "更多操作",
+  "vibeDetail_setAsCover": "将所选图片设为封面",
+  "vibeDetail_bundleChildParameters": "正在显示第 {index} 个子 Vibe 的导入参数。",
+  "@vibeDetail_bundleChildParameters": {"placeholders":{"index":{"type":"int"}}},
+  "vibeDetail_bundleDefaultParameters": "正在显示合集默认参数。选择下方子项可查看其参数。",
+  "vibeDetail_choosePreviewImage": "点击图片按钮选择预览图"
 }

@@ -134,7 +134,13 @@ class _DiscordShareDialogState extends ConsumerState<DiscordShareDialog> {
         _error = error.isUnauthorized || error.isNotMember ? null : error;
         _initializing = false;
       });
-    } catch (error) {
+    } catch (error, stackTrace) {
+      AppLogger.e(
+        'Failed to initialize Discord sharing',
+        error,
+        stackTrace,
+        'DiscordShare',
+      );
       if (!mounted) return;
       setState(() {
         _error = error;
@@ -168,7 +174,13 @@ class _DiscordShareDialogState extends ConsumerState<DiscordShareDialog> {
         _joinRequired = error.isNotMember;
         _error = error.isNotMember ? null : error;
       });
-    } catch (error) {
+    } catch (error, stackTrace) {
+      AppLogger.e(
+        'Discord verification failed',
+        error,
+        stackTrace,
+        'DiscordShare',
+      );
       if (mounted) setState(() => _error = error);
     } finally {
       if (identical(_authenticationCancelToken, cancelToken)) {
@@ -828,7 +840,12 @@ class _DiscordShareDialogState extends ConsumerState<DiscordShareDialog> {
   }
 
   String _localizedError(Object error) {
-    if (error is! DiscordShareException) return error.toString();
+    if (error is DioException) {
+      return context.l10n.discordShare_errorNetwork;
+    }
+    if (error is! DiscordShareException) {
+      return context.l10n.discordShare_errorRelay;
+    }
     return switch (error.code) {
       'browser_unavailable' => context.l10n.discordShare_errorBrowser,
       'timeout' => context.l10n.discordShare_errorTimeout,
@@ -854,7 +871,7 @@ class _DiscordShareDialogState extends ConsumerState<DiscordShareDialog> {
       'webhook_failed' ||
       'partial_delivery' => context.l10n.discordShare_errorDelivery,
       'request_failed' => context.l10n.discordShare_errorNetwork,
-      _ => error.message,
+      _ => context.l10n.discordShare_errorRelay,
     };
   }
 

@@ -11,6 +11,8 @@ import 'package:path/path.dart' as path;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/constants/storage_keys.dart';
+import '../../../core/platform/platform_capabilities.dart';
+import '../../../core/services/file_export_service.dart';
 import '../../../core/shortcuts/default_shortcuts.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/file_explorer_utils.dart';
@@ -40,6 +42,7 @@ import '../../utils/local_gallery_reference_factory.dart';
 import '../../utils/local_gallery_metadata_resolver.dart';
 import '../../utils/metadata_import_coordinator.dart';
 import '../../providers/selection_mode_provider.dart';
+import '../../adaptive/adaptive_presenter.dart';
 import '../../widgets/bulk_metadata_edit_dialog.dart';
 import '../../widgets/collection_select_dialog.dart';
 import '../../widgets/common/app_toast.dart';
@@ -98,7 +101,8 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     ShortcutIds.clearFilter: _clearFilters,
     ShortcutIds.toggleCategoryPanel: _toggleCategoryPanel,
     ShortcutIds.jumpToDate: _jumpToDate,
-    ShortcutIds.openFolder: _openGalleryFolder,
+    if (PlatformCapabilities.current.supportsOpenFolder)
+      ShortcutIds.openFolder: _openGalleryFolder,
   };
 
   @override
@@ -179,6 +183,9 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     final state = ref.watch(localGalleryNotifierProvider);
     final bulkOpState = ref.watch(bulkOperationNotifierProvider);
     final categoryState = ref.watch(galleryCategoryNotifierProvider);
+    final isSelectionMode = ref.watch(
+      localGallerySelectionNotifierProvider.select((value) => value.isActive),
+    );
     ref.listen(galleryCategoryNotifierProvider.select((value) => value.error), (
       previous,
       error,
@@ -187,55 +194,103 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
       AppToast.error(context, error.localized(context.l10n));
       ref.read(galleryCategoryNotifierProvider.notifier).clearError();
     });
-    final screenWidth = MediaQuery.of(context).size.width;
     final theme = Theme.of(context);
 
-    final contentWidth = _showCategoryPanel && screenWidth > 800
-        ? screenWidth - 250
-        : screenWidth;
-    final columns = (contentWidth / 200).floor().clamp(2, 8);
-    final itemWidth = contentWidth / columns;
+    return PopScope<void>(
+      canPop: !isSelectionMode,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && isSelectionMode) {
+          ref.read(localGallerySelectionNotifierProvider.notifier).exit();
+        }
+      },
+      child: PageShortcuts(
+        contextType: ShortcutContext.gallery,
+        shortcuts: _shortcuts,
+        child: KeyboardListener(
+          focusNode: _shortcutsFocusNode,
+          autofocus: true,
+          onKeyEvent: (event) => _handleKeyEvent(event, bulkOpState),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final usePersistentCategories = constraints.maxWidth >= 1000;
+              final showPersistentCategories =
+                  _showCategoryPanel && usePersistentCategories;
+              final contentWidth =
+                  constraints.maxWidth - (showPersistentCategories ? 250 : 0);
+              const horizontalPadding = 24.0;
+              const spacing = 12.0;
+              final availableGridWidth = (contentWidth - horizontalPadding)
+                  .clamp(0.0, double.infinity);
+              final columns = ((availableGridWidth + spacing) / (160 + spacing))
+                  .floor()
+                  .clamp(1, 8);
+              final itemWidth =
+                  (availableGridWidth - spacing * (columns - 1)) / columns;
 
-    return PageShortcuts(
-      contextType: ShortcutContext.gallery,
-      shortcuts: _shortcuts,
-      child: KeyboardListener(
-        focusNode: _shortcutsFocusNode,
-        autofocus: true,
-        onKeyEvent: (event) => _handleKeyEvent(event, bulkOpState),
-        child: Scaffold(
-          body: Row(
-            children: [
-              if (_showCategoryPanel && screenWidth > 800)
-                _buildCategoryPanel(theme, state, categoryState),
-              Expanded(
-                child: Column(
+              return Scaffold(
+                body: Row(
                   children: [
-                    _buildToolbarOrSelectionBar(state, bulkOpState),
-                    Expanded(child: _buildBody(state, columns, itemWidth)),
-                    if (!state.isIndexing &&
-                        state.filteredFiles.isNotEmpty &&
-                        state.totalPages > 0)
-                      PaginationBar(
-                        currentPage: state.currentPage,
-                        totalPages: state.totalPages,
-                        totalItems: state.filteredCount,
-                        itemsPerPage: state.pageSize,
-                        onPageChanged: (p) => ref
-                            .read(localGalleryNotifierProvider.notifier)
-                            .loadPage(p),
-                        onItemsPerPageChanged: (size) => ref
-                            .read(localGalleryNotifierProvider.notifier)
-                            .setPageSize(size),
-                        showItemsPerPage: true,
-                        showTotalInfo: true,
-                        compact: contentWidth < 600,
+                    if (showPersistentCategories)
+                      _buildCategoryPanel(theme, state, categoryState),
+                    Expanded(
+                      child: Column(
+                        children: [
+                          _buildToolbarOrSelectionBar(
+                            state,
+                            bulkOpState,
+                            showCategoryPanel: showPersistentCategories,
+                            onToggleCategoryPanel: usePersistentCategories
+                                ? _toggleCategoryPanel
+                                : _showCategoryPanelSheet,
+                          ),
+                          Expanded(
+                            child: _buildBody(state, columns, itemWidth),
+                          ),
+                          if (!state.isIndexing &&
+                              state.filteredFiles.isNotEmpty &&
+                              state.totalPages > 0)
+                            PaginationBar(
+                              currentPage: state.currentPage,
+                              totalPages: state.totalPages,
+                              totalItems: state.filteredCount,
+                              itemsPerPage: state.pageSize,
+                              onPageChanged: (p) => ref
+                                  .read(localGalleryNotifierProvider.notifier)
+                                  .loadPage(p),
+                              onItemsPerPageChanged: (size) => ref
+                                  .read(localGalleryNotifierProvider.notifier)
+                                  .setPageSize(size),
+                              showItemsPerPage: true,
+                              showTotalInfo: true,
+                              compact: contentWidth < 680,
+                            ),
+                        ],
                       ),
+                    ),
                   ],
                 ),
-              ),
-            ],
+              );
+            },
           ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showCategoryPanelSheet() {
+    return AdaptivePresenter.showPanel<void>(
+      context: context,
+      title: context.l10n.localGallery_categoryPanelTitle,
+      initialChildSize: 0.82,
+      minChildSize: 0.45,
+      maxChildSize: 0.96,
+      builder: (sheetContext, scrollController) => Consumer(
+        builder: (context, sheetRef, _) => _buildCategoryPanel(
+          Theme.of(context),
+          sheetRef.watch(localGalleryNotifierProvider),
+          sheetRef.watch(galleryCategoryNotifierProvider),
+          modal: true,
+          afterSelection: () => Navigator.of(sheetContext).maybePop(),
         ),
       ),
     );
@@ -244,22 +299,28 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
   Widget _buildCategoryPanel(
     ThemeData theme,
     LocalGalleryState state,
-    GalleryCategoryState categoryState,
-  ) {
+    GalleryCategoryState categoryState, {
+    bool modal = false,
+    VoidCallback? afterSelection,
+  }) {
     return Container(
-      width: 250,
+      width: modal ? double.infinity : 250,
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerLow,
-        border: Border(
-          right: BorderSide(
-            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
-            width: 1,
-          ),
-        ),
+        border: modal
+            ? null
+            : Border(
+                right: BorderSide(
+                  color: theme.colorScheme.outlineVariant.withValues(
+                    alpha: 0.3,
+                  ),
+                  width: 1,
+                ),
+              ),
       ),
       child: Column(
         children: [
-          _buildCategoryPanelHeader(theme),
+          _buildCategoryPanelHeader(theme, modal: modal),
           Divider(
             height: 1,
             color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
@@ -275,7 +336,10 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
                   totalImageCount: state.totalCount,
                   favoriteCount: snapshot.data ?? 0,
                   selectedCategoryId: categoryState.selectedCategoryId,
-                  onCategorySelected: _handleCategorySelected,
+                  onCategorySelected: (id) {
+                    _handleCategorySelected(id);
+                    afterSelection?.call();
+                  },
                   onCategoryRename: (id, newName) => ref
                       .read(galleryCategoryNotifierProvider.notifier)
                       .renameCategory(id, newName),
@@ -298,28 +362,31 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     );
   }
 
-  Widget _buildCategoryPanelHeader(ThemeData theme) {
+  Widget _buildCategoryPanelHeader(ThemeData theme, {bool modal = false}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       constraints: const BoxConstraints(minHeight: 62),
       child: Row(
         children: [
-          Icon(
-            Icons.folder_outlined,
-            size: 20,
-            color: theme.colorScheme.primary,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              context.l10n.localGallery_categoryPanelTitle,
-              style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+          if (!modal) ...[
+            Icon(
+              Icons.folder_outlined,
+              size: 20,
+              color: theme.colorScheme.primary,
             ),
-          ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                context.l10n.localGallery_categoryPanelTitle,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ] else
+            const Spacer(),
           FilledButton.tonalIcon(
             onPressed: _createCategory,
             icon: const Icon(Icons.add, size: 18),
@@ -522,8 +589,10 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
 
   Widget _buildToolbarOrSelectionBar(
     LocalGalleryState state,
-    BulkOperationState bulkOpState,
-  ) {
+    BulkOperationState bulkOpState, {
+    required bool showCategoryPanel,
+    required VoidCallback onToggleCategoryPanel,
+  }) {
     return LocalGalleryToolbar(
       onRefresh: () =>
           ref.read(localGalleryNotifierProvider.notifier).refresh(),
@@ -539,8 +608,11 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
       onPackSelected: _isPackingImages ? null : _packSelectedImages,
       onEditMetadata: _editSelectedMetadata,
       onMoveToFolder: _moveSelectedToFolder,
-      showCategoryPanel: _showCategoryPanel,
-      onOpenFolder: () => _openGalleryFolder(),
+      showCategoryPanel: showCategoryPanel,
+      onToggleCategoryPanel: onToggleCategoryPanel,
+      onOpenFolder: PlatformCapabilities.current.supportsOpenFolder
+          ? () => _openGalleryFolder()
+          : null,
     );
   }
 
@@ -660,6 +732,8 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
   }
 
   Future<void> _openGalleryFolder() async {
+    if (!PlatformCapabilities.current.supportsOpenFolder) return;
+
     try {
       final rootPath = await GalleryFolderRepository.instance.getRootPath();
       if (rootPath == null || rootPath.isEmpty) {
@@ -677,13 +751,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
         return;
       }
 
-      if (Platform.isWindows) {
-        await Process.start('explorer', [rootPath]);
-      } else if (Platform.isMacOS) {
-        await Process.start('open', [rootPath]);
-      } else if (Platform.isLinux) {
-        await Process.start('xdg-open', [rootPath]);
-      }
+      await FileExplorerUtils.openDirectory(rootPath);
     } catch (e) {
       if (mounted) {
         AppToast.error(
@@ -805,21 +873,24 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     if (includeMetadata == null || !mounted) return;
 
     final defaultName = 'images_${DateTime.now().millisecondsSinceEpoch}';
-    final outputPath = await FilePicker.platform.saveFile(
-      dialogTitle: context.l10n.localGallery_saveZipArchive,
-      fileName: '$defaultName.zip',
-      type: FileType.custom,
-      allowedExtensions: ['zip'],
-    );
+    final fileName = '$defaultName.zip';
+    String? desktopOutputPath;
+    if (!PlatformCapabilities.current.supportsDocumentFileExport) {
+      final outputPath = await FilePicker.platform.saveFile(
+        dialogTitle: context.l10n.localGallery_saveZipArchive,
+        fileName: fileName,
+        type: FileType.custom,
+        allowedExtensions: ['zip'],
+      );
+      if (outputPath == null || !mounted) return;
 
-    if (outputPath == null || !mounted) return;
-
-    final requestedPath = outputPath.endsWith('.zip')
-        ? outputPath
-        : '$outputPath.zip';
-    final finalPath = AssetProtectionGuard.shouldPreventOverwrite(ref)
-        ? await AssetProtectionGuard.resolveNonOverwritingPath(requestedPath)
-        : requestedPath;
+      final requestedPath = outputPath.endsWith('.zip')
+          ? outputPath
+          : '$outputPath.zip';
+      desktopOutputPath = AssetProtectionGuard.shouldPreventOverwrite(ref)
+          ? await AssetProtectionGuard.resolveNonOverwritingPath(requestedPath)
+          : requestedPath;
+    }
 
     if (!mounted) return;
     final l10n = context.l10n;
@@ -831,23 +902,54 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
 
     try {
       final imagePaths = selectedImages.map((img) => img.path).toList();
-      final result = await ZipUtils.createZipFromImagesDetailed(
-        imagePaths,
-        finalPath,
-        stripMetadata: !includeMetadata,
-        onProgress: (progress) {
-          progressToast.updateProgress(
-            progress.fraction,
-            message: l10n.localGallery_packingProgress(
-              progress.current,
-              progress.total,
-            ),
-            subtitle: progress.currentFileName,
-          );
-        },
-      );
+      void onProgress(ZipCreationProgress progress) {
+        progressToast.updateProgress(
+          progress.fraction,
+          message: l10n.localGallery_packingProgress(
+            progress.current,
+            progress.total,
+          ),
+          subtitle: progress.currentFileName,
+        );
+      }
+
+      late final ZipCreationResult result;
+      String? savedLocation;
+      if (PlatformCapabilities.current.supportsDocumentFileExport) {
+        savedLocation = await FileExportService.withTemporaryOutput(
+          fileName: fileName,
+          action: (temporaryPath) async {
+            result = await ZipUtils.createZipFromImagesDetailed(
+              imagePaths,
+              temporaryPath,
+              stripMetadata: !includeMetadata,
+              onProgress: onProgress,
+            );
+            if (!result.succeeded || !mounted) return null;
+            return FileExportService.saveFileFromPath(
+              sourcePath: temporaryPath,
+              fileName: fileName,
+              dialogTitle: l10n.localGallery_saveZipArchive,
+              mimeType: 'application/zip',
+              allowedExtensions: const ['zip'],
+            );
+          },
+        );
+      } else {
+        result = await ZipUtils.createZipFromImagesDetailed(
+          imagePaths,
+          desktopOutputPath!,
+          stripMetadata: !includeMetadata,
+          onProgress: onProgress,
+        );
+        savedLocation = desktopOutputPath;
+      }
 
       if (!mounted) {
+        progressToast.dismiss();
+        return;
+      }
+      if (result.succeeded && savedLocation == null) {
         progressToast.dismiss();
         return;
       }
@@ -1399,8 +1501,9 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
       hasPrompt: metadata?.prompt.isNotEmpty == true,
       hasSeed: metadata?.seed != null,
       isKritaConnected:
+          PlatformCapabilities.current.supportsKritaBridge &&
           ref.read(kritaBridgeNotifierProvider).status ==
-          KritaBridgeStatus.connected,
+              KritaBridgeStatus.connected,
     );
 
     if (action == null || !context.mounted) return;
@@ -1533,6 +1636,12 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
   }
 
   void _toggleCategoryPanel() {
+    final availableWidth =
+        context.size?.width ?? MediaQuery.sizeOf(context).width;
+    if (availableWidth < 1000) {
+      unawaited(_showCategoryPanelSheet());
+      return;
+    }
     setState(() => _showCategoryPanel = !_showCategoryPanel);
   }
 
