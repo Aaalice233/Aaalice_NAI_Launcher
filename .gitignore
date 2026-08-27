@@ -51,10 +51,6 @@ __pycache__/
 *.swo
 *~
 
-# 本地 Codex/agent 指令
-AGENTS.md
-
-
 # ===========================================================================
 # 操作系统产物
 # ===========================================================================
@@ -81,12 +77,16 @@ Desktop.ini
 # Android
 **/android/**/gradle-wrapper.jar
 **/android/.gradle
+**/android/.cxx/
+**/android/.externalNativeBuild/
 **/android/captures/
 **/android/gradlew
 **/android/gradlew.bat
 **/android/local.properties
 **/android/**/GeneratedPluginRegistrant.*
 **/android/key.properties
+*.apk
+*.aab
 *.jks
 *.keystore
 
@@ -165,8 +165,13 @@ cert_thumbprint.txt
 # 日志和临时文件
 # ===========================================================================
 
-# 日志文件
+# 日志、覆盖率和编辑残留
 *.log
+*.lcov
+coverage/
+*.bak
+*.orig
+*.rej
 
 # 临时目录
 logs/
@@ -276,7 +281,4 @@ mask_upload_*.md
 flutter_windows.zip
 dist/*.zip
 dist/*.exe
-.claude_settings.json
-/docs/
-.worktrees/
 .kimi/
