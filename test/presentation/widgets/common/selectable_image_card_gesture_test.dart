@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -133,6 +134,83 @@ void main() {
 
     expect(find.text('View details'), findsOneWidget);
   });
+
+  testWidgets('touch card exposes a 48dp action entry and action sheet', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    try {
+      await tester.pumpWidget(
+        _testApp(
+          _card(
+            onFullscreen: () {},
+            enableSaveAction: false,
+            enableCopyAction: false,
+          ),
+        ),
+      );
+
+      final actionButton = find.byTooltip('More actions');
+      expect(actionButton, findsOneWidget);
+      expect(tester.getSize(actionButton), const Size(48, 48));
+
+      await tester.tap(actionButton);
+      await tester.pumpAndSettle();
+
+      expect(find.text('View details'), findsOneWidget);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
+  testWidgets('touch long press opens the same action sheet', (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    try {
+      await tester.pumpWidget(
+        _testApp(
+          _card(
+            onFullscreen: () {},
+            enableSaveAction: false,
+            enableCopyAction: false,
+          ),
+        ),
+      );
+
+      await tester.longPress(find.byType(SelectableImageCard));
+      await tester.pumpAndSettle();
+
+      expect(find.text('View details'), findsOneWidget);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
+  testWidgets('touch card exposes save-to-library without hover', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    var saved = 0;
+    try {
+      await tester.pumpWidget(
+        _testApp(
+          _card(
+            enableSaveAction: false,
+            enableCopyAction: false,
+            onSaveToLibrary: (_, _) => saved++,
+          ),
+        ),
+      );
+
+      await tester.tap(find.byTooltip('More actions'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Save to Library'));
+      await tester.pumpAndSettle();
+
+      expect(saved, 1);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
 }
 
 Widget _card({
@@ -144,6 +222,7 @@ Widget _card({
   bool allowRepeatedModifierTaps = false,
   bool enableSaveAction = true,
   bool enableCopyAction = true,
+  void Function(Uint8List imageBytes, String prompt)? onSaveToLibrary,
 }) {
   return SizedBox(
     width: 120,
@@ -161,6 +240,7 @@ Widget _card({
       enableSelection: false,
       enableSaveAction: enableSaveAction,
       enableCopyAction: enableCopyAction,
+      onSaveToLibrary: onSaveToLibrary,
     ),
   );
 }

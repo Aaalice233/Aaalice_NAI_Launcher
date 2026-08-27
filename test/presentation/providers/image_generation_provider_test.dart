@@ -37,6 +37,11 @@ class _AuthenticatedAuthNotifier extends AuthNotifier {
   AuthState build() => const AuthState(status: AuthStatus.authenticated);
 }
 
+class _UnauthenticatedAuthNotifier extends AuthNotifier {
+  @override
+  AuthState build() => const AuthState(status: AuthStatus.unauthenticated);
+}
+
 ProviderContainer _createAuthenticatedContainer({
   List<Override> overrides = const [],
 }) {
@@ -173,6 +178,36 @@ void main() {
       expect(savedCopy.metadata, same(metadata));
       expect(savedCopy.canSave, isFalse);
     });
+
+    test(
+      'logged-out generation publishes the login prompt before side effects',
+      () async {
+        final unauthenticatedContainer = ProviderContainer(
+          overrides: [
+            authNotifierProvider.overrideWith(_UnauthenticatedAuthNotifier.new),
+          ],
+        );
+        addTearDown(unauthenticatedContainer.dispose);
+        final params = unauthenticatedContainer.read(
+          generationParamsNotifierProvider,
+        );
+
+        await unauthenticatedContainer
+            .read(imageGenerationNotifierProvider.notifier)
+            .generate(params);
+
+        final request = unauthenticatedContainer.read(
+          authPromptRequestProvider,
+        );
+        expect(request?.reason, AuthPromptReason.imageGeneration);
+        expect(
+          unauthenticatedContainer
+              .read(imageGenerationNotifierProvider)
+              .isGenerating,
+          isFalse,
+        );
+      },
+    );
 
     test('rejects non-64-grid resolution before sending a request', () async {
       container.read(subscriptionNotifierProvider);

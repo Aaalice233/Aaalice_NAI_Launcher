@@ -8,6 +8,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../../utils/queue_export_utils.dart';
 import '../../../core/utils/localization_extension.dart';
+import '../../providers/queue_execution_provider.dart';
 import '../../providers/replication_queue_provider.dart';
 import '../common/app_toast.dart';
 
@@ -16,10 +17,7 @@ class QueueExportDialog extends ConsumerStatefulWidget {
   /// 是否为导入模式
   final bool isImport;
 
-  const QueueExportDialog({
-    super.key,
-    this.isImport = false,
-  });
+  const QueueExportDialog({super.key, this.isImport = false});
 
   @override
   ConsumerState<QueueExportDialog> createState() => _QueueExportDialogState();
@@ -94,10 +92,7 @@ class _QueueExportDialogState extends ConsumerState<QueueExportDialog>
             Expanded(
               child: TabBarView(
                 controller: _tabController,
-                children: [
-                  _buildExportTab(),
-                  _buildImportTab(),
-                ],
+                children: [_buildExportTab(), _buildImportTab()],
               ),
             ),
 
@@ -365,10 +360,9 @@ class _QueueExportDialogState extends ConsumerState<QueueExportDialog>
       await file.writeAsString(content);
 
       // 分享文件
-      await Share.shareXFiles(
-        [XFile(file.path)],
-        subject: l10n.queue_shareSubject,
-      );
+      await Share.shareXFiles([
+        XFile(file.path),
+      ], subject: l10n.queue_shareSubject);
 
       if (!mounted) {
         return;
@@ -426,9 +420,7 @@ class _QueueExportDialogState extends ConsumerState<QueueExportDialog>
           tasks = QueueExportUtils.importFromText(content);
           break;
         default:
-          throw FormatException(
-            l10n.queue_unsupportedFileFormat(extension),
-          );
+          throw FormatException(l10n.queue_unsupportedFileFormat(extension));
       }
 
       if (tasks.isEmpty) {
@@ -438,7 +430,7 @@ class _QueueExportDialogState extends ConsumerState<QueueExportDialog>
       final queueNotifier = ref.read(replicationQueueNotifierProvider.notifier);
 
       if (_importStrategy == ImportStrategy.replace) {
-        await queueNotifier.clear();
+        await ref.read(queueExecutionNotifierProvider.notifier).clearQueue();
       }
 
       final added = await queueNotifier.addAll(tasks.cast());

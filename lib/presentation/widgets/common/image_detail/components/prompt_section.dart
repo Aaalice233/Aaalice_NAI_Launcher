@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../../../core/autocomplete/tag_translation_lookup.dart';
+import '../../../../../core/platform/platform_capabilities.dart';
 import '../../app_toast.dart';
 import 'selection_copy_shortcuts.dart';
 
@@ -121,6 +122,9 @@ class _PromptSectionState extends State<PromptSection> {
     ThemeData theme,
     bool hasContent,
   ) {
+    final actionTargetSize = PlatformCapabilities.current.hasTouchInput
+        ? 48.0
+        : 28.0;
     final accentColor = widget.allTagsAreFixed
         ? colorScheme.tertiary
         : widget.isNegative
@@ -141,49 +145,56 @@ class _PromptSectionState extends State<PromptSection> {
               cursor: hasContent
                   ? SystemMouseCursors.click
                   : SystemMouseCursors.basic,
-              child: Row(
-                children: [
-                  Icon(
-                    widget.icon,
-                    size: 16,
-                    color: hasContent ? accentColor : titleColor,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    widget.title,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      color: titleColor,
-                      fontWeight: FontWeight.w600,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: PlatformCapabilities.current.hasTouchInput
+                      ? 48
+                      : 0,
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      widget.icon,
+                      size: 16,
+                      color: hasContent ? accentColor : titleColor,
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  if (hasContent)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
+                    const SizedBox(width: 6),
+                    Text(
+                      widget.title,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        color: titleColor,
+                        fontWeight: FontWeight.w600,
                       ),
-                      decoration: BoxDecoration(
-                        color: accentColor.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        '$_tagCount',
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: accentColor,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
+                    ),
+                    const SizedBox(width: 8),
+                    if (hasContent)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: accentColor.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          '$_tagCount',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: accentColor,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
-                    ),
-                  const Spacer(),
-                  if (hasContent)
-                    Icon(
-                      _isExpanded ? Icons.expand_less : Icons.expand_more,
-                      size: 20,
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                ],
+                    const Spacer(),
+                    if (hasContent)
+                      Icon(
+                        _isExpanded ? Icons.expand_less : Icons.expand_more,
+                        size: 20,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -200,7 +211,7 @@ class _PromptSectionState extends State<PromptSection> {
             tooltip: context.l10n.detail_copyLabel(widget.title),
             style: IconButton.styleFrom(
               padding: const EdgeInsets.all(6),
-              minimumSize: const Size(28, 28),
+              minimumSize: Size.square(actionTargetSize),
             ),
           ),
           if (widget.showAddToLibrary && widget.onAddToLibrary != null)
@@ -214,7 +225,7 @@ class _PromptSectionState extends State<PromptSection> {
               tooltip: context.l10n.tagLibrary_addToLibrary,
               style: IconButton.styleFrom(
                 padding: const EdgeInsets.all(6),
-                minimumSize: const Size(28, 28),
+                minimumSize: Size.square(actionTargetSize),
               ),
             ),
         ],
@@ -436,39 +447,45 @@ class _TranslatedTagChipState extends ConsumerState<_TranslatedTagChip> {
       onExit: (_) => setState(() => _isHovered = false),
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onTap: widget.onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: bgColor,
-            borderRadius: BorderRadius.circular(6),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            minHeight: PlatformCapabilities.current.hasTouchInput ? 48 : 0,
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (widget.isFixed || widget.isCharacter) ...[
-                Icon(
-                  widget.isFixed ? Icons.push_pin : Icons.person_outline,
-                  size: 11,
-                  color: accent,
-                ),
-                const SizedBox(width: 4),
-              ],
-              Flexible(
-                child: Text(
-                  _displayText,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontSize: 11,
-                    color: colorScheme.onSurface,
-                    fontWeight: isCategorized
-                        ? FontWeight.w600
-                        : FontWeight.w500,
-                    height: 1.35,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (widget.isFixed || widget.isCharacter) ...[
+                  Icon(
+                    widget.isFixed ? Icons.push_pin : Icons.person_outline,
+                    size: 11,
+                    color: accent,
+                  ),
+                  const SizedBox(width: 4),
+                ],
+                Flexible(
+                  child: Text(
+                    _displayText,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontSize: 11,
+                      color: colorScheme.onSurface,
+                      fontWeight: isCategorized
+                          ? FontWeight.w600
+                          : FontWeight.w500,
+                      height: 1.35,
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -577,7 +594,9 @@ class CharacterPromptCard extends StatelessWidget {
           tooltip: context.l10n.detail_copyCharacterPrompt,
           style: IconButton.styleFrom(
             padding: const EdgeInsets.all(4),
-            minimumSize: const Size(24, 24),
+            minimumSize: Size.square(
+              PlatformCapabilities.current.hasTouchInput ? 48 : 24,
+            ),
           ),
         ),
       ],

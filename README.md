@@ -9,17 +9,17 @@
 </p>
 
 <p align="center">
-  <strong>面向 NovelAI 图像生成的第三方桌面客户端</strong>
+  <strong>面向 NovelAI 图像生成的第三方跨平台客户端</strong>
 </p>
 
 <p align="center">
   <a href="https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases/latest"><img src="https://img.shields.io/github/v/release/Aaalice233/Aaalice_NAI_Launcher?display_name=tag&sort=semver" alt="Latest release"></a>
-  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS-lightgrey" alt="Platforms">
+  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Android-lightgrey" alt="Platforms">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
   <a href="https://discord.gg/R48n6GwXzD"><img src="https://img.shields.io/badge/Discord-加入服务器-5865F2?logo=discord&logoColor=white" alt="Discord"></a>
 </p>
 
-NAI Launcher 是一个使用 Flutter 构建的 NovelAI 第三方客户端。它把图像生成、图生图、局部重绘、Vibe / Precise Reference、本地图库、在线图库、生成队列、Krita 联动和统计工具整合在一个桌面应用里，适合日常生成、批量出图和长期管理本地作品。
+NAI Launcher 是一个使用 Flutter 构建的 NovelAI 第三方跨平台客户端。它把图像生成、图生图、局部重绘、Vibe / Precise Reference、本地图库、在线图库、生成队列、Krita 联动和统计工具整合在同一个应用里，适合日常生成、批量出图和长期管理本地作品。
 
 > 本项目不是 NovelAI 官方产品。使用前请确保你拥有自己的 NovelAI 账号，并遵守 NovelAI 的服务条款。
 
@@ -36,7 +36,7 @@ NAI Launcher 是一个使用 Flutter 构建的 NovelAI 第三方客户端。它�
 | 📚 本地图库 | 支持递归扫描、SQLite 全文搜索、分类/收藏/集合、元数据解析、批量操作和大图预览。 |
 | 🌐 在线图库 | 支持 Danbooru / Safebooru / Gelbooru / AI TAG / 法典图鉴搜索、真实排行榜、多图详情、元数据复用和批量下载。 |
 | 📦 生成队列 | 支持任务排序、批量生成、暂停/继续、失败策略、进度统计和队列导入导出。 |
-| 🔌 外部联动 | 支持 Krita 本地联动、ComfyUI 本地工作流、系统代理、跨平台图片复制和文件定位。 |
+| 🔌 外部联动 | 桌面端支持 Krita 与 ComfyUI 本地工作流；同时提供系统代理、图片复制、原生分享、文件导入导出和文件定位等平台能力。 |
 | 🌏 界面语言 | 支持简体中文、繁體中文、English 和日本語；繁体中文输入可继续检索可选的简中标签汉化词库。 |
 
 ### 在线画廊来源
@@ -84,8 +84,8 @@ NAI Launcher 是一个使用 Flutter 构建的 NovelAI 第三方客户端。它�
 | --- | --- | --- |
 | Windows | 可用 | 主要开发和发布平台，支持系统托盘、窗口状态保存、视频播放、剪贴板和文件定位。 |
 | macOS | 最小适配 | 支持构建、启动、登录、本地数据库、视频播放、Keychain、系统代理、图片复制和文件定位；系统托盘后续再补。 |
+| Android | 可用 | 支持 Android 7.0+ 手机、横屏、平板和大屏自适应；完整提供生成、画廊、词库、队列与设置，并接入系统文件选择、导出、相册保存、分享和 APK 更新。 |
 | Linux | 未发布 | 部分桌面代码已有分支，但当前不提供正式包。 |
-| Android | 计划中 | 仍处于后续适配阶段。 |
 
 ## 📦 下载与安装
 
@@ -96,8 +96,9 @@ NAI Launcher 是一个使用 Flutter 构建的 NovelAI 第三方客户端。它�
 | Windows | `NAI_Launcher_Windows_<version>_Setup.exe` | 安装版，推荐普通用户，安装到当前用户目录；支持应用内断点下载、校验、自动安装并重启。手动运行安装包时也会检测并关闭托盘中的旧版本。 |
 | Windows | `NAI_Launcher_Windows_<version>_Portable.zip` | 便携版，解压后运行 `nai_launcher.exe`；应用内更新会暂存新版、保留用户文件、原子切换目录，失败时自动回滚并重启旧版。 |
 | macOS | `NAI_Launcher_macOS_<version>_Portable.zip` | 便携版，解压后打开 `Aaalice NAI Launcher.app`。未公证版本如被拦截，可在系统设置的隐私与安全中允许打开。 |
+| Android | `NAI_Launcher_Android_<version>.apk` | 适用于 Android 7.0 及以上版本。下载后由系统确认安装；首次安装可能需要允许浏览器或文件管理器“安装未知应用”，后续可在应用内下载、校验并交给系统确认更新。 |
 
-首次登录可以使用 NovelAI 账号密码或 API Token。账号数据仅保存在本地设备，桌面端使用系统安全存储保存敏感信息。
+首次登录可以使用 NovelAI 账号密码或 API Token。账号数据仅保存在本地设备，支持的平台使用系统安全存储保存敏感信息。
 
 ### 补全、智能代理与隐私
 

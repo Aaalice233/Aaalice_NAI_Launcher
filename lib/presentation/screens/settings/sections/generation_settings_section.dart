@@ -4,10 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/storage_keys.dart';
 import '../../../../core/storage/local_storage_service.dart';
+import '../../../../core/utils/app_logger.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../providers/generation/generation_params_notifier.dart';
 import '../../../providers/generation/generation_settings_notifiers.dart';
 import '../../../providers/notification_settings_provider.dart';
+import '../../../themes/core/input_surface_style.dart';
+import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/themed_input.dart';
 import '../widgets/settings_card.dart';
 import '../widgets/settings_section_label.dart';
@@ -23,19 +26,17 @@ InputDecoration _buildSettingsInputDecoration(
     hintText: hintText,
     isDense: true,
     filled: true,
-    fillColor: theme.colorScheme.surfaceContainer,
+    fillColor: inputSurfaceFillColor(theme.colorScheme),
     contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-    border: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(8),
-      borderSide: BorderSide.none,
+    border: inputSurfaceBorder(theme.colorScheme, BorderRadius.circular(8)),
+    enabledBorder: inputSurfaceBorder(
+      theme.colorScheme,
+      BorderRadius.circular(8),
     ),
-    enabledBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(8),
-      borderSide: BorderSide.none,
-    ),
-    focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(8),
-      borderSide: BorderSide(color: theme.colorScheme.primary),
+    focusedBorder: inputSurfaceBorder(
+      theme.colorScheme,
+      BorderRadius.circular(8),
+      focused: true,
     ),
   );
 }
@@ -94,12 +95,28 @@ class _GenerationSettingsSectionState
   }
 
   Future<void> _selectCustomSound(NotificationSettingsNotifier notifier) async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['mp3', 'wav', 'ogg', 'm4a'],
-    );
-    if (result != null && result.files.single.path != null) {
-      await notifier.setCustomSoundPath(result.files.single.path);
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['mp3', 'wav', 'ogg', 'm4a'],
+      );
+      final selectedPath = result?.files.single.path;
+      if (selectedPath != null) {
+        await notifier.setCustomSoundPath(selectedPath);
+      }
+    } catch (error, stackTrace) {
+      AppLogger.e(
+        'Failed to import custom notification sound',
+        error,
+        stackTrace,
+        'GenerationSettings',
+      );
+      if (mounted) {
+        AppToast.error(
+          context,
+          context.l10n.settings_notificationSoundImportFailed,
+        );
+      }
     }
   }
 

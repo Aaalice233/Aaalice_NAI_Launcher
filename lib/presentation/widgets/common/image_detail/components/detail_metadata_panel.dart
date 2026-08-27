@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
+import '../../../../../core/platform/platform_capabilities.dart';
 import '../../../../../core/utils/app_logger.dart';
 import '../../../../../core/utils/localization_extension.dart';
 import '../../../../../core/utils/nai_resolution_adapter.dart';
@@ -43,12 +44,16 @@ class DetailMetadataPanel extends ConsumerStatefulWidget {
   /// 折叠宽度
   final double collapsedWidth;
 
+  /// 嵌入移动端面板时由外层提供标题和关闭入口，不再显示折叠控件。
+  final bool collapsible;
+
   const DetailMetadataPanel({
     super.key,
     this.currentImage,
     this.initialExpanded = true,
     this.expandedWidth = 320,
     this.collapsedWidth = 40,
+    this.collapsible = true,
   });
 
   @override
@@ -241,7 +246,9 @@ class _DetailMetadataPanelState extends ConsumerState<DetailMetadataPanel> {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
       curve: Curves.easeInOut,
-      width: _isExpanded ? widget.expandedWidth : widget.collapsedWidth,
+      width: !widget.collapsible || _isExpanded
+          ? widget.expandedWidth
+          : widget.collapsedWidth,
       clipBehavior: Clip.hardEdge,
       decoration: const BoxDecoration(
         borderRadius: BorderRadius.only(
@@ -259,7 +266,7 @@ class _DetailMetadataPanelState extends ConsumerState<DetailMetadataPanel> {
           alignment: Alignment.topLeft,
           child: SizedBox(
             width: widget.expandedWidth,
-            child: _isExpanded
+            child: !widget.collapsible || _isExpanded
                 ? _buildExpandedPanel(theme)
                 : _buildCollapsedPanel(theme),
           ),
@@ -277,8 +284,10 @@ class _DetailMetadataPanelState extends ConsumerState<DetailMetadataPanel> {
 
     return Column(
       children: [
-        _PanelHeader(isExpanded: true, onToggle: _toggleExpanded),
-        const ThemedDivider(height: 1),
+        if (widget.collapsible) ...[
+          _PanelHeader(isExpanded: true, onToggle: _toggleExpanded),
+          const ThemedDivider(height: 1),
+        ],
         Expanded(
           child: widget.currentImage == null
               ? Center(
@@ -901,6 +910,9 @@ class _ActionButtonState extends State<_ActionButton> {
         onTap: widget.onPressed,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
+          constraints: BoxConstraints(
+            minHeight: PlatformCapabilities.current.hasTouchInput ? 48 : 0,
+          ),
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
             color: _isHovered

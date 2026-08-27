@@ -6,7 +6,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/cache/local_gallery_thumbnail_provider.dart';
+import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/utils/app_logger.dart';
+import '../../../core/utils/byte_format.dart';
 import '../../../core/utils/image_share_sanitizer.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/gallery/local_image_record.dart';
@@ -18,6 +20,8 @@ import '../common/card_action_buttons.dart';
 import '../common/image_card_hover_motion.dart';
 import 'local_image_context_menu.dart';
 import 'local_image_hover_preview.dart';
+
+enum _LocalCardAction { favorite, copyImage }
 
 /// 本地图片卡片，提供稳定的选择、快捷操作和键盘交互。
 class LocalImageCard3D extends ConsumerStatefulWidget {
@@ -214,6 +218,7 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
     final theme = Theme.of(context);
     final cardHeight = widget.height ?? widget.width;
     final colorScheme = theme.colorScheme;
+    final isTouch = PlatformCapabilities.current.hasTouchInput;
     final aspectRatio = widget.width / cardHeight;
     final buttonDirection = aspectRatio > 1.3 ? Axis.horizontal : Axis.vertical;
     final reducedMotion = MediaQuery.disableAnimationsOf(context);
@@ -261,10 +266,22 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
               children: [
                 _buildImageLayer(),
                 Positioned(
+                  key: const ValueKey('local-image-card-metadata-safe-area'),
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: _buildMetadataSafeArea(),
+                ),
+                Positioned(
+                  key: const ValueKey('local-image-card-actions'),
                   top: 4,
-                  right: buttonDirection == Axis.vertical ? 4 : null,
-                  left: buttonDirection == Axis.horizontal ? 4 : null,
-                  child: _buildActionButtons(buttonDirection),
+                  right: buttonDirection == Axis.vertical || isTouch ? 4 : null,
+                  left: buttonDirection == Axis.horizontal && !isTouch
+                      ? 4
+                      : null,
+                  child: isTouch
+                      ? _buildTouchActionMenu()
+                      : _buildActionButtons(buttonDirection),
                 ),
                 if (widget.isSelected)
                   Positioned(
@@ -430,6 +447,203 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
     );
   }
 
+  Widget _buildMetadataSafeArea() {
+    final metadata = widget.record.metadata;
+    final resolution = metadata?.width != null && metadata?.height != null
+        ? '${metadata!.width}×${metadata.height}'
+        : null;
+    final badge = _metadataBadge();
+
+    return IgnorePointer(
+      child: Container(
+        height: 48,
+        padding: const EdgeInsets.fromLTRB(8, 17, 8, 7),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.transparent, Colors.black.withValues(alpha: 0.76)],
+          ),
+        ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxWidth < 160;
+            return Row(
+              children: [
+                if (badge != null) ...[
+                  _buildMetadataBadge(badge, showLabel: !compact),
+                  const SizedBox(width: 7),
+                ],
+                if (resolution != null)
+                  Flexible(
+                    child: _MetadataValue(
+                      key: const ValueKey('local-image-card-resolution'),
+                      icon: Icons.photo_size_select_actual_outlined,
+                      value: resolution,
+                    ),
+                  ),
+                if (!compact && resolution != null) const SizedBox(width: 9),
+                if (!compact)
+                  Flexible(
+                    child: _MetadataValue(
+                      key: const ValueKey('local-image-card-file-size'),
+                      icon: Icons.data_usage_outlined,
+                      value: formatBytes(widget.record.size),
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  ({IconData icon, String label, Color color})? _metadataBadge() {
+    final colors = Theme.of(context).colorScheme;
+    if (widget.record.hasVibeMetadata) {
+      return (
+        icon: Icons.auto_awesome_outlined,
+        label: 'Vibe',
+        color: colors.tertiary,
+      );
+    }
+
+    return switch (widget.record.metadataStatus) {
+      MetadataStatus.success => (
+        icon: Icons.auto_awesome_outlined,
+        label: 'NAI',
+        color: colors.primary,
+      ),
+      MetadataStatus.failed => (
+        icon: Icons.error_outline_rounded,
+        label: 'Meta',
+        color: colors.error,
+      ),
+      MetadataStatus.transientFailure => (
+        icon: Icons.sync_problem_rounded,
+        label: 'Meta',
+        color: colors.error,
+      ),
+      MetadataStatus.none => null,
+    };
+  }
+
+  Widget _buildMetadataBadge(
+    ({IconData icon, String label, Color color}) badge, {
+    required bool showLabel,
+  }) {
+    return Container(
+      key: const ValueKey('local-image-card-source-status-badge'),
+      padding: EdgeInsets.symmetric(horizontal: showLabel ? 6 : 4, vertical: 3),
+      decoration: BoxDecoration(
+        color: badge.color.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(badge.icon, size: 12, color: badge.color),
+          if (showLabel) ...[
+            const SizedBox(width: 3),
+            Text(
+              badge.label,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: Colors.white,
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTouchActionMenu() {
+    PopupMenuItem<Object> item({
+      required Object value,
+      required IconData icon,
+      required String label,
+      Color? color,
+    }) {
+      return PopupMenuItem<Object>(
+        value: value,
+        child: ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: Icon(icon, color: color),
+          title: Text(label),
+        ),
+      );
+    }
+
+    return Listener(
+      behavior: HitTestBehavior.opaque,
+      onPointerDown: (_) => _suppressCardTap = true,
+      onPointerUp: (_) {
+        scheduleMicrotask(() => _suppressCardTap = false);
+      },
+      onPointerCancel: (_) => _suppressCardTap = false,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: PopupMenuButton<Object>(
+          tooltip: context.l10n.common_moreActions,
+          constraints: const BoxConstraints(minWidth: 280, maxWidth: 340),
+          icon: const Icon(Icons.more_vert_rounded, color: Colors.white),
+          onSelected: (action) async {
+            if (action == _LocalCardAction.favorite) {
+              widget.onFavoriteToggle?.call();
+            } else if (action == _LocalCardAction.copyImage) {
+              await _copyImageToClipboard();
+            } else if (action is LocalImageContextAction) {
+              await widget.onSendAction?.call(action);
+            }
+          },
+          itemBuilder: (context) => <PopupMenuEntry<Object>>[
+            if (widget.onFavoriteToggle != null)
+              item(
+                value: _LocalCardAction.favorite,
+                icon: widget.record.isFavorite
+                    ? Icons.favorite
+                    : Icons.favorite_border,
+                label: widget.record.isFavorite
+                    ? context.l10n.common_unfavorite
+                    : context.l10n.common_favorite,
+                color: widget.record.isFavorite ? Colors.redAccent : null,
+              ),
+            item(
+              value: _LocalCardAction.copyImage,
+              icon: Icons.copy,
+              label: context.l10n.shortcut_action_copy_image,
+            ),
+            if (widget.onSendAction != null) ...[
+              const PopupMenuDivider(),
+              ...LocalImageContextMenu.buildSendEntries(
+                context,
+                isKritaConnected: widget.isKritaConnected,
+              ),
+              const PopupMenuDivider(),
+              item(
+                value: LocalImageContextAction.copyPrompt,
+                icon: Icons.text_snippet_outlined,
+                label: context.l10n.localGallery_copyPrompt,
+              ),
+              item(
+                value: LocalImageContextAction.delete,
+                icon: Icons.delete_outline,
+                label: context.l10n.common_delete,
+                color: Theme.of(context).colorScheme.error,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildActionButtons(Axis direction) {
     return Listener(
       behavior: HitTestBehavior.opaque,
@@ -515,6 +729,36 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
         borderRadius: BorderRadius.circular(14),
       ),
       child: Icon(Icons.check, color: colorScheme.onPrimary, size: 18),
+    );
+  }
+}
+
+class _MetadataValue extends StatelessWidget {
+  const _MetadataValue({super.key, required this.icon, required this.value});
+
+  final IconData icon;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 12, color: Colors.white.withValues(alpha: 0.84)),
+        const SizedBox(width: 3),
+        Flexible(
+          child: Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: Colors.white.withValues(alpha: 0.9),
+              fontSize: 10,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

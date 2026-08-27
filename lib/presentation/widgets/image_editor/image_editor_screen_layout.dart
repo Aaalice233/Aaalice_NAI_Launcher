@@ -1,5 +1,7 @@
 part of 'image_editor_screen.dart';
 
+enum _MobileEditorAction { compression, loadMask, shiftEdges, effects }
+
 extension _ImageEditorScreenLayout on _ImageEditorScreenState {
   /// 桌面端布局
   Widget _buildDesktopLayout() {
@@ -64,37 +66,40 @@ extension _ImageEditorScreenLayout on _ImageEditorScreenState {
 
   /// 移动端布局
   Widget _buildMobileLayout() {
+    final compactActions = MediaQuery.sizeOf(context).width < 520;
     return Scaffold(
       appBar: AppBar(
-        title: Text(_editorTitle()),
+        title: Text(
+          _editorTitle(),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
         actions: [
-          _buildMobileCompressionAction(),
-          // 图层按钮
+          if (!compactActions) _buildMobileCompressionAction(),
           IconButton(
             icon: const Icon(Icons.layers),
             onPressed: _showMobileLayerSheet,
             tooltip: context.l10n.editor_layers,
           ),
-          // 加载蒙版按钮
-          if (_isInpaintMode)
+          if (!compactActions && _isInpaintMode)
             IconButton(
               icon: const Icon(Icons.upload_file),
               onPressed: _loadMask,
               tooltip: context.l10n.editor_loadMask,
             ),
-          if (_isInpaintMode)
+          if (!compactActions && _isInpaintMode)
             IconButton(
               icon: const Icon(Icons.open_in_full),
               onPressed: _showShiftEdgesDialog,
               tooltip: context.l10n.editor_shiftEdges,
             ),
-          if (!_isInpaintMode)
+          if (!compactActions && !_isInpaintMode)
             IconButton(
               icon: const Icon(Icons.tune_rounded),
               onPressed: _showEffectsDialog,
               tooltip: context.l10n.editor_effects,
             ),
-          // 导出按钮
+          if (compactActions) _buildMobileOverflowMenu(),
           IconButton(
             icon: const Icon(Icons.check),
             onPressed: _canExportAndClose ? _exportAndClose : null,
@@ -111,18 +116,72 @@ extension _ImageEditorScreenLayout on _ImageEditorScreenState {
           _buildMobileToolSettings(),
 
           // 底部工具栏
-          MobileToolbar(
-            state: _state,
-            onClear: _isInpaintMode ? _resetInpaintMask : null,
-            onFillMask: _isInpaintMode ? _handleFillClosedMaskRegions : null,
-            canFillMask: _isInpaintMode ? _hasMaskContent : null,
-            onLayersPressed: _showMobileLayerSheet,
-            allowedToolIds: _isInpaintMode
-                ? _ImageEditorScreenState._inpaintToolIds
-                : null,
+          SafeArea(
+            top: false,
+            child: MobileToolbar(
+              state: _state,
+              onClear: _isInpaintMode ? _resetInpaintMask : null,
+              onFillMask: _isInpaintMode ? _handleFillClosedMaskRegions : null,
+              canFillMask: _isInpaintMode ? _hasMaskContent : null,
+              onLayersPressed: _showMobileLayerSheet,
+              allowedToolIds: _isInpaintMode
+                  ? _ImageEditorScreenState._inpaintToolIds
+                  : null,
+            ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildMobileOverflowMenu() {
+    return PopupMenuButton<_MobileEditorAction>(
+      tooltip: MaterialLocalizations.of(context).moreButtonTooltip,
+      onSelected: (action) {
+        switch (action) {
+          case _MobileEditorAction.compression:
+            unawaited(_showCompressionSheet());
+          case _MobileEditorAction.loadMask:
+            unawaited(_loadMask());
+          case _MobileEditorAction.shiftEdges:
+            unawaited(_showShiftEdgesDialog());
+          case _MobileEditorAction.effects:
+            unawaited(_showEffectsDialog());
+        }
+      },
+      itemBuilder: (context) => [
+        PopupMenuItem(
+          value: _MobileEditorAction.compression,
+          child: ListTile(
+            leading: const Icon(Icons.compress),
+            title: Text(context.l10n.editor_compressionTooltip),
+          ),
+        ),
+        if (_isInpaintMode)
+          PopupMenuItem(
+            value: _MobileEditorAction.loadMask,
+            child: ListTile(
+              leading: const Icon(Icons.upload_file),
+              title: Text(context.l10n.editor_loadMask),
+            ),
+          ),
+        if (_isInpaintMode)
+          PopupMenuItem(
+            value: _MobileEditorAction.shiftEdges,
+            child: ListTile(
+              leading: const Icon(Icons.open_in_full),
+              title: Text(context.l10n.editor_shiftEdges),
+            ),
+          ),
+        if (!_isInpaintMode)
+          PopupMenuItem(
+            value: _MobileEditorAction.effects,
+            child: ListTile(
+              leading: const Icon(Icons.tune_rounded),
+              title: Text(context.l10n.editor_effects),
+            ),
+          ),
+      ],
     );
   }
 
@@ -392,17 +451,15 @@ extension _ImageEditorScreenLayout on _ImageEditorScreenState {
 
   /// 显示移动端图层面板
   void _showMobileLayerSheet() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.5,
-        minChildSize: 0.3,
-        maxChildSize: 0.9,
-        expand: false,
-        builder: (context, scrollController) {
-          return LayerPanel(state: _state);
-        },
+    unawaited(
+      AdaptivePresenter.showPanel<void>(
+        context: context,
+        title: context.l10n.editor_layers,
+        initialChildSize: 0.62,
+        builder: (context, scrollController) => PrimaryScrollController(
+          controller: scrollController,
+          child: LayerPanel(state: _state),
+        ),
       ),
     );
   }

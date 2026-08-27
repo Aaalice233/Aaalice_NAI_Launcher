@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 
+import '../../../core/platform/platform_capabilities.dart';
 import '../../themes/theme_extension.dart';
+import '../../widgets/statistics/export_dialog.dart';
 import 'statistics_state.dart';
 import 'widgets/widgets.dart';
 
@@ -16,13 +18,17 @@ class StatisticsScreen extends ConsumerWidget {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context)!;
     final data = ref.watch(statisticsNotifierProvider);
-    final screenWidth = MediaQuery.of(context).size.width;
 
     return Scaffold(
       body: Column(
         children: [
-          _buildHeader(context, theme, l10n),
-          Expanded(child: _buildContent(context, l10n, data, ref, screenWidth)),
+          _buildHeader(context, theme, l10n, data),
+          Expanded(
+            child: LayoutBuilder(
+              builder: (context, constraints) =>
+                  _buildContent(context, l10n, data, ref, constraints.maxWidth),
+            ),
+          ),
         ],
       ),
     );
@@ -32,14 +38,21 @@ class StatisticsScreen extends ConsumerWidget {
     BuildContext context,
     ThemeData theme,
     AppLocalizations l10n,
+    StatisticsData data,
   ) {
     final colorScheme = theme.colorScheme;
     final extension = theme.extension<AppThemeExtension>();
     final borderColor = extension?.borderColor ?? colorScheme.outlineVariant;
+    final exportAction = data.statistics == null
+        ? null
+        : () => StatisticsExportDialog.show(
+            context,
+            statistics: data.statistics!,
+          );
 
     return Container(
-      height: 56,
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      constraints: const BoxConstraints(minHeight: 56),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
       decoration: BoxDecoration(
         color: colorScheme.surface,
         border: Border(
@@ -53,13 +66,28 @@ class StatisticsScreen extends ConsumerWidget {
         children: [
           Icon(Icons.bar_chart_rounded, size: 24, color: colorScheme.primary),
           const SizedBox(width: 12),
-          Text(
-            l10n.statistics_title,
-            style: theme.textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w600,
+          Expanded(
+            child: Text(
+              l10n.statistics_title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
-          const Spacer(),
+          if (PlatformCapabilities.current.hasTouchInput)
+            TextButton.icon(
+              onPressed: exportAction,
+              icon: const Icon(Icons.download_outlined, size: 18),
+              label: Text(l10n.common_export),
+            )
+          else
+            IconButton(
+              onPressed: exportAction,
+              tooltip: l10n.common_export,
+              icon: const Icon(Icons.download_outlined),
+            ),
           const AnimatedRefreshButton(),
         ],
       ),
@@ -71,7 +99,7 @@ class StatisticsScreen extends ConsumerWidget {
     AppLocalizations l10n,
     StatisticsData data,
     WidgetRef ref,
-    double screenWidth,
+    double availableWidth,
   ) {
     if (data.isLoading && data.statistics == null) {
       return const Center(child: CircularProgressIndicator());
@@ -86,7 +114,9 @@ class StatisticsScreen extends ConsumerWidget {
       return _buildEmptyState(l10n);
     }
 
-    final crossAxisCount = screenWidth < 600 ? 1 : (screenWidth < 900 ? 2 : 3);
+    final crossAxisCount = availableWidth < 600
+        ? 1
+        : (availableWidth < 900 ? 2 : 3);
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: StaggeredGrid.count(

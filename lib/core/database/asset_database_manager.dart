@@ -8,6 +8,8 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
+import '../platform/platform_capabilities.dart';
+import '../services/android_asset_copy_service.dart';
 import '../utils/app_logger.dart';
 
 class AssetDatabaseManager {
@@ -88,10 +90,31 @@ class AssetDatabaseManager {
     var existingUsable = false;
     if (await target.exists()) {
       try {
-        await _validateDatabase(target.path, requiredTables: requiredTables);
+        await _validateDatabase(
+          target.path,
+          requiredTables: requiredTables,
+          verifyIntegrity: false,
+        );
         existingUsable = true;
-        if (await _stateMatches(state, expectedHash) &&
-            await target.length() == metadata['size'] &&
+
+        final expectedSize = metadata['size'] as int;
+        if (await _stateMatches(
+          state,
+          target: target,
+          hash: expectedHash,
+          size: expectedSize,
+        )) {
+          await _validateDatabase(
+            target.path,
+            requiredTables: requiredTables,
+            expectedSchemaVersion: metadata['schemaVersion'] as int?,
+            expectedDataVersion: metadata['dataVersion'] as String?,
+            verifyIntegrity: false,
+          );
+          return;
+        }
+
+        if (await target.length() == expectedSize &&
             (await sha256.bind(target.openRead()).first).toString() ==
                 expectedHash) {
           await _validateDatabase(
@@ -99,6 +122,12 @@ class AssetDatabaseManager {
             requiredTables: requiredTables,
             expectedSchemaVersion: metadata['schemaVersion'] as int?,
             expectedDataVersion: metadata['dataVersion'] as String?,
+          );
+          await _writeInstallState(
+            state,
+            target: target,
+            hash: expectedHash,
+            metadata: metadata,
           );
           return;
         }
@@ -115,11 +144,7 @@ class AssetDatabaseManager {
     final backup = File('$targetPath.backup');
     await temp.deleteIfExists();
     try {
-      final bytes = await rootBundle.load('assets/databases/$fileName');
-      await temp.writeAsBytes(
-        bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),
-        flush: true,
-      );
+      await _copyBundledDatabase(fileName: fileName, target: temp);
       final actualHash = await sha256.bind(temp.openRead()).first;
       if (actualHash.toString() != expectedHash) {
         throw StateError('$fileName SHA256 mismatch');
@@ -135,14 +160,11 @@ class AssetDatabaseManager {
       if (await target.exists()) await target.rename(backup.path);
       try {
         await temp.rename(target.path);
-        await state.writeAsString(
-          jsonEncode({
-            'sha256': expectedHash,
-            'schemaVersion': metadata['schemaVersion'],
-            'dataVersion': metadata['dataVersion'],
-          }),
-          encoding: utf8,
-          flush: true,
+        await _writeInstallState(
+          state,
+          target: target,
+          hash: expectedHash,
+          metadata: metadata,
         );
         await backup.deleteIfExists();
       } catch (_) {
@@ -163,11 +185,32 @@ class AssetDatabaseManager {
     }
   }
 
+  static Future<void> _copyBundledDatabase({
+    required String fileName,
+    required File target,
+  }) async {
+    final assetKey = 'assets/databases/$fileName';
+    if (PlatformCapabilities.operatingSystem.isAndroid) {
+      await AndroidAssetCopyService.copyAssetToFile(
+        assetKey: assetKey,
+        target: target,
+      );
+      return;
+    }
+
+    final bytes = await rootBundle.load(assetKey);
+    await target.writeAsBytes(
+      bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),
+      flush: true,
+    );
+  }
+
   static Future<void> _validateDatabase(
     String path, {
     required Map<String, Set<String>> requiredTables,
     int? expectedSchemaVersion,
     String? expectedDataVersion,
+    bool verifyIntegrity = true,
   }) async {
     final file = File(path);
     final header = await file
@@ -194,9 +237,11 @@ class AssetDatabaseManager {
           throw StateError('Invalid columns for ${entry.key}: $names');
         }
       }
-      final quickCheck = await db.rawQuery('PRAGMA quick_check');
-      if (quickCheck.first.values.first != 'ok') {
-        throw StateError('SQLite quick_check failed: $quickCheck');
+      if (verifyIntegrity) {
+        final quickCheck = await db.rawQuery('PRAGMA quick_check');
+        if (quickCheck.first.values.first != 'ok') {
+          throw StateError('SQLite quick_check failed: $quickCheck');
+        }
       }
       if (expectedSchemaVersion != null &&
           requiredTables.containsKey('metadata')) {
@@ -218,15 +263,44 @@ class AssetDatabaseManager {
     }
   }
 
-  static Future<bool> _stateMatches(File state, String hash) async {
+  static Future<bool> _stateMatches(
+    File state, {
+    required File target,
+    required String hash,
+    required int size,
+  }) async {
     try {
       if (!await state.exists()) return false;
       final data =
           jsonDecode(await state.readAsString()) as Map<String, dynamic>;
-      return data['sha256'] == hash;
+      final stat = await target.stat();
+      return data['sha256'] == hash &&
+          data['size'] == size &&
+          data['modifiedMillis'] == stat.modified.millisecondsSinceEpoch &&
+          stat.size == size;
     } catch (_) {
       return false;
     }
+  }
+
+  static Future<void> _writeInstallState(
+    File state, {
+    required File target,
+    required String hash,
+    required Map<String, dynamic> metadata,
+  }) async {
+    final stat = await target.stat();
+    await state.writeAsString(
+      jsonEncode({
+        'sha256': hash,
+        'size': stat.size,
+        'modifiedMillis': stat.modified.millisecondsSinceEpoch,
+        'schemaVersion': metadata['schemaVersion'],
+        'dataVersion': metadata['dataVersion'],
+      }),
+      encoding: utf8,
+      flush: true,
+    );
   }
 
   static Future<void> _removeLegacyTranslationDatabase(Directory dir) async {

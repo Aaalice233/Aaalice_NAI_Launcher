@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/utils/localization_extension.dart';
-import 'inset_shadow_container.dart';
+import 'input_surface_container.dart';
 import 'themed_confirm_dialog.dart';
 import 'themed_text_selection_toolbar.dart';
 
 /// 统一样式的输入框组件
 ///
-/// 使用 [InsetShadowContainer] 包装，提供立体感效果。
-/// 支持单行和多行模式，统一圆角和样式。
+/// 使用共享深色填充与清晰、无发光的主题色聚焦轮廓。
+/// 支持单行和多行模式，统一圆角和状态样式。
 class ThemedInput extends StatefulWidget {
   /// 文本控制器
   final TextEditingController? controller;
@@ -82,6 +82,12 @@ class ThemedInput extends StatefulWidget {
 
   /// 提示文字样式
   final TextStyle? hintStyle;
+
+  /// 覆盖共享输入色面，供大面积编辑器使用更明确的层级。
+  final Color? surfaceColor;
+
+  /// 是否显示内侧错误发光状态。
+  final bool hasError;
 
   /// 是否自动获取焦点
   final bool autofocus;
@@ -156,6 +162,8 @@ class ThemedInput extends StatefulWidget {
     this.maxLength,
     this.style,
     this.hintStyle,
+    this.surfaceColor,
+    this.hasError = false,
     this.autofocus = false,
     this.onTap,
     this.onEditingComplete,
@@ -198,6 +206,8 @@ class ThemedInput extends StatefulWidget {
     this.maxLength,
     this.style,
     this.hintStyle,
+    this.surfaceColor,
+    this.hasError = false,
     this.autofocus = false,
     this.onTap,
     this.onEditingComplete,
@@ -327,6 +337,7 @@ class _ThemedInputState extends State<ThemedInput> {
       disabledBorder: InputBorder.none,
       errorBorder: InputBorder.none,
       focusedErrorBorder: InputBorder.none,
+      filled: false,
       contentPadding: widget.contentPadding,
       prefixIcon: widget.prefixIcon,
       suffixIcon: widget.suffixIcon,
@@ -356,8 +367,6 @@ class _ThemedInputState extends State<ThemedInput> {
         suffixStyle: widget.decoration!.suffixStyle,
         counter: widget.decoration!.counter,
         counterStyle: widget.decoration!.counterStyle,
-        filled: widget.decoration!.filled,
-        fillColor: widget.decoration!.fillColor,
         contentPadding:
             widget.decoration!.contentPadding ?? widget.contentPadding,
         isDense: widget.decoration!.isDense,
@@ -387,7 +396,11 @@ class _ThemedInputState extends State<ThemedInput> {
       style: widget.style,
       autofocus: widget.autofocus,
       textAlign: widget.textAlign,
-      textAlignVertical: widget.textAlignVertical,
+      textAlignVertical:
+          widget.textAlignVertical ??
+          (widget.maxLines == 1 && !widget.expands
+              ? TextAlignVertical.center
+              : null),
       cursorColor: widget.cursorColor,
       decoration: inputDecoration,
       // 不传时用带主题字体的默认实现：Flutter 自带的工具栏按钮会绕开
@@ -424,10 +437,12 @@ class _ThemedInputState extends State<ThemedInput> {
       );
     }
 
-    final container = InsetShadowContainer(
+    final container = InputSurfaceContainer(
       borderRadius: widget.borderRadius,
       enabled: widget.enabled,
       isFocused: _effectiveFocusNode.hasFocus,
+      hasError: widget.hasError || inputDecoration.errorText != null,
+      backgroundColor: widget.surfaceColor,
       child: content,
     );
 

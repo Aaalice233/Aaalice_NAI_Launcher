@@ -71,7 +71,7 @@ class CharacterPositionCanvas extends _$CharacterPositionCanvas {
     return false;
   }
 
-  void open() {
+  void open({bool forceExitMaximizedPrompt = false}) {
     if (!ref.read(characterPositionCanvasAvailableProvider)) {
       state = false;
       return;
@@ -80,7 +80,9 @@ class CharacterPositionCanvas extends _$CharacterPositionCanvas {
     final layoutMode = ref.read(generationLayoutModeNotifierProvider);
     final promptMaximized = ref.read(promptMaximizeNotifierProvider);
     _restoreMaximizeOnClose =
-        layoutMode == GenerationLayoutMode.classic && promptMaximized;
+        promptMaximized &&
+        (layoutMode == GenerationLayoutMode.classic ||
+            forceExitMaximizedPrompt);
     if (_restoreMaximizeOnClose) {
       unawaited(
         ref.read(promptMaximizeNotifierProvider.notifier).setMaximized(false),
@@ -100,11 +102,11 @@ class CharacterPositionCanvas extends _$CharacterPositionCanvas {
     }
   }
 
-  void toggle() {
+  void toggle({bool forceExitMaximizedPrompt = false}) {
     if (state) {
       close();
     } else {
-      open();
+      open(forceExitMaximizedPrompt: forceExitMaximizedPrompt);
     }
   }
 }

@@ -6,6 +6,7 @@ import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/constants/app_version.dart';
+import '../../../core/constants/community_links.dart';
 import '../../../data/models/auth/saved_account.dart';
 import '../../providers/account_manager_provider.dart';
 import '../../providers/auth_mode_provider.dart';
@@ -175,12 +176,12 @@ class MainNavRail extends ConsumerWidget {
               icon: Icons.discord,
               label: context.l10n.nav_discordCommunity,
               color: const Color(0xFF5865F2), // Discord 紫色
-              url: 'https://discord.gg/R48n6GwXzD',
+              url: CommunityLinks.discord,
             ),
 
             // GitHub 仓库
             _GitHubIcon(
-              url: 'https://github.com/Aaalice233/Aaalice_NAI_Launcher',
+              url: CommunityLinks.github,
               label: context.l10n.nav_githubRepo,
             ),
 
@@ -262,7 +263,7 @@ class _NavRailToggle extends StatelessWidget {
         : context.l10n.nav_expandSidebar;
 
     return SizedBox(
-      height: 40,
+      height: 48,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 6),
         child: LayoutBuilder(
@@ -295,7 +296,7 @@ class _NavRailToggle extends StatelessWidget {
                     style: TextButton.styleFrom(
                       foregroundColor: theme.colorScheme.onSurfaceVariant,
                       padding: const EdgeInsets.symmetric(horizontal: 8),
-                      minimumSize: const Size(0, 36),
+                      minimumSize: const Size(0, 48),
                       visualDensity: VisualDensity.compact,
                     ),
                     icon: const Icon(
@@ -375,17 +376,30 @@ class _GitHubIconState extends State<_GitHubIcon> {
       onHover: (value) => setState(() => _isHovering = value),
       onTapDown: () => setState(() => _isPressed = true),
       onTapEnd: () => setState(() => _isPressed = false),
-      icon: CustomPaint(
-        size: const Size(24, 24),
-        painter: _GitHubLogoPainter(
-          color: color.withValues(alpha: _isHovering ? 1.0 : 0.7),
-        ),
+      icon: GitHubLogo(
+        size: 24,
+        color: color.withValues(alpha: _isHovering ? 1.0 : 0.7),
       ),
     );
   }
 }
 
-/// GitHub Logo 绘制器
+/// 可复用的 GitHub 品牌图标。
+class GitHubLogo extends StatelessWidget {
+  const GitHubLogo({super.key, required this.color, this.size = 24});
+
+  final Color color;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      size: Size.square(size),
+      painter: _GitHubLogoPainter(color: color),
+    );
+  }
+}
+
 class _GitHubLogoPainter extends CustomPainter {
   final Color color;
 
@@ -931,8 +945,8 @@ class _AccountAvatarButtonState extends State<_AccountAvatarButton> {
           );
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(10, 0, 10, 12),
-      height: 44,
+      margin: const EdgeInsets.fromLTRB(6, 0, 6, 12),
+      height: 48,
       child: Material(
         color: Colors.transparent,
         child: InkWell(
@@ -968,7 +982,7 @@ class _AccountAvatarButtonState extends State<_AccountAvatarButton> {
                     children: [
                       SizedBox(
                         width: constraints.maxWidth.clamp(0.0, 40.0),
-                        height: 44,
+                        height: 48,
                         child: Center(child: avatar),
                       ),
                       if (showLabel) ...[

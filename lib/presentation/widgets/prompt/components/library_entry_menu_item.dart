@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/platform/platform_capabilities.dart';
 import '../../../../core/utils/localization_extension.dart';
 
 import '../../../../data/models/tag_library/tag_library_entry.dart';
@@ -104,7 +105,10 @@ class _LibraryEntryMenuItemState extends State<LibraryEntryMenuItem> {
 
               // 删除按钮（悬浮时显示）
               AnimatedOpacity(
-                opacity: _isHovering ? 1.0 : 0.0,
+                opacity:
+                    PlatformCapabilities.current.hasTouchInput || _isHovering
+                    ? 1.0
+                    : 0.0,
                 duration: const Duration(milliseconds: 150),
                 child: IconButton(
                   onPressed: widget.onDelete,

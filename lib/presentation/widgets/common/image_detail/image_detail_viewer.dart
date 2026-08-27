@@ -1,15 +1,16 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
+import '../../../../core/platform/platform_capabilities.dart';
+import '../../../../core/services/native_share_service.dart';
 import '../../../../core/shortcuts/shortcuts.dart';
 import '../../../../core/utils/app_logger.dart';
 import '../../../../core/utils/image_share_sanitizer.dart';
 import '../../../../core/utils/window_focus_tracker.dart';
 import '../../../../data/models/metadata/metadata_import_options.dart';
+import '../../../adaptive/adaptive_presenter.dart';
 import '../../../providers/share_image_settings_provider.dart';
 import '../../../utils/clipboard_image.dart';
 import '../../shortcuts/shortcuts.dart';
@@ -105,7 +106,7 @@ class ImageDetailViewer extends ConsumerStatefulWidget {
     ImageDetailCallbacks? callbacks,
     String? heroTagPrefix,
   }) {
-    final isWindows = Platform.isWindows;
+    final isWindows = PlatformCapabilities.current.isWindows;
     final transitionDuration = isWindows
         ? Duration.zero
         : const Duration(milliseconds: 300);
@@ -279,7 +280,7 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
   }
 
   bool _shouldSuppressEscCloseOnWindows() {
-    if (!Platform.isWindows) return false;
+    if (!PlatformCapabilities.current.isWindows) return false;
     if (WindowFocusTracker.isWithinCooldown(_windowsEscFocusCooldown)) {
       return true;
     }
@@ -419,6 +420,23 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
     }
   }
 
+  Future<void> _showMetadataPanel() {
+    return AdaptivePresenter.showPanel<void>(
+      context: context,
+      title: context.l10n.detail_imageDetails,
+      initialChildSize: 0.88,
+      minChildSize: 0.55,
+      maxChildSize: 0.96,
+      builder: (panelContext, _) => LayoutBuilder(
+        builder: (context, constraints) => DetailMetadataPanel(
+          currentImage: _currentImage,
+          expandedWidth: constraints.maxWidth,
+          collapsible: false,
+        ),
+      ),
+    );
+  }
+
   /// 复用参数
   void _reuseGalleryParams() {
     if (widget.callbacks?.onReuseMetadata != null) {
@@ -529,6 +547,11 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
             totalImages: widget.images.length,
             currentImage: _currentImage,
             onClose: () => _requestClose('top-bar-close'),
+            onShowMetadata:
+                MediaQuery.sizeOf(context).width <= 800 &&
+                    widget.showMetadataPanel
+                ? _showMetadataPanel
+                : null,
             onReuseMetadata: widget.callbacks?.onReuseMetadata != null
                 ? () => _handleReuseMetadata(context)
                 : null,
@@ -540,6 +563,9 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
                 : null,
             onCopyImage: _currentImage.showCopyButton
                 ? () => _copyImageToClipboard(context)
+                : null,
+            onShare: PlatformCapabilities.current.supportsNativeShare
+                ? () => _shareImage(context)
                 : null,
             onSendToImg2Img: widget.callbacks?.onSendToImg2Img != null
                 ? () => widget.callbacks!.onSendToImg2Img!(_currentImage)
@@ -638,6 +664,36 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
     } catch (e) {
       if (context.mounted) {
         AppToast.error(context, l10n.image_copyFailed(e.toString()));
+      }
+    }
+  }
+
+  Future<void> _shareImage(BuildContext context) async {
+    final l10n = context.l10n;
+    try {
+      final imageBytes = await _currentImage.getImageBytes();
+      final fileName = _currentImage.fileInfo?.fileName ?? 'shared.png';
+      final stripMetadata = ref
+          .read(shareImageSettingsProvider)
+          .effectiveStripMetadataForCopyAndDrag;
+      final shareImage = await ImageShareSanitizer.prepareForCopyOrDrag(
+        imageBytes,
+        fileName: fileName,
+        stripMetadata: stripMetadata,
+      );
+      if (!context.mounted) return;
+      final renderBox = context.findRenderObject() as RenderBox?;
+      final origin = renderBox == null
+          ? null
+          : renderBox.localToGlobal(Offset.zero) & renderBox.size;
+      await NativeShareService.shareImage(
+        bytes: shareImage.bytes,
+        fileName: shareImage.fileName,
+        sharePositionOrigin: origin,
+      );
+    } catch (error) {
+      if (context.mounted) {
+        AppToast.error(context, l10n.image_shareFailed(error.toString()));
       }
     }
   }

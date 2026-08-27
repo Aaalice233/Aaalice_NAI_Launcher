@@ -29,12 +29,6 @@ class _ThirdPartyApiLoginCardState
   bool _obscureToken = true;
 
   @override
-  void initState() {
-    super.initState();
-    ref.read(authNotifierProvider.notifier).clearError(delayMs: 0);
-  }
-
-  @override
   void dispose() {
     _mainApiController.dispose();
     _imageApiController.dispose();

@@ -114,9 +114,8 @@ class _SendToHomeDialogState extends ConsumerState<SendToHomeDialog> {
                   ),
                   IconButton(
                     icon: const Icon(Icons.close, size: 20),
+                    tooltip: context.l10n.common_close,
                     onPressed: () => Navigator.of(context).pop(),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
                   ),
                 ],
               ),

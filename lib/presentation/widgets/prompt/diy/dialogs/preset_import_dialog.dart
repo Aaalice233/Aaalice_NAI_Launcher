@@ -269,37 +269,22 @@ class _PresetImportDialogState extends State<PresetImportDialog> {
                       const SizedBox(height: 16),
                     ],
                     // JSON 输入/输出区域
-                    Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        border: _error == null
-                            ? null
-                            : Border.all(
-                                color: colorScheme.error.withValues(alpha: 0.5),
-                              ),
+                    ThemedInput(
+                      controller: _controller,
+                      maxLines: 12,
+                      readOnly: widget.isExport,
+                      hasError: _error != null,
+                      onChanged: _onTextChanged,
+                      decoration: InputDecoration(
+                        hintText: widget.isExport
+                            ? ''
+                            : l10n.diy_presetPasteJsonHint,
+                        contentPadding: const EdgeInsets.all(14),
                       ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: ThemedInput(
-                          controller: _controller,
-                          maxLines: 12,
-                          readOnly: widget.isExport,
-                          onChanged: _onTextChanged,
-                          decoration: InputDecoration(
-                            hintText: widget.isExport
-                                ? ''
-                                : l10n.diy_presetPasteJsonHint,
-                            border: InputBorder.none,
-                            filled: true,
-                            fillColor: colorScheme.surfaceContainerLow,
-                            contentPadding: const EdgeInsets.all(14),
-                          ),
-                          style: TextStyle(
-                            fontFamily: 'monospace',
-                            fontSize: 11,
-                            color: colorScheme.onSurface,
-                          ),
-                        ),
+                      style: TextStyle(
+                        fontFamily: 'monospace',
+                        fontSize: 11,
+                        color: colorScheme.onSurface,
                       ),
                     ),
                     if (errorMessage != null) ...[

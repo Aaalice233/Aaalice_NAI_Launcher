@@ -4,6 +4,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
+import '../platform/platform_capabilities.dart';
 import '../utils/app_logger.dart';
 import 'asset_database_manager.dart';
 import 'connection_health_monitor.dart' as health_monitor;
@@ -36,7 +37,7 @@ class DatabaseManager {
   }
 
   /// 初始化数据库管理器。并发调用共享同一次初始化，成功后才发布单例。
-  static Future<DatabaseManager> initialize({int maxConnections = 20}) async {
+  static Future<DatabaseManager> initialize({int? maxConnections}) async {
     final existing = _instance;
     final pool = ConnectionPoolHolder.getInstanceOrNull();
     if (existing != null &&
@@ -50,7 +51,8 @@ class DatabaseManager {
     final inFlight = _initialization;
     if (inFlight != null) return inFlight;
 
-    final attempt = _initializeNew(maxConnections: maxConnections);
+    final connectionLimit = maxConnections ?? _defaultMaxConnections;
+    final attempt = _initializeNew(maxConnections: connectionLimit);
     _initialization = attempt;
     try {
       return await attempt;
@@ -96,9 +98,11 @@ class DatabaseManager {
     }
   }
 
-  static const int _maxConnections = 20;
+  static int get _defaultMaxConnections =>
+      PlatformCapabilities.operatingSystem.isMobile ? 4 : 20;
   static const String _danbooruDbName = 'danbooru.db';
 
+  int _maxConnections = _defaultMaxConnections;
   DatabaseInitState _state = DatabaseInitState.uninitialized;
   String? _dbPath;
   String? _errorMessage;
@@ -168,6 +172,7 @@ class DatabaseManager {
   /// 执行初始化
   Future<void> _doInitialize({required int maxConnections}) async {
     _state = DatabaseInitState.initializing;
+    _maxConnections = maxConnections;
 
     try {
       await AssetDatabaseManager.initialize();

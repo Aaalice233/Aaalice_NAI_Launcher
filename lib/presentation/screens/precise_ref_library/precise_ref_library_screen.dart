@@ -10,6 +10,7 @@ import 'package:path/path.dart' as p;
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 import '../../../core/enums/precise_ref_type.dart';
+import '../../../core/platform/platform_capabilities.dart';
 import '../../../data/models/image/image_params.dart';
 import '../../../data/models/precise_ref/precise_ref_library_entry.dart';
 import '../../../data/services/precise_ref_library_storage_service.dart';
@@ -313,6 +314,44 @@ class _PreciseRefLibraryScreenState
     final screenWidth = MediaQuery.of(context).size.width;
     final columns = (screenWidth / 200).floor().clamp(2, 8);
 
+    final content = Stack(
+      children: [
+        Column(
+          children: [
+            _buildToolbar(state),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: PreciseRefTypeFilterChips(
+                  value: state.typeFilter,
+                  onChanged: (type) {
+                    ref
+                        .read(preciseRefLibraryNotifierProvider.notifier)
+                        .setTypeFilter(type);
+                  },
+                ),
+              ),
+            ),
+            Expanded(
+              child: state.isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : state.error != null
+                  ? _buildErrorView(state.error!)
+                  : state.filteredEntries.isEmpty
+                  ? _buildEmptyView(state)
+                  : _buildGrid(state, columns),
+            ),
+          ],
+        ),
+        if (_isDragging) _buildDropOverlay(),
+      ],
+    );
+
+    if (!PlatformCapabilities.current.supportsExternalFileDrop) {
+      return Scaffold(body: content);
+    }
+
     return Scaffold(
       body: DropRegion(
         formats: Formats.standardFormats,
@@ -335,41 +374,8 @@ class _PreciseRefLibraryScreenState
           setState(() => _isDragging = false);
           // 不等待处理完成，让拖放回调立即返回（避免资源管理器卡死）
           unawaited(_handleDrop(event));
-          return;
         },
-        child: Stack(
-          children: [
-            Column(
-              children: [
-                _buildToolbar(state),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: PreciseRefTypeFilterChips(
-                      value: state.typeFilter,
-                      onChanged: (type) {
-                        ref
-                            .read(preciseRefLibraryNotifierProvider.notifier)
-                            .setTypeFilter(type);
-                      },
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: state.isLoading
-                      ? const Center(child: CircularProgressIndicator())
-                      : state.error != null
-                      ? _buildErrorView(state.error!)
-                      : state.filteredEntries.isEmpty
-                      ? _buildEmptyView(state)
-                      : _buildGrid(state, columns),
-                ),
-              ],
-            ),
-            if (_isDragging) _buildDropOverlay(),
-          ],
-        ),
+        child: content,
       ),
     );
   }
@@ -408,6 +414,111 @@ class _PreciseRefLibraryScreenState
   Widget _buildToolbar(PreciseRefLibraryState state) {
     final l10n = context.l10n;
     final theme = Theme.of(context);
+    final touchTarget = PlatformCapabilities.current.hasTouchInput;
+
+    final title = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          Icons.center_focus_strong,
+          size: 22,
+          color: theme.colorScheme.primary,
+        ),
+        const SizedBox(width: 8),
+        Flexible(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                l10n.preciseRefLib_title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Text(
+                l10n.preciseRefLib_entryCount(state.totalCount),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+    final search = TextField(
+      key: const Key('precise-ref-library-search'),
+      controller: _searchController,
+      textAlignVertical: TextAlignVertical.center,
+      decoration: InputDecoration(
+        hintText: l10n.preciseRefLib_searchHint,
+        prefixIcon: const Icon(Icons.search, size: 18),
+        isDense: !touchTarget,
+        constraints: BoxConstraints(minHeight: touchTarget ? 48 : 40),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+        contentPadding: EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: touchTarget ? 12 : 8,
+        ),
+      ),
+      onChanged: _onSearchChanged,
+    );
+    final favorites = IconButton(
+      key: const Key('precise-ref-library-favorites-toggle'),
+      tooltip: l10n.preciseRefLib_favoritesOnly,
+      icon: Icon(
+        state.favoritesOnly ? Icons.star : Icons.star_border,
+        color: state.favoritesOnly ? Colors.amber : null,
+      ),
+      onPressed: () => ref
+          .read(preciseRefLibraryNotifierProvider.notifier)
+          .toggleFavoritesOnly(),
+    );
+    final sort = PopupMenuButton<PreciseRefLibrarySortOrder>(
+      key: const Key('precise-ref-library-sort-menu'),
+      tooltip: l10n.preciseRefLib_sortBy,
+      icon: const Icon(Icons.sort),
+      onSelected: (order) => ref
+          .read(preciseRefLibraryNotifierProvider.notifier)
+          .setSortOrder(order),
+      itemBuilder: (context) => [
+        _sortMenuItem(
+          PreciseRefLibrarySortOrder.createdAt,
+          l10n.preciseRefLib_sortCreatedAt,
+          state,
+        ),
+        _sortMenuItem(
+          PreciseRefLibrarySortOrder.lastUsed,
+          l10n.preciseRefLib_sortLastUsed,
+          state,
+        ),
+        _sortMenuItem(
+          PreciseRefLibrarySortOrder.usedCount,
+          l10n.preciseRefLib_sortUsedCount,
+          state,
+        ),
+        _sortMenuItem(
+          PreciseRefLibrarySortOrder.name,
+          l10n.preciseRefLib_sortName,
+          state,
+        ),
+      ],
+    );
+    final importButton = FilledButton.icon(
+      key: const Key('precise-ref-library-import-button'),
+      onPressed: _isPickingFile ? null : _importImages,
+      icon: const Icon(Icons.add_photo_alternate_outlined, size: 18),
+      label: Text(l10n.preciseRefLib_import),
+      style: FilledButton.styleFrom(
+        minimumSize: Size(64, touchTarget ? 48 : 40),
+      ),
+    );
+    final showToolbarImport = state.totalCount > 0 || state.hasFilters;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
@@ -417,106 +528,57 @@ class _PreciseRefLibraryScreenState
           ),
         ),
       ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.center_focus_strong,
-            size: 22,
-            color: theme.colorScheme.primary,
-          ),
-          const SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          if (constraints.maxWidth >= 760) {
+            return Row(
+              children: [
+                Expanded(child: title),
+                SizedBox(width: 220, child: search),
+                const SizedBox(width: 8),
+                favorites,
+                sort,
+                if (showToolbarImport) ...[
+                  const SizedBox(width: 4),
+                  importButton,
+                ],
+              ],
+            );
+          }
+
+          final stackImport =
+              constraints.maxWidth < 400 ||
+              MediaQuery.textScalerOf(context).scale(14) > 18;
+          return Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                l10n.preciseRefLib_title,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+              Row(
+                children: [
+                  Expanded(child: title),
+                  favorites,
+                  sort,
+                ],
               ),
-              Text(
-                l10n.preciseRefLib_entryCount(state.totalCount),
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+              const SizedBox(height: 8),
+              if (stackImport) ...[
+                search,
+                if (showToolbarImport) ...[
+                  const SizedBox(height: 8),
+                  SizedBox(width: double.infinity, child: importButton),
+                ],
+              ] else
+                Row(
+                  children: [
+                    Expanded(child: search),
+                    if (showToolbarImport) ...[
+                      const SizedBox(width: 8),
+                      importButton,
+                    ],
+                  ],
                 ),
-              ),
             ],
-          ),
-          const Spacer(),
-          SizedBox(
-            width: 220,
-            child: TextField(
-              key: const Key('precise-ref-library-search'),
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: l10n.preciseRefLib_searchHint,
-                prefixIcon: const Icon(Icons.search, size: 18),
-                isDense: true,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-              ),
-              onChanged: _onSearchChanged,
-            ),
-          ),
-          const SizedBox(width: 8),
-          IconButton(
-            key: const Key('precise-ref-library-favorites-toggle'),
-            tooltip: l10n.preciseRefLib_favoritesOnly,
-            icon: Icon(
-              state.favoritesOnly ? Icons.star : Icons.star_border,
-              color: state.favoritesOnly ? Colors.amber : null,
-            ),
-            onPressed: () {
-              ref
-                  .read(preciseRefLibraryNotifierProvider.notifier)
-                  .toggleFavoritesOnly();
-            },
-          ),
-          PopupMenuButton<PreciseRefLibrarySortOrder>(
-            key: const Key('precise-ref-library-sort-menu'),
-            tooltip: l10n.preciseRefLib_sortBy,
-            icon: const Icon(Icons.sort),
-            onSelected: (order) {
-              ref
-                  .read(preciseRefLibraryNotifierProvider.notifier)
-                  .setSortOrder(order);
-            },
-            itemBuilder: (context) => [
-              _sortMenuItem(
-                PreciseRefLibrarySortOrder.createdAt,
-                l10n.preciseRefLib_sortCreatedAt,
-                state,
-              ),
-              _sortMenuItem(
-                PreciseRefLibrarySortOrder.lastUsed,
-                l10n.preciseRefLib_sortLastUsed,
-                state,
-              ),
-              _sortMenuItem(
-                PreciseRefLibrarySortOrder.usedCount,
-                l10n.preciseRefLib_sortUsedCount,
-                state,
-              ),
-              _sortMenuItem(
-                PreciseRefLibrarySortOrder.name,
-                l10n.preciseRefLib_sortName,
-                state,
-              ),
-            ],
-          ),
-          const SizedBox(width: 4),
-          FilledButton.icon(
-            key: const Key('precise-ref-library-import-button'),
-            onPressed: _isPickingFile ? null : _importImages,
-            icon: const Icon(Icons.add_photo_alternate_outlined, size: 18),
-            label: Text(l10n.preciseRefLib_import),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -575,6 +637,8 @@ class _PreciseRefLibraryScreenState
   Widget _buildEmptyView(PreciseRefLibraryState state) {
     final l10n = context.l10n;
     final theme = Theme.of(context);
+    final supportsExternalFileDrop =
+        PlatformCapabilities.current.supportsExternalFileDrop;
 
     // 过滤后无结果：给出条目总数与一键清除过滤
     if (state.hasFilters) {
@@ -623,7 +687,9 @@ class _PreciseRefLibraryScreenState
           ),
           const SizedBox(height: 12),
           Text(
-            l10n.preciseRefLib_empty,
+            supportsExternalFileDrop
+                ? l10n.preciseRefLib_empty
+                : l10n.preciseRefLib_emptyTouch,
             style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
@@ -631,7 +697,9 @@ class _PreciseRefLibraryScreenState
           if (!state.hasFilters) ...[
             const SizedBox(height: 6),
             Text(
-              l10n.preciseRefLib_emptyHint,
+              supportsExternalFileDrop
+                  ? l10n.preciseRefLib_emptyHint
+                  : l10n.preciseRefLib_emptyHintTouch,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant.withValues(
                   alpha: 0.7,
@@ -639,7 +707,8 @@ class _PreciseRefLibraryScreenState
               ),
             ),
             const SizedBox(height: 16),
-            OutlinedButton.icon(
+            FilledButton.icon(
+              key: const Key('precise-ref-library-empty-import-button'),
               onPressed: _isPickingFile ? null : _importImages,
               icon: const Icon(Icons.add_photo_alternate_outlined, size: 18),
               label: Text(l10n.preciseRefLib_import),

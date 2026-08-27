@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 import '../../../../core/constants/model_capabilities.dart';
+import '../../../../core/platform/platform_capabilities.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/vibe/vibe_library_entry.dart';
 import '../../../../data/models/vibe/vibe_reference.dart';
@@ -417,7 +418,8 @@ class _VibeTransferContentState extends ConsumerState<VibeTransferContent> {
   }
 
   Widget _wrapWithFileDropRegion({required Widget child}) {
-    if (widget.onImportDroppedFile == null) {
+    if (widget.onImportDroppedFile == null ||
+        !PlatformCapabilities.current.supportsExternalFileDrop) {
       return child;
     }
 

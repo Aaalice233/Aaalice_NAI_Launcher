@@ -288,6 +288,12 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     _ref.listen<WebAccessConfigState>(webAccessConfigProvider, (_, _) {
       unawaited(_refreshWebAccessTools());
     });
+    _ref.listen<PromptAssistantConfigState>(promptAssistantConfigProvider, (
+      previous,
+      next,
+    ) {
+      _refreshRoute();
+    });
     _init(presetSkills: presetSkills);
   }
 

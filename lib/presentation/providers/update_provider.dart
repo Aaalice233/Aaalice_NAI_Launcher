@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/services/update_check_service.dart';
 import '../../core/services/update_installer_service.dart';
 import '../../core/utils/app_logger.dart';
+import '../../data/models/version/release_asset_info.dart';
 import '../../data/models/version/version_info.dart';
 
 part 'update_provider.g.dart';
@@ -154,6 +155,10 @@ class UpdateStateNotifier extends _$UpdateStateNotifier {
         }
       }
       return;
+    }
+    if (restored != null) {
+      await installer.discardPendingUpdate(restored.update);
+      if (result?.version == restored.versionInfo.version) return;
     }
 
     if (result != null && !result.success) {
@@ -342,6 +347,15 @@ class UpdateStateNotifier extends _$UpdateStateNotifier {
       await ref
           .read(updateInstallerServiceProvider)
           .installAndRestart(downloaded);
+      if (downloaded.asset.type == ReleaseAssetType.androidApk) {
+        final service = ref.read(updateCheckServiceProvider);
+        await service.remindLater();
+        state = state.copyWith(
+          status: UpdateStatus.downloaded,
+          notificationVisible: false,
+        );
+        _scheduleReminder(UpdateCheckService.defaultReminderDelay);
+      }
     } catch (error) {
       state = state.copyWith(
         status: UpdateStatus.error,

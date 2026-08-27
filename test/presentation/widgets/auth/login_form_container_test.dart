@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/auth_provider.dart';
+import 'package:nai_launcher/presentation/themes/core/input_surface_style.dart';
 import 'package:nai_launcher/presentation/widgets/auth/auth_mode_switcher.dart';
 import 'package:nai_launcher/presentation/widgets/auth/login_form_container.dart';
 import 'package:nai_launcher/presentation/widgets/common/floating_label_input.dart';
@@ -11,6 +12,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 class _FakeAuthNotifier extends AuthNotifier {
   @override
   AuthState build() => const AuthState(status: AuthStatus.unauthenticated);
+}
+
+class _ErrorAuthNotifier extends AuthNotifier {
+  @override
+  AuthState build() => const AuthState(
+    status: AuthStatus.error,
+    errorCode: AuthErrorCode.tokenInvalid,
+  );
 }
 
 void main() {
@@ -28,8 +37,22 @@ void main() {
     )!;
 
     expect(find.byKey(const Key('token_form')), findsOneWidget);
-    expect(find.text(l10n.auth_tokenLoginRecommended), findsOneWidget);
+    expect(find.text(l10n.auth_tokenLoginCompact), findsOneWidget);
     _expectSingleRowInTokenFirstOrder(tester);
+
+    final context = tester.element(find.byKey(const Key('token_form')));
+    final expectedFill = inputSurfaceFillColor(Theme.of(context).colorScheme);
+    final decorators = tester.widgetList<InputDecorator>(
+      find.descendant(
+        of: find.byKey(const Key('token_form')),
+        matching: find.byType(InputDecorator),
+      ),
+    );
+    expect(decorators, isNotEmpty);
+    for (final decorator in decorators) {
+      expect(decorator.decoration.filled, isTrue);
+      expect(decorator.decoration.fillColor, expectedFill);
+    }
   });
 
   testWidgets('email and password mode is enabled and opens its form', (
@@ -62,7 +85,7 @@ void main() {
         final l10n = AppLocalizations.of(
           tester.element(find.byKey(const Key('auth_mode_switcher'))),
         )!;
-        expect(find.text(l10n.auth_tokenLoginRecommended), findsOneWidget);
+        expect(find.text(l10n.auth_tokenLoginCompact), findsOneWidget);
         expect(find.text(l10n.auth_credentialsLogin), findsOneWidget);
         expect(find.text(l10n.auth_thirdPartyLogin), findsOneWidget);
         _expectSingleRowInTokenFirstOrder(tester);
@@ -70,15 +93,55 @@ void main() {
       },
     );
   }
+
+  testWidgets('wide auth modes retain the recommended token label', (
+    tester,
+  ) async {
+    await _pumpModeSwitcher(tester, const Locale('zh'), width: 520);
+
+    final l10n = AppLocalizations.of(
+      tester.element(find.byKey(const Key('auth_mode_switcher'))),
+    )!;
+    expect(find.text(l10n.auth_tokenLoginRecommended), findsOneWidget);
+    expect(find.text(l10n.auth_tokenLoginCompact), findsNothing);
+  });
+
+  testWidgets(
+    'login forms do not mutate a pre-existing auth error while building',
+    (tester) async {
+      await _pumpLoginForm(
+        tester,
+        const Locale('zh'),
+        startsWithAuthError: true,
+      );
+      expect(tester.takeException(), isNull);
+
+      await tester.tap(find.byKey(const Key('auth_mode_credentials')));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+
+      await tester.tap(find.byKey(const Key('auth_mode_third_party')));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    },
+  );
 }
 
-Future<void> _pumpLoginForm(WidgetTester tester, Locale locale) async {
+Future<void> _pumpLoginForm(
+  WidgetTester tester,
+  Locale locale, {
+  bool startsWithAuthError = false,
+}) async {
   await tester.binding.setSurfaceSize(const Size(450, 1000));
   addTearDown(() => tester.binding.setSurfaceSize(null));
 
   await tester.pumpWidget(
     ProviderScope(
-      overrides: [authNotifierProvider.overrideWith(_FakeAuthNotifier.new)],
+      overrides: [
+        authNotifierProvider.overrideWith(
+          startsWithAuthError ? _ErrorAuthNotifier.new : _FakeAuthNotifier.new,
+        ),
+      ],
       child: MaterialApp(
         locale: locale,
         localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -97,8 +160,12 @@ Future<void> _pumpLoginForm(WidgetTester tester, Locale locale) async {
   await tester.pumpAndSettle();
 }
 
-Future<void> _pumpModeSwitcher(WidgetTester tester, Locale locale) async {
-  await tester.binding.setSurfaceSize(const Size(450, 300));
+Future<void> _pumpModeSwitcher(
+  WidgetTester tester,
+  Locale locale, {
+  double width = 370,
+}) async {
+  await tester.binding.setSurfaceSize(Size(width + 80, 300));
   addTearDown(() => tester.binding.setSurfaceSize(null));
 
   await tester.pumpWidget(
@@ -107,8 +174,10 @@ Future<void> _pumpModeSwitcher(WidgetTester tester, Locale locale) async {
         locale: locale,
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
-        home: const Scaffold(
-          body: Center(child: SizedBox(width: 370, child: AuthModeSwitcher())),
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(width: width, child: const AuthModeSwitcher()),
+          ),
         ),
       ),
     ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
@@ -123,17 +124,34 @@ class _PaginationBarState extends State<PaginationBar> {
     final colorScheme = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-      decoration: BoxDecoration(
-        color: isDark ? colorScheme.surfaceContainerHigh : colorScheme.surface,
-        border: Border(
-          top: BorderSide(color: theme.dividerColor.withValues(alpha: 0.2)),
-        ),
-      ),
-      child: widget.compact
-          ? _buildCompactLayout(theme, colorScheme)
-          : _buildFullLayout(theme, colorScheme),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final narrow = constraints.maxWidth < 520;
+        return Container(
+          height: narrow ? 48 : null,
+          padding: EdgeInsets.symmetric(
+            vertical: narrow ? 0 : 10,
+            horizontal: narrow ? 4 : 16,
+          ),
+          decoration: BoxDecoration(
+            color: isDark
+                ? colorScheme.surfaceContainerHigh
+                : colorScheme.surface,
+            border: Border(
+              top: BorderSide(color: theme.dividerColor.withValues(alpha: 0.2)),
+            ),
+          ),
+          child: narrow
+              ? _buildNarrowLayout(
+                  theme,
+                  colorScheme,
+                  veryNarrow: constraints.maxWidth < 400,
+                )
+              : widget.compact
+              ? _buildCompactLayout(theme, colorScheme)
+              : _buildFullLayout(theme, colorScheme),
+        );
+      },
     );
   }
 
@@ -162,6 +180,115 @@ class _PaginationBarState extends State<PaginationBar> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [_buildPageNavigation(theme, colorScheme)],
+    );
+  }
+
+  Widget _buildNarrowLayout(
+    ThemeData theme,
+    ColorScheme colorScheme, {
+    required bool veryNarrow,
+  }) {
+    final itemCountLabel = context.l10n.onlineGallery_imageCount(
+      widget.totalItems.toString(),
+    );
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        _buildNavButton(
+          icon: Icons.chevron_left,
+          tooltip: context.l10n.pagination_previousPage,
+          onPressed: widget.currentPage > 0
+              ? () => widget.onPageChanged(widget.currentPage - 1)
+              : null,
+        ),
+        const SizedBox(width: 4),
+        _buildCurrentPageJump(theme, colorScheme),
+        const SizedBox(width: 4),
+        _buildNavButton(
+          icon: Icons.chevron_right,
+          tooltip: context.l10n.pagination_nextPage,
+          onPressed: widget.currentPage < widget.totalPages - 1
+              ? () => widget.onPageChanged(widget.currentPage + 1)
+              : null,
+        ),
+        SizedBox(width: veryNarrow ? 12 : 24),
+        if (veryNarrow)
+          Tooltip(
+            message: itemCountLabel,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.photo_library_outlined,
+                  size: 16,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  widget.totalItems.toString(),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          )
+        else
+          Text(
+            itemCountLabel,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildCurrentPageJump(ThemeData theme, ColorScheme colorScheme) {
+    if (_isEditing) {
+      return SizedBox(width: 80, height: 36, child: _buildJumpInput(theme));
+    }
+
+    return Tooltip(
+      message: context.l10n.pagination_jumpToPage,
+      child: InkWell(
+        onTap: widget.totalPages > 1 ? _startEditing : null,
+        borderRadius: BorderRadius.circular(16),
+        child: SizedBox(
+          height: 48,
+          child: Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              decoration: BoxDecoration(
+                color: colorScheme.primaryContainer.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    context.l10n.onlineGallery_pageN(
+                      (widget.currentPage + 1).toString(),
+                    ),
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: colorScheme.onSurface,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  if (widget.totalPages > 1) ...[
+                    const SizedBox(width: 4),
+                    Icon(
+                      Icons.edit,
+                      size: 12,
+                      color: colorScheme.onSurface.withValues(alpha: 0.5),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -259,13 +386,16 @@ class _PaginationBarState extends State<PaginationBar> {
     required String tooltip,
     VoidCallback? onPressed,
   }) {
+    final extent = PlatformCapabilities.current.hasTouchInput ? 48.0 : 32.0;
     return IconButton(
       icon: Icon(icon, size: 20),
       tooltip: tooltip,
       onPressed: onPressed,
-      visualDensity: VisualDensity.compact,
+      visualDensity: PlatformCapabilities.current.hasTouchInput
+          ? VisualDensity.standard
+          : VisualDensity.compact,
       padding: const EdgeInsets.all(6),
-      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+      constraints: BoxConstraints(minWidth: extent, minHeight: extent),
     );
   }
 
@@ -326,7 +456,10 @@ class _PaginationBarState extends State<PaginationBar> {
           onTap: isSelected ? null : () => widget.onPageChanged(page),
           borderRadius: BorderRadius.circular(6),
           child: Container(
-            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            constraints: BoxConstraints(
+              minWidth: PlatformCapabilities.current.hasTouchInput ? 48 : 32,
+              minHeight: PlatformCapabilities.current.hasTouchInput ? 48 : 32,
+            ),
             alignment: Alignment.center,
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             child: Text(
@@ -357,29 +490,10 @@ class _PaginationBarState extends State<PaginationBar> {
   }
 
   Widget _buildJumpToPage(ThemeData theme, ColorScheme colorScheme) {
+    final touchInput = PlatformCapabilities.current.hasTouchInput;
+    final extent = touchInput ? 48.0 : 32.0;
     if (_isEditing) {
-      return SizedBox(
-        width: 60,
-        height: 32,
-        child: ThemedInput(
-          controller: _controller,
-          focusNode: _focusNode,
-          keyboardType: TextInputType.number,
-          textAlign: TextAlign.center,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
-          decoration: const InputDecoration(
-            isDense: true,
-            contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-          ),
-          inputFormatters: [
-            FilteringTextInputFormatter.digitsOnly,
-            LengthLimitingTextInputFormatter(5),
-          ],
-          onSubmitted: (_) => _submitPage(),
-        ),
-      );
+      return SizedBox(width: 60, height: extent, child: _buildJumpInput(theme));
     }
 
     return Tooltip(
@@ -392,10 +506,31 @@ class _PaginationBarState extends State<PaginationBar> {
           foregroundColor: colorScheme.onSurfaceVariant,
           textStyle: theme.textTheme.bodySmall,
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-          minimumSize: Size.zero,
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          minimumSize: Size(0, extent),
+          tapTargetSize: touchInput
+              ? MaterialTapTargetSize.padded
+              : MaterialTapTargetSize.shrinkWrap,
         ),
       ),
+    );
+  }
+
+  Widget _buildJumpInput(ThemeData theme) {
+    return ThemedInput(
+      controller: _controller,
+      focusNode: _focusNode,
+      keyboardType: TextInputType.number,
+      textAlign: TextAlign.center,
+      style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+      decoration: const InputDecoration(
+        isDense: true,
+        contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      ),
+      inputFormatters: [
+        FilteringTextInputFormatter.digitsOnly,
+        LengthLimitingTextInputFormatter(5),
+      ],
+      onSubmitted: (_) => _submitPage(),
     );
   }
 

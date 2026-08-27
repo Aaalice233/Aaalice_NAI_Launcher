@@ -135,6 +135,7 @@ class _EntrySelectorDialogState extends ConsumerState<EntrySelectorDialog> {
                   controller: _searchController,
                   focusNode: _searchFocusNode,
                   autofocus: true,
+                  textAlignVertical: TextAlignVertical.center,
                   decoration: InputDecoration(
                     hintText: l10n.tagLibrary_searchHint,
                     prefixIcon: const Icon(Icons.search),

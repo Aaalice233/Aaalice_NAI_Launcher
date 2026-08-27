@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:nai_launcher/data/models/queue/replication_task.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 
+import '../../adaptive/adaptive_presenter.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/queue_execution_provider.dart';
 import '../../providers/replication_queue_provider.dart';
@@ -246,6 +248,70 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
     AppLocalizations l10n,
     ReplicationQueueState queueState,
   ) {
+    final isTouch = PlatformCapabilities.current.hasTouchInput;
+    final selectedChip = Container(
+      constraints: BoxConstraints(minHeight: isTouch ? 48 : 0),
+      alignment: Alignment.center,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        l10n.queue_selectedCount(queueState.selectedCount),
+        style: TextStyle(
+          color: theme.colorScheme.primary,
+          fontWeight: FontWeight.w500,
+          fontSize: 13,
+        ),
+      ),
+    );
+    final actions = <Widget>[
+      _buildCompactButton(
+        label: l10n.queue_selectAll,
+        onPressed: () =>
+            ref.read(replicationQueueNotifierProvider.notifier).selectAll(),
+      ),
+      _buildCompactButton(
+        label: l10n.queue_invertSelection,
+        onPressed: () => ref
+            .read(replicationQueueNotifierProvider.notifier)
+            .invertSelection(),
+      ),
+      _buildCompactButton(
+        label: l10n.queue_cancelSelection,
+        onPressed: () => ref
+            .read(replicationQueueNotifierProvider.notifier)
+            .exitSelectionMode(),
+      ),
+      FilledButton.icon(
+        onPressed: queueState.selectedCount == 0
+            ? null
+            : () => ref
+                  .read(replicationQueueNotifierProvider.notifier)
+                  .pinSelectedToTop(),
+        icon: const Icon(Icons.vertical_align_top_rounded, size: 16),
+        label: Text(l10n.queue_pinToTop),
+        style: FilledButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          minimumSize: Size(0, isTouch ? 48 : 32),
+        ),
+      ),
+      FilledButton.tonalIcon(
+        onPressed: queueState.selectedCount == 0
+            ? null
+            : _confirmDeleteSelected,
+        icon: const Icon(Icons.delete_rounded, size: 16),
+        label: Text(l10n.queue_delete),
+        style: FilledButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          minimumSize: Size(0, isTouch ? 48 : 32),
+          backgroundColor: Colors.red.withValues(alpha: 0.12),
+          foregroundColor: Colors.red,
+        ),
+      ),
+    ];
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
@@ -257,71 +323,14 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
           ),
         ),
       ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Text(
-              l10n.queue_selectedCount(queueState.selectedCount),
-              style: TextStyle(
-                color: theme.colorScheme.primary,
-                fontWeight: FontWeight.w500,
-                fontSize: 13,
-              ),
-            ),
-          ),
-          const Spacer(),
-          _buildCompactButton(
-            label: l10n.queue_selectAll,
-            onPressed: () =>
-                ref.read(replicationQueueNotifierProvider.notifier).selectAll(),
-          ),
-          _buildCompactButton(
-            label: l10n.queue_invertSelection,
-            onPressed: () => ref
-                .read(replicationQueueNotifierProvider.notifier)
-                .invertSelection(),
-          ),
-          _buildCompactButton(
-            label: l10n.queue_cancelSelection,
-            onPressed: () => ref
-                .read(replicationQueueNotifierProvider.notifier)
-                .exitSelectionMode(),
-          ),
-          const SizedBox(width: 8),
-          FilledButton.icon(
-            onPressed: queueState.selectedCount == 0
-                ? null
-                : () => ref
-                      .read(replicationQueueNotifierProvider.notifier)
-                      .pinSelectedToTop(),
-            icon: const Icon(Icons.vertical_align_top_rounded, size: 16),
-            label: Text(l10n.queue_pinToTop),
-            style: FilledButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-              minimumSize: const Size(0, 32),
-            ),
-          ),
-          const SizedBox(width: 6),
-          FilledButton.tonalIcon(
-            onPressed: queueState.selectedCount == 0
-                ? null
-                : _confirmDeleteSelected,
-            icon: const Icon(Icons.delete_rounded, size: 16),
-            label: Text(l10n.queue_delete),
-            style: FilledButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-              minimumSize: const Size(0, 32),
-              backgroundColor: Colors.red.withValues(alpha: 0.12),
-              foregroundColor: Colors.red,
-            ),
-          ),
-        ],
-      ),
+      child: isTouch
+          ? Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [selectedChip, ...actions],
+            )
+          : Row(children: [selectedChip, const Spacer(), ...actions]),
     );
   }
 
@@ -330,11 +339,12 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
     required String label,
     required VoidCallback onPressed,
   }) {
+    final isTouch = PlatformCapabilities.current.hasTouchInput;
     return TextButton(
       onPressed: onPressed,
       style: TextButton.styleFrom(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        minimumSize: const Size(0, 28),
+        minimumSize: Size(0, isTouch ? 48 : 28),
       ),
       child: Text(label),
     );
@@ -389,6 +399,9 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
           isSelected: queueState.selectedTaskIds.contains(task.id),
           onTap: () => _showTaskDetails(task),
           onEdit: () => _editTask(task),
+          onDelete: () => ref
+              .read(replicationQueueNotifierProvider.notifier)
+              .remove(task.id),
         );
       },
     );
@@ -408,18 +421,42 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      itemCount: queueState.completedTasks.length,
-      itemBuilder: (context, index) {
-        final task = queueState
-            .completedTasks[queueState.completedTasks.length - 1 - index];
-        return TaskListItem(
-          task: task,
-          index: index,
-          onTap: () => _showTaskDetails(task),
-        );
-      },
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+          child: Align(
+            alignment: AlignmentDirectional.centerEnd,
+            child: TextButton.icon(
+              onPressed: _confirmClearCompletedTasks,
+              icon: const Icon(Icons.delete_sweep_rounded, size: 18),
+              label: Text(l10n.queue_clearCompletedTasks),
+              style: TextButton.styleFrom(
+                foregroundColor: theme.colorScheme.error,
+              ),
+            ),
+          ),
+        ),
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            itemCount: queueState.completedTasks.length,
+            itemBuilder: (context, index) {
+              final task = queueState
+                  .completedTasks[queueState.completedTasks.length - 1 - index];
+              return TaskListItem(
+                key: Key(task.id),
+                task: task,
+                index: index,
+                onTap: () => _showTaskDetails(task),
+                onDelete: () => ref
+                    .read(replicationQueueNotifierProvider.notifier)
+                    .removeCompletedTask(task.id),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 
@@ -481,40 +518,63 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
     final theme = Theme.of(context);
     final displayColor = color ?? theme.disabledColor;
 
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: displayColor.withValues(alpha: 0.08),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              icon,
-              size: 48,
-              color: displayColor.withValues(alpha: 0.6),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact =
+            constraints.hasBoundedHeight && constraints.maxHeight < 180;
+        final verticalPadding = compact ? 4.0 : 12.0;
+        final minimumContentHeight = constraints.hasBoundedHeight
+            ? (constraints.maxHeight - verticalPadding * 2)
+                  .clamp(0.0, double.infinity)
+                  .toDouble()
+            : 0.0;
+
+        return SingleChildScrollView(
+          padding: EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: verticalPadding,
+          ),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: minimumContentHeight),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: EdgeInsets.all(compact ? 12 : 20),
+                  decoration: BoxDecoration(
+                    color: displayColor.withValues(alpha: 0.08),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    icon,
+                    size: compact ? 32 : 48,
+                    color: displayColor.withValues(alpha: 0.6),
+                  ),
+                ),
+                SizedBox(height: compact ? 8 : 16),
+                Text(
+                  message,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                  ),
+                ),
+                if (hint != null) ...[
+                  SizedBox(height: compact ? 4 : 6),
+                  Text(
+                    hint,
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
-          const SizedBox(height: 16),
-          Text(
-            message,
-            style: theme.textTheme.titleMedium?.copyWith(
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-            ),
-          ),
-          if (hint != null) ...[
-            const SizedBox(height: 6),
-            Text(
-              hint,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
-              ),
-            ),
-          ],
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -538,11 +598,19 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
     AppToast.success(context, context.l10n.queue_taskAdded);
   }
 
-  void _showTaskDetails(task) {
-    // 显示任务详情
+  void _showTaskDetails(ReplicationTask task) {
+    AdaptivePresenter.showPanel<void>(
+      context: context,
+      title: context.l10n.queue_taskDetails,
+      builder: (context, scrollController) => QueueTaskDetailView(
+        task: task,
+        scrollController: scrollController,
+        framed: false,
+      ),
+    );
   }
 
-  void _editTask(task) {
+  void _editTask(ReplicationTask task) {
     showDialog(
       context: context,
       builder: (context) => TaskEditDialog(task: task),
@@ -571,7 +639,43 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
     );
 
     if (confirmed == true) {
-      await ref.read(replicationQueueNotifierProvider.notifier).clear();
+      await ref.read(queueExecutionNotifierProvider.notifier).clearQueue();
+    }
+  }
+
+  Future<void> _confirmClearCompletedTasks() async {
+    final queueState = ref.read(replicationQueueNotifierProvider);
+    if (queueState.completedTasks.isEmpty) return;
+
+    final l10n = context.l10n;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.common_confirmClear),
+        content: Text(
+          l10n.common_clearAllItemsConfirm(
+            queueState.completedTasks.length,
+            l10n.queue_completedTasks,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(l10n.common_cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: Text(l10n.common_confirm),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      ref.read(replicationQueueNotifierProvider.notifier).clearCompletedTasks();
     }
   }
 

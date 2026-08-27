@@ -10,6 +10,8 @@ import '../../../../themes/design_tokens.dart';
 import '../../../../widgets/common/animated_favorite_button.dart';
 import '../../../../widgets/common/editable_double_field.dart';
 
+enum _VibeDetailAction { save, rename, export, delete }
+
 /// Vibe 详情毛玻璃参数面板
 ///
 /// 从原 _buildParamPanel 提取并升级：
@@ -376,70 +378,165 @@ class VibeDetailParamPanel extends StatelessWidget {
           ),
         ),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.tonalIcon(
-              onPressed: canSaveParams && !isSavingParams ? onSaveParams : null,
-              icon: isSavingParams
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.save_outlined),
-              label: Text(l10n.vibeDetail_saveParameters),
-            ),
-          ),
-          const SizedBox(height: DesignTokens.spacingSm),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: onSendToGeneration,
-              icon: const Icon(Icons.send),
-              label: Text(l10n.vibeLibrary_sendToGeneration),
-            ),
-          ),
-          const SizedBox(height: DesignTokens.spacingSm),
-          Row(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          if (constraints.maxWidth < 420) {
+            return Row(
+              children: [
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: onSendToGeneration,
+                    icon: const Icon(Icons.send),
+                    label: Text(l10n.vibeLibrary_sendToGeneration),
+                  ),
+                ),
+                const SizedBox(width: DesignTokens.spacingSm),
+                PopupMenuButton<_VibeDetailAction>(
+                  tooltip: l10n.common_moreActions,
+                  constraints: const BoxConstraints(minWidth: 220),
+                  onSelected: (action) {
+                    switch (action) {
+                      case _VibeDetailAction.save:
+                        onSaveParams?.call();
+                        break;
+                      case _VibeDetailAction.rename:
+                        onRename?.call();
+                        break;
+                      case _VibeDetailAction.export:
+                        onExport?.call();
+                        break;
+                      case _VibeDetailAction.delete:
+                        onDelete?.call();
+                        break;
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    PopupMenuItem(
+                      value: _VibeDetailAction.save,
+                      enabled:
+                          onSaveParams != null &&
+                          canSaveParams &&
+                          !isSavingParams,
+                      child: ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: isSavingParams
+                            ? const SizedBox.square(
+                                dimension: 24,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.save_outlined),
+                        title: Text(l10n.vibeDetail_saveParameters),
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: _VibeDetailAction.rename,
+                      enabled: onRename != null && !isRenaming,
+                      child: ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(Icons.drive_file_rename_outline),
+                        title: Text(l10n.common_rename),
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: _VibeDetailAction.export,
+                      enabled: onExport != null,
+                      child: ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(Icons.file_download_outlined),
+                        title: Text(l10n.common_export),
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: _VibeDetailAction.delete,
+                      enabled: onDelete != null,
+                      child: ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: Icon(
+                          Icons.delete_outline,
+                          color: theme.colorScheme.error,
+                        ),
+                        title: Text(
+                          l10n.common_delete,
+                          style: TextStyle(color: theme.colorScheme.error),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            );
+          }
+
+          return Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Expanded(
-                child: TextButton.icon(
-                  onPressed: isRenaming ? null : onRename,
-                  icon: isRenaming
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.tonalIcon(
+                  onPressed: canSaveParams && !isSavingParams
+                      ? onSaveParams
+                      : null,
+                  icon: isSavingParams
                       ? const SizedBox(
                           width: 16,
                           height: 16,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Icon(Icons.drive_file_rename_outline),
-                  label: Text(l10n.common_rename),
+                      : const Icon(Icons.save_outlined),
+                  label: Text(l10n.vibeDetail_saveParameters),
                 ),
               ),
-              const SizedBox(width: DesignTokens.spacingSm),
-              Expanded(
-                child: TextButton.icon(
-                  onPressed: onExport,
-                  icon: const Icon(Icons.file_download_outlined),
-                  label: Text(l10n.common_export),
+              const SizedBox(height: DesignTokens.spacingSm),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: onSendToGeneration,
+                  icon: const Icon(Icons.send),
+                  label: Text(l10n.vibeLibrary_sendToGeneration),
                 ),
               ),
-              const SizedBox(width: DesignTokens.spacingSm),
-              Expanded(
-                child: TextButton.icon(
-                  onPressed: onDelete,
-                  icon: const Icon(Icons.delete_outline),
-                  label: Text(l10n.common_delete),
-                  style: TextButton.styleFrom(
-                    foregroundColor: theme.colorScheme.error,
+              const SizedBox(height: DesignTokens.spacingSm),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextButton.icon(
+                      onPressed: isRenaming ? null : onRename,
+                      icon: isRenaming
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.drive_file_rename_outline),
+                      label: Text(l10n.common_rename),
+                    ),
                   ),
-                ),
+                  const SizedBox(width: DesignTokens.spacingSm),
+                  Expanded(
+                    child: TextButton.icon(
+                      onPressed: onExport,
+                      icon: const Icon(Icons.file_download_outlined),
+                      label: Text(l10n.common_export),
+                    ),
+                  ),
+                  const SizedBox(width: DesignTokens.spacingSm),
+                  Expanded(
+                    child: TextButton.icon(
+                      onPressed: onDelete,
+                      icon: const Icon(Icons.delete_outline),
+                      label: Text(l10n.common_delete),
+                      style: TextButton.styleFrom(
+                        foregroundColor: theme.colorScheme.error,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
-          ),
-        ],
+          );
+        },
       ),
     );
   }

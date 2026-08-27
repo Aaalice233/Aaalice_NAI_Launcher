@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'inset_shadow_container.dart';
+import 'input_surface_container.dart';
 
 /// 带表单验证的统一样式输入框组件
 ///
-/// 使用 [InsetShadowContainer] 包装，提供立体感效果。
+/// 使用共享深色填充与清晰、无发光的聚焦和错误轮廓。
 /// 支持 [validator] 验证功能和错误提示显示。
 class ThemedFormInput extends StatelessWidget {
   /// 文本控制器
@@ -230,6 +230,7 @@ class ThemedFormInput extends StatelessWidget {
                 disabledBorder: InputBorder.none,
                 errorBorder: InputBorder.none,
                 focusedErrorBorder: InputBorder.none,
+                filled: false,
                 contentPadding: contentPadding,
                 prefixIcon: prefixIcon,
                 suffixIcon: suffixIcon,
@@ -252,8 +253,6 @@ class ThemedFormInput extends StatelessWidget {
                   suffixStyle: decoration!.suffixStyle,
                   counter: decoration!.counter,
                   counterStyle: decoration!.counterStyle,
-                  filled: decoration!.filled,
-                  fillColor: decoration!.fillColor,
                 );
               }
 
@@ -284,12 +283,16 @@ class ThemedFormInput extends StatelessWidget {
                 style: style,
                 autofocus: autofocus,
                 textAlign: textAlign,
-                textAlignVertical: textAlignVertical,
+                textAlignVertical:
+                    textAlignVertical ??
+                    (maxLines == 1 && !expands
+                        ? TextAlignVertical.center
+                        : null),
                 cursorColor: cursorColor,
                 decoration: inputDecoration,
               );
 
-              final container = InsetShadowContainer(
+              final container = InputSurfaceContainer(
                 borderRadius: borderRadius,
                 enabled: enabled,
                 hasError: hasError,

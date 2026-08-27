@@ -18,56 +18,66 @@ class AuthModeSwitcher extends ConsumerWidget {
         ? AuthMode.token
         : currentMode;
 
-    return Row(
-      key: const Key('auth_mode_switcher'),
-      children: [
-        Expanded(
-          child: _buildModeButton(
-            key: const Key('auth_mode_token'),
-            context: context,
-            label: context.l10n.auth_tokenLoginRecommended,
-            icon: Icons.key_outlined,
-            isSelected: effectiveMode == AuthMode.token,
-            onTap: () {
-              ref
-                  .read(authModeNotifierProvider.notifier)
-                  .switchMode(AuthMode.token);
-            },
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _buildModeButton(
-            key: const Key('auth_mode_credentials'),
-            context: context,
-            label: context.l10n.auth_credentialsLogin,
-            icon: Icons.email_outlined,
-            isSelected: effectiveMode == AuthMode.credentials,
-            enabled: credentialsEnabled,
-            disabledTooltip: context.l10n.auth_credentialsLoginUnavailable,
-            onTap: () {
-              ref
-                  .read(authModeNotifierProvider.notifier)
-                  .switchMode(AuthMode.credentials);
-            },
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _buildModeButton(
-            key: const Key('auth_mode_third_party'),
-            context: context,
-            label: context.l10n.auth_thirdPartyLogin,
-            icon: Icons.public_outlined,
-            isSelected: effectiveMode == AuthMode.thirdParty,
-            onTap: () {
-              ref
-                  .read(authModeNotifierProvider.notifier)
-                  .switchMode(AuthMode.thirdParty);
-            },
-          ),
-        ),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 480;
+        final tokenLabel = compact
+            ? context.l10n.auth_tokenLoginCompact
+            : context.l10n.auth_tokenLoginRecommended;
+
+        return Row(
+          key: const Key('auth_mode_switcher'),
+          children: [
+            Expanded(
+              child: _buildModeButton(
+                key: const Key('auth_mode_token'),
+                context: context,
+                label: tokenLabel,
+                icon: Icons.key_outlined,
+                isSelected: effectiveMode == AuthMode.token,
+                maxLabelLines: compact ? 1 : 2,
+                onTap: () {
+                  ref
+                      .read(authModeNotifierProvider.notifier)
+                      .switchMode(AuthMode.token);
+                },
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _buildModeButton(
+                key: const Key('auth_mode_credentials'),
+                context: context,
+                label: context.l10n.auth_credentialsLogin,
+                icon: Icons.email_outlined,
+                isSelected: effectiveMode == AuthMode.credentials,
+                enabled: credentialsEnabled,
+                disabledTooltip: context.l10n.auth_credentialsLoginUnavailable,
+                onTap: () {
+                  ref
+                      .read(authModeNotifierProvider.notifier)
+                      .switchMode(AuthMode.credentials);
+                },
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _buildModeButton(
+                key: const Key('auth_mode_third_party'),
+                context: context,
+                label: context.l10n.auth_thirdPartyLogin,
+                icon: Icons.public_outlined,
+                isSelected: effectiveMode == AuthMode.thirdParty,
+                onTap: () {
+                  ref
+                      .read(authModeNotifierProvider.notifier)
+                      .switchMode(AuthMode.thirdParty);
+                },
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -80,6 +90,7 @@ class AuthModeSwitcher extends ConsumerWidget {
     required VoidCallback onTap,
     bool enabled = true,
     String? disabledTooltip,
+    int maxLabelLines = 2,
   }) {
     final theme = Theme.of(context);
     final foregroundColor = enabled
@@ -116,7 +127,7 @@ class AuthModeSwitcher extends ConsumerWidget {
               Flexible(
                 child: Text(
                   label,
-                  maxLines: 2,
+                  maxLines: maxLabelLines,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
                   style: theme.textTheme.labelLarge?.copyWith(

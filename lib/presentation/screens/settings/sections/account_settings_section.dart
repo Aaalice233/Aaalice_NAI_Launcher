@@ -26,18 +26,25 @@ class _AccountSettingsSectionState
     extends ConsumerState<AccountSettingsSection> {
   @override
   Widget build(BuildContext context) {
-    return SettingsCard(
-      title: context.l10n.settings_account,
-      icon: Icons.person,
-      // 移除默认padding，因为AccountDetailTile内部已有margin
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
-        child: AccountDetailTile(
-          onEdit: () => _showProfileSheet(context),
-          onLogin: () => _navigateToLogin(context),
-          onLogout: _logout,
-        ),
-      ),
+    final accountTile = AccountDetailTile(
+      onEdit: () => _showProfileSheet(context),
+      onLogin: () => _navigateToLogin(context),
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 600) {
+          return accountTile;
+        }
+        return SettingsCard(
+          title: context.l10n.settings_account,
+          icon: Icons.person,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: accountTile,
+          ),
+        );
+      },
     );
   }
 
@@ -59,18 +66,11 @@ class _AccountSettingsSectionState
       return;
     }
 
-    AccountProfileBottomSheet.show(
-      context: context,
-      account: account,
-    );
+    AccountProfileBottomSheet.show(context: context, account: account);
   }
 
   /// 导航到登录页面
   void _navigateToLogin(BuildContext context) {
     context.push(AppRoutes.login);
-  }
-
-  Future<void> _logout() async {
-    await ref.read(authNotifierProvider.notifier).logout();
   }
 }

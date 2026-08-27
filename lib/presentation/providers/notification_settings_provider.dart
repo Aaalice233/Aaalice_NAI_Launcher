@@ -1,7 +1,9 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/constants/storage_keys.dart';
+import '../../core/services/notification_service.dart';
 import '../../core/storage/local_storage_service.dart';
+import '../../core/utils/app_logger.dart';
 
 part 'notification_settings_provider.g.dart';
 
@@ -10,10 +12,7 @@ class NotificationSettings {
   final bool soundEnabled;
   final String? customSoundPath;
 
-  const NotificationSettings({
-    this.soundEnabled = true,
-    this.customSoundPath,
-  });
+  const NotificationSettings({this.soundEnabled = true, this.customSoundPath});
 
   NotificationSettings copyWith({
     bool? soundEnabled,
@@ -22,8 +21,9 @@ class NotificationSettings {
   }) {
     return NotificationSettings(
       soundEnabled: soundEnabled ?? this.soundEnabled,
-      customSoundPath:
-          clearCustomSound ? null : (customSoundPath ?? this.customSoundPath),
+      customSoundPath: clearCustomSound
+          ? null
+          : (customSoundPath ?? this.customSoundPath),
     );
   }
 }
@@ -35,7 +35,8 @@ class NotificationSettingsNotifier extends _$NotificationSettingsNotifier {
   NotificationSettings build() {
     final storage = ref.read(localStorageServiceProvider);
     return NotificationSettings(
-      soundEnabled: storage.getSetting<bool>(
+      soundEnabled:
+          storage.getSetting<bool>(
             StorageKeys.notificationSoundEnabled,
             defaultValue: true,
           ) ??
@@ -53,15 +54,42 @@ class NotificationSettingsNotifier extends _$NotificationSettingsNotifier {
     state = state.copyWith(soundEnabled: value);
   }
 
-  /// 设置自定义音效路径
+  /// 设置自定义音效路径。移动端会持久化文件选择器返回的临时缓存文件。
   Future<void> setCustomSoundPath(String? path) async {
     final storage = ref.read(localStorageServiceProvider);
+    final previousPath = state.customSoundPath;
     if (path != null) {
-      await storage.setSetting(StorageKeys.notificationCustomSoundPath, path);
-      state = state.copyWith(customSoundPath: path);
+      final persistedPath = await NotificationService.instance
+          .persistCustomSound(path);
+      try {
+        await storage.setSetting(
+          StorageKeys.notificationCustomSoundPath,
+          persistedPath,
+        );
+        state = state.copyWith(customSoundPath: persistedPath);
+      } catch (_) {
+        await _deleteManagedSoundBestEffort(persistedPath);
+        rethrow;
+      }
+      if (previousPath != persistedPath) {
+        await _deleteManagedSoundBestEffort(previousPath);
+      }
     } else {
       await storage.deleteSetting(StorageKeys.notificationCustomSoundPath);
       state = state.copyWith(clearCustomSound: true);
+      await _deleteManagedSoundBestEffort(previousPath);
+    }
+  }
+
+  Future<void> _deleteManagedSoundBestEffort(String? path) async {
+    try {
+      await NotificationService.instance.deleteManagedCustomSound(path);
+    } catch (error, stackTrace) {
+      AppLogger.w(
+        'Failed to clean up a managed notification sound: $error',
+        'NotificationSettings',
+      );
+      AppLogger.d('$stackTrace', 'NotificationSettings');
     }
   }
 }

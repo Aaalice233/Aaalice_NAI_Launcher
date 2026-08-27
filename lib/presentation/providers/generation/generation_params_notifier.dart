@@ -43,6 +43,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
   Timer? _generationStateSaveDebounceTimer;
   Future<void>? _generationStateSaveInFlight;
   bool _hasQueuedGenerationStateSave = false;
+  Future<void>? _generationStateRestoreInFlight;
   bool _isRestoringGenerationState = false;
   bool _hasRestoredGenerationState = false;
   bool _isDisposed = false;
@@ -147,7 +148,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
     // 存档里可能留着上一个模型才成立的取值，恢复时按当前模型纠正一次。
     final capabilities = ModelCapabilityRegistry.of(model);
 
-    return ImageParams(
+    final initialState = ImageParams(
       prompt: storage.getLastPrompt(),
       negativePrompt: storage.getLastNegativePrompt(),
       model: model,
@@ -174,6 +175,8 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
           ? storage.getLockedSeedValue()!
           : -1,
     );
+    Future.microtask(restoreGenerationState);
+    return initialState;
   }
 
   // ==================== 种子锁定 ====================
@@ -1370,12 +1373,26 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
     }
   }
 
-  /// 恢复保存的 Vibe 和精准参考状态
-  Future<void> restoreGenerationState() async {
-    if (_hasRestoredGenerationState || _isRestoringGenerationState) {
-      return;
-    }
+  /// 恢复保存的 Vibe 和精准参考状态。
+  ///
+  /// 所有调用者共享同一个恢复 Future，生成入口可以可靠等待恢复完成，避免
+  /// 首次启动时用空引用覆盖已经持久化的 Vibe 或精准参考。
+  Future<void> restoreGenerationState() {
+    if (_hasRestoredGenerationState) return Future<void>.value();
+    final inFlight = _generationStateRestoreInFlight;
+    if (inFlight != null) return inFlight;
 
+    late final Future<void> restore;
+    restore = _restoreGenerationState().whenComplete(() {
+      if (identical(_generationStateRestoreInFlight, restore)) {
+        _generationStateRestoreInFlight = null;
+      }
+    });
+    _generationStateRestoreInFlight = restore;
+    return restore;
+  }
+
+  Future<void> _restoreGenerationState() async {
     final span = VibePerformanceDiagnostics.start('generation.restoreState');
     _isRestoringGenerationState = true;
     var shouldRewriteGenerationState = false;

@@ -6,11 +6,13 @@ import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../data/models/version/release_asset_info.dart';
 import '../../data/models/version/version_info.dart';
 import '../utils/app_logger.dart';
+import 'android_app_installer_service.dart';
 import 'app_installation_service.dart';
 import 'desktop_app_shutdown_service.dart';
 import 'verified_resumable_downloader.dart';
@@ -37,6 +39,7 @@ class UpdateDownloadCancelledException implements Exception {
   String toString() => 'UpdateDownloadCancelledException';
 }
 
+typedef AndroidApkInstallHandler = Future<void> Function(String apkPath);
 typedef AppShutdownHandler = Future<void> Function(int code);
 typedef UpdateSha256Calculator = Future<String> Function(File file);
 typedef UpdateProcessStarter =
@@ -110,6 +113,7 @@ class UpdateExecutionResult {
 class UpdateInstallerService {
   final VerifiedResumableDownloader _downloader;
   final AppInstallationService _installationService;
+  final AndroidApkInstallHandler _androidApkInstaller;
   final AppShutdownHandler _shutdownHandler;
   final UpdateSha256Calculator _sha256Calculator;
   final UpdateProcessStarter _processStarter;
@@ -123,6 +127,7 @@ class UpdateInstallerService {
   UpdateInstallerService({
     required Dio dio,
     required AppInstallationService installationService,
+    AndroidApkInstallHandler? androidApkInstaller,
     AppShutdownHandler shutdownHandler =
         DesktopAppShutdownService.shutdownAndExit,
     UpdateSha256Calculator? sha256Calculator,
@@ -133,6 +138,8 @@ class UpdateInstallerService {
          sha256Calculator: sha256Calculator,
        ),
        _installationService = installationService,
+       _androidApkInstaller =
+           androidApkInstaller ?? const AndroidAppInstallerService().installApk,
        _shutdownHandler = shutdownHandler,
        _sha256Calculator = sha256Calculator ?? calculateSha256,
        _processStarter = processStarter,
@@ -289,6 +296,12 @@ class UpdateInstallerService {
     }
   }
 
+  /// 当前版本已等于或高于待安装版本时，清理不再需要的元数据和包。
+  Future<void> discardPendingUpdate(DownloadedUpdate update) async {
+    await _deleteQuietly(await _pendingMetadataFile());
+    await _deleteQuietly(update.file);
+  }
+
   /// 读取并消费独立更新脚本的结果。
   Future<UpdateExecutionResult?> consumeExecutionResult() async {
     final resultFile = await _resultMetadataFile();
@@ -311,16 +324,39 @@ class UpdateInstallerService {
     }
   }
 
-  /// 启动独立更新脚本，并通过统一退出流程释放应用资源。
+  /// 启动平台更新流程。Windows 交给独立脚本并退出；Android 交给系统
+  /// Package Installer 确认，应用不会自行绕过系统安装权限。
   Future<void> installAndRestart(DownloadedUpdate update) async {
-    if (!Platform.isWindows) {
-      throw const UpdateInstallException('当前平台不支持应用内自动更新');
-    }
     if (!await update.file.exists()) {
       throw const UpdateInstallException('更新包已被清理，请重新下载');
     }
     if (!await _isPackageValid(update.file, update.asset)) {
       throw const UpdateInstallException('更新包已损坏，请重新下载');
+    }
+
+    final installationType = _installationService.getInstallationType();
+    if (installationType == AppInstallationType.androidApk) {
+      if (update.asset.type != ReleaseAssetType.androidApk) {
+        throw const UpdateInstallException('Android 更新包格式不正确');
+      }
+      try {
+        await _androidApkInstaller(update.file.path);
+      } on AndroidAppInstallException catch (error) {
+        throw UpdateInstallException(
+          '打开 Android 系统安装界面失败',
+          originalError: error,
+        );
+      } catch (error) {
+        throw UpdateInstallException(
+          '打开 Android 系统安装界面失败',
+          originalError: error,
+        );
+      }
+      return;
+    }
+    if (installationType != AppInstallationType.windowsInstaller &&
+        installationType != AppInstallationType.windowsPortable) {
+      throw const UpdateInstallException('当前平台不支持应用内自动更新');
     }
 
     final scriptFile = await _writeUpdateScript(update);
@@ -445,9 +481,15 @@ class UpdateInstallerService {
   }
 
   Future<Directory> _ensureUpdateDir() async {
-    final updateDir =
-        _updateDirectoryOverride ??
-        Directory(p.join(Directory.systemTemp.path, _updateDirectoryName));
+    final Directory updateDir;
+    if (_updateDirectoryOverride != null) {
+      updateDir = _updateDirectoryOverride;
+    } else {
+      final temporaryRoot = Platform.isAndroid
+          ? await getTemporaryDirectory()
+          : Directory.systemTemp;
+      updateDir = Directory(p.join(temporaryRoot.path, _updateDirectoryName));
+    }
     await updateDir.create(recursive: true);
     return updateDir;
   }

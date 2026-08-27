@@ -20,6 +20,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   late AnimationController _breathController;
   late Animation<double> _breathAnimation;
   late Animation<double> _glowAnimation;
+  bool? _motionEnabled;
 
   @override
   void initState() {
@@ -29,7 +30,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     _breathController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 2000),
-    )..repeat(reverse: true);
+    );
 
     _breathAnimation = Tween<double>(begin: 0.95, end: 1.05).animate(
       CurvedAnimation(parent: _breathController, curve: Curves.easeInOut),
@@ -38,6 +39,21 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     _glowAnimation = Tween<double>(begin: 0.3, end: 0.8).animate(
       CurvedAnimation(parent: _breathController, curve: Curves.easeInOut),
     );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final motionEnabled = !MediaQuery.disableAnimationsOf(context);
+    if (_motionEnabled == motionEnabled) return;
+    _motionEnabled = motionEnabled;
+    if (motionEnabled) {
+      _breathController.repeat(reverse: true);
+    } else {
+      _breathController
+        ..stop()
+        ..value = 0.5;
+    }
   }
 
   @override
@@ -62,40 +78,42 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
           _buildBackground(primaryColor, backgroundColor),
 
           // 主内容
-          Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Spacer(flex: 3),
+          SafeArea(
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Spacer(flex: 3),
 
-                // Logo 动画
-                _buildLogo(primaryColor),
+                  // Logo 动画
+                  _buildLogo(primaryColor),
 
-                const SizedBox(height: 24),
+                  const SizedBox(height: 24),
 
-                // 应用名称
-                _buildTitle(theme, primaryColor),
+                  // 应用名称
+                  _buildTitle(theme, primaryColor),
 
-                const Spacer(flex: 2),
+                  const Spacer(flex: 2),
 
-                // 进度区域
-                _buildProgressSection(
-                  theme,
-                  primaryColor,
-                  progress,
-                  warmupState.subTaskMessage,
-                  warmupState.error,
-                ),
+                  // 进度区域
+                  _buildProgressSection(
+                    theme,
+                    primaryColor,
+                    progress,
+                    warmupState.subTaskMessage,
+                    warmupState.error,
+                  ),
 
-                const SizedBox(height: 48),
-              ],
+                  const SizedBox(height: 48),
+                ],
+              ),
             ),
           ),
 
           // 版本号显示在右下角
           Positioned(
-            right: 16,
-            bottom: 16,
+            right: 16 + MediaQuery.paddingOf(context).right,
+            bottom: 16 + MediaQuery.paddingOf(context).bottom,
             child: Text(
               AppVersion.versionName,
               style: TextStyle(

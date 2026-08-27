@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/services/anlas_calculator.dart';
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/inpaint_mask_utils.dart';
+import '../../core/platform/platform_capabilities.dart';
 import '../../core/utils/localization_extension.dart';
 import '../../data/models/gallery/nai_image_metadata.dart';
 import '../../data/models/image/image_params.dart';
@@ -241,7 +242,8 @@ class ImageWorkflowLauncher {
     }
 
     if (!context.mounted) return;
-    if (ref.read(kritaBridgeNotifierProvider).isBridgeGenerating) {
+    if (PlatformCapabilities.current.supportsKritaBridge &&
+        ref.read(kritaBridgeNotifierProvider).isBridgeGenerating) {
       AppToast.warning(context, context.l10n.toast_kritaBusy);
       return;
     }

@@ -335,8 +335,14 @@ class _CharacterNameFieldState extends ConsumerState<CharacterNameField> {
       decoration: InputDecoration(
         isDense: true,
         isCollapsed: true,
+        filled: false,
         counterText: '',
         border: InputBorder.none,
+        enabledBorder: InputBorder.none,
+        focusedBorder: InputBorder.none,
+        disabledBorder: InputBorder.none,
+        errorBorder: InputBorder.none,
+        focusedErrorBorder: InputBorder.none,
         hintText: l10n.characterEditor_nameHint,
         hintStyle: widget.style?.copyWith(
           color: widget.style?.color?.withValues(alpha: 0.5),

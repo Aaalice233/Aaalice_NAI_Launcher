@@ -9,6 +9,7 @@ import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/core/storage/secure_storage_service.dart';
 import 'package:nai_launcher/presentation/agent_chat/providers/agent_chat_notifier.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/models/prompt_assistant_models.dart';
+import 'package:nai_launcher/presentation/prompt_assistant/providers/prompt_assistant_config_provider.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -199,6 +200,26 @@ Legacy instructions.
       if (await tempDir.exists()) {
         await tempDir.delete(recursive: true);
       }
+    });
+
+    test('配置新增服务商后立即刷新聊天路由', () async {
+      final configNotifier = container.read(
+        promptAssistantConfigProvider.notifier,
+      );
+      for (final item in [
+        ...container.read(promptAssistantConfigProvider).providers,
+      ]) {
+        await configNotifier.upsertProvider(item.copyWith(enabled: false));
+      }
+      expect(container.read(provider).routeReady, isFalse);
+
+      await configNotifier.upsertProvider(
+        ProviderPreset.deepseek.createConfig(),
+      );
+
+      final state = container.read(provider);
+      expect(state.routeReady, isTrue);
+      expect(state.routeLabel, contains('DeepSeek'));
     });
 
     test(

@@ -15,10 +15,12 @@ class DetailTopBar extends StatelessWidget {
   final int totalImages;
   final ImageDetailData currentImage;
   final VoidCallback onClose;
+  final VoidCallback? onShowMetadata;
   final VoidCallback? onReuseMetadata;
   final VoidCallback? onFavoriteToggle;
   final VoidCallback? onSave;
   final VoidCallback? onCopyImage;
+  final VoidCallback? onShare;
   final VoidCallback? onSendToImg2Img;
   final VoidCallback? onSendToReversePrompt;
 
@@ -28,10 +30,12 @@ class DetailTopBar extends StatelessWidget {
     required this.totalImages,
     required this.currentImage,
     required this.onClose,
+    this.onShowMetadata,
     this.onReuseMetadata,
     this.onFavoriteToggle,
     this.onSave,
     this.onCopyImage,
+    this.onShare,
     this.onSendToImg2Img,
     this.onSendToReversePrompt,
   });
@@ -52,10 +56,7 @@ class DetailTopBar extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [
-            Colors.black.withValues(alpha: 0.7),
-            Colors.transparent,
-          ],
+          colors: [Colors.black.withValues(alpha: 0.7), Colors.transparent],
         ),
       ),
       child: Row(
@@ -86,6 +87,8 @@ class DetailTopBar extends StatelessWidget {
                 if (metadata?.model != null)
                   Text(
                     metadata!.model!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.7),
                       fontSize: 12,
@@ -95,80 +98,211 @@ class DetailTopBar extends StatelessWidget {
             ),
           ),
 
-          // 保存按钮（仅生成图像显示）
+          _DetailTopBarActions(
+            currentImage: currentImage,
+            hasMetadata: metadata != null,
+            onShowMetadata: onShowMetadata,
+            onReuseMetadata: onReuseMetadata,
+            onFavoriteToggle: onFavoriteToggle,
+            onSave: onSave,
+            onCopyImage: onCopyImage,
+            onShare: onShare,
+            onSendToImg2Img: onSendToImg2Img,
+            onSendToReversePrompt: onSendToReversePrompt,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+enum _DetailOverflowAction { reuse, imageToImage, reversePrompt, copy }
+
+class _DetailTopBarActions extends ConsumerWidget {
+  const _DetailTopBarActions({
+    required this.currentImage,
+    required this.hasMetadata,
+    this.onShowMetadata,
+    this.onReuseMetadata,
+    this.onFavoriteToggle,
+    this.onSave,
+    this.onCopyImage,
+    this.onShare,
+    this.onSendToImg2Img,
+    this.onSendToReversePrompt,
+  });
+
+  final ImageDetailData currentImage;
+  final bool hasMetadata;
+  final VoidCallback? onShowMetadata;
+  final VoidCallback? onReuseMetadata;
+  final VoidCallback? onFavoriteToggle;
+  final VoidCallback? onSave;
+  final VoidCallback? onCopyImage;
+  final VoidCallback? onShare;
+  final VoidCallback? onSendToImg2Img;
+  final VoidCallback? onSendToReversePrompt;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final compact = MediaQuery.sizeOf(context).width < 600;
+    final favorite = currentImage.showFavoriteButton && onFavoriteToggle != null
+        ? _buildFavorite(ref)
+        : null;
+
+    if (compact) {
+      final overflowActions = <PopupMenuEntry<_DetailOverflowAction>>[
+        if (hasMetadata && onReuseMetadata != null)
+          PopupMenuItem(
+            value: _DetailOverflowAction.reuse,
+            child: ListTile(
+              leading: const Icon(Icons.input),
+              title: Text(l10n.shortcut_action_reuse_params),
+            ),
+          ),
+        if (onSendToImg2Img != null)
+          PopupMenuItem(
+            value: _DetailOverflowAction.imageToImage,
+            child: ListTile(
+              leading: const Icon(Icons.image_search),
+              title: Text(l10n.detail_sendToImg2Img),
+            ),
+          ),
+        if (onSendToReversePrompt != null)
+          PopupMenuItem(
+            value: _DetailOverflowAction.reversePrompt,
+            child: ListTile(
+              leading: const Icon(Icons.auto_fix_high),
+              title: Text(l10n.detail_sendToReversePrompt),
+            ),
+          ),
+        if (onCopyImage != null)
+          PopupMenuItem(
+            value: _DetailOverflowAction.copy,
+            child: ListTile(
+              leading: const Icon(Icons.copy),
+              title: Text(l10n.shortcut_action_copy_image),
+            ),
+          ),
+      ];
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
           if (currentImage.showSaveButton && onSave != null)
             IconButton(
               icon: const Icon(Icons.save_alt, color: Colors.white),
               onPressed: onSave,
               tooltip: l10n.common_save,
             ),
-
-          // 复用参数按钮
-          if (metadata != null && onReuseMetadata != null)
+          if (onShare != null)
             IconButton(
-              icon: const Icon(Icons.input, color: Colors.white),
-              onPressed: onReuseMetadata,
-              tooltip: l10n.shortcut_action_reuse_params,
+              icon: const Icon(Icons.share_rounded, color: Colors.white),
+              onPressed: onShare,
+              tooltip: l10n.common_share,
             ),
-
-          // 发送到图生图
-          if (onSendToImg2Img != null)
+          if (favorite != null) favorite,
+          if (onShowMetadata != null)
             IconButton(
-              icon: const Icon(Icons.image_search, color: Colors.white),
-              onPressed: onSendToImg2Img,
-              tooltip: l10n.detail_sendToImg2Img,
+              icon: const Icon(Icons.info_outline, color: Colors.white),
+              onPressed: onShowMetadata,
+              tooltip: l10n.detail_imageDetails,
             ),
-
-          // 发送到反推模块
-          if (onSendToReversePrompt != null)
-            IconButton(
-              icon: const Icon(Icons.auto_fix_high, color: Colors.white),
-              onPressed: onSendToReversePrompt,
-              tooltip: l10n.detail_sendToReversePrompt,
-            ),
-
-          // 复制图像按钮
-          if (onCopyImage != null)
-            IconButton(
-              icon: const Icon(Icons.copy, color: Colors.white),
-              onPressed: onCopyImage,
-              tooltip: l10n.shortcut_action_copy_image,
-            ),
-
-          // 收藏按钮（仅本地图库显示）
-          if (currentImage.showFavoriteButton && onFavoriteToggle != null)
-            Consumer(
-              builder: (context, ref, child) {
-                // 如果是本地图库图片，实时监听收藏状态
-                final isLocalImage = currentImage.identifier.isNotEmpty &&
-                    currentImage is LocalImageDetailData;
-
-                bool isFavorite = currentImage.isFavorite;
-
-                if (isLocalImage) {
-                  final galleryState = ref.watch(localGalleryNotifierProvider);
-                  final record = galleryState.currentImages
-                      .cast<LocalImageRecord?>()
-                      .firstWhere(
-                        (img) => img?.path == currentImage.identifier,
-                        orElse: () => null,
-                      );
-                  if (record != null) {
-                    isFavorite = record.isFavorite;
-                  }
+          if (overflowActions.isNotEmpty)
+            PopupMenuButton<_DetailOverflowAction>(
+              icon: const Icon(Icons.more_vert, color: Colors.white),
+              tooltip: l10n.nav_more,
+              itemBuilder: (_) => overflowActions,
+              onSelected: (action) {
+                switch (action) {
+                  case _DetailOverflowAction.reuse:
+                    onReuseMetadata?.call();
+                    break;
+                  case _DetailOverflowAction.imageToImage:
+                    onSendToImg2Img?.call();
+                    break;
+                  case _DetailOverflowAction.reversePrompt:
+                    onSendToReversePrompt?.call();
+                    break;
+                  case _DetailOverflowAction.copy:
+                    onCopyImage?.call();
+                    break;
                 }
-
-                return AnimatedFavoriteButton(
-                  isFavorite: isFavorite,
-                  size: 24,
-                  inactiveColor: Colors.white,
-                  showBackground: true,
-                  backgroundColor: Colors.black.withValues(alpha: 0.4),
-                  onToggle: onFavoriteToggle,
-                );
               },
             ),
         ],
+      );
+    }
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (currentImage.showSaveButton && onSave != null)
+          IconButton(
+            icon: const Icon(Icons.save_alt, color: Colors.white),
+            onPressed: onSave,
+            tooltip: l10n.common_save,
+          ),
+        if (onShare != null)
+          IconButton(
+            icon: const Icon(Icons.share_rounded, color: Colors.white),
+            onPressed: onShare,
+            tooltip: l10n.common_share,
+          ),
+        if (hasMetadata && onReuseMetadata != null)
+          IconButton(
+            icon: const Icon(Icons.input, color: Colors.white),
+            onPressed: onReuseMetadata,
+            tooltip: l10n.shortcut_action_reuse_params,
+          ),
+        if (onSendToImg2Img != null)
+          IconButton(
+            icon: const Icon(Icons.image_search, color: Colors.white),
+            onPressed: onSendToImg2Img,
+            tooltip: l10n.detail_sendToImg2Img,
+          ),
+        if (onSendToReversePrompt != null)
+          IconButton(
+            icon: const Icon(Icons.auto_fix_high, color: Colors.white),
+            onPressed: onSendToReversePrompt,
+            tooltip: l10n.detail_sendToReversePrompt,
+          ),
+        if (onCopyImage != null)
+          IconButton(
+            icon: const Icon(Icons.copy, color: Colors.white),
+            onPressed: onCopyImage,
+            tooltip: l10n.shortcut_action_copy_image,
+          ),
+        if (favorite != null) favorite,
+      ],
+    );
+  }
+
+  Widget _buildFavorite(WidgetRef ref) {
+    var isFavorite = currentImage.isFavorite;
+    if (currentImage.identifier.isNotEmpty &&
+        currentImage is LocalImageDetailData) {
+      final galleryState = ref.watch(localGalleryNotifierProvider);
+      final record = galleryState.currentImages
+          .cast<LocalImageRecord?>()
+          .firstWhere(
+            (image) => image?.path == currentImage.identifier,
+            orElse: () => null,
+          );
+      isFavorite = record?.isFavorite ?? isFavorite;
+    }
+
+    return SizedBox.square(
+      dimension: 48,
+      child: Center(
+        child: AnimatedFavoriteButton(
+          isFavorite: isFavorite,
+          size: 24,
+          inactiveColor: Colors.white,
+          showBackground: true,
+          backgroundColor: Colors.black.withValues(alpha: 0.4),
+          onToggle: onFavoriteToggle,
+        ),
       ),
     );
   }

@@ -91,6 +91,39 @@ void main() {
     },
   );
 
+  test('maps OAuth polling transport failures to a domain error', () async {
+    when(
+      () => dio.post<Map<String, dynamic>>(
+        '/v1/oauth/result',
+        data: any(named: 'data'),
+        options: any(named: 'options'),
+        cancelToken: any(named: 'cancelToken'),
+      ),
+    ).thenThrow(
+      DioException(
+        requestOptions: RequestOptions(path: '/v1/oauth/result'),
+        message: 'Failed host lookup: private-relay.test',
+      ),
+    );
+    service = DiscordShareService(
+      secureStorage: secureStorage,
+      localStorage: localStorage,
+      dio: dio,
+      externalUrlLauncher: (_) async => true,
+    );
+
+    await expectLater(
+      service.authenticate(timeout: const Duration(seconds: 2)),
+      throwsA(
+        isA<DiscordShareException>().having(
+          (error) => error.code,
+          'code',
+          'request_failed',
+        ),
+      ),
+    );
+  });
+
   test('clears an expired session after relay rejection', () async {
     when(() => secureStorage.delete(any())).thenAnswer((_) async {});
     when(

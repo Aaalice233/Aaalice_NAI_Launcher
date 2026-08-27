@@ -2,7 +2,10 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
 
+import '../../../../core/platform/platform_capabilities.dart';
+import '../../../../core/services/android_media_store_service.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/image_save_utils.dart';
 import '../../../../data/models/gallery/nai_image_metadata.dart';
@@ -117,7 +120,7 @@ class GenerationSaveService {
       }
 
       // 原子保存：日期分类路径 + 独占防冲突 + 失败清理，全部在工具内完成
-      await ImageSaveUtils.saveBytesToDatedPath(
+      final filePath = await ImageSaveUtils.saveBytesToDatedPath(
         rootPath: saveDirPath,
         bytes: finalBytes,
         seed: await ImageSaveUtils.resolveSeed(
@@ -126,10 +129,34 @@ class GenerationSaveService {
         ),
       );
 
+      Object? systemGalleryError;
+      if (PlatformCapabilities.current.supportsSystemGalleryExport) {
+        try {
+          await AndroidMediaStoreService.savePng(
+            bytes: finalBytes,
+            fileName: p.basename(filePath),
+          );
+        } catch (error) {
+          systemGalleryError = error;
+        }
+      }
+
       ref.read(localGalleryNotifierProvider.notifier).refresh();
 
       if (context.mounted) {
-        AppToast.success(context, context.l10n.image_imageSaved(saveDirPath));
+        if (systemGalleryError != null) {
+          AppToast.warning(
+            context,
+            context.l10n.image_savedAppOnly(systemGalleryError.toString()),
+          );
+        } else {
+          AppToast.success(
+            context,
+            PlatformCapabilities.current.supportsSystemGalleryExport
+                ? context.l10n.image_savedToSystemGallery
+                : context.l10n.image_imageSaved(saveDirPath),
+          );
+        }
       }
     } catch (e) {
       if (context.mounted) {

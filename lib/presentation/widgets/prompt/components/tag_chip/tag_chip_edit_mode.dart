@@ -6,7 +6,6 @@ import '../../../../providers/image_generation_provider.dart';
 import '../../../autocomplete/autocomplete.dart';
 import '../../../common/themed_input.dart';
 import '../../core/prompt_tag_config.dart';
-import '../../core/prompt_tag_colors.dart';
 
 /// 标签内联编辑组件
 /// 双击标签时显示，支持直接编辑标签文本
@@ -51,15 +50,11 @@ class TagChipEditMode extends ConsumerStatefulWidget {
   ConsumerState<TagChipEditMode> createState() => _TagChipEditModeState();
 }
 
-class _TagChipEditModeState extends ConsumerState<TagChipEditMode>
-    with TickerProviderStateMixin {
+class _TagChipEditModeState extends ConsumerState<TagChipEditMode> {
   late TextEditingController _controller;
   late FocusNode _focusNode;
+  late FocusNode _keyboardFocusNode;
   bool _hasChanges = false;
-
-  // Focus glow animation controller
-  late AnimationController _glowController;
-  late Animation<double> _glowAnimation;
 
   @override
   void initState() {
@@ -69,16 +64,7 @@ class _TagChipEditModeState extends ConsumerState<TagChipEditMode>
       text: widget.initialText.replaceAll('_', ' '),
     );
     _focusNode = FocusNode();
-
-    // Initialize glow animation
-    _glowController = AnimationController(
-      duration: const Duration(milliseconds: 150),
-      vsync: this,
-    );
-    _glowAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(parent: _glowController, curve: Curves.easeOut));
+    _keyboardFocusNode = FocusNode(skipTraversal: true);
 
     // 自动获取焦点并全选
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -95,11 +81,11 @@ class _TagChipEditModeState extends ConsumerState<TagChipEditMode>
 
   @override
   void dispose() {
-    _glowController.dispose();
     _focusNode.removeListener(_onFocusChanged);
     _controller.removeListener(_onTextChanged);
     _controller.dispose();
     _focusNode.dispose();
+    _keyboardFocusNode.dispose();
     super.dispose();
   }
 
@@ -108,15 +94,7 @@ class _TagChipEditModeState extends ConsumerState<TagChipEditMode>
   }
 
   void _onFocusChanged() {
-    final reducedMotion = MediaQuery.of(context).disableAnimations;
-    if (_focusNode.hasFocus) {
-      if (!reducedMotion) {
-        _glowController.forward();
-      }
-    } else {
-      if (!reducedMotion) {
-        _glowController.reverse();
-      }
+    if (!_focusNode.hasFocus) {
       _commitEdit();
     }
   }
@@ -143,21 +121,11 @@ class _TagChipEditModeState extends ConsumerState<TagChipEditMode>
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final compact = widget.compact;
     final enableAutocomplete = ref.watch(autocompleteSettingsProvider);
 
-    // Get gradient based on category
-    final gradient = CategoryGradient.getThemedGradient(
-      widget.category,
-      isDark: theme.brightness == Brightness.dark,
-    );
-    final gradientColor = CategoryGradient.getGradientStartColor(
-      widget.category,
-    );
-
     return KeyboardListener(
-      focusNode: FocusNode(),
+      focusNode: _keyboardFocusNode,
       onKeyEvent: (event) {
         if (event is KeyDownEvent) {
           if (event.logicalKey == LogicalKeyboardKey.escape) {
@@ -165,115 +133,45 @@ class _TagChipEditModeState extends ConsumerState<TagChipEditMode>
           }
         }
       },
-      child: AnimatedBuilder(
-        animation: _glowAnimation,
-        builder: (context, child) {
-          // Calculate glow opacity based on animation
-          final glowOpacity = _glowAnimation.value * 0.3;
-          final borderWidth = 1.5 + (_glowAnimation.value * 0.5);
-
-          return Container(
-            constraints: const BoxConstraints(
-              minWidth: TagChipSizes.editInputMinWidth,
-              maxWidth: TagChipSizes.editInputMaxWidth,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(
+          minWidth: TagChipSizes.editInputMinWidth,
+          maxWidth: TagChipSizes.editInputMaxWidth,
+        ),
+        child: IntrinsicWidth(
+          child: AutocompleteWrapper.localTag(
+            controller: _controller,
+            focusNode: _focusNode,
+            ref: ref,
+            enabled: enableAutocomplete,
+            config: const AutocompleteConfig(
+              showTranslation: true,
+              autoInsertComma: false,
             ),
-            decoration: BoxDecoration(
-              // Gradient background with reduced opacity
-              gradient: LinearGradient(
-                colors: gradient.colors
-                    .map((color) => color.withValues(alpha: 0.08))
-                    .toList(),
-                begin: gradient.begin,
-                end: gradient.end,
+            child: ThemedInput(
+              controller: _controller,
+              focusNode: _focusNode,
+              borderRadius: compact
+                  ? TagChipSizes.compactBorderRadius
+                  : TagChipSizes.normalBorderRadius,
+              style: TextStyle(
+                fontSize: compact
+                    ? TagChipSizes.compactFontSize
+                    : TagChipSizes.normalFontSize,
+                fontWeight: FontWeight.w500,
+                height: 1.2,
               ),
-              borderRadius: BorderRadius.circular(
-                compact
-                    ? TagChipSizes.compactBorderRadius
-                    : TagChipSizes.normalBorderRadius,
-              ),
-              // Glow effect on focus
-              boxShadow: _focusNode.hasFocus
-                  ? [
-                      BoxShadow(
-                        color: gradientColor.withValues(alpha: glowOpacity),
-                        blurRadius: 8 + (_glowAnimation.value * 4),
-                        spreadRadius: _glowAnimation.value * 2,
-                      ),
-                    ]
-                  : null,
-            ),
-            child: IntrinsicWidth(
-              child: AutocompleteWrapper.localTag(
-                controller: _controller,
-                focusNode: _focusNode,
-                ref: ref,
-                enabled: enableAutocomplete,
-                config: const AutocompleteConfig(
-                  showTranslation: true,
-                  autoInsertComma: false,
-                ),
-                child: ThemedInput(
-                  controller: _controller,
-                  focusNode: _focusNode,
-                  style: TextStyle(
-                    fontSize: compact
-                        ? TagChipSizes.compactFontSize
-                        : TagChipSizes.normalFontSize,
-                    fontWeight: FontWeight.w500,
-                    height: 1.2,
-                  ),
-                  decoration: InputDecoration(
-                    isDense: true,
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: TagChipSizes.editInputPadding,
-                      vertical: compact ? 8 : 10,
-                    ),
-                    filled: false, // Use transparent to show gradient
-                    fillColor: Colors.transparent,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(
-                        compact
-                            ? TagChipSizes.compactBorderRadius
-                            : TagChipSizes.normalBorderRadius,
-                      ),
-                      borderSide: BorderSide(
-                        color:
-                            widget.borderColor ??
-                            gradientColor.withValues(alpha: 0.3),
-                        width: borderWidth,
-                      ),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(
-                        compact
-                            ? TagChipSizes.compactBorderRadius
-                            : TagChipSizes.normalBorderRadius,
-                      ),
-                      borderSide: BorderSide(
-                        color:
-                            widget.borderColor ??
-                            gradientColor.withValues(alpha: 0.3),
-                        width: borderWidth,
-                      ),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(
-                        compact
-                            ? TagChipSizes.compactBorderRadius
-                            : TagChipSizes.normalBorderRadius,
-                      ),
-                      borderSide: BorderSide(
-                        color: gradientColor,
-                        width: borderWidth,
-                      ),
-                    ),
-                  ),
-                  onSubmitted: (_) => _commitEdit(),
+              decoration: InputDecoration(
+                isDense: true,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: TagChipSizes.editInputPadding,
+                  vertical: compact ? 8 : 10,
                 ),
               ),
+              onSubmitted: (_) => _commitEdit(),
             ),
-          );
-        },
+          ),
+        ),
       ),
     );
   }

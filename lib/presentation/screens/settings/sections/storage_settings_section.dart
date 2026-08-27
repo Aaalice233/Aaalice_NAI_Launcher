@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../core/platform/platform_capabilities.dart';
 import '../../../../core/utils/app_logger.dart';
 import '../../../../core/utils/hive_storage_helper.dart';
 import '../../../../core/utils/localization_extension.dart';
@@ -51,14 +52,17 @@ class _StorageSettingsSectionState
     }
   }
 
-  Future<void> _selectLocalOnnxTaggerDirectory() async {
+  Future<void> _configureLocalOnnxTagger() async {
+    if (PlatformCapabilities.current.supportsManagedFileImports) {
+      await _importLocalOnnxTaggerFiles();
+      return;
+    }
+
     try {
       final result = await FilePicker.platform.getDirectoryPath(
         dialogTitle: context.l10n.settings_selectLocalOnnxTaggerFolder,
       );
-      if (result == null) {
-        return;
-      }
+      if (result == null) return;
       final service = ref.read(localOnnxModelServiceProvider);
       await service.setTaggerDirectory(result);
       if (mounted) {
@@ -76,6 +80,65 @@ class _StorageSettingsSectionState
         );
       }
     }
+  }
+
+  Future<void> _importLocalOnnxTaggerFiles() async {
+    try {
+      final selection = await FilePicker.platform.pickFiles(
+        dialogTitle: context.l10n.settings_importLocalOnnxTaggerFiles,
+        type: FileType.custom,
+        allowedExtensions: const ['onnx', 'data', 'csv', 'txt', 'json'],
+        allowMultiple: true,
+      );
+      if (selection == null) return;
+      final sources = selection.files
+          .where((file) => file.path != null)
+          .map(
+            (file) => LocalOnnxImportSource(name: file.name, path: file.path!),
+          )
+          .toList(growable: false);
+      final importedCount = await ref
+          .read(localOnnxModelServiceProvider)
+          .importTaggerFiles(sources);
+      if (mounted) {
+        setState(() {});
+        AppToast.success(
+          context,
+          context.l10n.settings_localOnnxFilesImported(importedCount),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        AppToast.error(
+          context,
+          context.l10n.tagLibrary_importFailedWithError('$e'),
+        );
+      }
+    }
+  }
+
+  Future<void> _clearLocalOnnxTaggerFiles() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        icon: const Icon(Icons.delete_outline),
+        title: Text(context.l10n.settings_clearLocalOnnxModelsTitle),
+        content: Text(context.l10n.settings_clearLocalOnnxModelsContent),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(context.l10n.common_cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(context.l10n.common_delete),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await ref.read(localOnnxModelServiceProvider).clearManagedTaggerFiles();
+    if (mounted) setState(() {});
   }
 
   Future<void> _openLocalOnnxTaggerDirectory(String path) async {
@@ -113,60 +176,75 @@ class _StorageSettingsSectionState
                 leading: const Icon(Icons.folder_outlined),
                 title: Text(context.l10n.settings_imageSavePath),
                 subtitle: Text(
-                  saveSettings.getDisplayPath(
-                    context.l10n.settings_defaultImagesPath,
-                  ),
-                  maxLines: 1,
+                  PlatformCapabilities.current.usesAppManagedStorage
+                      ? context.l10n.settings_androidManagedStorage
+                      : saveSettings.getDisplayPath(
+                          context.l10n.settings_defaultImagesPath,
+                        ),
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.folder_open, size: 20),
-                      tooltip: context.l10n.settings_openFolder,
-                      onPressed: () async {
-                        final openFolderFailed =
-                            context.l10n.settings_openFolderFailed;
-                        try {
-                          String path;
-                          if (saveSettings.hasCustomPath) {
-                            path = saveSettings.customPath!;
-                          } else {
-                            final docDir =
-                                await getApplicationDocumentsDirectory();
-                            path =
-                                '${docDir.path}${Platform.pathSeparator}NAI_Launcher${Platform.pathSeparator}images';
-                          }
-                          await launchUrl(
-                            Uri.directory(path),
-                            mode: LaunchMode.externalApplication,
-                          );
-                        } catch (e) {
-                          AppLogger.e(openFolderFailed, e);
-                        }
-                      },
-                    ),
-                    if (saveSettings.hasCustomPath)
-                      IconButton(
-                        icon: const Icon(Icons.close, size: 20),
-                        tooltip: context.l10n.common_reset,
-                        onPressed: () async {
-                          await ref
-                              .read(imageSaveSettingsNotifierProvider.notifier)
-                              .resetToDefault();
-                          if (context.mounted) {
-                            AppToast.success(
-                              context,
-                              context.l10n.settings_pathReset,
-                            );
-                          }
-                        },
-                      ),
-                    const Icon(Icons.chevron_right),
-                  ],
-                ),
-                onTap: () => _selectSaveDirectory(context),
+                trailing:
+                    PlatformCapabilities
+                        .current
+                        .supportsCustomStorageDirectories
+                    ? Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.folder_open, size: 20),
+                            tooltip: context.l10n.settings_openFolder,
+                            onPressed: () async {
+                              final openFolderFailed =
+                                  context.l10n.settings_openFolderFailed;
+                              try {
+                                String path;
+                                if (saveSettings.hasCustomPath) {
+                                  path = saveSettings.customPath!;
+                                } else {
+                                  final docDir =
+                                      await getApplicationDocumentsDirectory();
+                                  path =
+                                      '${docDir.path}${Platform.pathSeparator}NAI_Launcher${Platform.pathSeparator}images';
+                                }
+                                await launchUrl(
+                                  Uri.directory(path),
+                                  mode: LaunchMode.externalApplication,
+                                );
+                              } catch (e) {
+                                AppLogger.e(openFolderFailed, e);
+                              }
+                            },
+                          ),
+                          if (saveSettings.hasCustomPath)
+                            IconButton(
+                              icon: const Icon(Icons.close, size: 20),
+                              tooltip: context.l10n.common_reset,
+                              onPressed: () async {
+                                await ref
+                                    .read(
+                                      imageSaveSettingsNotifierProvider
+                                          .notifier,
+                                    )
+                                    .resetToDefault();
+                                if (context.mounted) {
+                                  AppToast.success(
+                                    context,
+                                    context.l10n.settings_pathReset,
+                                  );
+                                }
+                              },
+                            ),
+                          const Icon(Icons.chevron_right),
+                        ],
+                      )
+                    : null,
+                onTap:
+                    PlatformCapabilities
+                        .current
+                        .supportsCustomStorageDirectories
+                    ? () => _selectSaveDirectory(context)
+                    : null,
               ),
               // 自动保存开关
               SwitchListTile(
@@ -184,27 +262,63 @@ class _StorageSettingsSectionState
               ListTile(
                 leading: const Icon(Icons.sell_outlined),
                 title: Text(context.l10n.settings_localOnnxTaggerFolder),
-                subtitle: Text(
-                  localOnnxDirectory.isEmpty
-                      ? context.l10n.settings_notConfigured
-                      : localOnnxDirectory,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
+                subtitle:
+                    PlatformCapabilities.current.supportsManagedFileImports
+                    ? FutureBuilder<int>(
+                        future: localOnnxService.managedFileCount(),
+                        builder: (context, snapshot) {
+                          final count = snapshot.data ?? 0;
+                          return Text(
+                            count == 0
+                                ? context
+                                      .l10n
+                                      .settings_importLocalOnnxTaggerFiles
+                                : context.l10n.settings_localOnnxManagedFiles(
+                                    count,
+                                  ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          );
+                        },
+                      )
+                    : Text(
+                        localOnnxDirectory.isEmpty
+                            ? context.l10n.settings_notConfigured
+                            : localOnnxDirectory,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    if (localOnnxDirectory.isNotEmpty)
+                    if (PlatformCapabilities
+                        .current
+                        .supportsManagedFileImports) ...[
+                      if (localOnnxDirectory.isNotEmpty)
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline, size: 20),
+                          tooltip: context.l10n.common_delete,
+                          onPressed: _clearLocalOnnxTaggerFiles,
+                        ),
                       IconButton(
-                        icon: const Icon(Icons.folder_open, size: 20),
-                        tooltip: context.l10n.settings_openFolder,
-                        onPressed: () =>
-                            _openLocalOnnxTaggerDirectory(localOnnxDirectory),
+                        icon: const Icon(Icons.file_upload_outlined, size: 20),
+                        tooltip:
+                            context.l10n.settings_importLocalOnnxTaggerFiles,
+                        onPressed: _importLocalOnnxTaggerFiles,
                       ),
-                    const Icon(Icons.chevron_right),
+                    ] else ...[
+                      if (localOnnxDirectory.isNotEmpty)
+                        IconButton(
+                          icon: const Icon(Icons.folder_open, size: 20),
+                          tooltip: context.l10n.settings_openFolder,
+                          onPressed: () =>
+                              _openLocalOnnxTaggerDirectory(localOnnxDirectory),
+                        ),
+                      const Icon(Icons.chevron_right),
+                    ],
                   ],
                 ),
-                onTap: _selectLocalOnnxTaggerDirectory,
+                onTap: _configureLocalOnnxTagger,
               ),
               // Vibe库保存路径设置
               const VibeLibraryPathTile(),
@@ -275,55 +389,70 @@ class _VibeLibraryPathTileState extends State<VibeLibraryPathTile> {
     final customPath = _pathHelper.getCustomPath();
     final hasCustomPath = _pathHelper.hasCustomPath;
 
+    final supportsCustomDirectory =
+        PlatformCapabilities.current.supportsCustomStorageDirectories;
     return ListTile(
       leading: const Icon(Icons.style_outlined),
       title: Text(context.l10n.settings_vibeLibraryPath),
-      subtitle: FutureBuilder<String>(
-        future: _pathHelper.getPath(),
-        builder: (context, snapshot) {
-          final displayPath = hasCustomPath
-              ? (customPath ?? '')
-              : (snapshot.data != null
-                  ? context.l10n.settings_defaultVibePath(snapshot.data!)
-                  : context.l10n.settings_defaultVibePath(
-                      'Documents/NAI_Launcher/vibes/',
-                    ));
-          return Text(
-            displayPath,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          );
-        },
-      ),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(
-            icon: const Icon(Icons.folder_open, size: 20),
-            tooltip: context.l10n.settings_openFolder,
-            onPressed: () async {
-              final openFolderFailed = context.l10n.settings_openFolderFailed;
-              try {
-                final path = await _pathHelper.getPath();
-                await launchUrl(
-                  Uri.directory(path),
-                  mode: LaunchMode.externalApplication,
+      subtitle: supportsCustomDirectory
+          ? FutureBuilder<String>(
+              future: _pathHelper.getPath(),
+              builder: (context, snapshot) {
+                final displayPath = hasCustomPath
+                    ? (customPath ?? '')
+                    : (snapshot.data != null
+                          ? context.l10n.settings_defaultVibePath(
+                              snapshot.data!,
+                            )
+                          : context.l10n.settings_defaultVibePath(
+                              'Documents/NAI_Launcher/vibes/',
+                            ));
+                return Text(
+                  displayPath,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 );
-              } catch (e) {
-                AppLogger.e(openFolderFailed, e);
-              }
-            },
-          ),
-          if (hasCustomPath)
-            IconButton(
-              icon: const Icon(Icons.close, size: 20),
-              tooltip: context.l10n.common_reset,
-              onPressed: () => _resetToDefault(context),
+              },
+            )
+          : Text(
+              context.l10n.settings_androidManagedStorage,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
-          const Icon(Icons.chevron_right),
-        ],
-      ),
-      onTap: () => _selectVibeLibraryDirectory(context),
+      trailing: supportsCustomDirectory
+          ? Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.folder_open, size: 20),
+                  tooltip: context.l10n.settings_openFolder,
+                  onPressed: () async {
+                    final openFolderFailed =
+                        context.l10n.settings_openFolderFailed;
+                    try {
+                      final path = await _pathHelper.getPath();
+                      await launchUrl(
+                        Uri.directory(path),
+                        mode: LaunchMode.externalApplication,
+                      );
+                    } catch (e) {
+                      AppLogger.e(openFolderFailed, e);
+                    }
+                  },
+                ),
+                if (hasCustomPath)
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 20),
+                    tooltip: context.l10n.common_reset,
+                    onPressed: () => _resetToDefault(context),
+                  ),
+                const Icon(Icons.chevron_right),
+              ],
+            )
+          : null,
+      onTap: supportsCustomDirectory
+          ? () => _selectVibeLibraryDirectory(context)
+          : null,
     );
   }
 }
@@ -422,45 +551,54 @@ class _HiveStoragePathTileState extends State<HiveStoragePathTile> {
   Widget build(BuildContext context) {
     final hasCustomPath = _hiveHelper.hasCustomPath;
 
+    final supportsCustomDirectory =
+        PlatformCapabilities.current.supportsCustomStorageDirectories;
     return ListTile(
       leading: const Icon(Icons.storage_outlined),
       title: Text(context.l10n.settings_hiveStoragePath),
       subtitle: Text(
-        hasCustomPath
-            ? (_hiveHelper.getCustomPath() ?? '')
-            : context.l10n.settings_defaultHivePath,
-        maxLines: 1,
+        supportsCustomDirectory
+            ? (hasCustomPath
+                  ? (_hiveHelper.getCustomPath() ?? '')
+                  : context.l10n.settings_defaultHivePath)
+            : context.l10n.settings_androidManagedStorage,
+        maxLines: 2,
         overflow: TextOverflow.ellipsis,
       ),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(
-            icon: const Icon(Icons.folder_open, size: 20),
-            tooltip: context.l10n.settings_openFolder,
-            onPressed: () async {
-              final openFolderFailed = context.l10n.settings_openFolderFailed;
-              try {
-                final path = await _hiveHelper.getPath();
-                await launchUrl(
-                  Uri.directory(path),
-                  mode: LaunchMode.externalApplication,
-                );
-              } catch (e) {
-                AppLogger.e(openFolderFailed, e);
-              }
-            },
-          ),
-          if (hasCustomPath)
-            IconButton(
-              icon: const Icon(Icons.close, size: 20),
-              tooltip: context.l10n.common_reset,
-              onPressed: () => _resetToDefault(context),
-            ),
-          const Icon(Icons.chevron_right),
-        ],
-      ),
-      onTap: () => _selectHiveStorageDirectory(context),
+      trailing: supportsCustomDirectory
+          ? Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.folder_open, size: 20),
+                  tooltip: context.l10n.settings_openFolder,
+                  onPressed: () async {
+                    final openFolderFailed =
+                        context.l10n.settings_openFolderFailed;
+                    try {
+                      final path = await _hiveHelper.getPath();
+                      await launchUrl(
+                        Uri.directory(path),
+                        mode: LaunchMode.externalApplication,
+                      );
+                    } catch (e) {
+                      AppLogger.e(openFolderFailed, e);
+                    }
+                  },
+                ),
+                if (hasCustomPath)
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 20),
+                    tooltip: context.l10n.common_reset,
+                    onPressed: () => _resetToDefault(context),
+                  ),
+                const Icon(Icons.chevron_right),
+              ],
+            )
+          : null,
+      onTap: supportsCustomDirectory
+          ? () => _selectHiveStorageDirectory(context)
+          : null,
     );
   }
 }

@@ -280,52 +280,67 @@ class _GalleryFilterPanelState extends ConsumerState<GalleryFilterPanel>
                       ),
                       const SizedBox(height: 16),
 
-                      // Steps and CFG in a row
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Steps filter
-                          Expanded(
-                            child: _buildFilterCard(
+                      // Keep each numeric range readable on narrow dialogs.
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final stepsFilter = _buildFilterCard(
+                            theme: theme,
+                            isDark: isDark,
+                            colorScheme: colorScheme,
+                            icon: Icons.layers,
+                            iconColor: Colors.orange,
+                            title: l10n.localGallery_filterBySteps,
+                            compact: true,
+                            child: _buildRangeInput(
+                              minController: _minStepsController,
+                              maxController: _maxStepsController,
                               theme: theme,
                               isDark: isDark,
                               colorScheme: colorScheme,
-                              icon: Icons.layers,
-                              iconColor: Colors.orange,
-                              title: l10n.localGallery_filterBySteps,
-                              compact: true,
-                              child: _buildRangeInput(
-                                minController: _minStepsController,
-                                maxController: _maxStepsController,
-                                theme: theme,
-                                isDark: isDark,
-                                colorScheme: colorScheme,
-                                isInteger: true,
-                              ),
+                              isInteger: true,
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                          // CFG filter
-                          Expanded(
-                            child: _buildFilterCard(
+                          );
+                          final cfgFilter = _buildFilterCard(
+                            theme: theme,
+                            isDark: isDark,
+                            colorScheme: colorScheme,
+                            icon: Icons.tune,
+                            iconColor: Colors.teal,
+                            title: l10n.localGallery_filterByCfg,
+                            compact: true,
+                            child: _buildRangeInput(
+                              minController: _minCfgController,
+                              maxController: _maxCfgController,
                               theme: theme,
                               isDark: isDark,
                               colorScheme: colorScheme,
-                              icon: Icons.tune,
-                              iconColor: Colors.teal,
-                              title: l10n.localGallery_filterByCfg,
-                              compact: true,
-                              child: _buildRangeInput(
-                                minController: _minCfgController,
-                                maxController: _maxCfgController,
-                                theme: theme,
-                                isDark: isDark,
-                                colorScheme: colorScheme,
-                                isInteger: false,
-                              ),
+                              isInteger: false,
                             ),
-                          ),
-                        ],
+                          );
+
+                          if (constraints.maxWidth < 360) {
+                            return Column(
+                              key: const ValueKey(
+                                'galleryFilterNarrowRangeGroups',
+                              ),
+                              children: [
+                                stepsFilter,
+                                const SizedBox(height: 12),
+                                cfgFilter,
+                              ],
+                            );
+                          }
+
+                          return Row(
+                            key: const ValueKey('galleryFilterWideRangeGroups'),
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(child: stepsFilter),
+                              const SizedBox(width: 12),
+                              Expanded(child: cfgFilter),
+                            ],
+                          );
+                        },
                       ),
                       const SizedBox(height: 16),
 
@@ -591,7 +606,7 @@ class _GalleryFilterPanelState extends ConsumerState<GalleryFilterPanel>
     bool isInteger = true,
   }) {
     return SizedBox(
-      height: 40,
+      height: 44,
       child: ThemedInput(
         controller: controller,
         textAlign: TextAlign.center,
@@ -762,8 +777,11 @@ void showGalleryFilterPanel(BuildContext context) {
   showDialog(
     context: context,
     barrierColor: Colors.black54,
-    builder: (context) => const Center(
-      child: Material(color: Colors.transparent, child: GalleryFilterPanel()),
+    builder: (context) => const Dialog(
+      elevation: 0,
+      backgroundColor: Colors.transparent,
+      insetPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      child: GalleryFilterPanel(),
     ),
   );
 }

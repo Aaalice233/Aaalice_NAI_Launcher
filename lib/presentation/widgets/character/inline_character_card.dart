@@ -30,6 +30,7 @@ class InlineCharacterCard extends ConsumerStatefulWidget {
   final int total;
   final bool compact;
   final bool inlineEditor;
+  final bool showSelectionBorder;
 
   const InlineCharacterCard({
     super.key,
@@ -38,6 +39,7 @@ class InlineCharacterCard extends ConsumerStatefulWidget {
     required this.total,
     this.compact = false,
     this.inlineEditor = true,
+    this.showSelectionBorder = true,
   });
 
   @override
@@ -148,7 +150,7 @@ class _InlineCharacterCardState extends ConsumerState<InlineCharacterCard> {
               : colorScheme.surfaceContainerLow,
         ),
         borderRadius: BorderRadius.circular(10),
-        border: isEditing
+        border: isEditing && widget.showSelectionBorder
             ? Border.all(color: colorScheme.primary, width: 1.5)
             : null,
       ),
@@ -465,7 +467,6 @@ class _CharacterActionsMenu extends StatelessWidget {
       tooltip: MaterialLocalizations.of(context).moreButtonTooltip,
       onSelected: onSelected,
       padding: EdgeInsets.zero,
-      constraints: const BoxConstraints.tightFor(width: 36, height: 36),
       icon: Icon(Icons.more_horiz, size: 19, color: onHeader),
       itemBuilder: (context) => [
         PopupMenuItem(

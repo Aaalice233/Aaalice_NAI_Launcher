@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:nai_launcher/core/cache/gallery_cache_manager.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
+import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/data/services/local_onnx_model_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
@@ -41,10 +42,17 @@ void main() {
   });
 
   setUp(() async {
+    PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
+      TargetPlatform.windows,
+    );
     await Hive.box(StorageKeys.settingsBox).clear();
     storage = _MemoryLocalStorageService({
       StorageKeys.onnxTaggerModelDirectory: r'C:\models\onnx_tagger',
     });
+  });
+
+  tearDown(() {
+    PlatformCapabilities.debugOverride = null;
   });
 
   tearDownAll(() async {
@@ -61,7 +69,7 @@ void main() {
     await tester.pump();
 
     final onnxTile = find.ancestor(
-      of: find.text('本地 ONNX tagger 模型文件夹'),
+      of: find.text('本地 ONNX tagger 模型'),
       matching: find.byType(ListTile),
     );
 

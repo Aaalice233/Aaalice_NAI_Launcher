@@ -5,13 +5,18 @@ import 'package:go_router/go_router.dart';
 import 'package:nai_launcher/data/models/auth/saved_account.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/account_manager_provider.dart';
-import 'package:nai_launcher/presentation/providers/auth_mode_provider.dart';
 import 'package:nai_launcher/presentation/providers/auth_provider.dart';
 import 'package:nai_launcher/presentation/screens/auth/login_screen.dart';
 
 class _UnauthenticatedAuthNotifier extends AuthNotifier {
   @override
   AuthState build() => const AuthState(status: AuthStatus.unauthenticated);
+}
+
+class _ControllableAuthNotifier extends _UnauthenticatedAuthNotifier {
+  void authenticate() {
+    state = const AuthState(status: AuthStatus.authenticated);
+  }
 }
 
 class _SavedAccountManagerNotifier extends AccountManagerNotifier {
@@ -28,22 +33,15 @@ class _SavedAccountManagerNotifier extends AccountManagerNotifier {
   );
 }
 
-class _TestAuthModeNotifier extends AuthModeNotifier {
-  @override
-  AuthModeState build() => const AuthModeState();
-
-  @override
-  void reset() {}
-}
-
-Widget _buildApp(GoRouter router) {
+Widget _buildApp(GoRouter router, {AuthNotifier? authNotifier}) {
   return ProviderScope(
     overrides: [
-      authNotifierProvider.overrideWith(_UnauthenticatedAuthNotifier.new),
+      authNotifierProvider.overrideWith(
+        () => authNotifier ?? _UnauthenticatedAuthNotifier(),
+      ),
       accountManagerNotifierProvider.overrideWith(
         _SavedAccountManagerNotifier.new,
       ),
-      authModeNotifierProvider.overrideWith(_TestAuthModeNotifier.new),
     ],
     child: MaterialApp.router(
       locale: const Locale('zh'),
@@ -76,9 +74,8 @@ void main() {
         GoRoute(
           path: '/',
           name: 'home',
-          builder: (context, state) => const Scaffold(
-            body: Text('MAIN_SCREEN_OPENED'),
-          ),
+          builder: (context, state) =>
+              const Scaffold(body: Text('MAIN_SCREEN_OPENED')),
         ),
       ],
     );
@@ -94,6 +91,45 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('MAIN_SCREEN_OPENED'), findsOneWidget);
+  });
+
+  testWidgets('successful login returns to the screen that opened it', (
+    tester,
+  ) async {
+    final authNotifier = _ControllableAuthNotifier();
+    final router = GoRouter(
+      initialLocation: '/settings-test',
+      routes: [
+        GoRoute(
+          path: '/settings-test',
+          builder: (context, state) => Scaffold(
+            body: TextButton(
+              onPressed: () => context.pushNamed('login'),
+              child: const Text('OPEN_LOGIN'),
+            ),
+          ),
+        ),
+        _loginRoute(),
+        GoRoute(
+          path: '/',
+          name: 'home',
+          builder: (context, state) =>
+              const Scaffold(body: Text('MAIN_SCREEN_OPENED')),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+
+    await tester.pumpWidget(_buildApp(router, authNotifier: authNotifier));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('OPEN_LOGIN'));
+    await tester.pumpAndSettle();
+
+    authNotifier.authenticate();
+    await tester.pumpAndSettle();
+
+    expect(find.text('OPEN_LOGIN'), findsOneWidget);
+    expect(find.byType(LoginScreen), findsNothing);
   });
 
   testWidgets('skip login returns to the screen that opened it', (
@@ -115,9 +151,8 @@ void main() {
         GoRoute(
           path: '/',
           name: 'home',
-          builder: (context, state) => const Scaffold(
-            body: Text('MAIN_SCREEN_OPENED'),
-          ),
+          builder: (context, state) =>
+              const Scaffold(body: Text('MAIN_SCREEN_OPENED')),
         ),
       ],
     );

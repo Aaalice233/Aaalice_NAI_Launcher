@@ -376,15 +376,7 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
                   Icons.folder_outlined,
                   color: colorScheme.onSurfaceVariant,
                 ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide(
-                    color: colorScheme.outline.withValues(alpha: 0.3),
-                  ),
-                ),
+                border: InputBorder.none,
               ),
               items: widget.availableCategories.map((category) {
                 return DropdownMenuItem(value: category, child: Text(category));
@@ -655,15 +647,7 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
                 Icons.edit_note_rounded,
                 color: colorScheme.onSurfaceVariant,
               ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(
-                  color: colorScheme.outline.withValues(alpha: 0.3),
-                ),
-              ),
+              border: InputBorder.none,
             ),
             readOnly: widget.readOnly,
             onChanged: (value) {

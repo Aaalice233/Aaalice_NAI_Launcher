@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "dart": {
+      "command": "dart",
+      "args": ["mcp-server"],
+      "lifecycle": "lazy"
+    }
+  }
+}

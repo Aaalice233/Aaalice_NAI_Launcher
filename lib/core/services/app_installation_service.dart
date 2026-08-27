@@ -10,6 +10,7 @@ enum AppInstallationType {
   windowsInstaller,
   windowsPortable,
   macosPortable,
+  androidApk,
   unsupported,
 }
 
@@ -27,6 +28,9 @@ class AppInstallationService {
     if (Platform.isMacOS) {
       return AppInstallationType.macosPortable;
     }
+    if (Platform.isAndroid) {
+      return AppInstallationType.androidApk;
+    }
     return AppInstallationType.unsupported;
   }
 
@@ -35,17 +39,18 @@ class AppInstallationService {
       AppInstallationType.windowsInstaller => 'windows-installer',
       AppInstallationType.windowsPortable => 'windows-portable',
       AppInstallationType.macosPortable => 'macos',
+      AppInstallationType.androidApk => 'android-apk',
       AppInstallationType.unsupported => 'unknown',
     };
   }
 
-  /// Windows 安装版与便携版都支持应用内自动更新：
-  /// 安装版运行 NSIS 静默安装，便携版由辅助脚本解压覆盖并重启。
-  /// macOS 涉及签名与隔离属性，暂不支持自动替换。
+  /// Windows 由独立更新器替换应用；Android 下载并校验 APK 后交给
+  /// 系统安装界面确认。macOS 涉及签名与隔离属性，暂不支持自动替换。
   bool get supportsInAppInstall {
     final type = getInstallationType();
     return type == AppInstallationType.windowsInstaller ||
-        type == AppInstallationType.windowsPortable;
+        type == AppInstallationType.windowsPortable ||
+        type == AppInstallationType.androidApk;
   }
 
   bool _isInstalledWindowsApp() {

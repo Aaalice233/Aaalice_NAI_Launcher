@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
@@ -16,11 +17,13 @@ import '../../../core/cache/gallery_image_request.dart';
 import '../../../core/cache/online_gallery_image_cache_manager.dart';
 import '../../../core/cache/online_gallery_detail_coordinator.dart';
 import '../../../core/online_gallery/gallery_tag_query.dart';
+import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/cache/online_gallery_prefetch_coordinator.dart';
 import '../../../core/cache/online_gallery_preload_policy.dart';
 import '../../../core/services/date_formatting_service.dart';
+import '../../../core/services/file_export_service.dart';
 import '../../../core/utils/app_logger.dart';
-import '../../../core/utils/file_picker_utils.dart';
+import '../../../core/utils/media_mime_type.dart';
 import '../../../data/datasources/remote/danbooru_api_service.dart';
 import '../../../data/models/character/character_prompt.dart';
 import '../../../data/models/online_gallery/danbooru_post.dart';
@@ -42,6 +45,7 @@ import '../../providers/quick_tag_cloud_gallery_provider.dart';
 import '../../providers/replication_queue_provider.dart';
 import '../../providers/reverse_prompt_provider.dart';
 import '../../providers/selection_mode_provider.dart';
+import '../../adaptive/adaptive_presenter.dart';
 import '../../services/gallery_prompt_projection_service.dart';
 import '../../widgets/app_branch_visibility.dart';
 import '../../widgets/danbooru_login_dialog.dart';
@@ -55,9 +59,29 @@ import '../../widgets/online_gallery/quick_tag_cloud_toolbar.dart';
 
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/bulk_action_bar.dart';
+import '../../widgets/common/input_surface_container.dart';
 import '../../widgets/common/themed_input.dart';
 import '../../widgets/autocomplete/autocomplete_config.dart';
 import '../../widgets/autocomplete/autocomplete_wrapper.dart';
+
+double get _galleryToolbarControlHeight =>
+    PlatformCapabilities.current.isMobile ? 48 : 40;
+
+double get _gallerySearchFieldHeight =>
+    PlatformCapabilities.current.isMobile ? 48 : 36;
+
+double get _gallerySecondaryToolbarHeight =>
+    PlatformCapabilities.current.isMobile ? 56 : 40;
+
+enum _MobileGalleryAction { random, refresh, multiSelect }
+
+String _resolveGalleryDownloadExtension(GalleryMedia media, String url) {
+  final candidate = (media.extension ?? path.extension(Uri.parse(url).path))
+      .trim()
+      .toLowerCase()
+      .replaceFirst(RegExp(r'^\.'), '');
+  return RegExp(r'^[a-z0-9]{1,10}$').hasMatch(candidate) ? candidate : 'webp';
+}
 
 /// 在线画廊页面
 class OnlineGalleryScreen extends ConsumerStatefulWidget {
@@ -99,6 +123,8 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
   final Map<int, ({GalleryItem item, double itemWidth, double visibleTop})>
   _visibleItems = {};
   final GlobalKey _anchorRestoreKey = GlobalKey();
+  final GlobalKey _primarySearchRevealKey = GlobalKey();
+  String? _lastPrimarySearchRevealSignature;
   String? _pendingAnchorStableKey;
   double _pendingAnchorLocalOffset = 0;
   double _lastScrollOffset = 0;
@@ -189,6 +215,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       _hoverController.dismiss();
       _scheduledAutoLoadCacheKey = null;
     } else {
+      _lastPrimarySearchRevealSignature = null;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         _scheduleAutoLoadIfUnderfilled(ref.read(onlineGalleryNotifierProvider));
@@ -424,6 +451,9 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     final state = ref.read(onlineGalleryNotifierProvider);
     final authState = ref.watch(danbooruAuthProvider);
     final gelbooruAuthState = ref.watch(gelbooruAuthProvider);
+    final isSelectionMode = ref.watch(
+      onlineGallerySelectionNotifierProvider.select((value) => value.isActive),
+    );
 
     ref.listen<OnlineGalleryNotice?>(
       onlineGalleryNotifierProvider.select((value) => value.notice),
@@ -480,36 +510,45 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     _lastRandomDrawRevision = state.randomSession.drawRevision;
     _scheduleAutoLoadIfUnderfilled(state);
 
-    return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
-      body: Column(
-        children: [
-          // 顶部工具栏
-          Consumer(
-            builder: (context, toolbarRef, _) {
-              final selectionState = toolbarRef.watch(
-                onlineGallerySelectionNotifierProvider,
-              );
-              return _buildToolbar(
-                theme,
-                state,
-                authState,
-                gelbooruAuthState,
-                selectionState,
-              );
-            },
-          ),
-          // 图片网格
-          Expanded(child: _buildContent(theme, state)),
-          // 底部分页条
-          _buildPaginationBar(theme, state),
-        ],
+    return PopScope<void>(
+      canPop: !isSelectionMode,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && isSelectionMode) {
+          _selectionNotifier.exit();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: theme.scaffoldBackgroundColor,
+        body: Column(
+          children: [
+            // 顶部工具栏
+            Consumer(
+              builder: (context, toolbarRef, _) {
+                final selectionState = toolbarRef.watch(
+                  onlineGallerySelectionNotifierProvider,
+                );
+                return _buildToolbar(
+                  theme,
+                  state,
+                  authState,
+                  gelbooruAuthState,
+                  selectionState,
+                );
+              },
+            ),
+            // 图片网格
+            Expanded(child: _buildContent(theme, state)),
+            // 底部分页条
+            _buildPaginationBar(theme, state),
+          ],
+        ),
       ),
     );
   }
 
   /// 构建底部分页条
   Widget _buildPaginationBar(ThemeData theme, OnlineGalleryState state) {
+    final isCompact = MediaQuery.sizeOf(context).width < 400;
     if (state.randomEnabled) {
       return Container(
         key: const ValueKey('online-gallery-random-status-bar'),
@@ -551,7 +590,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     return Container(
       key: const ValueKey('online-gallery-pagination-bar'),
       height: 48,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: EdgeInsets.symmetric(horizontal: isCompact ? 4 : 16),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         border: Border(
@@ -569,12 +608,12 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             icon: const Icon(Icons.chevron_left, size: 24),
             tooltip: context.l10n.onlineGallery_previousPage,
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: isCompact ? 4 : 8),
           // 页码显示/输入
           _isEditingPage
               ? _buildPageInput(theme, state)
               : _buildPageDisplay(theme, state),
-          const SizedBox(width: 8),
+          SizedBox(width: isCompact ? 4 : 8),
           // 下一页
           IconButton(
             onPressed: state.hasMore && !state.isLoading
@@ -583,16 +622,41 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             icon: const Icon(Icons.chevron_right, size: 24),
             tooltip: context.l10n.onlineGallery_nextPage,
           ),
-          const SizedBox(width: 24),
+          SizedBox(width: isCompact ? 12 : 24),
           // 图片计数
-          Text(
-            context.l10n.onlineGallery_imageCount(
-              state.posts.length.toString(),
+          if (isCompact)
+            Tooltip(
+              message: context.l10n.onlineGallery_imageCount(
+                state.posts.length.toString(),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.photo_library_outlined,
+                    size: 16,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    state.posts.length.toString(),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            Text(
+              context.l10n.onlineGallery_imageCount(
+                state.posts.length.toString(),
+              ),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
         ],
       ),
     );
@@ -609,7 +673,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
           borderRadius: BorderRadius.circular(16),
         ),
-        child: state.isLoading
+        child: state.isLoading && state.posts.isNotEmpty
             ? SizedBox(
                 width: 16,
                 height: 16,
@@ -722,8 +786,11 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       );
     }
 
+    final useMobileToolbar = MediaQuery.sizeOf(context).width < 600;
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      padding: useMobileToolbar
+          ? const EdgeInsets.fromLTRB(8, 8, 8, 7)
+          : const EdgeInsets.fromLTRB(16, 12, 16, 8),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         border: Border(
@@ -732,6 +799,16 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
+          if (useMobileToolbar) {
+            return _buildMobileToolbar(
+              theme,
+              state,
+              authState,
+              gelbooruAuthState,
+              availableWidth: constraints.maxWidth,
+            );
+          }
+
           final forceCompactForText =
               MediaQuery.textScalerOf(context).scale(1) > 1.2;
           // 桌面宽度足够时优先保留文字。过早退化成一排纯图标会让工具栏
@@ -751,9 +828,58 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
               state.viewMode == GalleryViewMode.favorites ||
               (state.viewMode == GalleryViewMode.popular &&
                   state.popularSourceId == GallerySourceId.aiTag);
-          final queryFieldWidth = _activeSource(state) == GallerySourceId.aiTag
-              ? 520.0
-              : 280.0;
+          final queryFieldWidth = switch (_activeSource(state)) {
+            GallerySourceId.aiTag => 520.0,
+            GallerySourceId.quickTagCloud => 420.0,
+            _ => 280.0,
+          };
+          if (useScrollablePrimary && showQueryFields) {
+            final revealSignature = Object.hash(
+              _activeSource(state),
+              state.viewMode,
+              constraints.maxWidth.round(),
+            ).toString();
+            if (_lastPrimarySearchRevealSignature != revealSignature) {
+              _lastPrimarySearchRevealSignature = revealSignature;
+
+              void revealSearchAfterLayout(int attemptsRemaining) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  final searchContext = _primarySearchRevealKey.currentContext;
+                  if (!mounted || searchContext == null) return;
+                  final scrollable = Scrollable.maybeOf(searchContext);
+                  final searchBox =
+                      searchContext.findRenderObject() as RenderBox?;
+                  final viewport = searchBox == null
+                      ? null
+                      : RenderAbstractViewport.maybeOf(searchBox);
+                  if (scrollable == null ||
+                      searchBox == null ||
+                      viewport == null ||
+                      !scrollable.position.hasContentDimensions) {
+                    if (attemptsRemaining > 0) {
+                      revealSearchAfterLayout(attemptsRemaining - 1);
+                    }
+                    return;
+                  }
+
+                  final position = scrollable.position;
+                  final centeredOffset = viewport
+                      .getOffsetToReveal(searchBox, 0.5)
+                      .offset;
+                  position.jumpTo(
+                    centeredOffset.clamp(
+                      position.minScrollExtent,
+                      position.maxScrollExtent,
+                    ),
+                  );
+                });
+              }
+
+              // 首帧时横向 viewport 可能尚未拿到 content dimensions；
+              // 最多跨三帧重试，确保手机首屏完整露出当前搜索词。
+              revealSearchAfterLayout(2);
+            }
+          }
           final secondaryControls = _buildSecondaryControls(theme, state);
           final leadingControls = Row(
             mainAxisSize: MainAxisSize.min,
@@ -787,34 +913,28 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
               ? SingleChildScrollView(
                   key: const ValueKey('online-gallery-primary-controls-scroll'),
                   scrollDirection: Axis.horizontal,
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(minWidth: constraints.maxWidth),
-                    child: IntrinsicWidth(
-                      child: Row(
-                        children: [
-                          leadingControls,
-                          if (showQueryFields) ...[
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: ConstrainedBox(
-                                constraints: BoxConstraints(
-                                  minWidth: queryFieldWidth,
-                                ),
-                                child: KeyedSubtree(
-                                  key: const ValueKey(
-                                    'online-gallery-primary-search',
-                                  ),
-                                  child: _buildSearchFields(theme, state),
-                                ),
-                              ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      leadingControls,
+                      if (showQueryFields) ...[
+                        const SizedBox(width: 12),
+                        SizedBox(
+                          width: queryFieldWidth,
+                          child: KeyedSubtree(
+                            key: const ValueKey(
+                              'online-gallery-primary-search',
                             ),
-                          ] else
-                            const Spacer(),
-                          const SizedBox(width: 8),
-                          trailingControls,
-                        ],
-                      ),
-                    ),
+                            child: KeyedSubtree(
+                              key: _primarySearchRevealKey,
+                              child: _buildSearchFields(theme, state),
+                            ),
+                          ),
+                        ),
+                      ],
+                      const SizedBox(width: 8),
+                      trailingControls,
+                    ],
                   ),
                 )
               : Row(
@@ -840,13 +960,13 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             children: [
               SizedBox(
                 key: const ValueKey('online-gallery-toolbar-primary-row'),
-                height: 40,
+                height: _galleryToolbarControlHeight,
                 child: primaryControls,
               ),
               const SizedBox(height: 8),
               SizedBox(
                 key: const ValueKey('online-gallery-toolbar-secondary-row'),
-                height: 40,
+                height: _gallerySecondaryToolbarHeight,
                 child: Row(
                   children: [
                     if (collapseSecondaryControls) ...[
@@ -858,7 +978,9 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
                         label: Text(context.l10n.common_filter),
                         style: FilledButton.styleFrom(
                           padding: const EdgeInsets.symmetric(horizontal: 12),
-                          visualDensity: VisualDensity.compact,
+                          visualDensity: PlatformCapabilities.current.isMobile
+                              ? VisualDensity.standard
+                              : VisualDensity.compact,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(6),
                           ),
@@ -879,6 +1001,373 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildMobileToolbar(
+    ThemeData theme,
+    OnlineGalleryState state,
+    DanbooruAuthState authState,
+    GelbooruAuthState gelbooruAuthState, {
+    required double availableWidth,
+  }) {
+    final compact = availableWidth < 350;
+    final sourceWidth = compact ? 72.0 : 116.0;
+    final modeWidth = compact ? 62.0 : 76.0;
+    final filterWidth = compact ? 76.0 : 88.0;
+    final activeSource = _activeSource(state);
+    final sourceLabel = compact
+        ? switch (activeSource) {
+            GallerySourceId.danbooru => 'DB',
+            GallerySourceId.safebooru => 'SB',
+            GallerySourceId.gelbooru => 'GB',
+            GallerySourceId.aiTag => 'AI',
+            GallerySourceId.quickTagCloud => 'QT',
+          }
+        : null;
+
+    return Column(
+      key: const ValueKey('online-gallery-mobile-toolbar'),
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          key: const ValueKey('online-gallery-mobile-scope-row'),
+          height: _galleryToolbarControlHeight,
+          child: Row(
+            key: const ValueKey('online-gallery-mobile-primary-row'),
+            children: [
+              SizedBox(
+                key: const ValueKey('online-gallery-mobile-source'),
+                width: sourceWidth,
+                child: _buildSourceSelector(
+                  state,
+                  selectedLabel: sourceLabel,
+                  maxLabelWidth: sourceWidth - 34,
+                  expandLabel: true,
+                ),
+              ),
+              const SizedBox(width: 6),
+              SizedBox(
+                width: modeWidth,
+                child: _buildMobileModeSelector(theme, state),
+              ),
+              const SizedBox(width: 6),
+              _buildRatingControl(theme, state, compact: true),
+              const Spacer(),
+              _buildUserButton(
+                theme,
+                state,
+                authState,
+                gelbooruAuthState,
+                compact: true,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 6),
+        SizedBox(
+          key: const ValueKey('online-gallery-mobile-query-row'),
+          height: _gallerySearchFieldHeight,
+          child: Row(
+            key: const ValueKey('online-gallery-mobile-search-row'),
+            children: [
+              Expanded(
+                key: const ValueKey('online-gallery-mobile-search'),
+                child: _buildMobileSearchFields(theme, state),
+              ),
+              const SizedBox(width: 6),
+              SizedBox(
+                width: filterWidth,
+                height: _gallerySearchFieldHeight,
+                child: _buildMobileFilterButton(theme, state),
+              ),
+              const SizedBox(width: 4),
+              _buildMobileMoreButton(theme, state),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMobileModeSelector(ThemeData theme, OnlineGalleryState state) {
+    final supportsPopular = state.activeSourceId.capabilities.supportsRanking;
+    final current = switch (state.viewMode) {
+      GalleryViewMode.search => (
+        Icons.search_rounded,
+        context.l10n.onlineGallery_search,
+      ),
+      GalleryViewMode.popular => (
+        Icons.local_fire_department_rounded,
+        context.l10n.onlineGallery_popular,
+      ),
+      GalleryViewMode.favorites => (
+        Icons.favorite_rounded,
+        context.l10n.onlineGallery_favorites,
+      ),
+    };
+
+    return PopupMenuButton<GalleryViewMode>(
+      key: const ValueKey('online-gallery-mobile-mode-selector'),
+      tooltip: current.$2,
+      offset: Offset(0, _galleryToolbarControlHeight + 4),
+      onSelected: (mode) {
+        _saveScrollOffset();
+        switch (mode) {
+          case GalleryViewMode.search:
+            _galleryNotifier.switchToSearch();
+          case GalleryViewMode.popular:
+            _galleryNotifier.switchToPopular();
+          case GalleryViewMode.favorites:
+            _galleryNotifier.switchToFavorites();
+        }
+      },
+      itemBuilder: (context) => [
+        PopupMenuItem(
+          value: GalleryViewMode.search,
+          child: ListTile(
+            leading: const Icon(Icons.search_rounded),
+            title: Text(context.l10n.onlineGallery_search),
+            trailing: state.viewMode == GalleryViewMode.search
+                ? Icon(Icons.check_rounded, color: theme.colorScheme.primary)
+                : null,
+          ),
+        ),
+        if (supportsPopular)
+          PopupMenuItem(
+            value: GalleryViewMode.popular,
+            child: ListTile(
+              leading: const Icon(Icons.local_fire_department_rounded),
+              title: Text(context.l10n.onlineGallery_popular),
+              trailing: state.viewMode == GalleryViewMode.popular
+                  ? Icon(Icons.check_rounded, color: theme.colorScheme.primary)
+                  : null,
+            ),
+          ),
+        PopupMenuItem(
+          value: GalleryViewMode.favorites,
+          child: ListTile(
+            leading: const Icon(Icons.favorite_rounded),
+            title: Text(context.l10n.onlineGallery_favorites),
+            trailing: state.viewMode == GalleryViewMode.favorites
+                ? Icon(Icons.check_rounded, color: theme.colorScheme.primary)
+                : null,
+          ),
+        ),
+      ],
+      child: Container(
+        height: _galleryToolbarControlHeight,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest.withValues(
+            alpha: 0.4,
+          ),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              current.$1,
+              size: 17,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: 4),
+            Expanded(
+              child: Text(
+                current.$2,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMobileSearchFields(ThemeData theme, OnlineGalleryState state) {
+    final isPopular = state.viewMode == GalleryViewMode.popular;
+    final activeSource = _activeSource(state);
+    if (state.viewMode == GalleryViewMode.favorites) {
+      return _buildPlainSearchField(
+        theme,
+        controller: _favoriteSearchController,
+        focusNode: _favoriteSearchFocusNode,
+        hintText: context.l10n.onlineGallery_searchFavorites,
+        icon: Icons.search_rounded,
+        treatSpacesAsSeparators: true,
+        onSubmitted: () =>
+            _galleryNotifier.searchFavorites(_favoriteSearchController.text),
+      );
+    }
+    if (activeSource == GallerySourceId.quickTagCloud) {
+      return _buildCodexSearchField(theme);
+    }
+    if (activeSource == GallerySourceId.aiTag) {
+      final controller = isPopular
+          ? _popularSearchController
+          : _searchController;
+      final focusNode = isPopular ? _popularSearchFocusNode : _searchFocusNode;
+      return _buildPlainSearchField(
+        theme,
+        controller: controller,
+        focusNode: focusNode,
+        hintText: context.l10n.onlineGallery_aiTagQuery,
+        icon: Icons.manage_search_rounded,
+        treatSpacesAsSeparators: true,
+        showTagCount: true,
+        onSubmitted: () => _submitAiTagSearch(state),
+      );
+    }
+    return _buildSearchField(
+      theme,
+      controller: isPopular ? _popularSearchController : _searchController,
+      focusNode: isPopular ? _popularSearchFocusNode : _searchFocusNode,
+      onSubmitted: isPopular
+          ? (value) => _galleryNotifier.searchPopular(
+              query: value,
+              prompt: state.popularPromptQuery,
+            )
+          : _galleryNotifier.search,
+    );
+  }
+
+  void _submitAiTagSearch(OnlineGalleryState state) {
+    final isPopular = state.viewMode == GalleryViewMode.popular;
+    final queryController = isPopular
+        ? _popularSearchController
+        : _searchController;
+    final promptController = isPopular
+        ? _popularPromptSearchController
+        : _promptSearchController;
+    if (!_validateTagQuery(queryController.text)) return;
+    if (isPopular) {
+      unawaited(
+        _galleryNotifier.searchPopular(
+          query: queryController.text,
+          prompt: promptController.text,
+        ),
+      );
+    } else {
+      unawaited(
+        _galleryNotifier.searchWithPrompt(
+          queryController.text,
+          prompt: promptController.text,
+        ),
+      );
+    }
+  }
+
+  Widget _buildMobileFilterButton(ThemeData theme, OnlineGalleryState state) {
+    final blacklistCount = ref.watch(
+      onlineGalleryBlacklistNotifierProvider.select(
+        (value) => value.tags.length,
+      ),
+    );
+    final outputCount = ref.watch(
+      onlineGalleryOutputFilterProvider.select((value) => value.tags.length),
+    );
+    final filterCount = blacklistCount + outputCount;
+    return TextButton(
+      key: const ValueKey('online-gallery-mobile-filter'),
+      onPressed: _showSourceFilters,
+      style: TextButton.styleFrom(
+        foregroundColor: theme.colorScheme.onSurfaceVariant,
+        backgroundColor: theme.colorScheme.surfaceContainerHighest.withValues(
+          alpha: 0.58,
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.tune_rounded, size: 16),
+          const SizedBox(width: 3),
+          Flexible(
+            child: Text(
+              context.l10n.common_filter,
+              maxLines: 1,
+              overflow: TextOverflow.fade,
+              softWrap: false,
+            ),
+          ),
+          if (filterCount > 0) ...[
+            const SizedBox(width: 3),
+            Text(
+              filterCount.toString(),
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.primary,
+                fontFeatures: const [FontFeature.tabularFigures()],
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobileMoreButton(ThemeData theme, OnlineGalleryState state) {
+    return PopupMenuButton<_MobileGalleryAction>(
+      key: const ValueKey('online-gallery-mobile-more'),
+      tooltip: context.l10n.nav_more,
+      onSelected: (action) {
+        switch (action) {
+          case _MobileGalleryAction.random:
+            _toggleRandomGallery(state);
+          case _MobileGalleryAction.refresh:
+            _refreshGallery(state);
+          case _MobileGalleryAction.multiSelect:
+            _selectionNotifier.enter();
+        }
+      },
+      itemBuilder: (context) => [
+        if (state.supportsRandom)
+          PopupMenuItem(
+            value: _MobileGalleryAction.random,
+            child: ListTile(
+              leading: Icon(
+                Icons.shuffle_rounded,
+                color: state.randomEnabled ? theme.colorScheme.primary : null,
+              ),
+              title: Text(context.l10n.onlineGallery_random),
+              trailing: state.randomEnabled
+                  ? Icon(Icons.check_rounded, color: theme.colorScheme.primary)
+                  : null,
+            ),
+          ),
+        PopupMenuItem(
+          value: _MobileGalleryAction.refresh,
+          child: ListTile(
+            leading: const Icon(Icons.refresh_rounded),
+            title: Text(
+              state.randomEnabled
+                  ? context.l10n.onlineGallery_randomRedraw
+                  : context.l10n.onlineGallery_refresh,
+            ),
+          ),
+        ),
+        PopupMenuItem(
+          value: _MobileGalleryAction.multiSelect,
+          child: ListTile(
+            leading: const Icon(Icons.checklist_rounded),
+            title: Text(context.l10n.common_multiSelect),
+          ),
+        ),
+      ],
+      child: SizedBox(
+        width: _gallerySearchFieldHeight,
+        height: _gallerySearchFieldHeight,
+        child: Icon(
+          Icons.more_horiz_rounded,
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
       ),
     );
   }
@@ -1060,20 +1549,16 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         treatSpacesAsSeparators: treatSpacesAsSeparators,
       ),
       onSuggestionSelected: (_) => onSubmitted(),
-      child: Container(
-        height: 36,
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest.withValues(
-            alpha: 0.4,
-          ),
-          borderRadius: BorderRadius.circular(18),
-        ),
+      child: InputSurfaceContainer(
+        height: _gallerySearchFieldHeight,
+        borderRadius: _gallerySearchFieldHeight / 2,
         child: ValueListenableBuilder<TextEditingValue>(
           valueListenable: controller,
           builder: (context, value, _) => TextField(
             controller: controller,
             focusNode: focusNode,
             style: theme.textTheme.bodyMedium,
+            textAlignVertical: TextAlignVertical.center,
             decoration: InputDecoration(
               hintText: hintText,
               hintStyle: TextStyle(
@@ -1108,7 +1593,13 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
                         focusNode.requestFocus();
                       },
                     ),
+              filled: false,
               border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              disabledBorder: InputBorder.none,
+              errorBorder: InputBorder.none,
+              focusedErrorBorder: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(vertical: 8),
               isDense: true,
             ),
@@ -1120,22 +1611,21 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
   }
 
   Widget _buildCodexSearchField(ThemeData theme) {
-    return Container(
-      height: 36,
+    return InputSurfaceContainer(
+      height: _gallerySearchFieldHeight,
       constraints: const BoxConstraints(maxWidth: 520),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
-        borderRadius: BorderRadius.circular(18),
-      ),
+      borderRadius: _gallerySearchFieldHeight / 2,
       child: ValueListenableBuilder<TextEditingValue>(
         valueListenable: _searchController,
         builder: (context, value, _) => TextField(
           controller: _searchController,
           focusNode: _searchFocusNode,
           style: theme.textTheme.bodyMedium,
+          textAlignVertical: TextAlignVertical.center,
           textInputAction: TextInputAction.search,
           decoration: InputDecoration(
             hintText: context.l10n.onlineGallery_codexSearchHint,
+            filled: false,
             hintStyle: TextStyle(
               color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
               fontSize: 13,
@@ -1154,6 +1644,11 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
               },
             ),
             border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            disabledBorder: InputBorder.none,
+            errorBorder: InputBorder.none,
+            focusedErrorBorder: InputBorder.none,
             contentPadding: const EdgeInsets.symmetric(vertical: 8),
             isDense: true,
           ),
@@ -1229,21 +1724,18 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         _searchDebounceTimer?.cancel();
         _submitTagSearch(value, onValid: onSubmitted);
       },
-      child: Container(
-        height: 36,
+      child: InputSurfaceContainer(
+        height: _gallerySearchFieldHeight,
         constraints: const BoxConstraints(maxWidth: 400),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest.withValues(
-            alpha: 0.4,
-          ),
-          borderRadius: BorderRadius.circular(18),
-        ),
+        borderRadius: _gallerySearchFieldHeight / 2,
         child: TextField(
           controller: controller,
           focusNode: focusNode,
           style: theme.textTheme.bodyMedium,
+          textAlignVertical: TextAlignVertical.center,
           decoration: InputDecoration(
             hintText: context.l10n.onlineGallery_searchTags,
+            filled: false,
             hintStyle: TextStyle(
               color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
               fontSize: 13,
@@ -1264,6 +1756,11 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             ),
             suffixIconConstraints: const BoxConstraints(minWidth: 64),
             border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            disabledBorder: InputBorder.none,
+            errorBorder: InputBorder.none,
+            focusedErrorBorder: InputBorder.none,
             contentPadding: const EdgeInsets.symmetric(vertical: 8),
             isDense: true,
           ),
@@ -1274,6 +1771,46 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         ),
       ),
     );
+  }
+
+  void _toggleRandomGallery(OnlineGalleryState state) {
+    if (!state.randomEnabled) _saveScrollOffset();
+    unawaited(_galleryNotifier.setRandomEnabled(!state.randomEnabled));
+  }
+
+  void _refreshGallery(OnlineGalleryState state) {
+    final isPopular = state.viewMode == GalleryViewMode.popular;
+    final activeSource = _activeSource(state);
+    if (activeSource == GallerySourceId.quickTagCloud) {
+      _galleryNotifier.clearDetailCache();
+      ref.read(quickTagCloudGallerySourceAdapterProvider).invalidateCatalog();
+      ref.invalidate(quickTagCloudCatalogProvider);
+      final query = ref.read(quickTagCloudFilterProvider);
+      if (query.codexId != 'all') {
+        ref.invalidate(quickTagCloudCodexProvider(query.codexId));
+      }
+    }
+    if (activeSource == GallerySourceId.aiTag &&
+        state.viewMode == GalleryViewMode.search) {
+      unawaited(
+        _galleryNotifier.searchWithPrompt(
+          _searchController.text,
+          prompt: _promptSearchController.text,
+        ),
+      );
+    } else if (activeSource == GallerySourceId.aiTag && isPopular) {
+      unawaited(
+        _galleryNotifier.searchPopular(
+          query: _popularSearchController.text,
+          prompt: _popularPromptSearchController.text,
+        ),
+      );
+    } else {
+      unawaited(_galleryNotifier.refresh());
+    }
+    if (state.randomEnabled && _scrollController.hasClients) {
+      _scrollController.jumpTo(0);
+    }
   }
 
   Widget _buildPrimaryActions(
@@ -1290,12 +1827,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       child: compact
           ? TextButton(
               key: const ValueKey('online-gallery-random-toggle'),
-              onPressed: () {
-                if (!state.randomEnabled) _saveScrollOffset();
-                unawaited(
-                  _galleryNotifier.setRandomEnabled(!state.randomEnabled),
-                );
-              },
+              onPressed: () => _toggleRandomGallery(state),
               style: TextButton.styleFrom(
                 backgroundColor: state.randomEnabled
                     ? theme.colorScheme.primaryContainer
@@ -1305,9 +1837,11 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
                 foregroundColor: state.randomEnabled
                     ? theme.colorScheme.onPrimaryContainer
                     : theme.colorScheme.onSurfaceVariant,
-                minimumSize: const Size(0, 40),
+                minimumSize: Size(0, _galleryToolbarControlHeight),
                 padding: const EdgeInsets.symmetric(horizontal: 8),
-                visualDensity: VisualDensity.compact,
+                visualDensity: PlatformCapabilities.current.isMobile
+                    ? VisualDensity.standard
+                    : VisualDensity.compact,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(6),
                 ),
@@ -1316,12 +1850,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             )
           : TextButton.icon(
               key: const ValueKey('online-gallery-random-toggle'),
-              onPressed: () {
-                if (!state.randomEnabled) _saveScrollOffset();
-                unawaited(
-                  _galleryNotifier.setRandomEnabled(!state.randomEnabled),
-                );
-              },
+              onPressed: () => _toggleRandomGallery(state),
               icon: const Icon(Icons.shuffle, size: 17),
               label: Text(context.l10n.onlineGallery_random),
               style: TextButton.styleFrom(
@@ -1337,52 +1866,15 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
                   horizontal: 10,
                   vertical: 7,
                 ),
-                visualDensity: VisualDensity.compact,
+                visualDensity: PlatformCapabilities.current.isMobile
+                    ? VisualDensity.standard
+                    : VisualDensity.compact,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(6),
                 ),
               ),
             ),
     );
-    void refreshAction() {
-      final isPopular = state.viewMode == GalleryViewMode.popular;
-      final activeSource = switch (state.viewMode) {
-        GalleryViewMode.search => state.sourceId,
-        GalleryViewMode.popular => state.popularSourceId,
-        GalleryViewMode.favorites => state.favoritesSourceId,
-      };
-      if (activeSource == GallerySourceId.quickTagCloud) {
-        _galleryNotifier.clearDetailCache();
-        ref.read(quickTagCloudGallerySourceAdapterProvider).invalidateCatalog();
-        ref.invalidate(quickTagCloudCatalogProvider);
-        final query = ref.read(quickTagCloudFilterProvider);
-        if (query.codexId != 'all') {
-          ref.invalidate(quickTagCloudCodexProvider(query.codexId));
-        }
-      }
-      if (activeSource == GallerySourceId.aiTag &&
-          state.viewMode == GalleryViewMode.search) {
-        unawaited(
-          _galleryNotifier.searchWithPrompt(
-            _searchController.text,
-            prompt: _promptSearchController.text,
-          ),
-        );
-      } else if (activeSource == GallerySourceId.aiTag && isPopular) {
-        unawaited(
-          _galleryNotifier.searchPopular(
-            query: _popularSearchController.text,
-            prompt: _popularPromptSearchController.text,
-          ),
-        );
-      } else {
-        unawaited(_galleryNotifier.refresh());
-      }
-      if (state.randomEnabled && _scrollController.hasClients) {
-        _scrollController.jumpTo(0);
-      }
-    }
-
     final refreshIcon = state.isLoading
         ? SizedBox(
             width: 16,
@@ -1401,11 +1893,13 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         if (compact)
           FilledButton.tonal(
             key: const ValueKey('online-gallery-refresh'),
-            onPressed: refreshAction,
+            onPressed: () => _refreshGallery(state),
             style: FilledButton.styleFrom(
-              minimumSize: const Size(0, 40),
+              minimumSize: Size(0, _galleryToolbarControlHeight),
               padding: const EdgeInsets.symmetric(horizontal: 8),
-              visualDensity: VisualDensity.compact,
+              visualDensity: PlatformCapabilities.current.isMobile
+                  ? VisualDensity.standard
+                  : VisualDensity.compact,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(6),
               ),
@@ -1421,7 +1915,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         else
           FilledButton.tonalIcon(
             key: const ValueKey('online-gallery-refresh'),
-            onPressed: refreshAction,
+            onPressed: () => _refreshGallery(state),
             icon: refreshIcon,
             label: Text(
               state.randomEnabled
@@ -1430,7 +1924,9 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             ),
             style: FilledButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              visualDensity: VisualDensity.compact,
+              visualDensity: PlatformCapabilities.current.isMobile
+                  ? VisualDensity.standard
+                  : VisualDensity.compact,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(6),
               ),
@@ -1443,9 +1939,11 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             onPressed: _selectionNotifier.enter,
             style: TextButton.styleFrom(
               foregroundColor: theme.colorScheme.onSurfaceVariant,
-              minimumSize: const Size(0, 40),
+              minimumSize: Size(0, _galleryToolbarControlHeight),
               padding: const EdgeInsets.symmetric(horizontal: 8),
-              visualDensity: VisualDensity.compact,
+              visualDensity: PlatformCapabilities.current.isMobile
+                  ? VisualDensity.standard
+                  : VisualDensity.compact,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(6),
               ),
@@ -1461,7 +1959,9 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             style: TextButton.styleFrom(
               foregroundColor: theme.colorScheme.onSurfaceVariant,
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              visualDensity: VisualDensity.compact,
+              visualDensity: PlatformCapabilities.current.isMobile
+                  ? VisualDensity.standard
+                  : VisualDensity.compact,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(6),
               ),
@@ -1506,7 +2006,9 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
                 ? theme.colorScheme.onPrimaryContainer
                 : theme.colorScheme.onSurfaceVariant,
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-            visualDensity: VisualDensity.compact,
+            visualDensity: PlatformCapabilities.current.isMobile
+                ? VisualDensity.standard
+                : VisualDensity.compact,
           ),
         ),
       ),
@@ -1557,7 +2059,12 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     await _galleryNotifier.setRatings(next);
   }
 
-  Widget _buildSourceSelector(OnlineGalleryState state) {
+  Widget _buildSourceSelector(
+    OnlineGalleryState state, {
+    String? selectedLabel,
+    double maxLabelWidth = 150,
+    bool expandLabel = false,
+  }) {
     return switch (state.viewMode) {
       GalleryViewMode.search => _SourceDropdown(
         selected: state.sourceId,
@@ -1569,6 +2076,9 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           GallerySourceId.quickTagCloud:
               context.l10n.onlineGallery_sourceQuickTagCloud,
         },
+        selectedLabel: selectedLabel,
+        maxLabelWidth: maxLabelWidth,
+        expandLabel: expandLabel,
         onChanged: (source) {
           _saveScrollOffset();
           _galleryNotifier.setSource(source);
@@ -1581,6 +2091,9 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           GallerySourceId.safebooru: 'Safebooru',
           GallerySourceId.aiTag: 'AI TAG',
         },
+        selectedLabel: selectedLabel,
+        maxLabelWidth: maxLabelWidth,
+        expandLabel: expandLabel,
         onChanged: (source) {
           _saveScrollOffset();
           _galleryNotifier.setPopularSource(source);
@@ -1596,6 +2109,9 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           GallerySourceId.quickTagCloud:
               context.l10n.onlineGallery_sourceQuickTagCloud,
         },
+        selectedLabel: selectedLabel,
+        maxLabelWidth: maxLabelWidth,
+        expandLabel: expandLabel,
         onChanged: (source) {
           _saveScrollOffset();
           _galleryNotifier.setFavoritesSource(source);
@@ -1620,7 +2136,9 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           child: Chip(
             avatar: Icon(icon, size: 16),
             label: Text(label),
-            visualDensity: VisualDensity.compact,
+            visualDensity: PlatformCapabilities.current.isMobile
+                ? VisualDensity.standard
+                : VisualDensity.compact,
           ),
         );
       }
@@ -1629,8 +2147,8 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         child: Semantics(
           label: '$label. $tooltip',
           child: Container(
-            width: 40,
-            height: 40,
+            width: _galleryToolbarControlHeight,
+            height: _galleryToolbarControlHeight,
             decoration: BoxDecoration(
               color: theme.colorScheme.surfaceContainerHighest.withValues(
                 alpha: 0.4,
@@ -1701,7 +2219,9 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           alpha: 0.4,
         ),
         padding: EdgeInsets.symmetric(horizontal: compact ? 8 : 12),
-        visualDensity: VisualDensity.compact,
+        visualDensity: PlatformCapabilities.current.isMobile
+            ? VisualDensity.standard
+            : VisualDensity.compact,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
       );
       final button = compact
@@ -1750,37 +2270,132 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
   }
 
   Future<void> _showSourceFilters() async {
-    await showDialog<void>(
+    await AdaptivePresenter.showPanel<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Row(
-          children: [
-            const Icon(Icons.tune_rounded, size: 20),
-            const SizedBox(width: 8),
-            Text(context.l10n.common_filter),
-          ],
-        ),
-        content: SizedBox(
-          width: min(720, MediaQuery.sizeOf(dialogContext).width - 80),
-          child: SingleChildScrollView(
-            child: Consumer(
-              builder: (context, ref, _) {
-                final state = ref.watch(onlineGalleryNotifierProvider);
-                return _buildSecondaryControls(
-                  Theme.of(context),
-                  state,
-                  wrapControls: true,
-                );
-              },
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: Text(context.l10n.common_close),
-          ),
+      initialChildSize: 0.58,
+      minChildSize: 0.36,
+      maxChildSize: 0.92,
+      sideSheetWidth: 480,
+      titleBuilder: (panelContext) => Row(
+        children: [
+          const Icon(Icons.tune_rounded, size: 20),
+          const SizedBox(width: 8),
+          Text(panelContext.l10n.common_filter),
         ],
+      ),
+      builder: (panelContext, scrollController) => Consumer(
+        builder: (context, ref, _) {
+          final state = ref.watch(onlineGalleryNotifierProvider);
+          final blacklist = ref.watch(onlineGalleryBlacklistNotifierProvider);
+          final outputFilter = ref.watch(onlineGalleryOutputFilterProvider);
+          final theme = Theme.of(context);
+          final activeSource = _activeSource(state);
+          final sourceName = switch (activeSource) {
+            GallerySourceId.quickTagCloud =>
+              context.l10n.onlineGallery_sourceQuickTagCloud,
+            _ => activeSource.label,
+          };
+          final isAiTagPromptMode =
+              activeSource == GallerySourceId.aiTag &&
+              state.viewMode != GalleryViewMode.favorites;
+          final promptController = state.viewMode == GalleryViewMode.popular
+              ? _popularPromptSearchController
+              : _promptSearchController;
+          final promptFocusNode = state.viewMode == GalleryViewMode.popular
+              ? _popularPromptSearchFocusNode
+              : _promptSearchFocusNode;
+
+          return Scrollbar(
+            controller: scrollController,
+            thumbVisibility: PlatformCapabilities.current.isMobile,
+            child: ListView(
+              controller: scrollController,
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+              children: [
+                Material(
+                  color: theme.colorScheme.surfaceContainerLow,
+                  borderRadius: BorderRadius.circular(12),
+                  clipBehavior: Clip.antiAlias,
+                  child: Column(
+                    children: [
+                      ListTile(
+                        key: const ValueKey(
+                          'online-gallery-mobile-blacklist-filter',
+                        ),
+                        leading: const Icon(Icons.block_rounded),
+                        title: Text(context.l10n.onlineGallery_blacklistTags),
+                        subtitle: Text(
+                          context.l10n.onlineGallery_blacklistSubtitle,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        trailing: Text(
+                          blacklist.tags.length.toString(),
+                          style: theme.textTheme.labelLarge,
+                        ),
+                        onTap: () => showOnlineGalleryBlacklistDialog(
+                          context,
+                          ref,
+                          sourceId: activeSource,
+                        ),
+                      ),
+                      Divider(height: 1, indent: 56, color: theme.dividerColor),
+                      ListTile(
+                        key: const ValueKey(
+                          'online-gallery-mobile-output-filter',
+                        ),
+                        leading: const Icon(Icons.filter_alt_off_rounded),
+                        title: Text(context.l10n.onlineGallery_outputFilter),
+                        subtitle: Text(
+                          context.l10n.onlineGallery_outputFilterSubtitle,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        trailing: Text(
+                          outputFilter.tags.length.toString(),
+                          style: theme.textTheme.labelLarge,
+                        ),
+                        onTap: () =>
+                            showOnlineGalleryOutputFilterDialog(context),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  sourceName,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                if (isAiTagPromptMode) ...[
+                  SizedBox(
+                    height: _gallerySearchFieldHeight,
+                    child: _buildPlainSearchField(
+                      theme,
+                      controller: promptController,
+                      focusNode: promptFocusNode,
+                      hintText: context.l10n.onlineGallery_aiTagPromptQuery,
+                      icon: Icons.auto_awesome_rounded,
+                      onSubmitted: () => _submitAiTagSearch(state),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                KeyedSubtree(
+                  key: const ValueKey('online-gallery-mobile-source-filters'),
+                  child: _buildSecondaryControls(
+                    theme,
+                    state,
+                    wrapControls: true,
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -1909,7 +2524,9 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             tooltip: context.l10n.common_retry,
             onPressed: state.isLoading ? null : _galleryNotifier.refresh,
             icon: const Icon(Icons.refresh_rounded, size: 17),
-            visualDensity: VisualDensity.compact,
+            visualDensity: PlatformCapabilities.current.isMobile
+                ? VisualDensity.standard
+                : VisualDensity.compact,
           ),
         ],
       ),
@@ -2002,7 +2619,9 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
               backgroundColor: theme.colorScheme.surfaceContainerHighest
                   .withValues(alpha: 0.4),
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-              visualDensity: VisualDensity.compact,
+              visualDensity: PlatformCapabilities.current.isMobile
+                  ? VisualDensity.standard
+                  : VisualDensity.compact,
             ),
           ),
         );
@@ -2077,7 +2696,9 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
                   alpha: 0.4,
                 ),
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          visualDensity: VisualDensity.compact,
+          visualDensity: PlatformCapabilities.current.isMobile
+              ? VisualDensity.standard
+              : VisualDensity.compact,
         ),
       ),
     );
@@ -2168,8 +2789,8 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     }) {
       final content = SizedBox(
         key: const ValueKey('online-gallery-account-avatar'),
-        width: 40,
-        height: 40,
+        width: _galleryToolbarControlHeight,
+        height: _galleryToolbarControlHeight,
         child: Center(
           child: Container(
             width: 34,
@@ -2440,9 +3061,13 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           onSelectionChanged: (selected) {
             _galleryNotifier.setPopularScale(selected.first);
           },
-          style: const ButtonStyle(
-            visualDensity: VisualDensity.compact,
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          style: ButtonStyle(
+            visualDensity: PlatformCapabilities.current.isMobile
+                ? VisualDensity.standard
+                : VisualDensity.compact,
+            tapTargetSize: PlatformCapabilities.current.isMobile
+                ? MaterialTapTargetSize.padded
+                : MaterialTapTargetSize.shrinkWrap,
           ),
         ),
         TextButton.icon(
@@ -2461,7 +3086,9 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             backgroundColor: theme.colorScheme.surfaceContainerHighest
                 .withValues(alpha: 0.4),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            visualDensity: VisualDensity.compact,
+            visualDensity: PlatformCapabilities.current.isMobile
+                ? VisualDensity.standard
+                : VisualDensity.compact,
           ),
         ),
         if (state.popularDate != null)
@@ -2755,34 +3382,46 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
 
   /// 构建图片网格
   Widget _buildImageGrid(ThemeData theme, OnlineGalleryState state) {
-    final screenWidth = MediaQuery.of(context).size.width - 60;
-    final columnCount = (screenWidth / 200).floor().clamp(2, 8);
-    final itemWidth = (screenWidth - 24 - (columnCount - 1) * 6) / columnCount;
-    final viewportHeight = _scrollController.hasClients
-        ? _scrollController.position.viewportDimension
-        : MediaQuery.sizeOf(context).height;
-    _lookaheadItemCount = OnlineGalleryPreloadPolicy.lookaheadItemCount(
-      viewportHeight: viewportHeight,
-      itemWidth: itemWidth,
-      columnCount: columnCount,
-    );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const padding = 24.0;
+        const spacing = 6.0;
+        final availableWidth = (constraints.maxWidth - padding).clamp(
+          0.0,
+          double.infinity,
+        );
+        final columnCount = ((availableWidth + spacing) / (160 + spacing))
+            .floor()
+            .clamp(1, 8);
+        final itemWidth =
+            (availableWidth - (columnCount - 1) * spacing) / columnCount;
+        final viewportHeight = _scrollController.hasClients
+            ? _scrollController.position.viewportDimension
+            : constraints.maxHeight;
+        _lookaheadItemCount = OnlineGalleryPreloadPolicy.lookaheadItemCount(
+          viewportHeight: viewportHeight,
+          itemWidth: itemWidth,
+          columnCount: columnCount,
+        );
 
-    final storageScope = state.randomEnabled
-        ? 'random:${state.randomSession.scopeKey}'
-        : 'normal';
-    return MasonryGridView.count(
-      key: PageStorageKey<String>(
-        'online_gallery_$storageScope:${state.currentCacheKey}',
-      ),
-      controller: _scrollController,
-      cacheExtent: OnlineGalleryPreloadPolicy.cacheExtent(viewportHeight),
-      padding: const EdgeInsets.all(12),
-      crossAxisCount: columnCount,
-      mainAxisSpacing: 6,
-      crossAxisSpacing: 6,
-      itemCount: state.posts.length + 1,
-      itemBuilder: (context, index) =>
-          _buildGridItem(theme, state, index, itemWidth),
+        final storageScope = state.randomEnabled
+            ? 'random:${state.randomSession.scopeKey}'
+            : 'normal';
+        return MasonryGridView.count(
+          key: PageStorageKey<String>(
+            'online_gallery_$storageScope:${state.currentCacheKey}',
+          ),
+          controller: _scrollController,
+          cacheExtent: OnlineGalleryPreloadPolicy.cacheExtent(viewportHeight),
+          padding: const EdgeInsets.all(12),
+          crossAxisCount: columnCount,
+          mainAxisSpacing: spacing,
+          crossAxisSpacing: spacing,
+          itemCount: state.posts.length + 1,
+          itemBuilder: (context, index) =>
+              _buildGridItem(theme, state, index, itemWidth),
+        );
+      },
     );
   }
 
@@ -3694,7 +4333,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     GalleryItem item,
     List<GalleryMedia> mediaItems,
   ) async {
-    final directory = await FilePickerUtils.pickDirectoryModal(
+    final directory = await FileExportService.pickExportDirectory(
       dialogTitle: dialogContext.l10n.onlineGallery_chooseDownloadDirectory,
     );
     if (directory == null) return;
@@ -3720,24 +4359,19 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           RegExp(r'[^A-Za-z0-9._-]+'),
           '_',
         );
-        final extensionCandidate =
-            media.extension ??
-            path.extension(Uri.parse(url).path).replaceFirst('.', '');
-        final extension =
-            RegExp(r'^[A-Za-z0-9]{1,10}$').hasMatch(extensionCandidate)
-            ? extensionCandidate.toLowerCase()
-            : 'webp';
-        await file.copy(
-          path.join(
-            directory,
-            '${item.sourceId.key}_${safeWorkId}_$safeMediaId.$extension',
-          ),
+        final extension = _resolveGalleryDownloadExtension(media, url);
+        await FileExportService.writeFileToDirectory(
+          directory: directory,
+          sourcePath: file.path,
+          fileName:
+              '${item.sourceId.key}_${safeWorkId}_$safeMediaId.$extension',
+          mimeType: mediaMimeTypeForExtension(extension),
         );
       }
       if (dialogContext.mounted) {
         AppToast.success(
           dialogContext,
-          dialogContext.l10n.onlineGallery_savedToPath(directory),
+          dialogContext.l10n.onlineGallery_savedFiles(mediaItems.length),
         );
       }
     } catch (error) {
@@ -3947,10 +4581,6 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     GalleryItem item,
     GalleryMedia media,
   ) async {
-    final directory = await FilePickerUtils.pickDirectoryModal(
-      dialogTitle: dialogContext.l10n.onlineGallery_chooseDownloadDirectory,
-    );
-    if (directory == null) return;
     final url = media.downloadUrl;
     try {
       final file = await OnlineGalleryImageCacheManager.instance.getSingleFile(
@@ -3958,27 +4588,25 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         key: onlineGalleryImageCacheKeyForUrl(url),
         headers: onlineGalleryImageHeadersForUrl(url),
       );
+      if (!dialogContext.mounted) return;
       final safeWorkId = item.sourceWorkId.replaceAll(
         RegExp(r'[^A-Za-z0-9._-]+'),
         '_',
       );
-      final extensionCandidate =
-          media.extension ??
-          path.extension(Uri.parse(url).path).replaceFirst('.', '');
-      final extension =
-          RegExp(r'^[A-Za-z0-9]{1,10}$').hasMatch(extensionCandidate)
-          ? extensionCandidate.toLowerCase()
-          : 'webp';
+      final extension = _resolveGalleryDownloadExtension(media, url);
       final safeMediaId = media.id.replaceAll(RegExp(r'[^A-Za-z0-9._-]+'), '_');
-      final destination = path.join(
-        directory,
-        '${item.sourceId.key}_${safeWorkId}_$safeMediaId.$extension',
+      final savedLocation = await FileExportService.saveFileFromPath(
+        sourcePath: file.path,
+        fileName: '${item.sourceId.key}_${safeWorkId}_$safeMediaId.$extension',
+        dialogTitle: dialogContext.l10n.onlineGallery_chooseDownloadDirectory,
+        mimeType: mediaMimeTypeForExtension(extension),
+        allowedExtensions: [extension],
       );
-      await file.copy(destination);
+      if (savedLocation == null) return;
       if (dialogContext.mounted) {
         AppToast.success(
           dialogContext,
-          dialogContext.l10n.onlineGallery_savedToPath(destination),
+          dialogContext.l10n.onlineGallery_savedFiles(1),
         );
       }
     } catch (error) {
@@ -4236,7 +4864,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
 
     String? result;
     try {
-      result = await FilePickerUtils.pickDirectoryModal(
+      result = await FileExportService.pickExportDirectory(
         dialogTitle: context.l10n.onlineGallery_chooseDownloadDirectory,
       );
     } catch (e) {
@@ -4387,18 +5015,19 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
                   key: onlineGalleryImageCacheKeyForUrl(url),
                   headers: onlineGalleryImageHeadersForUrl(url),
                 );
-            final extension =
-                job.media.extension ??
-                path.extension(Uri.parse(url).path).replaceFirst('.', '');
+            final extension = _resolveGalleryDownloadExtension(job.media, url);
             final safeWorkId = job.post.sourceWorkId.replaceAll(
               RegExp(r'[^A-Za-z0-9._-]+'),
               '_',
             );
-            final destination = path.join(
-              destinationDir,
-              '${job.post.sourceId.key}_${safeWorkId}_p${job.mediaIndex.toString().padLeft(2, '0')}.${extension.isEmpty ? 'webp' : extension}',
+            final resolvedExtension = extension.isEmpty ? 'webp' : extension;
+            await FileExportService.writeFileToDirectory(
+              directory: destinationDir,
+              sourcePath: file.path,
+              fileName:
+                  '${job.post.sourceId.key}_${safeWorkId}_p${job.mediaIndex.toString().padLeft(2, '0')}.$resolvedExtension',
+              mimeType: mediaMimeTypeForExtension(resolvedExtension),
             );
-            await file.copy(destination);
             successCount++;
           } catch (error) {
             failCount++;
@@ -4491,7 +5120,9 @@ class _ModeButton extends StatelessWidget {
                 : selectedBackgroundColor.withValues(alpha: 0.08),
             focusColor: selectedBackgroundColor.withValues(alpha: 0.14),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(minHeight: 40),
+              constraints: BoxConstraints(
+                minHeight: _galleryToolbarControlHeight,
+              ),
               child: Padding(
                 padding: EdgeInsets.symmetric(horizontal: compact ? 10 : 14),
                 child: Row(
@@ -4526,11 +5157,17 @@ class _ModeButton extends StatelessWidget {
 class _SourceDropdown extends StatelessWidget {
   final GallerySourceId selected;
   final Map<GallerySourceId, String> sources;
+  final String? selectedLabel;
+  final double maxLabelWidth;
+  final bool expandLabel;
   final ValueChanged<GallerySourceId> onChanged;
 
   const _SourceDropdown({
     required this.selected,
     required this.sources,
+    this.selectedLabel,
+    this.maxLabelWidth = 150,
+    this.expandLabel = false,
     required this.onChanged,
   });
 
@@ -4540,7 +5177,7 @@ class _SourceDropdown extends StatelessWidget {
     return PopupMenuButton<GallerySourceId>(
       key: const ValueKey('online-gallery-source-selector'),
       onSelected: onChanged,
-      offset: const Offset(0, 44),
+      offset: Offset(0, _galleryToolbarControlHeight + 4),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       itemBuilder: (context) => sources.entries.map((e) {
         final isSelected = selected == e.key;
@@ -4563,7 +5200,7 @@ class _SourceDropdown extends StatelessWidget {
         );
       }).toList(),
       child: Container(
-        height: 40,
+        height: _galleryToolbarControlHeight,
         padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
           color: theme.colorScheme.surfaceContainerHighest.withValues(
@@ -4574,19 +5211,33 @@ class _SourceDropdown extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 150),
-              child: Text(
-                sources[selected] ?? selected.label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: theme.colorScheme.onSurfaceVariant,
+            if (expandLabel)
+              Expanded(
+                child: Text(
+                  selectedLabel ?? sources[selected] ?? selected.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              )
+            else
+              ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: maxLabelWidth),
+                child: Text(
+                  selectedLabel ?? sources[selected] ?? selected.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ),
-            ),
             const SizedBox(width: 4),
             Icon(
               Icons.arrow_drop_down,
@@ -4627,8 +5278,12 @@ class _FuzzySearchToggle extends StatelessWidget {
       ),
       tooltip: context.l10n.onlineGallery_fuzzySearchTooltip,
       onSelected: onChanged,
-      visualDensity: VisualDensity.compact,
-      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      visualDensity: PlatformCapabilities.current.isMobile
+          ? VisualDensity.standard
+          : VisualDensity.compact,
+      materialTapTargetSize: PlatformCapabilities.current.isMobile
+          ? MaterialTapTargetSize.padded
+          : MaterialTapTargetSize.shrinkWrap,
       labelPadding: const EdgeInsets.symmetric(horizontal: 2),
       padding: const EdgeInsets.symmetric(horizontal: 4),
       selectedColor: theme.colorScheme.secondaryContainer,
@@ -4740,7 +5395,9 @@ class _DateRangePopupState extends State<_DateRangePopup> {
                   IconButton(
                     onPressed: widget.onClose,
                     icon: const Icon(Icons.close, size: 18),
-                    visualDensity: VisualDensity.compact,
+                    visualDensity: PlatformCapabilities.current.isMobile
+                        ? VisualDensity.standard
+                        : VisualDensity.compact,
                     tooltip: context.l10n.common_close,
                   ),
                 ],
@@ -4947,7 +5604,7 @@ class _RatingDropdown extends StatelessWidget {
       }).toList(),
       tooltip: buttonText(),
       child: Container(
-        height: 40,
+        height: _galleryToolbarControlHeight,
         padding: EdgeInsets.symmetric(horizontal: compact ? 8 : 10),
         decoration: BoxDecoration(
           color: theme.colorScheme.surfaceContainerHighest.withValues(

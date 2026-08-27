@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -143,6 +144,113 @@ void main() {
       expect(settingsCount, 1);
     },
   );
+
+  testWidgets('phone layout keeps tag details readable in two rows', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      debugDefaultTargetPlatformOverride = null;
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    final scrollController = ScrollController();
+    addTearDown(scrollController.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('zh'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 360,
+              child: CompletionOverlay(
+                state: const CompletionState(
+                  query: CompletionQuery(
+                    fullText: 'character_',
+                    cursorPosition: 10,
+                    token: 'character_',
+                    replacementRange: TextReplacementRange(start: 0, end: 10),
+                    existingTags: {},
+                    limit: 20,
+                    locale: 'zh-CN',
+                  ),
+                  candidates: [
+                    CompletionCandidate(
+                      canonicalTag: 'extremely_long_character_name',
+                      category: TagCategory.character,
+                      postCount: 125000,
+                      translation: '很长的角色中文翻译',
+                      matchKind: CompletionMatchKind.englishPrefix,
+                      sources: {
+                        CompletionSourceKind.base,
+                        CompletionSourceKind.zhDictionary,
+                        CompletionSourceKind.danbooruApi,
+                      },
+                    ),
+                  ],
+                ),
+                selectedIndex: 0,
+                maxHeight: 320,
+                scrollController: scrollController,
+                settings: const AutocompleteSettings(),
+                dictionaryState: const ZhDictionaryState(
+                  isInstalled: true,
+                  tagCount: 200000,
+                ),
+                showAliases: true,
+                showTranslations: true,
+                showCategory: true,
+                showCount: true,
+                onSelected: (_) {},
+                onClose: () {},
+                onOpenSettings: () {},
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final tag = find.text('extremely_long_character_name');
+    final translation = find.text('很长的角色中文翻译');
+    expect(tag, findsOneWidget);
+    expect(translation, findsOneWidget);
+    expect(
+      tester.getTopLeft(tag).dy,
+      lessThan(tester.getTopLeft(translation).dy),
+    );
+    expect(find.text('BASE'), findsOneWidget);
+    expect(find.text('ZH'), findsNothing);
+    expect(find.text('+2'), findsOneWidget);
+    expect(find.byIcon(Icons.keyboard_alt_outlined), findsNothing);
+    expect(
+      tester
+          .getSize(
+            find.byKey(
+              const ValueKey(
+                'autocomplete-candidate-extremely_long_character_name',
+              ),
+            ),
+          )
+          .height,
+      48,
+    );
+    expect(
+      tester.getSize(find.byKey(const ValueKey('autocomplete-popup-close'))),
+      const Size(48, 48),
+    );
+    final surface = tester.widget<DecoratedBox>(
+      find.byKey(const ValueKey('autocomplete-popup-surface')),
+    );
+    expect((surface.decoration as BoxDecoration).border, isNotNull);
+    expect(tester.takeException(), isNull);
+    debugDefaultTargetPlatformOverride = null;
+  });
 
   testWidgets(
     'presents related mode, Jaccard strength, and local source status',

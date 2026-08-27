@@ -50,6 +50,8 @@ class StorageKeys {
   static const String promptAreaHeight = 'prompt_area_height';
   static const String promptMaximized = 'prompt_maximized';
   static const String generationLayoutMode = 'generation_layout_mode';
+  static const String mobileGenerationGestureHintCompleted =
+      'mobile_generation_gesture_hint_completed';
   static const String historyClickBehavior = 'history_click_behavior';
   static const String previewTransparencyBackground =
       'preview_transparency_background';

@@ -170,36 +170,47 @@ class _VibeCardState extends ConsumerState<VibeCard> {
     bool compact = false,
   }) {
     final status = _buildEncodingStatusChip(context, theme);
-    final actions = _buildActions(context, theme);
     if (compact) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Align(alignment: Alignment.centerLeft, child: status),
-          const SizedBox(height: 4),
-          Align(alignment: Alignment.centerRight, child: actions),
+          Row(
+            children: [
+              Expanded(
+                child: Align(alignment: Alignment.centerLeft, child: status),
+              ),
+              const SizedBox(width: 4),
+              _buildEnabledSwitch(context),
+            ],
+          ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: _buildIconActions(context, theme),
+          ),
         ],
       );
     }
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
-      children: [status, const Spacer(), actions],
+      children: [
+        status,
+        const Spacer(),
+        _buildEnabledSwitch(context),
+        const SizedBox(width: 4),
+        _buildIconActions(context, theme),
+      ],
     );
   }
 
-  Widget _buildActions(BuildContext context, ThemeData theme) {
+  Widget _buildIconActions(BuildContext context, ThemeData theme) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _buildEnabledSwitch(context),
-        const SizedBox(width: 4),
-        SizedBox(
-          width: 28,
-          height: 28,
+        SizedBox.square(
+          dimension: 48,
           child: IconButton(
             key: Key('vibe-card-save-to-library-${widget.index}'),
-            padding: EdgeInsets.zero,
             icon: Icon(
               Icons.bookmark_add_outlined,
               size: 18,
@@ -209,12 +220,10 @@ class _VibeCardState extends ConsumerState<VibeCard> {
             tooltip: context.l10n.vibeLibrary_save,
           ),
         ),
-        SizedBox(
-          width: 28,
-          height: 28,
+        SizedBox.square(
+          dimension: 48,
           child: IconButton(
             key: Key('vibe-card-remove-${widget.index}'),
-            padding: EdgeInsets.zero,
             icon: Icon(
               Icons.delete_outline,
               size: 18,
@@ -263,18 +272,10 @@ class _VibeCardState extends ConsumerState<VibeCard> {
       message: vibe.enabled
           ? context.l10n.reference_disable
           : context.l10n.reference_enable,
-      child: SizedBox(
-        width: 40,
-        height: 28,
-        child: FittedBox(
-          fit: BoxFit.contain,
-          child: Switch(
-            key: ValueKey('vibe-enabled-switch-${widget.index}'),
-            value: vibe.enabled,
-            onChanged: widget.onEnabledChanged,
-            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          ),
-        ),
+      child: Switch(
+        key: ValueKey('vibe-enabled-switch-${widget.index}'),
+        value: vibe.enabled,
+        onChanged: widget.onEnabledChanged,
       ),
     );
   }

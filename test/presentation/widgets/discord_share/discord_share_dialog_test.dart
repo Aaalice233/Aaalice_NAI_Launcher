@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -111,6 +112,47 @@ void main() {
         longPromptAsFile: true,
       ),
     ).called(greaterThanOrEqualTo(1));
+  });
+
+  testWidgets('hides transport exception details in verification state', (
+    tester,
+  ) async {
+    final service = _MockDiscordShareService();
+    when(() => service.loadPromptCategoryIds()).thenReturn(null);
+    when(() => service.loadIncludeMetadataPreference()).thenReturn(false);
+    when(() => service.loadLongPromptAsFilePreference()).thenReturn(true);
+    when(() => service.loadSession()).thenThrow(
+      DioException(
+        requestOptions: RequestOptions(path: 'https://private-relay.test'),
+        message: 'Failed host lookup: private-relay.test',
+      ),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [discordShareServiceProvider.overrideWithValue(service)],
+        child: MaterialApp(
+          locale: const Locale('zh'),
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: DiscordShareDialog(
+            imageBytes: _onePixelPng,
+            fileName: 'result.png',
+            metadata: null,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('无法连接 Discord 分享服务，请检查网络后重试'), findsOneWidget);
+    expect(find.textContaining('DioException'), findsNothing);
+    expect(find.textContaining('private-relay.test'), findsNothing);
   });
 }
 

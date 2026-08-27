@@ -103,7 +103,8 @@ class _EditorCanvasState extends State<EditorCanvas>
                   valueListenable: widget.state.toolNotifier,
                   builder: (context, toolId, _) {
                     // Alt 模式或拾色器工具时都显示拾色器界面
-                    final isColorPicker = toolId == 'color_picker' ||
+                    final isColorPicker =
+                        toolId == 'color_picker' ||
                         _inputHandler.keyboard.isAltPressed;
                     final cursorPosition = _inputHandler.cursorPosition;
 
@@ -113,9 +114,7 @@ class _EditorCanvasState extends State<EditorCanvas>
                           // 背景 - 独立重绘区域（静态内容）
                           Positioned.fill(
                             child: RepaintBoundary(
-                              child: Container(
-                                color: Colors.grey.shade800,
-                              ),
+                              child: Container(color: Colors.grey.shade800),
                             ),
                           ),
 
@@ -215,6 +214,7 @@ class _EditorCanvasState extends State<EditorCanvas>
     if (_suppressedPointers.remove(event.pointer)) {
       return;
     }
+    _inputHandler.handlePointerCancel(event);
   }
 
   bool _shouldSuppressPointer(PointerDownEvent event) {

@@ -29,6 +29,7 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
   Timer? _networkRecoveryProbeTimer;
   bool _isNetworkRecoveryProbing = false;
   int _networkFailureCount = 0;
+  bool _isAppForeground = true;
 
   /// 自动刷新间隔
   static const Duration _refreshInterval = Duration(seconds: 30);
@@ -151,6 +152,10 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
 
   void _scheduleNextRefresh(Duration delay) {
     _refreshTimer?.cancel();
+    if (!_isAppForeground) {
+      _refreshTimer = null;
+      return;
+    }
     AppLogger.d(
       'Scheduling next subscription refresh in ${delay.inSeconds}s',
       'Subscription',
@@ -199,7 +204,7 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
   }
 
   void _startNetworkRecoveryProbe() {
-    if (_networkRecoveryProbeTimer != null) {
+    if (!_isAppForeground || _networkRecoveryProbeTimer != null) {
       return;
     }
 
@@ -236,6 +241,24 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
       AppLogger.d('Stopping network recovery probe', 'Subscription');
       _networkRecoveryProbeTimer?.cancel();
       _networkRecoveryProbeTimer = null;
+    }
+  }
+
+  /// Stops periodic network work while the app is backgrounded and performs
+  /// one fresh synchronization when it returns to the foreground.
+  void setAppForeground(bool isForeground) {
+    if (_isAppForeground == isForeground) return;
+    _isAppForeground = isForeground;
+
+    if (!isForeground) {
+      _stopAutoRefresh();
+      _stopNetworkRecoveryProbe();
+      return;
+    }
+
+    if (_previousAuthState?.isAuthenticated == true) {
+      _networkFailureCount = 0;
+      _scheduleNextRefresh(Duration.zero);
     }
   }
 
