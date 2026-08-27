@@ -31,12 +31,14 @@ class AgentChatPanel extends ConsumerStatefulWidget {
     this.onOpenSettings,
     this.mobile = false,
     this.fullScreen = false,
+    this.mobileHeaderWrapper,
   });
 
   final VoidCallback? onClose;
   final VoidCallback? onOpenSettings;
   final bool mobile;
   final bool fullScreen;
+  final Widget Function(Widget child)? mobileHeaderWrapper;
 
   @override
   ConsumerState<AgentChatPanel> createState() => _AgentChatPanelState();
@@ -551,8 +553,11 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
   ) {
     final sessionActionsEnabled = canManageAgentChatSessions(state);
     final onClose = widget.onClose;
+    final headerHeight = MediaQuery.textScalerOf(
+      context,
+    ).scale(48).clamp(48.0, 72.0);
 
-    return Padding(
+    final header = Padding(
       key: const ValueKey('agent-chat-mobile-header'),
       padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
       child: Row(
@@ -577,7 +582,7 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
           const SizedBox(width: 4),
           Expanded(
             child: SizedBox(
-              height: 48,
+              height: headerHeight,
               child: _buildSessionSelector(
                 theme,
                 l10n,
@@ -599,6 +604,7 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
         ],
       ),
     );
+    return widget.mobileHeaderWrapper?.call(header) ?? header;
   }
 
   Widget _buildPermissionModeButton(

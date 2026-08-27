@@ -1,11 +1,8 @@
-import 'dart:io';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
-import 'package:nai_launcher/core/constants/storage_keys.dart';
+import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/data/models/user/user_subscription.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/account_manager_provider.dart';
@@ -16,6 +13,29 @@ import 'package:nai_launcher/presentation/screens/settings/sections/appearance_s
 import 'package:nai_launcher/presentation/screens/settings/sections/integrations_settings_section.dart';
 import 'package:nai_launcher/presentation/screens/settings/sections/prompt_assistant_settings_section.dart';
 import 'package:nai_launcher/presentation/screens/settings/settings_screen.dart';
+
+class _MemoryLocalStorage extends LocalStorageService {
+  final Map<String, Object?> _values = {};
+
+  @override
+  T? getSetting<T>(String key, {T? defaultValue}) =>
+      (_values[key] as T?) ?? defaultValue;
+
+  @override
+  Future<void> setSetting<T>(String key, T value) async {
+    _values[key] = value;
+  }
+
+  @override
+  Future<void> setSettings(Map<String, Object?> values) async {
+    _values.addAll(values);
+  }
+
+  @override
+  Future<void> deleteSetting(String key) async {
+    _values.remove(key);
+  }
+}
 
 class _FakeAuthNotifier extends AuthNotifier {
   @override
@@ -33,23 +53,10 @@ class _FakeSubscriptionNotifier extends SubscriptionNotifier {
 }
 
 void main() {
-  late Directory hiveDir;
+  late _MemoryLocalStorage storage;
 
-  setUpAll(() async {
-    hiveDir = Directory.systemTemp.createTempSync('settings_screen_hive_');
-    Hive.init(hiveDir.path);
-    await Hive.openBox(StorageKeys.settingsBox);
-  });
-
-  setUp(() async {
-    await Hive.box(StorageKeys.settingsBox).clear();
-  });
-
-  tearDownAll(() async {
-    await Hive.close();
-    if (await hiveDir.exists()) {
-      await hiveDir.delete(recursive: true);
-    }
+  setUp(() {
+    storage = _MemoryLocalStorage();
   });
 
   testWidgets('设置页导航为 9 个分类', (tester) async {
@@ -60,6 +67,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          localStorageServiceProvider.overrideWithValue(storage),
           authNotifierProvider.overrideWith(_FakeAuthNotifier.new),
           accountManagerNotifierProvider.overrideWith(
             _FakeAccountManagerNotifier.new,
@@ -169,6 +177,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          localStorageServiceProvider.overrideWithValue(storage),
           authNotifierProvider.overrideWith(_FakeAuthNotifier.new),
           accountManagerNotifierProvider.overrideWith(
             _FakeAccountManagerNotifier.new,
@@ -228,11 +237,20 @@ void main() {
   testWidgets('紧凑布局使用单页分类并由系统返回手势回到列表', (tester) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.android;
     await tester.binding.setSurfaceSize(const Size(390, 820));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
+    addTearDown(() {
+      debugDefaultTargetPlatformOverride = null;
+      return tester.binding.setSurfaceSize(null);
+    });
+
+    Future<void> pumpTransition() async {
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+    }
 
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          localStorageServiceProvider.overrideWithValue(storage),
           authNotifierProvider.overrideWith(_FakeAuthNotifier.new),
           accountManagerNotifierProvider.overrideWith(
             _FakeAccountManagerNotifier.new,
@@ -249,37 +267,37 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await pumpTransition();
 
     expect(find.byType(NavigationRail), findsNothing);
     expect(find.text('账户'), findsOneWidget);
     expect(find.text('关于'), findsOneWidget);
 
     await tester.tap(find.text('外观'));
-    await tester.pumpAndSettle();
+    await pumpTransition();
 
     expect(find.byType(AppearanceSettingsSection), findsOneWidget);
     expect(find.text('外观'), findsOneWidget);
     expect(find.bySemanticsLabel('外观'), findsWidgets);
 
     await tester.binding.handlePopRoute();
-    await tester.pumpAndSettle();
+    await pumpTransition();
 
     await tester.tap(find.text('账户'));
-    await tester.pumpAndSettle();
+    await pumpTransition();
 
     expect(find.byType(AccountSettingsSection), findsOneWidget);
     expect(find.byType(BackButton), findsOneWidget);
 
     await tester.binding.handlePopRoute();
-    await tester.pumpAndSettle();
+    await pumpTransition();
 
     expect(find.byType(AccountSettingsSection), findsNothing);
     expect(find.text('账户'), findsOneWidget);
     expect(find.text('关于'), findsOneWidget);
 
     await tester.tap(find.text('集成'));
-    await tester.pumpAndSettle();
+    await pumpTransition();
 
     final integrations = find.byType(IntegrationsSettingsSection);
     expect(integrations, findsOneWidget);
@@ -296,7 +314,7 @@ void main() {
     expect(find.text('桌面浮层交互'), findsNothing);
 
     await tester.binding.handlePopRoute();
-    await tester.pumpAndSettle();
+    await pumpTransition();
     expect(find.byType(IntegrationsSettingsSection), findsNothing);
     expect(find.text('集成'), findsOneWidget);
     debugDefaultTargetPlatformOverride = null;

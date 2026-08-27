@@ -293,6 +293,8 @@
   "settings_setAsDefaultSuccess": "Set as default account",
 
   "generation_title": "Generate",
+  "generation_gestureEditPrompt": "Swipe down to edit prompt",
+  "generation_gestureOpenAgent": "Swipe up to open AI assistant",
   "generation_promptOverviewCharacters": "{count} chars",
   "@generation_promptOverviewCharacters": {
     "placeholders": {

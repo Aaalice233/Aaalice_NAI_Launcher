@@ -764,6 +764,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get generation_title => 'Generate';
 
   @override
+  String get generation_gestureEditPrompt => 'Swipe down to edit prompt';
+
+  @override
+  String get generation_gestureOpenAgent => 'Swipe up to open AI assistant';
+
+  @override
   String generation_promptOverviewCharacters(Object count) {
     return '$count chars';
   }

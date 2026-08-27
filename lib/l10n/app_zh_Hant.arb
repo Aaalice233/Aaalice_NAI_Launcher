@@ -274,6 +274,8 @@
   "settings_avatarRemoved": "頭像已移除",
   "settings_setAsDefaultSuccess": "已設為預設賬號",
   "generation_title": "生成",
+  "generation_gestureEditPrompt": "下滑編輯提示詞",
+  "generation_gestureOpenAgent": "上滑開啟 AI 助手",
   "generation_promptOverviewCharacters": "{count} 字",
   "@generation_promptOverviewCharacters": {
     "placeholders": {

@@ -429,29 +429,35 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
   }
 
   Widget _buildEmptyState(ThemeData theme, BuildContext context) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(
-          Icons.image_outlined,
-          size: 80,
-          color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.65),
-        ),
-        const SizedBox(height: 16),
-        Text(
-          context.l10n.generation_emptyPromptHint,
-          style: theme.textTheme.bodyLarge?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.image_outlined,
+            size: 80,
+            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.65),
           ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          context.l10n.generation_imageWillShowHere,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.75),
+          const SizedBox(height: 16),
+          Text(
+            context.l10n.generation_emptyPromptHint,
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodyLarge?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
-        ),
-      ],
+          const SizedBox(height: 8),
+          Text(
+            context.l10n.generation_imageWillShowHere,
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.75),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

@@ -738,6 +738,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get generation_title => '生成';
 
   @override
+  String get generation_gestureEditPrompt => '下滑编辑提示词';
+
+  @override
+  String get generation_gestureOpenAgent => '上滑打开 AI 助手';
+
+  @override
   String generation_promptOverviewCharacters(Object count) {
     return '$count 字';
   }
@@ -13367,6 +13373,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get generation_title => '生成';
+
+  @override
+  String get generation_gestureEditPrompt => '下滑編輯提示詞';
+
+  @override
+  String get generation_gestureOpenAgent => '上滑開啟 AI 助手';
 
   @override
   String generation_promptOverviewCharacters(Object count) {
