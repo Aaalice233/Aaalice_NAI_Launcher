@@ -256,6 +256,41 @@ Legacy instructions.
       });
     });
 
+    test('rewinds the main lane before the latest user message', () async {
+      final notifier = container.read(provider.notifier);
+      final repo = JsonlSessionRepo(tempDir);
+      final firstId = container.read(provider).activeSessionId;
+      final firstMetadata = (await repo.list()).single;
+      final firstSession = await repo.open(firstMetadata);
+      await firstSession.appendMessage(UserMessage.text('first request'));
+      await firstSession.appendMessage(_assistant(const Usage()));
+      await firstSession.appendMessage(UserMessage.text('second request'));
+      await firstSession.appendMessage(_assistant(const Usage()));
+
+      await notifier.newSession();
+      await notifier.switchSession(firstId);
+      expect(container.read(provider).messages, hasLength(4));
+
+      final rewound = await notifier.rewindLastUserMessage();
+
+      expect(rewound?.text, 'second request');
+      expect(container.read(provider).messages.map((message) => message.role), [
+        'user',
+        'assistant',
+      ]);
+      expect(container.read(provider).sessionTransitioning, isFalse);
+
+      final reopenedRepo = JsonlSessionRepo(tempDir);
+      final reopenedMetadata = (await reopenedRepo.list()).firstWhere(
+        (metadata) => metadata.id == firstId,
+      );
+      final reopened = await reopenedRepo.open(reopenedMetadata);
+      final mainBranch = await reopened.findEntriesOnBranch();
+      final allEntries = await reopened.findEntries();
+      expect(mainBranch.whereType<MessageEntry>(), hasLength(2));
+      expect(allEntries.whereType<MessageEntry>(), hasLength(4));
+    });
+
     test('serializes concurrent session creation', () async {
       final notifier = container.read(provider.notifier);
       final before = container.read(provider).sessions.length;

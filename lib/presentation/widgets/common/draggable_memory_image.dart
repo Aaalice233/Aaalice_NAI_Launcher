@@ -21,6 +21,7 @@ class DraggableMemoryImage extends ConsumerStatefulWidget {
     required this.child,
     this.fileName = 'history.png',
     this.imageId,
+    this.localData,
     this.sourceFilePath,
     this.enabled = true,
     this.requirePreparedDragFile = false,
@@ -39,6 +40,7 @@ class DraggableMemoryImage extends ConsumerStatefulWidget {
   final Widget child;
   final String fileName;
   final String? imageId;
+  final Object? localData;
   final String? sourceFilePath;
   final bool enabled;
   final bool requirePreparedDragFile;
@@ -172,7 +174,8 @@ class _DraggableMemoryImageState extends ConsumerState<DraggableMemoryImage> {
 
     final item = DragItem(
       suggestedName: widget.fileName,
-      localData: buildHistoryInternalDragLocalData(widget.imageId),
+      localData:
+          widget.localData ?? buildHistoryInternalDragLocalData(widget.imageId),
     );
 
     final preparedFile = widget.preparedDragFile;

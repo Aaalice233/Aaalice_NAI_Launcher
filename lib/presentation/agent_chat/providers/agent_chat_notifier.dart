@@ -1086,6 +1086,45 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     );
   }
 
+  /// 将主分支回退到最后一条用户消息之前，并返回该消息供输入框恢复。
+  ///
+  /// 原条目仍保留在会话树中，只移动 main lane 指针；后续发送会从回退点
+  /// 建立新分支，与 `/rewind` 的语义一致。
+  Future<UserMessage?> rewindLastUserMessage() async {
+    UserMessage? rewoundMessage;
+    try {
+      await _runSessionTransition(() async {
+        final session = _session;
+        final sessionId = state.activeSessionId;
+        if (session is! Session || sessionId.isEmpty) {
+          return;
+        }
+        final entries = await session.findEntriesOnBranch(
+          const session_types.EntryQuery(
+            order: session_types.EntryOrder.oldestFirst,
+          ),
+        );
+        session_types.MessageEntry? target;
+        for (final entry in entries.reversed) {
+          if (entry is session_types.MessageEntry &&
+              entry.message is UserMessage) {
+            target = entry;
+            break;
+          }
+        }
+        if (target == null) {
+          return;
+        }
+        rewoundMessage = target.message as UserMessage;
+        await session.moveLane('main', target.parentId);
+        await _activateSession(sessionId);
+      }, loadsContent: true);
+    } catch (e) {
+      AppLogger.w('rewind last user message failed: $e', 'AgentChat');
+    }
+    return rewoundMessage;
+  }
+
   /// 删除指定会话；删除当前会话时自动切到最近剩余会话（无则新建）。
   Future<void> deleteSession(String sessionId) {
     if (sessionId.isEmpty) {
