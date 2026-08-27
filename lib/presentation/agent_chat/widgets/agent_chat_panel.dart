@@ -11,6 +11,9 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import '../../../../core/agent/agent_types.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/nai_resolution_adapter.dart';
+import '../../utils/image_detail_opener.dart';
+import '../../widgets/common/image_card_hover_motion.dart';
+import '../../widgets/common/image_detail/file_image_detail_data.dart';
 import '../../widgets/common/themed_confirm_dialog.dart';
 import '../../widgets/common/themed_input_dialog.dart';
 import '../../prompt_assistant/models/prompt_assistant_models.dart';
@@ -389,7 +392,9 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
         _buildSessionRow(theme, l10n, state),
         const Divider(height: 1),
         Expanded(
-          child: isEmpty && !state.routeReady
+          child: !state.initialized || state.sessionContentLoading
+              ? _buildSessionLoading(l10n)
+              : isEmpty && !state.routeReady
               ? _buildSetupHint(theme, state)
               : isEmpty
               ? _buildHero(theme, l10n, state)
@@ -904,6 +909,21 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
               textAlign: TextAlign.center,
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSessionLoading(AppLocalizations l10n) {
+    return Center(
+      child: Semantics(
+        liveRegion: true,
+        label: l10n.common_loading,
+        child: const SizedBox(
+          key: ValueKey('agent-chat-session-loading'),
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(strokeWidth: 2),
         ),
       ),
     );
@@ -2001,55 +2021,261 @@ class _AgentChatInputController extends TextEditingController {
   }
 }
 
+class _AgentToolVisual {
+  const _AgentToolVisual({required this.icon, required this.color});
+
+  final IconData icon;
+  final Color color;
+}
+
+_AgentToolVisual _agentToolVisual(ThemeData theme, String toolName) {
+  final colors = theme.colorScheme;
+  Color muted(Color accent) =>
+      Color.lerp(colors.onSurfaceVariant, accent, 0.36)!;
+  final primary = muted(colors.primary);
+  final secondary = muted(colors.secondary);
+  final tertiary = muted(colors.tertiary);
+  final imageColor = muted(Color.lerp(colors.primary, colors.tertiary, 0.55)!);
+  final settingsColor = muted(
+    Color.lerp(colors.primary, colors.secondary, 0.5)!,
+  );
+  final skillColor = muted(Color.lerp(colors.secondary, colors.tertiary, 0.5)!);
+  final tagColor = muted(Color.lerp(colors.secondary, colors.error, 0.22)!);
+  final readColor = muted(Color.lerp(colors.tertiary, colors.onSurface, 0.3)!);
+  return switch (toolName) {
+    'generate_image' => _AgentToolVisual(
+      icon: Icons.auto_awesome,
+      color: primary,
+    ),
+    'queue_image_task' => _AgentToolVisual(
+      icon: Icons.schedule_send_outlined,
+      color: primary,
+    ),
+    'interrogate_image' => _AgentToolVisual(
+      icon: Icons.image_search_outlined,
+      color: imageColor,
+    ),
+    'get_recent_images' => _AgentToolVisual(
+      icon: Icons.photo_library_outlined,
+      color: imageColor,
+    ),
+    'get_generation_status' => _AgentToolVisual(
+      icon: Icons.monitor_heart_outlined,
+      color: imageColor,
+    ),
+    'get_generation_settings' || 'update_generation_settings' =>
+      _AgentToolVisual(icon: Icons.tune, color: settingsColor),
+    'get_prompt_state' => _AgentToolVisual(
+      icon: Icons.notes_outlined,
+      color: secondary,
+    ),
+    'set_positive_prompt' || 'set_negative_prompt' => _AgentToolVisual(
+      icon: Icons.edit_note,
+      color: secondary,
+    ),
+    'add_character' => _AgentToolVisual(
+      icon: Icons.person_add_alt_1_outlined,
+      color: tertiary,
+    ),
+    'update_character' => _AgentToolVisual(
+      icon: Icons.manage_accounts_outlined,
+      color: tertiary,
+    ),
+    'remove_character' => _AgentToolVisual(
+      icon: Icons.person_remove_outlined,
+      color: tertiary,
+    ),
+    'read_skill' || 'read_skill_resource' || 'get_skill_diagnostics' =>
+      _AgentToolVisual(icon: Icons.extension_outlined, color: skillColor),
+    'reload_skills' => _AgentToolVisual(icon: Icons.refresh, color: skillColor),
+    'search_tags' => _AgentToolVisual(
+      icon: Icons.sell_outlined,
+      color: tagColor,
+    ),
+    'read' => _AgentToolVisual(
+      icon: Icons.description_outlined,
+      color: readColor,
+    ),
+    _ => _AgentToolVisual(
+      icon: Icons.build_outlined,
+      color: colors.onSurfaceVariant,
+    ),
+  };
+}
+
 /// 工具活动卡片（运行中/成功/失败）。
-class _ToolActivityTile extends StatelessWidget {
+class _ToolActivityTile extends StatefulWidget {
   const _ToolActivityTile({required this.activity});
 
   final AgentToolActivity activity;
 
   @override
+  State<_ToolActivityTile> createState() => _ToolActivityTileState();
+}
+
+class _ToolActivityTileState extends State<_ToolActivityTile>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _gradientController;
+
+  @override
+  void initState() {
+    super.initState();
+    _gradientController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2400),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _gradientController
+        ..stop()
+        ..value = 0.5;
+    } else if (!_gradientController.isAnimating) {
+      _gradientController.repeat(reverse: true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _gradientController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final l10n = context.l10n;
-    final (icon, color, label) = switch (activity.status) {
-      AgentToolActivityStatus.running => (
-        Icons.hourglass_top,
-        theme.colorScheme.onSurface.withValues(alpha: 0.5),
-        l10n.agentChat_toolRunning,
-      ),
-      AgentToolActivityStatus.succeeded => (
-        Icons.check_circle_outline,
-        theme.colorScheme.tertiary,
-        activity.toolName,
-      ),
-      AgentToolActivityStatus.failed => (
-        Icons.error_outline,
-        theme.colorScheme.error,
-        activity.toolName,
-      ),
+    final activity = widget.activity;
+    final visual = _agentToolVisual(theme, activity.toolName);
+    final statusColor = activity.status == AgentToolActivityStatus.failed
+        ? Color.lerp(
+            theme.colorScheme.onSurfaceVariant,
+            theme.colorScheme.error,
+            0.48,
+          )!
+        : visual.color;
+    final statusLabel = switch (activity.status) {
+      AgentToolActivityStatus.running => l10n.agentChat_toolRunning,
+      AgentToolActivityStatus.succeeded => activity.toolName,
+      AgentToolActivityStatus.failed => activity.toolName,
     };
-    return Container(
-      margin: const EdgeInsets.only(bottom: 6),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(
-          alpha: 0.45,
-        ),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 13, color: color),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Text(
-              '$label · ${_summarize(activity)}',
-              style: theme.textTheme.labelSmall?.copyWith(color: color),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+    final icon = activity.status == AgentToolActivityStatus.failed
+        ? Icons.error_outline
+        : visual.icon;
+    final reducedMotion = MediaQuery.disableAnimationsOf(context);
+    final animation = reducedMotion
+        ? const AlwaysStoppedAnimation<double>(0.5)
+        : _gradientController;
+
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: animation,
+        builder: (context, _) {
+          final progress = Curves.easeInOut.transform(animation.value);
+          final gradientTarget = Color.lerp(
+            theme.colorScheme.onSurfaceVariant,
+            theme.colorScheme.primary,
+            0.32,
+          )!;
+          final changingColor = Color.lerp(
+            visual.color,
+            gradientTarget,
+            0.16 + progress * 0.24,
+          )!;
+          return Container(
+            key: ValueKey('agent-tool-activity-${activity.toolCallId}'),
+            constraints: const BoxConstraints(minHeight: 28),
+            margin: const EdgeInsets.only(bottom: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+            decoration: BoxDecoration(
+              gradient: activity.status == AgentToolActivityStatus.running
+                  ? LinearGradient(
+                      begin: Alignment(-1.15 + progress * 0.45, -0.35),
+                      end: Alignment(0.45 + progress * 0.45, 0.35),
+                      colors: [
+                        theme.colorScheme.surfaceContainerHighest.withValues(
+                          alpha: 0.42,
+                        ),
+                        changingColor.withValues(alpha: 0.13),
+                        theme.colorScheme.surfaceContainerHighest.withValues(
+                          alpha: 0.38,
+                        ),
+                      ],
+                      stops: const [0, 0.52, 1],
+                    )
+                  : null,
+              color: activity.status == AgentToolActivityStatus.running
+                  ? null
+                  : theme.colorScheme.surfaceContainerHighest.withValues(
+                      alpha: 0.42,
+                    ),
+              borderRadius: BorderRadius.circular(8),
             ),
-          ),
-        ],
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                SizedBox.square(
+                  key: ValueKey(
+                    'agent-tool-activity-icon-${activity.toolCallId}',
+                  ),
+                  dimension: 18,
+                  child: Transform.translate(
+                    offset: const Offset(0, 1),
+                    child: Center(
+                      child: Icon(icon, size: 15, color: statusColor),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                SizedBox(
+                  height: 18,
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      statusLabel,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        height: 1,
+                      ),
+                      maxLines: 1,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Container(
+                  width: 3,
+                  height: 3,
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.7),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: SizedBox(
+                    height: 18,
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        _summarize(activity),
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: statusColor.withValues(alpha: 0.9),
+                          fontFamily: 'monospace',
+                          height: 1,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -2078,6 +2304,14 @@ class _ToolResultTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final visual = _agentToolVisual(theme, result.toolName);
+    final color = result.isError
+        ? Color.lerp(
+            theme.colorScheme.onSurfaceVariant,
+            theme.colorScheme.error,
+            0.48,
+          )!
+        : visual.color;
     final files = _extractImageFiles(result);
     return Padding(
       padding: const EdgeInsets.only(bottom: 6, left: 4),
@@ -2085,25 +2319,38 @@ class _ToolResultTile extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Icon(
-                result.isError
-                    ? Icons.error_outline
-                    : Icons.build_circle_outlined,
-                size: 12,
-                color: result.isError
-                    ? theme.colorScheme.error
-                    : theme.colorScheme.onSurface.withValues(alpha: 0.4),
-              ),
-              const SizedBox(width: 4),
-              Flexible(
-                child: Text(
-                  result.toolName,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
-                    fontFamily: 'monospace',
+              SizedBox.square(
+                key: ValueKey('agent-tool-result-icon-${result.toolCallId}'),
+                dimension: 18,
+                child: Transform.translate(
+                  offset: const Offset(0, 1),
+                  child: Center(
+                    child: Icon(
+                      result.isError ? Icons.error_outline : visual.icon,
+                      size: 15,
+                      color: color.withValues(alpha: 0.82),
+                    ),
                   ),
-                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Flexible(
+                child: SizedBox(
+                  height: 18,
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      result.toolName,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: color.withValues(alpha: 0.78),
+                        fontFamily: 'monospace',
+                        height: 1,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -2164,16 +2411,23 @@ List<String> _extractImageFiles(ToolResultMessage result) {
 
 /// 工具结果图片在首帧读取少量文件头来确定比例。解析失败时使用固定的
 /// 4:3 比例，不再异步替换占位高度，避免图片解码期间反复改变滚动范围。
-class _ToolResultImage extends StatelessWidget {
+class _ToolResultImage extends StatefulWidget {
   const _ToolResultImage({super.key, required this.path});
-
-  static const int _maxHeaderBytes = 64 * 1024;
-  static final Map<String, double> _aspectCache = {};
 
   final String path;
 
+  @override
+  State<_ToolResultImage> createState() => _ToolResultImageState();
+}
+
+class _ToolResultImageState extends State<_ToolResultImage> {
+  static const int _maxHeaderBytes = 64 * 1024;
+  static final Map<String, double> _aspectCache = {};
+
+  bool _isHovering = false;
+
   double _readAspect(File file) {
-    final cached = _aspectCache[path];
+    final cached = _aspectCache[widget.path];
     if (cached != null) {
       return cached;
     }
@@ -2194,19 +2448,27 @@ class _ToolResultImage extends StatelessWidget {
     } finally {
       handle?.closeSync();
     }
-    _aspectCache[path] = aspect;
+    _aspectCache[widget.path] = aspect;
     return aspect;
+  }
+
+  void _openDetail() {
+    ImageDetailOpener.showSingleImmediate(
+      context,
+      image: FileImageDetailData(filePath: widget.path),
+      showMetadataPanel: true,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final file = File(path);
+    final file = File(widget.path);
     if (!file.existsSync()) {
       return Padding(
         padding: const EdgeInsets.only(top: 2),
         child: Text(
-          '找不到图片：$path',
+          '找不到图片：${widget.path}',
           style: theme.textTheme.labelSmall?.copyWith(
             color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
           ),
@@ -2220,18 +2482,44 @@ class _ToolResultImage extends StatelessWidget {
           constraints: const BoxConstraints(maxWidth: 320, maxHeight: 320),
           child: AspectRatio(
             aspectRatio: _readAspect(file),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Image.file(
-                file,
-                fit: BoxFit.contain,
-                gaplessPlayback: true,
-                filterQuality: FilterQuality.medium,
-                errorBuilder: (_, __, ___) => Center(
-                  child: Text(
-                    '找不到图片：$path',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+            child: MouseRegion(
+              cursor: SystemMouseCursors.click,
+              onEnter: (_) => setState(() => _isHovering = true),
+              onExit: (_) => setState(() => _isHovering = false),
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: _openDetail,
+                child: ImageCardHoverMotion(
+                  hovered: _isHovering,
+                  child: AnimatedContainer(
+                    duration: MediaQuery.disableAnimationsOf(context)
+                        ? Duration.zero
+                        : const Duration(milliseconds: 120),
+                    curve: Curves.easeOut,
+                    foregroundDecoration: BoxDecoration(
+                      color: _isHovering
+                          ? theme.colorScheme.primary.withValues(alpha: 0.07)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.file(
+                        file,
+                        fit: BoxFit.contain,
+                        gaplessPlayback: true,
+                        filterQuality: FilterQuality.medium,
+                        errorBuilder: (_, __, ___) => Center(
+                          child: Text(
+                            '找不到图片：${widget.path}',
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: theme.colorScheme.onSurface.withValues(
+                                alpha: 0.4,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),
