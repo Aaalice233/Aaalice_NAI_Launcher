@@ -6109,6 +6109,8 @@
   "autocomplete_statusDisabled": "オフ",
   "autocomplete_statusSearching": "検索中",
   "autocomplete_statusTranslating": "翻訳中",
+  "autocomplete_aiCacheEntries": "AI 翻訳キャッシュ：{count} 件",
+  "@autocomplete_aiCacheEntries": {"placeholders": {"count": {"type": "int"}}},
   "autocomplete_openSettings": "補完とデータソース設定を開く",
   "randomManager_searchCategories": "カテゴリ、グループ、タグを検索（Ctrl+F）",
   "randomManager_searchCategoriesCompact": "カテゴリ、グループ、タグを検索",

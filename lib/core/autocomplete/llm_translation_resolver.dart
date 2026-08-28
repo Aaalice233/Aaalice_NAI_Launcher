@@ -5,7 +5,10 @@ import 'autocomplete_cache_database.dart';
 import 'completion_models.dart';
 
 class LlmTranslationResolver
-    implements CancellableTranslationResolver, ScopedTranslationResolver {
+    implements
+        CachedTranslationResolver,
+        CancellableTranslationResolver,
+        ScopedTranslationResolver {
   LlmTranslationResolver({
     required PromptAssistantService service,
     required AutocompleteCacheDatabase cache,
@@ -89,5 +92,25 @@ class LlmTranslationResolver
     } finally {
       if (_activeSessionId == sessionId) _activeSessionId = null;
     }
+  }
+
+  @override
+  Future<Map<String, String>> resolveCached(
+    List<String> canonicalTags, {
+    required String locale,
+  }) async {
+    if (!_isEnabled() || !locale.toLowerCase().startsWith('zh')) {
+      return const {};
+    }
+    final tags = canonicalTags.toSet().toList(growable: false);
+    if (tags.isEmpty) return const {};
+    final route = _service.translateRouteFingerprint();
+    if (route.isEmpty) return const {};
+    return _cache.getAiTranslations(
+      tags: tags,
+      locale: locale,
+      routeFingerprint: route,
+      promptVersion: PromptAssistantService.tagTranslationPromptVersion,
+    );
   }
 }

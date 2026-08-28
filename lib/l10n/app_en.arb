@@ -6094,6 +6094,8 @@
   "autocomplete_statusDisabled": "Off",
   "autocomplete_statusSearching": "Searching",
   "autocomplete_statusTranslating": "Translating",
+  "autocomplete_aiCacheEntries": "AI translation cache: {count} entries",
+  "@autocomplete_aiCacheEntries": {"placeholders": {"count": {"type": "int"}}},
   "autocomplete_openSettings": "Open autocomplete and data source settings",
   "randomManager_searchCategories": "Search categories, groups, or tags (Ctrl+F)",
   "randomManager_searchCategoriesCompact": "Search categories, groups, or tags",

@@ -502,7 +502,9 @@ class _CompletionTile extends StatelessWidget {
     final secondary = <String>[
       if (showTranslations && candidate.translation?.isNotEmpty == true)
         candidate.translation!,
-      if (showAliases && candidate.matchedAlias?.isNotEmpty == true)
+      if (!showTranslations &&
+          showAliases &&
+          candidate.matchedAlias?.isNotEmpty == true)
         context.l10n.autocomplete_aliasMatch(candidate.matchedAlias!),
     ];
     return Material(

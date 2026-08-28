@@ -26,6 +26,7 @@ class DataSourceCacheSettings extends ConsumerWidget {
       generation_settings.autocompleteSettingsProvider,
     );
     final zh = ref.watch(zhDictionaryServiceProvider).state;
+    final cacheStatistics = ref.watch(autocompleteCacheStatisticsProvider);
     final notifier = ref.read(autocompleteSettingsProvider.notifier);
     final route = ref
         .watch(promptAssistantServiceProvider)
@@ -172,6 +173,15 @@ class DataSourceCacheSettings extends ConsumerWidget {
                 ListTile(
                   leading: const Icon(Icons.cleaning_services_outlined),
                   title: Text(context.l10n.autocomplete_cacheTitle),
+                  subtitle: cacheStatistics.when(
+                    data: (statistics) => Text(
+                      context.l10n.autocomplete_aiCacheEntries(
+                        statistics['aiTranslations'] ?? 0,
+                      ),
+                    ),
+                    loading: () => null,
+                    error: (_, _) => null,
+                  ),
                 ),
                 Wrap(
                   spacing: 12,
@@ -182,6 +192,7 @@ class DataSourceCacheSettings extends ConsumerWidget {
                         final count = await ref
                             .read(autocompleteCacheDatabaseProvider)
                             .clearDanbooruCache();
+                        ref.invalidate(autocompleteCacheStatisticsProvider);
                         if (context.mounted) {
                           AppToast.success(
                             context,
@@ -197,6 +208,7 @@ class DataSourceCacheSettings extends ConsumerWidget {
                         final count = await ref
                             .read(autocompleteCacheDatabaseProvider)
                             .clearAiTranslationCache();
+                        ref.invalidate(autocompleteCacheStatisticsProvider);
                         if (context.mounted) {
                           AppToast.success(
                             context,

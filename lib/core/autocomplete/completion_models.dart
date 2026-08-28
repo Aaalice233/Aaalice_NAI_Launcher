@@ -223,6 +223,14 @@ abstract interface class TranslationResolver {
   });
 }
 
+abstract interface class CachedTranslationResolver
+    implements TranslationResolver {
+  Future<Map<String, String>> resolveCached(
+    List<String> canonicalTags, {
+    required String locale,
+  });
+}
+
 abstract interface class CancellableTranslationResolver
     implements TranslationResolver {
   void cancelPending();

@@ -431,6 +431,49 @@ void main() {
   );
 
   test(
+    'hydrates cached AI translations for the full result set before scrolling',
+    () async {
+      final llm = _CachedTranslations({
+        'cached_tag_10': '已缓存翻译',
+        'cached_tag_11': '另一个缓存翻译',
+      });
+      final tags = List.generate(
+        12,
+        (index) => _candidate('cached_tag_$index', CompletionSourceKind.base),
+      );
+      final orchestrator = CompletionOrchestrator(
+        localSources: [_Source(tags)],
+        dictionaryTranslations: _Translations(const {}),
+        llmTranslations: llm,
+        danbooru: _FakeDanbooru(),
+        llmDebounceDuration: const Duration(days: 1),
+      );
+      addTearDown(orchestrator.dispose);
+
+      await orchestrator.query(
+        _query('cached', limit: 12),
+        const AutocompleteSettings(
+          danbooruEnabled: false,
+          llmTranslationEnabled: true,
+        ),
+      );
+
+      expect(llm.cachedRequests.single, hasLength(12));
+      final cached = orchestrator.state.candidates.where(
+        (candidate) => candidate.canonicalTag == 'cached_tag_10',
+      );
+      final otherCached = orchestrator.state.candidates.where(
+        (candidate) => candidate.canonicalTag == 'cached_tag_11',
+      );
+      expect(cached.single.translation, '已缓存翻译');
+      expect(otherCached.single.translation, '另一个缓存翻译');
+      expect(cached.single.sources, contains(CompletionSourceKind.ai));
+      expect(otherCached.single.sources, contains(CompletionSourceKind.ai));
+      expect(llm.remoteResolveCount, 0);
+    },
+  );
+
+  test(
     'requests at most eight visible missing translations without reordering',
     () async {
       final llm = _RecordingTranslations();
@@ -781,6 +824,35 @@ class _CountingTranslations implements TranslationResolver {
     required String locale,
   }) async {
     resolveCount++;
+    return const {};
+  }
+}
+
+class _CachedTranslations implements CachedTranslationResolver {
+  _CachedTranslations(this.values);
+
+  final Map<String, String> values;
+  final List<List<String>> cachedRequests = [];
+  int remoteResolveCount = 0;
+
+  @override
+  Future<Map<String, String>> resolveCached(
+    List<String> canonicalTags, {
+    required String locale,
+  }) async {
+    cachedRequests.add(List.unmodifiable(canonicalTags));
+    return {
+      for (final tag in canonicalTags)
+        if (values[tag] case final value?) tag: value,
+    };
+  }
+
+  @override
+  Future<Map<String, String>> resolve(
+    List<String> canonicalTags, {
+    required String locale,
+  }) async {
+    remoteResolveCount++;
     return const {};
   }
 }

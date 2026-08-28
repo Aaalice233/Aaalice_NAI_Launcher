@@ -6430,6 +6430,8 @@
   "autocomplete_statusDisabled": "已關閉",
   "autocomplete_statusSearching": "查詢中",
   "autocomplete_statusTranslating": "翻譯中",
+  "autocomplete_aiCacheEntries": "AI 翻譯快取：{count} 筆",
+  "@autocomplete_aiCacheEntries": {"placeholders": {"count": {"type": "int"}}},
   "autocomplete_openSettings": "開啟補全與資料來源設定",
   "randomManager_searchCategories": "搜尋類別、詞組或標籤（Ctrl+F）",
   "randomManager_searchCategoriesCompact": "搜尋類別、詞組或標籤",

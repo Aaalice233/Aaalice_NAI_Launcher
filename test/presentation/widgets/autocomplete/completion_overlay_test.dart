@@ -43,6 +43,7 @@ void main() {
                         category: TagCategory.general,
                         postCount: 125000,
                         translation: '蓝色眼睛',
+                        matchedAlias: 'aqua_eyes',
                         matchKind: CompletionMatchKind.englishPrefix,
                         sources: {
                           CompletionSourceKind.base,
@@ -108,10 +109,8 @@ void main() {
       expect(find.text('BASE'), findsOne);
       expect(find.text('ZH'), findsOne);
       expect(find.text('API'), findsOne);
-      expect(
-        find.byTooltip('随应用提供的基础词库 · ffdkj 中文汉化库'),
-        findsNothing,
-      );
+      expect(find.text('别名：aqua_eyes'), findsNothing);
+      expect(find.byTooltip('随应用提供的基础词库 · ffdkj 中文汉化库'), findsNothing);
       expect(find.textContaining('2/2', findRichText: true), findsOneWidget);
       expect(
         find.byKey(const ValueKey('autocomplete-category-general')),

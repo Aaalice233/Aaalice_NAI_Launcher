@@ -12153,6 +12153,11 @@ class AppLocalizationsJa extends AppLocalizations {
   String get autocomplete_statusTranslating => '翻訳中';
 
   @override
+  String autocomplete_aiCacheEntries(int count) {
+    return 'AI 翻訳キャッシュ：$count 件';
+  }
+
+  @override
   String get autocomplete_openSettings => '補完とデータソース設定を開く';
 
   @override

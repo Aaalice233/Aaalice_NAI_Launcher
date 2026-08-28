@@ -6153,6 +6153,8 @@
   "autocomplete_statusDisabled": "已关闭",
   "autocomplete_statusSearching": "查询中",
   "autocomplete_statusTranslating": "翻译中",
+  "autocomplete_aiCacheEntries": "AI 翻译缓存：{count} 条",
+  "@autocomplete_aiCacheEntries": {"placeholders": {"count": {"type": "int"}}},
   "autocomplete_openSettings": "打开补全与数据源设置",
   "randomManager_searchCategories": "搜索类别、词组或标签（Ctrl+F）",
   "randomManager_searchCategoriesCompact": "搜索类别、词组或标签",

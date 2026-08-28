@@ -148,6 +148,14 @@ class AutocompleteCacheDatabase {
     return _database!.delete('ai_translations');
   }
 
+  Future<int> aiTranslationCount() async {
+    await initialize();
+    final rows = await _database!.rawQuery(
+      'SELECT COUNT(*) AS count FROM ai_translations',
+    );
+    return (rows.first['count'] as num).toInt();
+  }
+
   Future<Map<String, int>> statistics() async {
     await initialize();
     Future<int> count(String table) async {
@@ -159,7 +167,7 @@ class AutocompleteCacheDatabase {
 
     return {
       'danbooruCache': await count('remote_queries'),
-      'aiTranslations': await count('ai_translations'),
+      'aiTranslations': await aiTranslationCount(),
     };
   }
 

@@ -25,6 +25,11 @@ final autocompleteCacheDatabaseProvider = Provider<AutocompleteCacheDatabase>((
   return cache;
 });
 
+final autocompleteCacheStatisticsProvider =
+    FutureProvider.autoDispose<Map<String, int>>((ref) {
+      return ref.watch(autocompleteCacheDatabaseProvider).statistics();
+    });
+
 final tagCatalogRepositoryProvider = Provider<TagCatalogRepository>((ref) {
   final repository = TagCatalogRepository();
   ref.onDispose(() => unawaited(repository.dispose()));

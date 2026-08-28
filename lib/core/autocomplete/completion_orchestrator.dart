@@ -110,7 +110,6 @@ class CompletionOrchestrator extends ChangeNotifier {
         isRemoteLoading: canLoadRemote,
       ),
     );
-
     final activeLocalSources = isLibraryAlias
         ? [_libraryAliases].whereType<CompletionSource>()
         : _localSources;
@@ -157,6 +156,12 @@ class CompletionOrchestrator extends ChangeNotifier {
           .toList(growable: false);
     }
     candidates = await _applyDictionaryTranslations(
+      candidates,
+      initialQuery,
+      sequence,
+      settings,
+    );
+    candidates = await _applyCachedLlmTranslations(
       candidates,
       initialQuery,
       sequence,
@@ -257,6 +262,12 @@ class CompletionOrchestrator extends ChangeNotifier {
       sequence,
       settings,
     );
+    expanded = await _applyCachedLlmTranslations(
+      expanded,
+      query,
+      sequence,
+      settings,
+    );
     if (!_isCurrent(sequence)) return;
 
     final merged = CompletionRanker.mergeAndSort(
@@ -313,6 +324,49 @@ class CompletionOrchestrator extends ChangeNotifier {
         .toList(growable: false);
   }
 
+  Future<List<CompletionCandidate>> _applyCachedLlmTranslations(
+    List<CompletionCandidate> candidates,
+    CompletionQuery query,
+    int sequence,
+    AutocompleteSettings settings,
+  ) async {
+    final resolver = _llmTranslations;
+    if (resolver is! CachedTranslationResolver ||
+        query.kind == CompletionQueryKind.libraryAlias ||
+        !settings.showTranslations ||
+        !settings.llmTranslationEnabled ||
+        !query.locale.toLowerCase().startsWith('zh') ||
+        candidates.isEmpty) {
+      return candidates;
+    }
+    final missing = candidates
+        .where((candidate) => candidate.translation?.isNotEmpty != true)
+        .map((candidate) => candidate.canonicalTag)
+        .toList(growable: false);
+    if (missing.isEmpty) return candidates;
+    Map<String, String> translations;
+    try {
+      translations = await resolver.resolveCached(
+        missing,
+        locale: query.locale,
+      );
+    } catch (_) {
+      return candidates;
+    }
+    if (!_isCurrent(sequence) || translations.isEmpty) return candidates;
+    return candidates
+        .map((candidate) {
+          final translation = translations[candidate.canonicalTag];
+          return translation == null
+              ? candidate
+              : candidate.copyWith(
+                  translation: translation,
+                  sources: {...candidate.sources, CompletionSourceKind.ai},
+                );
+        })
+        .toList(growable: false);
+  }
+
   Future<void> _loadRemote(
     CompletionQuery query,
     int sequence,
@@ -352,7 +406,14 @@ class CompletionOrchestrator extends ChangeNotifier {
       sequence,
       settings,
     );
+    merged = await _applyCachedLlmTranslations(
+      merged,
+      query,
+      sequence,
+      settings,
+    );
     if (!_isCurrent(sequence)) return;
+    merged = _preserveCurrentTranslationState(merged);
     final remoteError = _danbooru.lastError;
     _emit(
       _state.copyWith(
@@ -363,6 +424,29 @@ class CompletionOrchestrator extends ChangeNotifier {
       ),
     );
     _scheduleLlmTranslations(query, sequence, settings);
+  }
+
+  List<CompletionCandidate> _preserveCurrentTranslationState(
+    List<CompletionCandidate> candidates,
+  ) {
+    final currentByTag = {
+      for (final candidate in _state.candidates)
+        candidate.canonicalTag: candidate,
+    };
+    return candidates
+        .map((candidate) {
+          final current = currentByTag[candidate.canonicalTag];
+          if (current == null) return candidate;
+          final currentTranslation = current.translation;
+          return candidate.copyWith(
+            translation: currentTranslation?.isNotEmpty == true
+                ? currentTranslation
+                : candidate.translation,
+            sources: {...candidate.sources, ...current.sources},
+            isTranslating: current.isTranslating,
+          );
+        })
+        .toList(growable: false);
   }
 
   List<CompletionCandidate> _mergeRemoteWithoutReordering({

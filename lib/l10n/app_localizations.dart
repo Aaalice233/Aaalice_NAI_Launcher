@@ -21704,6 +21704,12 @@ abstract class AppLocalizations {
   /// **'Translating'**
   String get autocomplete_statusTranslating;
 
+  /// No description provided for @autocomplete_aiCacheEntries.
+  ///
+  /// In en, this message translates to:
+  /// **'AI translation cache: {count} entries'**
+  String autocomplete_aiCacheEntries(int count);
+
   /// No description provided for @autocomplete_openSettings.
   ///
   /// In en, this message translates to:

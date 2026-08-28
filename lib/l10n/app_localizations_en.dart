@@ -12467,6 +12467,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get autocomplete_statusTranslating => 'Translating';
 
   @override
+  String autocomplete_aiCacheEntries(int count) {
+    return 'AI translation cache: $count entries';
+  }
+
+  @override
   String get autocomplete_openSettings =>
       'Open autocomplete and data source settings';
 

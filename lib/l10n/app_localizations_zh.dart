@@ -11946,6 +11946,11 @@ class AppLocalizationsZh extends AppLocalizations {
   String get autocomplete_statusTranslating => '翻译中';
 
   @override
+  String autocomplete_aiCacheEntries(int count) {
+    return 'AI 翻译缓存：$count 条';
+  }
+
+  @override
   String get autocomplete_openSettings => '打开补全与数据源设置';
 
   @override
@@ -24139,6 +24144,11 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get autocomplete_statusTranslating => '翻譯中';
+
+  @override
+  String autocomplete_aiCacheEntries(int count) {
+    return 'AI 翻譯快取：$count 筆';
+  }
 
   @override
   String get autocomplete_openSettings => '開啟補全與資料來源設定';
