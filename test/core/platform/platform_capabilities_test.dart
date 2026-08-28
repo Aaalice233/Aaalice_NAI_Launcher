@@ -18,6 +18,7 @@ void main() {
       expect(capabilities.supportsComfyUiIntegration, isFalse);
       expect(capabilities.supportsDesktopOverlayInteractions, isFalse);
       expect(capabilities.supportsKritaBridge, isFalse);
+      expect(capabilities.supportsSystemFontEnumeration, isFalse);
       expect(capabilities.supportsInAppPackageInstall, isTrue);
       expect(capabilities.requiresExternalInstallerFlow, isTrue);
     });
@@ -35,6 +36,7 @@ void main() {
       expect(capabilities.supportsComfyUiIntegration, isTrue);
       expect(capabilities.supportsDesktopOverlayInteractions, isTrue);
       expect(capabilities.supportsKritaBridge, isTrue);
+      expect(capabilities.supportsSystemFontEnumeration, isTrue);
       expect(capabilities.supportsInAppPackageInstall, isTrue);
       expect(capabilities.requiresExternalInstallerFlow, isFalse);
     });

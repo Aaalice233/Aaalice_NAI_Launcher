@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/utils/character_prompt_block_parser.dart';
 import '../../../data/models/character/character_prompt.dart';
 import '../../providers/character_position_canvas_provider.dart';
 import '../../providers/character_prompt_provider.dart';
@@ -331,7 +332,10 @@ class _InlineCharacterCardState extends ConsumerState<InlineCharacterCard> {
           () => AddToLibraryDialog.show(
             context,
             name: widget.character.name,
-            content: widget.character.prompt,
+            content: CharacterPromptBlockParser.compose(
+              positivePrompt: widget.character.prompt,
+              negativePrompt: widget.character.negativePrompt,
+            ),
           ),
         );
       case _CharacterCardAction.delete:

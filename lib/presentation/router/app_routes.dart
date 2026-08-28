@@ -8,6 +8,7 @@ abstract final class AppRoutes {
   static const String localGallery = '/local-gallery';
   static const String onlineGallery = '/online-gallery';
   static const String settings = '/settings';
+  static const String cloudSyncSettings = '/settings?section=cloud-sync';
   static const String promptConfig = '/prompt-config';
   static const String slideshow = '/slideshow';
   static const String comparison = '/comparison';

@@ -143,5 +143,29 @@ void main() {
       expect(find.text(l10n.common_delete), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
+
+    testWidgets('添加到词库时将角色独立 UC 编码为 negative 块', (tester) async {
+      const target = CharacterPrompt(
+        id: 'char-negative',
+        name: 'Alice',
+        prompt: 'girl, blue eyes',
+        negativePrompt: 'red hair, glasses',
+      );
+      await tester.pumpWidget(buildTestApp(target: target));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('character-actions-menu')));
+      await tester.pumpAndSettle();
+      final l10n = AppLocalizations.of(
+        tester.element(find.byType(InlineCharacterCard)),
+      )!;
+      await tester.tap(find.text(l10n.tagLibrary_addToLibrary));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('girl, blue eyes, negative(red hair, glasses)'),
+        findsOneWidget,
+      );
+    });
   });
 }

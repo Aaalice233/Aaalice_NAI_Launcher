@@ -27,6 +27,7 @@ void main() {
     expect(find.text('添加条目'), findsOneWidget);
     expect(find.text('预览图'), findsOneWidget);
     expect(find.text('名称'), findsOneWidget);
+    expect(find.textContaining('negative(...) 保存独立负面提示词'), findsOneWidget);
 
     final thumbnailTop = tester.getTopLeft(find.text('预览图')).dy;
     final nameTop = tester.getTopLeft(find.text('名称')).dy;

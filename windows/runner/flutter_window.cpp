@@ -26,20 +26,27 @@ int CALLBACK EnumFontFamExProc(
 }
 
 // Get system font list
-std::vector<std::string> GetSystemFonts() {
+std::optional<std::vector<std::string>> GetSystemFonts(
+    std::string* error_message) {
   g_font_names.clear();
 
   HDC hdc = GetDC(NULL);
   if (hdc == NULL) {
-    return {};
+    *error_message = "Failed to acquire the Windows screen device context.";
+    return std::nullopt;
   }
 
   LOGFONTW lf = {};
   lf.lfCharSet = DEFAULT_CHARSET;
   lf.lfFaceName[0] = L'\0';
 
+  // The return value is callback-controlled and does not distinguish an empty
+  // enumeration from failure.
   EnumFontFamiliesExW(hdc, &lf, EnumFontFamExProc, 0, 0);
-  ReleaseDC(NULL, hdc);
+  if (ReleaseDC(NULL, hdc) == 0) {
+    *error_message = "Failed to release the Windows screen device context.";
+    return std::nullopt;
+  }
 
   std::vector<std::string> result;
   for (const auto& name : g_font_names) {
@@ -104,9 +111,14 @@ bool FlutterWindow::OnCreate() {
       [](const flutter::MethodCall<flutter::EncodableValue>& call,
          std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result) {
         if (call.method_name() == "getSystemFonts") {
-          auto fonts = GetSystemFonts();
+          std::string error_message;
+          auto fonts = GetSystemFonts(&error_message);
+          if (!fonts.has_value()) {
+            result->Error("system_font_enumeration_failed", error_message);
+            return;
+          }
           flutter::EncodableList font_list;
-          for (const auto& font : fonts) {
+          for (const auto& font : fonts.value()) {
             font_list.push_back(flutter::EncodableValue(font));
           }
           result->Success(flutter::EncodableValue(font_list));

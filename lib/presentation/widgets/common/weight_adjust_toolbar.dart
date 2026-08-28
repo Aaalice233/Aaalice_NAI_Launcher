@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
+import '../../../core/utils/character_prompt_block_parser.dart';
 import '../../themes/core/input_surface_style.dart';
 
 /// 权重调整工具条包装器
@@ -188,6 +189,9 @@ class _WeightAdjustToolbarWrapperState
   }
 
   void _adjustWeightByStep(double step) {
+    if (!_WeightSelectionEditor.protectNegativeBlockSyntax(widget.controller)) {
+      return;
+    }
     final result = _WeightSelectionEditor.parseSelection(widget.controller);
     _WeightSelectionEditor.applyWeight(
       widget.controller,
@@ -201,7 +205,8 @@ class _WeightAdjustToolbarWrapperState
         event.scrollDelta.dy == 0 ||
         !widget.enabled ||
         !widget.enableWheelAdjustment ||
-        !_WeightSelectionEditor.hasSelection(widget.controller)) {
+        !_WeightSelectionEditor.hasSelection(widget.controller) ||
+        !_WeightSelectionEditor.protectNegativeBlockSyntax(widget.controller)) {
       return;
     }
 
@@ -235,6 +240,45 @@ class _WeightParseResult {
 }
 
 class _WeightSelectionEditor {
+  static bool protectNegativeBlockSyntax(TextEditingController controller) {
+    final selection = controller.selection;
+    if (!selection.isValid || selection.isCollapsed) return false;
+
+    final parsed = CharacterPromptBlockParser.parse(controller.text);
+    for (final block in parsed.blocks) {
+      final overlapsBlock =
+          selection.start < block.range.end &&
+          selection.end > block.range.start;
+      if (!overlapsBlock) continue;
+
+      final insideContent =
+          selection.start >= block.contentRange.start &&
+          selection.end <= block.contentRange.end;
+      final containsWholeBlock =
+          selection.start == block.range.start &&
+          selection.end == block.range.end;
+      if (!insideContent && !containsWholeBlock) return false;
+
+      final start = selection.start.clamp(
+        block.contentRange.start,
+        block.contentRange.end,
+      );
+      final end = selection.end.clamp(
+        block.contentRange.start,
+        block.contentRange.end,
+      );
+      if (start >= end) return false;
+      if (start != selection.start || end != selection.end) {
+        controller.selection = TextSelection(
+          baseOffset: start,
+          extentOffset: end,
+        );
+      }
+      return true;
+    }
+    return true;
+  }
+
   static bool hasSelection(TextEditingController controller) {
     final selection = controller.selection;
     return selection.isValid &&

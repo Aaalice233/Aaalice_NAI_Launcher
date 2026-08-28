@@ -1,4 +1,5 @@
 import '../utils/alias_parser.dart';
+import '../utils/character_prompt_block_parser.dart';
 import 'completion_models.dart';
 
 class PromptTokenParser {
@@ -20,6 +21,25 @@ class PromptTokenParser {
     bool splitOnSpaces = false,
   }) {
     final cursor = cursorPosition.clamp(0, text.length);
+    final syntax = CharacterPromptBlockParser.parse(text);
+    final negativeBlock = syntax.blockContaining(cursor, contentOnly: true);
+    if (syntax.hasNegativeBlock &&
+        negativeBlock == null &&
+        syntax.blockContaining(cursor) != null) {
+      return CompletionQuery(
+        fullText: text,
+        cursorPosition: cursor,
+        token: '',
+        replacementRange: TextReplacementRange(start: cursor, end: cursor),
+        existingTags: _existingTags(
+          syntax,
+          token: '',
+          splitOnSpaces: splitOnSpaces,
+        ),
+        limit: limit.clamp(1, CompletionResultLimits.all),
+        locale: locale,
+      );
+    }
     final (isTypingAlias, partialAlias, aliasStart) =
         AliasParser.detectPartialAlias(text, cursor);
     if (isTypingAlias) {
@@ -45,14 +65,16 @@ class PromptTokenParser {
       );
     }
 
-    var start = cursor;
-    var end = cursor;
+    final lowerBound = negativeBlock?.contentRange.start ?? 0;
+    final upperBound = negativeBlock?.contentRange.end ?? text.length;
+    var start = cursor.clamp(lowerBound, upperBound);
+    var end = start;
 
-    while (start > 0 &&
+    while (start > lowerBound &&
         !_isSeparator(text.codeUnitAt(start - 1), splitOnSpaces)) {
       start--;
     }
-    while (end < text.length &&
+    while (end < upperBound &&
         !_isSeparator(text.codeUnitAt(end), splitOnSpaces)) {
       end++;
     }
@@ -82,14 +104,11 @@ class PromptTokenParser {
         .replaceAll(' ', '_')
         .toLowerCase();
 
-    final existingTags = <String>{};
-    final tagSeparator = splitOnSpaces ? RegExp(r'[,\n\s]+') : RegExp(r'[,\n]');
-    for (final segment in text.split(tagSeparator)) {
-      final normalized = _normalizeExistingTag(segment);
-      if (normalized.isNotEmpty && normalized != token) {
-        existingTags.add(normalized);
-      }
-    }
+    final existingTags = _existingTags(
+      syntax,
+      token: token,
+      splitOnSpaces: splitOnSpaces,
+    );
 
     return CompletionQuery(
       fullText: text,
@@ -140,14 +159,20 @@ class PromptTokenParser {
     if (parsed.token.length < 2) return null;
 
     var insertionPosition = parsed.replacementRange.end;
-    while (insertionPosition < text.length &&
+    final syntax = CharacterPromptBlockParser.parse(text);
+    final negativeBlock = syntax.blockContaining(
+      parsed.cursorPosition,
+      contentOnly: true,
+    );
+    final upperBound = negativeBlock?.contentRange.end ?? text.length;
+    while (insertionPosition < upperBound &&
         !_isSeparator(text.codeUnitAt(insertionPosition), splitOnSpaces)) {
       insertionPosition++;
     }
-    if (insertionPosition < text.length &&
+    if (insertionPosition < upperBound &&
         text.codeUnitAt(insertionPosition) == 0x2c) {
       insertionPosition++;
-      while (insertionPosition < text.length &&
+      while (insertionPosition < upperBound &&
           (text.codeUnitAt(insertionPosition) == 0x20 ||
               text.codeUnitAt(insertionPosition) == 0x09)) {
         insertionPosition++;
@@ -272,6 +297,11 @@ class PromptTokenParser {
     final range = query.replacementRange;
     final before = text.substring(0, range.start);
     var after = text.substring(range.end);
+    final parsedSyntax = CharacterPromptBlockParser.parse(text);
+    final negativeBlock = parsedSyntax.blockContaining(
+      range.start,
+      contentOnly: true,
+    );
 
     if (query.relatedTag != null && range.start == range.end) {
       final alreadySeparated =
@@ -279,7 +309,10 @@ class PromptTokenParser {
           before.trimRight().endsWith('\n') ||
           before.trimRight().endsWith('\r');
       final prefix = before.isEmpty || alreadySeparated ? '' : ', ';
-      final hasFollowingTag = after.trimLeft().isNotEmpty;
+      final contentAfter = negativeBlock == null
+          ? after
+          : text.substring(range.end, negativeBlock.contentRange.end);
+      final hasFollowingTag = contentAfter.trimLeft().isNotEmpty;
       final suffix = autoInsertComma || hasFollowingTag ? ', ' : '';
       final insertion = '$prefix$tag$suffix';
       final result = '$before$insertion$after';
@@ -288,9 +321,12 @@ class PromptTokenParser {
 
     var insertion = tag;
     if (autoInsertComma) {
+      final syntaxEnd = negativeBlock == null
+          ? after.length
+          : (negativeBlock.contentRange.end - range.end).clamp(0, after.length);
       final syntaxSuffix = RegExp(
         r'^(?::\s*-?\d+(?:\.\d+)?)?[\}\]\)]*',
-      ).firstMatch(after)!.group(0)!;
+      ).firstMatch(after.substring(0, syntaxEnd))!.group(0)!;
       final contentAfterSyntax = after.substring(syntaxSuffix.length);
       final existingComma = RegExp(r'^\s*,\s*').firstMatch(contentAfterSyntax);
       if (existingComma == null) {
@@ -312,8 +348,9 @@ class PromptTokenParser {
     bool splitOnSpaces,
   ) {
     List<String> tags(String text) {
+      final parsed = CharacterPromptBlockParser.parse(text);
       final separator = splitOnSpaces ? RegExp(r'[,\n\s]+') : RegExp(r'[,\n]');
-      return text
+      return _semanticText(parsed)
           .split(separator)
           .map(_normalizeExistingTag)
           .where((tag) => tag.isNotEmpty)
@@ -343,4 +380,23 @@ class PromptTokenParser {
     value = value.replaceFirst(_artistCategoryPrefix, '');
     return value.trim().replaceAll(' ', '_').toLowerCase();
   }
+
+  static Set<String> _existingTags(
+    CharacterPromptBlockParseResult parsed, {
+    required String token,
+    required bool splitOnSpaces,
+  }) {
+    final tags = <String>{};
+    final separator = splitOnSpaces ? RegExp(r'[,\n\s]+') : RegExp(r'[,\n]');
+    for (final segment in _semanticText(parsed).split(separator)) {
+      final normalized = _normalizeExistingTag(segment);
+      if (normalized.isNotEmpty && normalized != token) tags.add(normalized);
+    }
+    return tags;
+  }
+
+  static String _semanticText(CharacterPromptBlockParseResult parsed) => [
+    parsed.positivePrompt,
+    parsed.negativePrompt,
+  ].where((part) => part.isNotEmpty).join(', ');
 }

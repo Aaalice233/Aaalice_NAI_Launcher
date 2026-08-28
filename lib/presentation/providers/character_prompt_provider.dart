@@ -54,6 +54,7 @@ class CharacterPromptNotifier extends _$CharacterPromptNotifier {
   /// [gender] 角色性别
   /// [name] 角色名称，为空时自动生成
   /// [prompt] 正向提示词，为空时根据性别生成默认值
+  /// [negativePrompt] 角色独立负向提示词；null 时保留旧版默认值
   /// [thumbnailPath] 缩略图路径（词库导入时）
   ///
   /// Requirements: 1.2, 1.3
@@ -61,6 +62,7 @@ class CharacterPromptNotifier extends _$CharacterPromptNotifier {
     CharacterGender gender, {
     String? name,
     String? prompt,
+    String? negativePrompt,
     String? thumbnailPath,
   }) {
     if (isAtCharacterLimit) {
@@ -76,6 +78,7 @@ class CharacterPromptNotifier extends _$CharacterPromptNotifier {
       gender: gender,
       name: name,
       prompt: prompt,
+      negativePrompt: negativePrompt,
       thumbnailPath: thumbnailPath,
     );
     _saveConfig();

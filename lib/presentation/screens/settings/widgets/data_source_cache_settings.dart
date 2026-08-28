@@ -6,7 +6,7 @@ import '../../../../core/autocomplete/autocomplete_settings.dart';
 import '../../../../core/autocomplete/cooccurrence_data_pack_provider.dart';
 import '../../../../core/autocomplete/cooccurrence_data_pack_service.dart';
 import '../../../../core/autocomplete/completion_models.dart';
-import '../../../../core/autocomplete/zh_dictionary_service.dart';
+import '../../../../core/autocomplete/zh_dictionary_models.dart';
 import '../../../../core/utils/byte_format.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../prompt_assistant/services/prompt_assistant_service.dart';
@@ -469,7 +469,9 @@ class _ZhDictionaryStatus extends ConsumerWidget {
             ),
       title: Text(context.l10n.autocomplete_zhDictionary),
       subtitle: Text(
-        state.error ??
+        (state.error == null
+                ? null
+                : _zhDictionaryErrorMessage(context, state)) ??
             (state.isInstalled
                 ? context.l10n.autocomplete_zhInstalled(
                     state.tagCount,
@@ -517,7 +519,10 @@ class _ZhDictionaryStatus extends ConsumerWidget {
                 await service.installOrUpdate();
               } catch (error) {
                 if (context.mounted) {
-                  AppToast.error(context, error.toString());
+                  AppToast.error(
+                    context,
+                    _zhDictionaryErrorMessage(context, service.state),
+                  );
                 }
               }
             },
@@ -558,4 +563,28 @@ class _ZhDictionaryStatus extends ConsumerWidget {
       ],
     );
   }
+}
+
+String _zhDictionaryErrorMessage(
+  BuildContext context,
+  ZhDictionaryState state,
+) {
+  final l10n = context.l10n;
+  if (state.failureKind == ZhDictionaryFailureKind.rateLimited &&
+      state.failureStage == ZhDictionaryFailureStage.metadata) {
+    return l10n.autocomplete_zhErrorMetadataRateLimited;
+  }
+  if (state.failureKind == ZhDictionaryFailureKind.accessDenied) {
+    return state.failureStage == ZhDictionaryFailureStage.download
+        ? l10n.autocomplete_zhErrorDownloadAccessDenied
+        : l10n.autocomplete_zhErrorMetadataAccessDenied;
+  }
+  if (state.failureKind == ZhDictionaryFailureKind.network) {
+    return l10n.autocomplete_zhErrorNetwork;
+  }
+  if (state.failureKind == ZhDictionaryFailureKind.integrity ||
+      state.failureStage == ZhDictionaryFailureStage.integrity) {
+    return l10n.autocomplete_zhErrorIntegrity;
+  }
+  return l10n.autocomplete_zhErrorUnknown;
 }

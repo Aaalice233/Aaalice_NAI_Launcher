@@ -15,6 +15,7 @@ import 'package:nai_launcher/presentation/providers/auth_provider.dart';
 import 'package:nai_launcher/presentation/providers/subscription_provider.dart';
 import 'package:nai_launcher/presentation/agent_settings/providers/agent_settings_provider.dart';
 import 'package:nai_launcher/presentation/agent_settings/providers/agent_prompt_draft_provider.dart';
+import 'package:nai_launcher/presentation/screens/cloud_sync/cloud_sync_screen.dart';
 import 'package:nai_launcher/presentation/screens/settings/sections/account_settings_section.dart';
 import 'package:nai_launcher/presentation/screens/settings/sections/appearance_settings_section.dart';
 import 'package:nai_launcher/presentation/screens/settings/sections/integrations_settings_section.dart';
@@ -85,7 +86,7 @@ void main() {
     storage = _MemoryLocalStorage();
   });
 
-  testWidgets('设置页导航为 10 个稳定分类', (tester) async {
+  testWidgets('设置页导航为 11 个稳定分类并包含同步与备份', (tester) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.windows;
     await tester.binding.setSurfaceSize(const Size(1280, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -125,7 +126,7 @@ void main() {
     await tester.pumpAndSettle();
 
     final rail = tester.widget<NavigationRail>(find.byType(NavigationRail));
-    expect(rail.destinations.length, 10);
+    expect(rail.destinations.length, 11);
 
     final labels = rail.destinations
         .map((destination) => (destination.label as Text).data)
@@ -136,6 +137,7 @@ void main() {
       '生成',
       '智能体',
       '数据与存储',
+      '同步与备份',
       '安全与分享',
       '网络',
       '快捷键',
@@ -152,6 +154,7 @@ void main() {
       Icons.tune_outlined,
       Icons.smart_toy_outlined,
       Icons.storage_outlined,
+      Icons.cloud_sync_outlined,
       Icons.shield_outlined,
       Icons.network_check_outlined,
       Icons.keyboard_outlined,
@@ -168,6 +171,7 @@ void main() {
       Icons.tune,
       Icons.smart_toy,
       Icons.storage,
+      Icons.cloud_sync,
       Icons.shield,
       Icons.network_check,
       Icons.keyboard,
@@ -180,6 +184,11 @@ void main() {
     expect(find.text('通知'), findsNothing);
     expect(find.text('数据源'), findsNothing);
     expect(find.text('ComfyUI'), findsNothing);
+
+    await tester.tap(find.byIcon(Icons.cloud_sync_outlined));
+    await tester.pumpAndSettle();
+    expect(find.byType(CloudSyncScreen), findsOneWidget);
+    expect(find.text('尚未连接'), findsOneWidget);
 
     await tester.tap(find.byIcon(Icons.extension_outlined));
     await tester.pumpAndSettle();

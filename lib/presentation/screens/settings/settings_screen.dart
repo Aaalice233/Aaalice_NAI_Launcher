@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/utils/localization_extension.dart';
 import '../../adaptive/window_size_class.dart';
+import '../cloud_sync/cloud_sync_screen.dart';
 import 'sections/account_settings_section.dart';
 import 'sections/appearance_settings_section.dart';
 import 'sections/generation_settings_section.dart';
@@ -116,6 +117,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         selectedIcon: Icons.storage,
         label: context.l10n.settings_dataStorage,
         widget: const StorageSettingsSection(),
+      ),
+      _SettingsSection(
+        id: SettingsSection.cloudSync,
+        icon: Icons.cloud_sync_outlined,
+        selectedIcon: Icons.cloud_sync,
+        label: context.l10n.cloudSync_title,
+        widget: const CloudSyncScreen(),
       ),
       _SettingsSection(
         id: SettingsSection.privacy,

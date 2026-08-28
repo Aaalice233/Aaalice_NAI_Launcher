@@ -4,6 +4,7 @@ enum SettingsSection {
   generation('generation'),
   agent('agent'),
   storage('storage'),
+  cloudSync('cloud-sync'),
   privacy('privacy'),
   network('network'),
   shortcuts('shortcuts'),

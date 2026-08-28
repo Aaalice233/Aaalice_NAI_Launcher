@@ -76,6 +76,64 @@ void main() {
     expect(platformDefaultAllowed, isFalse);
   });
 
+  testWidgets('wheel weighting never wraps negative block boundaries', (
+    tester,
+  ) async {
+    const text = 'girl, negative(red hair, glasses)';
+    final prompt = TextEditingController(text: text);
+    final focus = FocusNode();
+    final page = ScrollController(initialScrollOffset: 100);
+    _registerCleanup(tester, prompt, focus, page);
+
+    await _pumpHarness(
+      tester,
+      prompt: prompt,
+      focus: focus,
+      page: page,
+      enableWheelAdjustment: true,
+    );
+    focus.requestFocus();
+    prompt.selection = TextSelection(
+      baseOffset: text.indexOf('negative'),
+      extentOffset: text.length,
+    );
+    await tester.pump();
+
+    await _sendWheel(tester);
+
+    expect(prompt.text, 'girl, negative(0.95::red hair, glasses::)');
+  });
+
+  testWidgets('wheel weighting rejects a selection crossing block boundaries', (
+    tester,
+  ) async {
+    const text = 'girl, negative(red hair, glasses)';
+    final prompt = TextEditingController(text: text);
+    final focus = FocusNode();
+    final page = ScrollController(initialScrollOffset: 100);
+    _registerCleanup(tester, prompt, focus, page);
+
+    await _pumpHarness(
+      tester,
+      prompt: prompt,
+      focus: focus,
+      page: page,
+      enableWheelAdjustment: true,
+    );
+    focus.requestFocus();
+    prompt.selection = const TextSelection(
+      baseOffset: 0,
+      extentOffset: text.length,
+    );
+    await tester.pump();
+    final pageOffsetBefore = page.offset;
+
+    await _sendWheel(tester);
+
+    expect(prompt.text, text);
+    expect(page.offset, greaterThan(pageOffsetBefore));
+  });
+
   testWidgets('disabled wheel adjustment leaves page scrolling available', (
     tester,
   ) async {

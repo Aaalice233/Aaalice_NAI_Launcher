@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../core/platform/platform_capabilities.dart';
 import '../../core/services/system_font_service.dart';
 import '../../core/storage/local_storage_service.dart';
 
@@ -208,12 +209,14 @@ Future<List<FontConfig>> systemFontList(Ref ref) async {
 /// 所有可用字体列表 Provider
 @riverpod
 Future<Map<String, List<FontConfig>>> allFonts(Ref ref) async {
-  final systemFonts = await ref.watch(systemFontListProvider.future);
-  final googleFonts = GoogleFontPresets.all;
-
-  return {
+  final fontGroups = <String, List<FontConfig>>{
     '应用默认': [FontConfig.defaultFont],
-    'Google Fonts': googleFonts,
-    '系统字体': systemFonts,
+    'Google Fonts': GoogleFontPresets.all,
   };
+
+  if (PlatformCapabilities.current.supportsSystemFontEnumeration) {
+    fontGroups['系统字体'] = await ref.watch(systemFontListProvider.future);
+  }
+
+  return fontGroups;
 }
