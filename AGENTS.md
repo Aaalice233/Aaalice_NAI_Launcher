@@ -32,6 +32,8 @@ Aaalice_NAI_Launcher/
 
 项目使用 Flutter `>=3.35.0`、Dart `>=3.10.7`，当前 CI 固定 Flutter `3.44.2`。拉取仓库后必须安装 Git LFS，并获取唯一内置数据库 `assets/databases/tag_catalog.db`。Windows 构建还需要 Visual Studio 2022 的 Desktop development with C++、已加入 `PATH` 的 NuGet CLI；macOS 构建需要完整 Xcode 与 CocoaPods；Android 构建需要 JDK 17 和 Android SDK，最低运行版本为 Android 7.0（API 24）。
 
+`pubspec.lock` 中的 hosted package URL 必须保持为 `https://pub.dev`，与 GitHub CI 一致；本地可使用 `PUB_HOSTED_URL` 镜像下载，但不得提交镜像 URL 对 lockfile 的机械改写。
+
 ```powershell
 git lfs install
 git lfs pull --include="assets/databases/tag_catalog.db"
