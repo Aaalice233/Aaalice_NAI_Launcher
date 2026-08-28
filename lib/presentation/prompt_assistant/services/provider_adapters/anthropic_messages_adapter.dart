@@ -71,6 +71,7 @@ class AnthropicMessagesAdapter extends PromptAssistantProviderAdapter {
     var stopReason = StopReason.stop;
     Usage? usage;
     var sawError = false;
+    var sawMessageStop = false;
 
     final parser = AgentSseParser(
       onEvent: (event, data) {
@@ -119,6 +120,16 @@ class AnthropicMessagesAdapter extends PromptAssistantProviderAdapter {
                 if (text is String && text.isNotEmpty) {
                   pending.add(AgentWireTextDelta(text));
                 }
+              } else if (delta['type'] == 'thinking_delta') {
+                final thinking = delta['thinking'];
+                if (thinking is String && thinking.isNotEmpty) {
+                  pending.add(AgentWireThinkingDelta(thinking));
+                }
+              } else if (delta['type'] == 'signature_delta') {
+                final signature = delta['signature'];
+                if (signature is String && signature.isNotEmpty) {
+                  pending.add(AgentWireThinkingSignature(signature));
+                }
               } else if (delta['type'] == 'input_json_delta') {
                 final partial = delta['partial_json'];
                 final block = blocks[index];
@@ -162,7 +173,7 @@ class AnthropicMessagesAdapter extends PromptAssistantProviderAdapter {
               );
             }
           case 'message_stop':
-            break;
+            sawMessageStop = true;
           default:
             break;
         }
@@ -198,6 +209,11 @@ class AnthropicMessagesAdapter extends PromptAssistantProviderAdapter {
     }
 
     if (sawError) {
+      return;
+    }
+
+    if (!sawMessageStop) {
+      yield const AgentWireError('Anthropic stream ended before message_stop.');
       return;
     }
 
@@ -252,30 +268,77 @@ class AnthropicMessagesAdapter extends PromptAssistantProviderAdapter {
           }
         }
       } else if (message is AssistantMessage) {
-        if (message.text.isNotEmpty) {
-          appendTurn('assistant', {'type': 'text', 'text': message.text});
-        }
-        for (final call in message.toolCalls) {
-          appendTurn('assistant', {
-            'type': 'tool_use',
-            'id': call.id,
-            'name': call.name,
-            'input': call.arguments,
-          });
+        for (final block in message.content) {
+          switch (block) {
+            case AssistantThinkingContent()
+                when block.signature?.isNotEmpty == true:
+              appendTurn('assistant', {
+                'type': 'thinking',
+                'thinking': block.thinking,
+                'signature': block.signature,
+              });
+            case AssistantTextContent() when block.text.isNotEmpty:
+              appendTurn('assistant', {'type': 'text', 'text': block.text});
+            case ToolCallContent():
+              appendTurn('assistant', {
+                'type': 'tool_use',
+                'id': block.id,
+                'name': block.name,
+                'input': block.arguments,
+              });
+            default:
+              break;
+          }
         }
       } else if (message is ToolResultMessage) {
+        final images = toolResultImagesOf(message);
         appendTurn('user', {
           'type': 'tool_result',
           'tool_use_id': message.toolCallId,
-          'content': message.text,
+          'content': images.isEmpty
+              ? message.text
+              : [
+                  if (message.text.trim().isNotEmpty)
+                    {'type': 'text', 'text': message.text},
+                  for (final image in images)
+                    if (image.source.base64Data case final data?)
+                      {
+                        'type': 'image',
+                        'source': {
+                          'type': 'base64',
+                          'media_type': image.source.mimeType,
+                          'data': data,
+                        },
+                      }
+                    else if (image.source.url case final url?)
+                      {
+                        'type': 'image',
+                        'source': {'type': 'url', 'url': url},
+                      },
+                ],
           'is_error': message.isError,
         });
       }
     }
 
+    final thinkingBudget = switch (request.reasoning) {
+      'minimal' => 1024,
+      'low' => 2048,
+      'medium' => 4096,
+      'high' => 8192,
+      'xhigh' || 'max' => 16384,
+      _ => null,
+    };
+    final maxTokens = request.maxOutputTokens ?? 4096;
     return {
       'model': request.model,
-      'max_tokens': request.maxOutputTokens ?? 4096,
+      'max_tokens': thinkingBudget == null
+          ? maxTokens
+          : maxTokens > thinkingBudget
+          ? maxTokens
+          : thinkingBudget + 4096,
+      if (thinkingBudget != null)
+        'thinking': {'type': 'enabled', 'budget_tokens': thinkingBudget},
       if (request.systemPrompt.trim().isNotEmpty)
         'system': request.systemPrompt.trim(),
       'messages': turns,

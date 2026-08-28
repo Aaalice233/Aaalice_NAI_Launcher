@@ -3,8 +3,8 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
-import '../../../../core/agent/agent_types.dart';
-import '../../../../core/utils/nai_resolution_adapter.dart';
+import '../../../core/agent/agent_types.dart';
+import '../../../core/utils/nai_resolution_adapter.dart';
 import '../providers/agent_chat_notifier.dart';
 import 'agent_chat_input_controller.dart';
 
@@ -32,7 +32,6 @@ class AgentChatPanelController extends ChangeNotifier {
     scrollController.addListener(_handleScrollPositionChanged);
   }
 
-  static const double _scrollDeltaTolerance = 0.5;
   static const double _bottomTolerance = 2.0;
 
   late final AgentChatInputController inputController;
@@ -47,18 +46,16 @@ class AgentChatPanelController extends ChangeNotifier {
   BuildContext? _overlayContext;
   bool _autoScroll = true;
   bool _scrollToBottomScheduled = false;
-  bool _adjustingScrollPosition = false;
-  double? _lastObservedScrollPixels;
-  double? _lastObservedMaxScrollExtent;
   int _lastScrollMessageCount = -1;
   String _lastScrollSessionId = '';
-  String _lastStreamingText = '';
+  AssistantMessage? _lastStreamingMessage;
   List<AgentToolActivity>? _lastActivities;
   int? _hoveredUserMessageIndex;
 
   List<PendingAgentChatImage> get pendingImages =>
       List.unmodifiable(_pendingImages);
   int? get hoveredUserMessageIndex => _hoveredUserMessageIndex;
+  bool get showJumpToLatest => !_autoScroll;
 
   void setHoveredUserMessageIndex(int? value) {
     if (_hoveredUserMessageIndex == value) return;
@@ -72,18 +69,16 @@ class AgentChatPanelController extends ChangeNotifier {
     final sessionChanged = state.activeSessionId != _lastScrollSessionId;
     final contentChanged =
         state.messages.length != _lastScrollMessageCount ||
-        state.streamingText != _lastStreamingText ||
+        !identical(state.streamingMessage, _lastStreamingMessage) ||
         !identical(state.activities, _lastActivities);
     _lastScrollSessionId = state.activeSessionId;
     _lastScrollMessageCount = state.messages.length;
-    _lastStreamingText = state.streamingText;
+    _lastStreamingMessage = state.streamingMessage;
     _lastActivities = state.activities;
     if (sessionChanged) {
       messageImageBytes.clear();
       messageImageSizes.clear();
       markdownDataImageBytes.clear();
-      _lastObservedScrollPixels = null;
-      _lastObservedMaxScrollExtent = null;
       scrollToBottom(force: true);
     } else if (contentChanged) {
       scrollToBottom();
@@ -307,29 +302,33 @@ class AgentChatPanelController extends ChangeNotifier {
     if (!scrollController.hasClients) return;
     final position = scrollController.position;
     if (!position.hasPixels || !position.hasContentDimensions) return;
-    final pixels = position.pixels;
-    final maxExtent = position.maxScrollExtent;
-    final previousPixels = _lastObservedScrollPixels;
-    final previousMaxExtent = _lastObservedMaxScrollExtent;
-    _lastObservedScrollPixels = pixels;
-    _lastObservedMaxScrollExtent = maxExtent;
-    if (_adjustingScrollPosition ||
-        previousPixels == null ||
-        previousMaxExtent == null) {
-      return;
-    }
-    final delta = pixels - previousPixels;
-    final contentRangeChanged =
-        (maxExtent - previousMaxExtent).abs() > _scrollDeltaTolerance;
-    if (!contentRangeChanged && delta < -_scrollDeltaTolerance) {
-      _autoScroll = false;
-    } else if (position.extentAfter <= _bottomTolerance) {
+    if (position.pixels <= position.minScrollExtent + _bottomTolerance &&
+        !_autoScroll) {
       _autoScroll = true;
+      notifyListeners();
     }
   }
 
+  bool handleScrollNotification(ScrollNotification notification) {
+    if (notification case ScrollUpdateNotification(
+      :final dragDetails,
+    ) when dragDetails != null) {
+      final atBottom =
+          notification.metrics.pixels <=
+          notification.metrics.minScrollExtent + _bottomTolerance;
+      if (_autoScroll != atBottom) {
+        _autoScroll = atBottom;
+        notifyListeners();
+      }
+    }
+    return false;
+  }
+
   void scrollToBottom({bool force = false}) {
-    if (force) _autoScroll = true;
+    if (force && !_autoScroll) {
+      _autoScroll = true;
+      notifyListeners();
+    }
     if (!_autoScroll || _scrollToBottomScheduled) return;
     _scrollToBottomScheduled = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -337,16 +336,9 @@ class AgentChatPanelController extends ChangeNotifier {
       if (!_autoScroll || !scrollController.hasClients) return;
       final position = scrollController.position;
       if (!position.hasPixels || !position.hasContentDimensions) return;
-      final target = position.maxScrollExtent;
-      if (!target.isFinite || (target - position.pixels).abs() < 0.5) return;
-      _adjustingScrollPosition = true;
-      try {
+      final target = position.minScrollExtent;
+      if (target.isFinite && (target - position.pixels).abs() >= 0.5) {
         scrollController.jumpTo(target);
-        _lastObservedScrollPixels = scrollController.position.pixels;
-        _lastObservedMaxScrollExtent =
-            scrollController.position.maxScrollExtent;
-      } finally {
-        _adjustingScrollPosition = false;
       }
     });
   }

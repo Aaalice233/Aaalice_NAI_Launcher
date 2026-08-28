@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:nai_launcher/presentation/router/app_routes.dart';
-import '../../../../core/utils/localization_extension.dart';
-import '../../../../core/windowing/agent_window_runtime.dart';
-import '../../../../l10n/app_localizations.dart';
+import '../../../core/utils/localization_extension.dart';
+import '../../../core/windowing/agent_window_runtime.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../prompt_assistant/models/prompt_assistant_models.dart';
 import '../providers/agent_chat_session_view.dart';
 import 'agent_chat_panel_view_data.dart';
@@ -29,6 +29,7 @@ class AgentChatHeader extends StatelessWidget {
     final l10n = context.l10n;
     if (viewData.mobile) return _mobile(context, theme, l10n);
     Widget iconButton({
+      Key? key,
       required IconData icon,
       required String tooltip,
       required VoidCallback? onTap,
@@ -36,6 +37,7 @@ class AgentChatHeader extends StatelessWidget {
       width: 32,
       height: 32,
       child: IconButton(
+        key: key,
         icon: Icon(icon, size: 18),
         tooltip: tooltip,
         onPressed: onTap,
@@ -101,6 +103,7 @@ class AgentChatHeader extends StatelessWidget {
           ),
           if (AgentWindowRuntime.isDesktop)
             iconButton(
+              key: const ValueKey('agent-chat-detach-window'),
               icon: Icons.open_in_new_rounded,
               tooltip: l10n.agentChat_detachWindow,
               onTap: commands.detach,

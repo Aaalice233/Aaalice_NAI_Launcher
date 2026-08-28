@@ -1100,7 +1100,10 @@ class PromptAssistantConfigState {
       return false;
     }
     for (final taskType in AssistantTaskType.values) {
-      if (taskType == AssistantTaskType.custom) continue;
+      if (taskType == AssistantTaskType.custom ||
+          taskType == AssistantTaskType.chat) {
+        continue;
+      }
       if (routing.providerIdFor(taskType) != 'pollinations' ||
           routing.modelFor(taskType) != 'openai-large') {
         return false;

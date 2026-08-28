@@ -31,9 +31,7 @@ class OpenAiResponsesAdapter extends PromptAssistantProviderAdapter {
     required PromptAssistantRequest request,
     required CancelToken cancelToken,
   }) async {
-    final headers = <String, dynamic>{
-      'Content-Type': 'application/json',
-    };
+    final headers = <String, dynamic>{'Content-Type': 'application/json'};
     if (request.apiKey != null && request.apiKey!.trim().isNotEmpty) {
       headers['Authorization'] = 'Bearer ${request.apiKey!.trim()}';
     }
@@ -45,10 +43,7 @@ class OpenAiResponsesAdapter extends PromptAssistantProviderAdapter {
         'stream': false,
         'instructions': request.systemPrompt,
         'input': [
-          {
-            'role': 'user',
-            'content': _inputParts(request.userParts),
-          },
+          {'role': 'user', 'content': _inputParts(request.userParts)},
         ],
       },
       options: Options(
@@ -72,6 +67,7 @@ class OpenAiResponsesAdapter extends PromptAssistantProviderAdapter {
     var stopReason = StopReason.stop;
     Usage? usage;
     var sawError = false;
+    var sawTerminalEvent = false;
     final emittedToolCalls = <String>{};
 
     final parser = AgentSseParser(
@@ -86,6 +82,12 @@ class OpenAiResponsesAdapter extends PromptAssistantProviderAdapter {
             if (delta is String && delta.isNotEmpty) {
               pending.add(AgentWireTextDelta(delta));
             }
+          case 'response.reasoning_summary_text.delta':
+          case 'response.reasoning_text.delta':
+            final delta = json['delta'];
+            if (delta is String && delta.isNotEmpty) {
+              pending.add(AgentWireThinkingDelta(delta));
+            }
           case 'response.output_item.done':
             final item = json['item'];
             if (item is Map<String, dynamic> &&
@@ -96,15 +98,14 @@ class OpenAiResponsesAdapter extends PromptAssistantProviderAdapter {
                   AgentWireToolCallDone(
                     id: callId,
                     name: item['name'] as String? ?? '',
-                    arguments: parseToolArguments(
-                      item['arguments'] as String?,
-                    ),
+                    arguments: parseToolArguments(item['arguments'] as String?),
                   ),
                 );
                 stopReason = StopReason.toolUse;
               }
             }
           case 'response.completed':
+            sawTerminalEvent = true;
             final response = json['response'];
             if (response is Map<String, dynamic>) {
               final usageRaw = response['usage'];
@@ -117,9 +118,11 @@ class OpenAiResponsesAdapter extends PromptAssistantProviderAdapter {
               }
             }
           case 'response.incomplete':
+            sawTerminalEvent = true;
             stopReason = StopReason.length;
           case 'response.failed':
           case 'error':
+            sawTerminalEvent = true;
             sawError = true;
             final error = json;
             final response = error['response'];
@@ -134,9 +137,12 @@ class OpenAiResponsesAdapter extends PromptAssistantProviderAdapter {
             if (errorBody == null && direct is Map<String, dynamic>) {
               errorBody = direct;
             }
-            final message = errorBody?['message'] as String? ??
+            final message =
+                errorBody?['message'] as String? ??
                 'LLM stream failed with event $event';
-            pending.add(AgentWireError('LLM service returned an error: $message'));
+            pending.add(
+              AgentWireError('LLM service returned an error: $message'),
+            );
           default:
             break;
         }
@@ -174,6 +180,12 @@ class OpenAiResponsesAdapter extends PromptAssistantProviderAdapter {
     if (sawError) {
       return;
     }
+    if (!sawTerminalEvent) {
+      yield const AgentWireError(
+        'OpenAI Responses stream ended before its terminal event.',
+      );
+      return;
+    }
     yield AgentWireFinish(stopReason: stopReason, usage: usage);
   }
 
@@ -198,22 +210,26 @@ class OpenAiResponsesAdapter extends PromptAssistantProviderAdapter {
           ],
         });
       } else if (message is AssistantMessage) {
-        if (message.text.isNotEmpty) {
-          input.add({
-            'type': 'message',
-            'role': 'assistant',
-            'content': [
-              {'type': 'output_text', 'text': message.text},
-            ],
-          });
-        }
-        for (final call in message.toolCalls) {
-          input.add({
-            'type': 'function_call',
-            'call_id': call.id,
-            'name': call.name,
-            'arguments': jsonEncode(call.arguments),
-          });
+        for (final block in message.content) {
+          switch (block) {
+            case AssistantTextContent() when block.text.isNotEmpty:
+              input.add({
+                'type': 'message',
+                'role': 'assistant',
+                'content': [
+                  {'type': 'output_text', 'text': block.text},
+                ],
+              });
+            case ToolCallContent():
+              input.add({
+                'type': 'function_call',
+                'call_id': block.id,
+                'name': block.name,
+                'arguments': jsonEncode(block.arguments),
+              });
+            default:
+              break;
+          }
         }
       } else if (message is ToolResultMessage) {
         input.add({
@@ -221,12 +237,30 @@ class OpenAiResponsesAdapter extends PromptAssistantProviderAdapter {
           'call_id': message.toolCallId,
           'output': message.text,
         });
+        final images = toolResultImagesOf(message);
+        if (images.isNotEmpty) {
+          input.add({
+            'type': 'message',
+            'role': 'user',
+            'content': [
+              {
+                'type': 'input_text',
+                'text': 'Visual output returned by ${message.toolName}.',
+              },
+              for (final image in images)
+                if (_openAiImageUrl(image) case final url?)
+                  {'type': 'input_image', 'image_url': url, 'detail': 'auto'},
+            ],
+          });
+        }
       }
     }
 
     return {
       'model': request.model,
       'stream': true,
+      if (request.reasoning case final effort?)
+        'reasoning': {'effort': effort, 'summary': 'auto'},
       if (request.systemPrompt.trim().isNotEmpty)
         'instructions': request.systemPrompt.trim(),
       'input': input,
@@ -241,6 +275,14 @@ class OpenAiResponsesAdapter extends PromptAssistantProviderAdapter {
             },
         ],
     };
+  }
+
+  String? _openAiImageUrl(ImageContent image) {
+    if (image.source.url case final url?) return url;
+    final data = image.source.base64Data;
+    final mimeType = image.source.mimeType;
+    if (data == null || mimeType == null) return null;
+    return 'data:$mimeType;base64,$data';
   }
 
   Map<String, dynamic> _agentHeaders(String? apiKey) {

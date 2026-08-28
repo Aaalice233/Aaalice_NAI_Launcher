@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/agent/agent_types.dart';
-import '../../../../core/agent/resources/agent_chat_resource_reference.dart';
+import '../../../core/agent/agent_types.dart';
+import '../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../prompt_assistant/models/prompt_assistant_models.dart';
 import '../../prompt_assistant/providers/web_access_provider.dart';
 import '../../agent_settings/providers/agent_settings_provider.dart';
@@ -41,7 +41,7 @@ class AgentChatPanelViewData {
   bool get isEmpty =>
       state.messages.isEmpty &&
       !(running ||
-          state.streamingText.isNotEmpty ||
+          state.streamingMessage != null ||
           state.activities.isNotEmpty);
 }
 
@@ -58,16 +58,23 @@ class AgentChatPanelCommands {
     required this.deleteSession,
     required this.moreAction,
     required this.selectModel,
+    required this.selectThinkingLevel,
     required this.selectPermissionMode,
     required this.setWebAccessEnabled,
     required this.pickImages,
     required this.send,
+    required this.sendFollowUp,
     required this.stop,
     required this.dismissError,
+    required this.retryLastMessage,
     required this.resolveApproval,
     required this.useSuggestion,
     required this.copyUserMessage,
+    required this.copyAssistantMessage,
     required this.editLastUserMessage,
+    required this.editQueuedMessage,
+    required this.removeQueuedMessage,
+    required this.clearQueuedMessages,
     required this.addPendingResource,
     required this.removePendingResource,
   });
@@ -80,16 +87,23 @@ class AgentChatPanelCommands {
   final Future<void> Function(String sessionId) deleteSession;
   final Future<void> Function(AgentChatMoreAction action) moreAction;
   final Future<void> Function(String providerId, String model) selectModel;
+  final Future<void> Function(ThinkingLevel level) selectThinkingLevel;
   final Future<void> Function(AgentPermissionMode mode) selectPermissionMode;
   final Future<void> Function(bool enabled) setWebAccessEnabled;
   final Future<void> Function() pickImages;
   final Future<void> Function() send;
+  final Future<void> Function() sendFollowUp;
   final VoidCallback stop;
   final VoidCallback dismissError;
+  final Future<void> Function() retryLastMessage;
   final void Function(bool approved) resolveApproval;
   final void Function(String suggestion) useSuggestion;
   final Future<void> Function(UserMessage message) copyUserMessage;
+  final Future<void> Function(AssistantMessage message) copyAssistantMessage;
   final Future<void> Function(UserMessage message) editLastUserMessage;
+  final Future<void> Function(AgentQueuedMessage message) editQueuedMessage;
+  final void Function(AgentQueuedMessage message) removeQueuedMessage;
+  final VoidCallback clearQueuedMessages;
   final Future<void> Function(AgentChatResourceReference reference)
   addPendingResource;
   final Future<void> Function(int index) removePendingResource;

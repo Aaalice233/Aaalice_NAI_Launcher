@@ -114,7 +114,16 @@ class AgentChatSessionController {
     final context = buildSessionContext(entries);
     final restoredMessages = _restoreLegacyReadImageDetails(context.messages);
     final usage = calculateAgentChatSessionUsage(entries);
+    final latestContextUsage = restoredMessages.reversed
+        .whereType<AssistantMessage>()
+        .map((message) => message.usage)
+        .whereType<Usage>()
+        .firstOrNull;
     nextAgent.state.messages = restoredMessages;
+    nextAgent.state.thinkingLevel = ThinkingLevel.values.firstWhere(
+      (level) => level.name == context.thinkingLevel,
+      orElse: () => ThinkingLevel.off,
+    );
     nextAgent.setSystemPrompt(await _buildSystemPrompt());
 
     session = nextSession;
@@ -131,11 +140,15 @@ class AgentChatSessionController {
         activeSessionId: sessionId,
         messages: List.of(restoredMessages),
         activities: const [],
-        streamingText: '',
+        clearStreamingMessage: true,
         error: '',
-        queuedCount: 0,
+        queuedMessages: const [],
+        workPhase: AgentChatWorkPhase.idle,
         sessions: await listSessions(),
         totalUsage: usage,
+        contextUsage: latestContextUsage,
+        clearContextUsage: latestContextUsage == null,
+        thinkingLevel: nextAgent.state.thinkingLevel,
         pendingResources: draft.resources,
         composerText: draft.composerText,
       ),

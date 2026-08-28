@@ -1,5 +1,6 @@
 import '../../../core/agent/agent.dart';
 import '../../../core/agent/harness/harness_types.dart';
+import '../../../core/agent/harness/harness_messages.dart';
 import '../../../core/agent/harness/session/session_types.dart'
     as session_types;
 import '../../../core/agent/resources/agent_chat_resource_reference.dart';
@@ -11,9 +12,10 @@ class AgentChatState {
     this.initialized = false,
     this.status = AgentChatRunStatus.idle,
     this.messages = const [],
-    this.streamingText = '',
+    this.streamingMessage,
     this.activities = const [],
-    this.queuedCount = 0,
+    this.queuedMessages = const [],
+    this.workPhase = AgentChatWorkPhase.idle,
     this.sessions = const [],
     this.activeSessionId = '',
     this.skills = const [],
@@ -26,6 +28,10 @@ class AgentChatState {
     this.sessionContentLoading = false,
     this.approvalRequest,
     this.totalUsage,
+    this.contextUsage,
+    this.contextWindow,
+    this.thinkingLevel = ThinkingLevel.off,
+    this.availableThinkingLevels = const [],
     this.pendingResources = const [],
     this.unavailableResourceKeys = const {},
     this.composerText = '',
@@ -36,9 +42,10 @@ class AgentChatState {
 
   /// 当前会话转录（user/assistant/toolResult）。
   final List<Message> messages;
-  final String streamingText;
+  final AssistantMessage? streamingMessage;
   final List<AgentToolActivity> activities;
-  final int queuedCount;
+  final List<AgentQueuedMessage> queuedMessages;
+  final AgentChatWorkPhase workPhase;
   final List<AgentChatSessionSummary> sessions;
   final String activeSessionId;
   final List<HarnessSkill> skills;
@@ -51,6 +58,12 @@ class AgentChatState {
   final bool sessionContentLoading;
   final AgentToolApprovalRequest? approvalRequest;
   final Usage? totalUsage;
+
+  /// Usage of the most recent model request, not the cumulative session sum.
+  final Usage? contextUsage;
+  final int? contextWindow;
+  final ThinkingLevel thinkingLevel;
+  final List<ThinkingLevel> availableThinkingLevels;
   final List<AgentChatResourceReference> pendingResources;
   final Set<String> unavailableResourceKeys;
   final String composerText;
@@ -59,9 +72,11 @@ class AgentChatState {
     bool? initialized,
     AgentChatRunStatus? status,
     List<Message>? messages,
-    String? streamingText,
+    AssistantMessage? streamingMessage,
+    bool clearStreamingMessage = false,
     List<AgentToolActivity>? activities,
-    int? queuedCount,
+    List<AgentQueuedMessage>? queuedMessages,
+    AgentChatWorkPhase? workPhase,
     List<AgentChatSessionSummary>? sessions,
     String? activeSessionId,
     List<HarnessSkill>? skills,
@@ -75,6 +90,12 @@ class AgentChatState {
     AgentToolApprovalRequest? approvalRequest,
     bool clearApprovalRequest = false,
     Usage? totalUsage,
+    Usage? contextUsage,
+    bool clearContextUsage = false,
+    int? contextWindow,
+    bool clearContextWindow = false,
+    ThinkingLevel? thinkingLevel,
+    List<ThinkingLevel>? availableThinkingLevels,
     List<AgentChatResourceReference>? pendingResources,
     Set<String>? unavailableResourceKeys,
     String? composerText,
@@ -83,9 +104,12 @@ class AgentChatState {
       initialized: initialized ?? this.initialized,
       status: status ?? this.status,
       messages: messages ?? this.messages,
-      streamingText: streamingText ?? this.streamingText,
+      streamingMessage: clearStreamingMessage
+          ? null
+          : streamingMessage ?? this.streamingMessage,
       activities: activities ?? this.activities,
-      queuedCount: queuedCount ?? this.queuedCount,
+      queuedMessages: queuedMessages ?? this.queuedMessages,
+      workPhase: workPhase ?? this.workPhase,
       sessions: sessions ?? this.sessions,
       activeSessionId: activeSessionId ?? this.activeSessionId,
       skills: skills ?? this.skills,
@@ -101,6 +125,15 @@ class AgentChatState {
           ? null
           : approvalRequest ?? this.approvalRequest,
       totalUsage: totalUsage ?? this.totalUsage,
+      contextUsage: clearContextUsage
+          ? null
+          : contextUsage ?? this.contextUsage,
+      contextWindow: clearContextWindow
+          ? null
+          : contextWindow ?? this.contextWindow,
+      thinkingLevel: thinkingLevel ?? this.thinkingLevel,
+      availableThinkingLevels:
+          availableThinkingLevels ?? this.availableThinkingLevels,
       pendingResources: pendingResources ?? this.pendingResources,
       unavailableResourceKeys:
           unavailableResourceKeys ?? this.unavailableResourceKeys,
@@ -110,6 +143,42 @@ class AgentChatState {
 }
 
 enum AgentChatRunStatus { idle, running }
+
+enum AgentChatWorkPhase {
+  idle,
+  preparing,
+  thinking,
+  responding,
+  usingTools,
+  awaitingApproval,
+  compacting,
+  stopping,
+  failed,
+}
+
+enum AgentQueuedMessageKind { steering, followUp }
+
+class AgentQueuedMessage {
+  const AgentQueuedMessage({
+    required this.kind,
+    required this.id,
+    required this.message,
+  });
+
+  final AgentQueuedMessageKind kind;
+  final int id;
+  final AgentMessage message;
+
+  String get text => switch (message) {
+    UserMessage() => (message as UserMessage).text,
+    HarnessCustomMessage() =>
+      (message as HarnessCustomMessage).content
+          .whereType<UserTextContent>()
+          .map((content) => content.text)
+          .join(),
+    _ => '',
+  };
+}
 
 bool canManageAgentChatSessions(AgentChatState state) =>
     state.status == AgentChatRunStatus.idle && !state.sessionTransitioning;

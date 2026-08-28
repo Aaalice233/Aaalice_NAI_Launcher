@@ -1374,6 +1374,9 @@ void main() {
       expect(defaults.models, isEmpty);
 
       for (final taskType in AssistantTaskType.values) {
+        if (taskType == AssistantTaskType.chat) {
+          continue;
+        }
         expect(
           defaults.rules.any(
             (rule) => rule.taskType == taskType && rule.isDefault,

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../../core/agent/resources/agent_chat_resource_reference_codec.dart';
-import '../../../../core/utils/localization_extension.dart';
-import '../../../../l10n/app_localizations.dart';
+import '../../../core/agent/agent_types.dart';
+import '../../../core/agent/resources/agent_chat_resource_reference_codec.dart';
+import '../../../core/utils/localization_extension.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../prompt_assistant/models/prompt_assistant_models.dart';
+import '../providers/agent_chat_state.dart';
 import 'agent_chat_header.dart';
 import 'agent_chat_panel_controller.dart';
 import 'agent_chat_panel_view_data.dart';
@@ -44,6 +46,8 @@ class AgentChatComposer extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            if (viewData.state.queuedMessages.isNotEmpty)
+              _queuedMessages(theme, l10n),
             if (viewData.state.pendingResources.isNotEmpty)
               _resourceCards(theme),
             Focus(
@@ -52,11 +56,28 @@ class AgentChatComposer extends StatelessWidget {
                   return KeyEventResult.ignored;
                 }
                 final key = event.logicalKey;
+                if (key == LogicalKeyboardKey.escape && viewData.running) {
+                  commands.stop();
+                  return KeyEventResult.handled;
+                }
+                if (key == LogicalKeyboardKey.arrowUp &&
+                    HardwareKeyboard.instance.isAltPressed &&
+                    viewData.state.queuedMessages.isNotEmpty) {
+                  commands.editQueuedMessage(
+                    viewData.state.queuedMessages.last,
+                  );
+                  return KeyEventResult.handled;
+                }
                 if (key != LogicalKeyboardKey.enter &&
                     key != LogicalKeyboardKey.numpadEnter) {
                   return KeyEventResult.ignored;
                 }
-                if (HardwareKeyboard.instance.isControlPressed ||
+                if (controller.inputController.value.composing.isValid &&
+                    !controller.inputController.value.composing.isCollapsed) {
+                  return KeyEventResult.ignored;
+                }
+                if (HardwareKeyboard.instance.isShiftPressed ||
+                    HardwareKeyboard.instance.isControlPressed ||
                     HardwareKeyboard.instance.isMetaPressed) {
                   controller.insertNewline();
                   return KeyEventResult.handled;
@@ -112,49 +133,207 @@ class AgentChatComposer extends StatelessWidget {
                 viewData.mobile ? 4 : 8,
                 viewData.mobile ? 4 : 6,
               ),
-              child: SizedBox(
-                key: const ValueKey('agent-chat-composer-controls'),
-                height: viewData.mobile ? 48 : 30,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    _attachButton(theme, l10n),
-                    _moreMenu(theme, l10n),
-                    SizedBox(width: viewData.mobile ? 0 : 2),
-                    _permissionModeButton(theme, l10n),
-                    const SizedBox(width: 2),
-                    _webAccessToggle(theme, l10n),
-                    const SizedBox(width: 2),
-                    if (!viewData.mobile && viewData.state.queuedCount > 0)
-                      Flexible(
-                        child: Text(
-                          l10n.agentChat_queued,
+              child: _composerControls(theme, l10n),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _composerControls(ThemeData theme, AppLocalizations l10n) {
+    final sendButton = _SendButton(
+      running: viewData.running,
+      enabled:
+          viewData.canSend &&
+          (controller.inputController.text.trim().isNotEmpty ||
+              controller.pendingImages.isNotEmpty),
+      touchOptimized: viewData.mobile,
+      onSend: commands.send,
+    );
+    final leading = <Widget>[
+      _attachButton(theme, l10n),
+      _moreMenu(theme, l10n),
+      SizedBox(width: viewData.mobile ? 0 : 2),
+      _permissionModeButton(theme, l10n),
+      const SizedBox(width: 2),
+      _webAccessToggle(theme, l10n),
+      const SizedBox(width: 2),
+    ];
+    if (viewData.mobile && viewData.running) {
+      return Column(
+        key: const ValueKey('agent-chat-composer-controls'),
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            height: 48,
+            child: Row(
+              children: [
+                ...leading,
+                Expanded(
+                  child: SizedBox(
+                    height: 48,
+                    child: _modelSelector(theme, l10n),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(
+            height: 44,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                _followUpButton(l10n),
+                _StopButton(touchOptimized: true, onStop: commands.stop),
+                const SizedBox(width: 4),
+                sendButton,
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+    return SizedBox(
+      key: const ValueKey('agent-chat-composer-controls'),
+      height: viewData.mobile ? 48 : 30,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          ...leading,
+          if (!viewData.mobile) const Spacer(),
+          if (viewData.mobile)
+            Expanded(
+              child: SizedBox(height: 48, child: _modelSelector(theme, l10n)),
+            )
+          else
+            _modelSelector(theme, l10n),
+          const SizedBox(width: 4),
+          if (viewData.running) ...[
+            _followUpButton(l10n),
+            _StopButton(touchOptimized: viewData.mobile, onStop: commands.stop),
+            const SizedBox(width: 4),
+          ],
+          sendButton,
+        ],
+      ),
+    );
+  }
+
+  Widget _followUpButton(AppLocalizations l10n) => PopupMenuButton<bool>(
+    tooltip: l10n.agentChat_queueFollowUp,
+    onSelected: (_) => commands.sendFollowUp(),
+    itemBuilder: (_) => [
+      PopupMenuItem<bool>(
+        value: true,
+        child: ListTile(
+          dense: true,
+          leading: const Icon(Icons.playlist_add_rounded),
+          title: Text(l10n.agentChat_queueFollowUp),
+          contentPadding: EdgeInsets.zero,
+        ),
+      ),
+    ],
+    icon: const Icon(Icons.playlist_add_rounded, size: 18),
+    constraints: BoxConstraints.tightFor(
+      width: viewData.mobile ? 44 : 30,
+      height: viewData.mobile ? 44 : 30,
+    ),
+  );
+
+  Widget _queuedMessages(ThemeData theme, AppLocalizations l10n) {
+    final queued = viewData.state.queuedMessages;
+    return Theme(
+      data: theme.copyWith(dividerColor: Colors.transparent),
+      child: Material(
+        type: MaterialType.transparency,
+        child: ExpansionTile(
+          key: const ValueKey('agent-chat-queue'),
+          minTileHeight: viewData.mobile ? 44 : 32,
+          tilePadding: const EdgeInsets.symmetric(horizontal: 10),
+          childrenPadding: const EdgeInsets.fromLTRB(10, 0, 6, 6),
+          leading: Icon(
+            Icons.queue_outlined,
+            size: 17,
+            color: theme.colorScheme.tertiary,
+          ),
+          title: Text(
+            '${l10n.agentChat_queued} · ${queued.length}',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          trailing: TextButton(
+            onPressed: commands.clearQueuedMessages,
+            child: Text(l10n.common_clear),
+          ),
+          children: [
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: viewData.mobile ? 96 : 160,
+              ),
+              child: ListView.builder(
+                primary: false,
+                shrinkWrap: true,
+                itemCount: queued.length,
+                itemBuilder: (context, index) {
+                  final item = queued[index];
+                  return Row(
+                    children: [
+                      if (viewData.mobile)
+                        Tooltip(
+                          message: item.kind == AgentQueuedMessageKind.steering
+                              ? l10n.agentChat_queueSteering
+                              : l10n.agentChat_queueFollowUp,
+                          child: Icon(
+                            item.kind == AgentQueuedMessageKind.steering
+                                ? Icons.turn_right_rounded
+                                : Icons.playlist_add_rounded,
+                            size: 16,
+                            color: theme.colorScheme.tertiary,
+                          ),
+                        )
+                      else
+                        Text(
+                          item.kind == AgentQueuedMessageKind.steering
+                              ? l10n.agentChat_queueSteering
+                              : l10n.agentChat_queueFollowUp,
                           style: theme.textTheme.labelSmall?.copyWith(
                             color: theme.colorScheme.tertiary,
                           ),
+                        ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          item.text.trim().isEmpty
+                              ? l10n.agentChat_queued
+                              : item.text.trim(),
+                          maxLines: 2,
                           overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall,
                         ),
                       ),
-                    if (!viewData.mobile) const Spacer(),
-                    if (viewData.mobile)
-                      Expanded(
-                        child: SizedBox(
-                          height: 48,
-                          child: _modelSelector(theme, l10n),
+                      IconButton(
+                        tooltip: l10n.common_edit,
+                        onPressed: () => commands.editQueuedMessage(item),
+                        icon: const Icon(Icons.edit_outlined, size: 16),
+                        constraints: BoxConstraints.tightFor(
+                          width: viewData.mobile ? 44 : 32,
+                          height: viewData.mobile ? 44 : 32,
                         ),
-                      )
-                    else
-                      _modelSelector(theme, l10n),
-                    const SizedBox(width: 4),
-                    _SendButton(
-                      running: viewData.running,
-                      enabled: viewData.canSend,
-                      touchOptimized: viewData.mobile,
-                      onSend: commands.send,
-                      onStop: commands.stop,
-                    ),
-                  ],
-                ),
+                      ),
+                      IconButton(
+                        tooltip: l10n.common_delete,
+                        onPressed: () => commands.removeQueuedMessage(item),
+                        icon: const Icon(Icons.close, size: 16),
+                        constraints: BoxConstraints.tightFor(
+                          width: viewData.mobile ? 44 : 32,
+                          height: viewData.mobile ? 44 : 32,
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
             ),
           ],
@@ -514,7 +693,13 @@ class AgentChatComposer extends StatelessWidget {
     return PopupMenuButton<(String, String)>(
       enabled: viewData.sessionActionsEnabled && _agentSettingsInteractive,
       tooltip: l10n.agentChat_model,
-      onSelected: (route) => commands.selectModel(route.$1, route.$2),
+      onSelected: (route) => route.$1 == '__thinking__'
+          ? commands.selectThinkingLevel(
+              ThinkingLevel.values.firstWhere(
+                (level) => level.name == route.$2,
+              ),
+            )
+          : commands.selectModel(route.$1, route.$2),
       itemBuilder: (context) => [
         for (final provider in enabled) ...[
           PopupMenuItem<(String, String)>(
@@ -561,6 +746,40 @@ class AgentChatComposer extends StatelessWidget {
                 ],
               ),
             ),
+          if (provider == enabled.last &&
+              viewData.state.availableThinkingLevels.isNotEmpty) ...[
+            const PopupMenuDivider(),
+            PopupMenuItem<(String, String)>(
+              enabled: false,
+              height: viewData.mobile ? 40 : 30,
+              child: Text(
+                l10n.agentChat_reasoningLevel,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            for (final level in viewData.state.availableThinkingLevels)
+              PopupMenuItem(
+                value: ('__thinking__', level.name),
+                height: viewData.mobile ? 48 : 36,
+                child: Row(
+                  children: [
+                    if (level == viewData.state.thinkingLevel)
+                      Icon(
+                        Icons.check,
+                        size: 14,
+                        color: theme.colorScheme.primary,
+                      )
+                    else
+                      const SizedBox(width: 14),
+                    const SizedBox(width: 6),
+                    Text(_thinkingLevelLabel(l10n, level)),
+                  ],
+                ),
+              ),
+          ],
         ],
       ],
       child: Container(
@@ -603,6 +822,17 @@ class AgentChatComposer extends StatelessWidget {
     );
   }
 
+  String _thinkingLevelLabel(AppLocalizations l10n, ThinkingLevel level) =>
+      switch (level) {
+        ThinkingLevel.off => l10n.agentChat_reasoningOff,
+        ThinkingLevel.minimal => l10n.agentChat_reasoningMinimal,
+        ThinkingLevel.low => l10n.agentChat_reasoningLow,
+        ThinkingLevel.medium => l10n.agentChat_reasoningMedium,
+        ThinkingLevel.high => l10n.agentChat_reasoningHigh,
+        ThinkingLevel.xhigh => l10n.agentChat_reasoningXHigh,
+        ThinkingLevel.max => l10n.agentChat_reasoningMax,
+      };
+
   bool get _agentSettingsInteractive =>
       viewData.agentSettings.initialized &&
       viewData.agentSettings.error.isEmpty &&
@@ -614,38 +844,33 @@ class _SendButton extends StatelessWidget {
     required this.running,
     required this.enabled,
     required this.onSend,
-    required this.onStop,
     required this.touchOptimized,
   });
 
   final bool running;
   final bool enabled;
   final VoidCallback onSend;
-  final VoidCallback onStop;
   final bool touchOptimized;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final l10n = context.l10n;
+    final backgroundColor = enabled
+        ? theme.colorScheme.primary
+        : theme.colorScheme.surfaceContainerHighest;
     final foregroundColor = touchOptimized
-        ? running
-              ? theme.colorScheme.onErrorContainer
-              : enabled
+        ? enabled
               ? theme.colorScheme.onPrimary
-              : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.45)
-        : running
-        ? theme.colorScheme.error
+              : ThemeData.estimateBrightnessForColor(backgroundColor) ==
+                    Brightness.light
+              ? Colors.black54
+              : Colors.white54
         : enabled
         ? theme.colorScheme.primary
         : theme.colorScheme.onSurface.withValues(alpha: 0.3);
-    final backgroundColor = running
-        ? theme.colorScheme.errorContainer
-        : enabled
-        ? theme.colorScheme.primary
-        : theme.colorScheme.surfaceContainerHighest;
     return Tooltip(
-      message: running ? l10n.agentChat_stop : l10n.agentChat_send,
+      message: running ? l10n.agentChat_queueSteering : l10n.agentChat_send,
       waitDuration: const Duration(milliseconds: 500),
       child: SizedBox(
         key: const ValueKey('agent-chat-send'),
@@ -657,12 +882,12 @@ class _SendButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(touchOptimized ? 14 : 8),
             clipBehavior: Clip.antiAlias,
             child: InkWell(
-              onTap: running ? onStop : (enabled ? onSend : null),
+              onTap: enabled ? onSend : null,
               child: SizedBox(
                 width: touchOptimized ? 40 : 30,
                 height: touchOptimized ? 40 : 30,
                 child: Icon(
-                  running ? Icons.stop_rounded : Icons.arrow_upward_rounded,
+                  running ? Icons.queue_rounded : Icons.arrow_upward_rounded,
                   size: touchOptimized ? 20 : 18,
                   color: foregroundColor,
                 ),
@@ -670,6 +895,33 @@ class _SendButton extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _StopButton extends StatelessWidget {
+  const _StopButton({required this.touchOptimized, required this.onStop});
+
+  final bool touchOptimized;
+  final VoidCallback onStop;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Tooltip(
+      message: context.l10n.agentChat_stop,
+      child: IconButton(
+        key: const ValueKey('agent-chat-stop'),
+        onPressed: onStop,
+        icon: const Icon(Icons.stop_rounded),
+        iconSize: touchOptimized ? 20 : 18,
+        color: theme.colorScheme.error,
+        constraints: BoxConstraints.tightFor(
+          width: touchOptimized ? 48 : 30,
+          height: touchOptimized ? 48 : 30,
+        ),
+        padding: EdgeInsets.zero,
       ),
     );
   }

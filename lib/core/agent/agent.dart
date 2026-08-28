@@ -23,34 +23,56 @@ const _defaultModel = Model(
   provider: 'unknown',
 );
 
+class AgentQueueEntry {
+  const AgentQueueEntry({required this.id, required this.message});
+
+  final int id;
+  final AgentMessage message;
+}
+
 class _PendingMessageQueue {
-  final List<AgentMessage> _messages = [];
+  final List<AgentQueueEntry> _entries = [];
   QueueMode mode;
 
   _PendingMessageQueue(this.mode);
 
-  void enqueue(AgentMessage message) {
-    _messages.add(message);
+  void enqueue(AgentQueueEntry entry) {
+    _entries.add(entry);
   }
 
-  bool hasItems() => _messages.isNotEmpty;
+  bool hasItems() => _entries.isNotEmpty;
+
+  int get length => _entries.length;
+
+  List<AgentQueueEntry> get entries => List.unmodifiable(_entries);
+
+  List<AgentMessage> get messages => [
+    for (final entry in _entries) entry.message,
+  ];
+
+  AgentMessage removeAt(int index) => _entries.removeAt(index).message;
+
+  AgentMessage? removeById(int id) {
+    final index = _entries.indexWhere((entry) => entry.id == id);
+    return index < 0 ? null : _entries.removeAt(index).message;
+  }
 
   List<AgentMessage> drain() {
     if (mode == QueueMode.all) {
-      final drained = List<AgentMessage>.of(_messages);
-      _messages.clear();
+      final drained = [for (final entry in _entries) entry.message];
+      _entries.clear();
       return drained;
     }
 
-    if (_messages.isEmpty) {
+    if (_entries.isEmpty) {
       return const [];
     }
-    final first = _messages.removeAt(0);
-    return [first];
+    final first = _entries.removeAt(0);
+    return [first.message];
   }
 
   void clear() {
-    _messages.clear();
+    _entries.clear();
   }
 }
 
@@ -168,6 +190,7 @@ class Agent {
   _listeners = [];
   late final _PendingMessageQueue _steeringQueue;
   late final _PendingMessageQueue _followUpQueue;
+  var _nextQueueEntryId = 0;
   _ActiveRun? _activeRun;
 
   late final Future<List<Message>> Function(List<AgentMessage> messages)
@@ -236,13 +259,17 @@ class Agent {
   QueueMode get followUpMode => _followUpQueue.mode;
 
   /// 排队一条消息，在当前助手 turn 结束后注入。
-  void steer(AgentMessage message) {
-    _steeringQueue.enqueue(message);
+  int steer(AgentMessage message) {
+    final id = _nextQueueEntryId++;
+    _steeringQueue.enqueue(AgentQueueEntry(id: id, message: message));
+    return id;
   }
 
   /// 排队一条消息，仅在 agent 即将停止时才运行。
-  void followUp(AgentMessage message) {
-    _followUpQueue.enqueue(message);
+  int followUp(AgentMessage message) {
+    final id = _nextQueueEntryId++;
+    _followUpQueue.enqueue(AgentQueueEntry(id: id, message: message));
+    return id;
   }
 
   void clearSteeringQueue() {
@@ -260,6 +287,24 @@ class Agent {
 
   bool hasQueuedMessages() =>
       _steeringQueue.hasItems() || _followUpQueue.hasItems();
+
+  int get queuedMessageCount => _steeringQueue.length + _followUpQueue.length;
+
+  List<AgentMessage> get steeringMessages => _steeringQueue.messages;
+
+  List<AgentMessage> get followUpMessages => _followUpQueue.messages;
+
+  List<AgentQueueEntry> get steeringQueue => _steeringQueue.entries;
+
+  List<AgentQueueEntry> get followUpQueue => _followUpQueue.entries;
+
+  AgentMessage removeSteeringAt(int index) => _steeringQueue.removeAt(index);
+
+  AgentMessage removeFollowUpAt(int index) => _followUpQueue.removeAt(index);
+
+  AgentMessage? removeSteeringById(int id) => _steeringQueue.removeById(id);
+
+  AgentMessage? removeFollowUpById(int id) => _followUpQueue.removeById(id);
 
   AbortSignal? get signal => _activeRun?.abortController.signal;
 

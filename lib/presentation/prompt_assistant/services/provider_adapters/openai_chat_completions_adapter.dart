@@ -123,14 +123,16 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
     final headers = _agentHeaders(request.apiKey);
     final toolBuffers = <int, _OpenAiToolBuffer>{};
     final toolOrder = <int>[];
-    var finishReason = 'stop';
+    String? finishReason;
     Usage? usage;
     var sawError = false;
+    var sawDone = false;
     final pending = <AgentWireEvent>[];
 
     final parser = AgentSseParser(
       onEvent: (_, data) {
         if (data.trim() == '[DONE]') {
+          sawDone = true;
           return;
         }
         final json = parseSseJson(data);
@@ -162,6 +164,11 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
               final content = delta['content'];
               if (content is String && content.isNotEmpty) {
                 pending.add(AgentWireTextDelta(content));
+              }
+              final reasoning =
+                  delta['reasoning_content'] ?? delta['reasoning'];
+              if (reasoning is String && reasoning.isNotEmpty) {
+                pending.add(AgentWireThinkingDelta(reasoning));
               }
               final calls = delta['tool_calls'];
               if (calls is List) {
@@ -230,6 +237,13 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
     }
 
     if (sawError) {
+      return;
+    }
+
+    if (!sawDone && finishReason == null) {
+      yield const AgentWireError(
+        'OpenAI-compatible stream ended before its terminal event.',
+      );
       return;
     }
 
@@ -338,6 +352,10 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
       if (stream) 'stream': true,
       if (stream) 'stream_options': {'include_usage': true},
       'messages': _buildAgentMessages(request),
+      if (request.provider.preset == ProviderPreset.deepseek)
+        'thinking': {
+          'type': request.reasoning == null ? 'disabled' : 'enabled',
+        },
       if (request.tools.isNotEmpty) ...{
         'tools': [
           for (final tool in request.tools)
@@ -411,15 +429,40 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
       ];
     }
     if (message is ToolResultMessage) {
+      final images = toolResultImagesOf(message);
       return [
         {
           'role': 'tool',
           'tool_call_id': message.toolCallId,
           'content': message.text,
         },
+        if (images.isNotEmpty)
+          {
+            'role': 'user',
+            'content': [
+              {
+                'type': 'text',
+                'text': 'Visual output returned by ${message.toolName}.',
+              },
+              for (final image in images)
+                if (_openAiImageUrl(image) case final url?)
+                  {
+                    'type': 'image_url',
+                    'image_url': {'url': url},
+                  },
+            ],
+          },
       ];
     }
     return const [];
+  }
+
+  String? _openAiImageUrl(ImageContent image) {
+    if (image.source.url case final url?) return url;
+    final data = image.source.base64Data;
+    final mimeType = image.source.mimeType;
+    if (data == null || mimeType == null) return null;
+    return 'data:$mimeType;base64,$data';
   }
 
   Map<String, dynamic> _agentHeaders(String? apiKey) {

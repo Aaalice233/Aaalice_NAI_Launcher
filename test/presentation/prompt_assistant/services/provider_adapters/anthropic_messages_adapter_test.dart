@@ -61,4 +61,124 @@ void main() {
     expect((images[1]['source'] as Map)['data'], second);
     expect(content.last, {'type': 'text', 'text': 'compare these'});
   });
+
+  test('agent payload maps reasoning effort to a valid thinking budget', () {
+    const adapter = AnthropicMessagesAdapter();
+    final request = AgentChatRequest(
+      sessionId: 'session',
+      provider: const ProviderConfig(
+        id: 'anthropic',
+        name: 'Anthropic',
+        protocol: ProviderProtocol.anthropicMessages,
+        baseUrl: 'https://api.anthropic.com',
+      ),
+      model: 'claude-sonnet-4-20250514',
+      systemPrompt: 'system',
+      messages: [
+        UserMessage(content: const [UserTextContent('hello')]),
+      ],
+      tools: const [],
+      apiKey: 'key',
+      reasoning: 'high',
+      maxOutputTokens: 2048,
+    );
+
+    final payload = adapter.buildAgentPayload(request);
+
+    expect(payload['thinking'], {'type': 'enabled', 'budget_tokens': 8192});
+    expect(payload['max_tokens'], greaterThan(8192));
+  });
+
+  test('agent payload replays signed thinking blocks in content order', () {
+    const adapter = AnthropicMessagesAdapter();
+    final request = AgentChatRequest(
+      sessionId: 'session',
+      provider: const ProviderConfig(
+        id: 'anthropic',
+        name: 'Anthropic',
+        protocol: ProviderProtocol.anthropicMessages,
+        baseUrl: 'https://api.anthropic.com',
+      ),
+      model: 'claude-sonnet-4-20250514',
+      systemPrompt: 'system',
+      messages: [
+        AssistantMessage(
+          content: const [
+            AssistantThinkingContent('reason', signature: 'signed-reason'),
+            AssistantTextContent('before'),
+            ToolCallContent(id: 'call-1', name: 'read', arguments: {}),
+            AssistantTextContent('after'),
+          ],
+          stopReason: StopReason.toolUse,
+        ),
+      ],
+      tools: const [],
+      apiKey: 'key',
+    );
+
+    final payload = adapter.buildAgentPayload(request);
+    final content = ((payload['messages'] as List).single as Map)['content'];
+
+    expect(content, [
+      {'type': 'thinking', 'thinking': 'reason', 'signature': 'signed-reason'},
+      {'type': 'text', 'text': 'before'},
+      {'type': 'tool_use', 'id': 'call-1', 'name': 'read', 'input': {}},
+      {'type': 'text', 'text': 'after'},
+    ]);
+  });
+
+  test('agent payload sends tool-result images back to the model', () {
+    const adapter = AnthropicMessagesAdapter();
+    final encoded = base64Encode([1, 2, 3]);
+    final request = AgentChatRequest(
+      sessionId: 'session',
+      provider: const ProviderConfig(
+        id: 'anthropic',
+        name: 'Anthropic',
+        protocol: ProviderProtocol.anthropicMessages,
+        baseUrl: 'https://api.anthropic.com',
+      ),
+      model: 'claude-test',
+      systemPrompt: 'system',
+      messages: [
+        ToolResultMessage(
+          toolCallId: 'call-1',
+          toolName: 'generate_image',
+          content: [
+            const ToolResultTextContent('{"ok":true}'),
+            ToolResultImageContent(
+              ImageContent(
+                source: ImageSource.base64(
+                  mimeType: 'image/png',
+                  base64Data: encoded,
+                ),
+              ),
+            ),
+          ],
+          isError: false,
+        ),
+      ],
+      tools: const [],
+      apiKey: 'key',
+    );
+
+    final content =
+        ((adapter.buildAgentPayload(request)['messages'] as List).single
+                as Map)['content']
+            as List;
+    final toolResult = content.single as Map;
+
+    expect(toolResult['type'], 'tool_result');
+    expect(toolResult['content'], [
+      {'type': 'text', 'text': '{"ok":true}'},
+      {
+        'type': 'image',
+        'source': {
+          'type': 'base64',
+          'media_type': 'image/png',
+          'data': encoded,
+        },
+      },
+    ]);
+  });
 }

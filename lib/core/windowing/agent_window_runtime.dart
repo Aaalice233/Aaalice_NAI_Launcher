@@ -17,6 +17,28 @@ export 'agent_window_secondary.dart';
 const _screenEventDisplayAdded = 'display-added';
 const _screenEventDisplayRemoved = 'display-removed';
 
+@visibleForTesting
+AgentWindowSnapshot mergeAgentWindowSnapshotAssets(
+  AgentWindowSnapshot previous,
+  AgentWindowSnapshot next,
+) {
+  final previousAssets = previous.payload['imageAssets'];
+  final nextAssets = next.payload['imageAssets'];
+  final referencedAssets = next.payload['referencedImageAssets'];
+  final mergedAssets = <Object?, Object?>{
+    if (previousAssets is Map) ...previousAssets,
+    if (nextAssets is Map) ...nextAssets,
+  };
+  if (referencedAssets is List) {
+    final referenced = referencedAssets.whereType<String>().toSet();
+    mergedAssets.removeWhere((key, _) => !referenced.contains(key));
+  }
+  return AgentWindowSnapshot(
+    revision: next.revision,
+    payload: {...next.payload, 'imageAssets': mergedAssets},
+  );
+}
+
 class CallbackAgentWindowPreferences implements AgentWindowPreferences {
   const CallbackAgentWindowPreferences({
     required this.boundsReader,
@@ -97,7 +119,7 @@ class AgentWindowRuntime extends ScreenListener {
     if (!isDesktop || _coordinator != null) return;
     AppLogger.i(
       'Runtime initialized: implementation=multi-engine-v2, '
-      'window_manager>=0.5.1',
+          'window_manager>=0.5.1',
       'AgentWindow',
     );
     _closingMain = false;
@@ -259,6 +281,10 @@ class AgentWindowRuntime extends ScreenListener {
       'AgentWindow',
     );
     await coordinator.open();
+    // A reused secondary can finish reconnecting while a provider snapshot is
+    // still being assembled. Re-send the authoritative cached state after the
+    // window is open so it never remains on its bootstrap placeholder.
+    await _publishCurrentSnapshotToActiveWindow();
     AppLogger.i(
       'Open command completed: state=${coordinator.state.name}, '
           'window=${coordinator.activeWindowId}',
@@ -269,6 +295,7 @@ class AgentWindowRuntime extends ScreenListener {
   Future<void> restoreDetached() async {
     try {
       await coordinator.restoreDetached();
+      await _publishCurrentSnapshotToActiveWindow();
     } on Object {
       await coordinator.persistDetached(false);
       await _commandHandler?.call('dockRequested', const {});
@@ -281,7 +308,7 @@ class AgentWindowRuntime extends ScreenListener {
   Future<void> setAlwaysOnTop(bool value) => coordinator.setAlwaysOnTop(value);
 
   Future<void> publishSnapshot(AgentWindowSnapshot snapshot) async {
-    _snapshot = snapshot;
+    _snapshot = mergeAgentWindowSnapshotAssets(_snapshot, snapshot);
     if (coordinator.state == AgentWindowLifecycle.open ||
         coordinator.state == AgentWindowLifecycle.docked) {
       final windowId = coordinator.activeWindowId;
@@ -289,16 +316,20 @@ class AgentWindowRuntime extends ScreenListener {
       final sessionToken = _handshakeTokensByWindow[windowId];
       if (sessionToken == null) return;
       try {
-        await _channel.invokeMethod<void>(
-          'message',
-          AgentWindowEnvelope(
-            kind: 'snapshot',
-            name: 'state',
-            sequence: _sequence++,
-            sessionToken: sessionToken,
-            payload: {...snapshot.toJson(), 'windowId': windowId},
-          ).toJson(),
-        );
+        await _channel
+            .invokeMethod<void>(
+              'message',
+              AgentWindowEnvelope(
+                kind: 'snapshot',
+                name: 'state',
+                sequence: _sequence++,
+                sessionToken: sessionToken,
+                payload: {..._snapshot.toJson(), 'windowId': windowId},
+              ).toJson(),
+            )
+            .timeout(const Duration(seconds: 3));
+      } on TimeoutException catch (error) {
+        await _handleSnapshotChannelFailure(windowId, error);
       } on WindowChannelException catch (error) {
         await _handleSnapshotChannelFailure(windowId, error);
       } on PlatformException catch (error) {
@@ -306,6 +337,39 @@ class AgentWindowRuntime extends ScreenListener {
       } on MissingPluginException catch (error) {
         await _handleSnapshotChannelFailure(windowId, error);
       }
+    }
+  }
+
+  Future<void> _publishCurrentSnapshotToActiveWindow() async {
+    if (coordinator.state != AgentWindowLifecycle.open &&
+        coordinator.state != AgentWindowLifecycle.docked) {
+      return;
+    }
+    final windowId = coordinator.activeWindowId;
+    if (windowId == null) return;
+    final sessionToken = _handshakeTokensByWindow[windowId];
+    if (sessionToken == null) return;
+    try {
+      await _channel
+          .invokeMethod<void>(
+            'message',
+            AgentWindowEnvelope(
+              kind: 'snapshot',
+              name: 'state',
+              sequence: _sequence++,
+              sessionToken: sessionToken,
+              payload: {..._snapshot.toJson(), 'windowId': windowId},
+            ).toJson(),
+          )
+          .timeout(const Duration(seconds: 3));
+    } on TimeoutException catch (error) {
+      await _handleSnapshotChannelFailure(windowId, error);
+    } on WindowChannelException catch (error) {
+      await _handleSnapshotChannelFailure(windowId, error);
+    } on PlatformException catch (error) {
+      await _handleSnapshotChannelFailure(windowId, error);
+    } on MissingPluginException catch (error) {
+      await _handleSnapshotChannelFailure(windowId, error);
     }
   }
 

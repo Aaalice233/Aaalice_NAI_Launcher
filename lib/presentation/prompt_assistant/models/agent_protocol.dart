@@ -28,6 +28,7 @@ class AgentChatRequest {
     required this.tools,
     required this.apiKey,
     this.maxOutputTokens,
+    this.reasoning,
   });
 
   final String sessionId;
@@ -38,6 +39,10 @@ class AgentChatRequest {
   final List<Tool> tools;
   final String? apiKey;
   final int? maxOutputTokens;
+
+  /// Provider-native reasoning effort. Null means the selected model does not
+  /// expose a configurable reasoning contract.
+  final String? reasoning;
 }
 
 /// 适配器流式输出的线事件。非流式适配器把完整结果拆成
@@ -50,6 +55,22 @@ class AgentWireTextDelta extends AgentWireEvent {
   const AgentWireTextDelta(this.delta);
 
   final String delta;
+}
+
+/// Provider-returned reasoning/thinking text. This is never synthesized from
+/// model activity or hidden chain-of-thought.
+class AgentWireThinkingDelta extends AgentWireEvent {
+  const AgentWireThinkingDelta(this.delta);
+
+  final String delta;
+}
+
+/// Provider metadata for the active thinking block. It is persisted but never
+/// rendered as model-authored reasoning text.
+class AgentWireThinkingSignature extends AgentWireEvent {
+  const AgentWireThinkingSignature(this.signature);
+
+  final String signature;
 }
 
 class AgentWireToolCallDone extends AgentWireEvent {
@@ -97,6 +118,12 @@ List<({Uint8List bytes, String mimeType})> inlineImagesOf(Message message) {
   }
   return images;
 }
+
+List<ImageContent> toolResultImagesOf(Message message) => [
+  if (message is ToolResultMessage)
+    for (final content in message.content)
+      if (content is ToolResultImageContent) content.image,
+];
 
 String userTextOf(Message message) {
   if (message is UserMessage) {

@@ -846,10 +846,71 @@ class AppLocalizationsEn extends AppLocalizations {
   String get agentChat_queued => 'Queued';
 
   @override
+  String get agentChat_queueSteering => 'Steer current work';
+
+  @override
+  String get agentChat_queueFollowUp => 'Continue after current task';
+
+  @override
   String get agentChat_thinking => 'Thinking…';
 
   @override
   String get agentChat_toolRunning => 'Running tool';
+
+  @override
+  String get agentChat_reasoning => 'Reasoning';
+
+  @override
+  String get agentChat_reasoningLevel => 'Reasoning effort';
+
+  @override
+  String get agentChat_reasoningOff => 'Off';
+
+  @override
+  String get agentChat_reasoningMinimal => 'Minimal';
+
+  @override
+  String get agentChat_reasoningLow => 'Low';
+
+  @override
+  String get agentChat_reasoningMedium => 'Medium';
+
+  @override
+  String get agentChat_reasoningHigh => 'High';
+
+  @override
+  String get agentChat_reasoningXHigh => 'Extra high';
+
+  @override
+  String get agentChat_reasoningMax => 'Maximum';
+
+  @override
+  String get agentChat_jumpToLatest => 'Jump to latest';
+
+  @override
+  String agentChat_toolGroupCount(int count) {
+    return 'Ran $count actions';
+  }
+
+  @override
+  String get agentChat_phasePreparing => 'Preparing';
+
+  @override
+  String get agentChat_phaseResponding => 'Responding';
+
+  @override
+  String get agentChat_phaseAwaitingApproval => 'Awaiting approval';
+
+  @override
+  String get agentChat_phaseStopping => 'Stopping';
+
+  @override
+  String agentChat_contextTokens(int count) {
+    return 'Context $count tokens';
+  }
+
+  @override
+  String get agentChat_contextUnavailable => 'Context usage unavailable';
 
   @override
   String get agentChat_toolGenerateImage => 'Generate image';

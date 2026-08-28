@@ -433,6 +433,29 @@ void main() {
   });
 
   group('Agent', () {
+    test('queued messages keep stable IDs when an earlier item is removed', () {
+      final agent = Agent(
+        AgentOptions(
+          streamFn: ScriptedStreamFn([]).fn,
+          initialModel: _testModel,
+        ),
+      );
+
+      final firstId = agent.steer(UserMessage.text('first'));
+      final secondId = agent.steer(UserMessage.text('second'));
+      expect(firstId, isNot(secondId));
+
+      expect(
+        (agent.removeSteeringById(firstId) as UserMessage?)?.text,
+        'first',
+      );
+      expect(agent.steeringQueue.single.id, secondId);
+      expect(
+        (agent.steeringQueue.single.message as UserMessage).text,
+        'second',
+      );
+    });
+
     test('prompt streams events into state and transcript', () async {
       final scripted = ScriptedStreamFn([
         ScriptedResponse(textChunks: ['hi there']),

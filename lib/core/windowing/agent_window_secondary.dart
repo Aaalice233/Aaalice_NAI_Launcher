@@ -128,7 +128,21 @@ class AgentWindowBridgeHost extends ChangeNotifier
     if (targetWindowId != null && targetWindowId != controller.windowId) return;
     final next = AgentWindowSnapshot.fromJson(json);
     if (next.revision < _snapshot.revision) return;
-    _snapshot = next;
+    final previousAssets = _snapshot.payload['imageAssets'];
+    final nextAssets = next.payload['imageAssets'];
+    final referencedAssets = next.payload['referencedImageAssets'];
+    final mergedAssets = <Object?, Object?>{
+      if (previousAssets is Map) ...previousAssets,
+      if (nextAssets is Map) ...nextAssets,
+    };
+    if (referencedAssets is List) {
+      final referenced = referencedAssets.whereType<String>().toSet();
+      mergedAssets.removeWhere((key, _) => !referenced.contains(key));
+    }
+    _snapshot = AgentWindowSnapshot(
+      revision: next.revision,
+      payload: {...next.payload, 'imageAssets': mergedAssets},
+    );
     notifyListeners();
   }
 

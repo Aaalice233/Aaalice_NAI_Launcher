@@ -4,9 +4,11 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/agent/agent_types.dart';
+import '../../../core/agent/harness/tools/image.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference_codec.dart';
 import '../../../core/utils/app_logger.dart';
+import '../../../core/utils/display_thumbnail_utils.dart';
 import '../../../core/utils/nai_resolution_adapter.dart';
 import '../../../data/models/image/image_params.dart';
 import '../../providers/image_generation_provider.dart';
@@ -246,9 +248,11 @@ class GenerationExecutionService {
         await Future<void>.delayed(const Duration(milliseconds: 250));
       }
       final report = <Map<String, dynamic>>[];
+      final savedFiles = <String>[];
       for (final image
           in _ref.read(imageGenerationNotifierProvider).currentImages) {
         final reference = _generatedImageReference(image.id);
+        if (image.filePath case final path?) savedFiles.add(path);
         report.add({
           'seed': image.metadata?.seed,
           'size': '${image.width}x${image.height}',
@@ -261,9 +265,34 @@ class GenerationExecutionService {
       final content = <ToolResultContent>[
         ToolResultTextContent(jsonEncode({'ok': true, 'images': report})),
       ];
+      for (final image
+          in _ref.read(imageGenerationNotifierProvider).currentImages) {
+        final thumbnail = await DisplayThumbnailUtils.normalize(image.bytes);
+        final mime = thumbnail == null
+            ? null
+            : detectSupportedImageMimeType(thumbnail);
+        if (thumbnail != null && mime != null) {
+          content.add(
+            ToolResultImageContent(
+              ImageContent(
+                source: ImageSource.base64(
+                  mimeType: mime,
+                  base64Data: base64Encode(thumbnail),
+                ),
+              ),
+            ),
+          );
+        }
+      }
       return AgentToolResult(
         content: content,
-        details: <String, dynamic>{'images': report},
+        details: <String, dynamic>{
+          'images': report,
+          if (savedFiles.isNotEmpty) ...{
+            'files': savedFiles,
+            'preferFileImages': true,
+          },
+        },
       );
     } on Object catch (error) {
       AppLogger.w('Agent generation failed: $error', 'AgentChat');
