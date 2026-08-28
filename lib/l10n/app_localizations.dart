@@ -22999,6 +22999,468 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Large binary conflicts default to keeping both copies.'**
   String get cloudSync_largeBinaryKeepBothDefault;
+
+  /// No description provided for @settings_agent.
+  ///
+  /// In en, this message translates to:
+  /// **'Agent'**
+  String get settings_agent;
+
+  /// No description provided for @agentSettings_subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage the chat model, tool permissions, web access, system prompt, and Skills.'**
+  String get agentSettings_subtitle;
+
+  /// No description provided for @agentSettings_chatModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Chat model'**
+  String get agentSettings_chatModel;
+
+  /// No description provided for @agentSettings_providerModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Provider / model'**
+  String get agentSettings_providerModel;
+
+  /// No description provided for @agentSettings_modelManagedInIntegrations.
+  ///
+  /// In en, this message translates to:
+  /// **'Providers, API keys, and model discovery remain centrally managed in Integrations.'**
+  String get agentSettings_modelManagedInIntegrations;
+
+  /// No description provided for @agentSettings_noModel.
+  ///
+  /// In en, this message translates to:
+  /// **'No chat model is available. Add a provider and discover models in Integrations first.'**
+  String get agentSettings_noModel;
+
+  /// No description provided for @agentSettings_pendingMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'pending match'**
+  String get agentSettings_pendingMatch;
+
+  /// No description provided for @agentSettings_toolPermission.
+  ///
+  /// In en, this message translates to:
+  /// **'Tool permissions'**
+  String get agentSettings_toolPermission;
+
+  /// No description provided for @agentSettings_permissionSafe.
+  ///
+  /// In en, this message translates to:
+  /// **'Safe'**
+  String get agentSettings_permissionSafe;
+
+  /// No description provided for @agentSettings_permissionSafeDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Run read-only and low-risk operations only, without sensitive-action prompts.'**
+  String get agentSettings_permissionSafeDescription;
+
+  /// No description provided for @agentSettings_permissionAsk.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask before sensitive actions'**
+  String get agentSettings_permissionAsk;
+
+  /// No description provided for @agentSettings_permissionAskDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Default. Ask before writing files, generating images, or other sensitive actions.'**
+  String get agentSettings_permissionAskDescription;
+
+  /// No description provided for @agentSettings_permissionFull.
+  ///
+  /// In en, this message translates to:
+  /// **'Full access'**
+  String get agentSettings_permissionFull;
+
+  /// No description provided for @agentSettings_permissionFullDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow direct tool use and files outside the workspace. Use only for trusted tasks.'**
+  String get agentSettings_permissionFullDescription;
+
+  /// No description provided for @agentSettings_webPreference.
+  ///
+  /// In en, this message translates to:
+  /// **'Web preference'**
+  String get agentSettings_webPreference;
+
+  /// No description provided for @agentSettings_webEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow the Agent to use Web tools'**
+  String get agentSettings_webEnabled;
+
+  /// No description provided for @agentSettings_webDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'When enabled, the model can search and read public pages. Turning it off removes Web tools at runtime.'**
+  String get agentSettings_webDescription;
+
+  /// No description provided for @agentSettings_systemPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'System prompt'**
+  String get agentSettings_systemPrompt;
+
+  /// No description provided for @agentSettings_edit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit'**
+  String get agentSettings_edit;
+
+  /// No description provided for @agentSettings_previewFinalPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview final prompt'**
+  String get agentSettings_previewFinalPrompt;
+
+  /// No description provided for @agentSettings_systemPromptDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Built-in safety and tool instructions are always retained. Your behavior instructions are appended here.'**
+  String get agentSettings_systemPromptDescription;
+
+  /// No description provided for @agentSettings_systemPromptHint.
+  ///
+  /// In en, this message translates to:
+  /// **'For example: lead with a concise conclusion; explain impact before editing prompts.'**
+  String get agentSettings_systemPromptHint;
+
+  /// No description provided for @agentSettings_restoreDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore default'**
+  String get agentSettings_restoreDefault;
+
+  /// No description provided for @agentSettings_promptSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'System prompt saved'**
+  String get agentSettings_promptSaved;
+
+  /// No description provided for @agentSettings_discardPromptTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard the unsaved system prompt?'**
+  String get agentSettings_discardPromptTitle;
+
+  /// No description provided for @agentSettings_discardPromptBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Leaving this section will lose unsaved changes.'**
+  String get agentSettings_discardPromptBody;
+
+  /// No description provided for @agentSettings_keepEditing.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep editing'**
+  String get agentSettings_keepEditing;
+
+  /// No description provided for @agentSettings_discardChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard changes'**
+  String get agentSettings_discardChanges;
+
+  /// No description provided for @agentSettings_importProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Import profile'**
+  String get agentSettings_importProfile;
+
+  /// No description provided for @agentSettings_exportProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Export profile'**
+  String get agentSettings_exportProfile;
+
+  /// No description provided for @agentSettings_profilePrivacy.
+  ///
+  /// In en, this message translates to:
+  /// **'This file contains no API key, token, chat history, or local path.'**
+  String get agentSettings_profilePrivacy;
+
+  /// No description provided for @agentSettings_profilePending.
+  ///
+  /// In en, this message translates to:
+  /// **'Missing models or Skills are not shown as available. Preferences remain pending until they are installed.'**
+  String get agentSettings_profilePending;
+
+  /// No description provided for @agentSettings_reloadSkills.
+  ///
+  /// In en, this message translates to:
+  /// **'Rescan'**
+  String get agentSettings_reloadSkills;
+
+  /// No description provided for @agentSettings_importSkills.
+  ///
+  /// In en, this message translates to:
+  /// **'Import from ZIP'**
+  String get agentSettings_importSkills;
+
+  /// No description provided for @agentSettings_exportSkills.
+  ///
+  /// In en, this message translates to:
+  /// **'Export selected Skills'**
+  String get agentSettings_exportSkills;
+
+  /// No description provided for @agentSettings_searchSkills.
+  ///
+  /// In en, this message translates to:
+  /// **'Search names or descriptions'**
+  String get agentSettings_searchSkills;
+
+  /// No description provided for @agentSettings_filterAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get agentSettings_filterAll;
+
+  /// No description provided for @agentSettings_filterEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Enabled'**
+  String get agentSettings_filterEnabled;
+
+  /// No description provided for @agentSettings_filterDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Disabled'**
+  String get agentSettings_filterDisabled;
+
+  /// No description provided for @agentSettings_skillEnabledCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Enabled {enabled}/{total}'**
+  String agentSettings_skillEnabledCount(int enabled, int total);
+
+  /// No description provided for @agentSettings_diagnostics.
+  ///
+  /// In en, this message translates to:
+  /// **'Diagnostics'**
+  String get agentSettings_diagnostics;
+
+  /// No description provided for @agentSettings_noMatchingSkill.
+  ///
+  /// In en, this message translates to:
+  /// **'No matching Skill'**
+  String get agentSettings_noMatchingSkill;
+
+  /// No description provided for @agentSettings_noDiagnostics.
+  ///
+  /// In en, this message translates to:
+  /// **'No diagnostic issues'**
+  String get agentSettings_noDiagnostics;
+
+  /// No description provided for @agentSettings_skillExplicitOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'This Skill can only be invoked explicitly by the user and is hidden from the model-visible list'**
+  String get agentSettings_skillExplicitOnly;
+
+  /// No description provided for @agentSettings_exportPrivacy.
+  ///
+  /// In en, this message translates to:
+  /// **'Only selected Skills are exported. .env, keys, tokens, Git data, and dependency folders are excluded.'**
+  String get agentSettings_exportPrivacy;
+
+  /// No description provided for @agentSettings_continueExport.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue export'**
+  String get agentSettings_continueExport;
+
+  /// No description provided for @agentSettings_install.
+  ///
+  /// In en, this message translates to:
+  /// **'Install'**
+  String get agentSettings_install;
+
+  /// No description provided for @agentSettings_apply.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply'**
+  String get agentSettings_apply;
+
+  /// No description provided for @agentSettings_operationFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Operation failed: {error}'**
+  String agentSettings_operationFailed(String error);
+
+  /// No description provided for @agentSettings_skillsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Skills'**
+  String get agentSettings_skillsTitle;
+
+  /// No description provided for @agentSettings_skillTransfer.
+  ///
+  /// In en, this message translates to:
+  /// **'Import or export'**
+  String get agentSettings_skillTransfer;
+
+  /// No description provided for @agentSettings_skillsRescanned.
+  ///
+  /// In en, this message translates to:
+  /// **'Skills rescanned'**
+  String get agentSettings_skillsRescanned;
+
+  /// No description provided for @agentSettings_skillScanFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Rescan failed: {error}'**
+  String agentSettings_skillScanFailed(String error);
+
+  /// No description provided for @agentSettings_exportSkillsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Export Skills'**
+  String get agentSettings_exportSkillsTitle;
+
+  /// No description provided for @agentSettings_skillsExported.
+  ///
+  /// In en, this message translates to:
+  /// **'Skills exported'**
+  String get agentSettings_skillsExported;
+
+  /// No description provided for @agentSettings_skillZipReadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t read the ZIP file'**
+  String get agentSettings_skillZipReadFailed;
+
+  /// No description provided for @agentSettings_confirmSkillsImport.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm Skill import'**
+  String get agentSettings_confirmSkillsImport;
+
+  /// No description provided for @agentSettings_skillArchiveStats.
+  ///
+  /// In en, this message translates to:
+  /// **'{files} files · {bytes} bytes'**
+  String agentSettings_skillArchiveStats(int files, int bytes);
+
+  /// No description provided for @agentSettings_skillConflictReplace.
+  ///
+  /// In en, this message translates to:
+  /// **'A Skill with this name exists. Select it to replace.'**
+  String get agentSettings_skillConflictReplace;
+
+  /// No description provided for @agentSettings_skillConflictUnsafe.
+  ///
+  /// In en, this message translates to:
+  /// **'The target is a file, link, or special entity and cannot be replaced.'**
+  String get agentSettings_skillConflictUnsafe;
+
+  /// No description provided for @agentSettings_skillsInstalled.
+  ///
+  /// In en, this message translates to:
+  /// **'Skills installed'**
+  String get agentSettings_skillsInstalled;
+
+  /// No description provided for @agentSettings_skillShadowed.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} is shadowed by a higher-priority source'**
+  String agentSettings_skillShadowed(String name);
+
+  /// No description provided for @agentSettings_preferredSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Preferred source: {source}'**
+  String agentSettings_preferredSource(String source);
+
+  /// No description provided for @agentSettings_sourceWorkspace.
+  ///
+  /// In en, this message translates to:
+  /// **'Workspace'**
+  String get agentSettings_sourceWorkspace;
+
+  /// No description provided for @agentSettings_sourcePiUser.
+  ///
+  /// In en, this message translates to:
+  /// **'Pi user'**
+  String get agentSettings_sourcePiUser;
+
+  /// No description provided for @agentSettings_sourceCommonUser.
+  ///
+  /// In en, this message translates to:
+  /// **'Shared user'**
+  String get agentSettings_sourceCommonUser;
+
+  /// No description provided for @agentSettings_exportProfileTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Export Agent profile'**
+  String get agentSettings_exportProfileTitle;
+
+  /// No description provided for @agentSettings_profileExported.
+  ///
+  /// In en, this message translates to:
+  /// **'Agent profile exported'**
+  String get agentSettings_profileExported;
+
+  /// No description provided for @agentSettings_profileReadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t read the profile file'**
+  String get agentSettings_profileReadFailed;
+
+  /// No description provided for @agentSettings_confirmProfileImport.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm Agent profile import'**
+  String get agentSettings_confirmProfileImport;
+
+  /// No description provided for @agentSettings_profileNoChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'The current settings will not change'**
+  String get agentSettings_profileNoChanges;
+
+  /// No description provided for @agentSettings_profileChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'Changes: {changes}'**
+  String agentSettings_profileChanges(String changes);
+
+  /// No description provided for @agentSettings_listSeparator.
+  ///
+  /// In en, this message translates to:
+  /// **', '**
+  String get agentSettings_listSeparator;
+
+  /// No description provided for @agentSettings_pendingPreferences.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending preferences'**
+  String get agentSettings_pendingPreferences;
+
+  /// No description provided for @agentSettings_missingModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Model not currently available: {model}'**
+  String agentSettings_missingModel(String model);
+
+  /// No description provided for @agentSettings_missingSkill.
+  ///
+  /// In en, this message translates to:
+  /// **'Skill not currently available: {skill}'**
+  String agentSettings_missingSkill(String skill);
+
+  /// No description provided for @agentSettings_profileImported.
+  ///
+  /// In en, this message translates to:
+  /// **'Agent profile imported'**
+  String get agentSettings_profileImported;
 }
 
 class _AppLocalizationsDelegate

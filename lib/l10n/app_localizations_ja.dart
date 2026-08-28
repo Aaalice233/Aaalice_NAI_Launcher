@@ -12882,4 +12882,268 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String get cloudSync_largeBinaryKeepBothDefault =>
       '大容量バイナリの競合は既定で両方のコピーを保持します。';
+
+  @override
+  String get settings_agent => 'エージェント';
+
+  @override
+  String get agentSettings_subtitle =>
+      'チャットモデル、ツール権限、Web 接続、システムプロンプト、Skills を管理します。';
+
+  @override
+  String get agentSettings_chatModel => 'チャットモデル';
+
+  @override
+  String get agentSettings_providerModel => 'プロバイダー / モデル';
+
+  @override
+  String get agentSettings_modelManagedInIntegrations =>
+      'プロバイダー、API キー、モデル検出は引き続き「連携」で一元管理されます。';
+
+  @override
+  String get agentSettings_noModel =>
+      '利用可能なチャットモデルがありません。先に「連携」でプロバイダーを追加し、モデルを検出してください。';
+
+  @override
+  String get agentSettings_pendingMatch => '照合待ち';
+
+  @override
+  String get agentSettings_toolPermission => 'ツール権限';
+
+  @override
+  String get agentSettings_permissionSafe => '安全';
+
+  @override
+  String get agentSettings_permissionSafeDescription =>
+      '読み取り専用および低リスクの操作だけを実行します。';
+
+  @override
+  String get agentSettings_permissionAsk => '機密操作の前に確認';
+
+  @override
+  String get agentSettings_permissionAskDescription =>
+      '既定。ファイル書き込みや画像生成などの前に確認します。';
+
+  @override
+  String get agentSettings_permissionFull => 'フルアクセス';
+
+  @override
+  String get agentSettings_permissionFullDescription =>
+      'ワークスペース外のファイルとツールの直接実行を許可します。信頼できるタスクにのみ使用してください。';
+
+  @override
+  String get agentSettings_webPreference => 'Web 接続設定';
+
+  @override
+  String get agentSettings_webEnabled => 'エージェントによる Web ツールの使用を許可';
+
+  @override
+  String get agentSettings_webDescription =>
+      '有効にすると公開ページを検索・閲覧できます。無効にすると実行時ツールから Web 機能が削除されます。';
+
+  @override
+  String get agentSettings_systemPrompt => 'システムプロンプト';
+
+  @override
+  String get agentSettings_edit => '編集';
+
+  @override
+  String get agentSettings_previewFinalPrompt => '最終プロンプトをプレビュー';
+
+  @override
+  String get agentSettings_systemPromptDescription =>
+      '組み込みの安全・ツール指示は常に保持され、ここには行動指示だけが追加されます。';
+
+  @override
+  String get agentSettings_systemPromptHint =>
+      '例：最初に簡潔な結論を示し、プロンプト編集前に影響を説明する。';
+
+  @override
+  String get agentSettings_restoreDefault => '既定に戻す';
+
+  @override
+  String get agentSettings_promptSaved => 'システムプロンプトを保存しました';
+
+  @override
+  String get agentSettings_discardPromptTitle => '未保存のシステムプロンプトを破棄しますか？';
+
+  @override
+  String get agentSettings_discardPromptBody => 'このセクションを離れると未保存の変更は失われます。';
+
+  @override
+  String get agentSettings_keepEditing => '編集を続ける';
+
+  @override
+  String get agentSettings_discardChanges => '変更を破棄';
+
+  @override
+  String get agentSettings_importProfile => '設定をインポート';
+
+  @override
+  String get agentSettings_exportProfile => '設定をエクスポート';
+
+  @override
+  String get agentSettings_profilePrivacy =>
+      'このファイルには API キー、トークン、チャット履歴、ローカルパスは含まれません。';
+
+  @override
+  String get agentSettings_profilePending =>
+      '未導入のモデルや Skill を利用可能とは表示しません。設定は導入後に有効になるまで保持されます。';
+
+  @override
+  String get agentSettings_reloadSkills => '再スキャン';
+
+  @override
+  String get agentSettings_importSkills => 'ZIP からインポート';
+
+  @override
+  String get agentSettings_exportSkills => '選択した Skills をエクスポート';
+
+  @override
+  String get agentSettings_searchSkills => '名前または説明を検索';
+
+  @override
+  String get agentSettings_filterAll => 'すべて';
+
+  @override
+  String get agentSettings_filterEnabled => '有効';
+
+  @override
+  String get agentSettings_filterDisabled => '無効';
+
+  @override
+  String agentSettings_skillEnabledCount(int enabled, int total) {
+    return '有効 $enabled/$total';
+  }
+
+  @override
+  String get agentSettings_diagnostics => '診断';
+
+  @override
+  String get agentSettings_noMatchingSkill => '一致する Skill はありません';
+
+  @override
+  String get agentSettings_noDiagnostics => '診断上の問題はありません';
+
+  @override
+  String get agentSettings_skillExplicitOnly =>
+      'この Skill はユーザーが明示的に呼び出す場合のみ利用でき、モデル向け一覧には表示されません';
+
+  @override
+  String get agentSettings_exportPrivacy =>
+      '明示的に選択した Skill のみをエクスポートします。.env、鍵、トークン、Git、依存フォルダーは除外されます。';
+
+  @override
+  String get agentSettings_continueExport => 'エクスポートを続行';
+
+  @override
+  String get agentSettings_install => 'インストール';
+
+  @override
+  String get agentSettings_apply => '適用';
+
+  @override
+  String agentSettings_operationFailed(String error) {
+    return '操作に失敗しました：$error';
+  }
+
+  @override
+  String get agentSettings_skillsTitle => 'Skills';
+
+  @override
+  String get agentSettings_skillTransfer => 'インポートまたはエクスポート';
+
+  @override
+  String get agentSettings_skillsRescanned => 'Skills を再スキャンしました';
+
+  @override
+  String agentSettings_skillScanFailed(String error) {
+    return '再スキャンに失敗しました：$error';
+  }
+
+  @override
+  String get agentSettings_exportSkillsTitle => 'Skills をエクスポート';
+
+  @override
+  String get agentSettings_skillsExported => 'Skills をエクスポートしました';
+
+  @override
+  String get agentSettings_skillZipReadFailed => 'ZIP ファイルを読み取れませんでした';
+
+  @override
+  String get agentSettings_confirmSkillsImport => 'Skills のインポートを確認';
+
+  @override
+  String agentSettings_skillArchiveStats(int files, int bytes) {
+    return '$files ファイル · $bytes バイト';
+  }
+
+  @override
+  String get agentSettings_skillConflictReplace =>
+      '同名の Skill があります。置き換えるには選択してください。';
+
+  @override
+  String get agentSettings_skillConflictUnsafe =>
+      '対象はファイル、リンク、または特殊なエンティティのため置き換えできません。';
+
+  @override
+  String get agentSettings_skillsInstalled => 'Skills をインストールしました';
+
+  @override
+  String agentSettings_skillShadowed(String name) {
+    return '$name は優先度の高いソースに上書きされています';
+  }
+
+  @override
+  String agentSettings_preferredSource(String source) {
+    return '優先ソース：$source';
+  }
+
+  @override
+  String get agentSettings_sourceWorkspace => 'ワークスペース';
+
+  @override
+  String get agentSettings_sourcePiUser => 'Pi ユーザー';
+
+  @override
+  String get agentSettings_sourceCommonUser => '共有ユーザー';
+
+  @override
+  String get agentSettings_exportProfileTitle => 'エージェント設定をエクスポート';
+
+  @override
+  String get agentSettings_profileExported => 'エージェント設定をエクスポートしました';
+
+  @override
+  String get agentSettings_profileReadFailed => '設定ファイルを読み取れませんでした';
+
+  @override
+  String get agentSettings_confirmProfileImport => 'エージェント設定のインポートを確認';
+
+  @override
+  String get agentSettings_profileNoChanges => '現在の設定は変更されません';
+
+  @override
+  String agentSettings_profileChanges(String changes) {
+    return '変更：$changes';
+  }
+
+  @override
+  String get agentSettings_listSeparator => '、';
+
+  @override
+  String get agentSettings_pendingPreferences => '保留中の設定';
+
+  @override
+  String agentSettings_missingModel(String model) {
+    return '現在利用できないモデル：$model';
+  }
+
+  @override
+  String agentSettings_missingSkill(String skill) {
+    return '現在利用できない Skill：$skill';
+  }
+
+  @override
+  String get agentSettings_profileImported => 'エージェント設定をインポートしました';
 }

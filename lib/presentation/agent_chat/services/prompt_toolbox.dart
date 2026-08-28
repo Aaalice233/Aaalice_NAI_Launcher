@@ -10,6 +10,7 @@ import '../../providers/character_prompt_provider.dart';
 import '../../providers/generation/generation_params_notifier.dart';
 import '../../../core/agent/harness/harness_types.dart';
 import '../../../core/agent/harness/skills.dart';
+import '../../../core/agent/private_data_guard.dart';
 
 /// 定义式工具构造。
 class DefinedAgentTool extends AgentTool {
@@ -362,8 +363,10 @@ class PromptToolbox {
               for (final diagnostic in _skillDiagnostics)
                 {
                   'code': diagnostic.code.name,
-                  'message': diagnostic.message,
-                  'path': diagnostic.path,
+                  'message': PrivateDataGuard.redactAbsolutePaths(
+                    diagnostic.message,
+                  ),
+                  'path': _agentSafePath(diagnostic.path),
                 },
             ],
           }),
@@ -574,7 +577,7 @@ class PromptToolbox {
       );
     }
     // 代理 的 Skill.content 即 SKILL.md 正文（加载时已剥离 frontmatter）。
-    final content = skill.content;
+    final content = PrivateDataGuard.redactAbsolutePaths(skill.content);
     return _textResult(content.isEmpty ? '(empty)' : content);
   }
 
@@ -602,23 +605,16 @@ class PromptToolbox {
     final resolved = await env.absolutePath(relativePath);
     final absolutePath = resolved.valueOrNull;
     if (absolutePath == null) {
-      return _errorResult(
-        'Skill resource path is not permitted: '
-        '${resolved.errorOrNull?.message ?? relativePath}',
-      );
+      return _errorResult('Skill resource path is not permitted.');
     }
     final info = await env.fileInfo(absolutePath);
     if (info.valueOrNull?.kind != FileKind.file) {
-      return _errorResult(
-        info.errorOrNull?.message ?? 'Skill resource is not a text file.',
-      );
+      return _errorResult('Skill resource is not a readable text file.');
     }
     final result = await env.readTextFile(absolutePath);
     final content = result.valueOrNull;
     if (content == null) {
-      return _errorResult(
-        result.errorOrNull?.message ?? 'Failed to read skill resource.',
-      );
+      return _errorResult('Failed to read skill resource.');
     }
     final lines = content.split(RegExp(r'\r?\n'));
     final selected = offset >= lines.length
@@ -631,9 +627,20 @@ class PromptToolbox {
         'returned_lines': selected.length,
         'total_lines': lines.length,
         'truncated': offset + selected.length < lines.length,
-        'content': selected.join('\n'),
+        'content': PrivateDataGuard.redactAbsolutePaths(selected.join('\n')),
       }),
     );
+  }
+
+  String _agentSafePath(String path) {
+    final normalized = path.replaceAll('\\', '/');
+    final segments = normalized
+        .split('/')
+        .where((segment) => segment.isNotEmpty && !segment.endsWith(':'))
+        .toList(growable: false);
+    if (segments.isEmpty) return '(unknown)';
+    final start = segments.length > 3 ? segments.length - 3 : 0;
+    return '.../${segments.skip(start).join('/')}';
   }
 
   CharacterGender? _parseGender(dynamic raw) {

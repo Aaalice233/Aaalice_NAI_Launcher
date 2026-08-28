@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/cloud_sync/cloud_sync_ui_provider.dart';
 import 'package:nai_launcher/presentation/screens/settings/settings_screen.dart';
+import 'package:nai_launcher/presentation/screens/settings/settings_section.dart';
 import 'package:nai_launcher/presentation/screens/cloud_sync/cloud_sync_initial_choice.dart';
 
 void main() {
@@ -327,7 +328,7 @@ Widget _subject({CloudSyncUiState? state, CloudSyncUiPort? port}) {
       locale: Locale('zh'),
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
-      home: SettingsScreen(initialSectionIndex: 4),
+      home: SettingsScreen(initialSection: SettingsSection.cloudSync),
     ),
   );
 }

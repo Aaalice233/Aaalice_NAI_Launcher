@@ -8,7 +8,14 @@ import '../../../../core/utils/localization_extension.dart';
 import '../../../prompt_assistant/providers/web_access_provider.dart';
 
 class WebAccessSettings extends ConsumerStatefulWidget {
-  const WebAccessSettings({super.key});
+  const WebAccessSettings({
+    super.key,
+    this.showEnableControl = true,
+    this.enabled,
+  });
+
+  final bool showEnableControl;
+  final bool? enabled;
 
   @override
   ConsumerState<WebAccessSettings> createState() => _WebAccessSettingsState();
@@ -40,6 +47,7 @@ class _WebAccessSettingsState extends ConsumerState<WebAccessSettings> {
   Widget build(BuildContext context) {
     final state = ref.watch(webAccessConfigProvider);
     final config = state.config;
+    final enabled = widget.enabled ?? config.enabled;
     final notifier = ref.read(webAccessConfigProvider.notifier);
     ref.listen<WebAccessConfigState>(webAccessConfigProvider, (previous, next) {
       if (_searxngFocus.hasFocus) return;
@@ -54,21 +62,25 @@ class _WebAccessSettingsState extends ConsumerState<WebAccessSettings> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-          leading: const Icon(Icons.public_outlined),
-          title: Text(context.l10n.promptAssistant_webAccessTitle),
-          subtitle: Text(context.l10n.promptAssistant_webAccessSubtitle),
-        ),
-        SwitchListTile(
-          value: config.enabled,
-          title: Text(context.l10n.promptAssistant_webAccessEnable),
-          subtitle: Text(context.l10n.promptAssistant_webAccessEnableSubtitle),
-          onChanged: notifier.setEnabled,
-        ),
+        if (widget.showEnableControl) ...[
+          ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+            leading: const Icon(Icons.public_outlined),
+            title: Text(context.l10n.promptAssistant_webAccessTitle),
+            subtitle: Text(context.l10n.promptAssistant_webAccessSubtitle),
+          ),
+          SwitchListTile(
+            value: enabled,
+            title: Text(context.l10n.promptAssistant_webAccessEnable),
+            subtitle: Text(
+              context.l10n.promptAssistant_webAccessEnableSubtitle,
+            ),
+            onChanged: notifier.setEnabled,
+          ),
+        ],
         AnimatedSwitcher(
           duration: const Duration(milliseconds: 180),
-          child: config.enabled
+          child: enabled
               ? Padding(
                   key: const ValueKey('web-access-settings-enabled'),
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),

@@ -56,6 +56,10 @@ void main() {
       (item) => item.name == 'read_skill_resource',
     );
 
+    await File(
+      '${references.path}${Platform.pathSeparator}paths.txt',
+    ).writeAsString('Open C:/Users/Alice/private.txt and /home/alice/private.');
+
     final allowed = await tool.execute('read-allowed', {
       'name': 'demo-skill',
       'path': 'references/guide.txt',
@@ -71,6 +75,37 @@ void main() {
     expect(jsonDecode(_resultText(allowed))['content'], 'second');
     expect(blocked.isError, isTrue);
     expect(_resultText(blocked), contains('not permitted'));
+    expect(_resultText(blocked), isNot(contains(root.path)));
+
+    final redacted = await tool.execute('read-redacted', {
+      'name': 'demo-skill',
+      'path': 'references/paths.txt',
+    });
+    expect(redacted.isError, isFalse);
+    expect(_resultText(redacted), contains('[absolute path]'));
+    expect(_resultText(redacted), isNot(contains('C:/Users/Alice')));
+    expect(_resultText(redacted), isNot(contains('/home/alice')));
+  });
+
+  test('read_skill redacts absolute paths from instructions', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final tool = PromptToolbox(
+      container.read(_refProvider),
+      skills: const {
+        'demo': HarnessSkill(
+          name: 'demo',
+          description: 'Demo',
+          content: 'Read C:/Users/Alice/private.txt or file:///home/alice/key.',
+          filePath: 'C:/skills/demo/SKILL.md',
+        ),
+      },
+    ).tools().firstWhere((item) => item.name == 'read_skill');
+
+    final result = await tool.execute('read', const {'name': 'demo'});
+    expect(_resultText(result), contains('[absolute path]'));
+    expect(_resultText(result), isNot(contains('C:/Users/Alice')));
+    expect(_resultText(result), isNot(contains('/home/alice')));
   });
 
   test('get_skill_diagnostics exposes the latest load warnings', () async {
@@ -81,7 +116,7 @@ void main() {
       skillDiagnostics: const [
         SkillDiagnostic(
           code: SkillDiagnosticCode.invalidMetadata,
-          message: 'bad name',
+          message: 'bad name at C:/skills/bad/SKILL.md',
           path: 'C:/skills/bad/SKILL.md',
         ),
       ],
@@ -92,6 +127,8 @@ void main() {
 
     expect(json['count'], 1);
     expect(json['diagnostics'][0]['code'], 'invalidMetadata');
+    expect(json['diagnostics'][0]['path'], '.../skills/bad/SKILL.md');
+    expect(_resultText(result), isNot(contains('C:/skills')));
   });
 
   test('add_character updates the newly created duplicate name', () async {

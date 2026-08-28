@@ -131,10 +131,7 @@ class MobileGenerationController extends ChangeNotifier
     closeAgentChat();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_disposed || !context.mounted) return;
-      context.goNamed(
-        'settings',
-        queryParameters: const {'section': 'integrations'},
-      );
+      context.goNamed('settings', queryParameters: const {'section': 'agent'});
     });
   }
 

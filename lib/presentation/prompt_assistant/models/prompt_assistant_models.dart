@@ -724,12 +724,8 @@ class TaskRoutingConfig {
         fallback: llmProviderId,
       ),
       customModel: _routingString(json, 'customModel', fallback: llmModel),
-      chatProviderId: _routingString(
-        json,
-        'chatProviderId',
-        fallback: llmProviderId,
-      ),
-      chatModel: _routingString(json, 'chatModel', fallback: llmModel),
+      chatProviderId: _routingString(json, 'chatProviderId'),
+      chatModel: _routingString(json, 'chatModel'),
     );
   }
 }
@@ -915,15 +911,6 @@ class PromptAssistantConfigState {
               'You are a prompt rewriting assistant. Modify the prompt according to the current prompt, the user request, and optional reference images. Output only the final single-line prompt that can be used directly, without explanation.',
           isDefault: true,
         ),
-        PromptRuleTemplate(
-          id: 'chat_default',
-          name: 'Default Chat Rule',
-          taskType: AssistantTaskType.chat,
-          content:
-              'You are a helpful assistant embedded in a NovelAI image-generation client. '
-              'Answer concisely in the user\'s language and use tools to edit prompts when asked.',
-          isDefault: true,
-        ),
       ],
       providerHasApiKey: {},
     );
@@ -979,7 +966,10 @@ class PromptAssistantConfigState {
     );
   }
 
-  factory PromptAssistantConfigState.decode(String raw) {
+  factory PromptAssistantConfigState.decode(
+    String raw, {
+    bool migrateLegacyChatRouting = false,
+  }) {
     final json = jsonDecode(raw) as Map<String, dynamic>;
     final defaults = PromptAssistantConfigState.defaults();
 
@@ -1001,6 +991,14 @@ class PromptAssistantConfigState {
       (json['routing'] as Map?)?.cast<String, dynamic>() ??
           defaults.routing.toJson(),
     );
+    if (migrateLegacyChatRouting &&
+        routing.chatProviderId.isEmpty &&
+        routing.chatModel.isEmpty) {
+      routing = routing.copyWith(
+        chatProviderId: routing.llmProviderId,
+        chatModel: routing.llmModel,
+      );
+    }
 
     if (_isUntouchedLegacyPollinationsDefault(
       providers: providers,

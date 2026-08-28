@@ -12652,6 +12652,264 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get cloudSync_largeBinaryKeepBothDefault => '大二进制冲突默认保留两个副本。';
+
+  @override
+  String get settings_agent => '智能体';
+
+  @override
+  String get agentSettings_subtitle => '管理聊天模型、工具权限、联网、系统提示词与 Skills。';
+
+  @override
+  String get agentSettings_chatModel => '聊天模型';
+
+  @override
+  String get agentSettings_providerModel => '供应商 / 模型';
+
+  @override
+  String get agentSettings_modelManagedInIntegrations =>
+      '供应商、API Key 与模型发现仍在“集成”中统一管理。';
+
+  @override
+  String get agentSettings_noModel => '没有可用聊天模型。请先在“集成”中添加供应商并发现模型。';
+
+  @override
+  String get agentSettings_pendingMatch => '待匹配';
+
+  @override
+  String get agentSettings_toolPermission => '工具权限';
+
+  @override
+  String get agentSettings_permissionSafe => '安全';
+
+  @override
+  String get agentSettings_permissionSafeDescription =>
+      '仅运行只读和低风险操作，不弹出敏感操作授权。';
+
+  @override
+  String get agentSettings_permissionAsk => '敏感操作前询问';
+
+  @override
+  String get agentSettings_permissionAskDescription =>
+      '默认模式。写文件、执行生成等敏感操作前先请求确认。';
+
+  @override
+  String get agentSettings_permissionFull => '完全访问';
+
+  @override
+  String get agentSettings_permissionFullDescription =>
+      '允许访问工作区外文件并直接执行工具。仅在信任当前任务时使用。';
+
+  @override
+  String get agentSettings_webPreference => '联网偏好';
+
+  @override
+  String get agentSettings_webEnabled => '允许智能体使用 Web 工具';
+
+  @override
+  String get agentSettings_webDescription =>
+      '开启后模型可搜索并读取公开网页；关闭后相关工具会从运行时工具表移除。';
+
+  @override
+  String get agentSettings_systemPrompt => '系统提示词';
+
+  @override
+  String get agentSettings_edit => '编辑';
+
+  @override
+  String get agentSettings_previewFinalPrompt => '预览最终提示词';
+
+  @override
+  String get agentSettings_systemPromptDescription =>
+      '内置安全与工具说明始终保留。这里仅追加你的行为指令。';
+
+  @override
+  String get agentSettings_systemPromptHint => '例如：优先给出简洁结论；修改提示词前先说明影响。';
+
+  @override
+  String get agentSettings_restoreDefault => '恢复默认';
+
+  @override
+  String get agentSettings_promptSaved => '系统提示词已保存';
+
+  @override
+  String get agentSettings_discardPromptTitle => '放弃未保存的系统提示词？';
+
+  @override
+  String get agentSettings_discardPromptBody => '离开此页面会丢失尚未保存的修改。';
+
+  @override
+  String get agentSettings_keepEditing => '继续编辑';
+
+  @override
+  String get agentSettings_discardChanges => '放弃修改';
+
+  @override
+  String get agentSettings_importProfile => '导入配置';
+
+  @override
+  String get agentSettings_exportProfile => '导出配置';
+
+  @override
+  String get agentSettings_profilePrivacy => '此文件不包含 API Key、Token、聊天记录或本机路径。';
+
+  @override
+  String get agentSettings_profilePending =>
+      '未安装的模型或 Skill 不会伪装为可用；偏好会保留，待以后安装后生效。';
+
+  @override
+  String get agentSettings_reloadSkills => '重新扫描';
+
+  @override
+  String get agentSettings_importSkills => '从 ZIP 导入';
+
+  @override
+  String get agentSettings_exportSkills => '导出所选 Skills';
+
+  @override
+  String get agentSettings_searchSkills => '搜索名称或描述';
+
+  @override
+  String get agentSettings_filterAll => '全部';
+
+  @override
+  String get agentSettings_filterEnabled => '已启用';
+
+  @override
+  String get agentSettings_filterDisabled => '已禁用';
+
+  @override
+  String agentSettings_skillEnabledCount(int enabled, int total) {
+    return '已启用 $enabled/$total';
+  }
+
+  @override
+  String get agentSettings_diagnostics => '诊断';
+
+  @override
+  String get agentSettings_noMatchingSkill => '没有匹配的 Skill';
+
+  @override
+  String get agentSettings_noDiagnostics => '未发现诊断问题';
+
+  @override
+  String get agentSettings_skillExplicitOnly =>
+      '该 Skill 只能由用户显式调用，不会出现在模型可见列表中';
+
+  @override
+  String get agentSettings_exportPrivacy =>
+      '只会导出明确勾选的 Skill；.env、密钥、Token、Git 与依赖目录不会打包。';
+
+  @override
+  String get agentSettings_continueExport => '继续导出';
+
+  @override
+  String get agentSettings_install => '安装';
+
+  @override
+  String get agentSettings_apply => '应用';
+
+  @override
+  String agentSettings_operationFailed(String error) {
+    return '操作失败：$error';
+  }
+
+  @override
+  String get agentSettings_skillsTitle => 'Skills';
+
+  @override
+  String get agentSettings_skillTransfer => '导入或导出';
+
+  @override
+  String get agentSettings_skillsRescanned => 'Skills 已重新扫描';
+
+  @override
+  String agentSettings_skillScanFailed(String error) {
+    return '扫描失败：$error';
+  }
+
+  @override
+  String get agentSettings_exportSkillsTitle => '导出 Skills';
+
+  @override
+  String get agentSettings_skillsExported => 'Skills 已导出';
+
+  @override
+  String get agentSettings_skillZipReadFailed => '无法读取 ZIP 文件';
+
+  @override
+  String get agentSettings_confirmSkillsImport => '确认导入 Skills';
+
+  @override
+  String agentSettings_skillArchiveStats(int files, int bytes) {
+    return '$files 个文件 · $bytes 字节';
+  }
+
+  @override
+  String get agentSettings_skillConflictReplace => '存在同名 Skill，勾选以替换';
+
+  @override
+  String get agentSettings_skillConflictUnsafe => '目标是文件、链接或特殊实体，不能替换';
+
+  @override
+  String get agentSettings_skillsInstalled => 'Skills 已安装';
+
+  @override
+  String agentSettings_skillShadowed(String name) {
+    return '$name 被更高优先级来源覆盖';
+  }
+
+  @override
+  String agentSettings_preferredSource(String source) {
+    return '优先来源：$source';
+  }
+
+  @override
+  String get agentSettings_sourceWorkspace => '工作区';
+
+  @override
+  String get agentSettings_sourcePiUser => 'Pi 用户';
+
+  @override
+  String get agentSettings_sourceCommonUser => '共享用户';
+
+  @override
+  String get agentSettings_exportProfileTitle => '导出智能体配置';
+
+  @override
+  String get agentSettings_profileExported => '智能体配置已导出';
+
+  @override
+  String get agentSettings_profileReadFailed => '无法读取配置文件';
+
+  @override
+  String get agentSettings_confirmProfileImport => '确认导入智能体配置';
+
+  @override
+  String get agentSettings_profileNoChanges => '当前配置不会发生变化';
+
+  @override
+  String agentSettings_profileChanges(String changes) {
+    return '将变更：$changes';
+  }
+
+  @override
+  String get agentSettings_listSeparator => '、';
+
+  @override
+  String get agentSettings_pendingPreferences => '待匹配偏好';
+
+  @override
+  String agentSettings_missingModel(String model) {
+    return '当前未提供模型：$model';
+  }
+
+  @override
+  String agentSettings_missingSkill(String skill) {
+    return '当前未安装 Skill：$skill';
+  }
+
+  @override
+  String get agentSettings_profileImported => '智能体配置已导入';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -25304,4 +25562,262 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get cloudSync_largeBinaryKeepBothDefault => '大型二進位衝突預設保留兩個副本。';
+
+  @override
+  String get settings_agent => '智慧體';
+
+  @override
+  String get agentSettings_subtitle => '管理聊天模型、工具權限、連網、系統提示詞與 Skills。';
+
+  @override
+  String get agentSettings_chatModel => '聊天模型';
+
+  @override
+  String get agentSettings_providerModel => '供應商 / 模型';
+
+  @override
+  String get agentSettings_modelManagedInIntegrations =>
+      '供應商、API Key 與模型探索仍在「整合」中統一管理。';
+
+  @override
+  String get agentSettings_noModel => '沒有可用聊天模型。請先在「整合」中新增供應商並探索模型。';
+
+  @override
+  String get agentSettings_pendingMatch => '待配對';
+
+  @override
+  String get agentSettings_toolPermission => '工具權限';
+
+  @override
+  String get agentSettings_permissionSafe => '安全';
+
+  @override
+  String get agentSettings_permissionSafeDescription =>
+      '僅執行唯讀和低風險操作，不彈出敏感操作授權。';
+
+  @override
+  String get agentSettings_permissionAsk => '敏感操作前詢問';
+
+  @override
+  String get agentSettings_permissionAskDescription =>
+      '預設模式。寫入檔案、執行生成等敏感操作前先要求確認。';
+
+  @override
+  String get agentSettings_permissionFull => '完全存取';
+
+  @override
+  String get agentSettings_permissionFullDescription =>
+      '允許存取工作區外檔案並直接執行工具。僅在信任目前任務時使用。';
+
+  @override
+  String get agentSettings_webPreference => '連網偏好';
+
+  @override
+  String get agentSettings_webEnabled => '允許智慧體使用 Web 工具';
+
+  @override
+  String get agentSettings_webDescription =>
+      '開啟後模型可搜尋並讀取公開網頁；關閉後相關工具會從執行階段工具表移除。';
+
+  @override
+  String get agentSettings_systemPrompt => '系統提示詞';
+
+  @override
+  String get agentSettings_edit => '編輯';
+
+  @override
+  String get agentSettings_previewFinalPrompt => '預覽最終提示詞';
+
+  @override
+  String get agentSettings_systemPromptDescription =>
+      '內建安全與工具說明始終保留。這裡僅附加你的行為指令。';
+
+  @override
+  String get agentSettings_systemPromptHint => '例如：優先給出簡潔結論；修改提示詞前先說明影響。';
+
+  @override
+  String get agentSettings_restoreDefault => '還原預設值';
+
+  @override
+  String get agentSettings_promptSaved => '系統提示詞已儲存';
+
+  @override
+  String get agentSettings_discardPromptTitle => '放棄未儲存的系統提示詞？';
+
+  @override
+  String get agentSettings_discardPromptBody => '離開此頁面會遺失尚未儲存的修改。';
+
+  @override
+  String get agentSettings_keepEditing => '繼續編輯';
+
+  @override
+  String get agentSettings_discardChanges => '放棄修改';
+
+  @override
+  String get agentSettings_importProfile => '匯入設定';
+
+  @override
+  String get agentSettings_exportProfile => '匯出設定';
+
+  @override
+  String get agentSettings_profilePrivacy => '此檔案不包含 API Key、Token、聊天記錄或本機路徑。';
+
+  @override
+  String get agentSettings_profilePending =>
+      '未安裝的模型或 Skill 不會偽裝為可用；偏好會保留，待日後安裝後生效。';
+
+  @override
+  String get agentSettings_reloadSkills => '重新掃描';
+
+  @override
+  String get agentSettings_importSkills => '從 ZIP 匯入';
+
+  @override
+  String get agentSettings_exportSkills => '匯出所選 Skills';
+
+  @override
+  String get agentSettings_searchSkills => '搜尋名稱或描述';
+
+  @override
+  String get agentSettings_filterAll => '全部';
+
+  @override
+  String get agentSettings_filterEnabled => '已啟用';
+
+  @override
+  String get agentSettings_filterDisabled => '已停用';
+
+  @override
+  String agentSettings_skillEnabledCount(int enabled, int total) {
+    return '已啟用 $enabled/$total';
+  }
+
+  @override
+  String get agentSettings_diagnostics => '診斷';
+
+  @override
+  String get agentSettings_noMatchingSkill => '沒有相符的 Skill';
+
+  @override
+  String get agentSettings_noDiagnostics => '未發現診斷問題';
+
+  @override
+  String get agentSettings_skillExplicitOnly =>
+      '此 Skill 只能由使用者明確呼叫，不會出現在模型可見清單中';
+
+  @override
+  String get agentSettings_exportPrivacy =>
+      '只會匯出明確勾選的 Skill；.env、金鑰、Token、Git 與依賴目錄不會打包。';
+
+  @override
+  String get agentSettings_continueExport => '繼續匯出';
+
+  @override
+  String get agentSettings_install => '安裝';
+
+  @override
+  String get agentSettings_apply => '套用';
+
+  @override
+  String agentSettings_operationFailed(String error) {
+    return '操作失敗：$error';
+  }
+
+  @override
+  String get agentSettings_skillsTitle => 'Skills';
+
+  @override
+  String get agentSettings_skillTransfer => '匯入或匯出';
+
+  @override
+  String get agentSettings_skillsRescanned => 'Skills 已重新掃描';
+
+  @override
+  String agentSettings_skillScanFailed(String error) {
+    return '掃描失敗：$error';
+  }
+
+  @override
+  String get agentSettings_exportSkillsTitle => '匯出 Skills';
+
+  @override
+  String get agentSettings_skillsExported => 'Skills 已匯出';
+
+  @override
+  String get agentSettings_skillZipReadFailed => '無法讀取 ZIP 檔案';
+
+  @override
+  String get agentSettings_confirmSkillsImport => '確認匯入 Skills';
+
+  @override
+  String agentSettings_skillArchiveStats(int files, int bytes) {
+    return '$files 個檔案 · $bytes 位元組';
+  }
+
+  @override
+  String get agentSettings_skillConflictReplace => '存在同名 Skill，勾選以取代';
+
+  @override
+  String get agentSettings_skillConflictUnsafe => '目標是檔案、連結或特殊實體，無法取代';
+
+  @override
+  String get agentSettings_skillsInstalled => 'Skills 已安裝';
+
+  @override
+  String agentSettings_skillShadowed(String name) {
+    return '$name 被更高優先順序來源覆蓋';
+  }
+
+  @override
+  String agentSettings_preferredSource(String source) {
+    return '優先來源：$source';
+  }
+
+  @override
+  String get agentSettings_sourceWorkspace => '工作區';
+
+  @override
+  String get agentSettings_sourcePiUser => 'Pi 使用者';
+
+  @override
+  String get agentSettings_sourceCommonUser => '共用使用者';
+
+  @override
+  String get agentSettings_exportProfileTitle => '匯出智慧體設定';
+
+  @override
+  String get agentSettings_profileExported => '智慧體設定已匯出';
+
+  @override
+  String get agentSettings_profileReadFailed => '無法讀取設定檔';
+
+  @override
+  String get agentSettings_confirmProfileImport => '確認匯入智慧體設定';
+
+  @override
+  String get agentSettings_profileNoChanges => '目前設定不會變更';
+
+  @override
+  String agentSettings_profileChanges(String changes) {
+    return '將變更：$changes';
+  }
+
+  @override
+  String get agentSettings_listSeparator => '、';
+
+  @override
+  String get agentSettings_pendingPreferences => '待配對偏好';
+
+  @override
+  String agentSettings_missingModel(String model) {
+    return '目前未提供模型：$model';
+  }
+
+  @override
+  String agentSettings_missingSkill(String skill) {
+    return '目前未安裝 Skill：$skill';
+  }
+
+  @override
+  String get agentSettings_profileImported => '智慧體設定已匯入';
 }

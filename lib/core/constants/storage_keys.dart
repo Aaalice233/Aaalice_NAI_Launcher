@@ -271,6 +271,7 @@ class StorageKeys {
   static const String promptAssistantApiKeyPrefix = 'prompt_assistant_api_key_';
   static const String agentWebAccessConfigJson = 'agent_web_access_config_json';
   static const String agentWebAccessExaApiKey = 'agent_web_access_exa_api_key';
+  static const String agentSettingsJson = 'agent_settings_json_v2';
 
   // 在线画廊凭据（系统安全存储）
   static const String onlineGalleryDanbooruCredentialsV1 =
