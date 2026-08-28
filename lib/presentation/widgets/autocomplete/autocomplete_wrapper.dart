@@ -371,7 +371,10 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
       _dismissOverlay();
       return;
     }
-    _keepEmptyQueryVisible = keepEmptyVisible || query.relatedTag != null;
+    _keepEmptyQueryVisible =
+        keepEmptyVisible ||
+        query.relatedTag != null ||
+        query.categoryFilter != null;
     _orchestrator?.query(
       query,
       settings,

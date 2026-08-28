@@ -31,6 +31,7 @@ void main() {
       INSERT INTO tags VALUES (5, 'species_wolf', 12, 2500);
       INSERT INTO tags VALUES (6, 'story_contributor', 9, 100);
       INSERT INTO tags VALUES (7, 'world_lore', 15, 80);
+      INSERT INTO tags VALUES (8, 'painter_blue', 8, 700);
       INSERT INTO aliases VALUES (1, 1, 'aqua_eyes');
       INSERT INTO tag_search VALUES ('blue_eyes', 'blue eyes', 1, 0);
       INSERT INTO tag_search VALUES ('aqua_eyes', 'aqua eyes', 1, 1);
@@ -40,6 +41,7 @@ void main() {
       INSERT INTO tag_search VALUES ('species_wolf', 'species wolf', 5, 0);
       INSERT INTO tag_search VALUES ('story_contributor', 'story contributor', 6, 0);
       INSERT INTO tag_search VALUES ('world_lore', 'world lore', 7, 0);
+      INSERT INTO tag_search VALUES ('painter_blue', 'painter blue', 8, 0);
       WITH RECURSIVE seq(i) AS (
         SELECT 1 UNION ALL SELECT i + 1 FROM seq WHERE i < 450
       )
@@ -117,6 +119,30 @@ void main() {
     expect(limited.single.canonicalTag, 'blue_hair');
   });
 
+  test('lists and searches only artist tags for an artist prefix', () async {
+    final allArtists = await repository.search(
+      _query('', categoryFilter: TagCategory.artist),
+    );
+    final matchingArtists = await repository.search(
+      _query('blue', categoryFilter: TagCategory.artist),
+    );
+
+    expect(allArtists.map((candidate) => candidate.canonicalTag), [
+      'painter_blue',
+      'artist_blue',
+    ]);
+    expect(matchingArtists.map((candidate) => candidate.canonicalTag), [
+      'painter_blue',
+      'artist_blue',
+    ]);
+    expect(
+      matchingArtists.every(
+        (candidate) => candidate.category == TagCategory.artist,
+      ),
+      isTrue,
+    );
+  });
+
   test('returns exhaustive matches beyond the previous 300-row cap', () async {
     final results = await repository.search(
       _query('blue_archive', limit: CompletionResultLimits.all),
@@ -128,7 +154,11 @@ void main() {
   });
 }
 
-CompletionQuery _query(String token, {int limit = 20}) => CompletionQuery(
+CompletionQuery _query(
+  String token, {
+  int limit = 20,
+  TagCategory? categoryFilter,
+}) => CompletionQuery(
   fullText: token,
   cursorPosition: token.length,
   token: token,
@@ -136,4 +166,5 @@ CompletionQuery _query(String token, {int limit = 20}) => CompletionQuery(
   existingTags: const {},
   limit: limit,
   locale: 'en',
+  categoryFilter: categoryFilter,
 );

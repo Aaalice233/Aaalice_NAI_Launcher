@@ -7,6 +7,10 @@ class PromptTokenParser {
   static final RegExp _weightPrefix = RegExp(r'^[\s\{\[\(]+');
   static final RegExp _weightSuffix = RegExp(r'[\s\}\]\)]+$');
   static final RegExp _weightNumberSuffix = RegExp(r'(?::\s*-?\d+(?:\.\d+)?)$');
+  static final RegExp _artistCategoryPrefix = RegExp(
+    r'^artist:',
+    caseSensitive: false,
+  );
 
   static CompletionQuery parse({
     required String text,
@@ -65,8 +69,13 @@ class PromptTokenParser {
         ? withoutSuffixEnd
         : prefix.length + weightNumber.start;
 
-    final replacementStart = start + prefix.length;
+    var replacementStart = start + prefix.length;
     final replacementEnd = start + contentEnd;
+    final categoryPrefix = _artistCategoryPrefix.firstMatch(
+      text.substring(replacementStart, replacementEnd),
+    );
+    final categoryFilter = categoryPrefix == null ? null : TagCategory.artist;
+    replacementStart += categoryPrefix?.end ?? 0;
     final token = text
         .substring(replacementStart, replacementEnd)
         .trim()
@@ -93,6 +102,7 @@ class PromptTokenParser {
       existingTags: existingTags,
       limit: limit.clamp(1, CompletionResultLimits.all),
       locale: locale,
+      categoryFilter: categoryFilter,
     );
   }
 
@@ -186,9 +196,13 @@ class PromptTokenParser {
       locale: '',
       splitOnSpaces: splitOnSpaces,
     );
-    if (current.kind == CompletionQueryKind.tag && current.token.isEmpty) {
+    if (current.kind == CompletionQueryKind.tag &&
+        current.token.isEmpty &&
+        current.categoryFilter == null) {
       return false;
     }
+
+    if (previous.categoryFilter != current.categoryFilter) return true;
 
     var prefixLength = 0;
     final sharedLength = previousText.length < currentText.length
@@ -219,7 +233,9 @@ class PromptTokenParser {
     }
 
     final sameActiveToken =
-        previous.kind == current.kind && previous.token == current.token;
+        previous.kind == current.kind &&
+        previous.token == current.token &&
+        previous.categoryFilter == current.categoryFilter;
     if (sameActiveToken) {
       return !_sameSemanticTags(previousText, currentText, splitOnSpaces);
     }
@@ -324,6 +340,7 @@ class PromptTokenParser {
     value = value.replaceFirst(_weightPrefix, '');
     value = value.replaceFirst(_weightSuffix, '');
     value = value.replaceFirst(_weightNumberSuffix, '');
+    value = value.replaceFirst(_artistCategoryPrefix, '');
     return value.trim().replaceAll(' ', '_').toLowerCase();
   }
 }

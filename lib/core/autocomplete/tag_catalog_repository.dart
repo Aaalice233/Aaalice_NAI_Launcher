@@ -35,26 +35,47 @@ class TagCatalogRepository implements CompletionSource {
   @override
   Future<List<CompletionCandidate>> search(CompletionQuery query) async {
     final normalized = query.token.trim().toLowerCase();
-    if (normalized.isEmpty || query.isChinese) return const [];
+    if ((normalized.isEmpty && query.categoryFilter == null) ||
+        query.isChinese) {
+      return const [];
+    }
     await initialize();
 
-    final expression = _ftsExpression(normalized);
-    if (expression.isEmpty) return const [];
     final requestedLimit =
         normalized.length == 1 && CompletionResultLimits.isAll(query.limit)
         ? CompletionResultLimits.oneCharacter
         : query.limit;
-    final rows = await _database!.rawQuery(
-      '''
+    final categoryValues = _catalogCategoryValues(query.categoryFilter);
+    final categoryClause = categoryValues.isEmpty
+        ? ''
+        : 'AND t.category IN (${List.filled(categoryValues.length, '?').join(',')})';
+    final List<Map<String, Object?>> rows;
+    if (normalized.isEmpty) {
+      rows = await _database!.rawQuery(
+        '''
+        SELECT t.name AS term, 0 AS kind, t.id, t.name, t.category, t.post_count
+        FROM tags t
+        WHERE 1 = 1 $categoryClause
+        ORDER BY t.post_count DESC, t.name ASC
+        LIMIT ?
+        ''',
+        [...categoryValues, requestedLimit],
+      );
+    } else {
+      final expression = _ftsExpression(normalized);
+      if (expression.isEmpty) return const [];
+      rows = await _database!.rawQuery(
+        '''
       SELECT f.term, f.kind, t.id, t.name, t.category, t.post_count
       FROM tag_search f
       JOIN tags t ON t.id = f.tag_id
-      WHERE tag_search MATCH ?
+      WHERE tag_search MATCH ? $categoryClause
       ORDER BY bm25(tag_search), t.post_count DESC, t.name ASC
       LIMIT ?
       ''',
-      [expression, (requestedLimit * 5).clamp(20, 500000)],
-    );
+        [expression, ...categoryValues, (requestedLimit * 5).clamp(20, 500000)],
+      );
+    }
 
     final byId = <int, Map<String, Object?>>{};
     for (final row in rows) {
@@ -249,6 +270,7 @@ class TagCatalogRepository implements CompletionSource {
   }
 
   static CompletionMatchKind _matchKind(String term, int kind, String query) {
+    if (query.isEmpty) return CompletionMatchKind.fullText;
     final normalizedTerm = term.toLowerCase();
     if (kind == 0) {
       return normalizedTerm == query
@@ -267,4 +289,17 @@ class TagCatalogRepository implements CompletionSource {
   static int _rowMatchPriority(Map<String, Object?> row, String query) {
     return _matchKind(row['term'] as String, row['kind'] as int, query).index;
   }
+
+  static List<int> _catalogCategoryValues(TagCategory? category) =>
+      switch (category) {
+        TagCategory.general => const [0, 7],
+        TagCategory.artist => const [1, 8],
+        TagCategory.copyright => const [3, 10],
+        TagCategory.character => const [4, 11],
+        TagCategory.meta => const [5, 14],
+        TagCategory.contributor => const [9],
+        TagCategory.species => const [12],
+        TagCategory.lore => const [15],
+        TagCategory.library || null => const [],
+      };
 }

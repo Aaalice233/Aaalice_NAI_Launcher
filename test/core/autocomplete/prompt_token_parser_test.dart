@@ -75,6 +75,39 @@ void main() {
       expect(query.replacementRange.start, 11);
     });
 
+    test('treats artist colon as an artist-category prefix', () {
+      final categoryQuery = PromptTokenParser.parse(
+        text: 'masterpiece, artist:',
+        cursorPosition: 'masterpiece, artist:'.length,
+        limit: 20,
+        locale: 'en',
+      );
+      final nameQuery = PromptTokenParser.parse(
+        text: 'artist:john doe',
+        cursorPosition: 'artist:john doe'.length,
+        limit: 20,
+        locale: 'en',
+      );
+
+      expect(categoryQuery.token, isEmpty);
+      expect(categoryQuery.categoryFilter, TagCategory.artist);
+      expect(
+        categoryQuery.replacementRange.start,
+        'masterpiece, artist:'.length,
+      );
+      expect(nameQuery.token, 'john_doe');
+      expect(nameQuery.categoryFilter, TagCategory.artist);
+
+      final result = PromptTokenParser.apply(
+        text: nameQuery.fullText,
+        query: nameQuery,
+        canonicalTag: 'john_singer_sargent',
+        autoInsertComma: true,
+        replaceUnderscores: false,
+      );
+      expect(result.text, 'artist:john_singer_sargent, ');
+    });
+
     test('supports Chinese input and requires explicit related-tag mode', () {
       final chinese = PromptTokenParser.parse(
         text: '杰作, 蓝色眼睛',
@@ -247,6 +280,7 @@ void main() {
       expect(changes('solo_focus', 4, 'solX_focus', 4), isTrue);
       expect(changes('', 0, 'solo_focus', 10), isTrue);
       expect(changes('', 0, '<角色', 3), isTrue);
+      expect(changes('artist', 6, 'artist:', 7), isTrue);
     });
 
     test('treats spaces according to the field separator policy', () {

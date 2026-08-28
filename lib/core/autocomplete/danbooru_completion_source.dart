@@ -46,7 +46,8 @@ class DanbooruCompletionSource implements CompletionSource {
   Future<List<CompletionCandidate>> search(CompletionQuery query) async {
     final token = query.token.trim().toLowerCase();
     if (query.isChinese || token.length < 2) return const [];
-    final key = 'tags:$token:${query.limit}';
+    final key =
+        'tags:$token:${query.categoryFilter?.value ?? 'all'}:${query.limit}';
     final now = DateTime.now();
     final memory = _memory[key];
     if (memory != null &&
@@ -90,6 +91,8 @@ class DanbooruCompletionSource implements CompletionSource {
             'search[hide_empty]': 'yes',
             'search[is_deprecated]': 'no',
             'search[order]': 'count',
+            if (query.categoryFilter != null)
+              'search[category]': query.categoryFilter!.value,
             'limit': pageSize,
             if (page > 1) 'page': page,
           },

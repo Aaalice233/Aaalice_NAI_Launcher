@@ -72,6 +72,7 @@ class CompletionOrchestrator extends ChangeNotifier {
     if (!settings.enabled ||
         (query.token.isEmpty &&
             query.relatedTag == null &&
+            query.categoryFilter == null &&
             query.kind != CompletionQueryKind.libraryAlias) ||
         (requestedRelatedQuery && !settings.relatedTagsEnabled)) {
       _emit(CompletionState(query: query));
@@ -132,7 +133,9 @@ class CompletionOrchestrator extends ChangeNotifier {
         }
       }),
     );
-    final localBatches = localResults.map((result) => result.candidates);
+    final localBatches = localResults.map(
+      (result) => _filterCategory(result.candidates, effectiveQuery),
+    );
     final localErrors = localResults
         .map((result) => result.error)
         .whereType<String>()
@@ -331,6 +334,7 @@ class CompletionOrchestrator extends ChangeNotifier {
       return;
     }
     if (!_isCurrent(sequence)) return;
+    remote = _filterCategory(remote, query);
     var merged = _mergeRemoteWithoutReordering(
       local: _state.candidates,
       remote: remote,
@@ -391,6 +395,17 @@ class CompletionOrchestrator extends ChangeNotifier {
     final supplementLimit = ((query.limit + 1) ~/ 2).clamp(1, 50);
     final remoteSlots = math.max(baselineGap, supplementLimit);
     return [...stableLocal, ...onlineOnly.take(remoteSlots)];
+  }
+
+  static List<CompletionCandidate> _filterCategory(
+    List<CompletionCandidate> candidates,
+    CompletionQuery query,
+  ) {
+    final category = query.categoryFilter;
+    if (category == null) return candidates;
+    return candidates
+        .where((candidate) => candidate.category == category)
+        .toList(growable: false);
   }
 
   void _scheduleLlmTranslations(

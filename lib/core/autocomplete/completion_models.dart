@@ -93,6 +93,7 @@ class CompletionQuery {
     required this.limit,
     required this.locale,
     this.relatedTag,
+    this.categoryFilter,
     this.kind = CompletionQueryKind.tag,
   });
 
@@ -104,6 +105,7 @@ class CompletionQuery {
   final int limit;
   final String locale;
   final String? relatedTag;
+  final TagCategory? categoryFilter;
   final CompletionQueryKind kind;
 
   bool get isChinese => RegExp(r'[\u3400-\u9fff]').hasMatch(token);
@@ -119,6 +121,8 @@ class CompletionQuery {
     String? locale,
     String? relatedTag,
     bool clearRelatedTag = false,
+    TagCategory? categoryFilter,
+    bool clearCategoryFilter = false,
     CompletionQueryKind? kind,
   }) {
     return CompletionQuery(
@@ -130,6 +134,9 @@ class CompletionQuery {
       limit: limit ?? this.limit,
       locale: locale ?? this.locale,
       relatedTag: clearRelatedTag ? null : relatedTag ?? this.relatedTag,
+      categoryFilter: clearCategoryFilter
+          ? null
+          : categoryFilter ?? this.categoryFilter,
       kind: kind ?? this.kind,
     );
   }

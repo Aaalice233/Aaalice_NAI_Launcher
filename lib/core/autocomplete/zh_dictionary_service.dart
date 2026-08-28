@@ -287,6 +287,9 @@ class ZhDictionaryService extends ChangeNotifier
         token.runes.length == 1 && CompletionResultLimits.isAll(query.limit)
         ? CompletionResultLimits.oneCharacter
         : query.limit;
+    final categoryClause = query.categoryFilter == null
+        ? ''
+        : 'AND category = ?';
     final rows = await _database!.rawQuery(
       '''
       SELECT name, category, cn_name, post_count,
@@ -296,13 +299,22 @@ class ZhDictionaryService extends ChangeNotifier
           ELSE 2
         END AS match_rank
       FROM tags
-      WHERE cn_name = ?
+      WHERE (cn_name = ?
          OR cn_name LIKE ? ESCAPE '\\'
-         OR cn_name LIKE ? ESCAPE '\\'
+         OR cn_name LIKE ? ESCAPE '\\')
+      $categoryClause
       ORDER BY match_rank, post_count DESC, name ASC
       LIMIT ?
       ''',
-      [token, '$escaped%', token, '$escaped%', '%$escaped%', requestedLimit],
+      [
+        token,
+        '$escaped%',
+        token,
+        '$escaped%',
+        '%$escaped%',
+        if (query.categoryFilter != null) query.categoryFilter!.value,
+        requestedLimit,
+      ],
     );
     return rows
         .map((row) {

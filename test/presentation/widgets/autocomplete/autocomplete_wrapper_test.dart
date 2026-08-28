@@ -107,6 +107,59 @@ void main() {
     expect(controller.selection.extentOffset, controller.text.length);
   });
 
+  testWidgets('artist colon opens artist-only results and preserves prefix', (
+    tester,
+  ) async {
+    final controller = TextEditingController(text: 'artist:');
+    controller.selection = const TextSelection.collapsed(offset: 7);
+    final focusNode = FocusNode();
+    final source = _ArtistCategorySource();
+    addTearDown(() {
+      controller.dispose();
+      focusNode.dispose();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          autocompleteServicesProvider.overrideWithValue(
+            AutocompleteServices(
+              localSources: [source],
+              dictionaryTranslations: const _NoTranslations(),
+              llmTranslations: const _NoTranslations(),
+              danbooru: _NoDanbooru(),
+            ),
+          ),
+        ],
+        child: MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: AutocompleteWrapper(
+              controller: controller,
+              focusNode: focusNode,
+              child: TextField(controller: controller, focusNode: focusNode),
+            ),
+          ),
+        ),
+      ),
+    );
+    focusNode.requestFocus();
+    await tester.pump();
+    await _typeCurrentText(tester, controller);
+
+    expect(source.lastQuery?.token, isEmpty);
+    expect(source.lastQuery?.categoryFilter, TagCategory.artist);
+    expect(find.text('john_singer_sargent'), findsOneWidget);
+    expect(find.text('blue_eyes'), findsNothing);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+
+    expect(controller.text, 'artist:john_singer_sargent, ');
+  });
+
   testWidgets(
     'generation autocomplete toggle updates the unified settings used by dialogs',
     (tester) async {
@@ -1573,6 +1626,31 @@ class _BaseSource implements CompletionSource {
         category: TagCategory.general,
         postCount: 1000,
         matchKind: CompletionMatchKind.englishPrefix,
+        sources: {CompletionSourceKind.base},
+      ),
+    ];
+  }
+}
+
+class _ArtistCategorySource implements CompletionSource {
+  CompletionQuery? lastQuery;
+
+  @override
+  Future<List<CompletionCandidate>> search(CompletionQuery query) async {
+    lastQuery = query;
+    return const [
+      CompletionCandidate(
+        canonicalTag: 'john_singer_sargent',
+        category: TagCategory.artist,
+        postCount: 5000,
+        matchKind: CompletionMatchKind.fullText,
+        sources: {CompletionSourceKind.base},
+      ),
+      CompletionCandidate(
+        canonicalTag: 'blue_eyes',
+        category: TagCategory.general,
+        postCount: 1000,
+        matchKind: CompletionMatchKind.fullText,
         sources: {CompletionSourceKind.base},
       ),
     ];
