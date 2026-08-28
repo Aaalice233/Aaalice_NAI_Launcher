@@ -56,11 +56,11 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File .pi/skills/aaalice-runtime-verify/
 
 Windows release 产物位于 `build/windows/x64/runner/Release/`。macOS 使用 `flutter build macos --release`，产物位于 `build/macos/Build/Products/Release/Aaalice NAI Launcher.app`；本地 Keychain 反复授权时使用 `scripts/create_macos_dev_cert.sh` 与 `scripts/dev_run_macos_signed.sh debug`。Android 通用 APK 位于 `build/app/outputs/flutter-apk/app-release.apk`；`.github/workflows/android-build.yml` 会在每次 push 和 PR 自动构建可安装 APK 与 SHA-256 文件并保存为 Actions artifact。
 
-项目热重载全链路由 `.pi/skills/` 中的三个项目 skill 管理：`aaalice-dev-sessions` 负责通过 Orca 创建、复用和关闭唯一的 `PC热重载` / `安卓热重载` 终端；`aaalice-hot-reload` 负责判定并触发 `r`、`R` 或完整重建，随后按 Orca cursor 增量读取两端日志；`aaalice-runtime-verify` 负责真实 UI 自动化与布局验收。Agent 不得另开第二个 `flutter run` 或 `flutter attach`，仓库 `scripts/` 下不再保留项目热重载入口。
+项目热重载与按需运行验收由 `.pi/skills/` 中的三个项目 skill 管理：`aaalice-dev-sessions` 负责通过 Orca 创建、复用和关闭唯一的 `PC热重载` / `安卓热重载` 终端；`aaalice-hot-reload` 负责判定并触发 `r`、`R` 或完整重建，随后按 Orca cursor 增量读取两端日志；`aaalice-runtime-verify` 在用户明确要求自动化验收时负责真实 UI 自动化与布局检查。Agent 不得另开第二个 `flutter run` 或 `flutter attach`，仓库 `scripts/` 下不再保留项目热重载入口。
 
 普通 Dart 方法、Widget 布局、样式和文案使用 `Reload`；状态字段、`initState`、Provider/依赖注入、路由/启动流程、静态缓存或生成 Dart 代码使用 `Restart`；依赖、Windows C++/插件注册、Android Kotlin/Manifest/Gradle/插件注册变化必须重建受影响会话。共享代码默认作用于 `All`，平台实现只作用于对应端。
 
-两个 runner 都通过 `--dart-define=ENABLE_FLUTTER_DRIVER=true` 启用仅限开发会话的 Flutter Driver extension，供官方 Dart and Flutter MCP server 在不抢占用户键鼠和桌面焦点的情况下截图、点击、输入、滚动与检查运行中 Flutter UI。禁止使用 Computer Use。稳定场景应固化为 `integration_test`；Android 系统界面场景继续使用 ADB。Android 项目 emulator 首次使用无 Quick Boot 快照、host GPU、无设备外框的干净启动，之后默认保留并复用暖机实例；复用前停止旧 App 并返回 Home，显式传 `-StopEmulatorOnExit` 时才跟随会话关闭。`-DeviceId` 仅用于明确复用外部设备。
+用户明确要求自动化运行验收时，两个 runner 通过 `--dart-define=ENABLE_FLUTTER_DRIVER=true` 启用仅限开发会话的 Flutter Driver extension，供官方 Dart and Flutter MCP server 在不抢占用户键鼠和桌面焦点的情况下截图、点击、输入、滚动与检查运行中 Flutter UI。禁止使用 Computer Use。稳定场景应固化为 `integration_test`；Android 系统界面场景使用 ADB。Android 项目 emulator 首次使用无 Quick Boot 快照、host GPU、无设备外框的干净启动，之后默认保留并复用暖机实例；复用前停止旧 App 并返回 Home，显式传 `-StopEmulatorOnExit` 时才跟随会话关闭。`-DeviceId` 仅用于明确复用外部设备。
 
 ## 代码风格与命名约定
 
@@ -83,8 +83,6 @@ Windows release 产物位于 `build/windows/x64/runner/Release/`。macOS 使用 
 
 所有共享 UI 从设计阶段起必须同时覆盖 Windows/macOS 桌面端和 Android 手机、横屏、平板/大屏，不能先完成桌面版再以缩放、裁切或静默删减功能得到移动版。业务能力、字段语义、状态和操作结果保持跨端一致；导航容器、面板呈现和输入方式可按 constraints 与设备能力自适应。桌面端保留鼠标、触控板、键盘、hover、快捷键和上下文操作效率；移动端提供不依赖 hover/右键/外接键盘的触屏等价入口，并正确处理 `SafeArea`、系统返回、横竖屏、软键盘和系统手势区。共享业务组件、Provider、路由状态和操作命令必须复用，平台差异集中在导航壳层、capabilities/service 与 conditional import，不在页面散落 `Platform.isAndroid` 或复制业务流程。
 
-UI 任务的完成条件包含双端真实运行验收：共享改动必须分别在 Windows Debug runner 与 Android emulator/设备上进入目标状态、执行目标交互并采集本轮新截图；一端通过不能推断另一端通过。布局回归至少覆盖与改动有关的紧凑手机（建议 360/412 宽）、横屏手机或平板（600/840）和桌面（1180/1600），同时检查 text scale、长文案、触屏命中区、键盘焦点、软键盘遮挡、系统返回、窗口缩放与 overflow。
-
 ## 在线画廊顶栏布局约束
 
 在线画廊顶栏在能够承载工具栏的桌面/平板宽度按控件职责固定分行，不允许按站点自由重排；紧凑手机端可改用触屏友好的分层筛选面板，但必须保留相同的全局/来源专属职责边界和全部操作能力。实现位于 `lib/presentation/screens/online_gallery/online_gallery_screen.dart`，布局回归测试位于 `test/presentation/screens/online_gallery/online_gallery_source_auth_test.dart`。
@@ -101,11 +99,13 @@ UI 任务的完成条件包含双端真实运行验收：共享改动必须分�
 
 测试使用 `flutter_test`，需要 mock 时使用 `mocktail`。测试文件以 `_test.dart` 结尾，并放在对应功能路径下，例如 `test/core/utils/`、`test/data/services/`、`test/presentation/providers/`。UI 行为变更尽量补 widget test；状态管理、请求构造、文件处理等逻辑变更应补 provider 或 service 回归测试。
 
-测试必须快速、确定且可终止：禁止在 Widget test 中依赖真实时间长轮询、未受控 isolate、网络、平台插件、文件选择器或无法取消的 `tester.runAsync` 链；这类跨异步边界的完整流程应拆成可直接测试的 service/utility，真实 UI 流程放入有明确超时和清理步骤的 runtime/integration verification。单测不得把默认十分钟超时当作等待机制，不得在失败后遗留 timer、isolate、进程、ProviderContainer 或未完成 Future。新增测试正常环境下单文件应在 30 秒内结束；若做不到，应先简化被测边界，而不是提高超时。
+测试必须快速、确定且可终止：禁止在 Widget test 中依赖真实时间长轮询、未受控 isolate、网络、平台插件、文件选择器或无法取消的 `tester.runAsync` 链；这类跨异步边界的完整流程应拆成可直接测试的 service/utility。单测不得把默认十分钟超时当作等待机制，不得在失败后遗留 timer、isolate、进程、ProviderContainer 或未完成 Future。新增测试正常环境下单文件应在 30 秒内结束；若做不到，应先简化被测边界，而不是提高超时。
 
 `dart_test.yaml` 将单个测试硬限制为 30 秒并把默认并发限制为 4。禁止直接运行无总时限的 `flutter test`：全量测试统一使用 `scripts/run_flutter_tests.ps1`，总时限最多 600 秒，超时必须终止整个进程树并失败；不得提高此上限。日常局部修改优先运行 `scripts/test_affected.ps1`，每批默认 120 秒 watchdog：不传 `-Path` 时根据当前 Git 改动选择镜像测试和直接 import 受影响源码的测试；需要限制本次范围时用 `-Path "lib/foo.dart,lib/bar.dart"`，额外回归测试用 `-Include "test/foo_test.dart"`，只查看选择结果用 `-ListOnly`。测试卡住或超时后禁止原样重跑；先终止残留进程树，定位未完成异步资源，并修复或删除脆弱测试。
 
-### Android 运行时测试规范
+### 按需 Android 运行时验收
+
+仅当用户明确要求 Agent 执行自动化运行验收时，使用本节流程；普通 UI 修改不默认启动真机、emulator、自动点击或截图验收。
 
 Android 系统界面快速回归使用 `.pi/skills/aaalice-runtime-verify/scripts/android_verify.ps1`：`-HotReload` 后约 1.2 秒开始操作，`-Foreground` 只把现有应用带回前台，`-Action` 接受 `tap:x,y`、`text:value`、`key:KEYCODE`、`swipe:x1,y1,x2,y2,duration` 和 `wait:milliseconds`。脚本会清理日志基线并保存截图、窗口树、Activity 状态和有界日志，发现 overflow、Flutter rendering exception 或原生崩溃时失败。
 
@@ -113,7 +113,7 @@ Android 系统界面快速回归使用 `.pi/skills/aaalice-runtime-verify/script
 
 每个关键场景至少验证：目标 Activity/窗口仍在前台、预期控件或文案可见、操作后状态正确、截图无截断/重叠/overflow、日志无新的 Flutter exception 或原生崩溃。UI 验收必须先建立“页面 × 子部件 × 可操作状态 × 展开层级”的覆盖矩阵，不能以访问顶级页面和各截一张首页图代替：进入页面后必须实际操作所有可达的选项卡、模式切换、折叠区、抽屉、菜单、筛选、详情、弹窗和编辑态；生成页还需覆盖文生图/图生图、参数、正负提示词、固定词、角色 0/1/多角色及角色编辑、随机模式、历史和 Agent 等状态。空态、有数据态、窄屏、键盘态及展开前后会显著改变布局时应分别取证；禁止真实扣除 Anlas，临时新增的角色或编辑状态必须可撤销并在验收后恢复，不破坏用户数据。
 
-截图生成后，当前 Agent 必须使用 `read` 逐张实际查看并进行细粒度视觉验收，按区域检查页面四边、标题栏、导航、卡片、输入区、工具栏首尾、弹窗、底栏及展开/折叠前后状态，逐项核对布局层级、间距密度、基线与中心对齐、文字/图标对比度、首尾裁切、文字省略、控件遮挡、可点击区域、键盘/弹窗覆盖和整体观感；不能只找黄色 overflow 条，也不能因主要内容可用而忽略边缘图标、工具栏入口或低对比度次要信息。不得只确认截图文件存在、只读取窗口树，或仅把截图当作行为流程证据。未实际查看本轮新截图、未确认本轮代码可见时不得声称 UI 验收通过。每轮发现问题后由主 Agent 修复并重新采集双端截图，再让 Android / Windows 审查分别复审；循环到两端新一轮均无新增问题才可结束。场景开始前清理或记录 `logcat` 基线，结束后同时保存截图、窗口树和有界日志到 `tool/.tmp/android-e2e/`；这些文件只用于本地验收，完成后删除，不得提交。涉及横竖屏、软键盘、返回手势、系统文件选择器、分享、相册保存、权限或更新安装时，必须实际走对应 Android 系统界面，不能用 mock 结果代替。不得在未获用户明确授权时发起真实扣除 Anlas 的生成请求。
+截图生成后，当前 Agent 必须逐张实际查看并进行细粒度视觉验收，按区域检查页面四边、标题栏、导航、卡片、输入区、工具栏首尾、弹窗、底栏及展开/折叠前后状态，逐项核对布局层级、间距密度、基线与中心对齐、文字/图标对比度、首尾裁切、文字省略、控件遮挡、可点击区域、键盘/弹窗覆盖和整体观感；不能只找黄色 overflow 条，也不能因主要内容可用而忽略边缘图标、工具栏入口或低对比度次要信息。不得只确认截图文件存在、只读取窗口树，或仅把截图当作行为流程证据。每轮发现问题后由主 Agent 修复并重新采集双端截图，再让 Android / Windows 审查分别复审；循环到两端新一轮均无新增问题才可结束。场景开始前清理或记录 `logcat` 基线，结束后同时保存截图、窗口树和有界日志到 `tool/.tmp/android-e2e/`；这些文件只用于本地验收，完成后删除，不得提交。涉及横竖屏、软键盘、返回手势、系统文件选择器、分享、相册保存、权限或更新安装时，必须实际走对应 Android 系统界面，不能用 mock 结果代替。不得在未获用户明确授权时发起真实扣除 Anlas 的生成请求。
 
 ## 文档维护规范
 
