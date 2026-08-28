@@ -124,6 +124,59 @@ void main() {
     expect(controller.visibleItems[0]?.visibleTop, -24);
   });
 
+  testWidgets('lazily builds only the viewport and cache neighborhood', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1200, 800);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    final controller = OnlineGalleryScreenController(
+      prefetchCoordinator: OnlineGalleryPrefetchCoordinator(
+        preloader: (_) async {},
+      ),
+    );
+    addTearDown(controller.dispose);
+    final items = List.generate(
+      1000,
+      (index) => GalleryItem(
+        id: index,
+        workId: 'post-$index',
+        sourceId: GallerySourceId.danbooru,
+      ),
+    );
+    final builtIndices = <int>{};
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: OnlineGalleryGrid(
+            state: OnlineGalleryState(searchCache: ModeCache(posts: items)),
+            controller: controller,
+            itemBuilder: (context, index, itemWidth, columnCount) {
+              builtIndices.add(index);
+              return const SizedBox(height: 120);
+            },
+          ),
+        ),
+      ),
+    );
+
+    expect(builtIndices, contains(0));
+    expect(builtIndices, isNot(contains(999)));
+    expect(builtIndices.length, lessThan(200));
+    final initialLastIndex = builtIndices.reduce((a, b) => a > b ? a : b);
+
+    await tester.drag(find.byType(OnlineGalleryGrid), const Offset(0, -700));
+    await tester.pump();
+
+    expect(
+      builtIndices.reduce((a, b) => a > b ? a : b),
+      greaterThan(initialLastIndex),
+    );
+    expect(builtIndices.length, lessThan(400));
+  });
+
   testWidgets(
     'derives column count from grid width rather than viewport height',
     (tester) async {
