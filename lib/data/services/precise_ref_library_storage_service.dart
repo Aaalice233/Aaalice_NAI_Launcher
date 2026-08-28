@@ -12,37 +12,12 @@ import '../../core/utils/app_logger.dart';
 import '../../core/utils/display_thumbnail_utils.dart';
 import '../../core/utils/precise_ref_library_path_helper.dart';
 import '../models/precise_ref/precise_ref_library_entry.dart';
+import 'precise_ref_portable_importer.dart';
+
+export 'precise_ref_portable_importer.dart'
+    show InvalidPreciseRefImageException, PreciseRefLibraryFileSystem;
 
 part 'precise_ref_library_storage_service.g.dart';
-
-class InvalidPreciseRefImageException implements Exception {
-  const InvalidPreciseRefImageException();
-
-  @override
-  String toString() => 'Unsupported or corrupt image data';
-}
-
-/// Injectable filesystem boundary used by storage recovery tests.
-class PreciseRefLibraryFileSystem {
-  const PreciseRefLibraryFileSystem();
-
-  Future<void> writeBytes(String path, Uint8List bytes) async {
-    await File(path).writeAsBytes(bytes, flush: true);
-  }
-
-  Future<Uint8List> readBytes(String path) => File(path).readAsBytes();
-
-  Future<bool> exists(String path) => File(path).exists();
-
-  Future<void> delete(String path) => File(path).delete();
-
-  Future<void> rename(String from, String to) async {
-    await File(from).rename(to);
-  }
-
-  Stream<FileSystemEntity> list(String directory) =>
-      Directory(directory).list();
-}
 
 /// 精准参考库存储服务
 ///
@@ -104,49 +79,8 @@ class PreciseRefLibraryStorageService {
   }
 
   /// 按字节魔数检测受支持的图片扩展名。
-  static String detectImageExtension(Uint8List bytes) {
-    if (bytes.length >= 8 &&
-        bytes[0] == 0x89 &&
-        bytes[1] == 0x50 &&
-        bytes[2] == 0x4E &&
-        bytes[3] == 0x47 &&
-        bytes[4] == 0x0D &&
-        bytes[5] == 0x0A &&
-        bytes[6] == 0x1A &&
-        bytes[7] == 0x0A) {
-      return '.png';
-    }
-    if (bytes.length >= 3 &&
-        bytes[0] == 0xFF &&
-        bytes[1] == 0xD8 &&
-        bytes[2] == 0xFF) {
-      return '.jpg';
-    }
-    if (bytes.length >= 12 &&
-        bytes[0] == 0x52 &&
-        bytes[1] == 0x49 &&
-        bytes[2] == 0x46 &&
-        bytes[3] == 0x46 &&
-        bytes[8] == 0x57 &&
-        bytes[9] == 0x45 &&
-        bytes[10] == 0x42 &&
-        bytes[11] == 0x50) {
-      return '.webp';
-    }
-    if (bytes.length >= 6 &&
-        bytes[0] == 0x47 &&
-        bytes[1] == 0x49 &&
-        bytes[2] == 0x46 &&
-        bytes[3] == 0x38 &&
-        (bytes[4] == 0x37 || bytes[4] == 0x39) &&
-        bytes[5] == 0x61) {
-      return '.gif';
-    }
-    if (bytes.length >= 2 && bytes[0] == 0x42 && bytes[1] == 0x4D) {
-      return '.bmp';
-    }
-    throw const InvalidPreciseRefImageException();
-  }
+  static String detectImageExtension(Uint8List bytes) =>
+      PreciseRefImageCodec.detectExtension(bytes);
 
   /// 获取全部条目。
   Future<List<PreciseRefLibraryEntry>> getAllEntries() async {
@@ -217,6 +151,71 @@ class PreciseRefLibraryStorageService {
 
     AppLogger.i('精准参考入库: ${entry.name} ($id)', _tag);
     return entry;
+  }
+
+  /// Imports a portable record with stable identity and transactional rollback.
+  Future<PreciseRefLibraryEntry> importPortableEntry(
+    Uint8List bytes, {
+    required String id,
+    required String name,
+    required PreciseRefType type,
+    required double strength,
+    required double fidelity,
+    required bool isFavorite,
+    required int usedCount,
+    required DateTime? lastUsedAt,
+    required DateTime createdAt,
+  }) async {
+    return importPortableEntryStream(
+      Stream.value(bytes),
+      expectedLength: bytes.length,
+      id: id,
+      name: name,
+      type: type,
+      strength: strength,
+      fidelity: fidelity,
+      isFavorite: isFavorite,
+      usedCount: usedCount,
+      lastUsedAt: lastUsedAt,
+      createdAt: createdAt,
+    );
+  }
+
+  Future<PreciseRefLibraryEntry> importPortableEntryStream(
+    Stream<List<int>> bytes, {
+    required int expectedLength,
+    required String id,
+    required String name,
+    required PreciseRefType type,
+    required double strength,
+    required double fidelity,
+    required bool isFavorite,
+    required int usedCount,
+    required DateTime? lastUsedAt,
+    required DateTime createdAt,
+  }) async {
+    await init();
+    if (!_managedImageFileName.hasMatch('$id.png')) {
+      throw const FormatException('Invalid precise reference stable ID');
+    }
+    return PreciseRefPortableImporter(
+      entries: _entriesBox!,
+      thumbnails: _thumbnailCacheBox!,
+      fileSystem: _fileSystem,
+    ).import(
+      bytes: bytes,
+      expectedLength: expectedLength,
+      directory: await _resolveImageDirectory(),
+      id: id,
+      name: name,
+      type: type,
+      strength: strength,
+      fidelity: fidelity,
+      isFavorite: isFavorite,
+      usedCount: usedCount,
+      lastUsedAt: lastUsedAt,
+      createdAt: createdAt,
+    );
   }
 
   /// 更新条目元数据（不触碰磁盘文件）。
@@ -368,6 +367,24 @@ class PreciseRefLibraryStorageService {
       AppLogger.w('读取精准参考原图失败: $e', _tag);
       return null;
     }
+  }
+
+  Future<int?> getImageLength(String id) async {
+    await init();
+    final entry = _entriesBox!.get(id);
+    if (entry == null || !await _fileSystem.exists(entry.imagePath)) {
+      return null;
+    }
+    return _fileSystem.length(entry.imagePath);
+  }
+
+  Stream<List<int>> openImageRead(String id) async* {
+    await init();
+    final entry = _entriesBox!.get(id);
+    if (entry == null || !await _fileSystem.exists(entry.imagePath)) {
+      throw StateError('Precise reference image is missing: $id');
+    }
+    yield* _fileSystem.openRead(entry.imagePath);
   }
 
   Future<void> _reconcileStorage() async {

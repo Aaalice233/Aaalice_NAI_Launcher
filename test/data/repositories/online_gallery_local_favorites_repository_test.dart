@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
+import 'package:nai_launcher/data/cloud_sync/online_favorites_cloud_sync_adapter.dart';
 import 'package:nai_launcher/data/models/online_gallery/gallery_item.dart';
 import 'package:nai_launcher/data/models/online_gallery/gallery_source.dart';
 import 'package:nai_launcher/data/repositories/online_gallery_local_favorites_repository.dart';
@@ -285,6 +286,30 @@ void main() {
     );
     expect(repository.contains('ai_tag:kept'), isTrue);
     expect(repository.count, 1);
+  });
+  test('cloud adapter round-trips source-neutral favorite snapshots', () async {
+    final repository = _repository(box, storage);
+    await repository.ensureInitialized();
+    await repository.upsert(
+      _detail(
+        sourceId: GallerySourceId.aiTag,
+        workId: 'portable',
+        title: 'Portable favorite',
+      ),
+      savedAt: DateTime.utc(2025, 2, 3),
+    );
+    final adapter = OnlineFavoritesCloudSyncAdapter(repository);
+    final records = await adapter.exportRecords().toList();
+    expect(records, hasLength(1));
+    expect(records.single.resource, isNull);
+
+    await repository.remove('ai_tag:portable');
+    await adapter.preflight(records);
+    await adapter.apply(records);
+
+    final restored = repository.getByStableKey('ai_tag:portable');
+    expect(restored?.detail.prompt, 'Portable favorite prompt');
+    expect(restored?.savedAt, DateTime.utc(2025, 2, 3));
   });
 }
 

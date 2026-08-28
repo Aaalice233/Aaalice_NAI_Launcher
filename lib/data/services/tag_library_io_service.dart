@@ -8,9 +8,50 @@ import 'package:path_provider/path_provider.dart';
 import '../models/tag_library/import_models.dart';
 import '../models/tag_library/tag_library_category.dart';
 import '../models/tag_library/tag_library_entry.dart';
+import 'tag_library_portable_thumbnail_store.dart';
 
 /// 词库导入导出服务
 class TagLibraryIOService {
+  TagLibraryIOService({TagLibraryPortableThumbnailStore? portableThumbnails})
+    : _portableThumbnails =
+          portableThumbnails ?? const TagLibraryPortableThumbnailStore();
+
+  final TagLibraryPortableThumbnailStore _portableThumbnails;
+
+  Future<int?> thumbnailLength(String? filePath) async {
+    if (filePath == null || filePath.isEmpty) return null;
+    final file = File(filePath);
+    return await file.exists() ? file.length() : null;
+  }
+
+  Stream<List<int>> openThumbnail(String filePath) => File(filePath).openRead();
+
+  Future<String> importPortableThumbnail(
+    String entryId,
+    String extension,
+    Stream<List<int>> bytes,
+  ) async {
+    final mutation = await stagePortableThumbnail(
+      entryId,
+      extension: extension,
+      bytes: bytes,
+    );
+    await mutation.commit();
+    return mutation.path!;
+  }
+
+  Future<PortableThumbnailMutation> stagePortableThumbnail(
+    String entryId, {
+    required String? extension,
+    required Stream<List<int>>? bytes,
+    String? existingPath,
+  }) => _portableThumbnails.stage(
+    entryId,
+    extension: extension,
+    bytes: bytes,
+    existingPath: existingPath,
+  );
+
   /// 导出词库到 ZIP 文件
   Future<File> exportLibrary({
     required List<TagLibraryEntry> entries,
@@ -36,26 +77,19 @@ class TagLibraryIOService {
     final manifestJson = jsonEncode(manifest.toJson());
     final manifestBytes = utf8.encode(manifestJson);
     archive.addFile(
-      ArchiveFile(
-        'manifest.json',
-        manifestBytes.length,
-        manifestBytes,
-      ),
+      ArchiveFile('manifest.json', manifestBytes.length, manifestBytes),
     );
     currentStep++;
     onProgress?.call(currentStep / totalSteps, '已创建清单');
 
     // 导出分类
     onProgress?.call(currentStep / totalSteps, '导出分类...');
-    final categoriesJson =
-        jsonEncode(categories.map((c) => c.toJson()).toList());
+    final categoriesJson = jsonEncode(
+      categories.map((c) => c.toJson()).toList(),
+    );
     final categoriesBytes = utf8.encode(categoriesJson);
     archive.addFile(
-      ArchiveFile(
-        'categories.json',
-        categoriesBytes.length,
-        categoriesBytes,
-      ),
+      ArchiveFile('categories.json', categoriesBytes.length, categoriesBytes),
     );
     currentStep++;
     onProgress?.call(currentStep / totalSteps, '已导出分类');
@@ -63,20 +97,13 @@ class TagLibraryIOService {
     // 导出条目
     for (var i = 0; i < entries.length; i++) {
       final entry = entries[i];
-      onProgress?.call(
-        currentStep / totalSteps,
-        '导出条目: ${entry.displayName}',
-      );
+      onProgress?.call(currentStep / totalSteps, '导出条目: ${entry.displayName}');
 
       // 导出条目 JSON
       final entryJson = jsonEncode(entry.toJson());
       final entryBytes = utf8.encode(entryJson);
       archive.addFile(
-        ArchiveFile(
-          'entries/${entry.id}.json',
-          entryBytes.length,
-          entryBytes,
-        ),
+        ArchiveFile('entries/${entry.id}.json', entryBytes.length, entryBytes),
       );
 
       // 导出预览图
@@ -119,12 +146,12 @@ class TagLibraryIOService {
     late Archive archive;
     try {
       final bytes = await zipFile.readAsBytes();
-      
+
       // 检查文件是否为空
       if (bytes.isEmpty) {
         throw Exception('词库文件为空');
       }
-      
+
       archive = ZipDecoder().decodeBytes(bytes);
     } catch (e) {
       throw Exception('无法解压词库文件：${e.toString()}');
@@ -135,7 +162,7 @@ class TagLibraryIOService {
     if (manifestFile == null) {
       throw Exception('无效的词库文件：缺少 manifest.json');
     }
-    
+
     late Map<String, dynamic> manifestData;
     try {
       final manifestJson = utf8.decode(manifestFile.content as List<int>);
@@ -152,7 +179,9 @@ class TagLibraryIOService {
         final categoriesJson = utf8.decode(categoriesFile.content as List<int>);
         final categoriesData = jsonDecode(categoriesJson) as List<dynamic>;
         categories = categoriesData
-            .map((c) => TagLibraryCategory.fromJson(Map<String, dynamic>.from(c)))
+            .map(
+              (c) => TagLibraryCategory.fromJson(Map<String, dynamic>.from(c)),
+            )
             .toList();
       } catch (e) {
         throw Exception('categories.json 解析失败：${e.toString()}');
@@ -175,14 +204,15 @@ class TagLibraryIOService {
     }
 
     // 检查是否有预览图
-    final hasThumbnails =
-        archive.files.any((f) => f.name.startsWith('thumbnails/'));
+    final hasThumbnails = archive.files.any(
+      (f) => f.name.startsWith('thumbnails/'),
+    );
 
     return ImportPreview(
       version: manifestData['version'] as String? ?? '1.0',
       exportDate:
           DateTime.tryParse(manifestData['exportDate'] as String? ?? '') ??
-              DateTime.now(),
+          DateTime.now(),
       appVersion: manifestData['appVersion'] as String?,
       entries: entries,
       categories: categories,
@@ -201,9 +231,9 @@ class TagLibraryIOService {
     // 检测条目冲突（按名称）
     for (final importEntry in preview.entries) {
       final existing = existingEntries.cast<TagLibraryEntry?>().firstWhere(
-            (e) => e?.name.toLowerCase() == importEntry.name.toLowerCase(),
-            orElse: () => null,
-          );
+        (e) => e?.name.toLowerCase() == importEntry.name.toLowerCase(),
+        orElse: () => null,
+      );
       if (existing != null) {
         conflicts.add(
           ImportConflict(
@@ -266,8 +296,9 @@ class TagLibraryIOService {
 
     // 获取应用文档目录用于保存预览图
     final appDir = await getApplicationDocumentsDirectory();
-    final thumbnailsDir =
-        Directory(path.join(appDir.path, 'tag_library_thumbnails'));
+    final thumbnailsDir = Directory(
+      path.join(appDir.path, 'tag_library_thumbnails'),
+    );
     if (!await thumbnailsDir.exists()) {
       await thumbnailsDir.create(recursive: true);
     }
@@ -291,13 +322,14 @@ class TagLibraryIOService {
       if (resolution == ConflictResolution.skip) {
         skippedConflicts++;
         // 找到现有分类的 ID 用于映射
-        final existing =
-            existingCategories.cast<TagLibraryCategory?>().firstWhere(
-                  (c) =>
-                      c?.name.toLowerCase() == category.name.toLowerCase() &&
-                      c?.parentId == category.parentId,
-                  orElse: () => null,
-                );
+        final existing = existingCategories
+            .cast<TagLibraryCategory?>()
+            .firstWhere(
+              (c) =>
+                  c?.name.toLowerCase() == category.name.toLowerCase() &&
+                  c?.parentId == category.parentId,
+              orElse: () => null,
+            );
         if (existing != null) {
           categoryIdMapping[category.id] = existing.id;
         }
@@ -346,8 +378,7 @@ class TagLibraryIOService {
         for (final file in archive.files) {
           if (file.name.startsWith('thumbnails/${entry.id}')) {
             final ext = path.extension(file.name);
-            newThumbnailPath =
-                path.join(thumbnailsDir.path, '${entry.id}$ext');
+            newThumbnailPath = path.join(thumbnailsDir.path, '${entry.id}$ext');
             final thumbnailFile = File(newThumbnailPath);
             await thumbnailFile.writeAsBytes(file.content as List<int>);
             break;
