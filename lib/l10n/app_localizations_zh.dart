@@ -12801,8 +12801,21 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agentSettings_previewFinalPrompt => '预览最终提示词';
 
   @override
-  String get agentSettings_systemPromptDescription =>
-      '内置安全与工具说明始终保留。这里仅追加你的行为指令。';
+  String get agentSettings_systemPromptDescription => '选择下方内容如何应用到智能体的系统提示词。';
+
+  @override
+  String get agentSettings_promptModeAppend => '追加';
+
+  @override
+  String get agentSettings_promptModeAppendDescription =>
+      '保留内置说明与 Skills 列表，并在末尾追加下方内容。';
+
+  @override
+  String get agentSettings_promptModeOverride => '覆盖';
+
+  @override
+  String get agentSettings_promptModeOverrideDescription =>
+      '仅将下方内容作为系统提示词；内置说明与 Skills 列表不会加入，但 Provider 必需的结构化工具定义仍会发送。';
 
   @override
   String get agentSettings_systemPromptHint => '例如：优先给出简洁结论；修改提示词前先说明影响。';
@@ -25793,8 +25806,21 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get agentSettings_previewFinalPrompt => '預覽最終提示詞';
 
   @override
-  String get agentSettings_systemPromptDescription =>
-      '內建安全與工具說明始終保留。這裡僅附加你的行為指令。';
+  String get agentSettings_systemPromptDescription => '選擇下方內容如何套用到智慧體的系統提示詞。';
+
+  @override
+  String get agentSettings_promptModeAppend => '附加';
+
+  @override
+  String get agentSettings_promptModeAppendDescription =>
+      '保留內建說明與 Skills 清單，並在末尾附加下方內容。';
+
+  @override
+  String get agentSettings_promptModeOverride => '覆蓋';
+
+  @override
+  String get agentSettings_promptModeOverrideDescription =>
+      '僅將下方內容作為系統提示詞；內建說明與 Skills 清單不會加入，但 Provider 必需的結構化工具定義仍會傳送。';
 
   @override
   String get agentSettings_systemPromptHint => '例如：優先給出簡潔結論；修改提示詞前先說明影響。';

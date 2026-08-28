@@ -138,6 +138,7 @@ void main() {
       expect(settings.chat.modelReference.providerId, 'deepseek');
       expect(settings.chat.modelReference.model, 'deepseek-chat');
       expect(settings.chat.webAccessEnabled, isTrue);
+      expect(settings.chat.systemPromptMode, AgentSystemPromptMode.append);
       expect(
         settings.chat.behaviorInstructions(),
         contains('Keep replies concise.'),
@@ -160,6 +161,41 @@ void main() {
       );
     },
   );
+
+  test('persists system prompt mode and text atomically', () async {
+    final storage = _MemoryStorage();
+    storage.values[StorageKeys.agentSettingsJson] = const AgentSettings()
+        .encode();
+    final container = ProviderContainer(
+      overrides: [
+        localStorageServiceProvider.overrideWithValue(storage),
+        secureStorageServiceProvider.overrideWithValue(_MemorySecureStorage()),
+        agentSettingsProvider.overrideWith(
+          (ref) => AgentSettingsNotifier(
+            ref,
+            supportDirectory: temp,
+            workspaceDirectory: temp,
+            environment: const {},
+          ),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    await _waitUntilInitialized(container);
+
+    await container
+        .read(agentSettingsProvider.notifier)
+        .saveCustomSystemPrompt(
+          mode: AgentSystemPromptMode.override,
+          value: 'Replacement prompt',
+        );
+
+    final persisted = AgentSettings.decode(
+      storage.values[StorageKeys.agentSettingsJson]! as String,
+    );
+    expect(persisted.chat.systemPromptMode, AgentSystemPromptMode.override);
+    expect(persisted.chat.customSystemPrompt, 'Replacement prompt');
+  });
 
   test(
     'legacy cleanup failure is visible and retryable without data loss',

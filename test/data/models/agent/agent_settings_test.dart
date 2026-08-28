@@ -14,6 +14,7 @@ void main() {
             model: 'gpt-test',
           ),
           customSystemPrompt: 'Be concise.',
+          systemPromptMode: AgentSystemPromptMode.override,
           permissionMode: AgentPermissionMode.safe,
           webAccessEnabled: false,
         ),
@@ -23,11 +24,44 @@ void main() {
       final decoded = AgentSettings.decode(jsonEncode(settings.toJson()));
       expect(decoded.chat.modelReference, settings.chat.modelReference);
       expect(decoded.chat.customSystemPrompt, settings.chat.customSystemPrompt);
+      expect(decoded.chat.systemPromptMode, AgentSystemPromptMode.override);
       expect(decoded.disabledSkillIds, settings.disabledSkillIds);
       expect(
         settings.toJson()['schemaVersion'],
         AgentSettings.currentSchemaVersion,
       );
+    });
+
+    test('schema 3 settings migrate to append mode', () {
+      final raw = const AgentSettings(
+        chat: AgentChatConfig(customSystemPrompt: 'Keep this behavior.'),
+      ).toJson();
+      raw['schemaVersion'] = 3;
+      (raw['chat']! as Map<String, dynamic>).remove('systemPromptMode');
+
+      final decoded = AgentSettings.decode(jsonEncode(raw));
+
+      expect(decoded.chat.systemPromptMode, AgentSystemPromptMode.append);
+      expect(decoded.chat.customSystemPrompt, 'Keep this behavior.');
+    });
+
+    test('override excludes migrated legacy rules from final user content', () {
+      const chat = AgentChatConfig(
+        systemPromptMode: AgentSystemPromptMode.override,
+        customSystemPrompt: 'Only this prompt.',
+        migratedChatRules: [
+          AgentMigratedChatRule(
+            id: 'legacy',
+            name: 'Legacy',
+            content: 'Old appended rule.',
+            enabled: true,
+            isDefault: false,
+            order: 0,
+          ),
+        ],
+      );
+
+      expect(chat.behaviorInstructions(), 'Only this prompt.');
     });
 
     test('rejects unsupported schemas and unknown fields', () {
@@ -87,6 +121,7 @@ void main() {
       expect(migrated.chat.modelReference.providerId, 'provider-a');
       expect(migrated.chat.modelReference.model, 'model-a');
       expect(migrated.chat.customSystemPrompt, isEmpty);
+      expect(migrated.chat.systemPromptMode, AgentSystemPromptMode.append);
       expect(migrated.chat.migratedChatRules, hasLength(2));
       expect(
         migrated.chat.migratedChatRules.first,

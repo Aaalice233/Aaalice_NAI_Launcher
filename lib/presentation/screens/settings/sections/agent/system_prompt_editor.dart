@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:nai_launcher/core/utils/localization_extension.dart';
+import 'package:nai_launcher/data/models/agent/agent_settings.dart';
 import 'package:nai_launcher/presentation/agent_chat/providers/agent_chat_notifier.dart';
 import 'package:nai_launcher/presentation/agent_settings/providers/agent_prompt_draft_provider.dart';
 import 'package:nai_launcher/presentation/agent_settings/providers/agent_settings_provider.dart';
@@ -52,8 +53,12 @@ class _AgentSystemPromptEditorState
     final settings = ref.watch(agentSettingsProvider).settings;
     final draft = ref.watch(agentPromptDraftProvider);
     if (draft.saved != settings.chat.customSystemPrompt ||
+        draft.savedMode != settings.chat.systemPromptMode ||
         _controller.text != draft.draft) {
-      _scheduleSynchronization(settings.chat.customSystemPrompt);
+      _scheduleSynchronization(
+        settings.chat.customSystemPrompt,
+        settings.chat.systemPromptMode,
+      );
     }
     return SettingsCard(
       title: context.l10n.agentSettings_systemPrompt,
@@ -81,6 +86,44 @@ class _AgentSystemPromptEditorState
                   Text(
                     context.l10n.agentSettings_systemPromptDescription,
                     style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: 12),
+                  SegmentedButton<AgentSystemPromptMode>(
+                    key: const ValueKey('agent-system-prompt-mode'),
+                    segments: [
+                      ButtonSegment(
+                        value: AgentSystemPromptMode.append,
+                        icon: const Icon(Icons.playlist_add_outlined),
+                        label: Text(
+                          context.l10n.agentSettings_promptModeAppend,
+                        ),
+                      ),
+                      ButtonSegment(
+                        value: AgentSystemPromptMode.override,
+                        icon: const Icon(Icons.find_replace_outlined),
+                        label: Text(
+                          context.l10n.agentSettings_promptModeOverride,
+                        ),
+                      ),
+                    ],
+                    selected: {draft.draftMode},
+                    onSelectionChanged: draft.saving
+                        ? null
+                        : (selection) => ref
+                              .read(agentPromptDraftProvider.notifier)
+                              .updateMode(selection.single),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    draft.draftMode == AgentSystemPromptMode.append
+                        ? context.l10n.agentSettings_promptModeAppendDescription
+                        : context
+                              .l10n
+                              .agentSettings_promptModeOverrideDescription,
+                    key: const ValueKey('agent-system-prompt-mode-description'),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                   const SizedBox(height: 12),
                   TextField(
@@ -133,13 +176,15 @@ class _AgentSystemPromptEditorState
     );
   }
 
-  void _scheduleSynchronization(String saved) {
+  void _scheduleSynchronization(String saved, AgentSystemPromptMode savedMode) {
     if (_syncScheduled) return;
     _syncScheduled = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _syncScheduled = false;
       if (!mounted) return;
-      ref.read(agentPromptDraftProvider.notifier).synchronizeSaved(saved);
+      ref
+          .read(agentPromptDraftProvider.notifier)
+          .synchronizeSaved(value: saved, mode: savedMode);
       final text = ref.read(agentPromptDraftProvider).draft;
       if (_controller.text == text) return;
       _controller.removeListener(_onChanged);
@@ -157,8 +202,12 @@ class _AgentSystemPromptEditorState
     try {
       await ref
           .read(agentSettingsProvider.notifier)
-          .saveCustomSystemPrompt(draft.draft);
-      notifier.finishSave(revision: draft.revision, saved: draft.draft);
+          .saveCustomSystemPrompt(mode: draft.draftMode, value: draft.draft);
+      notifier.finishSave(
+        revision: draft.revision,
+        saved: draft.draft,
+        savedMode: draft.draftMode,
+      );
       if (mounted) {
         AppToast.success(context, context.l10n.agentSettings_promptSaved);
       }
@@ -183,6 +232,7 @@ class _AgentSystemPromptEditorState
         .read(agentChatNotifierProvider.notifier)
         .buildSystemPromptPreview(
           customInstructions: ref.read(agentPromptDraftProvider).draft,
+          mode: ref.read(agentPromptDraftProvider).draftMode,
         );
     if (!mounted ||
         currentRevision != _previewRevision ||

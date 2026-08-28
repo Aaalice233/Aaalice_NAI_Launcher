@@ -161,6 +161,18 @@ void main() {
         find.byKey(const ValueKey('agent-custom-system-prompt')),
         findsOneWidget,
       );
+      expect(
+        find.byKey(const ValueKey('agent-system-prompt-mode')),
+        findsOneWidget,
+      );
+      expect(find.text('追加'), findsOneWidget);
+      expect(find.text('覆盖'), findsOneWidget);
+      expect(find.textContaining('保留内置说明与 Skills 列表'), findsOneWidget);
+
+      await tester.tap(find.text('覆盖'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('仅将下方内容作为系统提示词'), findsOneWidget);
+      expect(tester.takeException(), isNull);
 
       for (final size in const [
         Size(700, 430),

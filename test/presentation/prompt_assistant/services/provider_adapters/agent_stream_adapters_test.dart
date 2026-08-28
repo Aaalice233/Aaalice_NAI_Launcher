@@ -6,7 +6,10 @@ import 'package:nai_launcher/core/agent/agent_types.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/models/agent_protocol.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/models/prompt_assistant_models.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/services/provider_adapters/gemini_generate_content_adapter.dart';
+import 'package:nai_launcher/presentation/prompt_assistant/services/provider_adapters/anthropic_messages_adapter.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/services/provider_adapters/openai_chat_completions_adapter.dart';
+import 'package:nai_launcher/presentation/prompt_assistant/services/provider_adapters/openai_responses_adapter.dart';
+import 'package:nai_launcher/presentation/prompt_assistant/services/provider_adapters/prompt_assistant_adapter.dart';
 
 void main() {
   test(
@@ -57,9 +60,60 @@ void main() {
       StopReason.toolUse,
     );
   });
+
+  test('every Agent protocol sends the exact final system prompt', () async {
+    final cases = <(ProviderProtocol, PromptAssistantProviderAdapter)>[
+      (
+        ProviderProtocol.openaiChatCompletions,
+        const OpenAiChatCompletionsAdapter(),
+      ),
+      (ProviderProtocol.openaiResponses, const OpenAiResponsesAdapter()),
+      (ProviderProtocol.anthropicMessages, const AnthropicMessagesAdapter()),
+      (
+        ProviderProtocol.geminiGenerateContent,
+        const GeminiGenerateContentAdapter(),
+      ),
+      (
+        ProviderProtocol.ollamaChatCompletions,
+        const OpenAiChatCompletionsAdapter(ollamaTagsFallback: true),
+      ),
+    ];
+
+    for (final (protocol, adapter) in cases) {
+      final capture = _CaptureAdapter();
+      final dio = Dio()..httpClientAdapter = capture;
+      addTearDown(dio.close);
+
+      await adapter
+          .completeAgent(
+            dio: dio,
+            request: _request(protocol, systemPrompt: 'EXACT_OVERRIDE'),
+            cancelToken: CancelToken(),
+          )
+          .toList();
+
+      final payload = capture.options!.data as Map<String, dynamic>;
+      final outboundPrompt = switch (protocol) {
+        ProviderProtocol.openaiChatCompletions ||
+        ProviderProtocol.ollamaChatCompletions =>
+          ((payload['messages'] as List).first as Map)['content'],
+        ProviderProtocol.openaiResponses => payload['instructions'],
+        ProviderProtocol.anthropicMessages => payload['system'],
+        ProviderProtocol.geminiGenerateContent =>
+          ((((payload['system_instruction'] as Map)['parts'] as List).single
+              as Map)['text']),
+      };
+      expect(outboundPrompt, 'EXACT_OVERRIDE', reason: protocol.name);
+      expect(payload.toString(), isNot(contains('BUILT_IN')));
+      expect(payload.toString(), contains('exact_tool'), reason: protocol.name);
+    }
+  });
 }
 
-AgentChatRequest _request(ProviderProtocol protocol) {
+AgentChatRequest _request(
+  ProviderProtocol protocol, {
+  String systemPrompt = 'system',
+}) {
   return AgentChatRequest(
     sessionId: 'session',
     provider: ProviderConfig(
@@ -69,9 +123,15 @@ AgentChatRequest _request(ProviderProtocol protocol) {
       baseUrl: 'https://example.test',
     ),
     model: 'model',
-    systemPrompt: 'system',
+    systemPrompt: systemPrompt,
     messages: [UserMessage.text('hello')],
-    tools: const [],
+    tools: const [
+      Tool(
+        name: 'exact_tool',
+        description: 'Structured tool definition',
+        parameters: {'type': 'object', 'properties': <String, dynamic>{}},
+      ),
+    ],
     apiKey: null,
   );
 }
@@ -89,6 +149,29 @@ class _SseAdapter implements HttpClientAdapter {
   ) async {
     return ResponseBody.fromString(
       body,
+      200,
+      headers: {
+        Headers.contentTypeHeader: ['text/event-stream'],
+      },
+    );
+  }
+
+  @override
+  void close({bool force = false}) {}
+}
+
+class _CaptureAdapter implements HttpClientAdapter {
+  RequestOptions? options;
+
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    this.options = options;
+    return ResponseBody.fromString(
+      '',
       200,
       headers: {
         Headers.contentTypeHeader: ['text/event-stream'],

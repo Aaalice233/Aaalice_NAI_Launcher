@@ -13034,7 +13034,21 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get agentSettings_systemPromptDescription =>
-      '組み込みの安全・ツール指示は常に保持され、ここには行動指示だけが追加されます。';
+      '以下の内容をエージェントのシステムプロンプトに適用する方法を選択します。';
+
+  @override
+  String get agentSettings_promptModeAppend => '追加';
+
+  @override
+  String get agentSettings_promptModeAppendDescription =>
+      '組み込みの指示と Skills 一覧を保持し、その末尾に以下の内容を追加します。';
+
+  @override
+  String get agentSettings_promptModeOverride => '上書き';
+
+  @override
+  String get agentSettings_promptModeOverrideDescription =>
+      '以下の内容だけをシステムプロンプトとして使用します。組み込みの指示と Skills 一覧は含まれませんが、プロバイダーに必要な構造化ツール定義は引き続き送信されます。';
 
   @override
   String get agentSettings_systemPromptHint =>

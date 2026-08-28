@@ -13369,7 +13369,21 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get agentSettings_systemPromptDescription =>
-      'Built-in safety and tool instructions are always retained. Your behavior instructions are appended here.';
+      'Choose how the content below is applied to the Agent system prompt.';
+
+  @override
+  String get agentSettings_promptModeAppend => 'Append';
+
+  @override
+  String get agentSettings_promptModeAppendDescription =>
+      'Keep the built-in instructions and Skills list, then append the content below.';
+
+  @override
+  String get agentSettings_promptModeOverride => 'Override';
+
+  @override
+  String get agentSettings_promptModeOverrideDescription =>
+      'Use only the content below as the system prompt. Built-in instructions and the Skills list are omitted, while structured tool definitions required by the provider are still sent.';
 
   @override
   String get agentSettings_systemPromptHint =>

@@ -142,7 +142,10 @@ class _AgentProfileActionsState extends ConsumerState<AgentProfileActions> {
           .replaceSettings(preview.settings);
       ref
           .read(agentPromptDraftProvider.notifier)
-          .synchronizeSaved(preview.settings.chat.customSystemPrompt);
+          .synchronizeSaved(
+            value: preview.settings.chat.customSystemPrompt,
+            mode: preview.settings.chat.systemPromptMode,
+          );
       if (mounted) {
         AppToast.success(context, context.l10n.agentSettings_profileImported);
       }
@@ -170,6 +173,7 @@ class _AgentProfileActionsState extends ConsumerState<AgentProfileActions> {
     'permissionMode' => context.l10n.agentSettings_toolPermission,
     'webAccess' => context.l10n.agentSettings_webPreference,
     'customSystemPrompt' => context.l10n.agentSettings_systemPrompt,
+    'systemPromptMode' => context.l10n.agentSettings_systemPrompt,
     'migratedChatRules' => context.l10n.agentSettings_systemPrompt,
     'skillPreferences' => context.l10n.agentSettings_skillsTitle,
     _ => value,

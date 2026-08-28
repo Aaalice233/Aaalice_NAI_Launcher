@@ -6,6 +6,8 @@ const String legacyDefaultAgentChatPrompt =
     'You are a helpful assistant embedded in a NovelAI image-generation client. '
     'Answer concisely in the user\'s language and use tools to edit prompts when asked.';
 
+enum AgentSystemPromptMode { append, override }
+
 class AgentModelReference {
   const AgentModelReference({this.providerId = '', this.model = ''});
 
@@ -121,6 +123,7 @@ class AgentChatConfig {
     this.modelReference = const AgentModelReference(),
     this.permissionMode = AgentPermissionMode.askBeforeSensitiveActions,
     this.webAccessEnabled = false,
+    this.systemPromptMode = AgentSystemPromptMode.append,
     this.customSystemPrompt = '',
     this.migratedChatRules = const [],
   });
@@ -128,10 +131,17 @@ class AgentChatConfig {
   final AgentModelReference modelReference;
   final AgentPermissionMode permissionMode;
   final bool webAccessEnabled;
+  final AgentSystemPromptMode systemPromptMode;
   final String customSystemPrompt;
   final List<AgentMigratedChatRule> migratedChatRules;
 
-  String behaviorInstructions({String? customPromptOverride}) {
+  String behaviorInstructions({
+    String? customPromptOverride,
+    AgentSystemPromptMode? modeOverride,
+  }) {
+    final mode = modeOverride ?? systemPromptMode;
+    final custom = (customPromptOverride ?? customSystemPrompt).trim();
+    if (mode == AgentSystemPromptMode.override) return custom;
     final migrated =
         migratedChatRules
             .where((rule) => rule.enabled && !rule.isUnmodifiedLegacyDefault)
@@ -140,8 +150,7 @@ class AgentChatConfig {
     return [
       for (final rule in migrated)
         if (rule.content.trim().isNotEmpty) rule.content.trim(),
-      if ((customPromptOverride ?? customSystemPrompt).trim().isNotEmpty)
-        (customPromptOverride ?? customSystemPrompt).trim(),
+      if (custom.isNotEmpty) custom,
     ].join('\n\n');
   }
 
@@ -149,6 +158,7 @@ class AgentChatConfig {
     AgentModelReference? modelReference,
     AgentPermissionMode? permissionMode,
     bool? webAccessEnabled,
+    AgentSystemPromptMode? systemPromptMode,
     String? customSystemPrompt,
     List<AgentMigratedChatRule>? migratedChatRules,
   }) {
@@ -156,6 +166,7 @@ class AgentChatConfig {
       modelReference: modelReference ?? this.modelReference,
       permissionMode: permissionMode ?? this.permissionMode,
       webAccessEnabled: webAccessEnabled ?? this.webAccessEnabled,
+      systemPromptMode: systemPromptMode ?? this.systemPromptMode,
       customSystemPrompt: customSystemPrompt ?? this.customSystemPrompt,
       migratedChatRules: migratedChatRules ?? this.migratedChatRules,
     );
@@ -165,6 +176,7 @@ class AgentChatConfig {
     'modelReference': modelReference.toJson(),
     'permissionMode': permissionMode.name,
     'webAccessEnabled': webAccessEnabled,
+    'systemPromptMode': systemPromptMode.name,
     'customSystemPrompt': customSystemPrompt,
     'migratedChatRules': [for (final rule in migratedChatRules) rule.toJson()],
   };
@@ -178,6 +190,7 @@ class AgentChatConfig {
     }
     final permission = value['permissionMode'];
     final webAccess = value['webAccessEnabled'];
+    final promptMode = value['systemPromptMode'];
     final customPrompt = value['customSystemPrompt'];
     if (permission is! String ||
         webAccess is! bool ||
@@ -188,6 +201,7 @@ class AgentChatConfig {
       'modelReference',
       'permissionMode',
       'webAccessEnabled',
+      'systemPromptMode',
       'customSystemPrompt',
       'migratedChatRules',
     }, 'chat');
@@ -200,6 +214,16 @@ class AgentChatConfig {
     if (customPrompt.length > AgentSettings.maxCustomPromptLength) {
       throw const FormatException('customSystemPrompt is too large.');
     }
+    if (schemaVersion >= 4 && promptMode is! String) {
+      throw const FormatException('systemPromptMode must be a string.');
+    }
+    final systemPromptMode = schemaVersion < 4
+        ? AgentSystemPromptMode.append
+        : switch (promptMode) {
+            'append' => AgentSystemPromptMode.append,
+            'override' => AgentSystemPromptMode.override,
+            _ => throw FormatException('Unknown systemPromptMode: $promptMode'),
+          };
     final migratedValue = value['migratedChatRules'];
     if (schemaVersion >= 3 && migratedValue is! List) {
       throw const FormatException('migratedChatRules must be a list.');
@@ -227,6 +251,7 @@ class AgentChatConfig {
       modelReference: AgentModelReference.fromJson(value['modelReference']),
       permissionMode: permissionMode,
       webAccessEnabled: webAccess,
+      systemPromptMode: systemPromptMode,
       customSystemPrompt: customPrompt,
       migratedChatRules: List.unmodifiable(migratedRules),
     );
@@ -240,7 +265,7 @@ class AgentSettings {
     this.disabledSkillIds = const {},
   });
 
-  static const int currentSchemaVersion = 3;
+  static const int currentSchemaVersion = 4;
   static const int maxCustomPromptLength = 50000;
   static const int maxSkillPreferences = 5000;
   static const int maxMigratedChatRules = 100;
