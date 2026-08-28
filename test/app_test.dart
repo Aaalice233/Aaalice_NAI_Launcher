@@ -1780,6 +1780,57 @@ void main() {
       expect(chunks.last.done, isTrue);
     });
 
+    test('supports bounded non-thinking JSON requests for DeepSeek', () async {
+      final dio = _MockDio();
+      final client = PromptAssistantApiClient(dio: dio);
+
+      when(
+        () => dio.post<dynamic>(
+          any(),
+          data: any(named: 'data'),
+          options: any(named: 'options'),
+          cancelToken: any(named: 'cancelToken'),
+        ),
+      ).thenAnswer((invocation) async {
+        final payload = Map<String, dynamic>.from(
+          invocation.namedArguments[#data] as Map,
+        );
+        expect(payload['response_format'], {'type': 'json_object'});
+        expect(payload['max_tokens'], 512);
+        expect(payload['thinking'], {'type': 'disabled'});
+        return Response<dynamic>(
+          data: const {
+            'choices': [
+              {
+                'message': {'content': '{"blue_eyes":"蓝眼睛"}'},
+              },
+            ],
+          },
+          requestOptions: RequestOptions(path: '/chat/completions'),
+          statusCode: 200,
+        );
+      });
+
+      final chunks = await client
+          .complete(
+            request: PromptAssistantRequest(
+              sessionId: 'tag-translation',
+              provider: ProviderPreset.deepseek.createConfig(),
+              model: 'deepseek-v4-flash',
+              systemPrompt: 'Return one JSON object.',
+              userParts: const [PromptAssistantTextPart('["blue_eyes"]')],
+              apiKey: 'key',
+              responseFormat: PromptAssistantResponseFormat.jsonObject,
+              maxOutputTokens: 512,
+              reasoningMode: PromptAssistantReasoningMode.disabled,
+            ),
+          )
+          .toList();
+
+      expect(chunks.first.delta, '{"blue_eyes":"蓝眼睛"}');
+      expect(chunks.last.done, isTrue);
+    });
+
     test(
       'throws a visible error when the non-stream response has no content',
       () async {

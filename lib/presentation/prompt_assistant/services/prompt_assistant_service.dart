@@ -125,6 +125,7 @@ class PromptAssistantService {
 You translate Danbooru image-generation tags into concise Simplified Chinese labels.
 Return exactly one JSON object. Every key must be copied verbatim from the input array and every value must be a non-empty Simplified Chinese string.
 Do not add keys, Markdown, comments, explanations, or code fences.
+Example JSON: {"blue_eyes":"蓝眼睛"}
 Prompt version: $tagTranslationPromptVersion
 '''
             .trim();
@@ -137,6 +138,9 @@ Prompt version: $tagTranslationPromptVersion
         systemPrompt: systemPrompt,
         userParts: [PromptAssistantContentPart.text(jsonEncode(tags))],
         apiKey: execution.apiKey,
+        responseFormat: PromptAssistantResponseFormat.jsonObject,
+        maxOutputTokens: 512,
+        reasoningMode: PromptAssistantReasoningMode.disabled,
       ),
     )) {
       output.write(chunk.delta);

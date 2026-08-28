@@ -20,6 +20,9 @@ class PromptAssistantRequest {
     required this.systemPrompt,
     required this.userParts,
     required this.apiKey,
+    this.responseFormat = PromptAssistantResponseFormat.text,
+    this.maxOutputTokens,
+    this.reasoningMode = PromptAssistantReasoningMode.automatic,
   });
 
   final String sessionId;
@@ -28,7 +31,14 @@ class PromptAssistantRequest {
   final String systemPrompt;
   final List<PromptAssistantContentPart> userParts;
   final String? apiKey;
+  final PromptAssistantResponseFormat responseFormat;
+  final int? maxOutputTokens;
+  final PromptAssistantReasoningMode reasoningMode;
 }
+
+enum PromptAssistantResponseFormat { text, jsonObject }
+
+enum PromptAssistantReasoningMode { automatic, disabled }
 
 abstract class PromptAssistantContentPart {
   const PromptAssistantContentPart();
@@ -138,6 +148,9 @@ Future<PromptAssistantRequest> optimizePromptAssistantRequestImagesForUpload(
     systemPrompt: request.systemPrompt,
     userParts: parts,
     apiKey: request.apiKey,
+    responseFormat: request.responseFormat,
+    maxOutputTokens: request.maxOutputTokens,
+    reasoningMode: request.reasoningMode,
   );
 }
 

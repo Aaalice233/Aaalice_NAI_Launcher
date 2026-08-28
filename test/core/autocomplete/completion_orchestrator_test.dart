@@ -478,6 +478,71 @@ void main() {
     },
   );
 
+  test(
+    'keeps only the latest visible translation batch while one is active',
+    () async {
+      final llm = _CancellableRecordingTranslations();
+      final tags = List.generate(
+        12,
+        (index) => _candidate('visible_tag_$index', CompletionSourceKind.base),
+      );
+      final orchestrator = CompletionOrchestrator(
+        localSources: [_Source(tags)],
+        dictionaryTranslations: _Translations(const {}),
+        llmTranslations: llm,
+        danbooru: _FakeDanbooru(),
+        llmDebounceDuration: Duration.zero,
+      );
+      addTearDown(orchestrator.dispose);
+      const settings = AutocompleteSettings(
+        danbooruEnabled: false,
+        llmTranslationEnabled: true,
+      );
+
+      await orchestrator.query(_query('visible', limit: 12), settings);
+      await Future<void>.delayed(Duration.zero);
+      final candidates = orchestrator.state.candidates;
+      expect(
+        llm.requestedBatches.single,
+        candidates.take(8).map((e) => e.canonicalTag),
+      );
+
+      orchestrator.translateVisibleCandidates(
+        firstIndex: 8,
+        lastIndex: 9,
+        settings: settings,
+      );
+      orchestrator.translateVisibleCandidates(
+        firstIndex: 10,
+        lastIndex: 11,
+        settings: settings,
+      );
+      llm.completeActive({
+        for (final candidate in candidates.take(8))
+          candidate.canonicalTag: '首批翻译',
+      });
+      await Future<void>.delayed(Duration.zero);
+
+      expect(llm.requestedBatches, hasLength(2));
+      expect(
+        llm.requestedBatches.last,
+        candidates.skip(10).take(2).map((e) => e.canonicalTag),
+      );
+      llm.completeActive({
+        for (final candidate in candidates.skip(10).take(2))
+          candidate.canonicalTag: '滚动翻译',
+      });
+      await Future<void>.delayed(Duration.zero);
+      expect(
+        orchestrator.state.candidates
+            .skip(10)
+            .take(2)
+            .every((candidate) => candidate.translation == '滚动翻译'),
+        isTrue,
+      );
+    },
+  );
+
   test('debounces LLM translations and cancels a superseded request', () async {
     final llm = _CancellableRecordingTranslations();
     final orchestrator = CompletionOrchestrator(

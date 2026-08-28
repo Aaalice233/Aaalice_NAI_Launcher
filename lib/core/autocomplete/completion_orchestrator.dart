@@ -42,7 +42,8 @@ class CompletionOrchestrator extends ChangeNotifier {
   Timer? _llmDebounce;
   int _sequence = 0;
   final Set<String> _llmRequested = {};
-  bool _llmStartedForSequence = false;
+  List<String> _pendingLlmTags = const [];
+  bool _llmInFlight = false;
   bool _disposed = false;
 
   /// Stops every in-flight completion branch and clears the visible snapshot.
@@ -413,44 +414,106 @@ class CompletionOrchestrator extends ChangeNotifier {
     int sequence,
     AutocompleteSettings settings,
   ) {
-    if (_llmStartedForSequence) return;
-    _llmDebounce?.cancel();
-    _llmDebounce = null;
+    if (_llmRequested.isNotEmpty ||
+        _llmInFlight ||
+        _pendingLlmTags.isNotEmpty) {
+      return;
+    }
+    _queueVisibleLlmTranslations(
+      query: query,
+      sequence: sequence,
+      settings: settings,
+      candidates: _state.candidates.take(8),
+      delay: _llmDebounceDuration,
+    );
+  }
+
+  /// Requests translations only for the latest settled viewport.
+  ///
+  /// Callers debounce scroll movement before invoking this method. Replacing
+  /// the pending batch prevents a fast scroll from billing for every row that
+  /// merely passed through the viewport.
+  void translateVisibleCandidates({
+    required int firstIndex,
+    required int lastIndex,
+    required AutocompleteSettings settings,
+  }) {
+    final query = _state.query;
+    if (query == null || _state.candidates.isEmpty) return;
+    final first = firstIndex.clamp(0, _state.candidates.length - 1);
+    final last = lastIndex.clamp(first, _state.candidates.length - 1);
+    _queueVisibleLlmTranslations(
+      query: query,
+      sequence: _sequence,
+      settings: settings,
+      candidates: _state.candidates.getRange(first, last + 1),
+      delay: Duration.zero,
+    );
+  }
+
+  void _queueVisibleLlmTranslations({
+    required CompletionQuery query,
+    required int sequence,
+    required AutocompleteSettings settings,
+    required Iterable<CompletionCandidate> candidates,
+    required Duration delay,
+  }) {
     if (query.kind == CompletionQueryKind.libraryAlias ||
         !settings.showTranslations ||
         !settings.llmTranslationEnabled ||
         !query.locale.toLowerCase().startsWith('zh')) {
       return;
     }
-    _llmDebounce = Timer(_llmDebounceDuration, () {
+    _llmDebounce?.cancel();
+    _llmDebounce = null;
+    _pendingLlmTags = candidates
+        .where(
+          (candidate) =>
+              candidate.translation?.isNotEmpty != true &&
+              !candidate.isTranslating &&
+              !_llmRequested.contains(candidate.canonicalTag),
+        )
+        .map((candidate) => candidate.canonicalTag)
+        .take(8)
+        .toList(growable: false);
+    if (_pendingLlmTags.isEmpty || _llmInFlight) return;
+    _llmDebounce = Timer(delay, () {
       _llmDebounce = null;
-      if (!_isCurrent(sequence) || _llmStartedForSequence) return;
-      final missing = _state.candidates
-          .where(
-            (candidate) =>
-                candidate.translation?.isNotEmpty != true &&
-                !_llmRequested.contains(candidate.canonicalTag),
-          )
-          .take(8)
-          .map((candidate) => candidate.canonicalTag)
-          .toList();
-      if (missing.isEmpty) return;
-      _llmStartedForSequence = true;
-      _llmRequested.addAll(missing);
-      final missingSet = missing.toSet();
-      _emit(
-        _state.copyWith(
-          candidates: _state.candidates
-              .map(
-                (candidate) => missingSet.contains(candidate.canonicalTag)
-                    ? candidate.copyWith(isTranslating: true)
-                    : candidate,
-              )
-              .toList(growable: false),
-        ),
-      );
-      unawaited(_resolveLlm(missing, query, sequence));
+      _startPendingLlmTranslation(query, sequence);
     });
+  }
+
+  void _startPendingLlmTranslation(CompletionQuery query, int sequence) {
+    if (!_isCurrent(sequence) || _llmInFlight) return;
+    final missing = _pendingLlmTags
+        .where(
+          (tag) =>
+              !_llmRequested.contains(tag) &&
+              _state.candidates.any(
+                (candidate) =>
+                    candidate.canonicalTag == tag &&
+                    candidate.translation?.isNotEmpty != true,
+              ),
+        )
+        .take(8)
+        .toList(growable: false);
+    _pendingLlmTags = const [];
+    if (missing.isEmpty) return;
+    _llmInFlight = true;
+    _llmRequested.addAll(missing);
+    final missingSet = missing.toSet();
+    _emit(
+      _state.copyWith(
+        candidates: _state.candidates
+            .map(
+              (candidate) => missingSet.contains(candidate.canonicalTag)
+                  ? candidate.copyWith(isTranslating: true)
+                  : candidate,
+            )
+            .toList(growable: false),
+      ),
+    );
+    unawaited(_resolveLlm(missing, query, sequence));
   }
 
   Future<void> _resolveLlm(
@@ -496,6 +559,11 @@ class CompletionOrchestrator extends ChangeNotifier {
           translationError: error.toString(),
         ),
       );
+    } finally {
+      if (_isCurrent(sequence)) {
+        _llmInFlight = false;
+        _startPendingLlmTranslation(query, sequence);
+      }
     }
   }
 
@@ -505,7 +573,8 @@ class CompletionOrchestrator extends ChangeNotifier {
     _llmDebounce?.cancel();
     _llmDebounce = null;
     _llmRequested.clear();
-    _llmStartedForSequence = false;
+    _pendingLlmTags = const [];
+    _llmInFlight = false;
     final resolver = _llmTranslations;
     if (resolver is CancellableTranslationResolver) {
       resolver.cancelPending();

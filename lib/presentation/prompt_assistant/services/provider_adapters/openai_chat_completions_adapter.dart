@@ -73,6 +73,13 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
       'model': request.model,
       'stream': false,
       'messages': _buildMessages(request),
+      if (request.responseFormat == PromptAssistantResponseFormat.jsonObject)
+        'response_format': {'type': 'json_object'},
+      if (request.maxOutputTokens case final maxOutputTokens?)
+        'max_tokens': maxOutputTokens,
+      if (request.provider.preset == ProviderPreset.deepseek &&
+          request.reasoningMode == PromptAssistantReasoningMode.disabled)
+        'thinking': {'type': 'disabled'},
     };
 
     final response = await _postWithFallback(

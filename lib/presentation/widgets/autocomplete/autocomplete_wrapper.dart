@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
@@ -122,6 +123,7 @@ class AutocompleteWrapper extends ConsumerStatefulWidget {
 class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
   final GlobalKey _anchorKey = GlobalKey(debugLabel: 'autocomplete-anchor');
   final ScrollController _scrollController = ScrollController();
+  Timer? _visibleTranslationDebounce;
   OverlayEntry? _overlayEntry;
   FocusNode? _ownedFocusNode;
   CompletionOrchestrator? _orchestrator;
@@ -154,7 +156,36 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     _wasComposing = composing.isValid && !composing.isCollapsed;
     widget.controller.addListener(_onTextChanged);
     _focusNode.addListener(_onFocusChanged);
+    _scrollController.addListener(_onCompletionScrolled);
     WidgetsBinding.instance.addPostFrameCallback((_) => _initializeUnified());
+  }
+
+  void _onCompletionScrolled() {
+    _visibleTranslationDebounce?.cancel();
+    _visibleTranslationDebounce = Timer(
+      const Duration(milliseconds: 300),
+      _translateSettledViewport,
+    );
+  }
+
+  void _translateSettledViewport() {
+    _visibleTranslationDebounce = null;
+    final orchestrator = _orchestrator;
+    if (orchestrator == null || !_scrollController.hasClients) return;
+    final position = _scrollController.position;
+    if (!position.hasContentDimensions || position.viewportDimension <= 0) {
+      return;
+    }
+    final itemExtent = effectiveAutocompleteCandidateExtent;
+    final firstIndex = (position.pixels / itemExtent).floor();
+    final lastIndex =
+        ((position.pixels + position.viewportDimension - 0.5) / itemExtent)
+            .floor();
+    orchestrator.translateVisibleCandidates(
+      firstIndex: firstIndex,
+      lastIndex: lastIndex,
+      settings: ref.read(autocompleteSettingsProvider),
+    );
   }
 
   void _initializeUnified() {
@@ -821,6 +852,7 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
 
   @override
   void dispose() {
+    _visibleTranslationDebounce?.cancel();
     widget.controller.removeListener(_onTextChanged);
     _focusNode.removeListener(_onFocusChanged);
     _removeOverlay();

@@ -505,58 +505,48 @@ class _CompletionTile extends StatelessWidget {
       if (showAliases && candidate.matchedAlias?.isNotEmpty == true)
         context.l10n.autocomplete_aliasMatch(candidate.matchedAlias!),
     ];
-    final sourceTooltip = candidate.sources
-        .map((source) => _sourceTooltip(context, source))
-        .join(' · ');
-
-    return Tooltip(
-      message: sourceTooltip,
-      waitDuration: const Duration(milliseconds: 450),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: candidate.isExisting ? null : onTap,
-          child: Container(
-            height: effectiveAutocompleteCandidateExtent,
-            decoration: BoxDecoration(
-              color: selected
-                  ? categoryColor.withValues(
-                      alpha: theme.brightness == Brightness.dark ? 0.27 : 0.13,
-                    )
-                  : Colors.transparent,
-              border: Border(
-                bottom: BorderSide(
-                  color: theme.colorScheme.outlineVariant.withValues(
-                    alpha: 0.2,
-                  ),
-                ),
-                left: BorderSide(
-                  color: selected ? categoryColor : Colors.transparent,
-                  width: 2,
-                ),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: candidate.isExisting ? null : onTap,
+        child: Container(
+          height: effectiveAutocompleteCandidateExtent,
+          decoration: BoxDecoration(
+            color: selected
+                ? categoryColor.withValues(
+                    alpha: theme.brightness == Brightness.dark ? 0.27 : 0.13,
+                  )
+                : Colors.transparent,
+            border: Border(
+              bottom: BorderSide(
+                color: theme.colorScheme.outlineVariant.withValues(alpha: 0.2),
+              ),
+              left: BorderSide(
+                color: selected ? categoryColor : Colors.transparent,
+                width: 2,
               ),
             ),
-            padding: const EdgeInsets.only(left: 7, right: 8),
-            child: Opacity(
-              opacity: candidate.isExisting ? 0.46 : 1,
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  if (constraints.maxWidth < 480) {
-                    return _buildCompactContent(
-                      context,
-                      theme,
-                      categoryColor,
-                      secondary,
-                    );
-                  }
-                  return _buildWideContent(
+          ),
+          padding: const EdgeInsets.only(left: 7, right: 8),
+          child: Opacity(
+            opacity: candidate.isExisting ? 0.46 : 1,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                if (constraints.maxWidth < 480) {
+                  return _buildCompactContent(
                     context,
                     theme,
                     categoryColor,
                     secondary,
                   );
-                },
-              ),
+                }
+                return _buildWideContent(
+                  context,
+                  theme,
+                  categoryColor,
+                  secondary,
+                );
+              },
             ),
           ),
         ),
@@ -765,19 +755,6 @@ class _CompletionTile extends StatelessWidget {
       Theme.of(context).brightness == Brightness.dark
       ? const Color(0xff66bdf3)
       : const Color(0xff176d9f);
-
-  static String _sourceTooltip(
-    BuildContext context,
-    CompletionSourceKind source,
-  ) => switch (source) {
-    CompletionSourceKind.base => context.l10n.autocomplete_sourceBase,
-    CompletionSourceKind.zhDictionary => context.l10n.autocomplete_sourceZh,
-    CompletionSourceKind.danbooruApi => context.l10n.autocomplete_sourceApi,
-    CompletionSourceKind.cooccurrence =>
-      context.l10n.autocomplete_sourceRelated,
-    CompletionSourceKind.ai => context.l10n.autocomplete_sourceAi,
-    CompletionSourceKind.library => context.l10n.autocomplete_categoryLibrary,
-  };
 
   static String _metricLabel(CompletionCandidate candidate) {
     final score = candidate.relatedScore;
