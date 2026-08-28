@@ -131,10 +131,9 @@ class AgentSettingsNotifier extends StateNotifier<AgentSettingsState> {
       try {
         webEnabled = WebAccessConfig.decode(webRaw).enabled;
       } catch (error) {
-        AppLogger.w(
-          'Ignoring invalid legacy web access state during Agent migration: '
-              '$error',
-          'AgentSettings',
+        throw FormatException(
+          'Cannot migrate the existing Agent web access configuration: '
+          '$error',
         );
       }
     }
@@ -190,11 +189,8 @@ class AgentSettingsNotifier extends StateNotifier<AgentSettingsState> {
   Future<void> _update(
     AgentSettings Function(AgentSettings current) transform,
   ) {
-    if (!state.initialized || state.error.isNotEmpty) {
-      return Future.error(
-        StateError('Agent settings are not available for editing.'),
-      );
-    }
+    final unavailable = _editingUnavailableError();
+    if (unavailable != null) return Future.error(unavailable);
     final operation = _mutationQueue
         .catchError((Object _) {})
         .then((_) => _persist(transform(state.settings)));
@@ -230,9 +226,55 @@ class AgentSettingsNotifier extends StateNotifier<AgentSettingsState> {
     );
   }
 
-  Future<void> replaceSettings(AgentSettings settings) async {
-    await _update((_) => settings);
-    await reloadSkills();
+  Future<void> replaceSettings(AgentSettings settings) {
+    final unavailable = _editingUnavailableError();
+    if (unavailable != null) return Future.error(unavailable);
+    final operation = _mutationQueue.catchError((Object _) {}).then((_) async {
+      final previousSettings = state.settings;
+      final previousSkills = state.skills;
+      final skills = await _scanSkills(settings.disabledSkillIds);
+      try {
+        await _local.setSetting(
+          StorageKeys.agentSettingsJson,
+          settings.encode(),
+        );
+        if (mounted) {
+          state = state.copyWith(
+            settings: settings,
+            skills: skills,
+            refreshingSkills: false,
+            error: '',
+          );
+        }
+      } catch (applyError, applyStack) {
+        try {
+          await _local.setSetting(
+            StorageKeys.agentSettingsJson,
+            previousSettings.encode(),
+          );
+        } catch (rollbackError, rollbackStack) {
+          Error.throwWithStackTrace(
+            StateError(
+              'Agent profile import failed: $applyError\n'
+              'Restoring the previous profile also failed: $rollbackError\n'
+              'Original import stack:\n$applyStack',
+            ),
+            rollbackStack,
+          );
+        }
+        if (mounted) {
+          state = state.copyWith(
+            settings: previousSettings,
+            skills: previousSkills,
+            refreshingSkills: false,
+            error: '',
+          );
+        }
+        Error.throwWithStackTrace(applyError, applyStack);
+      }
+    });
+    _mutationQueue = operation.catchError((Object _) {});
+    return operation;
   }
 
   Future<void> retryInitialization() => _load();
@@ -258,23 +300,7 @@ class AgentSettingsNotifier extends StateNotifier<AgentSettingsState> {
   Future<void> reloadSkills() async {
     state = state.copyWith(refreshingSkills: true, error: '');
     try {
-      _supportDirectory ??= await getApplicationSupportDirectory();
-      _workspaceDirectory ??= await _resolveWorkspaceDirectory();
-      final roots = SkillCatalogService.roots(
-        workspaceDirectory: _workspaceDirectory!,
-        supportDirectory: _supportDirectory!,
-        environment: _environment,
-      );
-      final userRoot = roots.firstWhere(
-        (root) => root.source == SkillSource.piUser,
-      );
-      await const SkillArchiveService().recoverInterruptedInstalls(
-        Directory(userRoot.path),
-      );
-      final snapshot = await _skillCatalogService.scan(
-        roots: roots,
-        disabledSkillIds: state.settings.disabledSkillIds,
-      );
+      final snapshot = await _scanSkills(state.settings.disabledSkillIds);
       if (!mounted) return;
       final currentDisabled = state.settings.disabledSkillIds;
       state = state.copyWith(
@@ -296,6 +322,40 @@ class AgentSettingsNotifier extends StateNotifier<AgentSettingsState> {
       }
       rethrow;
     }
+  }
+
+  StateError? _editingUnavailableError() {
+    if (!state.initialized || state.error.isNotEmpty) {
+      return StateError('Agent settings are not available for editing.');
+    }
+    return null;
+  }
+
+  Future<SkillCatalogSnapshot> _scanSkills(Set<String> disabledSkillIds) async {
+    _supportDirectory ??= await getApplicationSupportDirectory();
+    _workspaceDirectory ??= await _resolveWorkspaceDirectory();
+    final roots = SkillCatalogService.roots(
+      workspaceDirectory: _workspaceDirectory!,
+      supportDirectory: _supportDirectory!,
+      environment: _environment,
+    );
+    final userRoot = roots.firstWhere(
+      (root) => root.source == SkillSource.piUser,
+    );
+    await const SkillArchiveService().recoverInterruptedInstalls(
+      Directory(userRoot.path),
+    );
+    final snapshot = await _skillCatalogService.scan(
+      roots: roots,
+      disabledSkillIds: disabledSkillIds,
+    );
+    return SkillCatalogSnapshot(
+      entries: [
+        for (final entry in snapshot.entries)
+          entry.copyWith(enabled: !disabledSkillIds.contains(entry.id)),
+      ],
+      diagnostics: snapshot.diagnostics,
+    );
   }
 
   Future<Directory> userSkillDirectory() async {

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,12 +6,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/agent/harness/session/session_jsonl.dart';
 import 'package:nai_launcher/core/agent/harness/session/session_types.dart';
 import 'package:nai_launcher/core/agent/llm_types.dart';
+import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/core/storage/secure_storage_service.dart';
 import 'package:nai_launcher/data/models/agent/agent_settings.dart';
 import 'package:nai_launcher/presentation/agent_chat/providers/agent_chat_notifier.dart';
 import 'package:nai_launcher/presentation/agent_settings/providers/agent_settings_provider.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/models/prompt_assistant_models.dart';
+import 'package:nai_launcher/presentation/prompt_assistant/models/agent_protocol.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/providers/prompt_assistant_config_provider.dart';
 
 void main() {
@@ -178,6 +181,130 @@ Legacy instructions.
     expect(names, contains('workspace-only'));
     expect(names, isNot(contains('app-only')));
   });
+
+  test(
+    'settings changes leave the active request unchanged and apply before the next send',
+    () async {
+      final root = await Directory.systemTemp.createTemp(
+        'agent_chat_settings_snapshot_',
+      );
+      addTearDown(() => root.delete(recursive: true));
+      final skillDirectory = Directory(
+        '${root.path}${Platform.pathSeparator}.pi'
+        '${Platform.pathSeparator}skills${Platform.pathSeparator}demo',
+      );
+      await skillDirectory.create(recursive: true);
+      await File(
+        '${skillDirectory.path}${Platform.pathSeparator}SKILL.md',
+      ).writeAsString('''---
+name: demo
+description: Runtime snapshot test.
+---
+Demo instructions.
+''');
+
+      final storage = _MemoryLocalStorage();
+      final promptDefaults = PromptAssistantConfigState.defaults();
+      final promptConfig = promptDefaults.copyWith(
+        providers: [ProviderPreset.deepseek.createConfig()],
+        models: const [
+          ModelConfig(
+            providerId: 'deepseek',
+            name: 'deepseek-chat',
+            displayName: 'DeepSeek Chat',
+            forTask: AssistantTaskType.chat,
+          ),
+        ],
+        routing: promptDefaults.routing.copyWith(
+          chatProviderId: 'deepseek',
+          chatModel: 'deepseek-chat',
+        ),
+      );
+      storage.seed(
+        StorageKeys.promptAssistantConfigJson,
+        promptConfig.encode(),
+      );
+      storage.seed(
+        StorageKeys.agentSettingsJson,
+        const AgentSettings(
+          chat: AgentChatConfig(
+            modelReference: AgentModelReference(
+              providerId: 'deepseek',
+              model: 'deepseek-chat',
+            ),
+          ),
+        ).encode(),
+      );
+      final requests = <AgentChatRequest>[];
+      final responses = <StreamController<AgentWireEvent>>[];
+      final provider = StateNotifierProvider<AgentChatNotifier, AgentChatState>(
+        (ref) {
+          return AgentChatNotifier(
+            ref,
+            supportDir: root,
+            workspaceDir: root,
+            skillEnvironment: const {},
+            completeRequest: (request) {
+              requests.add(request);
+              final response = StreamController<AgentWireEvent>();
+              responses.add(response);
+              return response.stream;
+            },
+          );
+        },
+      );
+      final container = ProviderContainer(
+        overrides: [
+          localStorageServiceProvider.overrideWithValue(storage),
+          secureStorageServiceProvider.overrideWithValue(
+            _MemorySecureStorage(),
+          ),
+          agentSettingsProvider.overrideWith(
+            (ref) => AgentSettingsNotifier(
+              ref,
+              supportDirectory: root,
+              workspaceDirectory: root,
+              environment: const {},
+            ),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      container.read(provider);
+      await _waitForInitialized(container, provider);
+
+      final firstSend = container.read(provider.notifier).send('first');
+      await _waitForRequestCount(requests, 1);
+      final firstTools = requests.single.tools
+          .map((tool) => tool.name)
+          .toList();
+      expect(firstTools, contains('read_skill'));
+      expect(requests.single.systemPrompt, contains('demo'));
+
+      await container
+          .read(agentSettingsProvider.notifier)
+          .setSkillEnabled('demo', false);
+      await container.read(provider.notifier).reloadSkills();
+      expect(
+        container.read(provider).skills.map((skill) => skill.name),
+        contains('demo'),
+      );
+      expect(requests.single.tools.map((tool) => tool.name), firstTools);
+      expect(requests.single.systemPrompt, contains('demo'));
+      await _finishRequest(responses.single);
+      await firstSend;
+
+      final secondSend = container.read(provider.notifier).send('second');
+      await _waitForRequestCount(requests, 2);
+      expect(
+        requests.last.tools.map((tool) => tool.name),
+        isNot(contains('read_skill')),
+      );
+      expect(requests.last.systemPrompt, isNot(contains('<name>demo</name>')));
+      await _finishRequest(responses.last);
+      await secondSend;
+    },
+  );
 
   group('AgentChatNotifier sessions', () {
     late Directory tempDir;
@@ -430,6 +557,8 @@ Future<void> _waitForInitialized(
 class _MemoryLocalStorage extends LocalStorageService {
   final Map<String, Object?> _values = {};
 
+  void seed(String key, Object value) => _values[key] = value;
+
   @override
   T? getSetting<T>(String key, {T? defaultValue}) {
     final value = _values[key];
@@ -440,4 +569,22 @@ class _MemoryLocalStorage extends LocalStorageService {
   Future<void> setSetting<T>(String key, T value) async {
     _values[key] = value;
   }
+}
+
+Future<void> _waitForRequestCount(
+  List<AgentChatRequest> requests,
+  int count,
+) async {
+  for (var attempt = 0; attempt < 200; attempt++) {
+    if (requests.length >= count) return;
+    await Future<void>.delayed(const Duration(milliseconds: 5));
+  }
+  fail('Agent request was not dispatched');
+}
+
+Future<void> _finishRequest(StreamController<AgentWireEvent> response) async {
+  response
+    ..add(const AgentWireTextDelta('done'))
+    ..add(const AgentWireFinish(stopReason: StopReason.stop, usage: Usage()));
+  await response.close();
 }

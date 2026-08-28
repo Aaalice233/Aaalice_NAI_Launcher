@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:nai_launcher/core/agent/skill_catalog.dart';
 import 'package:nai_launcher/core/agent/agent_profile_service.dart';
+import 'package:nai_launcher/core/agent/harness/harness_types.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/core/storage/secure_storage_service.dart';
 import 'package:nai_launcher/data/models/agent/agent_settings.dart';
@@ -56,6 +57,32 @@ class _EmptySkillCatalogService extends SkillCatalogService {
     required List<SkillRoot> roots,
     Set<String> disabledSkillIds = const {},
   }) async => const SkillCatalogSnapshot();
+}
+
+class _ManySkillCatalogService extends SkillCatalogService {
+  const _ManySkillCatalogService();
+
+  @override
+  Future<SkillCatalogSnapshot> scan({
+    required List<SkillRoot> roots,
+    Set<String> disabledSkillIds = const {},
+  }) async => SkillCatalogSnapshot(
+    entries: [
+      for (var index = 0; index < 100; index++)
+        SkillCatalogEntry(
+          id: 'skill-$index',
+          skill: HarnessSkill(
+            name: 'skill-$index',
+            description: 'Skill $index',
+            content: 'Instructions $index',
+            filePath: 'skill-$index/SKILL.md',
+          ),
+          source: SkillSource.workspace,
+          safePath: 'workspace:/.../skill-$index/SKILL.md',
+          enabled: !disabledSkillIds.contains('skill-$index'),
+        ),
+    ],
+  );
 }
 
 void main() {
@@ -110,7 +137,30 @@ void main() {
       expect(find.byType(AgentSettingsSection), findsOneWidget);
       expect(find.text('导入配置'), findsOneWidget);
       expect(find.text('导出配置'), findsOneWidget);
+      expect(find.byType(TabBar), findsOneWidget);
+      final skillsTab = find.descendant(
+        of: find.byType(TabBar),
+        matching: find.text('Skills'),
+      );
+      expect(skillsTab, findsOneWidget);
       expect(tester.takeException(), isNull);
+
+      await tester.ensureVisible(skillsTab.first);
+      await tester.tap(skillsTab.first);
+      await tester.pumpAndSettle();
+      expect(find.text('已启用 0/0'), findsOneWidget);
+      expect(find.text('没有匹配的 Skill'), findsOneWidget);
+      final promptTab = find.descendant(
+        of: find.byType(TabBar),
+        matching: find.text('系统提示词'),
+      );
+      await tester.ensureVisible(promptTab.first);
+      await tester.tap(promptTab.first);
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('agent-custom-system-prompt')),
+        findsOneWidget,
+      );
 
       for (final size in const [
         Size(700, 430),
@@ -176,6 +226,68 @@ void main() {
     );
 
     expect(availableAgentModelReferences(config), {'enabled/chat-model'});
+  });
+
+  testWidgets('Skills 大列表使用有界惰性视口', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 820));
+    final root = Directory('tool/.tmp/agent-settings-skill-list-test')
+      ..createSync(recursive: true);
+    final container = ProviderContainer(
+      overrides: [
+        localStorageServiceProvider.overrideWithValue(_MemoryLocalStorage()),
+        secureStorageServiceProvider.overrideWithValue(_MemorySecureStorage()),
+        agentSettingsProvider.overrideWith(
+          (ref) => AgentSettingsNotifier(
+            ref,
+            supportDirectory: root,
+            workspaceDirectory: root,
+            environment: const {},
+            skillCatalogService: const _ManySkillCatalogService(),
+          ),
+        ),
+      ],
+    );
+    try {
+      await tester.runAsync(() async {
+        container.read(agentSettingsProvider);
+        for (var attempt = 0; attempt < 100; attempt++) {
+          if (container.read(agentSettingsProvider).initialized) return;
+          await Future<void>.delayed(const Duration(milliseconds: 10));
+        }
+        fail('Agent settings did not initialize.');
+      });
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(
+            locale: Locale('zh'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: SingleChildScrollView(child: AgentSettingsSection()),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final skillsTab = find.descendant(
+        of: find.byType(TabBar),
+        matching: find.text('Skills'),
+      );
+      await tester.ensureVisible(skillsTab.first);
+      await tester.tap(skillsTab.first);
+      await tester.pumpAndSettle();
+
+      expect(find.text('已启用 100/100'), findsOneWidget);
+      expect(find.byType(SwitchListTile), findsWidgets);
+      expect(find.byType(SwitchListTile).evaluate().length, lessThan(100));
+      expect(tester.takeException(), isNull);
+    } finally {
+      await tester.pumpWidget(const SizedBox.shrink());
+      container.dispose();
+      await tester.binding.setSurfaceSize(null);
+      root.deleteSync(recursive: true);
+    }
   });
 
   testWidgets('配置导入预览在 360 和 400dp 内受约束且内容可滚动', (tester) async {

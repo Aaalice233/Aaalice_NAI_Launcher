@@ -53,6 +53,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _isContentScrolled = false;
   bool _showCompactDetail = false;
   int _externalSectionRevision = 0;
+  Future<bool>? _discardConfirmation;
 
   @override
   void initState() {
@@ -204,28 +205,40 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         !ref.read(agentPromptDraftProvider).dirty) {
       return true;
     }
-    final discard = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(context.l10n.agentSettings_discardPromptTitle),
-        content: Text(context.l10n.agentSettings_discardPromptBody),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(context.l10n.agentSettings_keepEditing),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(context.l10n.agentSettings_discardChanges),
-          ),
-        ],
-      ),
-    );
-    if (discard == true) {
-      ref.read(agentPromptDraftProvider.notifier).discard();
-      return true;
+    final existing = _discardConfirmation;
+    if (existing != null) return existing;
+    final confirmation = () async {
+      final discard = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(context.l10n.agentSettings_discardPromptTitle),
+          content: Text(context.l10n.agentSettings_discardPromptBody),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(context.l10n.agentSettings_keepEditing),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(context.l10n.agentSettings_discardChanges),
+            ),
+          ],
+        ),
+      );
+      if (discard == true) {
+        ref.read(agentPromptDraftProvider.notifier).discard();
+        return true;
+      }
+      return false;
+    }();
+    _discardConfirmation = confirmation;
+    try {
+      return await confirmation;
+    } finally {
+      if (identical(_discardConfirmation, confirmation)) {
+        _discardConfirmation = null;
+      }
     }
-    return false;
   }
 
   @override

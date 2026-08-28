@@ -5,10 +5,13 @@ import 'package:archive/archive.dart';
 import 'package:path/path.dart' as p;
 
 import 'private_data_guard.dart';
+import 'skill_archive_extractor.dart';
 import 'skill_catalog.dart';
 import 'skill_install_transaction.dart';
 
 const _transactionManager = SkillInstallTransactionManager();
+
+enum SkillConflictKind { none, directory, file, symbolicLink, other }
 
 class SkillArchiveItem {
   const SkillArchiveItem({
@@ -16,14 +19,18 @@ class SkillArchiveItem {
     required this.description,
     required this.fileCount,
     required this.totalBytes,
-    required this.conflicts,
+    required this.conflictKind,
   });
 
   final String name;
   final String description;
   final int fileCount;
   final int totalBytes;
-  final bool conflicts;
+  final SkillConflictKind conflictKind;
+
+  bool get conflicts => conflictKind != SkillConflictKind.none;
+
+  bool get canReplace => conflictKind == SkillConflictKind.directory;
 }
 
 class SkillArchivePreview {
@@ -105,7 +112,11 @@ class SkillArchiveService {
         }
         if (type != FileSystemEntityType.file) continue;
         final relative = p.relative(entity.path, from: directory.path);
-        if (PrivateDataGuard.isSensitiveSkillPath(relative)) continue;
+        if (PrivateDataGuard.isSensitiveSkillPath(relative)) {
+          throw FormatException(
+            'Sensitive files cannot be exported: $skillName/$relative',
+          );
+        }
         final bytes = await _readStableExportFile(entity.path, canonicalRoot);
         if (bytes.length > fileBytesLimit) {
           throw FormatException('$relative exceeds the per-file size limit.');
@@ -155,39 +166,36 @@ class SkillArchiveService {
     required Directory targetDirectory,
   }) async {
     await recoverInterruptedInstalls(targetDirectory);
-    final grouped = _decodeAndValidate(bytes);
-    final items = <SkillArchiveItem>[];
-    for (final entry in grouped.entries) {
-      final skillFile = entry.value['SKILL.md'];
-      if (skillFile == null) {
-        throw FormatException('${entry.key} does not contain SKILL.md.');
-      }
-      final metadata = parseStrictSkillManifest(skillFile);
-      if (metadata.name != entry.key) {
-        throw FormatException(
-          'Skill name "${metadata.name}" does not match folder "${entry.key}".',
+    final temporary = await Directory.systemTemp.createTemp(
+      'aaalice-skill-preview-',
+    );
+    try {
+      final grouped = await _extract(bytes, temporary);
+      final items = <SkillArchiveItem>[];
+      for (final entry in grouped.entries) {
+        final metadata = await _validateExtractedManifest(
+          entry.key,
+          entry.value,
+        );
+        final targetType = await FileSystemEntity.type(
+          p.join(targetDirectory.path, entry.key),
+          followLinks: false,
+        );
+        items.add(
+          SkillArchiveItem(
+            name: entry.key,
+            description: metadata.description,
+            fileCount: entry.value.files.length,
+            totalBytes: entry.value.totalBytes,
+            conflictKind: _conflictKind(targetType),
+          ),
         );
       }
-      items.add(
-        SkillArchiveItem(
-          name: entry.key,
-          description: metadata.description,
-          fileCount: entry.value.length,
-          totalBytes: entry.value.values.fold(
-            0,
-            (sum, file) => sum + file.length,
-          ),
-          conflicts:
-              await FileSystemEntity.type(
-                p.join(targetDirectory.path, entry.key),
-                followLinks: false,
-              ) !=
-              FileSystemEntityType.notFound,
-        ),
-      );
+      items.sort((a, b) => a.name.compareTo(b.name));
+      return SkillArchivePreview(items: items);
+    } finally {
+      if (await temporary.exists()) await temporary.delete(recursive: true);
     }
-    items.sort((a, b) => a.name.compareTo(b.name));
-    return SkillArchivePreview(items: items);
   }
 
   Future<void> install({
@@ -197,23 +205,6 @@ class SkillArchiveService {
   }) async {
     await targetDirectory.create(recursive: true);
     await recoverInterruptedInstalls(targetDirectory);
-    final grouped = _decodeAndValidate(bytes);
-    final existingNames = <String>{};
-    for (final name in grouped.keys) {
-      final destinationPath = p.join(targetDirectory.path, name);
-      final type = await FileSystemEntity.type(
-        destinationPath,
-        followLinks: false,
-      );
-      if (type == FileSystemEntityType.notFound) continue;
-      if (type == FileSystemEntityType.link) {
-        throw FormatException('Skill "$name" cannot replace a symbolic link.');
-      }
-      if (!replaceSkillNames.contains(name)) {
-        throw FormatException('Skill "$name" already exists.');
-      }
-      existingNames.add(name);
-    }
     final transaction = Directory(
       p.join(
         targetDirectory.path,
@@ -225,24 +216,25 @@ class SkillArchiveService {
     await staged.create(recursive: true);
     await backups.create(recursive: true);
     try {
+      final grouped = await _extract(bytes, staged);
+      final existingNames = <String>{};
       for (final group in grouped.entries) {
-        final skillFile = group.value['SKILL.md'];
-        if (skillFile == null) {
-          throw const FormatException(
-            'Skill archive does not contain SKILL.md.',
+        await _validateExtractedManifest(group.key, group.value);
+        final destinationPath = p.join(targetDirectory.path, group.key);
+        final type = await FileSystemEntity.type(
+          destinationPath,
+          followLinks: false,
+        );
+        if (type == FileSystemEntityType.notFound) continue;
+        if (type != FileSystemEntityType.directory) {
+          throw FormatException(
+            'Skill "${group.key}" cannot replace a file, link, or special entity.',
           );
         }
-        final metadata = parseStrictSkillManifest(skillFile);
-        if (metadata.name != group.key) {
-          throw const FormatException(
-            'Skill folder and metadata name do not match.',
-          );
+        if (!replaceSkillNames.contains(group.key)) {
+          throw FormatException('Skill "${group.key}" already exists.');
         }
-        for (final file in group.value.entries) {
-          final output = File(p.join(staged.path, group.key, file.key));
-          await output.parent.create(recursive: true);
-          await output.writeAsBytes(file.value, flush: true);
-        }
+        existingNames.add(group.key);
       }
 
       await _transactionManager.writeJournal(
@@ -344,162 +336,47 @@ class SkillArchiveService {
     }
   }
 
-  Map<String, Map<String, Uint8List>> _decodeAndValidate(Uint8List bytes) {
-    if (bytes.isEmpty || bytes.length > archiveBytesLimit) {
-      throw const FormatException('Skill archive is empty or too large.');
-    }
-    _preflightZipHeaders(bytes);
-    late Archive archive;
-    try {
-      archive = ZipDecoder().decodeBytes(bytes, verify: true);
-    } catch (error) {
-      throw FormatException('Invalid Skill ZIP: $error');
-    }
-    if (archive.files.isEmpty || archive.files.length > fileCountLimit) {
-      throw const FormatException('Skill archive has an invalid file count.');
-    }
-    var expandedBytes = 0;
-    final seen = <String>{};
-    final grouped = <String, Map<String, Uint8List>>{};
-    for (final file in archive.files) {
-      if (file.isSymbolicLink) {
-        throw FormatException('Symbolic links are not allowed: ${file.name}');
-      }
-      if (!file.isFile) continue;
-      final normalized = _validateEntryPath(file.name);
-      if (PrivateDataGuard.isSensitiveSkillPath(normalized)) {
-        throw FormatException(
-          'Sensitive files are not allowed in Skill archives: ${file.name}',
-        );
-      }
-      if (!seen.add(normalized.toLowerCase())) {
-        throw FormatException('Duplicate archive path: ${file.name}');
-      }
-      if (file.size > fileBytesLimit) {
-        throw FormatException('${file.name} exceeds the per-file size limit.');
-      }
-      expandedBytes += file.size;
-      if (expandedBytes > expandedBytesLimit) {
-        throw const FormatException('Expanded Skill archive is too large.');
-      }
-      final segments = normalized.split('/');
-      final skillName = segments.first;
-      _validateSkillName(skillName);
-      final relative = segments.skip(1).join('/');
-      if (relative.isEmpty) {
-        throw const FormatException(
-          'Archive file must be inside a Skill folder.',
-        );
-      }
-      final content = file.content;
-      final data = content is Uint8List
-          ? content
-          : Uint8List.fromList(content as List<int>);
-      PrivateDataGuard.rejectPrivateText(file.name, data);
-      grouped.putIfAbsent(skillName, () => {})[relative] = data;
-    }
-    if (grouped.isEmpty) {
-      throw const FormatException('Skill archive contains no files.');
-    }
-    return grouped;
-  }
-
-  void _preflightZipHeaders(Uint8List bytes) {
-    const endSignature = 0x06054b50;
-    const centralSignature = 0x02014b50;
-    if (bytes.length < 22) {
-      throw const FormatException('Skill archive has no valid ZIP directory.');
-    }
-    final data = ByteData.sublistView(bytes);
-    final searchStart = bytes.length - 22;
-    final searchEnd = bytes.length > 65557 ? bytes.length - 65557 : 0;
-    var endOffset = -1;
-    for (var offset = searchStart; offset >= searchEnd; offset--) {
-      if (data.getUint32(offset, Endian.little) == endSignature &&
-          offset + 22 <= bytes.length &&
-          offset + 22 + data.getUint16(offset + 20, Endian.little) ==
-              bytes.length) {
-        endOffset = offset;
-        break;
-      }
-    }
-    if (endOffset < 0 || endOffset + 22 > bytes.length) {
-      throw const FormatException('Skill archive has no valid ZIP directory.');
-    }
-    final disk = data.getUint16(endOffset + 4, Endian.little);
-    final centralDisk = data.getUint16(endOffset + 6, Endian.little);
-    final diskEntries = data.getUint16(endOffset + 8, Endian.little);
-    final entries = data.getUint16(endOffset + 10, Endian.little);
-    final centralSize = data.getUint32(endOffset + 12, Endian.little);
-    final centralOffset = data.getUint32(endOffset + 16, Endian.little);
-    final commentLength = data.getUint16(endOffset + 20, Endian.little);
-    if (disk != 0 ||
-        centralDisk != 0 ||
-        diskEntries != entries ||
-        entries == 0 ||
-        entries > fileCountLimit ||
-        centralSize == 0xffffffff ||
-        centralOffset == 0xffffffff ||
-        endOffset + 22 + commentLength != bytes.length ||
-        centralOffset + centralSize > endOffset) {
-      throw const FormatException('Unsupported or malformed ZIP directory.');
-    }
-
-    var cursor = centralOffset;
-    var expandedBytes = 0;
-    for (var index = 0; index < entries; index++) {
-      if (cursor + 46 > endOffset ||
-          data.getUint32(cursor, Endian.little) != centralSignature) {
-        throw const FormatException('Malformed ZIP central directory.');
-      }
-      final flags = data.getUint16(cursor + 8, Endian.little);
-      final compressedSize = data.getUint32(cursor + 20, Endian.little);
-      final expandedSize = data.getUint32(cursor + 24, Endian.little);
-      final nameLength = data.getUint16(cursor + 28, Endian.little);
-      final extraLength = data.getUint16(cursor + 30, Endian.little);
-      final entryCommentLength = data.getUint16(cursor + 32, Endian.little);
-      if ((flags & 1) != 0 ||
-          compressedSize == 0xffffffff ||
-          expandedSize == 0xffffffff ||
-          expandedSize > fileBytesLimit) {
-        throw const FormatException(
-          'Encrypted, ZIP64, or oversized entries are not supported.',
-        );
-      }
-      expandedBytes += expandedSize;
-      if (expandedBytes > expandedBytesLimit) {
-        throw const FormatException('Expanded Skill archive is too large.');
-      }
-      cursor += 46 + nameLength + extraLength + entryCommentLength;
-      if (cursor > centralOffset + centralSize) {
-        throw const FormatException('Malformed ZIP central directory.');
-      }
-    }
-    if (cursor != centralOffset + centralSize) {
-      throw const FormatException('Malformed ZIP central directory size.');
-    }
-  }
-
   static String _validateEntryPath(String input) {
-    if (input.isEmpty || input.contains('\u0000')) {
-      throw const FormatException('Archive contains an invalid path.');
-    }
-    final value = input.replaceAll('\\', '/');
-    if (value.startsWith('/') || RegExp(r'^[A-Za-z]:').hasMatch(value)) {
-      throw FormatException('Absolute archive paths are not allowed: $input');
-    }
-    final segments = value.split('/');
-    if (segments.length > maxPathDepth ||
-        segments.any((part) => part.isEmpty || part == '.' || part == '..')) {
-      throw FormatException('Unsafe or overly nested archive path: $input');
-    }
-    return segments.join('/');
+    return validateSkillArchiveEntryPath(input, maxPathDepth: maxPathDepth);
   }
 
   static void _validateSkillName(String name) {
-    if (!RegExp(r'^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$').hasMatch(name) ||
-        name.contains('--')) {
-      throw FormatException('Invalid Skill name: $name');
-    }
+    validateSkillArchiveName(name);
   }
+
+  Future<Map<String, ExtractedSkillGroup>> _extract(
+    Uint8List bytes,
+    Directory outputRoot,
+  ) => SkillArchiveExtractor(
+    archiveBytesLimit: archiveBytesLimit,
+    expandedBytesLimit: expandedBytesLimit,
+    fileBytesLimit: fileBytesLimit,
+    fileCountLimit: fileCountLimit,
+    maxPathDepth: maxPathDepth,
+  ).extract(bytes: bytes, outputRoot: outputRoot);
+
+  Future<SkillManifestMetadata> _validateExtractedManifest(
+    String skillName,
+    ExtractedSkillGroup group,
+  ) async {
+    final skillFile = group.files['SKILL.md'];
+    if (skillFile == null) {
+      throw FormatException('$skillName does not contain SKILL.md.');
+    }
+    final metadata = parseStrictSkillManifest(await skillFile.readAsBytes());
+    if (metadata.name != skillName) {
+      throw FormatException(
+        'Skill name "${metadata.name}" does not match folder "$skillName".',
+      );
+    }
+    return metadata;
+  }
+
+  SkillConflictKind _conflictKind(FileSystemEntityType type) => switch (type) {
+    FileSystemEntityType.notFound => SkillConflictKind.none,
+    FileSystemEntityType.directory => SkillConflictKind.directory,
+    FileSystemEntityType.file => SkillConflictKind.file,
+    FileSystemEntityType.link => SkillConflictKind.symbolicLink,
+    _ => SkillConflictKind.other,
+  };
 }

@@ -12546,6 +12546,11 @@ class AppLocalizationsJa extends AppLocalizations {
   String get agentSettings_filterDisabled => '無効';
 
   @override
+  String agentSettings_skillEnabledCount(int enabled, int total) {
+    return '有効 $enabled/$total';
+  }
+
+  @override
   String get agentSettings_diagnostics => '診断';
 
   @override
@@ -12610,6 +12615,10 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String get agentSettings_skillConflictReplace =>
       '同名の Skill があります。置き換えるには選択してください。';
+
+  @override
+  String get agentSettings_skillConflictUnsafe =>
+      '対象はファイル、リンク、または特殊なエンティティのため置き換えできません。';
 
   @override
   String get agentSettings_skillsInstalled => 'Skills をインストールしました';

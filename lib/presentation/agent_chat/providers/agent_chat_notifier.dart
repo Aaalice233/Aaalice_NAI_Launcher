@@ -266,6 +266,9 @@ class AgentApiClient {
   }
 }
 
+typedef AgentWireCompletion =
+    Stream<AgentWireEvent> Function(AgentChatRequest request);
+
 final agentChatNotifierProvider =
     StateNotifierProvider<AgentChatNotifier, AgentChatState>((ref) {
       return AgentChatNotifier(ref);
@@ -283,9 +286,13 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     Directory? supportDir,
     Directory? workspaceDir,
     JsonlSessionRepo? sessionRepo,
+    AgentWireCompletion? completeRequest,
+    Map<String, String>? skillEnvironment,
   }) : _providedSupportDir = supportDir,
        _providedWorkspaceDir = workspaceDir,
        _providedSessionRepo = sessionRepo,
+       _completeRequest = completeRequest,
+       _skillEnvironment = skillEnvironment,
        super(const AgentChatState()) {
     _ref.listen<WebAccessConfigState>(webAccessConfigProvider, (_, _) {
       unawaited(_refreshWebAccessTools());
@@ -297,15 +304,17 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       _refreshRoute();
     });
     _ref.listen<AgentSettingsState>(agentSettingsProvider, (_, __) {
-      _settingsRefresh = _settingsRefresh.then((_) => _applyAgentSettings());
+      _queueSettingsRefresh();
     });
-    _init(presetSkills: presetSkills);
+    _initialization = _init(presetSkills: presetSkills);
   }
 
   final Ref _ref;
   final Directory? _providedSupportDir;
   final Directory? _providedWorkspaceDir;
   final JsonlSessionRepo? _providedSessionRepo;
+  final AgentWireCompletion? _completeRequest;
+  final Map<String, String>? _skillEnvironment;
   late Directory _supportDir;
   late Directory _workspaceDir;
   late JsonlSessionRepo _repo;
@@ -316,8 +325,14 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
   final List<SkillDiagnostic> _skillDiagnostics = [];
   bool _usesPresetSkills = false;
   bool _runtimeReady = false;
+  late final Future<void> _initialization;
   Future<void> _settingsRefresh = Future.value();
+  bool _settingsApplyPending = false;
+  bool _preparingRun = false;
+  AgentPermissionMode? _activePermissionMode;
+  AgentSettings? _activeAgentSettings;
   (ProviderConfig, String, String?)? _routeCache;
+  (ProviderConfig, String, String?)? _activeRoute;
   Usage _usageTotal = const Usage();
   Completer<bool>? _approvalCompleter;
 
@@ -411,7 +426,9 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     BeforeToolCallContext context,
     AbortSignal? signal,
   ) async {
-    final mode = _ref.read(agentSettingsProvider).settings.chat.permissionMode;
+    final mode =
+        _activePermissionMode ??
+        _ref.read(agentSettingsProvider).settings.chat.permissionMode;
     final policy = agentToolPermissionPolicyFor(mode, context.toolCall.name);
     if (policy == AgentToolPermissionPolicy.allow) {
       return null;
@@ -477,13 +494,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       return;
     }
     await _ref.read(agentSettingsProvider.notifier).setPermissionMode(mode);
-    final agent = _agent;
-    if (agent == null) {
-      return;
-    }
-    final fullAccess = mode == AgentPermissionMode.fullAccess;
-    agent.state.tools = _buildTools(fullAccess: fullAccess);
-    agent.setSystemPrompt(await _buildSystemPrompt());
+    await _settingsRefresh;
   }
 
   List<AgentTool> _buildTools({required bool fullAccess}) {
@@ -495,8 +506,8 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     return [
       ...PromptToolbox(
         _ref,
-        skills: _skills,
-        skillDiagnostics: _skillDiagnostics,
+        skills: Map.unmodifiable(_skills),
+        skillDiagnostics: List.unmodifiable(_skillDiagnostics),
         reloadSkills: reloadSkills,
       ).tools(),
       ...ExecutionToolbox(
@@ -521,6 +532,10 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
   }
 
   Future<void> _refreshWebAccessTools() async {
+    if (_runActive) {
+      _queueSettingsRefresh();
+      return;
+    }
     final agent = _agent;
     if (agent == null) return;
     final mode = _ref.read(agentSettingsProvider).settings.chat.permissionMode;
@@ -530,17 +545,10 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     agent.setSystemPrompt(await _buildSystemPrompt());
   }
 
-  Future<void> _loadSkillsFromDisk() async {
+  Future<void> _loadSkillsFromDisk({Set<String>? disabledSkillIds}) async {
     try {
-      final loaded = await const SkillCatalogService().scan(
-        roots: SkillCatalogService.roots(
-          workspaceDirectory: _workspaceDir,
-          supportDirectory: _supportDir,
-        ),
-        disabledSkillIds: _ref
-            .read(agentSettingsProvider)
-            .settings
-            .disabledSkillIds,
+      final loaded = await _scanCurrentSkills(
+        disabledSkillIds: disabledSkillIds,
       );
       _skills.clear();
       _skillDiagnostics
@@ -552,9 +560,24 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     }
   }
 
+  Future<SkillCatalogSnapshot> _scanCurrentSkills({
+    Set<String>? disabledSkillIds,
+  }) => const SkillCatalogService().scan(
+    roots: SkillCatalogService.roots(
+      workspaceDirectory: _workspaceDir,
+      supportDirectory: _supportDir,
+      environment: _skillEnvironment,
+    ),
+    disabledSkillIds:
+        disabledSkillIds ??
+        _ref.read(agentSettingsProvider).settings.disabledSkillIds,
+  );
+
   Future<int> reloadSkills() async {
     if (!_usesPresetSkills) {
-      await _loadSkillsFromDisk();
+      await _loadSkillsFromDisk(
+        disabledSkillIds: _activeAgentSettings?.disabledSkillIds,
+      );
     }
     if (mounted) {
       state = state.copyWith(skills: _skills.values.toList(growable: false));
@@ -569,13 +592,16 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       agent.state.tools = _buildTools(
         fullAccess: mode == AgentPermissionMode.fullAccess,
       );
-      agent.setSystemPrompt(await _buildSystemPrompt());
+      agent.setSystemPrompt(
+        await _buildSystemPrompt(settingsOverride: _activeAgentSettings),
+      );
     }
     return _skills.length;
   }
 
   Future<void> _applyAgentSettings() async {
-    if (!_runtimeReady) return;
+    _settingsApplyPending = true;
+    if (!_runtimeReady || _runActive) return;
     if (!_usesPresetSkills) await _loadSkillsFromDisk();
     _refreshRoute();
     final agent = _agent;
@@ -593,6 +619,19 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     if (mounted) {
       state = state.copyWith(skills: _skills.values.toList(growable: false));
     }
+    _settingsApplyPending = false;
+  }
+
+  bool get _runActive =>
+      _preparingRun || state.status == AgentChatRunStatus.running;
+
+  void _queueSettingsRefresh() {
+    _settingsApplyPending = true;
+    _settingsRefresh = _settingsRefresh
+        .catchError((Object error) {
+          AppLogger.w('agent settings refresh failed: $error', 'AgentChat');
+        })
+        .then((_) => _applyAgentSettings());
   }
 
   /// 代理 compaction：上下文超阈值时折叠旧消息为摘要消息
@@ -604,7 +643,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     bool force = false,
   }) async {
     try {
-      final route = _routeCache ?? _resolveRoute();
+      final route = _activeRoute ?? _routeCache ?? _resolveRoute();
       final session = _session;
       if (route == null || session is! Session || messages.length <= 8) {
         return messages;
@@ -702,7 +741,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     SimpleStreamOptions? options,
   ]) {
     try {
-      final route = _routeCache;
+      final route = _activeRoute ?? _routeCache;
       if (route == null) {
         return _errorStream('No LLM provider configured for chat.');
       }
@@ -711,19 +750,22 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
         provider: route.$1,
         model: route.$2,
         systemPrompt: context.systemPrompt,
-        messages: context.messages,
+        messages: List.unmodifiable(context.messages),
         tools: [
           for (final tool in context.tools ?? const <Tool>[])
             Tool(
               name: tool.name,
               description: tool.description,
-              parameters: tool.parameters,
+              parameters: Map.unmodifiable(
+                Map<String, dynamic>.from(tool.parameters),
+              ),
             ),
         ],
         apiKey: route.$3,
         maxOutputTokens: options?.maxTokens,
       );
-      final wireEvents = _client.complete(request);
+      final wireEvents =
+          _completeRequest?.call(request) ?? _client.complete(request);
       final signal = options?.signal;
       if (signal is AbortSignal) {
         signal.addListener((_) => _client.cancel('agent_chat'));
@@ -803,9 +845,11 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
 
   Future<String> _buildSystemPrompt({
     String? customInstructionsOverride,
+    Iterable<HarnessSkill>? skillsOverride,
+    AgentSettings? settingsOverride,
   }) async {
     // 路由缓存 + API Key 解析（短期 token 每次运行刷新）。
-    final route = _routeCache ?? _resolveRoute();
+    final route = _activeRoute ?? _routeCache ?? _resolveRoute();
     if (route != null) {
       final apiKey = await _ref
           .read(promptAssistantConfigProvider.notifier)
@@ -813,10 +857,11 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       _routeCache = (route.$1, route.$2, apiKey);
     }
     final workspacePath = _workspaceDir.path;
-    final agentSettings = _ref.read(agentSettingsProvider).settings;
+    final agentSettings =
+        settingsOverride ?? _ref.read(agentSettingsProvider).settings;
     final webAccessEnabled = agentSettings.chat.webAccessEnabled;
     final skillBlock = formatSkillsForSystemPrompt(
-      _skills.values.toList(growable: false),
+      (skillsOverride ?? _skills.values).toList(growable: false),
     );
     final builtInPrompt = [
       'You are the AI agent inside Aaalice, a NovelAI image-generation client.',
@@ -941,13 +986,23 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     ].join('\n');
     return composeAgentSystemPrompt(
       builtInPrompt: builtInPrompt,
-      customInstructions:
-          customInstructionsOverride ?? agentSettings.chat.customSystemPrompt,
+      customInstructions: agentSettings.chat.behaviorInstructions(
+        customPromptOverride: customInstructionsOverride,
+      ),
     );
   }
 
-  Future<String> buildSystemPromptPreview({String? customInstructions}) =>
-      _buildSystemPrompt(customInstructionsOverride: customInstructions);
+  Future<String> buildSystemPromptPreview({String? customInstructions}) async {
+    await _initialization;
+    await _settingsRefresh;
+    final previewSkills = _usesPresetSkills
+        ? _skills.values
+        : (await _scanCurrentSkills()).enabledSkillMap().values;
+    return _buildSystemPrompt(
+      customInstructionsOverride: customInstructions,
+      skillsOverride: previewSkills,
+    );
+  }
 
   void _refreshRoute() {
     _routeCache = _resolveRoute();
@@ -1280,6 +1335,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     if (state.sessionTransitioning) {
       return;
     }
+    await _initialization;
     final agent = _agent;
     if (agent == null) {
       state = state.copyWith(
@@ -1287,6 +1343,13 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       );
       return;
     }
+    if (state.status == AgentChatRunStatus.running) {
+      agent.steer(message);
+      state = state.copyWith(queuedCount: _queuedCount(agent));
+      return;
+    }
+    await _settingsRefresh;
+    if (_settingsApplyPending) await _applyAgentSettings();
     _refreshRoute();
     if (!state.routeReady) {
       state = state.copyWith(
@@ -1296,24 +1359,34 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       );
       return;
     }
-    agent.setSystemPrompt(await _buildSystemPrompt());
-
-    if (state.status == AgentChatRunStatus.running) {
-      agent.steer(message);
-      state = state.copyWith(queuedCount: _queuedCount(agent));
-      return;
-    }
-    state = state.copyWith(
-      status: AgentChatRunStatus.running,
-      error: '',
-      activities: const [],
-      streamingText: '',
-    );
+    _preparingRun = true;
     try {
+      final permissionMode = _ref
+          .read(agentSettingsProvider)
+          .settings
+          .chat
+          .permissionMode;
+      _activeAgentSettings = _ref.read(agentSettingsProvider).settings;
+      _activePermissionMode = permissionMode;
+      _activeRoute = _routeCache;
+      agent.state.tools = _buildTools(
+        fullAccess: permissionMode == AgentPermissionMode.fullAccess,
+      );
+      agent.setSystemPrompt(await _buildSystemPrompt());
+      state = state.copyWith(
+        status: AgentChatRunStatus.running,
+        error: '',
+        activities: const [],
+        streamingText: '',
+      );
       await agent.prompt(message);
     } catch (e) {
       state = state.copyWith(error: e.toString());
     } finally {
+      _preparingRun = false;
+      _activePermissionMode = null;
+      _activeAgentSettings = null;
+      _activeRoute = null;
       if (mounted) {
         state = state.copyWith(
           status: AgentChatRunStatus.idle,
@@ -1321,6 +1394,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
           queuedCount: _queuedCount(agent),
         );
       }
+      if (_settingsApplyPending) _queueSettingsRefresh();
     }
   }
 

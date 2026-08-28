@@ -44,6 +44,12 @@ class PrivateDataGuard {
       return 'credential';
     }
     if (RegExp(
+      r'\b(?:secret|credentials?)\b["\x27]?\s*[:=]\s*["\x27]?[A-Za-z0-9_+/.=-]{8,}',
+      caseSensitive: false,
+    ).hasMatch(value)) {
+      return 'credential';
+    }
+    if (RegExp(
       r'\b(?:pst-[A-Za-z0-9_-]{10,}|sk-(?:proj-)?[A-Za-z0-9_-]{20,}|gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|xox[baprs]-[A-Za-z0-9-]{20,}|hf_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16})\b',
     ).hasMatch(value)) {
       return 'credential';

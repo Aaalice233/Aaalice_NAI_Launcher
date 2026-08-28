@@ -139,8 +139,14 @@ void main() {
       expect(settings.chat.modelReference.model, 'deepseek-chat');
       expect(settings.chat.webAccessEnabled, isTrue);
       expect(
-        settings.chat.customSystemPrompt,
+        settings.chat.behaviorInstructions(),
         contains('Keep replies concise.'),
+      );
+      expect(
+        settings.chat.migratedChatRules.any(
+          (rule) => rule.id == 'legacy-chat' && rule.name == 'Legacy chat',
+        ),
+        isTrue,
       );
       expect(storage.values[StorageKeys.agentSettingsJson], isA<String>());
 
@@ -211,7 +217,10 @@ void main() {
           storage.values[StorageKeys.promptAssistantConfigJson] as String;
       expect(cleaned, isNot(contains('legacy-chat')));
       final migrated = container.read(agentSettingsProvider).settings;
-      expect(migrated.chat.customSystemPrompt, 'Preserve this instruction.');
+      expect(
+        migrated.chat.behaviorInstructions(),
+        'Preserve this instruction.',
+      );
     },
   );
 
@@ -315,6 +324,92 @@ void main() {
     expect(container.read(agentSettingsProvider).error, isNotEmpty);
     expect(storage.values[StorageKeys.agentSettingsJson], '');
   });
+
+  test(
+    'preserves malformed legacy web access state for explicit recovery',
+    () async {
+      final storage = _MemoryStorage();
+      storage.values[StorageKeys.agentWebAccessConfigJson] = '{damaged';
+      final container = ProviderContainer(
+        overrides: [
+          localStorageServiceProvider.overrideWithValue(storage),
+          agentSettingsProvider.overrideWith(
+            (ref) => AgentSettingsNotifier(
+              ref,
+              supportDirectory: temp,
+              workspaceDirectory: temp,
+              environment: const {},
+            ),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await _waitUntilInitialized(container);
+
+      expect(
+        container.read(agentSettingsProvider).error,
+        contains('Cannot migrate'),
+      );
+      expect(storage.values[StorageKeys.agentWebAccessConfigJson], '{damaged');
+      expect(
+        storage.values.containsKey(StorageKeys.agentSettingsJson),
+        isFalse,
+      );
+    },
+  );
+
+  test(
+    'profile replacement rolls back storage and state when scan fails',
+    () async {
+      final storage = _MemoryStorage();
+      const original = AgentSettings();
+      storage.values[StorageKeys.agentSettingsJson] = original.encode();
+      final catalog = _ControlledSkillCatalogService();
+      final container = ProviderContainer(
+        overrides: [
+          localStorageServiceProvider.overrideWithValue(storage),
+          secureStorageServiceProvider.overrideWithValue(
+            _MemorySecureStorage(),
+          ),
+          agentSettingsProvider.overrideWith(
+            (ref) => AgentSettingsNotifier(
+              ref,
+              supportDirectory: temp,
+              workspaceDirectory: temp,
+              environment: const {},
+              skillCatalogService: catalog,
+            ),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      await _waitUntilInitialized(container);
+
+      const imported = AgentSettings(
+        chat: AgentChatConfig(customSystemPrompt: 'Imported'),
+      );
+      final replacement = container
+          .read(agentSettingsProvider.notifier)
+          .replaceSettings(imported);
+      while (catalog.scanCount < 2) {
+        await Future<void>.delayed(Duration.zero);
+      }
+      catalog.secondScan.completeError(StateError('scan failed'));
+
+      await expectLater(replacement, throwsStateError);
+      expect(
+        container.read(agentSettingsProvider).settings.chat.customSystemPrompt,
+        isEmpty,
+      );
+      expect(
+        AgentSettings.decode(
+          storage.values[StorageKeys.agentSettingsJson]! as String,
+        ).chat.customSystemPrompt,
+        isEmpty,
+      );
+    },
+  );
 
   test(
     'oversized legacy instructions are preserved instead of half migrated',

@@ -12328,6 +12328,11 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agentSettings_filterDisabled => '已禁用';
 
   @override
+  String agentSettings_skillEnabledCount(int enabled, int total) {
+    return '已启用 $enabled/$total';
+  }
+
+  @override
   String get agentSettings_diagnostics => '诊断';
 
   @override
@@ -12391,6 +12396,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get agentSettings_skillConflictReplace => '存在同名 Skill，勾选以替换';
+
+  @override
+  String get agentSettings_skillConflictUnsafe => '目标是文件、链接或特殊实体，不能替换';
 
   @override
   String get agentSettings_skillsInstalled => 'Skills 已安装';
@@ -24779,6 +24787,11 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get agentSettings_filterDisabled => '已停用';
 
   @override
+  String agentSettings_skillEnabledCount(int enabled, int total) {
+    return '已啟用 $enabled/$total';
+  }
+
+  @override
   String get agentSettings_diagnostics => '診斷';
 
   @override
@@ -24842,6 +24855,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get agentSettings_skillConflictReplace => '存在同名 Skill，勾選以取代';
+
+  @override
+  String get agentSettings_skillConflictUnsafe => '目標是檔案、連結或特殊實體，無法取代';
 
   @override
   String get agentSettings_skillsInstalled => 'Skills 已安裝';

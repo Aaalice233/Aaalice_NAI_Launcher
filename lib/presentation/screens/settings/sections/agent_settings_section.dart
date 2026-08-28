@@ -13,11 +13,39 @@ import 'agent/agent_profile_actions.dart';
 import 'agent/skill_management_panel.dart';
 import 'agent/system_prompt_editor.dart';
 
-class AgentSettingsSection extends ConsumerWidget {
+class AgentSettingsSection extends ConsumerStatefulWidget {
   const AgentSettingsSection({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AgentSettingsSection> createState() =>
+      _AgentSettingsSectionState();
+}
+
+class _AgentSettingsSectionState extends ConsumerState<AgentSettingsSection>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this)
+      ..addListener(_handleTabChange);
+  }
+
+  @override
+  void dispose() {
+    _tabController
+      ..removeListener(_handleTabChange)
+      ..dispose();
+    super.dispose();
+  }
+
+  void _handleTabChange() {
+    if (!_tabController.indexIsChanging && mounted) setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(agentSettingsProvider);
     final promptConfig = ref.watch(promptAssistantConfigProvider);
     if (!state.initialized) {
@@ -99,8 +127,20 @@ class AgentSettingsSection extends ConsumerWidget {
             _ModelCard(settings: state.settings, promptConfig: promptConfig),
             _PermissionCard(settings: state.settings),
             _WebAccessCard(settings: state.settings),
-            const AgentSystemPromptEditor(),
-            const SkillManagementPanel(),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 8, 4, 4),
+              child: TabBar(
+                controller: _tabController,
+                tabs: [
+                  Tab(text: context.l10n.agentSettings_systemPrompt),
+                  Tab(text: context.l10n.agentSettings_skillsTitle),
+                ],
+              ),
+            ),
+            if (_tabController.index == 0)
+              const AgentSystemPromptEditor()
+            else
+              const SkillManagementPanel(),
             const SizedBox(height: 24),
           ],
         ),

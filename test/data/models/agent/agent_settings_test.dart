@@ -86,9 +86,49 @@ void main() {
 
       expect(migrated.chat.modelReference.providerId, 'provider-a');
       expect(migrated.chat.modelReference.model, 'model-a');
-      expect(migrated.chat.customSystemPrompt, 'Custom behavior');
+      expect(migrated.chat.customSystemPrompt, isEmpty);
+      expect(migrated.chat.migratedChatRules, hasLength(2));
+      expect(
+        migrated.chat.migratedChatRules.first,
+        isA<AgentMigratedChatRule>()
+            .having((rule) => rule.id, 'id', 'chat_default')
+            .having((rule) => rule.name, 'name', 'Default')
+            .having((rule) => rule.enabled, 'enabled', isTrue)
+            .having((rule) => rule.isDefault, 'isDefault', isTrue)
+            .having((rule) => rule.order, 'order', 0),
+      );
+      expect(migrated.chat.behaviorInstructions(), 'Custom behavior');
       expect(migrated.chat.webAccessEnabled, isFalse);
       expect(migrated.toJson().toString(), isNot(contains('example.invalid')));
+    });
+
+    test('preserves disabled legacy chat rules and their metadata', () {
+      final defaults = PromptAssistantConfigState.defaults();
+      final migrated = AgentSettings.migrateLegacy(
+        promptAssistant: defaults.copyWith(
+          rules: const [
+            PromptRuleTemplate(
+              id: 'disabled-chat',
+              name: 'Disabled rule',
+              taskType: AssistantTaskType.chat,
+              content: 'Do not activate this.',
+              enabled: false,
+              order: 42,
+            ),
+          ],
+        ),
+        webAccessEnabled: false,
+      );
+
+      final rule = migrated.chat.migratedChatRules.single;
+      expect(rule.id, 'disabled-chat');
+      expect(rule.name, 'Disabled rule');
+      expect(rule.enabled, isFalse);
+      expect(rule.order, 42);
+      expect(migrated.chat.behaviorInstructions(), isEmpty);
+      final roundTrip = AgentSettings.decode(migrated.encode());
+      expect(roundTrip.chat.migratedChatRules.single.enabled, isFalse);
+      expect(roundTrip.chat.migratedChatRules.single.name, 'Disabled rule');
     });
   });
 }

@@ -22400,6 +22400,12 @@ abstract class AppLocalizations {
   /// **'Disabled'**
   String get agentSettings_filterDisabled;
 
+  /// No description provided for @agentSettings_skillEnabledCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Enabled {enabled}/{total}'**
+  String agentSettings_skillEnabledCount(int enabled, int total);
+
   /// No description provided for @agentSettings_diagnostics.
   ///
   /// In en, this message translates to:
@@ -22513,6 +22519,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'A Skill with this name exists. Select it to replace.'**
   String get agentSettings_skillConflictReplace;
+
+  /// No description provided for @agentSettings_skillConflictUnsafe.
+  ///
+  /// In en, this message translates to:
+  /// **'The target is a file, link, or special entity and cannot be replaced.'**
+  String get agentSettings_skillConflictUnsafe;
 
   /// No description provided for @agentSettings_skillsInstalled.
   ///

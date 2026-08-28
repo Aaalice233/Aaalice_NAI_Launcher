@@ -37,8 +37,10 @@ class _SkillManagementPanelState extends ConsumerState<SkillManagementPanel> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(agentSettingsProvider);
+    final effective = state.skills.effectiveEntries;
+    final enabledCount = effective.where((entry) => entry.enabled).length;
     final query = _searchController.text.trim().toLowerCase();
-    final entries = state.skills.effectiveEntries.where((entry) {
+    final entries = effective.where((entry) {
       final matchesQuery =
           query.isEmpty ||
           entry.id.toLowerCase().contains(query) ||
@@ -96,6 +98,14 @@ class _SkillManagementPanelState extends ConsumerState<SkillManagementPanel> {
             ),
           ),
           const SizedBox(height: 10),
+          Text(
+            context.l10n.agentSettings_skillEnabledCount(
+              enabledCount,
+              effective.length,
+            ),
+            style: Theme.of(context).textTheme.labelLarge,
+          ),
+          const SizedBox(height: 8),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: SegmentedButton<_SkillFilter>(
@@ -103,15 +113,21 @@ class _SkillManagementPanelState extends ConsumerState<SkillManagementPanel> {
               segments: [
                 ButtonSegment(
                   value: _SkillFilter.all,
-                  label: Text(context.l10n.agentSettings_filterAll),
+                  label: Text(
+                    '${context.l10n.agentSettings_filterAll} (${effective.length})',
+                  ),
                 ),
                 ButtonSegment(
                   value: _SkillFilter.enabled,
-                  label: Text(context.l10n.agentSettings_filterEnabled),
+                  label: Text(
+                    '${context.l10n.agentSettings_filterEnabled} ($enabledCount)',
+                  ),
                 ),
                 ButtonSegment(
                   value: _SkillFilter.disabled,
-                  label: Text(context.l10n.agentSettings_filterDisabled),
+                  label: Text(
+                    '${context.l10n.agentSettings_filterDisabled} (${effective.length - enabledCount})',
+                  ),
                 ),
                 ButtonSegment(
                   value: _SkillFilter.diagnostics,
@@ -139,7 +155,15 @@ class _SkillManagementPanelState extends ConsumerState<SkillManagementPanel> {
               ),
             )
           else
-            for (final entry in entries) _SkillTile(entry: entry),
+            SizedBox(
+              height: _boundedListHeight(entries.length, 104, 460),
+              child: ListView.builder(
+                key: const ValueKey('agent-skills-list'),
+                itemCount: entries.length,
+                itemBuilder: (context, index) =>
+                    _SkillTile(entry: entries[index]),
+              ),
+            ),
         ],
       ),
     );
@@ -183,21 +207,22 @@ class _SkillManagementPanelState extends ConsumerState<SkillManagementPanel> {
                 Text(context.l10n.agentSettings_exportPrivacy),
                 const SizedBox(height: 8),
                 Flexible(
-                  child: ListView(
+                  child: ListView.builder(
                     shrinkWrap: true,
-                    children: [
-                      for (final entry in effective)
-                        CheckboxListTile(
-                          value: selected.contains(entry.id),
-                          title: Text(entry.id),
-                          subtitle: Text(entry.skill.description, maxLines: 2),
-                          onChanged: (value) => setDialogState(() {
-                            value == true
-                                ? selected.add(entry.id)
-                                : selected.remove(entry.id);
-                          }),
-                        ),
-                    ],
+                    itemCount: effective.length,
+                    itemBuilder: (context, index) {
+                      final entry = effective[index];
+                      return CheckboxListTile(
+                        value: selected.contains(entry.id),
+                        title: Text(entry.id),
+                        subtitle: Text(entry.skill.description, maxLines: 2),
+                        onChanged: (value) => setDialogState(() {
+                          value == true
+                              ? selected.add(entry.id)
+                              : selected.remove(entry.id);
+                        }),
+                      );
+                    },
                   ),
                 ),
               ],
@@ -274,26 +299,32 @@ class _SkillManagementPanelState extends ConsumerState<SkillManagementPanel> {
                 maxWidth: _safeDialogContentWidth(context, 520),
                 maxHeight: _safeDialogListHeight(context),
               ),
-              child: ListView(
+              child: ListView.builder(
                 shrinkWrap: true,
-                children: [
-                  for (final item in preview.items)
-                    CheckboxListTile(
-                      value: item.conflicts && replace.contains(item.name),
-                      enabled: item.conflicts,
-                      onChanged: (value) => setDialogState(() {
-                        value == true
-                            ? replace.add(item.name)
-                            : replace.remove(item.name);
-                      }),
-                      title: Text(item.name),
-                      subtitle: Text(
-                        '${item.description}\n'
-                        '${context.l10n.agentSettings_skillArchiveStats(item.fileCount, item.totalBytes)}'
-                        '${item.conflicts ? '\n${context.l10n.agentSettings_skillConflictReplace}' : ''}',
-                      ),
+                itemCount: preview.items.length,
+                itemBuilder: (context, index) {
+                  final item = preview.items[index];
+                  final conflictText = !item.conflicts
+                      ? ''
+                      : item.canReplace
+                      ? context.l10n.agentSettings_skillConflictReplace
+                      : context.l10n.agentSettings_skillConflictUnsafe;
+                  return CheckboxListTile(
+                    value: item.canReplace && replace.contains(item.name),
+                    enabled: item.canReplace,
+                    onChanged: (value) => setDialogState(() {
+                      value == true
+                          ? replace.add(item.name)
+                          : replace.remove(item.name);
+                    }),
+                    title: Text(item.name),
+                    subtitle: Text(
+                      '${item.description}\n'
+                      '${context.l10n.agentSettings_skillArchiveStats(item.fileCount, item.totalBytes)}'
+                      '${conflictText.isNotEmpty ? '\n$conflictText' : ''}',
                     ),
-                ],
+                  );
+                },
               ),
             ),
             actions: [
@@ -304,7 +335,9 @@ class _SkillManagementPanelState extends ConsumerState<SkillManagementPanel> {
               FilledButton(
                 onPressed:
                     preview.items.any(
-                      (item) => item.conflicts && !replace.contains(item.name),
+                      (item) =>
+                          (item.conflicts && !item.canReplace) ||
+                          (item.canReplace && !replace.contains(item.name)),
                     )
                     ? null
                     : () => Navigator.pop(context, true),
@@ -426,30 +459,40 @@ class _DiagnosticsList extends StatelessWidget {
         child: Center(child: Text(context.l10n.agentSettings_noDiagnostics)),
       );
     }
-    return Column(
-      children: [
-        for (final entry in shadowed)
-          ListTile(
-            leading: const Icon(Icons.layers_outlined),
-            title: Text(context.l10n.agentSettings_skillShadowed(entry.id)),
-            subtitle: Text(
-              '${entry.safePath}\n'
-              '${context.l10n.agentSettings_preferredSource(_skillSourceLabel(context, entry.shadowedBy!))}',
-            ),
-          ),
-        for (final item in snapshot.diagnostics)
-          ListTile(
+    final itemCount = shadowed.length + snapshot.diagnostics.length;
+    return SizedBox(
+      height: _boundedListHeight(itemCount, 88, 420),
+      child: ListView.builder(
+        itemCount: itemCount,
+        itemBuilder: (context, index) {
+          if (index < shadowed.length) {
+            final entry = shadowed[index];
+            return ListTile(
+              leading: const Icon(Icons.layers_outlined),
+              title: Text(context.l10n.agentSettings_skillShadowed(entry.id)),
+              subtitle: Text(
+                '${entry.safePath}\n'
+                '${context.l10n.agentSettings_preferredSource(_skillSourceLabel(context, entry.shadowedBy!))}',
+              ),
+            );
+          }
+          final item = snapshot.diagnostics[index - shadowed.length];
+          return ListTile(
             leading: Icon(
               Icons.warning_amber,
               color: Theme.of(context).colorScheme.error,
             ),
             title: Text(item.diagnostic.code.name),
             subtitle: Text('${item.diagnostic.message}\n${item.safePath}'),
-          ),
-      ],
+          );
+        },
+      ),
     );
   }
 }
+
+double _boundedListHeight(int count, double estimatedItemHeight, double max) =>
+    (count * estimatedItemHeight).clamp(96.0, max);
 
 String _skillSourceLabel(BuildContext context, SkillSource source) =>
     switch (source) {

@@ -47,30 +47,117 @@ class AgentModelReference {
   int get hashCode => Object.hash(providerId, model);
 }
 
+class AgentMigratedChatRule {
+  const AgentMigratedChatRule({
+    required this.id,
+    required this.name,
+    required this.content,
+    required this.enabled,
+    required this.isDefault,
+    required this.order,
+  });
+
+  final String id;
+  final String name;
+  final String content;
+  final bool enabled;
+  final bool isDefault;
+  final int order;
+
+  bool get isUnmodifiedLegacyDefault =>
+      id == 'chat_default' && content.trim() == legacyDefaultAgentChatPrompt;
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'content': content,
+    'enabled': enabled,
+    'isDefault': isDefault,
+    'order': order,
+  };
+
+  factory AgentMigratedChatRule.fromJson(Object? value) {
+    if (value is! Map) {
+      throw const FormatException('migratedChatRules entries must be objects.');
+    }
+    _rejectUnknownFields(value, const {
+      'id',
+      'name',
+      'content',
+      'enabled',
+      'isDefault',
+      'order',
+    }, 'migrated chat rule');
+    final id = value['id'];
+    final name = value['name'];
+    final content = value['content'];
+    final enabled = value['enabled'];
+    final isDefault = value['isDefault'];
+    final order = value['order'];
+    if (id is! String ||
+        name is! String ||
+        content is! String ||
+        enabled is! bool ||
+        isDefault is! bool ||
+        order is! int ||
+        id.isEmpty ||
+        id.length > 128 ||
+        name.length > 256) {
+      throw const FormatException('migratedChatRules contains invalid data.');
+    }
+    return AgentMigratedChatRule(
+      id: id,
+      name: name,
+      content: content,
+      enabled: enabled,
+      isDefault: isDefault,
+      order: order,
+    );
+  }
+}
+
 class AgentChatConfig {
   const AgentChatConfig({
     this.modelReference = const AgentModelReference(),
     this.permissionMode = AgentPermissionMode.askBeforeSensitiveActions,
     this.webAccessEnabled = false,
     this.customSystemPrompt = '',
+    this.migratedChatRules = const [],
   });
 
   final AgentModelReference modelReference;
   final AgentPermissionMode permissionMode;
   final bool webAccessEnabled;
   final String customSystemPrompt;
+  final List<AgentMigratedChatRule> migratedChatRules;
+
+  String behaviorInstructions({String? customPromptOverride}) {
+    final migrated =
+        migratedChatRules
+            .where((rule) => rule.enabled && !rule.isUnmodifiedLegacyDefault)
+            .toList()
+          ..sort((a, b) => a.order.compareTo(b.order));
+    return [
+      for (final rule in migrated)
+        if (rule.content.trim().isNotEmpty) rule.content.trim(),
+      if ((customPromptOverride ?? customSystemPrompt).trim().isNotEmpty)
+        (customPromptOverride ?? customSystemPrompt).trim(),
+    ].join('\n\n');
+  }
 
   AgentChatConfig copyWith({
     AgentModelReference? modelReference,
     AgentPermissionMode? permissionMode,
     bool? webAccessEnabled,
     String? customSystemPrompt,
+    List<AgentMigratedChatRule>? migratedChatRules,
   }) {
     return AgentChatConfig(
       modelReference: modelReference ?? this.modelReference,
       permissionMode: permissionMode ?? this.permissionMode,
       webAccessEnabled: webAccessEnabled ?? this.webAccessEnabled,
       customSystemPrompt: customSystemPrompt ?? this.customSystemPrompt,
+      migratedChatRules: migratedChatRules ?? this.migratedChatRules,
     );
   }
 
@@ -79,9 +166,13 @@ class AgentChatConfig {
     'permissionMode': permissionMode.name,
     'webAccessEnabled': webAccessEnabled,
     'customSystemPrompt': customSystemPrompt,
+    'migratedChatRules': [for (final rule in migratedChatRules) rule.toJson()],
   };
 
-  factory AgentChatConfig.fromJson(Object? value) {
+  factory AgentChatConfig.fromJson(
+    Object? value, {
+    required int schemaVersion,
+  }) {
     if (value is! Map) {
       throw const FormatException('chat must be an object.');
     }
@@ -98,6 +189,7 @@ class AgentChatConfig {
       'permissionMode',
       'webAccessEnabled',
       'customSystemPrompt',
+      'migratedChatRules',
     }, 'chat');
     final permissionMode = AgentPermissionMode.values
         .cast<AgentPermissionMode?>()
@@ -108,11 +200,35 @@ class AgentChatConfig {
     if (customPrompt.length > AgentSettings.maxCustomPromptLength) {
       throw const FormatException('customSystemPrompt is too large.');
     }
+    final migratedValue = value['migratedChatRules'];
+    if (schemaVersion >= 3 && migratedValue is! List) {
+      throw const FormatException('migratedChatRules must be a list.');
+    }
+    final migratedRules = <AgentMigratedChatRule>[];
+    if (migratedValue != null) {
+      if (migratedValue is! List ||
+          migratedValue.length > AgentSettings.maxMigratedChatRules) {
+        throw const FormatException(
+          'migratedChatRules must be a bounded list.',
+        );
+      }
+      for (final item in migratedValue) {
+        migratedRules.add(AgentMigratedChatRule.fromJson(item));
+      }
+    }
+    final migratedLength = migratedRules.fold<int>(
+      0,
+      (length, rule) => length + rule.content.length,
+    );
+    if (migratedLength > AgentSettings.maxCustomPromptLength) {
+      throw const FormatException('migratedChatRules content is too large.');
+    }
     return AgentChatConfig(
       modelReference: AgentModelReference.fromJson(value['modelReference']),
       permissionMode: permissionMode,
       webAccessEnabled: webAccess,
       customSystemPrompt: customPrompt,
+      migratedChatRules: List.unmodifiable(migratedRules),
     );
   }
 }
@@ -124,9 +240,10 @@ class AgentSettings {
     this.disabledSkillIds = const {},
   });
 
-  static const int currentSchemaVersion = 2;
+  static const int currentSchemaVersion = 3;
   static const int maxCustomPromptLength = 50000;
   static const int maxSkillPreferences = 5000;
+  static const int maxMigratedChatRules = 100;
   static const int maxEncodedBytes = 1024 * 1024;
 
   final int schemaVersion;
@@ -183,7 +300,7 @@ class AgentSettings {
       disabledIds.add(value);
     }
     return AgentSettings(
-      chat: AgentChatConfig.fromJson(decoded['chat']),
+      chat: AgentChatConfig.fromJson(decoded['chat'], schemaVersion: version),
       disabledSkillIds: disabledIds,
     );
   }
@@ -192,24 +309,25 @@ class AgentSettings {
     required PromptAssistantConfigState promptAssistant,
     required bool webAccessEnabled,
   }) {
-    final chatRules =
-        promptAssistant.rules
-            .where(
-              (rule) => rule.taskType == AssistantTaskType.chat && rule.enabled,
-            )
-            .toList()
-          ..sort((a, b) => a.order.compareTo(b.order));
-    final customRules = chatRules
-        .where(
-          (rule) =>
-              !(rule.id == 'chat_default' &&
-                  rule.content.trim() == legacyDefaultAgentChatPrompt),
+    final chatRules = promptAssistant.rules
+        .where((rule) => rule.taskType == AssistantTaskType.chat)
+        .map(
+          (rule) => AgentMigratedChatRule(
+            id: rule.id,
+            name: rule.name,
+            content: rule.content,
+            enabled: rule.enabled,
+            isDefault: rule.isDefault,
+            order: rule.order,
+          ),
         )
-        .map((rule) => rule.content.trim())
-        .where((content) => content.isNotEmpty)
         .toList();
-    final customSystemPrompt = customRules.join('\n\n');
-    if (customSystemPrompt.length > maxCustomPromptLength) {
+    final migratedLength = chatRules.fold<int>(
+      0,
+      (length, rule) => length + rule.content.length,
+    );
+    if (chatRules.length > maxMigratedChatRules ||
+        migratedLength > maxCustomPromptLength) {
       throw const FormatException(
         'Legacy chat instructions exceed the Agent prompt size limit.',
       );
@@ -222,7 +340,7 @@ class AgentSettings {
         ),
         permissionMode: promptAssistant.agentPermissionMode,
         webAccessEnabled: webAccessEnabled,
-        customSystemPrompt: customSystemPrompt,
+        migratedChatRules: List.unmodifiable(chatRules),
       ),
     );
   }

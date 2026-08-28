@@ -74,6 +74,10 @@ class AgentProfileService {
     if (current.chat.customSystemPrompt != imported.chat.customSystemPrompt) {
       changes.add('customSystemPrompt');
     }
+    if (jsonEncode(current.chat.migratedChatRules) !=
+        jsonEncode(imported.chat.migratedChatRules)) {
+      changes.add('migratedChatRules');
+    }
     if (!_sameSet(current.disabledSkillIds, imported.disabledSkillIds)) {
       changes.add('skillPreferences');
     }

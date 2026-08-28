@@ -120,6 +120,31 @@ void main() {
         ),
         throwsFormatException,
       );
+
+      final forgedSmall = _claimZipEntryExpandedSize(
+        _zip([ArchiveFile.string('demo/SKILL.md', _skill('demo', 'Demo'))]),
+        16,
+      );
+      expect(
+        () => constrained.previewImport(
+          bytes: forgedSmall,
+          targetDirectory: Directory('${temp.path}/target'),
+        ),
+        throwsFormatException,
+      );
+
+      final colliding = _zip([
+        ArchiveFile.string('collision/SKILL.md', _skill('collision', 'Demo')),
+        ArchiveFile.string('collision/assets', 'file'),
+        ArchiveFile.string('collision/assets/reference.txt', 'nested'),
+      ]);
+      expect(
+        () => service.previewImport(
+          bytes: colliding,
+          targetDirectory: Directory('${temp.path}/target'),
+        ),
+        throwsFormatException,
+      );
     },
   );
 
@@ -141,6 +166,14 @@ void main() {
       targetDirectory: target,
     );
     expect(preview.items.every((item) => item.conflicts), isTrue);
+    expect(
+      preview.items.firstWhere((item) => item.name == 'a').canReplace,
+      isTrue,
+    );
+    expect(
+      preview.items.firstWhere((item) => item.name == 'b').canReplace,
+      isFalse,
+    );
     await expectLater(
       service.install(
         bytes: bytes,
@@ -177,6 +210,37 @@ void main() {
 
     await expectLater(
       service.exportSkills([(name: 'private-demo', manifest: manifest)]),
+      throwsFormatException,
+    );
+  });
+
+  test('rejects generic secret and credential assignments', () async {
+    final source = Directory('${temp.path}/source/private-demo');
+    await source.create(recursive: true);
+    final manifest = File('${source.path}/SKILL.md');
+    await manifest.writeAsString(_skill('private-demo', 'Private demo'));
+    for (final value in [
+      '{"secret":"abcdefgh12345678"}',
+      'credentials = abcdefgh12345678',
+    ]) {
+      final config = File('${source.path}/config.json');
+      await config.writeAsString(value);
+      await expectLater(
+        service.exportSkills([(name: 'private-demo', manifest: manifest)]),
+        throwsFormatException,
+      );
+    }
+  });
+
+  test('rejects sensitive paths instead of silently omitting them', () async {
+    final source = Directory('${temp.path}/source/demo');
+    await source.create(recursive: true);
+    final manifest = File('${source.path}/SKILL.md');
+    await manifest.writeAsString(_skill('demo', 'Demo'));
+    await File('${source.path}/.env').writeAsString('SAFE_EXAMPLE=true');
+
+    await expectLater(
+      service.exportSkills([(name: 'demo', manifest: manifest)]),
       throwsFormatException,
     );
   });
