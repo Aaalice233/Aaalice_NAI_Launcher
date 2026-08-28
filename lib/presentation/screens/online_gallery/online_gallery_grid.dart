@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:visibility_detector/visibility_detector.dart';
@@ -12,6 +13,13 @@ typedef OnlineGalleryGridItemBuilder =
       int index,
       double itemWidth,
       int columnCount,
+    );
+
+typedef OnlineGalleryVisibilityItemBuilder =
+    Widget Function(
+      BuildContext context,
+      bool hasBeenVisible,
+      bool isScrolling,
     );
 
 /// Responsive masonry grid. Item interaction is supplied as commands so this
@@ -73,13 +81,15 @@ class OnlineGalleryVisibilityDrivenItem extends StatefulWidget {
   const OnlineGalleryVisibilityDrivenItem({
     super.key,
     required this.visibilityKey,
+    required this.scrolling,
     required this.onVisibilityChanged,
     required this.builder,
   });
 
   final String visibilityKey;
+  final ValueListenable<bool> scrolling;
   final void Function(bool visible, double visibleTop) onVisibilityChanged;
-  final Widget Function(BuildContext context, bool hasBeenVisible) builder;
+  final OnlineGalleryVisibilityItemBuilder builder;
 
   @override
   State<OnlineGalleryVisibilityDrivenItem> createState() =>
@@ -90,9 +100,53 @@ class OnlineGalleryVisibilityDrivenItemState
     extends State<OnlineGalleryVisibilityDrivenItem> {
   bool _hasBeenVisible = false;
   bool _isVisible = false;
+  late bool _isScrolling;
+  bool _listensForScrolling = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _isScrolling = widget.scrolling.value;
+    _startListeningForScrolling();
+  }
+
+  @override
+  void didUpdateWidget(covariant OnlineGalleryVisibilityDrivenItem oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.scrolling == widget.scrolling) return;
+    if (_listensForScrolling) {
+      oldWidget.scrolling.removeListener(_handleScrollingChanged);
+      _listensForScrolling = false;
+    }
+    _isScrolling = widget.scrolling.value;
+    _startListeningForScrolling();
+  }
+
+  void _startListeningForScrolling() {
+    if (_hasBeenVisible || _listensForScrolling) return;
+    widget.scrolling.addListener(_handleScrollingChanged);
+    _listensForScrolling = true;
+  }
+
+  void _stopListeningForScrolling() {
+    if (!_listensForScrolling) return;
+    widget.scrolling.removeListener(_handleScrollingChanged);
+    _listensForScrolling = false;
+  }
+
+  void _handleScrollingChanged() {
+    final value = widget.scrolling.value;
+    if (_isScrolling == value) return;
+    if (!_hasBeenVisible && value && mounted) {
+      setState(() => _isScrolling = value);
+    } else {
+      _isScrolling = value;
+    }
+  }
 
   @override
   void dispose() {
+    _stopListeningForScrolling();
     if (_isVisible) widget.onVisibilityChanged(false, 0);
     super.dispose();
   }
@@ -111,10 +165,11 @@ class OnlineGalleryVisibilityDrivenItemState
         if (_isVisible == visible) return;
         _isVisible = visible;
         if (visible && !_hasBeenVisible && mounted) {
+          _stopListeningForScrolling();
           setState(() => _hasBeenVisible = true);
         }
       },
-      child: widget.builder(context, _hasBeenVisible),
+      child: widget.builder(context, _hasBeenVisible, _isScrolling),
     );
   }
 }

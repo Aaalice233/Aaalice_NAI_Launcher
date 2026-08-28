@@ -195,7 +195,7 @@ Widget _app({
           index: 0,
           itemWidth: 200,
           columnCount: 1,
-          isScrolling: false,
+          scrolling: const AlwaysStoppedAnimation(false),
           anchorKey: null,
           onVisibilityChanged: (_, __, ___, ____, _____, ______) {},
           detailRequestScope: detailRequestScope,

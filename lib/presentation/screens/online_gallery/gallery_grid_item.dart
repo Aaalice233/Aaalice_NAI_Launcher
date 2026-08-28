@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/cache/online_gallery_detail_coordinator.dart';
@@ -19,7 +20,7 @@ class GalleryGridItem extends StatefulWidget {
     required this.index,
     required this.itemWidth,
     required this.columnCount,
-    required this.isScrolling,
+    required this.scrolling,
     required this.anchorKey,
     required this.onVisibilityChanged,
     required this.detailRequestScope,
@@ -31,7 +32,7 @@ class GalleryGridItem extends StatefulWidget {
   final int index;
   final double itemWidth;
   final int columnCount;
-  final bool isScrolling;
+  final ValueListenable<bool> scrolling;
   final GlobalKey? anchorKey;
   final void Function(
     int index,
@@ -119,6 +120,7 @@ class _GalleryGridItemState extends State<GalleryGridItem> {
     GalleryDetail? detail,
   }) {
     return AgentResourceDragSource(
+      deferDesktopRegistration: true,
       reference: AgentChatResourceReference(
         kind: AgentChatResourceKind.onlineGalleryMedia,
         source: item.sourceId.key,
@@ -152,9 +154,10 @@ class _GalleryGridItemState extends State<GalleryGridItem> {
       child: OnlineGalleryVisibilityDrivenItem(
         key: ValueKey('visible:${post.stableKey}'),
         visibilityKey: post.stableKey,
+        scrolling: widget.scrolling,
         onVisibilityChanged: _handleVisibility,
-        builder: (context, hasBeenVisible) {
-          if (!hasBeenVisible && widget.isScrolling && !_needsDetail) {
+        builder: (context, hasBeenVisible, isScrolling) {
+          if (!hasBeenVisible && isScrolling && !_needsDetail) {
             return SizedBox(
               height: (widget.itemWidth / layoutAspectRatio).clamp(
                 80.0,

@@ -174,7 +174,8 @@ class OnlineGalleryScrollPrefetchCoordinator {
       }
       return;
     }
-    controller.visibleItems[index] = (
+    final enteredViewport = controller.recordVisibleItem(
+      index: index,
       item: item,
       itemWidth: itemWidth,
       visibleTop: visibleTop,
@@ -188,6 +189,10 @@ class OnlineGalleryScrollPrefetchCoordinator {
             columnCount: columnCount,
           );
     }
+    // VisibilityDetector also reports position changes for cards that remain
+    // visible. Keep the anchor and viewport sizing current, but do not repeat
+    // image queue and idle-prefetch work until a card actually enters.
+    if (!enteredViewport) return;
     if (item.previewUrl.isNotEmpty) {
       unawaited(
         controller.prefetchCoordinator.submit(
