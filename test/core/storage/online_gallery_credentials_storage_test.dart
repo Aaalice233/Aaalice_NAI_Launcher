@@ -81,6 +81,34 @@ void main() {
       expect(await service.getDanbooruCredentials(), isNull);
     },
   );
+
+  test('stores and clears the Exa key under its dedicated key', () async {
+    await service.saveAgentWebAccessExaApiKey('exa-secret');
+
+    expect(disk[StorageKeys.agentWebAccessExaApiKey], 'exa-secret');
+    expect(await service.getAgentWebAccessExaApiKey(), 'exa-secret');
+
+    await service.deleteAgentWebAccessExaApiKey();
+
+    expect(disk[StorageKeys.agentWebAccessExaApiKey], isNull);
+    expect(await service.getAgentWebAccessExaApiKey(), isNull);
+  });
+
+  test('does not cache the Exa key when secure storage fails', () async {
+    when(
+      () => backend.write(
+        key: StorageKeys.agentWebAccessExaApiKey,
+        value: any(named: 'value'),
+      ),
+    ).thenThrow(StateError('disk unavailable'));
+
+    await expectLater(
+      service.saveAgentWebAccessExaApiKey('must-not-be-cached'),
+      throwsStateError,
+    );
+
+    expect(await service.getAgentWebAccessExaApiKey(), isNull);
+  });
 }
 
 class _MockFlutterSecureStorage extends Mock implements FlutterSecureStorage {}

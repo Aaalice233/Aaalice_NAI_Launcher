@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import '../../../../core/utils/localization_extension.dart';
+import 'agent_chat_tool_widgets.dart';
 import 'agent_chat_panel_view_data.dart';
 
 class AgentChatStatus extends StatelessWidget {
@@ -133,7 +134,9 @@ class _ApprovalBar extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  l10n.agentChat_approvalTitle(toolName),
+                  l10n.agentChat_approvalTitle(
+                    agentToolLabel(context, toolName),
+                  ),
                   style: theme.textTheme.titleSmall?.copyWith(
                     color: theme.colorScheme.onTertiaryContainer,
                   ),

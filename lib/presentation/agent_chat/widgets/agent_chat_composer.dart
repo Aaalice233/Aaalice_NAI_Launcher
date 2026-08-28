@@ -109,42 +109,49 @@ class AgentChatComposer extends StatelessWidget {
                 viewData.mobile ? 4 : 8,
                 viewData.mobile ? 4 : 6,
               ),
-              child: Row(
-                children: [
-                  _attachButton(theme, l10n),
-                  _moreMenu(theme, l10n),
-                  SizedBox(width: viewData.mobile ? 0 : 2),
-                  _permissionModeButton(theme, l10n),
-                  const SizedBox(width: 2),
-                  if (!viewData.mobile && viewData.state.queuedCount > 0)
-                    Flexible(
-                      child: Text(
-                        l10n.agentChat_queued,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: theme.colorScheme.tertiary,
+              child: SizedBox(
+                key: const ValueKey('agent-chat-composer-controls'),
+                height: viewData.mobile ? 48 : 30,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    _attachButton(theme, l10n),
+                    _moreMenu(theme, l10n),
+                    SizedBox(width: viewData.mobile ? 0 : 2),
+                    _permissionModeButton(theme, l10n),
+                    const SizedBox(width: 2),
+                    _webAccessToggle(theme, l10n),
+                    const SizedBox(width: 2),
+                    if (!viewData.mobile && viewData.state.queuedCount > 0)
+                      Flexible(
+                        child: Text(
+                          l10n.agentChat_queued,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.colorScheme.tertiary,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        overflow: TextOverflow.ellipsis,
                       ),
+                    if (!viewData.mobile) const Spacer(),
+                    if (viewData.mobile)
+                      Expanded(
+                        child: SizedBox(
+                          height: 48,
+                          child: _modelSelector(theme, l10n),
+                        ),
+                      )
+                    else
+                      _modelSelector(theme, l10n),
+                    const SizedBox(width: 4),
+                    _SendButton(
+                      running: viewData.running,
+                      enabled: viewData.canSend,
+                      touchOptimized: viewData.mobile,
+                      onSend: commands.send,
+                      onStop: commands.stop,
                     ),
-                  if (!viewData.mobile) const Spacer(),
-                  if (viewData.mobile)
-                    Expanded(
-                      child: SizedBox(
-                        height: 48,
-                        child: _modelSelector(theme, l10n),
-                      ),
-                    )
-                  else
-                    _modelSelector(theme, l10n),
-                  const SizedBox(width: 4),
-                  _SendButton(
-                    running: viewData.running,
-                    enabled: viewData.canSend,
-                    touchOptimized: viewData.mobile,
-                    onSend: commands.send,
-                    onStop: commands.stop,
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ],
@@ -316,6 +323,68 @@ class AgentChatComposer extends StatelessWidget {
           size: 17,
           color: theme.colorScheme.onSurface.withValues(
             alpha: viewData.controlsLocked ? 0.25 : 0.6,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _webAccessToggle(ThemeData theme, AppLocalizations l10n) {
+    final state = viewData.webAccess;
+    final enabled = state.config.enabled;
+    final interactive = state.initialized && !viewData.controlsLocked;
+    final tooltip = enabled
+        ? l10n.agentChat_disableWebAccess
+        : l10n.agentChat_enableWebAccess;
+    final iconColor = enabled
+        ? theme.colorScheme.primary.withValues(alpha: 0.82)
+        : theme.colorScheme.onSurface.withValues(alpha: 0.55);
+    return Semantics(
+      button: true,
+      toggled: enabled,
+      label: tooltip,
+      child: SizedBox.square(
+        dimension: viewData.mobile ? 48 : 30,
+        child: IconButton(
+          key: const ValueKey('agent-chat-web-access-toggle'),
+          tooltip: tooltip,
+          onPressed: interactive
+              ? () => commands.setWebAccessEnabled(!enabled)
+              : null,
+          isSelected: enabled,
+          icon: const Icon(Icons.public_off_outlined),
+          selectedIcon: const Icon(Icons.public),
+          iconSize: 18,
+          alignment: Alignment.center,
+          padding: EdgeInsets.zero,
+          constraints: BoxConstraints.tightFor(
+            width: viewData.mobile ? 48 : 30,
+            height: viewData.mobile ? 48 : 30,
+          ),
+          style: ButtonStyle(
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            splashFactory: NoSplash.splashFactory,
+            shape: const WidgetStatePropertyAll(CircleBorder()),
+            foregroundColor: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.disabled)) {
+                return theme.colorScheme.onSurface.withValues(alpha: 0.25);
+              }
+              if (states.contains(WidgetState.hovered)) {
+                return enabled
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.onSurface.withValues(alpha: 0.72);
+              }
+              return iconColor;
+            }),
+            overlayColor: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.focused)) {
+                return iconColor.withValues(alpha: 0.12);
+              }
+              if (states.contains(WidgetState.pressed)) {
+                return iconColor.withValues(alpha: 0.08);
+              }
+              return Colors.transparent;
+            }),
           ),
         ),
       ),

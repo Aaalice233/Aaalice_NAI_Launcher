@@ -807,6 +807,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get agentChat_attachImage => 'Attach images';
 
   @override
+  String get agentChat_enableWebAccess => 'Enable web access';
+
+  @override
+  String get agentChat_disableWebAccess => 'Disable web access';
+
+  @override
   String agentChat_unsupportedImageFormat(Object fileName) {
     return 'Unsupported image format: $fileName';
   }
@@ -828,6 +834,70 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get agentChat_toolRunning => 'Running tool';
+
+  @override
+  String get agentChat_toolGenerateImage => 'Generate image';
+
+  @override
+  String get agentChat_toolQueueImageTask => 'Queue image task';
+
+  @override
+  String get agentChat_toolInterrogateImage => 'Analyze image prompt';
+
+  @override
+  String get agentChat_toolRecentImages => 'View recent images';
+
+  @override
+  String get agentChat_toolGenerationStatus => 'Check generation status';
+
+  @override
+  String get agentChat_toolGetGenerationSettings => 'View generation settings';
+
+  @override
+  String get agentChat_toolUpdateGenerationSettings =>
+      'Update generation settings';
+
+  @override
+  String get agentChat_toolPromptState => 'View prompt state';
+
+  @override
+  String get agentChat_toolSetPositivePrompt => 'Set positive prompt';
+
+  @override
+  String get agentChat_toolSetNegativePrompt => 'Set negative prompt';
+
+  @override
+  String get agentChat_toolAddCharacter => 'Add character';
+
+  @override
+  String get agentChat_toolUpdateCharacter => 'Update character';
+
+  @override
+  String get agentChat_toolRemoveCharacter => 'Remove character';
+
+  @override
+  String get agentChat_toolReadSkill => 'Read skill';
+
+  @override
+  String get agentChat_toolReadSkillResource => 'Read skill resource';
+
+  @override
+  String get agentChat_toolSkillDiagnostics => 'View skill diagnostics';
+
+  @override
+  String get agentChat_toolReloadSkills => 'Reload skills';
+
+  @override
+  String get agentChat_toolSearchTags => 'Search tags';
+
+  @override
+  String get agentChat_toolReadFile => 'Read file';
+
+  @override
+  String get agentChat_toolWebSearch => 'Search web';
+
+  @override
+  String get agentChat_toolWebRead => 'Read web page';
 
   @override
   String get agentChat_needSetup =>
@@ -4270,7 +4340,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get nav_generate => 'Generate';
 
   @override
-  String get nav_gallery => 'Gallery';
+  String get nav_gallery => 'Library';
 
   @override
   String get nav_settings => 'Settings';
@@ -6360,6 +6430,88 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get promptAssistant_desktopOverlaySubtitle =>
       'Enable hover, right-click, and shortcut behavior';
+
+  @override
+  String get promptAssistant_webAccessTitle => 'Agent Web Access';
+
+  @override
+  String get promptAssistant_webAccessSubtitle =>
+      'Search current information through SearXNG or Exa';
+
+  @override
+  String get promptAssistant_webAccessEnable => 'Allow Agent web access';
+
+  @override
+  String get promptAssistant_webAccessEnableSubtitle =>
+      'Once enabled, public searches and page reads do not ask for confirmation each time';
+
+  @override
+  String get promptAssistant_webAccessBackend => 'Search backend';
+
+  @override
+  String get promptAssistant_webAccessBackendAuto => 'Auto';
+
+  @override
+  String get promptAssistant_webAccessBackendSearxng => 'SearXNG';
+
+  @override
+  String get promptAssistant_webAccessBackendExaMcp => 'Exa free MCP';
+
+  @override
+  String get promptAssistant_webAccessBackendExaApi => 'Exa API';
+
+  @override
+  String get promptAssistant_webAccessBackendAutoDescription =>
+      'Use configured SearXNG first, then fall back to Exa\'s anonymous MCP allowance';
+
+  @override
+  String get promptAssistant_webAccessBackendSearxngDescription =>
+      'Use only the configured private SearXNG instance';
+
+  @override
+  String get promptAssistant_webAccessBackendExaMcpDescription =>
+      'Use Exa\'s hosted free allowance without an API key; rate limits apply';
+
+  @override
+  String get promptAssistant_webAccessBackendExaApiDescription =>
+      'Use your Exa account and API quota; this mode may incur charges';
+
+  @override
+  String get promptAssistant_webAccessResultCount => 'Default results';
+
+  @override
+  String get promptAssistant_webAccessSearxngUrl => 'SearXNG Base URL';
+
+  @override
+  String get promptAssistant_webAccessExaApiKey => 'Exa API Key';
+
+  @override
+  String get promptAssistant_webAccessApiKeyConfigured => 'Stored securely';
+
+  @override
+  String get promptAssistant_webAccessApiKeyMissing => 'Not configured';
+
+  @override
+  String get promptAssistant_webAccessConfigureKey => 'Configure';
+
+  @override
+  String get promptAssistant_webAccessClearKey => 'Clear key';
+
+  @override
+  String get promptAssistant_webAccessTestConnection => 'Test connection';
+
+  @override
+  String get promptAssistant_webAccessTesting => 'Testing...';
+
+  @override
+  String promptAssistant_webAccessTestSucceeded(Object provider) {
+    return 'Connected through $provider';
+  }
+
+  @override
+  String promptAssistant_webAccessTestFailed(Object error) {
+    return 'Connection failed: $error';
+  }
 
   @override
   String get promptAssistant_taskRouting => 'Task Routing';
@@ -12487,7 +12639,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get nav_more => 'More';
 
   @override
-  String get nav_explore => 'Explore';
+  String get nav_explore => 'Gallery';
 
   @override
   String get image_savedToSystemGallery => 'Saved to your photo gallery';

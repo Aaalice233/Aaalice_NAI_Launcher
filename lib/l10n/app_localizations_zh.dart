@@ -781,6 +781,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agentChat_attachImage => '添加图片';
 
   @override
+  String get agentChat_enableWebAccess => '开启联网';
+
+  @override
+  String get agentChat_disableWebAccess => '关闭联网';
+
+  @override
   String agentChat_unsupportedImageFormat(Object fileName) {
     return '不支持的图片格式：$fileName';
   }
@@ -802,6 +808,69 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get agentChat_toolRunning => '调用工具中';
+
+  @override
+  String get agentChat_toolGenerateImage => '生成图片';
+
+  @override
+  String get agentChat_toolQueueImageTask => '添加图片任务';
+
+  @override
+  String get agentChat_toolInterrogateImage => '反推图片提示词';
+
+  @override
+  String get agentChat_toolRecentImages => '查看最近图片';
+
+  @override
+  String get agentChat_toolGenerationStatus => '查看生成状态';
+
+  @override
+  String get agentChat_toolGetGenerationSettings => '查看生成设置';
+
+  @override
+  String get agentChat_toolUpdateGenerationSettings => '更新生成设置';
+
+  @override
+  String get agentChat_toolPromptState => '查看提示词状态';
+
+  @override
+  String get agentChat_toolSetPositivePrompt => '设置正向提示词';
+
+  @override
+  String get agentChat_toolSetNegativePrompt => '设置负向提示词';
+
+  @override
+  String get agentChat_toolAddCharacter => '添加角色';
+
+  @override
+  String get agentChat_toolUpdateCharacter => '更新角色';
+
+  @override
+  String get agentChat_toolRemoveCharacter => '删除角色';
+
+  @override
+  String get agentChat_toolReadSkill => '读取 Skill';
+
+  @override
+  String get agentChat_toolReadSkillResource => '读取 Skill 资源';
+
+  @override
+  String get agentChat_toolSkillDiagnostics => '查看 Skill 诊断';
+
+  @override
+  String get agentChat_toolReloadSkills => '重新加载 Skills';
+
+  @override
+  String get agentChat_toolSearchTags => '搜索标签';
+
+  @override
+  String get agentChat_toolReadFile => '读取文件';
+
+  @override
+  String get agentChat_toolWebSearch => '联网搜索';
+
+  @override
+  String get agentChat_toolWebRead => '读取网页';
 
   @override
   String get agentChat_needSetup => '未配置聊天模型。请先在设置中添加支持工具调用的供应商。';
@@ -4082,7 +4151,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get nav_generate => '生成';
 
   @override
-  String get nav_gallery => '画廊';
+  String get nav_gallery => '图库';
 
   @override
   String get nav_settings => '设置';
@@ -6096,6 +6165,86 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get promptAssistant_desktopOverlaySubtitle => '启用 hover / 右键 / 快捷键行为';
+
+  @override
+  String get promptAssistant_webAccessTitle => 'Agent 联网';
+
+  @override
+  String get promptAssistant_webAccessSubtitle => '通过 SearXNG 或 Exa 搜索实时信息';
+
+  @override
+  String get promptAssistant_webAccessEnable => '允许 Agent 联网';
+
+  @override
+  String get promptAssistant_webAccessEnableSubtitle => '启用后，搜索和读取公网网页不再逐次确认';
+
+  @override
+  String get promptAssistant_webAccessBackend => '搜索后端';
+
+  @override
+  String get promptAssistant_webAccessBackendAuto => '自动';
+
+  @override
+  String get promptAssistant_webAccessBackendSearxng => 'SearXNG';
+
+  @override
+  String get promptAssistant_webAccessBackendExaMcp => 'Exa 免费 MCP';
+
+  @override
+  String get promptAssistant_webAccessBackendExaApi => 'Exa API';
+
+  @override
+  String get promptAssistant_webAccessBackendAutoDescription =>
+      '优先使用已配置的 SearXNG，失败后回退到 Exa 匿名 MCP 额度';
+
+  @override
+  String get promptAssistant_webAccessBackendSearxngDescription =>
+      '仅使用配置的私有 SearXNG 实例';
+
+  @override
+  String get promptAssistant_webAccessBackendExaMcpDescription =>
+      '无需 API Key，使用 Exa 托管的免费额度并受其限流约束';
+
+  @override
+  String get promptAssistant_webAccessBackendExaApiDescription =>
+      '使用你的 Exa 账号与 API 额度，此模式可能产生费用';
+
+  @override
+  String get promptAssistant_webAccessResultCount => '默认结果数';
+
+  @override
+  String get promptAssistant_webAccessSearxngUrl => 'SearXNG 地址';
+
+  @override
+  String get promptAssistant_webAccessExaApiKey => 'Exa API Key';
+
+  @override
+  String get promptAssistant_webAccessApiKeyConfigured => '已安全保存';
+
+  @override
+  String get promptAssistant_webAccessApiKeyMissing => '未配置';
+
+  @override
+  String get promptAssistant_webAccessConfigureKey => '配置';
+
+  @override
+  String get promptAssistant_webAccessClearKey => '清除 Key';
+
+  @override
+  String get promptAssistant_webAccessTestConnection => '测试连接';
+
+  @override
+  String get promptAssistant_webAccessTesting => '正在测试...';
+
+  @override
+  String promptAssistant_webAccessTestSucceeded(Object provider) {
+    return '已通过 $provider 连接';
+  }
+
+  @override
+  String promptAssistant_webAccessTestFailed(Object error) {
+    return '连接失败：$error';
+  }
 
   @override
   String get promptAssistant_taskRouting => '任务路由';
@@ -11960,7 +12109,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get nav_more => '更多';
 
   @override
-  String get nav_explore => '探索';
+  String get nav_explore => '画廊';
 
   @override
   String get image_savedToSystemGallery => '已保存到系统相册';
@@ -12827,6 +12976,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get agentChat_attachImage => '新增圖片';
 
   @override
+  String get agentChat_enableWebAccess => '開啟聯網';
+
+  @override
+  String get agentChat_disableWebAccess => '關閉聯網';
+
+  @override
   String agentChat_unsupportedImageFormat(Object fileName) {
     return '不支援的圖片格式：$fileName';
   }
@@ -12848,6 +13003,69 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get agentChat_toolRunning => '呼叫工具中';
+
+  @override
+  String get agentChat_toolGenerateImage => '生成圖片';
+
+  @override
+  String get agentChat_toolQueueImageTask => '新增圖片任務';
+
+  @override
+  String get agentChat_toolInterrogateImage => '反推圖片提示詞';
+
+  @override
+  String get agentChat_toolRecentImages => '檢視最近圖片';
+
+  @override
+  String get agentChat_toolGenerationStatus => '檢視生成狀態';
+
+  @override
+  String get agentChat_toolGetGenerationSettings => '檢視生成設定';
+
+  @override
+  String get agentChat_toolUpdateGenerationSettings => '更新生成設定';
+
+  @override
+  String get agentChat_toolPromptState => '檢視提示詞狀態';
+
+  @override
+  String get agentChat_toolSetPositivePrompt => '設定正向提示詞';
+
+  @override
+  String get agentChat_toolSetNegativePrompt => '設定負向提示詞';
+
+  @override
+  String get agentChat_toolAddCharacter => '新增角色';
+
+  @override
+  String get agentChat_toolUpdateCharacter => '更新角色';
+
+  @override
+  String get agentChat_toolRemoveCharacter => '刪除角色';
+
+  @override
+  String get agentChat_toolReadSkill => '讀取 Skill';
+
+  @override
+  String get agentChat_toolReadSkillResource => '讀取 Skill 資源';
+
+  @override
+  String get agentChat_toolSkillDiagnostics => '檢視 Skill 診斷';
+
+  @override
+  String get agentChat_toolReloadSkills => '重新載入 Skills';
+
+  @override
+  String get agentChat_toolSearchTags => '搜尋標籤';
+
+  @override
+  String get agentChat_toolReadFile => '讀取檔案';
+
+  @override
+  String get agentChat_toolWebSearch => '聯網搜尋';
+
+  @override
+  String get agentChat_toolWebRead => '讀取網頁';
 
   @override
   String get agentChat_needSetup => '未設定聊天模型。請先在設定中新增支援工具呼叫的供應商。';
@@ -16128,7 +16346,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get nav_generate => '生成';
 
   @override
-  String get nav_gallery => '畫廊';
+  String get nav_gallery => '圖庫';
 
   @override
   String get nav_settings => '設定';
@@ -18142,6 +18360,86 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get promptAssistant_desktopOverlaySubtitle => '啟用 hover / 右鍵 / 快捷鍵行為';
+
+  @override
+  String get promptAssistant_webAccessTitle => 'Agent 聯網';
+
+  @override
+  String get promptAssistant_webAccessSubtitle => '透過 SearXNG 或 Exa 搜尋即時資訊';
+
+  @override
+  String get promptAssistant_webAccessEnable => '允許 Agent 聯網';
+
+  @override
+  String get promptAssistant_webAccessEnableSubtitle => '啟用後，搜尋和讀取公網網頁不再逐次確認';
+
+  @override
+  String get promptAssistant_webAccessBackend => '搜尋後端';
+
+  @override
+  String get promptAssistant_webAccessBackendAuto => '自動';
+
+  @override
+  String get promptAssistant_webAccessBackendSearxng => 'SearXNG';
+
+  @override
+  String get promptAssistant_webAccessBackendExaMcp => 'Exa 免費 MCP';
+
+  @override
+  String get promptAssistant_webAccessBackendExaApi => 'Exa API';
+
+  @override
+  String get promptAssistant_webAccessBackendAutoDescription =>
+      '優先使用已設定的 SearXNG，失敗後回退到 Exa 匿名 MCP 額度';
+
+  @override
+  String get promptAssistant_webAccessBackendSearxngDescription =>
+      '僅使用設定的私有 SearXNG 實例';
+
+  @override
+  String get promptAssistant_webAccessBackendExaMcpDescription =>
+      '無需 API Key，使用 Exa 託管的免費額度並受其限流約束';
+
+  @override
+  String get promptAssistant_webAccessBackendExaApiDescription =>
+      '使用你的 Exa 帳號與 API 額度，此模式可能產生費用';
+
+  @override
+  String get promptAssistant_webAccessResultCount => '預設結果數';
+
+  @override
+  String get promptAssistant_webAccessSearxngUrl => 'SearXNG 位址';
+
+  @override
+  String get promptAssistant_webAccessExaApiKey => 'Exa API Key';
+
+  @override
+  String get promptAssistant_webAccessApiKeyConfigured => '已安全儲存';
+
+  @override
+  String get promptAssistant_webAccessApiKeyMissing => '未設定';
+
+  @override
+  String get promptAssistant_webAccessConfigureKey => '設定';
+
+  @override
+  String get promptAssistant_webAccessClearKey => '清除 Key';
+
+  @override
+  String get promptAssistant_webAccessTestConnection => '測試連線';
+
+  @override
+  String get promptAssistant_webAccessTesting => '正在測試...';
+
+  @override
+  String promptAssistant_webAccessTestSucceeded(Object provider) {
+    return '已透過 $provider 連線';
+  }
+
+  @override
+  String promptAssistant_webAccessTestFailed(Object error) {
+    return '連線失敗：$error';
+  }
 
   @override
   String get promptAssistant_taskRouting => '任務路由';
@@ -24006,7 +24304,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get nav_more => '更多';
 
   @override
-  String get nav_explore => '探索';
+  String get nav_explore => '畫廊';
 
   @override
   String get image_savedToSystemGallery => '已儲存到系統相簿';

@@ -7,9 +7,9 @@ import '../../../../data/models/prompt/random_prompt_result.dart';
 import '../../../../data/models/prompt/random_preset.dart';
 import '../../../providers/random_mode_provider.dart';
 import '../../../providers/random_preset_provider.dart';
-import '../../../themes/core/input_surface_style.dart';
 import '../../../providers/tag_group_sync_provider.dart';
 import '../../common/app_toast.dart';
+import '../../common/safe_dropdown.dart';
 import '../new_preset_dialog.dart';
 import 'random_config_l10n.dart';
 
@@ -383,19 +383,10 @@ class _PresetDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    return DropdownButtonFormField<String>(
-      initialValue: selectedPreset?.id,
+    return SafeDropdown<String>(
+      value: selectedPreset?.id,
       isExpanded: true,
       icon: const Icon(Icons.unfold_more_rounded, size: 18),
-      decoration: InputDecoration(
-        filled: true,
-        fillColor: inputSurfaceFillColor(colors),
-        isDense: true,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 10,
-        ),
-      ),
       items: [
         ...presets.map(
           (preset) => DropdownMenuItem(

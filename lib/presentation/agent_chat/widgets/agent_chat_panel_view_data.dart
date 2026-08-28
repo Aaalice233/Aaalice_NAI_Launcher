@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/agent/agent_types.dart';
 import '../../prompt_assistant/models/prompt_assistant_models.dart';
+import '../../prompt_assistant/providers/web_access_provider.dart';
 import '../providers/agent_chat_notifier.dart';
 
 @immutable
@@ -8,6 +10,7 @@ class AgentChatPanelViewData {
   const AgentChatPanelViewData({
     required this.state,
     required this.config,
+    required this.webAccess,
     required this.mobile,
     required this.fullScreen,
     required this.compactMobile,
@@ -18,6 +21,7 @@ class AgentChatPanelViewData {
 
   final AgentChatState state;
   final PromptAssistantConfigState config;
+  final WebAccessConfigState webAccess;
   final bool mobile;
   final bool fullScreen;
   final bool compactMobile;
@@ -50,12 +54,15 @@ class AgentChatPanelCommands {
     required this.moreAction,
     required this.selectModel,
     required this.selectPermissionMode,
+    required this.setWebAccessEnabled,
     required this.pickImages,
     required this.send,
     required this.stop,
     required this.dismissError,
     required this.resolveApproval,
     required this.useSuggestion,
+    required this.copyUserMessage,
+    required this.editLastUserMessage,
   });
 
   final VoidCallback collapse;
@@ -66,10 +73,13 @@ class AgentChatPanelCommands {
   final Future<void> Function(AgentChatMoreAction action) moreAction;
   final Future<void> Function(String providerId, String model) selectModel;
   final Future<void> Function(AgentPermissionMode mode) selectPermissionMode;
+  final Future<void> Function(bool enabled) setWebAccessEnabled;
   final Future<void> Function() pickImages;
   final Future<void> Function() send;
   final VoidCallback stop;
   final VoidCallback dismissError;
   final void Function(bool approved) resolveApproval;
   final void Function(String suggestion) useSuggestion;
+  final Future<void> Function(UserMessage message) copyUserMessage;
+  final Future<void> Function(UserMessage message) editLastUserMessage;
 }

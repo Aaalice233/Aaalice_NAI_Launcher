@@ -54,9 +54,17 @@ class AgentChatPanelController extends ChangeNotifier {
   String _lastScrollSessionId = '';
   String _lastStreamingText = '';
   List<AgentToolActivity>? _lastActivities;
+  int? _hoveredUserMessageIndex;
 
   List<PendingAgentChatImage> get pendingImages =>
       List.unmodifiable(_pendingImages);
+  int? get hoveredUserMessageIndex => _hoveredUserMessageIndex;
+
+  void setHoveredUserMessageIndex(int? value) {
+    if (_hoveredUserMessageIndex == value) return;
+    _hoveredUserMessageIndex = value;
+    notifyListeners();
+  }
 
   void attachOverlayContext(BuildContext context) => _overlayContext = context;
 
@@ -97,6 +105,20 @@ class AgentChatPanelController extends ChangeNotifier {
     inputController.clear();
     notifyListeners();
     return images;
+  }
+
+  void restoreDraft(String text, List<PendingAgentChatImage> images) {
+    hideInlineImagePreview();
+    _pendingImages
+      ..clear()
+      ..addAll(images);
+    inputController.value = TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
+    );
+    inputController.imageCount = images.length;
+    _hoveredUserMessageIndex = null;
+    notifyListeners();
   }
 
   List<UserContent> buildInlineUserContent(

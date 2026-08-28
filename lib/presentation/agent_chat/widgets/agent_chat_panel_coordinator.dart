@@ -1,14 +1,17 @@
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/agent/agent_types.dart';
 import '../../../../core/utils/localization_extension.dart';
 import 'package:nai_launcher/presentation/providers/layout_state_provider.dart';
 
+import '../../prompt_assistant/providers/web_access_provider.dart';
 import '../../prompt_assistant/services/provider_adapters/prompt_assistant_adapter.dart';
+import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/themed_confirm_dialog.dart';
 import '../../widgets/common/themed_input_dialog.dart';
 import '../providers/agent_chat_notifier.dart';
@@ -43,12 +46,16 @@ class AgentChatPanelCoordinator {
       selectModel: (providerId, model) =>
           _notifier.selectChatModel(providerId, model),
       selectPermissionMode: _notifier.setPermissionMode,
+      setWebAccessEnabled: (enabled) =>
+          _ref.read(webAccessConfigProvider.notifier).setEnabled(enabled),
       pickImages: () => _pickImages(context),
       send: _send,
       stop: _notifier.abort,
       dismissError: _notifier.dismissError,
       resolveApproval: _notifier.resolveToolApproval,
       useSuggestion: _controller.setSuggestion,
+      copyUserMessage: (message) => _copyUserMessage(context, message),
+      editLastUserMessage: (message) => _editLastUserMessage(context, message),
     );
   }
 
@@ -94,6 +101,82 @@ class AgentChatPanelCoordinator {
       );
     }
     if (_isMounted()) _controller.inputFocus.requestFocus();
+  }
+
+  Future<void> _copyUserMessage(
+    BuildContext context,
+    UserMessage message,
+  ) async {
+    await Clipboard.setData(
+      ClipboardData(text: _editableTextForUserMessage(message)),
+    );
+    if (_isMounted() && context.mounted) {
+      AppToast.info(context, context.l10n.common_copied);
+    }
+  }
+
+  Future<void> _editLastUserMessage(
+    BuildContext context,
+    UserMessage message,
+  ) async {
+    final draft = _draftForUserMessage(message);
+    if (draft == null) return;
+    final rewound = await _notifier.rewindLastUserMessage();
+    if (!_isMounted() ||
+        !context.mounted ||
+        rewound == null ||
+        rewound.timestamp != message.timestamp) {
+      return;
+    }
+    _controller.restoreDraft(draft.text, draft.images);
+    _controller.inputFocus.requestFocus();
+    _controller.scrollToBottom(force: true);
+  }
+
+  _AgentChatMessageDraft? _draftForUserMessage(UserMessage message) {
+    final images = <PendingAgentChatImage>[];
+    for (final block in message.content) {
+      if (block is! UserImageContent) continue;
+      final source = block.image.source;
+      final bytes = source.bytes;
+      final mimeType = source.mimeType;
+      if (bytes == null || mimeType == null || mimeType.isEmpty) return null;
+      final imageNumber = images.length + 1;
+      final extension = switch (mimeType) {
+        'image/jpeg' => 'jpg',
+        'image/svg+xml' => 'svg',
+        _ => mimeType.split('/').last,
+      };
+      images.add(
+        PendingAgentChatImage(
+          name: 'image$imageNumber.$extension',
+          bytes: bytes,
+          mimeType: mimeType,
+        ),
+      );
+    }
+    return _AgentChatMessageDraft(
+      text: _editableTextForUserMessage(message),
+      images: images,
+    );
+  }
+
+  String _editableTextForUserMessage(UserMessage message) {
+    final buffer = StringBuffer();
+    var imageNumber = 0;
+    for (final block in message.content) {
+      if (block is UserTextContent) {
+        buffer.write(block.text);
+      } else if (block is UserImageContent) {
+        imageNumber++;
+        final current = buffer.toString();
+        if (current.isNotEmpty && !RegExp(r'\s$').hasMatch(current)) {
+          buffer.write(' ');
+        }
+        buffer.write('[image$imageNumber]');
+      }
+    }
+    return buffer.toString();
   }
 
   Future<Uint8List?> _readImageBytes(PlatformFile file) async {
@@ -167,4 +250,11 @@ class AgentChatPanelCoordinator {
         await _deleteSession(context, state.activeSessionId);
     }
   }
+}
+
+class _AgentChatMessageDraft {
+  const _AgentChatMessageDraft({required this.text, required this.images});
+
+  final String text;
+  final List<PendingAgentChatImage> images;
 }

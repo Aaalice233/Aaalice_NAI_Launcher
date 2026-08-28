@@ -3,6 +3,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/data/models/online_gallery/danbooru_post.dart';
 import 'package:nai_launcher/data/models/queue/replication_task.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
@@ -11,6 +12,65 @@ import 'package:nai_launcher/presentation/widgets/common/image_card_hover_motion
 import 'package:nai_launcher/presentation/widgets/danbooru_post_card.dart';
 
 void main() {
+  setUp(() {
+    PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
+      TargetPlatform.windows,
+    );
+  });
+
+  tearDown(() {
+    PlatformCapabilities.debugOverride = null;
+  });
+
+  testWidgets('touch action menu does not overlap the rating badge', (
+    tester,
+  ) async {
+    PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
+      TargetPlatform.android,
+    );
+
+    const post = DanbooruPost(
+      id: 121,
+      width: 600,
+      height: 900,
+      rating: 'g',
+      previewFileUrl: 'https://example.com/portrait.jpg',
+      tagString: 'test_tag',
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.topLeft,
+              child: DanbooruPostCard(
+                post: post,
+                itemWidth: 150,
+                isFavorited: false,
+                onTap: () {},
+                onTagTap: (_) {},
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final actions = tester.getRect(
+      find.byKey(const ValueKey('online-gallery-card-action-buttons')),
+    );
+    final rating = tester.getRect(
+      find.byKey(const ValueKey('online-gallery-card-rating-badge')),
+    );
+
+    expect(actions.overlaps(rating), isFalse);
+    expect(rating.right, lessThanOrEqualTo(actions.left));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('layoutAspectRatio keeps masonry card geometry stable', (
     tester,
   ) async {

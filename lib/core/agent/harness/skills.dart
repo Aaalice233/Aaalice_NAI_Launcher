@@ -90,10 +90,10 @@ loadSkills(ExecutionEnv env, Object dirs) async {
 
 /// 从带来源标签的目录加载 skills（来源原样透传）。
 Future<
-    ({
-      List<({HarnessSkill skill, TSource source})> skills,
-      List<({SkillDiagnostic diagnostic, TSource source})> diagnostics,
-    })
+  ({
+    List<({HarnessSkill skill, TSource source})> skills,
+    List<({SkillDiagnostic diagnostic, TSource source})> diagnostics,
+  })
 >
 loadSourcedSkills<TSource>(
   ExecutionEnv env,
@@ -193,8 +193,7 @@ _loadSkillsFromDirInternal(
     }
 
     final relPath = _relativeEnvPath(rootDir, fullPath);
-    final ignorePath =
-        kind == FileKind.directory ? '$relPath/' : relPath;
+    final ignorePath = kind == FileKind.directory ? '$relPath/' : relPath;
     if (ignoreMatcher.ignores(ignorePath)) {
       continue;
     }
@@ -322,7 +321,8 @@ _loadSkillFromFile(
   String parentDirName,
 ) async {
   final diagnostics = <SkillDiagnostic>[];
-  final isDeclaredSkill = filePath
+  final isDeclaredSkill =
+      filePath
           .replaceAll(RegExp(r'[\\/]+$'), '')
           .split(RegExp(r'[\\/]'))
           .last ==
@@ -362,7 +362,9 @@ _loadSkillFromFile(
     return (skill: null, diagnostics: diagnostics);
   }
 
+  var metadataIsValid = true;
   for (final error in _validateDescription(description)) {
+    metadataIsValid = false;
     diagnostics.add(
       SkillDiagnostic(
         code: SkillDiagnosticCode.invalidMetadata,
@@ -377,6 +379,7 @@ _loadSkillFromFile(
       : null;
   final name = frontmatterName ?? parentDirName;
   for (final error in _validateName(name, parentDirName)) {
+    metadataIsValid = false;
     diagnostics.add(
       SkillDiagnostic(
         code: SkillDiagnosticCode.invalidMetadata,
@@ -386,7 +389,7 @@ _loadSkillFromFile(
     );
   }
 
-  if (description == null || description.trim().isEmpty) {
+  if (!metadataIsValid || description == null || description.trim().isEmpty) {
     return (skill: null, diagnostics: diagnostics);
   }
 
@@ -396,8 +399,7 @@ _loadSkillFromFile(
       description: description,
       content: body,
       filePath: filePath,
-      disableModelInvocation:
-          frontmatter['disable-model-invocation'] == true,
+      disableModelInvocation: frontmatter['disable-model-invocation'] == true,
     ),
     diagnostics: diagnostics,
   );
@@ -409,9 +411,7 @@ List<String> _validateName(String name, String parentDirName) {
     errors.add('name "$name" does not match parent directory "$parentDirName"');
   }
   if (name.length > _maxNameLength) {
-    errors.add(
-      'name exceeds $_maxNameLength characters (${name.length})',
-    );
+    errors.add('name exceeds $_maxNameLength characters (${name.length})');
   }
   if (!RegExp(r'^[a-z0-9-]+$').hasMatch(name)) {
     errors.add(
@@ -445,9 +445,7 @@ List<String> _validateDescription(String? description) {
 /// 返回 (frontmatter, body)；解析失败返回 null。
 (Map<String, dynamic>, String)? _parseFrontmatter(String content) {
   try {
-    final normalized = content
-        .replaceAll('\r\n', '\n')
-        .replaceAll('\r', '\n');
+    final normalized = content.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
     if (!normalized.startsWith('---')) {
       return (<String, dynamic>{}, normalized);
     }
@@ -534,8 +532,8 @@ Future<FileKind?> _resolveKind(
 
 String _dirnameEnvPath(String path) {
   final normalized = path.replaceAll(RegExp(r'[\\/]+$'), '');
-  final separatorIndex = normalized.lastIndexOf('/') >=
-          normalized.lastIndexOf('\\')
+  final separatorIndex =
+      normalized.lastIndexOf('/') >= normalized.lastIndexOf('\\')
       ? normalized.lastIndexOf('/')
       : normalized.lastIndexOf('\\');
   if (separatorIndex == 2 && normalized.length > 1 && normalized[1] == ':') {
@@ -545,7 +543,9 @@ String _dirnameEnvPath(String path) {
 }
 
 String _relativeEnvPath(String root, String path) {
-  final normalizedRoot = root.replaceAll('\\', '/').replaceAll(RegExp(r'/+$'), '');
+  final normalizedRoot = root
+      .replaceAll('\\', '/')
+      .replaceAll(RegExp(r'/+$'), '');
   final normalizedPath = path
       .replaceAll('\\', '/')
       .replaceAll(RegExp(r'/+$'), '');
@@ -587,10 +587,7 @@ class _IgnoreMatcher {
           regex += RegExp.escape(char);
         }
       }
-      _rules.add((
-        negated: negated,
-        pattern: RegExp('^$regex\$|^$regex/'),
-      ));
+      _rules.add((negated: negated, pattern: RegExp('^$regex\$|^$regex/')));
     }
   }
 

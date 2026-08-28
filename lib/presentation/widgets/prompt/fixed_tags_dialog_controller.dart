@@ -13,10 +13,10 @@ class FixedTagsDialogController extends ChangeNotifier {
   final negativeSearchController = TextEditingController();
   final positiveListController = ScrollController();
   final negativeListController = ScrollController();
-  final linkLayerKey = GlobalKey();
 
-  final _positiveAnchorKeys = <String, GlobalKey>{};
-  final _negativeAnchorKeys = <String, GlobalKey>{};
+  final _positiveAnchors = <String, RenderBox>{};
+  final _negativeAnchors = <String, RenderBox>{};
+  RenderBox? _linkLayer;
   String positiveSearchQuery = '';
   String negativeSearchQuery = '';
   FixedTagPromptType mobilePromptType = FixedTagPromptType.positive;
@@ -59,29 +59,47 @@ class FixedTagsDialogController extends ChangeNotifier {
     notifyListeners();
   }
 
-  GlobalKey anchorKeyFor(FixedTagEntry entry) {
-    final keys = entry.promptType == FixedTagPromptType.positive
-        ? _positiveAnchorKeys
-        : _negativeAnchorKeys;
-    return keys.putIfAbsent(entry.id, GlobalKey.new);
+  void registerLinkLayer(RenderBox layer) => _linkLayer = layer;
+
+  void unregisterLinkLayer(RenderBox layer) {
+    if (identical(_linkLayer, layer)) _linkLayer = null;
+  }
+
+  void registerAnchor(
+    FixedTagPromptType promptType,
+    String entryId,
+    RenderBox anchor,
+  ) {
+    _anchorsFor(promptType)[entryId] = anchor;
+  }
+
+  void unregisterAnchor(
+    FixedTagPromptType promptType,
+    String entryId,
+    RenderBox anchor,
+  ) {
+    final anchors = _anchorsFor(promptType);
+    if (identical(anchors[entryId], anchor)) anchors.remove(entryId);
   }
 
   Map<String, Offset> collectAnchorCenters(FixedTagPromptType promptType) {
-    final layer = linkLayerKey.currentContext?.findRenderObject();
-    if (layer is! RenderBox || !layer.hasSize) return const {};
-    final keys = promptType == FixedTagPromptType.positive
-        ? _positiveAnchorKeys
-        : _negativeAnchorKeys;
+    final layer = _linkLayer;
+    if (layer == null || !layer.attached || !layer.hasSize) return const {};
     final centers = <String, Offset>{};
-    for (final item in keys.entries) {
-      final anchor = item.value.currentContext?.findRenderObject();
-      if (anchor is! RenderBox || !anchor.hasSize) continue;
+    for (final item in _anchorsFor(promptType).entries) {
+      final anchor = item.value;
+      if (!anchor.attached || !anchor.hasSize) continue;
       centers[item.key] = layer.globalToLocal(
         anchor.localToGlobal(anchor.size.center(Offset.zero)),
       );
     }
     return centers;
   }
+
+  Map<String, RenderBox> _anchorsFor(FixedTagPromptType promptType) =>
+      promptType == FixedTagPromptType.positive
+      ? _positiveAnchors
+      : _negativeAnchors;
 
   void scheduleGeometryRefresh({
     required List<FixedTagEntry> positives,
@@ -121,6 +139,9 @@ class FixedTagsDialogController extends ChangeNotifier {
     negativeSearchController.dispose();
     positiveListController.dispose();
     negativeListController.dispose();
+    _positiveAnchors.clear();
+    _negativeAnchors.clear();
+    _linkLayer = null;
     super.dispose();
   }
 }

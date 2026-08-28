@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import '../../../agent_types.dart';
 
 /// Codec for message payloads nested in session entries and records.
@@ -55,11 +57,13 @@ abstract final class SessionJsonlCodec {
       };
     }
     if (message is ToolResultMessage) {
+      final details = _jsonCompatibleValue(message.details);
       return {
         'role': 'toolResult',
         'toolCallId': message.toolCallId,
         'toolName': message.toolName,
         'content': message.text,
+        if (details != null) 'details': details,
         'isError': message.isError,
         'timestamp': message.timestamp,
       };
@@ -114,6 +118,7 @@ abstract final class SessionJsonlCodec {
             if (value['content'] case final String text when text.isNotEmpty)
               ToolResultTextContent(text),
           ],
+          details: value['details'],
           isError: value['isError'] as bool? ?? false,
           timestamp: timestamp,
         );
@@ -182,5 +187,14 @@ abstract final class SessionJsonlCodec {
             )
           : const Cost(),
     );
+  }
+
+  static Object? _jsonCompatibleValue(Object? value) {
+    if (value == null) return null;
+    try {
+      return jsonDecode(jsonEncode(value));
+    } catch (_) {
+      return null;
+    }
   }
 }

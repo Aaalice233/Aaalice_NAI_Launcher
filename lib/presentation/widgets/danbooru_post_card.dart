@@ -11,6 +11,7 @@ import 'package:path/path.dart' as path;
 import '../../core/cache/gallery_image_request.dart';
 import '../../core/cache/online_gallery_image_cache_manager.dart';
 import '../../core/cache/online_gallery_prefetch_coordinator.dart';
+import '../../core/platform/platform_capabilities.dart';
 import '../../core/services/file_export_service.dart';
 import '../../core/utils/localization_extension.dart';
 import '../../core/utils/media_mime_type.dart';
@@ -26,6 +27,7 @@ import '../themes/theme_extension.dart';
 import 'common/card_action_buttons.dart';
 import 'common/image_card_hover_motion.dart';
 import 'online_gallery/online_gallery_hover_controller.dart';
+import 'online_gallery/online_gallery_card_status_overlays.dart';
 import 'online_gallery/progressive_gallery_image.dart';
 
 import 'common/app_toast.dart';
@@ -440,6 +442,15 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
     // 横图（宽高比大）：水平布局，因为高度小放不下垂直按钮
     // 竖图（宽高比小）：垂直布局
     final buttonDirection = aspectRatio > 1.3 ? Axis.horizontal : Axis.vertical;
+    final usesTouchActionMenu = PlatformCapabilities.current.hasTouchInput;
+    final showStatusOverlays =
+        usesTouchActionMenu || (!_isHovering && !_isFocused);
+    final showsRatingBadge =
+        !widget.favoriteReadOnly &&
+        widget.post.rating != null &&
+        widget.post.mediaCount <= 1 &&
+        widget.badgeLabel == null;
+    final leftStatusTop = widget.post.rank != null ? 30.0 : 4.0;
 
     final card = RepaintBoundary(
       child: CompositedTransformTarget(
@@ -574,52 +585,21 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                               ),
                           ],
                           if (!widget.selectionMode) ...[
-                            if (widget.favoriteReadOnly && !_isHovering)
+                            if (showStatusOverlays)
                               Positioned(
-                                top: 4,
+                                top: usesTouchActionMenu ? 56 : 4,
                                 right: 4,
-                                child: Tooltip(
-                                  message: context
+                                child: OnlineGalleryCardStatusOverlays(
+                                  favoriteReadOnly: widget.favoriteReadOnly,
+                                  favoriteReadOnlyTooltip: context
                                       .l10n
                                       .onlineGallery_gelbooruReadOnly,
-                                  child: Container(
-                                    padding: const EdgeInsets.all(5),
-                                    decoration: BoxDecoration(
-                                      color: Colors.black.withValues(
-                                        alpha: 0.6,
-                                      ),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(
-                                      Icons.favorite,
-                                      size: 14,
-                                      color: Colors.redAccent,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            if (widget.secondaryFavoriteIcon != null &&
-                                widget.secondaryFavoriteTooltip != null &&
-                                !_isHovering)
-                              Positioned(
-                                top: 4,
-                                right: widget.favoriteReadOnly ? 38 : 4,
-                                child: Tooltip(
-                                  message: widget.secondaryFavoriteTooltip!,
-                                  child: Container(
-                                    padding: const EdgeInsets.all(5),
-                                    decoration: BoxDecoration(
-                                      color: Colors.black.withValues(
-                                        alpha: 0.6,
-                                      ),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: Icon(
+                                  secondaryFavoriteIcon:
                                       widget.secondaryFavoriteIcon,
-                                      size: 14,
-                                      color: Colors.redAccent,
-                                    ),
-                                  ),
+                                  secondaryFavoriteTooltip:
+                                      widget.secondaryFavoriteTooltip,
+                                  badgeLabel: widget.badgeLabel,
+                                  mediaCount: widget.post.mediaCount,
                                 ),
                               ),
                             if (widget.post.rank != null)
@@ -645,65 +625,22 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                                   ),
                                 ),
                               ),
-                            if (widget.badgeLabel != null ||
-                                widget.post.mediaCount > 1)
+                            if (showsRatingBadge)
                               Positioned(
-                                top: 4,
-                                right: 4,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 6,
-                                    vertical: 3,
+                                top: leftStatusTop,
+                                left: 4,
+                                child: OnlineGalleryCardRatingBadge(
+                                  label: _getRatingLabel(
+                                    context,
+                                    widget.post.rating,
                                   ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.black.withValues(alpha: 0.72),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      if (widget.badgeLabel != null) ...[
-                                        const Icon(
-                                          Icons.brush_outlined,
-                                          size: 11,
-                                          color: Colors.white,
-                                        ),
-                                        const SizedBox(width: 3),
-                                        Text(
-                                          widget.badgeLabel!,
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        ),
-                                      ],
-                                      if (widget.badgeLabel != null &&
-                                          widget.post.mediaCount > 1)
-                                        const SizedBox(width: 6),
-                                      if (widget.post.mediaCount > 1) ...[
-                                        const Icon(
-                                          Icons.collections_outlined,
-                                          size: 11,
-                                          color: Colors.white,
-                                        ),
-                                        const SizedBox(width: 3),
-                                        Text(
-                                          '${widget.post.mediaCount}',
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        ),
-                                      ],
-                                    ],
-                                  ),
+                                  color: _getRatingColor(widget.post.rating),
                                 ),
                               ),
                             if (widget.post.isVideo || widget.post.isAnimated)
                               Positioned(
-                                top: widget.post.rank != null ? 30 : 4,
+                                top:
+                                    leftStatusTop + (showsRatingBadge ? 20 : 0),
                                 left: 4,
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(
@@ -738,36 +675,6 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                                         ),
                                       ),
                                     ],
-                                  ),
-                                ),
-                              ),
-                            if (!_isHovering &&
-                                !widget.favoriteReadOnly &&
-                                widget.post.rating != null &&
-                                widget.post.mediaCount <= 1 &&
-                                widget.badgeLabel == null)
-                              Positioned(
-                                top: 4,
-                                right: 4,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 4,
-                                    vertical: 2,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: _getRatingColor(widget.post.rating),
-                                    borderRadius: BorderRadius.circular(3),
-                                  ),
-                                  child: Text(
-                                    _getRatingLabel(
-                                      context,
-                                      widget.post.rating,
-                                    ),
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.bold,
-                                    ),
                                   ),
                                 ),
                               ),
@@ -854,11 +761,22 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                       // 垂直布局：右上角向下展开
                       // 水平布局：左上角向右展开
                       top: 4,
-                      right: buttonDirection == Axis.vertical ? 4 : null,
-                      left: buttonDirection == Axis.horizontal ? 4 : null,
+                      right:
+                          usesTouchActionMenu ||
+                              buttonDirection == Axis.vertical
+                          ? 4
+                          : null,
+                      left:
+                          !usesTouchActionMenu &&
+                              buttonDirection == Axis.horizontal
+                          ? 4
+                          : null,
                       child: Consumer(
                         builder: (context, ref, _) {
                           return CardActionButtons(
+                            key: const ValueKey(
+                              'online-gallery-card-action-buttons',
+                            ),
                             visible: _isHovering || _isFocused,
                             direction: buttonDirection,
                             buttons: [

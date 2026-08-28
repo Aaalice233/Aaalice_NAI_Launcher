@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../prompt_assistant/providers/prompt_assistant_config_provider.dart';
+import '../../prompt_assistant/providers/web_access_provider.dart';
 import '../providers/agent_chat_notifier.dart';
 import 'agent_chat_composer.dart';
 import 'agent_chat_header.dart';
@@ -67,6 +68,7 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
   Widget build(BuildContext context) {
     final state = ref.watch(agentChatNotifierProvider);
     final config = ref.watch(promptAssistantConfigProvider);
+    final webAccess = ref.watch(webAccessConfigProvider);
     _controller
       ..attachOverlayContext(context)
       ..observe(state);
@@ -77,6 +79,7 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
         final viewData = AgentChatPanelViewData(
           state: state,
           config: config,
+          webAccess: webAccess,
           mobile: widget.mobile,
           fullScreen: widget.fullScreen,
           compactMobile: widget.mobile && constraints.maxHeight < 480,

@@ -5,6 +5,7 @@ import 'package:flutter_markdown_plus/flutter_markdown_plus.dart' as md;
 
 import '../../../../core/agent/agent_types.dart';
 import '../../../../core/utils/localization_extension.dart';
+import '../../widgets/common/draggable_memory_image.dart';
 import '../providers/agent_chat_notifier.dart';
 import 'agent_chat_panel_controller.dart';
 import 'agent_chat_panel_view_data.dart';
@@ -26,11 +27,32 @@ class AgentChatMessages extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final state = viewData.state;
+    if (!state.initialized || state.sessionContentLoading) {
+      return Center(
+        child: Semantics(
+          liveRegion: true,
+          label: context.l10n.common_loading,
+          child: const SizedBox(
+            key: ValueKey('agent-chat-session-loading'),
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      );
+    }
     if (viewData.isEmpty && !state.routeReady) {
       return _setupHint(context, theme);
     }
     if (viewData.isEmpty) {
       return _hero(context, theme);
+    }
+    var lastUserMessageIndex = -1;
+    for (var index = state.messages.length - 1; index >= 0; index--) {
+      if (state.messages[index] is UserMessage) {
+        lastUserMessageIndex = index;
+        break;
+      }
     }
     return SingleChildScrollView(
       controller: controller.scrollController,
@@ -41,8 +63,14 @@ class AgentChatMessages extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          for (final message in state.messages)
-            _messageTile(context, theme, message),
+          for (var index = 0; index < state.messages.length; index++)
+            _messageTile(
+              context,
+              theme,
+              state.messages[index],
+              messageIndex: index,
+              isLastUserMessage: index == lastUserMessageIndex,
+            ),
           _liveTile(context, theme, state),
         ],
       ),
@@ -207,59 +235,145 @@ class AgentChatMessages extends StatelessWidget {
     );
   }
 
-  Widget _messageTile(BuildContext context, ThemeData theme, Message message) {
+  Widget _messageTile(
+    BuildContext context,
+    ThemeData theme,
+    Message message, {
+    required int messageIndex,
+    required bool isLastUserMessage,
+  }) {
     if (message is UserMessage) {
       final hasText = message.text.trim().isNotEmpty;
-      return Align(
-        alignment: Alignment.centerRight,
-        child: Container(
-          margin: const EdgeInsets.only(bottom: 10, left: 28),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.primaryContainer.withValues(alpha: 0.55),
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(12),
-              topRight: Radius.circular(12),
-              bottomLeft: Radius.circular(12),
-              bottomRight: Radius.circular(4),
-            ),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              if (message.images.isNotEmpty)
-                Padding(
-                  padding: EdgeInsets.only(bottom: hasText ? 6 : 0),
-                  child: Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    alignment: WrapAlignment.end,
+      final hovered = controller.hoveredUserMessageIndex == messageIndex;
+      final canEdit = isLastUserMessage && viewData.sessionActionsEnabled;
+      final sentAt = MaterialLocalizations.of(context).formatTimeOfDay(
+        TimeOfDay.fromDateTime(
+          DateTime.fromMillisecondsSinceEpoch(message.timestamp),
+        ),
+        alwaysUse24HourFormat: true,
+      );
+      return MouseRegion(
+        key: ValueKey('agent-user-message-$messageIndex'),
+        onEnter: (_) => controller.setHoveredUserMessageIndex(messageIndex),
+        onExit: (_) {
+          if (controller.hoveredUserMessageIndex == messageIndex) {
+            controller.setHoveredUserMessageIndex(null);
+          }
+        },
+        child: Align(
+          alignment: Alignment.centerRight,
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 6, left: 28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primaryContainer.withValues(
+                      alpha: 0.55,
+                    ),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(12),
+                      topRight: Radius.circular(12),
+                      bottomLeft: Radius.circular(12),
+                      bottomRight: Radius.circular(4),
+                    ),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      for (final image in message.images)
-                        _userImage(theme, image),
+                      if (message.images.isNotEmpty)
+                        Padding(
+                          padding: EdgeInsets.only(bottom: hasText ? 6 : 0),
+                          child: Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            alignment: WrapAlignment.end,
+                            children: [
+                              for (final image in message.images)
+                                _userImage(theme, image),
+                            ],
+                          ),
+                        ),
+                      if (hasText)
+                        Text(
+                          message.text,
+                          style:
+                              (viewData.mobile
+                                      ? theme.textTheme.bodyMedium
+                                      : theme.textTheme.bodySmall)
+                                  ?.copyWith(
+                                    color: theme.colorScheme.onPrimaryContainer,
+                                    height: 1.45,
+                                  ),
+                        ),
                     ],
                   ),
                 ),
-              if (hasText)
-                Text(
-                  message.text,
-                  style:
-                      (viewData.mobile
-                              ? theme.textTheme.bodyMedium
-                              : theme.textTheme.bodySmall)
-                          ?.copyWith(
-                            color: theme.colorScheme.onPrimaryContainer,
-                            height: 1.45,
-                          ),
+                const SizedBox(height: 2),
+                SizedBox(
+                  height: 22,
+                  child: AnimatedOpacity(
+                    key: ValueKey('agent-user-message-actions-$messageIndex'),
+                    opacity: hovered ? 1 : 0,
+                    duration: const Duration(milliseconds: 120),
+                    child: IgnorePointer(
+                      ignoring: !hovered,
+                      child: ExcludeSemantics(
+                        excluding: !hovered,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              sentAt,
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant
+                                    .withValues(alpha: 0.58),
+                                height: 1,
+                              ),
+                            ),
+                            const SizedBox(width: 5),
+                            _MessageActionButton(
+                              key: ValueKey(
+                                'agent-user-message-copy-$messageIndex',
+                              ),
+                              tooltip: context.l10n.common_copy,
+                              icon: Icons.copy_all_outlined,
+                              onPressed: () =>
+                                  commands.copyUserMessage(message),
+                            ),
+                            if (isLastUserMessage)
+                              _MessageActionButton(
+                                key: ValueKey(
+                                  'agent-user-message-edit-$messageIndex',
+                                ),
+                                tooltip: context.l10n.common_edit,
+                                icon: Icons.edit_outlined,
+                                onPressed: canEdit
+                                    ? () =>
+                                          commands.editLastUserMessage(message)
+                                    : null,
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
-            ],
+              ],
+            ),
           ),
         ),
       );
     }
     if (message is AssistantMessage) {
-      if (message.text.trim().isEmpty && message.toolCalls.isEmpty) {
+      if (message.text.trim().isEmpty) {
         return const SizedBox.shrink();
       }
       return Container(
@@ -338,13 +452,21 @@ class AgentChatMessages extends StatelessWidget {
       size = const Size(160, 120);
       imageWidget = _brokenImage(theme);
     }
-    return SizedBox(
+    final content = SizedBox(
       width: size.width,
       height: size.height,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(8),
         child: imageWidget,
       ),
+    );
+    if (bytes == null) return content;
+    return DraggableMemoryImage(
+      imageBytes: bytes,
+      fileName: _agentChatImageFileName(source.mimeType, 'attachment'),
+      localData: _agentChatImageDragLocalData,
+      feedbackWidth: 200,
+      child: content,
     );
   }
 
@@ -481,6 +603,62 @@ class AgentChatMessages extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+const Map<String, Object> _agentChatImageDragLocalData = {
+  'source': 'agent_chat_internal',
+};
+
+String _agentChatImageFileName(String? mimeType, String stem) {
+  final extension = switch (mimeType) {
+    'image/jpeg' => 'jpg',
+    'image/webp' => 'webp',
+    'image/gif' => 'gif',
+    'image/bmp' => 'bmp',
+    _ => 'png',
+  };
+  return '$stem.$extension';
+}
+
+class _MessageActionButton extends StatelessWidget {
+  const _MessageActionButton({
+    super.key,
+    required this.tooltip,
+    required this.icon,
+    required this.onPressed,
+  });
+
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final enabled = onPressed != null;
+    return Tooltip(
+      message: tooltip,
+      waitDuration: const Duration(milliseconds: 400),
+      child: InkResponse(
+        onTap: onPressed,
+        radius: 14,
+        containedInkWell: true,
+        highlightShape: BoxShape.rectangle,
+        child: SizedBox.square(
+          dimension: 22,
+          child: Center(
+            child: Icon(
+              icon,
+              size: 15,
+              color: theme.colorScheme.onSurfaceVariant.withValues(
+                alpha: enabled ? 0.72 : 0.28,
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/fixed_tag/fixed_tag_entry.dart';
@@ -94,8 +95,11 @@ class FixedTagLinkAnchor extends StatelessWidget {
       );
     }
     if (entry.promptType == FixedTagPromptType.positive) {
-      return KeyedSubtree(
-        key: controller.anchorKeyFor(entry),
+      return _FixedTagAnchorMarker(
+        key: ValueKey('fixed-tag-link-anchor-${entry.id}'),
+        controller: controller,
+        promptType: entry.promptType,
+        entryId: entry.id,
         child: Draggable<String>(
           data: entry.id,
           feedback: Material(
@@ -111,8 +115,11 @@ class FixedTagLinkAnchor extends StatelessWidget {
         ),
       );
     }
-    return KeyedSubtree(
-      key: controller.anchorKeyFor(entry),
+    return _FixedTagAnchorMarker(
+      key: ValueKey('fixed-tag-link-anchor-${entry.id}'),
+      controller: controller,
+      promptType: entry.promptType,
+      entryId: entry.id,
       child: DragTarget<String>(
         onWillAcceptWithDetails: (details) => data.state.entries.any(
           (candidate) =>
@@ -151,34 +158,152 @@ class FixedTagsLinkLayer extends StatelessWidget {
       final columnWidth = (constraints.maxWidth - fixedTagColumnGap) / 2;
       return IgnorePointer(
         child: RepaintBoundary(
-          child: CustomPaint(
-            key: controller.linkLayerKey,
-            painter: FixedTagLinkPainter(
-              positiveEntries: positiveEntries,
-              negativeEntries: negativeEntries,
-              links: data.state.links,
-              isMismatched: data.state.isMismatched,
-              color: Theme.of(context).colorScheme.secondary,
-              positiveAnchors: controller.collectAnchorCenters(
-                FixedTagPromptType.positive,
+          child: _FixedTagsLinkLayerMarker(
+            controller: controller,
+            child: CustomPaint(
+              painter: FixedTagLinkPainter(
+                positiveEntries: positiveEntries,
+                negativeEntries: negativeEntries,
+                links: data.state.links,
+                isMismatched: data.state.isMismatched,
+                color: Theme.of(context).colorScheme.secondary,
+                positiveAnchors: controller.collectAnchorCenters(
+                  FixedTagPromptType.positive,
+                ),
+                negativeAnchors: controller.collectAnchorCenters(
+                  FixedTagPromptType.negative,
+                ),
+                positiveAnchorX: columnWidth - _anchorInset,
+                negativeAnchorX: columnWidth + fixedTagColumnGap + _anchorInset,
+                positiveScrollOffset:
+                    controller.positiveListController.hasClients
+                    ? controller.positiveListController.offset
+                    : 0,
+                negativeScrollOffset:
+                    controller.negativeListController.hasClients
+                    ? controller.negativeListController.offset
+                    : 0,
               ),
-              negativeAnchors: controller.collectAnchorCenters(
-                FixedTagPromptType.negative,
-              ),
-              positiveAnchorX: columnWidth - _anchorInset,
-              negativeAnchorX: columnWidth + fixedTagColumnGap + _anchorInset,
-              positiveScrollOffset: controller.positiveListController.hasClients
-                  ? controller.positiveListController.offset
-                  : 0,
-              negativeScrollOffset: controller.negativeListController.hasClients
-                  ? controller.negativeListController.offset
-                  : 0,
             ),
           ),
         ),
       );
     },
   );
+}
+
+class _FixedTagAnchorMarker extends SingleChildRenderObjectWidget {
+  const _FixedTagAnchorMarker({
+    super.key,
+    required this.controller,
+    required this.promptType,
+    required this.entryId,
+    required super.child,
+  });
+
+  final FixedTagsDialogController controller;
+  final FixedTagPromptType promptType;
+  final String entryId;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _FixedTagAnchorRenderBox(controller, promptType, entryId);
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _FixedTagAnchorRenderBox renderObject,
+  ) {
+    renderObject.update(controller, promptType, entryId);
+  }
+}
+
+class _FixedTagAnchorRenderBox extends RenderProxyBox {
+  _FixedTagAnchorRenderBox(this._controller, this._promptType, this._entryId);
+
+  FixedTagsDialogController _controller;
+  FixedTagPromptType _promptType;
+  String _entryId;
+
+  void update(
+    FixedTagsDialogController controller,
+    FixedTagPromptType promptType,
+    String entryId,
+  ) {
+    if (identical(_controller, controller) &&
+        _promptType == promptType &&
+        _entryId == entryId) {
+      return;
+    }
+    if (attached) _unregister();
+    _controller = controller;
+    _promptType = promptType;
+    _entryId = entryId;
+    if (attached) _register();
+  }
+
+  @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    _register();
+  }
+
+  @override
+  void detach() {
+    _unregister();
+    super.detach();
+  }
+
+  void _register() => _controller.registerAnchor(_promptType, _entryId, this);
+
+  void _unregister() =>
+      _controller.unregisterAnchor(_promptType, _entryId, this);
+}
+
+class _FixedTagsLinkLayerMarker extends SingleChildRenderObjectWidget {
+  const _FixedTagsLinkLayerMarker({
+    required this.controller,
+    required super.child,
+  });
+
+  final FixedTagsDialogController controller;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _FixedTagsLinkLayerRenderBox(controller);
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _FixedTagsLinkLayerRenderBox renderObject,
+  ) {
+    renderObject.controller = controller;
+  }
+}
+
+class _FixedTagsLinkLayerRenderBox extends RenderProxyBox {
+  _FixedTagsLinkLayerRenderBox(this._controller);
+
+  FixedTagsDialogController _controller;
+
+  set controller(FixedTagsDialogController value) {
+    if (identical(_controller, value)) return;
+    if (attached) _controller.unregisterLinkLayer(this);
+    _controller = value;
+    if (attached) _controller.registerLinkLayer(this);
+  }
+
+  @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    _controller.registerLinkLayer(this);
+  }
+
+  @override
+  void detach() {
+    _controller.unregisterLinkLayer(this);
+    super.detach();
+  }
 }
 
 class FixedTagLinkPainter extends CustomPainter {
