@@ -64,6 +64,17 @@ Windows release 产物位于 `build/windows/x64/runner/Release/`。macOS 使用 
 
 普通 Dart 方法、Widget 布局、样式和文案使用 `Reload`；状态字段、`initState`、Provider/依赖注入、路由/启动流程、静态缓存或生成 Dart 代码使用 `Restart`；依赖、Windows C++/插件注册、Android Kotlin/Manifest/Gradle/插件注册变化必须重建受影响会话。共享代码默认作用于 `All`，平台实现只作用于对应端。
 
+### Windows 多引擎窗口约束
+
+Agent 独立窗口是共享主窗口 Agent runtime 的 secondary-engine UI client，必须保持两个非模态窗口可同时操作。Windows 多引擎窗口实现遵守以下约束：
+
+- `window_manager` 必须使用已修复 Windows multi-engine 通道覆盖问题的 `>=0.5.0` 版本。
+- `DesktopMultiWindowSetWindowCreatedCallback` 必须调用专用的 `RegisterSecondaryPlugins`；禁止再次调用全量 `RegisterPlugins`，尤其不得重复注册 `DesktopMultiWindowPlugin`，因为 `desktop_multi_window` 会自行注册 secondary 的 internal plugin。secondary 只注册 Agent 界面真实需要且确认支持多 Engine 的插件。
+- secondary 窗口关闭使用 `windowManager.close()`；禁止调用 `windowManager.destroy()`，后者可能终止整个 Windows 应用消息循环。
+- 主 Runner 必须在 `WM_SIZE` 和 `WM_WINDOWPOSCHANGED` 后排队重新对齐 Flutter child view；不得只依赖 `WM_SIZE`。否则外层主 HWND 恢复后，内部 `FLUTTERVIEW` 可能仍停在 Windows 最小化哨兵坐标 `-32000,-32000`，表现为旧画面冻结、按钮 hover 不消失、点击无响应或出现调整尺寸光标。
+- 调试“窗口可见但无法操作”时必须分别检查顶层 `FLUTTER_RUNNER_WIN32_WINDOW` 与其 `FLUTTERVIEW` 子窗口的 rect、enabled、capture 和 hit-test；不能只根据 Flutter 日志或外层 HWND 状态判断。
+- 修改插件版本、secondary 注册表或 Windows C++ 后必须完整重建。Orca 会话显示 `running` 或留有 PID 不等于构建成功；应确认控制台出现原生构建成功/启动标记、真实 `nai_launcher` 进程存在，依赖变化时再核对插件 DLL 时间戳，然后才让用户复现。
+
 用户明确要求自动化运行验收时，两个 runner 通过 `--dart-define=ENABLE_FLUTTER_DRIVER=true` 启用仅限开发会话的 Flutter Driver extension，供官方 Dart and Flutter MCP server 在不抢占用户键鼠和桌面焦点的情况下截图、点击、输入、滚动与检查运行中 Flutter UI。禁止使用 Computer Use。稳定场景应固化为 `integration_test`；Android 系统界面场景使用 ADB。Android 项目 emulator 首次使用无 Quick Boot 快照、host GPU、无设备外框的干净启动，之后默认保留并复用暖机实例；复用前停止旧 App 并返回 Home，显式传 `-StopEmulatorOnExit` 时才跟随会话关闭。`-DeviceId` 仅用于明确复用外部设备。
 
 ## 代码风格与命名约定
