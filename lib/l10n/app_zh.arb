@@ -6332,6 +6332,8 @@
   "cloudSync_skillsSelectedCount": "已选择 {count} 个 Skill",
   "cloudSync_missingSelectedSkills": "其中 {count} 个当前不可用",
   "cloudSync_removeMissingSkills": "移除不可用项",
+  "@cloudSync_skillsSelectedCount": {"placeholders":{"count":{}}},
+  "@cloudSync_missingSelectedSkills": {"placeholders":{"count":{}}},
   "cloudSync_searchSkills": "搜索 Skill",
   "cloudSync_noSkills": "没有匹配的 Skill",
   "cloudSync_continueToEncryption": "继续加密设置",

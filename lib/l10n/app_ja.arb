@@ -6288,6 +6288,8 @@
   "cloudSync_skillsSelectedCount": "{count} 件の Skill を選択中",
   "cloudSync_missingSelectedSkills": "選択中の {count} 件は現在利用できません",
   "cloudSync_removeMissingSkills": "利用不可の項目を削除",
+  "@cloudSync_skillsSelectedCount": {"placeholders":{"count":{}}},
+  "@cloudSync_missingSelectedSkills": {"placeholders":{"count":{}}},
   "cloudSync_searchSkills": "Skill を検索",
   "cloudSync_noSkills": "一致する Skill はありません",
   "cloudSync_continueToEncryption": "暗号化設定へ",
