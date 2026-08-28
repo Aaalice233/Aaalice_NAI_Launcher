@@ -7,6 +7,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/agent/agent_types.dart';
+import '../../../../core/agent/resources/agent_chat_resource_reference.dart';
+import '../../../../core/agent/resources/agent_chat_resource_reference_codec.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/nai_resolution_adapter.dart';
 import '../../../../data/models/gallery/local_image_record.dart';
@@ -18,6 +20,7 @@ import '../../widgets/common/image_detail/file_image_detail_data.dart';
 import '../../widgets/gallery/draggable_image_card.dart';
 import '../../widgets/gallery/local_image_context_menu.dart';
 import '../providers/agent_chat_notifier.dart';
+import '../services/agent_resource_resolver.dart';
 
 class _AgentToolVisual {
   const _AgentToolVisual({required this.icon, required this.color});
@@ -50,6 +53,31 @@ String agentToolLabel(BuildContext context, String toolName) {
     'read' => l10n.agentChat_toolReadFile,
     'web_search' => l10n.agentChat_toolWebSearch,
     'web_read' => l10n.agentChat_toolWebRead,
+    'prepare_generation' => l10n.agentChat_toolPrepareGeneration,
+    'inspect_generation_preparation' => l10n.agentChat_toolInspectGeneration,
+    'update_generation_preparation' => l10n.agentChat_toolUpdateGeneration,
+    'cancel_generation_preparation' => l10n.agentChat_toolCancelGeneration,
+    'submit_generation' => l10n.agentChat_toolSubmitGeneration,
+    'create_manual_inpaint_draft' => l10n.agentChat_toolCreateInpaint,
+    'list_manual_inpaint_drafts' => l10n.agentChat_toolListInpaint,
+    'get_manual_inpaint_draft' => l10n.agentChat_toolInspectInpaint,
+    'cancel_manual_inpaint_draft' => l10n.agentChat_toolCancelInpaint,
+    'reedit_manual_inpaint_draft' => l10n.agentChat_toolReeditInpaint,
+    'submit_manual_inpaint_draft' => l10n.agentChat_toolSubmitInpaint,
+    String() when toolName.contains('generated_image') =>
+      l10n.agentChat_toolRecentImages,
+    String() when toolName.contains('queue') =>
+      l10n.agentChat_toolQueueImageTask,
+    String() when toolName.contains('gallery') => l10n.agentChat_toolGallery,
+    String()
+        when toolName.contains('vibe') || toolName.contains('precise_ref') =>
+      l10n.agentChat_toolReferenceLibrary,
+    String()
+        when toolName.contains('fixed_tag') ||
+            toolName.contains('tag_library') ||
+            toolName == 'navigate_application' ||
+            toolName == 'get_application_context' =>
+      l10n.agentChat_toolApplication,
     _ => toolName,
   };
 }
@@ -295,6 +323,10 @@ class AgentChatToolResultTile extends StatelessWidget {
           )!
         : visual.color;
     final files = _extractImageFiles(result);
+    final inlineImages = _extractInlineImages(result);
+    final resourceReference = files.isEmpty && inlineImages.isEmpty
+        ? _extractTopLevelResourceReference(result)
+        : null;
     return Padding(
       padding: const EdgeInsets.only(bottom: 6, left: 4),
       child: Column(
@@ -327,7 +359,9 @@ class AgentChatToolResultTile extends StatelessWidget {
               ),
             ],
           ),
-          if (files.isNotEmpty)
+          if (files.isNotEmpty ||
+              inlineImages.isNotEmpty ||
+              resourceReference != null)
             Padding(
               padding: const EdgeInsets.only(top: 4),
               child: Column(
@@ -335,10 +369,110 @@ class AgentChatToolResultTile extends StatelessWidget {
                 children: [
                   for (final path in files)
                     _ToolResultImage(key: ValueKey(path), path: path),
+                  for (var index = 0; index < inlineImages.length; index++)
+                    _ToolResultInlineImage(
+                      key: ValueKey('${result.toolCallId}-inline-$index'),
+                      bytes: inlineImages[index],
+                    ),
+                  if (resourceReference != null)
+                    _ToolResultResourcePreview(reference: resourceReference),
                 ],
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+List<Uint8List> _extractInlineImages(ToolResultMessage result) => [
+  for (final content in result.content)
+    if (content is ToolResultImageContent && content.image.source.bytes != null)
+      content.image.source.bytes!,
+];
+
+AgentChatResourceReference? _extractTopLevelResourceReference(
+  ToolResultMessage result,
+) {
+  for (final content in result.content.whereType<ToolResultTextContent>()) {
+    try {
+      final decoded = jsonDecode(content.text);
+      if (decoded is! Map || decoded['resource_ref'] is! Map) continue;
+      return AgentChatResourceReferenceCodec.decodeJsonMap(
+        Map<String, dynamic>.from(decoded['resource_ref'] as Map),
+      );
+    } on FormatException {
+      continue;
+    }
+  }
+  return null;
+}
+
+class _ToolResultResourcePreview extends ConsumerStatefulWidget {
+  const _ToolResultResourcePreview({required this.reference});
+
+  final AgentChatResourceReference reference;
+
+  @override
+  ConsumerState<_ToolResultResourcePreview> createState() =>
+      _ToolResultResourcePreviewState();
+}
+
+class _ToolResultResourcePreviewState
+    extends ConsumerState<_ToolResultResourcePreview> {
+  late Future<ResolvedAgentResource?> _resolution;
+
+  @override
+  void initState() {
+    super.initState();
+    _resolution = ref
+        .read(agentChatNotifierProvider.notifier)
+        .resolveResourcePreview(widget.reference);
+  }
+
+  @override
+  void didUpdateWidget(covariant _ToolResultResourcePreview oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.reference != widget.reference) {
+      _resolution = ref
+          .read(agentChatNotifierProvider.notifier)
+          .resolveResourcePreview(widget.reference);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<ResolvedAgentResource?>(
+    future: _resolution,
+    builder: (context, snapshot) {
+      final bytes = snapshot.data?.bytes;
+      return bytes == null
+          ? const SizedBox.shrink()
+          : _ToolResultInlineImage(bytes: bytes);
+    },
+  );
+}
+
+class _ToolResultInlineImage extends StatelessWidget {
+  const _ToolResultInlineImage({super.key, required this.bytes});
+
+  final Uint8List bytes;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 240),
+          child: Image.memory(
+            bytes,
+            fit: BoxFit.contain,
+            alignment: Alignment.centerLeft,
+            gaplessPlayback: true,
+            errorBuilder: (_, _, _) => const SizedBox.shrink(),
+          ),
+        ),
       ),
     );
   }

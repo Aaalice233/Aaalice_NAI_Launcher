@@ -24,6 +24,7 @@ class ImageEditorScreen extends StatefulWidget {
     this.showMaskExport = true,
     this.mode = ImageEditorMode.edit,
     this.title = '',
+    this.completionLabel,
     this.initialOutpaintCommitPending = false,
     this.initialShowLayerPanel = true,
     this.debugFailOutpaintSourceReplacement = false,
@@ -49,6 +50,7 @@ class ImageEditorScreen extends StatefulWidget {
       showMaskExport: config.showMaskExport,
       mode: config.mode,
       title: config.title,
+      completionLabel: config.completionLabel,
       initialOutpaintCommitPending: debug.initialOutpaintCommitPending,
       initialShowLayerPanel: debug.initialShowLayerPanel,
       debugFailOutpaintSourceReplacement: debug.failOutpaintSourceReplacement,
@@ -69,6 +71,7 @@ class ImageEditorScreen extends StatefulWidget {
   final bool showMaskExport;
   final ImageEditorMode mode;
   final String title;
+  final String? completionLabel;
 
   @visibleForTesting
   final bool initialOutpaintCommitPending;
@@ -94,6 +97,7 @@ class ImageEditorScreen extends StatefulWidget {
     showMaskExport: showMaskExport,
     mode: mode,
     title: title,
+    completionLabel: completionLabel,
     debugOptions: ImageEditorDebugOptions(
       initialOutpaintCommitPending: initialOutpaintCommitPending,
       initialShowLayerPanel: initialShowLayerPanel,
@@ -116,6 +120,7 @@ class ImageEditorScreen extends StatefulWidget {
     bool showMaskExport = true,
     ImageEditorMode mode = ImageEditorMode.edit,
     String? title,
+    String? completionLabel,
   }) {
     return Navigator.of(context, rootNavigator: true).push<ImageEditorResult>(
       MaterialPageRoute(
@@ -130,6 +135,7 @@ class ImageEditorScreen extends StatefulWidget {
           showMaskExport: showMaskExport,
           mode: mode,
           title: title ?? context.l10n.editor_defaultTitle,
+          completionLabel: completionLabel,
         ),
       ),
     );

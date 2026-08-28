@@ -5,79 +5,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/agent/agent_types.dart';
 import '../../../core/agent/harness/env/dart_io_execution_env.dart';
+import '../../../core/agent/harness/harness_types.dart';
 import '../../../data/models/character/character_prompt.dart';
 import '../../providers/character_prompt_provider.dart';
 import '../../providers/generation/generation_params_notifier.dart';
-import '../../../core/agent/harness/harness_types.dart';
+import 'defined_agent_tool.dart';
 import '../../../core/agent/harness/skills.dart';
-
-/// 定义式工具构造。
-class DefinedAgentTool extends AgentTool {
-  DefinedAgentTool({
-    required super.name,
-    required super.description,
-    required super.parameters,
-    required super.label,
-    this.executionModeOverride,
-    Future<AgentToolResult> Function(
-      String toolCallId,
-      Map<String, dynamic> params,
-    )?
-    executeFn,
-    Future<AgentToolResult> Function(
-      String toolCallId,
-      Map<String, dynamic> params,
-      AbortSignal? signal,
-      AgentToolUpdateCallback? onUpdate,
-    )?
-    executeWithControl,
-  }) : assert(
-         executeFn != null || executeWithControl != null,
-         'Provide executeFn or executeWithControl',
-       ),
-       _executeFn =
-           executeFn ??
-           ((toolCallId, params) async => AgentToolResult(
-             content: const [ToolResultTextContent('Tool not configured.')],
-             details: const <String, dynamic>{},
-             isError: true,
-           )),
-       _executeWithControl = executeWithControl;
-
-  final ToolExecutionMode? executionModeOverride;
-  final Future<AgentToolResult> Function(
-    String toolCallId,
-    Map<String, dynamic> params,
-  )
-  _executeFn;
-
-  /// 需要中止信号 / 流式进度反馈的工具提供此实现；缺省走 [_executeFn]。
-  final Future<AgentToolResult> Function(
-    String toolCallId,
-    Map<String, dynamic> params,
-    AbortSignal? signal,
-    AgentToolUpdateCallback? onUpdate,
-  )?
-  _executeWithControl;
-
-  @override
-  ToolExecutionMode? get executionMode => executionModeOverride;
-
-  @override
-  Future<AgentToolResult> execute(
-    String toolCallId,
-    Map<String, dynamic> params, [
-    AbortSignal? signal,
-    AgentToolUpdateCallback? onUpdate,
-  ]) {
-    throwIfAborted(signal);
-    final controlled = _executeWithControl;
-    if (controlled != null) {
-      return controlled(toolCallId, params, signal, onUpdate);
-    }
-    return _executeFn(toolCallId, params);
-  }
-}
 
 AgentToolResult _textResult(String text) {
   return AgentToolResult(

@@ -45,6 +45,7 @@ class ImageEditorSessionConfig {
     this.showMaskExport = true,
     this.mode = ImageEditorMode.edit,
     this.title = '',
+    this.completionLabel,
     this.debugOptions = const ImageEditorDebugOptions(),
   }) : _initialImage = initialImage == null
            ? null
@@ -64,6 +65,7 @@ class ImageEditorSessionConfig {
       showMaskExport = true,
       mode = ImageEditorMode.edit,
       title = '',
+      completionLabel = null,
       debugOptions = const ImageEditorDebugOptions();
 
   final Uint8List? _initialImage;
@@ -76,6 +78,7 @@ class ImageEditorSessionConfig {
   final bool showMaskExport;
   final ImageEditorMode mode;
   final String title;
+  final String? completionLabel;
   final ImageEditorDebugOptions debugOptions;
 
   Uint8List? get initialImage =>

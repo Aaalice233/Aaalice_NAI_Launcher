@@ -9,6 +9,7 @@ import '../../core/storage/local_storage_service.dart';
 import '../../core/storage/queue_state_storage.dart';
 import '../../core/utils/app_logger.dart';
 import '../../data/models/queue/replication_task.dart';
+import '../../data/models/queue/replication_task_generation_snapshot.dart';
 import '../../data/models/queue/replication_task_status.dart';
 import '../../data/models/queue/failure_handling_strategy.dart';
 import 'character_prompt_provider.dart';
@@ -436,12 +437,74 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
         return;
       }
 
-      final params = ref.read(generationParamsNotifierProvider);
+      final baseParams = ref.read(generationParamsNotifierProvider);
+      final queueState = ref.read(replicationQueueNotifierProvider);
+      ReplicationTask? task;
+      for (final candidate in queueState.tasks) {
+        if (candidate.id == state.currentTaskId) {
+          task = candidate;
+          break;
+        }
+      }
+      if (task == null) return;
+      final snapshot = task.generationSnapshot;
+      final batchSizeOverride = snapshot == null
+          ? null
+          : ReplicationTaskGenerationSnapshot.decodeBatchSize(snapshot);
+      final params = snapshot == null
+          ? baseParams.copyWith(
+              prompt: task.prompt,
+              negativePrompt: task.applyNegativePrompt
+                  ? task.negativePrompt
+                  : baseParams.negativePrompt,
+              model: task.model ?? baseParams.model,
+              sampler: task.sampler ?? baseParams.sampler,
+              steps: task.steps ?? baseParams.steps,
+              scale: task.cfgScale ?? baseParams.scale,
+              seed: task.seed ?? -1,
+              width: task.width ?? baseParams.width,
+              height: task.height ?? baseParams.height,
+              nSamples: 1,
+            )
+          : ReplicationTaskGenerationSnapshot.decode(snapshot).copyWith(
+              prompt: task.prompt,
+              negativePrompt: task.applyNegativePrompt
+                  ? task.negativePrompt
+                  : baseParams.negativePrompt,
+              nSamples: 1,
+            );
 
       // generate() 在首次异步让出前会把状态切到 generating；此后由生成状态
       // 本身阻止重复提交，不要让该锁跨越整次生成而吞掉下一任务的触发。
       _generationTriggerPending = false;
-      await ref.read(imageGenerationNotifierProvider.notifier).generate(params);
+      await ref
+          .read(imageGenerationNotifierProvider.notifier)
+          .generate(params, batchSizeOverride: batchSizeOverride);
+    } on FormatException catch (error, stackTrace) {
+      final taskId = state.currentTaskId;
+      AppLogger.e(
+        'Queued generation snapshot is invalid',
+        error,
+        stackTrace,
+        'QueueExecution',
+      );
+      if (taskId != null) {
+        final message = 'Invalid generation snapshot: $error';
+        await ref
+            .read(replicationQueueNotifierProvider.notifier)
+            .updateTaskStatus(
+              taskId,
+              ReplicationTaskStatus.running,
+              errorMessage: message,
+            );
+        await _handleFailedTask(errorMessage: message, retryable: false);
+      } else {
+        state = state.copyWith(
+          status: QueueExecutionStatus.idle,
+          clearCurrentTaskId: true,
+        );
+        await _saveToStorage();
+      }
     } finally {
       _generationTriggerPending = false;
     }
@@ -632,7 +695,10 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
   }
 
   /// 处理失败任务
-  Future<void> _handleFailedTask() async {
+  Future<void> _handleFailedTask({
+    String? errorMessage,
+    bool retryable = true,
+  }) async {
     final currentTaskId = state.currentTaskId;
     if (currentTaskId == null) {
       _processNextTask();
@@ -650,6 +716,10 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
 
     switch (state.failureStrategy) {
       case FailureHandlingStrategy.autoRetry:
+        if (!retryable) {
+          await queueNotifier.moveToFailedPool(currentTaskId);
+          break;
+        }
         // 重新入队到末尾。执行中的任务只能通过专用结算入口移除。
         final removed = await queueNotifier.removeRunningTaskForRetry(
           currentTaskId,
@@ -683,6 +753,7 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
         await queueNotifier.updateTaskStatus(
           currentTaskId,
           ReplicationTaskStatus.failed,
+          errorMessage: errorMessage,
         );
         // 暂停执行
         state = state.copyWith(

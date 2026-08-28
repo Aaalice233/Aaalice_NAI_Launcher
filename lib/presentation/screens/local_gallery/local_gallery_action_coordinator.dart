@@ -9,6 +9,8 @@ import 'package:go_router/go_router.dart';
 import 'package:path/path.dart' as path;
 
 import '../../../core/platform/platform_capabilities.dart';
+import '../../../core/agent/resources/agent_chat_resource_reference.dart';
+import '../../../core/database/database_providers.dart';
 import '../../../core/services/file_export_service.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/file_explorer_utils.dart';
@@ -18,6 +20,7 @@ import '../../../data/models/gallery/local_image_record.dart';
 import '../../../data/models/gallery/nai_image_metadata.dart';
 import '../../../data/repositories/gallery_folder_repository.dart';
 import '../../providers/bulk_operation_provider.dart';
+import '../../agent_chat/providers/agent_chat_notifier.dart';
 import '../../providers/collection_provider.dart';
 import '../../providers/fixed_tags_provider.dart';
 import '../../providers/gallery_folder_provider.dart';
@@ -464,6 +467,8 @@ class LocalGalleryActionCoordinator {
     final record = request.record;
     final availableMetadata = request.metadata ?? record.metadata;
     switch (request.action) {
+      case LocalImageContextAction.addToAgent:
+        await _addToAgent(record);
       case LocalImageContextAction.sendToTextToImage:
       case LocalImageContextAction.importMetadata:
         await importImageMetadata(record);
@@ -491,6 +496,38 @@ class LocalGalleryActionCoordinator {
         await _openFileInFolder(record.path);
       case LocalImageContextAction.delete:
         await _confirmDeleteImage(record);
+    }
+  }
+
+  Future<void> _addToAgent(LocalImageRecord record) async {
+    try {
+      final dataSource = (await _ref.read(
+        databaseManagerProvider.future,
+      )).galleryDataSource;
+      final id = await dataSource?.getImageIdByPath(record.path);
+      if (id == null) {
+        throw StateError('Local gallery entry is unavailable.');
+      }
+      await _ref
+          .read(agentChatNotifierProvider.notifier)
+          .addPendingResource(
+            AgentChatResourceReference(
+              kind: AgentChatResourceKind.localGalleryImage,
+              source: 'local_gallery',
+              resourceId: id.toString(),
+              display: {'name': path.basename(record.path)},
+            ),
+          );
+      if (_mounted()) {
+        AppToast.success(_context(), _context().l10n.agentChat_resourceAdded);
+      }
+    } on Object catch (error) {
+      if (_mounted()) {
+        AppToast.error(
+          _context(),
+          _context().l10n.agentChat_addResourceFailed('$error'),
+        );
+      }
     }
   }
 

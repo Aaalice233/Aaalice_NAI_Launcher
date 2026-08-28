@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../../core/agent/resources/agent_chat_resource_reference_codec.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../prompt_assistant/models/prompt_assistant_models.dart';
@@ -43,6 +44,8 @@ class AgentChatComposer extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            if (viewData.state.pendingResources.isNotEmpty)
+              _resourceCards(theme),
             Focus(
               onKeyEvent: (node, event) {
                 if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
@@ -156,6 +159,70 @@ class AgentChatComposer extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _resourceCards(ThemeData theme) {
+    return SizedBox(
+      height: 46,
+      child: ListView.separated(
+        padding: const EdgeInsets.fromLTRB(10, 8, 10, 2),
+        scrollDirection: Axis.horizontal,
+        itemCount: viewData.state.pendingResources.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 6),
+        itemBuilder: (context, index) {
+          final reference = viewData.state.pendingResources[index];
+          final label =
+              reference.display['name'] ??
+              reference.display['title'] ??
+              reference.resourceId;
+          final unavailable = viewData.state.unavailableResourceKeys.contains(
+            AgentChatResourceReferenceCodec.encodeJson(reference),
+          );
+          return Container(
+            constraints: const BoxConstraints(maxWidth: 220),
+            padding: const EdgeInsets.only(left: 9),
+            decoration: BoxDecoration(
+              color: unavailable
+                  ? theme.colorScheme.errorContainer.withValues(alpha: 0.55)
+                  : theme.colorScheme.secondaryContainer.withValues(
+                      alpha: 0.55,
+                    ),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  unavailable ? Icons.link_off_outlined : Icons.link_outlined,
+                  size: 15,
+                  color: theme.colorScheme.onSecondaryContainer,
+                ),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    unavailable
+                        ? '$label · ${context.l10n.agentChat_resourceUnavailable}'
+                        : label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.labelSmall,
+                  ),
+                ),
+                IconButton(
+                  tooltip: MaterialLocalizations.of(
+                    context,
+                  ).deleteButtonTooltip,
+                  visualDensity: VisualDensity.compact,
+                  iconSize: 15,
+                  onPressed: () => commands.removePendingResource(index),
+                  icon: const Icon(Icons.close),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }

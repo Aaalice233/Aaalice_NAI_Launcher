@@ -42,6 +42,8 @@ class ImageSendActionDispatcher {
       if (!context.mounted) return;
 
       switch (action) {
+        case LocalImageContextAction.addToAgent:
+          return;
         case LocalImageContextAction.sendToTextToImage:
         case LocalImageContextAction.importMetadata:
           await _importMetadata(context, ref, bytes);

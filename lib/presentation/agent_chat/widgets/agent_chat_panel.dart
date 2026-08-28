@@ -10,6 +10,7 @@ import 'agent_chat_messages.dart';
 import 'agent_chat_panel_controller.dart';
 import 'agent_chat_panel_coordinator.dart';
 import 'agent_chat_panel_view_data.dart';
+import 'agent_resource_drop_region.dart';
 import 'agent_chat_status.dart';
 
 /// Stable shell for the AI chat workspace.
@@ -46,6 +47,7 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
   void initState() {
     super.initState();
     _controller = AgentChatPanelController()..addListener(_refresh);
+    _controller.inputController.addListener(_syncComposerDraft);
     _coordinator = AgentChatPanelCoordinator(
       ref: ref,
       controller: _controller,
@@ -57,9 +59,16 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
     if (mounted) setState(() {});
   }
 
+  void _syncComposerDraft() {
+    ref
+        .read(agentChatNotifierProvider.notifier)
+        .setComposerText(_controller.inputController.text);
+  }
+
   @override
   void dispose() {
     _controller.removeListener(_refresh);
+    _controller.inputController.removeListener(_syncComposerDraft);
     _controller.dispose();
     super.dispose();
   }
@@ -71,7 +80,8 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
     final webAccess = ref.watch(webAccessConfigProvider);
     _controller
       ..attachOverlayContext(context)
-      ..observe(state);
+      ..observe(state)
+      ..syncComposerText(state.composerText);
     final commands = _coordinator.commands(context, state);
 
     return LayoutBuilder(
@@ -87,25 +97,28 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
           onOpenSettings: widget.onOpenSettings,
           mobileHeaderWrapper: widget.mobileHeaderWrapper,
         );
-        return Column(
-          children: [
-            AgentChatHeader(viewData: viewData, commands: commands),
-            const Divider(height: 1),
-            Expanded(
-              child: AgentChatMessages(
-                viewData: viewData,
-                commands: commands,
-                controller: _controller,
+        return AgentResourceDropRegion(
+          onDrop: commands.addPendingResource,
+          child: Column(
+            children: [
+              AgentChatHeader(viewData: viewData, commands: commands),
+              const Divider(height: 1),
+              Expanded(
+                child: AgentChatMessages(
+                  viewData: viewData,
+                  commands: commands,
+                  controller: _controller,
+                ),
               ),
-            ),
-            AgentChatStatus(viewData: viewData, commands: commands),
-            if (state.routeReady)
-              AgentChatComposer(
-                viewData: viewData,
-                commands: commands,
-                controller: _controller,
-              ),
-          ],
+              AgentChatStatus(viewData: viewData, commands: commands),
+              if (state.routeReady)
+                AgentChatComposer(
+                  viewData: viewData,
+                  commands: commands,
+                  controller: _controller,
+                ),
+            ],
+          ),
         );
       },
     );

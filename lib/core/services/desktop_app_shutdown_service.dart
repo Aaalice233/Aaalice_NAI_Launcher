@@ -7,6 +7,7 @@ import 'package:window_manager/window_manager.dart';
 
 import '../database/database_manager.dart';
 import '../utils/app_logger.dart';
+import '../windowing/agent_window_runtime.dart';
 
 /// 桌面应用统一退出入口。
 ///
@@ -23,6 +24,14 @@ class DesktopAppShutdownService {
 
   static Future<void> _performShutdown(int code) async {
     AppLogger.i('Application shutdown started', 'AppShutdown');
+
+    if (AgentWindowRuntime.isDesktop) {
+      try {
+        await AgentWindowRuntime.instance.closeForMainExit();
+      } catch (error) {
+        AppLogger.w('Agent window shutdown failed: $error', 'AppShutdown');
+      }
+    }
 
     try {
       await DatabaseManager.instance.dispose();

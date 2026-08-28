@@ -801,6 +801,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get agentChat_tab => 'Chat';
 
   @override
+  String get agentChat_detachWindow => 'Open in separate window';
+
+  @override
+  String get agentChat_detachWindowFailed =>
+      'Could not open the separate window. Try again.';
+
+  @override
+  String get agentChat_dockWindow => 'Dock back to the main window';
+
+  @override
+  String get agentChat_alwaysOnTop => 'Always on top';
+
+  @override
   String get agentChat_inputHint => 'Message the AI agent…';
 
   @override
@@ -811,6 +824,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get agentChat_disableWebAccess => 'Disable web access';
+
+  @override
+  String get agentChat_webAccess => 'Web access';
 
   @override
   String agentChat_unsupportedImageFormat(Object fileName) {
@@ -898,6 +914,73 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get agentChat_toolWebRead => 'Read web page';
+
+  @override
+  String get agentChat_toolApplication => 'Update application data';
+
+  @override
+  String get agentChat_toolGallery => 'Use gallery';
+
+  @override
+  String get agentChat_toolReferenceLibrary => 'Use reference library';
+
+  @override
+  String get agentChat_toolPrepareGeneration => 'Prepare generation';
+
+  @override
+  String get agentChat_toolInspectGeneration => 'Inspect generation draft';
+
+  @override
+  String get agentChat_toolUpdateGeneration => 'Update generation draft';
+
+  @override
+  String get agentChat_toolCancelGeneration => 'Cancel generation draft';
+
+  @override
+  String get agentChat_toolSubmitGeneration => 'Submit generation';
+
+  @override
+  String get agentChat_toolCreateInpaint => 'Create manual inpaint draft';
+
+  @override
+  String get agentChat_toolListInpaint => 'List manual inpaint drafts';
+
+  @override
+  String get agentChat_toolInspectInpaint => 'Inspect manual inpaint draft';
+
+  @override
+  String get agentChat_toolCancelInpaint => 'Cancel manual inpaint draft';
+
+  @override
+  String get agentChat_toolReeditInpaint => 'Re-edit manual inpaint draft';
+
+  @override
+  String get agentChat_toolSubmitInpaint => 'Submit manual inpaint draft';
+
+  @override
+  String get agentChat_manualInpaintTitle => 'Manual inpaint';
+
+  @override
+  String get agentChat_manualInpaintComplete => 'Complete and return to Agent';
+
+  @override
+  String get agentChat_resourceUnavailable => 'Unavailable';
+
+  @override
+  String get agentChat_addResource => 'Add to Agent';
+
+  @override
+  String get agentChat_resourceAdded => 'Added to the Agent composer';
+
+  @override
+  String agentChat_addResourceFailed(String error) {
+    return 'Failed to add reference: $error';
+  }
+
+  @override
+  String agentChat_approvalEstimatedAnlas(int cost) {
+    return 'Estimated cost: $cost Anlas';
+  }
 
   @override
   String get agentChat_needSetup =>
@@ -12395,19 +12478,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Remove the installed Chinese translation dictionary? You can install it again later.';
 
   @override
-  String get autocomplete_sourceBase => 'Bundled base catalog';
-
-  @override
-  String get autocomplete_sourceZh => 'ffdkj Chinese dictionary';
-
-  @override
-  String get autocomplete_sourceApi => 'Danbooru API';
-
-  @override
   String get autocomplete_sourceRelated => 'Offline related tags';
-
-  @override
-  String get autocomplete_sourceAi => 'Prompt Assistant translation';
 
   @override
   String get autocomplete_headerTitle => 'Tag autocomplete';

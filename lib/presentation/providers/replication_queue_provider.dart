@@ -3,6 +3,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../core/storage/replication_queue_storage.dart';
 import '../../core/storage/queue_state_storage.dart';
 import '../../data/models/queue/replication_task.dart';
+import '../../data/models/queue/replication_task_generation_snapshot.dart';
 import '../../data/models/queue/replication_task_status.dart';
 
 part 'replication_queue_provider.g.dart';
@@ -342,8 +343,24 @@ class ReplicationQueueNotifier extends _$ReplicationQueueNotifier {
       return false;
     }
 
+    final previousTask = state.tasks[taskIndex];
+    Map<String, dynamic>? generationSnapshot = updatedTask.generationSnapshot;
+    if (generationSnapshot != null &&
+        (previousTask.prompt != updatedTask.prompt ||
+            previousTask.negativePrompt != updatedTask.negativePrompt)) {
+      try {
+        generationSnapshot = ReplicationTaskGenerationSnapshot.withTaskText(
+          generationSnapshot,
+          prompt: updatedTask.prompt,
+          negativePrompt: updatedTask.negativePrompt,
+        );
+      } on FormatException {
+        return false;
+      }
+    }
     final tasks = List<ReplicationTask>.from(state.tasks);
     tasks[taskIndex] = updatedTask.copyWith(
+      generationSnapshot: generationSnapshot,
       status: ReplicationTaskStatus.pending,
       startedAt: null,
       completedAt: null,
@@ -579,6 +596,14 @@ class ReplicationQueueNotifier extends _$ReplicationQueueNotifier {
 
     if (!_hasGeneratableContent(task)) return false;
 
+    Map<String, dynamic>? generationSnapshot;
+    try {
+      generationSnapshot = task.generationSnapshot == null
+          ? null
+          : ReplicationTaskGenerationSnapshot.clone(task.generationSnapshot!);
+    } on FormatException {
+      return false;
+    }
     final newTask = ReplicationTask.create(
       prompt: task.prompt,
       negativePrompt: task.negativePrompt,
@@ -593,6 +618,7 @@ class ReplicationQueueNotifier extends _$ReplicationQueueNotifier {
       width: task.width,
       height: task.height,
       characterPrompts: task.characterPrompts,
+      generationSnapshot: generationSnapshot,
     );
 
     final taskIndex = state.tasks.indexWhere((t) => t.id == taskId);

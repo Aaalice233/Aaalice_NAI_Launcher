@@ -6,7 +6,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/agent/agent_types.dart';
+import '../../../../core/utils/app_logger.dart';
 import '../../../../core/utils/localization_extension.dart';
+import '../../../../core/windowing/agent_window_runtime.dart';
 import 'package:nai_launcher/presentation/providers/layout_state_provider.dart';
 
 import '../../prompt_assistant/providers/web_access_provider.dart';
@@ -38,6 +40,25 @@ class AgentChatPanelCoordinator {
       collapse: () => _ref
           .read(layoutStateNotifierProvider.notifier)
           .setRightPanelExpanded(false),
+      detach: () async {
+        try {
+          await AgentWindowRuntime.instance.open();
+        } on Object catch (error, stackTrace) {
+          AppLogger.e(
+            'Failed to open detached Agent window',
+            error,
+            stackTrace,
+            'AgentWindow',
+          );
+          if (context.mounted) {
+            AppToast.error(context, context.l10n.agentChat_detachWindowFailed);
+          }
+          return;
+        }
+        _ref
+            .read(layoutStateNotifierProvider.notifier)
+            .setRightPanelExpanded(false);
+      },
       newSession: () => _notifier.newSession(),
       selectSession: (sessionId) => _notifier.switchSession(sessionId),
       renameSession: (sessionId) => _renameSession(context, sessionId),
@@ -49,25 +70,33 @@ class AgentChatPanelCoordinator {
       setWebAccessEnabled: (enabled) =>
           _ref.read(webAccessConfigProvider.notifier).setEnabled(enabled),
       pickImages: () => _pickImages(context),
-      send: _send,
+      send: () => _send(context, state),
       stop: _notifier.abort,
       dismissError: _notifier.dismissError,
       resolveApproval: _notifier.resolveToolApproval,
       useSuggestion: _controller.setSuggestion,
       copyUserMessage: (message) => _copyUserMessage(context, message),
       editLastUserMessage: (message) => _editLastUserMessage(context, message),
+      addPendingResource: _notifier.addPendingResource,
+      removePendingResource: _notifier.removePendingResource,
     );
   }
 
   AgentChatNotifier get _notifier =>
       _ref.read(agentChatNotifierProvider.notifier);
 
-  Future<void> _send() async {
+  Future<void> _send(BuildContext context, AgentChatState state) async {
+    if (!await _notifier.validatePendingResourcesForSend()) {
+      if (!context.mounted) return;
+      AppToast.error(context, context.l10n.agentChat_resourceUnavailable);
+      return;
+    }
     final text = _controller.inputController.text.trim();
     final images = _controller.pendingImages;
     final content = _controller.buildInlineUserContent(text, images);
     if (content.isEmpty) return;
     _controller.takePendingImages();
+    await _notifier.clearComposerText();
     await _notifier.sendContent(content);
     if (_isMounted()) _controller.inputFocus.requestFocus();
   }

@@ -1,0 +1,182 @@
+import '../../../core/agent/agent.dart';
+import '../../../core/agent/harness/harness_types.dart';
+import '../../../core/agent/harness/session/session_types.dart'
+    as session_types;
+import '../../../core/agent/resources/agent_chat_resource_reference.dart';
+import 'agent_chat_session_view.dart';
+
+/// Agent 会话 UI 状态。
+class AgentChatState {
+  const AgentChatState({
+    this.initialized = false,
+    this.status = AgentChatRunStatus.idle,
+    this.messages = const [],
+    this.streamingText = '',
+    this.activities = const [],
+    this.queuedCount = 0,
+    this.sessions = const [],
+    this.activeSessionId = '',
+    this.skills = const [],
+    this.routeLabel = '',
+    this.routeReady = false,
+    this.routeError = '',
+    this.error = '',
+    this.compacting = false,
+    this.sessionTransitioning = false,
+    this.sessionContentLoading = false,
+    this.approvalRequest,
+    this.totalUsage,
+    this.pendingResources = const [],
+    this.unavailableResourceKeys = const {},
+    this.composerText = '',
+  });
+
+  final bool initialized;
+  final AgentChatRunStatus status;
+
+  /// 当前会话转录（user/assistant/toolResult）。
+  final List<Message> messages;
+  final String streamingText;
+  final List<AgentToolActivity> activities;
+  final int queuedCount;
+  final List<AgentChatSessionSummary> sessions;
+  final String activeSessionId;
+  final List<HarnessSkill> skills;
+  final String routeLabel;
+  final bool routeReady;
+  final String routeError;
+  final String error;
+  final bool compacting;
+  final bool sessionTransitioning;
+  final bool sessionContentLoading;
+  final AgentToolApprovalRequest? approvalRequest;
+  final Usage? totalUsage;
+  final List<AgentChatResourceReference> pendingResources;
+  final Set<String> unavailableResourceKeys;
+  final String composerText;
+
+  AgentChatState copyWith({
+    bool? initialized,
+    AgentChatRunStatus? status,
+    List<Message>? messages,
+    String? streamingText,
+    List<AgentToolActivity>? activities,
+    int? queuedCount,
+    List<AgentChatSessionSummary>? sessions,
+    String? activeSessionId,
+    List<HarnessSkill>? skills,
+    String? routeLabel,
+    bool? routeReady,
+    String? routeError,
+    String? error,
+    bool? compacting,
+    bool? sessionTransitioning,
+    bool? sessionContentLoading,
+    AgentToolApprovalRequest? approvalRequest,
+    bool clearApprovalRequest = false,
+    Usage? totalUsage,
+    List<AgentChatResourceReference>? pendingResources,
+    Set<String>? unavailableResourceKeys,
+    String? composerText,
+  }) {
+    return AgentChatState(
+      initialized: initialized ?? this.initialized,
+      status: status ?? this.status,
+      messages: messages ?? this.messages,
+      streamingText: streamingText ?? this.streamingText,
+      activities: activities ?? this.activities,
+      queuedCount: queuedCount ?? this.queuedCount,
+      sessions: sessions ?? this.sessions,
+      activeSessionId: activeSessionId ?? this.activeSessionId,
+      skills: skills ?? this.skills,
+      routeLabel: routeLabel ?? this.routeLabel,
+      routeReady: routeReady ?? this.routeReady,
+      routeError: routeError ?? this.routeError,
+      error: error ?? this.error,
+      compacting: compacting ?? this.compacting,
+      sessionTransitioning: sessionTransitioning ?? this.sessionTransitioning,
+      sessionContentLoading:
+          sessionContentLoading ?? this.sessionContentLoading,
+      approvalRequest: clearApprovalRequest
+          ? null
+          : approvalRequest ?? this.approvalRequest,
+      totalUsage: totalUsage ?? this.totalUsage,
+      pendingResources: pendingResources ?? this.pendingResources,
+      unavailableResourceKeys:
+          unavailableResourceKeys ?? this.unavailableResourceKeys,
+      composerText: composerText ?? this.composerText,
+    );
+  }
+}
+
+enum AgentChatRunStatus { idle, running }
+
+bool canManageAgentChatSessions(AgentChatState state) =>
+    state.status == AgentChatRunStatus.idle && !state.sessionTransitioning;
+
+Usage calculateAgentChatSessionUsage(
+  Iterable<session_types.SessionEntry> entries,
+) {
+  var total = Usage.empty;
+  for (final entry in entries) {
+    Usage? usage;
+    if (entry is session_types.MessageEntry &&
+        entry.message is AssistantMessage) {
+      usage = (entry.message as AssistantMessage).usage;
+    } else if (entry is session_types.CompactionEntry) {
+      usage = entry.usage;
+    } else if (entry is session_types.BranchSummaryEntry) {
+      usage = entry.usage;
+    }
+    if (usage != null) {
+      total = total + usage;
+    }
+  }
+  return total;
+}
+
+/// 工具执行卡片状态。
+class AgentToolActivity {
+  const AgentToolActivity({
+    required this.toolCallId,
+    required this.toolName,
+    required this.args,
+    this.status = AgentToolActivityStatus.running,
+    this.content = '',
+  });
+
+  final String toolCallId;
+  final String toolName;
+  final Map<String, dynamic> args;
+  final AgentToolActivityStatus status;
+  final String content;
+
+  AgentToolActivity copyWith({
+    AgentToolActivityStatus? status,
+    String? content,
+  }) {
+    return AgentToolActivity(
+      toolCallId: toolCallId,
+      toolName: toolName,
+      args: args,
+      status: status ?? this.status,
+      content: content ?? this.content,
+    );
+  }
+}
+
+enum AgentToolActivityStatus { running, succeeded, failed }
+
+class AgentToolApprovalRequest {
+  const AgentToolApprovalRequest({
+    required this.toolCallId,
+    required this.toolName,
+    required this.args,
+    this.estimatedAnlas,
+  });
+
+  final String toolCallId;
+  final String toolName;
+  final Map<String, dynamic> args;
+  final int? estimatedAnlas;
+}

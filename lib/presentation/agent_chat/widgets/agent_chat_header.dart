@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/utils/localization_extension.dart';
+import '../../../../core/windowing/agent_window_runtime.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../prompt_assistant/models/prompt_assistant_models.dart';
 import '../providers/agent_chat_session_view.dart';
@@ -96,6 +97,12 @@ class AgentChatHeader extends StatelessWidget {
               ),
             ),
           ),
+          if (AgentWindowRuntime.isDesktop)
+            iconButton(
+              icon: Icons.open_in_new_rounded,
+              tooltip: l10n.agentChat_detachWindow,
+              onTap: commands.detach,
+            ),
           if (viewData.state.skills.isNotEmpty)
             SizedBox(
               width: 32,

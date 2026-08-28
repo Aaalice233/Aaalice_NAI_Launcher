@@ -100,6 +100,7 @@ dependencies:
   logger: ^2.4.0
 
   # 窗口管理 (桌面端)
+  desktop_multi_window: ^0.3.1
   window_manager: ^0.3.9
   # 屏幕信息（读取工作区，避免窗口超出屏幕；window_manager 的传递依赖，此处提为直接依赖）
   screen_retriever: any

@@ -1,13 +1,19 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/storage/queue_state_storage.dart';
+import 'package:nai_launcher/core/storage/replication_queue_storage.dart';
 import 'package:nai_launcher/data/models/character/character_prompt.dart';
 import 'package:nai_launcher/data/models/image/image_params.dart'
     show ImageParams;
+import 'package:nai_launcher/data/models/queue/failure_handling_strategy.dart';
 import 'package:nai_launcher/data/models/queue/replication_task.dart';
+import 'package:nai_launcher/data/models/queue/replication_task_generation_snapshot.dart';
+import 'package:nai_launcher/data/models/queue/replication_task_status.dart';
 import 'package:nai_launcher/presentation/providers/auth_provider.dart';
 import 'package:nai_launcher/presentation/providers/character_prompt_provider.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/providers/krita/krita_bridge_notifier.dart';
+import 'package:nai_launcher/presentation/providers/notification_settings_provider.dart';
 import 'package:nai_launcher/presentation/providers/queue_execution_provider.dart';
 import 'package:nai_launcher/presentation/providers/replication_queue_provider.dart';
 
@@ -24,6 +30,13 @@ void main() {
   }) {
     return ProviderContainer(
       overrides: [
+        replicationQueueStorageProvider.overrideWithValue(
+          _MemoryReplicationQueueStorage(),
+        ),
+        queueStateStorageProvider.overrideWithValue(_MemoryQueueStateStorage()),
+        notificationSettingsNotifierProvider.overrideWith(
+          _DisabledNotificationSettingsNotifier.new,
+        ),
         replicationQueueNotifierProvider.overrideWith(
           () => _TestReplicationQueueNotifier([task]),
         ),
@@ -89,6 +102,143 @@ void main() {
     );
     expect(container.read(authPromptRequestProvider), isNull);
   });
+
+  test('队列执行固定为单批并应用任务参数', () async {
+    final task = ReplicationTask.create(
+      prompt: 'queued prompt',
+      negativePrompt: 'queued negative',
+      applyNegativePrompt: true,
+      width: 832,
+      height: 1216,
+      steps: 23,
+      cfgScale: 4.5,
+      seed: 123,
+      generationSnapshot: ReplicationTaskGenerationSnapshot.encode(
+        const ImageParams(
+          prompt: 'queued prompt',
+          negativePrompt: 'queued negative',
+          width: 832,
+          height: 1216,
+          steps: 23,
+          scale: 4.5,
+          seed: 123,
+          nSamples: 4,
+          strength: 0.42,
+          noise: 0.17,
+        ),
+      ),
+    );
+    final capture = _CapturingImageGenerationNotifier();
+    final container = _buildStartContainer(
+      task,
+      AuthStatus.authenticated,
+      generationNotifier: capture,
+      generationParamsNotifier: _BatchGenerationParamsNotifier.new,
+    );
+    addTearDown(container.dispose);
+
+    expect(
+      await container
+          .read(queueExecutionNotifierProvider.notifier)
+          .startQueue(),
+      QueueStartResult.started,
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+
+    expect(capture.generated, isNotNull);
+    expect(capture.generated!.nSamples, 1);
+    expect(capture.generated!.width, 832);
+    expect(capture.generated!.height, 1216);
+    expect(capture.generated!.steps, 23);
+    expect(capture.generated!.scale, 4.5);
+    expect(capture.generated!.seed, 123);
+    expect(capture.generated!.negativePrompt, 'queued negative');
+    expect(capture.generated!.strength, 0.42);
+    expect(capture.generated!.noise, 0.17);
+  });
+
+  test('完整快照仍遵循任务的负向提示词开关', () async {
+    final task = ReplicationTask.create(
+      prompt: 'edited prompt',
+      negativePrompt: 'snapshot negative',
+      applyNegativePrompt: false,
+      generationSnapshot: ReplicationTaskGenerationSnapshot.encode(
+        const ImageParams(
+          prompt: 'old prompt',
+          negativePrompt: 'snapshot negative',
+          strength: 0.42,
+        ),
+      ),
+    );
+    final capture = _CapturingImageGenerationNotifier();
+    final container = _buildStartContainer(
+      task,
+      AuthStatus.authenticated,
+      generationNotifier: capture,
+      generationParamsNotifier: _BatchGenerationParamsNotifier.new,
+    );
+    addTearDown(container.dispose);
+
+    expect(
+      await container
+          .read(queueExecutionNotifierProvider.notifier)
+          .startQueue(),
+      QueueStartResult.started,
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+
+    expect(capture.generated?.prompt, 'edited prompt');
+    expect(capture.generated?.negativePrompt, 'main negative');
+    expect(capture.generated?.strength, 0.42);
+  });
+
+  for (final strategy in FailureHandlingStrategy.values) {
+    test('损坏的完整快照按 $strategy 结算且保留错误', () async {
+      final snapshot = ReplicationTaskGenerationSnapshot.encode(
+        const ImageParams(prompt: 'invalid snapshot'),
+      );
+      (snapshot['transient']
+              as Map<String, dynamic>)['inpaintMaskClosingIterations'] =
+          'invalid';
+      final task = ReplicationTask.create(
+        prompt: 'invalid snapshot',
+        generationSnapshot: snapshot,
+      );
+      final container = _buildStartContainer(task, AuthStatus.authenticated);
+      addTearDown(container.dispose);
+      final execution = container.read(queueExecutionNotifierProvider.notifier);
+      (execution as _TestQueueExecutionNotifier).setStrategyForTest(strategy);
+
+      expect(await execution.startQueue(), QueueStartResult.started);
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+
+      final queue = container.read(replicationQueueNotifierProvider);
+      switch (strategy) {
+        case FailureHandlingStrategy.autoRetry:
+          expect(queue.tasks, isEmpty);
+          expect(
+            queue.failedTasks.single.errorMessage,
+            contains('Invalid generation snapshot'),
+          );
+          break;
+        case FailureHandlingStrategy.skip:
+          expect(queue.tasks, isEmpty);
+          expect(
+            queue.failedTasks.single.errorMessage,
+            contains('Invalid generation snapshot'),
+          );
+          break;
+        case FailureHandlingStrategy.pauseAndWait:
+          expect(queue.tasks.single.status, ReplicationTaskStatus.failed);
+          expect(
+            queue.tasks.single.errorMessage,
+            contains('Invalid generation snapshot'),
+          );
+          break;
+      }
+      expect(container.read(queueExecutionNotifierProvider).failedCount, 1);
+    });
+  }
 
   test('旧任务没有角色快照时保留当前角色', () {
     final task = ReplicationTask.create(prompt: 'queued prompt');
@@ -178,10 +328,19 @@ void main() {
 
 ProviderContainer _buildStartContainer(
   ReplicationTask task,
-  AuthStatus authStatus,
-) {
+  AuthStatus authStatus, {
+  _TestImageGenerationNotifier? generationNotifier,
+  GenerationParamsNotifier Function()? generationParamsNotifier,
+}) {
   return ProviderContainer(
     overrides: [
+      replicationQueueStorageProvider.overrideWithValue(
+        _MemoryReplicationQueueStorage(),
+      ),
+      queueStateStorageProvider.overrideWithValue(_MemoryQueueStateStorage()),
+      notificationSettingsNotifierProvider.overrideWith(
+        _DisabledNotificationSettingsNotifier.new,
+      ),
       authNotifierProvider.overrideWith(() => _TestAuthNotifier(authStatus)),
       replicationQueueNotifierProvider.overrideWith(
         () => _TestReplicationQueueNotifier([task]),
@@ -190,13 +349,13 @@ ProviderContainer _buildStartContainer(
         _TestQueueExecutionNotifier.new,
       ),
       generationParamsNotifierProvider.overrideWith(
-        _TestGenerationParamsNotifier.new,
+        generationParamsNotifier ?? _TestGenerationParamsNotifier.new,
       ),
       characterPromptNotifierProvider.overrideWith(
         () => _TestCharacterPromptNotifier(const []),
       ),
       imageGenerationNotifierProvider.overrideWith(
-        _TestImageGenerationNotifier.new,
+        () => generationNotifier ?? _TestImageGenerationNotifier(),
       ),
       kritaBridgeNotifierProvider.overrideWith((ref) => KritaBridgeNotifier()),
     ],
@@ -212,18 +371,35 @@ class _TestAuthNotifier extends AuthNotifier {
   AuthState build() => AuthState(status: authStatus);
 }
 
+class _DisabledNotificationSettingsNotifier
+    extends NotificationSettingsNotifier {
+  @override
+  NotificationSettings build() =>
+      const NotificationSettings(soundEnabled: false);
+}
+
 class _TestReplicationQueueNotifier extends ReplicationQueueNotifier {
   _TestReplicationQueueNotifier(this.tasks);
 
   final List<ReplicationTask> tasks;
 
   @override
-  ReplicationQueueState build() => ReplicationQueueState(tasks: tasks);
+  ReplicationQueueState build() {
+    super.build();
+    return ReplicationQueueState(tasks: tasks);
+  }
 }
 
 class _TestQueueExecutionNotifier extends QueueExecutionNotifier {
   @override
-  QueueExecutionState build() => const QueueExecutionState();
+  QueueExecutionState build() {
+    super.build();
+    return const QueueExecutionState();
+  }
+
+  void setStrategyForTest(FailureHandlingStrategy strategy) {
+    state = state.copyWith(failureStrategy: strategy);
+  }
 }
 
 class _TestGenerationParamsNotifier extends GenerationParamsNotifier {
@@ -246,7 +422,22 @@ class _TestImageGenerationNotifier extends ImageGenerationNotifier {
   ImageGenerationState build() => const ImageGenerationState();
 
   @override
-  Future<void> generate(ImageParams params) async {}
+  Future<void> generate(ImageParams params, {int? batchSizeOverride}) async {}
+}
+
+class _CapturingImageGenerationNotifier extends _TestImageGenerationNotifier {
+  ImageParams? generated;
+
+  @override
+  Future<void> generate(ImageParams params, {int? batchSizeOverride}) async {
+    generated = params;
+  }
+}
+
+class _BatchGenerationParamsNotifier extends _TestGenerationParamsNotifier {
+  @override
+  ImageParams build() =>
+      const ImageParams(negativePrompt: 'main negative', nSamples: 4);
 }
 
 class _TestCharacterPromptNotifier extends CharacterPromptNotifier {
@@ -262,4 +453,30 @@ class _TestCharacterPromptNotifier extends CharacterPromptNotifier {
   void replaceAll(List<CharacterPrompt> characters) {
     state = state.copyWith(characters: characters);
   }
+}
+
+class _MemoryReplicationQueueStorage extends ReplicationQueueStorage {
+  @override
+  List<ReplicationTask> load() => const [];
+
+  @override
+  Future<void> save(List<ReplicationTask> tasks) async {}
+
+  @override
+  Future<void> clear() async {}
+}
+
+class _MemoryQueueStateStorage extends QueueStateStorage {
+  @override
+  QueueExecutionStateData loadExecutionState() =>
+      const QueueExecutionStateData();
+
+  @override
+  Future<void> saveExecutionState(QueueExecutionStateData state) async {}
+
+  @override
+  List<ReplicationTask> loadFailedTasks() => const [];
+
+  @override
+  Future<void> saveFailedTasks(List<ReplicationTask> tasks) async {}
 }

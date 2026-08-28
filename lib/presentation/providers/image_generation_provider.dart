@@ -221,7 +221,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     );
   }
 
-  Future<void> generate(ImageParams params) async {
+  Future<void> generate(ImageParams params, {int? batchSizeOverride}) async {
     if (_isDisposed || _generationInvocationStarting || state.isGenerating) {
       return;
     }
@@ -304,7 +304,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         runId: runId,
         params: prepared.params,
         batchCount: prepared.params.nSamples,
-        batchSize: ref.read(imagesPerRequestProvider),
+        batchSize: batchSizeOverride ?? ref.read(imagesPerRequestProvider),
         prepareBatch: (batch, current) async {
           if (batch == 0) return current;
           final next = await preparation.prepareSubsequentBatch(current);

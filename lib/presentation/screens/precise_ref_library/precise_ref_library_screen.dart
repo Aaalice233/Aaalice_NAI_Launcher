@@ -10,6 +10,7 @@ import 'package:path/path.dart' as p;
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 import '../../../core/enums/precise_ref_type.dart';
+import '../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../../core/platform/platform_capabilities.dart';
 import '../../../data/models/image/image_params.dart';
 import '../../../data/models/precise_ref/precise_ref_library_entry.dart';
@@ -20,6 +21,7 @@ import '../../router/app_routes.dart';
 import '../../services/image_workflow_launcher.dart';
 import '../../utils/dropped_file_reader.dart';
 import '../../widgets/common/app_toast.dart';
+import '../../agent_chat/widgets/agent_resource_drop_region.dart';
 import 'widgets/precise_ref_card.dart';
 import 'widgets/precise_ref_entry_edit_dialog.dart';
 import 'widgets/precise_ref_type_filter_chips.dart';
@@ -617,18 +619,26 @@ class _PreciseRefLibraryScreenState
       itemCount: state.filteredEntries.length,
       itemBuilder: (context, index) {
         final entry = state.filteredEntries[index];
-        return PreciseRefCard(
+        return AgentResourceDragSource(
           key: Key('precise-ref-card-${entry.id}'),
-          entry: entry,
-          onSendToPreciseRef: () => _sendToPreciseRef(entry),
-          onSendToImg2Img: () => _sendToImg2Img(entry),
-          onEdit: () => _editEntry(entry),
-          onDelete: () => _deleteEntry(entry),
-          onToggleFavorite: () {
-            ref
-                .read(preciseRefLibraryNotifierProvider.notifier)
-                .toggleFavorite(entry.id);
-          },
+          reference: AgentChatResourceReference(
+            kind: AgentChatResourceKind.preciseRefLibraryEntry,
+            source: 'precise_reference_library',
+            resourceId: entry.id,
+            display: {'name': entry.name},
+          ),
+          child: PreciseRefCard(
+            entry: entry,
+            onSendToPreciseRef: () => _sendToPreciseRef(entry),
+            onSendToImg2Img: () => _sendToImg2Img(entry),
+            onEdit: () => _editEntry(entry),
+            onDelete: () => _deleteEntry(entry),
+            onToggleFavorite: () {
+              ref
+                  .read(preciseRefLibraryNotifierProvider.notifier)
+                  .toggleFavorite(entry.id);
+            },
+          ),
         );
       },
     );

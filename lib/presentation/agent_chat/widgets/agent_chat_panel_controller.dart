@@ -90,6 +90,14 @@ class AgentChatPanelController extends ChangeNotifier {
     }
   }
 
+  void syncComposerText(String text) {
+    if (inputController.text == text) return;
+    inputController.value = TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
+    );
+  }
+
   void addPendingImage(PendingAgentChatImage image) {
     _pendingImages.add(image);
     inputController.imageCount = _pendingImages.length;

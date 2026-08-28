@@ -10,6 +10,7 @@ import 'core/autocomplete/cooccurrence_data_pack_provider.dart';
 import 'core/cache/gallery_cache_manager.dart';
 import 'core/utils/app_logger.dart';
 import 'core/platform/platform_capabilities.dart';
+import 'core/services/desktop_app_shutdown_service.dart';
 import 'core/shortcuts/default_shortcuts.dart';
 import 'presentation/adaptive/window_size_class.dart';
 import 'presentation/router/app_router.dart';
@@ -208,7 +209,7 @@ class NAILauncherApp extends ConsumerWidget {
           windowManager.hide();
         },
         ShortcutIds.quitApp: () {
-          windowManager.close();
+          unawaited(DesktopAppShutdownService.shutdownAndExit(0));
         },
       },
       ShortcutIds.toggleQueue: () {

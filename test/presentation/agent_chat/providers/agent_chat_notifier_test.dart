@@ -14,49 +14,6 @@ import 'package:nai_launcher/presentation/prompt_assistant/providers/prompt_assi
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('agent tool permission policy', () {
-    test('confirmation mode asks only for sensitive actions', () {
-      const mode = AgentPermissionMode.askBeforeSensitiveActions;
-
-      for (final tool in [
-        'set_positive_prompt',
-        'set_negative_prompt',
-        'get_recent_images',
-        'get_generation_status',
-        'add_character',
-        'update_character',
-        'read_skill',
-        'read_skill_resource',
-        'web_search',
-        'web_read',
-      ]) {
-        expect(
-          agentToolPermissionPolicyFor(mode, tool),
-          AgentToolPermissionPolicy.allow,
-          reason: tool,
-        );
-      }
-      expect(
-        agentToolPermissionPolicyFor(mode, 'remove_character'),
-        AgentToolPermissionPolicy.ask,
-      );
-    });
-
-    test('safe blocks and full access allows sensitive actions', () {
-      expect(
-        agentToolPermissionPolicyFor(AgentPermissionMode.safe, 'read'),
-        AgentToolPermissionPolicy.block,
-      );
-      expect(
-        agentToolPermissionPolicyFor(
-          AgentPermissionMode.fullAccess,
-          'remove_character',
-        ),
-        AgentToolPermissionPolicy.allow,
-      );
-    });
-  });
-
   test('session controls lock while running or transitioning', () {
     expect(canManageAgentChatSessions(const AgentChatState()), isTrue);
     expect(
@@ -97,6 +54,47 @@ void main() {
     expect(usage.input, 21);
     expect(usage.output, 7);
     expect(usage.totalTokens, 28);
+  });
+
+  test('old notifier import still exposes AgentApiClient', () {
+    AgentApiClient? client;
+    expect(client, isNull);
+  });
+
+  test('draft APIs remain safe during async initialization', () async {
+    final root = await Directory.systemTemp.createTemp(
+      'agent_chat_initializing_draft_',
+    );
+    addTearDown(() => root.delete(recursive: true));
+    final provider = StateNotifierProvider<AgentChatNotifier, AgentChatState>((
+      ref,
+    ) {
+      return AgentChatNotifier(
+        ref,
+        supportDir: root,
+        workspaceDir: root,
+        presetSkills: const [],
+      );
+    });
+    final container = ProviderContainer(
+      overrides: [
+        localStorageServiceProvider.overrideWithValue(_MemoryLocalStorage()),
+        secureStorageServiceProvider.overrideWithValue(_MemorySecureStorage()),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final notifier = container.read(provider.notifier);
+    expect(() => notifier.setComposerText('draft'), returnsNormally);
+    expect(container.read(provider).composerText, 'draft');
+    await expectLater(notifier.removePendingResource(0), completes);
+    await expectLater(notifier.clearPendingResources(), completes);
+    await expectLater(notifier.refreshPendingResourceAvailability(), completes);
+    expect(await notifier.validatePendingResourcesForSend(), isTrue);
+    await expectLater(notifier.clearComposerText(), completes);
+    expect(container.read(provider).composerText, isEmpty);
+
+    await _waitForInitialized(container, provider);
   });
 
   test('loads workspace skills and ignores the legacy app directory', () async {

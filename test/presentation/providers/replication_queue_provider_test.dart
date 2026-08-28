@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/storage/queue_state_storage.dart';
 import 'package:nai_launcher/core/storage/replication_queue_storage.dart';
+import 'package:nai_launcher/data/models/image/image_params.dart';
 import 'package:nai_launcher/data/models/queue/replication_task.dart';
+import 'package:nai_launcher/data/models/queue/replication_task_generation_snapshot.dart';
 import 'package:nai_launcher/data/models/queue/replication_task_status.dart';
 import 'package:nai_launcher/presentation/providers/replication_queue_provider.dart';
 
@@ -156,6 +158,64 @@ void main() {
       await clearFuture;
       expect(queueStorage.tasks, isEmpty);
       expect(container.read(replicationQueueNotifierProvider).tasks, isEmpty);
+    },
+  );
+
+  test('editing a task keeps its generation snapshot prompt in sync', () async {
+    final container = _buildContainer();
+    addTearDown(container.dispose);
+    final notifier = container.read(replicationQueueNotifierProvider.notifier);
+    final task = ReplicationTask.create(
+      prompt: 'before',
+      generationSnapshot: ReplicationTaskGenerationSnapshot.encode(
+        const ImageParams(prompt: 'before', strength: 0.37),
+      ),
+    );
+    await notifier.add(task);
+
+    expect(await notifier.updateTask(task.copyWith(prompt: 'after')), isTrue);
+
+    final updated = container
+        .read(replicationQueueNotifierProvider)
+        .tasks
+        .single;
+    final params = ReplicationTaskGenerationSnapshot.decode(
+      updated.generationSnapshot!,
+    );
+    expect(params.prompt, 'after');
+    expect(params.strength, 0.37);
+  });
+
+  test(
+    'duplicating a task deep-copies its complete generation snapshot',
+    () async {
+      final container = _buildContainer();
+      addTearDown(container.dispose);
+      final notifier = container.read(
+        replicationQueueNotifierProvider.notifier,
+      );
+      final task = ReplicationTask.create(
+        prompt: 'copy',
+        generationSnapshot: ReplicationTaskGenerationSnapshot.encode(
+          const ImageParams(prompt: 'copy', noise: 0.29),
+        ),
+      );
+      await notifier.add(task);
+
+      expect(await notifier.duplicateTask(task.id), isTrue);
+
+      final tasks = container.read(replicationQueueNotifierProvider).tasks;
+      expect(tasks, hasLength(2));
+      expect(
+        tasks.last.generationSnapshot,
+        isNot(same(task.generationSnapshot)),
+      );
+      expect(
+        ReplicationTaskGenerationSnapshot.decode(
+          tasks.last.generationSnapshot!,
+        ).noise,
+        0.29,
+      );
     },
   );
 }
