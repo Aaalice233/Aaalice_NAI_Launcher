@@ -7088,6 +7088,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Enter prompt content, supports autocomplete';
 
   @override
+  String get tagLibrary_characterNegativeSyntaxHelp =>
+      'Character entries can store independent Undesired Content with negative(...), for example: girl, blue eyes, negative(red hair, glasses)';
+
+  @override
   String get settings_network => 'Network';
 
   @override

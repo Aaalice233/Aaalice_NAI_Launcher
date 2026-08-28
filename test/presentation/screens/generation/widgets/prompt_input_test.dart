@@ -971,12 +971,14 @@ class _TestCharacterPromptNotifier extends CharacterPromptNotifier {
     CharacterGender gender, {
     String? name,
     String? prompt,
+    String? negativePrompt,
     String? thumbnailPath,
   }) {
     state = state.addCharacter(
       gender: gender,
       name: name,
       prompt: prompt,
+      negativePrompt: negativePrompt,
       thumbnailPath: thumbnailPath,
     );
   }

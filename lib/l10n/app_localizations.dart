@@ -12569,6 +12569,12 @@ abstract class AppLocalizations {
   /// **'Enter prompt content, supports autocomplete'**
   String get tagLibrary_contentHint;
 
+  /// No description provided for @tagLibrary_characterNegativeSyntaxHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Character entries can store independent Undesired Content with negative(...), for example: girl, blue eyes, negative(red hair, glasses)'**
+  String get tagLibrary_characterNegativeSyntaxHelp;
+
   /// No description provided for @settings_network.
   ///
   /// In en, this message translates to:

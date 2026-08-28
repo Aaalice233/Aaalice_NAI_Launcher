@@ -163,6 +163,56 @@ void main() {
       },
     );
 
+    test('character negative blocks follow request prompt partitioning', () {
+      String resolveNegativeAlias(String text) =>
+          text == '<alice>' ? 'girl, blue eyes, negative(red hair)' : text;
+      final fixedTags = FixedTagsState(
+        entries: [
+          FixedTagEntry.create(
+            name: 'literal fixed tag',
+            content: 'negative(fixed literal)',
+            position: FixedTagPosition.suffix,
+          ),
+        ],
+      );
+      const characters = [
+        CharacterPrompt(
+          id: 'alice',
+          name: 'Alice',
+          prompt: '<alice>',
+          negativePrompt: 'red hair',
+        ),
+      ];
+
+      final positive = buildPromptTokenCountPayload(
+        target: PromptTokenCountTarget.positive,
+        prompt: '<alice>',
+        negativePrompt: 'global uc',
+        model: api.ImageModels.animeDiffusionV45Full,
+        fixedTagsState: fixedTags,
+        qualityToggle: false,
+        ucPreset: api.UcPresets.noneApiValue,
+        characters: characters,
+        resolveAliases: resolveNegativeAlias,
+      );
+      final negative = buildPromptTokenCountPayload(
+        target: PromptTokenCountTarget.negative,
+        prompt: '<alice>',
+        negativePrompt: 'global uc',
+        model: api.ImageModels.animeDiffusionV45Full,
+        fixedTagsState: fixedTags,
+        qualityToggle: false,
+        ucPreset: api.UcPresets.noneApiValue,
+        characters: characters,
+        resolveAliases: resolveNegativeAlias,
+      );
+
+      expect(positive.mainText, 'girl, blue eyes, negative(fixed literal)');
+      expect(positive.extraTexts, ['girl, blue eyes']);
+      expect(negative.mainText, 'global uc');
+      expect(negative.extraTexts, ['red hair']);
+    });
+
     test('positive V5 payload should count the generated text block', () {
       final payload = buildPromptTokenCountPayload(
         target: PromptTokenCountTarget.positive,

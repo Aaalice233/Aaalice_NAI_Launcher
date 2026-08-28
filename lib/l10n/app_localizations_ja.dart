@@ -6920,6 +6920,10 @@ class AppLocalizationsJa extends AppLocalizations {
   String get tagLibrary_contentHint => 'プロンプトの内容を入力し、オートコンプリートをサポートします';
 
   @override
+  String get tagLibrary_characterNegativeSyntaxHelp =>
+      'キャラクター項目では negative(...) で個別の除外プロンプトを保存できます。例：girl, blue eyes, negative(red hair, glasses)';
+
+  @override
   String get settings_network => 'ネットワーク';
 
   @override

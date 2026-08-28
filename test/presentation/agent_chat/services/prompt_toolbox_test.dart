@@ -151,6 +151,7 @@ class _DuplicateNameCharacterNotifier extends CharacterPromptNotifier {
     CharacterGender gender, {
     String? name,
     String? prompt,
+    String? negativePrompt,
     String? thumbnailPath,
   }) {
     state = state.copyWith(
@@ -160,6 +161,7 @@ class _DuplicateNameCharacterNotifier extends CharacterPromptNotifier {
           id: 'new-character',
           name: name ?? '',
           prompt: prompt ?? '',
+          negativePrompt: negativePrompt ?? '',
           gender: gender,
         ),
       ],

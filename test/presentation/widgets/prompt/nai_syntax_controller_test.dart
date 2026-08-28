@@ -152,6 +152,59 @@ void main() {
         isTrue,
       );
     });
+
+    testWidgets('tints the complete negative block without hiding weights', (
+      tester,
+    ) async {
+      final controller = NaiSyntaxController(
+        text: 'girl, negative({red hair}, 1.2::glasses::)',
+      );
+      addTearDown(controller.dispose);
+
+      final children = await _buildTextSpanChildren(tester, controller);
+      final negativeSpans = children
+          .where((span) => span.style?.color != null)
+          .toList();
+
+      expect(
+        negativeSpans.map((span) => span.text).join(),
+        'negative({red hair}, 1.2::glasses::)',
+      );
+      expect(
+        negativeSpans.any((span) => span.style?.backgroundColor != null),
+        isTrue,
+      );
+      expect(controller.syntaxErrors, isEmpty);
+    });
+
+    testWidgets('keeps negative semantics when search highlighting overlaps', (
+      tester,
+    ) async {
+      final controller = NaiSyntaxController(text: 'girl, negative(red hair)')
+        ..updateSearchHighlights(
+          matches: const [TextRange(start: 15, end: 23)],
+          activeMatchIndex: 0,
+        );
+      addTearDown(controller.dispose);
+
+      final children = await _buildTextSpanChildren(tester, controller);
+      final match = children.singleWhere((span) => span.text == 'red hair');
+
+      expect(match.style?.color, isNotNull);
+      expect(match.style?.backgroundColor, isNotNull);
+    });
+
+    testWidgets('reports malformed negative block syntax', (tester) async {
+      final controller = NaiSyntaxController(
+        text: 'negative(), negative(red hair',
+      );
+      addTearDown(controller.dispose);
+
+      await _buildTextSpanChildren(tester, controller);
+
+      expect(controller.syntaxErrors, contains('negative(...) 块未闭合'));
+      expect(controller.syntaxErrors, contains('negative(...) 块不能为空'));
+    });
   });
 }
 

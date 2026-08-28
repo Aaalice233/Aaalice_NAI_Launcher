@@ -10,10 +10,12 @@ import 'package:path/path.dart' as p;
 import '../../../../core/enums/precise_ref_type.dart';
 import '../../../../core/platform/platform_capabilities.dart';
 import '../../../../core/services/android_media_store_service.dart';
+import '../../../../core/services/character_conversion_service.dart';
 import '../../../../core/shortcuts/default_shortcuts.dart';
 import '../../../../core/shortcuts/shortcut_config.dart';
 import '../../../../core/shortcuts/shortcut_manager.dart';
 import '../../../../core/utils/app_logger.dart';
+import '../../../../core/utils/character_prompt_block_parser.dart';
 import '../../../../core/utils/file_explorer_utils.dart';
 import '../../../../core/utils/image_save_utils.dart';
 import '../../../../core/utils/localization_extension.dart';
@@ -1109,7 +1111,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
           params.negativePrompt,
         );
         final promptWithFixedTags = fixedTagsState.applyToPrompt(
-          resolvedPrompt,
+          CharacterPromptBlockParser.parse(resolvedPrompt).positivePrompt,
         );
         final negativePromptWithFixedTags = fixedTagsState
             .applyToNegativePrompt(resolvedNegative);
@@ -1135,17 +1137,18 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
         final charCaptions = <Map<String, dynamic>>[];
         final charNegCaptions = <Map<String, dynamic>>[];
 
-        for (final char in characterConfig.characters.where(
-          (c) => c.enabled && c.prompt.isNotEmpty,
-        )) {
+        final convertedCharacters = CharacterConversionService(
+          aliasResolver: aliasResolver.resolveAliases,
+        ).convert(characterConfig);
+        for (final char in convertedCharacters.characters) {
           charCaptions.add({
-            'char_caption': aliasResolver.resolveAliases(char.prompt),
+            'char_caption': char.prompt,
             'centers': [
               {'x': 0.5, 'y': 0.5},
             ],
           });
           charNegCaptions.add({
-            'char_caption': aliasResolver.resolveAliases(char.negativePrompt),
+            'char_caption': char.negativePrompt,
             'centers': [
               {'x': 0.5, 'y': 0.5},
             ],

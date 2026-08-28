@@ -346,12 +346,12 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
                     Padding(
                       padding: const EdgeInsets.only(left: 12),
                       child: Text(
-                        context.l10n.fixedTags_syntaxHelp,
+                        context.l10n.tagLibrary_characterNegativeSyntaxHelp,
                         style: TextStyle(
                           fontSize: 12,
                           color: theme.colorScheme.outline,
                         ),
-                        maxLines: 2,
+                        maxLines: 3,
                       ),
                     ),
 

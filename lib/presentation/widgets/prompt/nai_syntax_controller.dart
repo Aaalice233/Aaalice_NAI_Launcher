@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/utils/alias_parser.dart';
+import '../../../core/utils/character_prompt_block_parser.dart';
 
 /// NAI 语法高亮控制器
 /// 继承 TextEditingController，重写 buildTextSpan 实现语法着色
@@ -211,6 +212,7 @@ class NaiSyntaxController extends TextEditingController {
 
     final backgroundMarks = List<_HighlightMark?>.filled(text.length, null);
     final pipeMarks = List<_PipeMark?>.filled(text.length, null);
+    final negativeMarks = List<_NegativeMark?>.filled(text.length, null);
     final errors = <String>[];
 
     if (includeEmphasis) {
@@ -218,6 +220,7 @@ class NaiSyntaxController extends TextEditingController {
       _applyAliasHighlights(text, backgroundMarks);
     }
     _applyOfficialPipeHighlights(text, pipeMarks);
+    _applyCharacterNegativeHighlights(text, negativeMarks, errors);
     _syntaxErrors = errors;
 
     return _buildHighlightedSpans(
@@ -226,7 +229,64 @@ class NaiSyntaxController extends TextEditingController {
       colors,
       backgroundMarks,
       pipeMarks,
+      negativeMarks,
     );
+  }
+
+  void _applyCharacterNegativeHighlights(
+    String text,
+    List<_NegativeMark?> marks,
+    List<String> errors,
+  ) {
+    final parsed = CharacterPromptBlockParser.parse(text);
+    for (final block in parsed.blocks) {
+      _fillNegativeMarks(
+        marks,
+        block.contentRange.start,
+        block.contentRange.end,
+        _NegativeMark.content,
+      );
+      _fillNegativeMarks(
+        marks,
+        block.keywordRange.start,
+        block.keywordRange.end,
+        _NegativeMark.keyword,
+      );
+      _fillNegativeMarks(
+        marks,
+        block.openingBoundaryRange.start,
+        block.openingBoundaryRange.end,
+        _NegativeMark.boundary,
+      );
+      _fillNegativeMarks(
+        marks,
+        block.closingBoundaryRange.start,
+        block.closingBoundaryRange.end,
+        _NegativeMark.boundary,
+      );
+    }
+    if (parsed.issues.contains(CharacterPromptBlockIssue.unclosedBlock)) {
+      errors.add('negative(...) 块未闭合');
+    }
+    if (parsed.issues.contains(CharacterPromptBlockIssue.repeatedBlock)) {
+      errors.add('只能使用一个 negative(...) 块');
+    }
+    if (parsed.issues.contains(CharacterPromptBlockIssue.emptyBlock)) {
+      errors.add('negative(...) 块不能为空');
+    }
+  }
+
+  void _fillNegativeMarks(
+    List<_NegativeMark?> marks,
+    int start,
+    int end,
+    _NegativeMark mark,
+  ) {
+    final safeStart = start.clamp(0, marks.length);
+    final safeEnd = end.clamp(safeStart, marks.length);
+    for (var index = safeStart; index < safeEnd; index++) {
+      marks[index] = mark;
+    }
   }
 
   /// 官网按字符执行权重动作；括号不要求成对，`::` 会重置全部状态。
@@ -381,15 +441,24 @@ class NaiSyntaxController extends TextEditingController {
     NaiSyntaxColors colors,
     List<_HighlightMark?> backgroundMarks,
     List<_PipeMark?> pipeMarks,
+    List<_NegativeMark?> negativeMarks,
   ) {
     final spans = <TextSpan>[];
     var start = 0;
-    var decoration = _SpanDecoration(backgroundMarks[0], pipeMarks[0]);
+    var decoration = _SpanDecoration(
+      backgroundMarks[0],
+      pipeMarks[0],
+      negativeMarks[0],
+    );
 
     for (var index = 1; index <= text.length; index++) {
       final nextDecoration = index == text.length
           ? null
-          : _SpanDecoration(backgroundMarks[index], pipeMarks[index]);
+          : _SpanDecoration(
+              backgroundMarks[index],
+              pipeMarks[index],
+              negativeMarks[index],
+            );
       if (nextDecoration == decoration) continue;
 
       spans.add(
@@ -410,6 +479,8 @@ enum _HighlightTone { high, low, mid, alias }
 
 enum _PipeMark { single, double }
 
+enum _NegativeMark { keyword, boundary, content }
+
 class _HighlightMark {
   final _HighlightTone tone;
   final double opacity;
@@ -427,17 +498,19 @@ class _HighlightMark {
 class _SpanDecoration {
   final _HighlightMark? background;
   final _PipeMark? pipe;
+  final _NegativeMark? negative;
 
-  const _SpanDecoration(this.background, this.pipe);
+  const _SpanDecoration(this.background, this.pipe, this.negative);
 
   @override
   bool operator ==(Object other) =>
       other is _SpanDecoration &&
       other.background == background &&
-      other.pipe == pipe;
+      other.pipe == pipe &&
+      other.negative == negative;
 
   @override
-  int get hashCode => Object.hash(background, pipe);
+  int get hashCode => Object.hash(background, pipe, negative);
 }
 
 /// 官网强调高亮的默认主题色。
@@ -447,6 +520,7 @@ class NaiSyntaxColors {
   final Color lowIntensityColor;
   final Color midIntensityColor;
   final Color pipeColor;
+  final Color negativeColor;
 
   const NaiSyntaxColors._({
     required this.isDark,
@@ -454,6 +528,7 @@ class NaiSyntaxColors {
     required this.lowIntensityColor,
     required this.midIntensityColor,
     required this.pipeColor,
+    required this.negativeColor,
   });
 
   factory NaiSyntaxColors.fromTheme(ThemeData theme) {
@@ -463,6 +538,10 @@ class NaiSyntaxColors {
       lowIntensityColor: const Color(0xFF079CED),
       midIntensityColor: const Color(0xFF7ACC29),
       pipeColor: theme.colorScheme.onSurface,
+      negativeColor: Color.alphaBlend(
+        theme.colorScheme.error.withValues(alpha: 0.58),
+        theme.colorScheme.onSurfaceVariant,
+      ),
     );
   }
 
@@ -472,6 +551,7 @@ class NaiSyntaxColors {
     lowIntensityColor,
     midIntensityColor,
     pipeColor,
+    negativeColor,
   );
 
   TextStyle _applyDecoration(TextStyle baseStyle, _SpanDecoration decoration) {
@@ -480,8 +560,19 @@ class NaiSyntaxColors {
     if (mark != null) {
       style = style.copyWith(backgroundColor: _getBackgroundColor(mark));
     }
+    if (decoration.negative != null) {
+      style = style.copyWith(
+        color: negativeColor,
+        fontWeight: decoration.negative == _NegativeMark.content
+            ? style.fontWeight
+            : FontWeight.w600,
+      );
+    }
     if (decoration.pipe != null) {
-      style = style.copyWith(color: pipeColor, fontWeight: FontWeight.w800);
+      style = style.copyWith(
+        color: decoration.negative == null ? pipeColor : negativeColor,
+        fontWeight: FontWeight.w800,
+      );
     }
     return style;
   }
