@@ -1,270 +1,55 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../../../core/agent/agent.dart';
 import '../../../core/agent/agent_system_prompt.dart';
-import '../../../core/agent/skill_catalog.dart';
+import '../../../core/agent/audit/jsonl_audit_sink.dart';
 import '../../../core/agent/harness/compaction/compaction.dart';
 import '../../../core/agent/harness/harness_types.dart';
 import '../../../core/agent/harness/harness_messages.dart';
-import '../../../core/agent/harness/session/session_context.dart';
 import '../../../core/agent/harness/session/session_jsonl.dart';
 import '../../../core/agent/harness/session/session.dart';
 import '../../../core/agent/harness/session/session_types.dart'
     as session_types;
 import '../../../core/agent/harness/skills.dart';
-import '../../../core/constants/storage_keys.dart';
+import '../../../core/agent/resources/agent_chat_resource_draft_store.dart';
+import '../../../core/agent/resources/agent_chat_resource_reference.dart';
+import '../../../core/agent/skill_catalog.dart';
 import '../../../core/storage/local_storage_service.dart';
 import '../../../core/utils/app_logger.dart';
-import '../../../data/repositories/gallery_folder_repository.dart';
 import '../../../data/models/agent/agent_settings.dart';
+import '../../../data/models/inpaint/inpaint_draft.dart';
+import '../../../data/repositories/gallery_folder_repository.dart';
 import '../../agent_settings/providers/agent_settings_provider.dart';
-import '../../prompt_assistant/models/agent_protocol.dart';
 import '../../prompt_assistant/models/prompt_assistant_models.dart';
+import '../../prompt_assistant/models/agent_protocol.dart';
 import '../../prompt_assistant/providers/prompt_assistant_config_provider.dart';
 import '../../prompt_assistant/providers/web_access_provider.dart';
-import '../../prompt_assistant/services/provider_adapters/anthropic_messages_adapter.dart';
-import '../../prompt_assistant/services/provider_adapters/gemini_generate_content_adapter.dart';
-import '../../prompt_assistant/services/provider_adapters/openai_chat_completions_adapter.dart';
-import '../../prompt_assistant/services/provider_adapters/openai_responses_adapter.dart';
-import '../../prompt_assistant/services/provider_adapters/prompt_assistant_adapter.dart';
 import '../../prompt_assistant/services/prompt_assistant_service.dart';
+import '../../providers/fixed_tags_provider.dart';
+import '../../providers/precise_ref_library_provider.dart';
+import '../../providers/tag_library_page_provider.dart';
+import '../../providers/vibe_library_provider.dart';
+import '../../router/app_router_config.dart';
+import '../services/agent_api_client.dart';
+import '../services/agent_chat_draft_controller.dart';
+import '../services/agent_chat_event_controller.dart';
+import '../services/agent_chat_session_controller.dart';
 import '../services/agent_stream_bridge.dart';
-import '../services/execution_toolbox.dart';
-import '../services/generation_toolbox.dart';
-import '../services/prompt_toolbox.dart';
-import '../services/tag_toolbox.dart';
-import '../services/web_access_toolbox.dart';
-import 'agent_chat_session_view.dart';
+import '../services/agent_system_prompt.dart';
+import '../services/agent_resource_resolver.dart';
+import '../services/generation_preparation_runtime.dart';
+import '../services/manual_inpaint_toolbox.dart';
+import '../services/queue_toolbox.dart';
+import '../services/agent_tool_permission_controller.dart';
+import '../services/agent_tool_registry_builder.dart';
+import 'agent_chat_state.dart';
 
-/// Agent 会话 UI 状态。
-class AgentChatState {
-  const AgentChatState({
-    this.initialized = false,
-    this.status = AgentChatRunStatus.idle,
-    this.messages = const [],
-    this.streamingText = '',
-    this.activities = const [],
-    this.queuedCount = 0,
-    this.sessions = const [],
-    this.activeSessionId = '',
-    this.skills = const [],
-    this.routeLabel = '',
-    this.routeReady = false,
-    this.routeError = '',
-    this.error = '',
-    this.compacting = false,
-    this.sessionTransitioning = false,
-    this.sessionContentLoading = false,
-    this.approvalRequest,
-    this.totalUsage,
-  });
-
-  final bool initialized;
-  final AgentChatRunStatus status;
-
-  /// 当前会话转录（user/assistant/toolResult）。
-  final List<Message> messages;
-  final String streamingText;
-  final List<AgentToolActivity> activities;
-  final int queuedCount;
-  final List<AgentChatSessionSummary> sessions;
-  final String activeSessionId;
-  final List<HarnessSkill> skills;
-  final String routeLabel;
-  final bool routeReady;
-  final String routeError;
-  final String error;
-  final bool compacting;
-  final bool sessionTransitioning;
-  final bool sessionContentLoading;
-  final AgentToolApprovalRequest? approvalRequest;
-  final Usage? totalUsage;
-
-  AgentChatState copyWith({
-    bool? initialized,
-    AgentChatRunStatus? status,
-    List<Message>? messages,
-    String? streamingText,
-    List<AgentToolActivity>? activities,
-    int? queuedCount,
-    List<AgentChatSessionSummary>? sessions,
-    String? activeSessionId,
-    List<HarnessSkill>? skills,
-    String? routeLabel,
-    bool? routeReady,
-    String? routeError,
-    String? error,
-    bool? compacting,
-    bool? sessionTransitioning,
-    bool? sessionContentLoading,
-    AgentToolApprovalRequest? approvalRequest,
-    bool clearApprovalRequest = false,
-    Usage? totalUsage,
-  }) {
-    return AgentChatState(
-      initialized: initialized ?? this.initialized,
-      status: status ?? this.status,
-      messages: messages ?? this.messages,
-      streamingText: streamingText ?? this.streamingText,
-      activities: activities ?? this.activities,
-      queuedCount: queuedCount ?? this.queuedCount,
-      sessions: sessions ?? this.sessions,
-      activeSessionId: activeSessionId ?? this.activeSessionId,
-      skills: skills ?? this.skills,
-      routeLabel: routeLabel ?? this.routeLabel,
-      routeReady: routeReady ?? this.routeReady,
-      routeError: routeError ?? this.routeError,
-      error: error ?? this.error,
-      compacting: compacting ?? this.compacting,
-      sessionTransitioning: sessionTransitioning ?? this.sessionTransitioning,
-      sessionContentLoading:
-          sessionContentLoading ?? this.sessionContentLoading,
-      approvalRequest: clearApprovalRequest
-          ? null
-          : approvalRequest ?? this.approvalRequest,
-      totalUsage: totalUsage ?? this.totalUsage,
-    );
-  }
-}
-
-enum AgentChatRunStatus { idle, running }
-
-bool canManageAgentChatSessions(AgentChatState state) =>
-    state.status == AgentChatRunStatus.idle && !state.sessionTransitioning;
-
-Usage calculateAgentChatSessionUsage(
-  Iterable<session_types.SessionEntry> entries,
-) {
-  var total = Usage.empty;
-  for (final entry in entries) {
-    Usage? usage;
-    if (entry is session_types.MessageEntry &&
-        entry.message is AssistantMessage) {
-      usage = (entry.message as AssistantMessage).usage;
-    } else if (entry is session_types.CompactionEntry) {
-      usage = entry.usage;
-    } else if (entry is session_types.BranchSummaryEntry) {
-      usage = entry.usage;
-    }
-    if (usage != null) {
-      total = total + usage;
-    }
-  }
-  return total;
-}
-
-enum AgentToolPermissionPolicy { allow, block, ask }
-
-const Set<String> _sensitiveAgentTools = {
-  'interrogate_image',
-  'remove_character',
-  'generate_image',
-  'queue_image_task',
-  'update_generation_settings',
-};
-
-AgentToolPermissionPolicy agentToolPermissionPolicyFor(
-  AgentPermissionMode mode,
-  String toolName,
-) {
-  if (!_sensitiveAgentTools.contains(toolName) ||
-      mode == AgentPermissionMode.fullAccess) {
-    return AgentToolPermissionPolicy.allow;
-  }
-  return mode == AgentPermissionMode.safe
-      ? AgentToolPermissionPolicy.block
-      : AgentToolPermissionPolicy.ask;
-}
-
-/// 工具执行卡片状态。
-class AgentToolActivity {
-  const AgentToolActivity({
-    required this.toolCallId,
-    required this.toolName,
-    required this.args,
-    this.status = AgentToolActivityStatus.running,
-    this.content = '',
-  });
-
-  final String toolCallId;
-  final String toolName;
-  final Map<String, dynamic> args;
-  final AgentToolActivityStatus status;
-  final String content;
-
-  AgentToolActivity copyWith({
-    AgentToolActivityStatus? status,
-    String? content,
-  }) {
-    return AgentToolActivity(
-      toolCallId: toolCallId,
-      toolName: toolName,
-      args: args,
-      status: status ?? this.status,
-      content: content ?? this.content,
-    );
-  }
-}
-
-enum AgentToolActivityStatus { running, succeeded, failed }
-
-class AgentToolApprovalRequest {
-  const AgentToolApprovalRequest({
-    required this.toolCallId,
-    required this.toolName,
-    required this.args,
-  });
-
-  final String toolCallId;
-  final String toolName;
-  final Map<String, dynamic> args;
-}
-
-/// Agent HTTP 请求分发。
-class AgentApiClient {
-  AgentApiClient(this._dio);
-
-  final Dio _dio;
-  final Map<String, CancelToken> _cancelTokens = {};
-
-  void cancel(String sessionId) {
-    final token = _cancelTokens.remove(sessionId);
-    token?.cancel('cancelled by user');
-  }
-
-  PromptAssistantProviderAdapter _adapterFor(ProviderConfig provider) {
-    switch (provider.protocol) {
-      case ProviderProtocol.openaiChatCompletions:
-        return const OpenAiChatCompletionsAdapter();
-      case ProviderProtocol.openaiResponses:
-        return const OpenAiResponsesAdapter();
-      case ProviderProtocol.anthropicMessages:
-        return const AnthropicMessagesAdapter();
-      case ProviderProtocol.geminiGenerateContent:
-        return const GeminiGenerateContentAdapter();
-      case ProviderProtocol.ollamaChatCompletions:
-        return const OpenAiChatCompletionsAdapter(ollamaTagsFallback: true);
-    }
-  }
-
-  Stream<AgentWireEvent> complete(
-    AgentChatRequest request, {
-    String cancelSessionId = 'agent_chat',
-  }) {
-    _cancelTokens.remove(cancelSessionId)?.cancel('replaced by new request');
-    final cancelToken = CancelToken();
-    _cancelTokens[cancelSessionId] = cancelToken;
-    return _adapterFor(
-      request.provider,
-    ).completeAgent(dio: _dio, request: request, cancelToken: cancelToken);
-  }
-}
+export 'agent_chat_state.dart';
+export '../services/agent_api_client.dart';
 
 typedef AgentWireCompletion =
     Stream<AgentWireEvent> Function(AgentChatRequest request);
@@ -303,10 +88,20 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     ) {
       _refreshRoute();
     });
-    _ref.listen<AgentSettingsState>(agentSettingsProvider, (_, __) {
+    _ref.listen<AgentSettingsState>(agentSettingsProvider, (_, _) {
       _queueSettingsRefresh();
     });
-    _initialization = _init(presetSkills: presetSkills);
+    for (final provider in [
+      fixedTagsNotifierProvider,
+      tagLibraryPageNotifierProvider,
+      vibeLibraryNotifierProvider,
+      preciseRefLibraryNotifierProvider,
+    ]) {
+      _ref.listen(provider, (_, _) {
+        unawaited(refreshPendingResourceAvailability());
+      });
+    }
+    _initializing = _init(presetSkills: presetSkills);
   }
 
   final Ref _ref;
@@ -317,26 +112,32 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
   final Map<String, String>? _skillEnvironment;
   late Directory _supportDir;
   late Directory _workspaceDir;
-  late JsonlSessionRepo _repo;
+  late AgentChatDraftController _draftController;
+  bool _draftControllerInitialized = false;
+  late AgentChatEventController _eventController;
+  AgentChatSessionController? _sessionControllerValue;
+  AgentToolPermissionController? _permissionController;
+  late AgentToolRegistryBuilder _toolRegistryBuilder;
+  late ManualInpaintToolbox _manualInpaintToolbox;
   late AgentApiClient _client;
-  Agent? _agent;
-  dynamic _session;
   final Map<String, HarnessSkill> _skills = {};
   final List<SkillDiagnostic> _skillDiagnostics = [];
+  final GenerationPreparationRuntime _generationPreparationRuntime =
+      GenerationPreparationRuntime();
+  final QueueControlRuntime _queueControlRuntime = QueueControlRuntime();
+  late final Future<void> _initializing;
   bool _usesPresetSkills = false;
   bool _runtimeReady = false;
-  late final Future<void> _initialization;
-  Future<void> _settingsRefresh = Future.value();
+  Future<void> _settingsRefresh = Future<void>.value();
   bool _settingsApplyPending = false;
   bool _preparingRun = false;
   AgentPermissionMode? _activePermissionMode;
   AgentSettings? _activeAgentSettings;
   (ProviderConfig, String, String?)? _routeCache;
   (ProviderConfig, String, String?)? _activeRoute;
-  Usage _usageTotal = const Usage();
-  Completer<bool>? _approvalCompleter;
 
   LocalStorageService get _local => _ref.read(localStorageServiceProvider);
+  AgentChatSessionController get _sessionController => _sessionControllerValue!;
 
   Future<void> _init({List<HarnessSkill>? presetSkills}) async {
     final providedSupportDir = _providedSupportDir;
@@ -350,7 +151,20 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
         _supportDir = Directory.systemTemp;
       }
     }
-    _repo = _providedSessionRepo ?? JsonlSessionRepo(_supportDir);
+    final sessionRepository =
+        _providedSessionRepo ?? JsonlSessionRepo(_supportDir);
+    final resourceDraftStore = AgentChatResourceDraftStore(
+      File(
+        '${_supportDir.path}${Platform.pathSeparator}agent'
+        '${Platform.pathSeparator}resource-drafts-v1.json',
+      ),
+    );
+    final auditSink = JsonlAgentAuditSink(
+      File(
+        '${_supportDir.path}${Platform.pathSeparator}agent'
+        '${Platform.pathSeparator}audit-v1.jsonl',
+      ),
+    );
     // 文件工具工作区（read 的 cwd 与相对路径根）。
     // 默认指向图片导出根目录（自定义保存路径或 Documents/NAI_Launcher/
     // images），让 Agent 能直接按相对路径读取生成的图片；解析失败时
@@ -377,6 +191,66 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     } catch (e) {
       AppLogger.w('agent workspace create failed: $e', 'AgentChat');
     }
+    _manualInpaintToolbox = ManualInpaintToolbox(
+      _ref,
+      supportDirectory: _supportDir,
+      workspaceDir: _workspaceDir.path,
+      navigator: () =>
+          _ref.read(appRouterProvider).routerDelegate.navigatorKey.currentState,
+      activeSessionId: () => state.activeSessionId,
+      onDraftChanged: _recordManualInpaintDraftUpdate,
+    );
+    AgentResourceResolver createResourceResolver() => AgentResourceResolver(
+      _ref,
+      loadInpaintDraftImage: _manualInpaintToolbox.loadDraftImage,
+    );
+    _draftController = AgentChatDraftController(
+      resourceStore: resourceDraftStore,
+      localStorage: _local,
+      readState: () => state,
+      writeState: (next) => state = next,
+      createResourceResolver: createResourceResolver,
+      isMounted: () => mounted,
+    );
+    _draftControllerInitialized = true;
+    _permissionController = AgentToolPermissionController(
+      auditSink: auditSink,
+      estimateAnlas: _estimatePreparedAnlas,
+      onApprovalChanged: (request) {
+        state = request == null
+            ? state.copyWith(clearApprovalRequest: true)
+            : state.copyWith(approvalRequest: request);
+      },
+      isMounted: () => mounted,
+    );
+    _toolRegistryBuilder = AgentToolRegistryBuilder(
+      ref: _ref,
+      workspaceDir: _workspaceDir.path,
+      skills: _skills,
+      skillDiagnostics: _skillDiagnostics,
+      reloadSkills: reloadSkills,
+      generationRuntime: _generationPreparationRuntime,
+      queueRuntime: _queueControlRuntime,
+      manualInpaintToolbox: _manualInpaintToolbox,
+    );
+    _sessionControllerValue = AgentChatSessionController(
+      repository: sessionRepository,
+      localStorage: _local,
+      draftController: _draftController,
+      workspaceDir: _workspaceDir.path,
+      buildAgent: _buildAgent,
+      buildSystemPrompt: _buildSystemPrompt,
+      readState: () => state,
+      writeState: (next) => state = next,
+      isMounted: () => mounted,
+    );
+    _eventController = AgentChatEventController(
+      sessionController: _sessionController,
+      permissionController: _permissionController!,
+      readState: () => state,
+      writeState: (next) => state = next,
+      isMounted: () => mounted,
+    );
 
     _usesPresetSkills = presetSkills != null;
     if (presetSkills != null) {
@@ -390,7 +264,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     _client = AgentApiClient(_ref.read(promptAssistantDioProvider));
     _runtimeReady = true;
     _refreshRoute();
-    await _restoreLastSession();
+    await _sessionController.restoreLastSession();
     state = state.copyWith(
       initialized: true,
       skills: _skills.values.toList(growable: false),
@@ -425,69 +299,10 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
   Future<BeforeToolCallResult?> _beforeToolCall(
     BeforeToolCallContext context,
     AbortSignal? signal,
-  ) async {
-    final mode =
-        _activePermissionMode ??
-        _ref.read(agentSettingsProvider).settings.chat.permissionMode;
-    final policy = agentToolPermissionPolicyFor(mode, context.toolCall.name);
-    if (policy == AgentToolPermissionPolicy.allow) {
-      return null;
-    }
-    if (policy == AgentToolPermissionPolicy.block) {
-      return const BeforeToolCallResult(
-        block: true,
-        reason:
-            'This tool is disabled in Safe mode. Ask the user to change '
-            'the Agent permission mode before retrying.',
-      );
-    }
+  ) => _permissionController!.beforeToolCall(context, signal);
 
-    final previousApproval = _approvalCompleter;
-    if (previousApproval != null && !previousApproval.isCompleted) {
-      previousApproval.complete(false);
-    }
-    final completer = Completer<bool>();
-    _approvalCompleter = completer;
-    final args = context.args is Map<String, dynamic>
-        ? Map<String, dynamic>.from(context.args as Map<String, dynamic>)
-        : const <String, dynamic>{};
-    state = state.copyWith(
-      approvalRequest: AgentToolApprovalRequest(
-        toolCallId: context.toolCall.id,
-        toolName: context.toolCall.name,
-        args: args,
-      ),
-    );
-
-    void onAbort(String? _) {
-      if (!completer.isCompleted) {
-        completer.complete(false);
-      }
-    }
-
-    signal?.addListener(onAbort);
-    final approved = await completer.future;
-    signal?.removeListener(onAbort);
-    if (identical(_approvalCompleter, completer)) {
-      _approvalCompleter = null;
-      if (mounted) {
-        state = state.copyWith(clearApprovalRequest: true);
-      }
-    }
-    return approved
-        ? null
-        : const BeforeToolCallResult(
-            block: true,
-            reason: 'The user declined this tool call.',
-          );
-  }
-
-  void resolveToolApproval(bool approved) {
-    final completer = _approvalCompleter;
-    if (completer != null && !completer.isCompleted) {
-      completer.complete(approved);
-    }
-  }
+  void resolveToolApproval(bool approved) =>
+      _permissionController?.resolveApproval(approved);
 
   Future<void> setPermissionMode(AgentPermissionMode mode) async {
     if (!canManageAgentChatSessions(state)) {
@@ -498,37 +313,15 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
   }
 
   List<AgentTool> _buildTools({required bool fullAccess}) {
-    final webAccessEnabled = _ref
-        .read(agentSettingsProvider)
-        .settings
-        .chat
-        .webAccessEnabled;
-    return [
-      ...PromptToolbox(
-        _ref,
-        skills: Map.unmodifiable(_skills),
-        skillDiagnostics: List.unmodifiable(_skillDiagnostics),
-        reloadSkills: reloadSkills,
-      ).tools(),
-      ...ExecutionToolbox(
-        _workspaceDir.path,
-        allowOutsideWorkspace: fullAccess,
-      ).tools(),
-      ...GenerationToolbox(
-        _ref,
-        workspaceDir: _workspaceDir.path,
-        allowOutsideWorkspace: fullAccess,
-      ).tools(),
-      ...TagToolbox(_ref).tools(),
-      if (webAccessEnabled)
-        ...WebAccessToolbox(
-          config: _ref
-              .read(webAccessConfigProvider)
-              .config
-              .copyWith(enabled: true),
-          loadGateway: () => _ref.read(webAccessGatewayProvider),
-        ).tools(),
-    ];
+    final permissionMode =
+        _activePermissionMode ??
+        _ref.read(agentSettingsProvider).settings.chat.permissionMode;
+    final registry = _toolRegistryBuilder.build(
+      fullAccess: fullAccess,
+      permissionMode: permissionMode,
+    );
+    _permissionController!.configure(registry);
+    return registry.tools;
   }
 
   Future<void> _refreshWebAccessTools() async {
@@ -536,7 +329,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       _queueSettingsRefresh();
       return;
     }
-    final agent = _agent;
+    final agent = _sessionControllerValue?.agent;
     if (agent == null) return;
     final mode = _ref.read(agentSettingsProvider).settings.chat.permissionMode;
     agent.state.tools = _buildTools(
@@ -582,7 +375,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     if (mounted) {
       state = state.copyWith(skills: _skills.values.toList(growable: false));
     }
-    final agent = _agent;
+    final agent = _sessionController.agent;
     if (agent != null) {
       final mode = _ref
           .read(agentSettingsProvider)
@@ -604,7 +397,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     if (!_runtimeReady || _runActive) return;
     if (!_usesPresetSkills) await _loadSkillsFromDisk();
     _refreshRoute();
-    final agent = _agent;
+    final agent = _sessionControllerValue?.agent;
     if (agent != null) {
       final mode = _ref
           .read(agentSettingsProvider)
@@ -644,8 +437,8 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
   }) async {
     try {
       final route = _activeRoute ?? _routeCache ?? _resolveRoute();
-      final session = _session;
-      if (route == null || session is! Session || messages.length <= 8) {
+      final session = _sessionController.session;
+      if (route == null || session == null || messages.length <= 8) {
         return messages;
       }
       final contextWindow = _contextWindowFor(route.$1);
@@ -709,13 +502,14 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       messages
         ..clear()
         ..addAll(compressed);
-      _agent?.state.messages = List.of(compressed);
+      _sessionController.agent?.state.messages = List.of(compressed);
       if (compactResult.usage != null) {
-        _usageTotal = _usageTotal + compactResult.usage!;
+        _sessionController.totalUsage =
+            _sessionController.totalUsage + compactResult.usage!;
       }
       state = state.copyWith(
         messages: List.of(compressed),
-        totalUsage: _usageTotal,
+        totalUsage: _sessionController.totalUsage,
       );
       return messages;
     } catch (e) {
@@ -854,136 +648,23 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       final apiKey = await _ref
           .read(promptAssistantConfigProvider.notifier)
           .getProviderApiKey(route.$1.id);
-      _routeCache = (route.$1, route.$2, apiKey);
+      final resolvedRoute = (route.$1, route.$2, apiKey);
+      if (_activeRoute != null) {
+        _activeRoute = resolvedRoute;
+      } else {
+        _routeCache = resolvedRoute;
+      }
     }
-    final workspacePath = _workspaceDir.path;
     final agentSettings =
         settingsOverride ?? _ref.read(agentSettingsProvider).settings;
-    final webAccessEnabled = agentSettings.chat.webAccessEnabled;
     final skillBlock = formatSkillsForSystemPrompt(
       (skillsOverride ?? _skills.values).toList(growable: false),
     );
-    final builtInPrompt = [
-      'You are the AI agent inside Aaalice, a NovelAI image-generation client.',
-      'You chat with the user and edit their image prompts via tools.',
-      '',
-      'Tools:',
-      '- Call get_prompt_state first to inspect the workspace before editing.',
-      '- set_positive_prompt / set_negative_prompt write the main prompts '
-          '(mode: replace, append, prepend).',
-      '- add_character creates a character; update_character edits an '
-          'existing one (match by id or name, only provided fields change). '
-          'Set "enabled" to false to temporarily exclude a character from '
-          'generation while keeping it in the list, and true to include it '
-          'again. remove_character deletes it permanently.',
-      '- All edits apply immediately and are visible to the user in the UI.',
-      '',
-      'File tools:',
-      '- read works inside the image export root: $workspacePath '
-          '(relative paths resolve against it).',
-      '- Outside-workspace file paths are rejected unless the user has '
-          'explicitly selected Full Access mode.',
-      '- Use it for prompt drafts, exports, and reading skill files when a '
-          'skill references them.',
-      '',
-      'Image tools:',
-      '- interrogate_image reverse-engineers a prompt from an image file. '
-          'It uses the chat model directly when image input is supported; '
-          'the dedicated "reverse" vision model is only a fallback.',
-      '- generate_image is the DEFAULT and is SYNCHRONOUS: it waits, then '
-          'shows the images in the chat. Its "count" generates N '
-          'variations of the SAME prompt (max '
-          '${GenerationToolbox.maxGenerateCount}); for several DIFFERENT '
-          'prompts, call it once per prompt. source_image / mask_image '
-          'switch to img2img / inpaint.',
-      '- queue_image_task is ASYNC: it enqueues N IDENTICAL tasks (same '
-          'prompt) and returns immediately with no images in the chat. '
-          'Only use it when the user explicitly asks to queue / background '
-          'batch. For DIFFERENT prompts, call it once per prompt.',
-      '- get_generation_status reports generation progress, queue stats, '
-          'and recent output paths (read-only, safe).',
-      '- get_recent_images returns the newest saved generation-history '
-          'images (including queue results). Always pass the required '
-          '"limit": use the exact number requested by the user, or choose a '
-          'small reasonable number when unspecified. Never omit "limit" or '
-          'retrieve more than requested.',
-      '- get_generation_settings / update_generation_settings read and '
-          'change model, sampler, steps, scale and other page settings. '
-          'When the user names a model ("use V5", "switch to v4.5 '
-          'curated"), pass that friendly name to update_generation_settings '
-          '— it resolves aliases. For transparent-background requests '
-          'toggle the transparent_background switch there (V5 renders '
-          'native alpha), optionally reinforced with the prompt tags.',
-      '- search_tags looks up danbooru tags as a reference (English fuzzy '
-          'search, Chinese translation, co-occurrence suggestions); newer '
-          'models also understand natural language, so use whichever fits.',
-      if (webAccessEnabled) ...[
-        '',
-        'Web tools:',
-        '- web_search returns a bounded list of current search results. Use '
-            'a small result count and inspect snippets before reading pages.',
-        '- Call web_read only for individual sources that need deeper '
-            'inspection. Never read every search result automatically.',
-        '- Cite source URLs when an answer depends on web research.',
-      ],
-      '- Generated images appear as thumbnails in this chat automatically; '
-          'the user can expand them to view the full image.',
-      '',
-      'Resolution rules:',
-      '- Presets (identical on V3 / V4 / V4.5 / V5): Normal 832x1216 / '
-          '1216x832 / 1024x1024; Large 1024x1536 / 1536x1024 / 1472x1472; '
-          'Wallpaper 1088x1920 / 1920x1088; Small 512x768 / 768x512 / '
-          '640x640.',
-      '- Custom sizes: width and height MUST be multiples of 64 (minimum '
-          '64); keep each side at most 4096 and total pixels at most '
-          '3145728. Oversized or extreme-aspect custom '
-          'sizes degrade composition and cost more.',
-      '- Pick by content: portrait character 832x1216, landscape scene or '
-          '3+ characters 1216x832, square avatar 1024x1024, phone '
-          'wallpaper 1088x1920. Do not invent custom sizes unless the user '
-          'asks; when you must, round to multiples of 64 first and say so.',
-      '- Cost: total pixels <= 1024x1024 with steps <= 28 is free for '
-          'Opus; anything larger costs Anlas and scales with pixel count. '
-          'V5 additionally consumes a time-recharged usage quota that '
-          'grows with pixel count; other models have no such quota.',
-      '',
-      'Prompt conventions:',
-      '- Prompts are English danbooru tags separated by commas, important '
-          'tags first. NEVER use (tag:1.2) — that is Stable Diffusion '
-          'syntax and does nothing in NovelAI.',
-      '- Emphasis: {tag} strengthens and [tag] weakens on every model '
-          '(each bracket ~1.05x). Numeric emphasis like 1.3::tag :: is '
-          'V4+ only; negative numeric emphasis like -1::tag :: (removes or '
-          'inverts a concept) is V4.5+ only. On V3 use braces only.',
-      '- Natural language: V4/V4.5 understand plain English sentences '
-          'mixed with tags; V5 understands natural language best of all — '
-          'for complex scenes prefer describing the picture in English '
-          'sentences, tags stay fully supported. V3 is tags-only and '
-          'weights tags near the start more heavily.',
-      '- Character prompts exist only on V4+: put per-character appearance '
-          'and actions in the character list via add_character, never into '
-          'the main prompt. V4.5 supports up to 6 characters with '
-          'interaction tags source# / target# / mutual#; V5 allows many '
-          'more (20+) with free canvas positioning.',
-      '- V4/V4.5 share a ~512 T5 token budget across base + character '
-          'prompts; V5 allows noticeably longer prompts. Avoid emoji / '
-          'non-ASCII in V4 prompts.',
-      '- V5 extras: native alpha transparency — prompt "transparent '
-          'background", "has alpha" or "alpha transparency" (strengthen '
-          'like 2.1::transparent background:: if weak); multi-language '
-          'prompting (officially English + Japanese, Chinese usually '
-          'works); multi-language text rendering via a "Text: ..." block '
-          'at the very end of the prompt; whole comic-page layouts can be '
-          'described in natural language.',
-      '- The app can auto-append quality tags and the negative preset '
-          '(quality_toggle / uc_preset settings); do not add quality or '
-          'aesthetic tags manually unless the user asks. V4.5+ reference '
-          'tags: masterpiece, very aesthetic, location, year 2025.',
-      if (skillBlock.isNotEmpty) ...['', skillBlock],
-      '',
-      "Reply in the user's language. Be concise. After using tools, briefly "
-          'confirm what you changed. Do not invent tools that are not listed.',
-    ].join('\n');
+    final builtInPrompt = buildAgentSystemPrompt(
+      workspacePath: _workspaceDir.path,
+      webAccessEnabled: agentSettings.chat.webAccessEnabled,
+      skillBlock: skillBlock,
+    );
     return composeAgentSystemPrompt(
       builtInPrompt: builtInPrompt,
       customInstructions: agentSettings.chat.behaviorInstructions(
@@ -993,7 +674,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
   }
 
   Future<String> buildSystemPromptPreview({String? customInstructions}) async {
-    await _initialization;
+    await _initializing;
     await _settingsRefresh;
     final previewSkills = _usesPresetSkills
         ? _skills.values
@@ -1032,258 +713,111 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
   // 会话管理
   // -------------------------------------------------------------------------
 
-  Future<void> _restoreLastSession() async {
-    final sessions = await _listSessions();
-    final savedId = _local.getSetting<String>(
-      StorageKeys.agentChatActiveSession,
-    );
-    final target = sessions.any((s) => s.metadata.id == savedId)
-        ? savedId!
-        : sessions.isNotEmpty
-        ? sessions.first.metadata.id
-        : '';
-    if (target.isEmpty) {
-      await _createAndActivateSession();
+  Future<int?> _estimatePreparedAnlas(
+    String toolName,
+    Map<String, dynamic> args,
+  ) async {
+    if (toolName == 'submit_generation' ||
+        toolName == 'generate_image' ||
+        toolName == 'queue_image_task') {
+      final id = args['preparation_id'];
+      if (id is String) {
+        return _generationPreparationRuntime.get(id)?.estimatedAnlas;
+      }
+    }
+    if (toolName == 'submit_manual_inpaint_draft') {
+      final id = args['draft_id'];
+      return id is String
+          ? await _manualInpaintToolbox.estimateAnlasForDraft(id)
+          : null;
+    }
+    if (toolName == 'start_generation_queue' ||
+        toolName == 'resume_generation_queue') {
+      final id = args['queue_preparation_id'];
+      return id is String ? _queueControlRuntime.get(id)?.estimatedAnlas : null;
+    }
+    return null;
+  }
+
+  Future<void> addPendingResource(AgentChatResourceReference reference) async {
+    await _initializing;
+    await _draftController.addPendingResource(reference);
+  }
+
+  Future<void> removePendingResource(int index) {
+    if (!_draftControllerInitialized) return Future<void>.value();
+    return _draftController.removePendingResource(index);
+  }
+
+  Future<void> clearPendingResources() {
+    if (!_draftControllerInitialized) return Future<void>.value();
+    return _draftController.clearPendingResources();
+  }
+
+  void setComposerText(String value) {
+    if (!_draftControllerInitialized) {
+      if (value != state.composerText) {
+        state = state.copyWith(composerText: value);
+      }
       return;
     }
-    await _activateSession(target);
+    _draftController.setComposerText(value);
   }
 
-  Future<List<AgentChatSessionSummary>> _listSessions() async {
-    try {
-      final raw = await _repo.listWithNames();
-      return [
-        for (final (metadata, name, updatedAt) in raw)
-          AgentChatSessionSummary(
-            metadata: metadata,
-            name: name,
-            updatedAt: updatedAt,
-          ),
-      ];
-    } catch (e) {
-      AppLogger.w('list sessions failed: $e', 'AgentChat');
-      return const [];
+  Future<void> clearComposerText() {
+    if (!_draftControllerInitialized) {
+      state = state.copyWith(composerText: '');
+      return Future<void>.value();
     }
+    return _draftController.clearComposerText();
   }
 
-  Future<void> _activateSession(String sessionId) async {
-    await _agent?.waitForIdle();
-    final metadata = (await _repo.list()).firstWhere(
-      (m) => m.id == sessionId,
-      orElse: () => session_types.SessionMetadata(
-        id: sessionId,
-        createdAt: DateTime.now().millisecondsSinceEpoch,
-      ),
-    );
-    Session session;
-    try {
-      session = await _repo.open(metadata);
-    } catch (_) {
-      session = await _repo.create(
-        session_types.SessionCreateOptions(id: sessionId),
-      );
-    }
-    // 重建 Agent（每次会话独立转录）。
-    final nextAgent = await _buildAgent();
-    // 从 Session 树恢复转录（含 compaction 折叠语义）。
-    final entries = await session.findEntriesOnBranch(
-      const session_types.EntryQuery(
-        order: session_types.EntryOrder.oldestFirst,
-      ),
-    );
-    final context = buildSessionContext(entries);
-    final restoredMessages = _restoreLegacyReadImageDetails(context.messages);
-    final totalUsage = calculateAgentChatSessionUsage(entries);
-    nextAgent.state.messages = restoredMessages;
-    nextAgent.setSystemPrompt(await _buildSystemPrompt());
-
-    _session = session;
-    _agent = nextAgent;
-    _usageTotal = totalUsage;
-
-    await _local.setSetting(StorageKeys.agentChatActiveSession, sessionId);
-    state = state.copyWith(
-      activeSessionId: sessionId,
-      messages: List.of(restoredMessages),
-      activities: const [],
-      streamingText: '',
-      error: '',
-      queuedCount: 0,
-      sessions: await _listSessions(),
-      totalUsage: totalUsage,
-    );
-  }
-
-  List<AgentMessage> _restoreLegacyReadImageDetails(
-    List<AgentMessage> messages,
-  ) {
-    final readPaths = <String, String>{};
-    for (final message in messages) {
-      if (message is AssistantMessage) {
-        for (final call in message.toolCalls) {
-          final path = call.arguments['path'];
-          if (call.name == 'read' && path is String && path.isNotEmpty) {
-            readPaths[call.id] = path;
-          }
-        }
-        continue;
+  Future<void> refreshPendingResourceAvailability() {
+    if (!_draftControllerInitialized) {
+      if (mounted && state.unavailableResourceKeys.isNotEmpty) {
+        state = state.copyWith(unavailableResourceKeys: const {});
       }
-      if (message is! ToolResultMessage ||
-          message.toolName != 'read' ||
-          message.isError ||
-          !message.text.startsWith('Read image file [') ||
-          _hasPersistedImageFiles(message.details)) {
-        continue;
-      }
-      final path = readPaths[message.toolCallId];
-      if (path == null) {
-        continue;
-      }
-      final absolutePath = p.normalize(
-        p.isAbsolute(path) ? path : p.join(_workspaceDir.path, path),
-      );
-      if (File(absolutePath).existsSync()) {
-        message.details = <String, dynamic>{
-          'files': [absolutePath],
-        };
-      }
+      return Future<void>.value();
     }
-    return messages;
+    return _draftController.refreshPendingResourceAvailability();
   }
 
-  bool _hasPersistedImageFiles(dynamic details) {
-    if (details is! Map || details['files'] is! List) {
-      return false;
-    }
-    return (details['files'] as List).any(
-      (file) => file is String && file.isNotEmpty,
-    );
+  Future<bool> validatePendingResourcesForSend() {
+    if (!_draftControllerInitialized) return Future<bool>.value(true);
+    return _draftController.validatePendingResourcesForSend();
   }
 
-  Future<void> _createAndActivateSession() async {
-    final session = await _repo.create();
-    final metadata = await session.getMetadata();
-    await _activateSession(metadata.id);
+  Future<void> _recordManualInpaintDraftUpdate(
+    String ownerSessionId,
+    InpaintDraft draft,
+  ) => _sessionController.recordManualInpaintDraftUpdate(ownerSessionId, draft);
+
+  Future<ResolvedAgentResource?> resolveResourcePreview(
+    AgentChatResourceReference reference,
+  ) async {
+    await _initializing;
+    return _draftController.resolveResourcePreview(reference);
   }
 
-  Future<void> _runSessionTransition(
-    Future<void> Function() action, {
-    required bool loadsContent,
-  }) async {
-    if (!canManageAgentChatSessions(state)) {
-      return;
-    }
-    state = state.copyWith(
-      sessionTransitioning: true,
-      sessionContentLoading: loadsContent,
-    );
-    try {
-      await action();
-    } finally {
-      if (mounted) {
-        state = state.copyWith(
-          sessionTransitioning: false,
-          sessionContentLoading: false,
-        );
-      }
-    }
-  }
+  Future<void> newSession() => _sessionController.newSession();
 
-  Future<void> newSession() =>
-      _runSessionTransition(_createAndActivateSession, loadsContent: true);
-
-  Future<void> switchSession(String sessionId) {
-    if (sessionId.isEmpty || sessionId == state.activeSessionId) {
-      return Future.value();
-    }
-    return _runSessionTransition(
-      () => _activateSession(sessionId),
-      loadsContent: true,
-    );
-  }
+  Future<void> switchSession(String sessionId) =>
+      _sessionController.switchSession(sessionId);
 
   /// 将主分支回退到最后一条用户消息之前，并返回该消息供输入框恢复。
   ///
   /// 原条目仍保留在会话树中，只移动 main lane 指针；后续发送会从回退点
   /// 建立新分支，与 `/rewind` 的语义一致。
-  Future<UserMessage?> rewindLastUserMessage() async {
-    UserMessage? rewoundMessage;
-    try {
-      await _runSessionTransition(() async {
-        final session = _session;
-        final sessionId = state.activeSessionId;
-        if (session is! Session || sessionId.isEmpty) {
-          return;
-        }
-        final entries = await session.findEntriesOnBranch(
-          const session_types.EntryQuery(
-            order: session_types.EntryOrder.oldestFirst,
-          ),
-        );
-        session_types.MessageEntry? target;
-        for (final entry in entries.reversed) {
-          if (entry is session_types.MessageEntry &&
-              entry.message is UserMessage) {
-            target = entry;
-            break;
-          }
-        }
-        if (target == null) {
-          return;
-        }
-        rewoundMessage = target.message as UserMessage;
-        await session.moveLane('main', target.parentId);
-        await _activateSession(sessionId);
-      }, loadsContent: true);
-    } catch (e) {
-      AppLogger.w('rewind last user message failed: $e', 'AgentChat');
-    }
-    return rewoundMessage;
-  }
+  Future<UserMessage?> rewindLastUserMessage() =>
+      _sessionController.rewindLastUserMessage();
 
   /// 删除指定会话；删除当前会话时自动切到最近剩余会话（无则新建）。
-  Future<void> deleteSession(String sessionId) {
-    if (sessionId.isEmpty) {
-      return Future.value();
-    }
-    final deletesActiveSession = sessionId == state.activeSessionId;
-    return _runSessionTransition(() async {
-      // 直接按 id 删文件，不依赖列表匹配（避免表头解析失败导致删不掉）。
-      _repo.deleteById(sessionId);
-      if (!deletesActiveSession) {
-        state = state.copyWith(sessions: await _listSessions());
-        return;
-      }
-      final remaining = (await _listSessions())
-          .where((s) => s.id != sessionId)
-          .toList();
-      if (remaining.isNotEmpty) {
-        await _activateSession(remaining.first.id);
-      } else {
-        await _createAndActivateSession();
-      }
-    }, loadsContent: deletesActiveSession);
-  }
+  Future<void> deleteSession(String sessionId) =>
+      _sessionController.deleteSession(sessionId);
 
   /// 重命名会话（持久化 name 记录，列表即时刷新）。
-  Future<void> renameSession(String sessionId, String name) {
-    final trimmed = name.trim();
-    if (sessionId.isEmpty || trimmed.isEmpty) {
-      return Future.value();
-    }
-    return _runSessionTransition(() async {
-      try {
-        final metadata = (await _repo.list()).firstWhere(
-          (m) => m.id == sessionId,
-        );
-        final session = await _repo.open(metadata);
-        await session.setName(trimmed);
-        state = state.copyWith(sessions: await _listSessions());
-      } catch (e) {
-        AppLogger.w('rename session failed: $e', 'AgentChat');
-      }
-    }, loadsContent: false);
-  }
+  Future<void> renameSession(String sessionId, String name) =>
+      _sessionController.renameSession(sessionId, name);
 
   /// 切换聊天模型：写入 chat 任务路由并持久化，随后刷新本地路由缓存。
   Future<void> selectChatModel(String providerId, String model) async {
@@ -1301,6 +835,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
         .setModelReference(
           AgentModelReference(providerId: providerId, model: model),
         );
+    await _settingsRefresh;
     _refreshRoute();
   }
 
@@ -1335,16 +870,25 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     if (state.sessionTransitioning) {
       return;
     }
-    await _initialization;
-    final agent = _agent;
+    await _initializing;
+    if (!await validatePendingResourcesForSend()) return;
+    final agent = _sessionController.agent;
     if (agent == null) {
       state = state.copyWith(
         error: 'Agent chat is still initializing. Try again in a moment.',
       );
       return;
     }
+    final attachedResources = List<AgentChatResourceReference>.of(
+      state.pendingResources,
+    );
+    final promptMessage = attachedResources.isEmpty
+        ? message
+        : _draftController.resourcePromptMessage(message, attachedResources);
+
     if (state.status == AgentChatRunStatus.running) {
-      agent.steer(message);
+      agent.steer(promptMessage);
+      await _draftController.consumePendingResources(attachedResources);
       state = state.copyWith(queuedCount: _queuedCount(agent));
       return;
     }
@@ -1361,25 +905,26 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     }
     _preparingRun = true;
     try {
-      final permissionMode = _ref
-          .read(agentSettingsProvider)
-          .settings
-          .chat
-          .permissionMode;
-      _activeAgentSettings = _ref.read(agentSettingsProvider).settings;
+      final agentSettings = _ref.read(agentSettingsProvider).settings;
+      final permissionMode = agentSettings.chat.permissionMode;
+      _activeAgentSettings = agentSettings;
       _activePermissionMode = permissionMode;
       _activeRoute = _routeCache;
       agent.state.tools = _buildTools(
         fullAccess: permissionMode == AgentPermissionMode.fullAccess,
       );
-      agent.setSystemPrompt(await _buildSystemPrompt());
+      agent.setSystemPrompt(
+        await _buildSystemPrompt(settingsOverride: agentSettings),
+      );
       state = state.copyWith(
         status: AgentChatRunStatus.running,
         error: '',
         activities: const [],
         streamingText: '',
       );
-      await agent.prompt(message);
+      final run = agent.prompt(promptMessage);
+      await _draftController.consumePendingResources(attachedResources);
+      await run;
     } catch (e) {
       state = state.copyWith(error: e.toString());
     } finally {
@@ -1416,34 +961,8 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     state = state.copyWith(error: '');
   }
 
-  /// 会话自动命名：首条用户消息入库后，以其文本派生会话名并持久化
-  /// （对未命名会话仅生效一次）。
-  Future<void> _autoNameSession(Message message) async {
-    final session = _session;
-    if (session == null || message is! UserMessage) {
-      return;
-    }
-    try {
-      final existing = await session.getName();
-      if (existing != null && existing.trim().isNotEmpty) {
-        return;
-      }
-      final normalized = message.text.replaceAll(RegExp(r'\s+'), ' ').trim();
-      if (normalized.isEmpty) {
-        return;
-      }
-      final name = normalized.length <= 40
-          ? normalized
-          : '${normalized.substring(0, 40)}…';
-      await session.setName(name);
-      state = state.copyWith(sessions: await _listSessions());
-    } catch (e) {
-      AppLogger.w('auto name session failed: $e', 'AgentChat');
-    }
-  }
-
   Future<void> abort() async {
-    final agent = _agent;
+    final agent = _sessionController.agent;
     if (agent == null) {
       return;
     }
@@ -1455,7 +974,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
 
   /// 手动 compaction。
   Future<void> compactNow() async {
-    final agent = _agent;
+    final agent = _sessionController.agent;
     if (agent == null || state.status == AgentChatRunStatus.running) {
       return;
     }
@@ -1470,127 +989,13 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     }
   }
 
-  Future<void> _handleEvent(AgentEvent event, AbortSignal signal) async {
-    if (!mounted) {
-      return;
-    }
-    switch (event) {
-      case AgentEventMessageStart():
-        if (event.message is AssistantMessage) {
-          state = state.copyWith(streamingText: '');
-        }
-      case AgentEventMessageUpdate():
-        final evt = event.assistantMessageEvent;
-        if (evt is AmTextDelta) {
-          state = state.copyWith(streamingText: evt.partial.text);
-        }
-      case AgentEventMessageEnd():
-        final message = event.message;
-        if (message is AssistantMessage &&
-            !isReplayableAssistantMessage(message)) {
-          state = state.copyWith(streamingText: '');
-          break;
-        }
-        // 先同步追加到转录（保证 UI 顺序与事件顺序一致），再异步持久化。
-        // 同时清空流式文本：消息已固化到消息流，live 区继续显示会造成
-        // 同一段文字重复出现（工具结果之后尤为明显）。
-        state = state.copyWith(
-          messages: [...state.messages, message],
-          streamingText: '',
-        );
-        await _persistMessage(message);
-        if (message is UserMessage) {
-          await _autoNameSession(message);
-        }
-        if (message is AssistantMessage && message.usage != null) {
-          _usageTotal = _usageTotal + message.usage!;
-          state = state.copyWith(totalUsage: _usageTotal);
-        }
-      case AgentEventToolExecutionStart():
-        final args = event.args;
-        state = state.copyWith(
-          activities: [
-            ...state.activities,
-            AgentToolActivity(
-              toolCallId: event.toolCallId,
-              toolName: event.toolName,
-              args: args is Map<String, dynamic> ? args : const {},
-            ),
-          ],
-        );
-      case AgentEventToolExecutionUpdate():
-        final partial = event.partialResult;
-        final preview = partial.content
-            .whereType<ToolResultTextContent>()
-            .map((c) => c.text)
-            .join();
-        state = state.copyWith(
-          activities: [
-            for (final activity in state.activities)
-              activity.toolCallId == event.toolCallId
-                  ? activity.copyWith(content: preview)
-                  : activity,
-          ],
-        );
-      case AgentEventToolExecutionEnd():
-        state = state.copyWith(
-          activities: [
-            for (final activity in state.activities)
-              activity.toolCallId == event.toolCallId
-                  ? activity.copyWith(
-                      status: event.isError
-                          ? AgentToolActivityStatus.failed
-                          : AgentToolActivityStatus.succeeded,
-                      content: _resultPreview(event.result),
-                    )
-                  : activity,
-          ],
-        );
-      case AgentEventAgentEnd():
-        // 运行结束：活动卡片已固化为消息流中的工具结果，清空避免重复。
-        state = state.copyWith(
-          activities: const [],
-          sessions: await _listSessions(),
-          queuedCount: _agent == null ? 0 : _queuedCount(_agent!),
-        );
-      case AgentEventTurnEnd():
-        final message = event.message;
-        if (message is AssistantMessage &&
-            message.errorMessage != null &&
-            message.stopReason == StopReason.error) {
-          state = state.copyWith(error: message.errorMessage);
-        }
-      default:
-        break;
-    }
-  }
-
-  String _resultPreview(AgentToolResult result) {
-    return result.content
-        .whereType<ToolResultTextContent>()
-        .map((c) => c.text)
-        .join();
-  }
-
-  Future<void> _persistMessage(Message message) async {
-    final session = _session;
-    if (session == null) {
-      return;
-    }
-    if (message is AssistantMessage && !isReplayableAssistantMessage(message)) {
-      return;
-    }
-    try {
-      await session.appendMessage(message);
-    } catch (e) {
-      AppLogger.w('persist message failed: $e', 'AgentChat');
-    }
-  }
+  Future<void> _handleEvent(AgentEvent event, AbortSignal signal) =>
+      _eventController.handle(event, signal);
 
   @override
   void dispose() {
-    resolveToolApproval(false);
-    _agent?.clearAllQueues();
+    _permissionController?.dispose();
+    _sessionControllerValue?.agent?.clearAllQueues();
     super.dispose();
   }
 }

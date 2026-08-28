@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/cache/online_gallery_detail_coordinator.dart';
+import '../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/online_gallery/danbooru_post.dart';
 import 'online_gallery_grid.dart';
+import '../../agent_chat/widgets/agent_resource_drop_region.dart';
 
 /// Owns one gallery tile's visibility and detail request lifecycle.
 ///
@@ -110,6 +112,35 @@ class _GalleryGridItemState extends State<GalleryGridItem> {
     });
   }
 
+  Widget _buildResourceCard(
+    BuildContext context,
+    GalleryItem item,
+    double layoutAspectRatio, {
+    GalleryDetail? detail,
+  }) {
+    return AgentResourceDragSource(
+      reference: AgentChatResourceReference(
+        kind: AgentChatResourceKind.onlineGalleryMedia,
+        source: item.sourceId.key,
+        resourceId: item.sourceWorkId,
+        mediaId: item.cover.id,
+        display: {
+          if (item.title?.trim().isNotEmpty == true)
+            'title': item.title!.trim(),
+          if (item.author?.trim().isNotEmpty == true)
+            'author': item.author!.trim(),
+        },
+      ),
+      child: widget.buildCard(
+        context,
+        item,
+        widget.itemWidth,
+        layoutAspectRatio: layoutAspectRatio,
+        detail: detail,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final post = widget.post;
@@ -133,12 +164,7 @@ class _GalleryGridItemState extends State<GalleryGridItem> {
             );
           }
           if (!_needsDetail) {
-            return widget.buildCard(
-              context,
-              post,
-              widget.itemWidth,
-              layoutAspectRatio: layoutAspectRatio,
-            );
+            return _buildResourceCard(context, post, layoutAspectRatio);
           }
           if (!hasBeenVisible || _detailFuture == null) {
             return const AspectRatio(
@@ -177,11 +203,10 @@ class _GalleryGridItemState extends State<GalleryGridItem> {
                     ),
                   );
                 }
-                return widget.buildCard(
+                return _buildResourceCard(
                   context,
                   resolved,
-                  widget.itemWidth,
-                  layoutAspectRatio: layoutAspectRatio,
+                  layoutAspectRatio,
                   detail: detail,
                 );
               },

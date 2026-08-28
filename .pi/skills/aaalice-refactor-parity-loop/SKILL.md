@@ -28,7 +28,7 @@ compatibility: Aaalice NAI Launcher 项目、Git、Flutter/Dart，以及可用�
 
 在以下场景使用：
 
-- 把 500 行以上业务文件按职责拆分；
+- 把超过 1000 行且经职责、内聚性和扩展成本评估后确有必要拆分的业务文件按职责拆分；
 - 移动 Widget、Controller、Provider、Service、路由或平台适配代码，但不应改变行为；
 - 重构后必须保持功能、状态、调用契约、响应式布局和平台行为；
 - 用户要求多子代理循环审查、对抗性确认和修复。

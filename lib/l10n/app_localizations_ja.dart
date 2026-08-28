@@ -790,6 +790,18 @@ class AppLocalizationsJa extends AppLocalizations {
   String get agentChat_tab => 'チャット';
 
   @override
+  String get agentChat_detachWindow => '別ウィンドウで開く';
+
+  @override
+  String get agentChat_detachWindowFailed => '別ウィンドウを開けませんでした。もう一度お試しください';
+
+  @override
+  String get agentChat_dockWindow => 'メインウィンドウに戻す';
+
+  @override
+  String get agentChat_alwaysOnTop => '常に手前に表示';
+
+  @override
   String get agentChat_inputHint => 'AI アシスタントにメッセージを送る…';
 
   @override
@@ -800,6 +812,9 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get agentChat_disableWebAccess => 'ウェブアクセスを無効にする';
+
+  @override
+  String get agentChat_webAccess => 'ウェブアクセス';
 
   @override
   String agentChat_unsupportedImageFormat(Object fileName) {
@@ -886,6 +901,73 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get agentChat_toolWebRead => 'ウェブページを読み込む';
+
+  @override
+  String get agentChat_toolApplication => 'アプリデータを変更';
+
+  @override
+  String get agentChat_toolGallery => 'ギャラリーを使用';
+
+  @override
+  String get agentChat_toolReferenceLibrary => '参照ライブラリを使用';
+
+  @override
+  String get agentChat_toolPrepareGeneration => '生成タスクを準備';
+
+  @override
+  String get agentChat_toolInspectGeneration => '生成ドラフトを表示';
+
+  @override
+  String get agentChat_toolUpdateGeneration => '生成ドラフトを更新';
+
+  @override
+  String get agentChat_toolCancelGeneration => '生成ドラフトをキャンセル';
+
+  @override
+  String get agentChat_toolSubmitGeneration => '生成タスクを送信';
+
+  @override
+  String get agentChat_toolCreateInpaint => '手動インペイントドラフトを作成';
+
+  @override
+  String get agentChat_toolListInpaint => 'インペイントドラフト一覧を表示';
+
+  @override
+  String get agentChat_toolInspectInpaint => 'インペイントドラフトを表示';
+
+  @override
+  String get agentChat_toolCancelInpaint => 'インペイントドラフトをキャンセル';
+
+  @override
+  String get agentChat_toolReeditInpaint => 'インペイントドラフトを再編集';
+
+  @override
+  String get agentChat_toolSubmitInpaint => 'インペイントタスクを送信';
+
+  @override
+  String get agentChat_manualInpaintTitle => '手動インペイント';
+
+  @override
+  String get agentChat_manualInpaintComplete => '完了してエージェントに戻る';
+
+  @override
+  String get agentChat_resourceUnavailable => '利用できません';
+
+  @override
+  String get agentChat_addResource => 'Agent に追加';
+
+  @override
+  String get agentChat_resourceAdded => 'Agent の入力欄に追加しました';
+
+  @override
+  String agentChat_addResourceFailed(String error) {
+    return '参照の追加に失敗しました：$error';
+  }
+
+  @override
+  String agentChat_approvalEstimatedAnlas(int cost) {
+    return '推定コスト：$cost Anlas';
+  }
 
   @override
   String get agentChat_needSetup =>

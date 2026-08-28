@@ -84,6 +84,7 @@ class AgentChatStatus extends StatelessWidget {
           _ApprovalBar(
             toolName: request.toolName,
             args: request.args,
+            estimatedAnlas: request.estimatedAnlas,
             onResolve: commands.resolveApproval,
           ),
       ],
@@ -95,11 +96,13 @@ class _ApprovalBar extends StatelessWidget {
   const _ApprovalBar({
     required this.toolName,
     required this.args,
+    required this.estimatedAnlas,
     required this.onResolve,
   });
 
   final String toolName;
   final Map<String, dynamic> args;
+  final int? estimatedAnlas;
   final void Function(bool approved) onResolve;
 
   @override
@@ -153,6 +156,16 @@ class _ApprovalBar extends StatelessWidget {
               ),
             ),
           ),
+          if (estimatedAnlas case final cost?) ...[
+            const SizedBox(height: 4),
+            Text(
+              l10n.agentChat_approvalEstimatedAnlas(cost),
+              style: theme.textTheme.labelLarge?.copyWith(
+                color: theme.colorScheme.onTertiaryContainer,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
           const SizedBox(height: 6),
           Container(
             width: double.infinity,

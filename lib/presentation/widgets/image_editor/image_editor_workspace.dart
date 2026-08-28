@@ -69,6 +69,7 @@ class ImageEditorWorkspace extends StatefulWidget {
   bool get showMaskExport => config.showMaskExport;
   ImageEditorMode get mode => config.mode;
   String get title => config.title;
+  String? get completionLabel => config.completionLabel;
   bool get initialOutpaintCommitPending =>
       config.debugOptions.initialOutpaintCommitPending;
   bool get initialShowLayerPanel => config.debugOptions.initialShowLayerPanel;
@@ -2692,7 +2693,7 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
           IconButton(
             icon: const Icon(Icons.check),
             onPressed: _canExportAndClose ? _exportAndClose : null,
-            tooltip: context.l10n.editor_done,
+            tooltip: widget.completionLabel ?? context.l10n.editor_done,
           ),
         ],
       ),
@@ -2895,7 +2896,7 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: FilledButton.icon(
               icon: const Icon(Icons.check, size: 18),
-              label: Text(context.l10n.editor_done),
+              label: Text(widget.completionLabel ?? context.l10n.editor_done),
               onPressed: _canExportAndClose ? _exportAndClose : null,
               style: FilledButton.styleFrom(
                 padding: const EdgeInsets.symmetric(horizontal: 16),

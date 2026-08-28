@@ -749,6 +749,57 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
     await _applyFilters();
   }
 
+  Future<void> setDimensionRange({
+    int? minWidth,
+    int? minHeight,
+    int? maxWidth,
+    int? maxHeight,
+  }) async {
+    _setState(
+      state.copyWith(
+        filterCriteria: state.filterCriteria.copyWith(
+          minWidth: minWidth,
+          minHeight: minHeight,
+          maxWidth: maxWidth,
+          maxHeight: maxHeight,
+          clearMinWidth: minWidth == null,
+          clearMinHeight: minHeight == null,
+          clearMaxWidth: maxWidth == null,
+          clearMaxHeight: maxHeight == null,
+        ),
+        currentPage: 0,
+      ),
+    );
+    await _applyFilters();
+  }
+
+  Future<void> setFileSizeRange({int? minBytes, int? maxBytes}) async {
+    _setState(
+      state.copyWith(
+        filterCriteria: state.filterCriteria.copyWith(
+          minFileSize: minBytes,
+          maxFileSize: maxBytes,
+          clearMinFileSize: minBytes == null,
+          clearMaxFileSize: maxBytes == null,
+        ),
+        currentPage: 0,
+      ),
+    );
+    await _applyFilters();
+  }
+
+  Future<void> setMetadataStatuses(List<String> statuses) async {
+    _setState(
+      state.copyWith(
+        filterCriteria: state.filterCriteria.copyWith(
+          metadataStatuses: statuses,
+        ),
+        currentPage: 0,
+      ),
+    );
+    await _applyFilters();
+  }
+
   /// 设置选中的分类
   ///
   /// [categoryId] 分类ID（null表示全部）

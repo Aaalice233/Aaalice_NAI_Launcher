@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/utils/localization_extension.dart';
+import '../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../../data/models/fixed_tag/fixed_tag_entry.dart';
 import '../../../data/models/fixed_tag/fixed_tag_prompt_type.dart';
 import '../../../data/models/tag_library/tag_library_entry.dart';
 import '../../providers/fixed_tags_provider.dart';
+import '../../agent_chat/widgets/agent_resource_drop_region.dart';
 import '../common/themed_input.dart';
 import '../tag_library/tag_library_entry_hover_preview.dart';
 import 'fixed_tag_entry_tile.dart';
@@ -388,13 +390,18 @@ class _EntryList extends StatelessWidget {
         entry,
         config.libraryEntries,
       );
-      if (libraryEntry == null) {
-        return KeyedSubtree(key: ValueKey(entry.id), child: tile);
-      }
-      return TagLibraryEntryHoverPreview(
+      final content = libraryEntry == null
+          ? tile
+          : TagLibraryEntryHoverPreview(entry: libraryEntry, child: tile);
+      return AgentResourceDragSource(
         key: ValueKey(entry.id),
-        entry: libraryEntry,
-        child: tile,
+        reference: AgentChatResourceReference(
+          kind: AgentChatResourceKind.fixedTag,
+          source: 'fixed_tags',
+          resourceId: entry.id,
+          display: {'name': entry.name},
+        ),
+        child: content,
       );
     }
 

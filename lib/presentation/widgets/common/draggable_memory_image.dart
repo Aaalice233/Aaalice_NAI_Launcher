@@ -8,10 +8,12 @@ import 'package:path/path.dart' as p;
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 import '../../../core/utils/drag_drop_utils.dart';
+import '../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../../core/utils/image_share_sanitizer.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/gallery/local_image_record.dart';
 import '../../providers/share_image_settings_provider.dart';
+import '../../agent_chat/widgets/agent_resource_drop_region.dart';
 import '../../utils/internal_drag_protocol.dart';
 
 class DraggableMemoryImage extends ConsumerStatefulWidget {
@@ -124,10 +126,21 @@ class _DraggableMemoryImageState extends ConsumerState<DraggableMemoryImage> {
         dragItemProvider: (_) => _createDragItem(),
         liftBuilder: (context, child) => _buildDragFeedback(context),
         dragBuilder: (context, child) => _buildDragFeedback(context),
-        child: DraggableWidget(
-          child: Opacity(
-            opacity: _isDragging ? widget.dragOpacity : 1.0,
-            child: widget.child,
+        child: GestureDetector(
+          behavior: HitTestBehavior.deferToChild,
+          onSecondaryTapDown: _agentResourceReference == null
+              ? null
+              : (details) => showAddAgentResourceMenu(
+                  context: context,
+                  ref: ref,
+                  position: details.globalPosition,
+                  reference: _agentResourceReference!,
+                ),
+          child: DraggableWidget(
+            child: Opacity(
+              opacity: _isDragging ? widget.dragOpacity : 1.0,
+              child: widget.child,
+            ),
           ),
         ),
       ),
@@ -177,6 +190,10 @@ class _DraggableMemoryImageState extends ConsumerState<DraggableMemoryImage> {
       localData:
           widget.localData ?? buildHistoryInternalDragLocalData(widget.imageId),
     );
+    final agentReference = _agentResourceReference;
+    if (agentReference != null) {
+      addAgentResourceDragPayload(item, agentReference);
+    }
 
     final preparedFile = widget.preparedDragFile;
     if (preparedFile != null) {
@@ -247,6 +264,17 @@ class _DraggableMemoryImageState extends ConsumerState<DraggableMemoryImage> {
   }
 
   bool get _shouldUsePreparedDragFile => widget.requirePreparedDragFile;
+
+  AgentChatResourceReference? get _agentResourceReference {
+    final imageId = widget.imageId?.trim();
+    if (imageId == null || imageId.isEmpty) return null;
+    return AgentChatResourceReference(
+      kind: AgentChatResourceKind.generatedImage,
+      source: 'generation_history',
+      resourceId: imageId,
+      display: {'name': widget.fileName},
+    );
+  }
 }
 
 Future<SanitizedShareImage> prepareDragImageForTransfer({

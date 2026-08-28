@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import 'package:path/path.dart' as p;
 
 import '../../../../core/utils/app_logger.dart';
+import '../../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/vibe_file_parser.dart';
 import '../../../../core/utils/vibe_performance_diagnostics.dart';
@@ -22,9 +23,11 @@ import '../../../providers/vibe_library_category_provider.dart';
 import '../../../providers/vibe_library_provider.dart';
 import '../../../providers/vibe_library_selection_provider.dart';
 import '../../../router/app_routes.dart';
+import '../../../agent_chat/providers/agent_chat_notifier.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/pro_context_menu.dart';
 import '../../../widgets/common/themed_confirm_dialog.dart';
+import '../../../agent_chat/widgets/agent_resource_drop_region.dart';
 import 'vibe_card.dart';
 import 'vibe_detail_viewer.dart';
 import 'vibe_export_dialog.dart';
@@ -119,46 +122,55 @@ class _VibeLibraryContentViewState
         final entry = entries[index];
         final isSelected = selectionState.selectedIds.contains(entry.id);
 
-        return VibeCard(
-          entry: entry,
-          width: widget.itemWidth,
-          height: widget.itemWidth,
-          isSelected: isSelected,
-          showFavoriteIndicator: true,
-          onTap: () {
-            if (selectionState.isActive) {
+        return AgentResourceDragSource(
+          reference: AgentChatResourceReference(
+            kind: AgentChatResourceKind.vibeLibraryEntry,
+            source: 'vibe_library',
+            resourceId: entry.id,
+            display: {'name': entry.displayName},
+          ),
+          child: VibeCard(
+            entry: entry,
+            width: widget.itemWidth,
+            height: widget.itemWidth,
+            isSelected: isSelected,
+            showFavoriteIndicator: true,
+            onTap: () {
+              if (selectionState.isActive) {
+                ref
+                    .read(vibeLibrarySelectionNotifierProvider.notifier)
+                    .toggle(entry.id);
+              } else {
+                _showVibeDetail(context, entry);
+              }
+            },
+            onLongPress: () {
+              if (!selectionState.isActive) {
+                ref
+                    .read(vibeLibrarySelectionNotifierProvider.notifier)
+                    .enterAndSelect(entry.id);
+              }
+            },
+            onSecondaryTapDown: (details) {
+              _showContextMenu(context, entry, details.globalPosition);
+            },
+            onFavoriteToggle: () {
               ref
-                  .read(vibeLibrarySelectionNotifierProvider.notifier)
-                  .toggle(entry.id);
-            } else {
-              _showVibeDetail(context, entry);
-            }
-          },
-          onLongPress: () {
-            if (!selectionState.isActive) {
-              ref
-                  .read(vibeLibrarySelectionNotifierProvider.notifier)
-                  .enterAndSelect(entry.id);
-            }
-          },
-          onSecondaryTapDown: (details) {
-            _showContextMenu(context, entry, details.globalPosition);
-          },
-          onFavoriteToggle: () {
-            ref
-                .read(vibeLibraryNotifierProvider.notifier)
-                .toggleFavorite(entry.id);
-          },
-          onSendToGeneration: () async {
-            final physicalKeys = HardwareKeyboard.instance.physicalKeysPressed;
-            final isShiftPressed =
-                physicalKeys.contains(PhysicalKeyboardKey.shiftLeft) ||
-                physicalKeys.contains(PhysicalKeyboardKey.shiftRight);
-            await _sendEntryToGeneration(context, entry, isShiftPressed);
-          },
-          onExport: () => unawaited(_exportSingleEntry(context, entry)),
-          onEdit: () => _showVibeDetail(context, entry),
-          onDelete: () => _deleteSingleEntry(context, entry),
+                  .read(vibeLibraryNotifierProvider.notifier)
+                  .toggleFavorite(entry.id);
+            },
+            onSendToGeneration: () async {
+              final physicalKeys =
+                  HardwareKeyboard.instance.physicalKeysPressed;
+              final isShiftPressed =
+                  physicalKeys.contains(PhysicalKeyboardKey.shiftLeft) ||
+                  physicalKeys.contains(PhysicalKeyboardKey.shiftRight);
+              await _sendEntryToGeneration(context, entry, isShiftPressed);
+            },
+            onExport: () => unawaited(_exportSingleEntry(context, entry)),
+            onEdit: () => _showVibeDetail(context, entry),
+            onDelete: () => _deleteSingleEntry(context, entry),
+          ),
         );
       },
     );
@@ -240,6 +252,12 @@ class _VibeLibraryContentViewState
     final l10n = context.l10n;
     final items = <ProMenuItem>[
       ProMenuItem(
+        id: 'add_to_agent',
+        label: l10n.agentChat_addResource,
+        icon: Icons.auto_awesome_outlined,
+        onTap: () => unawaited(_addEntryToAgent(context, entry)),
+      ),
+      ProMenuItem(
         id: 'send_to_generation',
         label: l10n.vibeLibrary_sendToGeneration,
         icon: Icons.send,
@@ -288,6 +306,34 @@ class _VibeLibraryContentViewState
         },
       ),
     );
+  }
+
+  Future<void> _addEntryToAgent(
+    BuildContext context,
+    VibeLibraryEntry entry,
+  ) async {
+    try {
+      await ref
+          .read(agentChatNotifierProvider.notifier)
+          .addPendingResource(
+            AgentChatResourceReference(
+              kind: AgentChatResourceKind.vibeLibraryEntry,
+              source: 'vibe_library',
+              resourceId: entry.id,
+              display: {'name': entry.displayName},
+            ),
+          );
+      if (context.mounted) {
+        AppToast.success(context, context.l10n.agentChat_resourceAdded);
+      }
+    } on Object catch (error) {
+      if (context.mounted) {
+        AppToast.error(
+          context,
+          context.l10n.agentChat_addResourceFailed('$error'),
+        );
+      }
+    }
   }
 
   /// 发送单个条目到生成页面

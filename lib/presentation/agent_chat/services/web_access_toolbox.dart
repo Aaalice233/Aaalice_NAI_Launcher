@@ -7,7 +7,7 @@ import '../../../core/network/web_access/safe_web_reader.dart';
 import '../../../core/network/web_access/web_access_models.dart';
 import '../../../core/network/web_access/web_access_service.dart';
 import '../../../core/utils/app_logger.dart';
-import 'prompt_toolbox.dart';
+import 'defined_agent_tool.dart';
 
 class WebAccessToolbox {
   WebAccessToolbox({

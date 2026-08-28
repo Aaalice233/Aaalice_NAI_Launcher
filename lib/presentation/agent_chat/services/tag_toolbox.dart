@@ -8,7 +8,7 @@ import '../../../core/autocomplete/completion_models.dart';
 import '../../../core/database/services/service_providers.dart';
 import '../../../core/services/smart_tag_recommendation_service.dart';
 import '../../../core/utils/app_logger.dart';
-import 'prompt_toolbox.dart';
+import 'defined_agent_tool.dart';
 
 AgentToolResult _textResult(String text) {
   return AgentToolResult(

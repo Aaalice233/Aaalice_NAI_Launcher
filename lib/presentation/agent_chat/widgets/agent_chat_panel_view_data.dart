@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/agent/agent_types.dart';
+import '../../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../prompt_assistant/models/prompt_assistant_models.dart';
 import '../../prompt_assistant/providers/web_access_provider.dart';
 import '../../agent_settings/providers/agent_settings_provider.dart';
@@ -50,6 +51,7 @@ enum AgentChatMoreAction { newSession, rename, compact, delete }
 class AgentChatPanelCommands {
   const AgentChatPanelCommands({
     required this.collapse,
+    required this.detach,
     required this.newSession,
     required this.selectSession,
     required this.renameSession,
@@ -66,9 +68,12 @@ class AgentChatPanelCommands {
     required this.useSuggestion,
     required this.copyUserMessage,
     required this.editLastUserMessage,
+    required this.addPendingResource,
+    required this.removePendingResource,
   });
 
   final VoidCallback collapse;
+  final Future<void> Function() detach;
   final Future<void> Function() newSession;
   final Future<void> Function(String sessionId) selectSession;
   final Future<void> Function(String sessionId) renameSession;
@@ -85,4 +90,7 @@ class AgentChatPanelCommands {
   final void Function(String suggestion) useSuggestion;
   final Future<void> Function(UserMessage message) copyUserMessage;
   final Future<void> Function(UserMessage message) editLastUserMessage;
+  final Future<void> Function(AgentChatResourceReference reference)
+  addPendingResource;
+  final Future<void> Function(int index) removePendingResource;
 }

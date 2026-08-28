@@ -112,6 +112,9 @@ class ReplicationTask with _$ReplicationTask {
     @JsonKey(includeIfNull: false)
     List<ReplicationCharacterPromptSnapshot>? characterPrompts,
 
+    /// Exact request snapshot for Agent-prepared queue tasks.
+    @JsonKey(includeIfNull: false) Map<String, dynamic>? generationSnapshot,
+
     // === 扩展字段 ===
 
     /// 任务状态
@@ -166,6 +169,7 @@ class ReplicationTask with _$ReplicationTask {
     int? width,
     int? height,
     List<ReplicationCharacterPromptSnapshot>? characterPrompts,
+    Map<String, dynamic>? generationSnapshot,
   }) {
     return ReplicationTask(
       id: const Uuid().v4(),
@@ -176,6 +180,7 @@ class ReplicationTask with _$ReplicationTask {
       source: source,
       createdAt: DateTime.now(),
       characterPrompts: characterPrompts,
+      generationSnapshot: generationSnapshot,
       seed: seed,
       sampler: sampler,
       steps: steps,

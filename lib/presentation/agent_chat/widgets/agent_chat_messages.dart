@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart' as md;
 
 import '../../../../core/agent/agent_types.dart';
+import '../../../../core/agent/harness/harness_messages.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../widgets/common/draggable_memory_image.dart';
 import '../providers/agent_chat_notifier.dart';
@@ -49,7 +50,10 @@ class AgentChatMessages extends StatelessWidget {
     }
     var lastUserMessageIndex = -1;
     for (var index = state.messages.length - 1; index >= 0; index--) {
-      if (state.messages[index] is UserMessage) {
+      final message = state.messages[index];
+      if (message is UserMessage ||
+          (message is HarnessCustomMessage &&
+              message.customType == 'agentResourcePrompt')) {
         lastUserMessageIndex = index;
         break;
       }
@@ -242,6 +246,19 @@ class AgentChatMessages extends StatelessWidget {
     required int messageIndex,
     required bool isLastUserMessage,
   }) {
+    if (message is HarnessCustomMessage &&
+        message.customType == 'agentResourcePrompt') {
+      return _messageTile(
+        context,
+        theme,
+        UserMessage(
+          content: message.content.skip(1).toList(growable: false),
+          timestamp: message.timestamp,
+        ),
+        messageIndex: messageIndex,
+        isLastUserMessage: isLastUserMessage,
+      );
+    }
     if (message is UserMessage) {
       final hasText = message.text.trim().isNotEmpty;
       final hovered = controller.hoveredUserMessageIndex == messageIndex;

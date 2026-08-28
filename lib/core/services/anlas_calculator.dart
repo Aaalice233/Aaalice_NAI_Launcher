@@ -82,13 +82,14 @@ class AnlasCalculator {
     ImageParams params, {
     bool isOpus = false,
     bool opusQuotaExhausted = false,
+    int batchSize = 1,
   }) {
     return calculateRequestCost(
       width: params.width,
       height: params.height,
       steps: params.steps,
       batchCount: params.nSamples,
-      batchSize: 1,
+      batchSize: batchSize,
       smea: params.effectiveSmea,
       smeaDyn: params.effectiveSmeaDyn,
       model: params.model,

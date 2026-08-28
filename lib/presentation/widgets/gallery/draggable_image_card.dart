@@ -7,10 +7,42 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 import '../../../core/utils/drag_drop_utils.dart';
+import '../../../core/utils/app_logger.dart';
+import '../../../core/agent/resources/agent_chat_resource_reference.dart';
+import '../../../core/database/database_providers.dart';
 import '../../../core/utils/image_share_sanitizer.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/gallery/local_image_record.dart';
 import '../../providers/share_image_settings_provider.dart';
+import '../../agent_chat/widgets/agent_resource_drop_region.dart';
+
+Future<void> _addLocalAgentReference(
+  WidgetRef ref,
+  DragItem item,
+  LocalImageRecord record,
+) async {
+  try {
+    final dataSource = (await ref.read(
+      databaseManagerProvider.future,
+    )).galleryDataSource;
+    final id = await dataSource?.getImageIdByPath(record.path);
+    if (id == null) return;
+    addAgentResourceDragPayload(
+      item,
+      AgentChatResourceReference(
+        kind: AgentChatResourceKind.localGalleryImage,
+        source: 'local_gallery',
+        resourceId: id.toString(),
+        display: {'name': record.path.split(RegExp(r'[/\\]')).last},
+      ),
+    );
+  } on Object catch (error) {
+    AppLogger.w(
+      'Unable to add Agent local-gallery drag reference: $error',
+      'AgentResource',
+    );
+  }
+}
 
 Widget _buildGalleryDragFeedback({
   required BuildContext context,
@@ -235,6 +267,7 @@ class _DraggableImageCardState extends ConsumerState<DraggableImageCard> {
             if (stripMetadata) 'externalPayload': 'gallery_sanitized',
           },
     );
+    await _addLocalAgentReference(ref, item, widget.record);
 
     if (stripMetadata) {
       final dragBytes = await _readOriginalBytes(
@@ -364,6 +397,7 @@ class _DragWrapperState extends ConsumerState<_DragWrapper> {
             if (stripMetadata) 'externalPayload': 'gallery_sanitized',
           },
     );
+    await _addLocalAgentReference(ref, item, widget.record);
 
     if (stripMetadata) {
       final dragBytes = await _readOriginalBytes(

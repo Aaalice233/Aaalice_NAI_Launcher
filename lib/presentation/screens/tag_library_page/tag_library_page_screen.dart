@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../../core/shortcuts/default_shortcuts.dart';
 import '../../../core/utils/character_prompt_block_parser.dart';
 import '../../../core/utils/comfyui_prompt_parser/pipe_parser.dart';
@@ -16,6 +17,7 @@ import '../../providers/tag_library_page_provider.dart';
 import '../../providers/tag_library_selection_provider.dart';
 import '../../router/app_routes.dart';
 
+import '../../agent_chat/widgets/agent_resource_drop_region.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/themed_confirm_dialog.dart';
 import '../../widgets/shortcuts/shortcut_aware_widget.dart';
@@ -475,7 +477,28 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
     );
 
     if (isCard) {
-      return EntryCard(
+      return _agentResourceDrag(
+        entry,
+        EntryCard(
+          key: ValueKey(entry.id),
+          entry: entry,
+          categoryName: categoryName,
+          enableDrag: commonProps.enableDrag,
+          isSelectionMode: commonProps.isSelectionMode,
+          isSelected: commonProps.isSelected,
+          onToggleSelection: commonProps.onToggleSelection,
+          onTap: commonProps.onEdit,
+          onDelete: commonProps.onDelete,
+          onEdit: commonProps.onEdit,
+          onSend: () => _showEntryDetail(entry),
+          onToggleFavorite: commonProps.onToggleFavorite,
+        ),
+      );
+    }
+
+    return _agentResourceDrag(
+      entry,
+      EntryListItem(
         key: ValueKey(entry.id),
         entry: entry,
         categoryName: categoryName,
@@ -483,26 +506,23 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
         isSelectionMode: commonProps.isSelectionMode,
         isSelected: commonProps.isSelected,
         onToggleSelection: commonProps.onToggleSelection,
-        onTap: commonProps.onEdit,
+        onTap: () => _showEntryDetail(entry),
         onDelete: commonProps.onDelete,
         onEdit: commonProps.onEdit,
-        onSend: () => _showEntryDetail(entry),
         onToggleFavorite: commonProps.onToggleFavorite,
-      );
-    }
+      ),
+    );
+  }
 
-    return EntryListItem(
-      key: ValueKey(entry.id),
-      entry: entry,
-      categoryName: categoryName,
-      enableDrag: commonProps.enableDrag,
-      isSelectionMode: commonProps.isSelectionMode,
-      isSelected: commonProps.isSelected,
-      onToggleSelection: commonProps.onToggleSelection,
-      onTap: () => _showEntryDetail(entry),
-      onDelete: commonProps.onDelete,
-      onEdit: commonProps.onEdit,
-      onToggleFavorite: commonProps.onToggleFavorite,
+  Widget _agentResourceDrag(TagLibraryEntry entry, Widget child) {
+    return AgentResourceDragSource(
+      reference: AgentChatResourceReference(
+        kind: AgentChatResourceKind.tagLibraryEntry,
+        source: 'tag_library',
+        resourceId: entry.id,
+        display: {'name': entry.displayName},
+      ),
+      child: child,
     );
   }
 

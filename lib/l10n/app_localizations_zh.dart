@@ -775,6 +775,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agentChat_tab => '聊天';
 
   @override
+  String get agentChat_detachWindow => '在独立窗口中打开';
+
+  @override
+  String get agentChat_detachWindowFailed => '无法打开独立窗口，请重试';
+
+  @override
+  String get agentChat_dockWindow => '收回主窗口';
+
+  @override
+  String get agentChat_alwaysOnTop => '窗口置顶';
+
+  @override
   String get agentChat_inputHint => '给 AI 助手发消息…';
 
   @override
@@ -785,6 +797,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get agentChat_disableWebAccess => '关闭联网';
+
+  @override
+  String get agentChat_webAccess => '联网访问';
 
   @override
   String agentChat_unsupportedImageFormat(Object fileName) {
@@ -871,6 +886,73 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get agentChat_toolWebRead => '读取网页';
+
+  @override
+  String get agentChat_toolApplication => '修改应用数据';
+
+  @override
+  String get agentChat_toolGallery => '使用画廊';
+
+  @override
+  String get agentChat_toolReferenceLibrary => '使用参考图库';
+
+  @override
+  String get agentChat_toolPrepareGeneration => '准备生成任务';
+
+  @override
+  String get agentChat_toolInspectGeneration => '查看生成草稿';
+
+  @override
+  String get agentChat_toolUpdateGeneration => '修改生成草稿';
+
+  @override
+  String get agentChat_toolCancelGeneration => '取消生成草稿';
+
+  @override
+  String get agentChat_toolSubmitGeneration => '提交生成任务';
+
+  @override
+  String get agentChat_toolCreateInpaint => '创建手动局部重绘草稿';
+
+  @override
+  String get agentChat_toolListInpaint => '查看局部重绘草稿列表';
+
+  @override
+  String get agentChat_toolInspectInpaint => '查看局部重绘草稿';
+
+  @override
+  String get agentChat_toolCancelInpaint => '取消局部重绘草稿';
+
+  @override
+  String get agentChat_toolReeditInpaint => '重新编辑局部重绘草稿';
+
+  @override
+  String get agentChat_toolSubmitInpaint => '提交局部重绘任务';
+
+  @override
+  String get agentChat_manualInpaintTitle => '手动局部重绘';
+
+  @override
+  String get agentChat_manualInpaintComplete => '完成并返回智能体';
+
+  @override
+  String get agentChat_resourceUnavailable => '资源不可用';
+
+  @override
+  String get agentChat_addResource => '添加到 Agent';
+
+  @override
+  String get agentChat_resourceAdded => '已添加到 Agent 输入区';
+
+  @override
+  String agentChat_addResourceFailed(String error) {
+    return '添加引用失败：$error';
+  }
+
+  @override
+  String agentChat_approvalEstimatedAnlas(int cost) {
+    return '预计消耗：$cost Anlas';
+  }
 
   @override
   String get agentChat_needSetup => '未配置聊天模型。请先在设置中添加支持工具调用的供应商。';
@@ -13683,6 +13765,18 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get agentChat_tab => '聊天';
 
   @override
+  String get agentChat_detachWindow => '在獨立視窗中開啟';
+
+  @override
+  String get agentChat_detachWindowFailed => '無法開啟獨立視窗，請重試';
+
+  @override
+  String get agentChat_dockWindow => '收回主視窗';
+
+  @override
+  String get agentChat_alwaysOnTop => '視窗置頂';
+
+  @override
   String get agentChat_inputHint => '給 AI 助手傳送訊息…';
 
   @override
@@ -13693,6 +13787,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get agentChat_disableWebAccess => '關閉聯網';
+
+  @override
+  String get agentChat_webAccess => '聯網存取';
 
   @override
   String agentChat_unsupportedImageFormat(Object fileName) {
@@ -13779,6 +13876,73 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get agentChat_toolWebRead => '讀取網頁';
+
+  @override
+  String get agentChat_toolApplication => '修改應用程式資料';
+
+  @override
+  String get agentChat_toolGallery => '使用畫廊';
+
+  @override
+  String get agentChat_toolReferenceLibrary => '使用參考圖庫';
+
+  @override
+  String get agentChat_toolPrepareGeneration => '準備生成任務';
+
+  @override
+  String get agentChat_toolInspectGeneration => '查看生成草稿';
+
+  @override
+  String get agentChat_toolUpdateGeneration => '修改生成草稿';
+
+  @override
+  String get agentChat_toolCancelGeneration => '取消生成草稿';
+
+  @override
+  String get agentChat_toolSubmitGeneration => '提交生成任務';
+
+  @override
+  String get agentChat_toolCreateInpaint => '建立手動局部重繪草稿';
+
+  @override
+  String get agentChat_toolListInpaint => '查看局部重繪草稿列表';
+
+  @override
+  String get agentChat_toolInspectInpaint => '查看局部重繪草稿';
+
+  @override
+  String get agentChat_toolCancelInpaint => '取消局部重繪草稿';
+
+  @override
+  String get agentChat_toolReeditInpaint => '重新編輯局部重繪草稿';
+
+  @override
+  String get agentChat_toolSubmitInpaint => '提交局部重繪任務';
+
+  @override
+  String get agentChat_manualInpaintTitle => '手動局部重繪';
+
+  @override
+  String get agentChat_manualInpaintComplete => '完成並返回智慧體';
+
+  @override
+  String get agentChat_resourceUnavailable => '資源不可用';
+
+  @override
+  String get agentChat_addResource => '新增至 Agent';
+
+  @override
+  String get agentChat_resourceAdded => '已新增至 Agent 輸入區';
+
+  @override
+  String agentChat_addResourceFailed(String error) {
+    return '新增引用失敗：$error';
+  }
+
+  @override
+  String agentChat_approvalEstimatedAnlas(int cost) {
+    return '預計消耗：$cost Anlas';
+  }
 
   @override
   String get agentChat_needSetup => '未設定聊天模型。請先在設定中新增支援工具呼叫的供應商。';

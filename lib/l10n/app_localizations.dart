@@ -1571,6 +1571,30 @@ abstract class AppLocalizations {
   /// **'Chat'**
   String get agentChat_tab;
 
+  /// No description provided for @agentChat_detachWindow.
+  ///
+  /// In en, this message translates to:
+  /// **'Open in separate window'**
+  String get agentChat_detachWindow;
+
+  /// No description provided for @agentChat_detachWindowFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open the separate window. Try again.'**
+  String get agentChat_detachWindowFailed;
+
+  /// No description provided for @agentChat_dockWindow.
+  ///
+  /// In en, this message translates to:
+  /// **'Dock back to the main window'**
+  String get agentChat_dockWindow;
+
+  /// No description provided for @agentChat_alwaysOnTop.
+  ///
+  /// In en, this message translates to:
+  /// **'Always on top'**
+  String get agentChat_alwaysOnTop;
+
   /// No description provided for @agentChat_inputHint.
   ///
   /// In en, this message translates to:
@@ -1594,6 +1618,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Disable web access'**
   String get agentChat_disableWebAccess;
+
+  /// No description provided for @agentChat_webAccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Web access'**
+  String get agentChat_webAccess;
 
   /// No description provided for @agentChat_unsupportedImageFormat.
   ///
@@ -1762,6 +1792,132 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Read web page'**
   String get agentChat_toolWebRead;
+
+  /// No description provided for @agentChat_toolApplication.
+  ///
+  /// In en, this message translates to:
+  /// **'Update application data'**
+  String get agentChat_toolApplication;
+
+  /// No description provided for @agentChat_toolGallery.
+  ///
+  /// In en, this message translates to:
+  /// **'Use gallery'**
+  String get agentChat_toolGallery;
+
+  /// No description provided for @agentChat_toolReferenceLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'Use reference library'**
+  String get agentChat_toolReferenceLibrary;
+
+  /// No description provided for @agentChat_toolPrepareGeneration.
+  ///
+  /// In en, this message translates to:
+  /// **'Prepare generation'**
+  String get agentChat_toolPrepareGeneration;
+
+  /// No description provided for @agentChat_toolInspectGeneration.
+  ///
+  /// In en, this message translates to:
+  /// **'Inspect generation draft'**
+  String get agentChat_toolInspectGeneration;
+
+  /// No description provided for @agentChat_toolUpdateGeneration.
+  ///
+  /// In en, this message translates to:
+  /// **'Update generation draft'**
+  String get agentChat_toolUpdateGeneration;
+
+  /// No description provided for @agentChat_toolCancelGeneration.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel generation draft'**
+  String get agentChat_toolCancelGeneration;
+
+  /// No description provided for @agentChat_toolSubmitGeneration.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit generation'**
+  String get agentChat_toolSubmitGeneration;
+
+  /// No description provided for @agentChat_toolCreateInpaint.
+  ///
+  /// In en, this message translates to:
+  /// **'Create manual inpaint draft'**
+  String get agentChat_toolCreateInpaint;
+
+  /// No description provided for @agentChat_toolListInpaint.
+  ///
+  /// In en, this message translates to:
+  /// **'List manual inpaint drafts'**
+  String get agentChat_toolListInpaint;
+
+  /// No description provided for @agentChat_toolInspectInpaint.
+  ///
+  /// In en, this message translates to:
+  /// **'Inspect manual inpaint draft'**
+  String get agentChat_toolInspectInpaint;
+
+  /// No description provided for @agentChat_toolCancelInpaint.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel manual inpaint draft'**
+  String get agentChat_toolCancelInpaint;
+
+  /// No description provided for @agentChat_toolReeditInpaint.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-edit manual inpaint draft'**
+  String get agentChat_toolReeditInpaint;
+
+  /// No description provided for @agentChat_toolSubmitInpaint.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit manual inpaint draft'**
+  String get agentChat_toolSubmitInpaint;
+
+  /// No description provided for @agentChat_manualInpaintTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Manual inpaint'**
+  String get agentChat_manualInpaintTitle;
+
+  /// No description provided for @agentChat_manualInpaintComplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Complete and return to Agent'**
+  String get agentChat_manualInpaintComplete;
+
+  /// No description provided for @agentChat_resourceUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Unavailable'**
+  String get agentChat_resourceUnavailable;
+
+  /// No description provided for @agentChat_addResource.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to Agent'**
+  String get agentChat_addResource;
+
+  /// No description provided for @agentChat_resourceAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Added to the Agent composer'**
+  String get agentChat_resourceAdded;
+
+  /// No description provided for @agentChat_addResourceFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to add reference: {error}'**
+  String agentChat_addResourceFailed(String error);
+
+  /// No description provided for @agentChat_approvalEstimatedAnlas.
+  ///
+  /// In en, this message translates to:
+  /// **'Estimated cost: {cost} Anlas'**
+  String agentChat_approvalEstimatedAnlas(int cost);
 
   /// No description provided for @agentChat_needSetup.
   ///

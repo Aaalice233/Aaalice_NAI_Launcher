@@ -4,6 +4,7 @@ import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/utils/localization_extension.dart';
 
 enum LocalImageContextAction {
+  addToAgent,
   sendToTextToImage,
   sendToImg2Img,
   sendToReversePrompt,
@@ -80,6 +81,13 @@ class LocalImageContextMenu {
     final hasImageInfoActions = hasImportableMetadata || hasPrompt || hasSeed;
 
     return [
+      _item(
+        context,
+        value: LocalImageContextAction.addToAgent,
+        icon: Icons.auto_awesome_outlined,
+        label: context.l10n.agentChat_addResource,
+      ),
+      const PopupMenuDivider(),
       ...buildSendEntries(context, isKritaConnected: isKritaConnected),
       if (hasImageInfoActions) const PopupMenuDivider(),
       if (hasImportableMetadata)

@@ -7,6 +7,7 @@
 
 #include <flutter/method_channel.h>
 #include <flutter/standard_method_codec.h>
+#include <desktop_multi_window/desktop_multi_window_plugin.h>
 #include "flutter/generated_plugin_registrant.h"
 
 // Global set to store font names
@@ -97,6 +98,11 @@ bool FlutterWindow::OnCreate() {
     return false;
   }
   RegisterPlugins(flutter_controller_->engine());
+  DesktopMultiWindowSetWindowCreatedCallback([](void* controller) {
+    auto* flutter_view_controller =
+        reinterpret_cast<flutter::FlutterViewController*>(controller);
+    RegisterPlugins(flutter_view_controller->engine());
+  });
   if (!SetChildContent(flutter_controller_->view()->GetNativeWindow())) {
     return false;
   }
