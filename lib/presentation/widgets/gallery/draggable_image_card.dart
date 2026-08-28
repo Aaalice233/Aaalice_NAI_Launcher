@@ -62,6 +62,9 @@ class DraggableImageCard extends ConsumerStatefulWidget {
   /// 可选的预览图像数据（字节）
   final Uint8List? previewBytes;
 
+  /// 可选的内部拖拽标记；为空时保持图库分类拖拽语义。
+  final Object? localData;
+
   /// 是否启用拖拽反馈预览
   final bool enableFeedback;
 
@@ -80,6 +83,7 @@ class DraggableImageCard extends ConsumerStatefulWidget {
     required this.child,
     this.enabled = true,
     this.previewBytes,
+    this.localData,
     this.enableFeedback = true,
     this.feedbackWidth = 280,
     this.feedbackHint,
@@ -93,6 +97,7 @@ class DraggableImageCard extends ConsumerStatefulWidget {
   static Widget Function(Widget child) createDragWrapper({
     required LocalImageRecord record,
     Uint8List? previewBytes,
+    Object? localData,
     bool enableFeedback = true,
     double feedbackWidth = 280,
     String? feedbackHint,
@@ -102,6 +107,7 @@ class DraggableImageCard extends ConsumerStatefulWidget {
       return _DragWrapper(
         record: record,
         previewBytes: previewBytes,
+        localData: localData,
         feedbackWidth: feedbackWidth,
         feedbackHint: feedbackHint,
         enableFeedback: enableFeedback,
@@ -221,11 +227,13 @@ class _DraggableImageCardState extends ConsumerState<DraggableImageCard> {
 
     final item = DragItem(
       suggestedName: fileName,
-      localData: {
-        'source': 'gallery_internal',
-        'path': filePath,
-        if (stripMetadata) 'externalPayload': 'gallery_sanitized',
-      },
+      localData:
+          widget.localData ??
+          {
+            'source': 'gallery_internal',
+            'path': filePath,
+            if (stripMetadata) 'externalPayload': 'gallery_sanitized',
+          },
     );
 
     if (stripMetadata) {
@@ -269,6 +277,9 @@ class _DraggableImageCardState extends ConsumerState<DraggableImageCard> {
 class _DragWrapper extends ConsumerStatefulWidget {
   final LocalImageRecord record;
   final Uint8List? previewBytes;
+
+  /// 可选的内部拖拽标记；为空时保持图库分类拖拽语义。
+  final Object? localData;
   final double feedbackWidth;
   final String? feedbackHint;
   final bool enableFeedback;
@@ -278,6 +289,7 @@ class _DragWrapper extends ConsumerStatefulWidget {
   const _DragWrapper({
     required this.record,
     required this.previewBytes,
+    this.localData,
     required this.feedbackWidth,
     required this.feedbackHint,
     required this.enableFeedback,
@@ -344,11 +356,13 @@ class _DragWrapperState extends ConsumerState<_DragWrapper> {
 
     final item = DragItem(
       suggestedName: fileName,
-      localData: {
-        'source': 'gallery_internal',
-        'path': filePath,
-        if (stripMetadata) 'externalPayload': 'gallery_sanitized',
-      },
+      localData:
+          widget.localData ??
+          {
+            'source': 'gallery_internal',
+            'path': filePath,
+            if (stripMetadata) 'externalPayload': 'gallery_sanitized',
+          },
     );
 
     if (stripMetadata) {

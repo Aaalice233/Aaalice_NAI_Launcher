@@ -1583,6 +1583,18 @@ abstract class AppLocalizations {
   /// **'Attach images'**
   String get agentChat_attachImage;
 
+  /// No description provided for @agentChat_enableWebAccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable web access'**
+  String get agentChat_enableWebAccess;
+
+  /// No description provided for @agentChat_disableWebAccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Disable web access'**
+  String get agentChat_disableWebAccess;
+
   /// No description provided for @agentChat_unsupportedImageFormat.
   ///
   /// In en, this message translates to:
@@ -1624,6 +1636,132 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Running tool'**
   String get agentChat_toolRunning;
+
+  /// No description provided for @agentChat_toolGenerateImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate image'**
+  String get agentChat_toolGenerateImage;
+
+  /// No description provided for @agentChat_toolQueueImageTask.
+  ///
+  /// In en, this message translates to:
+  /// **'Queue image task'**
+  String get agentChat_toolQueueImageTask;
+
+  /// No description provided for @agentChat_toolInterrogateImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Analyze image prompt'**
+  String get agentChat_toolInterrogateImage;
+
+  /// No description provided for @agentChat_toolRecentImages.
+  ///
+  /// In en, this message translates to:
+  /// **'View recent images'**
+  String get agentChat_toolRecentImages;
+
+  /// No description provided for @agentChat_toolGenerationStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Check generation status'**
+  String get agentChat_toolGenerationStatus;
+
+  /// No description provided for @agentChat_toolGetGenerationSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'View generation settings'**
+  String get agentChat_toolGetGenerationSettings;
+
+  /// No description provided for @agentChat_toolUpdateGenerationSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Update generation settings'**
+  String get agentChat_toolUpdateGenerationSettings;
+
+  /// No description provided for @agentChat_toolPromptState.
+  ///
+  /// In en, this message translates to:
+  /// **'View prompt state'**
+  String get agentChat_toolPromptState;
+
+  /// No description provided for @agentChat_toolSetPositivePrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Set positive prompt'**
+  String get agentChat_toolSetPositivePrompt;
+
+  /// No description provided for @agentChat_toolSetNegativePrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Set negative prompt'**
+  String get agentChat_toolSetNegativePrompt;
+
+  /// No description provided for @agentChat_toolAddCharacter.
+  ///
+  /// In en, this message translates to:
+  /// **'Add character'**
+  String get agentChat_toolAddCharacter;
+
+  /// No description provided for @agentChat_toolUpdateCharacter.
+  ///
+  /// In en, this message translates to:
+  /// **'Update character'**
+  String get agentChat_toolUpdateCharacter;
+
+  /// No description provided for @agentChat_toolRemoveCharacter.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove character'**
+  String get agentChat_toolRemoveCharacter;
+
+  /// No description provided for @agentChat_toolReadSkill.
+  ///
+  /// In en, this message translates to:
+  /// **'Read skill'**
+  String get agentChat_toolReadSkill;
+
+  /// No description provided for @agentChat_toolReadSkillResource.
+  ///
+  /// In en, this message translates to:
+  /// **'Read skill resource'**
+  String get agentChat_toolReadSkillResource;
+
+  /// No description provided for @agentChat_toolSkillDiagnostics.
+  ///
+  /// In en, this message translates to:
+  /// **'View skill diagnostics'**
+  String get agentChat_toolSkillDiagnostics;
+
+  /// No description provided for @agentChat_toolReloadSkills.
+  ///
+  /// In en, this message translates to:
+  /// **'Reload skills'**
+  String get agentChat_toolReloadSkills;
+
+  /// No description provided for @agentChat_toolSearchTags.
+  ///
+  /// In en, this message translates to:
+  /// **'Search tags'**
+  String get agentChat_toolSearchTags;
+
+  /// No description provided for @agentChat_toolReadFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Read file'**
+  String get agentChat_toolReadFile;
+
+  /// No description provided for @agentChat_toolWebSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Search web'**
+  String get agentChat_toolWebSearch;
+
+  /// No description provided for @agentChat_toolWebRead.
+  ///
+  /// In en, this message translates to:
+  /// **'Read web page'**
+  String get agentChat_toolWebRead;
 
   /// No description provided for @agentChat_needSetup.
   ///
@@ -11296,6 +11434,150 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Enable hover, right-click, and shortcut behavior'**
   String get promptAssistant_desktopOverlaySubtitle;
+
+  /// No description provided for @promptAssistant_webAccessTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Agent Web Access'**
+  String get promptAssistant_webAccessTitle;
+
+  /// No description provided for @promptAssistant_webAccessSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Search current information through SearXNG or Exa'**
+  String get promptAssistant_webAccessSubtitle;
+
+  /// No description provided for @promptAssistant_webAccessEnable.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow Agent web access'**
+  String get promptAssistant_webAccessEnable;
+
+  /// No description provided for @promptAssistant_webAccessEnableSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Once enabled, public searches and page reads do not ask for confirmation each time'**
+  String get promptAssistant_webAccessEnableSubtitle;
+
+  /// No description provided for @promptAssistant_webAccessBackend.
+  ///
+  /// In en, this message translates to:
+  /// **'Search backend'**
+  String get promptAssistant_webAccessBackend;
+
+  /// No description provided for @promptAssistant_webAccessBackendAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto'**
+  String get promptAssistant_webAccessBackendAuto;
+
+  /// No description provided for @promptAssistant_webAccessBackendSearxng.
+  ///
+  /// In en, this message translates to:
+  /// **'SearXNG'**
+  String get promptAssistant_webAccessBackendSearxng;
+
+  /// No description provided for @promptAssistant_webAccessBackendExaMcp.
+  ///
+  /// In en, this message translates to:
+  /// **'Exa free MCP'**
+  String get promptAssistant_webAccessBackendExaMcp;
+
+  /// No description provided for @promptAssistant_webAccessBackendExaApi.
+  ///
+  /// In en, this message translates to:
+  /// **'Exa API'**
+  String get promptAssistant_webAccessBackendExaApi;
+
+  /// No description provided for @promptAssistant_webAccessBackendAutoDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Use configured SearXNG first, then fall back to Exa\'s anonymous MCP allowance'**
+  String get promptAssistant_webAccessBackendAutoDescription;
+
+  /// No description provided for @promptAssistant_webAccessBackendSearxngDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Use only the configured private SearXNG instance'**
+  String get promptAssistant_webAccessBackendSearxngDescription;
+
+  /// No description provided for @promptAssistant_webAccessBackendExaMcpDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Use Exa\'s hosted free allowance without an API key; rate limits apply'**
+  String get promptAssistant_webAccessBackendExaMcpDescription;
+
+  /// No description provided for @promptAssistant_webAccessBackendExaApiDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Use your Exa account and API quota; this mode may incur charges'**
+  String get promptAssistant_webAccessBackendExaApiDescription;
+
+  /// No description provided for @promptAssistant_webAccessResultCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Default results'**
+  String get promptAssistant_webAccessResultCount;
+
+  /// No description provided for @promptAssistant_webAccessSearxngUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'SearXNG Base URL'**
+  String get promptAssistant_webAccessSearxngUrl;
+
+  /// No description provided for @promptAssistant_webAccessExaApiKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Exa API Key'**
+  String get promptAssistant_webAccessExaApiKey;
+
+  /// No description provided for @promptAssistant_webAccessApiKeyConfigured.
+  ///
+  /// In en, this message translates to:
+  /// **'Stored securely'**
+  String get promptAssistant_webAccessApiKeyConfigured;
+
+  /// No description provided for @promptAssistant_webAccessApiKeyMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'Not configured'**
+  String get promptAssistant_webAccessApiKeyMissing;
+
+  /// No description provided for @promptAssistant_webAccessConfigureKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure'**
+  String get promptAssistant_webAccessConfigureKey;
+
+  /// No description provided for @promptAssistant_webAccessClearKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear key'**
+  String get promptAssistant_webAccessClearKey;
+
+  /// No description provided for @promptAssistant_webAccessTestConnection.
+  ///
+  /// In en, this message translates to:
+  /// **'Test connection'**
+  String get promptAssistant_webAccessTestConnection;
+
+  /// No description provided for @promptAssistant_webAccessTesting.
+  ///
+  /// In en, this message translates to:
+  /// **'Testing...'**
+  String get promptAssistant_webAccessTesting;
+
+  /// No description provided for @promptAssistant_webAccessTestSucceeded.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected through {provider}'**
+  String promptAssistant_webAccessTestSucceeded(Object provider);
+
+  /// No description provided for @promptAssistant_webAccessTestFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection failed: {error}'**
+  String promptAssistant_webAccessTestFailed(Object error);
 
   /// No description provided for @promptAssistant_taskRouting.
   ///

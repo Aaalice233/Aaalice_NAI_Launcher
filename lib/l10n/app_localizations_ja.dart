@@ -796,6 +796,12 @@ class AppLocalizationsJa extends AppLocalizations {
   String get agentChat_attachImage => '画像を追加';
 
   @override
+  String get agentChat_enableWebAccess => 'ウェブアクセスを有効にする';
+
+  @override
+  String get agentChat_disableWebAccess => 'ウェブアクセスを無効にする';
+
+  @override
   String agentChat_unsupportedImageFormat(Object fileName) {
     return 'サポートされていない画像形式です: $fileName';
   }
@@ -817,6 +823,69 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get agentChat_toolRunning => 'ツール実行中';
+
+  @override
+  String get agentChat_toolGenerateImage => '画像を生成';
+
+  @override
+  String get agentChat_toolQueueImageTask => '画像タスクをキューに追加';
+
+  @override
+  String get agentChat_toolInterrogateImage => '画像プロンプトを解析';
+
+  @override
+  String get agentChat_toolRecentImages => '最近の画像を表示';
+
+  @override
+  String get agentChat_toolGenerationStatus => '生成状態を確認';
+
+  @override
+  String get agentChat_toolGetGenerationSettings => '生成設定を表示';
+
+  @override
+  String get agentChat_toolUpdateGenerationSettings => '生成設定を更新';
+
+  @override
+  String get agentChat_toolPromptState => 'プロンプト状態を表示';
+
+  @override
+  String get agentChat_toolSetPositivePrompt => 'ポジティブプロンプトを設定';
+
+  @override
+  String get agentChat_toolSetNegativePrompt => 'ネガティブプロンプトを設定';
+
+  @override
+  String get agentChat_toolAddCharacter => 'キャラクターを追加';
+
+  @override
+  String get agentChat_toolUpdateCharacter => 'キャラクターを更新';
+
+  @override
+  String get agentChat_toolRemoveCharacter => 'キャラクターを削除';
+
+  @override
+  String get agentChat_toolReadSkill => 'スキルを読み込む';
+
+  @override
+  String get agentChat_toolReadSkillResource => 'スキルリソースを読み込む';
+
+  @override
+  String get agentChat_toolSkillDiagnostics => 'スキル診断を表示';
+
+  @override
+  String get agentChat_toolReloadSkills => 'スキルを再読み込み';
+
+  @override
+  String get agentChat_toolSearchTags => 'タグを検索';
+
+  @override
+  String get agentChat_toolReadFile => 'ファイルを読み込む';
+
+  @override
+  String get agentChat_toolWebSearch => 'ウェブを検索';
+
+  @override
+  String get agentChat_toolWebRead => 'ウェブページを読み込む';
 
   @override
   String get agentChat_needSetup =>
@@ -6208,6 +6277,87 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String get promptAssistant_desktopOverlaySubtitle =>
       'ホバー、右クリック、およびショートカットの動作を有効にする';
+
+  @override
+  String get promptAssistant_webAccessTitle => 'Agent ウェブアクセス';
+
+  @override
+  String get promptAssistant_webAccessSubtitle => 'SearXNG または Exa で最新情報を検索します';
+
+  @override
+  String get promptAssistant_webAccessEnable => 'Agent のウェブアクセスを許可';
+
+  @override
+  String get promptAssistant_webAccessEnableSubtitle =>
+      '有効にすると、公開ウェブの検索と読み込みを毎回確認しません';
+
+  @override
+  String get promptAssistant_webAccessBackend => '検索バックエンド';
+
+  @override
+  String get promptAssistant_webAccessBackendAuto => '自動';
+
+  @override
+  String get promptAssistant_webAccessBackendSearxng => 'SearXNG';
+
+  @override
+  String get promptAssistant_webAccessBackendExaMcp => 'Exa 無料 MCP';
+
+  @override
+  String get promptAssistant_webAccessBackendExaApi => 'Exa API';
+
+  @override
+  String get promptAssistant_webAccessBackendAutoDescription =>
+      '設定済みの SearXNG を優先し、失敗時は Exa の匿名 MCP 枠に切り替えます';
+
+  @override
+  String get promptAssistant_webAccessBackendSearxngDescription =>
+      '設定したプライベート SearXNG インスタンスのみを使用します';
+
+  @override
+  String get promptAssistant_webAccessBackendExaMcpDescription =>
+      'API Key なしで Exa の無料枠を使用します。レート制限があります';
+
+  @override
+  String get promptAssistant_webAccessBackendExaApiDescription =>
+      'Exa アカウントの API 枠を使用します。料金が発生する場合があります';
+
+  @override
+  String get promptAssistant_webAccessResultCount => '既定の結果数';
+
+  @override
+  String get promptAssistant_webAccessSearxngUrl => 'SearXNG Base URL';
+
+  @override
+  String get promptAssistant_webAccessExaApiKey => 'Exa API Key';
+
+  @override
+  String get promptAssistant_webAccessApiKeyConfigured => '安全に保存済み';
+
+  @override
+  String get promptAssistant_webAccessApiKeyMissing => '未設定';
+
+  @override
+  String get promptAssistant_webAccessConfigureKey => '設定';
+
+  @override
+  String get promptAssistant_webAccessClearKey => 'Key を消去';
+
+  @override
+  String get promptAssistant_webAccessTestConnection => '接続をテスト';
+
+  @override
+  String get promptAssistant_webAccessTesting => 'テスト中...';
+
+  @override
+  String promptAssistant_webAccessTestSucceeded(Object provider) {
+    return '$provider 経由で接続しました';
+  }
+
+  @override
+  String promptAssistant_webAccessTestFailed(Object error) {
+    return '接続に失敗しました: $error';
+  }
 
   @override
   String get promptAssistant_taskRouting => 'タスク ルーティング';

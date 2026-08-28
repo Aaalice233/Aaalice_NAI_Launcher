@@ -79,12 +79,21 @@ class ReadHarnessTool extends AgentHarnessTool {
               'description': 'Path to the file to read (relative or absolute)',
             },
             'offset': {
-              'type': 'number',
+              'type': 'integer',
+              'minimum': 1,
               'description': 'Line number to start reading from (1-indexed)',
             },
             'limit': {
-              'type': 'number',
+              'type': 'integer',
+              'minimum': 1,
               'description': 'Maximum number of lines to read',
+            },
+            'character_offset': {
+              'type': 'integer',
+              'minimum': 0,
+              'description':
+                  'Zero-based Unicode character offset within the first '
+                  'selected line. Use this to continue a very long line.',
             },
           },
           'required': ['path'],
@@ -105,6 +114,10 @@ class ReadHarnessTool extends AgentHarnessTool {
     final path = params['path'] as String;
     final offset = (params['offset'] as num?)?.toInt();
     final limit = (params['limit'] as num?)?.toInt();
+    final characterOffset = (params['character_offset'] as num?)?.toInt();
+    if (characterOffset != null && characterOffset < 0) {
+      throw StateError('character_offset must be at least 0');
+    }
 
     final absolutePath = await resolveReadToolPath(env, path, signal);
     final maxFileBytes = options?.maxFileBytes ?? defaultMaxReadFileBytes;
@@ -152,7 +165,9 @@ class ReadHarnessTool extends AgentHarnessTool {
               ),
             ),
           ],
-          details: null,
+          details: <String, dynamic>{
+            'files': [absolutePath],
+          },
         );
       }
       if (mimeType == 'image/bmp') {
@@ -179,7 +194,9 @@ class ReadHarnessTool extends AgentHarnessTool {
             ),
           ),
         ],
-        details: null,
+        details: <String, dynamic>{
+          'files': [absolutePath],
+        },
       );
     }
 
@@ -191,6 +208,21 @@ class ReadHarnessTool extends AgentHarnessTool {
     if (startLine >= allLines.length) {
       throw StateError(
         'Offset $offset is beyond end of file (${allLines.length} lines total)',
+      );
+    }
+
+    if (characterOffset != null) {
+      return AgentToolResult(
+        content: [
+          ToolResultTextContent(
+            _longLineChunk(
+              allLines[startLine],
+              lineNumber: startLineDisplay,
+              characterOffset: characterOffset,
+            ),
+          ),
+        ],
+        details: null,
       );
     }
 
@@ -210,11 +242,11 @@ class ReadHarnessTool extends AgentHarnessTool {
     String outputText;
     ReadToolDetails? details;
     if (truncation.firstLineExceedsLimit) {
-      final firstLineSize = formatSize(utf8.encode(allLines[startLine]).length);
-      outputText =
-          '[Line $startLineDisplay is $firstLineSize, exceeds '
-          '${formatSize(defaultMaxBytes)} limit. Use bash: sed -n '
-          "'${startLineDisplay}p' $path | head -c $defaultMaxBytes]";
+      outputText = _longLineChunk(
+        allLines[startLine],
+        lineNumber: startLineDisplay,
+        characterOffset: 0,
+      );
       details = ReadToolDetails(truncation: truncation);
     } else if (truncation.truncated) {
       final endLineDisplay = startLineDisplay + truncation.outputLines - 1;
@@ -247,6 +279,39 @@ class ReadHarnessTool extends AgentHarnessTool {
       details: details,
     );
   }
+}
+
+String _longLineChunk(
+  String line, {
+  required int lineNumber,
+  required int characterOffset,
+}) {
+  final characters = line.runes.toList(growable: false);
+  if (characterOffset >= characters.length) {
+    throw StateError(
+      'character_offset $characterOffset is beyond end of line '
+      '$lineNumber (${characters.length} characters total)',
+    );
+  }
+  final selected = <int>[];
+  var selectedBytes = 0;
+  for (var index = characterOffset; index < characters.length; index++) {
+    final character = characters[index];
+    final byteLength = utf8.encode(String.fromCharCode(character)).length;
+    if (selected.isNotEmpty && selectedBytes + byteLength > defaultMaxBytes) {
+      break;
+    }
+    selected.add(character);
+    selectedBytes += byteLength;
+  }
+  final content = String.fromCharCodes(selected);
+  final nextOffset = characterOffset + selected.length;
+  if (nextOffset >= characters.length) {
+    return content;
+  }
+  return '$content\n\n[Showing characters ${characterOffset + 1}-$nextOffset '
+      'of line $lineNumber (${characters.length} total). Use '
+      'offset=$lineNumber and character_offset=$nextOffset to continue.]';
 }
 
 AgentHarnessTool createReadTool([ReadToolOptions? options]) {

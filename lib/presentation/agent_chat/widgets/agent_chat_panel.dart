@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -11,12 +12,23 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import '../../../../core/agent/agent_types.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/nai_resolution_adapter.dart';
+import '../../../../data/models/gallery/local_image_record.dart';
+import '../../utils/image_detail_opener.dart';
+import '../../widgets/common/draggable_memory_image.dart';
+import '../../widgets/common/app_toast.dart';
+import '../../widgets/common/image_card_hover_motion.dart';
+import '../../widgets/common/image_detail/file_image_detail_data.dart';
 import '../../widgets/common/themed_confirm_dialog.dart';
 import '../../widgets/common/themed_input_dialog.dart';
+import '../../widgets/gallery/draggable_image_card.dart';
+import '../../widgets/gallery/local_image_context_menu.dart';
 import '../../prompt_assistant/models/prompt_assistant_models.dart';
 import '../../prompt_assistant/providers/prompt_assistant_config_provider.dart';
+import '../../prompt_assistant/providers/web_access_provider.dart';
 import '../../prompt_assistant/services/provider_adapters/prompt_assistant_adapter.dart';
 import '../../providers/layout_state_provider.dart';
+import '../../providers/krita/krita_bridge_notifier.dart';
+import '../../services/image_send_action_dispatcher.dart';
 import '../providers/agent_chat_notifier.dart';
 import '../providers/agent_chat_session_view.dart';
 
@@ -65,6 +77,7 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
   String _lastStreamingText = '';
   List<AgentToolActivity>? _lastActivities;
   OverlayEntry? _inlineImagePreview;
+  int? _hoveredUserMessageIndex;
 
   @override
   void initState() {
@@ -407,7 +420,9 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
             _buildSessionRow(theme, l10n, state),
             const Divider(height: 1),
             Expanded(
-              child: isEmpty && !state.routeReady
+              child: !state.initialized || state.sessionContentLoading
+                  ? _buildSessionLoading(l10n)
+                  : isEmpty && !state.routeReady
                   ? _buildSetupHint(theme, compact: compactMobile)
                   : isEmpty
                   ? _buildHero(theme, l10n, state)
@@ -678,6 +693,74 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
           size: 17,
           color: theme.colorScheme.onSurface.withValues(
             alpha: running ? 0.25 : 0.6,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWebAccessToggle(
+    ThemeData theme,
+    AppLocalizations l10n,
+    bool controlsLocked,
+  ) {
+    final state = ref.watch(webAccessConfigProvider);
+    final enabled = state.config.enabled;
+    final interactive = state.initialized && !controlsLocked;
+    final tooltip = enabled
+        ? l10n.agentChat_disableWebAccess
+        : l10n.agentChat_enableWebAccess;
+    final iconColor = enabled
+        ? theme.colorScheme.primary.withValues(alpha: 0.82)
+        : theme.colorScheme.onSurface.withValues(alpha: 0.55);
+    return Semantics(
+      button: true,
+      toggled: enabled,
+      label: tooltip,
+      child: SizedBox.square(
+        dimension: widget.mobile ? 48 : 30,
+        child: IconButton(
+          key: const ValueKey('agent-chat-web-access-toggle'),
+          tooltip: tooltip,
+          onPressed: interactive
+              ? () => ref
+                    .read(webAccessConfigProvider.notifier)
+                    .setEnabled(!enabled)
+              : null,
+          isSelected: enabled,
+          icon: const Icon(Icons.public_off_outlined),
+          selectedIcon: const Icon(Icons.public),
+          iconSize: 18,
+          alignment: Alignment.center,
+          padding: EdgeInsets.zero,
+          constraints: BoxConstraints.tightFor(
+            width: widget.mobile ? 48 : 30,
+            height: widget.mobile ? 48 : 30,
+          ),
+          style: ButtonStyle(
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            splashFactory: NoSplash.splashFactory,
+            shape: const WidgetStatePropertyAll(CircleBorder()),
+            foregroundColor: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.disabled)) {
+                return theme.colorScheme.onSurface.withValues(alpha: 0.25);
+              }
+              if (states.contains(WidgetState.hovered)) {
+                return enabled
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.onSurface.withValues(alpha: 0.72);
+              }
+              return iconColor;
+            }),
+            overlayColor: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.focused)) {
+                return iconColor.withValues(alpha: 0.12);
+              }
+              if (states.contains(WidgetState.pressed)) {
+                return iconColor.withValues(alpha: 0.08);
+              }
+              return Colors.transparent;
+            }),
           ),
         ),
       ),
@@ -1086,11 +1169,33 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
     );
   }
 
+  Widget _buildSessionLoading(AppLocalizations l10n) {
+    return Center(
+      child: Semantics(
+        liveRegion: true,
+        label: l10n.common_loading,
+        child: const SizedBox(
+          key: ValueKey('agent-chat-session-loading'),
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      ),
+    );
+  }
+
   // -------------------------------------------------------------------------
   // 消息列表
   // -------------------------------------------------------------------------
 
   Widget _buildMessageList(ThemeData theme, AgentChatState state) {
+    var lastUserMessageIndex = -1;
+    for (var index = state.messages.length - 1; index >= 0; index--) {
+      if (state.messages[index] is UserMessage) {
+        lastUserMessageIndex = index;
+        break;
+      }
+    }
     // 消息高度由 Markdown、工具结果和图片共同决定。使用完整 Column 参与
     // 布局，避免 ListView.builder 在滚动时重新估算总高度导致滑块忽长忽短。
     return SingleChildScrollView(
@@ -1102,8 +1207,14 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          for (final message in state.messages)
-            _buildMessageTile(theme, message),
+          for (var index = 0; index < state.messages.length; index++)
+            _buildMessageTile(
+              theme,
+              state,
+              state.messages[index],
+              messageIndex: index,
+              isLastUserMessage: index == lastUserMessageIndex,
+            ),
           _buildLiveTile(theme, state),
         ],
       ),
@@ -1180,12 +1291,35 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
       size = const Size(160, 120);
       imageWidget = _buildBrokenMessageImage(theme);
     }
-    return SizedBox(
+    final content = SizedBox(
       width: size.width,
       height: size.height,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(8),
         child: imageWidget,
+      ),
+    );
+    if (bytes == null) {
+      return content;
+    }
+    final fileName = _agentChatImageFileName(source.mimeType, 'attachment');
+    return DraggableMemoryImage(
+      imageBytes: bytes,
+      fileName: fileName,
+      localData: _agentChatImageDragLocalData,
+      feedbackWidth: 200,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onSecondaryTapDown: (details) => unawaited(
+          _showAgentChatImageSendMenu(
+            context: context,
+            ref: ref,
+            position: details.globalPosition,
+            fileName: fileName,
+            loadBytes: () async => bytes,
+          ),
+        ),
+        child: content,
       ),
     );
   }
@@ -1271,59 +1405,230 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
     );
   }
 
-  Widget _buildMessageTile(ThemeData theme, Message message) {
+  String _editableTextForUserMessage(UserMessage message) {
+    final buffer = StringBuffer();
+    var imageNumber = 0;
+    for (final block in message.content) {
+      if (block is UserTextContent) {
+        buffer.write(block.text);
+      } else if (block is UserImageContent) {
+        imageNumber++;
+        final current = buffer.toString();
+        if (current.isNotEmpty && !RegExp(r'\s$').hasMatch(current)) {
+          buffer.write(' ');
+        }
+        buffer.write('[image$imageNumber]');
+      }
+    }
+    return buffer.toString();
+  }
+
+  _UserMessageDraft? _draftForUserMessage(UserMessage message) {
+    final images = <_PendingImage>[];
+    for (final block in message.content) {
+      if (block is! UserImageContent) {
+        continue;
+      }
+      final source = block.image.source;
+      final bytes = source.bytes;
+      final mimeType = source.mimeType;
+      if (bytes == null || mimeType == null || mimeType.isEmpty) {
+        return null;
+      }
+      final imageNumber = images.length + 1;
+      final extension = switch (mimeType) {
+        'image/jpeg' => 'jpg',
+        'image/svg+xml' => 'svg',
+        _ => mimeType.split('/').last,
+      };
+      images.add(
+        _PendingImage(
+          name: 'image$imageNumber.$extension',
+          bytes: bytes,
+          mimeType: mimeType,
+        ),
+      );
+    }
+    return _UserMessageDraft(
+      text: _editableTextForUserMessage(message),
+      images: images,
+    );
+  }
+
+  Future<void> _copyUserMessage(UserMessage message) async {
+    await Clipboard.setData(
+      ClipboardData(text: _editableTextForUserMessage(message)),
+    );
+    if (mounted) {
+      AppToast.info(context, context.l10n.common_copied);
+    }
+  }
+
+  Future<void> _editLastUserMessage(UserMessage message) async {
+    final draft = _draftForUserMessage(message);
+    if (draft == null) {
+      return;
+    }
+    final rewound = await ref
+        .read(agentChatNotifierProvider.notifier)
+        .rewindLastUserMessage();
+    if (!mounted || rewound == null || rewound.timestamp != message.timestamp) {
+      return;
+    }
+    _hideInlineImagePreview();
+    setState(() {
+      _pendingImages
+        ..clear()
+        ..addAll(draft.images);
+      _inputController.value = TextEditingValue(
+        text: draft.text,
+        selection: TextSelection.collapsed(offset: draft.text.length),
+      );
+      _inputController.imageCount = draft.images.length;
+      _hoveredUserMessageIndex = null;
+    });
+    _inputFocus.requestFocus();
+    _scrollToBottom(force: true);
+  }
+
+  Widget _buildMessageTile(
+    ThemeData theme,
+    AgentChatState state,
+    Message message, {
+    required int messageIndex,
+    required bool isLastUserMessage,
+  }) {
     if (message is UserMessage) {
       final hasText = message.text.trim().isNotEmpty;
-      return Align(
-        alignment: Alignment.centerRight,
-        child: Container(
-          margin: const EdgeInsets.only(bottom: 10, left: 28),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.primaryContainer.withValues(alpha: 0.55),
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(12),
-              topRight: Radius.circular(12),
-              bottomLeft: Radius.circular(12),
-              bottomRight: Radius.circular(4),
-            ),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              if (message.images.isNotEmpty)
-                Padding(
-                  padding: EdgeInsets.only(bottom: hasText ? 6 : 0),
-                  child: Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    alignment: WrapAlignment.end,
+      final hovered = _hoveredUserMessageIndex == messageIndex;
+      final canEdit = isLastUserMessage && canManageAgentChatSessions(state);
+      final sentAt = MaterialLocalizations.of(context).formatTimeOfDay(
+        TimeOfDay.fromDateTime(
+          DateTime.fromMillisecondsSinceEpoch(message.timestamp),
+        ),
+        alwaysUse24HourFormat: true,
+      );
+      return MouseRegion(
+        key: ValueKey('agent-user-message-$messageIndex'),
+        onEnter: (_) => setState(() => _hoveredUserMessageIndex = messageIndex),
+        onExit: (_) {
+          if (_hoveredUserMessageIndex == messageIndex) {
+            setState(() => _hoveredUserMessageIndex = null);
+          }
+        },
+        child: Align(
+          alignment: Alignment.centerRight,
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 6, left: 28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primaryContainer.withValues(
+                      alpha: 0.55,
+                    ),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(12),
+                      topRight: Radius.circular(12),
+                      bottomLeft: Radius.circular(12),
+                      bottomRight: Radius.circular(4),
+                    ),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      for (final image in message.images)
-                        _buildUserMessageImage(theme, image),
+                      if (message.images.isNotEmpty)
+                        Padding(
+                          padding: EdgeInsets.only(bottom: hasText ? 6 : 0),
+                          child: Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            alignment: WrapAlignment.end,
+                            children: [
+                              for (final image in message.images)
+                                _buildUserMessageImage(theme, image),
+                            ],
+                          ),
+                        ),
+                      if (hasText)
+                        Text(
+                          message.text,
+                          style:
+                              (widget.mobile
+                                      ? theme.textTheme.bodyMedium
+                                      : theme.textTheme.bodySmall)
+                                  ?.copyWith(
+                                    color: theme.colorScheme.onPrimaryContainer,
+                                    height: 1.45,
+                                  ),
+                        ),
                     ],
                   ),
                 ),
-              if (hasText)
-                Text(
-                  message.text,
-                  style:
-                      (widget.mobile
-                              ? theme.textTheme.bodyMedium
-                              : theme.textTheme.bodySmall)
-                          ?.copyWith(
-                            color: theme.colorScheme.onPrimaryContainer,
-                            height: 1.45,
-                          ),
+                const SizedBox(height: 2),
+                SizedBox(
+                  height: 22,
+                  child: AnimatedOpacity(
+                    key: ValueKey('agent-user-message-actions-$messageIndex'),
+                    opacity: hovered ? 1 : 0,
+                    duration: const Duration(milliseconds: 120),
+                    child: IgnorePointer(
+                      ignoring: !hovered,
+                      child: ExcludeSemantics(
+                        excluding: !hovered,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Text(
+                              sentAt,
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant
+                                    .withValues(alpha: 0.58),
+                                height: 1,
+                              ),
+                            ),
+                            const SizedBox(width: 5),
+                            _MessageActionButton(
+                              key: ValueKey(
+                                'agent-user-message-copy-$messageIndex',
+                              ),
+                              tooltip: context.l10n.common_copy,
+                              icon: Icons.copy_all_outlined,
+                              onPressed: () => _copyUserMessage(message),
+                            ),
+                            if (isLastUserMessage)
+                              _MessageActionButton(
+                                key: ValueKey(
+                                  'agent-user-message-edit-$messageIndex',
+                                ),
+                                tooltip: context.l10n.common_edit,
+                                icon: Icons.edit_outlined,
+                                onPressed: canEdit
+                                    ? () => _editLastUserMessage(message)
+                                    : null,
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
-            ],
+              ],
+            ),
           ),
         ),
       );
     }
     if (message is AssistantMessage) {
-      if (message.text.trim().isEmpty && message.toolCalls.isEmpty) {
+      if (message.text.trim().isEmpty) {
         return const SizedBox.shrink();
       }
       return Container(
@@ -1506,7 +1811,9 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  l10n.agentChat_approvalTitle(request.toolName),
+                  l10n.agentChat_approvalTitle(
+                    _agentToolLabel(l10n, request.toolName),
+                  ),
                   style: theme.textTheme.titleSmall?.copyWith(
                     color: theme.colorScheme.onTertiaryContainer,
                   ),
@@ -1661,10 +1968,14 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
               Padding(
                 padding: const EdgeInsets.fromLTRB(4, 0, 4, 4),
                 child: Row(
+                  key: const ValueKey('agent-chat-composer-controls'),
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     _buildAttachButton(theme, l10n, state),
                     _buildPlusMenu(theme, l10n, state),
                     _buildPermissionModeButton(theme, l10n, controlsLocked),
+                    const SizedBox(width: 2),
+                    _buildWebAccessToggle(theme, l10n, controlsLocked),
                     const SizedBox(width: 2),
                     Expanded(
                       child: SizedBox(
@@ -1688,34 +1999,42 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
               // 控制行：附件、「+」操作菜单与权限模式居左；模型选择 + 发送居右
               Padding(
                 padding: const EdgeInsets.fromLTRB(4, 0, 8, 6),
-                child: Row(
-                  children: [
-                    _buildAttachButton(theme, l10n, state),
-                    _buildPlusMenu(theme, l10n, state),
-                    const SizedBox(width: 2),
-                    _buildPermissionModeButton(theme, l10n, controlsLocked),
-                    const SizedBox(width: 2),
-                    if (state.queuedCount > 0)
-                      Flexible(
-                        child: Text(
-                          l10n.agentChat_queued,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: theme.colorScheme.tertiary,
+                child: SizedBox(
+                  key: const ValueKey('agent-chat-composer-controls'),
+                  height: 30,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      _buildAttachButton(theme, l10n, state),
+                      _buildPlusMenu(theme, l10n, state),
+                      const SizedBox(width: 2),
+                      _buildPermissionModeButton(theme, l10n, controlsLocked),
+                      const SizedBox(width: 2),
+                      _buildWebAccessToggle(theme, l10n, controlsLocked),
+                      const SizedBox(width: 2),
+                      if (state.queuedCount > 0)
+                        Flexible(
+                          child: Text(
+                            l10n.agentChat_queued,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: theme.colorScheme.tertiary,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          overflow: TextOverflow.ellipsis,
                         ),
+                      const Spacer(),
+                      _buildModelSelector(theme, l10n, state),
+                      const SizedBox(width: 4),
+                      _SendButton(
+                        running: running,
+                        enabled: canSend,
+                        onSend: _send,
+                        onStop: () => ref
+                            .read(agentChatNotifierProvider.notifier)
+                            .abort(),
                       ),
-                    const Spacer(),
-                    _buildModelSelector(theme, l10n, state),
-                    const SizedBox(width: 4),
-                    _SendButton(
-                      running: running,
-                      enabled: canSend,
-                      onSend: _send,
-                      onStop: () =>
-                          ref.read(agentChatNotifierProvider.notifier).abort(),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
           ],
@@ -2233,6 +2552,54 @@ class _PendingImage {
   final String mimeType;
 }
 
+class _UserMessageDraft {
+  const _UserMessageDraft({required this.text, required this.images});
+
+  final String text;
+  final List<_PendingImage> images;
+}
+
+class _MessageActionButton extends StatelessWidget {
+  const _MessageActionButton({
+    super.key,
+    required this.tooltip,
+    required this.icon,
+    required this.onPressed,
+  });
+
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final enabled = onPressed != null;
+    return Tooltip(
+      message: tooltip,
+      waitDuration: const Duration(milliseconds: 400),
+      child: InkResponse(
+        onTap: onPressed,
+        radius: 14,
+        containedInkWell: true,
+        highlightShape: BoxShape.rectangle,
+        child: SizedBox.square(
+          dimension: 22,
+          child: Center(
+            child: Icon(
+              icon,
+              size: 15,
+              color: theme.colorScheme.onSurfaceVariant.withValues(
+                alpha: enabled ? 0.72 : 0.28,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// 将 [imageN] 渲染成文本中的附件 token，并把悬停事件交给面板浮层。
 class _AgentChatInputController extends TextEditingController {
   _AgentChatInputController({
@@ -2309,66 +2676,309 @@ class _AgentChatInputController extends TextEditingController {
   }
 }
 
+class _AgentToolVisual {
+  const _AgentToolVisual({required this.icon, required this.color});
+
+  final IconData icon;
+  final Color color;
+}
+
+String _agentToolLabel(AppLocalizations l10n, String toolName) {
+  return switch (toolName) {
+    'generate_image' => l10n.agentChat_toolGenerateImage,
+    'queue_image_task' => l10n.agentChat_toolQueueImageTask,
+    'interrogate_image' => l10n.agentChat_toolInterrogateImage,
+    'get_recent_images' => l10n.agentChat_toolRecentImages,
+    'get_generation_status' => l10n.agentChat_toolGenerationStatus,
+    'get_generation_settings' => l10n.agentChat_toolGetGenerationSettings,
+    'update_generation_settings' => l10n.agentChat_toolUpdateGenerationSettings,
+    'get_prompt_state' => l10n.agentChat_toolPromptState,
+    'set_positive_prompt' => l10n.agentChat_toolSetPositivePrompt,
+    'set_negative_prompt' => l10n.agentChat_toolSetNegativePrompt,
+    'add_character' => l10n.agentChat_toolAddCharacter,
+    'update_character' => l10n.agentChat_toolUpdateCharacter,
+    'remove_character' => l10n.agentChat_toolRemoveCharacter,
+    'read_skill' => l10n.agentChat_toolReadSkill,
+    'read_skill_resource' => l10n.agentChat_toolReadSkillResource,
+    'get_skill_diagnostics' => l10n.agentChat_toolSkillDiagnostics,
+    'reload_skills' => l10n.agentChat_toolReloadSkills,
+    'search_tags' => l10n.agentChat_toolSearchTags,
+    'read' => l10n.agentChat_toolReadFile,
+    'web_search' => l10n.agentChat_toolWebSearch,
+    'web_read' => l10n.agentChat_toolWebRead,
+    _ => toolName,
+  };
+}
+
+_AgentToolVisual _agentToolVisual(ThemeData theme, String toolName) {
+  final colors = theme.colorScheme;
+  Color muted(Color accent) =>
+      Color.lerp(colors.onSurfaceVariant, accent, 0.36)!;
+  final primary = muted(colors.primary);
+  final secondary = muted(colors.secondary);
+  final tertiary = muted(colors.tertiary);
+  final imageColor = muted(Color.lerp(colors.primary, colors.tertiary, 0.55)!);
+  final settingsColor = muted(
+    Color.lerp(colors.primary, colors.secondary, 0.5)!,
+  );
+  final skillColor = muted(Color.lerp(colors.secondary, colors.tertiary, 0.5)!);
+  final tagColor = muted(Color.lerp(colors.secondary, colors.error, 0.22)!);
+  final readColor = muted(Color.lerp(colors.tertiary, colors.onSurface, 0.3)!);
+  final webColor = muted(Color.lerp(colors.secondary, colors.primary, 0.4)!);
+  return switch (toolName) {
+    'generate_image' => _AgentToolVisual(
+      icon: Icons.auto_awesome,
+      color: primary,
+    ),
+    'queue_image_task' => _AgentToolVisual(
+      icon: Icons.schedule_send_outlined,
+      color: primary,
+    ),
+    'interrogate_image' => _AgentToolVisual(
+      icon: Icons.image_search_outlined,
+      color: imageColor,
+    ),
+    'get_recent_images' => _AgentToolVisual(
+      icon: Icons.photo_library_outlined,
+      color: imageColor,
+    ),
+    'get_generation_status' => _AgentToolVisual(
+      icon: Icons.monitor_heart_outlined,
+      color: imageColor,
+    ),
+    'get_generation_settings' || 'update_generation_settings' =>
+      _AgentToolVisual(icon: Icons.tune, color: settingsColor),
+    'get_prompt_state' => _AgentToolVisual(
+      icon: Icons.notes_outlined,
+      color: secondary,
+    ),
+    'set_positive_prompt' || 'set_negative_prompt' => _AgentToolVisual(
+      icon: Icons.edit_note,
+      color: secondary,
+    ),
+    'add_character' => _AgentToolVisual(
+      icon: Icons.person_add_alt_1_outlined,
+      color: tertiary,
+    ),
+    'update_character' => _AgentToolVisual(
+      icon: Icons.manage_accounts_outlined,
+      color: tertiary,
+    ),
+    'remove_character' => _AgentToolVisual(
+      icon: Icons.person_remove_outlined,
+      color: tertiary,
+    ),
+    'read_skill' || 'read_skill_resource' || 'get_skill_diagnostics' =>
+      _AgentToolVisual(icon: Icons.extension_outlined, color: skillColor),
+    'reload_skills' => _AgentToolVisual(icon: Icons.refresh, color: skillColor),
+    'search_tags' => _AgentToolVisual(
+      icon: Icons.sell_outlined,
+      color: tagColor,
+    ),
+    'read' => _AgentToolVisual(
+      icon: Icons.description_outlined,
+      color: readColor,
+    ),
+    'web_search' => _AgentToolVisual(
+      icon: Icons.travel_explore_outlined,
+      color: webColor,
+    ),
+    'web_read' => _AgentToolVisual(
+      icon: Icons.language_outlined,
+      color: webColor,
+    ),
+    _ => _AgentToolVisual(
+      icon: Icons.build_outlined,
+      color: colors.onSurfaceVariant,
+    ),
+  };
+}
+
 /// 工具活动卡片（运行中/成功/失败）。
-class _ToolActivityTile extends StatelessWidget {
+class _ToolActivityTile extends StatefulWidget {
   const _ToolActivityTile({required this.activity});
 
   final AgentToolActivity activity;
 
   @override
+  State<_ToolActivityTile> createState() => _ToolActivityTileState();
+}
+
+class _ToolActivityTileState extends State<_ToolActivityTile>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _gradientController;
+
+  @override
+  void initState() {
+    super.initState();
+    _gradientController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2400),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _gradientController
+        ..stop()
+        ..value = 0.5;
+    } else if (!_gradientController.isAnimating) {
+      _gradientController.repeat(reverse: true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _gradientController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final l10n = context.l10n;
-    final (icon, color, label) = switch (activity.status) {
-      AgentToolActivityStatus.running => (
-        Icons.hourglass_top,
-        theme.colorScheme.onSurface.withValues(alpha: 0.5),
-        l10n.agentChat_toolRunning,
-      ),
-      AgentToolActivityStatus.succeeded => (
-        Icons.check_circle_outline,
-        theme.colorScheme.tertiary,
-        activity.toolName,
-      ),
-      AgentToolActivityStatus.failed => (
-        Icons.error_outline,
-        theme.colorScheme.error,
-        activity.toolName,
-      ),
+    final activity = widget.activity;
+    final toolLabel = _agentToolLabel(l10n, activity.toolName);
+    final visual = _agentToolVisual(theme, activity.toolName);
+    final statusColor = activity.status == AgentToolActivityStatus.failed
+        ? Color.lerp(
+            theme.colorScheme.onSurfaceVariant,
+            theme.colorScheme.error,
+            0.48,
+          )!
+        : visual.color;
+    final statusLabel = switch (activity.status) {
+      AgentToolActivityStatus.running => l10n.agentChat_toolRunning,
+      AgentToolActivityStatus.succeeded => toolLabel,
+      AgentToolActivityStatus.failed => toolLabel,
     };
-    return Container(
-      margin: const EdgeInsets.only(bottom: 6),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(
-          alpha: 0.45,
-        ),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 13, color: color),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Text(
-              '$label · ${_summarize(activity)}',
-              style: theme.textTheme.labelSmall?.copyWith(color: color),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+    final icon = activity.status == AgentToolActivityStatus.failed
+        ? Icons.error_outline
+        : visual.icon;
+    final reducedMotion = MediaQuery.disableAnimationsOf(context);
+    final animation = reducedMotion
+        ? const AlwaysStoppedAnimation<double>(0.5)
+        : _gradientController;
+
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: animation,
+        builder: (context, _) {
+          final progress = Curves.easeInOut.transform(animation.value);
+          final gradientTarget = Color.lerp(
+            theme.colorScheme.onSurfaceVariant,
+            theme.colorScheme.primary,
+            0.32,
+          )!;
+          final changingColor = Color.lerp(
+            visual.color,
+            gradientTarget,
+            0.16 + progress * 0.24,
+          )!;
+          return Container(
+            key: ValueKey('agent-tool-activity-${activity.toolCallId}'),
+            constraints: const BoxConstraints(minHeight: 28),
+            margin: const EdgeInsets.only(bottom: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+            decoration: BoxDecoration(
+              gradient: activity.status == AgentToolActivityStatus.running
+                  ? LinearGradient(
+                      begin: Alignment(-1.15 + progress * 0.45, -0.35),
+                      end: Alignment(0.45 + progress * 0.45, 0.35),
+                      colors: [
+                        theme.colorScheme.surfaceContainerHighest.withValues(
+                          alpha: 0.42,
+                        ),
+                        changingColor.withValues(alpha: 0.13),
+                        theme.colorScheme.surfaceContainerHighest.withValues(
+                          alpha: 0.38,
+                        ),
+                      ],
+                      stops: const [0, 0.52, 1],
+                    )
+                  : null,
+              color: activity.status == AgentToolActivityStatus.running
+                  ? null
+                  : theme.colorScheme.surfaceContainerHighest.withValues(
+                      alpha: 0.42,
+                    ),
+              borderRadius: BorderRadius.circular(8),
             ),
-          ),
-        ],
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                SizedBox.square(
+                  key: ValueKey(
+                    'agent-tool-activity-icon-${activity.toolCallId}',
+                  ),
+                  dimension: 18,
+                  child: Transform.translate(
+                    offset: const Offset(0, 1),
+                    child: Center(
+                      child: Icon(icon, size: 15, color: statusColor),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                SizedBox(
+                  height: 18,
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      statusLabel,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        height: 1,
+                      ),
+                      maxLines: 1,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Container(
+                  width: 3,
+                  height: 3,
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.7),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: SizedBox(
+                    height: 18,
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        _summarize(activity, toolLabel),
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: statusColor.withValues(alpha: 0.9),
+                          fontFamily: 'monospace',
+                          height: 1,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
 
-  String _summarize(AgentToolActivity activity) {
+  String _summarize(AgentToolActivity activity, String toolLabel) {
     if (activity.status == AgentToolActivityStatus.running) {
-      return activity.toolName;
+      return toolLabel;
     }
     final text = activity.content.trim();
     if (text.isEmpty) {
-      return activity.toolName;
+      return toolLabel;
     }
     final normalized = text.replaceAll(RegExp(r'\s+'), ' ');
     return normalized.length <= 60
@@ -2386,6 +2996,15 @@ class _ToolResultTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final toolLabel = _agentToolLabel(context.l10n, result.toolName);
+    final visual = _agentToolVisual(theme, result.toolName);
+    final color = result.isError
+        ? Color.lerp(
+            theme.colorScheme.onSurfaceVariant,
+            theme.colorScheme.error,
+            0.48,
+          )!
+        : visual.color;
     final files = _extractImageFiles(result);
     return Padding(
       padding: const EdgeInsets.only(bottom: 6, left: 4),
@@ -2393,27 +3012,37 @@ class _ToolResultTile extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Icon(
-                result.isError
-                    ? Icons.error_outline
-                    : Icons.build_circle_outlined,
-                size: 12,
-                color: result.isError
-                    ? theme.colorScheme.error
-                    : theme.colorScheme.onSurface.withValues(alpha: 0.4),
-              ),
-              const SizedBox(width: 4),
-              Flexible(
-                child: Text(
-                  result.toolName,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: result.isError
-                        ? theme.colorScheme.error
-                        : theme.colorScheme.onSurfaceVariant,
-                    fontFamily: 'monospace',
+              SizedBox.square(
+                key: ValueKey('agent-tool-result-icon-${result.toolCallId}'),
+                dimension: 18,
+                child: Transform.translate(
+                  offset: const Offset(0, 1),
+                  child: Center(
+                    child: Icon(
+                      result.isError ? Icons.error_outline : visual.icon,
+                      size: 15,
+                      color: color.withValues(alpha: 0.82),
+                    ),
                   ),
-                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Flexible(
+                child: SizedBox(
+                  height: 18,
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      toolLabel,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: color.withValues(alpha: 0.78),
+                        height: 1,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -2433,6 +3062,51 @@ class _ToolResultTile extends StatelessWidget {
       ),
     );
   }
+}
+
+const Map<String, Object> _agentChatImageDragLocalData = {
+  'source': 'agent_chat_internal',
+};
+
+String _agentChatImageFileName(String? mimeType, String stem) {
+  final extension = switch (mimeType) {
+    'image/jpeg' => 'jpg',
+    'image/webp' => 'webp',
+    'image/gif' => 'gif',
+    'image/bmp' => 'bmp',
+    _ => 'png',
+  };
+  return '$stem.$extension';
+}
+
+Future<void> _showAgentChatImageSendMenu({
+  required BuildContext context,
+  required WidgetRef ref,
+  required Offset position,
+  required String fileName,
+  required Future<Uint8List> Function() loadBytes,
+}) async {
+  var isKritaConnected = false;
+  try {
+    isKritaConnected =
+        ref.read(kritaBridgeNotifierProvider).status ==
+        KritaBridgeStatus.connected;
+  } catch (_) {
+    // 应用服务尚未完成恢复时仍允许使用其余图片动作。
+  }
+  final action = await LocalImageContextMenu.showSendActions(
+    context,
+    position: position,
+    isKritaConnected: isKritaConnected,
+  );
+  if (action == null || !context.mounted) return;
+  await ImageSendActionDispatcher.handle(
+    context: context,
+    ref: ref,
+    action: action,
+    fileName: fileName,
+    loadBytes: loadBytes,
+  );
 }
 
 /// 提取生成图片的本地文件路径：优先 details（运行中），回退解析
@@ -2474,16 +3148,23 @@ List<String> _extractImageFiles(ToolResultMessage result) {
 
 /// 工具结果图片在首帧读取少量文件头来确定比例。解析失败时使用固定的
 /// 4:3 比例，不再异步替换占位高度，避免图片解码期间反复改变滚动范围。
-class _ToolResultImage extends StatelessWidget {
+class _ToolResultImage extends ConsumerStatefulWidget {
   const _ToolResultImage({super.key, required this.path});
-
-  static const int _maxHeaderBytes = 64 * 1024;
-  static final Map<String, double> _aspectCache = {};
 
   final String path;
 
+  @override
+  ConsumerState<_ToolResultImage> createState() => _ToolResultImageState();
+}
+
+class _ToolResultImageState extends ConsumerState<_ToolResultImage> {
+  static const int _maxHeaderBytes = 64 * 1024;
+  static final Map<String, double> _aspectCache = {};
+
+  bool _isHovering = false;
+
   double _readAspect(File file) {
-    final cached = _aspectCache[path];
+    final cached = _aspectCache[widget.path];
     if (cached != null) {
       return cached;
     }
@@ -2504,19 +3185,57 @@ class _ToolResultImage extends StatelessWidget {
     } finally {
       handle?.closeSync();
     }
-    _aspectCache[path] = aspect;
+    _aspectCache[widget.path] = aspect;
     return aspect;
+  }
+
+  void _openDetail() {
+    ImageDetailOpener.showSingleImmediate(
+      context,
+      image: FileImageDetailData(filePath: widget.path),
+      showMetadataPanel: true,
+    );
+  }
+
+  void _showSendMenu(TapDownDetails details) {
+    unawaited(
+      _showAgentChatImageSendMenu(
+        context: context,
+        ref: ref,
+        position: details.globalPosition,
+        fileName: widget.path.split(RegExp(r'[/\\]')).last,
+        loadBytes: () => File(widget.path).readAsBytes(),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final file = File(path);
+    final file = File(widget.path);
     if (!file.existsSync()) {
       return Padding(
         padding: const EdgeInsets.only(top: 2),
         child: Text(
-          '找不到图片：$path',
+          '找不到图片：${widget.path}',
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+          ),
+        ),
+      );
+    }
+    late final LocalImageRecord record;
+    try {
+      record = LocalImageRecord(
+        path: widget.path,
+        size: file.lengthSync(),
+        modifiedAt: file.lastModifiedSync(),
+      );
+    } catch (_) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 2),
+        child: Text(
+          '找不到图片：${widget.path}',
           style: theme.textTheme.labelSmall?.copyWith(
             color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
           ),
@@ -2528,20 +3247,52 @@ class _ToolResultImage extends StatelessWidget {
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 320, maxHeight: 320),
-          child: AspectRatio(
-            aspectRatio: _readAspect(file),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Image.file(
-                file,
-                fit: BoxFit.contain,
-                gaplessPlayback: true,
-                filterQuality: FilterQuality.medium,
-                errorBuilder: (_, __, ___) => Center(
-                  child: Text(
-                    '找不到图片：$path',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+          child: DraggableImageCard(
+            record: record,
+            localData: _agentChatImageDragLocalData,
+            feedbackWidth: 240,
+            child: AspectRatio(
+              aspectRatio: _readAspect(file),
+              child: MouseRegion(
+                cursor: SystemMouseCursors.click,
+                onEnter: (_) => setState(() => _isHovering = true),
+                onExit: (_) => setState(() => _isHovering = false),
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: _openDetail,
+                  onSecondaryTapDown: _showSendMenu,
+                  child: ImageCardHoverMotion(
+                    hovered: _isHovering,
+                    child: AnimatedContainer(
+                      duration: MediaQuery.disableAnimationsOf(context)
+                          ? Duration.zero
+                          : const Duration(milliseconds: 120),
+                      curve: Curves.easeOut,
+                      foregroundDecoration: BoxDecoration(
+                        color: _isHovering
+                            ? theme.colorScheme.primary.withValues(alpha: 0.07)
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.file(
+                          file,
+                          fit: BoxFit.contain,
+                          gaplessPlayback: true,
+                          filterQuality: FilterQuality.medium,
+                          errorBuilder: (_, __, ___) => Center(
+                            child: Text(
+                              '找不到图片：${widget.path}',
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: theme.colorScheme.onSurface.withValues(
+                                  alpha: 0.4,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),

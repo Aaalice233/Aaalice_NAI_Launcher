@@ -11,10 +11,12 @@ import '../../../core/agent/harness/env/dart_io_execution_env.dart';
 import '../../../core/agent/harness/harness_result.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/utils/app_logger.dart';
+import '../../../core/utils/nai_resolution_adapter.dart';
 import '../../../data/models/image/image_params.dart';
 import '../../prompt_assistant/models/prompt_assistant_models.dart';
 import '../../prompt_assistant/providers/prompt_assistant_config_provider.dart';
 import '../../prompt_assistant/services/prompt_assistant_service.dart';
+import '../../providers/character_prompt_provider.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/queue_execution_provider.dart';
 import '../../providers/replication_queue_provider.dart';
@@ -58,6 +60,7 @@ class GenerationToolbox {
        );
 
   static const int maxGenerateCount = 8;
+  static const int maxRecentImageLimit = 20;
 
   final Ref _ref;
   final DartIoExecutionEnv _fileEnv;
@@ -86,7 +89,7 @@ class GenerationToolbox {
           },
           'required': ['path'],
         },
-        executeFn: (_, params) => _interrogate(params),
+        executeWithControl: _interrogate,
       ),
       DefinedAgentTool(
         name: 'generate_image',
@@ -112,8 +115,8 @@ class GenerationToolbox {
             '1024x1536 / 1536x1024 / 1472x1472; Wallpaper 1088x1920 / '
             '1920x1088; Small 512x768 / 768x512 / 640x640. Custom sizes '
             'are allowed but limited: width and height MUST be multiples '
-            'of 64 (minimum 64), each side at most 2048, total pixels at '
-            'most 2088960 (wallpaper level). Omit to reuse the generation '
+            'of 64 (minimum 64), each side at most 4096, total pixels at '
+            'most 3145728. Omit to reuse the generation '
             'page size. '
             '(4) "seed": omit or -1 for random. A fixed seed is honored '
             'only when count = 1; with count > 1 every image gets an '
@@ -144,19 +147,23 @@ class GenerationToolbox {
                   'prompt.',
             },
             'width': {
-              'type': 'number',
+              'type': 'integer',
+              'minimum': 64,
+              'maximum': NaiResolutionAdapter.generationMaxSide,
               'description':
                   'Width in px; must be a multiple of 64. Prefer preset '
                   'values (512/640/768/832/1024/1088/1216/1472/1536/1920).',
             },
             'height': {
-              'type': 'number',
+              'type': 'integer',
+              'minimum': 64,
+              'maximum': NaiResolutionAdapter.generationMaxSide,
               'description':
                   'Height in px; must be a multiple of 64. Prefer preset '
                   'values (768/640/512/1216/1024/832/1536/1472/1920/1088).',
             },
             'count': {
-              'type': 'number',
+              'type': 'integer',
               'minimum': 1,
               'maximum': maxGenerateCount,
               'description':
@@ -165,7 +172,8 @@ class GenerationToolbox {
                   'prompts, call the tool once per prompt.',
             },
             'seed': {
-              'type': 'number',
+              'type': 'integer',
+              'minimum': -1,
               'description':
                   'Omit or -1 for random. A fixed seed only '
                   'applies when count = 1.',
@@ -182,16 +190,22 @@ class GenerationToolbox {
             },
             'strength': {
               'type': 'number',
+              'minimum': 0,
+              'maximum': 0.99,
               'description':
                   'img2img strength 0-0.99. Higher = further from '
                   'the source image.',
             },
             'noise': {
               'type': 'number',
+              'minimum': 0,
+              'maximum': 0.99,
               'description': 'Extra img2img noise 0-0.99.',
             },
             'inpaint_strength': {
               'type': 'number',
+              'minimum': 0,
+              'maximum': 0.99,
               'description':
                   'Inpaint strength 0-0.99 (only with '
                   'mask_image).',
@@ -232,7 +246,7 @@ class GenerationToolbox {
                   'prompt.',
             },
             'count': {
-              'type': 'number',
+              'type': 'integer',
               'minimum': 1,
               'maximum': kMaxQueueCapacity,
               'description':
@@ -265,18 +279,24 @@ class GenerationToolbox {
         name: 'get_recent_images',
         label: 'Get Recent Images',
         description:
-            'Return recently generated images (including queue outputs) '
-            'as chat thumbnails plus file paths for history review or when '
-            'visual context is useful.',
+            'Return the newest saved generation-history images (including '
+            'queue outputs) as chat thumbnails plus file paths. "limit" is '
+            'required on every call. When the user requests a specific '
+            'number, pass that exact number.',
         parameters: const {
           'type': 'object',
           'properties': {
             'limit': {
-              'type': 'number',
-              'description': 'Max images to return, 1-20. Default 6.',
+              'type': 'integer',
+              'minimum': 1,
+              'maximum': maxRecentImageLimit,
+              'description':
+                  'Required number of newest images to return. Use the exact '
+                  'number requested by the user; maximum '
+                  '$maxRecentImageLimit.',
             },
           },
-          'required': <String>[],
+          'required': ['limit'],
         },
         executeFn: (_, params) => _recentImages(params),
       ),
@@ -322,19 +342,32 @@ class GenerationToolbox {
           'type': 'object',
           'properties': {
             'model': {'type': 'string'},
-            'sampler': {'type': 'string'},
-            'steps': {'type': 'number'},
-            'scale': {'type': 'number'},
-            'cfg_rescale': {'type': 'number'},
-            'noise_schedule': {'type': 'string'},
-            'uc_preset': {'type': 'number'},
+            'sampler': {'type': 'string', 'enum': Samplers.allSamplers},
+            'steps': {'type': 'integer', 'minimum': 1, 'maximum': 50},
+            'scale': {'type': 'number', 'minimum': 0, 'maximum': 10},
+            'cfg_rescale': {'type': 'number', 'minimum': 0, 'maximum': 1},
+            'noise_schedule': {'type': 'string', 'enum': NoiseSchedules.all},
+            'uc_preset': {
+              'type': 'integer',
+              'enum': [
+                UcPresets.heavyApiValue,
+                UcPresets.lightApiValue,
+                UcPresets.humanFocusApiValue,
+                UcPresets.noneApiValue,
+                UCPresets.furryFocus,
+              ],
+            },
             'quality_toggle': {'type': 'boolean'},
             'variety_plus': {'type': 'boolean'},
             'decrisp': {'type': 'boolean'},
             'transparent_background': {'type': 'boolean'},
             'smea': {'type': 'boolean'},
             'smea_dyn': {'type': 'boolean'},
-            'seed': {'type': 'number', 'description': '-1 for random.'},
+            'seed': {
+              'type': 'integer',
+              'minimum': -1,
+              'description': '-1 for random.',
+            },
           },
           'required': <String>[],
         },
@@ -356,7 +389,13 @@ class GenerationToolbox {
     return resolved;
   }
 
-  Future<AgentToolResult> _interrogate(Map<String, dynamic> args) async {
+  Future<AgentToolResult> _interrogate(
+    String toolCallId,
+    Map<String, dynamic> args, [
+    AbortSignal? signal,
+    AgentToolUpdateCallback? onUpdate,
+  ]) async {
+    throwIfAborted(signal);
     final path = (args['path'] as String?)?.trim() ?? '';
     if (path.isEmpty) {
       return _errorResult('Parameter "path" is required.');
@@ -393,43 +432,61 @@ class GenerationToolbox {
     }
     try {
       final bytes = await file.readAsBytes();
+      throwIfAborted(signal);
       final service = _ref.read(promptAssistantServiceProvider);
+      void cancelInterrogation(String? _) {
+        unawaited(service.cancelCurrentTask(sessionId: 'agent_interrogate'));
+      }
+
+      signal?.addListener(cancelInterrogation);
       // 对话模型支持图片时直接解析；失败或不可用时回退 reverse 路由。
-      if (chatCapable) {
-        try {
-          final viaChat = await _collectInterrogation(
-            service,
-            bytes,
-            AssistantTaskType.chat,
-          );
-          if (viaChat.isNotEmpty) {
-            return _textResult(viaChat);
-          }
-          AppLogger.w(
-            'interrogate via chat route returned empty prompt',
-            'AgentChat',
-          );
-        } catch (e) {
-          AppLogger.w('interrogate via chat route failed: $e', 'AgentChat');
-          if (!reverseReady) {
-            return _errorResult('Interrogation failed: $e');
+      try {
+        if (chatCapable) {
+          try {
+            final viaChat = await _collectInterrogation(
+              service,
+              bytes,
+              AssistantTaskType.chat,
+              signal,
+            );
+            if (viaChat.isNotEmpty) {
+              return _textResult(viaChat);
+            }
+            AppLogger.w(
+              'interrogate via chat route returned empty prompt',
+              'AgentChat',
+            );
+          } catch (e) {
+            if (signal?.aborted == true) {
+              rethrow;
+            }
+            AppLogger.w('interrogate via chat route failed: $e', 'AgentChat');
+            if (!reverseReady) {
+              return _errorResult('Interrogation failed: $e');
+            }
           }
         }
-      }
-      final prompt = await _collectInterrogation(
-        service,
-        bytes,
-        AssistantTaskType.reverse,
-      );
-      if (prompt.isEmpty) {
-        return _errorResult(
-          'Interrogation returned an empty prompt. The reverse model may not '
-          'support image input.',
+        final prompt = await _collectInterrogation(
+          service,
+          bytes,
+          AssistantTaskType.reverse,
+          signal,
         );
+        if (prompt.isEmpty) {
+          return _errorResult(
+            'Interrogation returned an empty prompt. The reverse model may not '
+            'support image input.',
+          );
+        }
+        return _textResult(prompt);
+      } finally {
+        signal?.removeListener(cancelInterrogation);
       }
-      return _textResult(prompt);
     } catch (e) {
       AppLogger.w('interrogate_image failed: $e', 'AgentChat');
+      if (signal?.aborted == true) {
+        return _errorResult('Interrogation cancelled.');
+      }
       return _errorResult('Interrogation failed: $e');
     }
   }
@@ -439,15 +496,19 @@ class GenerationToolbox {
     PromptAssistantService service,
     Uint8List bytes,
     AssistantTaskType route,
+    AbortSignal? signal,
   ) async {
     final buffer = StringBuffer();
+    throwIfAborted(signal);
     await for (final chunk in service.reverseImagePrompt(
       bytes,
       sessionId: 'agent_interrogate',
       taskType: route,
     )) {
+      throwIfAborted(signal);
       buffer.write(chunk.delta);
     }
+    throwIfAborted(signal);
     return buffer.toString().trim();
   }
 
@@ -477,6 +538,20 @@ class GenerationToolbox {
     final requestedSeed = (args['seed'] as num?)?.toInt() ?? -1;
     final width = (args['width'] as num?)?.toInt() ?? base.width;
     final height = (args['height'] as num?)?.toInt() ?? base.height;
+    final resolutionIssue = NaiResolutionAdapter.validateGenerationResolution(
+      width,
+      height,
+    );
+    if (resolutionIssue != null) {
+      return _errorResult(
+        'Invalid generation resolution ${width}x$height. Width and height '
+        'must be multiples of 64, each side must be between 64 and '
+        '${NaiResolutionAdapter.generationMaxSide}, and total pixels must '
+        'not exceed ${NaiResolutionAdapter.officialMaxPixels}. Nearest valid '
+        'size: ${resolutionIssue.suggestedWidth}x'
+        '${resolutionIssue.suggestedHeight}.',
+      );
+    }
     final negativePrompt =
         (args['negative_prompt'] as String?)?.trim() ?? base.negativePrompt;
 
@@ -780,11 +855,18 @@ class GenerationToolbox {
     final count = math.min(requestedCount, remaining);
     final autoStart = args['auto_start'] as bool? ?? true;
     final base = _ref.read(generationParamsNotifierProvider);
+    final characterPrompts = _ref
+        .read(characterPromptNotifierProvider)
+        .characters
+        .map(ReplicationCharacterPromptSnapshot.fromCharacterPrompt)
+        .toList(growable: false);
     final tasks = List.generate(count, (_) {
       return ReplicationTask.create(
         prompt: prompt,
         negativePrompt:
             (args['negative_prompt'] as String?)?.trim() ?? base.negativePrompt,
+        applyNegativePrompt: true,
+        characterPrompts: characterPrompts,
         source: ReplicationTaskSource.local,
         sampler: base.sampler,
         steps: base.steps,
@@ -1033,12 +1115,24 @@ class GenerationToolbox {
   /// 最近生成图（含队列产物）：details 携带文件路径，
   /// 会话内自动渲染为缩略图。
   Future<AgentToolResult> _recentImages(Map<String, dynamic> args) async {
-    final limit = ((args['limit'] as num?)?.toInt() ?? 6).clamp(1, 20);
+    final rawLimit = args['limit'];
+    if (rawLimit == null) {
+      return _errorResult('Parameter "limit" is required.');
+    }
+    if (rawLimit is! num || rawLimit != rawLimit.roundToDouble()) {
+      return _errorResult('Parameter "limit" must be an integer.');
+    }
+    final limit = rawLimit.toInt();
+    if (limit < 1 || limit > maxRecentImageLimit) {
+      return _errorResult(
+        'Parameter "limit" must be between 1 and $maxRecentImageLimit.',
+      );
+    }
     final history = _ref.read(imageGenerationNotifierProvider).history;
     final images = [
       for (final image in history)
         if (image.filePath != null) image,
-    ].take(limit).toList();
+    ].take(limit).toList(growable: false);
     final files = [for (final image in images) image.filePath!];
     final report = [
       for (final image in images)

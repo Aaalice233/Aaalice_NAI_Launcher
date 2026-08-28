@@ -1,12 +1,15 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/agent/agent_types.dart';
+import '../../../core/agent/harness/env/dart_io_execution_env.dart';
 import '../../../data/models/character/character_prompt.dart';
 import '../../providers/character_prompt_provider.dart';
 import '../../providers/generation/generation_params_notifier.dart';
 import '../../../core/agent/harness/harness_types.dart';
+import '../../../core/agent/harness/skills.dart';
 
 /// 定义式工具构造。
 class DefinedAgentTool extends AgentTool {
@@ -96,11 +99,19 @@ AgentToolResult _errorResult(String text) {
 /// 通过注入的 [Ref] 读写现有 Riverpod providers，任何改动都会即时
 /// 反映到生成页 UI。
 class PromptToolbox {
-  PromptToolbox(this._ref, {Map<String, HarnessSkill>? skills})
-    : _skills = skills ?? const {};
+  PromptToolbox(
+    this._ref, {
+    Map<String, HarnessSkill>? skills,
+    List<SkillDiagnostic>? skillDiagnostics,
+    Future<int> Function()? reloadSkills,
+  }) : _skills = skills ?? const {},
+       _skillDiagnostics = skillDiagnostics ?? const [],
+       _reloadSkills = reloadSkills;
 
   final Ref _ref;
   final Map<String, HarnessSkill> _skills;
+  final List<SkillDiagnostic> _skillDiagnostics;
+  final Future<int> Function()? _reloadSkills;
 
   List<AgentTool> tools() {
     return [
@@ -301,6 +312,89 @@ class PromptToolbox {
           },
           executeFn: (_, params) => _readSkill(params),
         ),
+      if (_skills.isNotEmpty)
+        DefinedAgentTool(
+          name: 'read_skill_resource',
+          label: 'Read Skill Resource',
+          description:
+              'Read a text reference, template, or script belonging to an '
+              'available skill. The relative path is strictly confined to '
+              'that skill directory. Use offset and limit for long files.',
+          parameters: const {
+            'type': 'object',
+            'properties': {
+              'name': {'type': 'string', 'description': 'Skill name.'},
+              'path': {
+                'type': 'string',
+                'description': 'Path relative to the skill directory.',
+              },
+              'offset': {
+                'type': 'integer',
+                'minimum': 0,
+                'description': 'Zero-based starting line. Default 0.',
+              },
+              'limit': {
+                'type': 'integer',
+                'minimum': 1,
+                'maximum': 1000,
+                'description': 'Maximum lines to return, 1-1000. Default 200.',
+              },
+            },
+            'required': ['name', 'path'],
+          },
+          executeFn: (_, params) => _readSkillResource(params),
+        ),
+      DefinedAgentTool(
+        name: 'get_skill_diagnostics',
+        label: 'Get Skill Diagnostics',
+        description:
+            'List warnings from the latest skill discovery pass, including '
+            'invalid metadata and unreadable files.',
+        parameters: const {
+          'type': 'object',
+          'properties': <String, dynamic>{},
+          'required': <String>[],
+        },
+        executeFn: (_, __) async => _textResult(
+          jsonEncode({
+            'count': _skillDiagnostics.length,
+            'diagnostics': [
+              for (final diagnostic in _skillDiagnostics)
+                {
+                  'code': diagnostic.code.name,
+                  'message': diagnostic.message,
+                  'path': diagnostic.path,
+                },
+            ],
+          }),
+        ),
+      ),
+      if (_reloadSkills != null)
+        DefinedAgentTool(
+          name: 'reload_skills',
+          label: 'Reload Skills',
+          description:
+              'Rediscover skills from workspace and user-global directories. '
+              'The refreshed inventory and tools apply to subsequent model '
+              'turns.',
+          parameters: const {
+            'type': 'object',
+            'properties': <String, dynamic>{},
+            'required': <String>[],
+          },
+          executeFn: (_, __) async {
+            final count = await _reloadSkills();
+            final available = _skills.keys.toList()..sort();
+            return _textResult(
+              jsonEncode({
+                'ok': true,
+                'count': count,
+                'skills': available,
+                'diagnostic_count': _skillDiagnostics.length,
+              }),
+            );
+          },
+        ),
     ];
   }
 
@@ -413,7 +507,10 @@ class PromptToolbox {
     }
     final notifier = _ref.read(characterPromptNotifierProvider.notifier);
     final limit = notifier.characterLimit;
-    final count = _ref.read(characterPromptNotifierProvider).characters.length;
+    final existingCharacters = _ref
+        .read(characterPromptNotifierProvider)
+        .characters;
+    final count = existingCharacters.length;
     if (limit > 0 && count >= limit) {
       return _errorResult(
         'Character limit reached ($limit). Remove one first.',
@@ -425,21 +522,29 @@ class PromptToolbox {
       prompt: (args['prompt'] as String?) ?? '',
     );
     await Future<void>.delayed(Duration.zero);
+    final existingIds = existingCharacters
+        .map((character) => character.id)
+        .toSet();
+    var created = _ref
+        .read(characterPromptNotifierProvider)
+        .characters
+        .where((character) => !existingIds.contains(character.id))
+        .firstOrNull;
+    if (created == null) {
+      return _errorResult('Character could not be added.');
+    }
     // addCharacter 生成默认负向后补充传入的负向词。
     if (args.containsKey('negative_prompt')) {
       final negative = (args['negative_prompt'] as String?) ?? '';
-      final created = _findCharacter(name: name);
-      if (created != null && negative.isNotEmpty) {
-        _ref
-            .read(characterPromptNotifierProvider.notifier)
-            .updateCharacter(created.copyWith(negativePrompt: negative));
-      }
+      created = created.copyWith(negativePrompt: negative);
+      _ref
+          .read(characterPromptNotifierProvider.notifier)
+          .updateCharacter(created);
     }
-    final created = _findCharacter(name: name);
     return _textResult(
       jsonEncode({
         'ok': true,
-        'character': {if (created != null) 'id': created.id, 'name': name},
+        'character': {'id': created.id, 'name': name},
       }),
     );
   }
@@ -471,6 +576,64 @@ class PromptToolbox {
     // 代理 的 Skill.content 即 SKILL.md 正文（加载时已剥离 frontmatter）。
     final content = skill.content;
     return _textResult(content.isEmpty ? '(empty)' : content);
+  }
+
+  Future<AgentToolResult> _readSkillResource(Map<String, dynamic> args) async {
+    final name = (args['name'] as String?)?.trim() ?? '';
+    final relativePath = (args['path'] as String?)?.trim() ?? '';
+    final skill = _skills[name];
+    if (skill == null) {
+      return _errorResult('Skill "$name" not found.');
+    }
+    if (relativePath.isEmpty) {
+      return _errorResult('Parameter "path" is required.');
+    }
+    final offset = (args['offset'] as num?)?.toInt() ?? 0;
+    final limit = (args['limit'] as num?)?.toInt() ?? 200;
+    if (offset < 0) {
+      return _errorResult('Parameter "offset" must be at least 0.');
+    }
+    if (limit < 1 || limit > 1000) {
+      return _errorResult('Parameter "limit" must be between 1 and 1000.');
+    }
+
+    final skillRoot = File(skill.filePath).parent.path;
+    final env = DartIoExecutionEnv(workingDirectory: skillRoot);
+    final resolved = await env.absolutePath(relativePath);
+    final absolutePath = resolved.valueOrNull;
+    if (absolutePath == null) {
+      return _errorResult(
+        'Skill resource path is not permitted: '
+        '${resolved.errorOrNull?.message ?? relativePath}',
+      );
+    }
+    final info = await env.fileInfo(absolutePath);
+    if (info.valueOrNull?.kind != FileKind.file) {
+      return _errorResult(
+        info.errorOrNull?.message ?? 'Skill resource is not a text file.',
+      );
+    }
+    final result = await env.readTextFile(absolutePath);
+    final content = result.valueOrNull;
+    if (content == null) {
+      return _errorResult(
+        result.errorOrNull?.message ?? 'Failed to read skill resource.',
+      );
+    }
+    final lines = content.split(RegExp(r'\r?\n'));
+    final selected = offset >= lines.length
+        ? const <String>[]
+        : lines.skip(offset).take(limit).toList(growable: false);
+    return _textResult(
+      jsonEncode({
+        'path': relativePath,
+        'offset': offset,
+        'returned_lines': selected.length,
+        'total_lines': lines.length,
+        'truncated': offset + selected.length < lines.length,
+        'content': selected.join('\n'),
+      }),
+    );
   }
 
   CharacterGender? _parseGender(dynamic raw) {

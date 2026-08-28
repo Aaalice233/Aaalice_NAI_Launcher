@@ -1,7 +1,11 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import '../../../core/agent/agent_types.dart';
 import '../../../core/agent/harness/env/dart_io_execution_env.dart';
 import '../../../core/agent/harness/harness_types.dart';
 import '../../../core/agent/harness/tools/tools_index.dart';
+import '../../utils/reverse_prompt_image_normalizer.dart';
 
 /// 把 [AgentHarnessTool]（需要 ExecutionToolContext）适配成 loop 可直接
 /// 调用的 [AgentTool]：注入 env 上下文并透传 signal / onUpdate /
@@ -59,6 +63,50 @@ class ExecutionToolbox {
 
   List<AgentTool> tools() {
     final context = ExecutionToolContext(env: _env);
-    return [ContextAgentTool(createReadTool(), context)];
+    return [
+      ContextAgentTool(
+        createReadTool(
+          const ReadToolOptions(imageProcessor: _processReadImage),
+        ),
+        context,
+      ),
+    ];
+  }
+}
+
+Future<ReadImageProcessorResult> _processReadImage(
+  List<int> bytes,
+  String mimeType,
+  ({bool autoResizeImages}) options,
+) async {
+  if (mimeType == 'image/bmp') {
+    return const ReadImageProcessorResult.fail(
+      'Image omitted: BMP conversion is not supported.',
+    );
+  }
+  try {
+    final original = Uint8List.fromList(bytes);
+    final processed = options.autoResizeImages
+        ? await ReversePromptImageNormalizer.normalize(
+            original,
+            limits: const ReversePromptImageLimits(
+              maxBytes: 4 * 1024 * 1024,
+              maxLongSide: 1536,
+              maxPixels: 1536 * 1536,
+            ),
+          )
+        : original;
+    final processedMime = detectSupportedImageMimeType(processed) ?? mimeType;
+    return ReadImageProcessorResult.ok(
+      data: base64Encode(processed),
+      mimeType: processedMime,
+      hints: const [
+        'Visual input is constrained to a 1536px long side, 2.36MP, and 4MB.',
+      ],
+    );
+  } catch (error) {
+    return ReadImageProcessorResult.fail(
+      'Image omitted: failed to prepare visual input ($error).',
+    );
   }
 }

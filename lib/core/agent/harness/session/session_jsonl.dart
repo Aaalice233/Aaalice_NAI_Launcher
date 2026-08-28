@@ -751,11 +751,13 @@ Map<String, dynamic> encodeMessage(AgentMessage message) {
     };
   }
   if (message is ToolResultMessage) {
+    final details = _jsonCompatibleValue(message.details);
     return {
       'role': 'toolResult',
       'toolCallId': message.toolCallId,
       'toolName': message.toolName,
       'content': message.text,
+      if (details != null) 'details': details,
       'isError': message.isError,
       'timestamp': message.timestamp,
     };
@@ -834,11 +836,23 @@ AgentMessage? decodeMessage(Object? json) {
           if (json['content'] case final String content when content.isNotEmpty)
             ToolResultTextContent(content),
         ],
+        details: json['details'],
         isError: json['isError'] as bool? ?? false,
         timestamp: timestamp,
       );
     default:
       return null;
+  }
+}
+
+Object? _jsonCompatibleValue(Object? value) {
+  if (value == null) {
+    return null;
+  }
+  try {
+    return jsonDecode(jsonEncode(value));
+  } catch (_) {
+    return null;
   }
 }
 
