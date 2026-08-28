@@ -161,7 +161,8 @@ GoRouter appRouter(Ref ref) {
                   initialSectionIndex:
                       switch (state.uri.queryParameters['section']) {
                         'storage' => 3,
-                        'integrations' => 7,
+                        'cloud-sync' => 4,
+                        'integrations' => 8,
                         _ => 0,
                       },
                 ),

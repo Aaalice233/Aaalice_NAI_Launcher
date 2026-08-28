@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/localization_extension.dart';
 import '../../adaptive/window_size_class.dart';
+import '../cloud_sync/cloud_sync_screen.dart';
 import 'sections/account_settings_section.dart';
 import 'sections/appearance_settings_section.dart';
 import 'sections/generation_settings_section.dart';
@@ -47,7 +48,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   @override
   void initState() {
     super.initState();
-    _selectedIndex = widget.initialSectionIndex.clamp(0, 8);
+    _selectedIndex = widget.initialSectionIndex.clamp(0, 9);
     _showCompactDetail = widget.initialSectionIndex != 0;
     _contentScrollController.addListener(_onContentScroll);
   }
@@ -56,7 +57,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   void didUpdateWidget(covariant SettingsScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.initialSectionIndex != widget.initialSectionIndex) {
-      _selectedIndex = widget.initialSectionIndex.clamp(0, 8);
+      _selectedIndex = widget.initialSectionIndex.clamp(0, 9);
       _showCompactDetail = widget.initialSectionIndex != 0;
     }
   }
@@ -86,6 +87,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         selectedIcon: Icons.storage,
         label: context.l10n.settings_dataStorage,
         widget: const StorageSettingsSection(),
+      ),
+      _SettingsSection(
+        icon: Icons.cloud_sync_outlined,
+        selectedIcon: Icons.cloud_sync,
+        label: context.l10n.cloudSync_title,
+        widget: const CloudSyncScreen(),
       ),
       _SettingsSection(
         icon: Icons.shield_outlined,

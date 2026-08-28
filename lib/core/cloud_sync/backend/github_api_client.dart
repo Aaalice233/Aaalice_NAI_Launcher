@@ -1,0 +1,405 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:dio/dio.dart';
+
+import 'backend_http.dart';
+import 'cloud_sync_backend.dart';
+import 'github_backend_support.dart';
+
+class GitHubTreeBase {
+  const GitHubTreeBase({required this.commit, required this.tree});
+
+  final String commit;
+  final String tree;
+}
+
+class GitHubApiClient {
+  static const String _emptyTreeSha =
+      '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
+
+  GitHubApiClient({
+    required this.owner,
+    required this.repository,
+    required this.branch,
+    required String token,
+    Dio? dio,
+    Uri? apiBaseUri,
+  }) : _authorization = 'Bearer $token',
+       _http = BackendHttp(dio: dio),
+       _apiBase = apiBaseUri ?? Uri.parse('https://api.github.com/');
+
+  final String owner;
+  final String repository;
+  final String branch;
+  final String _authorization;
+  final BackendHttp _http;
+  final Uri _apiBase;
+
+  String get repo => 'repos/${segment(owner)}/${segment(repository)}';
+
+  Map<String, String> get _headers => {
+    'Authorization': _authorization,
+    'Accept': 'application/vnd.github+json',
+    'Content-Type': 'application/json',
+    'X-GitHub-Api-Version': '2022-11-28',
+    'Accept-Encoding': 'identity',
+  };
+
+  Future<Map<String, dynamic>> repositoryInfo() =>
+      jsonRequest('GET', repo, action: '检查仓库');
+
+  Future<String> ensureBranch(
+    Map<String, dynamic> repository,
+    String root,
+  ) async {
+    final existing = await branchShaOrNull();
+    if (existing != null) return existing;
+    if (repository['size'] != 0) {
+      throw CloudBackendException(
+        CloudBackendErrorKind.notFound,
+        '找不到分支 "$branch"，请检查分支名称或 Token 对私有仓库的访问权限。',
+        statusCode: 404,
+      );
+    }
+    final initialized = await jsonRequest(
+      'PUT',
+      contents('$root/.init', forWrite: true),
+      action: '初始化空仓库',
+      accepted: const {200, 201},
+      data: {
+        'message': 'cloud-sync: initialize repository',
+        'content': base64Encode(utf8.encode('Aaalice cloud sync\n')),
+      },
+    );
+    final commit = initialized['commit'];
+    final sha = commit is Map ? commit['sha'] : null;
+    if (sha is! String) {
+      throw const CloudBackendException(
+        CloudBackendErrorKind.invalidResponse,
+        'GitHub 初始化响应缺少 commit SHA。',
+      );
+    }
+    if (branch != repository['default_branch']) {
+      await jsonRequest(
+        'POST',
+        '$repo/git/refs',
+        action: '创建同步分支',
+        accepted: const {201},
+        data: {'ref': 'refs/heads/$branch', 'sha': sha},
+      );
+    }
+    return sha;
+  }
+
+  Future<String> branchSha() async {
+    final value = await branchShaOrNull();
+    if (value == null) {
+      throw CloudBackendException(
+        CloudBackendErrorKind.notFound,
+        '找不到分支 "$branch"。',
+        statusCode: 404,
+      );
+    }
+    return value;
+  }
+
+  Future<String?> branchShaOrNull() async {
+    final response = await request(
+      'GET',
+      '$repo/branches/${segment(branch)}',
+      action: '读取分支 revision',
+      allowNotFound: true,
+    );
+    if (response == null) return null;
+    final value = decodeJson(response);
+    final commit = value is Map ? value['commit'] : null;
+    final sha = commit is Map ? commit['sha'] : null;
+    if (sha is! String) {
+      throw const CloudBackendException(
+        CloudBackendErrorKind.invalidResponse,
+        'GitHub 分支响应缺少 commit SHA。',
+      );
+    }
+    return sha;
+  }
+
+  Future<GitHubTreeBase> readTreeBase() async {
+    final commitSha = await branchSha();
+    final commit = await jsonRequest(
+      'GET',
+      '$repo/git/commits/${segment(commitSha)}',
+      action: '读取分支 tree',
+    );
+    final tree = commit['tree'];
+    final treeSha = tree is Map ? tree['sha'] : null;
+    if (treeSha is! String || treeSha.isEmpty) {
+      throw const CloudBackendException(
+        CloudBackendErrorKind.invalidResponse,
+        'GitHub commit 响应缺少 tree SHA。',
+      );
+    }
+    return GitHubTreeBase(commit: commitSha, tree: treeSha);
+  }
+
+  Future<CloudObjectRead?> readPath(
+    String path, {
+    String? ref,
+    required int maxBytes,
+  }) async {
+    final encodedLimit = _base64JsonLimit(maxBytes);
+    final response = await request(
+      'GET',
+      contents(path, ref: ref),
+      action: '读取云端文件',
+      allowNotFound: true,
+      maxResponseBytes: encodedLimit,
+    );
+    if (response == null) return null;
+    final decoded = decodeJson(response);
+    if (decoded is! Map || decoded['sha'] is! String) {
+      throw const CloudBackendException(
+        CloudBackendErrorKind.invalidResponse,
+        'GitHub 文件响应缺少 SHA。',
+      );
+    }
+    final fileSha = decoded['sha'] as String;
+    final declaredSize = decoded['size'];
+    if (declaredSize is int && declaredSize > maxBytes) {
+      throw const CloudBackendException(
+        CloudBackendErrorKind.invalidResponse,
+        'GitHub 文件超过允许的下载大小。',
+      );
+    }
+    final content = decoded['content'];
+    if (content is String &&
+        (decoded['encoding'] == null || decoded['encoding'] == 'base64')) {
+      try {
+        final bytes = _decodeBase64(content, maxBytes, label: 'GitHub 文件');
+        if (GitHubBackendSupport.matchesGitBlobSha(bytes, fileSha)) {
+          return CloudObjectRead(bytes: bytes, revision: fileSha);
+        }
+      } on FormatException {
+        // Contents responses can be truncated or stale; the blob SHA is immutable.
+      }
+    }
+    final blob = await jsonRequest(
+      'GET',
+      '$repo/git/blobs/${segment(fileSha)}',
+      action: '读取不可变 blob',
+      maxResponseBytes: encodedLimit,
+    );
+    final blobContent = blob['content'];
+    if (blobContent is! String || blob['encoding'] != 'base64') {
+      throw const CloudBackendException(
+        CloudBackendErrorKind.invalidResponse,
+        'GitHub blob 响应格式无效。',
+      );
+    }
+    final blobSize = blob['size'];
+    if (blobSize is int && blobSize > maxBytes) {
+      throw const CloudBackendException(
+        CloudBackendErrorKind.invalidResponse,
+        'GitHub blob 超过允许的下载大小。',
+      );
+    }
+    final bytes = _decodeBase64(blobContent, maxBytes, label: 'GitHub blob');
+    if (!GitHubBackendSupport.matchesGitBlobSha(bytes, fileSha)) {
+      throw const CloudBackendException(
+        CloudBackendErrorKind.invalidResponse,
+        'GitHub blob 内容与 SHA 不匹配。',
+      );
+    }
+    return CloudObjectRead(bytes: bytes, revision: fileSha);
+  }
+
+  Future<String> createBlob(Uint8List bytes, {required String action}) async {
+    final blob = await jsonRequest(
+      'POST',
+      '$repo/git/blobs',
+      action: action,
+      accepted: const {201},
+      data: {'content': base64Encode(bytes), 'encoding': 'base64'},
+    );
+    return requiredSha(blob, 'GitHub 未返回 blob SHA。');
+  }
+
+  Future<List<Map<String, Object?>>> topLevelEntriesExcluding(
+    String treeSha,
+    String excludedPath,
+  ) async {
+    final response = await jsonRequest(
+      'GET',
+      '$repo/git/trees/${segment(treeSha)}',
+      action: '读取仓库顶层 tree',
+    );
+    final tree = response['tree'];
+    if (tree is! List) {
+      throw const CloudBackendException(
+        CloudBackendErrorKind.invalidResponse,
+        'GitHub tree 响应格式无效。',
+      );
+    }
+    return [
+      for (final item in tree.whereType<Map>())
+        if (item['path'] is String && item['path'] != excludedPath)
+          {
+            'path': item['path'],
+            'mode': item['mode'],
+            'type': item['type'],
+            'sha': item['sha'],
+          },
+    ];
+  }
+
+  Future<String> commitTree({
+    required GitHubTreeBase base,
+    required List<Map<String, Object?>> entries,
+    required String message,
+    bool includeBaseTree = true,
+  }) async {
+    final treeSha = entries.isEmpty && !includeBaseTree
+        ? _emptyTreeSha
+        : requiredSha(
+            await jsonRequest(
+              'POST',
+              '$repo/git/trees',
+              action: '创建原子同步 tree',
+              accepted: const {201},
+              data: {
+                if (includeBaseTree) 'base_tree': base.tree,
+                'tree': entries,
+              },
+            ),
+            'GitHub 未返回 tree SHA。',
+          );
+    final commit = await jsonRequest(
+      'POST',
+      '$repo/git/commits',
+      action: '创建原子同步 commit',
+      accepted: const {201},
+      data: {
+        'message': message,
+        'tree': treeSha,
+        'parents': [base.commit],
+      },
+    );
+    final commitSha = requiredSha(commit, 'GitHub 未返回 commit SHA。');
+    await jsonRequest(
+      'PATCH',
+      '$repo/git/refs/heads/${segment(branch)}',
+      action: '条件更新同步分支',
+      data: {'sha': commitSha, 'force': false},
+    );
+    return commitSha;
+  }
+
+  Future<Map<String, dynamic>> jsonRequest(
+    String method,
+    String path, {
+    required String action,
+    Set<int> accepted = const {200},
+    Object? data,
+    int maxResponseBytes = maxCloudJsonApiResponseBytes,
+  }) async {
+    final response = await request(
+      method,
+      path,
+      action: action,
+      accepted: accepted,
+      data: data,
+      maxResponseBytes: maxResponseBytes,
+    );
+    final value = decodeJson(response!);
+    if (value is! Map) {
+      throw CloudBackendException(
+        CloudBackendErrorKind.invalidResponse,
+        '$action失败：GitHub 返回格式无效。',
+      );
+    }
+    return value.cast<String, dynamic>();
+  }
+
+  Future<Response<Uint8List>?> request(
+    String method,
+    String path, {
+    required String action,
+    Set<int> accepted = const {200},
+    Object? data,
+    bool allowNotFound = false,
+    int maxResponseBytes = maxCloudJsonApiResponseBytes,
+  }) async {
+    final response = await _http.request(
+      method,
+      _apiBase.resolve(path),
+      headers: _headers,
+      data: data == null ? null : jsonEncode(data),
+      maxResponseBytes: maxResponseBytes,
+    );
+    final status = response.statusCode ?? 0;
+    if (accepted.contains(status)) return response;
+    if (allowNotFound && status == 404) return null;
+    GitHubBackendSupport.throwResponse(response, action);
+  }
+
+  dynamic decodeJson(Response<Uint8List> response) =>
+      GitHubBackendSupport.decodeJson(response);
+
+  String contents(String path, {bool forWrite = false, String? ref}) {
+    final endpoint = '$repo/contents/${path.split('/').map(segment).join('/')}';
+    if (forWrite) return endpoint;
+    return '$endpoint?ref=${Uri.encodeQueryComponent(ref ?? branch)}';
+  }
+
+  static String requiredSha(Map value, String message) {
+    final sha = value['sha'];
+    if (sha is! String || sha.isEmpty) {
+      throw CloudBackendException(
+        CloudBackendErrorKind.invalidResponse,
+        message,
+      );
+    }
+    return sha;
+  }
+
+  static Uint8List _decodeBase64(
+    String value,
+    int maxBytes, {
+    required String label,
+  }) {
+    final compact = value.replaceAll(RegExp(r'\s'), '');
+    if (compact.length > ((maxBytes + 2) ~/ 3) * 4) {
+      throw CloudBackendException(
+        CloudBackendErrorKind.invalidResponse,
+        '$label 超过允许的下载大小。',
+      );
+    }
+    try {
+      final bytes = base64Decode(compact);
+      if (bytes.length > maxBytes) {
+        throw CloudBackendException(
+          CloudBackendErrorKind.invalidResponse,
+          '$label 超过允许的下载大小。',
+        );
+      }
+      return bytes;
+    } on CloudBackendException {
+      rethrow;
+    } on FormatException {
+      throw CloudBackendException(
+        CloudBackendErrorKind.invalidResponse,
+        '$label 的 base64 内容无效。',
+      );
+    }
+  }
+
+  static int _base64JsonLimit(int decodedBytes) {
+    final encodedBytes = ((decodedBytes + 2) ~/ 3) * 4;
+    // GitHub wraps base64 at 60 characters. Each escaped newline occupies two
+    // bytes in the JSON response in addition to the normal JSON envelope.
+    final escapedLineBreakBytes = ((encodedBytes + 59) ~/ 60) * 2;
+    return encodedBytes + escapedLineBreakBytes + 64 * 1024;
+  }
+
+  static String segment(String value) => Uri.encodeComponent(value);
+}
