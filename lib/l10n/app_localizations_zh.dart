@@ -12422,6 +12422,42 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cloudSync_kindLargeFiles => '大二进制文件';
 
   @override
+  String get cloudSync_agentContentTitle => '智能体内容';
+
+  @override
+  String get cloudSync_agentSystemPrompt => '智能体自定义系统提示词';
+
+  @override
+  String get cloudSync_agentSystemPromptDescription =>
+      '默认备份。只包含自定义提示词及其追加/覆盖模式，模型与凭据仍保留在本机。';
+
+  @override
+  String get cloudSync_skillsBackup => '备份 Skill';
+
+  @override
+  String get cloudSync_skillsBackupDescription =>
+      '默认关闭。开启后再选择要备份完整目录的具体 Skill。';
+
+  @override
+  String cloudSync_skillsSelectedCount(Object count) {
+    return '已选择 $count 个 Skill';
+  }
+
+  @override
+  String cloudSync_missingSelectedSkills(Object count) {
+    return '其中 $count 个当前不可用';
+  }
+
+  @override
+  String get cloudSync_removeMissingSkills => '移除不可用项';
+
+  @override
+  String get cloudSync_searchSkills => '搜索 Skill';
+
+  @override
+  String get cloudSync_noSkills => '没有匹配的 Skill';
+
+  @override
   String get cloudSync_continueToEncryption => '继续加密设置';
 
   @override
@@ -25411,6 +25447,42 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get cloudSync_kindLargeFiles => '大型二進位檔案';
+
+  @override
+  String get cloudSync_agentContentTitle => '智慧代理內容';
+
+  @override
+  String get cloudSync_agentSystemPrompt => '智慧代理自訂系統提示詞';
+
+  @override
+  String get cloudSync_agentSystemPromptDescription =>
+      '預設備份。只包含自訂提示詞及其附加/覆寫模式，模型與憑證仍保留在本機。';
+
+  @override
+  String get cloudSync_skillsBackup => '備份 Skill';
+
+  @override
+  String get cloudSync_skillsBackupDescription =>
+      '預設關閉。開啟後再選擇要備份完整目錄的特定 Skill。';
+
+  @override
+  String cloudSync_skillsSelectedCount(Object count) {
+    return '已選擇 $count 個 Skill';
+  }
+
+  @override
+  String cloudSync_missingSelectedSkills(Object count) {
+    return '其中 $count 個目前無法使用';
+  }
+
+  @override
+  String get cloudSync_removeMissingSkills => '移除無法使用的項目';
+
+  @override
+  String get cloudSync_searchSkills => '搜尋 Skill';
+
+  @override
+  String get cloudSync_noSkills => '沒有符合的 Skill';
 
   @override
   String get cloudSync_continueToEncryption => '繼續加密設定';

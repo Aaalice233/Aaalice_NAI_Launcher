@@ -101,6 +101,8 @@ class SkillCatalogEntry {
   final bool enabled;
   final SkillSource? shadowedBy;
 
+  String get backupId => '${source.name}:$id';
+
   bool get isEffective => shadowedBy == null;
   bool get isModelVisible => enabled && skill.disableModelInvocation != true;
 
@@ -112,6 +114,25 @@ class SkillCatalogEntry {
     enabled: enabled ?? this.enabled,
     shadowedBy: shadowedBy,
   );
+}
+
+({SkillSource source, String name}) parseSkillBackupId(String value) {
+  final separator = value.indexOf(':');
+  if (separator <= 0 || separator == value.length - 1) {
+    throw const FormatException('Invalid Skill backup identity.');
+  }
+  final sourceName = value.substring(0, separator);
+  final name = value.substring(separator + 1);
+  final source = SkillSource.values.cast<SkillSource?>().firstWhere(
+    (item) => item?.name == sourceName,
+    orElse: () => null,
+  );
+  if (source == null ||
+      !RegExp(r'^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$').hasMatch(name) ||
+      name.contains('--')) {
+    throw const FormatException('Invalid Skill backup identity.');
+  }
+  return (source: source, name: name);
 }
 
 class SourcedSkillDiagnostic {

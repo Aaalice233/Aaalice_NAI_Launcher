@@ -1,6 +1,10 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/core/storage/secure_storage_service.dart';
+import 'package:nai_launcher/core/cloud_sync/content_selection.dart';
 import 'package:nai_launcher/presentation/providers/cloud_sync/cloud_sync_application_service.dart';
 import 'package:nai_launcher/presentation/providers/cloud_sync/cloud_sync_connection_store.dart';
 import 'package:nai_launcher/presentation/providers/cloud_sync/cloud_sync_ui_provider.dart';
@@ -12,7 +16,7 @@ void main() {
       final local = _MemoryLocalStorage();
       final service = CloudSyncApplicationService(
         backendFactory: (_) => throw UnimplementedError(),
-        coordinatorFactory: (_, __, ___) => throw UnimplementedError(),
+        coordinatorFactory: (_, __, ___, ____) => throw UnimplementedError(),
         secureStorage: _MemorySecureStorage(),
         localStorage: local,
         onState: (_) {},
@@ -42,7 +46,13 @@ void main() {
       allowInsecureHttp: true,
     );
 
-    await store.save(draft, {CloudSyncDataKind.settings});
+    const contentSelection = CloudSyncContentSelection(
+      includeSkills: true,
+      selectedSkillIds: {'workspace:test-skill'},
+    );
+    await store.save(draft, {
+      CloudSyncDataKind.settings,
+    }, contentSelection: contentSelection);
     final syncedAt = DateTime.utc(2026, 3, 14, 9, 30);
     await store.saveSyncState(remoteRevision: 'revision-7', lastSync: syncedAt);
     final restored = await store.load();
@@ -50,12 +60,42 @@ void main() {
     expect(restored!.draft.allowInsecureHttp, isTrue);
     expect(restored.draft.serverUrl, draft.serverUrl);
     expect(restored.dataKinds, {CloudSyncDataKind.settings});
+    expect(restored.contentSelection.includeAgentSystemPrompt, isTrue);
+    expect(restored.contentSelection.includeSkills, isTrue);
+    expect(
+      restored.contentSelection.selectedSkillIds,
+      contentSelection.selectedSkillIds,
+    );
     expect(restored.remoteRevision, 'revision-7');
     expect(restored.lastSync, syncedAt);
     await store.clear();
     expect(await store.load(), isNull);
     expect(secure.cleared, isTrue);
   });
+
+  test(
+    'legacy connection without content selection uses safe defaults',
+    () async {
+      final local = _MemoryLocalStorage();
+      final secure = _MemorySecureStorage()
+        ..credentials = jsonEncode({'username': 'user', 'secret': 'secret'});
+      local.values[StorageKeys.cloudSyncConfiguration] = jsonEncode({
+        'backend': CloudSyncBackendKind.webDav.name,
+        'serverUrl': 'https://dav.test/root',
+        'dataKinds': [CloudSyncDataKind.settings.name],
+      });
+      final store = CloudSyncConnectionStore(
+        localStorage: local,
+        secureStorage: secure,
+      );
+
+      final restored = await store.load();
+
+      expect(restored!.contentSelection.includeAgentSystemPrompt, isTrue);
+      expect(restored.contentSelection.includeSkills, isFalse);
+      expect(restored.contentSelection.selectedSkillIds, isEmpty);
+    },
+  );
 }
 
 class _MemoryLocalStorage extends LocalStorageService {

@@ -16,6 +16,8 @@ class StorageKeys {
   static const String cloudSyncDeviceId = 'cloud_sync_device_id_v1';
   static const String cloudSyncLastMaintenanceAt =
       'cloud_sync_last_maintenance_at_v1';
+  static const String cloudSyncContentSelection =
+      'cloud_sync_content_selection_v1';
 
   // Token 存储（按账号ID）
   static const String accountTokenPrefix = 'nai_account_token_';

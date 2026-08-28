@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/cloud_sync/cloud_sync_ui_provider.dart';
 import 'package:nai_launcher/presentation/screens/settings/settings_screen.dart';
@@ -92,6 +93,8 @@ void main() {
     expect(port.request!.initialAction, CloudSyncInitialAction.mergePreview);
     expect(port.request!.encryptionPassword, 'encryption-secret');
     expect(port.request!.connection.allowInsecureHttp, isTrue);
+    expect(port.request!.contentSelection.includeAgentSystemPrompt, isTrue);
+    expect(port.request!.contentSelection.includeSkills, isFalse);
     expect(find.text('webdav-secret'), findsNothing);
     expect(find.text('encryption-secret'), findsNothing);
     expect(tester.takeException(), isNull);
@@ -323,6 +326,7 @@ Widget _subject({CloudSyncUiState? state, CloudSyncUiPort? port}) {
     overrides: [
       if (state != null) cloudSyncUiStateProvider.overrideWithValue(state),
       if (port != null) cloudSyncUiPortProvider.overrideWithValue(port),
+      localStorageServiceProvider.overrideWithValue(_MemoryStorage()),
     ],
     child: const MaterialApp(
       locale: Locale('zh'),
@@ -331,6 +335,19 @@ Widget _subject({CloudSyncUiState? state, CloudSyncUiPort? port}) {
       home: SettingsScreen(initialSection: SettingsSection.cloudSync),
     ),
   );
+}
+
+class _MemoryStorage extends LocalStorageService {
+  final values = <String, Object?>{};
+
+  @override
+  T? getSetting<T>(String key, {T? defaultValue}) =>
+      (values[key] as T?) ?? defaultValue;
+
+  @override
+  Future<void> setSetting<T>(String key, T value) async {
+    values[key] = value;
+  }
 }
 
 CloudSyncUiState _connectedState({

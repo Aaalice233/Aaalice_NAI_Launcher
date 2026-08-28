@@ -12970,6 +12970,42 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cloudSync_kindLargeFiles => 'Large binary files';
 
   @override
+  String get cloudSync_agentContentTitle => 'Agent content';
+
+  @override
+  String get cloudSync_agentSystemPrompt => 'Custom Agent system prompt';
+
+  @override
+  String get cloudSync_agentSystemPromptDescription =>
+      'Included by default. Only your custom prompt and its append/override mode are backed up; model and credentials stay local.';
+
+  @override
+  String get cloudSync_skillsBackup => 'Back up Skills';
+
+  @override
+  String get cloudSync_skillsBackupDescription =>
+      'Off by default. Turn it on, then choose the specific Skills whose complete folders should be included.';
+
+  @override
+  String cloudSync_skillsSelectedCount(Object count) {
+    return '$count Skills selected';
+  }
+
+  @override
+  String cloudSync_missingSelectedSkills(Object count) {
+    return '$count selected Skills are currently unavailable';
+  }
+
+  @override
+  String get cloudSync_removeMissingSkills => 'Remove unavailable';
+
+  @override
+  String get cloudSync_searchSkills => 'Search Skills';
+
+  @override
+  String get cloudSync_noSkills => 'No matching Skills';
+
+  @override
   String get cloudSync_continueToEncryption => 'Continue to encryption';
 
   @override

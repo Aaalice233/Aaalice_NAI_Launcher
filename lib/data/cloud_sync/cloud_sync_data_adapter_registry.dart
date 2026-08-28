@@ -20,7 +20,8 @@ class CloudSyncDataAdapterRegistry {
 
   Stream<PortableSyncRecord> exportRecords() async* {
     for (final adapter in _adapters.values) {
-      await for (final record in adapter.exportRecords()) {
+      final records = await adapter.exportRecords().toList();
+      for (final record in records) {
         if (record.adapterId != adapter.id) {
           throw CloudSyncPreflightException(
             'Adapter ${adapter.id} exported a record for ${record.adapterId}',
@@ -29,7 +30,9 @@ class CloudSyncDataAdapterRegistry {
         // Export preflight is a trust boundary: adapters may implement their
         // own preflight without extending the validating base class.
         ValidatingCloudSyncDataAdapter.rejectSecrets(record.data);
-        await adapter.preflight([record]);
+      }
+      await adapter.preflight(records);
+      for (final record in records) {
         yield record;
       }
     }

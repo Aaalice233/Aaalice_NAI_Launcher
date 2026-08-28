@@ -9,17 +9,20 @@ import '../../../core/cloud_sync/backend/webdav_cloud_sync_backend.dart';
 import '../../../core/cloud_sync/backend/webdav_backend_config.dart';
 import '../../../core/cloud_sync/coordinator.dart';
 import '../../../core/cloud_sync/crypto.dart';
+import '../../../core/cloud_sync/content_selection.dart';
 import '../../../core/cloud_sync/journal.dart';
 import '../../../core/constants/storage_keys.dart';
 import '../../../core/storage/local_storage_service.dart';
 import '../../../core/storage/secure_storage_service.dart';
 import '../../../data/cloud_sync/app_cloud_sync_adapters.dart';
 import '../../../data/cloud_sync/app_cloud_sync_data_source.dart';
+import '../../../data/cloud_sync/agent_cloud_sync_adapters.dart';
 import '../../../data/cloud_sync/cloud_sync_data_adapter_registry.dart';
 import '../../../data/services/precise_ref_library_storage_service.dart';
 import '../../../data/services/tag_library_io_service.dart';
 import '../../../data/services/vibe_library_storage_service.dart';
 import '../online_gallery_local_favorites_provider.dart';
+import '../../agent_settings/providers/agent_settings_provider.dart';
 import 'cloud_sync_application_service.dart';
 import 'cloud_sync_ui_provider.dart';
 
@@ -47,7 +50,18 @@ final cloudSyncApplicationServiceProvider =
             namespace: draft.path.isEmpty ? 'aaalice-sync' : draft.path,
           ),
         },
-        coordinatorFactory: (backend, keys, scope) async {
+        coordinatorFactory: (backend, keys, scope, contentSelection) async {
+          AgentSkillsCloudSyncAdapter? agentSkills;
+          if (contentSelection.includeSkills) {
+            final context = await ref
+                .read(agentSettingsProvider.notifier)
+                .skillBackupContext();
+            agentSkills = AgentSkillsCloudSyncAdapter(
+              roots: context.roots,
+              localEntries: context.entries,
+              selectedSkillIds: contentSelection.selectedSkillIds,
+            );
+          }
           final all = createAppCloudSyncAdapterRegistry(
             localStorage: local,
             vibeLibrary: ref.read(vibeLibraryStorageServiceProvider),
@@ -64,9 +78,16 @@ final cloudSyncApplicationServiceProvider =
               StorageKeys.cloudSyncPendingFfdkjInstall,
               true,
             ),
+            agentSkills: agentSkills,
           );
           final registry = CloudSyncDataAdapterRegistry(
-            all.adapters.where((adapter) => _inScope(adapter.id, scope)),
+            all.adapters.where(
+              (adapter) => isCloudSyncAdapterInScope(
+                adapter.id,
+                scope,
+                contentSelection,
+              ),
+            ),
           );
           final support = await getApplicationSupportDirectory();
           final root = Directory('${support.path}/cloud-sync');
@@ -96,7 +117,15 @@ WebDavCloudSyncBackend _createWebDavBackend(CloudSyncConnectionDraft draft) {
   );
 }
 
-bool _inScope(String id, Set<CloudSyncDataKind> scope) {
+bool isCloudSyncAdapterInScope(
+  String id,
+  Set<CloudSyncDataKind> scope,
+  CloudSyncContentSelection contentSelection,
+) {
+  if (id == 'agent-system-prompt') {
+    return contentSelection.includeAgentSystemPrompt;
+  }
+  if (id == 'agent-skills') return contentSelection.includeSkills;
   if (id == 'vibe-library' || id == 'precise-ref-library') {
     return scope.contains(CloudSyncDataKind.largeBinary);
   }

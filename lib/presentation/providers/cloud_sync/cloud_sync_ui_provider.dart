@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/cloud_sync/content_selection.dart';
 import 'cloud_sync_provider_wiring.dart';
 
 enum CloudSyncBackendKind { webDav, github }
@@ -113,6 +114,7 @@ class CloudSyncConnectRequest {
     required this.encryptionPassword,
     required this.recoveryKeyConfirmed,
     required this.initialAction,
+    this.contentSelection = const CloudSyncContentSelection(),
   });
 
   final CloudSyncConnectionDraft connection;
@@ -120,6 +122,7 @@ class CloudSyncConnectRequest {
   final String encryptionPassword;
   final bool recoveryKeyConfirmed;
   final CloudSyncInitialAction initialAction;
+  final CloudSyncContentSelection contentSelection;
 }
 
 enum CloudSyncInitialAction { upload, download, mergePreview }

@@ -14,6 +14,7 @@ import '../repositories/online_gallery_local_favorites_repository.dart';
 import '../repositories/online_gallery_blacklist_repository.dart';
 import 'cloud_sync_data_adapter.dart';
 import 'cloud_sync_data_adapter_registry.dart';
+import 'agent_cloud_sync_adapters.dart';
 import 'ffdkj_install_intent_adapter.dart';
 import 'online_favorites_cloud_sync_adapter.dart';
 import 'portable_sync_record.dart';
@@ -30,9 +31,12 @@ CloudSyncDataAdapterRegistry createAppCloudSyncAdapterRegistry({
   required TagLibraryIOService tagLibraryIO,
   required bool Function() isFfdkjInstalled,
   required Future<void> Function() recordPendingFfdkjInstallIntent,
+  AgentSkillsCloudSyncAdapter? agentSkills,
 }) {
   return CloudSyncDataAdapterRegistry([
     SettingsCloudSyncAdapter(localStorage),
+    AgentSystemPromptCloudSyncAdapter(localStorage),
+    if (agentSkills != null) agentSkills,
     GalleryBlacklistCloudSyncAdapter(
       OnlineGalleryBlacklistRepository(localStorage),
     ),

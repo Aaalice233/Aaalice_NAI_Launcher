@@ -208,11 +208,13 @@ class CloudSyncApplicationService implements CloudSyncUiPort {
         _backend!,
         _keySession!,
         request.dataKinds,
+        request.contentSelection,
       );
       await _coordinator!.recoverPending();
       await _connectionStore.save(
         request.connection,
         request.dataKinds,
+        contentSelection: request.contentSelection,
         remoteRevision: _state.remoteRevision,
         lastSync: _state.lastSync,
       );
@@ -272,6 +274,7 @@ class CloudSyncApplicationService implements CloudSyncUiPort {
           _backend!,
           _keySession!,
           persisted.dataKinds,
+          persisted.contentSelection,
         );
       }
       final head = await _backend!.readHead();

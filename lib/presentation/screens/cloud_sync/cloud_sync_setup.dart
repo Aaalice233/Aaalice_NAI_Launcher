@@ -1,8 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/cloud_sync/content_selection.dart';
 import '../../../core/utils/localization_extension.dart';
+import '../../../core/storage/local_storage_service.dart';
+import '../../../data/cloud_sync/cloud_sync_content_selection_store.dart';
+import '../../agent_settings/providers/agent_settings_provider.dart';
 import '../../providers/cloud_sync/cloud_sync_ui_provider.dart';
+import 'cloud_sync_agent_content_section.dart';
 import 'cloud_sync_setup_configuration.dart';
 import 'cloud_sync_initial_choice.dart';
 import 'cloud_sync_widgets.dart';
@@ -39,6 +46,21 @@ class _CloudSyncSetupState extends ConsumerState<CloudSyncSetup> {
   CloudSyncInitialAction? _initialAction;
   String? _recoveryKey;
   bool? _remoteExists;
+  late final CloudSyncContentSelectionStore _contentSelectionStore;
+  late CloudSyncContentSelection _contentSelection;
+
+  @override
+  void initState() {
+    super.initState();
+    _contentSelectionStore = CloudSyncContentSelectionStore(
+      ref.read(localStorageServiceProvider),
+    );
+    try {
+      _contentSelection = _contentSelectionStore.load();
+    } on FormatException {
+      _contentSelection = const CloudSyncContentSelection();
+    }
+  }
 
   @override
   void dispose() {
@@ -166,6 +188,7 @@ class _CloudSyncSetupState extends ConsumerState<CloudSyncSetup> {
             encryptionPassword: _password.text,
             recoveryKeyConfirmed: _recoveryConfirmed,
             initialAction: _initialAction!,
+            contentSelection: _contentSelection,
           ),
         );
   });
@@ -342,6 +365,12 @@ class _CloudSyncSetupState extends ConsumerState<CloudSyncSetup> {
           CloudSyncDataKind.largeBinary,
           context.l10n.cloudSync_kindLargeFiles,
         ),
+        const SizedBox(height: 8),
+        CloudSyncAgentContentSection(
+          selection: _contentSelection,
+          skills: ref.watch(agentSettingsProvider).skills,
+          onChanged: _updateContentSelection,
+        ),
         const SizedBox(height: 12),
         _nextButton(
           context.l10n.cloudSync_continueToEncryption,
@@ -468,6 +497,11 @@ class _CloudSyncSetupState extends ConsumerState<CloudSyncSetup> {
           selected == true ? _dataKinds.add(kind) : _dataKinds.remove(kind);
         }),
       );
+
+  void _updateContentSelection(CloudSyncContentSelection value) {
+    setState(() => _contentSelection = value);
+    unawaited(_contentSelectionStore.save(value));
+  }
 
   Widget _fieldGrid(List<Widget> fields) => LayoutBuilder(
     builder: (context, constraints) {

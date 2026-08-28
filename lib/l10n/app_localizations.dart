@@ -22574,6 +22574,66 @@ abstract class AppLocalizations {
   /// **'Large binary files'**
   String get cloudSync_kindLargeFiles;
 
+  /// No description provided for @cloudSync_agentContentTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Agent content'**
+  String get cloudSync_agentContentTitle;
+
+  /// No description provided for @cloudSync_agentSystemPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom Agent system prompt'**
+  String get cloudSync_agentSystemPrompt;
+
+  /// No description provided for @cloudSync_agentSystemPromptDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Included by default. Only your custom prompt and its append/override mode are backed up; model and credentials stay local.'**
+  String get cloudSync_agentSystemPromptDescription;
+
+  /// No description provided for @cloudSync_skillsBackup.
+  ///
+  /// In en, this message translates to:
+  /// **'Back up Skills'**
+  String get cloudSync_skillsBackup;
+
+  /// No description provided for @cloudSync_skillsBackupDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Off by default. Turn it on, then choose the specific Skills whose complete folders should be included.'**
+  String get cloudSync_skillsBackupDescription;
+
+  /// No description provided for @cloudSync_skillsSelectedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} Skills selected'**
+  String cloudSync_skillsSelectedCount(Object count);
+
+  /// No description provided for @cloudSync_missingSelectedSkills.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} selected Skills are currently unavailable'**
+  String cloudSync_missingSelectedSkills(Object count);
+
+  /// No description provided for @cloudSync_removeMissingSkills.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove unavailable'**
+  String get cloudSync_removeMissingSkills;
+
+  /// No description provided for @cloudSync_searchSkills.
+  ///
+  /// In en, this message translates to:
+  /// **'Search Skills'**
+  String get cloudSync_searchSkills;
+
+  /// No description provided for @cloudSync_noSkills.
+  ///
+  /// In en, this message translates to:
+  /// **'No matching Skills'**
+  String get cloudSync_noSkills;
+
   /// No description provided for @cloudSync_continueToEncryption.
   ///
   /// In en, this message translates to:
