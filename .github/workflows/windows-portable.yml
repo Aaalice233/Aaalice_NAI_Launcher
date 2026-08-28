@@ -41,10 +41,14 @@ jobs:
       WINDOWS_CACHE_NAMESPACE: ${{ vars.WINDOWS_FLUTTER_RUNNER != '' && 'nai-self-hosted' || 'nai-hosted' }}
 
     steps:
-      - name: Checkout
+      - name: Checkout without LFS payloads
         uses: actions/checkout@v6
         with:
-          lfs: true
+          lfs: false
+
+      - name: Download verified bundled database
+        shell: pwsh
+        run: ./scripts/prepare_bundled_database.ps1
 
       - name: Fingerprint portable build inputs
         id: build-inputs

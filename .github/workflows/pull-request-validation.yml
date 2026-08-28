@@ -106,10 +106,14 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      - name: Checkout
+      - name: Checkout without LFS payloads
         uses: actions/checkout@v6
         with:
-          lfs: true
+          lfs: false
+
+      - name: Download verified bundled database
+        shell: pwsh
+        run: ./scripts/prepare_bundled_database.ps1
 
       - name: Test Windows portable package verifier
         shell: pwsh
@@ -140,10 +144,14 @@ jobs:
     timeout-minutes: 20
 
     steps:
-      # Database integrity is checked by the test job; compile smoke does not
-      # need to download the large LFS payloads.
       - name: Checkout without LFS payloads
         uses: actions/checkout@v6
+        with:
+          lfs: false
+
+      - name: Download verified bundled database
+        shell: pwsh
+        run: ./scripts/prepare_bundled_database.ps1
 
       - name: Prepare incremental Flutter build
         uses: ./.github/actions/prepare-flutter-build
@@ -174,10 +182,14 @@ jobs:
     timeout-minutes: 40
 
     steps:
-      - name: Checkout
+      - name: Checkout without LFS payloads
         uses: actions/checkout@v6
         with:
-          lfs: true
+          lfs: false
+
+      - name: Download verified bundled database
+        shell: pwsh
+        run: ./scripts/prepare_bundled_database.ps1
 
       - name: Prepare incremental Flutter build
         uses: ./.github/actions/prepare-flutter-build

@@ -125,6 +125,8 @@ Android 系统界面快速回归使用 `.pi/skills/aaalice-runtime-verify/script
 
 `assets/databases/tag_catalog.db` 是唯一通过 Git LFS 管理并随应用提供的数据库，发布前应确认它是真实 SQLite 数据库而不是 LFS pointer。原始标签/翻译/共现 CSV 不得放回 `assets/`；`assets/translations/` 已废弃。`assets/data/` 和 `assets/images/` 会随 Flutter assets 打包，移动或重命名后需要同步检查 `pubspec.yaml`。发布前确认 `CHANGELOG.md`、`dist/release_notes_<tag>.md`、`pubspec.yaml` 版本号和 Windows release build。
 
+CI 与 Release checkout 不直接消耗 GitHub LFS 流量；`scripts/prepare_bundled_database.ps1` 从 `assets/databases/manifest.json` 锁定的独立 `autocomplete-data-tag-catalog-*` prerelease 下载同一份数据库，并在替换 LFS pointer 前校验固定 URL、大小、SQLite 文件头和 SHA-256。数据 release 不得设为 latest，数据库版本变化时必须同步更新 LFS 对象、manifest 与独立数据 release。
+
 随机词库维护两条独立且可验证的数据来源：官网模式使用 `tool/random_tag_library/source_lock.json` 固定的 NovelAI 前端副本可重复生成官方词库资产，必须完整保留原始记录、重复项、顺序、权重、条件与排除字段，但不得提交前端脚本副本；自定义/扩展模式继续只维护 `assets/data/random_tag_library.json` 中的声明式语义分类规则，候选标签来自完整的 `tag_catalog.db`。混合模式必须让两套来源真实生效。更新任一来源时同步更新 lock 中的源文件名称、大小、SHA-256、数组及分组计数、输出 schema/hash、catalog 来源与完整分类计数，并运行 `dart run tool/random_tag_library/verify_random_tag_library.dart`；校验未通过不得提交。
 
 共现数据包只能通过 `tool/database/build_cooccurrence_only.dart` 从 `tool/database/cooccurrence_source_lock.json` 固定的完整源构建，产物写入 `tool/.tmp/cooccurrence/`，不得提交 `.db`、`.gz` 或源 CSV。完整构建必须通过哈希确定性、记录数、SQLite、查询计划、160 MiB 数据库和 80 MiB GZip 门槛；客户端只提交 `assets/data/cooccurrence_data_pack_manifest.json`。数据版本变化时手动运行 `.github/workflows/cooccurrence-data-pack.yml`，使用独立的 `autocomplete-data-cooccurrence-*` prerelease tag 发布，不得并入普通应用 Release 或设为 latest。

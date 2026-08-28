@@ -24,10 +24,14 @@ jobs:
     timeout-minutes: 40
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout without LFS payloads
+        uses: actions/checkout@v6
         with:
-          lfs: true
+          lfs: false
+
+      - name: Download verified bundled database
+        shell: pwsh
+        run: ./scripts/prepare_bundled_database.ps1
 
       - name: Setup Java
         uses: actions/setup-java@v4
