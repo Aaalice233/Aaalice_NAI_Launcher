@@ -32,6 +32,8 @@ Aaalice_NAI_Launcher/
 
 项目使用 Flutter `>=3.35.0`、Dart `>=3.10.7`，当前 CI 固定 Flutter `3.44.2`。拉取仓库后必须安装 Git LFS，并获取唯一内置数据库 `assets/databases/tag_catalog.db`。Windows 构建还需要 Visual Studio 2022 的 Desktop development with C++、已加入 `PATH` 的 NuGet CLI；macOS 构建需要完整 Xcode 与 CocoaPods；Android 构建需要 JDK 17 和 Android SDK，最低运行版本为 Android 7.0（API 24）。
 
+`pubspec.lock` 中的 hosted package URL 必须保持为 `https://pub.dev`，与 GitHub CI 一致；本地可使用 `PUB_HOSTED_URL` 镜像下载，但不得提交镜像 URL 对 lockfile 的机械改写。
+
 ```powershell
 git lfs install
 git lfs pull --include="assets/databases/tag_catalog.db"
@@ -124,6 +126,8 @@ Android 系统界面快速回归使用 `.pi/skills/aaalice-runtime-verify/script
 ## 资源、生成文件与发布注意事项
 
 `assets/databases/tag_catalog.db` 是唯一通过 Git LFS 管理并随应用提供的数据库，发布前应确认它是真实 SQLite 数据库而不是 LFS pointer。原始标签/翻译/共现 CSV 不得放回 `assets/`；`assets/translations/` 已废弃。`assets/data/` 和 `assets/images/` 会随 Flutter assets 打包，移动或重命名后需要同步检查 `pubspec.yaml`。发布前确认 `CHANGELOG.md`、`dist/release_notes_<tag>.md`、`pubspec.yaml` 版本号和 Windows release build。
+
+CI 与 Release checkout 不直接消耗 GitHub LFS 流量；`scripts/prepare_bundled_database.ps1` 从 `assets/databases/manifest.json` 锁定的独立 `autocomplete-data-tag-catalog-*` prerelease 下载同一份数据库，并在替换 LFS pointer 前校验固定 URL、大小、SQLite 文件头和 SHA-256。数据 release 不得设为 latest，数据库版本变化时必须同步更新 LFS 对象、manifest 与独立数据 release。
 
 随机词库维护两条独立且可验证的数据来源：官网模式使用 `tool/random_tag_library/source_lock.json` 固定的 NovelAI 前端副本可重复生成官方词库资产，必须完整保留原始记录、重复项、顺序、权重、条件与排除字段，但不得提交前端脚本副本；自定义/扩展模式继续只维护 `assets/data/random_tag_library.json` 中的声明式语义分类规则，候选标签来自完整的 `tag_catalog.db`。混合模式必须让两套来源真实生效。更新任一来源时同步更新 lock 中的源文件名称、大小、SHA-256、数组及分组计数、输出 schema/hash、catalog 来源与完整分类计数，并运行 `dart run tool/random_tag_library/verify_random_tag_library.dart`；校验未通过不得提交。
 

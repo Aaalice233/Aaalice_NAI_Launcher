@@ -26,5 +26,15 @@ void main() {
 
       expect(NaiPromptFormatter.format(prompt), 'first_tag\n  \nsecond_tag');
     });
+
+    test('格式化正负标签但不破坏 negative 块边界', () {
+      const prompt =
+          r'girl, alice \(wonderland\), negative(red hair, 1.2::blue eyes::)';
+
+      expect(
+        NaiPromptFormatter.format(prompt),
+        r'girl, alice_\(wonderland\), negative(red_hair, 1.2::blue_eyes::)',
+      );
+    });
   });
 }

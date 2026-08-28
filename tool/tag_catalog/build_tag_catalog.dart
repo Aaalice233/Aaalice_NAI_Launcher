@@ -165,12 +165,22 @@ Future<void> main(List<String> args) async {
   final manifest =
       jsonDecode(await manifestFile.readAsString()) as Map<String, dynamic>;
   final databases = manifest['databases'] as Map<String, dynamic>;
-  databases['tag_catalog.db'] = {
+  final previousEntry = databases['tag_catalog.db'] as Map<String, dynamic>?;
+  final outputSize = await output.length();
+  final dataVersion = ('${lock['commit']}').substring(0, 12);
+  final nextEntry = <String, dynamic>{
     'schemaVersion': catalogSchemaVersion,
-    'dataVersion': ('${lock['commit']}').substring(0, 12),
+    'dataVersion': dataVersion,
     'sha256': outputHash.toString(),
-    'size': await output.length(),
+    'size': outputSize,
   };
+  if (previousEntry?['dataVersion'] == dataVersion &&
+      previousEntry?['sha256'] == outputHash.toString() &&
+      previousEntry?['size'] == outputSize &&
+      previousEntry?['release'] != null) {
+    nextEntry['release'] = previousEntry!['release'];
+  }
+  databases['tag_catalog.db'] = nextEntry;
   await manifestFile.writeAsString(
     '${const JsonEncoder.withIndent('  ').convert(manifest)}\n',
     encoding: utf8,

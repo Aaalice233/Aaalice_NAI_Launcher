@@ -1,6 +1,7 @@
 import '../../data/models/character/character_prompt.dart' as ui_character;
 import '../../data/models/image/image_params.dart';
 import '../utils/app_logger.dart';
+import '../utils/character_prompt_block_parser.dart';
 
 /// 角色转换结果
 ///
@@ -70,9 +71,14 @@ class CharacterConversionService {
     ui_character.CharacterPromptConfig config, {
     bool resolveAliases = true,
   }) {
-    // 过滤出启用且有提示词的角色
+    // 仅负向角色也是有效角色，NovelAI 会把它映射到独立角色 UC。
     final enabledCharacters = config.characters
-        .where((c) => c.enabled && c.prompt.isNotEmpty)
+        .where(
+          (character) =>
+              character.enabled &&
+              (character.prompt.isNotEmpty ||
+                  character.negativePrompt.isNotEmpty),
+        )
         .toList();
 
     if (enabledCharacters.isEmpty) {
@@ -90,8 +96,9 @@ class CharacterConversionService {
         positionY = position.row;
       }
 
-      // 解析角色提示词中的别名
-      String resolvedPrompt = uiChar.prompt;
+      // 先展开别名，再由共享解析器拆分角色词库扩展语法。这样通过
+      // `<词库名>` 添加的角色也不会把 `negative` 标记发送给 NovelAI。
+      String resolvedPromptSource = uiChar.prompt;
       String resolvedNegativePrompt = uiChar.negativePrompt;
 
       if (resolveAliases) {
@@ -102,15 +109,20 @@ class CharacterConversionService {
 
           if (promptWithAliases != uiChar.prompt ||
               negativeWithAliases != uiChar.negativePrompt) {
-            resolvedPrompt = promptWithAliases;
+            resolvedPromptSource = promptWithAliases;
             resolvedNegativePrompt = negativeWithAliases;
             aliasesWereResolved = true;
           }
         }
       }
 
+      final parsed = CharacterPromptBlockParser.parse(resolvedPromptSource);
+      resolvedNegativePrompt = parsed.mergeNegativePrompt(
+        resolvedNegativePrompt,
+      );
+
       return CharacterPrompt(
-        prompt: resolvedPrompt,
+        prompt: parsed.positivePrompt,
         negativePrompt: resolvedNegativePrompt,
         positionX: positionX,
         positionY: positionY,
@@ -151,7 +163,11 @@ class CharacterConversionService {
   ///
   /// [config] UI 层的角色提示词配置
   bool hasEnabledCharacters(ui_character.CharacterPromptConfig config) {
-    return config.characters.any((c) => c.enabled && c.prompt.isNotEmpty);
+    return config.characters.any(
+      (character) =>
+          character.enabled &&
+          (character.prompt.isNotEmpty || character.negativePrompt.isNotEmpty),
+    );
   }
 
   /// 获取启用的角色数量
@@ -159,7 +175,12 @@ class CharacterConversionService {
   /// [config] UI 层的角色提示词配置
   int getEnabledCharacterCount(ui_character.CharacterPromptConfig config) {
     return config.characters
-        .where((c) => c.enabled && c.prompt.isNotEmpty)
+        .where(
+          (character) =>
+              character.enabled &&
+              (character.prompt.isNotEmpty ||
+                  character.negativePrompt.isNotEmpty),
+        )
         .length;
   }
 }

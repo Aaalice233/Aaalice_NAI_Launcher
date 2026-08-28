@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
+import 'package:nai_launcher/presentation/router/app_routes.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/windowing/agent_window_runtime.dart';
 import '../../../../l10n/app_localizations.dart';
@@ -121,6 +123,11 @@ class AgentChatHeader extends StatelessWidget {
                 ),
               ),
             ),
+          iconButton(
+            icon: Icons.settings_outlined,
+            tooltip: l10n.settings_agent,
+            onTap: () => _openAgentSettings(context),
+          ),
         ],
       ),
     );
@@ -148,6 +155,13 @@ class AgentChatHeader extends StatelessWidget {
                 : MaterialLocalizations.of(context).closeButtonTooltip,
             constraints: const BoxConstraints.tightFor(width: 48, height: 48),
           ),
+          IconButton(
+            key: const ValueKey('agent-chat-mobile-settings'),
+            onPressed: () => _openAgentSettings(context),
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: l10n.settings_agent,
+            constraints: const BoxConstraints.tightFor(width: 48, height: 48),
+          ),
           const SizedBox(width: 4),
           Expanded(
             child: SizedBox(
@@ -168,6 +182,15 @@ class AgentChatHeader extends StatelessWidget {
       ),
     );
     return viewData.mobileHeaderWrapper?.call(header) ?? header;
+  }
+
+  void _openAgentSettings(BuildContext context) {
+    final callback = viewData.onOpenSettings;
+    if (callback != null) {
+      callback();
+      return;
+    }
+    context.go('${AppRoutes.settings}?section=agent');
   }
 
   Widget _sessionSelector(

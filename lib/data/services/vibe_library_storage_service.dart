@@ -101,6 +101,52 @@ class VibeLibraryStorageService {
       _reader.countByCategory(categoryId);
   Future<bool> entryExists(String id) => _reader.exists(id);
 
+  Future<int> portableFileLength(String filePath) =>
+      _files.portableFileLength(filePath);
+  Stream<List<int>> openPortableFile(String filePath) =>
+      _files.openPortableFile(filePath);
+  Future<String> importPortableFile(
+    Stream<List<int>> bytes, {
+    required String fileName,
+  }) => _files.importPortableFile(bytes, fileName: fileName);
+  Future<VibeReference?> loadPortableVibe(String filePath) =>
+      _files.loadVibeFromFile(filePath);
+  Future<List<VibeReference>> extractPortableBundle(String filePath) =>
+      _files.extractVibesFromBundle(filePath);
+
+  Future<void> discardPortableFile(String filePath) async {
+    await _files.deletePortableFile(filePath);
+  }
+
+  Future<VibeLibraryEntry> commitPortableEntry(VibeLibraryEntry entry) async {
+    final previous = await _repository.readEntry(entry.id);
+    try {
+      await _repository.putEntry(entry);
+      await _displayCache.entryChanged(entry);
+      final oldPath = previous?.filePath;
+      if (oldPath?.isNotEmpty == true && oldPath != entry.filePath) {
+        if (await _files.portableFileExists(oldPath!) &&
+            !await _files.deletePortableFile(oldPath)) {
+          throw StateError('Failed to delete replaced Vibe file');
+        }
+      }
+      return entry;
+    } catch (_) {
+      if (previous == null) {
+        await _repository.deleteEntry(entry.id);
+        await _displayCache.entryDeleted(entry.id);
+      } else {
+        await _repository.putEntry(previous);
+        await _displayCache.entryChanged(previous);
+      }
+      final newPath = entry.filePath;
+      if (newPath?.isNotEmpty == true && newPath != previous?.filePath) {
+        await _files.deletePortableFile(newPath!);
+      }
+      rethrow;
+    }
+  }
+
   Future<VibeLibraryEntry> saveEntry(VibeLibraryEntry entry) =>
       _writer.save(entry);
   Future<VibeLibraryEntry?> saveEntryParams(

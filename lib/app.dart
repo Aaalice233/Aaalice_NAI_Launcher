@@ -19,6 +19,7 @@ import 'presentation/providers/font_provider.dart';
 import 'presentation/providers/font_scale_provider.dart';
 import 'presentation/providers/locale_provider.dart';
 import 'presentation/providers/background_refresh_provider.dart';
+import 'presentation/providers/cloud_sync/cloud_sync_provider_wiring.dart';
 import 'presentation/providers/krita/krita_bridge_notifier.dart';
 import 'presentation/providers/image_generation_provider.dart';
 import 'presentation/providers/queue_execution_provider.dart';
@@ -37,6 +38,7 @@ class AppBootstrapEffects extends ConsumerStatefulWidget {
   final ProviderListenable<dynamic>? backgroundRefresh;
   final ProviderListenable<dynamic>? kritaBridge;
   final ProviderListenable<dynamic>? cooccurrenceDataPack;
+  final Future<void> Function(bool synchronize)? cloudSyncLifecycle;
 
   const AppBootstrapEffects({
     super.key,
@@ -45,6 +47,7 @@ class AppBootstrapEffects extends ConsumerStatefulWidget {
     this.backgroundRefresh,
     this.kritaBridge,
     this.cooccurrenceDataPack,
+    this.cloudSyncLifecycle,
   });
 
   @override
@@ -59,6 +62,7 @@ class _AppBootstrapEffectsState extends ConsumerState<AppBootstrapEffects>
   ProviderSubscription<dynamic>? _kritaBridgeSubscription;
   ProviderSubscription<dynamic>? _cooccurrenceDataPackSubscription;
   bool _queuePausedForBackground = false;
+  bool _cloudSyncLifecycleRunning = false;
 
   @override
   void initState() {
@@ -85,6 +89,7 @@ class _AppBootstrapEffectsState extends ConsumerState<AppBootstrapEffects>
         widget.cooccurrenceDataPack ?? cooccurrenceDataPackStartupProvider,
         (_, __) {},
       );
+      unawaited(_runCloudSyncLifecycle(synchronize: true));
     });
   }
 
@@ -99,6 +104,7 @@ class _AppBootstrapEffectsState extends ConsumerState<AppBootstrapEffects>
 
     if (state == AppLifecycleState.resumed) {
       unawaited(_resumeQueueAfterBackground());
+      unawaited(_runCloudSyncLifecycle(synchronize: true));
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.hidden ||
         state == AppLifecycleState.detached) {
@@ -128,6 +134,25 @@ class _AppBootstrapEffectsState extends ConsumerState<AppBootstrapEffects>
     if (!_queuePausedForBackground) return;
     _queuePausedForBackground = false;
     await ref.read(queueExecutionNotifierProvider.notifier).resume();
+  }
+
+  Future<void> _runCloudSyncLifecycle({required bool synchronize}) async {
+    if (_cloudSyncLifecycleRunning) return;
+    _cloudSyncLifecycleRunning = true;
+    try {
+      final override = widget.cloudSyncLifecycle;
+      if (override != null) {
+        await override(synchronize);
+      } else {
+        await ref
+            .read(cloudSyncApplicationServiceProvider)
+            .restorePersisted(synchronize: synchronize);
+      }
+    } catch (error) {
+      AppLogger.w('Cloud sync lifecycle check failed: $error', 'CloudSync');
+    } finally {
+      _cloudSyncLifecycleRunning = false;
+    }
   }
 
   @override

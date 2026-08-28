@@ -4,6 +4,7 @@ import '../../../core/agent/agent.dart';
 import '../../../core/agent/harness/harness_types.dart';
 import '../../../core/agent/harness/skills.dart';
 import '../../../core/agent/permissions/permissions.dart';
+import '../../agent_settings/providers/agent_settings_provider.dart';
 import '../../prompt_assistant/models/prompt_assistant_models.dart';
 import '../../prompt_assistant/providers/web_access_provider.dart';
 import 'agent_resource_resolver.dart';
@@ -64,7 +65,11 @@ class AgentToolRegistryBuilder {
     required bool fullAccess,
     required AgentPermissionMode permissionMode,
   }) {
-    final webAccess = _ref.read(webAccessConfigProvider).config;
+    final webAccessEnabled = _ref
+        .read(agentSettingsProvider)
+        .settings
+        .chat
+        .webAccessEnabled;
     _manualInpaintToolbox.configureFileAccess(
       workspaceDir: _workspaceDir,
       allowOutsideWorkspace: fullAccess,
@@ -101,9 +106,12 @@ class AgentToolRegistryBuilder {
       ).tools(),
       ...GalleryToolbox(_ref).tools(),
       ...ReferenceLibraryToolbox(_ref, resourceResolver).tools(),
-      if (webAccess.enabled)
+      if (webAccessEnabled)
         ...WebAccessToolbox(
-          config: webAccess,
+          config: _ref
+              .read(webAccessConfigProvider)
+              .config
+              .copyWith(enabled: true),
           loadGateway: () => _ref.read(webAccessGatewayProvider),
         ).tools(),
     ];

@@ -73,6 +73,17 @@ void main() {
         (saved['importInfo'] as Map<String, dynamic>)['information_extracted'],
         0.45,
       );
+
+      final importedPath = await service.importPortableFile(
+        Stream.value(await File(filePath).readAsBytes()),
+        fileName: 'test-vibe.naiv4vibe',
+      );
+      expect(importedPath, isNot(filePath));
+      expect(await service.portableFileLength(importedPath), greaterThan(0));
+      expect(
+        (await service.loadVibeFromFile(importedPath))?.vibeEncoding,
+        'encoded-payload',
+      );
     },
   );
 

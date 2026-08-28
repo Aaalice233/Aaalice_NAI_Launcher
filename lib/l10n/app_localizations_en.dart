@@ -7171,6 +7171,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Enter prompt content, supports autocomplete';
 
   @override
+  String get tagLibrary_characterNegativeSyntaxHelp =>
+      'Character entries can store independent Undesired Content with negative(...), for example: girl, blue eyes, negative(red hair, glasses)';
+
+  @override
   String get settings_network => 'Network';
 
   @override
@@ -12836,4 +12840,732 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get vibeDetail_choosePreviewImage =>
       'Use the image button to choose a preview';
+
+  @override
+  String get cloudSync_title => 'Sync & Backup';
+
+  @override
+  String get cloudSync_description =>
+      'Encrypted cross-device backup and synchronization using storage you control.';
+
+  @override
+  String get cloudSync_disconnected => 'Not connected';
+
+  @override
+  String get cloudSync_disconnectedDescription =>
+      'Choose WebDAV or GitHub to configure cloud sync. Nothing is uploaded until connection testing and setup are complete.';
+
+  @override
+  String get cloudSync_stepConfiguration => 'Configuration';
+
+  @override
+  String get cloudSync_stepTest => 'Real test';
+
+  @override
+  String get cloudSync_stepData => 'Data scope';
+
+  @override
+  String get cloudSync_stepEncryption => 'Encryption';
+
+  @override
+  String get cloudSync_stepRemote => 'Remote check';
+
+  @override
+  String get cloudSync_stepInitial => 'First sync';
+
+  @override
+  String get cloudSync_chooseBackend => 'Choose a backend';
+
+  @override
+  String get cloudSync_chooseBackendDescription =>
+      'Credentials stay hidden and are passed only to the sync service when it is connected.';
+
+  @override
+  String get cloudSync_webDavUrl => 'WebDAV URL';
+
+  @override
+  String get cloudSync_allowInsecureHttp => 'Allow insecure HTTP';
+
+  @override
+  String get cloudSync_allowInsecureHttpWarning =>
+      'HTTP sends WebDAV credentials and encrypted data without transport encryption. Enable it only on a trusted network when you understand the risk.';
+
+  @override
+  String get cloudSync_username => 'Username';
+
+  @override
+  String get cloudSync_password => 'Password';
+
+  @override
+  String get cloudSync_remotePath => 'Remote path';
+
+  @override
+  String get cloudSync_githubToken => 'GitHub token';
+
+  @override
+  String get cloudSync_owner => 'Owner';
+
+  @override
+  String get cloudSync_repository => 'Repository';
+
+  @override
+  String get cloudSync_branch => 'Branch';
+
+  @override
+  String get cloudSync_continueToTest => 'Continue to real test';
+
+  @override
+  String get cloudSync_continueToData => 'Continue to data scope';
+
+  @override
+  String get cloudSync_testConnection => 'Test the real connection';
+
+  @override
+  String get cloudSync_testConnectionDescription =>
+      'The service must verify authentication, reads, writes, conditional updates, history, deletion, and provider limits.';
+
+  @override
+  String get cloudSync_runRealTest => 'Run real test';
+
+  @override
+  String get cloudSync_testSucceeded => 'Connection verified';
+
+  @override
+  String get cloudSync_testFailed => 'Connection test failed';
+
+  @override
+  String get cloudSync_serviceNotConnected =>
+      'The cloud sync service has not been connected yet.';
+
+  @override
+  String cloudSync_limit(Object value) {
+    return 'Provider limit: $value';
+  }
+
+  @override
+  String get cloudSync_manualBackupOnly => 'Manual cloud backup only';
+
+  @override
+  String get cloudSync_manualBackupOnlyDescription =>
+      'This backend cannot safely guarantee bidirectional updates. Automatic two-way sync is unavailable.';
+
+  @override
+  String get cloudSync_dataScope => 'Choose data to sync';
+
+  @override
+  String get cloudSync_dataScopeDescription =>
+      'Select only the local data categories that should be included in encrypted snapshots.';
+
+  @override
+  String get cloudSync_kindSettings => 'Settings';
+
+  @override
+  String get cloudSync_kindPrompts => 'Prompts and presets';
+
+  @override
+  String get cloudSync_kindGalleries =>
+      'Online gallery favorites, categories, and filters';
+
+  @override
+  String get cloudSync_kindLargeFiles => 'Large binary files';
+
+  @override
+  String get cloudSync_continueToEncryption => 'Continue to encryption';
+
+  @override
+  String get cloudSync_encryption => 'Set an encryption password';
+
+  @override
+  String get cloudSync_encryptionDescription =>
+      'Data is encrypted before upload. The password and one-time recovery key cannot be recovered by the provider.';
+
+  @override
+  String get cloudSync_encryptionPassword => 'Encryption password';
+
+  @override
+  String get cloudSync_confirmPassword => 'Confirm password';
+
+  @override
+  String get cloudSync_recoveryKeyConfirmed =>
+      'I saved and verified the one-time recovery key';
+
+  @override
+  String get cloudSync_recoveryKeyDescription =>
+      'Keep it outside this device. It is required if the password and local key material are lost.';
+
+  @override
+  String get cloudSync_generateRecoveryKey => 'Generate one-time recovery key';
+
+  @override
+  String get cloudSync_oneTimeRecoveryKey => 'One-time recovery key';
+
+  @override
+  String get cloudSync_oneTimeRecoveryKeyDescription =>
+      'This key is shown only during setup. Save it now, then confirm the saved copy.';
+
+  @override
+  String get cloudSync_detectRemote => 'Detect remote data';
+
+  @override
+  String get cloudSync_detectRemoteDescription =>
+      'Check for an existing namespace and snapshots before choosing the first-sync direction.';
+
+  @override
+  String get cloudSync_detectRemoteAction => 'Check remote';
+
+  @override
+  String get cloudSync_initialSync => 'Choose the first sync';
+
+  @override
+  String get cloudSync_initialSyncDescription =>
+      'Uploading replaces the remote head, downloading applies the remote snapshot, and preview merge changes nothing until confirmed.';
+
+  @override
+  String get cloudSync_initialUpload => 'Upload this device';
+
+  @override
+  String get cloudSync_initialDownload => 'Download remote data';
+
+  @override
+  String get cloudSync_previewMergeRecommended =>
+      'Preview and merge (recommended)';
+
+  @override
+  String get cloudSync_dangerousFirstSyncTitle => 'Confirm overwrite direction';
+
+  @override
+  String get cloudSync_initialUploadWarning =>
+      'This replaces the current cloud version with this device\'s data. Confirm that the cloud has no unique data you need to keep.';
+
+  @override
+  String get cloudSync_initialDownloadWarning =>
+      'This replaces local data with the cloud snapshot after creating a local recovery point. Confirm that this device has no unique data you need to keep.';
+
+  @override
+  String get cloudSync_confirmOverwrite => 'Confirm overwrite';
+
+  @override
+  String get cloudSync_connect => 'Connect and continue';
+
+  @override
+  String cloudSync_actionFailed(Object error) {
+    return 'Action failed: $error';
+  }
+
+  @override
+  String get cloudSync_connectionDetails => 'Connection';
+
+  @override
+  String get cloudSync_backend => 'Backend';
+
+  @override
+  String get cloudSync_deviceName => 'Device name';
+
+  @override
+  String get cloudSync_lastSync => 'Last sync';
+
+  @override
+  String get cloudSync_remoteRevision => 'Remote revision';
+
+  @override
+  String get cloudSync_connectedDescription =>
+      'Encrypted cloud connection is available.';
+
+  @override
+  String get cloudSync_maintenanceWarning => 'Remote maintenance notice';
+
+  @override
+  String get cloudSync_githubHistoryRetention => 'GitHub history retention';
+
+  @override
+  String get cloudSync_githubHistoryRetentionDescription =>
+      'Deleting sync objects or the namespace does not reclaim Git commit history or its storage. Recreate the repository on GitHub when complete removal is required.';
+
+  @override
+  String get cloudSync_upToDate => 'Synced';
+
+  @override
+  String get cloudSync_syncing => 'Syncing';
+
+  @override
+  String get cloudSync_paused => 'Paused';
+
+  @override
+  String get cloudSync_syncControls => 'Sync controls';
+
+  @override
+  String get cloudSync_syncNow => 'Sync now';
+
+  @override
+  String get cloudSync_pause => 'Pause';
+
+  @override
+  String get cloudSync_resume => 'Resume';
+
+  @override
+  String get cloudSync_cancel => 'Cancel';
+
+  @override
+  String get cloudSync_progress => 'Progress';
+
+  @override
+  String get cloudSync_stage => 'Stage';
+
+  @override
+  String get cloudSync_object => 'Current object';
+
+  @override
+  String get cloudSync_objects => 'Objects';
+
+  @override
+  String get cloudSync_bytes => 'Bytes';
+
+  @override
+  String get cloudSync_activityLog => 'Activity log';
+
+  @override
+  String get cloudSync_noActivity => 'No sync activity yet.';
+
+  @override
+  String get cloudSync_snapshotHistory => 'Snapshot history';
+
+  @override
+  String get cloudSync_snapshotHistoryDescription =>
+      'Restore creates a new local change; it does not silently erase history.';
+
+  @override
+  String get cloudSync_noSnapshots => 'No remote snapshots are available.';
+
+  @override
+  String get cloudSync_previewRestore => 'Preview restore';
+
+  @override
+  String get cloudSync_restorePreviewTitle => 'Restore diff preview';
+
+  @override
+  String get cloudSync_restorePreviewDescription =>
+      'These are the verified changes from the historical snapshot to current local data. Confirmation creates a new snapshot without rewinding history.';
+
+  @override
+  String get cloudSync_mergePreviewTitle => 'First merge preview';
+
+  @override
+  String get cloudSync_mergePreviewDescription =>
+      'The merge has not been applied. Review additions, changes, and deletions and resolve every conflict before confirming.';
+
+  @override
+  String get cloudSync_previewAwaitingConfirmation =>
+      'The preview is awaiting confirmation, so sync is not complete.';
+
+  @override
+  String get cloudSync_previewDeletesTitle => 'Includes deletions';
+
+  @override
+  String cloudSync_previewDeletesDescription(Object count) {
+    return 'Confirmation will delete $count local items. Review their categories first.';
+  }
+
+  @override
+  String cloudSync_previewCounts(
+    Object added,
+    Object modified,
+    Object deleted,
+  ) {
+    return 'Added $added · Changed $modified · Deleted $deleted';
+  }
+
+  @override
+  String get cloudSync_previewNoChanges => 'There are no changes to apply.';
+
+  @override
+  String get cloudSync_confirmMerge => 'Confirm and apply merge';
+
+  @override
+  String get cloudSync_confirmRestore => 'Confirm restore and create snapshot';
+
+  @override
+  String get cloudSync_ffdkjIntentTitle =>
+      'ffdkj dictionary install intent detected';
+
+  @override
+  String get cloudSync_ffdkjIntentDescription =>
+      'Sync migrates only the install intent; tag.sqlite is never included or transferred.';
+
+  @override
+  String get cloudSync_ffdkjInstallWarning =>
+      'Download and install the Chinese dictionary directly from the official ffdkj upstream? This file does not come from the cloud snapshot.';
+
+  @override
+  String get cloudSync_clearInstallIntent => 'Not now and clear reminder';
+
+  @override
+  String get cloudSync_securityAndConnection => 'Security & connection';
+
+  @override
+  String get cloudSync_changePassword => 'Change encryption password';
+
+  @override
+  String get cloudSync_rotateRecoveryKey => 'Replace recovery key';
+
+  @override
+  String get cloudSync_rotateRecoveryKeyDescription =>
+      'Invalidates the old recovery key and creates a new one-time key with a conditional update.';
+
+  @override
+  String get cloudSync_newRecoveryKeyPending =>
+      'The new recovery key is active';
+
+  @override
+  String get cloudSync_newRecoveryKeyMustSave =>
+      'The remote key has already changed and closing this view cannot roll it back. Save the new key outside this device and explicitly confirm it.';
+
+  @override
+  String get cloudSync_recoveryKeySavedAction => 'I saved the new key';
+
+  @override
+  String get cloudSync_recoveryKeySavedConfirm =>
+      'Confirm that the complete new recovery key is saved outside this device? The app will stop displaying it afterward.';
+
+  @override
+  String get cloudSync_saveLater => 'Confirm later (keep showing)';
+
+  @override
+  String get cloudSync_rewrapExplanation =>
+      'Only the encryption key is rewrapped; cloud data is not downloaded and re-encrypted.';
+
+  @override
+  String get cloudSync_newPassword => 'New password';
+
+  @override
+  String get cloudSync_deleteRemoteNamespace => 'Delete cloud namespace only';
+
+  @override
+  String get cloudSync_deleteRemoteNamespaceDescription =>
+      'Deletes this app\'s remote namespace without deleting local data.';
+
+  @override
+  String get cloudSync_deleteRemoteConfirm =>
+      'Permanently delete this app\'s remote namespace? Local data is kept.';
+
+  @override
+  String get cloudSync_disconnect => 'Disconnect this device';
+
+  @override
+  String get cloudSync_disconnectDescription =>
+      'Removes the local connection and keeps all remote data.';
+
+  @override
+  String get cloudSync_disconnectConfirm =>
+      'Disconnect this device and keep the remote namespace?';
+
+  @override
+  String get cloudSync_confirm => 'Confirm';
+
+  @override
+  String get cloudSync_conflictCenter => 'Conflict center';
+
+  @override
+  String get cloudSync_conflictDescription =>
+      'Review base, local, and remote summaries by data kind before applying resolutions.';
+
+  @override
+  String get cloudSync_needsConflictResolution => 'Conflicts need attention';
+
+  @override
+  String get cloudSync_deferredConflictWarning =>
+      'Sync is not complete while deferred conflicts remain.';
+
+  @override
+  String get cloudSync_applyAll => 'Apply to all:';
+
+  @override
+  String get cloudSync_base => 'Base';
+
+  @override
+  String get cloudSync_local => 'Local';
+
+  @override
+  String get cloudSync_remote => 'Remote';
+
+  @override
+  String get cloudSync_chooseLocal => 'Use local';
+
+  @override
+  String get cloudSync_chooseRemote => 'Use remote';
+
+  @override
+  String get cloudSync_keepBoth => 'Keep both';
+
+  @override
+  String get cloudSync_largeBinaryKeepBothDefault =>
+      'Large binary conflicts default to keeping both copies.';
+
+  @override
+  String get settings_agent => 'Agent';
+
+  @override
+  String get agentSettings_subtitle =>
+      'Manage the chat model, tool permissions, web access, system prompt, and Skills.';
+
+  @override
+  String get agentSettings_chatModel => 'Chat model';
+
+  @override
+  String get agentSettings_providerModel => 'Provider / model';
+
+  @override
+  String get agentSettings_modelManagedInIntegrations =>
+      'Providers, API keys, and model discovery remain centrally managed in Integrations.';
+
+  @override
+  String get agentSettings_noModel =>
+      'No chat model is available. Add a provider and discover models in Integrations first.';
+
+  @override
+  String get agentSettings_pendingMatch => 'pending match';
+
+  @override
+  String get agentSettings_toolPermission => 'Tool permissions';
+
+  @override
+  String get agentSettings_permissionSafe => 'Safe';
+
+  @override
+  String get agentSettings_permissionSafeDescription =>
+      'Run read-only and low-risk operations only, without sensitive-action prompts.';
+
+  @override
+  String get agentSettings_permissionAsk => 'Ask before sensitive actions';
+
+  @override
+  String get agentSettings_permissionAskDescription =>
+      'Default. Ask before writing files, generating images, or other sensitive actions.';
+
+  @override
+  String get agentSettings_permissionFull => 'Full access';
+
+  @override
+  String get agentSettings_permissionFullDescription =>
+      'Allow direct tool use and files outside the workspace. Use only for trusted tasks.';
+
+  @override
+  String get agentSettings_webPreference => 'Web preference';
+
+  @override
+  String get agentSettings_webEnabled => 'Allow the Agent to use Web tools';
+
+  @override
+  String get agentSettings_webDescription =>
+      'When enabled, the model can search and read public pages. Turning it off removes Web tools at runtime.';
+
+  @override
+  String get agentSettings_systemPrompt => 'System prompt';
+
+  @override
+  String get agentSettings_edit => 'Edit';
+
+  @override
+  String get agentSettings_previewFinalPrompt => 'Preview final prompt';
+
+  @override
+  String get agentSettings_systemPromptDescription =>
+      'Built-in safety and tool instructions are always retained. Your behavior instructions are appended here.';
+
+  @override
+  String get agentSettings_systemPromptHint =>
+      'For example: lead with a concise conclusion; explain impact before editing prompts.';
+
+  @override
+  String get agentSettings_restoreDefault => 'Restore default';
+
+  @override
+  String get agentSettings_promptSaved => 'System prompt saved';
+
+  @override
+  String get agentSettings_discardPromptTitle =>
+      'Discard the unsaved system prompt?';
+
+  @override
+  String get agentSettings_discardPromptBody =>
+      'Leaving this section will lose unsaved changes.';
+
+  @override
+  String get agentSettings_keepEditing => 'Keep editing';
+
+  @override
+  String get agentSettings_discardChanges => 'Discard changes';
+
+  @override
+  String get agentSettings_importProfile => 'Import profile';
+
+  @override
+  String get agentSettings_exportProfile => 'Export profile';
+
+  @override
+  String get agentSettings_profilePrivacy =>
+      'This file contains no API key, token, chat history, or local path.';
+
+  @override
+  String get agentSettings_profilePending =>
+      'Missing models or Skills are not shown as available. Preferences remain pending until they are installed.';
+
+  @override
+  String get agentSettings_reloadSkills => 'Rescan';
+
+  @override
+  String get agentSettings_importSkills => 'Import from ZIP';
+
+  @override
+  String get agentSettings_exportSkills => 'Export selected Skills';
+
+  @override
+  String get agentSettings_searchSkills => 'Search names or descriptions';
+
+  @override
+  String get agentSettings_filterAll => 'All';
+
+  @override
+  String get agentSettings_filterEnabled => 'Enabled';
+
+  @override
+  String get agentSettings_filterDisabled => 'Disabled';
+
+  @override
+  String agentSettings_skillEnabledCount(int enabled, int total) {
+    return 'Enabled $enabled/$total';
+  }
+
+  @override
+  String get agentSettings_diagnostics => 'Diagnostics';
+
+  @override
+  String get agentSettings_noMatchingSkill => 'No matching Skill';
+
+  @override
+  String get agentSettings_noDiagnostics => 'No diagnostic issues';
+
+  @override
+  String get agentSettings_skillExplicitOnly =>
+      'This Skill can only be invoked explicitly by the user and is hidden from the model-visible list';
+
+  @override
+  String get agentSettings_exportPrivacy =>
+      'Only selected Skills are exported. .env, keys, tokens, Git data, and dependency folders are excluded.';
+
+  @override
+  String get agentSettings_continueExport => 'Continue export';
+
+  @override
+  String get agentSettings_install => 'Install';
+
+  @override
+  String get agentSettings_apply => 'Apply';
+
+  @override
+  String agentSettings_operationFailed(String error) {
+    return 'Operation failed: $error';
+  }
+
+  @override
+  String get agentSettings_skillsTitle => 'Skills';
+
+  @override
+  String get agentSettings_skillTransfer => 'Import or export';
+
+  @override
+  String get agentSettings_skillsRescanned => 'Skills rescanned';
+
+  @override
+  String agentSettings_skillScanFailed(String error) {
+    return 'Rescan failed: $error';
+  }
+
+  @override
+  String get agentSettings_exportSkillsTitle => 'Export Skills';
+
+  @override
+  String get agentSettings_skillsExported => 'Skills exported';
+
+  @override
+  String get agentSettings_skillZipReadFailed => 'Couldn\'t read the ZIP file';
+
+  @override
+  String get agentSettings_confirmSkillsImport => 'Confirm Skill import';
+
+  @override
+  String agentSettings_skillArchiveStats(int files, int bytes) {
+    return '$files files · $bytes bytes';
+  }
+
+  @override
+  String get agentSettings_skillConflictReplace =>
+      'A Skill with this name exists. Select it to replace.';
+
+  @override
+  String get agentSettings_skillConflictUnsafe =>
+      'The target is a file, link, or special entity and cannot be replaced.';
+
+  @override
+  String get agentSettings_skillsInstalled => 'Skills installed';
+
+  @override
+  String agentSettings_skillShadowed(String name) {
+    return '$name is shadowed by a higher-priority source';
+  }
+
+  @override
+  String agentSettings_preferredSource(String source) {
+    return 'Preferred source: $source';
+  }
+
+  @override
+  String get agentSettings_sourceWorkspace => 'Workspace';
+
+  @override
+  String get agentSettings_sourcePiUser => 'Pi user';
+
+  @override
+  String get agentSettings_sourceCommonUser => 'Shared user';
+
+  @override
+  String get agentSettings_exportProfileTitle => 'Export Agent profile';
+
+  @override
+  String get agentSettings_profileExported => 'Agent profile exported';
+
+  @override
+  String get agentSettings_profileReadFailed =>
+      'Couldn\'t read the profile file';
+
+  @override
+  String get agentSettings_confirmProfileImport =>
+      'Confirm Agent profile import';
+
+  @override
+  String get agentSettings_profileNoChanges =>
+      'The current settings will not change';
+
+  @override
+  String agentSettings_profileChanges(String changes) {
+    return 'Changes: $changes';
+  }
+
+  @override
+  String get agentSettings_listSeparator => ', ';
+
+  @override
+  String get agentSettings_pendingPreferences => 'Pending preferences';
+
+  @override
+  String agentSettings_missingModel(String model) {
+    return 'Model not currently available: $model';
+  }
+
+  @override
+  String agentSettings_missingSkill(String skill) {
+    return 'Skill not currently available: $skill';
+  }
+
+  @override
+  String get agentSettings_profileImported => 'Agent profile imported';
 }

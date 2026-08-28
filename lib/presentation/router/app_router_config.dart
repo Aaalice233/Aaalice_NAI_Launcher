@@ -13,6 +13,7 @@ import '../screens/online_gallery/online_gallery_screen.dart';
 import '../screens/precise_ref_library/precise_ref_library_screen.dart';
 import '../screens/prompt_config/prompt_config_screen.dart';
 import '../screens/settings/settings_screen.dart';
+import '../screens/settings/settings_section.dart';
 import '../screens/slideshow_screen.dart';
 import '../screens/statistics/statistics_screen.dart';
 import '../screens/tag_library_page/tag_library_page_screen.dart';
@@ -158,12 +159,9 @@ GoRouter appRouter(Ref ref) {
                 path: AppRoutes.settings,
                 name: AppRouteNames.settings,
                 builder: (context, state) => SettingsScreen(
-                  initialSectionIndex:
-                      switch (state.uri.queryParameters['section']) {
-                        'storage' => 3,
-                        'integrations' => 7,
-                        _ => 0,
-                      },
+                  initialSection: SettingsSection.fromId(
+                    state.uri.queryParameters['section'],
+                  ),
                 ),
               ),
             ],

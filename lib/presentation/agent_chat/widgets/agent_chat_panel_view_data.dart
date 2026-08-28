@@ -4,6 +4,7 @@ import '../../../../core/agent/agent_types.dart';
 import '../../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../prompt_assistant/models/prompt_assistant_models.dart';
 import '../../prompt_assistant/providers/web_access_provider.dart';
+import '../../agent_settings/providers/agent_settings_provider.dart';
 import '../providers/agent_chat_notifier.dart';
 
 @immutable
@@ -11,6 +12,7 @@ class AgentChatPanelViewData {
   const AgentChatPanelViewData({
     required this.state,
     required this.config,
+    required this.agentSettings,
     required this.webAccess,
     required this.mobile,
     required this.fullScreen,
@@ -22,6 +24,7 @@ class AgentChatPanelViewData {
 
   final AgentChatState state;
   final PromptAssistantConfigState config;
+  final AgentSettingsState agentSettings;
   final WebAccessConfigState webAccess;
   final bool mobile;
   final bool fullScreen;

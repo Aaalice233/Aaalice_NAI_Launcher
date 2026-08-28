@@ -8,6 +8,7 @@ import 'package:nai_launcher/core/agent/resources/agent_chat_resource_reference.
 import 'package:nai_launcher/core/agent/resources/agent_chat_resource_reference_codec.dart';
 import 'package:nai_launcher/core/services/anlas_calculator.dart';
 import 'package:nai_launcher/core/enums/precise_ref_type.dart';
+import 'package:nai_launcher/data/models/agent/agent_settings.dart';
 import 'package:nai_launcher/data/models/character/character_prompt.dart';
 import 'package:nai_launcher/data/models/image/image_params.dart'
     show
@@ -22,6 +23,7 @@ import 'package:nai_launcher/presentation/agent_chat/services/generation_toolbox
 import 'package:nai_launcher/presentation/agent_chat/services/generation_preparation_runtime.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/agent_resource_resolver.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/queue_toolbox.dart';
+import 'package:nai_launcher/presentation/prompt_assistant/models/prompt_assistant_models.dart';
 import 'package:nai_launcher/presentation/providers/character_prompt_provider.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/providers/replication_queue_provider.dart';
@@ -57,6 +59,76 @@ void main() {
       ]),
     );
   });
+
+  test(
+    'image capability follows AgentSettings instead of legacy chat routing',
+    () {
+      final defaults = PromptAssistantConfigState.defaults();
+      final promptAssistant = defaults.copyWith(
+        providers: const [
+          ProviderConfig(
+            id: 'legacy-provider',
+            name: 'Legacy',
+            baseUrl: 'https://legacy.test',
+            allowImageInput: true,
+          ),
+          ProviderConfig(
+            id: 'agent-provider',
+            name: 'Agent',
+            baseUrl: 'https://agent.test',
+            allowImageInput: false,
+          ),
+        ],
+        models: const [
+          ModelConfig(
+            providerId: 'legacy-provider',
+            name: 'legacy-model',
+            displayName: 'Legacy',
+            forTask: AssistantTaskType.chat,
+          ),
+          ModelConfig(
+            providerId: 'agent-provider',
+            name: 'agent-model',
+            displayName: 'Agent',
+            forTask: AssistantTaskType.chat,
+          ),
+        ],
+        routing: defaults.routing.copyWith(
+          chatProviderId: 'legacy-provider',
+          chatModel: 'legacy-model',
+        ),
+      );
+
+      expect(
+        GenerationToolbox.agentChatSupportsImage(
+          settings: const AgentSettings(
+            chat: AgentChatConfig(
+              modelReference: AgentModelReference(
+                providerId: 'agent-provider',
+                model: 'agent-model',
+              ),
+            ),
+          ),
+          promptAssistant: promptAssistant,
+        ),
+        isFalse,
+      );
+      expect(
+        GenerationToolbox.agentChatSupportsImage(
+          settings: const AgentSettings(
+            chat: AgentChatConfig(
+              modelReference: AgentModelReference(
+                providerId: 'legacy-provider',
+                model: 'legacy-model',
+              ),
+            ),
+          ),
+          promptAssistant: promptAssistant.copyWith(routing: defaults.routing),
+        ),
+        isTrue,
+      );
+    },
+  );
 
   test('declares strict schemas for generation parameters', () {
     final container = ProviderContainer();

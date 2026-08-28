@@ -1,5 +1,6 @@
 import 'dart:ui';
 
+import '../../../core/utils/character_prompt_block_parser.dart';
 import '../../../core/utils/prompt_preset_resolution.dart';
 import '../../../data/models/image/image_params.dart';
 
@@ -107,13 +108,19 @@ class GenerationRequestPreparationService {
       if (prompt.isNotEmpty) effective = effective.copyWith(prompt: prompt);
     }
 
+    final resolvedPrompt = CharacterPromptBlockParser.parse(
+      promptPreparation.resolveAliases(effective.prompt),
+    ).positivePrompt;
+    final promptWithFixedTags = promptPreparation.applyFixedPositiveTags(
+      resolvedPrompt,
+    );
+    final negativePromptWithFixedTags = promptPreparation
+        .applyFixedNegativeTags(
+          promptPreparation.resolveAliases(effective.negativePrompt),
+        );
     effective = effective.copyWith(
-      prompt: promptPreparation.applyFixedPositiveTags(
-        promptPreparation.resolveAliases(effective.prompt),
-      ),
-      negativePrompt: promptPreparation.applyFixedNegativeTags(
-        promptPreparation.resolveAliases(effective.negativePrompt),
-      ),
+      prompt: promptWithFixedTags,
+      negativePrompt: negativePromptWithFixedTags,
     );
     final presets = promptPreparation.resolvePresets(effective);
     final characters = dependencies.characters.read(effective.model);
@@ -143,8 +150,11 @@ class GenerationRequestPreparationService {
     );
     if (prompt.isEmpty) return currentParams;
 
-    var preparedPrompt = promptPreparation.applyFixedPositiveTags(
+    final resolvedPrompt = CharacterPromptBlockParser.parse(
       promptPreparation.resolveAliases(prompt),
+    ).positivePrompt;
+    var preparedPrompt = promptPreparation.applyFixedPositiveTags(
+      resolvedPrompt,
     );
     preparedPrompt = promptPreparation
         .resolvePresets(

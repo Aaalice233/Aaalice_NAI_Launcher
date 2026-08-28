@@ -11,11 +11,14 @@ import 'package:nai_launcher/core/agent/agent_types.dart';
 import 'package:nai_launcher/core/shortcuts/shortcut_config.dart';
 import 'package:hive/hive.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
+import 'package:nai_launcher/core/network/web_access/web_access_models.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/core/storage/secure_storage_service.dart';
+import 'package:nai_launcher/data/models/agent/agent_settings.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/agent_chat/providers/agent_chat_notifier.dart';
 import 'package:nai_launcher/presentation/agent_chat/widgets/agent_chat_panel.dart';
+import 'package:nai_launcher/presentation/agent_settings/providers/agent_settings_provider.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/providers/web_access_provider.dart';
 import 'package:nai_launcher/presentation/providers/shortcuts_provider.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_card_hover_motion.dart';
@@ -107,7 +110,7 @@ void main() {
     expect(selector().enabled, isTrue);
   });
 
-  testWidgets('web access button toggles the shared agent configuration', (
+  testWidgets('web access button reads the shared agent configuration', (
     tester,
   ) async {
     final tempDir = Directory.systemTemp.createTempSync(
@@ -120,10 +123,26 @@ void main() {
         tempDir.deleteSync(recursive: true);
       }
     });
+    final storage = _MemoryLocalStorage({
+      StorageKeys.agentSettingsJson: const AgentSettings(
+        chat: AgentChatConfig(webAccessEnabled: true),
+      ).encode(),
+      StorageKeys.agentWebAccessConfigJson: const WebAccessConfig(
+        enabled: true,
+      ).encode(),
+    });
     container = ProviderContainer(
       overrides: [
-        localStorageServiceProvider.overrideWithValue(_MemoryLocalStorage()),
+        localStorageServiceProvider.overrideWithValue(storage),
         secureStorageServiceProvider.overrideWithValue(_MemorySecureStorage()),
+        agentSettingsProvider.overrideWith(
+          (ref) => AgentSettingsNotifier(
+            ref,
+            supportDirectory: tempDir,
+            workspaceDirectory: tempDir,
+            environment: const {},
+          ),
+        ),
         agentChatNotifierProvider.overrideWith((ref) {
           return _TestAgentChatNotifier(
             ref,
@@ -136,6 +155,7 @@ void main() {
     await tester.runAsync(() async {
       container.read(agentChatNotifierProvider);
       await _waitForInitialized(container);
+      await _waitForAgentSettingsInitialized(container);
       await _waitForWebAccessInitialized(container);
     });
     (container.read(agentChatNotifierProvider.notifier)
@@ -158,7 +178,9 @@ void main() {
 
     const key = ValueKey('agent-chat-web-access-toggle');
     IconButton toggle() => tester.widget(find.byKey(key));
-    expect(toggle().isSelected, isFalse);
+    expect(container.read(agentSettingsProvider).error, isEmpty);
+    expect(toggle().onPressed, isNotNull);
+    expect(toggle().isSelected, isTrue);
     expect(toggle().iconSize, 18);
     expect(
       toggle().style?.overlayColor?.resolve({WidgetState.hovered}),
@@ -174,19 +196,7 @@ void main() {
       tester.getCenter(find.byKey(key)).dy,
       tester.getCenter(find.byIcon(Icons.image_outlined)).dy,
     );
-    expect(container.read(webAccessConfigProvider).config.enabled, isFalse);
-
-    await tester.tap(find.byKey(key));
-    await tester.pump();
-
-    expect(toggle().isSelected, isTrue);
     expect(container.read(webAccessConfigProvider).config.enabled, isTrue);
-
-    await tester.tap(find.byKey(key));
-    await tester.pump();
-
-    expect(toggle().isSelected, isFalse);
-    expect(container.read(webAccessConfigProvider).config.enabled, isFalse);
     expect(tester.takeException(), isNull);
   });
 
@@ -1009,6 +1019,16 @@ Future<void> _waitForWebAccessInitialized(ProviderContainer container) async {
   fail('WebAccessConfigNotifier did not initialize');
 }
 
+Future<void> _waitForAgentSettingsInitialized(
+  ProviderContainer container,
+) async {
+  for (var attempt = 0; attempt < 200; attempt++) {
+    if (container.read(agentSettingsProvider).initialized) return;
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+  }
+  fail('AgentSettingsNotifier did not initialize');
+}
+
 class _TestAgentChatNotifier extends AgentChatNotifier {
   _TestAgentChatNotifier(
     super.ref, {
@@ -1061,6 +1081,10 @@ class _TestAgentChatNotifier extends AgentChatNotifier {
 }
 
 class _MemoryLocalStorage extends LocalStorageService {
+  _MemoryLocalStorage([Map<String, Object?> initial = const {}]) {
+    _values.addAll(initial);
+  }
+
   final Map<String, Object?> _values = {};
 
   @override

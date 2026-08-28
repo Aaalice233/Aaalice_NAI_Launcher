@@ -5,7 +5,13 @@
       "schemaVersion": 2,
       "dataVersion": "42f35be9d394",
       "sha256": "270538fc623bb1a88acf1f347372568d51bf55510c53e0fb700cb370e0da798d",
-      "size": 46772224
+      "size": 46772224,
+      "release": {
+        "tag": "autocomplete-data-tag-catalog-42f35be9-v1",
+        "url": "https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases/download/autocomplete-data-tag-catalog-42f35be9-v1/tag_catalog.db",
+        "prerelease": true,
+        "makeLatest": false
+      }
     }
   }
 }

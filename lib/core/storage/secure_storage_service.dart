@@ -202,6 +202,66 @@ class SecureStorageService {
     await _storage.delete(key: key);
   }
 
+  Future<void> saveCloudSyncMasterKey(String encodedKey) =>
+      _saveCloudSecret(StorageKeys.cloudSyncMasterKey, encodedKey);
+
+  Future<String?> getCloudSyncMasterKey() =>
+      _getCloudSecret(StorageKeys.cloudSyncMasterKey);
+
+  Future<void> saveCloudSyncCredentials(String encodedCredentials) =>
+      _saveCloudSecret(StorageKeys.cloudSyncCredentials, encodedCredentials);
+
+  Future<String?> getCloudSyncCredentials() =>
+      _getCloudSecret(StorageKeys.cloudSyncCredentials);
+
+  Future<void> saveCloudSyncKeyEnvelope(String encodedEnvelope) =>
+      _saveCloudSecret(StorageKeys.cloudSyncKeyEnvelope, encodedEnvelope);
+
+  Future<String?> getCloudSyncKeyEnvelope() =>
+      _getCloudSecret(StorageKeys.cloudSyncKeyEnvelope);
+
+  Future<void> clearCloudSyncSecrets() async {
+    const keys = [
+      StorageKeys.cloudSyncMasterKey,
+      StorageKeys.cloudSyncCredentials,
+      StorageKeys.cloudSyncKeyEnvelope,
+    ];
+    for (final key in keys) {
+      _memoryCache.remove(key);
+    }
+    await Future.wait(keys.map((key) => _storage.delete(key: key)));
+  }
+
+  Future<void> _saveCloudSecret(String key, String value) async {
+    try {
+      await _storage.write(key: key, value: value);
+      // Never let the Windows process cache make a failed write look durable.
+      _memoryCache[key] = value;
+    } catch (error) {
+      AppLogger.w(
+        'Failed to persist cloud sync secret: ${error.runtimeType}',
+        'SecureStorage',
+      );
+      rethrow;
+    }
+  }
+
+  Future<String?> _getCloudSecret(String key) async {
+    final cached = _memoryCache[key];
+    if (cached != null) return cached;
+    try {
+      final value = await _storage.read(key: key);
+      if (value != null) _memoryCache[key] = value;
+      return value;
+    } catch (error) {
+      AppLogger.w(
+        'Failed to read cloud sync secret: ${error.runtimeType}',
+        'SecureStorage',
+      );
+      rethrow;
+    }
+  }
+
   // ==================== Online Gallery Credentials ====================
 
   Future<void> saveDanbooruCredentials(String credentialsJson) async {

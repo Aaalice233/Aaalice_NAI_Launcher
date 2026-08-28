@@ -7,6 +7,15 @@ class StorageKeys {
   static const String tokenExpiry = 'nai_token_expiry';
   static const String userEmail = 'nai_user_email';
   static const String discordShareSession = 'discord_share_session_v1';
+  static const String cloudSyncMasterKey = 'cloud_sync_master_key_v1';
+  static const String cloudSyncCredentials = 'cloud_sync_credentials_v1';
+  static const String cloudSyncKeyEnvelope = 'cloud_sync_key_envelope_v1';
+  static const String cloudSyncPendingFfdkjInstall =
+      'cloud_sync_pending_ffdkj_install_v1';
+  static const String cloudSyncConfiguration = 'cloud_sync_configuration_v1';
+  static const String cloudSyncDeviceId = 'cloud_sync_device_id_v1';
+  static const String cloudSyncLastMaintenanceAt =
+      'cloud_sync_last_maintenance_at_v1';
 
   // Token 存储（按账号ID）
   static const String accountTokenPrefix = 'nai_account_token_';
@@ -262,6 +271,7 @@ class StorageKeys {
   static const String promptAssistantApiKeyPrefix = 'prompt_assistant_api_key_';
   static const String agentWebAccessConfigJson = 'agent_web_access_config_json';
   static const String agentWebAccessExaApiKey = 'agent_web_access_exa_api_key';
+  static const String agentSettingsJson = 'agent_settings_json_v2';
 
   // 在线画廊凭据（系统安全存储）
   static const String onlineGalleryDanbooruCredentialsV1 =

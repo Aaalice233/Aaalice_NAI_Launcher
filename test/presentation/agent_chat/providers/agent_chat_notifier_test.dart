@@ -7,7 +7,9 @@ import 'package:nai_launcher/core/agent/harness/session/session_types.dart';
 import 'package:nai_launcher/core/agent/llm_types.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/core/storage/secure_storage_service.dart';
+import 'package:nai_launcher/data/models/agent/agent_settings.dart';
 import 'package:nai_launcher/presentation/agent_chat/providers/agent_chat_notifier.dart';
+import 'package:nai_launcher/presentation/agent_settings/providers/agent_settings_provider.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/models/prompt_assistant_models.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/providers/prompt_assistant_config_provider.dart';
 
@@ -79,6 +81,14 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         localStorageServiceProvider.overrideWithValue(_MemoryLocalStorage()),
+        agentSettingsProvider.overrideWith(
+          (ref) => AgentSettingsNotifier(
+            ref,
+            supportDirectory: root,
+            workspaceDirectory: root,
+            environment: const {},
+          ),
+        ),
         secureStorageServiceProvider.overrideWithValue(_MemorySecureStorage()),
       ],
     );
@@ -148,6 +158,14 @@ Legacy instructions.
     final container = ProviderContainer(
       overrides: [
         localStorageServiceProvider.overrideWithValue(storage),
+        agentSettingsProvider.overrideWith(
+          (ref) => AgentSettingsNotifier(
+            ref,
+            supportDirectory: supportDir,
+            workspaceDirectory: workspaceDir,
+            environment: const {},
+          ),
+        ),
         secureStorageServiceProvider.overrideWithValue(_MemorySecureStorage()),
       ],
     );
@@ -184,6 +202,14 @@ Legacy instructions.
       container = ProviderContainer(
         overrides: [
           localStorageServiceProvider.overrideWithValue(storage),
+          agentSettingsProvider.overrideWith(
+            (ref) => AgentSettingsNotifier(
+              ref,
+              supportDirectory: tempDir,
+              workspaceDirectory: tempDir,
+              environment: const {},
+            ),
+          ),
           secureStorageServiceProvider.overrideWithValue(
             _MemorySecureStorage(),
           ),
@@ -214,6 +240,23 @@ Legacy instructions.
       await configNotifier.upsertProvider(
         ProviderPreset.deepseek.createConfig(),
       );
+      await configNotifier.upsertModel(
+        const ModelConfig(
+          providerId: 'deepseek',
+          name: 'deepseek-chat',
+          displayName: 'DeepSeek Chat',
+          forTask: AssistantTaskType.chat,
+        ),
+      );
+      await container
+          .read(agentSettingsProvider.notifier)
+          .setModelReference(
+            const AgentModelReference(
+              providerId: 'deepseek',
+              model: 'deepseek-chat',
+            ),
+          );
+      await Future<void>.delayed(const Duration(milliseconds: 10));
 
       final state = container.read(provider);
       expect(state.routeReady, isTrue);

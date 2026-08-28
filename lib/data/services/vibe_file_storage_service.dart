@@ -7,6 +7,7 @@ import 'vibe_file_repository.dart';
 import 'vibe_file_storage_protocol.dart';
 import 'vibe_file_storage_types.dart';
 import 'vibe_folder_sync.dart';
+import 'vibe_portable_file_store.dart';
 
 export 'vibe_file_storage_types.dart';
 
@@ -18,11 +19,14 @@ class VibeFileStorageService {
   VibeFileStorageService({
     VibeFileRepositoryProtocol? repository,
     VibeFolderSync? folderSync,
+    VibePortableFileStore? portableFiles,
   }) : _repository = repository ?? VibeFileRepository(),
-       _injectedFolderSync = folderSync;
+       _injectedFolderSync = folderSync,
+       _portableFiles = portableFiles ?? VibePortableFileStore();
 
   final VibeFileRepositoryProtocol _repository;
   final VibeFolderSync? _injectedFolderSync;
+  final VibePortableFileStore _portableFiles;
 
   VibeFolderSync get _folderSync =>
       _injectedFolderSync ?? VibeFolderSync(_repository);
@@ -102,6 +106,23 @@ class VibeFileStorageService {
   }) => _repository.extractPreviewsFromBundle(bundlePath, maxCount: maxCount);
 
   Future<List<FileSystemEntity>> listVibeFiles() => _repository.listVibeFiles();
+
+  Future<int> portableFileLength(String filePath) =>
+      _portableFiles.fileLength(filePath);
+
+  Future<bool> portableFileExists(String filePath) =>
+      _portableFiles.exists(filePath);
+
+  Stream<List<int>> openPortableFile(String filePath) =>
+      _portableFiles.openRead(filePath);
+
+  Future<String> importPortableFile(
+    Stream<List<int>> bytes, {
+    required String fileName,
+  }) => _portableFiles.import(bytes, fileName: fileName);
+
+  Future<bool> deletePortableFile(String filePath) =>
+      _repository.deleteVibeFile(filePath);
 
   Future<VibeFolderSyncResult> syncFolderToHive({
     required List<VibeLibraryEntry> existingEntries,

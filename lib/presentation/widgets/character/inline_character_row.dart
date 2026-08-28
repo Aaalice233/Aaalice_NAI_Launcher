@@ -3,6 +3,7 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/api_constants.dart';
+import '../../../core/utils/character_prompt_block_parser.dart';
 import '../../../data/models/character/character_prompt.dart';
 import '../../providers/character_position_canvas_provider.dart';
 import '../../providers/character_prompt_provider.dart';
@@ -368,7 +369,10 @@ class _RowEditorPanelState extends ConsumerState<_RowEditorPanel> {
                       () => AddToLibraryDialog.show(
                         context,
                         name: widget.character.name,
-                        content: widget.character.prompt,
+                        content: CharacterPromptBlockParser.compose(
+                          positivePrompt: widget.character.prompt,
+                          negativePrompt: widget.character.negativePrompt,
+                        ),
                       ),
                     ),
                   ),
@@ -579,11 +583,13 @@ class _AddCharacterChip extends ConsumerWidget {
       builder: (context) => const TagLibraryPickerDialog(),
     );
     if (entry != null) {
+      final parsed = CharacterPromptBlockParser.parse(entry.content);
       ref.read(tagLibraryPageNotifierProvider.notifier).recordUsage(entry.id);
       notifier.addCharacter(
         CharacterGender.female,
         name: entry.displayName,
-        prompt: entry.content,
+        prompt: parsed.positivePrompt,
+        negativePrompt: parsed.hasNegativeBlock ? parsed.negativePrompt : null,
         thumbnailPath: entry.thumbnail,
       );
       _selectLast(ref);

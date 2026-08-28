@@ -1,18 +1,27 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
+import 'package:nai_launcher/core/storage/secure_storage_service.dart';
+import 'package:nai_launcher/core/agent/skill_catalog.dart';
 import 'package:nai_launcher/data/models/user/user_subscription.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/account_manager_provider.dart';
 import 'package:nai_launcher/presentation/providers/auth_provider.dart';
 import 'package:nai_launcher/presentation/providers/subscription_provider.dart';
+import 'package:nai_launcher/presentation/agent_settings/providers/agent_settings_provider.dart';
+import 'package:nai_launcher/presentation/agent_settings/providers/agent_prompt_draft_provider.dart';
+import 'package:nai_launcher/presentation/screens/cloud_sync/cloud_sync_screen.dart';
 import 'package:nai_launcher/presentation/screens/settings/sections/account_settings_section.dart';
 import 'package:nai_launcher/presentation/screens/settings/sections/appearance_settings_section.dart';
 import 'package:nai_launcher/presentation/screens/settings/sections/integrations_settings_section.dart';
 import 'package:nai_launcher/presentation/screens/settings/sections/prompt_assistant_settings_section.dart';
 import 'package:nai_launcher/presentation/screens/settings/settings_screen.dart';
+import 'package:nai_launcher/presentation/screens/settings/settings_section.dart';
 
 class _MemoryLocalStorage extends LocalStorageService {
   final Map<String, Object?> _values = {};
@@ -37,6 +46,24 @@ class _MemoryLocalStorage extends LocalStorageService {
   }
 }
 
+class _MemorySecureStorage extends SecureStorageService {
+  @override
+  Future<String?> getAgentWebAccessExaApiKey() async => null;
+
+  @override
+  Future<String?> getPromptAssistantApiKey(String providerId) async => null;
+}
+
+class _EmptySkillCatalogService extends SkillCatalogService {
+  const _EmptySkillCatalogService();
+
+  @override
+  Future<SkillCatalogSnapshot> scan({
+    required List<SkillRoot> roots,
+    Set<String> disabledSkillIds = const {},
+  }) async => const SkillCatalogSnapshot();
+}
+
 class _FakeAuthNotifier extends AuthNotifier {
   @override
   AuthState build() => const AuthState(status: AuthStatus.unauthenticated);
@@ -59,7 +86,7 @@ void main() {
     storage = _MemoryLocalStorage();
   });
 
-  testWidgets('设置页导航为 9 个分类', (tester) async {
+  testWidgets('设置页导航为 11 个稳定分类并包含同步与备份', (tester) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.windows;
     await tester.binding.setSurfaceSize(const Size(1280, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -68,6 +95,18 @@ void main() {
       ProviderScope(
         overrides: [
           localStorageServiceProvider.overrideWithValue(storage),
+          secureStorageServiceProvider.overrideWithValue(
+            _MemorySecureStorage(),
+          ),
+          agentSettingsProvider.overrideWith(
+            (ref) => AgentSettingsNotifier(
+              ref,
+              supportDirectory: Directory.systemTemp,
+              workspaceDirectory: Directory.systemTemp,
+              environment: const {},
+              skillCatalogService: const _EmptySkillCatalogService(),
+            ),
+          ),
           authNotifierProvider.overrideWith(_FakeAuthNotifier.new),
           accountManagerNotifierProvider.overrideWith(
             _FakeAccountManagerNotifier.new,
@@ -87,7 +126,7 @@ void main() {
     await tester.pumpAndSettle();
 
     final rail = tester.widget<NavigationRail>(find.byType(NavigationRail));
-    expect(rail.destinations.length, 9);
+    expect(rail.destinations.length, 11);
 
     final labels = rail.destinations
         .map((destination) => (destination.label as Text).data)
@@ -96,7 +135,9 @@ void main() {
       '账户',
       '外观',
       '生成',
+      '智能体',
       '数据与存储',
+      '同步与备份',
       '安全与分享',
       '网络',
       '快捷键',
@@ -111,7 +152,9 @@ void main() {
       Icons.person_outline,
       Icons.palette_outlined,
       Icons.tune_outlined,
+      Icons.smart_toy_outlined,
       Icons.storage_outlined,
+      Icons.cloud_sync_outlined,
       Icons.shield_outlined,
       Icons.network_check_outlined,
       Icons.keyboard_outlined,
@@ -126,7 +169,9 @@ void main() {
       Icons.person,
       Icons.palette,
       Icons.tune,
+      Icons.smart_toy,
       Icons.storage,
+      Icons.cloud_sync,
       Icons.shield,
       Icons.network_check,
       Icons.keyboard,
@@ -139,6 +184,11 @@ void main() {
     expect(find.text('通知'), findsNothing);
     expect(find.text('数据源'), findsNothing);
     expect(find.text('ComfyUI'), findsNothing);
+
+    await tester.tap(find.byIcon(Icons.cloud_sync_outlined));
+    await tester.pumpAndSettle();
+    expect(find.byType(CloudSyncScreen), findsOneWidget);
+    expect(find.text('尚未连接'), findsOneWidget);
 
     await tester.tap(find.byIcon(Icons.extension_outlined));
     await tester.pumpAndSettle();
@@ -178,6 +228,18 @@ void main() {
       ProviderScope(
         overrides: [
           localStorageServiceProvider.overrideWithValue(storage),
+          secureStorageServiceProvider.overrideWithValue(
+            _MemorySecureStorage(),
+          ),
+          agentSettingsProvider.overrideWith(
+            (ref) => AgentSettingsNotifier(
+              ref,
+              supportDirectory: Directory.systemTemp,
+              workspaceDirectory: Directory.systemTemp,
+              environment: const {},
+              skillCatalogService: const _EmptySkillCatalogService(),
+            ),
+          ),
           authNotifierProvider.overrideWith(_FakeAuthNotifier.new),
           accountManagerNotifierProvider.overrideWith(
             _FakeAccountManagerNotifier.new,
@@ -318,5 +380,255 @@ void main() {
     expect(find.byType(IntegrationsSettingsSection), findsNothing);
     expect(find.text('集成'), findsOneWidget);
     debugDefaultTargetPlatformOverride = null;
+  });
+
+  testWidgets('桌面端离开智能体设置前保护未保存的系统提示词', (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+    await tester.binding.setSurfaceSize(const Size(1280, 900));
+    addTearDown(() {
+      debugDefaultTargetPlatformOverride = null;
+      return tester.binding.setSurfaceSize(null);
+    });
+
+    final container = ProviderContainer(
+      overrides: [
+        localStorageServiceProvider.overrideWithValue(storage),
+        secureStorageServiceProvider.overrideWithValue(_MemorySecureStorage()),
+        agentSettingsProvider.overrideWith(
+          (ref) => AgentSettingsNotifier(
+            ref,
+            supportDirectory: Directory.systemTemp,
+            workspaceDirectory: Directory.systemTemp,
+            environment: const {},
+            skillCatalogService: const _EmptySkillCatalogService(),
+          ),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    await tester.runAsync(() async {
+      container.read(agentSettingsProvider);
+      for (var attempt = 0; attempt < 100; attempt++) {
+        if (container.read(agentSettingsProvider).initialized) return;
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+      fail('Agent settings did not initialize.');
+    });
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () => Navigator.of(context).push<void>(
+                  MaterialPageRoute(
+                    builder: (_) => const SettingsScreen(
+                      initialSection: SettingsSection.agent,
+                    ),
+                  ),
+                ),
+                child: const Text('打开设置'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('打开设置'));
+    for (var attempt = 0; attempt < 50; attempt++) {
+      await tester.pump(const Duration(milliseconds: 20));
+      if (find
+          .byKey(const ValueKey('agent-custom-system-prompt'))
+          .evaluate()
+          .isNotEmpty) {
+        break;
+      }
+    }
+    expect(
+      find.byKey(const ValueKey('agent-custom-system-prompt')),
+      findsOneWidget,
+    );
+
+    await tester.enterText(
+      find.byKey(const ValueKey('agent-custom-system-prompt')),
+      '尚未保存',
+    );
+    await tester.pump();
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    expect(find.text('放弃未保存的系统提示词？'), findsOneWidget);
+    await tester.tap(find.text('继续编辑'));
+    await tester.pumpAndSettle();
+    expect(find.byType(SettingsScreen), findsOneWidget);
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('放弃修改'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(SettingsScreen), findsNothing);
+    expect(find.text('打开设置'), findsOneWidget);
+    debugDefaultTargetPlatformOverride = null;
+  });
+
+  testWidgets('紧凑智能体草稿由 AppBar 取消并由系统返回确认且各提示一次', (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    await tester.binding.setSurfaceSize(const Size(390, 820));
+    addTearDown(() {
+      debugDefaultTargetPlatformOverride = null;
+      return tester.binding.setSurfaceSize(null);
+    });
+
+    final container = ProviderContainer(
+      overrides: [
+        localStorageServiceProvider.overrideWithValue(storage),
+        secureStorageServiceProvider.overrideWithValue(_MemorySecureStorage()),
+        agentSettingsProvider.overrideWith(
+          (ref) => AgentSettingsNotifier(
+            ref,
+            supportDirectory: Directory.systemTemp,
+            workspaceDirectory: Directory.systemTemp,
+            environment: const {},
+            skillCatalogService: const _EmptySkillCatalogService(),
+          ),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    await tester.runAsync(() async {
+      container.read(agentSettingsProvider);
+      for (var attempt = 0; attempt < 100; attempt++) {
+        if (container.read(agentSettingsProvider).initialized) return;
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+      fail('Agent settings did not initialize.');
+    });
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: SettingsScreen(initialSection: SettingsSection.agent),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final editor = find.byKey(const ValueKey('agent-custom-system-prompt'));
+    await tester.enterText(editor, '移动端未保存草稿');
+    await tester.pump();
+
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+    expect(find.text('放弃未保存的系统提示词？'), findsOneWidget);
+
+    await tester.tap(find.text('继续编辑'));
+    await tester.pumpAndSettle();
+    expect(editor, findsOneWidget);
+    expect(container.read(agentPromptDraftProvider).dirty, isTrue);
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(find.text('放弃未保存的系统提示词？'), findsOneWidget);
+
+    await tester.tap(find.text('放弃修改'));
+    await tester.pumpAndSettle();
+    expect(find.text('放弃未保存的系统提示词？'), findsNothing);
+    expect(find.byKey(const ValueKey('settings-section-list')), findsOneWidget);
+    expect(container.read(agentPromptDraftProvider).dirty, isFalse);
+    debugDefaultTargetPlatformOverride = null;
+    await tester.binding.setSurfaceSize(null);
+  });
+
+  testWidgets('取消外部 section 切换会恢复 URL 与智能体页面', (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+    await tester.binding.setSurfaceSize(const Size(1280, 900));
+    addTearDown(() {
+      debugDefaultTargetPlatformOverride = null;
+      return tester.binding.setSurfaceSize(null);
+    });
+
+    final container = ProviderContainer(
+      overrides: [
+        localStorageServiceProvider.overrideWithValue(storage),
+        secureStorageServiceProvider.overrideWithValue(_MemorySecureStorage()),
+        agentSettingsProvider.overrideWith(
+          (ref) => AgentSettingsNotifier(
+            ref,
+            supportDirectory: Directory.systemTemp,
+            workspaceDirectory: Directory.systemTemp,
+            environment: const {},
+            skillCatalogService: const _EmptySkillCatalogService(),
+          ),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    await tester.runAsync(() async {
+      container.read(agentSettingsProvider);
+      for (var attempt = 0; attempt < 100; attempt++) {
+        if (container.read(agentSettingsProvider).initialized) return;
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+      fail('Agent settings did not initialize.');
+    });
+    final router = GoRouter(
+      initialLocation: '/settings?section=agent',
+      routes: [
+        GoRoute(
+          path: '/settings',
+          builder: (context, state) => SettingsScreen(
+            initialSection: SettingsSection.fromId(
+              state.uri.queryParameters['section'],
+            ),
+          ),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp.router(
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          routerConfig: router,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('agent-custom-system-prompt')),
+      '路由切换前未保存',
+    );
+    await tester.pump();
+
+    router.go('/settings?section=appearance');
+    await tester.pumpAndSettle();
+    expect(find.text('放弃未保存的系统提示词？'), findsOneWidget);
+
+    await tester.tap(find.text('继续编辑'));
+    await tester.pumpAndSettle();
+    expect(
+      router.routeInformationProvider.value.uri.queryParameters['section'],
+      'agent',
+    );
+    expect(
+      find.byKey(const ValueKey('agent-custom-system-prompt')),
+      findsOneWidget,
+    );
+    debugDefaultTargetPlatformOverride = null;
+    await tester.binding.setSurfaceSize(null);
   });
 }

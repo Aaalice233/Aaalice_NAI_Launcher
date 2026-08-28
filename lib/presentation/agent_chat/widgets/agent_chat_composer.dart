@@ -326,7 +326,7 @@ class AgentChatComposer extends StatelessWidget {
   }
 
   Widget _permissionModeButton(ThemeData theme, AppLocalizations l10n) {
-    final mode = viewData.config.agentPermissionMode;
+    final mode = viewData.agentSettings.settings.chat.permissionMode;
     final icon = switch (mode) {
       AgentPermissionMode.safe => Icons.shield_outlined,
       AgentPermissionMode.askBeforeSensitiveActions => Icons.gpp_maybe_outlined,
@@ -334,7 +334,7 @@ class AgentChatComposer extends StatelessWidget {
     };
     return PopupMenuButton<AgentPermissionMode>(
       key: const ValueKey('agent-chat-permission-mode'),
-      enabled: !viewData.controlsLocked,
+      enabled: _agentSettingsInteractive,
       tooltip:
           '${l10n.agentChat_permissionMode}: ${agentPermissionModeLabel(l10n, mode)}',
       onSelected: commands.selectPermissionMode,
@@ -389,7 +389,7 @@ class AgentChatComposer extends StatelessWidget {
           icon,
           size: 17,
           color: theme.colorScheme.onSurface.withValues(
-            alpha: viewData.controlsLocked ? 0.25 : 0.6,
+            alpha: _agentSettingsInteractive ? 0.6 : 0.25,
           ),
         ),
       ),
@@ -398,8 +398,8 @@ class AgentChatComposer extends StatelessWidget {
 
   Widget _webAccessToggle(ThemeData theme, AppLocalizations l10n) {
     final state = viewData.webAccess;
-    final enabled = state.config.enabled;
-    final interactive = state.initialized && !viewData.controlsLocked;
+    final enabled = viewData.agentSettings.settings.chat.webAccessEnabled;
+    final interactive = state.initialized && _agentSettingsInteractive;
     final tooltip = enabled
         ? l10n.agentChat_disableWebAccess
         : l10n.agentChat_enableWebAccess;
@@ -491,10 +491,9 @@ class AgentChatComposer extends StatelessWidget {
         ),
       );
     }
-    final activeProviderId = config.routing.providerIdFor(
-      AssistantTaskType.chat,
-    );
-    final activeModel = config.routing.modelFor(AssistantTaskType.chat);
+    final modelReference = viewData.agentSettings.settings.chat.modelReference;
+    final activeProviderId = modelReference.providerId;
+    final activeModel = modelReference.model;
     var label = '';
     for (final provider in enabled) {
       if (provider.id != activeProviderId) continue;
@@ -513,7 +512,7 @@ class AgentChatComposer extends StatelessWidget {
       label = activeModel.isEmpty ? viewData.state.routeLabel : activeModel;
     }
     return PopupMenuButton<(String, String)>(
-      enabled: viewData.sessionActionsEnabled,
+      enabled: viewData.sessionActionsEnabled && _agentSettingsInteractive,
       tooltip: l10n.agentChat_model,
       onSelected: (route) => commands.selectModel(route.$1, route.$2),
       itemBuilder: (context) => [
@@ -603,6 +602,11 @@ class AgentChatComposer extends StatelessWidget {
       ),
     );
   }
+
+  bool get _agentSettingsInteractive =>
+      viewData.agentSettings.initialized &&
+      viewData.agentSettings.error.isEmpty &&
+      !viewData.controlsLocked;
 }
 
 class _SendButton extends StatelessWidget {

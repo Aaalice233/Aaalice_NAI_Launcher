@@ -6886,6 +6886,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get tagLibrary_contentHint => '输入提示词内容，支持智能补全';
 
   @override
+  String get tagLibrary_characterNegativeSyntaxHelp =>
+      '角色词库可用 negative(...) 保存独立负面提示词，例如：girl, blue eyes, negative(red hair, glasses)';
+
+  @override
   String get settings_network => '网络';
 
   @override
@@ -12293,6 +12297,701 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get vibeDetail_choosePreviewImage => '点击图片按钮选择预览图';
+
+  @override
+  String get cloudSync_title => '同步与备份';
+
+  @override
+  String get cloudSync_description => '使用你控制的存储，在设备间进行加密备份与同步。';
+
+  @override
+  String get cloudSync_disconnected => '尚未连接';
+
+  @override
+  String get cloudSync_disconnectedDescription =>
+      '选择 WebDAV 或 GitHub 配置云同步。真实连接测试和设置完成前不会上传任何内容。';
+
+  @override
+  String get cloudSync_stepConfiguration => '配置';
+
+  @override
+  String get cloudSync_stepTest => '真实测试';
+
+  @override
+  String get cloudSync_stepData => '数据范围';
+
+  @override
+  String get cloudSync_stepEncryption => '加密';
+
+  @override
+  String get cloudSync_stepRemote => '检测远端';
+
+  @override
+  String get cloudSync_stepInitial => '首次同步';
+
+  @override
+  String get cloudSync_chooseBackend => '选择后端';
+
+  @override
+  String get cloudSync_chooseBackendDescription => '凭据始终隐藏，仅在同步服务接入后传递给它。';
+
+  @override
+  String get cloudSync_webDavUrl => 'WebDAV URL';
+
+  @override
+  String get cloudSync_allowInsecureHttp => '允许不安全的 HTTP';
+
+  @override
+  String get cloudSync_allowInsecureHttpWarning =>
+      'HTTP 会以明文传输 WebDAV 凭据和加密数据。仅在可信内网且明确了解风险时启用。';
+
+  @override
+  String get cloudSync_username => '用户名';
+
+  @override
+  String get cloudSync_password => '密码';
+
+  @override
+  String get cloudSync_remotePath => '远端路径';
+
+  @override
+  String get cloudSync_githubToken => 'GitHub Token';
+
+  @override
+  String get cloudSync_owner => 'Owner';
+
+  @override
+  String get cloudSync_repository => '仓库';
+
+  @override
+  String get cloudSync_branch => '分支';
+
+  @override
+  String get cloudSync_continueToTest => '继续真实测试';
+
+  @override
+  String get cloudSync_continueToData => '继续选择数据范围';
+
+  @override
+  String get cloudSync_testConnection => '测试真实连接';
+
+  @override
+  String get cloudSync_testConnectionDescription =>
+      '服务必须验证认证、读写、条件更新、历史、删除能力和服务商限额。';
+
+  @override
+  String get cloudSync_runRealTest => '运行真实测试';
+
+  @override
+  String get cloudSync_testSucceeded => '连接验证成功';
+
+  @override
+  String get cloudSync_testFailed => '连接测试失败';
+
+  @override
+  String get cloudSync_serviceNotConnected => '云同步服务尚未接入。';
+
+  @override
+  String cloudSync_limit(Object value) {
+    return '服务商限额：$value';
+  }
+
+  @override
+  String get cloudSync_manualBackupOnly => '仅手动云备份';
+
+  @override
+  String get cloudSync_manualBackupOnlyDescription =>
+      '此后端无法安全保证双向更新，因此不能使用自动双向同步。';
+
+  @override
+  String get cloudSync_dataScope => '选择同步数据';
+
+  @override
+  String get cloudSync_dataScopeDescription => '只选择需要包含在加密快照中的本地数据类别。';
+
+  @override
+  String get cloudSync_kindSettings => '设置';
+
+  @override
+  String get cloudSync_kindPrompts => '提示词与预设';
+
+  @override
+  String get cloudSync_kindGalleries => '在线画廊收藏、分类与过滤';
+
+  @override
+  String get cloudSync_kindLargeFiles => '大二进制文件';
+
+  @override
+  String get cloudSync_continueToEncryption => '继续加密设置';
+
+  @override
+  String get cloudSync_encryption => '设置加密密码';
+
+  @override
+  String get cloudSync_encryptionDescription => '数据上传前会被加密；服务商无法找回密码和一次性恢复密钥。';
+
+  @override
+  String get cloudSync_encryptionPassword => '加密密码';
+
+  @override
+  String get cloudSync_confirmPassword => '确认密码';
+
+  @override
+  String get cloudSync_recoveryKeyConfirmed => '我已保存并核对一次性恢复密钥';
+
+  @override
+  String get cloudSync_recoveryKeyDescription =>
+      '请保存在本设备之外；密码与本地密钥材料均丢失时必须使用它。';
+
+  @override
+  String get cloudSync_generateRecoveryKey => '生成一次性恢复密钥';
+
+  @override
+  String get cloudSync_oneTimeRecoveryKey => '一次性恢复密钥';
+
+  @override
+  String get cloudSync_oneTimeRecoveryKeyDescription =>
+      '此密钥只在设置期间显示。请立即保存并核对保存的副本。';
+
+  @override
+  String get cloudSync_detectRemote => '检测远端数据';
+
+  @override
+  String get cloudSync_detectRemoteDescription =>
+      '选择首次同步方向前，先检查已有 namespace 和快照。';
+
+  @override
+  String get cloudSync_detectRemoteAction => '检测远端';
+
+  @override
+  String get cloudSync_initialSync => '选择首次同步方式';
+
+  @override
+  String get cloudSync_initialSyncDescription =>
+      '上传会替换远端 head，下载会应用远端快照，预览合并在确认前不会修改数据。';
+
+  @override
+  String get cloudSync_initialUpload => '上传本设备数据';
+
+  @override
+  String get cloudSync_initialDownload => '下载远端数据';
+
+  @override
+  String get cloudSync_previewMergeRecommended => '预览并合并（推荐）';
+
+  @override
+  String get cloudSync_dangerousFirstSyncTitle => '确认覆盖方向';
+
+  @override
+  String get cloudSync_initialUploadWarning =>
+      '这会以本机数据替换当前云端版本。继续前请确认云端没有需要保留的独有数据。';
+
+  @override
+  String get cloudSync_initialDownloadWarning =>
+      '这会以云端快照替换本机数据，并先创建本机恢复点。继续前请确认本机没有需要保留的独有数据。';
+
+  @override
+  String get cloudSync_confirmOverwrite => '确认覆盖';
+
+  @override
+  String get cloudSync_connect => '连接并继续';
+
+  @override
+  String cloudSync_actionFailed(Object error) {
+    return '操作失败：$error';
+  }
+
+  @override
+  String get cloudSync_connectionDetails => '连接信息';
+
+  @override
+  String get cloudSync_backend => '后端';
+
+  @override
+  String get cloudSync_deviceName => '设备名';
+
+  @override
+  String get cloudSync_lastSync => '上次同步';
+
+  @override
+  String get cloudSync_remoteRevision => '远端 revision';
+
+  @override
+  String get cloudSync_connectedDescription => '加密云连接可用。';
+
+  @override
+  String get cloudSync_maintenanceWarning => '远端维护提示';
+
+  @override
+  String get cloudSync_githubHistoryRetention => 'GitHub 历史保留';
+
+  @override
+  String get cloudSync_githubHistoryRetentionDescription =>
+      '删除同步对象或 namespace 不会回收 Git 提交历史及其占用空间。需要彻底清理时，请在 GitHub 侧重新建立仓库。';
+
+  @override
+  String get cloudSync_upToDate => '已完全同步';
+
+  @override
+  String get cloudSync_syncing => '正在同步';
+
+  @override
+  String get cloudSync_paused => '已暂停';
+
+  @override
+  String get cloudSync_syncControls => '同步控制';
+
+  @override
+  String get cloudSync_syncNow => '立即同步';
+
+  @override
+  String get cloudSync_pause => '暂停';
+
+  @override
+  String get cloudSync_resume => '继续';
+
+  @override
+  String get cloudSync_cancel => '取消';
+
+  @override
+  String get cloudSync_progress => '同步进度';
+
+  @override
+  String get cloudSync_stage => '阶段';
+
+  @override
+  String get cloudSync_object => '当前对象';
+
+  @override
+  String get cloudSync_objects => '对象';
+
+  @override
+  String get cloudSync_bytes => '字节';
+
+  @override
+  String get cloudSync_activityLog => '活动日志';
+
+  @override
+  String get cloudSync_noActivity => '暂无同步活动。';
+
+  @override
+  String get cloudSync_snapshotHistory => '历史快照';
+
+  @override
+  String get cloudSync_snapshotHistoryDescription => '恢复会创建新的本地变更，不会静默抹除历史。';
+
+  @override
+  String get cloudSync_noSnapshots => '没有可用的远端快照。';
+
+  @override
+  String get cloudSync_previewRestore => '预览恢复';
+
+  @override
+  String get cloudSync_restorePreviewTitle => '恢复差异预览';
+
+  @override
+  String get cloudSync_restorePreviewDescription =>
+      '以下是历史快照相对当前本机数据的真实变化。确认后会创建新快照，不会倒退历史。';
+
+  @override
+  String get cloudSync_mergePreviewTitle => '首次合并预览';
+
+  @override
+  String get cloudSync_mergePreviewDescription => '合并尚未应用。核对增改删摘要并解决全部冲突后再确认。';
+
+  @override
+  String get cloudSync_previewAwaitingConfirmation => '预览尚未确认，当前不能标记为完全同步。';
+
+  @override
+  String get cloudSync_previewDeletesTitle => '包含删除操作';
+
+  @override
+  String cloudSync_previewDeletesDescription(Object count) {
+    return '确认后将删除 $count 项本机数据。请先核对类别。';
+  }
+
+  @override
+  String cloudSync_previewCounts(
+    Object added,
+    Object modified,
+    Object deleted,
+  ) {
+    return '新增 $added · 修改 $modified · 删除 $deleted';
+  }
+
+  @override
+  String get cloudSync_previewNoChanges => '没有需要应用的变化。';
+
+  @override
+  String get cloudSync_confirmMerge => '确认应用合并';
+
+  @override
+  String get cloudSync_confirmRestore => '确认恢复并创建新快照';
+
+  @override
+  String get cloudSync_ffdkjIntentTitle => '检测到 ffdkj 词库安装意图';
+
+  @override
+  String get cloudSync_ffdkjIntentDescription => '同步仅迁移安装意图，不包含或传输 tag.sqlite。';
+
+  @override
+  String get cloudSync_ffdkjInstallWarning =>
+      '是否从 ffdkj 官方上游直接下载并安装中文词库？此文件不会来自云端快照。';
+
+  @override
+  String get cloudSync_clearInstallIntent => '暂不安装并清除提示';
+
+  @override
+  String get cloudSync_securityAndConnection => '安全与连接';
+
+  @override
+  String get cloudSync_changePassword => '修改加密密码';
+
+  @override
+  String get cloudSync_rotateRecoveryKey => '更换恢复密钥';
+
+  @override
+  String get cloudSync_rotateRecoveryKeyDescription =>
+      '使旧恢复密钥失效，并通过条件写入生成新的单次恢复密钥。';
+
+  @override
+  String get cloudSync_newRecoveryKeyPending => '新的恢复密钥已生效';
+
+  @override
+  String get cloudSync_newRecoveryKeyMustSave =>
+      '远端密钥已经更换，无法通过关闭窗口回滚。请将新密钥保存到本设备之外并明确确认。';
+
+  @override
+  String get cloudSync_recoveryKeySavedAction => '我已保存新密钥';
+
+  @override
+  String get cloudSync_recoveryKeySavedConfirm =>
+      '确认已将新恢复密钥完整保存到本设备之外？确认后应用将不再显示它。';
+
+  @override
+  String get cloudSync_saveLater => '稍后确认（继续显示）';
+
+  @override
+  String get cloudSync_rewrapExplanation => '只重新封装加密密钥，不会下载并重新加密云端数据。';
+
+  @override
+  String get cloudSync_newPassword => '新密码';
+
+  @override
+  String get cloudSync_deleteRemoteNamespace => '仅删除云端 namespace';
+
+  @override
+  String get cloudSync_deleteRemoteNamespaceDescription =>
+      '只删除本应用的远端 namespace，不删除本地数据。';
+
+  @override
+  String get cloudSync_deleteRemoteConfirm => '永久删除本应用的远端 namespace？本地数据会保留。';
+
+  @override
+  String get cloudSync_disconnect => '断开此设备';
+
+  @override
+  String get cloudSync_disconnectDescription => '移除本地连接并保留全部远端数据。';
+
+  @override
+  String get cloudSync_disconnectConfirm => '断开此设备并保留远端 namespace？';
+
+  @override
+  String get cloudSync_confirm => '确认';
+
+  @override
+  String get cloudSync_conflictCenter => '冲突中心';
+
+  @override
+  String get cloudSync_conflictDescription => '按数据类别查看 base、本地与远端摘要，再应用解决方案。';
+
+  @override
+  String get cloudSync_needsConflictResolution => '需处理冲突';
+
+  @override
+  String get cloudSync_deferredConflictWarning => '仍有延后处理的冲突，不能视为完全同步。';
+
+  @override
+  String get cloudSync_applyAll => '批量应用：';
+
+  @override
+  String get cloudSync_base => 'Base';
+
+  @override
+  String get cloudSync_local => '本地';
+
+  @override
+  String get cloudSync_remote => '远端';
+
+  @override
+  String get cloudSync_chooseLocal => '使用本地';
+
+  @override
+  String get cloudSync_chooseRemote => '使用远端';
+
+  @override
+  String get cloudSync_keepBoth => '两者都保留';
+
+  @override
+  String get cloudSync_largeBinaryKeepBothDefault => '大二进制冲突默认保留两个副本。';
+
+  @override
+  String get settings_agent => '智能体';
+
+  @override
+  String get agentSettings_subtitle => '管理聊天模型、工具权限、联网、系统提示词与 Skills。';
+
+  @override
+  String get agentSettings_chatModel => '聊天模型';
+
+  @override
+  String get agentSettings_providerModel => '供应商 / 模型';
+
+  @override
+  String get agentSettings_modelManagedInIntegrations =>
+      '供应商、API Key 与模型发现仍在“集成”中统一管理。';
+
+  @override
+  String get agentSettings_noModel => '没有可用聊天模型。请先在“集成”中添加供应商并发现模型。';
+
+  @override
+  String get agentSettings_pendingMatch => '待匹配';
+
+  @override
+  String get agentSettings_toolPermission => '工具权限';
+
+  @override
+  String get agentSettings_permissionSafe => '安全';
+
+  @override
+  String get agentSettings_permissionSafeDescription =>
+      '仅运行只读和低风险操作，不弹出敏感操作授权。';
+
+  @override
+  String get agentSettings_permissionAsk => '敏感操作前询问';
+
+  @override
+  String get agentSettings_permissionAskDescription =>
+      '默认模式。写文件、执行生成等敏感操作前先请求确认。';
+
+  @override
+  String get agentSettings_permissionFull => '完全访问';
+
+  @override
+  String get agentSettings_permissionFullDescription =>
+      '允许访问工作区外文件并直接执行工具。仅在信任当前任务时使用。';
+
+  @override
+  String get agentSettings_webPreference => '联网偏好';
+
+  @override
+  String get agentSettings_webEnabled => '允许智能体使用 Web 工具';
+
+  @override
+  String get agentSettings_webDescription =>
+      '开启后模型可搜索并读取公开网页；关闭后相关工具会从运行时工具表移除。';
+
+  @override
+  String get agentSettings_systemPrompt => '系统提示词';
+
+  @override
+  String get agentSettings_edit => '编辑';
+
+  @override
+  String get agentSettings_previewFinalPrompt => '预览最终提示词';
+
+  @override
+  String get agentSettings_systemPromptDescription =>
+      '内置安全与工具说明始终保留。这里仅追加你的行为指令。';
+
+  @override
+  String get agentSettings_systemPromptHint => '例如：优先给出简洁结论；修改提示词前先说明影响。';
+
+  @override
+  String get agentSettings_restoreDefault => '恢复默认';
+
+  @override
+  String get agentSettings_promptSaved => '系统提示词已保存';
+
+  @override
+  String get agentSettings_discardPromptTitle => '放弃未保存的系统提示词？';
+
+  @override
+  String get agentSettings_discardPromptBody => '离开此页面会丢失尚未保存的修改。';
+
+  @override
+  String get agentSettings_keepEditing => '继续编辑';
+
+  @override
+  String get agentSettings_discardChanges => '放弃修改';
+
+  @override
+  String get agentSettings_importProfile => '导入配置';
+
+  @override
+  String get agentSettings_exportProfile => '导出配置';
+
+  @override
+  String get agentSettings_profilePrivacy => '此文件不包含 API Key、Token、聊天记录或本机路径。';
+
+  @override
+  String get agentSettings_profilePending =>
+      '未安装的模型或 Skill 不会伪装为可用；偏好会保留，待以后安装后生效。';
+
+  @override
+  String get agentSettings_reloadSkills => '重新扫描';
+
+  @override
+  String get agentSettings_importSkills => '从 ZIP 导入';
+
+  @override
+  String get agentSettings_exportSkills => '导出所选 Skills';
+
+  @override
+  String get agentSettings_searchSkills => '搜索名称或描述';
+
+  @override
+  String get agentSettings_filterAll => '全部';
+
+  @override
+  String get agentSettings_filterEnabled => '已启用';
+
+  @override
+  String get agentSettings_filterDisabled => '已禁用';
+
+  @override
+  String agentSettings_skillEnabledCount(int enabled, int total) {
+    return '已启用 $enabled/$total';
+  }
+
+  @override
+  String get agentSettings_diagnostics => '诊断';
+
+  @override
+  String get agentSettings_noMatchingSkill => '没有匹配的 Skill';
+
+  @override
+  String get agentSettings_noDiagnostics => '未发现诊断问题';
+
+  @override
+  String get agentSettings_skillExplicitOnly =>
+      '该 Skill 只能由用户显式调用，不会出现在模型可见列表中';
+
+  @override
+  String get agentSettings_exportPrivacy =>
+      '只会导出明确勾选的 Skill；.env、密钥、Token、Git 与依赖目录不会打包。';
+
+  @override
+  String get agentSettings_continueExport => '继续导出';
+
+  @override
+  String get agentSettings_install => '安装';
+
+  @override
+  String get agentSettings_apply => '应用';
+
+  @override
+  String agentSettings_operationFailed(String error) {
+    return '操作失败：$error';
+  }
+
+  @override
+  String get agentSettings_skillsTitle => 'Skills';
+
+  @override
+  String get agentSettings_skillTransfer => '导入或导出';
+
+  @override
+  String get agentSettings_skillsRescanned => 'Skills 已重新扫描';
+
+  @override
+  String agentSettings_skillScanFailed(String error) {
+    return '扫描失败：$error';
+  }
+
+  @override
+  String get agentSettings_exportSkillsTitle => '导出 Skills';
+
+  @override
+  String get agentSettings_skillsExported => 'Skills 已导出';
+
+  @override
+  String get agentSettings_skillZipReadFailed => '无法读取 ZIP 文件';
+
+  @override
+  String get agentSettings_confirmSkillsImport => '确认导入 Skills';
+
+  @override
+  String agentSettings_skillArchiveStats(int files, int bytes) {
+    return '$files 个文件 · $bytes 字节';
+  }
+
+  @override
+  String get agentSettings_skillConflictReplace => '存在同名 Skill，勾选以替换';
+
+  @override
+  String get agentSettings_skillConflictUnsafe => '目标是文件、链接或特殊实体，不能替换';
+
+  @override
+  String get agentSettings_skillsInstalled => 'Skills 已安装';
+
+  @override
+  String agentSettings_skillShadowed(String name) {
+    return '$name 被更高优先级来源覆盖';
+  }
+
+  @override
+  String agentSettings_preferredSource(String source) {
+    return '优先来源：$source';
+  }
+
+  @override
+  String get agentSettings_sourceWorkspace => '工作区';
+
+  @override
+  String get agentSettings_sourcePiUser => 'Pi 用户';
+
+  @override
+  String get agentSettings_sourceCommonUser => '共享用户';
+
+  @override
+  String get agentSettings_exportProfileTitle => '导出智能体配置';
+
+  @override
+  String get agentSettings_profileExported => '智能体配置已导出';
+
+  @override
+  String get agentSettings_profileReadFailed => '无法读取配置文件';
+
+  @override
+  String get agentSettings_confirmProfileImport => '确认导入智能体配置';
+
+  @override
+  String get agentSettings_profileNoChanges => '当前配置不会发生变化';
+
+  @override
+  String agentSettings_profileChanges(String changes) {
+    return '将变更：$changes';
+  }
+
+  @override
+  String get agentSettings_listSeparator => '、';
+
+  @override
+  String get agentSettings_pendingPreferences => '待匹配偏好';
+
+  @override
+  String agentSettings_missingModel(String model) {
+    return '当前未提供模型：$model';
+  }
+
+  @override
+  String agentSettings_missingSkill(String skill) {
+    return '当前未安装 Skill：$skill';
+  }
+
+  @override
+  String get agentSettings_profileImported => '智能体配置已导入';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -19177,6 +19876,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get tagLibrary_contentHint => '輸入提示詞內容，支援智慧補全';
 
   @override
+  String get tagLibrary_characterNegativeSyntaxHelp =>
+      '角色詞庫可用 negative(...) 儲存獨立負面提示詞，例如：girl, blue eyes, negative(red hair, glasses)';
+
+  @override
   String get settings_network => '網路';
 
   @override
@@ -24585,4 +25288,700 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get vibeDetail_choosePreviewImage => '點選圖片按鈕選擇預覽圖';
+
+  @override
+  String get cloudSync_title => '同步與備份';
+
+  @override
+  String get cloudSync_description => '使用你控制的儲存空間，在裝置間進行加密備份與同步。';
+
+  @override
+  String get cloudSync_disconnected => '尚未連線';
+
+  @override
+  String get cloudSync_disconnectedDescription =>
+      '選擇 WebDAV 或 GitHub 設定雲端同步。完成真實連線測試與設定前不會上傳任何內容。';
+
+  @override
+  String get cloudSync_stepConfiguration => '設定';
+
+  @override
+  String get cloudSync_stepTest => '真實測試';
+
+  @override
+  String get cloudSync_stepData => '資料範圍';
+
+  @override
+  String get cloudSync_stepEncryption => '加密';
+
+  @override
+  String get cloudSync_stepRemote => '偵測遠端';
+
+  @override
+  String get cloudSync_stepInitial => '首次同步';
+
+  @override
+  String get cloudSync_chooseBackend => '選擇後端';
+
+  @override
+  String get cloudSync_chooseBackendDescription => '憑證始終隱藏，僅在同步服務接入後傳遞給它。';
+
+  @override
+  String get cloudSync_webDavUrl => 'WebDAV URL';
+
+  @override
+  String get cloudSync_allowInsecureHttp => '允許不安全的 HTTP';
+
+  @override
+  String get cloudSync_allowInsecureHttpWarning =>
+      'HTTP 會以明文傳輸 WebDAV 憑證和加密資料。僅在可信內網且明確了解風險時啟用。';
+
+  @override
+  String get cloudSync_username => '使用者名稱';
+
+  @override
+  String get cloudSync_password => '密碼';
+
+  @override
+  String get cloudSync_remotePath => '遠端路徑';
+
+  @override
+  String get cloudSync_githubToken => 'GitHub Token';
+
+  @override
+  String get cloudSync_owner => 'Owner';
+
+  @override
+  String get cloudSync_repository => '儲存庫';
+
+  @override
+  String get cloudSync_branch => '分支';
+
+  @override
+  String get cloudSync_continueToTest => '繼續真實測試';
+
+  @override
+  String get cloudSync_continueToData => '繼續選擇資料範圍';
+
+  @override
+  String get cloudSync_testConnection => '測試真實連線';
+
+  @override
+  String get cloudSync_testConnectionDescription =>
+      '服務必須驗證認證、讀寫、條件更新、歷史、刪除能力與服務商限制。';
+
+  @override
+  String get cloudSync_runRealTest => '執行真實測試';
+
+  @override
+  String get cloudSync_testSucceeded => '連線驗證成功';
+
+  @override
+  String get cloudSync_testFailed => '連線測試失敗';
+
+  @override
+  String get cloudSync_serviceNotConnected => '雲端同步服務尚未接入。';
+
+  @override
+  String cloudSync_limit(Object value) {
+    return '服務商限制：$value';
+  }
+
+  @override
+  String get cloudSync_manualBackupOnly => '僅手動雲端備份';
+
+  @override
+  String get cloudSync_manualBackupOnlyDescription =>
+      '此後端無法安全保證雙向更新，因此不能使用自動雙向同步。';
+
+  @override
+  String get cloudSync_dataScope => '選擇同步資料';
+
+  @override
+  String get cloudSync_dataScopeDescription => '只選擇需要包含在加密快照中的本機資料類別。';
+
+  @override
+  String get cloudSync_kindSettings => '設定';
+
+  @override
+  String get cloudSync_kindPrompts => '提示詞與預設';
+
+  @override
+  String get cloudSync_kindGalleries => '線上畫廊收藏、分類與篩選';
+
+  @override
+  String get cloudSync_kindLargeFiles => '大型二進位檔案';
+
+  @override
+  String get cloudSync_continueToEncryption => '繼續加密設定';
+
+  @override
+  String get cloudSync_encryption => '設定加密密碼';
+
+  @override
+  String get cloudSync_encryptionDescription => '資料上傳前會被加密；服務商無法找回密碼與一次性復原金鑰。';
+
+  @override
+  String get cloudSync_encryptionPassword => '加密密碼';
+
+  @override
+  String get cloudSync_confirmPassword => '確認密碼';
+
+  @override
+  String get cloudSync_recoveryKeyConfirmed => '我已儲存並核對一次性復原金鑰';
+
+  @override
+  String get cloudSync_recoveryKeyDescription =>
+      '請儲存在本裝置之外；密碼與本機金鑰材料均遺失時必須使用它。';
+
+  @override
+  String get cloudSync_generateRecoveryKey => '產生一次性復原金鑰';
+
+  @override
+  String get cloudSync_oneTimeRecoveryKey => '一次性復原金鑰';
+
+  @override
+  String get cloudSync_oneTimeRecoveryKeyDescription =>
+      '此金鑰只在設定期間顯示。請立即儲存並核對儲存的副本。';
+
+  @override
+  String get cloudSync_detectRemote => '偵測遠端資料';
+
+  @override
+  String get cloudSync_detectRemoteDescription =>
+      '選擇首次同步方向前，先檢查既有 namespace 與快照。';
+
+  @override
+  String get cloudSync_detectRemoteAction => '偵測遠端';
+
+  @override
+  String get cloudSync_initialSync => '選擇首次同步方式';
+
+  @override
+  String get cloudSync_initialSyncDescription =>
+      '上傳會取代遠端 head，下載會套用遠端快照，預覽合併在確認前不會修改資料。';
+
+  @override
+  String get cloudSync_initialUpload => '上傳本裝置資料';
+
+  @override
+  String get cloudSync_initialDownload => '下載遠端資料';
+
+  @override
+  String get cloudSync_previewMergeRecommended => '預覽並合併（建議）';
+
+  @override
+  String get cloudSync_dangerousFirstSyncTitle => '確認覆蓋方向';
+
+  @override
+  String get cloudSync_initialUploadWarning =>
+      '這會以本機資料取代目前雲端版本。繼續前請確認雲端沒有需要保留的獨有資料。';
+
+  @override
+  String get cloudSync_initialDownloadWarning =>
+      '這會以雲端快照取代本機資料，並先建立本機復原點。繼續前請確認本機沒有需要保留的獨有資料。';
+
+  @override
+  String get cloudSync_confirmOverwrite => '確認覆蓋';
+
+  @override
+  String get cloudSync_connect => '連線並繼續';
+
+  @override
+  String cloudSync_actionFailed(Object error) {
+    return '操作失敗：$error';
+  }
+
+  @override
+  String get cloudSync_connectionDetails => '連線資訊';
+
+  @override
+  String get cloudSync_backend => '後端';
+
+  @override
+  String get cloudSync_deviceName => '裝置名稱';
+
+  @override
+  String get cloudSync_lastSync => '上次同步';
+
+  @override
+  String get cloudSync_remoteRevision => '遠端 revision';
+
+  @override
+  String get cloudSync_connectedDescription => '加密雲端連線可用。';
+
+  @override
+  String get cloudSync_maintenanceWarning => '遠端維護提示';
+
+  @override
+  String get cloudSync_githubHistoryRetention => 'GitHub 歷史保留';
+
+  @override
+  String get cloudSync_githubHistoryRetentionDescription =>
+      '刪除同步物件或 namespace 不會回收 Git 提交歷史及其佔用空間。需要徹底清理時，請在 GitHub 端重新建立儲存庫。';
+
+  @override
+  String get cloudSync_upToDate => '已完全同步';
+
+  @override
+  String get cloudSync_syncing => '正在同步';
+
+  @override
+  String get cloudSync_paused => '已暫停';
+
+  @override
+  String get cloudSync_syncControls => '同步控制';
+
+  @override
+  String get cloudSync_syncNow => '立即同步';
+
+  @override
+  String get cloudSync_pause => '暫停';
+
+  @override
+  String get cloudSync_resume => '繼續';
+
+  @override
+  String get cloudSync_cancel => '取消';
+
+  @override
+  String get cloudSync_progress => '同步進度';
+
+  @override
+  String get cloudSync_stage => '階段';
+
+  @override
+  String get cloudSync_object => '目前物件';
+
+  @override
+  String get cloudSync_objects => '物件';
+
+  @override
+  String get cloudSync_bytes => '位元組';
+
+  @override
+  String get cloudSync_activityLog => '活動記錄';
+
+  @override
+  String get cloudSync_noActivity => '尚無同步活動。';
+
+  @override
+  String get cloudSync_snapshotHistory => '歷史快照';
+
+  @override
+  String get cloudSync_snapshotHistoryDescription => '復原會建立新的本機變更，不會靜默抹除歷史。';
+
+  @override
+  String get cloudSync_noSnapshots => '沒有可用的遠端快照。';
+
+  @override
+  String get cloudSync_previewRestore => '預覽復原';
+
+  @override
+  String get cloudSync_restorePreviewTitle => '復原差異預覽';
+
+  @override
+  String get cloudSync_restorePreviewDescription =>
+      '以下是歷史快照相對目前本機資料的真實變更。確認後會建立新快照，不會倒退歷史。';
+
+  @override
+  String get cloudSync_mergePreviewTitle => '首次合併預覽';
+
+  @override
+  String get cloudSync_mergePreviewDescription =>
+      '合併尚未套用。核對新增、修改與刪除摘要並解決全部衝突後再確認。';
+
+  @override
+  String get cloudSync_previewAwaitingConfirmation => '預覽尚未確認，目前不能標記為完全同步。';
+
+  @override
+  String get cloudSync_previewDeletesTitle => '包含刪除操作';
+
+  @override
+  String cloudSync_previewDeletesDescription(Object count) {
+    return '確認後將刪除 $count 項本機資料。請先核對類別。';
+  }
+
+  @override
+  String cloudSync_previewCounts(
+    Object added,
+    Object modified,
+    Object deleted,
+  ) {
+    return '新增 $added · 修改 $modified · 刪除 $deleted';
+  }
+
+  @override
+  String get cloudSync_previewNoChanges => '沒有需要套用的變更。';
+
+  @override
+  String get cloudSync_confirmMerge => '確認套用合併';
+
+  @override
+  String get cloudSync_confirmRestore => '確認復原並建立新快照';
+
+  @override
+  String get cloudSync_ffdkjIntentTitle => '偵測到 ffdkj 詞庫安裝意圖';
+
+  @override
+  String get cloudSync_ffdkjIntentDescription => '同步只移轉安裝意圖，不包含或傳輸 tag.sqlite。';
+
+  @override
+  String get cloudSync_ffdkjInstallWarning =>
+      '是否從 ffdkj 官方上游直接下載並安裝中文詞庫？此檔案不會來自雲端快照。';
+
+  @override
+  String get cloudSync_clearInstallIntent => '暫不安裝並清除提示';
+
+  @override
+  String get cloudSync_securityAndConnection => '安全與連線';
+
+  @override
+  String get cloudSync_changePassword => '變更加密密碼';
+
+  @override
+  String get cloudSync_rotateRecoveryKey => '更換復原金鑰';
+
+  @override
+  String get cloudSync_rotateRecoveryKeyDescription =>
+      '使舊復原金鑰失效，並透過條件寫入產生新的單次復原金鑰。';
+
+  @override
+  String get cloudSync_newRecoveryKeyPending => '新的復原金鑰已生效';
+
+  @override
+  String get cloudSync_newRecoveryKeyMustSave =>
+      '遠端金鑰已經更換，無法透過關閉視窗回復。請將新金鑰儲存在本機之外並明確確認。';
+
+  @override
+  String get cloudSync_recoveryKeySavedAction => '我已儲存新金鑰';
+
+  @override
+  String get cloudSync_recoveryKeySavedConfirm =>
+      '確認已將新復原金鑰完整儲存在本機之外？確認後應用程式將不再顯示它。';
+
+  @override
+  String get cloudSync_saveLater => '稍後確認（繼續顯示）';
+
+  @override
+  String get cloudSync_rewrapExplanation => '只重新封裝加密金鑰，不會下載並重新加密雲端資料。';
+
+  @override
+  String get cloudSync_newPassword => '新密碼';
+
+  @override
+  String get cloudSync_deleteRemoteNamespace => '僅刪除雲端 namespace';
+
+  @override
+  String get cloudSync_deleteRemoteNamespaceDescription =>
+      '只刪除本應用程式的遠端 namespace，不刪除本機資料。';
+
+  @override
+  String get cloudSync_deleteRemoteConfirm => '永久刪除本應用程式的遠端 namespace？本機資料會保留。';
+
+  @override
+  String get cloudSync_disconnect => '中斷此裝置';
+
+  @override
+  String get cloudSync_disconnectDescription => '移除本機連線並保留全部遠端資料。';
+
+  @override
+  String get cloudSync_disconnectConfirm => '中斷此裝置並保留遠端 namespace？';
+
+  @override
+  String get cloudSync_confirm => '確認';
+
+  @override
+  String get cloudSync_conflictCenter => '衝突中心';
+
+  @override
+  String get cloudSync_conflictDescription => '按資料類別檢視 base、本機與遠端摘要，再套用解決方案。';
+
+  @override
+  String get cloudSync_needsConflictResolution => '需處理衝突';
+
+  @override
+  String get cloudSync_deferredConflictWarning => '仍有延後處理的衝突，不能視為完全同步。';
+
+  @override
+  String get cloudSync_applyAll => '批次套用：';
+
+  @override
+  String get cloudSync_base => 'Base';
+
+  @override
+  String get cloudSync_local => '本機';
+
+  @override
+  String get cloudSync_remote => '遠端';
+
+  @override
+  String get cloudSync_chooseLocal => '使用本機';
+
+  @override
+  String get cloudSync_chooseRemote => '使用遠端';
+
+  @override
+  String get cloudSync_keepBoth => '兩者都保留';
+
+  @override
+  String get cloudSync_largeBinaryKeepBothDefault => '大型二進位衝突預設保留兩個副本。';
+
+  @override
+  String get settings_agent => '智慧體';
+
+  @override
+  String get agentSettings_subtitle => '管理聊天模型、工具權限、連網、系統提示詞與 Skills。';
+
+  @override
+  String get agentSettings_chatModel => '聊天模型';
+
+  @override
+  String get agentSettings_providerModel => '供應商 / 模型';
+
+  @override
+  String get agentSettings_modelManagedInIntegrations =>
+      '供應商、API Key 與模型探索仍在「整合」中統一管理。';
+
+  @override
+  String get agentSettings_noModel => '沒有可用聊天模型。請先在「整合」中新增供應商並探索模型。';
+
+  @override
+  String get agentSettings_pendingMatch => '待配對';
+
+  @override
+  String get agentSettings_toolPermission => '工具權限';
+
+  @override
+  String get agentSettings_permissionSafe => '安全';
+
+  @override
+  String get agentSettings_permissionSafeDescription =>
+      '僅執行唯讀和低風險操作，不彈出敏感操作授權。';
+
+  @override
+  String get agentSettings_permissionAsk => '敏感操作前詢問';
+
+  @override
+  String get agentSettings_permissionAskDescription =>
+      '預設模式。寫入檔案、執行生成等敏感操作前先要求確認。';
+
+  @override
+  String get agentSettings_permissionFull => '完全存取';
+
+  @override
+  String get agentSettings_permissionFullDescription =>
+      '允許存取工作區外檔案並直接執行工具。僅在信任目前任務時使用。';
+
+  @override
+  String get agentSettings_webPreference => '連網偏好';
+
+  @override
+  String get agentSettings_webEnabled => '允許智慧體使用 Web 工具';
+
+  @override
+  String get agentSettings_webDescription =>
+      '開啟後模型可搜尋並讀取公開網頁；關閉後相關工具會從執行階段工具表移除。';
+
+  @override
+  String get agentSettings_systemPrompt => '系統提示詞';
+
+  @override
+  String get agentSettings_edit => '編輯';
+
+  @override
+  String get agentSettings_previewFinalPrompt => '預覽最終提示詞';
+
+  @override
+  String get agentSettings_systemPromptDescription =>
+      '內建安全與工具說明始終保留。這裡僅附加你的行為指令。';
+
+  @override
+  String get agentSettings_systemPromptHint => '例如：優先給出簡潔結論；修改提示詞前先說明影響。';
+
+  @override
+  String get agentSettings_restoreDefault => '還原預設值';
+
+  @override
+  String get agentSettings_promptSaved => '系統提示詞已儲存';
+
+  @override
+  String get agentSettings_discardPromptTitle => '放棄未儲存的系統提示詞？';
+
+  @override
+  String get agentSettings_discardPromptBody => '離開此頁面會遺失尚未儲存的修改。';
+
+  @override
+  String get agentSettings_keepEditing => '繼續編輯';
+
+  @override
+  String get agentSettings_discardChanges => '放棄修改';
+
+  @override
+  String get agentSettings_importProfile => '匯入設定';
+
+  @override
+  String get agentSettings_exportProfile => '匯出設定';
+
+  @override
+  String get agentSettings_profilePrivacy => '此檔案不包含 API Key、Token、聊天記錄或本機路徑。';
+
+  @override
+  String get agentSettings_profilePending =>
+      '未安裝的模型或 Skill 不會偽裝為可用；偏好會保留，待日後安裝後生效。';
+
+  @override
+  String get agentSettings_reloadSkills => '重新掃描';
+
+  @override
+  String get agentSettings_importSkills => '從 ZIP 匯入';
+
+  @override
+  String get agentSettings_exportSkills => '匯出所選 Skills';
+
+  @override
+  String get agentSettings_searchSkills => '搜尋名稱或描述';
+
+  @override
+  String get agentSettings_filterAll => '全部';
+
+  @override
+  String get agentSettings_filterEnabled => '已啟用';
+
+  @override
+  String get agentSettings_filterDisabled => '已停用';
+
+  @override
+  String agentSettings_skillEnabledCount(int enabled, int total) {
+    return '已啟用 $enabled/$total';
+  }
+
+  @override
+  String get agentSettings_diagnostics => '診斷';
+
+  @override
+  String get agentSettings_noMatchingSkill => '沒有相符的 Skill';
+
+  @override
+  String get agentSettings_noDiagnostics => '未發現診斷問題';
+
+  @override
+  String get agentSettings_skillExplicitOnly =>
+      '此 Skill 只能由使用者明確呼叫，不會出現在模型可見清單中';
+
+  @override
+  String get agentSettings_exportPrivacy =>
+      '只會匯出明確勾選的 Skill；.env、金鑰、Token、Git 與依賴目錄不會打包。';
+
+  @override
+  String get agentSettings_continueExport => '繼續匯出';
+
+  @override
+  String get agentSettings_install => '安裝';
+
+  @override
+  String get agentSettings_apply => '套用';
+
+  @override
+  String agentSettings_operationFailed(String error) {
+    return '操作失敗：$error';
+  }
+
+  @override
+  String get agentSettings_skillsTitle => 'Skills';
+
+  @override
+  String get agentSettings_skillTransfer => '匯入或匯出';
+
+  @override
+  String get agentSettings_skillsRescanned => 'Skills 已重新掃描';
+
+  @override
+  String agentSettings_skillScanFailed(String error) {
+    return '掃描失敗：$error';
+  }
+
+  @override
+  String get agentSettings_exportSkillsTitle => '匯出 Skills';
+
+  @override
+  String get agentSettings_skillsExported => 'Skills 已匯出';
+
+  @override
+  String get agentSettings_skillZipReadFailed => '無法讀取 ZIP 檔案';
+
+  @override
+  String get agentSettings_confirmSkillsImport => '確認匯入 Skills';
+
+  @override
+  String agentSettings_skillArchiveStats(int files, int bytes) {
+    return '$files 個檔案 · $bytes 位元組';
+  }
+
+  @override
+  String get agentSettings_skillConflictReplace => '存在同名 Skill，勾選以取代';
+
+  @override
+  String get agentSettings_skillConflictUnsafe => '目標是檔案、連結或特殊實體，無法取代';
+
+  @override
+  String get agentSettings_skillsInstalled => 'Skills 已安裝';
+
+  @override
+  String agentSettings_skillShadowed(String name) {
+    return '$name 被更高優先順序來源覆蓋';
+  }
+
+  @override
+  String agentSettings_preferredSource(String source) {
+    return '優先來源：$source';
+  }
+
+  @override
+  String get agentSettings_sourceWorkspace => '工作區';
+
+  @override
+  String get agentSettings_sourcePiUser => 'Pi 使用者';
+
+  @override
+  String get agentSettings_sourceCommonUser => '共用使用者';
+
+  @override
+  String get agentSettings_exportProfileTitle => '匯出智慧體設定';
+
+  @override
+  String get agentSettings_profileExported => '智慧體設定已匯出';
+
+  @override
+  String get agentSettings_profileReadFailed => '無法讀取設定檔';
+
+  @override
+  String get agentSettings_confirmProfileImport => '確認匯入智慧體設定';
+
+  @override
+  String get agentSettings_profileNoChanges => '目前設定不會變更';
+
+  @override
+  String agentSettings_profileChanges(String changes) {
+    return '將變更：$changes';
+  }
+
+  @override
+  String get agentSettings_listSeparator => '、';
+
+  @override
+  String get agentSettings_pendingPreferences => '待配對偏好';
+
+  @override
+  String agentSettings_missingModel(String model) {
+    return '目前未提供模型：$model';
+  }
+
+  @override
+  String agentSettings_missingSkill(String skill) {
+    return '目前未安裝 Skill：$skill';
+  }
+
+  @override
+  String get agentSettings_profileImported => '智慧體設定已匯入';
 }

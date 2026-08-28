@@ -104,6 +104,48 @@ jobs:
             throw "Co-occurrence data asset digest does not match the client manifest."
           }
 
+      - name: Verify tag catalog data release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $manifest = Get-Content `
+            -LiteralPath 'assets/databases/manifest.json' `
+            -Raw `
+            -Encoding UTF8 | ConvertFrom-Json
+          $database = $manifest.databases.'tag_catalog.db'
+          $dataRelease = $database.release
+          $headers = @{
+            Accept = 'application/vnd.github+json'
+            Authorization = "Bearer $env:GH_TOKEN"
+            'X-GitHub-Api-Version' = '2022-11-28'
+          }
+          $repositoryApi = 'https://api.github.com/repos/Aaalice233/Aaalice_NAI_Launcher'
+          $release = Invoke-RestMethod `
+            -Uri "$repositoryApi/releases/tags/$($dataRelease.tag)" `
+            -Headers $headers
+          if ($release.tag_name -ne $dataRelease.tag -or
+              !$release.prerelease -or
+              $release.draft) {
+            throw "Tag catalog data release is not a published prerelease: $($dataRelease.tag)"
+          }
+          $latest = Invoke-RestMethod -Uri "$repositoryApi/releases/latest" -Headers $headers
+          if ($latest.tag_name -eq $dataRelease.tag) {
+            throw 'Tag catalog data release must not be marked latest.'
+          }
+          $assets = @($release.assets | Where-Object { $_.name -eq 'tag_catalog.db' })
+          if ($assets.Count -ne 1) {
+            throw "Expected exactly one tag_catalog.db asset in $($dataRelease.tag)."
+          }
+          $asset = $assets[0]
+          if ($asset.state -ne 'uploaded' -or
+              $asset.size -ne $database.size -or
+              $asset.browser_download_url -ne $dataRelease.url -or
+              $asset.digest -ne "sha256:$($database.sha256)") {
+            throw 'Tag catalog data asset does not match the bundled database manifest.'
+          }
+
   build-windows:
     name: Build Windows
     # A trusted tag may use a prewarmed runner configured by repository vars.
@@ -113,11 +155,11 @@ jobs:
       WINDOWS_CACHE_NAMESPACE: ${{ vars.WINDOWS_FLUTTER_RUNNER != '' && 'nai-self-hosted' || 'nai-hosted' }}
 
     steps:
-      - name: Checkout immutable release commit
+      - name: Checkout immutable release commit without LFS payloads
         uses: actions/checkout@v6
         with:
           ref: ${{ needs.prepare.outputs.release_sha }}
-          lfs: true
+          lfs: false
 
       - name: Verify checked out release commit
         shell: pwsh
@@ -128,6 +170,10 @@ jobs:
           if ($head -ne $expected) {
             throw "Checked out commit $head does not match immutable release commit $expected."
           }
+
+      - name: Download verified bundled database
+        shell: pwsh
+        run: ./scripts/prepare_bundled_database.ps1
 
       - name: Setup Flutter
         id: flutter
@@ -173,40 +219,6 @@ jobs:
       - name: Install NSIS
         shell: pwsh
         run: choco install nsis -y --no-progress
-
-      - name: Pull LFS database
-        shell: pwsh
-        run: |
-          git lfs install
-          git lfs pull --include="assets/databases/tag_catalog.db"
-
-      - name: Verify bundled database
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $files = @(
-            "assets/databases/tag_catalog.db"
-          )
-          foreach ($file in $files) {
-            if (!(Test-Path $file)) {
-              throw "Missing database: $file"
-            }
-            $info = Get-Item $file
-            if ($info.Length -lt 1024) {
-              throw "Database looks too small, probably an LFS pointer: $file"
-            }
-            $stream = [System.IO.File]::OpenRead($file)
-            try {
-              $buffer = New-Object byte[] 16
-              [void]$stream.Read($buffer, 0, 16)
-              $header = [System.Text.Encoding]::ASCII.GetString($buffer)
-              if (!$header.StartsWith("SQLite format 3")) {
-                throw "Database is not a SQLite file: $file"
-              }
-            } finally {
-              $stream.Dispose()
-            }
-          }
 
       - name: Resolve dependencies from cache
         if: steps.flutter.outputs.PUB-CACHE-HIT == 'true'
@@ -300,11 +312,11 @@ jobs:
     needs: prepare
 
     steps:
-      - name: Checkout immutable release commit
+      - name: Checkout immutable release commit without LFS payloads
         uses: actions/checkout@v6
         with:
           ref: ${{ needs.prepare.outputs.release_sha }}
-          lfs: true
+          lfs: false
 
       - name: Verify checked out release commit
         shell: pwsh
@@ -316,6 +328,10 @@ jobs:
             throw "Checked out commit $head does not match immutable release commit $expected."
           }
 
+      - name: Download verified bundled database
+        shell: pwsh
+        run: ./scripts/prepare_bundled_database.ps1
+
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -325,27 +341,6 @@ jobs:
 
       - name: Prepare CocoaPods
         run: pod --version
-
-      - name: Pull LFS database
-        run: |
-          git lfs install
-          git lfs pull --include="assets/databases/tag_catalog.db"
-
-      - name: Verify bundled database
-        run: |
-          for file in assets/databases/tag_catalog.db; do
-            test -f "$file"
-            size="$(wc -c < "$file")"
-            if [ "$size" -lt 1024 ]; then
-              echo "Database looks too small, probably an LFS pointer: $file" >&2
-              exit 1
-            fi
-            header="$(dd if="$file" bs=15 count=1 2>/dev/null)"
-            if [ "$header" != "SQLite format 3" ]; then
-              echo "Database is not a SQLite file: $file" >&2
-              exit 1
-            fi
-          done
 
       - name: Resolve dependencies
         run: flutter pub get --enforce-lockfile
@@ -387,11 +382,11 @@ jobs:
       ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_SIGNING_KEY_PASSWORD }}
 
     steps:
-      - name: Checkout immutable release commit
+      - name: Checkout immutable release commit without LFS payloads
         uses: actions/checkout@v6
         with:
           ref: ${{ needs.prepare.outputs.release_sha }}
-          lfs: true
+          lfs: false
 
       - name: Verify checked out release commit
         run: |
@@ -402,6 +397,10 @@ jobs:
             echo "Checked out commit $head does not match immutable release commit $expected." >&2
             exit 1
           fi
+
+      - name: Download verified bundled database
+        shell: pwsh
+        run: ./scripts/prepare_bundled_database.ps1
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -415,19 +414,6 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
-
-      - name: Pull LFS database
-        run: |
-          git lfs install
-          git lfs pull --include="assets/databases/tag_catalog.db"
-
-      - name: Verify bundled database
-        run: |
-          set -euo pipefail
-          file='assets/databases/tag_catalog.db'
-          test -f "$file"
-          test "$(wc -c < "$file")" -ge 1024
-          test "$(dd if="$file" bs=15 count=1 2>/dev/null)" = 'SQLite format 3'
 
       - name: Resolve dependencies
         run: flutter pub get --enforce-lockfile

@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/agent/agent_types.dart';
+import '../../../data/models/agent/agent_settings.dart';
+import '../../prompt_assistant/models/prompt_assistant_models.dart';
 import 'agent_resource_resolver.dart';
 import 'generation_anlas_estimator.dart';
 import 'generation_execution_service.dart';
@@ -76,6 +78,14 @@ class GenerationToolbox {
   static const int maxQueueSnapshotBytes = generationToolMaxQueueSnapshotBytes;
   static const int maxPersistedQueueSnapshotBytes =
       generationToolMaxPersistedQueueSnapshotBytes;
+
+  static bool agentChatSupportsImage({
+    required AgentSettings settings,
+    required PromptAssistantConfigState promptAssistant,
+  }) => GenerationInterrogationService.agentChatSupportsImage(
+    settings: settings,
+    promptAssistant: promptAssistant,
+  );
 
   late final GenerationToolDefinitions _definitions;
 

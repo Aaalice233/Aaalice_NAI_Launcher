@@ -9,7 +9,6 @@ import '../../../prompt_assistant/models/prompt_assistant_models.dart';
 import '../../../prompt_assistant/providers/prompt_assistant_config_provider.dart';
 import '../../../prompt_assistant/services/prompt_assistant_service.dart';
 import '../widgets/settings_card.dart';
-import 'web_access_settings.dart';
 
 class PromptAssistantSettingsSection extends ConsumerWidget {
   const PromptAssistantSettingsSection({super.key});
@@ -42,8 +41,6 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
               onChanged: notifier.setDesktopOverlayEnabled,
             ),
           const SizedBox(height: 24),
-          const WebAccessSettings(),
-          const SizedBox(height: 24),
           _buildRouting(context, state, notifier),
           const SizedBox(height: 24),
           _buildProviders(context, ref, state, notifier),
@@ -75,6 +72,7 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
           builder: (context, constraints) {
             final twoCols = constraints.maxWidth > 860;
             final cards = AssistantTaskType.values
+                .where((taskType) => taskType != AssistantTaskType.chat)
                 .map(
                   (taskType) => _buildTaskRouteCardForTask(
                     context: context,
@@ -438,7 +436,11 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
     PromptAssistantConfigState state,
     PromptAssistantConfigNotifier notifier,
   ) {
-    final rules = [...state.rules]..sort((a, b) => a.order.compareTo(b.order));
+    final rules =
+        state.rules
+            .where((rule) => rule.taskType != AssistantTaskType.chat)
+            .toList()
+          ..sort((a, b) => a.order.compareTo(b.order));
     return Column(
       children: [
         ListTile(
@@ -838,6 +840,7 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
                     DropdownButtonFormField<AssistantTaskType>(
                       initialValue: taskType,
                       items: AssistantTaskType.values
+                          .where((value) => value != AssistantTaskType.chat)
                           .map(
                             (e) => DropdownMenuItem(
                               value: e,

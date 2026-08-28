@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -128,6 +129,7 @@ void main() {
               backgroundRefresh: backgroundRefreshProvider,
               kritaBridge: kritaBridgeProvider,
               cooccurrenceDataPack: cooccurrenceDataPackProvider,
+              cloudSyncLifecycle: (_) async {},
               child: Builder(
                 builder: (context) {
                   buildCount++;
@@ -159,6 +161,64 @@ void main() {
       await tester.pump();
 
       expect(buildCount, 1);
+    });
+
+    testWidgets('AppBootstrapEffects 在启动和 resumed 触发云同步检查', (tester) async {
+      final calls = <bool>[];
+      final inert = StateProvider<int>((ref) => 0);
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            home: AppBootstrapEffects(
+              anlasWatcher: inert,
+              backgroundRefresh: inert,
+              kritaBridge: inert,
+              cooccurrenceDataPack: inert,
+              cloudSyncLifecycle: (synchronize) async {
+                calls.add(synchronize);
+              },
+              child: const SizedBox.shrink(),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(calls, [true]);
+
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pump();
+      expect(calls, [true, true]);
+    });
+
+    testWidgets('云同步生命周期检查未完成时保守跳过 resumed', (tester) async {
+      final release = Completer<void>();
+      var calls = 0;
+      final inert = StateProvider<int>((ref) => 0);
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            home: AppBootstrapEffects(
+              anlasWatcher: inert,
+              backgroundRefresh: inert,
+              kritaBridge: inert,
+              cooccurrenceDataPack: inert,
+              cloudSyncLifecycle: (_) async {
+                calls++;
+                await release.future;
+              },
+              child: const SizedBox.shrink(),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(calls, 1);
+
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pump();
+      expect(calls, 1);
+      release.complete();
+      await tester.pump();
     });
 
     testWidgets('本地画廊搜索框 Ctrl+A 应选择文本而不是进入多选', (tester) async {
