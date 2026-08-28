@@ -96,6 +96,15 @@ void main() {
       );
       await service.unlock(password: 'first-password');
 
+      await secure.saveCloudSyncMasterKey(
+        base64Encode(List<int>.filled(32, 9)),
+      );
+      final passwordFallback = await service.unlock(password: 'first-password');
+      expect(
+        await passwordFallback.masterKey.extractBytes(),
+        await committed.masterKey.extractBytes(),
+      );
+
       final consumed = await service.recover(
         rotated.recoveryKey!,
         'second-password',

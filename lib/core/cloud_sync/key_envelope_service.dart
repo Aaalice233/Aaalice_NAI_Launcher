@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
 
@@ -53,7 +52,7 @@ class CloudKeyEnvelopeService {
         created.wrapped.encode(),
         expectedRevision: null,
       );
-      await _persist(created.masterKey, created.wrapped);
+      await _persist(created.masterKey);
       return CloudKeyEnvelopeSession(
         masterKey: created.masterKey,
         envelope: created.wrapped,
@@ -77,19 +76,27 @@ class CloudKeyEnvelopeService {
     if (remote == null) throw StateError('Remote KEY.json is missing.');
     final envelope = WrappedMasterKey.decode(remote.bytes);
     final local = await _secureStorage.getCloudSyncMasterKey();
-    final SecretKey master;
+    late SecretKey master;
     if (local != null) {
-      final bytes = base64Decode(local);
-      if (bytes.length != 32) throw const FormatException('Invalid local key');
-      master = SecretKey(bytes);
-      await _crypto.verifyEnvelope(master, envelope);
+      try {
+        final bytes = base64Decode(local);
+        if (bytes.length != 32) {
+          throw const FormatException('Invalid local key');
+        }
+        final stored = SecretKey(bytes);
+        await _crypto.verifyEnvelope(stored, envelope);
+        master = stored;
+      } catch (_) {
+        if (password == null || password.isEmpty) rethrow;
+        master = await _crypto.unlock(password, envelope);
+      }
     } else {
       if (password == null || password.isEmpty) {
         throw StateError('An encryption password is required.');
       }
       master = await _crypto.unlock(password, envelope);
     }
-    await _persist(master, envelope);
+    await _persist(master);
     return CloudKeyEnvelopeSession(
       masterKey: master,
       envelope: envelope,
@@ -111,7 +118,7 @@ class CloudKeyEnvelopeService {
       wrapped.encode(),
       expectedRevision: current.revision,
     );
-    await _persist(current.masterKey, wrapped);
+    await _persist(current.masterKey);
     return CloudKeyEnvelopeSession(
       masterKey: current.masterKey,
       envelope: wrapped,
@@ -134,7 +141,7 @@ class CloudKeyEnvelopeService {
       recovered.wrapped.encode(),
       expectedRevision: remote.revision,
     );
-    await _persist(recovered.masterKey, recovered.wrapped);
+    await _persist(recovered.masterKey);
     return CloudKeyEnvelopeSession(
       masterKey: recovered.masterKey,
       envelope: recovered.wrapped,
@@ -153,7 +160,7 @@ class CloudKeyEnvelopeService {
       rotated.wrapped.encode(),
       expectedRevision: current.revision,
     );
-    await _persist(current.masterKey, rotated.wrapped);
+    await _persist(current.masterKey);
     return CloudKeyEnvelopeSession(
       masterKey: current.masterKey,
       envelope: rotated.wrapped,
@@ -162,14 +169,7 @@ class CloudKeyEnvelopeService {
     );
   }
 
-  Future<void> _persist(SecretKey master, WrappedMasterKey envelope) async {
-    await Future.wait([
-      master.extractBytes().then(
-        (bytes) => _secureStorage.saveCloudSyncMasterKey(base64Encode(bytes)),
-      ),
-      _secureStorage.saveCloudSyncKeyEnvelope(
-        base64Encode(Uint8List.fromList(envelope.encode())),
-      ),
-    ]);
-  }
+  Future<void> _persist(SecretKey master) => master.extractBytes().then(
+    (bytes) => _secureStorage.saveCloudSyncMasterKey(base64Encode(bytes)),
+  );
 }

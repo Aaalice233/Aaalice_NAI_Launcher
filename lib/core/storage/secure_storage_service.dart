@@ -214,12 +214,6 @@ class SecureStorageService {
   Future<String?> getCloudSyncCredentials() =>
       _getCloudSecret(StorageKeys.cloudSyncCredentials);
 
-  Future<void> saveCloudSyncKeyEnvelope(String encodedEnvelope) =>
-      _saveCloudSecret(StorageKeys.cloudSyncKeyEnvelope, encodedEnvelope);
-
-  Future<String?> getCloudSyncKeyEnvelope() =>
-      _getCloudSecret(StorageKeys.cloudSyncKeyEnvelope);
-
   Future<void> clearCloudSyncSecrets() async {
     const keys = [
       StorageKeys.cloudSyncMasterKey,

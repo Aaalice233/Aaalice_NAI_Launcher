@@ -1,6 +1,6 @@
 import '../../../core/cloud_sync/backend/cloud_sync_backend.dart';
 import '../../../core/cloud_sync/coordinator.dart';
-import '../../../core/cloud_sync/key_envelope_service.dart';
+import '../../../core/cloud_sync/object_codec.dart';
 import 'cloud_sync_ui_provider.dart';
 
 typedef CloudBackendFactory =
@@ -9,6 +9,6 @@ typedef CloudBackendFactory =
 typedef CloudCoordinatorFactory =
     Future<SyncCoordinator> Function(
       CloudSyncBackend backend,
-      CloudKeyEnvelopeSession keys,
+      CloudObjectCodec codec,
       Set<CloudSyncDataKind> scope,
     );

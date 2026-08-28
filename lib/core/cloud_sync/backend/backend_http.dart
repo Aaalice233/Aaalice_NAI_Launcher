@@ -23,7 +23,9 @@ class BackendHttp {
       method,
       uri,
       headers: headers,
-      data: data,
+      data: data is List<int> && data is! Uint8List
+          ? Uint8List.fromList(data)
+          : data,
       cancelToken: cancelToken,
       maxResponseBytes: maxResponseBytes,
       tooLargeKind: tooLargeKind,

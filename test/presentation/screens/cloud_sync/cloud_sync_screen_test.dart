@@ -5,7 +5,6 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/cloud_sync/cloud_sync_ui_provider.dart';
 import 'package:nai_launcher/presentation/screens/settings/settings_screen.dart';
 import 'package:nai_launcher/presentation/screens/settings/settings_section.dart';
-import 'package:nai_launcher/presentation/screens/cloud_sync/cloud_sync_initial_choice.dart';
 
 void main() {
   testWidgets('未连接布局在五档宽度均无 overflow', (tester) async {
@@ -18,86 +17,56 @@ void main() {
       expect(find.text('尚未连接'), findsOneWidget);
       expect(find.text('WebDAV'), findsOneWidget);
       expect(find.text('GitHub'), findsOneWidget);
-      await tester.scrollUntilVisible(
-        find.text('继续真实测试'),
-        120,
-        scrollable: _pageScrollable,
-      );
-      expect(find.text('继续真实测试'), findsOneWidget);
+      expect(find.text('保存并同步'), findsOneWidget);
       expect(tester.takeException(), isNull, reason: 'width=$width');
     }
     await tester.binding.setSurfaceSize(null);
   });
 
-  testWidgets('分步连接覆盖真实测试、范围、加密、远端检测与首次操作', (tester) async {
+  testWidgets('WebDAV 只填写服务商字段即可保存并同步', (tester) async {
     await tester.binding.setSurfaceSize(const Size(390, 844));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final port = _FakePort();
     await tester.pumpWidget(_subject(port: port));
     await tester.pumpAndSettle();
 
-    final insecureSwitch = find.byKey(
-      const ValueKey('cloud-sync-allow-insecure-http'),
-    );
-    expect(tester.widget<SwitchListTile>(insecureSwitch).value, isFalse);
-    expect(find.text('允许不安全的 HTTP'), findsOneWidget);
-    expect(find.textContaining('明文传输 WebDAV 凭据'), findsOneWidget);
-    await tester.scrollUntilVisible(
-      insecureSwitch,
-      120,
-      scrollable: _pageScrollable,
-    );
-    await tester.tap(insecureSwitch);
-    await tester.pumpAndSettle();
-
+    final urlField = _fieldWithLabel('WebDAV URL');
+    final usernameField = _fieldWithLabel('用户名');
+    await tester.enterText(urlField, 'https://dav.test');
+    await tester.enterText(usernameField, 'user');
     final passwordField = _fieldWithLabel('密码');
     await tester.enterText(passwordField, 'webdav-secret');
+    expect(
+      tester.widget<TextField>(urlField).controller!.text,
+      'https://dav.test',
+    );
+    expect(tester.widget<TextField>(usernameField).controller!.text, 'user');
+    expect(
+      tester.widget<TextField>(passwordField).controller!.text,
+      'webdav-secret',
+    );
     expect(tester.widget<TextField>(passwordField).obscureText, isTrue);
-    await _tapText(tester, '继续真实测试');
-
-    expect(find.text('webdav-secret'), findsNothing);
-    await _tapText(tester, '运行真实测试');
-    expect(find.text('连接验证成功'), findsOneWidget);
-    expect(find.text('服务商限额：2 GiB'), findsOneWidget);
-    expect(find.text('历史快照'), findsOneWidget);
-    expect(find.text('仅删除云端 namespace'), findsOneWidget);
-    expect(find.text('provider warning'), findsOneWidget);
-    await _tapText(tester, '继续选择数据范围');
-
     expect(find.text('选择同步数据'), findsOneWidget);
     expect(find.text('大二进制文件'), findsOneWidget);
-    await _tapText(tester, '继续加密设置');
+    expect(find.text('设置加密密码'), findsNothing);
+    expect(find.text('生成一次性恢复密钥'), findsNothing);
+    final save = find.byKey(const ValueKey('cloud-sync-save-and-sync'));
+    await tester.scrollUntilVisible(save, 180, scrollable: _pageScrollable);
+    expect(tester.widget<FilledButton>(save).onPressed, isNotNull);
+    await tester.tap(save);
+    await tester.pumpAndSettle();
 
-    await _tapText(tester, '检测远端', last: true);
-    expect(port.remoteDetected, isTrue);
-
-    await tester.enterText(_fieldWithLabel('加密密码'), 'encryption-secret');
-    await tester.enterText(_fieldWithLabel('确认密码'), 'encryption-secret');
-    expect(
-      tester.widget<TextField>(_fieldWithLabel('加密密码')).obscureText,
-      isTrue,
-    );
-    await _tapText(tester, '生成一次性恢复密钥');
-    expect(find.text('recovery-key-once'), findsOneWidget);
-    await _tapText(tester, '我已保存并核对一次性恢复密钥');
-    await _tapText(tester, '首次同步', last: true);
-
-    expect(find.text('encryption-secret'), findsNothing);
-    expect(find.text('recovery-key-once'), findsNothing);
-    expect(find.text('选择首次同步方式'), findsOneWidget);
-
-    await _tapText(tester, '预览并合并（推荐）');
-    await _tapText(tester, '连接并继续');
     expect(port.request, isNotNull);
-    expect(port.request!.initialAction, CloudSyncInitialAction.mergePreview);
-    expect(port.request!.encryptionPassword, 'encryption-secret');
-    expect(port.request!.connection.allowInsecureHttp, isTrue);
-    expect(find.text('webdav-secret'), findsNothing);
-    expect(find.text('encryption-secret'), findsNothing);
+    expect(port.request!.legacyPassword, isEmpty);
+    expect(port.request!.dataKinds, {
+      CloudSyncDataKind.settings,
+      CloudSyncDataKind.prompts,
+      CloudSyncDataKind.galleries,
+    });
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('GitHub token 输入始终使用敏感字段且不在后续阶段回显', (tester) async {
+  testWidgets('GitHub token 始终使用敏感字段并可一键连接', (tester) async {
     await tester.binding.setSurfaceSize(const Size(700, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(_subject(port: _FakePort()));
@@ -108,9 +77,14 @@ void main() {
     final tokenField = _fieldWithLabel('GitHub Token');
     expect(tester.widget<TextField>(tokenField).obscureText, isTrue);
     await tester.enterText(tokenField, 'github-sensitive-token');
-    await _tapText(tester, '继续真实测试');
+    await tester.enterText(_fieldWithLabel('Owner'), 'alice');
+    await tester.enterText(_fieldWithLabel('仓库'), 'backup');
+    final save = find.byKey(const ValueKey('cloud-sync-save-and-sync'));
+    await tester.scrollUntilVisible(save, 180, scrollable: _pageScrollable);
+    expect(tester.widget<FilledButton>(save).onPressed, isNotNull);
+    await tester.tap(save);
+    await tester.pumpAndSettle();
 
-    expect(find.text('github-sensitive-token'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
@@ -135,8 +109,7 @@ void main() {
       expect(find.text('历史快照'), findsOneWidget);
       expect(find.text('大二进制冲突默认保留两个副本。'), findsOneWidget);
       expect(find.text('两者都保留'), findsWidgets);
-      expect(find.text('修改加密密码'), findsOneWidget);
-      expect(find.textContaining('只重新封装加密密钥'), findsOneWidget);
+      expect(find.text('修改加密密码'), findsNothing);
       expect(find.text('仅删除云端 namespace'), findsOneWidget);
       expect(find.text('断开此设备'), findsOneWidget);
       expect(tester.takeException(), isNull, reason: 'width=$width');
@@ -240,58 +213,20 @@ void main() {
     expect(bulk.onPressed, isNull);
   });
 
-  testWidgets('setup 在仅手动备份模式只提供上传', (tester) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        locale: const Locale('zh'),
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: Scaffold(
-          body: CloudSyncInitialChoice(
-            value: CloudSyncInitialAction.upload,
-            manualBackupOnly: true,
-            busy: false,
-            onChanged: (_) {},
-            onConnect: () {},
-          ),
-        ),
-      ),
-    );
-    expect(find.text('上传本设备数据'), findsOneWidget);
-    expect(find.text('下载远端数据'), findsNothing);
-    expect(find.text('预览并合并（推荐）'), findsNothing);
-  });
-
-  testWidgets('新恢复密钥在明确确认前持续显示且不会写入活动日志', (tester) async {
+  testWidgets('旧加密备份只在缺少本机密钥时显示兼容解锁', (tester) async {
     final port = _FakePort();
-    final state =
-        _connectedState(
-          activityStatus: CloudSyncActivityStatus.idle,
-          capabilityMode: CloudSyncCapabilityMode.bidirectional,
-        ).copyWith(
-          conflicts: const [],
-          pendingRecoveryKey: 'new-recovery-key-once',
-          logs: const [],
-          clearProgress: true,
-        );
+    const state = CloudSyncUiState(
+      remoteExists: true,
+      legacyEncryptedBackup: true,
+      legacyUnlockRequired: true,
+    );
     await tester.pumpWidget(_subject(state: state, port: port));
     await tester.pumpAndSettle();
 
-    expect(find.text('新的恢复密钥已生效'), findsWidgets);
-    expect(find.text('new-recovery-key-once'), findsOneWidget);
-    expect(
-      find.textContaining('new-recovery-key-once', findRichText: true),
-      findsOneWidget,
-    );
-    expect(find.text('暂无同步活动。'), findsOneWidget);
-    final saved = find.text('我已保存新密钥');
-    await tester.scrollUntilVisible(saved, 180, scrollable: _pageScrollable);
-    await tester.tap(saved);
-    await tester.pumpAndSettle();
-    expect(find.textContaining('确认已将新恢复密钥完整保存'), findsOneWidget);
-    await tester.tap(find.text('确认'));
-    await tester.pump();
-    expect(port.recoveryKeyConfirmed, isTrue);
+    expect(find.text('旧加密备份'), findsOneWidget);
+    expect(_fieldWithLabel('旧备份加密密码'), findsOneWidget);
+    expect(find.text('使用旧恢复密钥'), findsOneWidget);
+    expect(find.text('设置加密密码'), findsNothing);
   });
 }
 
@@ -394,7 +329,6 @@ class _FakePort extends CloudSyncUiPortAdapter {
   CloudSyncConflictChoice? bulkChoice;
   bool previewApplied = false;
   bool? ffdkjInstallChoice;
-  bool recoveryKeyConfirmed = false;
 
   @override
   Future<void> applyPendingPreview() async => previewApplied = true;
@@ -403,21 +337,6 @@ class _FakePort extends CloudSyncUiPortAdapter {
   Future<void> respondToFfdkjInstallIntent({required bool install}) async {
     ffdkjInstallChoice = install;
   }
-
-  @override
-  Future<void> confirmRecoveryKeySaved() async {
-    recoveryKeyConfirmed = true;
-  }
-
-  @override
-  Future<String> createRecoveryKey(String password) async =>
-      'recovery-key-once';
-
-  @override
-  Future<void> recoverKeyEnvelope(
-    String recoveryKey,
-    String newPassword,
-  ) async {}
 
   @override
   Future<CloudSyncCapabilityResult> testConnection(

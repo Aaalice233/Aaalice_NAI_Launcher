@@ -1,6 +1,9 @@
 import '../../../core/cloud_sync/backend/cloud_sync_backend.dart';
 import '../../../core/cloud_sync/coordinator.dart';
+import '../../../core/cloud_sync/crypto.dart';
 import '../../../core/cloud_sync/key_envelope_service.dart';
+import '../../../core/cloud_sync/models.dart';
+import '../../../core/cloud_sync/object_codec.dart';
 import '../../../core/cloud_sync/operation.dart';
 import '../../../core/storage/secure_storage_service.dart';
 import '../../../core/storage/local_storage_service.dart';
@@ -69,6 +72,7 @@ class CloudSyncApplicationService implements CloudSyncUiPort {
   CloudSyncBackend? _backend;
   CloudKeyEnvelopeService? _keys;
   CloudKeyEnvelopeSession? _keySession;
+  bool _legacyEncrypted = false;
   SyncCoordinator? _coordinator;
   final CloudSyncFlightGate _gate = CloudSyncFlightGate();
   late final CloudSyncOperationRunner _operations;
@@ -117,14 +121,26 @@ class CloudSyncApplicationService implements CloudSyncUiPort {
       final keyBackend = backend as CloudKeyEnvelopeBackend;
       final envelope = await keyBackend.readKeyEnvelope();
       final head = await backend.readHead();
-      if (head != null && envelope == null) {
-        throw StateError('Remote HEAD exists without KEY.json.');
+      final decodedHead = head == null ? null : SnapshotHead.decode(head.bytes);
+      final legacyEncrypted =
+          decodedHead?.encoding == CloudSnapshotEncoding.encrypted;
+      if (legacyEncrypted && envelope == null) {
+        throw StateError('旧加密备份缺少 KEY.json，无法安全读取。');
+      }
+      if (head == null && envelope != null) {
+        throw StateError('远端仅有旧 KEY.json 而没有快照，请先保留远端数据并检查。');
       }
       _backend = backend;
-      _keys = CloudKeyEnvelopeService(
-        backend: keyBackend,
-        secureStorage: _secureStorage,
-      );
+      _legacyEncrypted = legacyEncrypted;
+      _keys = legacyEncrypted
+          ? CloudKeyEnvelopeService(
+              backend: keyBackend,
+              secureStorage: _secureStorage,
+            )
+          : null;
+      final legacyUnlockRequired =
+          legacyEncrypted &&
+          await _secureStorage.getCloudSyncMasterKey() == null;
       _set(
         _state.copyWith(
           backend: connection.backend,
@@ -135,7 +151,9 @@ class CloudSyncApplicationService implements CloudSyncUiPort {
           supportsDelete: capability.supportsDelete,
           capabilityWarnings: capability.warnings,
           providerLimit: cloudSyncProviderLimit(connection),
-          remoteExists: envelope != null,
+          remoteExists: head != null,
+          legacyEncryptedBackup: legacyEncrypted,
+          legacyUnlockRequired: legacyUnlockRequired,
           remoteRevision: cloudSyncSnapshotId(head),
           clearError: true,
         ),
@@ -147,66 +165,84 @@ class CloudSyncApplicationService implements CloudSyncUiPort {
   }
 
   @override
-  Future<String> createRecoveryKey(String password) =>
-      _gate.run((_) => _createRecoveryKey(password));
-
-  Future<String> _createRecoveryKey(String password) async {
-    if (_state.remoteExists != false || _keys == null) {
-      throw StateError('Remote detection must confirm an empty namespace.');
-    }
-    return _keys!.prepareCreate(password);
-  }
+  Future<void> connect(CloudSyncConnectRequest request) =>
+      _gate.run((operation) => _connect(request, operation));
 
   @override
-  Future<void> recoverKeyEnvelope(String recoveryKey, String newPassword) =>
-      _gate.run((_) => _recoverKeyEnvelope(recoveryKey, newPassword));
+  Future<void> unlockLegacyBackup(String password) =>
+      _gate.run((operation) async {
+        final persisted = await _connectionStore.load();
+        if (persisted == null) {
+          throw StateError('没有可恢复的旧备份连接配置。');
+        }
+        await _connect(
+          CloudSyncConnectRequest(
+            connection: persisted.draft,
+            dataKinds: persisted.dataKinds,
+            legacyPassword: password,
+          ),
+          operation,
+        );
+      });
 
-  Future<void> _recoverKeyEnvelope(
-    String recoveryKey,
-    String newPassword,
-  ) async {
+  @override
+  Future<void> recoverLegacyBackup(String recoveryKey, String newPassword) =>
+      _gate.run((operation) async {
+        final persisted = await _connectionStore.load();
+        if (persisted == null) {
+          throw StateError('没有可恢复的旧备份连接配置。');
+        }
+        if (_backend == null) await _detectRemote(persisted.draft);
+        await _recoverKey(recoveryKey, newPassword);
+        await _connect(
+          CloudSyncConnectRequest(
+            connection: persisted.draft,
+            dataKinds: persisted.dataKinds,
+          ),
+          operation,
+        );
+      });
+
+  Future<void> _recoverKey(String recoveryKey, String newPassword) async {
     final keys = _keys;
     if (_state.remoteExists != true || keys == null) {
-      throw StateError('No remote key envelope was detected.');
+      throw StateError('没有检测到可恢复的旧加密备份。');
     }
     _keySession = await keys.recover(recoveryKey, newPassword);
   }
-
-  @override
-  Future<void> connect(CloudSyncConnectRequest request) =>
-      _gate.run((operation) => _connect(request, operation));
 
   Future<void> _connect(
     CloudSyncConnectRequest request,
     OperationToken operation,
   ) async {
     try {
-      if (request.initialAction == CloudSyncInitialAction.mergePreview) {
-        _state.ensureNoPendingPreview();
-      }
+      _state.ensureNoPendingPreview();
       await initialize();
-      if (_backend == null || _keys == null) {
-        await _detectRemote(request.connection);
-      }
-      if (_state.capabilityMode == CloudSyncCapabilityMode.manualBackupOnly &&
-          request.initialAction != CloudSyncInitialAction.upload) {
-        throw StateError(
-          'This backend only supports explicit manual backup uploads.',
-        );
-      }
-      if (_state.remoteExists == true) {
-        _keySession ??= await _keys!.unlock(
-          password: request.encryptionPassword,
-        );
-      } else {
-        if (!request.recoveryKeyConfirmed) {
-          throw StateError('Recovery key confirmation is required.');
+      // The one-page form remains editable after a failed attempt, so every
+      // save must rebuild and verify the backend from the current draft.
+      await _detectRemote(request.connection);
+      CloudObjectCodec codec = const PlainCloudObjectCodec();
+      if (_legacyEncrypted) {
+        if (_keySession == null &&
+            _state.legacyUnlockRequired &&
+            request.legacyPassword.isEmpty) {
+          await _connectionStore.save(request.connection, request.dataKinds);
+          return;
         }
-        _keySession = await _keys!.commitPrepared();
+        try {
+          _keySession ??= await _keys!.unlock(password: request.legacyPassword);
+        } catch (_) {
+          _set(_state.copyWith(legacyUnlockRequired: true, clearError: true));
+          rethrow;
+        }
+        codec = LegacyEncryptedCloudObjectCodec(
+          crypto: CloudCrypto(),
+          masterKey: _keySession!.masterKey,
+        );
       }
       _coordinator = await _coordinatorFactory(
         _backend!,
-        _keySession!,
+        codec,
         request.dataKinds,
       );
       await _coordinator!.recoverPending();
@@ -220,26 +256,21 @@ class CloudSyncApplicationService implements CloudSyncUiPort {
         _state.copyWith(
           connectionStatus: CloudSyncConnectionStatus.connected,
           backend: request.connection.backend,
+          legacyUnlockRequired: false,
           clearError: true,
         ),
       );
-      switch (request.initialAction) {
-        case CloudSyncInitialAction.mergePreview:
-          await _operations.previewInitial();
-        case CloudSyncInitialAction.upload:
-          await _operations.runSync(
-            operation,
-            direction: CloudSyncInitialAction.upload,
-          );
-        case CloudSyncInitialAction.download:
-          if (_state.capabilityMode ==
-              CloudSyncCapabilityMode.manualBackupOnly) {
-            throw StateError('This backend only supports manual uploads.');
-          }
-          await _operations.runSync(
-            operation,
-            direction: CloudSyncInitialAction.download,
-          );
+      if (_state.remoteExists != true ||
+          _state.capabilityMode == CloudSyncCapabilityMode.manualBackupOnly) {
+        await _operations.runSync(
+          operation,
+          direction: CloudSyncInitialAction.upload,
+        );
+      } else {
+        await _operations.previewInitial();
+        if (_state.conflicts.isEmpty) {
+          await _operations.runSync(operation);
+        }
       }
     } catch (error) {
       if (_state.error != '$error') _errorReporter.record(error);
@@ -264,13 +295,25 @@ class CloudSyncApplicationService implements CloudSyncUiPort {
       final knownRevision = _state.isConnected
           ? _state.remoteRevision
           : persisted.remoteRevision;
-      if (_backend == null || _keys == null || _coordinator == null) {
+      if (_backend == null || _coordinator == null) {
         await _detectRemote(persisted.draft);
-        if (_state.remoteExists != true) return;
-        _keySession = await _keys!.unlock();
+        CloudObjectCodec codec = const PlainCloudObjectCodec();
+        if (_legacyEncrypted) {
+          if (_state.legacyUnlockRequired) return;
+          try {
+            _keySession = await _keys!.unlock();
+          } catch (_) {
+            _set(_state.copyWith(legacyUnlockRequired: true, clearError: true));
+            return;
+          }
+          codec = LegacyEncryptedCloudObjectCodec(
+            crypto: CloudCrypto(),
+            masterKey: _keySession!.masterKey,
+          );
+        }
         _coordinator = await _coordinatorFactory(
           _backend!,
-          _keySession!,
+          codec,
           persisted.dataKinds,
         );
       }
@@ -377,53 +420,6 @@ class CloudSyncApplicationService implements CloudSyncUiPort {
     return _gate.run(
       (operation) => _operations.restore(preview.snapshotId!, operation),
     );
-  }
-
-  @override
-  Future<void> changePassword(String password) async {
-    await _gate.run((_) async {
-      _keySession = await _keys!.changePassword(_keySession!, password);
-    });
-  }
-
-  @override
-  Future<void> rotateRecoveryKey() => _gate.run((_) async {
-    final keys = _keys;
-    final session = _keySession;
-    if (keys == null || session == null) {
-      throw StateError('Cloud sync is not connected.');
-    }
-    _set(
-      _state.copyWith(
-        activityStatus: CloudSyncActivityStatus.syncing,
-        clearError: true,
-      ),
-    );
-    try {
-      final rotated = await keys.rotateRecoveryKey(session);
-      _keySession = rotated;
-      final recoveryKey = rotated.recoveryKey;
-      if (recoveryKey == null || recoveryKey.isEmpty) {
-        throw StateError('Recovery key rotation did not return a new key.');
-      }
-      _set(
-        _state.copyWith(
-          activityStatus: CloudSyncActivityStatus.idle,
-          pendingRecoveryKey: recoveryKey,
-        ),
-      );
-    } catch (error) {
-      _errorReporter.record(error, resetActivity: true);
-      rethrow;
-    }
-  });
-
-  @override
-  Future<void> confirmRecoveryKeySaved() async {
-    if (_state.pendingRecoveryKey == null) {
-      throw StateError('No new recovery key is awaiting confirmation.');
-    }
-    _set(_state.copyWith(clearPendingRecoveryKey: true));
   }
 
   @override

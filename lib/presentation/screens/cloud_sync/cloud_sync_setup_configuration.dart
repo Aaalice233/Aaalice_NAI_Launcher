@@ -18,7 +18,6 @@ class CloudSyncSetupConfiguration extends StatelessWidget {
     required this.allowInsecureHttp,
     required this.onBackendChanged,
     required this.onAllowInsecureHttpChanged,
-    required this.onContinue,
   });
 
   final CloudSyncBackendKind backend;
@@ -32,7 +31,6 @@ class CloudSyncSetupConfiguration extends StatelessWidget {
   final bool allowInsecureHttp;
   final ValueChanged<CloudSyncBackendKind> onBackendChanged;
   final ValueChanged<bool> onAllowInsecureHttpChanged;
-  final VoidCallback onContinue;
 
   @override
   Widget build(BuildContext context) => CloudSyncSection(
@@ -74,18 +72,24 @@ class CloudSyncSetupConfiguration extends StatelessWidget {
               label: context.l10n.cloudSync_password,
               obscureText: true,
             ),
-            CloudSyncField(
-              controller: path,
-              label: context.l10n.cloudSync_remotePath,
-            ),
           ]),
-          SwitchListTile(
-            key: const ValueKey('cloud-sync-allow-insecure-http'),
-            contentPadding: EdgeInsets.zero,
-            value: allowInsecureHttp,
-            onChanged: onAllowInsecureHttpChanged,
-            title: Text(context.l10n.cloudSync_allowInsecureHttp),
-            subtitle: Text(context.l10n.cloudSync_allowInsecureHttpWarning),
+          ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            title: Text(context.l10n.cloudSync_advancedSettings),
+            children: [
+              CloudSyncField(
+                controller: path,
+                label: context.l10n.cloudSync_remotePath,
+              ),
+              SwitchListTile(
+                key: const ValueKey('cloud-sync-allow-insecure-http'),
+                contentPadding: EdgeInsets.zero,
+                value: allowInsecureHttp,
+                onChanged: onAllowInsecureHttpChanged,
+                title: Text(context.l10n.cloudSync_allowInsecureHttp),
+                subtitle: Text(context.l10n.cloudSync_allowInsecureHttpWarning),
+              ),
+            ],
           ),
         ] else
           _fieldGrid([
@@ -102,24 +106,24 @@ class CloudSyncSetupConfiguration extends StatelessWidget {
               controller: repository,
               label: context.l10n.cloudSync_repository,
             ),
-            CloudSyncField(
-              controller: branch,
-              label: context.l10n.cloudSync_branch,
-            ),
-            CloudSyncField(
-              controller: path,
-              label: context.l10n.cloudSync_remotePath,
-            ),
           ]),
-        const SizedBox(height: 20),
-        Align(
-          alignment: Alignment.centerRight,
-          child: FilledButton(
-            onPressed: onContinue,
-            style: FilledButton.styleFrom(minimumSize: const Size(0, 48)),
-            child: Text(context.l10n.cloudSync_continueToTest),
+        if (backend == CloudSyncBackendKind.github)
+          ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            title: Text(context.l10n.cloudSync_advancedSettings),
+            children: [
+              _fieldGrid([
+                CloudSyncField(
+                  controller: branch,
+                  label: context.l10n.cloudSync_branch,
+                ),
+                CloudSyncField(
+                  controller: path,
+                  label: context.l10n.cloudSync_remotePath,
+                ),
+              ]),
+            ],
           ),
-        ),
       ],
     ),
   );

@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/core/storage/secure_storage_service.dart';
 import 'package:nai_launcher/presentation/providers/cloud_sync/cloud_sync_application_service.dart';
@@ -52,10 +55,44 @@ void main() {
     expect(restored.dataKinds, {CloudSyncDataKind.settings});
     expect(restored.remoteRevision, 'revision-7');
     expect(restored.lastSync, syncedAt);
+    expect(secure.credentialWrites, 1);
+    final public =
+        jsonDecode(local.values[StorageKeys.cloudSyncConfiguration] as String)
+            as Map<String, dynamic>;
+    expect(public['version'], 2);
     await store.clear();
     expect(await store.load(), isNull);
     expect(secure.cleared, isTrue);
   });
+
+  test(
+    'legacy connection configuration migrates without rewriting secrets',
+    () async {
+      final local = _MemoryLocalStorage();
+      final secure = _MemorySecureStorage()
+        ..credentials = jsonEncode({'username': 'legacy', 'secret': 'private'});
+      local.values[StorageKeys.cloudSyncConfiguration] = jsonEncode({
+        'backend': 'webDav',
+        'serverUrl': 'https://dav.test',
+        'path': 'legacy-space',
+        'dataKinds': ['settings'],
+      });
+      final store = CloudSyncConnectionStore(
+        localStorage: local,
+        secureStorage: secure,
+      );
+
+      final restored = await store.load();
+
+      expect(restored!.draft.username, 'legacy');
+      expect(restored.draft.secret, 'private');
+      expect(secure.credentialWrites, 0);
+      final migrated =
+          jsonDecode(local.values[StorageKeys.cloudSyncConfiguration] as String)
+              as Map<String, dynamic>;
+      expect(migrated['version'], 2);
+    },
+  );
 }
 
 class _MemoryLocalStorage extends LocalStorageService {
@@ -79,9 +116,11 @@ class _MemoryLocalStorage extends LocalStorageService {
 class _MemorySecureStorage extends SecureStorageService {
   String? credentials;
   bool cleared = false;
+  int credentialWrites = 0;
 
   @override
   Future<void> saveCloudSyncCredentials(String encodedCredentials) async {
+    credentialWrites++;
     credentials = encodedCredentials;
   }
 

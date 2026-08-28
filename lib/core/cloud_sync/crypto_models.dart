@@ -12,8 +12,7 @@ class CloudCryptoException implements Exception {
   final Object? cause;
 
   @override
-  String toString() =>
-      'CloudCryptoException: $message${cause == null ? '' : ' ($cause)'}';
+  String toString() => 'CloudCryptoException: $message';
 }
 
 class KdfParameters {

@@ -8,7 +8,6 @@ import '../../../core/cloud_sync/backend/github_cloud_sync_backend.dart';
 import '../../../core/cloud_sync/backend/webdav_cloud_sync_backend.dart';
 import '../../../core/cloud_sync/backend/webdav_backend_config.dart';
 import '../../../core/cloud_sync/coordinator.dart';
-import '../../../core/cloud_sync/crypto.dart';
 import '../../../core/cloud_sync/journal.dart';
 import '../../../core/constants/storage_keys.dart';
 import '../../../core/storage/local_storage_service.dart';
@@ -47,7 +46,7 @@ final cloudSyncApplicationServiceProvider =
             namespace: draft.path.isEmpty ? 'aaalice-sync' : draft.path,
           ),
         },
-        coordinatorFactory: (backend, keys, scope) async {
+        coordinatorFactory: (backend, codec, scope) async {
           final all = createAppCloudSyncAdapterRegistry(
             localStorage: local,
             vibeLibrary: ref.read(vibeLibraryStorageServiceProvider),
@@ -73,8 +72,7 @@ final cloudSyncApplicationServiceProvider =
           return SyncCoordinator(
             backend: backend,
             dataSource: AppCloudSyncDataSource(registry: registry, root: root),
-            crypto: CloudCrypto(),
-            masterKey: keys.masterKey,
+            codec: codec,
             journalStore: JournalStore(File('${root.path}/journal.json')),
           );
         },

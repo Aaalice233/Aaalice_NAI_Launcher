@@ -1,9 +1,7 @@
-import 'package:cryptography/cryptography.dart';
-
 import 'backend/cloud_sync_backend.dart';
-import 'crypto.dart';
 import 'data_source.dart';
 import 'models.dart';
+import 'object_codec.dart';
 import 'operation.dart';
 import 'sync_types.dart';
 
@@ -11,15 +9,13 @@ class CloudSnapshotTransfer {
   const CloudSnapshotTransfer({
     required this.backend,
     required this.dataSource,
-    required this.crypto,
-    required this.masterKey,
+    required this.codec,
     required this.now,
   });
 
   final CloudSyncBackend backend;
   final CloudSyncDataSource dataSource;
-  final CloudCrypto crypto;
-  final SecretKey masterKey;
+  final CloudObjectCodec codec;
   final DateTime Function() now;
 
   Future<CloudSyncSnapshotData> downloadHead(
@@ -27,6 +23,9 @@ class CloudSnapshotTransfer {
     OperationToken token,
     SyncProgressCallback? onProgress,
   ) async {
+    if (head.encoding != codec.encoding) {
+      throw const CloudFormatException('snapshot encoding mismatch');
+    }
     final read = await backend.readSnapshotManifest(head.snapshotId);
     if (read == null) {
       throw const CloudFormatException('snapshot manifest is missing');
@@ -80,9 +79,8 @@ class CloudSnapshotTransfer {
         throw CloudFormatException('object ${object.id} is missing');
       }
       object.verify(read.bytes);
-      final clear = await crypto.decryptObject(
+      final clear = await codec.decode(
         read.bytes,
-        masterKey,
         objectId: object.id,
         kind: object.kind,
       );
@@ -130,13 +128,15 @@ class CloudSnapshotTransfer {
     SyncProgressCallback? onProgress,
   ) async {
     final manifest = SnapshotManifest.decode(
-      await crypto.decryptObject(
+      await codec.decode(
         encryptedManifest,
-        masterKey,
         objectId: snapshotId,
         kind: 'manifest',
       ),
     );
+    if (manifest.encoding != codec.encoding) {
+      throw const CloudFormatException('snapshot encoding mismatch');
+    }
     if (manifest.snapshotId != snapshotId) {
       throw const CloudFormatException('snapshot manifest identity mismatch');
     }

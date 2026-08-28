@@ -1,11 +1,9 @@
-import 'package:cryptography/cryptography.dart';
-
 import 'backend/cloud_sync_backend.dart';
-import 'crypto.dart';
 import 'data_source.dart';
 import 'journal.dart';
 import 'models.dart';
 import 'operation.dart';
+import 'object_codec.dart';
 import 'snapshot_uploader.dart';
 import 'sync_types.dart';
 
@@ -13,16 +11,14 @@ class SyncOperationRunner {
   const SyncOperationRunner({
     required this.backend,
     required this.dataSource,
-    required this.crypto,
-    required this.masterKey,
+    required this.codec,
     required this.journalStore,
     required this.now,
   });
 
   final CloudSyncBackend backend;
   final CloudSyncDataSource dataSource;
-  final CloudCrypto crypto;
-  final SecretKey masterKey;
+  final CloudObjectCodec codec;
   final JournalStore journalStore;
   final DateTime Function() now;
 
@@ -72,8 +68,7 @@ class SyncOperationRunner {
             await ResumableSnapshotUploader(
               backend: backend,
               dataSource: dataSource,
-              crypto: crypto,
-              masterKey: masterKey,
+              codec: codec,
               now: now,
             ).resume(
               journal: current,

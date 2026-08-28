@@ -10,6 +10,7 @@ import 'cloud_object_naming.dart';
 import 'cloud_sync_backend.dart';
 import 'webdav_backend_config.dart';
 import 'webdav_capability_probe.dart';
+import 'webdav_collection_ensurer.dart';
 import 'webdav_etag_reader.dart';
 import 'webdav_namespace_cleaner.dart';
 import 'webdav_object_maintenance.dart';
@@ -49,17 +50,20 @@ class WebDavCloudSyncBackend
        ),
        _authorization =
            'Basic ${base64Encode(utf8.encode('$username:$password'))}',
-       _http = BackendHttp(dio: dio);
+       _http = BackendHttp(dio: dio) {
+    _collections = WebDavCollectionEnsurer(
+      http: _http,
+      headers: _headers,
+      baseUri: _baseUri,
+    );
+  }
 
   final Uri _baseUri;
   final String _authorization;
   final BackendHttp _http;
+  late final WebDavCollectionEnsurer _collections;
   final String namespace;
   CloudBackendMode? _verifiedMode;
-  final Map<Uri, DateTime> _recentCollections = {};
-
-  static const _collectionCacheTtl = Duration(seconds: 30);
-
   Map<String, String> get _headers => {
     'Authorization': _authorization,
     'Accept-Encoding': 'identity',
@@ -365,28 +369,7 @@ class WebDavCloudSyncBackend
   }
 
   Future<void> _ensureCollection(Uri uri) async {
-    final segments = uri.pathSegments
-        .where((value) => value.isNotEmpty)
-        .toList();
-    final baseCount = _baseUri.pathSegments
-        .where((value) => value.isNotEmpty)
-        .length;
-    var current = _baseUri;
-    for (final segment in segments.skip(baseCount)) {
-      current = current.resolve('${Uri.encodeComponent(segment)}/');
-      final checkedAt = _recentCollections[current];
-      if (checkedAt != null &&
-          DateTime.now().toUtc().difference(checkedAt) < _collectionCacheTtl) {
-        continue;
-      }
-      final response = await _http.request(
-        'MKCOL',
-        current,
-        headers: {..._headers, 'Content-Length': '0'},
-      );
-      _expect(response, const {200, 201, 204, 405}, action: '创建 WebDAV 目录');
-      _recentCollections[current] = DateTime.now().toUtc();
-    }
+    await _collections.ensure(uri);
   }
 
   Future<String?> _readEtag(Uri uri) =>
