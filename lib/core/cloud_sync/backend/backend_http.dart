@@ -115,6 +115,21 @@ class BackendHttp {
     final declared = int.tryParse(
       response.headers.value('content-length') ?? '',
     );
+    final status = response.statusCode ?? 0;
+    final method = response.requestOptions.method.toUpperCase();
+    final responseMustBeBodyless =
+        method == 'HEAD' ||
+        status == 204 ||
+        status == 304 ||
+        (status >= 100 && status < 200);
+    if (responseMustBeBodyless) {
+      final body = response.data;
+      if (body != null) {
+        final subscription = body.stream.listen((_) {});
+        await subscription.cancel();
+      }
+      return _copyResponse(response, Uint8List(0));
+    }
     if (declared != null && declared > maxResponseBytes) {
       throw CloudBackendException(
         tooLargeKind,
@@ -136,8 +151,15 @@ class BackendHttp {
       }
       builder.add(chunk);
     }
+    return _copyResponse(response, builder.takeBytes());
+  }
+
+  static Response<Uint8List> _copyResponse(
+    Response<ResponseBody> response,
+    Uint8List bytes,
+  ) {
     return Response<Uint8List>(
-      data: builder.takeBytes(),
+      data: bytes,
       headers: response.headers,
       requestOptions: response.requestOptions,
       statusCode: response.statusCode,

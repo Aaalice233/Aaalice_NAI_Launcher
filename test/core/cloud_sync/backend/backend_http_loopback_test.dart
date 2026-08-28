@@ -5,6 +5,42 @@ import 'package:nai_launcher/core/cloud_sync/backend/backend_http.dart';
 import 'package:nai_launcher/core/cloud_sync/backend/cloud_sync_backend.dart';
 
 void main() {
+  test('HEAD ignores the declared representation length', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    server.listen((request) async {
+      request.response.contentLength = 4 * 1024 * 1024;
+      await request.response.close();
+    });
+    addTearDown(() => server.close(force: true));
+
+    final response = await BackendHttp().request(
+      'HEAD',
+      Uri.parse('http://127.0.0.1:${server.port}/large-resource'),
+      maxResponseBytes: 0,
+    );
+
+    expect(response.statusCode, 200);
+    expect(response.data, isEmpty);
+  });
+
+  test('204 response is treated as bodyless', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    server.listen((request) async {
+      request.response.statusCode = HttpStatus.noContent;
+      await request.response.close();
+    });
+    addTearDown(() => server.close(force: true));
+
+    final response = await BackendHttp().request(
+      'DELETE',
+      Uri.parse('http://127.0.0.1:${server.port}/resource'),
+      maxResponseBytes: 0,
+    );
+
+    expect(response.statusCode, HttpStatus.noContent);
+    expect(response.data, isEmpty);
+  });
+
   test('chunked response stops at cumulative hard limit', () async {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     server.listen((request) async {

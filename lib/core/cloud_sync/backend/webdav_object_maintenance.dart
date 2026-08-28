@@ -164,11 +164,14 @@ class WebDavObjectMaintenance {
     final response = await http.request(
       'PROPFIND',
       collection,
-      headers: {...headers, 'Depth': '1'},
+      headers: {
+        ...headers,
+        'Depth': '1',
+        'Content-Type': 'application/xml; charset=utf-8',
+      },
       data: utf8.encode(
-        '<?xml version="1.0"?><d:propfind xmlns:d="DAV:"><d:prop>'
-        '<d:getetag/><d:getlastmodified/><d:getcontentlength/>'
-        '<d:resourcetype/></d:prop></d:propfind>',
+        '<?xml version="1.0"?><d:propfind xmlns:d="DAV:">'
+        '<d:allprop/></d:propfind>',
       ),
       maxResponseBytes: maxCloudListingResponseBytes,
     );

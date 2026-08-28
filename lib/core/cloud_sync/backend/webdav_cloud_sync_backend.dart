@@ -10,6 +10,7 @@ import 'cloud_object_naming.dart';
 import 'cloud_sync_backend.dart';
 import 'webdav_backend_config.dart';
 import 'webdav_capability_probe.dart';
+import 'webdav_etag_reader.dart';
 import 'webdav_namespace_cleaner.dart';
 import 'webdav_object_maintenance.dart';
 
@@ -55,6 +56,9 @@ class WebDavCloudSyncBackend
   final BackendHttp _http;
   final String namespace;
   CloudBackendMode? _verifiedMode;
+  final Map<Uri, DateTime> _recentCollections = {};
+
+  static const _collectionCacheTtl = Duration(seconds: 30);
 
   Map<String, String> get _headers => {
     'Authorization': _authorization,
@@ -279,9 +283,14 @@ class WebDavCloudSyncBackend
     final response = await _http.request(
       'PROPFIND',
       _snapshots,
-      headers: {..._headers, 'Depth': '1'},
+      headers: {
+        ..._headers,
+        'Depth': '1',
+        'Content-Type': 'application/xml; charset=utf-8',
+      },
       data: utf8.encode(
-        '<?xml version="1.0"?><d:propfind xmlns:d="DAV:"><d:prop><d:getetag/></d:prop></d:propfind>',
+        '<?xml version="1.0"?><d:propfind xmlns:d="DAV:">'
+        '<d:allprop/></d:propfind>',
       ),
       maxResponseBytes: maxCloudListingResponseBytes,
     );
@@ -365,18 +374,23 @@ class WebDavCloudSyncBackend
     var current = _baseUri;
     for (final segment in segments.skip(baseCount)) {
       current = current.resolve('${Uri.encodeComponent(segment)}/');
-      final response = await _http.request('MKCOL', current, headers: _headers);
-      if ({200, 201, 204, 405}.contains(response.statusCode)) continue;
+      final checkedAt = _recentCollections[current];
+      if (checkedAt != null &&
+          DateTime.now().toUtc().difference(checkedAt) < _collectionCacheTtl) {
+        continue;
+      }
+      final response = await _http.request(
+        'MKCOL',
+        current,
+        headers: {..._headers, 'Content-Length': '0'},
+      );
       _expect(response, const {200, 201, 204, 405}, action: '创建 WebDAV 目录');
+      _recentCollections[current] = DateTime.now().toUtc();
     }
   }
 
-  Future<String?> _readEtag(Uri uri) async {
-    final response = await _http.request('HEAD', uri, headers: _headers);
-    if (response.statusCode == 404) return null;
-    _expect(response, const {200, 204}, action: '读取 ETag');
-    return response.headers.value('etag');
-  }
+  Future<String?> _readEtag(Uri uri) =>
+      WebDavEtagReader(http: _http, headers: _headers).read(uri);
 
   Uri _objectUri(String id) {
     CloudObjectNaming.validateId(id);

@@ -7,6 +7,7 @@ import 'package:xml/xml.dart';
 
 import 'backend_http.dart';
 import 'cloud_sync_backend.dart';
+import 'webdav_etag_reader.dart';
 
 class WebDavCapabilityProbe {
   const WebDavCapabilityProbe({
@@ -60,30 +61,42 @@ class WebDavCapabilityProbe {
       if (objectEtag == null || objectEtag.isEmpty) {
         manualReason = '服务器未返回 ETag；手动备份将使用非 CAS 写入。';
       } else {
+        final initialEtag = objectEtag;
         final createRejected = await http.request(
           'PUT',
           object,
           headers: {...headers, 'If-None-Match': '*'},
-          data: const [2],
+          data: Uint8List.fromList(const [2]),
         );
         final matchRejected = await http.request(
           'PUT',
           object,
           headers: {...headers, 'If-Match': '"aaalice-invalid-etag"'},
-          data: const [2],
+          data: Uint8List.fromList(const [2]),
         );
         final matched = await http.request(
           'PUT',
           object,
           headers: {...headers, 'If-Match': objectEtag},
-          data: const [3],
+          data: Uint8List.fromList(const [3]),
         );
-        objectEtag = matched.headers.value('etag') ?? await _readEtag(object);
+        final matchedEtag =
+            matched.headers.value('etag') ?? await _readEtag(object);
+        final staleRejected = await http.request(
+          'PUT',
+          object,
+          headers: {...headers, 'If-Match': initialEtag},
+          data: Uint8List.fromList(const [4]),
+        );
+        objectEtag = await _readEtag(object) ?? matchedEtag;
+        final matchedBytes = await _get(object, maxCloudObjectResponseBytes);
         if (createRejected.statusCode != 412 ||
             matchRejected.statusCode != 412 ||
             !const {200, 201, 204}.contains(matched.statusCode) ||
+            staleRejected.statusCode != 412 ||
             objectEtag == null ||
-            !(await _get(object, maxCloudObjectResponseBytes)).contains(3)) {
+            matchedBytes.length != 1 ||
+            matchedBytes.single != 3) {
           manualReason = '服务器未可靠执行 If-Match 或 If-None-Match。';
           objectEtag = await _readEtag(object) ?? objectEtag;
         }
@@ -93,16 +106,31 @@ class WebDavCapabilityProbe {
         'PUT',
         manifest,
         headers: {...headers, 'If-None-Match': '*'},
-        data: const [4],
+        data: Uint8List.fromList(const [4]),
       );
       _expect(historyWrite, const {200, 201, 204}, '写入历史探针');
       manifestEtag =
           historyWrite.headers.value('etag') ?? await _readEtag(manifest);
-      if (!(await _historyContains(id)) ||
-          !(await _get(manifest, 1)).contains(4)) {
+      final historyCreateRejected = await http.request(
+        'PUT',
+        manifest,
+        headers: {...headers, 'If-None-Match': '*'},
+        data: Uint8List.fromList(const [5]),
+      );
+      final historyBytes = await _get(manifest, 1);
+      final historyListed = await _historyContains(id);
+      if (historyCreateRejected.statusCode != 412) {
+        manualReason ??= '服务器未可靠执行历史对象的 If-None-Match。';
+      }
+      final expectedHistoryByte = historyCreateRejected.statusCode == 412
+          ? 4
+          : 5;
+      if (!historyListed ||
+          historyBytes.length != 1 ||
+          historyBytes.single != expectedHistoryByte) {
         throw const CloudBackendException(
           CloudBackendErrorKind.invalidResponse,
-          '服务器无法列出并读回历史探针。',
+          '服务器无法安全创建、列出或读回历史探针。',
         );
       }
 
@@ -169,21 +197,21 @@ class WebDavCapabilityProbe {
     return true;
   }
 
-  Future<String?> _readEtag(Uri uri) async {
-    final response = await http.request('HEAD', uri, headers: headers);
-    if (response.statusCode == 404) return null;
-    _expect(response, const {200, 204}, '读取探针 ETag');
-    return response.headers.value('etag');
-  }
+  Future<String?> _readEtag(Uri uri) =>
+      WebDavEtagReader(http: http, headers: headers).read(uri);
 
   Future<bool> _historyContains(String id) async {
     final response = await http.request(
       'PROPFIND',
       snapshots,
-      headers: {...headers, 'Depth': '1'},
+      headers: {
+        ...headers,
+        'Depth': '1',
+        'Content-Type': 'application/xml; charset=utf-8',
+      },
       data: utf8.encode(
-        '<?xml version="1.0"?><d:propfind xmlns:d="DAV:"><d:prop>'
-        '<d:getetag/></d:prop></d:propfind>',
+        '<?xml version="1.0"?><d:propfind xmlns:d="DAV:">'
+        '<d:allprop/></d:propfind>',
       ),
       maxResponseBytes: maxCloudListingResponseBytes,
     );
@@ -230,7 +258,11 @@ class WebDavCapabilityProbe {
     var current = baseUri;
     for (final segment in segments.skip(baseCount)) {
       current = current.resolve('${Uri.encodeComponent(segment)}/');
-      final response = await http.request('MKCOL', current, headers: headers);
+      final response = await http.request(
+        'MKCOL',
+        current,
+        headers: {...headers, 'Content-Length': '0'},
+      );
       _expect(response, const {200, 201, 204, 405}, '创建 WebDAV 目录');
     }
   }

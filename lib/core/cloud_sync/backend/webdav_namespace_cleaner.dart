@@ -103,10 +103,14 @@ class WebDavNamespaceCleaner {
     final response = await http.request(
       'PROPFIND',
       collection,
-      headers: {...headers, 'Depth': '1'},
+      headers: {
+        ...headers,
+        'Depth': '1',
+        'Content-Type': 'application/xml; charset=utf-8',
+      },
       data: utf8.encode(
-        '<?xml version="1.0"?><d:propfind xmlns:d="DAV:"><d:prop>'
-        '<d:getetag/><d:resourcetype/></d:prop></d:propfind>',
+        '<?xml version="1.0"?><d:propfind xmlns:d="DAV:">'
+        '<d:allprop/></d:propfind>',
       ),
       maxResponseBytes: maxCloudListingResponseBytes,
     );
@@ -143,8 +147,8 @@ class WebDavNamespaceCleaner {
         if (href == null || prop == null) {
           throw const FormatException('missing DAV properties');
         }
-        final uri = collection.resolve(href);
-        if (uri.path == collection.path || uri.path == '${collection.path}/') {
+        var uri = collection.resolve(href);
+        if (_sameResourcePath(uri.path, collection.path)) {
           continue;
         }
         if (!_isDirectChild(collection, uri)) {
@@ -156,6 +160,9 @@ class WebDavNamespaceCleaner {
                 ?.findElements('collection', namespace: 'DAV:')
                 .isNotEmpty ??
             false;
+        if (isCollection && !uri.path.endsWith('/')) {
+          uri = uri.replace(path: '${uri.path}/');
+        }
         final etag = prop
             .getElement('getetag', namespace: 'DAV:')
             ?.innerText
@@ -196,6 +203,9 @@ class WebDavNamespaceCleaner {
   static bool _sameInventory(Map<Uri, String> a, Map<Uri, String> b) =>
       a.length == b.length &&
       a.entries.every((entry) => b[entry.key] == entry.value);
+
+  static bool _sameResourcePath(String a, String b) =>
+      a.replaceFirst(RegExp(r'/$'), '') == b.replaceFirst(RegExp(r'/$'), '');
 
   static bool _is200(String? value) =>
       value != null && RegExp(r'HTTP/\S+\s+200(?:\s|$)').hasMatch(value);

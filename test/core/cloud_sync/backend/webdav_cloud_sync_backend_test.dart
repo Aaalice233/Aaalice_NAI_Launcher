@@ -74,12 +74,24 @@ void main() {
       expect(
         adapter.requests
             .where((request) => request.method == 'PUT')
+            .map((request) => request.data),
+        everyElement(isA<Uint8List>()),
+      );
+      expect(
+        adapter.requests
+            .where((request) => request.method == 'PUT')
             .map((request) => request.headers),
         contains(
           predicate(
             (headers) => headers is Map && headers['If-Match'] == '"v1"',
           ),
         ),
+      );
+      expect(
+        adapter.requests
+            .where((request) => request.method == 'MKCOL')
+            .map((request) => request.headers['Content-Length']),
+        everyElement('0'),
       );
     },
   );
@@ -166,6 +178,61 @@ void main() {
       expect(put.uri.path, endsWith('/snapshots/2026-01-01T00-00-00Z.json'));
     },
   );
+
+  test('falls back to Depth-0 PROPFIND when HEAD omits ETag', () async {
+    final adapter = RecordingAdapter((request) {
+      if (request.method == 'MKCOL') return const TestHttpResponse(201);
+      if (request.method == 'PUT') return const TestHttpResponse(201);
+      if (request.method == 'HEAD') return const TestHttpResponse(200);
+      if (request.method == 'PROPFIND') {
+        return _davResponse([
+          _davFile('/sync/aaalice-sync/KEY.json', etagValue: 'nutstore-v1'),
+        ]);
+      }
+      fail('Unexpected ${request.method} ${request.uri}');
+    });
+
+    final result = await _backend(
+      adapter,
+    ).commitKeyEnvelope(Uint8List.fromList([1, 2, 3]), expectedRevision: null);
+
+    expect(result.revision, '"nutstore-v1"');
+    expect(
+      adapter.requests
+          .firstWhere((request) => request.method == 'PROPFIND')
+          .headers['Depth'],
+      '0',
+    );
+  });
+
+  test('reuses recently verified collections across object uploads', () async {
+    final adapter = RecordingAdapter((request) {
+      if (request.method == 'MKCOL') return const TestHttpResponse(405);
+      if (request.method == 'PUT') {
+        return const TestHttpResponse(201, '', {
+          'etag': ['"object"'],
+        });
+      }
+      fail('Unexpected ${request.method} ${request.uri}');
+    });
+    final backend = _backend(adapter);
+    final bytes = Uint8List.fromList([1]);
+    final hash = sha256.convert(bytes).toString();
+
+    await backend.putObject('object-a', bytes, sha256: hash);
+    await backend.putObject('object-b', bytes, sha256: hash);
+
+    expect(
+      adapter.requests.where((request) => request.method == 'MKCOL'),
+      hasLength(2),
+    );
+    expect(
+      adapter.requests
+          .where((request) => request.method == 'MKCOL')
+          .map((request) => request.headers['Content-Length']),
+      everyElement('0'),
+    );
+  });
 
   test('PROPFIND parses DAV XML and limits recent snapshot ids', () async {
     final adapter = RecordingAdapter(
@@ -264,6 +331,46 @@ void main() {
       returnsNormally,
     );
   });
+
+  test(
+    'namespace cleanup accepts collection hrefs without trailing slash',
+    () async {
+      final adapter = RecordingAdapter((request) {
+        if (request.method != 'PROPFIND') {
+          fail('Unexpected ${request.method} ${request.uri}');
+        }
+        if (request.uri.path.endsWith('/aaalice-sync/')) {
+          return _davResponse([
+            _davFile('/sync/aaalice-sync', collection: true, etag: false),
+            _davFile(
+              '/sync/aaalice-sync/objects',
+              collection: true,
+              etag: false,
+            ),
+            _davFile(
+              '/sync/aaalice-sync/snapshots',
+              collection: true,
+              etag: false,
+            ),
+          ]);
+        }
+        return _davResponse([
+          _davFile(
+            request.uri.path.replaceFirst(RegExp(r'/$'), ''),
+            collection: true,
+            etag: false,
+          ),
+        ]);
+      });
+
+      await _backend(adapter).deleteNamespace();
+
+      expect(
+        adapter.requests.map((request) => request.method),
+        everyElement('PROPFIND'),
+      );
+    },
+  );
 
   group('unreferenced object maintenance', () {
     test(
