@@ -26,7 +26,7 @@ function Test-DatabaseFile {
     return $false
   }
 
-  $item = Get-Item -LiteralPath $Path
+  $item = Get-Item -LiteralPath $Path -Force
   if ($item.Attributes.HasFlag([IO.FileAttributes]::ReparsePoint) -or
       $item.Length -ne $ExpectedSize) {
     return $false
