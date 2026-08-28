@@ -9,7 +9,7 @@ import '../../../../core/agent/agent_types.dart';
 import '../../../../core/utils/localization_extension.dart';
 import 'package:nai_launcher/presentation/providers/layout_state_provider.dart';
 
-import '../../prompt_assistant/providers/web_access_provider.dart';
+import '../../agent_settings/providers/agent_settings_provider.dart';
 import '../../prompt_assistant/services/provider_adapters/prompt_assistant_adapter.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/themed_confirm_dialog.dart';
@@ -46,8 +46,9 @@ class AgentChatPanelCoordinator {
       selectModel: (providerId, model) =>
           _notifier.selectChatModel(providerId, model),
       selectPermissionMode: _notifier.setPermissionMode,
-      setWebAccessEnabled: (enabled) =>
-          _ref.read(webAccessConfigProvider.notifier).setEnabled(enabled),
+      setWebAccessEnabled: (enabled) => _ref
+          .read(agentSettingsProvider.notifier)
+          .setWebAccessEnabled(enabled),
       pickImages: () => _pickImages(context),
       send: _send,
       stop: _notifier.abort,

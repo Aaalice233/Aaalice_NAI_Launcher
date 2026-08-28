@@ -42,6 +42,43 @@ void main() {
     expect(find.text('SearXNG Base URL'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('can use Agent settings as the authoritative enable control', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          localStorageServiceProvider.overrideWithValue(_MemoryLocalStorage()),
+          secureStorageServiceProvider.overrideWithValue(
+            _MemorySecureStorage(),
+          ),
+        ],
+        child: const MaterialApp(
+          locale: Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: SizedBox(
+                width: 480,
+                child: WebAccessSettings(
+                  showEnableControl: false,
+                  enabled: true,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Agent Web Access'), findsNothing);
+    expect(find.text('Search backend'), findsOneWidget);
+    expect(find.text('SearXNG Base URL'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }
 
 class _MemoryLocalStorage extends LocalStorageService {

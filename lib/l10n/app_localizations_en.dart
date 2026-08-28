@@ -12741,4 +12741,264 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get vibeDetail_choosePreviewImage =>
       'Use the image button to choose a preview';
+
+  @override
+  String get settings_agent => 'Agent';
+
+  @override
+  String get agentSettings_subtitle =>
+      'Manage the chat model, tool permissions, web access, system prompt, and Skills.';
+
+  @override
+  String get agentSettings_chatModel => 'Chat model';
+
+  @override
+  String get agentSettings_providerModel => 'Provider / model';
+
+  @override
+  String get agentSettings_modelManagedInIntegrations =>
+      'Providers, API keys, and model discovery remain centrally managed in Integrations.';
+
+  @override
+  String get agentSettings_noModel =>
+      'No chat model is available. Add a provider and discover models in Integrations first.';
+
+  @override
+  String get agentSettings_pendingMatch => 'pending match';
+
+  @override
+  String get agentSettings_toolPermission => 'Tool permissions';
+
+  @override
+  String get agentSettings_permissionSafe => 'Safe';
+
+  @override
+  String get agentSettings_permissionSafeDescription =>
+      'Run read-only and low-risk operations only, without sensitive-action prompts.';
+
+  @override
+  String get agentSettings_permissionAsk => 'Ask before sensitive actions';
+
+  @override
+  String get agentSettings_permissionAskDescription =>
+      'Default. Ask before writing files, generating images, or other sensitive actions.';
+
+  @override
+  String get agentSettings_permissionFull => 'Full access';
+
+  @override
+  String get agentSettings_permissionFullDescription =>
+      'Allow direct tool use and files outside the workspace. Use only for trusted tasks.';
+
+  @override
+  String get agentSettings_webPreference => 'Web preference';
+
+  @override
+  String get agentSettings_webEnabled => 'Allow the Agent to use Web tools';
+
+  @override
+  String get agentSettings_webDescription =>
+      'When enabled, the model can search and read public pages. Turning it off removes Web tools at runtime.';
+
+  @override
+  String get agentSettings_systemPrompt => 'System prompt';
+
+  @override
+  String get agentSettings_edit => 'Edit';
+
+  @override
+  String get agentSettings_previewFinalPrompt => 'Preview final prompt';
+
+  @override
+  String get agentSettings_systemPromptDescription =>
+      'Built-in safety and tool instructions are always retained. Your behavior instructions are appended here.';
+
+  @override
+  String get agentSettings_systemPromptHint =>
+      'For example: lead with a concise conclusion; explain impact before editing prompts.';
+
+  @override
+  String get agentSettings_restoreDefault => 'Restore default';
+
+  @override
+  String get agentSettings_promptSaved => 'System prompt saved';
+
+  @override
+  String get agentSettings_discardPromptTitle =>
+      'Discard the unsaved system prompt?';
+
+  @override
+  String get agentSettings_discardPromptBody =>
+      'Leaving this section will lose unsaved changes.';
+
+  @override
+  String get agentSettings_keepEditing => 'Keep editing';
+
+  @override
+  String get agentSettings_discardChanges => 'Discard changes';
+
+  @override
+  String get agentSettings_importProfile => 'Import profile';
+
+  @override
+  String get agentSettings_exportProfile => 'Export profile';
+
+  @override
+  String get agentSettings_profilePrivacy =>
+      'This file contains no API key, token, chat history, or local path.';
+
+  @override
+  String get agentSettings_profilePending =>
+      'Missing models or Skills are not shown as available. Preferences remain pending until they are installed.';
+
+  @override
+  String get agentSettings_reloadSkills => 'Rescan';
+
+  @override
+  String get agentSettings_importSkills => 'Import from ZIP';
+
+  @override
+  String get agentSettings_exportSkills => 'Export selected Skills';
+
+  @override
+  String get agentSettings_searchSkills => 'Search names or descriptions';
+
+  @override
+  String get agentSettings_filterAll => 'All';
+
+  @override
+  String get agentSettings_filterEnabled => 'Enabled';
+
+  @override
+  String get agentSettings_filterDisabled => 'Disabled';
+
+  @override
+  String get agentSettings_diagnostics => 'Diagnostics';
+
+  @override
+  String get agentSettings_noMatchingSkill => 'No matching Skill';
+
+  @override
+  String get agentSettings_noDiagnostics => 'No diagnostic issues';
+
+  @override
+  String get agentSettings_skillExplicitOnly =>
+      'This Skill can only be invoked explicitly by the user and is hidden from the model-visible list';
+
+  @override
+  String get agentSettings_exportPrivacy =>
+      'Only selected Skills are exported. .env, keys, tokens, Git data, and dependency folders are excluded.';
+
+  @override
+  String get agentSettings_continueExport => 'Continue export';
+
+  @override
+  String get agentSettings_install => 'Install';
+
+  @override
+  String get agentSettings_apply => 'Apply';
+
+  @override
+  String agentSettings_operationFailed(String error) {
+    return 'Operation failed: $error';
+  }
+
+  @override
+  String get agentSettings_skillsTitle => 'Skills';
+
+  @override
+  String get agentSettings_skillTransfer => 'Import or export';
+
+  @override
+  String get agentSettings_skillsRescanned => 'Skills rescanned';
+
+  @override
+  String agentSettings_skillScanFailed(String error) {
+    return 'Rescan failed: $error';
+  }
+
+  @override
+  String get agentSettings_exportSkillsTitle => 'Export Skills';
+
+  @override
+  String get agentSettings_skillsExported => 'Skills exported';
+
+  @override
+  String get agentSettings_skillZipReadFailed => 'Couldn\'t read the ZIP file';
+
+  @override
+  String get agentSettings_confirmSkillsImport => 'Confirm Skill import';
+
+  @override
+  String agentSettings_skillArchiveStats(int files, int bytes) {
+    return '$files files · $bytes bytes';
+  }
+
+  @override
+  String get agentSettings_skillConflictReplace =>
+      'A Skill with this name exists. Select it to replace.';
+
+  @override
+  String get agentSettings_skillsInstalled => 'Skills installed';
+
+  @override
+  String agentSettings_skillShadowed(String name) {
+    return '$name is shadowed by a higher-priority source';
+  }
+
+  @override
+  String agentSettings_preferredSource(String source) {
+    return 'Preferred source: $source';
+  }
+
+  @override
+  String get agentSettings_sourceWorkspace => 'Workspace';
+
+  @override
+  String get agentSettings_sourcePiUser => 'Pi user';
+
+  @override
+  String get agentSettings_sourceCommonUser => 'Shared user';
+
+  @override
+  String get agentSettings_exportProfileTitle => 'Export Agent profile';
+
+  @override
+  String get agentSettings_profileExported => 'Agent profile exported';
+
+  @override
+  String get agentSettings_profileReadFailed =>
+      'Couldn\'t read the profile file';
+
+  @override
+  String get agentSettings_confirmProfileImport =>
+      'Confirm Agent profile import';
+
+  @override
+  String get agentSettings_profileNoChanges =>
+      'The current settings will not change';
+
+  @override
+  String agentSettings_profileChanges(String changes) {
+    return 'Changes: $changes';
+  }
+
+  @override
+  String get agentSettings_listSeparator => ', ';
+
+  @override
+  String get agentSettings_pendingPreferences => 'Pending preferences';
+
+  @override
+  String agentSettings_missingModel(String model) {
+    return 'Model not currently available: $model';
+  }
+
+  @override
+  String agentSettings_missingSkill(String skill) {
+    return 'Skill not currently available: $skill';
+  }
+
+  @override
+  String get agentSettings_profileImported => 'Agent profile imported';
 }
