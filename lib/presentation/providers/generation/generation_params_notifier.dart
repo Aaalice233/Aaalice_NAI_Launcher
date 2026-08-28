@@ -1,12 +1,8 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:isolate';
 import 'dart:math';
 import 'dart:typed_data';
 
-import 'package:crypto/crypto.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/constants/api_constants.dart';
 import '../../../core/constants/model_capabilities.dart';
@@ -24,6 +20,8 @@ import '../auth_provider.dart';
 import '../quality_preset_provider.dart';
 import '../subscription_provider.dart';
 import '../uc_preset_provider.dart';
+import 'generation_params_persistence_service.dart';
+import 'vibe_reference_service.dart';
 
 part 'generation_params_notifier.g.dart';
 
@@ -32,151 +30,84 @@ part 'generation_params_notifier.g.dart';
 class GenerationParamsNotifier extends _$GenerationParamsNotifier {
   LocalStorageService get _storage => ref.read(localStorageServiceProvider);
 
-  /// Vibe 编码缓存 - 内存缓存，避免重复 API 调用
-  /// Key: 图片数据的 SHA256 哈希值
-  /// Value: 编码后的 vibe 字符串
-  final Map<String, String> _vibeEncodingCache = {};
-
-  /// 最近使用的 Vibes (最多 20 个)
-  List<VibeLibraryEntry> _recentVibes = [];
-
-  Timer? _generationStateSaveDebounceTimer;
-  Future<void>? _generationStateSaveInFlight;
-  bool _hasQueuedGenerationStateSave = false;
+  late final GenerationParamsPersistenceService _persistence;
+  VibeReferenceService? _vibeReferenceService;
+  VibeReferenceService get _vibeReferences =>
+      _vibeReferenceService ??= _createVibeReferenceService();
+  SubscriptionNotifier? _subscriptionNotifier;
   Future<void>? _generationStateRestoreInFlight;
-  bool _isRestoringGenerationState = false;
-  bool _hasRestoredGenerationState = false;
+  bool _hasAppliedGenerationStateRestore = false;
   bool _isDisposed = false;
 
   /// 获取最近使用的 Vibes (最多 5 个用于显示)
-  List<VibeLibraryEntry> get recentVibes => _recentVibes.take(5).toList();
+  List<VibeLibraryEntry> get recentVibes => _vibeReferences.recentVibes;
+
+  GenerationStateSnapshot get _generationStateSnapshot =>
+      GenerationStateSnapshot(
+        vibeReferences: state.vibeReferencesV4,
+        preciseReferences: state.preciseReferences,
+        normalizeVibeStrength: state.normalizeVibeStrength,
+      );
 
   void _scheduleGenerationStateSave({bool immediate = false}) {
-    if (_isRestoringGenerationState) {
-      return;
-    }
-
-    if (immediate) {
-      _generationStateSaveDebounceTimer?.cancel();
-      unawaited(saveGenerationState());
-      return;
-    }
-
-    _generationStateSaveDebounceTimer?.cancel();
-    _generationStateSaveDebounceTimer = Timer(
-      const Duration(milliseconds: 300),
-      () {
-        unawaited(saveGenerationState());
-      },
-    );
+    _persistence.scheduleSave(_generationStateSnapshot, immediate: immediate);
   }
 
   /// 加载最近使用的 Vibes
   Future<void> loadRecentVibes() async {
-    final span = VibePerformanceDiagnostics.start('generation.loadRecentVibes');
-    var entryCount = 0;
-    try {
-      final storageService = ref.read(vibeLibraryStorageServiceProvider);
-      final entries = await storageService.getRecentDisplayEntries(limit: 20);
-      entryCount = entries.length;
-      _recentVibes = entries;
-      // 通知监听器更新
-      state = state.copyWith();
-    } catch (e, stackTrace) {
-      AppLogger.e('Failed to load recent vibes', e, stackTrace);
-    } finally {
-      span.finish(details: {'entries': entryCount});
-    }
+    await _vibeReferences.loadRecent();
+    if (!_isDisposed) state = state.copyWith();
   }
 
   /// 记录 Vibe 使用并更新最近列表
   Future<void> _recordVibeUsage(VibeReference vibe) async {
-    final span = VibePerformanceDiagnostics.start(
-      'generation.recordVibeUsage',
-      details: {
-        'hasEncoding': vibe.vibeEncoding.isNotEmpty,
-        'hasThumbnail': vibe.thumbnail?.isNotEmpty == true,
-        'hasRawImage': vibe.rawImageData?.isNotEmpty == true,
+    await _vibeReferences.recordUsage(vibe);
+    if (!_isDisposed) state = state.copyWith();
+  }
+
+  VibeReferenceService _createVibeReferenceService({
+    VibeLibraryStorageService? libraryStorage,
+  }) {
+    return VibeReferenceService(
+      libraryStorage:
+          libraryStorage ?? ref.read(vibeLibraryStorageServiceProvider),
+      enhancementApi: ref.read(naiImageEnhancementApiServiceProvider),
+      requestEncodingAuthentication: () =>
+          !_isDisposed &&
+          requireAuthenticatedAction(ref, AuthPromptReason.vibeEncoding),
+      preparePostBillingRefresh: _captureBillingNotifier,
+      schedulePostBillingRefresh: () {
+        if (!_isDisposed) {
+          _subscriptionNotifier?.schedulePostBillingRefresh();
+        }
       },
     );
-    var matchedExisting = false;
-    var createdEntry = false;
-    try {
-      final storageService = ref.read(vibeLibraryStorageServiceProvider);
-      final existingEntry = await storageService.findMatchingEntry(vibe);
-
-      if (existingEntry != null) {
-        matchedExisting = true;
-        // 更新现有条目的使用时间
-        await storageService.incrementUsedCount(existingEntry.id);
-      } else if (vibe.vibeEncoding.isNotEmpty) {
-        // 只有预编码的 vibe 才创建新条目
-        final newEntry = VibeLibraryEntry.fromVibeReference(
-          name: vibe.displayName,
-          vibeData: vibe,
-        );
-        await storageService.saveEntry(newEntry);
-        await storageService.incrementUsedCount(newEntry.id);
-        createdEntry = true;
-      }
-
-      // 重新加载最近列表
-      await loadRecentVibes();
-    } catch (e, stackTrace) {
-      AppLogger.e('Failed to record vibe usage', e, stackTrace);
-    } finally {
-      span.finish(
-        details: {
-          'matchedExisting': matchedExisting,
-          'createdEntry': createdEntry,
-        },
-      );
-    }
   }
 
   @override
   ImageParams build() {
+    final referenceStorage = ref.read(vibeLibraryStorageServiceProvider);
+    _persistence = GenerationParamsPersistenceService(
+      localStorage: ref.read(localStorageServiceProvider),
+      referenceStorage: referenceStorage,
+    );
+    _vibeReferenceService = _createVibeReferenceService(
+      libraryStorage: referenceStorage,
+    );
     ref.onDispose(() {
       _isDisposed = true;
-      _generationStateSaveDebounceTimer?.cancel();
+      _persistence.dispose();
     });
 
-    // 从本地存储加载默认参数和上次使用的参数
-    final storage = ref.read(localStorageServiceProvider);
-    // 测试期持久化的 custom 键迁移到正式 ID。
-    final model = ImageModels.migrateLegacyModel(storage.getDefaultModel());
-    // 存档里可能留着上一个模型才成立的取值，恢复时按当前模型纠正一次。
-    final capabilities = ModelCapabilityRegistry.of(model);
-
-    final initialState = ImageParams(
-      prompt: storage.getLastPrompt(),
-      negativePrompt: storage.getLastNegativePrompt(),
-      model: model,
-      sampler: storage.getDefaultSampler(),
-      steps: storage.getDefaultSteps(),
-      scale: storage.getDefaultScale(),
-      width: storage.getDefaultWidth(),
-      height: storage.getDefaultHeight(),
-      smea: storage.getLastSmea(),
-      smeaDyn: storage.getLastSmeaDyn(),
-      cfgRescale: storage.getLastCfgRescale(),
-      noiseSchedule: NoiseSchedules.resolve(
-        storage.getLastNoiseSchedule(),
-        allowNative: capabilities.allowsNativeNoiseSchedule,
-      ),
-      varietyPlus:
-          capabilities.retainsVarietyPlus && storage.getLastVarietyPlus(),
-      straightAlpha: storage.getImageStraightAlpha(),
-      transparentBackground: storage.getLastTransparentBackground(),
-      qualityTier: storage.getQualityPresetNaiTier(),
-      e2eUpscale: storage.getLastE2eUpscale(),
-      // 从存储加载种子锁定状态
-      seed: storage.getSeedLocked() && storage.getLockedSeedValue() != null
-          ? storage.getLockedSeedValue()!
-          : -1,
-    );
+    final initialState = _persistence.buildDefaults();
     Future.microtask(restoreGenerationState);
     return initialState;
+  }
+
+  void _captureBillingNotifier() {
+    if (!_isDisposed && _subscriptionNotifier == null) {
+      _subscriptionNotifier = ref.read(subscriptionNotifierProvider.notifier);
+    }
   }
 
   // ==================== 种子锁定 ====================
@@ -209,19 +140,23 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
 
   /// 更新提示词
   void updatePrompt(String prompt) {
+    final storage = _storage;
     // 使用 Future.microtask 延迟更新，避免在 widget tree 构建期间修改 provider
     Future.microtask(() {
+      if (_isDisposed) return;
       state = state.copyWith(prompt: prompt);
-      _storage.setLastPrompt(prompt);
+      storage.setLastPrompt(prompt);
     });
   }
 
   /// 更新负向提示词
   void updateNegativePrompt(String negativePrompt) {
+    final storage = _storage;
     // 使用 Future.microtask 延迟更新，避免在 widget tree 构建期间修改 provider
     Future.microtask(() {
+      if (_isDisposed) return;
       state = state.copyWith(negativePrompt: negativePrompt);
-      _storage.setLastNegativePrompt(negativePrompt);
+      storage.setLastNegativePrompt(negativePrompt);
     });
   }
 
@@ -441,22 +376,13 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
 
     // 检查是否是原始图片且需要编码
     if (vibe.canReencodeFromRawSource && vibe.vibeEncoding.isEmpty) {
-      final cacheKey = _buildVibeEncodingCacheKey(
+      final cachedEncoding = _vibeReferences.getCached(
         vibe.rawImageData!,
         model: state.model,
         informationExtracted: vibe.infoExtracted,
       );
-
-      // 检查缓存
-      if (_vibeEncodingCache.containsKey(cacheKey)) {
-        // 缓存命中 - 使用缓存的编码
-        final cachedEncoding = _vibeEncodingCache[cacheKey]!;
-        AppLogger.i('Vibe 编码缓存命中: ${vibe.displayName}', 'VibeCache');
-
-        // 更新 vibe 使用缓存的编码
+      if (cachedEncoding != null) {
         vibeToAdd = vibe.withEncodedVibe(cachedEncoding, model: state.model);
-
-        // 显示缓存命中通知
         _showCacheHitNotification(vibe.displayName);
       }
     }
@@ -464,132 +390,28 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
     _applyVibeReferences([...state.vibeReferencesV4, vibeToAdd]);
   }
 
-  /// 原图字节 -> SHA256 的弱引用记忆表。
-  ///
-  /// 统一写入口会对整份 Vibe 列表 prime 缓存，逐条重算 SHA256 会随列表长度和
-  /// 图片体积线性放大。`copyWith` 不会复制字节，同一条 Vibe 的 rawImageData
-  /// 始终是同一个实例，因此可以按实例记忆；Expando 是弱引用，不会拖住原图。
-  final Expando<String> _imageHashes = Expando<String>('vibeImageHash');
-
-  /// 计算图片数据的 SHA256 哈希值（用于缓存键）
-  String _calculateImageHash(Uint8List imageData) {
-    final cached = _imageHashes[imageData];
-    if (cached != null) {
-      return cached;
-    }
-    final hash = base64Encode(sha256.convert(imageData).bytes);
-    _imageHashes[imageData] = hash;
-    return hash;
-  }
-
-  String _buildVibeEncodingCacheKey(
-    Uint8List imageData, {
-    required String model,
-    required double informationExtracted,
-  }) {
-    final imageHash = _calculateImageHash(imageData);
-    final sanitizedInfoExtracted = VibeReference.sanitizeInfoExtracted(
-      informationExtracted,
-    );
-    return '$imageHash|$model|$sanitizedInfoExtracted';
-  }
-
   String? getCachedVibeEncoding(
     Uint8List imageData, {
     String? model,
     required double informationExtracted,
-  }) {
-    final cacheKey = _buildVibeEncodingCacheKey(
-      imageData,
-      model: model ?? state.model,
-      informationExtracted: informationExtracted,
-    );
-    return _vibeEncodingCache[cacheKey];
-  }
+  }) => _vibeReferences.getCached(
+    imageData,
+    model: model ?? state.model,
+    informationExtracted: informationExtracted,
+  );
 
-  void _primeVibeEncodingCache(VibeReference vibe, {String? model}) {
-    final rawImageData = vibe.rawImageData;
-    if (rawImageData == null ||
-        rawImageData.isEmpty ||
-        vibe.vibeEncoding.isEmpty) {
-      return;
-    }
-
-    final cacheKey = _buildVibeEncodingCacheKey(
-      rawImageData,
-      model: model ?? vibe.encodingModel ?? state.model,
-      informationExtracted: vibe.infoExtracted,
-    );
-    _vibeEncodingCache.putIfAbsent(cacheKey, () => vibe.vibeEncoding);
-  }
-
-  /// 给"带编码但没记录编码模型"的 Vibe 补上当前模型。
-  ///
-  /// 只含 iTXt 编码的 PNG 等来源解析不出编码模型，`encodingModel` 会是 null。
-  /// [_primeVibeEncodingCache] 早就按"这份编码属于导入时选中的模型"建缓存键并
-  /// 复用它，但该假设只活在内存缓存里：估价用的
-  /// `VibeReference.needsEncodingForModel` 读的是 `encodingModel` 字段，于是
-  /// 报价显示要收编码费、实际请求却命中缓存不收，两边对不上。这里把同一个假设
-  /// 写回字段，让估价、请求构建和卡片状态读到同一个事实。
-  VibeReference _adoptEncodingModel(VibeReference vibe) {
-    if (!vibe.hasVibeEncoding ||
-        !vibe.canReencodeFromRawSource ||
-        vibe.encodingModel != null) {
-      return vibe;
-    }
-    return vibe.copyWith(encodingModel: state.model);
-  }
-
-  /// 把一份 Vibe 列表整理成可以进入 state 的形态。
-  ///
-  /// 面板里的每条 Vibe 都要满足两个不变量：编码缓存已 prime、编码模型已知。
-  /// 这两件事以前散在各个 public 方法里各自维护，库导入的替换路径就漏过一次，
-  /// 表现为报价说要收编码费、实际请求却命中缓存不收。
-  List<VibeReference> _normalizeVibeReferences(List<VibeReference> vibes) {
-    for (final vibe in vibes) {
-      _primeVibeEncodingCache(vibe);
-    }
-    return vibes.map(_adoptEncodingModel).toList(growable: false);
-  }
-
-  /// Vibe 列表的统一写入口：整理不变量、落 state、安排持久化。
-  ///
-  /// 新增改动 Vibe 列表的方法时走这里，不要直接 `state.copyWith`。
+  /// Vibe 列表的唯一写入口会建立缓存、补齐编码模型并执行 16 张上限。
   void _applyVibeReferences(
     List<VibeReference> vibes, {
     bool immediateSave = true,
   }) {
-    state = state.copyWith(vibeReferencesV4: _normalizeVibeReferences(vibes));
+    state = state.copyWith(
+      vibeReferencesV4: _vibeReferences.normalize(
+        vibes,
+        currentModel: state.model,
+      ),
+    );
     _scheduleGenerationStateSave(immediate: immediateSave);
-  }
-
-  bool _isSameVibeSource(VibeReference left, VibeReference right) {
-    if (left.vibeEncoding.isNotEmpty && right.vibeEncoding.isNotEmpty) {
-      return left.vibeEncoding == right.vibeEncoding;
-    }
-
-    if (left.rawImageData != null && right.rawImageData != null) {
-      return _calculateImageHash(left.rawImageData!) ==
-          _calculateImageHash(right.rawImageData!);
-    }
-
-    return left.displayName == right.displayName &&
-        left.bundleSource == right.bundleSource;
-  }
-
-  bool _isSameVibeList(List<VibeReference> left, List<VibeReference> right) {
-    if (identical(left, right)) {
-      return true;
-    }
-    if (left.length != right.length) {
-      return false;
-    }
-    for (var i = 0; i < left.length; i++) {
-      if (!_isSameVibeSource(left[i], right[i])) {
-        return false;
-      }
-    }
-    return true;
   }
 
   /// 显示缓存命中通知
@@ -612,157 +434,62 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
     double informationExtracted = 1.0,
     String? vibeName,
   }) async {
-    if (!ModelCapabilityRegistry.of(model).supportsEncodedVibeTransfer) {
-      AppLogger.w(
-        '当前模型使用原图 Vibe，不执行预编码: ${vibeName ?? 'unknown'}',
-        'VibeCache',
-      );
-      return null;
-    }
-
-    final cacheKey = _buildVibeEncodingCacheKey(
+    final result = await _vibeReferences.encode(
       imageData,
       model: model,
       informationExtracted: informationExtracted,
+      vibeName: vibeName,
     );
-
-    // 缓存命中只复用本地数据，不需要登录。
-    final cachedEncoding = _vibeEncodingCache[cacheKey];
-    if (cachedEncoding != null) {
-      AppLogger.i('Vibe 编码缓存命中: ${vibeName ?? 'unknown'}', 'VibeCache');
+    if (result.isCacheHit) {
       _showCacheHitNotification(vibeName ?? 'unknown');
-      return cachedEncoding;
     }
-
-    if (!requireAuthenticatedAction(ref, AuthPromptReason.vibeEncoding)) {
-      return null;
-    }
-
-    // 缓存未命中，调用 API
-    try {
-      final apiService = ref.read(naiImageEnhancementApiServiceProvider);
-      final encoding = await apiService.encodeVibe(
-        imageData,
-        model: model,
-        informationExtracted: informationExtracted,
-      );
-      ref
-          .read(subscriptionNotifierProvider.notifier)
-          .schedulePostBillingRefresh();
-
-      // 存入缓存
-      _vibeEncodingCache[cacheKey] = encoding;
-      AppLogger.i('Vibe 编码已缓存: ${vibeName ?? 'unknown'}', 'VibeCache');
-
-      return encoding;
-    } catch (e, stack) {
-      AppLogger.e('Vibe 编码失败: ${vibeName ?? 'unknown'}', e, stack, 'VibeCache');
-      return null;
-    }
+    return result.encoding;
   }
 
   bool hasCachedVibeEncoding(
     Uint8List imageData, {
     required String model,
     double informationExtracted = 1.0,
-  }) {
-    final cacheKey = _buildVibeEncodingCacheKey(
-      imageData,
-      model: model,
-      informationExtracted: informationExtracted,
-    );
-    return _vibeEncodingCache.containsKey(cacheKey);
-  }
+  }) => _vibeReferences.hasCached(
+    imageData,
+    model: model,
+    informationExtracted: informationExtracted,
+  );
 
   /// 将编码存入缓存（供外部调用）
-  ///
-  /// [imageData] 原始图片数据
-  /// [encoding] 编码后的 vibe 字符串
   void storeVibeEncodingInCache(
     Uint8List imageData,
     String encoding, {
     String? model,
     double informationExtracted = 0.7,
   }) {
-    final cacheKey = _buildVibeEncodingCacheKey(
+    _vibeReferences.storeCached(
       imageData,
+      encoding,
       model: model ?? state.model,
       informationExtracted: informationExtracted,
-    );
-    _vibeEncodingCache[cacheKey] = encoding;
-    AppLogger.d(
-      'Vibe 编码已手动存入缓存，当前缓存大小: ${_vibeEncodingCache.length}',
-      'VibeCache',
     );
   }
 
   /// 获取缓存大小
-  int get vibeEncodingCacheSize => _vibeEncodingCache.length;
+  int get vibeEncodingCacheSize => _vibeReferences.cacheSize;
 
   Future<List<VibeReference>> ensureVibeReferencesEncoded(
     List<VibeReference> vibes, {
     String? model,
     bool syncCurrentState = true,
   }) async {
-    if (vibes.isEmpty) {
-      return vibes;
-    }
-
-    final resolvedModel = model ?? state.model;
-    if (!ModelCapabilityRegistry.of(
-      resolvedModel,
-    ).supportsEncodedVibeTransfer) {
-      return vibes;
-    }
-    var changed = false;
-    final encodedVibes = <VibeReference>[];
-
-    for (final vibe in vibes) {
-      if (!vibe.enabled || !vibe.needsEncodingForModel(resolvedModel)) {
-        encodedVibes.add(vibe);
-        continue;
-      }
-
-      final rawImageData = vibe.rawImageData;
-      if (rawImageData == null) {
-        encodedVibes.add(vibe);
-        continue;
-      }
-
-      final cachedEncoding = getCachedVibeEncoding(
-        rawImageData,
-        model: resolvedModel,
-        informationExtracted: vibe.infoExtracted,
-      );
-      if (cachedEncoding != null && cachedEncoding.isNotEmpty) {
-        encodedVibes.add(
-          vibe.withEncodedVibe(cachedEncoding, model: resolvedModel),
-        );
-        changed = true;
-        continue;
-      }
-
-      final encoding = await encodeVibeWithCache(
-        rawImageData,
-        model: resolvedModel,
-        informationExtracted: vibe.infoExtracted,
-        vibeName: vibe.displayName,
-      );
-      if (encoding != null && encoding.isNotEmpty) {
-        encodedVibes.add(vibe.withEncodedVibe(encoding, model: resolvedModel));
-        changed = true;
-      } else {
-        encodedVibes.add(vibe);
-      }
-    }
-
-    if (changed &&
+    final encoded = await _vibeReferences.ensureEncoded(
+      vibes,
+      model: model ?? state.model,
+    );
+    if (_isDisposed) return encoded;
+    if (!identical(encoded, vibes) &&
         syncCurrentState &&
-        _isSameVibeList(state.vibeReferencesV4, vibes)) {
-      _applyVibeReferences(encodedVibes);
+        _vibeReferences.sameList(state.vibeReferencesV4, vibes)) {
+      _applyVibeReferences(encoded);
     }
-
-    return changed ? encodedVibes : vibes;
+    return encoded;
   }
 
   /// 为库内“显式保存参数”准备持久化后的 Vibe 数据。
@@ -776,170 +503,35 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
     required double strength,
     required double infoExtracted,
     String? model,
-  }) async {
-    final resolvedModel = model ?? state.model;
-    final nextStrength = VibeReference.sanitizeStrength(strength);
-    final nextInfoExtracted = VibeReference.sanitizeInfoExtracted(
-      infoExtracted,
+  }) {
+    return _vibeReferences.prepareForLibrarySave(
+      vibe,
+      model: model ?? state.model,
+      strength: strength,
+      informationExtracted: infoExtracted,
     );
-    final nextVibe = vibe.copyWith(
-      strength: nextStrength,
-      infoExtracted: nextInfoExtracted,
-    );
-    if (!ModelCapabilityRegistry.of(
-      resolvedModel,
-    ).supportsEncodedVibeTransfer) {
-      if (nextInfoExtracted != vibe.infoExtracted &&
-          nextVibe.canReencodeFromRawSource) {
-        return nextVibe.copyWith(vibeEncoding: '', encodingModel: null);
-      }
-      return nextVibe;
-    }
-
-    final shouldEncode =
-        nextVibe.needsEncodingForModel(resolvedModel) ||
-        (nextVibe.canReencodeFromRawSource &&
-            nextInfoExtracted != vibe.infoExtracted);
-    if (!shouldEncode) {
-      return nextVibe.normalizedForLibraryStorage();
-    }
-
-    final rawImageData = nextVibe.rawImageData;
-    if (rawImageData == null || rawImageData.isEmpty) {
-      return nextVibe;
-    }
-
-    final cachedEncoding = getCachedVibeEncoding(
-      rawImageData,
-      model: resolvedModel,
-      informationExtracted: nextInfoExtracted,
-    );
-    final encoding =
-        cachedEncoding ??
-        await encodeVibeWithCache(
-          rawImageData,
-          model: resolvedModel,
-          informationExtracted: nextInfoExtracted,
-          vibeName: nextVibe.displayName,
-        );
-    if (encoding == null || encoding.isEmpty) {
-      return null;
-    }
-
-    return nextVibe.withEncodedVibe(encoding, model: resolvedModel);
   }
 
   /// 清空编码缓存
   void clearVibeEncodingCache() {
-    _vibeEncodingCache.clear();
+    _vibeReferences.clearCache();
     AppLogger.i('Vibe 编码缓存已清空', 'VibeCache');
   }
 
   /// 批量添加 V4 Vibe 参考
   /// 如果 vibe 已存在，会移除旧的并添加新的（调整顺序）
   void addVibeReferences(List<VibeReference> vibes, {bool recordUsage = true}) {
-    final span = VibePerformanceDiagnostics.start(
-      'generation.addVibeReferences',
-      details: {
-        'inputVibes': vibes.length,
-        'recordUsage': recordUsage,
-        'existingVibes': state.vibeReferencesV4.length,
-      },
+    final merged = _vibeReferences.mergeReferences(
+      state.vibeReferencesV4,
+      vibes,
     );
-    var toAddCount = 0;
-    var toReorderCount = 0;
-    var addedCount = 0;
-    var finalCount = state.vibeReferencesV4.length;
-    try {
-      // 分批处理：先找出已存在的和新的
-      final toReorder = <VibeReference>[];
-      final toAdd = <VibeReference>[];
-
+    if (identical(merged, state.vibeReferencesV4)) return;
+    _applyVibeReferences(merged);
+    if (recordUsage) {
       for (final vibe in vibes) {
-        final existingIndex = _findVibeIndex(state.vibeReferencesV4, vibe);
-        if (existingIndex >= 0) {
-          toReorder.add(vibe);
-        } else {
-          toAdd.add(vibe);
-        }
-      }
-      toAddCount = toAdd.length;
-      toReorderCount = toReorder.length;
-
-      // 如果没有需要处理的，直接返回
-      if (toReorder.isEmpty && toAdd.isEmpty) return;
-
-      // 构建新列表：移除已存在的，添加所有新的（调整顺序）
-      var newVibes = [...state.vibeReferencesV4];
-
-      // 先移除需要调整顺序的
-      for (final vibe in toReorder) {
-        final index = _findVibeIndex(newVibes, vibe);
-        if (index >= 0) {
-          newVibes = [
-            ...newVibes.sublist(0, index),
-            ...newVibes.sublist(index + 1),
-          ];
-        }
-      }
-
-      // 添加所有新的（先添加 toAdd，再添加 toReorder 到末尾）
-      final availableSlots = 16 - newVibes.length;
-      final canAdd = toAdd.take(availableSlots).toList();
-      addedCount = canAdd.length + toReorder.length;
-      newVibes = [...newVibes, ...canAdd, ...toReorder];
-
-      // 限制最多 16 个（如果超过，保留后 16 个）
-      if (newVibes.length > 16) {
-        newVibes = newVibes.sublist(newVibes.length - 16);
-      }
-
-      // 更新状态
-      _applyVibeReferences(newVibes);
-      finalCount = newVibes.length;
-
-      if (recordUsage) {
-        // 记录使用
-        for (final vibe in [...canAdd, ...toReorder]) {
-          _recordVibeUsage(vibe);
-        }
-      }
-    } finally {
-      span.finish(
-        details: {
-          'toAdd': toAddCount,
-          'toReorder': toReorderCount,
-          'added': addedCount,
-          'finalVibes': finalCount,
-        },
-      );
-    }
-  }
-
-  /// 在列表中查找相同的 vibe 的索引
-  /// 返回索引，如果没有找到返回 -1
-  int _findVibeIndex(List<VibeReference> vibes, VibeReference target) {
-    for (var i = 0; i < vibes.length; i++) {
-      final vibe = vibes[i];
-      // 如果 vibeEncoding 不为空，比较编码
-      if (target.vibeEncoding.isNotEmpty && vibe.vibeEncoding.isNotEmpty) {
-        if (vibe.vibeEncoding == target.vibeEncoding) {
-          return i;
-        }
-      }
-      // 对于原始图片，比较图片哈希
-      else if (target.rawImageData != null && vibe.rawImageData != null) {
-        if (_calculateImageHash(vibe.rawImageData!) ==
-            _calculateImageHash(target.rawImageData!)) {
-          return i;
-        }
-      }
-      // 其他情况比较 displayName
-      else if (vibe.displayName == target.displayName) {
-        return i;
+        _recordVibeUsage(vibe);
       }
     }
-    return -1;
   }
 
   /// 移除 V4 Vibe 参考
@@ -960,46 +552,14 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
   }) {
     if (index < 0 || index >= state.vibeReferencesV4.length) return;
     final newList = [...state.vibeReferencesV4];
-    final current = newList[index];
-    final nextStrength = strength != null
-        ? VibeReference.sanitizeStrength(strength)
-        : current.strength;
-    final nextInfoExtracted = infoExtracted != null
-        ? VibeReference.sanitizeInfoExtracted(infoExtracted)
-        : current.infoExtracted;
-    final infoChanged = nextInfoExtracted != current.infoExtracted;
-    String nextEncoding;
-    String? nextEncodingModel = current.encodingModel;
-    if (vibeEncoding != null) {
-      nextEncoding = vibeEncoding;
-      nextEncodingModel = vibeEncoding.isEmpty ? null : state.model;
-    } else if (infoChanged && current.canReencodeFromRawSource) {
-      final supportsEncoding = ModelCapabilityRegistry.of(
-        state.model,
-      ).supportsEncodedVibeTransfer;
-      final rawImageData = current.rawImageData;
-      final cachedEncoding = !supportsEncoding || rawImageData == null
-          ? null
-          : getCachedVibeEncoding(
-              rawImageData,
-              informationExtracted: nextInfoExtracted,
-            );
-      nextEncoding = cachedEncoding ?? '';
-      nextEncodingModel = cachedEncoding == null ? null : state.model;
-    } else {
-      nextEncoding = current.vibeEncoding;
-    }
-    var nextVibe = current.copyWith(
-      strength: nextStrength,
-      infoExtracted: nextInfoExtracted,
-      vibeEncoding: nextEncoding,
-      encodingModel: nextEncodingModel,
-      enabled: enabled ?? current.enabled,
+    newList[index] = _vibeReferences.updateReference(
+      newList[index],
+      model: state.model,
+      strength: strength,
+      informationExtracted: infoExtracted,
+      vibeEncoding: vibeEncoding,
+      enabled: enabled,
     );
-    if (nextEncoding.isNotEmpty) {
-      nextVibe = nextVibe.normalizedForLibraryStorage();
-    }
-    newList[index] = nextVibe;
     _applyVibeReferences(newList, immediateSave: false);
   }
 
@@ -1035,51 +595,12 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
   ///
   /// [name] 库条目名称
   /// 返回创建的库条目 ID，失败返回 null
-  Future<String?> saveCurrentVibesToLibrary(String name) async {
-    if (state.vibeReferencesV4.isEmpty) return null;
-
-    try {
-      final storageService = ref.read(vibeLibraryStorageServiceProvider);
-
-      // 取第一个 vibe 作为代表（库条目对应单个 vibe）
-      // 如果要保存多个 vibes，为每个 vibe 创建单独的条目
-      final savedIds = <String>[];
-
-      for (final vibe in state.vibeReferencesV4) {
-        final preparedVibe = await prepareVibeForLibraryParamSave(
-          vibe,
-          strength: vibe.strength,
-          infoExtracted: vibe.infoExtracted,
-          model: state.model,
-        );
-        if (preparedVibe == null) {
-          return null;
-        }
-
-        final entry = VibeLibraryEntry.fromVibeReference(
-          name: state.vibeReferencesV4.length == 1
-              ? name
-              : '$name (${vibe.displayName})',
-          vibeData: preparedVibe.normalizedForLibraryStorage(),
-        );
-        await storageService.saveEntry(entry);
-        savedIds.add(entry.id);
-      }
-
-      AppLogger.i(
-        'Saved ${savedIds.length} vibes to library: $name',
-        'VibeLibrary',
-      );
-
-      // 重新加载最近使用的 vibes
-      await loadRecentVibes();
-
-      // 返回第一个条目的 ID
-      return savedIds.isNotEmpty ? savedIds.first : null;
-    } catch (e, stackTrace) {
-      AppLogger.e('Failed to save vibes to library', e, stackTrace);
-      return null;
-    }
+  Future<String?> saveCurrentVibesToLibrary(String name) {
+    return _vibeReferences.saveReferencesToLibrary(
+      state.vibeReferencesV4,
+      model: state.model,
+      name: name,
+    );
   }
 
   /// 从库中添加 Vibe
@@ -1087,38 +608,12 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
   /// [entryId] 库条目 ID
   /// 返回是否成功添加
   Future<bool> addVibeFromLibrary(String entryId) async {
-    try {
-      final storageService = ref.read(vibeLibraryStorageServiceProvider);
-      final entry = await storageService.getEntry(entryId);
-
-      if (entry == null) {
-        AppLogger.w('Vibe library entry not found: $entryId', 'VibeLibrary');
-        return false;
-      }
-
-      // 检查是否已达到最大数量限制
-      if (state.vibeReferencesV4.length >= 16) {
-        AppLogger.w('Maximum vibe references reached (16)', 'VibeLibrary');
-        return false;
-      }
-
-      // 转换为 VibeReference 并添加
-      final vibe = entry.toVibeReference();
-      addVibeReference(vibe);
-
-      // 记录使用
-      await storageService.incrementUsedCount(entryId);
-      await loadRecentVibes();
-
-      AppLogger.i(
-        'Added vibe from library: ${entry.displayName}',
-        'VibeLibrary',
-      );
-      return true;
-    } catch (e, stackTrace) {
-      AppLogger.e('Failed to add vibe from library', e, stackTrace);
-      return false;
-    }
+    if (state.vibeReferencesV4.length >= 16) return false;
+    final vibe = await _vibeReferences.useLibraryEntry(entryId);
+    if (vibe == null || _isDisposed) return false;
+    addVibeReference(vibe);
+    state = state.copyWith();
+    return true;
   }
 
   /// 使用库中的 Vibe 更新指定位置的 Vibe
@@ -1127,38 +622,16 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
   /// [entryId] 库条目 ID
   /// 返回是否成功更新
   Future<bool> updateVibeFromLibrary(int index, String entryId) async {
-    try {
-      if (index < 0 || index >= state.vibeReferencesV4.length) {
-        AppLogger.w('Invalid vibe index: $index', 'VibeLibrary');
-        return false;
-      }
-
-      final storageService = ref.read(vibeLibraryStorageServiceProvider);
-      final entry = await storageService.getEntry(entryId);
-
-      if (entry == null) {
-        AppLogger.w('Vibe library entry not found: $entryId', 'VibeLibrary');
-        return false;
-      }
-
-      // 更新指定位置的 vibe
-      final newList = [...state.vibeReferencesV4];
-      newList[index] = entry.toVibeReference();
-      _applyVibeReferences(newList);
-
-      // 记录使用
-      await storageService.incrementUsedCount(entryId);
-      await loadRecentVibes();
-
-      AppLogger.i(
-        'Updated vibe at index $index from library: ${entry.displayName}',
-        'VibeLibrary',
-      );
-      return true;
-    } catch (e, stackTrace) {
-      AppLogger.e('Failed to update vibe from library', e, stackTrace);
+    if (index < 0 || index >= state.vibeReferencesV4.length) return false;
+    final vibe = await _vibeReferences.useLibraryEntry(entryId);
+    if (vibe == null || _isDisposed || index >= state.vibeReferencesV4.length) {
       return false;
     }
+    final references = [...state.vibeReferencesV4];
+    references[index] = vibe;
+    _applyVibeReferences(references);
+    state = state.copyWith();
+    return true;
   }
 
   // ==================== Precise Reference 参数 (V4+ 模型) ====================
@@ -1206,29 +679,18 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
       fidelity: fidelity,
     );
 
-    final Uint8List normalizedImage;
-    try {
-      normalizedImage = await NAIApiUtils.ensurePngFormatAsync(image);
-    } catch (e, stackTrace) {
-      AppLogger.e(
-        'Failed to normalize precise reference image',
-        e,
-        stackTrace,
-        'GenerationParams',
-      );
-      return;
-    }
-    if (_isDisposed || index >= state.preciseReferences.length) {
+    final normalization = await _vibeReferences.normalizePrecisePng(image);
+    final normalizedImage = normalization.image;
+    if (normalizedImage == null ||
+        _isDisposed ||
+        index >= state.preciseReferences.length) {
       return;
     }
 
     final current = state.preciseReferences[index];
-    if (!identical(current.image, image)) {
-      return;
-    }
+    if (!identical(current.image, image)) return;
 
     final newList = [...state.preciseReferences];
-    NAIApiUtils.markNormalizedPreciseReferencePng(normalizedImage);
     newList[index] = current.copyWith(image: normalizedImage);
     state = state.copyWith(preciseReferences: newList);
     _scheduleGenerationStateSave(immediate: true);
@@ -1282,246 +744,41 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
 
   // ==================== 状态持久化 ====================
 
-  /// 保存当前 Vibe 和精准参考状态
-  Future<void> saveGenerationState() {
-    if (_isRestoringGenerationState || _isDisposed) {
-      return Future<void>.value();
-    }
+  /// 保存当前 Vibe 和精准参考状态。
+  Future<void> saveGenerationState() =>
+      _persistence.save(_generationStateSnapshot);
 
-    final activeSave = _generationStateSaveInFlight;
-    if (activeSave != null) {
-      _hasQueuedGenerationStateSave = true;
-      return VibePerformanceDiagnostics.measure(
-        'generation.awaitActiveStateSave',
-        () async => activeSave,
-        details: {
-          'vibes': state.vibeReferencesV4.length,
-          'preciseRefs': state.preciseReferences.length,
-        },
-      );
-    }
-
-    final saveOperation = _runGenerationStateSaveLoop().whenComplete(() {
-      _generationStateSaveInFlight = null;
-    });
-    _generationStateSaveInFlight = saveOperation;
-    return saveOperation;
-  }
-
-  Future<void> _runGenerationStateSaveLoop() async {
-    final span = VibePerformanceDiagnostics.start(
-      'generation.runStateSaveLoop',
-      details: {
-        'vibes': state.vibeReferencesV4.length,
-        'preciseRefs': state.preciseReferences.length,
-      },
-    );
-    var iterations = 0;
-    try {
-      do {
-        iterations++;
-        await Future<void>.delayed(Duration.zero);
-        _hasQueuedGenerationStateSave = false;
-        if (_isRestoringGenerationState || _isDisposed) {
-          return;
-        }
-
-        await _saveGenerationStateSnapshot();
-      } while (_hasQueuedGenerationStateSave);
-    } finally {
-      span.finish(
-        details: {
-          'iterations': iterations,
-          'queuedAgain': _hasQueuedGenerationStateSave,
-        },
-      );
-    }
-  }
-
-  Future<void> _saveGenerationStateSnapshot() async {
-    if (_isDisposed) {
-      return;
-    }
-
-    final span = VibePerformanceDiagnostics.start(
-      'generation.saveStateSnapshot',
-      details: {
-        'vibes': state.vibeReferencesV4.length,
-        'preciseRefs': state.preciseReferences.length,
-      },
-    );
-    var jsonChars = 0;
-    try {
-      final storageService = ref.read(vibeLibraryStorageServiceProvider);
-      final saveInput = _buildGenerationStateSaveInput(
-        vibeReferences: state.vibeReferencesV4,
-        preciseReferences: state.preciseReferences,
-        normalizeVibeStrength: state.normalizeVibeStrength,
-      );
-      final stateJson = await Isolate.run(
-        () => _encodeGenerationStateJson(saveInput),
-      );
-      jsonChars = stateJson.length;
-
-      await storageService.saveGenerationStateJson(stateJson);
-
-      AppLogger.d('Generation state saved', 'GenerationParams');
-    } catch (e, stackTrace) {
-      AppLogger.e('Failed to save generation state', e, stackTrace);
-    } finally {
-      span.finish(details: {'jsonChars': jsonChars});
-    }
-  }
-
-  /// 恢复保存的 Vibe 和精准参考状态。
-  ///
-  /// 所有调用者共享同一个恢复 Future，生成入口可以可靠等待恢复完成，避免
-  /// 首次启动时用空引用覆盖已经持久化的 Vibe 或精准参考。
+  /// 恢复调用共享 service 的 single-flight Future；迟到结果不会写入已销毁状态。
   Future<void> restoreGenerationState() {
-    if (_hasRestoredGenerationState) return Future<void>.value();
-    final inFlight = _generationStateRestoreInFlight;
-    if (inFlight != null) return inFlight;
+    if (_hasAppliedGenerationStateRestore) return Future<void>.value();
+    final active = _generationStateRestoreInFlight;
+    if (active != null) return active;
 
-    late final Future<void> restore;
-    restore = _restoreGenerationState().whenComplete(() {
-      if (identical(_generationStateRestoreInFlight, restore)) {
+    late final Future<void> operation;
+    operation = _restoreGenerationState().whenComplete(() {
+      if (identical(_generationStateRestoreInFlight, operation)) {
         _generationStateRestoreInFlight = null;
       }
     });
-    _generationStateRestoreInFlight = restore;
-    return restore;
+    _generationStateRestoreInFlight = operation;
+    return operation;
   }
 
   Future<void> _restoreGenerationState() async {
-    final span = VibePerformanceDiagnostics.start('generation.restoreState');
-    _isRestoringGenerationState = true;
-    var shouldRewriteGenerationState = false;
-    var jsonChars = 0;
-    var restoredVibeCount = 0;
-    var restoredPreciseRefCount = 0;
+    final restored = await _persistence.restore();
+    if (_isDisposed) return;
+    _hasAppliedGenerationStateRestore = restored.isTerminal;
+    if (!restored.shouldApply) return;
 
-    try {
-      final storageService = ref.read(vibeLibraryStorageServiceProvider);
-      final stateJson = await storageService.loadGenerationStateJson();
-
-      if (stateJson == null || stateJson.isEmpty) {
-        _hasRestoredGenerationState = true;
-        AppLogger.d('No saved generation state found', 'GenerationParams');
-        return;
-      }
-      jsonChars = stateJson.length;
-
-      final stateData = await Isolate.run(
-        () => _decodeGenerationStateJson(stateJson),
-      );
-
-      final restoredVibes = <VibeReference>[];
-      final vibeRefsData = stateData['vibeReferences'] as List? ?? const [];
-      for (var i = 0; i < vibeRefsData.length; i++) {
-        final raw = vibeRefsData[i];
-        if (raw is! Map) {
-          continue;
-        }
-
-        final refData = Map<String, dynamic>.from(raw);
-        final sourceTypeName = refData['sourceType'] as String?;
-        final sourceType = VibeSourceType.values.firstWhere(
-          (item) => item.name == sourceTypeName,
-          orElse: () => VibeSourceType.rawImage,
-        );
-        final thumbnailBytes = refData['thumbnail'] as Uint8List?;
-        final rawImageBytes = refData['rawImageData'] as Uint8List?;
-
-        restoredVibes.add(
-          VibeReference(
-            displayName: refData['displayName'] as String? ?? 'Vibe ${i + 1}',
-            vibeEncoding: refData['vibeEncoding'] as String? ?? '',
-            thumbnail: thumbnailBytes ?? rawImageBytes,
-            rawImageData: rawImageBytes,
-            strength: (refData['strength'] as num?)?.toDouble() ?? 0.6,
-            infoExtracted:
-                (refData['infoExtracted'] as num?)?.toDouble() ?? 0.7,
-            encodingModel: refData['encodingModel'] as String?,
-            sourceType: sourceType,
-            enabled: refData['enabled'] as bool? ?? true,
-            bundleSource: refData['bundleSource'] as String?,
-          ),
-        );
-      }
-
-      final preciseRefs = <PreciseReference>[];
-      final preciseRefsData =
-          stateData['preciseReferences'] as List? ?? const [];
-      for (final raw in preciseRefsData) {
-        if (raw is! Map) {
-          continue;
-        }
-
-        final refData = Map<String, dynamic>.from(raw);
-        final imageBytes = refData['image'] as Uint8List?;
-        if (imageBytes == null || imageBytes.isEmpty) {
-          continue;
-        }
-
-        final typeStr =
-            refData['type'] as String? ??
-            PreciseRefType.character.toApiString();
-        final type = PreciseRefType.values.firstWhere(
-          (item) => item.toApiString() == typeStr,
-          orElse: () => PreciseRefType.character,
-        );
-
-        final isNormalizedPng = refData['isNormalizedPng'] as bool? ?? false;
-        final referenceImage = isNormalizedPng
-            ? NAIApiUtils.markNormalizedPreciseReferencePng(imageBytes)
-            : imageBytes;
-
-        preciseRefs.add(
-          PreciseReference(
-            image: referenceImage,
-            type: type,
-            strength: (refData['strength'] as num?)?.toDouble() ?? 1.0,
-            fidelity: (refData['fidelity'] as num?)?.toDouble() ?? 1.0,
-            enabled: refData['enabled'] as bool? ?? true,
-          ),
-        );
-      }
-
-      final normalizedVibes = _normalizeVibeReferences(restoredVibes);
-
-      // 更新状态
-      state = state.copyWith(
-        vibeReferencesV4: normalizedVibes,
-        preciseReferences: preciseRefs,
-        normalizeVibeStrength:
-            stateData['normalizeVibeStrength'] as bool? ?? true,
-      );
-      restoredVibeCount = restoredVibes.length;
-      restoredPreciseRefCount = preciseRefs.length;
-
-      _hasRestoredGenerationState = true;
-      shouldRewriteGenerationState = true;
-
-      AppLogger.d(
-        'Generation state restored: ${restoredVibes.length} vibes, ${preciseRefs.length} precise refs',
-        'GenerationParams',
-      );
-    } catch (e, stackTrace) {
-      AppLogger.e('Failed to restore generation state', e, stackTrace);
-    } finally {
-      _isRestoringGenerationState = false;
-      if (shouldRewriteGenerationState && !_isDisposed) {
-        unawaited(saveGenerationState());
-      }
-      span.finish(
-        details: {
-          'jsonChars': jsonChars,
-          'restoredVibes': restoredVibeCount,
-          'restoredPreciseRefs': restoredPreciseRefCount,
-          'rewriteQueued': shouldRewriteGenerationState,
-        },
-      );
-    }
+    state = state.copyWith(
+      vibeReferencesV4: _vibeReferences.normalize(
+        restored.vibeReferences,
+        currentModel: state.model,
+      ),
+      preciseReferences: restored.preciseReferences,
+      normalizeVibeStrength: restored.normalizeVibeStrength,
+    );
+    if (restored.shouldRewrite) unawaited(saveGenerationState());
   }
 
   // ==================== 多角色参数 (V4 模型) ====================
@@ -1653,31 +910,15 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
 
   /// 加载面板展开状态
   Future<void> loadPanelStates() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final advancedExpanded = prefs.getBool(
-        'generation_advanced_options_expanded',
-      );
-      if (advancedExpanded != null) {
-        state = state.copyWith(advancedOptionsExpanded: advancedExpanded);
-      }
-    } catch (e) {
-      AppLogger.e('Failed to load panel states', e);
+    final expanded = await _persistence.loadAdvancedOptionsExpanded();
+    if (expanded != null && !_isDisposed) {
+      state = state.copyWith(advancedOptionsExpanded: expanded);
     }
   }
 
   /// 保存面板展开状态
-  Future<void> savePanelStates() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool(
-        'generation_advanced_options_expanded',
-        state.advancedOptionsExpanded,
-      );
-    } catch (e) {
-      AppLogger.e('Failed to save panel states', e);
-    }
-  }
+  Future<void> savePanelStates() =>
+      _persistence.saveAdvancedOptionsExpanded(state.advancedOptionsExpanded);
 
   /// 切换高级选项面板展开状态
   Future<void> toggleAdvancedOptionsExpanded() async {
@@ -1691,215 +932,4 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
     state = state.copyWith(advancedOptionsExpanded: expanded);
     await savePanelStates();
   }
-}
-
-Map<String, Object?> _buildGenerationStateSaveInput({
-  required List<VibeReference> vibeReferences,
-  required List<PreciseReference> preciseReferences,
-  required bool normalizeVibeStrength,
-}) {
-  return {
-    'vibeReferences': vibeReferences
-        .map((vibe) {
-          return <String, Object?>{
-            'displayName': vibe.displayName,
-            'vibeEncoding': vibe.vibeEncoding,
-            'strength': vibe.strength,
-            'infoExtracted': vibe.infoExtracted,
-            'encodingModel': vibe.encodingModel,
-            'sourceType': vibe.sourceType.name,
-            'enabled': vibe.enabled,
-            'bundleSource': vibe.bundleSource,
-            'thumbnail': vibe.thumbnail,
-            'rawImageData': vibe.rawImageData,
-          };
-        })
-        .toList(growable: false),
-    'preciseReferences': preciseReferences
-        .map((reference) {
-          return <String, Object?>{
-            'type': reference.type.toApiString(),
-            'strength': reference.strength,
-            'fidelity': reference.fidelity,
-            'enabled': reference.enabled,
-            'image': reference.image,
-            'isNormalizedPng': NAIApiUtils.isKnownNormalizedPreciseReferencePng(
-              reference.image,
-            ),
-          };
-        })
-        .toList(growable: false),
-    'normalizeVibeStrength': normalizeVibeStrength,
-    'savedAt': DateTime.now().toIso8601String(),
-  };
-}
-
-String _encodeGenerationStateJson(Map<String, Object?> input) {
-  final rawVibes = input['vibeReferences'] as List? ?? const [];
-  final vibeReferences = rawVibes
-      .whereType<Map>()
-      .map((raw) {
-        final thumbnail = raw['thumbnail'] as Uint8List?;
-        final rawImageData = raw['rawImageData'] as Uint8List?;
-        final previewBytes = thumbnail ?? rawImageData;
-        final previewDuplicatesRaw =
-            previewBytes != null &&
-            rawImageData != null &&
-            _bytesEqualForGenerationState(previewBytes, rawImageData);
-
-        return <String, Object?>{
-          'displayName': raw['displayName'],
-          'vibeEncoding': raw['vibeEncoding'],
-          'strength': raw['strength'],
-          'infoExtracted': raw['infoExtracted'],
-          'encodingModel': raw['encodingModel'],
-          'sourceType': raw['sourceType'],
-          'enabled': raw['enabled'] as bool? ?? true,
-          'bundleSource': raw['bundleSource'],
-          'thumbnailBase64': previewBytes != null && !previewDuplicatesRaw
-              ? base64Encode(previewBytes)
-              : null,
-          'rawImageDataBase64': rawImageData != null
-              ? base64Encode(rawImageData)
-              : null,
-        };
-      })
-      .toList(growable: false);
-
-  final rawPreciseRefs = input['preciseReferences'] as List? ?? const [];
-  final preciseReferences = rawPreciseRefs
-      .whereType<Map>()
-      .map((raw) {
-        final image = raw['image'] as Uint8List?;
-        return <String, Object?>{
-          'type': raw['type'],
-          'strength': raw['strength'],
-          'fidelity': raw['fidelity'],
-          'enabled': raw['enabled'] as bool? ?? true,
-          'imageBase64': image != null ? base64Encode(image) : null,
-          'isNormalizedPng': raw['isNormalizedPng'] as bool? ?? false,
-        };
-      })
-      .toList(growable: false);
-
-  return jsonEncode({
-    'vibeReferences': vibeReferences,
-    'preciseReferences': preciseReferences,
-    'normalizeVibeStrength': input['normalizeVibeStrength'] as bool? ?? true,
-    'savedAt': input['savedAt'],
-  });
-}
-
-Map<String, Object?> _decodeGenerationStateJson(String jsonString) {
-  final rawStateData = jsonDecode(jsonString) as Map<String, dynamic>;
-
-  final restoredVibes = <Map<String, Object?>>[];
-  final vibeRefsData = rawStateData['vibeReferences'] as List?;
-  if (vibeRefsData != null) {
-    for (var i = 0; i < vibeRefsData.length; i++) {
-      final raw = vibeRefsData[i];
-      if (raw is! Map) {
-        continue;
-      }
-
-      final refData = Map<String, dynamic>.from(raw);
-      final thumbnailBytes = _decodeGenerationStateBase64(
-        refData['thumbnailBase64'] as String?,
-      );
-      final rawImageBytes = _decodeGenerationStateBase64(
-        refData['rawImageDataBase64'] as String?,
-      );
-
-      restoredVibes.add(<String, Object?>{
-        'displayName': refData['displayName'] as String? ?? 'Vibe ${i + 1}',
-        'vibeEncoding': refData['vibeEncoding'] as String? ?? '',
-        'thumbnail': thumbnailBytes ?? rawImageBytes,
-        'rawImageData': rawImageBytes,
-        'strength': (refData['strength'] as num?)?.toDouble() ?? 0.6,
-        'infoExtracted': (refData['infoExtracted'] as num?)?.toDouble() ?? 0.7,
-        'encodingModel': refData['encodingModel'] as String?,
-        'sourceType': refData['sourceType'] as String?,
-        'enabled': refData['enabled'] as bool? ?? true,
-        'bundleSource': refData['bundleSource'] as String?,
-      });
-    }
-  } else {
-    final legacyVibeEncodings =
-        (rawStateData['vibeEntryIds'] as List?)?.whereType<String>().toList() ??
-        const <String>[];
-
-    for (var i = 0; i < legacyVibeEncodings.length; i++) {
-      final encoding = legacyVibeEncodings[i];
-      if (encoding.isEmpty) {
-        continue;
-      }
-
-      restoredVibes.add(<String, Object?>{
-        'displayName': 'Vibe ${i + 1}',
-        'vibeEncoding': encoding,
-        'sourceType': VibeSourceType.naiv4vibe.name,
-        'enabled': true,
-      });
-    }
-  }
-
-  final restoredPreciseRefs = <Map<String, Object?>>[];
-  final preciseRefsData = rawStateData['preciseReferences'] as List?;
-  if (preciseRefsData != null) {
-    for (final raw in preciseRefsData) {
-      if (raw is! Map) {
-        continue;
-      }
-
-      final refData = Map<String, dynamic>.from(raw);
-      final imageBytes = _decodeGenerationStateBase64(
-        refData['imageBase64'] as String?,
-      );
-      if (imageBytes == null || imageBytes.isEmpty) {
-        continue;
-      }
-
-      restoredPreciseRefs.add(<String, Object?>{
-        'type':
-            refData['type'] as String? ??
-            PreciseRefType.character.toApiString(),
-        'strength': (refData['strength'] as num?)?.toDouble() ?? 1.0,
-        'fidelity': (refData['fidelity'] as num?)?.toDouble() ?? 1.0,
-        'enabled': refData['enabled'] as bool? ?? true,
-        'image': (refData['isNormalizedPng'] as bool? ?? false)
-            ? NAIApiUtils.markNormalizedPreciseReferencePng(imageBytes)
-            : imageBytes,
-        'isNormalizedPng': refData['isNormalizedPng'] as bool? ?? false,
-      });
-    }
-  }
-
-  return {
-    'vibeReferences': restoredVibes,
-    'preciseReferences': restoredPreciseRefs,
-    'normalizeVibeStrength':
-        rawStateData['normalizeVibeStrength'] as bool? ?? true,
-  };
-}
-
-Uint8List? _decodeGenerationStateBase64(String? value) {
-  if (value == null || value.isEmpty) {
-    return null;
-  }
-
-  try {
-    return base64Decode(value);
-  } catch (_) {
-    return null;
-  }
-}
-
-bool _bytesEqualForGenerationState(Uint8List left, Uint8List right) {
-  if (identical(left, right)) return true;
-  if (left.length != right.length) return false;
-
-  for (var i = 0; i < left.length; i++) {
-    if (left[i] != right[i]) return false;
-  }
-  return true;
 }

@@ -1,70 +1,27 @@
 import 'dart:async';
-import 'dart:io';
 
-import 'package:file_picker/file_picker.dart';
-import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:nai_launcher/core/utils/localization_extension.dart';
-import 'package:path/path.dart' as path;
-import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../../core/constants/storage_keys.dart';
 import '../../../core/platform/platform_capabilities.dart';
-import '../../../core/services/file_export_service.dart';
 import '../../../core/shortcuts/default_shortcuts.dart';
-import '../../../core/utils/app_logger.dart';
-import '../../../core/utils/file_explorer_utils.dart';
-import '../../../data/models/gallery/nai_image_metadata.dart';
-import '../../../core/utils/permission_utils.dart';
-import '../../../core/utils/zip_utils.dart';
-import '../../../data/models/gallery/gallery_category.dart';
-import '../../../data/models/gallery/local_image_record.dart';
-import '../../widgets/metadata/metadata_import_dialog.dart';
-import '../../../data/repositories/gallery_folder_repository.dart';
+import '../../../core/utils/localization_extension.dart';
 import '../../providers/bulk_operation_provider.dart';
-import '../../providers/collection_provider.dart';
 import '../../providers/gallery_category_provider.dart';
-import '../../providers/gallery_folder_provider.dart';
-import '../../providers/image_generation_provider.dart';
-import '../../providers/fixed_tags_provider.dart';
-import '../../providers/krita/krita_bridge_notifier.dart';
 import '../../providers/local_gallery_provider.dart';
-import '../../providers/gallery_scan_progress_provider.dart';
-import '../../providers/reverse_prompt_provider.dart';
-import '../../router/app_router.dart';
-import '../../services/image_workflow_launcher.dart';
-import '../../utils/asset_protection_guard.dart';
-import '../../utils/fixed_tag_metadata_matcher.dart';
-import '../../utils/krita_send_helper.dart';
-import '../../utils/local_gallery_reference_factory.dart';
-import '../../utils/local_gallery_metadata_resolver.dart';
-import '../../utils/metadata_import_coordinator.dart';
 import '../../providers/selection_mode_provider.dart';
-import '../../adaptive/adaptive_presenter.dart';
-import '../../widgets/bulk_metadata_edit_dialog.dart';
-import '../../widgets/collection_select_dialog.dart';
 import '../../widgets/common/app_toast.dart';
-import '../../widgets/common/image_detail/components/prompt_copy_dialog.dart';
 import '../../widgets/common/pagination_bar.dart';
-import '../../utils/precise_ref_library_import_helper.dart';
-import '../../widgets/common/precise_reference_type_dialog.dart';
-import '../../widgets/common/themed_confirm_dialog.dart';
-import '../../widgets/common/themed_input_dialog.dart';
-import '../../widgets/discord_share/discord_share_dialog.dart';
-import '../../widgets/gallery/gallery_category_tree_view.dart';
 import '../../widgets/gallery/gallery_content_view.dart';
 import '../../widgets/gallery/gallery_state_views.dart';
-import '../../widgets/gallery/local_image_context_menu.dart';
 import '../../widgets/gallery/local_gallery_toolbar.dart';
-import '../../widgets/gallery/zip_export_metadata_dialog.dart';
-import '../../widgets/gallery_filter_panel.dart';
-import '../../widgets/grouped_grid_view.dart'
-    show GroupedGridViewState, ImageDateGroup;
+import '../../widgets/grouped_grid_view.dart' show GroupedGridViewState;
 import '../../widgets/shortcuts/shortcut_aware_widget.dart';
+import 'local_gallery_action_coordinator.dart';
+import 'local_gallery_screen_controller.dart';
+import 'local_gallery_view_model.dart';
 
-/// 本地画廊屏幕
+/// Stable shell for the local gallery route.
 class LocalGalleryScreen extends ConsumerStatefulWidget {
   const LocalGalleryScreen({super.key});
 
@@ -75,113 +32,36 @@ class LocalGalleryScreen extends ConsumerStatefulWidget {
 class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
   final GlobalKey<GroupedGridViewState> _groupedGridViewKey =
       GlobalKey<GroupedGridViewState>();
-  final FocusNode _shortcutsFocusNode = FocusNode();
-
-  final bool _use3DCardView = true;
-  bool _showCategoryPanel = true;
-  bool _isPackingImages = false;
-  AppLifecycleListener? _lifecycleListener;
-
-  // 防抖计时器，防止频繁触发刷新
-  Timer? _refreshDebounceTimer;
-
-  // 上次刷新时间，用于限制刷新频率
-  DateTime? _lastRefreshTime;
-
-  // 最小刷新间隔（毫秒）
-  static const int _minRefreshIntervalMs = 5000; // 5秒
-
-  late final Map<String, VoidCallback> _shortcuts = {
-    ShortcutIds.previousPage: _goToPreviousPage,
-    ShortcutIds.nextPage: _goToNextPage,
-    ShortcutIds.refreshGallery: _refreshGallery,
-    ShortcutIds.focusSearch: _focusSearch,
-    ShortcutIds.enterSelectionMode: _enterSelectionMode,
-    ShortcutIds.openFilterPanel: () => showGalleryFilterPanel(context),
-    ShortcutIds.clearFilter: _clearFilters,
-    ShortcutIds.toggleCategoryPanel: _toggleCategoryPanel,
-    ShortcutIds.jumpToDate: _jumpToDate,
-    if (PlatformCapabilities.current.supportsOpenFolder)
-      ShortcutIds.openFolder: _openGalleryFolder,
-  };
+  late final LocalGalleryActionCoordinator _actions;
+  late final LocalGalleryScreenController _controller;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await _checkPermissionsAndScan();
-      await _showFirstTimeTip();
-      await _autoRefresh();
-    });
-
-    _lifecycleListener = AppLifecycleListener(
-      onResume: () {
-        Future.delayed(const Duration(milliseconds: 500), () {
-          if (mounted) {
-            _autoRefresh().catchError((e, stack) {
-              AppLogger.e(
-                'Auto refresh on resume failed',
-                e,
-                stack,
-                'LocalGalleryScreen',
-              );
-            });
-          }
-        });
-      },
+    _actions = LocalGalleryActionCoordinator(
+      ref: ref,
+      context: () => context,
+      mounted: () => mounted,
     );
+    _controller = LocalGalleryScreenController(
+      ref: ref,
+      context: () => context,
+      mounted: () => mounted,
+      groupedGridViewKey: _groupedGridViewKey,
+      actions: _actions,
+    )..start();
   }
 
   @override
   void dispose() {
-    _refreshDebounceTimer?.cancel();
-    _lifecycleListener?.dispose();
-    _shortcutsFocusNode.dispose();
+    _controller.dispose();
     super.dispose();
-  }
-
-  void _goToPreviousPage() {
-    final state = ref.read(localGalleryNotifierProvider);
-    if (state.currentPage > 0) {
-      ref
-          .read(localGalleryNotifierProvider.notifier)
-          .loadPage(state.currentPage - 1);
-    }
-  }
-
-  void _goToNextPage() {
-    final state = ref.read(localGalleryNotifierProvider);
-    if (state.currentPage < state.totalPages - 1) {
-      ref
-          .read(localGalleryNotifierProvider.notifier)
-          .loadPage(state.currentPage + 1);
-    }
-  }
-
-  void _refreshGallery() {
-    ref.read(localGalleryNotifierProvider.notifier).refresh();
-  }
-
-  void _focusSearch() {
-    final focusNode = FocusManager.instance.primaryFocus;
-    focusNode?.unfocus();
-    Future.delayed(const Duration(milliseconds: 50), () {
-      FocusManager.instance.primaryFocus?.requestFocus();
-    });
-  }
-
-  void _enterSelectionMode() {
-    ref.read(localGallerySelectionNotifierProvider.notifier).enter();
-  }
-
-  void _clearFilters() {
-    ref.read(localGalleryNotifierProvider.notifier).clearAllFilters();
   }
 
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(localGalleryNotifierProvider);
-    final bulkOpState = ref.watch(bulkOperationNotifierProvider);
+    final galleryState = ref.watch(localGalleryNotifierProvider);
+    final bulkOperation = ref.watch(bulkOperationNotifierProvider);
     final categoryState = ref.watch(galleryCategoryNotifierProvider);
     final isSelectionMode = ref.watch(
       localGallerySelectionNotifierProvider.select((value) => value.isActive),
@@ -194,208 +74,97 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
       AppToast.error(context, error.localized(context.l10n));
       ref.read(galleryCategoryNotifierProvider.notifier).clearError();
     });
-    final theme = Theme.of(context);
 
-    return PopScope<void>(
-      canPop: !isSelectionMode,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop && isSelectionMode) {
-          ref.read(localGallerySelectionNotifierProvider.notifier).exit();
-        }
-      },
-      child: PageShortcuts(
-        contextType: ShortcutContext.gallery,
-        shortcuts: _shortcuts,
-        child: KeyboardListener(
-          focusNode: _shortcutsFocusNode,
-          autofocus: true,
-          onKeyEvent: (event) => _handleKeyEvent(event, bulkOpState),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final usePersistentCategories = constraints.maxWidth >= 1000;
-              final showPersistentCategories =
-                  _showCategoryPanel && usePersistentCategories;
-              final contentWidth =
-                  constraints.maxWidth - (showPersistentCategories ? 250 : 0);
-              const horizontalPadding = 24.0;
-              const spacing = 12.0;
-              final availableGridWidth = (contentWidth - horizontalPadding)
-                  .clamp(0.0, double.infinity);
-              final columns = ((availableGridWidth + spacing) / (160 + spacing))
-                  .floor()
-                  .clamp(1, 8);
-              final itemWidth =
-                  (availableGridWidth - spacing * (columns - 1)) / columns;
-
-              return Scaffold(
-                body: Row(
-                  children: [
-                    if (showPersistentCategories)
-                      _buildCategoryPanel(theme, state, categoryState),
-                    Expanded(
-                      child: Column(
-                        children: [
-                          _buildToolbarOrSelectionBar(
-                            state,
-                            bulkOpState,
-                            showCategoryPanel: showPersistentCategories,
-                            onToggleCategoryPanel: usePersistentCategories
-                                ? _toggleCategoryPanel
-                                : _showCategoryPanelSheet,
-                          ),
-                          Expanded(
-                            child: _buildBody(state, columns, itemWidth),
-                          ),
-                          if (!state.isIndexing &&
-                              state.filteredFiles.isNotEmpty &&
-                              state.totalPages > 0)
-                            PaginationBar(
-                              currentPage: state.currentPage,
-                              totalPages: state.totalPages,
-                              totalItems: state.filteredCount,
-                              itemsPerPage: state.pageSize,
-                              onPageChanged: (p) => ref
-                                  .read(localGalleryNotifierProvider.notifier)
-                                  .loadPage(p),
-                              onItemsPerPageChanged: (size) => ref
-                                  .read(localGalleryNotifierProvider.notifier)
-                                  .setPageSize(size),
-                              showItemsPerPage: true,
-                              showTotalInfo: true,
-                              compact: contentWidth < 680,
-                            ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _showCategoryPanelSheet() {
-    return AdaptivePresenter.showPanel<void>(
-      context: context,
-      title: context.l10n.localGallery_categoryPanelTitle,
-      initialChildSize: 0.82,
-      minChildSize: 0.45,
-      maxChildSize: 0.96,
-      builder: (sheetContext, scrollController) => Consumer(
-        builder: (context, sheetRef, _) => _buildCategoryPanel(
-          Theme.of(context),
-          sheetRef.watch(localGalleryNotifierProvider),
-          sheetRef.watch(galleryCategoryNotifierProvider),
-          modal: true,
-          afterSelection: () => Navigator.of(sheetContext).maybePop(),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCategoryPanel(
-    ThemeData theme,
-    LocalGalleryState state,
-    GalleryCategoryState categoryState, {
-    bool modal = false,
-    VoidCallback? afterSelection,
-  }) {
-    return Container(
-      width: modal ? double.infinity : 250,
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLow,
-        border: modal
-            ? null
-            : Border(
-                right: BorderSide(
-                  color: theme.colorScheme.outlineVariant.withValues(
-                    alpha: 0.3,
-                  ),
-                  width: 1,
-                ),
-              ),
-      ),
-      child: Column(
-        children: [
-          _buildCategoryPanelHeader(theme, modal: modal),
-          Divider(
-            height: 1,
-            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
-          ),
-          Expanded(
-            child: FutureBuilder<int>(
-              future: ref
-                  .read(localGalleryNotifierProvider.notifier)
-                  .getTotalFavoriteCount(),
-              builder: (context, snapshot) {
-                return GalleryCategoryTreeView(
-                  categories: categoryState.categories,
-                  totalImageCount: state.totalCount,
-                  favoriteCount: snapshot.data ?? 0,
-                  selectedCategoryId: categoryState.selectedCategoryId,
-                  onCategorySelected: (id) {
-                    _handleCategorySelected(id);
-                    afterSelection?.call();
-                  },
-                  onCategoryRename: (id, newName) => ref
-                      .read(galleryCategoryNotifierProvider.notifier)
-                      .renameCategory(id, newName),
-                  onCategoryDelete: _handleCategoryDelete,
-                  onAddSubCategory: _handleAddSubCategory,
-                  onCategoryMove: (categoryId, newParentId) => ref
-                      .read(galleryCategoryNotifierProvider.notifier)
-                      .moveCategory(categoryId, newParentId),
-                  onCategoryReorder: (parentId, oldIndex, newIndex) => ref
-                      .read(galleryCategoryNotifierProvider.notifier)
-                      .reorderCategories(parentId, oldIndex, newIndex),
-                  onImageDrop: _handleImageDrop,
-                  onSyncWithFileSystem: _handleSyncWithFileSystem,
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) => PopScope<void>(
+        canPop: !isSelectionMode,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop && isSelectionMode) {
+            ref.read(localGallerySelectionNotifierProvider.notifier).exit();
+          }
+        },
+        child: PageShortcuts(
+          contextType: ShortcutContext.gallery,
+          shortcuts: _controller.shortcuts,
+          child: KeyboardListener(
+            focusNode: _controller.shortcutsFocusNode,
+            autofocus: true,
+            onKeyEvent: _controller.handleKeyEvent,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final viewModel = LocalGalleryViewModel.fromStates(
+                  gallery: galleryState,
+                  bulkOperation: bulkOperation,
+                  categories: categoryState,
+                  isSelectionMode: isSelectionMode,
+                  categoryPanelRequested: _controller.showCategoryPanel,
+                  isPackingImages: _controller.isPackingImages,
+                  maxWidth: constraints.maxWidth,
+                );
+                return _LocalGalleryShell(
+                  viewModel: viewModel,
+                  controller: _controller,
+                  actions: _actions,
+                  groupedGridViewKey: _groupedGridViewKey,
                 );
               },
             ),
           ),
-        ],
+        ),
       ),
     );
   }
+}
 
-  Widget _buildCategoryPanelHeader(ThemeData theme, {bool modal = false}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      constraints: const BoxConstraints(minHeight: 62),
-      child: Row(
+class _LocalGalleryShell extends ConsumerWidget {
+  const _LocalGalleryShell({
+    required this.viewModel,
+    required this.controller,
+    required this.actions,
+    required this.groupedGridViewKey,
+  });
+
+  final LocalGalleryViewModel viewModel;
+  final LocalGalleryScreenController controller;
+  final LocalGalleryActionCoordinator actions;
+  final GlobalKey<GroupedGridViewState> groupedGridViewKey;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final gallery = viewModel.gallery;
+    return Scaffold(
+      body: Row(
         children: [
-          if (!modal) ...[
-            Icon(
-              Icons.folder_outlined,
-              size: 20,
-              color: theme.colorScheme.primary,
+          if (viewModel.showPersistentCategories)
+            controller.buildCategoryPanel(
+              galleryState: gallery,
+              categoryState: viewModel.categories,
             ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                context.l10n.localGallery_categoryPanelTitle,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ] else
-            const Spacer(),
-          FilledButton.tonalIcon(
-            onPressed: _createCategory,
-            icon: const Icon(Icons.add, size: 18),
-            label: Text(
-              context.l10n.common_new,
-              style: const TextStyle(fontSize: 13),
-            ),
-            style: FilledButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          Expanded(
+            child: Column(
+              children: [
+                _buildToolbar(context, ref),
+                Expanded(child: _buildBody(context, ref)),
+                if (!gallery.isIndexing &&
+                    gallery.filteredFiles.isNotEmpty &&
+                    gallery.totalPages > 0)
+                  PaginationBar(
+                    currentPage: gallery.currentPage,
+                    totalPages: gallery.totalPages,
+                    totalItems: gallery.filteredCount,
+                    itemsPerPage: gallery.pageSize,
+                    onPageChanged: (page) => ref
+                        .read(localGalleryNotifierProvider.notifier)
+                        .loadPage(page),
+                    onItemsPerPageChanged: (size) => ref
+                        .read(localGalleryNotifierProvider.notifier)
+                        .setPageSize(size),
+                    showItemsPerPage: true,
+                    showTotalInfo: true,
+                    compact: viewModel.contentWidth < 680,
+                  ),
+              ],
             ),
           ),
         ],
@@ -403,1300 +172,59 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     );
   }
 
-  Future<void> _createCategory() async {
-    final name = await ThemedInputDialog.show(
-      context: context,
-      title: context.l10n.localGallery_createCategoryTitle,
-      hintText: context.l10n.localGallery_createCategoryHint,
-      confirmText: context.l10n.localGallery_createCategoryConfirm,
-      cancelText: context.l10n.common_cancel,
-    );
-    if (name != null && name.isNotEmpty) {
-      await ref
-          .read(galleryCategoryNotifierProvider.notifier)
-          .createCategory(name, parentId: null);
-    }
-  }
-
-  void _handleCategorySelected(String? id) {
-    // 更新分类选中状态
-    ref.read(galleryCategoryNotifierProvider.notifier).selectCategory(id);
-
-    // 获取分类信息以便应用过滤
-    final categoryState = ref.read(galleryCategoryNotifierProvider);
-    final category = id != null ? categoryState.categories.findById(id) : null;
-
-    // 应用分类过滤
-    if (id == 'favorites') {
-      // 收藏特殊处理
-      ref
-          .read(localGalleryNotifierProvider.notifier)
-          .setShowFavoritesOnly(true);
-    } else if (id != null && category != null) {
-      // 普通分类：按文件夹路径过滤
-      ref
-          .read(localGalleryNotifierProvider.notifier)
-          .setShowFavoritesOnly(false);
-      ref
-          .read(localGalleryNotifierProvider.notifier)
-          .setSelectedCategory(id, category.folderPath);
-    } else {
-      // 全部：清除分类过滤
-      ref
-          .read(localGalleryNotifierProvider.notifier)
-          .setShowFavoritesOnly(false);
-      ref
-          .read(localGalleryNotifierProvider.notifier)
-          .setSelectedCategory(null, null);
-    }
-  }
-
-  Future<void> _handleCategoryDelete(String id) async {
-    final confirmed = await ThemedConfirmDialog.show(
-      context: context,
-      title: context.l10n.common_confirmDelete,
-      content: context.l10n.localGallery_categoryDeleteContent,
-      confirmText: context.l10n.common_delete,
-      cancelText: context.l10n.common_cancel,
-      type: ThemedConfirmDialogType.danger,
-      icon: Icons.delete_outline,
-    );
-    if (confirmed) {
-      if (!mounted) return;
-      final protected = await AssetProtectionGuard.confirmDangerousAction(
-        context: context,
-        ref: ref,
-        title: context.l10n.localGallery_protectedDeleteCategoryTitle,
-        content: context.l10n.localGallery_protectedDeleteCategoryContent,
-        confirmText: context.l10n.localGallery_confirmDelete,
-        icon: Icons.delete_outline,
-      );
-      if (!protected || !mounted) return;
-      await ref
-          .read(galleryCategoryNotifierProvider.notifier)
-          .deleteCategory(id, deleteFolder: false);
-    }
-  }
-
-  Future<void> _handleAddSubCategory(String? parentId) async {
-    final name = await ThemedInputDialog.show(
-      context: context,
-      title: parentId == null
-          ? context.l10n.localGallery_createCategoryTitle
-          : context.l10n.localGallery_createSubCategoryTitle,
-      hintText: context.l10n.localGallery_createCategoryHint,
-      confirmText: context.l10n.localGallery_createCategoryConfirm,
-      cancelText: context.l10n.common_cancel,
-    );
-    if (name != null && name.isNotEmpty) {
-      await ref
-          .read(galleryCategoryNotifierProvider.notifier)
-          .createCategory(name, parentId: parentId);
-    }
-  }
-
-  Future<void> _handleImageDrop(String imagePath, String? categoryId) async {
-    final protected = await AssetProtectionGuard.confirmDangerousAction(
-      context: context,
-      ref: ref,
-      title: context.l10n.localGallery_confirmMoveImageTitle,
-      content: context.l10n.localGallery_confirmMoveImageContent,
-      confirmText: context.l10n.localGallery_confirmMove,
-      icon: Icons.drive_file_move_outline,
-    );
-    if (!protected || !mounted) return;
-
-    final newPath = await ref
-        .read(galleryCategoryNotifierProvider.notifier)
-        .moveImageToCategory(imagePath, categoryId);
-    if (newPath != null) {
-      await ref
-          .read(localGalleryNotifierProvider.notifier)
-          .refresh(scan: false);
-      if (mounted) {
-        AppToast.success(
-          context,
-          context.l10n.localGallery_imageMovedToCategory,
-        );
-      }
-    }
-  }
-
-  Future<void> _handleSyncWithFileSystem() async {
-    await ref
-        .read(galleryCategoryNotifierProvider.notifier)
-        .syncWithFileSystem();
-    if (mounted) {
-      AppToast.success(context, context.l10n.localGallery_categoriesSynced);
-    }
-  }
-
-  Future<void> _autoRefresh() async {
-    // 取消之前的防抖计时器
-    _refreshDebounceTimer?.cancel();
-
-    // 设置防抖延迟，避免频繁触发
-    _refreshDebounceTimer = Timer(const Duration(milliseconds: 500), () async {
-      if (!mounted) return;
-
-      // 检查当前是否仍在本地画廊页面
-      final router = GoRouter.of(context);
-      final currentPath = router.routeInformationProvider.value.uri.path;
-      if (currentPath != '/local-gallery') {
-        AppLogger.d(
-          '[AutoRefresh] Skipped: not on local gallery page (current: $currentPath)',
-          'LocalGalleryScreen',
-        );
-        return;
-      }
-
-      // 检查刷新频率限制
-      final now = DateTime.now();
-      if (_lastRefreshTime != null) {
-        final elapsed = now.difference(_lastRefreshTime!).inMilliseconds;
-        if (elapsed < _minRefreshIntervalMs) {
-          AppLogger.d(
-            '[AutoRefresh] Skipped: too frequent (${elapsed}ms < ${_minRefreshIntervalMs}ms)',
-            'LocalGalleryScreen',
-          );
-          return;
-        }
-      }
-
-      // 检查是否有扫描正在进行
-      final scanState = ref.read(galleryScanProgressProvider);
-      if (scanState.isScanning) {
-        AppLogger.d(
-          '[AutoRefresh] Skipped: scan in progress',
-          'LocalGalleryScreen',
-        );
-        return;
-      }
-
-      AppLogger.i('[AutoRefresh] Executing auto refresh', 'LocalGalleryScreen');
-      _lastRefreshTime = now;
-
-      await ref
-          .read(localGalleryNotifierProvider.notifier)
-          .refresh(scan: false);
-      await ref
-          .read(galleryCategoryNotifierProvider.notifier)
-          .syncWithFileSystem();
-    });
-  }
-
-  // 元数据在扫描新文件时已自动提取，如需手动补全旧文件元数据，请使用设置页面的"补全元数据"功能
-
-  Widget _buildToolbarOrSelectionBar(
-    LocalGalleryState state,
-    BulkOperationState bulkOpState, {
-    required bool showCategoryPanel,
-    required VoidCallback onToggleCategoryPanel,
-  }) {
+  Widget _buildToolbar(BuildContext context, WidgetRef ref) {
+    final bulk = viewModel.bulkOperation;
     return LocalGalleryToolbar(
       onRefresh: () =>
           ref.read(localGalleryNotifierProvider.notifier).refresh(),
       onEnterSelectionMode: () =>
           ref.read(localGallerySelectionNotifierProvider.notifier).enter(),
-      canUndo: bulkOpState.canUndo,
-      canRedo: bulkOpState.canRedo,
-      onUndo: bulkOpState.canUndo ? _undo : null,
-      onRedo: bulkOpState.canRedo ? _redo : null,
-      groupedGridViewKey: _groupedGridViewKey,
-      onAddToCollection: _addSelectedToCollection,
-      onDeleteSelected: _deleteSelectedImages,
-      onPackSelected: _isPackingImages ? null : _packSelectedImages,
-      onEditMetadata: _editSelectedMetadata,
-      onMoveToFolder: _moveSelectedToFolder,
-      showCategoryPanel: showCategoryPanel,
-      onToggleCategoryPanel: onToggleCategoryPanel,
+      canUndo: bulk.canUndo,
+      canRedo: bulk.canRedo,
+      onUndo: bulk.canUndo ? actions.undo : null,
+      onRedo: bulk.canRedo ? actions.redo : null,
+      groupedGridViewKey: groupedGridViewKey,
+      onAddToCollection: actions.addSelectedToCollection,
+      onDeleteSelected: actions.deleteSelectedImages,
+      onPackSelected: viewModel.isPackingImages
+          ? null
+          : () => unawaited(controller.runPacking(actions.packSelectedImages)),
+      onEditMetadata: actions.editSelectedMetadata,
+      onMoveToFolder: actions.moveSelectedToFolder,
+      showCategoryPanel: viewModel.showPersistentCategories,
+      onToggleCategoryPanel: viewModel.usePersistentCategories
+          ? controller.toggleCategoryPanel
+          : () => unawaited(controller.showCategoryPanelSheet()),
       onOpenFolder: PlatformCapabilities.current.supportsOpenFolder
-          ? () => _openGalleryFolder()
+          ? controller.openGalleryFolder
           : null,
     );
   }
 
-  Widget _buildBody(LocalGalleryState state, int columns, double itemWidth) {
-    if (state.error != null) {
+  Widget _buildBody(BuildContext context, WidgetRef ref) {
+    final gallery = viewModel.gallery;
+    if (gallery.error != null) {
       return GalleryErrorView(
-        error: state.error!.localized(context.l10n),
+        error: gallery.error!.localized(context.l10n),
         onRetry: () =>
             ref.read(localGalleryNotifierProvider.notifier).refresh(),
       );
     }
-
-    if (state.isLoading && state.allFiles.isEmpty) {
+    if (gallery.isLoading && gallery.allFiles.isEmpty) {
       return const GalleryLoadingView();
     }
-
-    if (state.allFiles.isEmpty) {
-      return const GalleryEmptyView();
-    }
+    if (gallery.allFiles.isEmpty) return const GalleryEmptyView();
 
     return GalleryContentView(
-      use3DCardView: _use3DCardView,
-      columns: columns,
-      itemWidth: itemWidth,
-      groupedGridViewKey: _groupedGridViewKey,
-      onReuseMetadata: _importImageMetadata,
-      onSendAction: (record, action) => _handleImageAction(record, action),
-      onContextMenu: (record, position) =>
-          _showImageContextMenu(record, position),
-    );
-  }
-
-  void _handleKeyEvent(KeyEvent event, BulkOperationState bulkOpState) {
-    if (event is! KeyDownEvent) return;
-
-    final isCtrlPressed = HardwareKeyboard.instance.isControlPressed;
-    if (!isCtrlPressed) return;
-
-    if (event.logicalKey == LogicalKeyboardKey.keyZ) {
-      if (HardwareKeyboard.instance.isShiftPressed) {
-        if (bulkOpState.canRedo) _redo();
-      } else {
-        if (bulkOpState.canUndo) _undo();
-      }
-    } else if (event.logicalKey == LogicalKeyboardKey.keyY &&
-        bulkOpState.canRedo) {
-      _redo();
-    }
-  }
-
-  Future<void> _checkPermissionsAndScan() async {
-    final hasPermission = await PermissionUtils.checkGalleryPermission();
-
-    if (!hasPermission) {
-      final granted = await PermissionUtils.requestGalleryPermission();
-      if (!granted && mounted) {
-        _showPermissionDeniedDialog();
-        return;
-      }
-    }
-
-    if (mounted) {
-      await ref.read(localGalleryNotifierProvider.notifier).initialize();
-      await ref.read(collectionNotifierProvider.notifier).initialize();
-      _showFirstTimeIndexTipIfNeeded();
-    }
-  }
-
-  void _showFirstTimeIndexTipIfNeeded() {
-    final state = ref.read(localGalleryNotifierProvider);
-    final imageCount = state.firstTimeIndexCount;
-    if (imageCount != null && mounted) {
-      Future.delayed(const Duration(milliseconds: 500), () {
-        if (mounted) {
-          AppToast.info(
-            context,
-            context.l10n.localGallery_firstIndexHint(imageCount),
-          );
-        }
-      });
-    }
-  }
-
-  void _showPermissionDeniedDialog() async {
-    final confirmed = await ThemedConfirmDialog.show(
-      context: context,
-      title: context.l10n.localGallery_permissionRequiredTitle,
-      content: context.l10n.localGallery_permissionRequiredContent,
-      confirmText: context.l10n.localGallery_openSettings,
-      cancelText: context.l10n.common_cancel,
-      type: ThemedConfirmDialogType.warning,
-      icon: Icons.folder_off_outlined,
-    );
-
-    if (confirmed) PermissionUtils.openAppSettings();
-  }
-
-  Future<void> _showFirstTimeTip() async {
-    final prefs = await SharedPreferences.getInstance();
-    final hasSeenTip =
-        prefs.getBool(StorageKeys.hasSeenLocalGalleryTip) ?? false;
-
-    if (hasSeenTip || !mounted) return;
-
-    await prefs.setBool(StorageKeys.hasSeenLocalGalleryTip, true);
-    await Future.delayed(const Duration(milliseconds: 500));
-
-    if (!mounted) return;
-
-    await ThemedConfirmDialog.showInfo(
-      context: context,
-      title: context.l10n.localGallery_firstTimeTipTitle,
-      content: context.l10n.localGallery_firstTimeTipContent,
-      confirmText: context.l10n.localGallery_gotIt,
-      icon: Icons.lightbulb_outline,
-    );
-  }
-
-  Future<void> _openGalleryFolder() async {
-    if (!PlatformCapabilities.current.supportsOpenFolder) return;
-
-    try {
-      final rootPath = await GalleryFolderRepository.instance.getRootPath();
-      if (rootPath == null || rootPath.isEmpty) {
-        if (mounted) {
-          AppToast.info(context, context.l10n.localGallery_saveDirectoryNotSet);
-        }
-        return;
-      }
-
-      final dir = Directory(rootPath);
-      if (!await dir.exists()) {
-        if (mounted) {
-          AppToast.info(context, context.l10n.localGallery_folderNotFound);
-        }
-        return;
-      }
-
-      await FileExplorerUtils.openDirectory(rootPath);
-    } catch (e) {
-      if (mounted) {
-        AppToast.error(
-          context,
-          context.l10n.localGallery_openFolderFailed('$e'),
-        );
-      }
-    }
-  }
-
-  Future<void> _undo() async {
-    await ref.read(bulkOperationNotifierProvider.notifier).undo();
-    await ref.read(localGalleryNotifierProvider.notifier).refresh();
-    if (mounted) AppToast.info(context, context.l10n.localGallery_undone);
-  }
-
-  Future<void> _redo() async {
-    await ref.read(bulkOperationNotifierProvider.notifier).redo();
-    await ref.read(localGalleryNotifierProvider.notifier).refresh();
-    if (mounted) AppToast.info(context, context.l10n.localGallery_redone);
-  }
-
-  Future<void> _deleteSelectedImages() async {
-    final selectionState = ref.read(localGallerySelectionNotifierProvider);
-    // 保存 context 相关数据（必须在任何 await 之前）
-    final l10n = context.l10n;
-
-    // 从数据库获取所有选中项的完整记录（支持跨页）
-    final service = await ref
-        .read(localGalleryNotifierProvider.notifier)
-        .getService();
-    final selectedImages = await service.getRecordsByPaths(
-      selectionState.selectedIds.toList(),
-    );
-
-    if (selectedImages.isEmpty) return;
-
-    final confirmed = await ThemedConfirmDialog.show(
-      // ignore: use_build_context_synchronously
-      context: context,
-      title: l10n.localGallery_confirmBulkDelete,
-      content: l10n.localGallery_confirmBulkDeleteContent(
-        selectedImages.length,
+      use3DCardView: true,
+      columns: viewModel.columns,
+      itemWidth: viewModel.itemWidth,
+      groupedGridViewKey: groupedGridViewKey,
+      onReuseMetadata: actions.importImageMetadata,
+      onSendAction: (record, action) => actions.routeImageAction(
+        LocalGalleryImageAction(record: record, action: action),
       ),
-      confirmText: l10n.common_delete,
-      cancelText: l10n.common_cancel,
-      type: ThemedConfirmDialogType.danger,
-      icon: Icons.delete_forever_outlined,
+      onContextMenu: actions.showImageContextMenu,
     );
-
-    if (!confirmed || !mounted) return;
-
-    final protected = await AssetProtectionGuard.confirmDangerousAction(
-      context: context,
-      ref: ref,
-      title: l10n.localGallery_protectedDeleteTitle,
-      content: l10n.localGallery_protectedDeleteImagesContent(
-        selectedImages.length,
-      ),
-      confirmText: l10n.common_delete,
-      icon: Icons.delete_forever_outlined,
-    );
-    if (!protected || !mounted) return;
-
-    final deletedImages = <LocalImageRecord>[];
-    for (final image in selectedImages) {
-      try {
-        final file = File(image.path);
-        if (await file.exists()) {
-          await file.delete();
-          deletedImages.add(image);
-        }
-      } catch (e) {
-        // Skip failed deletions
-      }
-    }
-
-    ref.read(localGallerySelectionNotifierProvider.notifier).exit();
-    await ref.read(localGalleryNotifierProvider.notifier).refresh();
-
-    if (mounted && deletedImages.isNotEmpty) {
-      AppToast.success(
-        context,
-        context.l10n.localGallery_deletedImages(deletedImages.length),
-      );
-    }
-  }
-
-  Future<void> _packSelectedImages() async {
-    if (_isPackingImages) {
-      AppToast.info(context, context.l10n.localGallery_packAlreadyInProgress);
-      return;
-    }
-
-    setState(() => _isPackingImages = true);
-    try {
-      await _performPackSelectedImages();
-    } finally {
-      if (mounted && _isPackingImages) {
-        setState(() => _isPackingImages = false);
-      }
-    }
-  }
-
-  Future<void> _performPackSelectedImages() async {
-    final selectionState = ref.read(localGallerySelectionNotifierProvider);
-
-    // 从数据库获取所有选中项的完整记录（支持跨页）
-    final service = await ref
-        .read(localGalleryNotifierProvider.notifier)
-        .getService();
-    final selectedImages = await service.getRecordsByPaths(
-      selectionState.selectedIds.toList(),
-    );
-
-    if (selectedImages.isEmpty || !mounted) return;
-
-    final includeMetadata = await ZipExportMetadataDialog.show(context);
-    if (includeMetadata == null || !mounted) return;
-
-    final defaultName = 'images_${DateTime.now().millisecondsSinceEpoch}';
-    final fileName = '$defaultName.zip';
-    String? desktopOutputPath;
-    if (!PlatformCapabilities.current.supportsDocumentFileExport) {
-      final outputPath = await FilePicker.platform.saveFile(
-        dialogTitle: context.l10n.localGallery_saveZipArchive,
-        fileName: fileName,
-        type: FileType.custom,
-        allowedExtensions: ['zip'],
-      );
-      if (outputPath == null || !mounted) return;
-
-      final requestedPath = outputPath.endsWith('.zip')
-          ? outputPath
-          : '$outputPath.zip';
-      desktopOutputPath = AssetProtectionGuard.shouldPreventOverwrite(ref)
-          ? await AssetProtectionGuard.resolveNonOverwritingPath(requestedPath)
-          : requestedPath;
-    }
-
-    if (!mounted) return;
-    final l10n = context.l10n;
-    final progressToast = AppToast.showProgress(
-      context,
-      l10n.localGallery_packingImages(selectedImages.length),
-      progress: 0,
-    );
-
-    try {
-      final imagePaths = selectedImages.map((img) => img.path).toList();
-      void onProgress(ZipCreationProgress progress) {
-        progressToast.updateProgress(
-          progress.fraction,
-          message: l10n.localGallery_packingProgress(
-            progress.current,
-            progress.total,
-          ),
-          subtitle: progress.currentFileName,
-        );
-      }
-
-      late final ZipCreationResult result;
-      String? savedLocation;
-      if (PlatformCapabilities.current.supportsDocumentFileExport) {
-        savedLocation = await FileExportService.withTemporaryOutput(
-          fileName: fileName,
-          action: (temporaryPath) async {
-            result = await ZipUtils.createZipFromImagesDetailed(
-              imagePaths,
-              temporaryPath,
-              stripMetadata: !includeMetadata,
-              onProgress: onProgress,
-            );
-            if (!result.succeeded || !mounted) return null;
-            return FileExportService.saveFileFromPath(
-              sourcePath: temporaryPath,
-              fileName: fileName,
-              dialogTitle: l10n.localGallery_saveZipArchive,
-              mimeType: 'application/zip',
-              allowedExtensions: const ['zip'],
-            );
-          },
-        );
-      } else {
-        result = await ZipUtils.createZipFromImagesDetailed(
-          imagePaths,
-          desktopOutputPath!,
-          stripMetadata: !includeMetadata,
-          onProgress: onProgress,
-        );
-        savedLocation = desktopOutputPath;
-      }
-
-      if (!mounted) {
-        progressToast.dismiss();
-        return;
-      }
-      if (result.succeeded && savedLocation == null) {
-        progressToast.dismiss();
-        return;
-      }
-      if (result.succeeded && !result.isPartial) {
-        progressToast.complete(
-          message: l10n.localGallery_packedImages(result.exportedCount),
-        );
-        ref.read(localGallerySelectionNotifierProvider.notifier).exit();
-      } else if (result.isPartial) {
-        progressToast.dismiss();
-        await _showZipPartialFailureDialog(result);
-      } else {
-        final details = result.error ?? l10n.localGallery_packFailed;
-        progressToast.fail(
-          message: l10n.localGallery_packFailedWithDetails(details),
-        );
-        AppLogger.e(
-          'Local gallery ZIP export failed: $details',
-          null,
-          null,
-          'LocalGalleryScreen',
-        );
-      }
-    } finally {
-      if (mounted && _isPackingImages) {
-        setState(() => _isPackingImages = false);
-      }
-    }
-  }
-
-  Future<void> _showZipPartialFailureDialog(ZipCreationResult result) async {
-    if (!mounted) return;
-    final l10n = context.l10n;
-    await showDialog<void>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        icon: Icon(
-          Icons.warning_amber_rounded,
-          color: Theme.of(dialogContext).colorScheme.tertiary,
-        ),
-        title: Text(l10n.localGallery_packPartialTitle),
-        content: SizedBox(
-          width: 520,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                l10n.localGallery_packedImagesWithFailures(
-                  result.exportedCount,
-                  result.failures.length,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Flexible(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxHeight: 320),
-                  child: ListView.separated(
-                    shrinkWrap: true,
-                    itemCount: result.failures.length,
-                    separatorBuilder: (_, _) => const Divider(height: 16),
-                    itemBuilder: (context, index) {
-                      final failure = result.failures[index];
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            path.basename(failure.path),
-                            style: Theme.of(context).textTheme.labelLarge,
-                          ),
-                          const SizedBox(height: 4),
-                          SelectableText(
-                            failure.error,
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: Text(l10n.common_close),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _editSelectedMetadata() async {
-    final selectionState = ref.read(localGallerySelectionNotifierProvider);
-    if (selectionState.selectedIds.isEmpty || !mounted) return;
-    showBulkMetadataEditDialog(context);
-  }
-
-  Future<void> _moveSelectedToFolder() async {
-    final selectionState = ref.read(localGallerySelectionNotifierProvider);
-    final folderState = ref.read(galleryFolderNotifierProvider);
-    // 保存 context 相关数据（必须在任何 await 之前）
-    final l10n = context.l10n;
-
-    // 从数据库获取所有选中项的完整记录（支持跨页）
-    final service = await ref
-        .read(localGalleryNotifierProvider.notifier)
-        .getService();
-    final selectedImages = await service.getRecordsByPaths(
-      selectionState.selectedIds.toList(),
-    );
-
-    if (selectedImages.isEmpty) return;
-
-    final folders = folderState.folders;
-
-    if (folders.isEmpty) {
-      // ignore: use_build_context_synchronously
-      if (mounted) AppToast.info(context, l10n.localGallery_noFoldersAvailable);
-      return;
-    }
-
-    final selectedFolder = await showDialog<String>(
-      // ignore: use_build_context_synchronously
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l10n.localGallery_moveToFolder),
-        content: SizedBox(
-          width: 300,
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: folders.length,
-            itemBuilder: (context, index) {
-              final folder = folders[index];
-              return ListTile(
-                leading: const Icon(Icons.folder),
-                title: Text(folder.name),
-                subtitle: Text(l10n.localGallery_imageCount(folder.imageCount)),
-                onTap: () => Navigator.of(context).pop(folder.path),
-              );
-            },
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(context.l10n.common_cancel),
-          ),
-        ],
-      ),
-    );
-
-    if (selectedFolder == null || !mounted) return;
-
-    final protected = await AssetProtectionGuard.confirmDangerousAction(
-      context: context,
-      ref: ref,
-      title: l10n.localGallery_protectedBulkMoveTitle,
-      content: l10n.localGallery_protectedBulkMoveContent(
-        selectedImages.length,
-      ),
-      confirmText: l10n.localGallery_confirmMove,
-      icon: Icons.drive_file_move_outline,
-    );
-    if (!protected || !mounted) return;
-
-    final imagePaths = selectedImages.map((img) => img.path).toList();
-    final movedCount = await GalleryFolderRepository.instance
-        .moveImagesToFolder(imagePaths, selectedFolder);
-
-    if (mounted) {
-      if (movedCount > 0) {
-        AppToast.info(
-          context,
-          context.l10n.localGallery_movedImages(movedCount),
-        );
-        ref.read(localGallerySelectionNotifierProvider.notifier).exit();
-        ref.read(localGalleryNotifierProvider.notifier).refresh();
-        ref.read(galleryFolderNotifierProvider.notifier).refresh();
-      } else {
-        AppToast.info(context, context.l10n.localGallery_moveImagesFailed);
-      }
-    }
-  }
-
-  Future<void> _addSelectedToCollection() async {
-    final selectionState = ref.read(localGallerySelectionNotifierProvider);
-
-    // 从数据库获取所有选中项的完整记录（支持跨页）
-    final service = await ref
-        .read(localGalleryNotifierProvider.notifier)
-        .getService();
-    final selectedImages = await service.getRecordsByPaths(
-      selectionState.selectedIds.toList(),
-    );
-
-    if (selectedImages.isEmpty || !mounted) return;
-
-    final result = await CollectionSelectDialog.show(
-      context,
-      theme: Theme.of(context),
-    );
-
-    if (result == null) return;
-
-    final imagePaths = selectedImages.map((img) => img.path).toList();
-    final addedCount = await ref
-        .read(collectionNotifierProvider.notifier)
-        .addImagesToCollection(result.collectionId, imagePaths);
-
-    if (mounted) {
-      if (addedCount > 0) {
-        AppToast.success(
-          context,
-          context.l10n.localGallery_addedToCollection(
-            addedCount,
-            result.collectionName,
-          ),
-        );
-        ref.read(localGallerySelectionNotifierProvider.notifier).exit();
-      } else {
-        AppToast.info(context, context.l10n.localGallery_addToCollectionFailed);
-      }
-    }
-  }
-
-  Future<void> _sendToImg2Img(LocalImageRecord record) async {
-    try {
-      final file = File(record.path);
-      if (!await file.exists()) {
-        if (mounted) {
-          AppToast.info(context, context.l10n.localGallery_imageFileMissing);
-        }
-        return;
-      }
-
-      final imageBytes = await file.readAsBytes();
-      ImageWorkflowLauncher.openImageToImage(ref, imageBytes);
-
-      if (mounted) {
-        context.go(AppRoutes.home);
-        AppToast.success(context, context.l10n.localGallery_sentToImageToImage);
-      }
-    } catch (e) {
-      if (mounted) {
-        AppToast.error(context, context.l10n.localGallery_sendFailed('$e'));
-      }
-    }
-  }
-
-  Future<void> _sendToUpscale(LocalImageRecord record) async {
-    try {
-      final file = File(record.path);
-      if (!await file.exists()) {
-        if (mounted) {
-          AppToast.info(context, context.l10n.localGallery_imageFileMissing);
-        }
-        return;
-      }
-
-      ImageWorkflowLauncher.openUpscale(ref, await file.readAsBytes());
-
-      if (mounted) {
-        context.go(AppRoutes.home);
-        AppToast.info(context, context.l10n.gallery_upscalePanelLoaded);
-      }
-    } catch (e) {
-      if (mounted) {
-        AppToast.error(context, context.l10n.gallery_readImageFailed('$e'));
-      }
-    }
-  }
-
-  Future<void> _sendToStyleTransfer(LocalImageRecord record) async {
-    try {
-      final file = File(record.path);
-      if (!await file.exists()) {
-        if (mounted) {
-          AppToast.info(context, context.l10n.localGallery_imageFileMissing);
-        }
-        return;
-      }
-
-      if (!mounted || _warnIfStyleReferenceLimitReached()) return;
-
-      final imageBytes = await file.readAsBytes();
-      if (!mounted || _warnIfStyleReferenceLimitReached()) return;
-      final currentCount = ref
-          .read(generationParamsNotifierProvider)
-          .vibeReferencesV4
-          .length;
-      final paramsNotifier = ref.read(
-        generationParamsNotifierProvider.notifier,
-      );
-      paramsNotifier.addVibeReference(
-        LocalGalleryReferenceFactory.createRawStyleReference(
-          fileName: path.basename(record.path),
-          imageBytes: imageBytes,
-        ),
-      );
-
-      if (mounted) {
-        context.go(AppRoutes.home);
-        AppToast.success(
-          context,
-          currentCount == 0
-              ? context.l10n.drop_addedToVibe
-              : context.l10n.toast_appendedStyleReferences(1),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        AppToast.error(context, context.l10n.localGallery_sendFailed('$e'));
-      }
-    }
-  }
-
-  bool _warnIfStyleReferenceLimitReached() {
-    const maxCount = 16;
-    if (ref.read(generationParamsNotifierProvider).vibeReferencesV4.length <
-        maxCount) {
-      return false;
-    }
-
-    AppToast.warning(context, context.l10n.toast_styleReferenceLimit(maxCount));
-    return true;
-  }
-
-  Future<void> _sendToPreciseReference(LocalImageRecord record) async {
-    try {
-      final file = File(record.path);
-      if (!await file.exists()) {
-        if (mounted) {
-          AppToast.info(context, context.l10n.localGallery_imageFileMissing);
-        }
-        return;
-      }
-
-      if (!mounted) return;
-      final selectedType = await PreciseReferenceTypeDialog.show(context);
-      if (selectedType == null || !mounted) return;
-
-      final imageBytes = await file.readAsBytes();
-      if (!mounted) return;
-      unawaited(
-        ref
-            .read(generationParamsNotifierProvider.notifier)
-            .addPreciseReferenceFromImage(
-              imageBytes,
-              type: selectedType,
-              strength: 1.0,
-              fidelity: 1.0,
-            ),
-      );
-
-      if (mounted) {
-        context.go(AppRoutes.home);
-        AppToast.success(context, context.l10n.drop_addedToCharacterRef);
-      }
-    } catch (e) {
-      if (mounted) {
-        AppToast.error(context, context.l10n.localGallery_sendFailed('$e'));
-      }
-    }
-  }
-
-  Future<void> _saveToPreciseRefLibrary(LocalImageRecord record) async {
-    try {
-      final file = File(record.path);
-      if (!await file.exists()) {
-        if (mounted) {
-          AppToast.info(context, context.l10n.localGallery_imageFileMissing);
-        }
-        return;
-      }
-
-      final imageBytes = await file.readAsBytes();
-      if (!mounted) return;
-      await saveBytesToPreciseRefLibrary(
-        ref,
-        context,
-        imageBytes,
-        suggestedName: path.basenameWithoutExtension(record.path),
-      );
-    } catch (e) {
-      if (mounted) {
-        AppToast.error(context, context.l10n.localGallery_sendFailed('$e'));
-      }
-    }
-  }
-
-  Future<void> _importImageMetadata(LocalImageRecord record) async {
-    try {
-      final metadata = await resolveLocalGalleryMetadata(record);
-      if (!mounted) return;
-      if (metadata == null) {
-        AppToast.warning(context, context.l10n.metadataImport_noDataFound);
-        return;
-      }
-
-      final options = await MetadataImportDialog.show(
-        context,
-        metadata: metadata,
-      );
-      if (options == null || !mounted) return;
-
-      final appliedCount = await MetadataImportCoordinator.apply(
-        read: ref.read,
-        metadata: metadata,
-        options: options,
-        l10n: context.l10n,
-      );
-      if (!mounted) return;
-
-      if (appliedCount == 0) {
-        AppToast.warning(context, context.l10n.metadataImport_noParamsSelected);
-        return;
-      }
-
-      AppToast.success(
-        context,
-        context.l10n.metadataImport_appliedCount(appliedCount),
-      );
-      context.go(AppRoutes.home);
-    } catch (e, stack) {
-      AppLogger.e('导入图片元数据失败', e, stack, 'LocalGallery');
-      if (mounted) {
-        AppToast.error(
-          context,
-          context.l10n.localGallery_importParamsFailed('$e'),
-        );
-      }
-    }
-  }
-
-  Future<void> _sendToReversePrompt(LocalImageRecord record) async {
-    try {
-      final file = File(record.path);
-      if (!await file.exists()) {
-        if (mounted) {
-          AppToast.info(context, context.l10n.localGallery_imageFileMissing);
-        }
-        return;
-      }
-
-      await ref
-          .read(reversePromptProvider.notifier)
-          .addImage(await file.readAsBytes(), name: path.basename(record.path));
-
-      if (mounted) {
-        context.go(AppRoutes.home);
-        AppToast.success(
-          context,
-          context.l10n.localGallery_sentToReversePrompt,
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        AppToast.error(context, context.l10n.localGallery_sendFailed('$e'));
-      }
-    }
-  }
-
-  Future<void> _sendToKrita(LocalImageRecord record) async {
-    try {
-      final file = File(record.path);
-      if (!await file.exists()) {
-        if (mounted) {
-          AppToast.info(context, context.l10n.localGallery_imageFileMissing);
-        }
-        return;
-      }
-
-      final imageBytes = await file.readAsBytes();
-      if (!mounted) return;
-      KritaSendHelper.sendImageBytes(
-        context,
-        ref,
-        imageBytes,
-        name: path.basename(record.path),
-      );
-    } catch (e) {
-      if (mounted) {
-        AppToast.error(
-          context,
-          context.l10n.localGallery_sendToKritaFailed('$e'),
-        );
-      }
-    }
-  }
-
-  Future<void> _shareLocalImageToDiscord(LocalImageRecord record) async {
-    final file = File(record.path);
-    if (!await file.exists()) {
-      if (mounted) {
-        AppToast.info(context, context.l10n.localGallery_imageFileMissing);
-      }
-      return;
-    }
-
-    try {
-      var metadata =
-          await resolveLocalGalleryMetadata(record) ?? record.metadata;
-      if (metadata != null) {
-        final fixedTags = ref.read(fixedTagsNotifierProvider);
-        metadata = matchMetadataFixedTags(
-          metadata: metadata,
-          positiveEntries: fixedTags.positiveEntries,
-          negativeEntries: fixedTags.negativeEntries,
-        );
-      }
-      final imageBytes = await file.readAsBytes();
-      if (!mounted) return;
-      await DiscordShareDialog.show(
-        context,
-        imageBytes: imageBytes,
-        fileName: path.basename(record.path),
-        metadata: metadata,
-        width: metadata?.width,
-        height: metadata?.height,
-      );
-    } catch (error, stackTrace) {
-      AppLogger.e(
-        'Failed to prepare local image for Discord sharing',
-        error,
-        stackTrace,
-        'DiscordShare',
-      );
-      if (mounted) {
-        AppToast.error(
-          context,
-          context.l10n.discordShare_failed(error.toString()),
-        );
-      }
-    }
-  }
-
-  Future<void> _showImageContextMenu(
-    LocalImageRecord record,
-    Offset position,
-  ) async {
-    final metadata = record.metadata;
-    final action = await LocalImageContextMenu.show(
-      context,
-      position: position,
-      hasImportableMetadata: metadata?.hasData == true,
-      hasPrompt: metadata?.prompt.isNotEmpty == true,
-      hasSeed: metadata?.seed != null,
-      isKritaConnected:
-          PlatformCapabilities.current.supportsKritaBridge &&
-          ref.read(kritaBridgeNotifierProvider).status ==
-              KritaBridgeStatus.connected,
-    );
-
-    if (action == null || !context.mounted) return;
-    await _handleImageAction(record, action, metadata: metadata);
-  }
-
-  Future<void> _handleImageAction(
-    LocalImageRecord record,
-    LocalImageContextAction action, {
-    NaiImageMetadata? metadata,
-  }) async {
-    final availableMetadata = metadata ?? record.metadata;
-
-    switch (action) {
-      case LocalImageContextAction.sendToTextToImage:
-        await _importImageMetadata(record);
-      case LocalImageContextAction.sendToImg2Img:
-        await _sendToImg2Img(record);
-      case LocalImageContextAction.sendToReversePrompt:
-        await _sendToReversePrompt(record);
-      case LocalImageContextAction.sendToStyleTransfer:
-        await _sendToStyleTransfer(record);
-      case LocalImageContextAction.sendToPreciseReference:
-        await _sendToPreciseReference(record);
-      case LocalImageContextAction.saveToPreciseRefLibrary:
-        await _saveToPreciseRefLibrary(record);
-      case LocalImageContextAction.sendToKrita:
-        await _sendToKrita(record);
-      case LocalImageContextAction.upscale:
-        await _sendToUpscale(record);
-      case LocalImageContextAction.shareToDiscord:
-        await _shareLocalImageToDiscord(record);
-      case LocalImageContextAction.importMetadata:
-        await _importImageMetadata(record);
-      case LocalImageContextAction.copyPrompt:
-        final promptMetadata =
-            await resolveLocalGalleryMetadata(record) ?? availableMetadata;
-        if (!mounted) return;
-        if (promptMetadata?.fullPrompt.isNotEmpty == true) {
-          final fixedTags = ref.read(fixedTagsNotifierProvider);
-          final resolvedMetadata = matchMetadataFixedTags(
-            metadata: promptMetadata!,
-            positiveEntries: fixedTags.positiveEntries,
-            negativeEntries: fixedTags.negativeEntries,
-          );
-          final prompt = await PromptCopyDialog.show(
-            context,
-            metadata: resolvedMetadata,
-          );
-          if (prompt == null || !mounted) return;
-          await Clipboard.setData(ClipboardData(text: prompt));
-          if (mounted) {
-            AppToast.success(context, context.l10n.localGallery_promptCopied);
-          }
-        } else {
-          AppToast.info(context, context.l10n.toast_imageHasNoMetadata);
-        }
-      case LocalImageContextAction.copySeed:
-        final seedMetadata =
-            await resolveLocalGalleryMetadata(record) ?? availableMetadata;
-        if (!mounted) return;
-        if (seedMetadata?.seed != null) {
-          await Clipboard.setData(
-            ClipboardData(text: seedMetadata!.seed.toString()),
-          );
-          if (mounted) {
-            AppToast.success(context, context.l10n.localGallery_seedCopied);
-          }
-        }
-      case LocalImageContextAction.showInFolder:
-        await _openFileInFolder(record.path);
-      case LocalImageContextAction.delete:
-        await _confirmDeleteImage(record);
-    }
-  }
-
-  Future<void> _openFileInFolder(String filePath) async {
-    try {
-      await FileExplorerUtils.revealFile(filePath);
-    } catch (e) {
-      if (mounted) {
-        AppToast.error(
-          context,
-          context.l10n.localGallery_cannotOpenFolder('$e'),
-        );
-      }
-    }
-  }
-
-  Future<void> _confirmDeleteImage(LocalImageRecord record) async {
-    final confirmed = await ThemedConfirmDialog.show(
-      context: context,
-      title: context.l10n.common_confirmDelete,
-      content: context.l10n.localGallery_confirmDeleteImageContent(
-        path.basename(record.path),
-      ),
-      confirmText: context.l10n.common_delete,
-      cancelText: context.l10n.common_cancel,
-      type: ThemedConfirmDialogType.danger,
-      icon: Icons.delete_forever_outlined,
-    );
-
-    if (confirmed && mounted) {
-      final protected = await AssetProtectionGuard.confirmDangerousAction(
-        context: context,
-        ref: ref,
-        title: context.l10n.localGallery_protectedDeleteTitle,
-        content: context.l10n.localGallery_protectedDeleteImageContent(
-          path.basename(record.path),
-        ),
-        confirmText: context.l10n.localGallery_confirmDelete,
-        icon: Icons.delete_outline,
-      );
-      if (!protected || !mounted) return;
-      try {
-        final file = File(record.path);
-        if (await file.exists()) {
-          await file.delete();
-          await ref.read(localGalleryNotifierProvider.notifier).refresh();
-          if (mounted) {
-            AppToast.success(context, context.l10n.localGallery_imageDeleted);
-          }
-        }
-      } catch (e) {
-        if (mounted) {
-          AppToast.error(context, context.l10n.localGallery_deleteFailed('$e'));
-        }
-      }
-    }
-  }
-
-  void _toggleCategoryPanel() {
-    final availableWidth =
-        context.size?.width ?? MediaQuery.sizeOf(context).width;
-    if (availableWidth < 1000) {
-      unawaited(_showCategoryPanelSheet());
-      return;
-    }
-    setState(() => _showCategoryPanel = !_showCategoryPanel);
-  }
-
-  Future<void> _jumpToDate() async {
-    final now = DateTime.now();
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: now,
-      firstDate: DateTime(2020),
-      lastDate: now,
-      builder: (pickerContext, child) => Theme(
-        data: Theme.of(pickerContext).copyWith(
-          dialogTheme: DialogThemeData(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-        ),
-        child: child!,
-      ),
-    );
-
-    if (picked == null || !mounted) return;
-
-    final notifier = ref.read(localGalleryNotifierProvider.notifier);
-    final currentState = ref.read(localGalleryNotifierProvider);
-    if (!currentState.isGroupedView) await notifier.setGroupedView(true);
-
-    await Future.delayed(const Duration(milliseconds: 300));
-    if (!mounted) return;
-
-    // Calculate date differences for grouping
-    final today = DateTime(now.year, now.month, now.day);
-    final selectedDate = DateTime(picked.year, picked.month, picked.day);
-    final daysDiff = today.difference(selectedDate).inDays;
-
-    late final ImageDateGroup targetGroup;
-    if (daysDiff == 0) {
-      targetGroup = ImageDateGroup.today;
-    } else if (daysDiff == 1) {
-      targetGroup = ImageDateGroup.yesterday;
-    } else if (daysDiff < today.weekday) {
-      targetGroup = ImageDateGroup.thisWeek;
-    } else {
-      targetGroup = ImageDateGroup.earlier;
-    }
-
-    _groupedGridViewKey.currentState?.scrollToGroup(targetGroup);
-
-    if (context.mounted) {
-      final month = picked.month.toString().padLeft(2, '0');
-      AppToast.info(
-        context,
-        context.l10n.localGallery_jumpedToMonth(picked.year, month),
-      );
-    }
   }
 }

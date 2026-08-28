@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/cache/online_gallery_detail_coordinator.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/data/datasources/remote/online_gallery/gallery_source_adapter.dart';
 import 'package:nai_launcher/data/models/danbooru/danbooru_user.dart';
@@ -616,46 +617,49 @@ void main() {
     },
   );
 
-  test('source changes cancel in-flight tag detail completion', () async {
-    final pendingDetail = Completer<GalleryDetail>();
-    CancelToken? detailCancelToken;
-    final incomplete = _item(8, tags: const ['a'], tagsComplete: false);
-    final danbooru = _FakeGalleryAdapter(
-      GallerySourceId.danbooru,
-      onSearch: (request, _) async =>
-          _page(request.cursor, [incomplete], nextCursor: null),
-      onDetail: (item, cancelToken) {
-        detailCancelToken = cancelToken;
-        return pendingDetail.future;
-      },
-    );
-    final safebooru = _FakeGalleryAdapter(
-      GallerySourceId.safebooru,
-      onSearch: (request, _) async => _page(request.cursor, [
-        _item(
-          22,
-          source: GallerySourceId.safebooru,
-          tags: const ['a', 'b', 'c'],
-        ),
-      ], nextCursor: null),
-    );
-    final container = _container(danbooru: danbooru, safebooru: safebooru);
-    addTearDown(container.dispose);
-    final notifier = container.read(onlineGalleryNotifierProvider.notifier);
+  test(
+    'source changes let active tag detail completion finish stale',
+    () async {
+      final pendingDetail = Completer<GalleryDetail>();
+      CancelToken? detailCancelToken;
+      final incomplete = _item(8, tags: const ['a'], tagsComplete: false);
+      final danbooru = _FakeGalleryAdapter(
+        GallerySourceId.danbooru,
+        onSearch: (request, _) async =>
+            _page(request.cursor, [incomplete], nextCursor: null),
+        onDetail: (item, cancelToken) {
+          detailCancelToken = cancelToken;
+          return pendingDetail.future;
+        },
+      );
+      final safebooru = _FakeGalleryAdapter(
+        GallerySourceId.safebooru,
+        onSearch: (request, _) async => _page(request.cursor, [
+          _item(
+            22,
+            source: GallerySourceId.safebooru,
+            tags: const ['a', 'b', 'c'],
+          ),
+        ], nextCursor: null),
+      );
+      final container = _container(danbooru: danbooru, safebooru: safebooru);
+      addTearDown(container.dispose);
+      final notifier = container.read(onlineGalleryNotifierProvider.notifier);
 
-    final staleSearch = notifier.search('a b c');
-    await _waitUntil(() => danbooru.detailRequests > 0);
-    await notifier.setSource(GallerySourceId.safebooru);
+      final staleSearch = notifier.search('a b c');
+      await _waitUntil(() => danbooru.detailRequests > 0);
+      await notifier.setSource(GallerySourceId.safebooru);
 
-    expect(detailCancelToken?.isCancelled, isTrue);
-    pendingDetail.complete(
-      GalleryDetail(item: incomplete, media: [incomplete.cover]),
-    );
-    await staleSearch;
-    final state = container.read(onlineGalleryNotifierProvider);
-    expect(state.sourceId, GallerySourceId.safebooru);
-    expect(state.posts.single.id, 22);
-  });
+      expect(detailCancelToken?.isCancelled, isFalse);
+      pendingDetail.complete(
+        GalleryDetail(item: incomplete, media: [incomplete.cover]),
+      );
+      await staleSearch;
+      final state = container.read(onlineGalleryNotifierProvider);
+      expect(state.sourceId, GallerySourceId.safebooru);
+      expect(state.posts.single.id, 22);
+    },
+  );
 
   test('AI TAG keeps source-native terms and skips Danbooru aliases', () async {
     var metadataLoads = 0;
@@ -1101,6 +1105,71 @@ void main() {
       state = container.read(onlineGalleryNotifierProvider);
       expect(state.posts.map((item) => item.id), [1, 2]);
       expect(state.currentCache.appendErrorCode, isNull);
+    },
+  );
+
+  test(
+    'refresh advances detail scope and keeps cancelled queued details retryable',
+    () async {
+      final activeItems = List.generate(
+        4,
+        (index) => _item(91 + index, source: GallerySourceId.aiTag),
+      );
+      final activeGates = {
+        for (final item in activeItems) item.id: Completer<GalleryDetail>(),
+      };
+      final queuedItem = _item(99, source: GallerySourceId.aiTag);
+      final aiTag = _FakeGalleryAdapter(
+        GallerySourceId.aiTag,
+        onSearch: (request, _) async =>
+            _page(request.cursor, const [], nextCursor: null),
+        onDetail: (item, _) =>
+            activeGates[item.id]?.future ??
+            Future.value(GalleryDetail(item: item, media: [item.cover])),
+      );
+      final container = _container(
+        danbooru: _emptyAdapter(GallerySourceId.danbooru),
+        aiTag: aiTag,
+      );
+      addTearDown(container.dispose);
+      final notifier = container.read(onlineGalleryNotifierProvider.notifier);
+      final initialScope = notifier.detailRequestScopeRevision;
+      final active = [
+        for (final item in activeItems)
+          notifier.loadDetail(item, priority: GalleryDetailPriority.visible),
+      ];
+      final queued = notifier.loadDetail(
+        queuedItem,
+        priority: GalleryDetailPriority.visible,
+      );
+      final queuedCancellation = expectLater(
+        queued,
+        throwsA(
+          isA<DioException>().having(
+            (error) => error.type,
+            'type',
+            DioExceptionType.cancel,
+          ),
+        ),
+      );
+
+      await notifier.refresh();
+      await queuedCancellation;
+      expect(notifier.detailRequestScopeRevision, initialScope + 1);
+      expect(aiTag.detailRequests, 4);
+
+      final afterRefresh = notifier.loadDetail(
+        queuedItem,
+        priority: GalleryDetailPriority.visible,
+      );
+      for (final item in activeItems) {
+        activeGates[item.id]!.complete(
+          GalleryDetail(item: item, media: [item.cover]),
+        );
+      }
+      await Future.wait(active);
+      expect((await afterRefresh).item.stableKey, queuedItem.stableKey);
+      expect(aiTag.detailRequests, 5);
     },
   );
 }

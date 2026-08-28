@@ -161,10 +161,7 @@ class FillTool extends EditorTool {
                     style: theme.textTheme.bodySmall,
                   ),
                   const Spacer(),
-                  Text(
-                    '$_tolerance',
-                    style: theme.textTheme.bodySmall,
-                  ),
+                  Text('$_tolerance', style: theme.textTheme.bodySmall),
                 ],
               ),
               Slider(

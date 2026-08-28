@@ -49,12 +49,16 @@ class VibeLibrarySelectionNotifier extends _$VibeLibrarySelectionNotifier {
     state = state.copyWith(selectedIds: ids.toSet());
   }
 
+  /// 仅取消指定项，保留其他页面的选择。
+  void deselectAll(Iterable<String> ids) {
+    state = state.copyWith(
+      selectedIds: state.selectedIds.difference(ids.toSet()),
+    );
+  }
+
   /// 进入并选中
   void enterAndSelect(String id) {
-    state = SelectionModeState(
-      isActive: true,
-      selectedIds: {id},
-    );
+    state = SelectionModeState(isActive: true, selectedIds: {id});
   }
 
   /// 清空选择

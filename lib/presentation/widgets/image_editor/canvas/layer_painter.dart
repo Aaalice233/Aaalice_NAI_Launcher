@@ -216,10 +216,8 @@ class VirtualOutpaintMaskPainter extends CustomPainter {
   final EditorState state;
   final List<Rect> maskRects;
 
-  VirtualOutpaintMaskPainter({
-    required this.state,
-    required this.maskRects,
-  }) : super(repaint: state.renderNotifier);
+  VirtualOutpaintMaskPainter({required this.state, required this.maskRects})
+    : super(repaint: state.renderNotifier);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -470,10 +468,8 @@ class CursorPainter extends CustomPainter {
   /// 使用 cursorNotifier 而非整个 state
   /// 这样只有光标位置变化时才会触发重绘
   /// 避免其他 UI 操作导致光标不必要的重绘
-  CursorPainter({
-    required this.state,
-    this.cursorPosition,
-  }) : super(repaint: state.cursorNotifier);
+  CursorPainter({required this.state, this.cursorPosition})
+    : super(repaint: state.cursorNotifier);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -510,11 +506,7 @@ class CursorPainter extends CustomPainter {
       );
 
       // 中心点
-      canvas.drawCircle(
-        cursorPosition!,
-        2,
-        Paint()..color = Colors.black,
-      );
+      canvas.drawCircle(cursorPosition!, 2, Paint()..color = Colors.black);
 
       // 图标位置：圆圈右下角
       iconPosition = cursorPosition! + Offset(scaledRadius, scaledRadius);

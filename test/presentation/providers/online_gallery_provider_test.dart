@@ -1,10 +1,42 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/data/datasources/remote/online_gallery/gallery_source_adapter.dart';
 import 'package:nai_launcher/data/models/online_gallery/gelbooru_post_parser.dart';
 import 'package:nai_launcher/presentation/providers/online_gallery_provider.dart';
 
 void main() {
+  group('OnlineGalleryState.copyWith', () {
+    final config = AiTagSourceConfig(
+      assetBaseUrl: 'https://example.test',
+      pageSize: 60,
+      availableYears: const [2026],
+      availableMonths: const ['2026-01'],
+      fetchedAt: DateTime(2026),
+    );
+
+    test('can clear either date boundary independently', () {
+      final state = OnlineGalleryState(
+        dateRangeStart: DateTime(2026, 1, 1),
+        dateRangeEnd: DateTime(2026, 1, 31),
+      );
+
+      final withoutStart = state.copyWith(clearDateRangeStart: true);
+      expect(withoutStart.dateRangeStart, isNull);
+      expect(withoutStart.dateRangeEnd, DateTime(2026, 1, 31));
+
+      final withoutEnd = state.copyWith(clearDateRangeEnd: true);
+      expect(withoutEnd.dateRangeStart, DateTime(2026, 1, 1));
+      expect(withoutEnd.dateRangeEnd, isNull);
+    });
+
+    test('can explicitly clear AI TAG configuration', () {
+      final state = OnlineGalleryState(aiTagConfig: config);
+
+      expect(state.copyWith(clearAiTagConfig: true).aiTagConfig, isNull);
+    });
+  });
+
   group('Gelbooru post parsing', () {
     test('normalizes API rating and opens the Gelbooru post page', () {
       final posts = parsePostsInIsolate({

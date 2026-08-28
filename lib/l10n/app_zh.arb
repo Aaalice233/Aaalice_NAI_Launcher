@@ -1924,7 +1924,7 @@
   "globalSettings_category_style": "风格",
 
   "nav_generate": "生成",
-  "nav_gallery": "画廊",
+  "nav_gallery": "图库",
   "nav_settings": "设置",
 
   "download_completed": "{name}下载完成",
@@ -6209,7 +6209,7 @@
   "common_share": "分享",
   "common_moreActions": "更多操作",
   "nav_more": "更多",
-  "nav_explore": "探索",
+  "nav_explore": "画廊",
   "image_savedToSystemGallery": "已保存到系统相册",
   "image_savedAppOnly": "已保存到应用图库，但无法导出到系统相册：{error}",
   "@image_savedAppOnly": {"placeholders":{"error":{}}},

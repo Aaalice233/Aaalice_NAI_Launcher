@@ -48,6 +48,25 @@ void main() {
     expect(readPaths, ['a.png', 'b.png']);
   });
 
+  test(
+    'counts a real file read failure and imports later valid items',
+    () async {
+      final result = await VibeDropImportPreprocessor.collectImageItems(
+        const ['unreadable.png', 'valid.png'],
+        lengthReader: (_) async => 10,
+        bytesReader: (path) async {
+          if (path == 'unreadable.png') {
+            throw Exception('Read failed');
+          }
+          return Uint8List.fromList([1, 2, 3]);
+        },
+      );
+
+      expect(result.failedCount, 1);
+      expect(result.items.map((item) => item.source), ['valid.png']);
+    },
+  );
+
   test('limits concurrent image reads to the configured batch size', () async {
     var activeReads = 0;
     var maxActiveReads = 0;

@@ -68,24 +68,26 @@ void main() {
       }
     });
 
-    test('should find images by file name even when metadata is absent',
-        () async {
-      final now = DateTime.now();
-      final imageId = await dataSource.upsertImage(
-        filePath: '/test/special_character_pose.png',
-        fileName: 'special_character_pose.png',
-        fileSize: 2048,
-        createdAt: now,
-        modifiedAt: now,
-      );
+    test(
+      'should find images by file name even when metadata is absent',
+      () async {
+        final now = DateTime.now();
+        final imageId = await dataSource.upsertImage(
+          filePath: '/test/special_character_pose.png',
+          fileName: 'special_character_pose.png',
+          fileSize: 2048,
+          createdAt: now,
+          modifiedAt: now,
+        );
 
-      final result = await dataSource.advancedSearch(
-        textQuery: 'special_character',
-        limit: 10,
-      );
+        final result = await dataSource.advancedSearch(
+          textQuery: 'special_character',
+          limit: 10,
+        );
 
-      expect(result, contains(imageId));
-    });
+        expect(result, contains(imageId));
+      },
+    );
 
     test('should support prompt queries that use comma separators', () async {
       final now = DateTime.now();
@@ -112,92 +114,112 @@ void main() {
     });
 
     test(
-        'should refresh cached search results after metadata indexing updates the same tag query',
-        () async {
+      'should refresh cached search results after metadata indexing updates the same tag query',
+      () async {
+        final now = DateTime.now();
+        final file = File('/test/cache_refresh.png');
+        final imageId = await dataSource.upsertImage(
+          filePath: file.path,
+          fileName: 'cache_refresh.png',
+          fileSize: 1024,
+          createdAt: now,
+          modifiedAt: now,
+        );
+
+        final filterService = GalleryFilterService(dataSource);
+
+        final initialBareSearch = await filterService.applyFilters([
+          file,
+        ], const FilterCriteria(searchQuery: 'shycocoa'));
+
+        expect(initialBareSearch.files, isEmpty);
+
+        await dataSource.upsertMetadata(
+          imageId,
+          const NaiImageMetadata(
+            prompt: 'artist:shycocoa, 1girl, solo',
+            negativePrompt: '',
+            seed: 1,
+          ),
+        );
+
+        final prefixedSearch = await filterService.applyFilters([
+          file,
+        ], const FilterCriteria(searchQuery: 'artist:shycocoa'));
+        final bareSearch = await filterService.applyFilters([
+          file,
+        ], const FilterCriteria(searchQuery: 'shycocoa'));
+
+        expect(
+          prefixedSearch.files.map((item) => item.path),
+          contains(file.path),
+        );
+        expect(bareSearch.files.map((item) => item.path), contains(file.path));
+        expect(bareSearch.files.length, equals(prefixedSearch.files.length));
+      },
+    );
+
+    test('batch upsert persists last scanned timestamp', () async {
       final now = DateTime.now();
-      final file = File('/test/cache_refresh.png');
-      final imageId = await dataSource.upsertImage(
-        filePath: file.path,
-        fileName: 'cache_refresh.png',
-        fileSize: 1024,
-        createdAt: now,
-        modifiedAt: now,
-      );
-
-      final filterService = GalleryFilterService(dataSource);
-
-      final initialBareSearch = await filterService.applyFilters(
-        [file],
-        const FilterCriteria(searchQuery: 'shycocoa'),
-      );
-
-      expect(initialBareSearch.files, isEmpty);
-
-      await dataSource.upsertMetadata(
-        imageId,
-        const NaiImageMetadata(
-          prompt: 'artist:shycocoa, 1girl, solo',
-          negativePrompt: '',
-          seed: 1,
-        ),
-      );
-
-      final prefixedSearch = await filterService.applyFilters(
-        [file],
-        const FilterCriteria(searchQuery: 'artist:shycocoa'),
-      );
-      final bareSearch = await filterService.applyFilters(
-        [file],
-        const FilterCriteria(searchQuery: 'shycocoa'),
-      );
-
-      expect(
-          prefixedSearch.files.map((item) => item.path), contains(file.path),);
-      expect(bareSearch.files.map((item) => item.path), contains(file.path));
-      expect(bareSearch.files.length, equals(prefixedSearch.files.length));
-    });
-
-    test('should not truncate local gallery search results at 10000 items',
-        () async {
-      const totalImages = 10005;
-      final now = DateTime.now();
-      final imageRecords = List.generate(
-        totalImages,
-        (index) => GalleryImageRecord(
-          filePath: '/test/search_limit_$index.png',
-          fileName: 'search_limit_$index.png',
-          fileSize: 1024 + index,
+      final lastScannedAt = DateTime.fromMillisecondsSinceEpoch(1712345678000);
+      final ids = await dataSource.batchUpsertImages([
+        GalleryImageRecord(
+          filePath: '/test/batch_last_scanned.png',
+          fileName: 'batch_last_scanned.png',
+          fileSize: 1024,
           createdAt: now,
           modifiedAt: now,
           indexedAt: now,
+          lastScannedAt: lastScannedAt,
           dateYmd: 20260421,
         ),
-      );
-
-      final imageIds = await dataSource.batchUpsertImages(imageRecords);
-      expect(imageIds.length, equals(totalImages));
-
-      await dataSource.batchUpsertMetadata([
-        for (var i = 0; i < imageIds.length; i++)
-          MapEntry(
-            imageIds[i],
-            NaiImageMetadata(
-              prompt: 'common search prompt $i',
-              negativePrompt: '',
-              seed: i,
-            ),
-          ),
       ]);
 
-      final filterService = GalleryFilterService(dataSource);
-      final result = await filterService.applyFilters(
-        [
-          for (final record in imageRecords) File(record.filePath),
-        ],
-        const FilterCriteria(searchQuery: 'common'),
-      );
+      final record = await dataSource.getImageById(ids.single);
 
-      expect(result.files.length, equals(totalImages));
+      expect(record?.lastScannedAt, lastScannedAt);
     });
+
+    test(
+      'should not truncate local gallery search results at 10000 items',
+      () async {
+        const totalImages = 10005;
+        final now = DateTime.now();
+        final imageRecords = List.generate(
+          totalImages,
+          (index) => GalleryImageRecord(
+            filePath: '/test/search_limit_$index.png',
+            fileName: 'search_limit_$index.png',
+            fileSize: 1024 + index,
+            createdAt: now,
+            modifiedAt: now,
+            indexedAt: now,
+            dateYmd: 20260421,
+          ),
+        );
+
+        final imageIds = await dataSource.batchUpsertImages(imageRecords);
+        expect(imageIds.length, equals(totalImages));
+
+        await dataSource.batchUpsertMetadata([
+          for (var i = 0; i < imageIds.length; i++)
+            MapEntry(
+              imageIds[i],
+              NaiImageMetadata(
+                prompt: 'common search prompt $i',
+                negativePrompt: '',
+                seed: i,
+              ),
+            ),
+        ]);
+
+        final filterService = GalleryFilterService(dataSource);
+        final result = await filterService.applyFilters([
+          for (final record in imageRecords) File(record.filePath),
+        ], const FilterCriteria(searchQuery: 'common'));
+
+        expect(result.files.length, equals(totalImages));
+      },
+    );
   });
 }

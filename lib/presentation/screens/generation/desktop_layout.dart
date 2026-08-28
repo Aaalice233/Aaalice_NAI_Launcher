@@ -15,7 +15,7 @@ import '../../providers/krita/krita_bridge_notifier.dart';
 import '../../providers/layout_state_provider.dart';
 import '../../providers/prompt_maximize_provider.dart';
 import '../../providers/replication_queue_provider.dart';
-import '../../router/app_router.dart';
+import '../../router/app_routes.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/shortcuts/shortcut_aware_widget.dart';
 import '../../services/image_workflow_launcher.dart';

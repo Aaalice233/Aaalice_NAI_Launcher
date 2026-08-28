@@ -98,9 +98,24 @@ class OnlineGalleryDetailCoordinator {
   }
 
   void cancelQueuedVisible() {
-    final queued = List<_DetailTask>.of(_visibleQueue);
-    _visibleQueue.clear();
-    for (final task in queued) {
+    _cancelVisibleTasks(includeActive: false);
+  }
+
+  void cancelVisible() {
+    _cancelVisibleTasks(includeActive: true);
+  }
+
+  void _cancelVisibleTasks({required bool includeActive}) {
+    final tasks = _tasks.values
+        .where(
+          (task) =>
+              task.priority == GalleryDetailPriority.visible &&
+              (includeActive || !task.started),
+        )
+        .toList(growable: false);
+    for (final task in tasks) {
+      _interactiveQueue.remove(task);
+      _visibleQueue.remove(task);
       if (_tasks[task.item.detailStableKey] == task) {
         _tasks.remove(task.item.detailStableKey);
       }
@@ -116,6 +131,7 @@ class OnlineGalleryDetailCoordinator {
         );
       }
     }
+    _pump();
   }
 
   void cancel(GalleryItem item, {String reason = 'Detail request cancelled'}) {

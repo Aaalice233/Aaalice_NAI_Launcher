@@ -64,6 +64,18 @@ void main() {
       }
     });
 
+    test('concurrent initialize calls share the same operation', () async {
+      final image = File(p.join(galleryRoot.path, 'concurrent.png'));
+      await image.writeAsBytes(<int>[137, 80, 78, 71]);
+
+      final first = service.initialize();
+      final concurrent = service.initialize();
+
+      expect(identical(first, concurrent), isTrue);
+      expect((await concurrent).map((file) => file.path), contains(image.path));
+      expect(service.isInitialized, isTrue);
+    });
+
     test(
       'toggles the scanned gallery record when history uses mixed separators',
       () async {

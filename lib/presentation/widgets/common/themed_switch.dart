@@ -32,12 +32,14 @@ class ThemedSwitch extends StatelessWidget {
       opacity: effectiveOnChanged == null ? 0.5 : 1,
       child: SizedBox(
         width: 52 * scale,
-        height: 32 * scale,
+        height: 40 * scale,
         child: FittedBox(
-          fit: BoxFit.fill,
+          fit: BoxFit.contain,
           child: Switch(
             value: value,
             onChanged: effectiveOnChanged,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            padding: EdgeInsets.zero,
             activeTrackColor: activeColor ?? colors.primary,
             inactiveTrackColor: inactiveColor ?? colors.surfaceContainerHighest,
             thumbColor: WidgetStateProperty.resolveWith((states) {

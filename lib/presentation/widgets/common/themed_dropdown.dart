@@ -56,6 +56,7 @@ class ThemedDropdown<T> extends StatelessWidget {
         selectedItemBuilder: selectedItemBuilder,
         icon: icon,
         decoration: InputDecoration(
+          filled: false,
           hintText: hintText,
           border: InputBorder.none,
           enabledBorder: InputBorder.none,
@@ -163,6 +164,7 @@ class ThemedTextField extends StatelessWidget {
         style: style,
         cursorColor: theme.colorScheme.primary,
         decoration: InputDecoration(
+          filled: false,
           hintText: hintText,
           labelText: labelText,
           prefixIcon: prefixIcon,

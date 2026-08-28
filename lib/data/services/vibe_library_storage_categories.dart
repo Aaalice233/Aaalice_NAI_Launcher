@@ -1,305 +1,138 @@
-part of 'vibe_library_storage_service.dart';
+import '../../core/utils/app_logger.dart';
+import '../models/vibe/vibe_library_category.dart';
+import '../models/vibe/vibe_library_entry.dart';
+import 'vibe_library_storage_protocol.dart';
 
-mixin VibeLibraryStorageCategories {
-  VibeLibraryStorageService get _categoryService =>
-      this as VibeLibraryStorageService;
+/// Category and tag application logic backed by the shared Hive repository.
+class VibeLibraryCategoryRepository {
+  VibeLibraryCategoryRepository(
+    this._repository, {
+    required this.getEntriesByCategory,
+    required this.updateEntryCategory,
+  });
 
-  // ==================== Category CRUD ====================
+  final VibeLibraryRepositoryProtocol _repository;
+  final Future<List<VibeLibraryEntry>> Function(String? categoryId)
+  getEntriesByCategory;
+  final Future<VibeLibraryEntry?> Function(String id, String? categoryId)
+  updateEntryCategory;
 
-  /// 保存分类（新增或更新）
-  Future<VibeLibraryCategory> saveCategory(VibeLibraryCategory category) async {
-    final service = _categoryService;
-    await service._ensureCategoriesBox();
+  Future<VibeLibraryCategory> save(VibeLibraryCategory category) async {
     try {
-      await service._categoriesBox!.put(category.id, category);
+      await _repository.putCategory(category);
       AppLogger.d('Category saved: ${category.name}', 'VibeLibrary');
       return category;
-    } catch (e, stackTrace) {
-      AppLogger.e('Failed to save category: $e', 'VibeLibrary', stackTrace);
+    } catch (error, stackTrace) {
+      AppLogger.e('Failed to save category', error, stackTrace, 'VibeLibrary');
       rethrow;
     }
   }
 
-  /// 根据 ID 获取分类
-  Future<VibeLibraryCategory?> getCategory(String id) async {
-    final service = _categoryService;
-    await service._ensureCategoriesBox();
-    try {
-      return service._categoriesBox!.get(id);
-    } catch (e, stackTrace) {
-      AppLogger.e('Failed to get category: $e', 'VibeLibrary', stackTrace);
-      return null;
-    }
-  }
+  Future<VibeLibraryCategory?> get(String id) =>
+      _withFallback(() => _repository.readCategory(id), null, 'get category');
 
-  /// 获取所有分类
-  Future<List<VibeLibraryCategory>> getAllCategories() async {
-    final service = _categoryService;
-    await service._ensureCategoriesBox();
-    try {
-      return service._categoriesBox!.values.toList();
-    } catch (e, stackTrace) {
-      AppLogger.e(
-        'Failed to get all categories: $e',
-        'VibeLibrary',
-        stackTrace,
-      );
-      return [];
-    }
-  }
+  Future<List<VibeLibraryCategory>> getAll() => _withFallback(
+    _repository.readCategories,
+    const <VibeLibraryCategory>[],
+    'get all categories',
+  );
 
-  /// 获取根级分类
-  Future<List<VibeLibraryCategory>> getRootCategories() async {
-    final service = _categoryService;
-    await service._ensureCategoriesBox();
-    try {
-      return service._categoriesBox!.values
-          .where((category) => category.parentId == null)
-          .toList();
-    } catch (e, stackTrace) {
-      AppLogger.e(
-        'Failed to get root categories: $e',
-        'VibeLibrary',
-        stackTrace,
-      );
-      return [];
-    }
-  }
+  Future<List<VibeLibraryCategory>> getRoots() async =>
+      (await getAll()).where((category) => category.parentId == null).toList();
 
-  /// 获取子分类
-  Future<List<VibeLibraryCategory>> getChildCategories(String parentId) async {
-    final service = _categoryService;
-    await service._ensureCategoriesBox();
-    try {
-      return service._categoriesBox!.values
+  Future<List<VibeLibraryCategory>> getChildren(String parentId) async =>
+      (await getAll())
           .where((category) => category.parentId == parentId)
           .toList();
-    } catch (e, stackTrace) {
-      AppLogger.e(
-        'Failed to get child categories: $e',
-        'VibeLibrary',
-        stackTrace,
+
+  Future<bool> delete(String id, {bool moveEntriesToParent = true}) =>
+      _withFallback(
+        () async {
+          final category = await get(id);
+          if (category == null) return false;
+          for (final entry in await getEntriesByCategory(id)) {
+            await updateEntryCategory(
+              entry.id,
+              moveEntriesToParent ? category.parentId : null,
+            );
+          }
+          for (final child in await getChildren(id)) {
+            await save(child.moveTo(category.parentId));
+          }
+          await _repository.deleteCategory(id);
+          return true;
+        },
+        false,
+        'delete category',
       );
-      return [];
-    }
-  }
 
-  /// 删除分类
-  ///
-  /// [moveEntriesToParent] 如果为 true，将分类下的条目移动到父分类；
-  /// 如果为 false，将条目设为无分类（categoryId = null）
-  Future<bool> deleteCategory(
-    String id, {
-    bool moveEntriesToParent = true,
-  }) async {
-    final service = _categoryService;
-    await Future.wait([
-      service._ensureEntriesBox(),
-      service._ensureCategoriesBox(),
-    ]);
-    try {
-      final category = service._categoriesBox!.get(id);
-      if (category == null) return false;
+  Future<VibeLibraryCategory?> updateName(String id, String newName) =>
+      _withFallback(
+        () async {
+          final category = await get(id);
+          if (category == null) return null;
+          final updated = category.updateName(newName);
+          await _repository.putCategory(updated);
+          return updated;
+        },
+        null,
+        'update category name',
+      );
 
-      // 更新该分类下的条目
-      final entriesInCategory = await service.getEntriesByCategory(id);
-      for (final entry in entriesInCategory) {
-        if (moveEntriesToParent && category.parentId != null) {
-          await service.updateEntryCategory(entry.id, category.parentId);
-        } else {
-          await service.updateEntryCategory(entry.id, null);
-        }
-      }
+  Future<VibeLibraryCategory?> move(String id, String? newParentId) =>
+      _withFallback(
+        () async {
+          final category = await get(id);
+          if (category == null) return null;
+          if (newParentId != null &&
+              (await getAll()).wouldCreateCycle(id, newParentId)) {
+            throw ArgumentError('Cannot move category: would create cycle');
+          }
+          final updated = category.moveTo(newParentId);
+          await _repository.putCategory(updated);
+          return updated;
+        },
+        null,
+        'move category',
+      );
 
-      // 更新子分类的 parentId
-      final childCategories = await service.getChildCategories(id);
-      for (final child in childCategories) {
-        final updatedChild = child.moveTo(category.parentId);
-        await service.saveCategory(updatedChild);
-      }
+  Future<Set<String>> getAllTags() => _withFallback(
+    () async => {
+      for (final entry in await _repository.readAllEntries()) ...entry.tags,
+    },
+    <String>{},
+    'get all tags',
+  );
 
-      await service._categoriesBox!.delete(id);
-      AppLogger.d('Category deleted: ${category.name}', 'VibeLibrary');
-      return true;
-    } catch (e, stackTrace) {
-      AppLogger.e('Failed to delete category: $e', 'VibeLibrary', stackTrace);
-      return false;
-    }
-  }
+  Future<List<VibeLibraryEntry>> getEntriesByTag(String tag) => _withFallback(
+    () async => (await _repository.readAllEntries())
+        .where((entry) => entry.tags.contains(tag))
+        .toList(),
+    const <VibeLibraryEntry>[],
+    'get entries by tag',
+  );
 
-  /// 批量删除分类
-  Future<int> deleteCategories(List<String> ids) async {
-    final service = _categoryService;
-    await service._ensureCategoriesBox();
-    var deletedCount = 0;
-    try {
-      for (final id in ids) {
-        if (await service.deleteCategory(id)) {
-          deletedCount++;
-        }
-      }
-      AppLogger.d('Categories deleted: $deletedCount', 'VibeLibrary');
-      return deletedCount;
-    } catch (e, stackTrace) {
-      AppLogger.e('Failed to delete categories: $e', 'VibeLibrary', stackTrace);
-      return deletedCount;
-    }
-  }
+  Future<List<VibeLibraryEntry>> getEntriesByUsage({int limit = 20}) =>
+      _withFallback(
+        () async {
+          final entries = await _repository.readAllEntries();
+          entries.sort((a, b) => b.usedCount.compareTo(a.usedCount));
+          return entries.take(limit).toList();
+        },
+        const <VibeLibraryEntry>[],
+        'get entries by usage',
+      );
 
-  /// 更新分类名称
-  Future<VibeLibraryCategory?> updateCategoryName(
-    String id,
-    String newName,
+  Future<T> _withFallback<T>(
+    Future<T> Function() operation,
+    T fallback,
+    String name,
   ) async {
-    final service = _categoryService;
-    await service._ensureCategoriesBox();
     try {
-      final category = service._categoriesBox!.get(id);
-      if (category == null) return null;
-
-      final updatedCategory = category.updateName(newName);
-      await service._categoriesBox!.put(id, updatedCategory);
-      AppLogger.d('Category name updated: $newName', 'VibeLibrary');
-      return updatedCategory;
-    } catch (e, stackTrace) {
-      AppLogger.e(
-        'Failed to update category name: $e',
-        'VibeLibrary',
-        stackTrace,
-      );
-      return null;
-    }
-  }
-
-  /// 移动分类到新父分类
-  Future<VibeLibraryCategory?> moveCategory(
-    String id,
-    String? newParentId,
-  ) async {
-    final service = _categoryService;
-    await service._ensureCategoriesBox();
-    try {
-      final category = service._categoriesBox!.get(id);
-      if (category == null) return null;
-
-      // 检查循环引用
-      if (newParentId != null) {
-        final allCategories = await service.getAllCategories();
-        if (allCategories.wouldCreateCycle(id, newParentId)) {
-          throw ArgumentError('Cannot move category: would create cycle');
-        }
-      }
-
-      final updatedCategory = category.moveTo(newParentId);
-      await service._categoriesBox!.put(id, updatedCategory);
-      AppLogger.d('Category moved: ${category.name}', 'VibeLibrary');
-      return updatedCategory;
-    } catch (e, stackTrace) {
-      AppLogger.e('Failed to move category: $e', 'VibeLibrary', stackTrace);
-      return null;
-    }
-  }
-
-  /// 获取分类数量
-  Future<int> getCategoriesCount() async {
-    final service = _categoryService;
-    await service._ensureCategoriesBox();
-    try {
-      return service._categoriesBox!.length;
-    } catch (e, stackTrace) {
-      AppLogger.e(
-        'Failed to get categories count: $e',
-        'VibeLibrary',
-        stackTrace,
-      );
-      return 0;
-    }
-  }
-
-  /// 检查分类是否存在
-  Future<bool> categoryExists(String id) async {
-    final service = _categoryService;
-    await service._ensureCategoriesBox();
-    try {
-      return service._categoriesBox!.containsKey(id);
-    } catch (e, stackTrace) {
-      AppLogger.e(
-        'Failed to check category existence: $e',
-        'VibeLibrary',
-        stackTrace,
-      );
-      return false;
-    }
-  }
-
-  /// 清除所有分类
-  Future<void> clearAllCategories() async {
-    final service = _categoryService;
-    await service._ensureCategoriesBox();
-    try {
-      await service._categoriesBox!.clear();
-      AppLogger.i('All categories cleared', 'VibeLibrary');
-    } catch (e, stackTrace) {
-      AppLogger.e(
-        'Failed to clear all categories: $e',
-        'VibeLibrary',
-        stackTrace,
-      );
-      rethrow;
-    }
-  }
-
-  // ==================== Utility ====================
-
-  /// 获取所有标签
-  Future<Set<String>> getAllTags() async {
-    final service = _categoryService;
-    await service._ensureInit();
-    try {
-      final tags = <String>{};
-      for (final entry in service._entriesBox!.values) {
-        tags.addAll(entry.tags);
-      }
-      return tags;
-    } catch (e, stackTrace) {
-      AppLogger.e('Failed to get all tags: $e', 'VibeLibrary', stackTrace);
-      return {};
-    }
-  }
-
-  /// 按标签筛选条目
-  Future<List<VibeLibraryEntry>> getEntriesByTag(String tag) async {
-    final service = _categoryService;
-    await service._ensureInit();
-    try {
-      return service._entriesBox!.values
-          .where((entry) => entry.tags.contains(tag))
-          .toList();
-    } catch (e, stackTrace) {
-      AppLogger.e(
-        'Failed to get entries by tag: $e',
-        'VibeLibrary',
-        stackTrace,
-      );
-      return [];
-    }
-  }
-
-  /// 获取按使用次数排序的条目
-  Future<List<VibeLibraryEntry>> getEntriesByUsage({int limit = 20}) async {
-    final service = _categoryService;
-    await service._ensureInit();
-    try {
-      final entries = service._entriesBox!.values.toList();
-      entries.sort((a, b) => b.usedCount.compareTo(a.usedCount));
-      return entries.take(limit).toList();
-    } catch (e, stackTrace) {
-      AppLogger.e(
-        'Failed to get entries by usage: $e',
-        'VibeLibrary',
-        stackTrace,
-      );
-      return [];
+      return await operation();
+    } catch (error, stackTrace) {
+      AppLogger.e('Failed to $name', error, stackTrace, 'VibeLibrary');
+      return fallback;
     }
   }
 }

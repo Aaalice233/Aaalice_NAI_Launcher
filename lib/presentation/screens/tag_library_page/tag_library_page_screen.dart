@@ -13,7 +13,7 @@ import '../../providers/fixed_tags_provider.dart';
 import '../../providers/pending_prompt_provider.dart';
 import '../../providers/tag_library_page_provider.dart';
 import '../../providers/tag_library_selection_provider.dart';
-import '../../router/app_router.dart';
+import '../../router/app_routes.dart';
 
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/themed_confirm_dialog.dart';

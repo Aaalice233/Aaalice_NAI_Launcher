@@ -2,6 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/data/models/gallery/local_image_record.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/widgets/common/card_action_buttons.dart';
@@ -11,10 +12,26 @@ import 'package:nai_launcher/presentation/widgets/gallery/local_image_context_me
 import 'package:visibility_detector/visibility_detector.dart';
 
 void main() {
+  late Duration previousVisibilityUpdateInterval;
+
+  setUp(() {
+    previousVisibilityUpdateInterval =
+        VisibilityDetectorController.instance.updateInterval;
+    VisibilityDetectorController.instance.updateInterval = Duration.zero;
+    PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
+      TargetPlatform.windows,
+    );
+  });
+
+  tearDown(() {
+    VisibilityDetectorController.instance.updateInterval =
+        previousVisibilityUpdateInterval;
+    PlatformCapabilities.debugOverride = null;
+  });
+
   testWidgets('grouped gallery forwards secondary taps to the context menu', (
     tester,
   ) async {
-    VisibilityDetectorController.instance.updateInterval = Duration.zero;
     final record = LocalImageRecord(
       path: 'G:/gallery/grouped-image.png',
       size: 42,
@@ -162,7 +179,6 @@ void main() {
   testWidgets('grouped gallery send button dispatches the shared send action', (
     tester,
   ) async {
-    VisibilityDetectorController.instance.updateInterval = Duration.zero;
     final record = LocalImageRecord(
       path: 'G:/gallery/grouped-send-image.png',
       size: 42,

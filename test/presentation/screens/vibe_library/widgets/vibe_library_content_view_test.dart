@@ -7,6 +7,10 @@ import 'package:nai_launcher/data/services/vibe_library_storage_service.dart';
 import 'package:nai_launcher/presentation/screens/vibe_library/widgets/vibe_library_content_view.dart';
 
 void main() {
+  test('workspace 和网格共用同一个间距', () {
+    expect(vibeLibraryGridSpacing, 16);
+  });
+
   test('首屏网格缓存范围应收敛，避免额外预构建过多卡片', () {
     expect(computeVibeGridCacheExtent(200), 300);
     expect(computeVibeGridCacheExtent(160), 240);

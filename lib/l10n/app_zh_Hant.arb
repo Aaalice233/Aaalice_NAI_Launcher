@@ -1951,7 +1951,7 @@
   "globalSettings_category_scene": "場景",
   "globalSettings_category_style": "風格",
   "nav_generate": "生成",
-  "nav_gallery": "畫廊",
+  "nav_gallery": "圖庫",
   "nav_settings": "設定",
   "download_completed": "{name}下載完成",
   "@download_completed": {
@@ -6486,7 +6486,7 @@
   "common_share": "分享",
   "common_moreActions": "更多操作",
   "nav_more": "更多",
-  "nav_explore": "探索",
+  "nav_explore": "畫廊",
   "image_savedToSystemGallery": "已儲存到系統相簿",
   "image_savedAppOnly": "已儲存到應用程式圖庫，但無法匯出到系統相簿：{error}",
   "@image_savedAppOnly": {"placeholders":{"error":{}}},

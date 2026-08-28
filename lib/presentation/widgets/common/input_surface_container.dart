@@ -54,18 +54,19 @@ class InputSurfaceContainer extends StatelessWidget {
   Widget _buildSurface(BuildContext context, bool focused) {
     final colors = Theme.of(context).colorScheme;
     final isEnabled = enabled ?? true;
+    final showsRestingBorder = borderWidth > 0;
     final effectiveBorderColor = !isEnabled
-        ? (borderColor ?? colors.outlineVariant).withValues(alpha: 0.18)
+        ? showsRestingBorder
+              ? (borderColor ?? colors.outlineVariant).withValues(alpha: 0.18)
+              : Colors.transparent
         : hasError
         ? (borderColor ?? colors.error).withValues(alpha: focused ? 0.9 : 0.62)
         : focused
         ? colors.primary.withValues(alpha: 0.68)
-        : (borderColor ?? colors.outlineVariant).withValues(alpha: 0.4);
-    final effectiveBorderWidth = hasError || focused
-        ? 1.0
-        : borderWidth > 0
-        ? borderWidth
-        : 0.0;
+        : showsRestingBorder
+        ? (borderColor ?? colors.outlineVariant).withValues(alpha: 0.4)
+        : Colors.transparent;
+    final effectiveBorderWidth = showsRestingBorder ? borderWidth : 1.0;
     final duration = MediaQuery.disableAnimationsOf(context)
         ? Duration.zero
         : const Duration(milliseconds: 120);
@@ -81,13 +82,11 @@ class InputSurfaceContainer extends StatelessWidget {
       decoration: BoxDecoration(
         color: backgroundColor ?? inputSurfaceFillColor(colors),
         borderRadius: BorderRadius.circular(borderRadius),
-        border: effectiveBorderWidth > 0
-            ? Border.all(
-                color: effectiveBorderColor,
-                width: effectiveBorderWidth,
-                strokeAlign: BorderSide.strokeAlignInside,
-              )
-            : null,
+        border: Border.all(
+          color: effectiveBorderColor,
+          width: effectiveBorderWidth,
+          strokeAlign: BorderSide.strokeAlignInside,
+        ),
       ),
       child: child,
     );

@@ -21,7 +21,7 @@ import '../../../providers/selection_mode_provider.dart';
 import '../../../providers/vibe_library_category_provider.dart';
 import '../../../providers/vibe_library_provider.dart';
 import '../../../providers/vibe_library_selection_provider.dart';
-import '../../../router/app_router.dart';
+import '../../../router/app_routes.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/pro_context_menu.dart';
 import '../../../widgets/common/themed_confirm_dialog.dart';
@@ -29,6 +29,8 @@ import 'vibe_card.dart';
 import 'vibe_detail_viewer.dart';
 import 'vibe_export_dialog.dart';
 import 'vibe_library_empty_view.dart';
+
+const vibeLibraryGridSpacing = 16.0;
 
 /// Vibe 库内容视图
 ///
@@ -108,8 +110,8 @@ class _VibeLibraryContentViewState
       addAutomaticKeepAlives: false,
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: widget.columns,
-        mainAxisSpacing: 16,
-        crossAxisSpacing: 16,
+        mainAxisSpacing: vibeLibraryGridSpacing,
+        crossAxisSpacing: vibeLibraryGridSpacing,
         childAspectRatio: 1.0,
       ),
       itemCount: entries.length,
@@ -629,10 +631,10 @@ class _VibeLibraryContentViewState
     );
 
     if (confirmed) {
-      await ref.read(vibeLibraryNotifierProvider.notifier).deleteEntries([
-        entry.id,
-      ]);
-      if (context.mounted) {
+      final deleted = await ref
+          .read(vibeLibraryNotifierProvider.notifier)
+          .deleteEntry(entry.id);
+      if (deleted && context.mounted) {
         AppToast.success(
           context,
           context.l10n.toast_deletedNamed(entry.displayName),

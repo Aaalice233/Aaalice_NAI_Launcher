@@ -1886,7 +1886,7 @@
   "globalSettings_category_scene": "シーン",
   "globalSettings_category_style": "スタイル",
   "nav_generate": "生成",
-  "nav_gallery": "ギャラリー",
+  "nav_gallery": "ライブラリ",
   "nav_settings": "設定",
   "download_completed": "{name} ダウンロードが完了しました",
   "@download_completed": {
@@ -6165,7 +6165,7 @@
   "common_share": "共有",
   "common_moreActions": "その他の操作",
   "nav_more": "その他",
-  "nav_explore": "探索",
+  "nav_explore": "ギャラリー",
   "image_savedToSystemGallery": "システムギャラリーに保存しました",
   "image_savedAppOnly": "アプリ内ギャラリーには保存しましたが、システムギャラリーに書き出せませんでした: {error}",
   "@image_savedAppOnly": {"placeholders":{"error":{}}},

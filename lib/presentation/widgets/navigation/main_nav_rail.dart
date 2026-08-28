@@ -16,7 +16,7 @@ import '../../providers/queue_execution_provider.dart';
 import '../../providers/replication_queue_provider.dart';
 import '../../providers/update_provider.dart';
 import '../../router/app_branch.dart';
-import '../../router/app_router.dart';
+import '../../router/app_routes.dart';
 import '../auth/account_avatar.dart';
 import '../auth/login_form_container.dart';
 
@@ -40,8 +40,17 @@ class MainNavRail extends ConsumerWidget {
   ];
 
   final StatefulNavigationShell navigationShell;
+  final bool isQueueVisible;
+  final ValueChanged<bool> onQueueVisibilityChanged;
 
-  const MainNavRail({super.key, required this.navigationShell});
+  const MainNavRail({
+    super.key,
+    required this.navigationShell,
+    this.isQueueVisible = false,
+    this.onQueueVisibilityChanged = _ignoreQueueVisibilityChange,
+  });
+
+  static void _ignoreQueueVisibilityChange(bool _) {}
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -53,7 +62,6 @@ class MainNavRail extends ConsumerWidget {
     final showUpdateBadge = ref.watch(
       updateStateProvider.select((state) => state.hasNewVersion),
     );
-    final isQueueVisible = ref.watch(queueManagementVisibleProvider);
     final queueCount = ref.watch(
       replicationQueueNotifierProvider.select((state) => state.count),
     );
@@ -197,10 +205,7 @@ class MainNavRail extends ConsumerWidget {
               badgeLabel: queueCount > 0
                   ? (queueCount > 99 ? '99+' : queueCount.toString())
                   : null,
-              onTap: () {
-                ref.read(queueManagementVisibleProvider.notifier).state =
-                    !isQueueVisible;
-              },
+              onTap: () => onQueueVisibilityChanged(!isQueueVisible),
             ),
 
             // Bottom Settings
@@ -1153,7 +1158,7 @@ class _AccountAvatarButtonState extends State<_AccountAvatarButton> {
     } else if (value == 'logout') {
       // Use SchedulerBinding.endOfFrame to ensure logout happens AFTER the menu is fully disposed
       // This prevents the "ref.listen can only be used within build method" error that occurs when
-      // ref.listen in app_router.dart is triggered during menu disposal. endOfFrame is more reliable
+      // The router auth listener can run during menu disposal. endOfFrame is more reliable
       // than addPostFrameCallback because it waits for the entire frame to complete, including all
       // post-frame callbacks and microtasks, ensuring the widget tree is stable.
       SchedulerBinding.instance.endOfFrame.then((_) {

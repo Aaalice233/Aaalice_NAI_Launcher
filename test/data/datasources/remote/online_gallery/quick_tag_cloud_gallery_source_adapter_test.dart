@@ -27,6 +27,35 @@ void main() {
     );
   });
 
+  test('查询稳定键保持八段格式、转义往返与长度上限', () {
+    const original = QuickTagCloudGalleryQuery(
+      codexId: 'book|special',
+      categoryPath: ['People', 'Hair/Long'],
+      updateFilterId: 'batch|1',
+      scope: QuickTagCloudBrowseScope.latest,
+      mediaFilter: QuickTagCloudMediaFilter.withImages,
+      allowNsfw: true,
+      favoritesOnly: true,
+    );
+
+    final stableKey = original.stableKey;
+    final restored = QuickTagCloudGalleryQuery.tryParseStableKey(stableKey);
+
+    expect(stableKey.split('|'), hasLength(8));
+    expect(restored?.stableKey, stableKey);
+    expect(restored?.categoryPath, original.categoryPath);
+    expect(
+      QuickTagCloudGalleryQuery.tryParseStableKey(''.padRight(4097, 'x')),
+      isNull,
+    );
+    expect(
+      QuickTagCloudGalleryQuery.tryParseStableKey(
+        'book|||catalog|all|invalid|false|false',
+      ),
+      isNull,
+    );
+  });
+
   test('搜索完整字段、保留无图词条并使用字符串稳定 ID 分页', () async {
     final first = await adapter.search(
       const GallerySearchRequest(

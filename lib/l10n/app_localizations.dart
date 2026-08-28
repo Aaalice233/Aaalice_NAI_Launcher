@@ -7768,7 +7768,7 @@ abstract class AppLocalizations {
   /// No description provided for @nav_gallery.
   ///
   /// In en, this message translates to:
-  /// **'Gallery'**
+  /// **'Library'**
   String get nav_gallery;
 
   /// No description provided for @nav_settings.
@@ -22013,7 +22013,7 @@ abstract class AppLocalizations {
   /// No description provided for @nav_explore.
   ///
   /// In en, this message translates to:
-  /// **'Explore'**
+  /// **'Gallery'**
   String get nav_explore;
 
   /// No description provided for @image_savedToSystemGallery.

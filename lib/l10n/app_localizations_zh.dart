@@ -4151,7 +4151,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get nav_generate => '生成';
 
   @override
-  String get nav_gallery => '画廊';
+  String get nav_gallery => '图库';
 
   @override
   String get nav_settings => '设置';
@@ -12109,7 +12109,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get nav_more => '更多';
 
   @override
-  String get nav_explore => '探索';
+  String get nav_explore => '画廊';
 
   @override
   String get image_savedToSystemGallery => '已保存到系统相册';
@@ -16346,7 +16346,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get nav_generate => '生成';
 
   @override
-  String get nav_gallery => '畫廊';
+  String get nav_gallery => '圖庫';
 
   @override
   String get nav_settings => '設定';
@@ -24304,7 +24304,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get nav_more => '更多';
 
   @override
-  String get nav_explore => '探索';
+  String get nav_explore => '畫廊';
 
   @override
   String get image_savedToSystemGallery => '已儲存到系統相簿';

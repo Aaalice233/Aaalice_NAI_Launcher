@@ -115,10 +115,19 @@ void main() {
         find.descendant(of: overview, matching: find.text('raw parameters')),
         findsOneWidget,
       );
+      final infoList = find.byKey(const ValueKey('gallery-detail-info-list'));
+      final copyPositive = find.descendant(
+        of: infoList,
+        matching: find.byTooltip('Copy positive'),
+      );
+      final infoScrollable = find.ancestor(
+        of: copyPositive,
+        matching: find.byType(Scrollable),
+      );
       await tester.scrollUntilVisible(
         find.text('Contributor · maintainer'),
         180,
-        scrollable: find.byType(Scrollable).first,
+        scrollable: infoScrollable,
       );
       expect(find.text('Contributor · maintainer'), findsOneWidget);
       expect(find.text('Original dataset'), findsOneWidget);
@@ -143,11 +152,14 @@ void main() {
       expect(find.byIcon(Icons.favorite), findsOneWidget);
 
       await tester.scrollUntilVisible(
-        find.byTooltip('Copy positive'),
+        copyPositive,
         -180,
-        scrollable: find.byType(Scrollable).first,
+        scrollable: infoScrollable,
       );
-      await tester.tap(find.byTooltip('Copy positive'));
+      await tester.ensureVisible(copyPositive);
+      await tester.pumpAndSettle();
+      expect(copyPositive.hitTestable(), findsOneWidget);
+      await tester.tap(copyPositive);
       await tester.tap(find.byTooltip('Copy negative'));
       await tester.tap(find.byTooltip('Copy this character'));
       await tester.tap(find.widgetWithText(FilledButton, 'Generate'));
@@ -305,6 +317,70 @@ void main() {
           .onPressed,
       isNull,
     );
+  });
+
+  testWidgets('moves to focused media when only focus changes', (tester) async {
+    tester.view.physicalSize = const Size(1280, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    const media = [GalleryMedia(id: 'first'), GalleryMedia(id: 'second')];
+    const initialItem = GalleryItem(
+      id: 7,
+      workId: 'work-7',
+      sourceId: GallerySourceId.aiTag,
+      focusedMediaId: 'first',
+      focusedMediaIndex: 0,
+    );
+    const updatedItem = GalleryItem(
+      id: 7,
+      workId: 'work-7',
+      sourceId: GallerySourceId.aiTag,
+      focusedMediaId: 'second',
+      focusedMediaIndex: 1,
+    );
+    const detail = GalleryDetail(item: initialItem, media: media);
+    final focusedItem = ValueNotifier<GalleryItem>(initialItem);
+    addTearDown(focusedItem.dispose);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            body: ValueListenableBuilder<GalleryItem>(
+              valueListenable: focusedItem,
+              builder: (context, item, _) => GalleryDetailDialog(
+                item: item,
+                detail: detail,
+                isFavorited: false,
+                favoriteLoading: false,
+                labels: _labels(),
+                onCopyPrompt: () {},
+                onCopyNegativePrompt: () {},
+                onCopyCharacter: (_) {},
+                onCopyAll: () {},
+                onToggleFavorite: () async => true,
+                onOpenSource: () {},
+                onSendToGenerate: () {},
+                onAddToQueue: () async {},
+                onDownloadCurrentOriginal: (_) async {},
+                onTagSearch: (_) {},
+                onBlacklistChanged: () {},
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('1 / 2'), findsOneWidget);
+
+    focusedItem.value = updatedItem;
+    await tester.pumpAndSettle();
+
+    expect(find.text('2 / 2'), findsOneWidget);
+    expect(tester.widget<PageView>(find.byType(PageView)).controller?.page, 1);
   });
 }
 

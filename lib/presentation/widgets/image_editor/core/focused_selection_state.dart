@@ -4,11 +4,9 @@ import 'dart:ui';
 ///
 /// 与普通 selectionPath 分离，避免 focused 选区与编辑器通用选区互相污染。
 class FocusedSelectionState {
-  FocusedSelectionState({
-    required Size canvasSize,
-    Rect? initialRect,
-  })  : _canvasSize = canvasSize,
-        _committedRect = _normalizeRect(initialRect, canvasSize);
+  FocusedSelectionState({required Size canvasSize, Rect? initialRect})
+    : _canvasSize = canvasSize,
+      _committedRect = _normalizeRect(initialRect, canvasSize);
 
   Size _canvasSize;
   Rect? _committedRect;

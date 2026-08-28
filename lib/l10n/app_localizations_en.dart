@@ -4340,7 +4340,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get nav_generate => 'Generate';
 
   @override
-  String get nav_gallery => 'Gallery';
+  String get nav_gallery => 'Library';
 
   @override
   String get nav_settings => 'Settings';
@@ -12639,7 +12639,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get nav_more => 'More';
 
   @override
-  String get nav_explore => 'Explore';
+  String get nav_explore => 'Gallery';
 
   @override
   String get image_savedToSystemGallery => 'Saved to your photo gallery';

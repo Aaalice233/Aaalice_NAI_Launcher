@@ -4237,7 +4237,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get nav_generate => '生成';
 
   @override
-  String get nav_gallery => 'ギャラリー';
+  String get nav_gallery => 'ライブラリ';
 
   @override
   String get nav_settings => '設定';
@@ -12318,7 +12318,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get nav_more => 'その他';
 
   @override
-  String get nav_explore => '探索';
+  String get nav_explore => 'ギャラリー';
 
   @override
   String get image_savedToSystemGallery => 'システムギャラリーに保存しました';

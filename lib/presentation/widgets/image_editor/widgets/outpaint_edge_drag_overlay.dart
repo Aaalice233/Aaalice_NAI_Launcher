@@ -9,16 +9,18 @@ import '../../../../core/utils/inpaint_outpaint_utils.dart';
 import '../core/canvas_controller.dart';
 
 typedef OutpaintEdgeDragPreviewChanged = void Function(OutpaintEdges edges);
-typedef OutpaintEdgeDragCommitted = Future<void> Function(
-  OutpaintEdges edges, {
-  required OutpaintHorizontalSnapTarget horizontalSnapTarget,
-  required OutpaintVerticalSnapTarget verticalSnapTarget,
-});
-typedef OutpaintFrameResizeCommitted = Future<void> Function(
-  OutpaintFrameDelta delta, {
-  required OutpaintHorizontalSnapTarget horizontalSnapTarget,
-  required OutpaintVerticalSnapTarget verticalSnapTarget,
-});
+typedef OutpaintEdgeDragCommitted =
+    Future<void> Function(
+      OutpaintEdges edges, {
+      required OutpaintHorizontalSnapTarget horizontalSnapTarget,
+      required OutpaintVerticalSnapTarget verticalSnapTarget,
+    });
+typedef OutpaintFrameResizeCommitted =
+    Future<void> Function(
+      OutpaintFrameDelta delta, {
+      required OutpaintHorizontalSnapTarget horizontalSnapTarget,
+      required OutpaintVerticalSnapTarget verticalSnapTarget,
+    });
 
 class OutpaintEdgeDragOverlay extends StatefulWidget {
   static const double edgeHitSlop = 48;
@@ -54,8 +56,10 @@ class OutpaintEdgeDragOverlay extends StatefulWidget {
       controller: controller,
       canvasSize: canvasSize,
     );
-    return _resizeZoneRects(canvasRect, viewportSize)
-        .any((rect) => rect.contains(localPosition));
+    return _resizeZoneRects(
+      canvasRect,
+      viewportSize,
+    ).any((rect) => rect.contains(localPosition));
   }
 
   static Rect _screenCanvasRectFor({
@@ -157,10 +161,7 @@ class _OutpaintEdgeDragOverlayState extends State<OutpaintEdgeDragOverlay> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final viewportSize = Size(
-          constraints.maxWidth,
-          constraints.maxHeight,
-        );
+        final viewportSize = Size(constraints.maxWidth, constraints.maxHeight);
 
         return ListenableBuilder(
           listenable: widget.controller,
@@ -420,10 +421,7 @@ class _OutpaintEdgeDragOverlayState extends State<OutpaintEdgeDragOverlay> {
     );
   }
 
-  void _handlePointerDown(
-    PointerDownEvent event,
-    _OutpaintDragHandle handle,
-  ) {
+  void _handlePointerDown(PointerDownEvent event, _OutpaintDragHandle handle) {
     if (!widget.enabled || _isCommitting || _activePointer != null) {
       return;
     }
@@ -583,8 +581,9 @@ class _OutpaintEdgeDragOverlayState extends State<OutpaintEdgeDragOverlay> {
     final sourceDx = (_dragDelta.dx / scale).round();
     final sourceDy = (_dragDelta.dy / scale).round();
     final delta = _deltaForDrag(activeHandle, sourceDx, sourceDy);
-    final geometry =
-        delta.isEmpty ? null : _resolvePreviewGeometry(activeHandle, delta);
+    final geometry = delta.isEmpty
+        ? null
+        : _resolvePreviewGeometry(activeHandle, delta);
     return _ResolvedOutpaintDragPreview(
       delta: delta,
       geometry: geometry,
@@ -825,14 +824,8 @@ class _OutpaintPreviewGeometryKey {
   }
 
   @override
-  int get hashCode => Object.hash(
-        width,
-        height,
-        frameLeft,
-        frameTop,
-        frameRight,
-        frameBottom,
-      );
+  int get hashCode =>
+      Object.hash(width, height, frameLeft, frameTop, frameRight, frameBottom);
 }
 
 enum _OutpaintDragHandle {
@@ -932,10 +925,10 @@ class _PreviewLabel extends StatelessWidget {
             child: Text(
               'Applied: ${preview.width} x ${preview.height}',
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onInverseSurface,
-                    fontWeight: FontWeight.w700,
-                    fontFamily: 'monospace',
-                  ),
+                color: Theme.of(context).colorScheme.onInverseSurface,
+                fontWeight: FontWeight.w700,
+                fontFamily: 'monospace',
+              ),
             ),
           ),
         ),

@@ -1909,7 +1909,7 @@
   "globalSettings_category_style": "Style",
 
   "nav_generate": "Generate",
-  "nav_gallery": "Gallery",
+  "nav_gallery": "Library",
   "nav_settings": "Settings",
 
   "download_completed": "{name} download completed",
@@ -6150,7 +6150,7 @@
   "common_share": "Share",
   "common_moreActions": "More actions",
   "nav_more": "More",
-  "nav_explore": "Explore",
+  "nav_explore": "Gallery",
   "image_savedToSystemGallery": "Saved to your photo gallery",
   "image_savedAppOnly": "Saved to the app gallery, but could not export to your photo gallery: {error}",
   "@image_savedAppOnly": {"placeholders":{"error":{}}},
