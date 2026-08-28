@@ -78,7 +78,10 @@ class AgentProfileService {
         jsonEncode(imported.chat.migratedChatRules)) {
       changes.add('migratedChatRules');
     }
-    if (!_sameSet(current.disabledSkillIds, imported.disabledSkillIds)) {
+    if (!_sameMap(
+      current.skillEnabledOverrides,
+      imported.skillEnabledOverrides,
+    )) {
       changes.add('skillPreferences');
     }
 
@@ -87,7 +90,7 @@ class AgentProfileService {
     if (model.isConfigured && !availableModelReferences.contains(modelId)) {
       warnings.add('unmatchedModel:$modelId');
     }
-    for (final skillId in imported.disabledSkillIds) {
+    for (final skillId in imported.skillEnabledOverrides.keys) {
       if (!availableSkillIds.contains(skillId)) {
         warnings.add('unmatchedSkill:$skillId');
       }
@@ -99,8 +102,9 @@ class AgentProfileService {
     );
   }
 
-  bool _sameSet(Set<String> a, Set<String> b) =>
-      a.length == b.length && a.containsAll(b);
+  bool _sameMap(Map<String, bool> a, Map<String, bool> b) =>
+      a.length == b.length &&
+      a.entries.every((entry) => b[entry.key] == entry.value);
 
   void _assertPortable(Object? value, [String key = '']) {
     if (value is Map) {

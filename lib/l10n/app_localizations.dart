@@ -23456,6 +23456,12 @@ abstract class AppLocalizations {
   /// **'Skills'**
   String get agentSettings_skillsTitle;
 
+  /// No description provided for @agentSettings_skillsSourceHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Skills in the current image project are enabled automatically. Pi user and user-global Skills are used only after you enable them.'**
+  String get agentSettings_skillsSourceHint;
+
   /// No description provided for @agentSettings_skillTransfer.
   ///
   /// In en, this message translates to:
@@ -23537,7 +23543,7 @@ abstract class AppLocalizations {
   /// No description provided for @agentSettings_sourceWorkspace.
   ///
   /// In en, this message translates to:
-  /// **'Workspace'**
+  /// **'Current image project'**
   String get agentSettings_sourceWorkspace;
 
   /// No description provided for @agentSettings_sourcePiUser.
@@ -23549,7 +23555,7 @@ abstract class AppLocalizations {
   /// No description provided for @agentSettings_sourceCommonUser.
   ///
   /// In en, this message translates to:
-  /// **'Shared user'**
+  /// **'User-global'**
   String get agentSettings_sourceCommonUser;
 
   /// No description provided for @agentSettings_exportProfileTitle.

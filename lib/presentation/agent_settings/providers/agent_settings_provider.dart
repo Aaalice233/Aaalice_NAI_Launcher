@@ -13,6 +13,7 @@ import '../../../core/storage/local_storage_service.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../data/models/agent/agent_settings.dart';
 import '../../../data/repositories/gallery_folder_repository.dart';
+import '../../providers/image_save_settings_provider.dart';
 import '../../prompt_assistant/models/prompt_assistant_models.dart';
 
 class AgentSettingsState {
@@ -46,9 +47,16 @@ class AgentSettingsState {
 }
 
 final agentSettingsProvider =
-    StateNotifierProvider<AgentSettingsNotifier, AgentSettingsState>(
-      (ref) => AgentSettingsNotifier(ref),
-    );
+    StateNotifierProvider<AgentSettingsNotifier, AgentSettingsState>((ref) {
+      final notifier = AgentSettingsNotifier(ref);
+      ref.listen<String?>(
+        imageSaveSettingsNotifierProvider.select(
+          (settings) => settings.customPath,
+        ),
+        (_, _) => unawaited(notifier.handleImageProjectChanged()),
+      );
+      return notifier;
+    });
 
 class AgentSettingsNotifier extends StateNotifier<AgentSettingsState> {
   AgentSettingsNotifier(
@@ -57,9 +65,11 @@ class AgentSettingsNotifier extends StateNotifier<AgentSettingsState> {
     Directory? workspaceDirectory,
     Map<String, String>? environment,
     SkillCatalogService? skillCatalogService,
+    Future<Directory> Function()? workspaceDirectoryResolver,
   }) : _supportDirectory = supportDirectory,
-       _workspaceDirectory = workspaceDirectory,
+       _providedWorkspaceDirectory = workspaceDirectory,
        _environment = environment,
+       _workspaceDirectoryResolver = workspaceDirectoryResolver,
        _skillCatalogService =
            skillCatalogService ?? const SkillCatalogService(),
        super(const AgentSettingsState()) {
@@ -68,10 +78,13 @@ class AgentSettingsNotifier extends StateNotifier<AgentSettingsState> {
 
   final Ref _ref;
   final SkillCatalogService _skillCatalogService;
-  Directory? _workspaceDirectory;
+  final Directory? _providedWorkspaceDirectory;
   Directory? _supportDirectory;
   final Map<String, String>? _environment;
+  final Future<Directory> Function()? _workspaceDirectoryResolver;
   Future<void> _mutationQueue = Future.value();
+  var _skillReloadGeneration = 0;
+  var _imageProjectRefreshPending = false;
 
   LocalStorageService get _local => _ref.read(localStorageServiceProvider);
 
@@ -81,10 +94,20 @@ class AgentSettingsNotifier extends StateNotifier<AgentSettingsState> {
       final raw = _local.getSetting<String>(StorageKeys.agentSettingsJson);
       AgentSettings settings;
       if (raw != null) {
+        final storedDocument = jsonDecode(raw);
+        final storedSchemaVersion = storedDocument is Map
+            ? storedDocument['schemaVersion']
+            : null;
         settings = AgentSettings.decode(raw);
         await _removeLegacyAgentFields(
           _local.getSetting<String>(StorageKeys.promptAssistantConfigJson),
         );
+        if (storedSchemaVersion != AgentSettings.currentSchemaVersion) {
+          await _local.setSetting(
+            StorageKeys.agentSettingsJson,
+            settings.encode(),
+          );
+        }
       } else {
         settings = await _migrateLegacy();
       }
@@ -93,6 +116,9 @@ class AgentSettingsNotifier extends StateNotifier<AgentSettingsState> {
       await reloadSkills();
       if (!mounted) return;
       state = state.copyWith(initialized: true, error: '');
+      if (_imageProjectRefreshPending) {
+        await handleImageProjectChanged();
+      }
     } catch (error) {
       AppLogger.e(
         'Agent settings initialization failed',
@@ -232,19 +258,22 @@ class AgentSettingsNotifier extends StateNotifier<AgentSettingsState> {
     final operation = _mutationQueue.catchError((Object _) {}).then((_) async {
       final previousSettings = state.settings;
       final previousSkills = state.skills;
-      final skills = await _scanSkills(settings.disabledSkillIds);
+      final scanGeneration = ++_skillReloadGeneration;
+      final skills = await _scanSkills(settings.skillEnabledOverrides);
       try {
         await _local.setSetting(
           StorageKeys.agentSettingsJson,
           settings.encode(),
         );
         if (mounted) {
+          final scanIsCurrent = scanGeneration == _skillReloadGeneration;
           state = state.copyWith(
             settings: settings,
-            skills: skills,
+            skills: scanIsCurrent ? skills : state.skills,
             refreshingSkills: false,
             error: '',
           );
+          if (!scanIsCurrent) await reloadSkills();
         }
       } catch (applyError, applyStack) {
         try {
@@ -281,9 +310,8 @@ class AgentSettingsNotifier extends StateNotifier<AgentSettingsState> {
 
   Future<void> setSkillEnabled(String id, bool enabled) async {
     await _update((current) {
-      final disabled = {...current.disabledSkillIds};
-      enabled ? disabled.remove(id) : disabled.add(id);
-      return current.copyWith(disabledSkillIds: disabled);
+      final overrides = {...current.skillEnabledOverrides, id: enabled};
+      return current.copyWith(skillEnabledOverrides: overrides);
     });
     if (!mounted) return;
     state = state.copyWith(
@@ -298,28 +326,28 @@ class AgentSettingsNotifier extends StateNotifier<AgentSettingsState> {
   }
 
   Future<void> reloadSkills() async {
+    final generation = ++_skillReloadGeneration;
     state = state.copyWith(refreshingSkills: true, error: '');
     try {
-      final snapshot = await _scanSkills(state.settings.disabledSkillIds);
-      if (!mounted) return;
-      final currentDisabled = state.settings.disabledSkillIds;
+      final snapshot = await _scanSkills(state.settings.skillEnabledOverrides);
+      if (!mounted || generation != _skillReloadGeneration) return;
+      final currentOverrides = state.settings.skillEnabledOverrides;
       state = state.copyWith(
         skills: SkillCatalogSnapshot(
           entries: [
             for (final entry in snapshot.entries)
-              entry.copyWith(enabled: !currentDisabled.contains(entry.id)),
+              entry.copyWith(
+                enabled:
+                    currentOverrides[entry.id] ?? entry.source.defaultEnabled,
+              ),
           ],
           diagnostics: snapshot.diagnostics,
         ),
         refreshingSkills: false,
       );
     } catch (error) {
-      if (mounted) {
-        state = state.copyWith(
-          refreshingSkills: false,
-          error: error.toString(),
-        );
-      }
+      if (!mounted || generation != _skillReloadGeneration) return;
+      state = state.copyWith(refreshingSkills: false, error: error.toString());
       rethrow;
     }
   }
@@ -331,11 +359,31 @@ class AgentSettingsNotifier extends StateNotifier<AgentSettingsState> {
     return null;
   }
 
-  Future<SkillCatalogSnapshot> _scanSkills(Set<String> disabledSkillIds) async {
+  Future<void> handleImageProjectChanged() async {
+    if (!mounted) return;
+    if (!state.initialized) {
+      _imageProjectRefreshPending = true;
+      return;
+    }
+    _imageProjectRefreshPending = false;
+    try {
+      await reloadSkills();
+    } catch (error) {
+      AppLogger.w(
+        'refresh Skills for the current image project failed: $error',
+        'AgentSettings',
+      );
+    }
+  }
+
+  Future<SkillCatalogSnapshot> _scanSkills(
+    Map<String, bool> skillEnabledOverrides,
+  ) async {
     _supportDirectory ??= await getApplicationSupportDirectory();
-    _workspaceDirectory ??= await _resolveWorkspaceDirectory();
+    final workspaceDirectory =
+        _providedWorkspaceDirectory ?? await _resolveWorkspaceDirectory();
     final roots = SkillCatalogService.roots(
-      workspaceDirectory: _workspaceDirectory!,
+      workspaceDirectory: workspaceDirectory,
       supportDirectory: _supportDirectory!,
       environment: _environment,
     );
@@ -347,12 +395,15 @@ class AgentSettingsNotifier extends StateNotifier<AgentSettingsState> {
     );
     final snapshot = await _skillCatalogService.scan(
       roots: roots,
-      disabledSkillIds: disabledSkillIds,
+      skillEnabledOverrides: skillEnabledOverrides,
     );
     return SkillCatalogSnapshot(
       entries: [
         for (final entry in snapshot.entries)
-          entry.copyWith(enabled: !disabledSkillIds.contains(entry.id)),
+          entry.copyWith(
+            enabled:
+                skillEnabledOverrides[entry.id] ?? entry.source.defaultEnabled,
+          ),
       ],
       diagnostics: snapshot.diagnostics,
     );
@@ -360,28 +411,30 @@ class AgentSettingsNotifier extends StateNotifier<AgentSettingsState> {
 
   Future<Directory> userSkillDirectory() async {
     _supportDirectory ??= await getApplicationSupportDirectory();
-    _workspaceDirectory ??= await _resolveWorkspaceDirectory();
+    final workspaceDirectory =
+        _providedWorkspaceDirectory ?? await _resolveWorkspaceDirectory();
     return Directory(
       SkillCatalogService.roots(
-        workspaceDirectory: _workspaceDirectory!,
+        workspaceDirectory: workspaceDirectory,
         supportDirectory: _supportDirectory!,
         environment: _environment,
       ).firstWhere((root) => root.source == SkillSource.piUser).path,
     );
   }
 
-  Future<Directory> _resolveWorkspaceDirectory() async {
+  Future<Directory?> _resolveWorkspaceDirectory() async {
+    final resolver = _workspaceDirectoryResolver;
+    if (resolver != null) return resolver();
     try {
       final root = await GalleryFolderRepository.instance.getRootPath();
       if (root != null && root.isNotEmpty) return Directory(root);
     } catch (error) {
       AppLogger.w(
-        'Gallery workspace lookup failed; using the Agent workspace: $error',
+        'Gallery workspace lookup failed; project Skills are unavailable: '
+            '$error',
         'AgentSettings',
       );
     }
-    return Directory(
-      '${_supportDirectory!.path}${Platform.pathSeparator}agent${Platform.pathSeparator}workspace',
-    );
+    return null;
   }
 }

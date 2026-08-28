@@ -14,7 +14,7 @@ void main() {
       ),
       customSystemPrompt: 'Be concise.',
     ),
-    disabledSkillIds: {'demo'},
+    skillEnabledOverrides: {'demo': false, 'global-demo': true},
   );
 
   test('profile export contains portable preferences', () {
@@ -108,7 +108,11 @@ void main() {
 
     expect(preview.warnings, contains('unmatchedModel:provider-a/model-a'));
     expect(preview.warnings, contains('unmatchedSkill:demo'));
-    expect(preview.settings.disabledSkillIds, {'demo'});
+    expect(preview.warnings, contains('unmatchedSkill:global-demo'));
+    expect(preview.settings.skillEnabledOverrides, {
+      'demo': false,
+      'global-demo': true,
+    });
   });
 
   test('export and import round-trip every portable setting', () {
@@ -116,13 +120,13 @@ void main() {
       raw: service.exportProfile(settings),
       current: const AgentSettings(),
       availableModelReferences: const {'provider-a/model-a'},
-      availableSkillIds: const {'demo'},
+      availableSkillIds: const {'demo', 'global-demo'},
     );
     final roundTripped = service.previewImport(
       raw: service.exportProfile(preview.settings),
       current: const AgentSettings(),
       availableModelReferences: const {'provider-a/model-a'},
-      availableSkillIds: const {'demo'},
+      availableSkillIds: const {'demo', 'global-demo'},
     );
 
     expect(roundTripped.settings.toJson(), settings.toJson());

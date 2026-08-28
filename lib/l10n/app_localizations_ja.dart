@@ -13133,6 +13133,10 @@ class AppLocalizationsJa extends AppLocalizations {
   String get agentSettings_skillsTitle => 'Skills';
 
   @override
+  String get agentSettings_skillsSourceHint =>
+      '現在の画像プロジェクト内の Skill は自動的に有効になります。Pi ユーザーとユーザー共通の Skill は、手動で有効にした場合のみ使用されます。';
+
+  @override
   String get agentSettings_skillTransfer => 'インポートまたはエクスポート';
 
   @override
@@ -13182,13 +13186,13 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get agentSettings_sourceWorkspace => 'ワークスペース';
+  String get agentSettings_sourceWorkspace => '現在の画像プロジェクト';
 
   @override
   String get agentSettings_sourcePiUser => 'Pi ユーザー';
 
   @override
-  String get agentSettings_sourceCommonUser => '共有ユーザー';
+  String get agentSettings_sourceCommonUser => 'ユーザー共通';
 
   @override
   String get agentSettings_exportProfileTitle => 'エージェント設定をエクスポート';

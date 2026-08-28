@@ -237,10 +237,10 @@ class AgentSettings {
   const AgentSettings({
     this.schemaVersion = currentSchemaVersion,
     this.chat = const AgentChatConfig(),
-    this.disabledSkillIds = const {},
+    this.skillEnabledOverrides = const {},
   });
 
-  static const int currentSchemaVersion = 3;
+  static const int currentSchemaVersion = 4;
   static const int maxCustomPromptLength = 50000;
   static const int maxSkillPreferences = 5000;
   static const int maxMigratedChatRules = 100;
@@ -249,24 +249,28 @@ class AgentSettings {
   final int schemaVersion;
   final AgentChatConfig chat;
 
-  /// Logical Skill IDs are names rather than paths, so preferences survive
-  /// upgrades and a same-name source taking precedence.
-  final Set<String> disabledSkillIds;
+  /// Only explicit choices are stored. Missing IDs follow the discovered
+  /// source default, while logical names survive source precedence changes.
+  final Map<String, bool> skillEnabledOverrides;
 
   AgentSettings copyWith({
     AgentChatConfig? chat,
-    Set<String>? disabledSkillIds,
+    Map<String, bool>? skillEnabledOverrides,
   }) {
     return AgentSettings(
       chat: chat ?? this.chat,
-      disabledSkillIds: disabledSkillIds ?? this.disabledSkillIds,
+      skillEnabledOverrides:
+          skillEnabledOverrides ?? this.skillEnabledOverrides,
     );
   }
 
   Map<String, dynamic> toJson() => {
     'schemaVersion': currentSchemaVersion,
     'chat': chat.toJson(),
-    'disabledSkillIds': disabledSkillIds.toList()..sort(),
+    'skillEnabledOverrides': Map.fromEntries(
+      skillEnabledOverrides.entries.toList()
+        ..sort((a, b) => a.key.compareTo(b.key)),
+    ),
   };
 
   String encode() => jsonEncode(toJson());
@@ -283,25 +287,19 @@ class AgentSettings {
     if (version is! int || version < 1 || version > currentSchemaVersion) {
       throw FormatException('Unsupported agent settings schema: $version');
     }
-    _rejectUnknownFields(decoded, const {
-      'schemaVersion',
-      'chat',
-      'disabledSkillIds',
-    }, 'agent settings');
-    final disabled = decoded['disabledSkillIds'];
-    if (disabled is! List || disabled.length > maxSkillPreferences) {
-      throw const FormatException('disabledSkillIds must be a bounded list.');
-    }
-    final disabledIds = <String>{};
-    for (final value in disabled) {
-      if (value is! String || !RegExp(r'^[a-z0-9-]{1,64}$').hasMatch(value)) {
-        throw const FormatException('disabledSkillIds contains an invalid ID.');
-      }
-      disabledIds.add(value);
-    }
+    _rejectUnknownFields(
+      decoded,
+      version >= 4
+          ? const {'schemaVersion', 'chat', 'skillEnabledOverrides'}
+          : const {'schemaVersion', 'chat', 'disabledSkillIds'},
+      'agent settings',
+    );
+    final overrides = version >= 4
+        ? _decodeSkillEnabledOverrides(decoded['skillEnabledOverrides'])
+        : _migrateDisabledSkillIds(decoded['disabledSkillIds']);
     return AgentSettings(
       chat: AgentChatConfig.fromJson(decoded['chat'], schemaVersion: version),
-      disabledSkillIds: disabledIds,
+      skillEnabledOverrides: Map.unmodifiable(overrides),
     );
   }
 
@@ -345,6 +343,41 @@ class AgentSettings {
     );
   }
 }
+
+Map<String, bool> _decodeSkillEnabledOverrides(Object? value) {
+  if (value is! Map || value.length > AgentSettings.maxSkillPreferences) {
+    throw const FormatException(
+      'skillEnabledOverrides must be a bounded object.',
+    );
+  }
+  final result = <String, bool>{};
+  for (final entry in value.entries) {
+    if (!_isValidSkillId(entry.key) || entry.value is! bool) {
+      throw const FormatException(
+        'skillEnabledOverrides contains an invalid preference.',
+      );
+    }
+    result[entry.key as String] = entry.value as bool;
+  }
+  return result;
+}
+
+Map<String, bool> _migrateDisabledSkillIds(Object? value) {
+  if (value is! List || value.length > AgentSettings.maxSkillPreferences) {
+    throw const FormatException('disabledSkillIds must be a bounded list.');
+  }
+  final result = <String, bool>{};
+  for (final id in value) {
+    if (!_isValidSkillId(id)) {
+      throw const FormatException('disabledSkillIds contains an invalid ID.');
+    }
+    result[id as String] = false;
+  }
+  return result;
+}
+
+bool _isValidSkillId(Object? value) =>
+    value is String && RegExp(r'^[a-z0-9-]{1,64}$').hasMatch(value);
 
 void _rejectUnknownFields(Map value, Set<String> allowed, String objectName) {
   if (value.keys.any((key) => key is! String || !allowed.contains(key))) {

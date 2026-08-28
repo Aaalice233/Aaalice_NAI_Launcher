@@ -75,6 +75,8 @@ SkillManifestMetadata parseStrictSkillManifest(Uint8List bytes) {
 
 extension SkillSourcePriority on SkillSource {
   int get priority => index;
+
+  bool get defaultEnabled => this == SkillSource.workspace;
 }
 
 class SkillRoot {
@@ -148,17 +150,18 @@ class SkillCatalogService {
   const SkillCatalogService();
 
   static List<SkillRoot> roots({
-    required Directory workspaceDirectory,
+    required Directory? workspaceDirectory,
     required Directory supportDirectory,
     Map<String, String>? environment,
   }) {
     final env = environment ?? Platform.environment;
     final home = env['HOME'] ?? env['USERPROFILE'];
     return [
-      SkillRoot(
-        path: p.join(workspaceDirectory.path, '.pi', 'skills'),
-        source: SkillSource.workspace,
-      ),
+      if (workspaceDirectory != null)
+        SkillRoot(
+          path: p.join(workspaceDirectory.path, '.pi', 'skills'),
+          source: SkillSource.workspace,
+        ),
       SkillRoot(
         path: home == null
             ? p.join(supportDirectory.path, 'pi-user', 'skills')
@@ -175,7 +178,7 @@ class SkillCatalogService {
 
   Future<SkillCatalogSnapshot> scan({
     required List<SkillRoot> roots,
-    Set<String> disabledSkillIds = const {},
+    Map<String, bool> skillEnabledOverrides = const {},
   }) async {
     final env = DartIoExecutionEnv(allowOutsideWorkingDirectory: true);
     final orderedRoots = [...roots]
@@ -196,7 +199,7 @@ class SkillCatalogService {
           skill: skill,
           source: source,
           safePath: _safePath(skill.filePath, source),
-          enabled: !disabledSkillIds.contains(skill.name),
+          enabled: skillEnabledOverrides[skill.name] ?? source.defaultEnabled,
           shadowedBy: shadowedBy,
         ),
       );

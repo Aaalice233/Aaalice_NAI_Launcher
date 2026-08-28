@@ -60,7 +60,7 @@ class _EmptySkillCatalogService extends SkillCatalogService {
   @override
   Future<SkillCatalogSnapshot> scan({
     required List<SkillRoot> roots,
-    Set<String> disabledSkillIds = const {},
+    Map<String, bool> skillEnabledOverrides = const {},
   }) async => const SkillCatalogSnapshot();
 }
 

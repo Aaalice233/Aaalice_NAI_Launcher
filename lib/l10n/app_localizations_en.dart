@@ -13470,6 +13470,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get agentSettings_skillsTitle => 'Skills';
 
   @override
+  String get agentSettings_skillsSourceHint =>
+      'Skills in the current image project are enabled automatically. Pi user and user-global Skills are used only after you enable them.';
+
+  @override
   String get agentSettings_skillTransfer => 'Import or export';
 
   @override
@@ -13519,13 +13523,13 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get agentSettings_sourceWorkspace => 'Workspace';
+  String get agentSettings_sourceWorkspace => 'Current image project';
 
   @override
   String get agentSettings_sourcePiUser => 'Pi user';
 
   @override
-  String get agentSettings_sourceCommonUser => 'Shared user';
+  String get agentSettings_sourceCommonUser => 'User-global';
 
   @override
   String get agentSettings_exportProfileTitle => 'Export Agent profile';
