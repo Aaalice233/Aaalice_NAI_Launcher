@@ -11836,6 +11836,27 @@ class AppLocalizationsZh extends AppLocalizations {
       '可安装 ffdkj 汉化库以显示中文并支持中文反查；词库将直接从上游下载。';
 
   @override
+  String get autocomplete_zhErrorMetadataRateLimited =>
+      'GitHub 请求过于频繁，暂时无法检查词库更新；请稍后重试。';
+
+  @override
+  String get autocomplete_zhErrorMetadataAccessDenied =>
+      'GitHub 拒绝了词库信息请求；请稍后重试或切换网络。';
+
+  @override
+  String get autocomplete_zhErrorDownloadAccessDenied =>
+      'GitHub 拒绝下载 ffdkj 词库；请稍后重试或切换网络。';
+
+  @override
+  String get autocomplete_zhErrorNetwork => '无法连接 ffdkj GitHub 上游；请检查网络后重试。';
+
+  @override
+  String get autocomplete_zhErrorIntegrity => '词库完整性校验失败，未安装任何文件。';
+
+  @override
+  String get autocomplete_zhErrorUnknown => 'ffdkj 词库操作失败；请稍后重试。';
+
+  @override
   String get autocomplete_checkUpdate => '检查更新';
 
   @override
@@ -24034,6 +24055,27 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String get autocomplete_zhInstallPrompt =>
       '可安裝 ffdkj 漢化庫以顯示中文並支援中文反查；詞庫將直接從上游下載。';
+
+  @override
+  String get autocomplete_zhErrorMetadataRateLimited =>
+      'GitHub 請求過於頻繁，暫時無法檢查詞庫更新；請稍後重試。';
+
+  @override
+  String get autocomplete_zhErrorMetadataAccessDenied =>
+      'GitHub 拒絕了詞庫資訊請求；請稍後重試或切換網路。';
+
+  @override
+  String get autocomplete_zhErrorDownloadAccessDenied =>
+      'GitHub 拒絕下載 ffdkj 詞庫；請稍後重試或切換網路。';
+
+  @override
+  String get autocomplete_zhErrorNetwork => '無法連線 ffdkj GitHub 上游；請檢查網路後重試。';
+
+  @override
+  String get autocomplete_zhErrorIntegrity => '詞庫完整性驗證失敗，未安裝任何檔案。';
+
+  @override
+  String get autocomplete_zhErrorUnknown => 'ffdkj 詞庫操作失敗；請稍後重試。';
 
   @override
   String get autocomplete_checkUpdate => '檢查更新';

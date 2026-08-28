@@ -12352,6 +12352,30 @@ class AppLocalizationsEn extends AppLocalizations {
       'Install the ffdkj dictionary for Chinese labels and reverse lookup. It is downloaded directly from upstream.';
 
   @override
+  String get autocomplete_zhErrorMetadataRateLimited =>
+      'GitHub is receiving too many requests, so dictionary updates cannot be checked yet. Try again later.';
+
+  @override
+  String get autocomplete_zhErrorMetadataAccessDenied =>
+      'GitHub rejected the dictionary information request. Try again later or switch networks.';
+
+  @override
+  String get autocomplete_zhErrorDownloadAccessDenied =>
+      'GitHub rejected the ffdkj dictionary download. Try again later or switch networks.';
+
+  @override
+  String get autocomplete_zhErrorNetwork =>
+      'Cannot reach the ffdkj GitHub upstream. Check your network and try again.';
+
+  @override
+  String get autocomplete_zhErrorIntegrity =>
+      'Dictionary integrity validation failed. No file was installed.';
+
+  @override
+  String get autocomplete_zhErrorUnknown =>
+      'The ffdkj dictionary operation failed. Try again later.';
+
+  @override
   String get autocomplete_checkUpdate => 'Check for updates';
 
   @override

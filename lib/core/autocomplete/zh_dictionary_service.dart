@@ -11,56 +11,11 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import '../utils/app_logger.dart';
 import 'completion_models.dart';
 import 'traditional_chinese_converter.dart';
+import 'zh_dictionary_download.dart';
+import 'zh_dictionary_models.dart';
 
-const ffdkjRepositoryUrl =
-    'https://github.com/ffdkj/ffdkj-Danbooru_Tag-Chinese-English-Translation-Table';
-const _ffdkjApiUrl =
-    'https://api.github.com/repos/ffdkj/ffdkj-Danbooru_Tag-Chinese-English-Translation-Table/contents/tag.sqlite?ref=main';
-
-class ZhDictionaryState {
-  const ZhDictionaryState({
-    this.isInstalled = false,
-    this.isBusy = false,
-    this.progress = 0,
-    this.tagCount = 0,
-    this.version,
-    this.updateAvailable = false,
-    this.lastCheckedAt,
-    this.error,
-  });
-
-  final bool isInstalled;
-  final bool isBusy;
-  final double progress;
-  final int tagCount;
-  final String? version;
-  final bool updateAvailable;
-  final DateTime? lastCheckedAt;
-  final String? error;
-
-  ZhDictionaryState copyWith({
-    bool? isInstalled,
-    bool? isBusy,
-    double? progress,
-    int? tagCount,
-    String? version,
-    bool? updateAvailable,
-    DateTime? lastCheckedAt,
-    String? error,
-    bool clearError = false,
-  }) {
-    return ZhDictionaryState(
-      isInstalled: isInstalled ?? this.isInstalled,
-      isBusy: isBusy ?? this.isBusy,
-      progress: progress ?? this.progress,
-      tagCount: tagCount ?? this.tagCount,
-      version: version ?? this.version,
-      updateAvailable: updateAvailable ?? this.updateAvailable,
-      lastCheckedAt: lastCheckedAt ?? this.lastCheckedAt,
-      error: clearError ? null : error ?? this.error,
-    );
-  }
-}
+export 'zh_dictionary_models.dart' show ZhDictionaryState;
+export 'zh_dictionary_download.dart' show ffdkjRepositoryUrl;
 
 class ZhDictionaryService extends ChangeNotifier
     implements CompletionSource, TranslationResolver {
@@ -68,6 +23,7 @@ class ZhDictionaryService extends ChangeNotifier
     Dio? dio,
     TraditionalChineseConverter? traditionalChineseConverter,
     Future<Directory> Function()? applicationSupportDirectory,
+    ZhDictionarySource? pinnedSource,
   }) : _dio =
            dio ??
            Dio(
@@ -75,15 +31,16 @@ class ZhDictionaryService extends ChangeNotifier
                connectTimeout: const Duration(seconds: 10),
                receiveTimeout: const Duration(minutes: 3),
                sendTimeout: const Duration(seconds: 15),
-               headers: const {'Accept': 'application/vnd.github+json'},
              ),
            ),
+       _pinnedSource = pinnedSource ?? ffdkjPinnedSource,
        _traditionalChineseConverter =
            traditionalChineseConverter ?? TraditionalChineseConverter(),
        _applicationSupportDirectory =
            applicationSupportDirectory ?? getApplicationSupportDirectory;
 
   final Dio _dio;
+  final ZhDictionarySource _pinnedSource;
   final TraditionalChineseConverter _traditionalChineseConverter;
   final Future<Directory> Function() _applicationSupportDirectory;
   Database? _database;
@@ -91,6 +48,9 @@ class ZhDictionaryService extends ChangeNotifier
   String? _databasePath;
   String? _metadataPath;
   ZhDictionaryState _state = const ZhDictionaryState();
+  ZhDictionarySource? _pendingUpdateSource;
+
+  ZhDictionaryDownloader get _downloader => ZhDictionaryDownloader(dio: _dio);
 
   ZhDictionaryState get state => _state;
 
@@ -139,9 +99,10 @@ class ZhDictionaryService extends ChangeNotifier
       return _state.updateAvailable;
     }
     try {
-      final remote = await _fetchRemoteMetadata();
+      final remote = await _downloader.fetchLatestSource();
       final now = DateTime.now();
       final available = remote.blobSha != _state.version;
+      _pendingUpdateSource = available ? remote : null;
       await _writeMetadata({
         ...(await _readMetadata()),
         'lastCheckedAt': now.toUtc().toIso8601String(),
@@ -154,8 +115,11 @@ class ZhDictionaryService extends ChangeNotifier
         ),
       );
       return available;
-    } catch (error) {
-      _setState(_state.copyWith(error: error.toString()));
+    } on ZhDictionaryException catch (error, stack) {
+      _recordFailure(error, stack);
+      return false;
+    } catch (error, stack) {
+      _recordUnexpectedFailure(error, stack);
       return false;
     }
   }
@@ -169,11 +133,10 @@ class ZhDictionaryService extends ChangeNotifier
     final temp = File('${target.path}.downloading');
     final backup = File('${target.path}.backup');
     try {
-      final remote = await _fetchRemoteMetadata(cancelToken: _cancelToken);
-      _validateDownloadUri(remote.downloadUri);
+      final remote = await _sourceForInstall();
       await temp.deleteIfExists();
-      await _dio.download(
-        remote.downloadUri.toString(),
+      await _downloader.download(
+        remote,
         temp.path,
         cancelToken: _cancelToken,
         onReceiveProgress: (received, total) {
@@ -183,13 +146,28 @@ class ZhDictionaryService extends ChangeNotifier
         },
       );
       if (await temp.length() != remote.size) {
-        throw StateError('Downloaded dictionary size does not match GitHub');
+        throw const ZhDictionaryException(
+          stage: ZhDictionaryFailureStage.integrity,
+          kind: ZhDictionaryFailureKind.integrity,
+          diagnostic: 'Downloaded dictionary size does not match metadata',
+        );
       }
       final blobSha = await _gitBlobSha(temp);
       if (blobSha != remote.blobSha) {
-        throw StateError('Downloaded dictionary Git blob SHA mismatch');
+        throw const ZhDictionaryException(
+          stage: ZhDictionaryFailureStage.integrity,
+          kind: ZhDictionaryFailureKind.integrity,
+          diagnostic: 'Downloaded dictionary Git blob SHA mismatch',
+        );
       }
-      final count = await _validate(temp.path);
+      if (remote.sha256 != null && await _sha256(temp) != remote.sha256) {
+        throw const ZhDictionaryException(
+          stage: ZhDictionaryFailureStage.integrity,
+          kind: ZhDictionaryFailureKind.integrity,
+          diagnostic: 'Downloaded dictionary SHA-256 mismatch',
+        );
+      }
+      final count = await _validateDownloadedDatabase(temp.path);
 
       await _database?.close();
       _database = null;
@@ -199,11 +177,13 @@ class ZhDictionaryService extends ChangeNotifier
         await temp.rename(target.path);
         await _writeMetadata({
           'blobSha': remote.blobSha,
+          'commitSha': remote.commitSha,
+          if (remote.sha256 != null) 'sha256': remote.sha256,
           'etag': remote.etag,
           'size': remote.size,
           'installedAt': DateTime.now().toUtc().toIso8601String(),
           'lastCheckedAt': DateTime.now().toUtc().toIso8601String(),
-          'source': _ffdkjApiUrl,
+          'source': remote.downloadUri.toString(),
         });
         await backup.deleteIfExists();
       } catch (_) {
@@ -220,14 +200,15 @@ class ZhDictionaryService extends ChangeNotifier
           lastCheckedAt: DateTime.now(),
         ),
       );
+      _pendingUpdateSource = null;
+    } on ZhDictionaryException catch (error, stack) {
+      _recordFailure(error, stack, isBusy: false);
+      rethrow;
     } on DioException catch (error) {
-      if (!CancelToken.isCancel(error)) {
-        _setState(_state.copyWith(error: error.message, isBusy: false));
-        rethrow;
-      }
+      if (!CancelToken.isCancel(error)) rethrow;
       _setState(_state.copyWith(isBusy: false));
-    } catch (error) {
-      _setState(_state.copyWith(error: error.toString(), isBusy: false));
+    } catch (error, stack) {
+      _recordUnexpectedFailure(error, stack, isBusy: false);
       rethrow;
     } finally {
       await temp.deleteIfExists();
@@ -237,6 +218,14 @@ class ZhDictionaryService extends ChangeNotifier
   }
 
   void cancelInstall() => _cancelToken?.cancel('Cancelled by user');
+
+  Future<ZhDictionarySource> _sourceForInstall() async {
+    if (_pendingUpdateSource != null) return _pendingUpdateSource!;
+    if (!_state.isInstalled || _state.version == _pinnedSource.blobSha) {
+      return _pinnedSource;
+    }
+    return _downloader.fetchLatestSource(cancelToken: _cancelToken);
+  }
 
   Future<void> remove() async {
     await initialize();
@@ -384,41 +373,15 @@ class ZhDictionaryService extends ChangeNotifier
     }
   }
 
-  Future<_RemoteDictionaryMetadata> _fetchRemoteMetadata({
-    CancelToken? cancelToken,
-  }) async {
-    final uri = Uri.parse(_ffdkjApiUrl);
-    _validateMetadataUri(uri);
-    final response = await _dio.get<Map<String, dynamic>>(
-      uri.toString(),
-      cancelToken: cancelToken,
-    );
-    final data = response.data;
-    if (data == null) throw StateError('GitHub returned empty metadata');
-    final download = Uri.parse(data['download_url'] as String);
-    _validateDownloadUri(download);
-    return _RemoteDictionaryMetadata(
-      blobSha: data['sha'] as String,
-      size: (data['size'] as num).toInt(),
-      downloadUri: download,
-      etag: response.headers.value('etag'),
-    );
-  }
-
-  static void _validateMetadataUri(Uri uri) {
-    if (uri.scheme != 'https' || uri.host != 'api.github.com') {
-      throw StateError('Untrusted dictionary metadata host');
-    }
-  }
-
-  static void _validateDownloadUri(Uri uri) {
-    if (uri.scheme != 'https' || uri.host != 'raw.githubusercontent.com') {
-      throw StateError('Untrusted dictionary download host');
-    }
-    if (!uri.path.startsWith(
-      '/ffdkj/ffdkj-Danbooru_Tag-Chinese-English-Translation-Table/',
-    )) {
-      throw StateError('Unexpected dictionary download path');
+  Future<int> _validateDownloadedDatabase(String path) async {
+    try {
+      return await _validate(path);
+    } catch (error, stack) {
+      throw ZhDictionaryException(
+        stage: ZhDictionaryFailureStage.integrity,
+        kind: ZhDictionaryFailureKind.integrity,
+        diagnostic: 'Downloaded dictionary validation failed: $error\n$stack',
+      );
     }
   }
 
@@ -461,6 +424,43 @@ class ZhDictionaryService extends ChangeNotifier
     input.close();
     return output.value.toString();
   }
+
+  static Future<String> _sha256(File file) =>
+      sha256.bind(file.openRead()).first.then((digest) => digest.toString());
+
+  void _recordFailure(
+    ZhDictionaryException error,
+    StackTrace stack, {
+    bool? isBusy,
+  }) {
+    AppLogger.e(
+      'ffdkj dictionary ${error.stage.name} failure\n${error.diagnostic}',
+      error,
+      stack,
+      'ZhDictionary',
+    );
+    _setState(
+      _state.copyWith(
+        error: error.diagnostic,
+        failureStage: error.stage,
+        failureKind: error.kind,
+        isBusy: isBusy,
+      ),
+    );
+  }
+
+  void _recordUnexpectedFailure(
+    Object error,
+    StackTrace stack, {
+    bool? isBusy,
+  }) {
+    final failure = ZhDictionaryException(
+      stage: ZhDictionaryFailureStage.install,
+      kind: ZhDictionaryFailureKind.unknown,
+      diagnostic: 'Unexpected ffdkj installation failure: $error\n$stack',
+    );
+    _recordFailure(failure, stack, isBusy: isBusy);
+  }
 }
 
 class _DigestCaptureSink implements Sink<Digest> {
@@ -473,20 +473,6 @@ class _DigestCaptureSink implements Sink<Digest> {
 
   @override
   void close() {}
-}
-
-class _RemoteDictionaryMetadata {
-  const _RemoteDictionaryMetadata({
-    required this.blobSha,
-    required this.size,
-    required this.downloadUri,
-    required this.etag,
-  });
-
-  final String blobSha;
-  final int size;
-  final Uri downloadUri;
-  final String? etag;
 }
 
 extension on File {
