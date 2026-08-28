@@ -58,6 +58,8 @@ Windows release 产物位于 `build/windows/x64/runner/Release/`。macOS 使用 
 
 项目热重载与按需运行验收由 `.pi/skills/` 中的三个项目 skill 管理：`aaalice-dev-sessions` 负责通过 Orca 创建、复用和关闭唯一的 `PC热重载` / `安卓热重载` 终端；`aaalice-hot-reload` 负责判定并触发 `r`、`R` 或完整重建，随后按 Orca cursor 增量读取两端日志；`aaalice-runtime-verify` 在用户明确要求自动化验收时负责真实 UI 自动化与布局检查。Agent 不得另开第二个 `flutter run` 或 `flutter attach`，仓库 `scripts/` 下不再保留项目热重载入口。
 
+为本项目创建 Orca worktree 会话时，用户未明确指定 Agent 则默认使用 `pi`；仅在用户明确要求时改用其他 Agent。
+
 普通 Dart 方法、Widget 布局、样式和文案使用 `Reload`；状态字段、`initState`、Provider/依赖注入、路由/启动流程、静态缓存或生成 Dart 代码使用 `Restart`；依赖、Windows C++/插件注册、Android Kotlin/Manifest/Gradle/插件注册变化必须重建受影响会话。共享代码默认作用于 `All`，平台实现只作用于对应端。
 
 用户明确要求自动化运行验收时，两个 runner 通过 `--dart-define=ENABLE_FLUTTER_DRIVER=true` 启用仅限开发会话的 Flutter Driver extension，供官方 Dart and Flutter MCP server 在不抢占用户键鼠和桌面焦点的情况下截图、点击、输入、滚动与检查运行中 Flutter UI。禁止使用 Computer Use。稳定场景应固化为 `integration_test`；Android 系统界面场景使用 ADB。Android 项目 emulator 首次使用无 Quick Boot 快照、host GPU、无设备外框的干净启动，之后默认保留并复用暖机实例；复用前停止旧 App 并返回 Home，显式传 `-StopEmulatorOnExit` 时才跟随会话关闭。`-DeviceId` 仅用于明确复用外部设备。
