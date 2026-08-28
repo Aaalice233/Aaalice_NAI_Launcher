@@ -16,6 +16,15 @@ void main() {
     });
   });
 
+  test('keep-alive branches use the semantic route contract', () {
+    expect(keptAliveAppBranches, {
+      AppBranch.localGallery,
+      AppBranch.onlineGallery,
+      AppBranch.vibeLibrary,
+      AppBranch.preciseRefLibrary,
+    });
+  });
+
   test(
     'compact navigation keeps core branches visible and routes the rest to more',
     () {

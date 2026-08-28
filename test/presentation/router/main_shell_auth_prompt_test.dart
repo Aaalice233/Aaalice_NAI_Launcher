@@ -9,6 +9,7 @@ import 'package:nai_launcher/presentation/providers/auth_provider.dart';
 import 'package:nai_launcher/presentation/providers/mobile_shell_overlay_provider.dart';
 import 'package:nai_launcher/presentation/providers/shortcuts_provider.dart';
 import 'package:nai_launcher/presentation/router/app_router.dart';
+import 'package:nai_launcher/presentation/router/queue_shell_overlay.dart';
 
 void main() {
   testWidgets('MainShell 消费启动前 pending 提示并顺序处理后续提示', (tester) async {
@@ -143,6 +144,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    expect(find.byType(DesktopShell), findsOneWidget);
+    expect(find.byType(MobileShell), findsNothing);
     final banner = find.byKey(const ValueKey('auth-recovery-banner'));
     expect(banner, findsOneWidget);
     expect(tester.getSize(banner).width, lessThanOrEqualTo(440));
@@ -151,6 +154,9 @@ void main() {
 
     await tester.binding.setSurfaceSize(const Size(390, 820));
     await tester.pumpAndSettle();
+    expect(find.byType(DesktopShell), findsNothing);
+    expect(find.byType(MobileShell), findsOneWidget);
+    expect(find.byType(NavigationBar), findsOneWidget);
     expect(tester.getSize(banner).width, lessThanOrEqualTo(366));
     expect(tester.getSize(banner).height, lessThan(120));
     expect(tester.takeException(), isNull);
@@ -158,6 +164,43 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('auth-recovery-dismiss')));
     await tester.pumpAndSettle();
     expect(banner, findsNothing);
+
+    final moreDestination = find.byWidgetPredicate(
+      (widget) => widget is NavigationDestination && widget.label == '更多',
+    );
+    await tester.tap(moreDestination);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('mobile-more-discord')), findsOneWidget);
+    expect(find.byKey(const ValueKey('mobile-more-github')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    router.pop();
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('mobile-more-discord')), findsNothing);
+
+    final queueOverlay = find.byType(QueueShellOverlay);
+    expect(queueOverlay, findsOneWidget);
+    container.read(queueManagementVisibleProvider.notifier).state = true;
+    await tester.pumpAndSettle();
+    final queuePointerGate = tester.widget<IgnorePointer>(
+      find
+          .descendant(of: queueOverlay, matching: find.byType(IgnorePointer))
+          .first,
+    );
+    final queueTranslation = tester.widget<FractionalTranslation>(
+      find
+          .descendant(
+            of: queueOverlay,
+            matching: find.byType(FractionalTranslation),
+          )
+          .first,
+    );
+    expect(queuePointerGate.ignoring, isFalse);
+    expect(queueTranslation.translation, Offset.zero);
+    expect(
+      tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex,
+      4,
+    );
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('MainShell 将系统返回交给当前分支的 PopScope', (tester) async {

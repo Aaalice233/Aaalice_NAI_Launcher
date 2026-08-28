@@ -13,6 +13,14 @@ enum AppBranch {
   preciseRefLibrary,
 }
 
+/// Branches whose widget state remains mounted while another branch is active.
+const Set<AppBranch> keptAliveAppBranches = {
+  AppBranch.localGallery,
+  AppBranch.onlineGallery,
+  AppBranch.vibeLibrary,
+  AppBranch.preciseRefLibrary,
+};
+
 /// Global navigation shortcuts and their destination branches.
 const Map<String, AppBranch> globalNavigationShortcutBranches = {
   ShortcutIds.navigateToGeneration: AppBranch.generation,

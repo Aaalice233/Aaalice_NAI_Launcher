@@ -64,6 +64,7 @@ class PlatformCapabilities {
   bool get supportsComfyUiIntegration => isDesktop;
   bool get supportsDesktopOverlayInteractions => isDesktop;
   bool get supportsKritaBridge => isDesktop;
+  bool get supportsSystemFontEnumeration => isWindows;
   bool get supportsNativeShare => isMobile || isMacOS;
   bool get supportsSystemGalleryExport => isAndroid;
   bool get supportsDocumentFileExport => isAndroid;
