@@ -6,6 +6,7 @@ import '../../core/constants/model_capabilities.dart';
 import '../../core/services/prompt_token_counter_service.dart';
 import '../../core/utils/novelai_auto_text.dart';
 import '../../core/utils/prompt_preset_resolution.dart';
+import '../../core/utils/character_prompt_block_parser.dart';
 import '../../core/utils/prompt_semantics_utils.dart';
 import '../../data/models/character/character_prompt.dart' as ui_character;
 import '../../data/models/image/image_params.dart';
@@ -217,7 +218,9 @@ PromptTokenCountPayload _buildPositiveTokenCountPayload({
   String qualityTier = QualityTags.standardTier,
   bool useCoords = false,
 }) {
-  final resolvedPrompt = resolveAliases(prompt).trim();
+  final resolvedPrompt = CharacterPromptBlockParser.parse(
+    resolveAliases(prompt),
+  ).positivePrompt.trim();
   final resolvedNegativePrompt = resolveAliases(negativePrompt).trim();
   final promptWithFixedTags = fixedTagsState
       .applyToPrompt(resolvedPrompt)
@@ -242,13 +245,20 @@ PromptTokenCountPayload _buildPositiveTokenCountPayload({
     useCustomUcPreset: useCustomUcPreset,
   );
   final enabledCharacters = characters
-      .where((character) => character.enabled && character.prompt.isNotEmpty)
+      .where(
+        (character) =>
+            character.enabled &&
+            (character.prompt.isNotEmpty ||
+                character.negativePrompt.isNotEmpty),
+      )
       .toList(growable: false);
   final resolvedCharacters = <NovelAiAutoTextCharacter>[];
   final extraTexts = <String>[];
   for (var index = 0; index < enabledCharacters.length; index++) {
     final character = enabledCharacters[index];
-    final resolvedPrompt = resolveAliases(character.prompt).trim();
+    final resolvedPrompt = CharacterPromptBlockParser.parse(
+      resolveAliases(character.prompt),
+    ).positivePrompt.trim();
     final customPosition = character.customPosition;
     final position =
         character.positionMode == ui_character.CharacterPositionMode.custom &&
@@ -376,7 +386,14 @@ PromptTokenCountPayload _buildNegativeTokenCountPayload({
 
   final extraTexts = characters
       .where((character) => character.enabled)
-      .map((character) => resolveAliases(character.negativePrompt).trim())
+      .map((character) {
+        final parsedPrompt = CharacterPromptBlockParser.parse(
+          resolveAliases(character.prompt),
+        );
+        return parsedPrompt.mergeNegativePrompt(
+          resolveAliases(character.negativePrompt),
+        );
+      })
       .where((text) => text.isNotEmpty)
       .toList(growable: false);
   final negativeFixedTagTexts = [

@@ -6,8 +6,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/data/models/character/character_prompt.dart';
+import 'package:nai_launcher/data/models/tag_library/tag_library_entry.dart';
 import 'package:nai_launcher/data/repositories/character_prompt_repository.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/providers/character_prompt_provider.dart';
+import 'package:nai_launcher/presentation/providers/tag_library_page_provider.dart';
 import 'package:nai_launcher/presentation/widgets/character/character_prompt_button.dart';
 import 'package:nai_launcher/presentation/widgets/character/inline_character_row.dart';
 import 'package:nai_launcher/presentation/widgets/tag_library/tag_library_picker_dialog.dart';
@@ -39,8 +42,9 @@ void main() {
     ).put(StorageKeys.enableAutocomplete, false);
   });
 
-  Widget buildTestApp(Widget child) {
+  Widget buildTestApp(Widget child, {List<Override> overrides = const []}) {
     return ProviderScope(
+      overrides: overrides,
       child: MaterialApp(
         locale: const Locale('en'),
         localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -107,4 +111,78 @@ void main() {
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
   });
+
+  testWidgets('library negative block populates independent character UC', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final entry = TagLibraryEntry.create(
+      name: 'Alice negative',
+      content: 'girl, blue eyes, negative(red hair, glasses)',
+    );
+    final characterNotifier = _TestCharacterPromptNotifier();
+
+    await tester.pumpWidget(
+      buildTestApp(
+        const CharacterPromptButton(),
+        overrides: [
+          tagLibraryPageNotifierProvider.overrideWith(
+            () => _TestTagLibraryPageNotifier([entry]),
+          ),
+          characterPromptNotifierProvider.overrideWith(() => characterNotifier),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Characters'));
+    await tester.pumpAndSettle();
+    await openLibraryMenuItem(tester);
+    await tester.tap(find.text('Alice negative'));
+    await tester.pumpAndSettle();
+
+    final character = characterNotifier.current.characters.single;
+    expect(character.prompt, 'girl, blue eyes');
+    expect(character.negativePrompt, 'red hair, glasses');
+  });
+}
+
+class _TestTagLibraryPageNotifier extends TagLibraryPageNotifier {
+  _TestTagLibraryPageNotifier(this.entries);
+
+  final List<TagLibraryEntry> entries;
+
+  @override
+  TagLibraryPageState build() => TagLibraryPageState(entries: entries);
+
+  @override
+  Future<void> recordUsage(String id) async {}
+}
+
+class _TestCharacterPromptNotifier extends CharacterPromptNotifier {
+  CharacterPromptConfig get current => state;
+
+  @override
+  CharacterPromptConfig build() => const CharacterPromptConfig();
+
+  @override
+  void addCharacter(
+    CharacterGender gender, {
+    String? name,
+    String? prompt,
+    String? negativePrompt,
+    String? thumbnailPath,
+  }) {
+    state = state.addCharacter(
+      gender: gender,
+      name: name,
+      prompt: prompt,
+      negativePrompt: negativePrompt,
+      thumbnailPath: thumbnailPath,
+    );
+  }
 }

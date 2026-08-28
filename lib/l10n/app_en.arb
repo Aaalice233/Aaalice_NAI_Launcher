@@ -3317,6 +3317,7 @@
   "tagLibrary_tagsHelper": "Tags are used for filtering and searching",
   "tagLibrary_content": "Prompt Content",
   "tagLibrary_contentHint": "Enter prompt content, supports autocomplete",
+  "tagLibrary_characterNegativeSyntaxHelp": "Character entries can store independent Undesired Content with negative(...), for example: girl, blue eyes, negative(red hair, glasses)",
 
   "settings_network": "Network",
   "settings_enableProxy": "Enable Proxy",

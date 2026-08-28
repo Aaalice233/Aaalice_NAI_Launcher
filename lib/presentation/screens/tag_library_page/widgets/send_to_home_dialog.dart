@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/utils/character_prompt_block_parser.dart';
 import '../../../../core/utils/comfyui_prompt_parser/pipe_parser.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/sd_to_nai_converter.dart';
@@ -56,7 +57,11 @@ class _SendToHomeDialogState extends ConsumerState<SendToHomeDialog> {
   }
 
   /// 检测是否为竖线格式
-  bool get _isPipeFormat => PipeParser.isPipeFormat(widget.entry.content);
+  CharacterPromptBlockParseResult get _promptParts =>
+      CharacterPromptBlockParser.parse(widget.entry.content);
+
+  bool get _isPipeFormat =>
+      PipeParser.isPipeFormat(_promptParts.positivePrompt);
 
   /// 获取发送内容
   /// 如果 sendAsAlias 为 true，返回 <条目名> 形式
@@ -67,7 +72,7 @@ class _SendToHomeDialogState extends ConsumerState<SendToHomeDialog> {
       return '<${widget.entry.name}>';
     }
     // 应用 SD→NAI 转换和格式化
-    return SdToNaiConverter.convert(widget.entry.content);
+    return SdToNaiConverter.convert(_promptParts.positivePrompt);
   }
 
   /// 解析竖线格式结果
@@ -404,10 +409,25 @@ class _SendToHomeDialogState extends ConsumerState<SendToHomeDialog> {
     final label = hasCharacters
         ? context.l10n.sendToHome_characterPromptCount(parsed.characters.length)
         : context.l10n.sendToHome_characterPrompt;
-    return _PreviewItem(
-      label: label,
-      content: content,
-      color: Theme.of(context).colorScheme.tertiary,
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _PreviewItem(
+          label: label,
+          content: content,
+          color: theme.colorScheme.tertiary,
+        ),
+        if (_promptParts.hasNegativeBlock &&
+            _promptParts.negativePrompt.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          _PreviewItem(
+            label: context.l10n.prompt_negativePrompt,
+            content: _promptParts.negativePrompt,
+            color: theme.colorScheme.error,
+          ),
+        ],
+      ],
     );
   }
 }

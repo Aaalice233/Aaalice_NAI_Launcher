@@ -4,6 +4,35 @@ import 'package:nai_launcher/data/models/character/character_prompt.dart'
     as ui_character;
 
 void main() {
+  group('CharacterPromptConfig.addCharacter', () {
+    test('preserves the legacy default UC when no block was supplied', () {
+      const config = ui_character.CharacterPromptConfig();
+
+      final character = config
+          .addCharacter(prompt: 'girl, blue eyes')
+          .characters
+          .single;
+
+      expect(character.prompt, 'girl, blue eyes');
+      expect(character.negativePrompt, 'lowres, aliasing, ');
+    });
+
+    test('stores an explicitly parsed independent UC', () {
+      const config = ui_character.CharacterPromptConfig();
+
+      final character = config
+          .addCharacter(
+            prompt: 'girl, blue eyes',
+            negativePrompt: 'red hair, glasses',
+          )
+          .characters
+          .single;
+
+      expect(character.prompt, 'girl, blue eyes');
+      expect(character.negativePrompt, 'red hair, glasses');
+    });
+  });
+
   group('CharacterConversionService', () {
     test('custom mode resolves all six missing positions continuously', () {
       final characters = List<ui_character.CharacterPrompt>.generate(
@@ -63,6 +92,94 @@ void main() {
       expect(result.characters.single.positionX, 0.0);
       expect(result.characters.single.positionY, 1.0);
       expect(result.aliasesResolved, isTrue);
+    });
+
+    test('maps a library negative block to independent character UC', () {
+      const config = ui_character.CharacterPromptConfig(
+        characters: [
+          ui_character.CharacterPrompt(
+            id: 'alice',
+            name: 'Alice',
+            prompt:
+                r'girl, alice \(wonderland\), blue eyes, negative(red hair, glasses)',
+            negativePrompt: '',
+          ),
+        ],
+      );
+
+      final result = CharacterConversionService().convert(config);
+      final character = result.characters.single;
+
+      expect(character.prompt, r'girl, alice \(wonderland\), blue eyes');
+      expect(character.negativePrompt, 'red hair, glasses');
+      expect(character.prompt, isNot(contains('negative(')));
+      expect(character.negativePrompt, isNot(contains('negative(')));
+    });
+
+    test('splits negative syntax after resolving a library alias', () {
+      const config = ui_character.CharacterPromptConfig(
+        characters: [
+          ui_character.CharacterPrompt(
+            id: 'alice',
+            name: 'Alice',
+            prompt: '<alice>',
+            negativePrompt: 'lowres',
+          ),
+        ],
+      );
+
+      final result = CharacterConversionService(
+        aliasResolver: (text) => text == '<alice>'
+            ? 'girl, blue eyes, negative(red hair, glasses)'
+            : text,
+      ).convert(config);
+      final character = result.characters.single;
+
+      expect(character.prompt, 'girl, blue eyes');
+      expect(character.negativePrompt, 'red hair, glasses, lowres');
+      expect(result.aliasesResolved, isTrue);
+    });
+
+    test('does not duplicate UC already projected from the same alias', () {
+      const config = ui_character.CharacterPromptConfig(
+        characters: [
+          ui_character.CharacterPrompt(
+            id: 'alice',
+            name: 'Alice',
+            prompt: '<alice>',
+            negativePrompt: 'red hair, glasses',
+          ),
+        ],
+      );
+
+      final character = CharacterConversionService(
+        aliasResolver: (text) =>
+            text == '<alice>' ? 'girl, negative(red hair, glasses)' : text,
+      ).convert(config).characters.single;
+
+      expect(character.prompt, 'girl');
+      expect(character.negativePrompt, 'red hair, glasses');
+    });
+
+    test('keeps negative-only characters in the API mapping', () {
+      const config = ui_character.CharacterPromptConfig(
+        characters: [
+          ui_character.CharacterPrompt(
+            id: 'negative-only',
+            name: 'Negative only',
+            prompt: 'negative(red hair)',
+            negativePrompt: '',
+          ),
+        ],
+      );
+
+      final service = CharacterConversionService();
+      final result = service.convert(config);
+
+      expect(result.characters.single.prompt, isEmpty);
+      expect(result.characters.single.negativePrompt, 'red hair');
+      expect(service.hasEnabledCharacters(config), isTrue);
+      expect(service.getEnabledCharacterCount(config), 1);
     });
   });
 }

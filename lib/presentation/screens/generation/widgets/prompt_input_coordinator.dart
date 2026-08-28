@@ -45,11 +45,19 @@ class PromptInputCoordinator {
       final prompt = _normalize(sourcePrompt);
       switch (target) {
         case SendTargetType.smartDecompose:
-          _applySmartDecompose(prompt);
+          _applySmartDecompose(prompt, negativePrompt: consumed.negativePrompt);
         case SendTargetType.replaceCharacter:
-          _applyToCharacterPrompt(prompt, clearExisting: true);
+          _applyToCharacterPrompt(
+            prompt,
+            negativePrompt: consumed.negativePrompt,
+            clearExisting: true,
+          );
         case SendTargetType.appendCharacter:
-          _applyToCharacterPrompt(prompt, clearExisting: false);
+          _applyToCharacterPrompt(
+            prompt,
+            negativePrompt: consumed.negativePrompt,
+            clearExisting: false,
+          );
         case SendTargetType.mainPrompt:
         case SendTargetType.fixedTag:
         case null:
@@ -75,9 +83,16 @@ class PromptInputCoordinator {
     updatePrompt(prompt);
   }
 
-  void _applyToCharacterPrompt(String prompt, {required bool clearExisting}) {
+  void _applyToCharacterPrompt(
+    String prompt, {
+    String? negativePrompt,
+    required bool clearExisting,
+  }) {
     final notifier = _ref.read(characterPromptNotifierProvider.notifier);
     if (clearExisting) notifier.clearAllCharacters();
+    final normalizedNegative = negativePrompt == null
+        ? null
+        : _normalize(negativePrompt);
 
     if (PipeParser.isPipeFormat(prompt)) {
       final result = PipeParser.parse(prompt);
@@ -85,6 +100,7 @@ class PromptInputCoordinator {
         notifier.addCharacter(
           _inferGender(result.globalPrompt),
           prompt: result.globalPrompt,
+          negativePrompt: normalizedNegative,
         );
       }
       for (final character in result.characters) {
@@ -92,11 +108,16 @@ class PromptInputCoordinator {
           notifier.addCharacter(
             character.inferredGender ?? CharacterGender.other,
             prompt: character.prompt,
+            negativePrompt: normalizedNegative,
           );
         }
       }
     } else {
-      notifier.addCharacter(_inferGender(prompt), prompt: prompt);
+      notifier.addCharacter(
+        _inferGender(prompt),
+        prompt: prompt,
+        negativePrompt: normalizedNegative,
+      );
     }
 
     if (_mounted()) {
@@ -125,9 +146,12 @@ class PromptInputCoordinator {
     return CharacterGender.other;
   }
 
-  void _applySmartDecompose(String prompt) {
+  void _applySmartDecompose(String prompt, {String? negativePrompt}) {
     final result = PipeParser.parse(prompt);
     if (result.globalPrompt.isNotEmpty) applyToMainPrompt(result.globalPrompt);
+    final normalizedNegative = negativePrompt == null
+        ? null
+        : _normalize(negativePrompt);
 
     final notifier = _ref.read(characterPromptNotifierProvider.notifier);
     notifier.clearAllCharacters();
@@ -136,6 +160,7 @@ class PromptInputCoordinator {
         notifier.addCharacter(
           character.inferredGender ?? CharacterGender.other,
           prompt: character.prompt,
+          negativePrompt: normalizedNegative,
         );
       }
     }

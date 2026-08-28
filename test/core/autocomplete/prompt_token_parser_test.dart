@@ -248,6 +248,62 @@ void main() {
         expect(result.cursorPosition, result.text.length);
       },
     );
+
+    test('queries and replaces tags inside a character negative block', () {
+      const text = 'girl, negative(red ha, glasses)';
+      final query = PromptTokenParser.parse(
+        text: text,
+        cursorPosition: text.indexOf('red ha') + 'red ha'.length,
+        limit: 20,
+        locale: 'en',
+      );
+
+      expect(query.token, 'red_ha');
+      expect(query.existingTags, containsAll(['girl', 'glasses']));
+      expect(query.existingTags, isNot(contains('negative(red_ha')));
+
+      final result = PromptTokenParser.apply(
+        text: text,
+        query: query,
+        canonicalTag: 'red_hair',
+        autoInsertComma: true,
+        replaceUnderscores: false,
+      );
+      expect(result.text, 'girl, negative(red_hair, glasses)');
+    });
+
+    test('inserts related tags before the negative block closing boundary', () {
+      const text = 'girl, negative(red hair)';
+      final query = PromptTokenParser.parseRelated(
+        text: text,
+        cursorPosition: text.indexOf('red hair') + 3,
+        limit: 20,
+        locale: 'en',
+      )!;
+
+      final result = PromptTokenParser.apply(
+        text: text,
+        query: query,
+        canonicalTag: 'glasses',
+        autoInsertComma: false,
+        replaceUnderscores: true,
+      );
+      expect(result.text, 'girl, negative(red hair, glasses)');
+    });
+
+    test('does not query the reserved keyword or its boundaries', () {
+      const text = 'girl, negative(red hair)';
+      final query = PromptTokenParser.parse(
+        text: text,
+        cursorPosition: text.indexOf('negative') + 3,
+        limit: 20,
+        locale: 'en',
+      );
+
+      expect(query.token, isEmpty);
+      expect(query.replacementRange.start, text.indexOf('negative') + 3);
+      expect(query.existingTags, containsAll(['girl', 'red_hair']));
+    });
   });
 
   group('PromptTokenParser.editChangesActiveToken', () {

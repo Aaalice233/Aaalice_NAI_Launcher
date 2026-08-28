@@ -3,10 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/utils/localization_extension.dart';
-import '../../../core/utils/comfyui_prompt_parser/pipe_parser.dart';
-import '../../../core/utils/sd_to_nai_converter.dart';
 import '../../../core/shortcuts/default_shortcuts.dart';
+import '../../../core/utils/character_prompt_block_parser.dart';
+import '../../../core/utils/comfyui_prompt_parser/pipe_parser.dart';
+import '../../../core/utils/localization_extension.dart';
+import '../../../core/utils/sd_to_nai_converter.dart';
 import '../../../data/models/tag_library/tag_library_entry.dart';
 import '../../adaptive/adaptive_presenter.dart';
 import '../../providers/fixed_tags_provider.dart';
@@ -190,7 +191,11 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
     }
 
     // 多个选中项：直接拼接内容发送到主提示词
-    final content = selectedEntries.map((e) => e.content).join(', ');
+    final content = selectedEntries
+        .map((entry) => CharacterPromptBlockParser.parse(entry.content))
+        .map((parsed) => parsed.positivePrompt)
+        .where((prompt) => prompt.isNotEmpty)
+        .join(', ');
 
     // 设置待填充提示词
     ref
@@ -814,9 +819,10 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
     TagLibraryEntry entry,
     bool sendAsAlias,
   ) async {
+    final parsed = CharacterPromptBlockParser.parse(entry.content);
     final content = sendAsAlias
         ? '<${entry.name}>'
-        : SdToNaiConverter.convert(entry.content);
+        : SdToNaiConverter.convert(parsed.positivePrompt);
 
     await ref
         .read(fixedTagsNotifierProvider.notifier)
@@ -837,11 +843,19 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
     SendOptions sendOptions,
   ) async {
     final content = _prepareContentForHome(entry, sendOptions);
+    final parsed = CharacterPromptBlockParser.parse(entry.content);
+    final sendsToCharacter =
+        sendOptions.targetType == SendTargetType.replaceCharacter ||
+        sendOptions.targetType == SendTargetType.appendCharacter ||
+        sendOptions.targetType == SendTargetType.smartDecompose;
 
     ref
         .read(pendingPromptNotifierProvider.notifier)
         .set(
           prompt: content,
+          negativePrompt: sendsToCharacter && parsed.hasNegativeBlock
+              ? parsed.negativePrompt
+              : null,
           targetType: sendOptions.targetType,
           clearOnConsume: true,
         );
@@ -865,20 +879,23 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
     }
 
     // 检查是否为竖线格式且需要提取角色部分
-    final isPipeFormat = PipeParser.isPipeFormat(entry.content);
+    final positivePrompt = CharacterPromptBlockParser.parse(
+      entry.content,
+    ).positivePrompt;
+    final isPipeFormat = PipeParser.isPipeFormat(positivePrompt);
     final needsCharacterExtract =
         isPipeFormat &&
         (options.targetType == SendTargetType.replaceCharacter ||
             options.targetType == SendTargetType.appendCharacter);
 
     if (needsCharacterExtract) {
-      final result = PipeParser.parse(entry.content);
+      final result = PipeParser.parse(positivePrompt);
       if (result.characters.isNotEmpty) {
         return result.characters.map((c) => c.prompt).join('\n| ');
       }
     }
 
-    return entry.content;
+    return positivePrompt;
   }
 
   /// 获取发送成功提示消息

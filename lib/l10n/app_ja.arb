@@ -3252,6 +3252,7 @@
   "tagLibrary_tagsHelper": "タグはフィルタリングと検索に使用されます",
   "tagLibrary_content": "プロンプトの内容",
   "tagLibrary_contentHint": "プロンプトの内容を入力し、オートコンプリートをサポートします",
+  "tagLibrary_characterNegativeSyntaxHelp": "キャラクター項目では negative(...) で個別の除外プロンプトを保存できます。例：girl, blue eyes, negative(red hair, glasses)",
   "settings_network": "ネットワーク",
   "settings_enableProxy": "プロキシを有効にする",
   "settings_proxyEnabled": "有効",

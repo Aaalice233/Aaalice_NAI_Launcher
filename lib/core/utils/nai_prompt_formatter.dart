@@ -1,3 +1,4 @@
+import 'character_prompt_block_parser.dart';
 import 'text_space_converter.dart';
 
 /// NAI 提示词格式化工具
@@ -21,6 +22,26 @@ class NaiPromptFormatter {
   static String format(String prompt) {
     if (prompt.isEmpty) return prompt;
 
+    // Format block contents through the same path as positive tags while the
+    // shared parser protects the reserved keyword and matching boundaries.
+    var prepared = prompt;
+    final parsed = CharacterPromptBlockParser.parse(prompt);
+    for (final block in parsed.blocks.reversed) {
+      final content = prepared.substring(
+        block.contentRange.start,
+        block.contentRange.end,
+      );
+      prepared = prepared.replaceRange(
+        block.contentRange.start,
+        block.contentRange.end,
+        _formatPromptText(content),
+      );
+    }
+
+    return _formatPromptText(prepared);
+  }
+
+  static String _formatPromptText(String prompt) {
     return prompt.splitMapJoin(
       _lineBreakPattern,
       onMatch: (match) => match.group(0)!,

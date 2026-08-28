@@ -3339,6 +3339,7 @@
   "tagLibrary_tagsHelper": "標籤用於篩選和搜尋",
   "tagLibrary_content": "提示詞內容",
   "tagLibrary_contentHint": "輸入提示詞內容，支援智慧補全",
+  "tagLibrary_characterNegativeSyntaxHelp": "角色詞庫可用 negative(...) 儲存獨立負面提示詞，例如：girl, blue eyes, negative(red hair, glasses)",
   "settings_network": "網路",
   "settings_enableProxy": "啟用代理",
   "settings_proxyEnabled": "已啟用",

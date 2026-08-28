@@ -463,6 +463,7 @@ class CharacterPromptConfig with _$CharacterPromptConfig {
     String? name,
     CharacterGender gender = CharacterGender.female,
     String? prompt,
+    String? negativePrompt,
     String? thumbnailPath,
   }) {
     // 根据性别设置初始提示词（如果未指定）
@@ -481,6 +482,7 @@ class CharacterPromptConfig with _$CharacterPromptConfig {
       name: name ?? getNextCharacterName(),
       gender: gender,
       prompt: initialPrompt,
+      negativePrompt: negativePrompt ?? 'lowres, aliasing, ',
       positionMode: CharacterPositionMode.custom,
       customPosition: defaultPosition,
       thumbnailPath: thumbnailPath,

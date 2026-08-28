@@ -3330,6 +3330,7 @@
   "tagLibrary_tagsHelper": "标签用于筛选和搜索",
   "tagLibrary_content": "提示词内容",
   "tagLibrary_contentHint": "输入提示词内容，支持智能补全",
+  "tagLibrary_characterNegativeSyntaxHelp": "角色词库可用 negative(...) 保存独立负面提示词，例如：girl, blue eyes, negative(red hair, glasses)",
 
   "settings_network": "网络",
   "settings_enableProxy": "启用代理",

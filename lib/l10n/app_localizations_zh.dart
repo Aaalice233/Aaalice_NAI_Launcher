@@ -6804,6 +6804,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get tagLibrary_contentHint => '输入提示词内容，支持智能补全';
 
   @override
+  String get tagLibrary_characterNegativeSyntaxHelp =>
+      '角色词库可用 negative(...) 保存独立负面提示词，例如：girl, blue eyes, negative(red hair, glasses)';
+
+  @override
   String get settings_network => '网络';
 
   @override
@@ -19023,6 +19027,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get tagLibrary_contentHint => '輸入提示詞內容，支援智慧補全';
+
+  @override
+  String get tagLibrary_characterNegativeSyntaxHelp =>
+      '角色詞庫可用 negative(...) 儲存獨立負面提示詞，例如：girl, blue eyes, negative(red hair, glasses)';
 
   @override
   String get settings_network => '網路';
