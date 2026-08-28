@@ -21494,6 +21494,42 @@ abstract class AppLocalizations {
   /// **'Install the ffdkj dictionary for Chinese labels and reverse lookup. It is downloaded directly from upstream.'**
   String get autocomplete_zhInstallPrompt;
 
+  /// No description provided for @autocomplete_zhErrorMetadataRateLimited.
+  ///
+  /// In en, this message translates to:
+  /// **'GitHub is receiving too many requests, so dictionary updates cannot be checked yet. Try again later.'**
+  String get autocomplete_zhErrorMetadataRateLimited;
+
+  /// No description provided for @autocomplete_zhErrorMetadataAccessDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'GitHub rejected the dictionary information request. Try again later or switch networks.'**
+  String get autocomplete_zhErrorMetadataAccessDenied;
+
+  /// No description provided for @autocomplete_zhErrorDownloadAccessDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'GitHub rejected the ffdkj dictionary download. Try again later or switch networks.'**
+  String get autocomplete_zhErrorDownloadAccessDenied;
+
+  /// No description provided for @autocomplete_zhErrorNetwork.
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot reach the ffdkj GitHub upstream. Check your network and try again.'**
+  String get autocomplete_zhErrorNetwork;
+
+  /// No description provided for @autocomplete_zhErrorIntegrity.
+  ///
+  /// In en, this message translates to:
+  /// **'Dictionary integrity validation failed. No file was installed.'**
+  String get autocomplete_zhErrorIntegrity;
+
+  /// No description provided for @autocomplete_zhErrorUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'The ffdkj dictionary operation failed. Try again later.'**
+  String get autocomplete_zhErrorUnknown;
+
   /// No description provided for @autocomplete_checkUpdate.
   ///
   /// In en, this message translates to:

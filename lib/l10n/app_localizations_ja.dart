@@ -12042,6 +12042,30 @@ class AppLocalizationsJa extends AppLocalizations {
       '中国語表示と逆引き用の ffdkj 辞書を上流から直接インストールできます。';
 
   @override
+  String get autocomplete_zhErrorMetadataRateLimited =>
+      'GitHub へのリクエストが多いため、辞書の更新を確認できません。しばらくしてから再試行してください。';
+
+  @override
+  String get autocomplete_zhErrorMetadataAccessDenied =>
+      'GitHub が辞書情報の取得を拒否しました。しばらくしてから再試行するか、ネットワークを切り替えてください。';
+
+  @override
+  String get autocomplete_zhErrorDownloadAccessDenied =>
+      'GitHub が ffdkj 辞書のダウンロードを拒否しました。しばらくしてから再試行するか、ネットワークを切り替えてください。';
+
+  @override
+  String get autocomplete_zhErrorNetwork =>
+      'ffdkj の GitHub アップストリームに接続できません。ネットワークを確認して再試行してください。';
+
+  @override
+  String get autocomplete_zhErrorIntegrity =>
+      '辞書の整合性検証に失敗しました。ファイルはインストールされていません。';
+
+  @override
+  String get autocomplete_zhErrorUnknown =>
+      'ffdkj 辞書の操作に失敗しました。しばらくしてから再試行してください。';
+
+  @override
   String get autocomplete_checkUpdate => '更新を確認';
 
   @override
