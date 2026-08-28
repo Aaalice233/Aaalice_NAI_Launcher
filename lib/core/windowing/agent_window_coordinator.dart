@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:uuid/uuid.dart';
 
+import '../utils/app_logger.dart';
 import 'agent_window_protocol.dart';
 
 abstract interface class AgentWindowHandle {
@@ -109,8 +110,13 @@ class AgentWindowCoordinator {
 
   Future<void> _openNew(int revision) async {
     _setState(AgentWindowLifecycle.opening);
+    AppLogger.i('Open requested: revision=$revision', 'AgentWindow');
     try {
       final existing = await _backend.findExisting();
+      AppLogger.i(
+        'Existing window lookup completed: found=${existing != null}',
+        'AgentWindow',
+      );
       if (existing != null) {
         if (revision != _intentRevision) {
           try {
@@ -137,6 +143,7 @@ class AgentWindowCoordinator {
           handshakeToken: const Uuid().v4(),
         ),
       );
+      AppLogger.i('Secondary window created: id=${handle.id}', 'AgentWindow');
       if (revision != _intentRevision) {
         try {
           await handle.abortOpen();
@@ -148,7 +155,9 @@ class AgentWindowCoordinator {
       }
       _handle = handle;
       await handle.show();
+      AppLogger.i('Secondary window shown: id=${handle.id}', 'AgentWindow');
       await handle.focusAndRestore();
+      AppLogger.i('Secondary window focused: id=${handle.id}', 'AgentWindow');
       if (revision != _intentRevision) return;
       await _preferences.writeDetached(true);
       if (revision != _intentRevision) return;
@@ -371,12 +380,14 @@ class AgentWindowCoordinator {
   }
 
   void markDocked() {
+    AppLogger.i('Secondary window reported docked', 'AgentWindow');
     ++_intentRevision;
     ++_boundsRevision;
     _setState(AgentWindowLifecycle.docked);
   }
 
   void markClosed(String id) {
+    AppLogger.i('Secondary window removed: id=$id', 'AgentWindow');
     if (_handle?.id != id) return;
     ++_intentRevision;
     ++_boundsRevision;
@@ -386,6 +397,7 @@ class AgentWindowCoordinator {
 
   void _setState(AgentWindowLifecycle value) {
     if (_state == value) return;
+    AppLogger.i('Lifecycle: ${_state.name} -> ${value.name}', 'AgentWindow');
     _state = value;
     _states.add(value);
   }

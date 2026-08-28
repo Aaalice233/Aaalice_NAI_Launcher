@@ -24,10 +24,20 @@ class RightPanel extends ConsumerStatefulWidget {
 
 class _RightPanelState extends ConsumerState<RightPanel> {
   int _activeView = 1;
+  late bool _showExpandedContent;
 
   @override
   void initState() {
     super.initState();
+    _showExpandedContent = ref
+        .read(layoutStateNotifierProvider)
+        .rightPanelExpanded;
+    ref.listenManual(layoutStateNotifierProvider, (previous, next) {
+      if (previous?.rightPanelExpanded == next.rightPanelExpanded || !mounted) {
+        return;
+      }
+      setState(() => _showExpandedContent = false);
+    });
     final saved = ref
         .read(localStorageServiceProvider)
         .getSetting<int>(StorageKeys.rightPanelTab);
@@ -64,7 +74,7 @@ class _RightPanelState extends ConsumerState<RightPanel> {
     );
 
     final Widget child;
-    if (layoutState.rightPanelExpanded) {
+    if (layoutState.rightPanelExpanded && _showExpandedContent) {
       // 每页唯一一行 header：聊天页的会话行内含折叠按钮与标题
       // （见 AgentChatPanel），历史页用 HistoryPanel 自带 header。
       child = _activeView == 0
@@ -96,7 +106,14 @@ class _RightPanelState extends ConsumerState<RightPanel> {
     }
 
     return AnimatedContainer(
-      duration: widget.isResizing ? Duration.zero : const Duration(milliseconds: 200),
+      duration: widget.isResizing
+          ? Duration.zero
+          : const Duration(milliseconds: 200),
+      onEnd: () {
+        if (layoutState.rightPanelExpanded && !_showExpandedContent) {
+          setState(() => _showExpandedContent = true);
+        }
+      },
       width: width,
       decoration: decoration,
       child: child,

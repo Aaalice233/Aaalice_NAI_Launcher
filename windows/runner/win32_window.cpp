@@ -32,6 +32,7 @@ constexpr const wchar_t kGetPreferredBrightnessRegValue[] = L"AppsUseLightTheme"
 static int g_active_window_count = 0;
 
 constexpr UINT_PTR kFlutterAccessibilityCrashGuardSubclassId = 1;
+constexpr UINT kResizeChildContentMessage = WM_APP + 0x31A;
 
 bool IsFlutterAccessibilityRootRequest(LPARAM lparam) {
   const DWORD object_id =
@@ -231,14 +232,18 @@ Win32Window::MessageHandler(HWND hwnd,
       return 0;
     }
     case WM_SIZE: {
-      RECT rect = GetClientArea();
-      if (child_content_ != nullptr) {
-        // Size and position the child window.
-        MoveWindow(child_content_, rect.left, rect.top, rect.right - rect.left,
-                   rect.bottom - rect.top, TRUE);
-      }
+      QueueChildContentResize();
       return 0;
     }
+
+    case WM_WINDOWPOSCHANGED:
+      QueueChildContentResize();
+      break;
+
+    case kResizeChildContentMessage:
+      child_resize_pending_ = false;
+      ResizeChildContent();
+      return 0;
 
     case WM_ACTIVATE:
       if (child_content_ != nullptr) {
@@ -279,13 +284,28 @@ bool Win32Window::SetChildContent(HWND content) {
 
   child_content_ = content;
   SetParent(content, window_handle_);
-  RECT frame = GetClientArea();
-
-  MoveWindow(content, frame.left, frame.top, frame.right - frame.left,
-             frame.bottom - frame.top, true);
+  ResizeChildContent();
 
   SetFocus(child_content_);
   return true;
+}
+
+void Win32Window::QueueChildContentResize() {
+  if (child_resize_pending_ || window_handle_ == nullptr ||
+      child_content_ == nullptr) {
+    return;
+  }
+  child_resize_pending_ = true;
+  PostMessage(window_handle_, kResizeChildContentMessage, 0, 0);
+}
+
+void Win32Window::ResizeChildContent() {
+  if (window_handle_ == nullptr || child_content_ == nullptr) {
+    return;
+  }
+  RECT frame = GetClientArea();
+  MoveWindow(child_content_, frame.left, frame.top, frame.right - frame.left,
+             frame.bottom - frame.top, TRUE);
 }
 
 RECT Win32Window::GetClientArea() {

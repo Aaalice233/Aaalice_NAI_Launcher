@@ -5,6 +5,7 @@ import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:screen_retriever/screen_retriever.dart';
+import 'package:window_manager/window_manager.dart';
 
 import '../utils/app_logger.dart';
 import 'agent_window_coordinator.dart';
@@ -12,6 +13,9 @@ import 'agent_window_geometry.dart';
 import 'agent_window_protocol.dart';
 
 export 'agent_window_secondary.dart';
+
+const _screenEventDisplayAdded = 'display-added';
+const _screenEventDisplayRemoved = 'display-removed';
 
 class CallbackAgentWindowPreferences implements AgentWindowPreferences {
   const CallbackAgentWindowPreferences({
@@ -91,6 +95,11 @@ class AgentWindowRuntime extends ScreenListener {
     commandHandler,
   }) async {
     if (!isDesktop || _coordinator != null) return;
+    AppLogger.i(
+      'Runtime initialized: implementation=multi-engine-v2, '
+      'window_manager>=0.5.1',
+      'AgentWindow',
+    );
     _closingMain = false;
     _mainCloseOperation = null;
     _coordinator = AgentWindowCoordinator(
@@ -118,6 +127,10 @@ class AgentWindowRuntime extends ScreenListener {
     try {
       final windows = await WindowController.getAll();
       final ids = windows.map((window) => window.windowId).toSet();
+      AppLogger.i(
+        'Native window list changed: ids=${ids.join(',')}',
+        'AgentWindow',
+      );
       final knownWindowIds = <String>{
         ..._ready.keys,
         ..._handshakeTokensByWindow.keys,
@@ -160,6 +173,11 @@ class AgentWindowRuntime extends ScreenListener {
       throw const FormatException('Agent window message has no windowId');
     }
     final isReady = envelope.kind == 'event' && envelope.name == 'ready';
+    AppLogger.i(
+      'Inbound ${envelope.kind}/${envelope.name}: window=$windowId, '
+          'active=${coordinator.activeWindowId}',
+      'AgentWindow',
+    );
     if (isReady) {
       final token = envelope.payload['handshakeToken'];
       final expectedToken = _handshakeTokensByWindow[windowId];
@@ -235,7 +253,18 @@ class AgentWindowRuntime extends ScreenListener {
     }
   }
 
-  Future<void> open() => coordinator.open();
+  Future<void> open() async {
+    AppLogger.i(
+      'Open command received: state=${coordinator.state.name}',
+      'AgentWindow',
+    );
+    await coordinator.open();
+    AppLogger.i(
+      'Open command completed: state=${coordinator.state.name}, '
+          'window=${coordinator.activeWindowId}',
+      'AgentWindow',
+    );
+  }
 
   Future<void> restoreDetached() async {
     try {
@@ -333,8 +362,8 @@ class AgentWindowRuntime extends ScreenListener {
 
   @override
   void onScreenEvent(String eventName) {
-    if (eventName != kScreenEventDisplayAdded &&
-        eventName != kScreenEventDisplayRemoved) {
+    if (eventName != _screenEventDisplayAdded &&
+        eventName != _screenEventDisplayRemoved) {
       return;
     }
     final value = _coordinator;
@@ -379,6 +408,7 @@ class AgentWindowRuntime extends ScreenListener {
           coordinator.markDocked();
           await coordinator.persistDetached(false);
           await _commandHandler?.call('dockRequested', const {});
+          await _restoreMainWindowAfterDock();
           _completedDockRevisions[windowId] = revision;
         })().whenComplete(() {
           if (identical(_dockEventOperations[key], operation)) {
@@ -387,6 +417,28 @@ class AgentWindowRuntime extends ScreenListener {
         });
     _dockEventOperations[key] = operation;
     return operation;
+  }
+
+  Future<void> _restoreMainWindowAfterDock() async {
+    if (!Platform.isWindows && !Platform.isLinux && !Platform.isMacOS) return;
+    try {
+      final wasMinimized = await windowManager.isMinimized();
+      if (wasMinimized) await windowManager.restore();
+      if (!await windowManager.isVisible()) await windowManager.show();
+      await windowManager.focus();
+      AppLogger.i(
+        'Main window restored after dock: wasMinimized=$wasMinimized',
+        'AgentWindow',
+      );
+    } on Object catch (error, stackTrace) {
+      AppLogger.e(
+        'Failed to restore the main window after dock',
+        error,
+        stackTrace,
+        'AgentWindow',
+      );
+      rethrow;
+    }
   }
 
   Future<void> _handleSnapshotChannelFailure(
@@ -464,6 +516,10 @@ class _DesktopAgentWindowBackend implements AgentWindowBackend {
         matches.add((controller: controller, arguments: arguments));
       }
     }
+    AppLogger.i(
+      'findExisting discovered ${matches.length} Agent window(s)',
+      'AgentWindow',
+    );
     if (matches.isEmpty) return null;
 
     ({WindowController controller, AgentWindowLaunchArguments arguments})?
@@ -533,6 +589,7 @@ class _DesktopAgentWindowBackend implements AgentWindowBackend {
 
   @override
   Future<AgentWindowHandle> create(AgentWindowLaunchArguments arguments) async {
+    AppLogger.i('Creating hidden secondary window', 'AgentWindow');
     _pendingHandshakeTokens.add(arguments.handshakeToken);
     late final WindowController controller;
     try {
@@ -555,6 +612,10 @@ class _DesktopAgentWindowBackend implements AgentWindowBackend {
     _pendingHandshakeTokens.remove(arguments.handshakeToken);
     _handshakeTokensByWindow[controller.windowId] = arguments.handshakeToken;
     _ready[controller.windowId] ??= Completer<void>();
+    AppLogger.i(
+      'Hidden secondary window registered: id=${controller.windowId}',
+      'AgentWindow',
+    );
     return _DesktopAgentWindowHandle(controller, _ready, _cancelledWindowIds);
   }
 }
@@ -576,7 +637,9 @@ class _DesktopAgentWindowHandle implements AgentWindowHandle {
   Future<void> _waitUntilReady() async {
     final completer = _ready[id];
     if (completer == null) return;
+    AppLogger.i('Waiting for ready handshake: id=$id', 'AgentWindow');
     await completer.future.timeout(const Duration(seconds: 10));
+    AppLogger.i('Ready handshake completed: id=$id', 'AgentWindow');
   }
 
   @override
@@ -635,7 +698,13 @@ class _DesktopAgentWindowHandle implements AgentWindowHandle {
 
   Future<void> _requestClose({bool persistBounds = true}) => controller
       .invokeMethod<void>('window_close_cascade', persistBounds)
-      .timeout(const Duration(seconds: 5));
+      .timeout(const Duration(seconds: 5))
+      .whenComplete(
+        () => AppLogger.i(
+          'Close cascade returned: id=$id, persistBounds=$persistBounds',
+          'AgentWindow',
+        ),
+      );
 
   @override
   Future<void> setBounds(AgentWindowBounds bounds) async {

@@ -16,6 +16,10 @@ export 'agent_window_shell.dart' show buildAgentWindowBridgeShell;
 typedef AgentWindowContentBuilder =
     Widget Function(BuildContext context, AgentWindowBridgeHost bridge);
 
+void _logSecondary(String message) {
+  debugPrint('[AgentWindowSecondary] $message');
+}
+
 class AgentWindowBridgeHost extends ChangeNotifier
     implements AgentWindowShellBridge {
   AgentWindowBridgeHost._({
@@ -35,6 +39,7 @@ class AgentWindowBridgeHost extends ChangeNotifier
   bool _alwaysOnTop = false;
   Future<void> _boundsPersistence = Future<void>.value();
   Future<void>? _dockOperation;
+  Future<void> Function()? _dockHandler;
   bool _initialized = false;
   bool _disposed = false;
 
@@ -65,6 +70,7 @@ class AgentWindowBridgeHost extends ChangeNotifier
   }
 
   Future<void> initialize() async {
+    _logSecondary('Bridge initialize: window=${controller.windowId}');
     _alwaysOnTop = launchArguments.alwaysOnTop;
     await _channel.setMethodCallHandler((call) async {
       final envelope = AgentWindowEnvelope.fromJson(call.arguments);
@@ -81,6 +87,7 @@ class AgentWindowBridgeHost extends ChangeNotifier
     });
     await _announceReady();
     _initialized = true;
+    _logSecondary('Bridge ready: window=${controller.windowId}');
   }
 
   Future<void> reconnect(String handshakeToken) async {
@@ -127,6 +134,24 @@ class AgentWindowBridgeHost extends ChangeNotifier
 
   @override
   Future<void> dock() {
+    if (_disposed) {
+      throw StateError('Agent window bridge has been disposed');
+    }
+    final handler = _dockHandler;
+    if (handler == null) {
+      throw StateError('Agent window dock handler is unavailable');
+    }
+    return handler();
+  }
+
+  void bindDockHandler(Future<void> Function() handler) {
+    if (_dockHandler != null) {
+      throw StateError('Agent window dock handler is already registered');
+    }
+    _dockHandler = handler;
+  }
+
+  Future<void> dockBeforeClose() {
     return _dockOperation ??= _performDock().whenComplete(() {
       _dockOperation = null;
     });
@@ -134,6 +159,7 @@ class AgentWindowBridgeHost extends ChangeNotifier
 
   Future<void> _performDock() async {
     final dockRevision = ++_dockRevision;
+    _logSecondary('Dock started: revision=$dockRevision');
     Object? failure;
     StackTrace? failureStackTrace;
     try {
@@ -144,6 +170,7 @@ class AgentWindowBridgeHost extends ChangeNotifier
     }
     try {
       await windowManager.hide().timeout(const Duration(seconds: 2));
+      _logSecondary('Window hidden: revision=$dockRevision');
     } catch (error, stackTrace) {
       failure ??= error;
       failureStackTrace ??= stackTrace;
@@ -153,6 +180,7 @@ class AgentWindowBridgeHost extends ChangeNotifier
       await _sendLifecycleEventWithRetry('docked', {
         'dockRevision': dockRevision,
       });
+      _logSecondary('Dock event acknowledged: revision=$dockRevision');
     } catch (error, stackTrace) {
       failure ??= error;
       failureStackTrace ??= stackTrace;
@@ -241,16 +269,23 @@ Future<void> runAgentWindowSecondary({
   _AgentSecondaryWindowListener? listener;
   Timer? startupWatchdog;
   try {
+    _logSecondary(
+      'Startup entered: implementation=multi-engine-v2, '
+      'window_manager>=0.5.1',
+    );
     await windowManager.ensureInitialized();
+    _logSecondary('window_manager initialized');
     startupWatchdog = Timer(const Duration(seconds: 12), () {
       unawaited(_destroyFailedStartupWindow());
     });
     final controller = await WindowController.fromCurrentEngine();
+    _logSecondary('Current engine resolved: window=${controller.windowId}');
     bridge = AgentWindowBridgeHost._(
       controller: controller,
       launchArguments: arguments,
     );
     listener = _AgentSecondaryWindowListener(bridge);
+    bridge.bindDockHandler(listener.dockAndClose);
     await controller.setWindowMethodHandler((call) async {
       switch (call.method) {
         case 'window_focus_restore':
@@ -258,20 +293,7 @@ Future<void> runAgentWindowSecondary({
           await windowManager.show();
           await windowManager.focus();
         case 'window_dock':
-          try {
-            await bridge!.dock();
-          } catch (error, stackTrace) {
-            try {
-              await listener!.closeCascade(persistBounds: false);
-            } catch (closeError, closeStackTrace) {
-              _reportAgentWindowLifecycleError(
-                closeError,
-                closeStackTrace,
-                'while closing after an explicit dock failed',
-              );
-            }
-            Error.throwWithStackTrace(error, stackTrace);
-          }
+          await listener!.dockAndClose();
         case 'window_close_cascade':
           final persistBounds = call.arguments != false;
           await listener!.closeCascade(persistBounds: persistBounds);
@@ -318,16 +340,19 @@ Future<void> runAgentWindowSecondary({
     await windowManager.setAlwaysOnTop(arguments.alwaysOnTop);
     await windowManager.setPreventClose(true);
     windowManager.addListener(listener);
+    _logSecondary('Native window configured; announcing ready');
     await bridge.initialize();
     startupWatchdog.cancel();
+    _logSecondary('Startup completed; mounting Flutter content');
     runApp(_AgentWindowApp(bridge: bridge, builder: builder));
   } catch (error, stackTrace) {
+    _logSecondary('Startup failed: $error');
     startupWatchdog?.cancel();
     listener?.dispose();
     bridge?.dispose();
     try {
       await windowManager.setPreventClose(false);
-      await windowManager.destroy();
+      await windowManager.close();
     } on Object {
       // Keep the original startup failure and stack trace authoritative.
     }
@@ -337,8 +362,9 @@ Future<void> runAgentWindowSecondary({
 
 Future<void> _destroyFailedStartupWindow() async {
   try {
+    _logSecondary('Startup watchdog closing secondary window');
     await windowManager.setPreventClose(false);
-    await windowManager.destroy();
+    await windowManager.close();
   } on Object {
     // The startup Future reports the original failure when the platform call
     // resumes; the watchdog must remain best-effort because it has no caller.
@@ -350,33 +376,52 @@ class _AgentSecondaryWindowListener extends WindowListener {
 
   final AgentWindowBridgeHost bridge;
   Timer? _boundsTimer;
-  Future<void>? _dockOperation;
   Future<void>? _closeOperation;
   bool _disposed = false;
 
   @override
   Future<void> onWindowClose() async {
     if (_disposed || _closeOperation != null) return;
-    _boundsTimer?.cancel();
+    _logSecondary('Native close requested');
     try {
-      await (_dockOperation ??= bridge.dock().whenComplete(() {
-        _dockOperation = null;
-      }));
+      await dockAndClose();
     } catch (error, stackTrace) {
       _reportAgentWindowLifecycleError(
         error,
         stackTrace,
-        'while docking from the native close action',
+        'while closing from the native close action',
       );
-      try {
-        await closeCascade(persistBounds: false);
-      } catch (closeError, closeStackTrace) {
-        _reportAgentWindowLifecycleError(
-          closeError,
-          closeStackTrace,
-          'while closing after the dock action failed',
-        );
-      }
+    }
+  }
+
+  Future<void> dockAndClose() {
+    return _closeOperation ??= _dockAndClose();
+  }
+
+  Future<void> _dockAndClose() async {
+    _boundsTimer?.cancel();
+    Object? failure;
+    StackTrace? failureStackTrace;
+    try {
+      await bridge.dockBeforeClose();
+      _logSecondary('Dock completed; closing native window');
+    } catch (error, stackTrace) {
+      failure = error;
+      failureStackTrace = stackTrace;
+      _reportAgentWindowLifecycleError(
+        error,
+        stackTrace,
+        'while docking before closing the Agent window',
+      );
+    }
+    try {
+      await _performCloseCascade(persistBounds: false);
+    } catch (error, stackTrace) {
+      failure ??= error;
+      failureStackTrace ??= stackTrace;
+    }
+    if (failure != null) {
+      Error.throwWithStackTrace(failure, failureStackTrace!);
     }
   }
 
@@ -406,14 +451,17 @@ class _AgentSecondaryWindowListener extends WindowListener {
   }
 
   Future<void> closeCascade({required bool persistBounds}) {
-    return _closeOperation ??= _closeCascade(persistBounds: persistBounds);
+    return _closeOperation ??= _performCloseCascade(
+      persistBounds: persistBounds,
+    );
   }
 
-  Future<void> _closeCascade({required bool persistBounds}) async {
+  Future<void> _performCloseCascade({required bool persistBounds}) async {
+    _logSecondary('Close cascade started: persistBounds=$persistBounds');
     dispose();
     Object? failure;
     StackTrace? failureStackTrace;
-    final docking = _dockOperation;
+    final docking = bridge._dockOperation;
     if (docking != null) {
       try {
         await docking.timeout(const Duration(seconds: 1));
@@ -432,14 +480,16 @@ class _AgentSecondaryWindowListener extends WindowListener {
     }
     try {
       await windowManager.setPreventClose(false);
+      _logSecondary('Prevent-close disabled');
     } catch (error, stackTrace) {
       failure ??= error;
       failureStackTrace ??= stackTrace;
     }
-    // Return the MethodChannel acknowledgement before destroying the
-    // secondary engine that owns the reply.
+    // Return the MethodChannel acknowledgement before closing the secondary
+    // engine that owns the reply. On Windows, destroy() posts WM_QUIT to the
+    // shared application message loop and freezes the main window.
     unawaited(
-      Future<void>.delayed(Duration.zero, windowManager.destroy).catchError((
+      Future<void>.delayed(Duration.zero, windowManager.close).catchError((
         Object error,
         StackTrace stackTrace,
       ) {
@@ -450,6 +500,7 @@ class _AgentSecondaryWindowListener extends WindowListener {
         );
       }),
     );
+    _logSecondary('Native close scheduled');
     if (failure != null) {
       Error.throwWithStackTrace(failure, failureStackTrace!);
     }
