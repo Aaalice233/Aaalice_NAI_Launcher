@@ -9,15 +9,12 @@ class Model3dLayerData {
   final String modelRef;
   final Map<String, dynamic> sceneState;
 
-  const Model3dLayerData({
-    required this.modelRef,
-    required this.sceneState,
-  });
+  const Model3dLayerData({required this.modelRef, required this.sceneState});
 
   Map<String, dynamic> toJson() => {
-        'modelRef': modelRef,
-        'sceneState': sceneState,
-      };
+    'modelRef': modelRef,
+    'sceneState': sceneState,
+  };
 
   factory Model3dLayerData.fromJson(Map<String, dynamic> json) {
     return Model3dLayerData(

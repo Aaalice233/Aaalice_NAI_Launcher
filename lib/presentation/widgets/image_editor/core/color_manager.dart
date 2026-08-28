@@ -12,10 +12,12 @@ class ColorManager extends ChangeNotifier {
   Color get backgroundColor => _backgroundColor;
 
   /// 精确通知器（用于仅监听特定颜色变化的场景）
-  final ValueNotifier<Color> foregroundNotifier =
-      ValueNotifier(const Color(0xFF000000));
-  final ValueNotifier<Color> backgroundNotifier =
-      ValueNotifier(const Color(0xFFFFFFFF));
+  final ValueNotifier<Color> foregroundNotifier = ValueNotifier(
+    const Color(0xFF000000),
+  );
+  final ValueNotifier<Color> backgroundNotifier = ValueNotifier(
+    const Color(0xFFFFFFFF),
+  );
 
   /// 设置前景色
   void setForegroundColor(Color color) {

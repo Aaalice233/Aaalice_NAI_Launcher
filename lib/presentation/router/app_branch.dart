@@ -1,6 +1,6 @@
 import '../../core/shortcuts/default_shortcuts.dart';
 
-/// Stateful shell branches in the same order as [appRouterProvider].
+/// Stateful shell branches in route-tree order.
 enum AppBranch {
   generation,
   localGallery,

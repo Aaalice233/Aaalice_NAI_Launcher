@@ -15,7 +15,7 @@ import '../../../core/autocomplete/prompt_token_parser.dart';
 import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/localization_extension.dart';
-import '../../router/app_router.dart';
+import '../../router/app_routes.dart';
 import 'autocomplete_config.dart';
 import 'autocomplete_utils.dart';
 import 'completion_overlay.dart';

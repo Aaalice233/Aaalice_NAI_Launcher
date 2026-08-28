@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -10,6 +11,7 @@ import 'package:nai_launcher/core/enums/precise_ref_type.dart';
 import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/utils/internal_drag_protocol.dart';
+import 'package:nai_launcher/presentation/widgets/drop/global_drop_action_coordinator.dart';
 import 'package:nai_launcher/presentation/widgets/drop/global_drop_handler.dart';
 import 'package:nai_launcher/presentation/widgets/drop/image_destination_dialog.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
@@ -54,6 +56,20 @@ void main() {
 
     tearDown(() {
       container.dispose();
+    });
+
+    test('vibe name controller is disposed when dialog action fails', () async {
+      TextEditingController? controller;
+
+      await expectLater(
+        runWithVibeNameController<void>('vibe', (value) async {
+          controller = value;
+          throw StateError('dialog failed');
+        }),
+        throwsStateError,
+      );
+
+      expect(() => controller!.addListener(() {}), throwsFlutterError);
     });
 
     test('plain PNG has no importable dropped-image metadata', () async {

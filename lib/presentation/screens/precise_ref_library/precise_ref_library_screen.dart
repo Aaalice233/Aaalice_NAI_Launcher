@@ -16,7 +16,7 @@ import '../../../data/models/precise_ref/precise_ref_library_entry.dart';
 import '../../../data/services/precise_ref_library_storage_service.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/precise_ref_library_provider.dart';
-import '../../router/app_router.dart';
+import '../../router/app_routes.dart';
 import '../../services/image_workflow_launcher.dart';
 import '../../utils/dropped_file_reader.dart';
 import '../../widgets/common/app_toast.dart';

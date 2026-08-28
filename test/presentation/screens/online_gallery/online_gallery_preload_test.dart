@@ -13,22 +13,22 @@ void main() {
       expect(OnlineGalleryPreloadPolicy.cacheExtent(-1), 0);
     });
 
-    test('scales thumbnail lookahead with viewport and column count', () {
+    test('scales thumbnail lookahead for phone and desktop columns', () {
       expect(
         OnlineGalleryPreloadPolicy.lookaheadItemCount(
           viewportHeight: 800,
-          itemWidth: 200,
-          columnCount: 4,
+          itemWidth: 165,
+          columnCount: 2,
         ),
         12,
       );
       expect(
         OnlineGalleryPreloadPolicy.lookaheadItemCount(
-          viewportHeight: 1600,
-          itemWidth: 100,
-          columnCount: 8,
+          viewportHeight: 900,
+          itemWidth: 160,
+          columnCount: 7,
         ),
-        48,
+        32,
       );
       expect(
         OnlineGalleryPreloadPolicy.lookaheadItemCount(

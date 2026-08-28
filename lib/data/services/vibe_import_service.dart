@@ -160,6 +160,16 @@ class VibeImportService {
       }
     }
 
+    final progressTotal = sourceItems.length + errors.length;
+    for (var i = 0; i < errors.length; i++) {
+      final error = errors[i];
+      onProgress?.call(
+        i + 1,
+        progressTotal,
+        '导入文件(${i + 1}/$progressTotal): ${error.source}',
+      );
+    }
+
     final result = await _importParsedSources(
       sourceItems,
       categoryId: categoryId,
@@ -168,6 +178,8 @@ class VibeImportService {
       onProgress: onProgress,
       onNaming: onNaming,
       progressPrefix: '导入文件',
+      progressOffset: errors.length,
+      progressTotal: progressTotal,
     );
 
     return _mergeImportResult(result, errors);
@@ -299,6 +311,8 @@ class VibeImportService {
     required ImportProgressCallback? onProgress,
     required VibeNamingCallback? onNaming,
     required String progressPrefix,
+    int progressOffset = 0,
+    int? progressTotal,
   }) async {
     if (sources.isEmpty) return VibeImportResult.empty();
 
@@ -325,112 +339,116 @@ class VibeImportService {
       final isBatch = sources.length > 1;
       var candidateName = baseName;
 
-      if (onNaming != null) {
-        final customName = await onNaming(
-          baseName,
-          isBatch: isBatch,
-          thumbnail: source.reference.thumbnail,
-        );
-
-        if (customName == null || customName.trim().isEmpty) {
-          skipCount++;
-          errors.add(
-            ImportError(
-              source: source.source,
-              error: customName == null
-                  ? '用户取消命名，已跳过: $baseName'
-                  : '名称为空，已跳过: $baseName',
-            ),
-          );
-          continue;
-        }
-
-        candidateName = customName.trim();
-        if (isBatch) {
-          candidateName = await _resolveBatchNaming(
-            baseName: candidateName,
-            usageMap: batchNamingIndexMap,
-            existingNameMap: nameMap,
-          );
-        }
-      }
-
-      onProgress?.call(
-        current,
-        sources.length,
-        '$progressPrefix($current/${sources.length}): $baseName',
-      );
-
       try {
-        final conflictEntry = await _findEntryByNameCached(
-          candidateName,
-          nameMap,
-        );
-        if (conflictEntry != null) hasConflicts = true;
-
-        final resolvedName = await _resolveName(
-          preferredName: candidateName,
-          existingNameMap: nameMap,
-          strategy: conflictResolution,
-          conflictEntry: conflictEntry,
-        );
-
-        if (resolvedName == null) {
-          skipCount++;
-          errors.add(
-            ImportError(source: source.source, error: '名称冲突，已跳过: $baseName'),
+        if (onNaming != null) {
+          final customName = await onNaming(
+            baseName,
+            isBatch: isBatch,
+            thumbnail: source.reference.thumbnail,
           );
-          continue;
+
+          if (customName == null || customName.trim().isEmpty) {
+            skipCount++;
+            errors.add(
+              ImportError(
+                source: source.source,
+                error: customName == null
+                    ? '用户取消命名，已跳过: $baseName'
+                    : '名称为空，已跳过: $baseName',
+              ),
+            );
+            continue;
+          }
+
+          candidateName = customName.trim();
+          if (isBatch) {
+            candidateName = await _resolveBatchNaming(
+              baseName: candidateName,
+              usageMap: batchNamingIndexMap,
+              existingNameMap: nameMap,
+            );
+          }
         }
 
-        final bundledReferences = source.bundledReferences;
-        final VibeLibraryEntry saved;
-        if (bundledReferences != null && bundledReferences.isNotEmpty) {
-          saved = await _repository.saveBundleEntry(
-            bundledReferences,
-            name: resolvedName,
-            categoryId: categoryId,
-            tags: tags,
-            replaceEntry:
-                conflictEntry != null &&
-                    conflictResolution == ConflictResolution.replace
-                ? conflictEntry
-                : null,
+        try {
+          final conflictEntry = await _findEntryByNameCached(
+            candidateName,
+            nameMap,
           );
-        } else {
-          final entry = _buildEntry(
-            source.reference,
-            name: resolvedName,
-            categoryId: categoryId,
-            tags: tags,
-            conflictEntry: conflictEntry,
+          if (conflictEntry != null) hasConflicts = true;
+
+          final resolvedName = await _resolveName(
+            preferredName: candidateName,
+            existingNameMap: nameMap,
             strategy: conflictResolution,
-            bundleFileName: source.bundleFileName,
+            conflictEntry: conflictEntry,
           );
 
-          AppLogger.d(
-            'Built entry: ${entry.name}, thumbnail: ${entry.thumbnail != null ? '${entry.thumbnail!.length} bytes' : 'null'}, '
-                'vibeThumbnail: ${entry.vibeThumbnail != null ? '${entry.vibeThumbnail!.length} bytes' : 'null'}',
+          if (resolvedName == null) {
+            skipCount++;
+            errors.add(
+              ImportError(source: source.source, error: '名称冲突，已跳过: $baseName'),
+            );
+            continue;
+          }
+
+          final bundledReferences = source.bundledReferences;
+          final VibeLibraryEntry saved;
+          if (bundledReferences != null && bundledReferences.isNotEmpty) {
+            saved = await _repository.saveBundleEntry(
+              bundledReferences,
+              name: resolvedName,
+              categoryId: categoryId,
+              tags: tags,
+              replaceEntry:
+                  conflictEntry != null &&
+                      conflictResolution == ConflictResolution.replace
+                  ? conflictEntry
+                  : null,
+            );
+          } else {
+            final entry = _buildEntry(
+              source.reference,
+              name: resolvedName,
+              categoryId: categoryId,
+              tags: tags,
+              conflictEntry: conflictEntry,
+              strategy: conflictResolution,
+              bundleFileName: source.bundleFileName,
+            );
+
+            AppLogger.d(
+              'Built entry: ${entry.name}, thumbnail: ${entry.thumbnail != null ? '${entry.thumbnail!.length} bytes' : 'null'}, '
+                  'vibeThumbnail: ${entry.vibeThumbnail != null ? '${entry.vibeThumbnail!.length} bytes' : 'null'}',
+              'VibeImportService',
+            );
+
+            saved = await _repository.saveEntry(entry);
+          }
+
+          importedEntries.add(saved);
+          successCount++;
+          nameMap[_normalizeName(saved.name)] = saved;
+        } catch (e, stackTrace) {
+          AppLogger.e(
+            'Failed to import vibe: ${source.source}',
+            e,
+            stackTrace,
             'VibeImportService',
           );
-
-          saved = await _repository.saveEntry(entry);
+          errors.add(
+            ImportError(source: source.source, error: '保存失败', details: e),
+          );
+          failCount++;
         }
-
-        importedEntries.add(saved);
-        successCount++;
-        nameMap[_normalizeName(saved.name)] = saved;
-      } catch (e, stackTrace) {
-        AppLogger.e(
-          'Failed to import vibe: ${source.source}',
-          e,
-          stackTrace,
-          'VibeImportService',
+      } finally {
+        final progressCurrent = progressOffset + current;
+        final total = progressTotal ?? progressOffset + sources.length;
+        onProgress?.call(
+          progressCurrent,
+          total,
+          '$progressPrefix($progressCurrent/$total): $baseName',
         );
-        errors.add(
-          ImportError(source: source.source, error: '保存失败', details: e),
-        );
-        failCount++;
       }
     }
 

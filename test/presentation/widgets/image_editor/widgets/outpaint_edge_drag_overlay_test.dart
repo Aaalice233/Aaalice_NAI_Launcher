@@ -59,15 +59,16 @@ void main() {
       await tester.pumpWidget(
         _wrapOverlay(
           controller: controller,
-          onCommitted: (
-            edges, {
-            required horizontalSnapTarget,
-            required verticalSnapTarget,
-          }) async {
-            committedEdges = edges;
-            horizontalTarget = horizontalSnapTarget;
-            verticalTarget = verticalSnapTarget;
-          },
+          onCommitted:
+              (
+                edges, {
+                required horizontalSnapTarget,
+                required verticalSnapTarget,
+              }) async {
+                committedEdges = edges;
+                horizontalTarget = horizontalSnapTarget;
+                verticalTarget = verticalSnapTarget;
+              },
         ),
       );
 
@@ -94,11 +95,12 @@ void main() {
     await tester.pumpWidget(
       _wrapOverlay(
         controller: controller,
-        onCommitted: (
-          edges, {
-          required horizontalSnapTarget,
-          required verticalSnapTarget,
-        }) async {},
+        onCommitted:
+            (
+              edges, {
+              required horizontalSnapTarget,
+              required verticalSnapTarget,
+            }) async {},
       ),
     );
 
@@ -129,18 +131,20 @@ void main() {
     await tester.pumpWidget(
       _wrapOverlay(
         controller: controller,
-        onCommitted: (
-          edges, {
-          required horizontalSnapTarget,
-          required verticalSnapTarget,
-        }) async {},
-        onFrameResizeCommitted: (
-          delta, {
-          required horizontalSnapTarget,
-          required verticalSnapTarget,
-        }) async {
-          committedDelta = delta;
-        },
+        onCommitted:
+            (
+              edges, {
+              required horizontalSnapTarget,
+              required verticalSnapTarget,
+            }) async {},
+        onFrameResizeCommitted:
+            (
+              delta, {
+              required horizontalSnapTarget,
+              required verticalSnapTarget,
+            }) async {
+              committedDelta = delta;
+            },
       ),
     );
 
@@ -169,14 +173,15 @@ void main() {
       await tester.pumpWidget(
         _wrapOverlay(
           controller: controller,
-          onCommitted: (
-            edges, {
-            required horizontalSnapTarget,
-            required verticalSnapTarget,
-          }) async {
-            committedEdges = edges;
-            horizontalTarget = horizontalSnapTarget;
-          },
+          onCommitted:
+              (
+                edges, {
+                required horizontalSnapTarget,
+                required verticalSnapTarget,
+              }) async {
+                committedEdges = edges;
+                horizontalTarget = horizontalSnapTarget;
+              },
         ),
       );
 
@@ -205,15 +210,16 @@ void main() {
       await tester.pumpWidget(
         _wrapOverlay(
           controller: controller,
-          onCommitted: (
-            edges, {
-            required horizontalSnapTarget,
-            required verticalSnapTarget,
-          }) async {
-            committedEdges = edges;
-            horizontalTarget = horizontalSnapTarget;
-            verticalTarget = verticalSnapTarget;
-          },
+          onCommitted:
+              (
+                edges, {
+                required horizontalSnapTarget,
+                required verticalSnapTarget,
+              }) async {
+                committedEdges = edges;
+                horizontalTarget = horizontalSnapTarget;
+                verticalTarget = verticalSnapTarget;
+              },
         ),
       );
 
@@ -242,11 +248,12 @@ void main() {
       _wrapOverlay(
         controller: controller,
         onPreviewChanged: previews.add,
-        onCommitted: (
-          edges, {
-          required horizontalSnapTarget,
-          required verticalSnapTarget,
-        }) async {},
+        onCommitted:
+            (
+              edges, {
+              required horizontalSnapTarget,
+              required verticalSnapTarget,
+            }) async {},
       ),
     );
 
@@ -274,11 +281,12 @@ void main() {
           controller: controller,
           canvasSize: const Size(128, 128),
           onPreviewChanged: previews.add,
-          onCommitted: (
-            edges, {
-            required horizontalSnapTarget,
-            required verticalSnapTarget,
-          }) async {},
+          onCommitted:
+              (
+                edges, {
+                required horizontalSnapTarget,
+                required verticalSnapTarget,
+              }) async {},
         ),
       );
 
@@ -309,13 +317,14 @@ void main() {
           controller: controller,
           canvasSize: const Size(128, 128),
           onPreviewChanged: previews.add,
-          onCommitted: (
-            edges, {
-            required horizontalSnapTarget,
-            required verticalSnapTarget,
-          }) async {
-            committedEdges = edges;
-          },
+          onCommitted:
+              (
+                edges, {
+                required horizontalSnapTarget,
+                required verticalSnapTarget,
+              }) async {
+                committedEdges = edges;
+              },
         ),
       );
 
@@ -348,13 +357,14 @@ void main() {
         _wrapOverlay(
           controller: controller,
           onPreviewChanged: previews.add,
-          onCommitted: (
-            edges, {
-            required horizontalSnapTarget,
-            required verticalSnapTarget,
-          }) async {
-            committedEdges = edges;
-          },
+          onCommitted:
+              (
+                edges, {
+                required horizontalSnapTarget,
+                required verticalSnapTarget,
+              }) async {
+                committedEdges = edges;
+              },
         ),
       );
 
@@ -387,13 +397,14 @@ void main() {
         _wrapOverlay(
           controller: controller,
           onPreviewChanged: previews.add,
-          onCommitted: (
-            edges, {
-            required horizontalSnapTarget,
-            required verticalSnapTarget,
-          }) async {
-            committedEdges = edges;
-          },
+          onCommitted:
+              (
+                edges, {
+                required horizontalSnapTarget,
+                required verticalSnapTarget,
+              }) async {
+                committedEdges = edges;
+              },
         ),
       );
 
@@ -419,11 +430,12 @@ void main() {
         _wrapOverlay(
           controller: controller,
           onPreviewChanged: previews.add,
-          onCommitted: (
-            edges, {
-            required horizontalSnapTarget,
-            required verticalSnapTarget,
-          }) async {},
+          onCommitted:
+              (
+                edges, {
+                required horizontalSnapTarget,
+                required verticalSnapTarget,
+              }) async {},
         ),
       );
 
@@ -524,11 +536,12 @@ void main() {
             onPreviewChanged: (edges) {
               previewEdges = edges;
             },
-            onCommitted: (
-              edges, {
-              required horizontalSnapTarget,
-              required verticalSnapTarget,
-            }) async {},
+            onCommitted:
+                (
+                  edges, {
+                  required horizontalSnapTarget,
+                  required verticalSnapTarget,
+                }) async {},
           ),
         );
 
@@ -545,8 +558,9 @@ void main() {
           testCase.expectedRequestedEdges,
           reason: '${testCase.description} requested preview edges',
         );
-        final requestedDelta =
-            OutpaintFrameDelta.fromExpansionEdges(requestedEdges);
+        final requestedDelta = OutpaintFrameDelta.fromExpansionEdges(
+          requestedEdges,
+        );
         final resolvedGeometry = InpaintOutpaintUtils.resolveFrameGeometry(
           sourceWidth: 128,
           sourceHeight: 96,
@@ -614,13 +628,14 @@ void main() {
         controller: controller,
         canvasSize: const Size(4096, 96),
         onPreviewChanged: previews.add,
-        onCommitted: (
-          edges, {
-          required horizontalSnapTarget,
-          required verticalSnapTarget,
-        }) async {
-          commitCount++;
-        },
+        onCommitted:
+            (
+              edges, {
+              required horizontalSnapTarget,
+              required verticalSnapTarget,
+            }) async {
+              commitCount++;
+            },
       ),
     );
 
@@ -651,13 +666,14 @@ void main() {
           controller: controller,
           canvasSize: const Size(4096, 96),
           onPreviewChanged: previews.add,
-          onCommitted: (
-            edges, {
-            required horizontalSnapTarget,
-            required verticalSnapTarget,
-          }) async {
-            commitCount++;
-          },
+          onCommitted:
+              (
+                edges, {
+                required horizontalSnapTarget,
+                required verticalSnapTarget,
+              }) async {
+                commitCount++;
+              },
         ),
       );
 
@@ -675,20 +691,22 @@ void main() {
     },
   );
 
-  testWidgets('does not commit when drag returns to zero edges',
-      (tester) async {
+  testWidgets('does not commit when drag returns to zero edges', (
+    tester,
+  ) async {
     var commitCount = 0;
 
     await tester.pumpWidget(
       _wrapOverlay(
         controller: controller,
-        onCommitted: (
-          edges, {
-          required horizontalSnapTarget,
-          required verticalSnapTarget,
-        }) async {
-          commitCount++;
-        },
+        onCommitted:
+            (
+              edges, {
+              required horizontalSnapTarget,
+              required verticalSnapTarget,
+            }) async {
+              commitCount++;
+            },
       ),
     );
 
@@ -710,14 +728,15 @@ void main() {
     await tester.pumpWidget(
       _wrapOverlay(
         controller: controller,
-        onCommitted: (
-          edges, {
-          required horizontalSnapTarget,
-          required verticalSnapTarget,
-        }) {
-          commitCount++;
-          return firstCommit.future;
-        },
+        onCommitted:
+            (
+              edges, {
+              required horizontalSnapTarget,
+              required verticalSnapTarget,
+            }) {
+              commitCount++;
+              return firstCommit.future;
+            },
       ),
     );
 
@@ -749,13 +768,14 @@ void main() {
       _wrapOverlay(
         controller: controller,
         enabled: overlayEnabled,
-        onCommitted: (
-          edges, {
-          required horizontalSnapTarget,
-          required verticalSnapTarget,
-        }) {
-          return firstCommit.future;
-        },
+        onCommitted:
+            (
+              edges, {
+              required horizontalSnapTarget,
+              required verticalSnapTarget,
+            }) {
+              return firstCommit.future;
+            },
       ),
     );
 
@@ -773,13 +793,14 @@ void main() {
       _wrapOverlay(
         controller: controller,
         enabled: overlayEnabled,
-        onCommitted: (
-          edges, {
-          required horizontalSnapTarget,
-          required verticalSnapTarget,
-        }) {
-          return firstCommit.future;
-        },
+        onCommitted:
+            (
+              edges, {
+              required horizontalSnapTarget,
+              required verticalSnapTarget,
+            }) {
+              return firstCommit.future;
+            },
       ),
     );
 
@@ -803,14 +824,15 @@ void main() {
         _wrapOverlay(
           controller: controller,
           canvasSize: const Size(128, 128),
-          onCommitted: (
-            edges, {
-            required horizontalSnapTarget,
-            required verticalSnapTarget,
-          }) {
-            committedEdges = edges;
-            return commit.future;
-          },
+          onCommitted:
+              (
+                edges, {
+                required horizontalSnapTarget,
+                required verticalSnapTarget,
+              }) {
+                committedEdges = edges;
+                return commit.future;
+              },
         ),
       );
 
@@ -848,14 +870,15 @@ void main() {
     await tester.pumpWidget(
       _wrapOverlay(
         controller: controller,
-        onCommitted: (
-          edges, {
-          required horizontalSnapTarget,
-          required verticalSnapTarget,
-        }) async {
-          committedEdges = edges;
-          horizontalTarget = horizontalSnapTarget;
-        },
+        onCommitted:
+            (
+              edges, {
+              required horizontalSnapTarget,
+              required verticalSnapTarget,
+            }) async {
+              committedEdges = edges;
+              horizontalTarget = horizontalSnapTarget;
+            },
       ),
     );
 
@@ -885,11 +908,12 @@ void main() {
       _wrapOverlay(
         controller: controller,
         enabled: false,
-        onCommitted: (
-          edges, {
-          required horizontalSnapTarget,
-          required verticalSnapTarget,
-        }) async {},
+        onCommitted:
+            (
+              edges, {
+              required horizontalSnapTarget,
+              required verticalSnapTarget,
+            }) async {},
       ),
     );
 
@@ -899,11 +923,12 @@ void main() {
     await tester.pumpWidget(
       _wrapOverlay(
         controller: controller..rotateRight(),
-        onCommitted: (
-          edges, {
-          required horizontalSnapTarget,
-          required verticalSnapTarget,
-        }) async {},
+        onCommitted:
+            (
+              edges, {
+              required horizontalSnapTarget,
+              required verticalSnapTarget,
+            }) async {},
       ),
     );
 
@@ -915,11 +940,12 @@ void main() {
     await tester.pumpWidget(
       _wrapOverlay(
         controller: controller,
-        onCommitted: (
-          edges, {
-          required horizontalSnapTarget,
-          required verticalSnapTarget,
-        }) async {},
+        onCommitted:
+            (
+              edges, {
+              required horizontalSnapTarget,
+              required verticalSnapTarget,
+            }) async {},
       ),
     );
 

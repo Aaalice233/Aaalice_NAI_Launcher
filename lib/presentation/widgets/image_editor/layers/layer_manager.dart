@@ -83,9 +83,9 @@ class LayerManager extends ChangeNotifier {
 
     // 使用 firstWhere 的 orElse 避免异常
     final layer = _layers.cast<Layer?>().firstWhere(
-          (l) => l?.id == _activeLayerId,
-          orElse: () => null,
-        );
+      (l) => l?.id == _activeLayerId,
+      orElse: () => null,
+    );
 
     if (layer != null) return layer;
 
@@ -783,16 +783,14 @@ class LayerManager extends ChangeNotifier {
     int centerX,
     int centerY,
     int gridSize,
-  ) =>
-      _snapshotManager.getMagnifierPixels(centerX, centerY, gridSize);
+  ) => _snapshotManager.getMagnifierPixels(centerX, centerY, gridSize);
 
   /// 更新区域快照（仅渲染光标周围的小区域）
   Future<bool> updateRegionalSnapshot(
     int centerX,
     int centerY,
     Size canvasSize,
-  ) =>
-      _snapshotManager.updateRegionalSnapshot(centerX, centerY, canvasSize);
+  ) => _snapshotManager.updateRegionalSnapshot(centerX, centerY, canvasSize);
 
   /// 获取区域缓存中的像素颜色（同步，O(1)）
   Color? getRegionalPixel(int x, int y) =>
@@ -803,8 +801,7 @@ class LayerManager extends ChangeNotifier {
     int centerX,
     int centerY,
     int gridSize,
-  ) =>
-      _snapshotManager.getRegionalMagnifierPixels(centerX, centerY, gridSize);
+  ) => _snapshotManager.getRegionalMagnifierPixels(centerX, centerY, gridSize);
 
   @override
   void dispose() {

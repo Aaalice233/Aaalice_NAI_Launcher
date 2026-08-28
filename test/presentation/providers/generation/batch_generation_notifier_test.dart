@@ -25,8 +25,9 @@ void main() {
       mockApiService = MockNAIImageGenerationApiService();
       container = ProviderContainer(
         overrides: [
-          naiImageGenerationApiServiceProvider
-              .overrideWithValue(mockApiService),
+          naiImageGenerationApiServiceProvider.overrideWithValue(
+            mockApiService,
+          ),
         ],
       );
     });
@@ -63,9 +64,7 @@ void main() {
         );
 
         when(() => mockApiService.generateImageStream(any())).thenAnswer(
-          (_) => Stream.value(
-            ImageStreamChunk.complete(imageBytes),
-          ),
+          (_) => Stream.value(ImageStreamChunk.complete(imageBytes)),
         );
 
         await notifier.generateBatch(params, count: 1);
@@ -82,10 +81,7 @@ void main() {
         final notifier = createNotifier();
         final imageBytes1 = Uint8List.fromList([1, 2, 3]);
         final imageBytes2 = Uint8List.fromList([4, 5, 6]);
-        const params = ImageParams(
-          prompt: 'test prompt',
-          seed: 42,
-        );
+        const params = ImageParams(prompt: 'test prompt', seed: 42);
 
         var callCount = 0;
         when(() => mockApiService.generateImageStream(any())).thenAnswer((_) {
@@ -119,8 +115,9 @@ void main() {
         final notifier = createNotifier();
         const params = ImageParams(prompt: 'test prompt');
 
-        when(() => mockApiService.generateImageStream(any()))
-            .thenAnswer((_) => Stream.error(Exception('Generation failed')));
+        when(
+          () => mockApiService.generateImageStream(any()),
+        ).thenAnswer((_) => Stream.error(Exception('Generation failed')));
 
         await notifier.generateBatch(params, count: 1);
 
@@ -132,11 +129,9 @@ void main() {
         final notifier = createNotifier();
         const params = ImageParams(prompt: 'test prompt');
 
-        when(() => mockApiService.generateImageStream(any())).thenAnswer(
-          (_) => Stream.value(
-            ImageStreamChunk.error('API error'),
-          ),
-        );
+        when(
+          () => mockApiService.generateImageStream(any()),
+        ).thenAnswer((_) => Stream.value(ImageStreamChunk.error('API error')));
 
         await notifier.generateBatch(params, count: 1);
 
@@ -173,51 +168,51 @@ void main() {
         ); // cleared after completion
       });
 
-      test('should use different seeds for each image when seed is specified',
-          () async {
-        final notifier = createNotifier();
-        final imageBytes = Uint8List.fromList([1, 2, 3]);
-        const params = ImageParams(
-          prompt: 'test prompt',
-          seed: 100,
-        );
+      test(
+        'should use different seeds for each image when seed is specified',
+        () async {
+          final notifier = createNotifier();
+          final imageBytes = Uint8List.fromList([1, 2, 3]);
+          const params = ImageParams(prompt: 'test prompt', seed: 100);
 
-        final capturedSeeds = <int>[];
-        when(() => mockApiService.generateImageStream(any()))
-            .thenAnswer((invocation) {
-          final p = invocation.positionalArguments[0] as ImageParams;
-          capturedSeeds.add(p.seed);
-          return Stream.value(ImageStreamChunk.complete(imageBytes));
-        });
+          final capturedSeeds = <int>[];
+          when(() => mockApiService.generateImageStream(any())).thenAnswer((
+            invocation,
+          ) {
+            final p = invocation.positionalArguments[0] as ImageParams;
+            capturedSeeds.add(p.seed);
+            return Stream.value(ImageStreamChunk.complete(imageBytes));
+          });
 
-        await notifier.generateBatch(params, count: 3);
+          await notifier.generateBatch(params, count: 3);
 
-        // Each image should have a different seed: 100, 101, 102
-        expect(capturedSeeds, [100, 101, 102]);
-      });
+          // Each image should have a different seed: 100, 101, 102
+          expect(capturedSeeds, [100, 101, 102]);
+        },
+      );
 
-      test('should keep seed as -1 for all images when random seed is used',
-          () async {
-        final notifier = createNotifier();
-        final imageBytes = Uint8List.fromList([1, 2, 3]);
-        const params = ImageParams(
-          prompt: 'test prompt',
-          seed: -1,
-        );
+      test(
+        'should keep seed as -1 for all images when random seed is used',
+        () async {
+          final notifier = createNotifier();
+          final imageBytes = Uint8List.fromList([1, 2, 3]);
+          const params = ImageParams(prompt: 'test prompt', seed: -1);
 
-        final capturedSeeds = <int>[];
-        when(() => mockApiService.generateImageStream(any()))
-            .thenAnswer((invocation) {
-          final p = invocation.positionalArguments[0] as ImageParams;
-          capturedSeeds.add(p.seed);
-          return Stream.value(ImageStreamChunk.complete(imageBytes));
-        });
+          final capturedSeeds = <int>[];
+          when(() => mockApiService.generateImageStream(any())).thenAnswer((
+            invocation,
+          ) {
+            final p = invocation.positionalArguments[0] as ImageParams;
+            capturedSeeds.add(p.seed);
+            return Stream.value(ImageStreamChunk.complete(imageBytes));
+          });
 
-        await notifier.generateBatch(params, count: 3);
+          await notifier.generateBatch(params, count: 3);
 
-        // All should use -1 (random seed)
-        expect(capturedSeeds, [-1, -1, -1]);
-      });
+          // All should use -1 (random seed)
+          expect(capturedSeeds, [-1, -1, -1]);
+        },
+      );
 
       test('should handle concurrent generation', () async {
         final notifier = createNotifier();
@@ -225,9 +220,7 @@ void main() {
         const params = ImageParams(prompt: 'test prompt');
 
         when(() => mockApiService.generateImageStream(any())).thenAnswer(
-          (_) => Stream.value(
-            ImageStreamChunk.complete(imageBytes),
-          ),
+          (_) => Stream.value(ImageStreamChunk.complete(imageBytes)),
         );
 
         await notifier.generateBatch(params, count: 4, concurrency: 2);
@@ -241,11 +234,9 @@ void main() {
         final notifier = createNotifier();
         const params = ImageParams(prompt: 'test prompt');
 
-        when(() => mockApiService.generateImageStream(any())).thenAnswer(
-          (_) => Stream.value(
-            ImageStreamChunk.error('API error'),
-          ),
-        );
+        when(
+          () => mockApiService.generateImageStream(any()),
+        ).thenAnswer((_) => Stream.value(ImageStreamChunk.error('API error')));
 
         await notifier.generateBatch(params, count: 2);
 
@@ -285,9 +276,7 @@ void main() {
         );
 
         when(() => mockApiService.generateImageStream(any())).thenAnswer(
-          (_) => Stream.value(
-            ImageStreamChunk.complete(imageBytes),
-          ),
+          (_) => Stream.value(ImageStreamChunk.complete(imageBytes)),
         );
 
         await notifier.generateBatch(params, count: 1);
@@ -304,13 +293,14 @@ void main() {
 
         final completer = Completer<void>();
 
-        when(() => mockApiService.generateImageStream(any()))
-            .thenAnswer((_) async* {
+        when(() => mockApiService.generateImageStream(any())).thenAnswer((
+          _,
+        ) async* {
           await completer.future;
           yield ImageStreamChunk.complete(Uint8List.fromList([1, 2, 3]));
         });
 
-        when(() => mockApiService.cancelGeneration()).thenReturn(null);
+        when(() => mockApiService.cancelGeneration(any())).thenReturn(null);
 
         // Start generation
         final future = notifier.generateBatch(params, count: 1);
@@ -324,8 +314,51 @@ void main() {
         await future;
 
         expect(notifier.state.status, BatchGenerationStatus.cancelled);
-        verify(() => mockApiService.cancelGeneration()).called(1);
+        verify(() => mockApiService.cancelGeneration(any())).called(1);
       });
+
+      test(
+        'concurrent batch runs cancel with distinct request leases',
+        () async {
+          final notifier = createNotifier();
+          const params = ImageParams(prompt: 'concurrent cancellation');
+          final bothStarted = Completer<void>();
+          final controllers = <StreamController<ImageStreamChunk>>[];
+
+          when(() => mockApiService.generateImageStream(any())).thenAnswer((_) {
+            late final StreamController<ImageStreamChunk> controller;
+            controller = StreamController<ImageStreamChunk>(
+              onListen: () {
+                controllers.add(controller);
+                if (controllers.length == 2 && !bothStarted.isCompleted) {
+                  bothStarted.complete();
+                }
+              },
+            );
+            return controller.stream;
+          });
+          when(() => mockApiService.cancelGeneration(any())).thenReturn(null);
+
+          final generation = notifier.generateBatch(
+            params,
+            count: 2,
+            concurrency: 2,
+          );
+          await bothStarted.future.timeout(const Duration(seconds: 1));
+
+          notifier.cancel();
+          for (final controller in controllers) {
+            await controller.close();
+          }
+          await generation.timeout(const Duration(seconds: 1));
+
+          final cancelledLeases = verify(
+            () => mockApiService.cancelGeneration(captureAny()),
+          ).captured;
+          expect(cancelledLeases, hasLength(2));
+          expect(identical(cancelledLeases[0], cancelledLeases[1]), isFalse);
+        },
+      );
 
       test('should clear stream preview on cancel', () async {
         final notifier = createNotifier();
@@ -334,8 +367,9 @@ void main() {
 
         final completer = Completer<void>();
 
-        when(() => mockApiService.generateImageStream(any()))
-            .thenAnswer((_) async* {
+        when(() => mockApiService.generateImageStream(any())).thenAnswer((
+          _,
+        ) async* {
           yield ImageStreamChunk.progress(
             progress: 0.5,
             previewImage: previewBytes,
@@ -344,7 +378,7 @@ void main() {
           yield ImageStreamChunk.complete(Uint8List.fromList([4, 5, 6]));
         });
 
-        when(() => mockApiService.cancelGeneration()).thenReturn(null);
+        when(() => mockApiService.cancelGeneration(any())).thenReturn(null);
 
         final future = notifier.generateBatch(params, count: 1);
 
@@ -367,9 +401,7 @@ void main() {
         const params = ImageParams(prompt: 'test prompt');
 
         when(() => mockApiService.generateImageStream(any())).thenAnswer(
-          (_) => Stream.value(
-            ImageStreamChunk.complete(imageBytes),
-          ),
+          (_) => Stream.value(ImageStreamChunk.complete(imageBytes)),
         );
 
         await notifier.generateBatch(params, count: 1);
@@ -391,11 +423,9 @@ void main() {
         final notifier = createNotifier();
         const params = ImageParams(prompt: 'test prompt');
 
-        when(() => mockApiService.generateImageStream(any())).thenAnswer(
-          (_) => Stream.value(
-            ImageStreamChunk.error('API error'),
-          ),
-        );
+        when(
+          () => mockApiService.generateImageStream(any()),
+        ).thenAnswer((_) => Stream.value(ImageStreamChunk.error('API error')));
 
         await notifier.generateBatch(params, count: 1);
         expect(notifier.state.status, BatchGenerationStatus.error);
@@ -450,9 +480,7 @@ void main() {
         const params = ImageParams(prompt: 'test prompt');
 
         when(() => mockApiService.generateImageStream(any())).thenAnswer(
-          (_) => Stream.value(
-            ImageStreamChunk.complete(imageBytes),
-          ),
+          (_) => Stream.value(ImageStreamChunk.complete(imageBytes)),
         );
 
         await notifier.generateBatch(params, count: 1);
@@ -476,9 +504,7 @@ void main() {
         );
 
         when(() => mockApiService.generateImageStream(any())).thenAnswer(
-          (_) => Stream.value(
-            ImageStreamChunk.complete(imageBytes),
-          ),
+          (_) => Stream.value(ImageStreamChunk.complete(imageBytes)),
         );
 
         await notifier.generateBatch(params, count: 1);
@@ -499,9 +525,7 @@ void main() {
         const params = ImageParams(prompt: 'test prompt');
 
         when(() => mockApiService.generateImageStream(any())).thenAnswer(
-          (_) => Stream.value(
-            ImageStreamChunk.complete(imageBytes),
-          ),
+          (_) => Stream.value(ImageStreamChunk.complete(imageBytes)),
         );
 
         await notifier.generateBatch(params, count: 3);
@@ -521,9 +545,7 @@ void main() {
         const params = ImageParams(prompt: 'test prompt');
 
         when(() => mockApiService.generateImageStream(any())).thenAnswer(
-          (_) => Stream.value(
-            ImageStreamChunk.complete(imageBytes),
-          ),
+          (_) => Stream.value(ImageStreamChunk.complete(imageBytes)),
         );
 
         await notifier.generateBatch(params, count: 2);
@@ -585,6 +607,20 @@ void main() {
       expect(state.totalCount, 2);
     });
 
+    test('completed, failed, and cancelled mixture excludes cancelled', () {
+      const state = BatchGenerationState(
+        items: [
+          BatchGenerationItem(id: '1', index: 0, isCompleted: true),
+          BatchGenerationItem(id: '2', index: 1, error: 'failed'),
+          BatchGenerationItem(id: '3', index: 2, isCancelled: true),
+        ],
+        completedCount: 1,
+        failedCount: 1,
+      );
+
+      expect(state.isAllCompleted, isFalse);
+    });
+
     test('should return successful images', () {
       final imageBytes = Uint8List.fromList([1, 2, 3]);
       final state = BatchGenerationState(
@@ -595,11 +631,7 @@ void main() {
             isCompleted: true,
             image: imageBytes,
           ),
-          const BatchGenerationItem(
-            id: '2',
-            index: 1,
-            isCompleted: false,
-          ),
+          const BatchGenerationItem(id: '2', index: 1, isCompleted: false),
         ],
         batchWidth: 512,
         batchHeight: 512,
@@ -739,11 +771,7 @@ void main() {
 
     test('should use current time for ongoing generation duration', () {
       final startTime = DateTime.now().subtract(const Duration(seconds: 1));
-      final item = BatchGenerationItem(
-        id: '1',
-        index: 0,
-        startTime: startTime,
-      );
+      final item = BatchGenerationItem(id: '1', index: 0, startTime: startTime);
 
       expect(item.durationMs, isNotNull);
       expect(item.durationMs, greaterThan(0));
@@ -752,10 +780,7 @@ void main() {
     test('should copy with new values', () {
       const item = BatchGenerationItem(id: '1', index: 0);
 
-      final copied = item.copyWith(
-        isCompleted: true,
-        progress: 1.0,
-      );
+      final copied = item.copyWith(isCompleted: true, progress: 1.0);
 
       expect(copied.id, item.id);
       expect(copied.index, item.index);

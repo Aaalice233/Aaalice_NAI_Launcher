@@ -5,7 +5,7 @@ import 'package:nai_launcher/core/utils/localization_extension.dart';
 import '../../../core/shortcuts/default_shortcuts.dart';
 import '../../../core/shortcuts/shortcut_config.dart';
 import '../../../core/shortcuts/shortcut_manager.dart';
-import '../../../presentation/router/app_router.dart';
+import '../../../presentation/router/app_routes.dart';
 import '../../../presentation/screens/settings/widgets/shortcut_settings_panel.dart';
 import '../../providers/shortcuts_provider.dart';
 

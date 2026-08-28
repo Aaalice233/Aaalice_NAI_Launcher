@@ -1,0 +1,75 @@
+import 'package:flutter/material.dart';
+
+import '../../prompt_assistant/models/prompt_assistant_models.dart';
+import '../providers/agent_chat_notifier.dart';
+
+@immutable
+class AgentChatPanelViewData {
+  const AgentChatPanelViewData({
+    required this.state,
+    required this.config,
+    required this.mobile,
+    required this.fullScreen,
+    required this.compactMobile,
+    required this.onClose,
+    required this.onOpenSettings,
+    required this.mobileHeaderWrapper,
+  });
+
+  final AgentChatState state;
+  final PromptAssistantConfigState config;
+  final bool mobile;
+  final bool fullScreen;
+  final bool compactMobile;
+  final VoidCallback? onClose;
+  final VoidCallback? onOpenSettings;
+  final Widget Function(Widget child)? mobileHeaderWrapper;
+
+  bool get running => state.status == AgentChatRunStatus.running;
+  bool get sessionActionsEnabled => canManageAgentChatSessions(state);
+  bool get controlsLocked => running || state.sessionTransitioning;
+  bool get canSend =>
+      state.routeReady && state.initialized && !state.sessionTransitioning;
+  bool get isEmpty =>
+      state.messages.isEmpty &&
+      !(running ||
+          state.streamingText.isNotEmpty ||
+          state.activities.isNotEmpty);
+}
+
+enum AgentChatMoreAction { newSession, rename, compact, delete }
+
+@immutable
+class AgentChatPanelCommands {
+  const AgentChatPanelCommands({
+    required this.collapse,
+    required this.newSession,
+    required this.selectSession,
+    required this.renameSession,
+    required this.deleteSession,
+    required this.moreAction,
+    required this.selectModel,
+    required this.selectPermissionMode,
+    required this.pickImages,
+    required this.send,
+    required this.stop,
+    required this.dismissError,
+    required this.resolveApproval,
+    required this.useSuggestion,
+  });
+
+  final VoidCallback collapse;
+  final Future<void> Function() newSession;
+  final Future<void> Function(String sessionId) selectSession;
+  final Future<void> Function(String sessionId) renameSession;
+  final Future<void> Function(String sessionId) deleteSession;
+  final Future<void> Function(AgentChatMoreAction action) moreAction;
+  final Future<void> Function(String providerId, String model) selectModel;
+  final Future<void> Function(AgentPermissionMode mode) selectPermissionMode;
+  final Future<void> Function() pickImages;
+  final Future<void> Function() send;
+  final VoidCallback stop;
+  final VoidCallback dismissError;
+  final void Function(bool approved) resolveApproval;
+  final void Function(String suggestion) useSuggestion;
+}

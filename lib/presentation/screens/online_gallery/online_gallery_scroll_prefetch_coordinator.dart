@@ -1,0 +1,281 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../core/cache/gallery_image_request.dart';
+import '../../../core/cache/online_gallery_detail_coordinator.dart';
+import '../../../core/cache/online_gallery_preload_policy.dart';
+import '../../../data/models/online_gallery/danbooru_post.dart';
+import '../../providers/online_gallery_provider.dart';
+import 'online_gallery_screen_controller.dart';
+import 'online_gallery_utils.dart';
+
+/// Coordinates scroll restoration, pagination and image/detail prefetching.
+/// All scheduling starts from lifecycle, scroll, or visibility events; build is
+/// deliberately side-effect free.
+class OnlineGalleryScrollPrefetchCoordinator {
+  OnlineGalleryScrollPrefetchCoordinator({
+    required this.context,
+    required this.ref,
+    required this.controller,
+    required this.notifier,
+  });
+
+  final BuildContext context;
+  final WidgetRef ref;
+  final OnlineGalleryScreenController controller;
+  final OnlineGalleryNotifier notifier;
+
+  OnlineGalleryState readState() => ref.read(onlineGalleryNotifierProvider);
+  bool isMounted() => context.mounted;
+  GalleryImageRequest imageRequest(
+    GalleryItem item,
+    String url,
+    GalleryImageTier tier,
+    double logicalWidth,
+  ) => createGalleryImageRequest(
+    context: context,
+    item: item,
+    url: url,
+    tier: tier,
+    logicalWidth: logicalWidth,
+  );
+
+  bool isWithinLoadAhead(ScrollMetrics metrics) =>
+      metrics.extentAfter <=
+      OnlineGalleryPreloadPolicy.loadAheadDistance(metrics.viewportDimension);
+
+  void onScroll() {
+    controller.hoverController.dismiss();
+    if (!controller.branchVisible) return;
+    final offset = controller.scrollController.offset;
+    if (offset != controller.lastScrollOffset) {
+      controller.scrollDirection = offset >= controller.lastScrollOffset
+          ? 1
+          : -1;
+      controller.lastScrollOffset = offset;
+      controller.setScrolling(true);
+      controller.prefetchCoordinator.setScrolling(true);
+      controller.scrollStopTimer?.cancel();
+      controller.scrollStopTimer = Timer(const Duration(milliseconds: 150), () {
+        if (!isMounted() || !controller.branchVisible) return;
+        controller.setScrolling(false);
+        controller.prefetchCoordinator.setScrolling(false);
+        saveScrollOffset();
+        scheduleVisiblePrefetch();
+      });
+    }
+    final state = readState();
+    final cache = state.randomEnabled
+        ? state.randomSession.cache
+        : state.currentCache;
+    if (!cache.queryScanPaused &&
+        isWithinLoadAhead(controller.scrollController.position)) {
+      unawaited(notifier.loadMore());
+    }
+  }
+
+  void scheduleAutoLoadIfUnderfilled(OnlineGalleryState state) {
+    final cache = state.randomEnabled
+        ? state.randomSession.cache
+        : state.currentCache;
+    if (!controller.branchVisible ||
+        state.isLoading ||
+        state.isLoadingMore ||
+        state.hasError ||
+        !state.hasMore ||
+        cache.queryScanPaused ||
+        cache.appendErrorCode != null ||
+        controller.scheduledAutoLoadCacheKey == state.currentCacheKey) {
+      return;
+    }
+    final cacheKey = state.currentCacheKey;
+    controller.scheduledAutoLoadCacheKey = cacheKey;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!isMounted() || !controller.branchVisible) return;
+      if (controller.scheduledAutoLoadCacheKey == cacheKey) {
+        controller.scheduledAutoLoadCacheKey = null;
+      }
+      final latest = readState();
+      final latestCache = latest.randomEnabled
+          ? latest.randomSession.cache
+          : latest.currentCache;
+      if (latest.currentCacheKey != cacheKey ||
+          latest.isLoading ||
+          latest.isLoadingMore ||
+          latest.hasError ||
+          !latest.hasMore ||
+          latestCache.queryScanPaused ||
+          latestCache.appendErrorCode != null) {
+        return;
+      }
+      final needsMore =
+          latest.posts.isEmpty ||
+          (controller.scrollController.hasClients &&
+              isWithinLoadAhead(controller.scrollController.position));
+      if (needsMore) unawaited(notifier.loadMore());
+    });
+  }
+
+  void saveScrollOffset() {
+    if (!controller.scrollController.hasClients) return;
+    final visible = controller.visibleItems.entries.toList()
+      ..sort((left, right) => left.key.compareTo(right.key));
+    final anchor = visible.isEmpty ? null : visible.first.value;
+    notifier.saveScrollOffset(
+      controller.scrollController.offset,
+      anchorStableKey: anchor?.item.stableKey,
+      anchorLocalOffset: anchor?.visibleTop ?? 0,
+    );
+  }
+
+  void restoreScrollOffset(ModeCache cache) {
+    controller.pendingAnchorStableKey = cache.anchorStableKey;
+    controller.pendingAnchorLocalOffset = cache.anchorLocalOffset;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!isMounted() || !controller.scrollController.hasClients) return;
+      final position = controller.scrollController.position;
+      controller.scrollController.jumpTo(
+        cache.scrollOffset.clamp(
+          position.minScrollExtent,
+          position.maxScrollExtent,
+        ),
+      );
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        final anchorContext = controller.anchorRestoreKey.currentContext;
+        if (!isMounted() || anchorContext == null) return;
+        await Scrollable.ensureVisible(anchorContext, duration: Duration.zero);
+        if (!isMounted() || !controller.scrollController.hasClients) return;
+        final current = controller.scrollController.offset;
+        controller.scrollController.jumpTo(
+          (current + controller.pendingAnchorLocalOffset).clamp(
+            controller.scrollController.position.minScrollExtent,
+            controller.scrollController.position.maxScrollExtent,
+          ),
+        );
+      });
+    });
+  }
+
+  void handleCardVisibility(
+    int index,
+    GalleryItem item,
+    double itemWidth,
+    int columnCount,
+    bool visible,
+    double visibleTop,
+  ) {
+    if (!isMounted() || !controller.branchVisible) return;
+    if (!visible) {
+      final current = controller.visibleItems[index];
+      if (current?.item.stableKey == item.stableKey) {
+        controller.visibleItems.remove(index);
+      }
+      return;
+    }
+    controller.visibleItems[index] = (
+      item: item,
+      itemWidth: itemWidth,
+      visibleTop: visibleTop,
+    );
+    if (controller.scrollController.hasClients) {
+      final position = controller.scrollController.position;
+      controller.lookaheadItemCount =
+          OnlineGalleryPreloadPolicy.lookaheadItemCount(
+            viewportHeight: position.viewportDimension,
+            itemWidth: itemWidth,
+            columnCount: columnCount,
+          );
+    }
+    if (item.previewUrl.isNotEmpty) {
+      unawaited(
+        controller.prefetchCoordinator.submit(
+          imageRequest(
+            item,
+            item.previewUrl,
+            GalleryImageTier.thumbnail,
+            itemWidth,
+          ),
+          priority: GalleryImagePriority.visible,
+        ),
+      );
+    }
+    if (!controller.isScrolling) {
+      controller.idlePrefetchTimer?.cancel();
+      controller.idlePrefetchTimer = Timer(
+        const Duration(milliseconds: 150),
+        () {
+          if (isMounted() &&
+              controller.branchVisible &&
+              !controller.isScrolling) {
+            scheduleVisiblePrefetch();
+          }
+        },
+      );
+    }
+  }
+
+  void scheduleVisiblePrefetch() {
+    if (controller.visibleItems.isEmpty || !controller.branchVisible) return;
+    final state = readState();
+    final visible = controller.visibleItems.entries.toList()
+      ..sort((left, right) => left.key.compareTo(right.key));
+    final itemWidth = visible.first.value.itemWidth;
+    final edge = controller.scrollDirection >= 0
+        ? visible.last.key
+        : visible.first.key;
+    var detailCount = 0;
+    for (var step = 1; step <= controller.lookaheadItemCount; step++) {
+      final index = edge + step * controller.scrollDirection;
+      if (index < 0 || index >= state.posts.length) continue;
+      final item = state.posts[index];
+      if (item.previewUrl.isNotEmpty) {
+        unawaited(
+          controller.prefetchCoordinator.submit(
+            imageRequest(
+              item,
+              item.previewUrl,
+              GalleryImageTier.thumbnail,
+              itemWidth,
+            ),
+            priority: GalleryImagePriority.lookahead,
+          ),
+        );
+      } else if (item.sourceId == GallerySourceId.aiTag && detailCount < 4) {
+        detailCount++;
+        unawaited(
+          notifier
+              .loadDetail(item, priority: GalleryDetailPriority.visible)
+              .then<void>((_) {})
+              .catchError((_) {}),
+        );
+      }
+    }
+    for (final entry in visible.take(12)) {
+      final item = entry.value.item;
+      if (item.isVideo ||
+          item.isAnimated ||
+          item.sourceId == GallerySourceId.aiTag) {
+        continue;
+      }
+      final sampleUrl = item.sampleUrl ?? item.largeFileUrl;
+      if (sampleUrl == null ||
+          sampleUrl.isEmpty ||
+          sampleUrl == item.previewUrl) {
+        continue;
+      }
+      unawaited(
+        controller.prefetchCoordinator.submit(
+          imageRequest(
+            item,
+            sampleUrl,
+            GalleryImageTier.sample,
+            entry.value.itemWidth,
+          ),
+          priority: GalleryImagePriority.lookahead,
+        ),
+      );
+    }
+  }
+}

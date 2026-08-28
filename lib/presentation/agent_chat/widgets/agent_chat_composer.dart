@@ -1,0 +1,536 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+import '../../../../core/utils/localization_extension.dart';
+import '../../../../l10n/app_localizations.dart';
+import '../../prompt_assistant/models/prompt_assistant_models.dart';
+import 'agent_chat_header.dart';
+import 'agent_chat_panel_controller.dart';
+import 'agent_chat_panel_view_data.dart';
+
+class AgentChatComposer extends StatelessWidget {
+  const AgentChatComposer({
+    super.key,
+    required this.viewData,
+    required this.commands,
+    required this.controller,
+  });
+
+  final AgentChatPanelViewData viewData;
+  final AgentChatPanelCommands commands;
+  final AgentChatPanelController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final l10n = context.l10n;
+    return Padding(
+      key: const ValueKey('agent-chat-input-container'),
+      padding: EdgeInsets.fromLTRB(
+        viewData.mobile ? 12 : 8,
+        6,
+        viewData.mobile ? 12 : 8,
+        viewData.mobile ? 10 : 8,
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          color: viewData.mobile
+              ? theme.colorScheme.surfaceContainerHigh
+              : theme.colorScheme.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(viewData.mobile ? 16 : 12),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Focus(
+              onKeyEvent: (node, event) {
+                if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+                  return KeyEventResult.ignored;
+                }
+                final key = event.logicalKey;
+                if (key != LogicalKeyboardKey.enter &&
+                    key != LogicalKeyboardKey.numpadEnter) {
+                  return KeyEventResult.ignored;
+                }
+                if (HardwareKeyboard.instance.isControlPressed ||
+                    HardwareKeyboard.instance.isMetaPressed) {
+                  controller.insertNewline();
+                  return KeyEventResult.handled;
+                }
+                if (controller.inputController.text.trim().isNotEmpty ||
+                    controller.pendingImages.isNotEmpty) {
+                  commands.send();
+                }
+                return KeyEventResult.handled;
+              },
+              child: TextField(
+                key: const ValueKey('agent-chat-input'),
+                controller: controller.inputController,
+                focusNode: controller.inputFocus,
+                enabled: viewData.state.initialized,
+                minLines: viewData.compactMobile
+                    ? 1
+                    : (viewData.mobile ? 2 : 3),
+                maxLines: viewData.compactMobile
+                    ? 3
+                    : (viewData.mobile ? 5 : 8),
+                style:
+                    (viewData.mobile
+                            ? theme.textTheme.bodyMedium
+                            : theme.textTheme.bodySmall)
+                        ?.copyWith(height: 1.45),
+                textInputAction: TextInputAction.newline,
+                decoration: InputDecoration(
+                  isDense: true,
+                  hintText: l10n.agentChat_inputHint,
+                  hintStyle:
+                      (viewData.mobile
+                              ? theme.textTheme.bodyMedium
+                              : theme.textTheme.bodySmall)
+                          ?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant
+                                .withValues(alpha: 0.75),
+                          ),
+                  contentPadding: EdgeInsets.fromLTRB(
+                    viewData.mobile ? 14 : 12,
+                    viewData.mobile ? 12 : 10,
+                    viewData.mobile ? 14 : 12,
+                    6,
+                  ),
+                  border: InputBorder.none,
+                ),
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                4,
+                0,
+                viewData.mobile ? 4 : 8,
+                viewData.mobile ? 4 : 6,
+              ),
+              child: Row(
+                children: [
+                  _attachButton(theme, l10n),
+                  _moreMenu(theme, l10n),
+                  SizedBox(width: viewData.mobile ? 0 : 2),
+                  _permissionModeButton(theme, l10n),
+                  const SizedBox(width: 2),
+                  if (!viewData.mobile && viewData.state.queuedCount > 0)
+                    Flexible(
+                      child: Text(
+                        l10n.agentChat_queued,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.tertiary,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  if (!viewData.mobile) const Spacer(),
+                  if (viewData.mobile)
+                    Expanded(
+                      child: SizedBox(
+                        height: 48,
+                        child: _modelSelector(theme, l10n),
+                      ),
+                    )
+                  else
+                    _modelSelector(theme, l10n),
+                  const SizedBox(width: 4),
+                  _SendButton(
+                    running: viewData.running,
+                    enabled: viewData.canSend,
+                    touchOptimized: viewData.mobile,
+                    onSend: commands.send,
+                    onStop: commands.stop,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _attachButton(ThemeData theme, AppLocalizations l10n) {
+    final enabled = viewData.state.initialized;
+    return Tooltip(
+      message: l10n.agentChat_attachImage,
+      waitDuration: const Duration(milliseconds: 400),
+      child: SizedBox(
+        key: const ValueKey('agent-chat-attach-image'),
+        width: viewData.mobile ? 48 : 30,
+        height: viewData.mobile ? 48 : 30,
+        child: InkWell(
+          onTap: enabled ? commands.pickImages : null,
+          borderRadius: BorderRadius.circular(8),
+          child: Icon(
+            Icons.image_outlined,
+            size: 18,
+            color: theme.colorScheme.onSurface.withValues(
+              alpha: enabled ? 0.65 : 0.25,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _moreMenu(ThemeData theme, AppLocalizations l10n) =>
+      PopupMenuButton<AgentChatMoreAction>(
+        key: const ValueKey('agent-chat-more-actions'),
+        tooltip: l10n.agentChat_moreActions,
+        onSelected: commands.moreAction,
+        itemBuilder: (context) => [
+          _moreItem(
+            theme,
+            AgentChatMoreAction.newSession,
+            Icons.add_comment_outlined,
+            l10n.agentChat_newChat,
+          ),
+          _moreItem(
+            theme,
+            AgentChatMoreAction.rename,
+            Icons.edit_outlined,
+            l10n.common_rename,
+          ),
+          _moreItem(
+            theme,
+            AgentChatMoreAction.compact,
+            Icons.compress_outlined,
+            l10n.agentChat_compact,
+          ),
+          _moreItem(
+            theme,
+            AgentChatMoreAction.delete,
+            Icons.delete_outline,
+            l10n.common_delete,
+            danger: true,
+          ),
+        ],
+        child: SizedBox(
+          width: viewData.mobile ? 48 : 30,
+          height: viewData.mobile ? 48 : 30,
+          child: Icon(
+            Icons.add,
+            size: 18,
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.65),
+          ),
+        ),
+      );
+
+  PopupMenuItem<AgentChatMoreAction> _moreItem(
+    ThemeData theme,
+    AgentChatMoreAction value,
+    IconData icon,
+    String label, {
+    bool danger = false,
+  }) {
+    final color = danger
+        ? theme.colorScheme.error
+        : theme.colorScheme.onSurface.withValues(alpha: 0.8);
+    return PopupMenuItem(
+      value: value,
+      enabled: viewData.sessionActionsEnabled,
+      height: viewData.mobile ? 48 : 36,
+      child: Row(
+        children: [
+          Icon(icon, size: 15, color: color),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: viewData.sessionActionsEnabled
+                  ? color
+                  : color.withValues(alpha: 0.4),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _permissionModeButton(ThemeData theme, AppLocalizations l10n) {
+    final mode = viewData.config.agentPermissionMode;
+    final icon = switch (mode) {
+      AgentPermissionMode.safe => Icons.shield_outlined,
+      AgentPermissionMode.askBeforeSensitiveActions => Icons.gpp_maybe_outlined,
+      AgentPermissionMode.fullAccess => Icons.lock_open_outlined,
+    };
+    return PopupMenuButton<AgentPermissionMode>(
+      key: const ValueKey('agent-chat-permission-mode'),
+      enabled: !viewData.controlsLocked,
+      tooltip:
+          '${l10n.agentChat_permissionMode}: ${agentPermissionModeLabel(l10n, mode)}',
+      onSelected: commands.selectPermissionMode,
+      itemBuilder: (context) => [
+        for (final value in AgentPermissionMode.values)
+          PopupMenuItem(
+            value: value,
+            height: 52,
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 22,
+                  child: value == mode
+                      ? Icon(
+                          Icons.check,
+                          size: 16,
+                          color: theme.colorScheme.primary,
+                        )
+                      : null,
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        agentPermissionModeLabel(l10n, value),
+                        style: theme.textTheme.bodySmall,
+                      ),
+                      Text(
+                        agentPermissionModeDescription(l10n, value),
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.55,
+                          ),
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+      child: SizedBox(
+        width: viewData.mobile ? 48 : 30,
+        height: viewData.mobile ? 48 : 30,
+        child: Icon(
+          icon,
+          size: 17,
+          color: theme.colorScheme.onSurface.withValues(
+            alpha: viewData.controlsLocked ? 0.25 : 0.6,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _modelSelector(ThemeData theme, AppLocalizations l10n) {
+    final config = viewData.config;
+    final enabled = config.providers
+        .where((provider) => provider.enabled)
+        .toList();
+    if (enabled.isEmpty || !viewData.state.routeReady) {
+      return Tooltip(
+        message: viewData.state.routeError.isNotEmpty
+            ? viewData.state.routeError
+            : l10n.agentChat_noModel,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.warning_amber_rounded,
+              size: 14,
+              color: theme.colorScheme.error.withValues(alpha: 0.8),
+            ),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                l10n.agentChat_noModel,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.55),
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    final activeProviderId = config.routing.providerIdFor(
+      AssistantTaskType.chat,
+    );
+    final activeModel = config.routing.modelFor(AssistantTaskType.chat);
+    var label = '';
+    for (final provider in enabled) {
+      if (provider.id != activeProviderId) continue;
+      for (final model in config.modelsForProviderTask(
+        providerId: provider.id,
+        taskType: AssistantTaskType.chat,
+      )) {
+        if (model.name == activeModel) {
+          label = model.displayName;
+          break;
+        }
+      }
+      if (label.isNotEmpty) break;
+    }
+    if (label.isEmpty) {
+      label = activeModel.isEmpty ? viewData.state.routeLabel : activeModel;
+    }
+    return PopupMenuButton<(String, String)>(
+      enabled: viewData.sessionActionsEnabled,
+      tooltip: l10n.agentChat_model,
+      onSelected: (route) => commands.selectModel(route.$1, route.$2),
+      itemBuilder: (context) => [
+        for (final provider in enabled) ...[
+          PopupMenuItem<(String, String)>(
+            enabled: false,
+            height: viewData.mobile ? 40 : 30,
+            child: Text(
+              provider.name,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
+                fontWeight: FontWeight.w600,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          for (final model
+              in config
+                  .modelsForProviderTask(
+                    providerId: provider.id,
+                    taskType: AssistantTaskType.chat,
+                  )
+                  .where((model) => !model.isPlaceholder))
+            PopupMenuItem(
+              value: (provider.id, model.name),
+              height: viewData.mobile ? 48 : 36,
+              child: Row(
+                children: [
+                  if (provider.id == activeProviderId &&
+                      model.name == activeModel)
+                    Icon(
+                      Icons.check,
+                      size: 14,
+                      color: theme.colorScheme.primary,
+                    )
+                  else
+                    const SizedBox(width: 14),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      model.displayName,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ],
+      child: Container(
+        width: viewData.mobile ? double.infinity : null,
+        padding: EdgeInsets.symmetric(
+          horizontal: viewData.mobile ? 12 : 8,
+          vertical: 5,
+        ),
+        constraints: BoxConstraints(
+          minHeight: viewData.mobile ? 48 : 0,
+          maxWidth: viewData.mobile ? double.infinity : 140,
+        ),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest.withValues(
+            alpha: 0.4,
+          ),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: Text(
+                label,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: 3),
+            Icon(
+              Icons.expand_more,
+              size: 13,
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SendButton extends StatelessWidget {
+  const _SendButton({
+    required this.running,
+    required this.enabled,
+    required this.onSend,
+    required this.onStop,
+    required this.touchOptimized,
+  });
+
+  final bool running;
+  final bool enabled;
+  final VoidCallback onSend;
+  final VoidCallback onStop;
+  final bool touchOptimized;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final l10n = context.l10n;
+    final foregroundColor = touchOptimized
+        ? running
+              ? theme.colorScheme.onErrorContainer
+              : enabled
+              ? theme.colorScheme.onPrimary
+              : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.45)
+        : running
+        ? theme.colorScheme.error
+        : enabled
+        ? theme.colorScheme.primary
+        : theme.colorScheme.onSurface.withValues(alpha: 0.3);
+    final backgroundColor = running
+        ? theme.colorScheme.errorContainer
+        : enabled
+        ? theme.colorScheme.primary
+        : theme.colorScheme.surfaceContainerHighest;
+    return Tooltip(
+      message: running ? l10n.agentChat_stop : l10n.agentChat_send,
+      waitDuration: const Duration(milliseconds: 500),
+      child: SizedBox(
+        key: const ValueKey('agent-chat-send'),
+        width: touchOptimized ? 48 : 30,
+        height: touchOptimized ? 48 : 30,
+        child: Center(
+          child: Material(
+            color: touchOptimized ? backgroundColor : Colors.transparent,
+            borderRadius: BorderRadius.circular(touchOptimized ? 14 : 8),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: running ? onStop : (enabled ? onSend : null),
+              child: SizedBox(
+                width: touchOptimized ? 40 : 30,
+                height: touchOptimized ? 40 : 30,
+                child: Icon(
+                  running ? Icons.stop_rounded : Icons.arrow_upward_rounded,
+                  size: touchOptimized ? 20 : 18,
+                  color: foregroundColor,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

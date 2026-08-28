@@ -1,0 +1,205 @@
+import 'package:flutter/material.dart';
+
+import '../../../core/utils/localization_extension.dart';
+import '../../../data/models/tag_library/tag_library_entry.dart';
+import '../common/themed_input.dart';
+import '../tag_library/tag_library_entry_hover_preview.dart';
+
+class FixedTagLibraryPickerDialog extends StatefulWidget {
+  const FixedTagLibraryPickerDialog({
+    super.key,
+    required this.entries,
+    required this.onSelect,
+  });
+
+  final List<TagLibraryEntry> entries;
+  final ValueChanged<TagLibraryEntry> onSelect;
+
+  @override
+  State<FixedTagLibraryPickerDialog> createState() =>
+      _FixedTagLibraryPickerDialogState();
+}
+
+class _FixedTagLibraryPickerDialogState
+    extends State<FixedTagLibraryPickerDialog> {
+  final _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  List<TagLibraryEntry> get _filteredEntries {
+    if (_searchQuery.isEmpty) return widget.entries;
+    final query = _searchQuery.toLowerCase();
+    return widget.entries
+        .where((entry) {
+          return entry.name.toLowerCase().contains(query) ||
+              entry.content.toLowerCase().contains(query);
+        })
+        .toList(growable: false);
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final filtered = _filteredEntries;
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 420, maxHeight: 480),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 12, 8),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.playlist_add_rounded,
+                    color: theme.colorScheme.primary,
+                    size: 22,
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    context.l10n.fixedTags_addFromLibrary,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 20),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              child: ThemedInput(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  hintText: context.l10n.fixedTags_searchLibraryEntries,
+                  prefixIcon: Icon(
+                    Icons.search,
+                    size: 20,
+                    color: theme.colorScheme.outline,
+                  ),
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: theme.colorScheme.outline),
+                  ),
+                ),
+                style: const TextStyle(fontSize: 13),
+                onChanged: (value) => setState(() => _searchQuery = value),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Expanded(
+              child: filtered.isEmpty
+                  ? Center(
+                      child: Text(
+                        context.l10n.fixedTags_noMatchingResults,
+                        style: TextStyle(color: theme.colorScheme.outline),
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      itemCount: filtered.length,
+                      itemBuilder: (context, index) {
+                        final entry = filtered[index];
+                        final tile = _LibraryEntryTile(
+                          key: ValueKey('fixed-tag-library-entry-${entry.id}'),
+                          entry: entry,
+                          onTap: () {
+                            widget.onSelect(entry);
+                            Navigator.of(context).pop();
+                          },
+                        );
+                        if (!entry.hasThumbnail) return tile;
+                        return TagLibraryEntryHoverPreview(
+                          entry: entry,
+                          child: tile,
+                        );
+                      },
+                    ),
+            ),
+            const SizedBox(height: 12),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LibraryEntryTile extends StatelessWidget {
+  const _LibraryEntryTile({
+    super.key,
+    required this.entry,
+    required this.onTap,
+  });
+
+  final TagLibraryEntry entry;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      entry.name.isNotEmpty ? entry.name : entry.content,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (entry.name.isNotEmpty && entry.content.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(
+                          entry.content.replaceAll('\n', ' '),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: theme.colorScheme.outline,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.add_rounded,
+                size: 18,
+                color: theme.colorScheme.primary,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

@@ -1,4 +1,5 @@
-part of 'vibe_library_storage_service.dart';
+import '../models/vibe/vibe_library_entry.dart';
+import '../models/vibe/vibe_reference.dart';
 
 /// 详情页一次加载所需的完整条目和 Bundle 子项。
 ///

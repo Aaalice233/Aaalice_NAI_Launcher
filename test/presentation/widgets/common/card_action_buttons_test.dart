@@ -1,8 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/presentation/widgets/common/card_action_buttons.dart';
 
 void main() {
+  setUp(() {
+    PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
+      TargetPlatform.windows,
+    );
+  });
+
+  tearDown(() {
+    PlatformCapabilities.debugOverride = null;
+  });
+
   testWidgets('visibility changes hit testing and opacity in the same pump', (
     tester,
   ) async {

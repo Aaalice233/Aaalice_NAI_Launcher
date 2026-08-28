@@ -1047,6 +1047,66 @@ void main() {
     expect(fileStorage.singleFileLoadCalls, 0);
     expect(fileStorage.previewExtractionCalls, 0);
   });
+
+  test('getDetailData 文件服务抛错时单 Vibe 和 Bundle 都返回 null', () async {
+    await storage.close();
+    final fileStorage = _ThrowingVibeFileStorageService();
+    storage = VibeLibraryStorageService(fileStorage: fileStorage);
+    final entries = [
+      VibeLibraryEntry(
+        id: 'throwing-single-vibe',
+        name: 'throwing single vibe',
+        vibeDisplayName: 'throwing single vibe',
+        vibeEncoding: 'single-encoding',
+        strength: 0.6,
+        infoExtracted: 0.7,
+        sourceTypeIndex: VibeSourceType.naiv4vibe.index,
+        createdAt: DateTime(2026, 8, 20),
+        filePath: r'G:\AIdarw\vibes\throwing.naiv4vibe',
+      ),
+      VibeLibraryEntry(
+        id: 'throwing-bundle',
+        name: 'throwing bundle',
+        vibeDisplayName: 'throwing bundle',
+        vibeEncoding: 'bundle-encoding',
+        strength: 0.6,
+        infoExtracted: 0.7,
+        sourceTypeIndex: VibeSourceType.naiv4vibebundle.index,
+        createdAt: DateTime(2026, 8, 20),
+        filePath: r'G:\AIdarw\vibes\throwing.naiv4vibebundle',
+        bundledVibeNames: const ['throwing child'],
+      ),
+    ];
+    for (final entry in entries) {
+      await storage.saveEntry(entry);
+    }
+
+    await expectLater(storage.getDetailData(entries[0].id), completion(isNull));
+    await expectLater(storage.getDetailData(entries[1].id), completion(isNull));
+    expect(fileStorage.singleFileLoadCalls, 1);
+    expect(fileStorage.bundleParseCalls, 1);
+  });
+}
+
+class _ThrowingVibeFileStorageService extends VibeFileStorageService {
+  int singleFileLoadCalls = 0;
+  int bundleParseCalls = 0;
+
+  @override
+  Future<VibeReference?> loadVibeFromFile(String filePath) {
+    singleFileLoadCalls++;
+    throw StateError('single file read failed');
+  }
+
+  @override
+  Future<List<VibeReference>> extractVibesFromBundle(
+    String bundlePath, {
+    int startIndex = 0,
+    int? limit,
+  }) {
+    bundleParseCalls++;
+    throw StateError('bundle read failed');
+  }
 }
 
 class _CountingVibeFileStorageService extends VibeFileStorageService {

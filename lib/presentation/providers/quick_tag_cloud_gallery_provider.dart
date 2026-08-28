@@ -26,18 +26,28 @@ class QuickTagCloudFilterNotifier extends Notifier<QuickTagCloudGalleryQuery> {
   Future<bool>? _initialization;
   bool _initialized = false;
   int _interactionRevision = 0;
+  int _initializationGeneration = 0;
+  bool _disposed = false;
 
   @override
-  QuickTagCloudGalleryQuery build() => const QuickTagCloudGalleryQuery();
+  QuickTagCloudGalleryQuery build() {
+    _disposed = false;
+    ref.onDispose(() {
+      _disposed = true;
+      _initializationGeneration++;
+    });
+    return const QuickTagCloudGalleryQuery();
+  }
 
   Future<bool> initializeContentAccess() {
     if (_initialized) return Future.value(false);
     final pending = _initialization;
     if (pending != null) return pending;
 
+    final generation = ++_initializationGeneration;
     late final Future<bool> initialization;
-    initialization = _loadPersistedFilters().whenComplete(() {
-      if (identical(_initialization, initialization)) {
+    initialization = _loadPersistedFilters(generation).whenComplete(() {
+      if (!_disposed && identical(_initialization, initialization)) {
         _initialization = null;
       }
     });
@@ -45,10 +55,11 @@ class QuickTagCloudFilterNotifier extends Notifier<QuickTagCloudGalleryQuery> {
     return initialization;
   }
 
-  Future<bool> _loadPersistedFilters() async {
+  Future<bool> _loadPersistedFilters(int generation) async {
     final revisionBeforeLoad = _interactionRevision;
     final service = ref.read(quickTagCloudUserServiceProvider);
     await service.ensureInitialized();
+    if (_disposed || generation != _initializationGeneration) return false;
     final access = service.contentAccess;
     final filters = service.browsingFilters;
     final current = state;
@@ -78,6 +89,7 @@ class QuickTagCloudFilterNotifier extends Notifier<QuickTagCloudGalleryQuery> {
       allowR18g: access.allowR18g,
       favoritesOnly: current.favoritesOnly,
     );
+    if (_disposed || generation != _initializationGeneration) return false;
     _initialized = true;
     if (next.stableKey == state.stableKey) return false;
     state = next;

@@ -342,11 +342,13 @@ class Layer {
     }
 
     _baseImageOffset += delta;
-    final translatedStrokes = _strokes.map((stroke) {
-      return stroke.copyWith(
-        points: stroke.points.map((point) => point + delta).toList(),
-      );
-    }).toList(growable: false);
+    final translatedStrokes = _strokes
+        .map((stroke) {
+          return stroke.copyWith(
+            points: stroke.points.map((point) => point + delta).toList(),
+          );
+        })
+        .toList(growable: false);
 
     _strokes
       ..clear()
@@ -482,13 +484,15 @@ class Layer {
     // BlendMode.clear 需要在隔离的 saveLayer 中绘制，否则会擦穿到下层。
     // 当存在 baseImage 时，已光栅化的 eraser 也需要 saveLayer，
     // 因为 rasterizedImage 是在透明画布上绘制的，clear 对透明像素无效。
-    final hasEraserInPending =
-        _strokes.skip(_rasterizedStrokeCount).any((s) => s.isEraser);
+    final hasEraserInPending = _strokes
+        .skip(_rasterizedStrokeCount)
+        .any((s) => s.isEraser);
     final hasAnyEraser = _strokes.any((s) => s.isEraser);
     final eraserNeedsSaveLayer =
         hasEraserInPending || (hasAnyEraser && _baseImage != null);
 
-    final needsLayer = opacity < 1.0 ||
+    final needsLayer =
+        opacity < 1.0 ||
         blendMode != LayerBlendMode.normal ||
         eraserNeedsSaveLayer;
     if (needsLayer) {
@@ -608,8 +612,9 @@ class Layer {
         maxX + radius,
         maxY + radius,
       );
-      bounds =
-          bounds == null ? strokeBounds : bounds.expandToInclude(strokeBounds);
+      bounds = bounds == null
+          ? strokeBounds
+          : bounds.expandToInclude(strokeBounds);
     }
 
     return bounds ?? Rect.zero;
@@ -705,8 +710,9 @@ class Layer {
       } else {
         // 检查待光栅化的笔画中是否有橡皮擦
         // BlendMode.clear 需要在已有内容上操作，所以橡皮擦需要完整重绘
-        final hasEraserInPending =
-            _strokes.skip(_rasterizedStrokeCount).any((s) => s.isEraser);
+        final hasEraserInPending = _strokes
+            .skip(_rasterizedStrokeCount)
+            .any((s) => s.isEraser);
 
         // 如果有橡皮擦，需要完整重绘（不能增量）
         final needsFullRedraw =

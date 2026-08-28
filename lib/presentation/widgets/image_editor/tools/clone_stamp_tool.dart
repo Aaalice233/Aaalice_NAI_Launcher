@@ -210,9 +210,7 @@ class CloneStampTool extends EditorTool {
       c.save();
       c.clipPath(
         Path()
-          ..addOval(
-            Rect.fromCenter(center: pt, width: _size, height: _size),
-          ),
+          ..addOval(Rect.fromCenter(center: pt, width: _size, height: _size)),
       );
       c.drawImage(snapshot, offset, paint);
       c.restore();
@@ -306,10 +304,7 @@ class CloneStampTool extends EditorTool {
                     style: theme.textTheme.bodySmall,
                   ),
                   const Spacer(),
-                  Text(
-                    '${_size.round()}',
-                    style: theme.textTheme.bodySmall,
-                  ),
+                  Text('${_size.round()}', style: theme.textTheme.bodySmall),
                 ],
               ),
               Slider(

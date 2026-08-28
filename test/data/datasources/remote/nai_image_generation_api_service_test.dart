@@ -15,6 +15,7 @@ import 'package:nai_launcher/core/network/nai_api_endpoint_service.dart';
 import 'package:nai_launcher/data/datasources/remote/nai_image_enhancement_api_service.dart';
 import 'package:nai_launcher/data/datasources/remote/nai_image_generation_api_service.dart';
 import 'package:nai_launcher/data/models/image/image_params.dart';
+import 'package:nai_launcher/presentation/providers/generation/image_generation_service.dart';
 
 void main() {
   test(
@@ -267,6 +268,179 @@ void main() {
   );
 
   test(
+    'shared API keeps concurrent ImageGenerationService run cancellation isolated',
+    () async {
+      final adapter = _PendingDioAdapter();
+      final dio = Dio()..httpClientAdapter = adapter;
+      final endpointService = NaiApiEndpointService();
+      final apiService = NAIImageGenerationApiService(
+        dio,
+        NAIImageEnhancementApiService(dio, endpointService),
+        endpointService,
+      );
+      final serviceA = ImageGenerationService(apiService: apiService);
+      final serviceB = ImageGenerationService(apiService: apiService);
+
+      final runA = serviceA.generateSingle(
+        const ImageParams(prompt: 'service run A'),
+      );
+      await _waitForRequestCount(adapter, 1);
+      final runB = serviceB.generateSingle(
+        const ImageParams(prompt: 'service run B'),
+      );
+      await _waitForRequestCount(adapter, 2);
+
+      serviceA.cancel();
+
+      expect(
+        await adapter.requests[0].cancelledWithin(
+          const Duration(milliseconds: 100),
+        ),
+        isTrue,
+      );
+      expect(
+        await adapter.requests[1].cancelledWithin(
+          const Duration(milliseconds: 100),
+        ),
+        isFalse,
+      );
+
+      adapter.requests[0].completeWithError(
+        DioException(
+          requestOptions: adapter.requests[0].options,
+          type: DioExceptionType.cancel,
+        ),
+      );
+      adapter.requests[1].completeWithMsgpackMessages([
+        {
+          'event_type': 'final',
+          'samp_ix': 0,
+          'image': Uint8List.fromList([9, 8, 7]),
+        },
+      ]);
+
+      final resultA = await runA.timeout(const Duration(seconds: 1));
+      final resultB = await runB.timeout(const Duration(seconds: 1));
+      expect(resultA.isCancelled, isTrue);
+      expect(resultB.isSuccess, isTrue);
+    },
+  );
+
+  test(
+    'scoped stream cancellation for run A does not cancel non-stream run B',
+    () async {
+      final adapter = _PendingDioAdapter();
+      final dio = Dio()..httpClientAdapter = adapter;
+      final endpointService = NaiApiEndpointService();
+      final service = NAIImageGenerationApiService(
+        dio,
+        NAIImageEnhancementApiService(dio, endpointService),
+        endpointService,
+      );
+      final leaseA = service.createCancellationLease();
+      final leaseB = service.createCancellationLease();
+
+      final runA = service
+          .generateImageStream(
+            const ImageParams(prompt: 'stream run A'),
+            cancellationLease: leaseA,
+          )
+          .drain<Object?>();
+      final handledA = runA.then<Object?>((_) => null).catchError((_) => null);
+      await _waitForRequestCount(adapter, 1);
+      final runB = service.generateImage(
+        const ImageParams(prompt: 'non-stream run B'),
+        cancellationLease: leaseB,
+      );
+      final handledB = runB.then<Object?>((_) => null).catchError((_) => null);
+      await _waitForRequestCount(adapter, 2);
+
+      service.cancelGeneration(leaseA);
+
+      expect(
+        await adapter.requests[0].cancelledWithin(
+          const Duration(milliseconds: 100),
+        ),
+        isTrue,
+      );
+      expect(
+        await adapter.requests[1].cancelledWithin(
+          const Duration(milliseconds: 100),
+        ),
+        isFalse,
+      );
+
+      adapter.requests[0].completeWithError(
+        DioException(
+          requestOptions: adapter.requests[0].options,
+          type: DioExceptionType.cancel,
+        ),
+      );
+      adapter.requests[1].completeWithEmptyZip();
+      await Future.wait([handledA, handledB]);
+      service.releaseCancellationLease(leaseA);
+      service.releaseCancellationLease(leaseB);
+    },
+  );
+
+  test(
+    'scoped non-stream cancellation for run A does not cancel stream run B',
+    () async {
+      final adapter = _PendingDioAdapter();
+      final dio = Dio()..httpClientAdapter = adapter;
+      final endpointService = NaiApiEndpointService();
+      final service = NAIImageGenerationApiService(
+        dio,
+        NAIImageEnhancementApiService(dio, endpointService),
+        endpointService,
+      );
+      final leaseA = service.createCancellationLease();
+      final leaseB = service.createCancellationLease();
+
+      final runA = service.generateImage(
+        const ImageParams(prompt: 'non-stream run A'),
+        cancellationLease: leaseA,
+      );
+      final handledA = runA.then<Object?>((_) => null).catchError((_) => null);
+      await _waitForRequestCount(adapter, 1);
+      final runB = service
+          .generateImageStream(
+            const ImageParams(prompt: 'stream run B'),
+            cancellationLease: leaseB,
+          )
+          .toList();
+      await _waitForRequestCount(adapter, 2);
+
+      service.cancelGeneration(leaseA);
+
+      expect(
+        await adapter.requests[0].cancelledWithin(
+          const Duration(milliseconds: 100),
+        ),
+        isTrue,
+      );
+      expect(
+        await adapter.requests[1].cancelledWithin(
+          const Duration(milliseconds: 100),
+        ),
+        isFalse,
+      );
+
+      adapter.requests[0].completeWithError(
+        DioException(
+          requestOptions: adapter.requests[0].options,
+          type: DioExceptionType.cancel,
+        ),
+      );
+      adapter.requests[1].completeWithEmptyStream();
+      await handledA;
+      await runB;
+      service.releaseCancellationLease(leaseA);
+      service.releaseCancellationLease(leaseB);
+    },
+  );
+
+  test(
     'non-stream inpaint returns one display and transparent patch artifact',
     () async {
       final adapter = _PendingDioAdapter();
@@ -324,7 +498,7 @@ void main() {
     },
   );
 
-  test('stream cancelled before listen must not start a request', () async {
+  test('creating a stream without listening owns no active request', () {
     final adapter = _PendingDioAdapter();
     final dio = Dio()..httpClientAdapter = adapter;
     final endpointService = NaiApiEndpointService();
@@ -333,24 +507,134 @@ void main() {
       NAIImageEnhancementApiService(dio, endpointService),
       endpointService,
     );
+    final lease = service.createCancellationLease();
 
+    service.generateImageStream(
+      const ImageParams(prompt: 'never listened'),
+      cancellationLease: lease,
+    );
+
+    expect(lease.activeRequestCountForTesting, 0);
+    expect(adapter.requests, isEmpty);
+    service.releaseCancellationLease(lease);
+  });
+
+  test('scoped cancellation before listen must not start a request', () async {
+    final adapter = _PendingDioAdapter();
+    final dio = Dio()..httpClientAdapter = adapter;
+    final endpointService = NaiApiEndpointService();
+    final service = NAIImageGenerationApiService(
+      dio,
+      NAIImageEnhancementApiService(dio, endpointService),
+      endpointService,
+    );
+    final lease = service.createCancellationLease();
     final stream = service.generateImageStream(
       const ImageParams(prompt: 'cancel before listen'),
+      cancellationLease: lease,
     );
-    service.cancelGeneration();
 
-    final chunksFuture = stream.toList();
-    await _waitForOptionalRequest(adapter);
-    if (adapter.requests.isNotEmpty) {
-      adapter.requests.single.completeWithEmptyStream();
-    }
-    final chunks = await chunksFuture.timeout(
+    service.cancelGeneration(lease);
+    final chunks = await stream.toList().timeout(
       const Duration(milliseconds: 100),
     );
 
     expect(adapter.requests, isEmpty);
     expect(chunks, hasLength(1));
     expect(chunks.single.error, contains('Cancelled'));
+    expect(lease.activeRequestCountForTesting, 0);
+    service.releaseCancellationLease(lease);
+  });
+
+  test('legacy cancellation before listen must not start a request', () async {
+    final adapter = _PendingDioAdapter();
+    final dio = Dio()..httpClientAdapter = adapter;
+    final endpointService = NaiApiEndpointService();
+    final service = NAIImageGenerationApiService(
+      dio,
+      NAIImageEnhancementApiService(dio, endpointService),
+      endpointService,
+    );
+    final stream = service.generateImageStream(
+      const ImageParams(prompt: 'legacy cancel before listen'),
+    );
+
+    service.cancelGeneration();
+    final chunks = await stream.toList().timeout(
+      const Duration(milliseconds: 100),
+    );
+
+    expect(adapter.requests, isEmpty);
+    expect(chunks, hasLength(1));
+    expect(chunks.single.error, contains('Cancelled'));
+  });
+
+  test('stream completion releases its request-scoped lease', () async {
+    final adapter = _PendingDioAdapter();
+    final dio = Dio()..httpClientAdapter = adapter;
+    final endpointService = NaiApiEndpointService();
+    final service = NAIImageGenerationApiService(
+      dio,
+      NAIImageEnhancementApiService(dio, endpointService),
+      endpointService,
+    );
+    final lease = service.createCancellationLease();
+
+    final chunksFuture = service
+        .generateImageStream(
+          const ImageParams(prompt: 'normal cleanup'),
+          cancellationLease: lease,
+        )
+        .toList();
+    await _waitForRequestCount(adapter, 1);
+    expect(lease.activeRequestCountForTesting, 1);
+
+    adapter.requests.single.completeWithEmptyStream();
+    await chunksFuture.timeout(const Duration(seconds: 2));
+
+    expect(lease.activeRequestCountForTesting, 0);
+    service.releaseCancellationLease(lease);
+  });
+
+  test('stream cancellation releases its request-scoped lease', () async {
+    final adapter = _PendingDioAdapter();
+    final dio = Dio()..httpClientAdapter = adapter;
+    final endpointService = NaiApiEndpointService();
+    final service = NAIImageGenerationApiService(
+      dio,
+      NAIImageEnhancementApiService(dio, endpointService),
+      endpointService,
+    );
+    final lease = service.createCancellationLease();
+
+    final chunksFuture = service
+        .generateImageStream(
+          const ImageParams(prompt: 'cancel cleanup'),
+          cancellationLease: lease,
+        )
+        .toList();
+    await _waitForRequestCount(adapter, 1);
+    expect(lease.activeRequestCountForTesting, 1);
+
+    service.cancelGeneration(lease);
+    expect(
+      await adapter.requests.single.cancelledWithin(
+        const Duration(milliseconds: 100),
+      ),
+      isTrue,
+    );
+    adapter.requests.single.completeWithError(
+      DioException(
+        requestOptions: adapter.requests.single.options,
+        type: DioExceptionType.cancel,
+      ),
+    );
+    final chunks = await chunksFuture.timeout(const Duration(seconds: 2));
+
+    expect(chunks, hasLength(1));
+    expect(chunks.single.error, contains('Cancelled'));
+    expect(lease.activeRequestCountForTesting, 0);
+    service.releaseCancellationLease(lease);
   });
 
   test('stream completes only from final event image', () async {
@@ -740,13 +1024,6 @@ void main() {
 
     await generation;
   });
-}
-
-Future<void> _waitForOptionalRequest(_PendingDioAdapter adapter) async {
-  for (var attempt = 0; attempt < 10; attempt += 1) {
-    if (adapter.requests.isNotEmpty) return;
-    await Future<void>.delayed(const Duration(milliseconds: 10));
-  }
 }
 
 Future<void> _waitForRequestCount(

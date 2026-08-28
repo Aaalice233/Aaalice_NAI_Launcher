@@ -5,7 +5,7 @@ import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../providers/auth_provider.dart';
 import '../../../providers/account_manager_provider.dart';
-import '../../../router/app_router.dart';
+import '../../../router/app_routes.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/settings/account_detail_tile.dart';
 import '../../../widgets/settings/account_profile_sheet.dart';

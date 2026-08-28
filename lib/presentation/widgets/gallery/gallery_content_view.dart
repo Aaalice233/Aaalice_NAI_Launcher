@@ -12,7 +12,7 @@ import '../../../data/models/gallery/local_image_record.dart';
 import '../../providers/krita/krita_bridge_notifier.dart';
 import '../../providers/local_gallery_provider.dart';
 import '../../providers/reverse_prompt_provider.dart';
-import '../../router/app_router.dart';
+import '../../router/app_routes.dart';
 import '../../services/image_workflow_launcher.dart';
 import '../../providers/selection_mode_provider.dart';
 import '../common/app_toast.dart';

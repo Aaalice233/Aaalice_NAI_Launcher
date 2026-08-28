@@ -1,0 +1,486 @@
+import 'dart:io';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart' as md;
+
+import '../../../../core/agent/agent_types.dart';
+import '../../../../core/utils/localization_extension.dart';
+import '../providers/agent_chat_notifier.dart';
+import 'agent_chat_panel_controller.dart';
+import 'agent_chat_panel_view_data.dart';
+import 'agent_chat_tool_widgets.dart';
+
+class AgentChatMessages extends StatelessWidget {
+  const AgentChatMessages({
+    super.key,
+    required this.viewData,
+    required this.commands,
+    required this.controller,
+  });
+
+  final AgentChatPanelViewData viewData;
+  final AgentChatPanelCommands commands;
+  final AgentChatPanelController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final state = viewData.state;
+    if (viewData.isEmpty && !state.routeReady) {
+      return _setupHint(context, theme);
+    }
+    if (viewData.isEmpty) {
+      return _hero(context, theme);
+    }
+    return SingleChildScrollView(
+      controller: controller.scrollController,
+      padding: EdgeInsets.symmetric(
+        horizontal: viewData.mobile ? 16 : 10,
+        vertical: viewData.mobile ? 12 : 8,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final message in state.messages)
+            _messageTile(context, theme, message),
+          _liveTile(context, theme, state),
+        ],
+      ),
+    );
+  }
+
+  Widget _hero(BuildContext context, ThemeData theme) {
+    final l10n = context.l10n;
+    final muted = theme.colorScheme.onSurface.withValues(alpha: 0.55);
+    final suggestions = [
+      l10n.agentChat_suggestion1,
+      l10n.agentChat_suggestion2,
+      l10n.agentChat_suggestion3,
+    ];
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 12,
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.asset(
+                      'assets/icons/Icon.png',
+                      width: 44,
+                      height: 44,
+                      filterQuality: FilterQuality.medium,
+                      errorBuilder: (_, __, ___) => Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.primaryContainer,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          Icons.smart_toy_outlined,
+                          size: 26,
+                          color: theme.colorScheme.onPrimaryContainer,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Text(
+                    l10n.agentChat_heroTitle,
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.9),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              l10n.agentChat_heroSubtitle,
+              style: theme.textTheme.bodySmall?.copyWith(color: muted),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              alignment: WrapAlignment.center,
+              children: [
+                for (final suggestion in suggestions)
+                  ActionChip(
+                    label: Text(
+                      suggestion,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.75,
+                        ),
+                      ),
+                    ),
+                    tooltip: suggestion,
+                    visualDensity: viewData.mobile
+                        ? VisualDensity.standard
+                        : VisualDensity.compact,
+                    backgroundColor: theme.colorScheme.surfaceContainerHighest
+                        .withValues(alpha: 0.4),
+                    side: BorderSide(
+                      color: theme.colorScheme.outline.withValues(alpha: 0.25),
+                    ),
+                    onPressed: () => commands.useSuggestion(suggestion),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _setupHint(BuildContext context, ThemeData theme) {
+    final compact = viewData.compactMobile;
+    return Center(
+      child: SingleChildScrollView(
+        padding: EdgeInsets.symmetric(
+          horizontal: compact ? 20 : 28,
+          vertical: compact ? 12 : 24,
+        ),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 360),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: compact ? 52 : 64,
+                height: compact ? 52 : 64,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primaryContainer.withValues(
+                    alpha: 0.7,
+                  ),
+                  borderRadius: BorderRadius.circular(compact ? 16 : 20),
+                ),
+                child: Icon(
+                  Icons.smart_toy_outlined,
+                  size: compact ? 26 : 32,
+                  color: theme.colorScheme.onPrimaryContainer,
+                ),
+              ),
+              SizedBox(height: compact ? 12 : 18),
+              Text(
+                context.l10n.settings_promptAssistant,
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                context.l10n.agentChat_needSetup,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  height: 1.45,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              if (viewData.onOpenSettings != null) ...[
+                SizedBox(height: compact ? 14 : 22),
+                FilledButton.icon(
+                  key: const ValueKey('agent-chat-open-settings'),
+                  onPressed: viewData.onOpenSettings,
+                  icon: const Icon(Icons.tune_rounded, size: 18),
+                  label: Text(context.l10n.promptAssistant_assistantSettings),
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size(0, 48),
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _messageTile(BuildContext context, ThemeData theme, Message message) {
+    if (message is UserMessage) {
+      final hasText = message.text.trim().isNotEmpty;
+      return Align(
+        alignment: Alignment.centerRight,
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 10, left: 28),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.primaryContainer.withValues(alpha: 0.55),
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(12),
+              topRight: Radius.circular(12),
+              bottomLeft: Radius.circular(12),
+              bottomRight: Radius.circular(4),
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              if (message.images.isNotEmpty)
+                Padding(
+                  padding: EdgeInsets.only(bottom: hasText ? 6 : 0),
+                  child: Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    alignment: WrapAlignment.end,
+                    children: [
+                      for (final image in message.images)
+                        _userImage(theme, image),
+                    ],
+                  ),
+                ),
+              if (hasText)
+                Text(
+                  message.text,
+                  style:
+                      (viewData.mobile
+                              ? theme.textTheme.bodyMedium
+                              : theme.textTheme.bodySmall)
+                          ?.copyWith(
+                            color: theme.colorScheme.onPrimaryContainer,
+                            height: 1.45,
+                          ),
+                ),
+            ],
+          ),
+        ),
+      );
+    }
+    if (message is AssistantMessage) {
+      if (message.text.trim().isEmpty && message.toolCalls.isEmpty) {
+        return const SizedBox.shrink();
+      }
+      return Container(
+        width: double.infinity,
+        margin: const EdgeInsets.only(bottom: 10, right: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        child: md.MarkdownBody(
+          data: message.text.isEmpty ? ' ' : message.text,
+          selectable: true,
+          imageBuilder: (uri, _, alt) => _markdownImage(theme, uri, alt),
+          styleSheet: md.MarkdownStyleSheet.fromTheme(theme).copyWith(
+            p:
+                (viewData.mobile
+                        ? theme.textTheme.bodyMedium
+                        : theme.textTheme.bodySmall)
+                    ?.copyWith(height: 1.55),
+            code:
+                (viewData.mobile
+                        ? theme.textTheme.bodyMedium
+                        : theme.textTheme.bodySmall)
+                    ?.copyWith(
+                      fontFamily: 'monospace',
+                      backgroundColor: theme.colorScheme.surfaceContainerHighest
+                          .withValues(alpha: 0.6),
+                    ),
+            codeblockDecoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainerHighest.withValues(
+                alpha: 0.6,
+              ),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            blockquoteDecoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainerHigh.withValues(
+                alpha: 0.5,
+              ),
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        ),
+      );
+    }
+    if (message is ToolResultMessage) {
+      return AgentChatToolResultTile(result: message);
+    }
+    return const SizedBox.shrink();
+  }
+
+  Widget _userImage(ThemeData theme, ImageContent image) {
+    final source = image.source;
+    final bytes = controller.bytesForMessageImage(source);
+    final Size size;
+    final Widget imageWidget;
+    if (bytes != null) {
+      size = controller.displaySizeForMessageImage(source, bytes);
+      imageWidget = Image.memory(
+        bytes,
+        width: size.width,
+        height: size.height,
+        fit: BoxFit.contain,
+        gaplessPlayback: true,
+        filterQuality: FilterQuality.medium,
+        errorBuilder: (_, __, ___) => _brokenImage(theme),
+      );
+    } else if (source.url case final url?) {
+      size = const Size(180, 140);
+      imageWidget = Image.network(
+        url,
+        width: size.width,
+        height: size.height,
+        fit: BoxFit.contain,
+        gaplessPlayback: true,
+        filterQuality: FilterQuality.medium,
+        errorBuilder: (_, __, ___) => _brokenImage(theme),
+      );
+    } else {
+      size = const Size(160, 120);
+      imageWidget = _brokenImage(theme);
+    }
+    return SizedBox(
+      width: size.width,
+      height: size.height,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: imageWidget,
+      ),
+    );
+  }
+
+  Widget _markdownImage(ThemeData theme, Uri uri, String? alt) {
+    Widget image;
+    final scheme = uri.scheme.toLowerCase();
+    if (scheme == 'http' || scheme == 'https') {
+      image = Image.network(
+        uri.toString(),
+        fit: BoxFit.contain,
+        gaplessPlayback: true,
+        filterQuality: FilterQuality.medium,
+        errorBuilder: (_, __, ___) => _brokenImage(theme),
+      );
+    } else if (scheme == 'data') {
+      try {
+        final key = uri.toString();
+        final bytes = controller.markdownDataImageBytes.putIfAbsent(
+          key,
+          () => uri.data!.contentAsBytes(),
+        );
+        image = Image.memory(
+          bytes,
+          fit: BoxFit.contain,
+          gaplessPlayback: true,
+          filterQuality: FilterQuality.medium,
+          errorBuilder: (_, __, ___) => _brokenImage(theme),
+        );
+      } catch (_) {
+        image = _brokenImage(theme);
+      }
+    } else if (scheme == 'resource') {
+      image = Image.asset(
+        uri.path,
+        fit: BoxFit.contain,
+        gaplessPlayback: true,
+        filterQuality: FilterQuality.medium,
+        errorBuilder: (_, __, ___) => _brokenImage(theme),
+      );
+    } else {
+      try {
+        final file = scheme == 'file'
+            ? File.fromUri(uri)
+            : File(uri.toFilePath(windows: Platform.isWindows));
+        image = Image.file(
+          file,
+          fit: BoxFit.contain,
+          gaplessPlayback: true,
+          filterQuality: FilterQuality.medium,
+          errorBuilder: (_, __, ___) => _brokenImage(theme),
+        );
+      } catch (_) {
+        image = _brokenImage(theme);
+      }
+    }
+    return Semantics(
+      label: alt,
+      image: true,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 320, maxHeight: 220),
+        child: AspectRatio(
+          aspectRatio: 320 / 220,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: image,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _brokenImage(ThemeData theme) => ColoredBox(
+    color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+    child: Center(
+      child: Icon(
+        Icons.broken_image_outlined,
+        size: 20,
+        color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+      ),
+    ),
+  );
+
+  Widget _liveTile(
+    BuildContext context,
+    ThemeData theme,
+    AgentChatState state,
+  ) {
+    final runningActivities = state.activities
+        .where((activity) => activity.status == AgentToolActivityStatus.running)
+        .toList();
+    final hasActivities = runningActivities.isNotEmpty;
+    final hasStreaming = state.streamingText.isNotEmpty;
+    final running = state.status == AgentChatRunStatus.running;
+    if (!hasActivities && !hasStreaming && !running) {
+      return const SizedBox.shrink();
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final activity in runningActivities)
+          AgentChatToolActivityTile(activity: activity),
+        if (hasStreaming)
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.only(bottom: 10, right: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+            child: Text(
+              state.streamingText,
+              style:
+                  (viewData.mobile
+                          ? theme.textTheme.bodyMedium
+                          : theme.textTheme.bodySmall)
+                      ?.copyWith(height: 1.55),
+            ),
+          ),
+        if (running && !hasStreaming && !hasActivities)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Row(
+              children: [
+                const SizedBox(
+                  width: 12,
+                  height: 12,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  context.l10n.agentChat_thinking,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}

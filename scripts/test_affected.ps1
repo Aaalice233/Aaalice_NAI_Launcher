@@ -186,7 +186,10 @@ try {
             $runnerArguments += '-NoTestAssets'
         }
         $runnerArguments += '-Path'
-        $runnerArguments += $batch
+        # Native pwsh -File invocation does not preserve a PowerShell array
+        # parameter across the process boundary. The runner already accepts
+        # comma-separated paths, so pass the batch as one argument.
+        $runnerArguments += ($batch -join ',')
         & pwsh @runnerArguments
         if ($LASTEXITCODE -ne 0) {
             exit $LASTEXITCODE

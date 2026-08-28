@@ -92,18 +92,18 @@ void main() {
 
   test('encodeVibeWithCache 会区分 model 和 informationExtracted', () async {
     final apiService = _FakeEnhancementApiService();
+    final subscriptionNotifier = _TestSubscriptionNotifier();
     final container = ProviderContainer(
       overrides: [
         authNotifierProvider.overrideWith(_AuthenticatedAuthNotifier.new),
         naiImageEnhancementApiServiceProvider.overrideWithValue(apiService),
-        subscriptionNotifierProvider.overrideWith(
-          _TestSubscriptionNotifier.new,
-        ),
+        subscriptionNotifierProvider.overrideWith(() => subscriptionNotifier),
       ],
     );
     addTearDown(container.dispose);
 
     final notifier = container.read(generationParamsNotifierProvider.notifier);
+    expect(container.exists(subscriptionNotifierProvider), isFalse);
     final imageData = Uint8List.fromList([1, 2, 3, 4]);
 
     final first = await notifier.encodeVibeWithCache(
@@ -137,6 +137,33 @@ void main() {
     expect(repeatFirst, first);
     expect(apiService.callCount, 3);
     expect(apiService.requestedInformationExtracted, [0.2, 0.5, 0.5]);
+    expect(subscriptionNotifier.refreshScheduleCount, 3);
+  });
+
+  test('Vibe 编码失败不调度计费刷新', () async {
+    final apiService = _FakeEnhancementApiService(shouldFail: true);
+    final subscriptionNotifier = _TestSubscriptionNotifier();
+    final container = ProviderContainer(
+      overrides: [
+        authNotifierProvider.overrideWith(_AuthenticatedAuthNotifier.new),
+        naiImageEnhancementApiServiceProvider.overrideWithValue(apiService),
+        subscriptionNotifierProvider.overrideWith(() => subscriptionNotifier),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final encoding = await container
+        .read(generationParamsNotifierProvider.notifier)
+        .encodeVibeWithCache(
+          Uint8List.fromList([9, 8, 7]),
+          model: ImageModels.animeDiffusionV4Full,
+          informationExtracted: 0.7,
+          vibeName: 'failed-vibe',
+        );
+
+    expect(encoding, isNull);
+    expect(apiService.callCount, 1);
+    expect(subscriptionNotifier.refreshScheduleCount, 0);
   });
 
   for (final status in [AuthStatus.unauthenticated, AuthStatus.loading]) {
@@ -172,10 +199,12 @@ void main() {
 
   test('Vibe cache hit 可在未登录时匿名复用', () async {
     final apiService = _FakeEnhancementApiService();
+    final subscriptionNotifier = _TestSubscriptionNotifier();
     final container = ProviderContainer(
       overrides: [
         authNotifierProvider.overrideWith(_UnauthenticatedAuthNotifier.new),
         naiImageEnhancementApiServiceProvider.overrideWithValue(apiService),
+        subscriptionNotifierProvider.overrideWith(() => subscriptionNotifier),
       ],
     );
     addTearDown(container.dispose);
@@ -197,6 +226,7 @@ void main() {
 
     expect(encoding, 'cached-encoding');
     expect(apiService.callCount, 0);
+    expect(subscriptionNotifier.refreshScheduleCount, 0);
     expect(container.read(authPromptRequestProvider), isNull);
   });
 
@@ -983,6 +1013,8 @@ class _UnauthenticatedAuthNotifier extends _TestAuthNotifier {
 }
 
 class _TestSubscriptionNotifier extends SubscriptionNotifier {
+  int refreshScheduleCount = 0;
+
   @override
   SubscriptionState build() {
     return const SubscriptionState.loaded(
@@ -991,12 +1023,15 @@ class _TestSubscriptionNotifier extends SubscriptionNotifier {
   }
 
   @override
-  void schedulePostBillingRefresh({Duration delay = Duration.zero}) {}
+  void schedulePostBillingRefresh({Duration delay = Duration.zero}) {
+    refreshScheduleCount++;
+  }
 }
 
 class _FakeEnhancementApiService extends NAIImageEnhancementApiService {
-  _FakeEnhancementApiService() : super(Dio());
+  _FakeEnhancementApiService({this.shouldFail = false}) : super(Dio());
 
+  final bool shouldFail;
   int callCount = 0;
   final List<double> requestedInformationExtracted = [];
 
@@ -1008,6 +1043,7 @@ class _FakeEnhancementApiService extends NAIImageEnhancementApiService {
   }) async {
     callCount++;
     requestedInformationExtracted.add(informationExtracted);
+    if (shouldFail) throw StateError('Vibe encoding failed');
     return '$model|$informationExtracted|$callCount';
   }
 }

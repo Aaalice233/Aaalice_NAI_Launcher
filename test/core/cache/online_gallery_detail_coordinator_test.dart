@@ -142,6 +142,75 @@ void main() {
   );
 
   test(
+    'scope refresh keeps an active visible detail for the same stable key',
+    () async {
+      final item = _item(4);
+      final gate = Completer<GalleryDetail>();
+      var calls = 0;
+      final coordinator = OnlineGalleryDetailCoordinator(
+        maxConcurrent: 1,
+        loader: (requested, cancelToken) {
+          calls++;
+          expect(cancelToken.isCancelled, isFalse);
+          return gate.future;
+        },
+      );
+
+      final visible = coordinator.request(
+        item,
+        priority: GalleryDetailPriority.visible,
+      );
+      coordinator.cancelQueuedVisible();
+      final afterRefresh = coordinator.request(
+        item,
+        priority: GalleryDetailPriority.visible,
+      );
+
+      expect(identical(visible, afterRefresh), isTrue);
+      expect(calls, 1);
+      gate.complete(_detail(item, 'active'));
+      expect((await afterRefresh).description, 'active');
+      expect((await coordinator.request(item)).description, 'active');
+    },
+  );
+
+  test('scope refresh cancels queued visible details only', () async {
+    final activeGate = Completer<GalleryDetail>();
+    final started = <int>[];
+    final coordinator = OnlineGalleryDetailCoordinator(
+      maxConcurrent: 1,
+      loader: (item, _) {
+        started.add(item.id);
+        return activeGate.future;
+      },
+    );
+
+    final active = coordinator.request(_item(1));
+    final queued = coordinator.request(
+      _item(2),
+      priority: GalleryDetailPriority.visible,
+    );
+    final queuedFailure = expectLater(
+      queued,
+      throwsA(
+        isA<DioException>().having(
+          (error) => error.type,
+          'type',
+          DioExceptionType.cancel,
+        ),
+      ),
+    );
+
+    coordinator.cancelQueuedVisible();
+    await queuedFailure;
+    expect(started, [1]);
+
+    activeGate.complete(_detail(_item(1)));
+    await active;
+    expect(started, [1]);
+  });
+
+  test(
     'cancels an interactive detail request and keeps it retryable',
     () async {
       final item = _item(4);
