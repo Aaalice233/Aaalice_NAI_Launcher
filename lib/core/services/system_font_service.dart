@@ -2,21 +2,29 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../platform/platform_capabilities.dart';
+
 part 'system_font_service.g.dart';
 
 /// 系统字体服务 - 通过 MethodChannel 获取系统字体列表
 class SystemFontService {
-  static const _channel = MethodChannel('com.nailauncher/system_fonts');
+  SystemFontService({
+    MethodChannel channel = const MethodChannel('com.nailauncher/system_fonts'),
+    PlatformCapabilities? capabilities,
+  }) : _channel = channel,
+       _capabilities = capabilities ?? PlatformCapabilities.current;
+
+  final MethodChannel _channel;
+  final PlatformCapabilities _capabilities;
 
   /// 获取系统字体列表
   Future<List<String>> getSystemFonts() async {
-    try {
-      final List<dynamic> fonts = await _channel.invokeMethod('getSystemFonts');
-      return fonts.cast<String>();
-    } catch (e) {
-      // 如果获取失败，返回空列表
-      return [];
+    if (!_capabilities.supportsSystemFontEnumeration) {
+      throw UnsupportedError('System font enumeration is not supported');
     }
+
+    final List<dynamic> fonts = await _channel.invokeMethod('getSystemFonts');
+    return fonts.cast<String>();
   }
 }
 
