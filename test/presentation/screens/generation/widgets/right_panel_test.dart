@@ -69,12 +69,12 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      ProviderScope(
+      const ProviderScope(
         child: MaterialApp(
-          locale: const Locale('en'),
+          locale: Locale('en'),
           supportedLocales: AppLocalizations.supportedLocales,
           localizationsDelegates: AppLocalizations.localizationsDelegates,
-          home: const Scaffold(
+          home: Scaffold(
             body: SizedBox(width: 400, height: 640, child: RightPanel()),
           ),
         ),
