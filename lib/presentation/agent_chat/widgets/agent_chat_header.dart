@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import 'package:nai_launcher/presentation/router/app_routes.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../core/windowing/agent_chat_session_picker.dart';
-import '../../../core/windowing/agent_window_runtime.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../prompt_assistant/models/prompt_assistant_models.dart';
 import '../../themes/theme_extension.dart';
@@ -132,9 +131,6 @@ class AgentChatHeader extends StatelessWidget {
           case 'delete':
             await commands.moreAction(AgentChatMoreAction.delete);
             return;
-          case 'detach':
-            await commands.detach();
-            return;
           case 'settings':
             if (context.mounted) _openAgentSettings(context);
             return;
@@ -152,12 +148,6 @@ class AgentChatHeader extends StatelessWidget {
           ),
           const PopupMenuDivider(),
         ],
-        if (AgentWindowRuntime.isDesktop)
-          _menuItem(
-            'detach',
-            Icons.open_in_new_rounded,
-            l10n.agentChat_detachWindow,
-          ),
         _menuItem('settings', Icons.settings_outlined, l10n.settings_agent),
       ],
       child: const SizedBox.square(

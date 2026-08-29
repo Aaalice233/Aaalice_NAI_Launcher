@@ -179,7 +179,6 @@ Future<void> _pumpMessages(
 
 final _commands = AgentChatPanelCommands(
   collapse: () {},
-  detach: () async {},
   newSession: () async {},
   selectSession: (_) async {},
   renameSession: (_) async {},

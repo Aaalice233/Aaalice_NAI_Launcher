@@ -76,7 +76,6 @@ enum AgentChatAttachmentAction {
 class AgentChatPanelCommands {
   const AgentChatPanelCommands({
     required this.collapse,
-    required this.detach,
     required this.newSession,
     required this.selectSession,
     required this.renameSession,
@@ -109,7 +108,6 @@ class AgentChatPanelCommands {
   });
 
   final VoidCallback collapse;
-  final Future<void> Function() detach;
   final Future<void> Function() newSession;
   final Future<void> Function(String sessionId) selectSession;
   final Future<void> Function(String sessionId) renameSession;

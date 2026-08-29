@@ -593,7 +593,6 @@ final _onePixelPng = base64Decode(
 
 final _commands = AgentChatPanelCommands(
   collapse: () {},
-  detach: () async {},
   newSession: () async {},
   selectSession: (_) async {},
   renameSession: (_) async {},

@@ -150,9 +150,11 @@ class DisplayImagesToolbox {
       name: 'display_images',
       label: 'Display Images',
       description:
-          'Display 1-12 images from stable resource_ref objects returned by '
-          'application image tools. Use only when the user asks to see those '
-          'images. Paths and arbitrary URLs are not accepted.',
+          'The only explicit multi-image display tool. Display 1-12 images from '
+          'stable resource_ref objects returned by application image tools. Use '
+          'when the user asks to see retrieved images; preserve the selected '
+          'references and order. onlineGalleryMedia references render as '
+          'interactive gallery cards. Paths and arbitrary URLs are not accepted.',
       parameters: const {
         'type': 'object',
         'properties': {

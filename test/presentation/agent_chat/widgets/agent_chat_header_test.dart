@@ -98,7 +98,7 @@ void main() {
     expect(find.text('重命名'), findsOneWidget);
     expect(find.text('压缩上下文'), findsOneWidget);
     expect(find.text('删除'), findsOneWidget);
-    expect(find.text('在独立窗口中打开'), findsOneWidget);
+    expect(find.text('在独立窗口中打开'), findsNothing);
     expect(find.text('智能体'), findsOneWidget);
     await tester.tap(find.text('重命名'));
     await tester.pumpAndSettle();
@@ -153,7 +153,6 @@ Widget _app({
   );
   final commands = AgentChatPanelCommands(
     collapse: () {},
-    detach: () async {},
     newSession: () async {},
     selectSession: (id) async => onSelect?.call(id),
     renameSession: (_) async {},

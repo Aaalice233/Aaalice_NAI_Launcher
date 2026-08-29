@@ -790,18 +790,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get agentChat_tab => 'チャット';
 
   @override
-  String get agentChat_detachWindow => '別ウィンドウで開く';
-
-  @override
-  String get agentChat_detachWindowFailed => '別ウィンドウを開けませんでした。もう一度お試しください';
-
-  @override
-  String get agentChat_dockWindow => 'メインウィンドウに戻す';
-
-  @override
-  String get agentChat_alwaysOnTop => '常に手前に表示';
-
-  @override
   String get agentChat_inputHint => 'AI アシスタントにメッセージを送る…';
 
   @override

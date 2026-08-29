@@ -9,9 +9,7 @@ import '../../../core/agent/agent_types.dart';
 import '../../../core/agent/harness/harness_messages.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference_codec.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference.dart';
-import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/localization_extension.dart';
-import '../../../core/windowing/agent_window_runtime.dart';
 import 'package:nai_launcher/presentation/providers/layout_state_provider.dart';
 
 import '../../agent_settings/providers/agent_settings_provider.dart';
@@ -50,25 +48,6 @@ class AgentChatPanelCoordinator {
           .setRightPanelExpanded(false),
       loadEarlierHistory: () =>
           _ref.read(agentChatNotifierProvider.notifier).loadEarlierHistory(),
-      detach: () async {
-        try {
-          await AgentWindowRuntime.instance.open();
-        } on Object catch (error, stackTrace) {
-          AppLogger.e(
-            'Failed to open detached Agent window',
-            error,
-            stackTrace,
-            'AgentWindow',
-          );
-          if (context.mounted) {
-            AppToast.error(context, context.l10n.agentChat_detachWindowFailed);
-          }
-          return;
-        }
-        _ref
-            .read(layoutStateNotifierProvider.notifier)
-            .setRightPanelExpanded(false);
-      },
       newSession: () => _notifier.newSession(),
       selectSession: (sessionId) => _notifier.switchSession(sessionId),
       renameSession: (sessionId) => _renameSession(context, sessionId),

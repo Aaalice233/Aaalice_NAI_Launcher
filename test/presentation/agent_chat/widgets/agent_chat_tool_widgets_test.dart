@@ -384,6 +384,68 @@ void main() {
     expect(decoded?.height, 3);
   });
 
+  testWidgets('online gallery refs render quiet multi-card metadata layout', (
+    tester,
+  ) async {
+    final references = [
+      for (var index = 0; index < 3; index++)
+        AgentChatResourceReference(
+          kind: AgentChatResourceKind.onlineGalleryMedia,
+          source: 'danbooru',
+          resourceId: '$index',
+          display: {
+            'source_label': 'Danbooru',
+            'title': 'Ibuki $index',
+            'author': 'Artist $index',
+          },
+        ),
+    ];
+    final result = ToolResultMessage(
+      toolCallId: 'display-online',
+      toolName: 'display_images',
+      content: [
+        for (var index = 0; index < references.length; index++)
+          ToolResultImageContent(
+            ImageContent(
+              source: ImageSource.base64(
+                mimeType: 'image/png',
+                base64Data: base64Encode(_onePixelPng),
+              ),
+            ),
+          ),
+      ],
+      details: {
+        'images': [
+          for (final reference in references)
+            {
+              'resource_ref': AgentChatResourceReferenceCodec.encodeJsonMap(
+                reference,
+              ),
+            },
+        ],
+      },
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: AgentChatToolResultMedia(result: result)),
+        ),
+      ),
+    );
+
+    expect(
+      find.byKey(const ValueKey('online-gallery-resource-card')),
+      findsNWidgets(3),
+    );
+    expect(find.text('Danbooru'), findsNWidgets(3));
+    expect(find.text('Ibuki 1'), findsOneWidget);
+    expect(find.text('Artist 2'), findsOneWidget);
+    expect(find.byType(Wrap), findsWidgets);
+  });
+
   testWidgets('tool group hides failure payload until explicitly expanded', (
     tester,
   ) async {

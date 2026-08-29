@@ -775,18 +775,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agentChat_tab => '聊天';
 
   @override
-  String get agentChat_detachWindow => '在独立窗口中打开';
-
-  @override
-  String get agentChat_detachWindowFailed => '无法打开独立窗口，请重试';
-
-  @override
-  String get agentChat_dockWindow => '收回主窗口';
-
-  @override
-  String get agentChat_alwaysOnTop => '窗口置顶';
-
-  @override
   String get agentChat_inputHint => '给 AI 助手发消息…';
 
   @override
@@ -13878,18 +13866,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get agentChat_tab => '聊天';
-
-  @override
-  String get agentChat_detachWindow => '在獨立視窗中開啟';
-
-  @override
-  String get agentChat_detachWindowFailed => '無法開啟獨立視窗，請重試';
-
-  @override
-  String get agentChat_dockWindow => '收回主視窗';
-
-  @override
-  String get agentChat_alwaysOnTop => '視窗置頂';
 
   @override
   String get agentChat_inputHint => '給 AI 助手傳送訊息…';

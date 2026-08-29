@@ -1571,30 +1571,6 @@ abstract class AppLocalizations {
   /// **'Chat'**
   String get agentChat_tab;
 
-  /// No description provided for @agentChat_detachWindow.
-  ///
-  /// In en, this message translates to:
-  /// **'Open in separate window'**
-  String get agentChat_detachWindow;
-
-  /// No description provided for @agentChat_detachWindowFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Could not open the separate window. Try again.'**
-  String get agentChat_detachWindowFailed;
-
-  /// No description provided for @agentChat_dockWindow.
-  ///
-  /// In en, this message translates to:
-  /// **'Dock back to the main window'**
-  String get agentChat_dockWindow;
-
-  /// No description provided for @agentChat_alwaysOnTop.
-  ///
-  /// In en, this message translates to:
-  /// **'Always on top'**
-  String get agentChat_alwaysOnTop;
-
   /// No description provided for @agentChat_inputHint.
   ///
   /// In en, this message translates to:

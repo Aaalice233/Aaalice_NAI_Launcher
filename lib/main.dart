@@ -19,9 +19,6 @@ import 'l10n/app_localizations_en.dart';
 import 'l10n/app_localizations_ja.dart';
 import 'l10n/app_localizations_zh.dart';
 import 'core/services/desktop_app_shutdown_service.dart';
-import 'core/windowing/agent_window_protocol.dart';
-import 'core/windowing/agent_window_runtime.dart';
-import 'presentation/agent_chat/services/agent_window_bridge_adapter.dart';
 import 'core/utils/app_error_reporter.dart';
 import 'core/utils/app_locale.dart';
 import 'core/utils/fatal_diagnostics.dart';
@@ -495,37 +492,7 @@ Future<void> _runDeferredStartup(ProviderContainer container) async {
   });
 }
 
-void main(List<String> args) {
-  if (AgentWindowRuntime.isDesktop) {
-    switch (classifyAgentWindowEntrypoint(args)) {
-      case AgentWindowEntrypointKind.compatibleSecondary:
-        final arguments = AgentWindowLaunchArguments.tryParseEntrypointArgs(
-          args,
-        )!;
-        unawaited(
-          runAgentWindowSecondary(
-            arguments: arguments,
-            builder: buildAgentWindowBridgeShell,
-          ).catchError((Object error, StackTrace stackTrace) {
-            AppErrorReporter.reportError(
-              error,
-              stackTrace,
-              source: 'agentWindowSecondary',
-              fatal: true,
-            );
-          }),
-        );
-        return;
-      case AgentWindowEntrypointKind.incompatibleSecondary:
-        // An old secondary engine must remain IPC-only even when its launch
-        // protocol no longer matches this Dart code after a hot restart.
-        unawaited(closeIncompatibleAgentWindowSecondary());
-        return;
-      case AgentWindowEntrypointKind.primary:
-        break;
-    }
-  }
-
+void main() {
   final bootstrap = runZonedGuarded<Future<void>>(_bootstrapApplication, (
     error,
     stackTrace,
@@ -607,53 +574,6 @@ Future<void> _bootstrapApplication() async {
       generationSessionPersistenceEnabledProvider.overrideWithValue(true),
     ],
   );
-  if (AgentWindowRuntime.isDesktop) {
-    final settings = Hive.box(StorageKeys.settingsBox);
-    late AgentWindowBridgeAdapter bridgeAdapter;
-    await AgentWindowRuntime.instance.initializeMain(
-      preferences: CallbackAgentWindowPreferences(
-        boundsReader: () async {
-          final value = settings.get('agentWindow.bounds');
-          if (value is! Map) return null;
-          try {
-            return AgentWindowBounds.fromJson(
-              Map<Object?, Object?>.from(value),
-            );
-          } on FormatException {
-            return null;
-          }
-        },
-        boundsWriter: (bounds) =>
-            settings.put('agentWindow.bounds', bounds.toJson()),
-        alwaysOnTopReader: () async {
-          final value = settings.get(
-            'agentWindow.alwaysOnTop',
-            defaultValue: false,
-          );
-          return value is bool && value;
-        },
-        alwaysOnTopWriter: (value) =>
-            settings.put('agentWindow.alwaysOnTop', value),
-        detachedReader: () async =>
-            settings.get('agentWindow.detached', defaultValue: false) == true,
-        detachedWriter: (value) => settings.put('agentWindow.detached', value),
-      ),
-      commandHandler: (name, payload) =>
-          bridgeAdapter.handleCommand(name, payload),
-    );
-    bridgeAdapter = await AgentWindowBridgeAdapter.attach(container);
-    WidgetsBinding.instance.addObserver(AgentWindowMainLifecycleObserver());
-    unawaited(
-      AgentWindowRuntime.instance.restoreDetached().catchError((error, stack) {
-        AppLogger.e(
-          'Failed to restore the detached Agent window',
-          error,
-          stack,
-          'AgentWindow',
-        );
-      }),
-    );
-  }
   AppLogger.i('Calling runApp; database warmup has not started', 'Main');
   runApp(
     UncontrolledProviderScope(

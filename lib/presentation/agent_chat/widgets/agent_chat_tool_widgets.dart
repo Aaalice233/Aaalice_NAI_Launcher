@@ -323,14 +323,11 @@ class _AgentChatToolResultTileState extends State<AgentChatToolResultTile> {
               children: [
                 for (final path in files)
                   _ToolResultImage(key: ValueKey(path), path: path),
-                for (var index = 0; index < resourceReferences.length; index++)
-                  _ToolResultResourcePreview(
-                    key: ValueKey('${result.toolCallId}-ref-$index'),
-                    reference: resourceReferences[index],
-                    thumbnailBytes: index < inlineImages.length
-                        ? inlineImages[index]
-                        : null,
-                  ),
+                ..._buildResourcePreviewWidgets(
+                  references: resourceReferences,
+                  inlineImages: inlineImages,
+                  keyPrefix: '${result.toolCallId}-ref',
+                ),
                 for (
                   var index = 0;
                   index < unpairedInlineImages.length;
@@ -394,15 +391,12 @@ class AgentChatToolResultMedia extends StatelessWidget {
         children: [
           for (final path in files)
             _ToolResultImage(key: ValueKey(path), path: path),
-          for (var index = 0; index < resourceReferences.length; index++)
-            _ToolResultResourcePreview(
-              key: ValueKey('${result.toolCallId}-media-ref-$index'),
-              reference: resourceReferences[index],
-              thumbnailBytes: index < inlineImages.length
-                  ? inlineImages[index]
-                  : null,
-              resolveResource: resolveResource,
-            ),
+          ..._buildResourcePreviewWidgets(
+            references: resourceReferences,
+            inlineImages: inlineImages,
+            keyPrefix: '${result.toolCallId}-media-ref',
+            resolveResource: resolveResource,
+          ),
           for (var index = 0; index < unpairedInlineImages.length; index++)
             _ToolResultInlineImage(
               key: ValueKey('${result.toolCallId}-media-inline-$index'),
@@ -954,6 +948,41 @@ List<AgentChatResourceReference> _extractResourceReferences(
   return references;
 }
 
+List<Widget> _buildResourcePreviewWidgets({
+  required List<AgentChatResourceReference> references,
+  required List<Uint8List> inlineImages,
+  required String keyPrefix,
+  Future<ResolvedAgentResource?> Function(AgentChatResourceReference reference)?
+  resolveResource,
+}) {
+  final online = <Widget>[];
+  final other = <Widget>[];
+  for (var index = 0; index < references.length; index++) {
+    final reference = references[index];
+    final preview = _ToolResultResourcePreview(
+      key: ValueKey('$keyPrefix-$index'),
+      reference: reference,
+      thumbnailBytes: index < inlineImages.length ? inlineImages[index] : null,
+      resolveResource: resolveResource,
+    );
+    if (reference.kind == AgentChatResourceKind.onlineGalleryMedia) {
+      online.add(SizedBox(width: 200, child: preview));
+    } else {
+      other.add(preview);
+    }
+  }
+  return [
+    if (online.isNotEmpty)
+      Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        alignment: WrapAlignment.center,
+        children: online,
+      ),
+    ...other,
+  ];
+}
+
 class _ToolResultResourcePreview extends ConsumerStatefulWidget {
   const _ToolResultResourcePreview({
     super.key,
@@ -1027,31 +1056,119 @@ class _ToolResultResourcePreviewState
     }
   }
 
+  Widget _buildPreview(Uint8List bytes) {
+    final image = Image.memory(
+      bytes,
+      fit: BoxFit.contain,
+      alignment: Alignment.center,
+      gaplessPlayback: true,
+      errorBuilder: (_, _, _) => const _AgentResourceUnavailableImage(),
+    );
+    if (widget.reference.kind == AgentChatResourceKind.onlineGalleryMedia) {
+      return _OnlineGalleryResourceCard(
+        reference: widget.reference,
+        onTap: () => unawaited(_openOriginal()),
+        image: image,
+      );
+    }
+    return _ToolResultInteractiveImageCard(
+      onTap: () => unawaited(_openOriginal()),
+      child: image,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final thumbnail = widget.thumbnailBytes;
-    if (thumbnail != null) {
-      return _ToolResultInteractiveImageCard(
-        onTap: () => unawaited(_openOriginal()),
-        child: Image.memory(
-          thumbnail,
-          fit: BoxFit.contain,
-          alignment: Alignment.center,
-          gaplessPlayback: true,
-          errorBuilder: (_, _, _) => const _AgentResourceUnavailableImage(),
-        ),
-      );
-    }
+    if (thumbnail != null) return _buildPreview(thumbnail);
     return FutureBuilder<ResolvedAgentResource?>(
       future: _resolve(),
       builder: (context, snapshot) {
         final bytes = snapshot.data?.bytes;
         if (bytes == null) return const _AgentResourceUnavailableImage();
-        return _ToolResultInteractiveImageCard(
-          onTap: () => unawaited(_openOriginal()),
-          child: Image.memory(bytes, fit: BoxFit.contain),
-        );
+        return _buildPreview(bytes);
       },
+    );
+  }
+}
+
+class _OnlineGalleryResourceCard extends StatelessWidget {
+  const _OnlineGalleryResourceCard({
+    required this.reference,
+    required this.onTap,
+    required this.image,
+  });
+
+  final AgentChatResourceReference reference;
+  final VoidCallback onTap;
+  final Widget image;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final source = reference.display['source_label'] ?? reference.source;
+    final title = reference.display['title'];
+    final author = reference.display['author'];
+    return Semantics(
+      button: true,
+      label: [source, title, author].whereType<String>().join(', '),
+      child: Material(
+        key: const ValueKey('online-gallery-resource-card'),
+        color: theme.colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(10),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              AspectRatio(
+                aspectRatio: 4 / 3,
+                child: ColoredBox(
+                  color: theme.colorScheme.surfaceContainerHighest,
+                  child: image,
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(10, 8, 10, 9),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      source,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.primary,
+                      ),
+                    ),
+                    if (title != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.labelLarge,
+                      ),
+                    ],
+                    if (author != null) ...[
+                      const SizedBox(height: 1),
+                      Text(
+                        author,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
