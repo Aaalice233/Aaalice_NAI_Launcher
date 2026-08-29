@@ -156,7 +156,7 @@ class OnlineGalleryPendingCard extends StatelessWidget {
       height: itemWidth,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(8),
-        child: const OnlineGalleryImagePlaceholder(),
+        child: const OnlineGalleryImagePlaceholder(loading: true),
       ),
     );
   }

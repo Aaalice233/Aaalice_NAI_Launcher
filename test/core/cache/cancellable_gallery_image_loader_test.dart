@@ -162,6 +162,30 @@ void main() {
     await Future<void>.delayed(const Duration(milliseconds: 20));
     expect(cache.putCalled, isFalse);
   });
+
+  test('non-image responses are rejected without publishing cache', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(() => server.close(force: true));
+    server.listen((request) async {
+      request.response.headers.contentType = ContentType.html;
+      request.response.write('<html>upstream error</html>');
+      await request.response.close();
+    });
+    final cache = _RecordingCacheManager();
+    final loader = CancellableGalleryImageLoader(cacheManager: cache);
+    addTearDown(loader.dispose);
+    final operation = loader.start(
+      GalleryImageRequest(
+        sourceId: 'test',
+        url: 'http://${server.address.host}:${server.port}/error.jpg',
+        cacheKey: 'invalid-content-type',
+        tier: GalleryImageTier.thumbnail,
+      ),
+    );
+
+    await expectLater(operation.future, throwsA(isA<StateError>()));
+    expect(cache.putCalled, isFalse);
+  });
 }
 
 class _RecordingCacheManager implements BaseCacheManager {

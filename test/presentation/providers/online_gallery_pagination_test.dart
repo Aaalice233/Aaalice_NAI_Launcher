@@ -47,38 +47,83 @@ void main() {
     },
   );
 
-  test('background pause cancels gallery page traffic until resume', () async {
-    final started = Completer<void>();
-    var calls = 0;
-    final adapter = _FakeGalleryAdapter(
-      GallerySourceId.danbooru,
-      onSearch: (request, cancelToken) async {
-        calls++;
-        if (calls == 1) {
-          started.complete();
-          throw await cancelToken!.whenCancel;
-        }
-        return _page(request.cursor, [_item(1)], nextCursor: null);
-      },
-    );
-    final container = _container(danbooru: adapter);
-    addTearDown(container.dispose);
-    final notifier = container.read(onlineGalleryNotifierProvider.notifier);
+  test(
+    'background pause cancels and automatically resumes page traffic',
+    () async {
+      final started = Completer<void>();
+      var calls = 0;
+      final adapter = _FakeGalleryAdapter(
+        GallerySourceId.danbooru,
+        onSearch: (request, cancelToken) async {
+          calls++;
+          if (calls == 1) {
+            started.complete();
+            throw await cancelToken!.whenCancel;
+          }
+          return _page(request.cursor, [_item(1)], nextCursor: null);
+        },
+      );
+      final container = _container(danbooru: adapter);
+      addTearDown(container.dispose);
+      final notifier = container.read(onlineGalleryNotifierProvider.notifier);
 
-    final active = notifier.loadPosts();
-    await started.future;
-    notifier.setBackgroundNetworkPaused(true);
-    await active;
-    expect(container.read(onlineGalleryNotifierProvider).isLoading, isFalse);
+      final active = notifier.loadPosts();
+      await started.future;
+      notifier.setBackgroundNetworkPaused(true);
+      await active;
+      expect(container.read(onlineGalleryNotifierProvider).isLoading, isFalse);
 
-    await notifier.loadPosts();
-    expect(calls, 1);
+      await notifier.loadPosts();
+      expect(calls, 1);
 
-    notifier.setBackgroundNetworkPaused(false);
-    await notifier.loadPosts();
-    expect(calls, 2);
-    expect(container.read(onlineGalleryNotifierProvider).posts, hasLength(1));
-  });
+      notifier.setBackgroundNetworkPaused(false);
+      await _waitUntil(
+        () =>
+            calls == 2 &&
+            container.read(onlineGalleryNotifierProvider).posts.length == 1,
+      );
+      expect(calls, 2);
+      expect(container.read(onlineGalleryNotifierProvider).posts, hasLength(1));
+    },
+  );
+
+  test(
+    'background pause resumes an interrupted append from the same cursor',
+    () async {
+      final appendStarted = Completer<void>();
+      var appendCalls = 0;
+      final adapter = _FakeGalleryAdapter(
+        GallerySourceId.danbooru,
+        onSearch: (request, cancelToken) async {
+          if (request.cursor == '1') {
+            return _page('1', [_item(1)], nextCursor: '2');
+          }
+          appendCalls++;
+          if (appendCalls == 1) {
+            appendStarted.complete();
+            throw await cancelToken!.whenCancel;
+          }
+          return _page('2', [_item(2)], nextCursor: null);
+        },
+      );
+      final container = _container(danbooru: adapter);
+      addTearDown(container.dispose);
+      final notifier = container.read(onlineGalleryNotifierProvider.notifier);
+      await notifier.loadPosts();
+
+      final append = notifier.loadMore();
+      await appendStarted.future;
+      notifier.setBackgroundNetworkPaused(true);
+      await append;
+      notifier.setBackgroundNetworkPaused(false);
+
+      await _waitUntil(
+        () => container.read(onlineGalleryNotifierProvider).posts.length == 2,
+      );
+      expect(adapter.searchCursors, ['1', '2', '2']);
+      expect(container.read(onlineGalleryNotifierProvider).page, 2);
+    },
+  );
 
   test(
     'concurrent load-more triggers claim one append synchronously',

@@ -46,23 +46,7 @@ class OnlineGalleryScrollPrefetchCoordinator {
       metrics.extentAfter <=
       OnlineGalleryPreloadPolicy.loadAheadDistance(metrics.viewportDimension);
 
-  Future<bool> prepareVisibleMedia(GalleryItem item, double itemWidth) {
-    if (!item.mediaCapability.canPrefetchPreview) {
-      return Future<bool>.value(true);
-    }
-    return controller.prefetchCoordinator.submit(
-      imageRequest(
-        item,
-        item.previewUrl,
-        GalleryImageTier.thumbnail,
-        itemWidth,
-      ),
-      priority: GalleryImagePriority.visible,
-    );
-  }
-
   void onScroll() {
-    controller.hoverController.dismiss();
     if (!controller.branchVisible) return;
     final offset = controller.scrollController.offset;
     if (offset != controller.lastScrollOffset) {
@@ -72,15 +56,17 @@ class OnlineGalleryScrollPrefetchCoordinator {
           : -1;
       controller.lastScrollOffset = offset;
       controller.setScrolling(true);
-      controller.prefetchCoordinator.setScrolling(true);
-      if (startedScrolling) _retainVisibleThumbnailWindow();
-      notifier.cancelLookaheadDetailRequests();
+      if (startedScrolling) {
+        controller.hoverController.dismiss();
+        controller.prefetchCoordinator.setScrolling(true);
+        _retainVisibleThumbnailWindow();
+        notifier.cancelLookaheadDetailRequests();
+      }
       controller.scrollStopTimer?.cancel();
       controller.scrollStopTimer = Timer(const Duration(milliseconds: 150), () {
         if (!isMounted() || !controller.branchVisible) return;
         controller.setScrolling(false);
         controller.prefetchCoordinator.setScrolling(false);
-        saveScrollOffset();
         scheduleVisiblePrefetch();
       });
     }
@@ -88,7 +74,9 @@ class OnlineGalleryScrollPrefetchCoordinator {
     final cache = state.randomEnabled
         ? state.randomSession.cache
         : state.currentCache;
-    if (!cache.queryScanPaused &&
+    if (!state.isLoading &&
+        !state.isLoadingMore &&
+        !cache.queryScanPaused &&
         isWithinLoadAhead(controller.scrollController.position)) {
       unawaited(notifier.loadMore());
     }
@@ -213,12 +201,18 @@ class OnlineGalleryScrollPrefetchCoordinator {
     );
     if (controller.scrollController.hasClients) {
       final position = controller.scrollController.position;
-      controller.lookaheadItemCount =
-          OnlineGalleryPreloadPolicy.lookaheadItemCount(
-            viewportHeight: position.viewportDimension,
-            itemWidth: itemWidth,
-            columnCount: columnCount,
-          );
+      if (controller.updateLookaheadMetrics(
+        viewportHeight: position.viewportDimension,
+        itemWidth: itemWidth,
+        columnCount: columnCount,
+      )) {
+        controller.lookaheadItemCount =
+            OnlineGalleryPreloadPolicy.lookaheadItemCount(
+              viewportHeight: position.viewportDimension,
+              itemWidth: itemWidth,
+              columnCount: columnCount,
+            );
+      }
     }
     // VisibilityDetector also reports position changes for cards that remain
     // visible. Keep the anchor and viewport sizing current, but do not repeat

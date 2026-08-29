@@ -124,6 +124,38 @@ void main() {
   );
 
   test(
+    'completed thumbnails are reused without starting another preload',
+    () async {
+      var starts = 0;
+      final request = _request(1);
+      final coordinator = OnlineGalleryPrefetchCoordinator(
+        preloader: (_) {
+          starts++;
+          return _operation(Future<void>.value());
+        },
+      );
+      addTearDown(coordinator.dispose);
+
+      expect(
+        await coordinator.submit(
+          request,
+          priority: GalleryImagePriority.visible,
+        ),
+        isTrue,
+      );
+      expect(coordinator.isReady(request), isTrue);
+      expect(
+        await coordinator.submit(
+          request,
+          priority: GalleryImagePriority.visible,
+        ),
+        isTrue,
+      );
+      expect(starts, 1);
+    },
+  );
+
+  test(
     'generation rotation rejects old queued and in-flight results',
     () async {
       final gate = Completer<void>();

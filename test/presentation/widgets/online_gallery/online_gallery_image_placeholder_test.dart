@@ -47,4 +47,21 @@ void main() {
       const Size(180, 120),
     );
   });
+
+  testWidgets('loading placeholder exposes a lightweight loading affordance', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: SizedBox(
+          width: 180,
+          height: 120,
+          child: OnlineGalleryImagePlaceholder(loading: true),
+        ),
+      ),
+    );
+
+    expect(find.byIcon(Icons.downloading_rounded), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+  });
 }

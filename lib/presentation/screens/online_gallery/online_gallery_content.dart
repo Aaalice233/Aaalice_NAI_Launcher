@@ -310,7 +310,6 @@ class _OnlineGalleryContentPresenter {
         state.currentCacheKey,
         _galleryNotifier.detailRequestScopeRevision,
       ),
-      prepareMedia: _scrollCoordinator.prepareVisibleMedia,
       loadDetail: (item, {required priority, forceRefresh = false}) =>
           _galleryNotifier.loadDetail(
             item,
@@ -360,14 +359,14 @@ class _OnlineGalleryContentPresenter {
         final favoriteState = cardRef.watch(
           onlineGalleryNotifierProvider.select(
             (value) => (
-              value.localFavoritedPostKeys,
-              value.remoteFavoritedPostKeys,
+              value.localFavoritedPostKeys.contains(postKey),
+              value.remoteFavoritedPostKeys.contains(postKey),
               value.favoriteLoadingPostKeys.contains(postKey),
             ),
           ),
         );
-        final localFavorited = favoriteState.$1.contains(postKey);
-        final remoteFavorited = favoriteState.$2.contains(postKey);
+        final localFavorited = favoriteState.$1;
+        final remoteFavorited = favoriteState.$2;
         final writesRemotely =
             post.sourceId == GallerySourceId.danbooru &&
             cardRef.watch(

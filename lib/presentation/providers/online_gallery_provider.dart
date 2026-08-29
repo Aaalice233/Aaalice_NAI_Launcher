@@ -112,6 +112,8 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
   bool _loadMoreClaimed = false;
   int _loadMoreClaimRevision = 0;
   bool _backgroundNetworkPaused = false;
+  bool _resumeInitialLoadAfterBackgroundPause = false;
+  bool _resumeAppendAfterBackgroundPause = false;
 
   int get detailRequestScopeRevision => _detailRequestScopeRevision;
 
@@ -125,15 +127,30 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     if (_backgroundNetworkPaused == paused) return;
     _backgroundNetworkPaused = paused;
     if (paused) {
-      _loadCoordinator.cancel('Gallery background network paused');
-      if (state.isLoading || state.isLoadingMore) {
-        state = state.copyWith(isLoading: false, isLoadingMore: false);
-      }
+      _resumeInitialLoadAfterBackgroundPause = state.isLoading;
+      _resumeAppendAfterBackgroundPause = state.isLoadingMore;
+      _cancelCurrentRequest();
     }
     _details.setBackgroundPaused(paused);
     if (!paused) {
       _detailRequestScopeRevision++;
       state = state.copyWith();
+      final resumeInitial = _resumeInitialLoadAfterBackgroundPause;
+      final resumeAppend = _resumeAppendAfterBackgroundPause;
+      _resumeInitialLoadAfterBackgroundPause = false;
+      _resumeAppendAfterBackgroundPause = false;
+      if (resumeInitial || resumeAppend) {
+        unawaited(
+          Future<void>(() async {
+            if (_backgroundNetworkPaused) return;
+            if (resumeAppend) {
+              await loadMore();
+            } else {
+              await loadPosts();
+            }
+          }),
+        );
+      }
     }
   }
 

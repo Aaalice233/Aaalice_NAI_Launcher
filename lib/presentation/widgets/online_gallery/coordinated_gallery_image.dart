@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 
 import '../../../core/cache/gallery_image_request.dart';
@@ -45,6 +43,7 @@ class _CoordinatedGalleryImageState extends State<CoordinatedGalleryImage> {
   @override
   void initState() {
     super.initState();
+    _ready = widget.coordinator.isReady(widget.request);
     widget.coordinator.addListener(_handleCoordinatorChanged);
   }
 
@@ -71,7 +70,7 @@ class _CoordinatedGalleryImageState extends State<CoordinatedGalleryImage> {
       _revision += 1;
       _requesting = false;
       if (requestChanged) {
-        _ready = false;
+        _ready = widget.coordinator.isReady(widget.request);
         _failed = false;
       } else if (!_ready) {
         _failed = false;
@@ -111,12 +110,6 @@ class _CoordinatedGalleryImageState extends State<CoordinatedGalleryImage> {
         _ready = loaded;
         _failed = negativelyCached;
       });
-      if (!loaded &&
-          !widget.coordinator.isDisposed &&
-          !widget.coordinator.isPaused &&
-          !negativelyCached) {
-        scheduleMicrotask(_requestImage);
-      }
     });
   }
 
@@ -124,6 +117,8 @@ class _CoordinatedGalleryImageState extends State<CoordinatedGalleryImage> {
   Widget build(BuildContext context) {
     if (_failed) return widget.errorWidget ?? const SizedBox.shrink();
     if (!_ready) return widget.placeholder ?? const SizedBox.shrink();
+    final placeholder = widget.placeholder ?? const SizedBox.shrink();
+    final disableAnimations = MediaQuery.disableAnimationsOf(context);
     return Image(
       image: widget.request.createImageProvider(
         OnlineGalleryImageCacheManager.instance,
@@ -131,6 +126,24 @@ class _CoordinatedGalleryImageState extends State<CoordinatedGalleryImage> {
       fit: widget.fit,
       alignment: widget.alignment,
       gaplessPlayback: true,
+      frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+        if (frame == null) return placeholder;
+        if (wasSynchronouslyLoaded || disableAnimations) return child;
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            placeholder,
+            TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0, end: 1),
+              duration: const Duration(milliseconds: 160),
+              curve: Curves.easeOutCubic,
+              builder: (_, opacity, image) =>
+                  Opacity(opacity: opacity, child: image),
+              child: child,
+            ),
+          ],
+        );
+      },
       errorBuilder: (_, error, __) {
         if (!_failed) {
           _failed = true;

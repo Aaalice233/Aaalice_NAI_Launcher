@@ -519,15 +519,16 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                         fit: StackFit.expand,
                         children: [
                           if (!widget.loadMedia)
-                            const OnlineGalleryImagePlaceholder()
+                            const OnlineGalleryImagePlaceholder(loading: true)
                           else if (gridImageRequest.url.isEmpty)
                             _buildNoImageContent(theme)
                           else if (widget.imageCoordinator != null)
                             CoordinatedGalleryImage(
                               request: gridImageRequest,
                               coordinator: widget.imageCoordinator!,
-                              placeholder:
-                                  const OnlineGalleryImagePlaceholder(),
+                              placeholder: const OnlineGalleryImagePlaceholder(
+                                loading: true,
+                              ),
                               errorWidget: const OnlineGalleryImagePlaceholder(
                                 failed: true,
                               ),
@@ -545,7 +546,9 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                                 // 静默处理图片加载错误，避免控制台警告
                               },
                               placeholder: (context, url) =>
-                                  const OnlineGalleryImagePlaceholder(),
+                                  const OnlineGalleryImagePlaceholder(
+                                    loading: true,
+                                  ),
                               errorWidget: (context, url, error) =>
                                   const OnlineGalleryImagePlaceholder(
                                     failed: true,

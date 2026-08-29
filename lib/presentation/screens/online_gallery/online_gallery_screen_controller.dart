@@ -56,6 +56,9 @@ class OnlineGalleryScreenController extends ChangeNotifier {
   double lastScrollOffset = 0;
   int scrollDirection = 1;
   int lookaheadItemCount = 12;
+  double? _lookaheadViewportHeight;
+  double? _lookaheadItemWidth;
+  int? _lookaheadColumnCount;
   bool get isScrolling => scrolling.value;
   bool isEditingPage = false;
   GalleryViewMode? lastViewMode;
@@ -92,13 +95,37 @@ class OnlineGalleryScreenController extends ChangeNotifier {
     GalleryImageRequest? thumbnailRequest,
   }) {
     final previous = visibleItems[index];
+    final enteredViewport = previous?.item.stableKey != item.stableKey;
+    final unchanged =
+        !enteredViewport &&
+        previous?.itemWidth == itemWidth &&
+        (previous!.visibleTop - visibleTop).abs() < 8 &&
+        previous.thumbnailRequest?.stableRequestKey ==
+            thumbnailRequest?.stableRequestKey;
+    if (unchanged) return false;
     visibleItems[index] = (
       item: item,
       itemWidth: itemWidth,
       visibleTop: visibleTop,
       thumbnailRequest: thumbnailRequest,
     );
-    return previous?.item.stableKey != item.stableKey;
+    return enteredViewport;
+  }
+
+  bool updateLookaheadMetrics({
+    required double viewportHeight,
+    required double itemWidth,
+    required int columnCount,
+  }) {
+    if (_lookaheadViewportHeight == viewportHeight &&
+        _lookaheadItemWidth == itemWidth &&
+        _lookaheadColumnCount == columnCount) {
+      return false;
+    }
+    _lookaheadViewportHeight = viewportHeight;
+    _lookaheadItemWidth = itemWidth;
+    _lookaheadColumnCount = columnCount;
+    return true;
   }
 
   void beginPageEditing(int currentPage) {

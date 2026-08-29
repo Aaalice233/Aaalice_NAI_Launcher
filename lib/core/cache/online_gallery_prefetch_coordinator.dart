@@ -58,6 +58,7 @@ class OnlineGalleryPrefetchCoordinator extends ChangeNotifier {
   };
   final Map<String, _PrefetchTask> _pending = {};
   final Map<String, _PrefetchTask> _inFlight = {};
+  final LinkedHashMap<String, DateTime> _completedThumbnails = LinkedHashMap();
   final LinkedHashMap<String, DateTime> _completedSamples = LinkedHashMap();
   final LinkedHashMap<String, DateTime> _failures = LinkedHashMap();
   final Set<GalleryPrefetchPauseReason> _pauseReasons = {};
@@ -81,6 +82,14 @@ class OnlineGalleryPrefetchCoordinator extends ChangeNotifier {
 
   bool isSampleReady(GalleryImageRequest request) =>
       _completedSamples.containsKey(request.stableRequestKey);
+
+  bool isReady(GalleryImageRequest request) => switch (request.tier) {
+    GalleryImageTier.thumbnail => _completedThumbnails.containsKey(
+      request.stableRequestKey,
+    ),
+    GalleryImageTier.sample => isSampleReady(request),
+    GalleryImageTier.original => false,
+  };
 
   bool isNegativelyCached(GalleryImageRequest request) {
     final failedAt = _failures[request.stableRequestKey];
@@ -166,7 +175,7 @@ class OnlineGalleryPrefetchCoordinator extends ChangeNotifier {
       debugNegativeCacheHitCount++;
       return Future.value(false);
     }
-    if (request.tier == GalleryImageTier.sample && isSampleReady(request)) {
+    if (isReady(request)) {
       return Future.value(true);
     }
     final key = request.stableRequestKey;
@@ -216,6 +225,7 @@ class OnlineGalleryPrefetchCoordinator extends ChangeNotifier {
     if (_disposed) return;
     _disposed = true;
     _cancelWhere((_) => true, reason: 'disposed');
+    _completedThumbnails.clear();
     _completedSamples.clear();
     _failures.clear();
     super.dispose();
@@ -342,9 +352,7 @@ class OnlineGalleryPrefetchCoordinator extends ChangeNotifier {
         _completeCancelled(task);
         return;
       }
-      if (task.request.tier == GalleryImageTier.sample) {
-        _rememberCompletedSample(key);
-      }
+      _rememberCompleted(task.request);
       if (!task.completer.isCompleted) task.completer.complete(true);
     } catch (error) {
       if (!task.cancelled && task.generation == _generation) {
@@ -398,11 +406,17 @@ class OnlineGalleryPrefetchCoordinator extends ChangeNotifier {
     }
   }
 
-  void _rememberCompletedSample(String key) {
-    _completedSamples.remove(key);
-    _completedSamples[key] = _now();
-    while (_completedSamples.length > 16) {
-      _completedSamples.remove(_completedSamples.keys.first);
+  void _rememberCompleted(GalleryImageRequest request) {
+    if (request.tier == GalleryImageTier.original) return;
+    final key = request.stableRequestKey;
+    final completed = request.tier == GalleryImageTier.thumbnail
+        ? _completedThumbnails
+        : _completedSamples;
+    final limit = request.tier == GalleryImageTier.thumbnail ? 256 : 16;
+    completed.remove(key);
+    completed[key] = _now();
+    while (completed.length > limit) {
+      completed.remove(completed.keys.first);
     }
   }
 }

@@ -175,6 +175,39 @@ void main() {
     expect(find.text('failed'), findsOneWidget);
     expect(find.text('waiting'), findsNothing);
   });
+
+  testWidgets('coordinated images keep the placeholder until the first frame', (
+    tester,
+  ) async {
+    final coordinator = OnlineGalleryPrefetchCoordinator(
+      preloader: (_) =>
+          GalleryImagePreloadOperation.fromFuture(Future<void>.value()),
+    );
+    addTearDown(coordinator.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CoordinatedGalleryImage(
+          request: _thumbnail,
+          coordinator: coordinator,
+          placeholder: const Text('waiting'),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final image = tester.widget<Image>(find.byType(Image));
+    final frameBuilder = image.frameBuilder!;
+    final context = tester.element(find.byType(Image));
+    expect(frameBuilder(context, const SizedBox(), null, false), isA<Text>());
+    final firstFrame = frameBuilder(
+      context,
+      const SizedBox(key: ValueKey('decoded-image')),
+      0,
+      false,
+    );
+    expect(firstFrame, isA<Stack>());
+  });
 }
 
 Widget _app(
