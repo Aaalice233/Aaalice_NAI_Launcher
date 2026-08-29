@@ -67,8 +67,11 @@ void main() {
       );
     });
 
-    test('always confirms destructive and charged operations', () {
-      for (final mode in AgentAccessMode.values) {
+    test('always confirms destructive operations in non-blocked domains', () {
+      for (final mode in const {
+        AgentAccessMode.askBeforeWrite,
+        AgentAccessMode.allowWrite,
+      }) {
         final policy = AgentPermissionPolicy({
           AgentPermissionDomain.generationQueue: mode,
         });
@@ -82,13 +85,6 @@ void main() {
             AgentPermissionDecision.ask,
           );
         }
-        expect(
-          policy.decide(
-            AgentPermissionDomain.generationQueue,
-            AgentPermissionOperation.charge,
-          ),
-          AgentPermissionDecision.confirmCharge,
-        );
       }
     });
   });
@@ -102,7 +98,8 @@ void main() {
     const generate = AgentToolPermissionDescriptor(
       toolName: 'generate',
       domain: AgentPermissionDomain.generation,
-      operation: AgentPermissionOperation.charge,
+      operation: AgentPermissionOperation.execute,
+      mayConsumeAnlas: true,
     );
 
     test('looks up and evaluates registered tool names', () {
@@ -112,16 +109,88 @@ void main() {
       );
 
       expect(catalog.descriptorFor('read_status'), same(read));
+      final policy = AgentPermissionPolicy(const {
+        AgentPermissionDomain.generation: AgentAccessMode.allowWrite,
+      });
       expect(
-        catalog.decide(
-          toolName: 'generate',
-          policy: AgentPermissionPolicy(const {
-            AgentPermissionDomain.generation: AgentAccessMode.allowWrite,
-          }),
-        ),
+        catalog.decide(toolName: 'generate', policy: policy),
         AgentPermissionDecision.confirmCharge,
       );
+      expect(
+        catalog.decide(toolName: 'generate', policy: policy, estimatedAnlas: 0),
+        AgentPermissionDecision.allow,
+      );
       expect(() => catalog.descriptorFor('unknown'), throwsStateError);
+    });
+
+    test('applies the permission mode by operation before billing', () {
+      const mutation = AgentToolPermissionDescriptor(
+        toolName: 'mutate',
+        domain: AgentPermissionDomain.prompt,
+        operation: AgentPermissionOperation.update,
+      );
+      const deletion = AgentToolPermissionDescriptor(
+        toolName: 'delete',
+        domain: AgentPermissionDomain.prompt,
+        operation: AgentPermissionOperation.delete,
+      );
+      final catalog = AgentToolPermissionCatalog(
+        toolNames: const ['read_status', 'mutate', 'delete', 'generate'],
+        descriptors: const [read, mutation, deletion, generate],
+      );
+
+      AgentPermissionPolicy policy(AgentAccessMode mode) =>
+          AgentPermissionPolicy({
+            AgentPermissionDomain.status: mode,
+            AgentPermissionDomain.prompt: mode,
+            AgentPermissionDomain.generation: mode,
+          });
+
+      final expected = {
+        AgentAccessMode.readOnly: const [
+          AgentPermissionDecision.allow,
+          AgentPermissionDecision.block,
+          AgentPermissionDecision.block,
+          AgentPermissionDecision.block,
+          AgentPermissionDecision.block,
+        ],
+        AgentAccessMode.askBeforeWrite: const [
+          AgentPermissionDecision.allow,
+          AgentPermissionDecision.ask,
+          AgentPermissionDecision.ask,
+          AgentPermissionDecision.ask,
+          AgentPermissionDecision.confirmCharge,
+        ],
+        AgentAccessMode.allowWrite: const [
+          AgentPermissionDecision.allow,
+          AgentPermissionDecision.allow,
+          AgentPermissionDecision.ask,
+          AgentPermissionDecision.allow,
+          AgentPermissionDecision.confirmCharge,
+        ],
+      };
+      for (final entry in expected.entries) {
+        final current = policy(entry.key);
+        expect(
+          [
+            catalog.decide(toolName: 'read_status', policy: current),
+            catalog.decide(toolName: 'mutate', policy: current),
+            catalog.decide(toolName: 'delete', policy: current),
+            catalog.decide(
+              toolName: 'generate',
+              policy: current,
+              estimatedAnlas: 0,
+            ),
+            catalog.decide(
+              toolName: 'generate',
+              policy: current,
+              estimatedAnlas: 3,
+            ),
+          ],
+          entry.value,
+          reason: entry.key.name,
+        );
+      }
     });
 
     test('rejects missing, duplicate, and unknown descriptors', () {

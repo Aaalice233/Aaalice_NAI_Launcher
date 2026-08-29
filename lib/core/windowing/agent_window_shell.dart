@@ -372,8 +372,10 @@ class _AgentWindowBridgeShellState extends State<_AgentWindowBridgeShell> {
     if (approval != null)
       AgentWindowApprovalBar(
         approval: approval,
-        resolve: (value) =>
-            bridge.sendCommand('resolveApproval', {'value': value}),
+        resolve: (value) => bridge.sendCommand('resolveApproval', {
+          'toolCallId': approval['toolCallId'],
+          'value': value,
+        }),
       ),
     if (resources.isNotEmpty)
       AgentWindowResourceList(

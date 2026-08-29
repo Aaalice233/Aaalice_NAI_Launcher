@@ -68,10 +68,6 @@ void main() {
     await tester.pump();
     expect((builds, lastHasBeenVisible, lastIsScrolling), (2, false, true));
 
-    scrolling.value = false;
-    await tester.pump();
-    expect(builds, 2);
-
     final detector = tester.widget<VisibilityDetector>(
       find.byType(VisibilityDetector, skipOffstage: false),
     );
@@ -82,6 +78,10 @@ void main() {
         visibleBounds: const Rect.fromLTWH(0, 0, 100, 100),
       ),
     );
+    await tester.pump();
+    expect((builds, lastHasBeenVisible, lastIsScrolling), (2, false, true));
+
+    scrolling.value = false;
     await tester.pump();
     expect((builds, lastHasBeenVisible, lastIsScrolling), (3, true, false));
 
@@ -175,6 +175,94 @@ void main() {
       greaterThan(initialLastIndex),
     );
     expect(builtIndices.length, lessThan(400));
+  });
+
+  testWidgets('initial loading creates a scrollable batch of empty cards', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(360, 640);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    final controller = OnlineGalleryScreenController(
+      prefetchCoordinator: OnlineGalleryPrefetchCoordinator(
+        preloader: (_) async {},
+      ),
+    );
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: OnlineGalleryGrid(
+            state: const OnlineGalleryState(isLoading: true),
+            controller: controller,
+            itemBuilder: (context, index, itemWidth, columnCount) =>
+                const SizedBox(height: 24),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byType(OnlineGalleryPendingCard), findsWidgets);
+    expect(
+      controller.scrollController.position.maxScrollExtent,
+      greaterThan(0),
+    );
+    final before = controller.scrollController.offset;
+    await tester.drag(find.byType(OnlineGalleryGrid), const Offset(0, -400));
+    await tester.pump();
+    expect(controller.scrollController.offset, greaterThan(before));
+  });
+
+  testWidgets('append placeholders reserve slots after existing posts', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(360, 640);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    final controller = OnlineGalleryScreenController(
+      prefetchCoordinator: OnlineGalleryPrefetchCoordinator(
+        preloader: (_) async {},
+      ),
+    );
+    addTearDown(controller.dispose);
+    final items = List.generate(
+      4,
+      (index) => GalleryItem(
+        id: index,
+        workId: 'post-$index',
+        sourceId: GallerySourceId.danbooru,
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: OnlineGalleryGrid(
+            state: OnlineGalleryState(
+              isLoadingMore: true,
+              searchCache: ModeCache(posts: items),
+            ),
+            controller: controller,
+            itemBuilder: (context, index, itemWidth, columnCount) =>
+                SizedBox(key: ValueKey('loaded-$index'), height: itemWidth),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byKey(const ValueKey('loaded-0')), findsOneWidget);
+    expect(find.byType(OnlineGalleryPendingCard), findsWidgets);
+    final pending = tester.widgetList<OnlineGalleryPendingCard>(
+      find.byType(OnlineGalleryPendingCard),
+    );
+    expect(pending.every((card) => card.itemWidth > 0), isTrue);
+    expect(
+      controller.scrollController.position.maxScrollExtent,
+      greaterThan(0),
+    );
   });
 
   testWidgets(

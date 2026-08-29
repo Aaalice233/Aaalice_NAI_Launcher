@@ -32,6 +32,22 @@ void main() {
       );
     });
 
+    test('round-trips every permission mode using its canonical name', () {
+      for (final mode in AgentPermissionMode.values) {
+        final settings = AgentSettings(
+          chat: AgentChatConfig(permissionMode: mode),
+        );
+
+        final encoded = settings.toJson();
+        final chat = encoded['chat']! as Map<String, dynamic>;
+        expect(chat['permissionMode'], mode.name);
+        expect(
+          AgentSettings.decode(jsonEncode(encoded)).chat.permissionMode,
+          mode,
+        );
+      }
+    });
+
     test('schema 3 settings migrate to append mode', () {
       final raw = const AgentSettings(
         chat: AgentChatConfig(customSystemPrompt: 'Keep this behavior.'),

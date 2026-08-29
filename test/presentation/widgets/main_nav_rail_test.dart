@@ -34,10 +34,7 @@ class _SavedAccountManagerNotifier extends AccountManagerNotifier {
   @override
   AccountManagerState build() => AccountManagerState(
     accounts: [
-      SavedAccount.create(
-        email: 'saved@example.com',
-        nickname: 'Saved Alice',
-      ),
+      SavedAccount.create(email: 'saved@example.com', nickname: 'Saved Alice'),
     ],
   );
 }
@@ -122,7 +119,7 @@ void main() {
       tester.getSize(find.byKey(const Key('main-nav-rail'))).width,
       MainNavRail.collapsedWidth,
     );
-    expect(find.text('画布'), findsNothing);
+    expect(_labelOpacity(tester, '画布'), 0);
 
     await tester.tap(find.byKey(const Key('main-nav-toggle')));
     await tester.pumpAndSettle();
@@ -149,7 +146,73 @@ void main() {
       tester.getSize(find.byKey(const Key('main-nav-rail'))).width,
       MainNavRail.collapsedWidth,
     );
-    expect(find.text('画布'), findsNothing);
+    expect(_labelOpacity(tester, '画布'), 0);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('展开动画保持内容布局稳定且快速反向切换连续', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1000, 760));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final navigationShell = _MockNavigationShell();
+    final storage = _FakeMainNavStorage();
+    when(() => navigationShell.currentIndex).thenReturn(0);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          localStorageServiceProvider.overrideWith((ref) => storage),
+          authNotifierProvider.overrideWith(_FakeAuthNotifier.new),
+          accountManagerNotifierProvider.overrideWith(
+            _FakeAccountManagerNotifier.new,
+          ),
+          queueExecutionNotifierProvider.overrideWith(
+            _FakeQueueExecutionNotifier.new,
+          ),
+          replicationQueueNotifierProvider.overrideWith(
+            _FakeReplicationQueueNotifier.new,
+          ),
+        ],
+        child: MaterialApp(
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: MainNavRail(navigationShell: navigationShell)),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final collapsedIconCenter = tester.getCenter(find.byIcon(Icons.brush));
+    await tester.tap(find.byKey(const Key('main-nav-toggle')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 80));
+
+    final expandingWidth = _railWidth(tester);
+    expect(
+      expandingWidth,
+      inExclusiveRange(MainNavRail.collapsedWidth, MainNavRail.expandedWidth),
+    );
+    expect(_railContentWidth(tester), MainNavRail.expandedWidth);
+    expect(tester.getCenter(find.byIcon(Icons.brush)), collapsedIconCenter);
+
+    await tester.tap(find.byKey(const Key('main-nav-toggle')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 40));
+    final reversingWidth = _railWidth(tester);
+    expect(reversingWidth, lessThan(expandingWidth));
+
+    await tester.tap(find.byKey(const Key('main-nav-toggle')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 40));
+    expect(_railWidth(tester), greaterThan(reversingWidth));
+    expect(_railContentWidth(tester), MainNavRail.expandedWidth);
+    expect(tester.getCenter(find.byIcon(Icons.brush)), collapsedIconCenter);
+
+    await tester.pumpAndSettle();
+    expect(_railWidth(tester), MainNavRail.expandedWidth);
+    expect(_labelOpacity(tester, '画布'), 1);
+    expect(storage.isExpanded, isTrue);
     expect(tester.takeException(), isNull);
   });
 
@@ -189,13 +252,25 @@ void main() {
     expect(find.text('Saved Alice'), findsNothing);
     expect(find.text('登录'), findsOneWidget);
 
-    await tester.tap(
-      find.byKey(const Key('main-nav-account-menu-button')),
-    );
+    await tester.tap(find.byKey(const Key('main-nav-account-menu-button')));
     await tester.pumpAndSettle();
 
     expect(find.text('Saved Alice'), findsNothing);
     expect(find.text('登录'), findsNWidgets(2));
     expect(find.text('添加账号'), findsNothing);
   });
+}
+
+double _railWidth(WidgetTester tester) =>
+    tester.getSize(find.byKey(const Key('main-nav-rail'))).width;
+
+double _railContentWidth(WidgetTester tester) =>
+    tester.getSize(find.byKey(const Key('main-nav-rail-content'))).width;
+
+double _labelOpacity(WidgetTester tester, String label) {
+  final opacity = find.ancestor(
+    of: find.text(label),
+    matching: find.byType(AnimatedOpacity),
+  );
+  return tester.widget<AnimatedOpacity>(opacity.first).opacity;
 }

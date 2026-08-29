@@ -34,27 +34,23 @@ class DesktopShell extends ConsumerWidget {
             },
           ),
           Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                return Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    content,
-                    const Positioned(
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      child: GlobalStatusBanners(),
-                    ),
-                    QueueShellOverlay(
-                      isVisible: isQueueVisible,
-                      desktop: true,
-                      onQueueStarted: () =>
-                          navigationShell.goBranch(AppBranch.generation.index),
-                    ),
-                  ],
-                );
-              },
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                content,
+                const Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: GlobalStatusBanners(),
+                ),
+                QueueShellOverlay(
+                  isVisible: isQueueVisible,
+                  desktop: true,
+                  onQueueStarted: () =>
+                      navigationShell.goBranch(AppBranch.generation.index),
+                ),
+              ],
             ),
           ),
         ],

@@ -110,7 +110,7 @@ class AgentChatPanelCommands {
   final VoidCallback stop;
   final VoidCallback dismissError;
   final Future<void> Function() retryLastMessage;
-  final void Function(bool approved) resolveApproval;
+  final bool Function(String toolCallId, bool approved) resolveApproval;
   final void Function(String suggestion) useSuggestion;
   final Future<void> Function(UserMessage message) copyUserMessage;
   final Future<void> Function(AssistantMessage message) copyAssistantMessage;

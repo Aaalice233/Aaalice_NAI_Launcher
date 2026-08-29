@@ -316,12 +316,20 @@ class _OnlineGalleryContentPresenter {
             priority: priority,
             forceRefresh: forceRefresh,
           ),
-      buildCard: (context, item, width, {required layoutAspectRatio, detail}) =>
-          _buildResolvedPostCard(
+      buildCard:
+          (
+            context,
+            item,
+            width, {
+            required layoutAspectRatio,
+            required loadMedia,
+            detail,
+          }) => _buildResolvedPostCard(
             state,
             item,
             width,
             layoutAspectRatio: layoutAspectRatio,
+            loadMedia: loadMedia,
             detail: detail,
           ),
     );
@@ -332,6 +340,7 @@ class _OnlineGalleryContentPresenter {
     GalleryItem post,
     double itemWidth, {
     required double layoutAspectRatio,
+    required bool loadMedia,
     GalleryDetail? detail,
   }) {
     final capabilities = gallerySourceCapabilities[post.sourceId]!;
@@ -408,6 +417,7 @@ class _OnlineGalleryContentPresenter {
           post: post,
           itemWidth: itemWidth,
           layoutAspectRatio: layoutAspectRatio,
+          loadMedia: loadMedia,
           isFavorited: isFavorited,
           isFavoriteLoading: favoriteState.$3,
           showFavoriteAction: canWriteFavorite,
@@ -554,32 +564,49 @@ class _OnlineGalleryContentPresenter {
   /// 构建页面显示内容（加载中、错误、空状态、网格）
   Widget _buildPageContent(ThemeData theme, OnlineGalleryState state) {
     if (state.isLoading && state.posts.isEmpty) {
+      final grid = _buildImageGrid(theme, state);
       final cache = state.currentCache;
       final tagCount = GalleryTagQueryParser.parse(
         state.viewMode == GalleryViewMode.popular
             ? state.popularQuery
             : state.searchQuery,
       ).ordinaryTagCount;
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const CircularProgressIndicator(),
-            if (tagCount > 1 && cache.queryRequestCount > 0) ...[
-              const SizedBox(height: 12),
-              Text(
-                context.l10n.onlineGallery_multiTagScanning(
-                  cache.queryRequestCount,
-                  cache.queryCandidateCount,
+      if (tagCount <= 1 || cache.queryRequestCount <= 0) return grid;
+      return Stack(
+        children: [
+          Positioned.fill(child: grid),
+          Positioned(
+            top: 12,
+            left: 12,
+            right: 12,
+            child: IgnorePointer(
+              child: Center(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceContainerLow,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    child: Text(
+                      context.l10n.onlineGallery_multiTagScanning(
+                        cache.queryRequestCount,
+                        cache.queryCandidateCount,
+                      ),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
                 ),
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-                textAlign: TextAlign.center,
               ),
-            ],
-          ],
-        ),
+            ),
+          ),
+        ],
       );
     }
     if (state.hasError && state.posts.isEmpty) {

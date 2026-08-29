@@ -5,11 +5,13 @@ class AgentToolPermissionDescriptor {
     required this.toolName,
     required this.domain,
     required this.operation,
+    this.mayConsumeAnlas = false,
   });
 
   final String toolName;
   final AgentPermissionDomain domain;
   final AgentPermissionOperation operation;
+  final bool mayConsumeAnlas;
 }
 
 /// Complete, immutable permission metadata for a known set of tools.
@@ -34,9 +36,19 @@ class AgentToolPermissionCatalog {
   AgentPermissionDecision decide({
     required String toolName,
     required AgentPermissionPolicy policy,
+    int? estimatedAnlas,
   }) {
     final descriptor = descriptorFor(toolName);
-    return policy.decide(descriptor.domain, descriptor.operation);
+    final ordinaryDecision = policy.decide(
+      descriptor.domain,
+      descriptor.operation,
+    );
+    if (ordinaryDecision == AgentPermissionDecision.block ||
+        !descriptor.mayConsumeAnlas ||
+        (estimatedAnlas != null && estimatedAnlas <= 0)) {
+      return ordinaryDecision;
+    }
+    return AgentPermissionDecision.confirmCharge;
   }
 
   static Map<String, AgentToolPermissionDescriptor> _build(
@@ -208,9 +220,7 @@ AgentToolPermissionDescriptor describeAgentToolPermission(String toolName) {
       toolName.startsWith('remove_') ||
       toolName.startsWith('clear_') ||
       toolName.startsWith('cancel_');
-  final operation = charged.contains(toolName)
-      ? AgentPermissionOperation.charge
-      : isDelete
+  final operation = isDelete
       ? AgentPermissionOperation.delete
       : isRead
       ? AgentPermissionOperation.read
@@ -223,6 +233,7 @@ AgentToolPermissionDescriptor describeAgentToolPermission(String toolName) {
     toolName: toolName,
     domain: domain,
     operation: operation,
+    mayConsumeAnlas: charged.contains(toolName),
   );
 }
 

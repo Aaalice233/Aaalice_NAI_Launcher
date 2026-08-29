@@ -55,6 +55,7 @@ void main() {
       final toolbox = ManualInpaintToolbox(
         container.read(_refProvider),
         supportDirectory: root,
+        anlasEstimator: (_, _) => 7,
         workspaceDir: root.path,
         repository: repository,
         editorLauncher: (_, __, ___) => ManualInpaintEditorSession(
@@ -89,6 +90,8 @@ void main() {
         (await repository.get(id))!.parameterSnapshot['prompt'],
         'repair face',
       );
+      expect((await repository.get(id))!.estimatedAnlas, 7);
+      expect(await toolbox.estimateAnlasForDraft(id), 7);
 
       editorResult.complete(
         ImageEditorResult(
@@ -149,6 +152,7 @@ void main() {
     final toolbox = ManualInpaintToolbox(
       container.read(_refProvider),
       supportDirectory: root,
+      anlasEstimator: (_, _) => 0,
       workspaceDir: root.path,
       repository: repository,
       editorLauncher: (_, __, ___) => ManualInpaintEditorSession(
@@ -190,6 +194,7 @@ void main() {
     final toolbox = ManualInpaintToolbox(
       container.read(_refProvider),
       supportDirectory: root,
+      anlasEstimator: (_, _) => 0,
       repository: repository,
       resourceLoader: (value) async => value == reference ? source : null,
       editorLauncher: (_, __, ___) =>
