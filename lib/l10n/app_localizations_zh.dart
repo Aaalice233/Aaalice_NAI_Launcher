@@ -790,7 +790,48 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agentChat_inputHint => '给 AI 助手发消息…';
 
   @override
-  String get agentChat_attachImage => '添加图片';
+  String get agentChat_addAttachment => '添加附件或引用';
+
+  @override
+  String get agentChat_photoLibrary => '相册';
+
+  @override
+  String get agentChat_currentCanvas => '当前画布';
+
+  @override
+  String get agentChat_referenceGallery => '参考图库';
+
+  @override
+  String get agentChat_resourceLibrary => '资源库';
+
+  @override
+  String get agentChat_generationHistory => '生成历史';
+
+  @override
+  String get agentChat_localGallery => '本地图库';
+
+  @override
+  String get agentChat_tagLibrary => '标签词库';
+
+  @override
+  String get agentChat_vibeLibrary => 'Vibe 库';
+
+  @override
+  String get agentChat_preciseRefLibrary => '精准参考库';
+
+  @override
+  String get agentChat_generatedImage => '生成图片';
+
+  @override
+  String get agentChat_reference => '引用资源';
+
+  @override
+  String get agentChat_noResources => '这里暂时没有可用资源。';
+
+  @override
+  String agentChat_imageTooLarge(String fileName, int maxSizeMB) {
+    return '$fileName 超过 $maxSizeMB MB。';
+  }
 
   @override
   String get agentChat_enableWebAccess => '开启联网';
@@ -808,6 +849,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get agentChat_newChat => '新建聊天';
+
+  @override
+  String get agentChat_searchSessions => '搜索聊天';
 
   @override
   String get agentChat_send => '发送';
@@ -866,6 +910,50 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get agentChat_working => '正在工作';
+
+  @override
+  String agentChat_workingFor(String duration) {
+    return '已工作 $duration';
+  }
+
+  @override
+  String get agentChat_worked => '工作完成';
+
+  @override
+  String agentChat_workedFor(String duration) {
+    return '工作耗时 $duration';
+  }
+
+  @override
+  String agentChat_workItemCount(int count) {
+    return '$count 项';
+  }
+
+  @override
+  String agentChat_ranCommands(int count) {
+    return '执行了 $count 条命令';
+  }
+
+  @override
+  String agentChat_exploredItems(int count) {
+    return '探索了 $count 项资源';
+  }
+
+  @override
+  String agentChat_earlierMessages(int count) {
+    return '更早的 $count 条消息';
+  }
+
+  @override
+  String get agentChat_loadEarlierMessages => '更早消息';
+
+  @override
+  String agentChat_turnNavigation(int number, String preview) {
+    return '第 $number 轮：$preview';
+  }
+
+  @override
   String get agentChat_phasePreparing => '准备中';
 
   @override
@@ -876,11 +964,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get agentChat_phaseStopping => '正在停止';
-
-  @override
-  String agentChat_contextTokens(int count) {
-    return '上下文 $count tokens';
-  }
 
   @override
   String get agentChat_contextUnavailable => '上下文用量不可用';
@@ -896,6 +979,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get agentChat_toolRecentImages => '查看最近图片';
+
+  @override
+  String get agentChat_toolDisplayImages => '展示图片';
+
+  @override
+  String get agentChat_toolResult => '结果';
 
   @override
   String get agentChat_toolGenerationStatus => '查看生成状态';
@@ -1019,10 +1108,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agentChat_needSetup => '未配置聊天模型。请先在设置中添加支持工具调用的供应商。';
 
   @override
-  String get agentChat_heroTitle => 'AI 助手';
+  String get agentChat_heroTitle => '今天想做什么？';
 
   @override
-  String get agentChat_heroSubtitle => '对话式编辑提示词与角色设定';
+  String get agentChat_heroSubtitle => '准备生成角色提示词、整理灵感或优化设置。';
 
   @override
   String get agentChat_moreActions => '更多操作';
@@ -1032,6 +1121,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get agentChat_compacting => '正在压缩上下文…';
+
+  @override
+  String get agentChat_requestFailed => '请求失败，请重试。';
+
+  @override
+  String get agentChat_errorDetails => '错误详情';
 
   @override
   String get agentChat_model => '选择模型';
@@ -1046,13 +1141,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agentChat_renameHint => '会话名称';
 
   @override
-  String get agentChat_suggestion1 => '帮我优化当前的正向提示词';
+  String get agentChat_suggestion1 => '检查当前生成设置';
 
   @override
-  String get agentChat_suggestion2 => '为画面添加两个角色并分别设定动作';
+  String get agentChat_suggestion2 => '从画廊整理提示词';
 
   @override
-  String get agentChat_suggestion3 => '把负向提示词改成适合写实风格的版本';
+  String get agentChat_suggestion3 => '帮我优化角色标签';
 
   @override
   String get agentChat_permissionMode => 'Agent 权限';
@@ -13800,7 +13895,48 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get agentChat_inputHint => '給 AI 助手傳送訊息…';
 
   @override
-  String get agentChat_attachImage => '新增圖片';
+  String get agentChat_addAttachment => '新增附件或引用';
+
+  @override
+  String get agentChat_photoLibrary => '相簿';
+
+  @override
+  String get agentChat_currentCanvas => '目前畫布';
+
+  @override
+  String get agentChat_referenceGallery => '參考圖庫';
+
+  @override
+  String get agentChat_resourceLibrary => '資源庫';
+
+  @override
+  String get agentChat_generationHistory => '生成歷史';
+
+  @override
+  String get agentChat_localGallery => '本機圖庫';
+
+  @override
+  String get agentChat_tagLibrary => '標籤詞庫';
+
+  @override
+  String get agentChat_vibeLibrary => 'Vibe 庫';
+
+  @override
+  String get agentChat_preciseRefLibrary => '精準參考庫';
+
+  @override
+  String get agentChat_generatedImage => '生成圖片';
+
+  @override
+  String get agentChat_reference => '引用資源';
+
+  @override
+  String get agentChat_noResources => '這裡暫時沒有可用資源。';
+
+  @override
+  String agentChat_imageTooLarge(String fileName, int maxSizeMB) {
+    return '$fileName 超過 $maxSizeMB MB。';
+  }
 
   @override
   String get agentChat_enableWebAccess => '開啟聯網';
@@ -13818,6 +13954,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get agentChat_newChat => '新對話';
+
+  @override
+  String get agentChat_searchSessions => '搜尋對話';
 
   @override
   String get agentChat_send => '傳送';
@@ -13876,6 +14015,50 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
+  String get agentChat_working => '正在工作';
+
+  @override
+  String agentChat_workingFor(String duration) {
+    return '已工作 $duration';
+  }
+
+  @override
+  String get agentChat_worked => '工作完成';
+
+  @override
+  String agentChat_workedFor(String duration) {
+    return '工作耗時 $duration';
+  }
+
+  @override
+  String agentChat_workItemCount(int count) {
+    return '$count 項';
+  }
+
+  @override
+  String agentChat_ranCommands(int count) {
+    return '執行了 $count 條命令';
+  }
+
+  @override
+  String agentChat_exploredItems(int count) {
+    return '探索了 $count 項資源';
+  }
+
+  @override
+  String agentChat_earlierMessages(int count) {
+    return '更早的 $count 則訊息';
+  }
+
+  @override
+  String get agentChat_loadEarlierMessages => '更早訊息';
+
+  @override
+  String agentChat_turnNavigation(int number, String preview) {
+    return '第 $number 輪：$preview';
+  }
+
+  @override
   String get agentChat_phasePreparing => '準備中';
 
   @override
@@ -13886,11 +14069,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get agentChat_phaseStopping => '正在停止';
-
-  @override
-  String agentChat_contextTokens(int count) {
-    return '上下文 $count tokens';
-  }
 
   @override
   String get agentChat_contextUnavailable => '上下文用量不可用';
@@ -13906,6 +14084,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get agentChat_toolRecentImages => '檢視最近圖片';
+
+  @override
+  String get agentChat_toolDisplayImages => '展示圖片';
+
+  @override
+  String get agentChat_toolResult => '結果';
 
   @override
   String get agentChat_toolGenerationStatus => '檢視生成狀態';
@@ -14029,10 +14213,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get agentChat_needSetup => '未設定聊天模型。請先在設定中新增支援工具呼叫的供應商。';
 
   @override
-  String get agentChat_heroTitle => 'AI 助手';
+  String get agentChat_heroTitle => '今天想做什麼？';
 
   @override
-  String get agentChat_heroSubtitle => '對話式編輯提示詞與角色設定';
+  String get agentChat_heroSubtitle => '準備生成角色提示詞、整理靈感或最佳化設定。';
 
   @override
   String get agentChat_moreActions => '更多操作';
@@ -14042,6 +14226,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get agentChat_compacting => '正在壓縮上下文…';
+
+  @override
+  String get agentChat_requestFailed => '請求失敗，請重試。';
+
+  @override
+  String get agentChat_errorDetails => '錯誤詳情';
 
   @override
   String get agentChat_model => '選擇模型';
@@ -14056,13 +14246,13 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get agentChat_renameHint => '會話名稱';
 
   @override
-  String get agentChat_suggestion1 => '幫我優化目前的正向提示詞';
+  String get agentChat_suggestion1 => '檢查目前生成設定';
 
   @override
-  String get agentChat_suggestion2 => '為畫面加入兩個角色並分別設定動作';
+  String get agentChat_suggestion2 => '從畫廊整理提示詞';
 
   @override
-  String get agentChat_suggestion3 => '把負向提示詞改成適合寫實風格的版本';
+  String get agentChat_suggestion3 => '幫我最佳化角色標籤';
 
   @override
   String get agentChat_permissionMode => 'Agent 權限';

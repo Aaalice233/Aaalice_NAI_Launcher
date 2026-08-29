@@ -377,13 +377,24 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
     return [
       if (request.systemPrompt.trim().isNotEmpty)
         {'role': 'system', 'content': request.systemPrompt.trim()},
-      for (final message in request.messages) ..._mapAgentMessage(message),
+      for (final message in request.messages)
+        ..._mapAgentMessage(
+          message,
+          allowImageInput: request.provider.allowImageInput,
+          preserveReasoning:
+              request.provider.preset == ProviderPreset.deepseek &&
+              request.reasoning != null,
+        ),
     ];
   }
 
-  List<Map<String, dynamic>> _mapAgentMessage(Message message) {
+  List<Map<String, dynamic>> _mapAgentMessage(
+    Message message, {
+    required bool allowImageInput,
+    required bool preserveReasoning,
+  }) {
     if (message is UserMessage) {
-      final images = inlineImagesOf(message);
+      final images = allowImageInput ? inlineImagesOf(message) : const [];
       final text = message.text;
       if (images.isEmpty) {
         return [
@@ -409,10 +420,16 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
       ];
     }
     if (message is AssistantMessage) {
+      final reasoning = message.content
+          .whereType<AssistantThinkingContent>()
+          .map((content) => content.thinking)
+          .join();
       return [
         {
           'role': 'assistant',
           if (message.text.isNotEmpty) 'content': message.text,
+          if (preserveReasoning && reasoning.isNotEmpty)
+            'reasoning_content': reasoning,
           if (message.toolCalls.isNotEmpty)
             'tool_calls': [
               for (final call in message.toolCalls)
@@ -429,7 +446,7 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
       ];
     }
     if (message is ToolResultMessage) {
-      final images = toolResultImagesOf(message);
+      final images = allowImageInput ? toolResultImagesOf(message) : const [];
       return [
         {
           'role': 'tool',
@@ -576,6 +593,10 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
     final base = normalizedBaseUrl(provider.baseUrl);
     if (base.endsWith('/chat/completions')) {
       return base;
+    }
+    if (provider.preset == ProviderPreset.deepseek &&
+        base == 'https://api.deepseek.com') {
+      return '$base/chat/completions';
     }
     if (base.endsWith('/v1')) {
       return '$base/chat/completions';

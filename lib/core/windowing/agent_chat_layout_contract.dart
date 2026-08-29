@@ -37,7 +37,7 @@ class AgentChatLayoutContract {
       AgentChatWidthClass.regular => 0.72,
       AgentChatWidthClass.wide => 0.64,
     };
-    return (available * fraction).clamp(180.0, 560.0);
+    return (available * fraction).clamp(44.0, 560.0);
   }
 
   static double assistantMaxWidth(double width) =>
@@ -48,7 +48,7 @@ class AgentChatLayoutContract {
       };
 
   static bool stackComposerControls(double width, {required bool running}) =>
-      width < (running ? 520 : 400);
+      width < (running ? 820 : 680);
 
   static EdgeInsets composerOuterPadding(double width) =>
       EdgeInsets.fromLTRB(width < 420 ? 10 : 14, 6, width < 420 ? 10 : 14, 10);

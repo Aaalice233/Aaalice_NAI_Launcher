@@ -1,7 +1,6 @@
 import '../../agent_types.dart';
 import 'session.dart';
 
-
 // ---------------------------------------------------------------------------
 // 错误
 // ---------------------------------------------------------------------------
@@ -33,7 +32,12 @@ class SessionError implements Exception {
 
 /// 会话条目基类。seq/parentId/timestamp 由存储侧赋值。
 sealed class SessionEntry {
-  SessionEntry({required this.id, this.seq = 0, this.parentId, this.timestamp = 0});
+  SessionEntry({
+    required this.id,
+    this.seq = 0,
+    this.parentId,
+    this.timestamp = 0,
+  });
 
   String get type;
 
@@ -462,7 +466,13 @@ class EntryCursor {
 }
 
 class EntryQuery {
-  const EntryQuery({this.type, this.customType, this.order, this.limit, this.cursor});
+  const EntryQuery({
+    this.type,
+    this.customType,
+    this.order,
+    this.limit,
+    this.cursor,
+  });
 
   final String? type;
   final String? customType;
@@ -487,6 +497,7 @@ class RecordQuery {
     this.runId,
     this.operationKind,
     this.afterSeq,
+    this.cursor,
     this.order,
     this.limit,
   });
@@ -496,6 +507,11 @@ class RecordQuery {
   final String? runId;
   final RunIntentKind? operationKind;
   final int? afterSeq;
+
+  /// Order-aware cursor. For newest-first queries this selects records with
+  /// seq lower than [EntryCursor.afterSeq]. [afterSeq] keeps its legacy,
+  /// always-forward semantics.
+  final EntryCursor? cursor;
   final EntryOrder? order;
   final int? limit;
 }
@@ -566,7 +582,11 @@ class LogRecordItem extends LogItem {
 }
 
 class LogLaneItem extends LogItem {
-  const LogLaneItem({required super.seq, required this.lane, required this.leafId});
+  const LogLaneItem({
+    required super.seq,
+    required this.lane,
+    required this.leafId,
+  });
 
   final String lane;
   final String? leafId;

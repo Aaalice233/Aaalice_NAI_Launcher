@@ -109,8 +109,13 @@ class MobileGenerationWorkspace extends StatelessWidget {
                       }
                       return Column(
                         children: [
+                          const Expanded(child: ImagePreviewWidget()),
+                          if (data.generationState.isGenerating)
+                            MobileGenerationProgress(
+                              progress: data.generationState.progress,
+                            ),
                           Padding(
-                            padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+                            padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
                             child: MobileCollapsedPromptLauncher(
                               prompt: data.promptSummary,
                               characterCount: data.enabledCharacterCount,
@@ -120,11 +125,6 @@ class MobileGenerationWorkspace extends StatelessWidget {
                               onTap: controller.openPromptEditor,
                             ),
                           ),
-                          const Expanded(child: ImagePreviewWidget()),
-                          if (data.generationState.isGenerating)
-                            MobileGenerationProgress(
-                              progress: data.generationState.progress,
-                            ),
                         ],
                       );
                     },

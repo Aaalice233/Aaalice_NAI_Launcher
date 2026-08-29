@@ -991,6 +991,7 @@ class PromptAssistantConfigState {
       (json['routing'] as Map?)?.cast<String, dynamic>() ??
           defaults.routing.toJson(),
     );
+
     if (migrateLegacyChatRouting &&
         routing.chatProviderId.isEmpty &&
         routing.chatModel.isEmpty) {

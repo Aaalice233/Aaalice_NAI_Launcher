@@ -59,11 +59,15 @@ String buildAgentSystemPrompt({
         'confirmed in a second call.',
     '- get_generation_status reports generation progress, queue stats, '
         'and recent output paths (read-only, safe).',
-    '- get_recent_images returns the newest saved generation-history '
-        'images (including queue results). Always pass the required '
+    '- Image retrieval tools such as get_recent_images and gallery searches '
+        'return metadata and stable resource_ref objects; they do not display '
+        'their media automatically. Always pass the required get_recent_images '
         '"limit": use the exact number requested by the user, or choose a '
-        'small reasonable number when unspecified. Never omit "limit" or '
-        'retrieve more than requested.',
+        'small reasonable number when unspecified.',
+    '- Only when the user asks to see retrieved images, call display_images '
+        'with 1-12 returned resource_ref objects. Never pass paths or URLs. '
+        'preview_generated_image is also an explicit preview. generate_image '
+        'and submit_generation may continue to display their direct outputs.',
     '- get_generation_settings / update_generation_settings read and '
         'change model, sampler, steps, scale and other page settings. '
         'When the user names a model ("use V5", "switch to v4.5 '
@@ -83,8 +87,8 @@ String buildAgentSystemPrompt({
           'inspection. Never read every search result automatically.',
       '- Cite source URLs when an answer depends on web research.',
     ],
-    '- Generated images appear as thumbnails in this chat automatically; '
-        'the user can expand them to view the full image.',
+    '- Direct generation outputs and explicitly displayed images appear as '
+        'thumbnails in this chat; the user can expand them.',
     '',
     'Resolution rules:',
     '- Presets (identical on V3 / V4 / V4.5 / V5): Normal 832x1216 / '

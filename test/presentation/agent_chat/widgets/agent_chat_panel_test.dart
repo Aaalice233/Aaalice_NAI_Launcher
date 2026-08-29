@@ -8,6 +8,7 @@ import 'package:flutter_markdown_plus/flutter_markdown_plus.dart' as md;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/agent/agent_types.dart';
+import 'package:nai_launcher/core/windowing/agent_chat_session_picker.dart';
 import 'package:nai_launcher/core/shortcuts/shortcut_config.dart';
 import 'package:hive/hive.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
@@ -98,7 +99,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
 
-    PopupMenuButton<String> selector() => tester.widget(
+    AgentChatSessionPicker selector() => tester.widget(
       find.byKey(const ValueKey('agent-chat-session-selector')),
     );
     expect(selector().enabled, isTrue);
@@ -291,7 +292,11 @@ void main() {
       notifier.setMessages([
         AssistantMessage(
           content: const [
-            ToolCallContent(id: 'read-image', name: 'read', arguments: {}),
+            ToolCallContent(
+              id: 'read-image',
+              name: 'read',
+              arguments: {'path': 'result.png'},
+            ),
           ],
           stopReason: StopReason.toolUse,
         ),
@@ -336,26 +341,67 @@ void main() {
       await tester.pump();
 
       expect(find.byType(md.MarkdownBody), findsNothing);
-      expect(find.byType(ExpansionTile), findsOneWidget);
-      expect(find.text('Ran 2 actions'), findsOneWidget);
-      await tester.tap(find.byType(ExpansionTile));
+      expect(find.byType(CustomScrollView), findsOneWidget);
+      expect(find.text('Worked'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('agent-tool-result-icon-read-image')),
+        findsNothing,
+        reason: 'a completed Turn starts collapsed',
+      );
+
+      await tester.tap(find.byKey(const ValueKey('agent-turn-work-header-0')));
       await tester.pump();
-      final resultIcon = tester.widget<Icon>(
+
+      expect(find.text('Parameters'), findsNothing);
+      expect(find.textContaining('"path": "result.png"'), findsNothing);
+      expect(
+        find.byKey(const ValueKey('agent-turn-tool-result-read-image')),
+        findsNothing,
+        reason: 'the tool item is the second-level disclosure',
+      );
+
+      await tester.tap(
+        find.byKey(const ValueKey('agent-turn-tool-item-read-image')),
+      );
+      await tester.pump();
+
+      expect(find.text('Parameters'), findsOneWidget);
+      final argumentsToggle = find.byKey(
+        const ValueKey('agent-tool-arguments-toggle'),
+      );
+      await tester.ensureVisible(argumentsToggle);
+      await tester.pumpAndSettle();
+      await tester.tap(argumentsToggle);
+      await tester.pump();
+      expect(find.textContaining('"path": "result.png"'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('agent-tool-result-details-read-image')),
+        findsNothing,
+        reason: 'the result payload has its own collapsed disclosure',
+      );
+      await tester.tap(
+        find.byKey(const ValueKey('agent-tool-result-read-image')),
+      );
+      await tester.pump();
+      expect(
+        find.byKey(const ValueKey('agent-tool-result-details-read-image')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('agent-tool-result-icon-read-image')),
+        findsNothing,
+        reason: 'a nested result does not repeat the tool status icon',
+      );
+      final resultColor = Theme.of(
+        tester.element(find.byType(AgentChatPanel)),
+      ).colorScheme.onSurfaceVariant;
+      expect(
         find.descendant(
-          of: find.byKey(const ValueKey('agent-tool-result-icon-read-image')),
-          matching: find.byType(Icon),
+          of: find.byKey(const ValueKey('agent-tool-result-read-image')),
+          matching: find.textContaining('Image read successfully'),
         ),
+        findsOneWidget,
       );
-      expect(resultIcon.icon, Icons.description_outlined);
-      expect(find.textContaining('Image read successfully'), findsOneWidget);
-      expect(find.byKey(ValueKey(imageFile.path)), findsNothing);
-      final resultTile = find.byKey(
-        const ValueKey('agent-tool-result-read-image'),
-      );
-      await tester.ensureVisible(resultTile);
-      await tester.pumpAndSettle();
-      await tester.tap(resultTile);
-      await tester.pumpAndSettle();
 
       notifier.setRunningActivity(
         const AgentToolActivity(
@@ -376,26 +422,17 @@ void main() {
         find.descendant(of: activityIconSlot, matching: find.byType(Icon)),
       );
       expect(activityIcon.icon, Icons.auto_awesome);
-      expect(activityIcon.color, isNot(resultIcon.color));
+      expect(activityIcon.color, resultColor);
       expect(find.text('Generate image'), findsOneWidget);
 
-      final activityInk = find.descendant(
-        of: activity,
-        matching: find.byType(Ink),
-      );
-      final firstDecoration = tester.widget<Ink>(activityInk).decoration;
-      expect(firstDecoration, isA<BoxDecoration>());
-      final firstGradient = (firstDecoration! as BoxDecoration).gradient;
-      expect(firstGradient, isA<LinearGradient>());
-      await tester.pump(const Duration(milliseconds: 600));
-      final secondGradient =
-          (tester.widget<Ink>(activityInk).decoration! as BoxDecoration)
-                  .gradient!
-              as LinearGradient;
       expect(
-        secondGradient.begin,
-        isNot((firstGradient! as LinearGradient).begin),
+        find.descendant(
+          of: activity,
+          matching: find.byType(CircularProgressIndicator),
+        ),
+        findsNothing,
       );
+      await tester.pump();
 
       final image = find.byKey(ValueKey(imageFile.path));
       expect(image, findsOneWidget);
@@ -458,9 +495,7 @@ void main() {
     },
   );
 
-  testWidgets('user message actions copy and rewind the latest message', (
-    tester,
-  ) async {
+  testWidgets('user message actions only copy locally', (tester) async {
     final tempDir = Directory.systemTemp.createTempSync(
       'agent_chat_panel_message_actions_test_',
     );
@@ -580,7 +615,7 @@ void main() {
     );
     expect(
       find.byKey(const ValueKey('agent-user-message-edit-2')),
-      findsOneWidget,
+      findsNothing,
     );
 
     final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
@@ -596,17 +631,7 @@ void main() {
     expect(copiedText, 'first [image1] second');
     await tester.pump(const Duration(seconds: 4));
 
-    await tester.tap(find.byKey(const ValueKey('agent-user-message-edit-2')));
-    await tester.pump();
-    await tester.pump();
-
-    final input = tester.widget<TextField>(find.byType(TextField));
-    expect(input.controller?.text, 'first [image1] second');
-    expect(container.read(agentChatNotifierProvider).messages, hasLength(2));
-    expect(
-      container.read(agentChatNotifierProvider).messages.last,
-      isA<AssistantMessage>(),
-    );
+    expect(container.read(agentChatNotifierProvider).messages, hasLength(4));
   });
 
   testWidgets('jump to latest settles at the end of a long lazy transcript', (
@@ -674,7 +699,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('final transcript marker'), findsOneWidget);
 
-    await tester.drag(find.byType(ListView), const Offset(0, 500));
+    final transcript = find.byType(CustomScrollView);
+    expect(transcript, findsOneWidget);
+    await tester.drag(transcript, const Offset(0, 500));
     await tester.pumpAndSettle();
     final jumpButton = find.byKey(const ValueKey('agent-chat-jump-to-latest'));
     expect(jumpButton, findsOneWidget);
@@ -722,6 +749,8 @@ void main() {
       required double width,
       required double height,
       EdgeInsets padding = EdgeInsets.zero,
+      EdgeInsets viewInsets = EdgeInsets.zero,
+      TextScaler textScaler = TextScaler.noScaling,
     }) {
       return UncontrolledProviderScope(
         container: container,
@@ -730,7 +759,12 @@ void main() {
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: MediaQuery(
-            data: MediaQueryData(size: Size(width, height), padding: padding),
+            data: MediaQueryData(
+              size: Size(width, height),
+              padding: padding,
+              viewInsets: viewInsets,
+              textScaler: textScaler,
+            ),
             child: Scaffold(
               body: SizedBox(
                 width: width,
@@ -739,6 +773,13 @@ void main() {
                   mobile: true,
                   onClose: () => closed = true,
                   onOpenSettings: () => settingsOpened = true,
+                  // Session picker scaling is covered by its own shared-widget
+                  // tests; keep this regression focused on the composer.
+                  mobileHeaderWrapper: (child) =>
+                      MediaQuery.withClampedTextScaling(
+                        maxScaleFactor: 1.6,
+                        child: child,
+                      ),
                 ),
               ),
             ),
@@ -782,10 +823,13 @@ void main() {
             as _TestAgentChatNotifier;
     notifier.setRouteReady(true);
     await tester.pump();
+    final attachmentButton = find.byKey(
+      const ValueKey('agent-chat-more-actions'),
+    );
+    expect(attachmentButton, findsOneWidget);
+    expect(tester.getSize(attachmentButton), const Size.square(48));
     for (final key in [
       'agent-chat-input',
-      'agent-chat-attach-image',
-      'agent-chat-more-actions',
       'agent-chat-permission-mode',
       'agent-chat-web-access-toggle',
       'agent-chat-send',
@@ -793,13 +837,108 @@ void main() {
       final target = find.byKey(ValueKey(key));
       expect(target, findsOneWidget, reason: key);
       final size = tester.getSize(target);
-      expect(size.width, greaterThanOrEqualTo(48), reason: '$key width');
-      expect(size.height, greaterThanOrEqualTo(48), reason: '$key height');
+      expect(size.width, greaterThanOrEqualTo(44), reason: '$key width');
+      expect(size.height, greaterThanOrEqualTo(44), reason: '$key height');
     }
-    await tester.enterText(
-      find.byKey(const ValueKey('agent-chat-input')),
-      List.filled(20, 'line').join('\n'),
+    expect(
+      tester.getSize(find.byKey(const ValueKey('agent-chat-context-target'))),
+      const Size.square(44),
     );
+
+    for (final width in const [320.0, 360.0, 412.0, 600.0]) {
+      for (final scale in const [1.0, 1.6, 2.0]) {
+        await tester.pumpWidget(
+          buildPanel(
+            width: width,
+            height: 760,
+            textScaler: TextScaler.linear(scale),
+          ),
+        );
+        await tester.pump();
+        expect(
+          tester.takeException(),
+          isNull,
+          reason: 'composer overflow at width=$width, textScale=$scale',
+        );
+        expect(
+          tester.getSize(attachmentButton),
+          const Size.square(48),
+          reason: 'attachment target at width=$width, textScale=$scale',
+        );
+        for (final key in [
+          'agent-chat-permission-mode',
+          'agent-chat-web-access-toggle',
+          'agent-chat-context-target',
+          'agent-chat-send',
+        ]) {
+          final size = tester.getSize(find.byKey(ValueKey(key)));
+          expect(
+            size.shortestSide,
+            greaterThanOrEqualTo(44),
+            reason: '$key target at width=$width, textScale=$scale',
+          );
+        }
+      }
+    }
+
+    await tester.pumpWidget(
+      buildPanel(
+        width: 320,
+        height: 640,
+        padding: const EdgeInsets.only(bottom: 24),
+        viewInsets: const EdgeInsets.only(bottom: 280),
+        textScaler: const TextScaler.linear(1.6),
+      ),
+    );
+    await tester.pump();
+    final composerBottom = tester
+        .getBottomRight(
+          find.byKey(const ValueKey('agent-chat-input-container')),
+        )
+        .dy;
+    expect(composerBottom, lessThanOrEqualTo(640 - 280));
+    expect(tester.takeException(), isNull);
+
+    final inputFinder = find.byKey(const ValueKey('agent-chat-input'));
+    await tester.tap(inputFinder);
+    tester.testTextInput.updateEditingValue(
+      const TextEditingValue(
+        text: 'draft',
+        selection: TextSelection.collapsed(offset: 5),
+        composing: TextRange(start: 0, end: 5),
+      ),
+    );
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    expect(tester.widget<TextField>(inputFinder).controller?.text, 'draft');
+
+    tester.testTextInput.updateEditingValue(
+      const TextEditingValue(
+        text: 'draft',
+        selection: TextSelection.collapsed(offset: 5),
+      ),
+    );
+    await tester.pump();
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    expect(tester.widget<TextField>(inputFinder).controller?.text, 'draft\n');
+
+    await tester.pumpWidget(buildPanel(width: 320, height: 640));
+    await tester.pump();
+    notifier.setSessionTransitioning(true);
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+    expect(
+      tester.widget<TextField>(inputFinder).controller?.text,
+      'draft\n',
+      reason: 'a blocked send must not discard the draft',
+    );
+    notifier.setSessionTransitioning(false);
+    await tester.pump();
+
+    await tester.enterText(inputFinder, List.filled(20, 'line').join('\n'));
     await tester.pump();
     expect(
       tester.getSize(find.byKey(const ValueKey('agent-chat-input'))).height,
@@ -816,6 +955,7 @@ void main() {
     await tester.pump();
     expect(errorDismiss, findsNothing);
 
+    await tester.enterText(inputFinder, 'queued draft');
     notifier.setRunningActivity(
       const AgentToolActivity(
         toolCallId: 'mobile-running',
@@ -824,15 +964,32 @@ void main() {
       ),
     );
     notifier.setQueuedMessages(20);
-    await tester.pumpWidget(buildPanel(width: 320, height: 420));
+    await tester.pumpWidget(buildPanel(width: 320, height: 640));
     await tester.pump();
     expect(find.byKey(const ValueKey('agent-chat-stop')), findsOneWidget);
     expect(
-      tester.getSize(find.byKey(const ValueKey('agent-chat-stop'))).width,
-      greaterThanOrEqualTo(48),
+      find.byKey(const ValueKey('agent-chat-follow-up')),
+      findsNothing,
+      reason: 'queued actions stay inside the collapsed queue disclosure',
     );
+    for (final key in ['agent-chat-stop', 'agent-chat-send']) {
+      expect(
+        tester.getSize(find.byKey(ValueKey(key))).shortestSide,
+        greaterThanOrEqualTo(44),
+        reason: '$key running target',
+      );
+    }
+    expect(find.bySemanticsLabel('Steer current work'), findsWidgets);
+    expect(find.bySemanticsLabel('Stop'), findsWidgets);
     await tester.tap(find.byKey(const ValueKey('agent-chat-queue')));
     await tester.pump(const Duration(milliseconds: 300));
+    expect(
+      tester
+          .getSize(find.byKey(const ValueKey('agent-chat-follow-up')))
+          .shortestSide,
+      greaterThanOrEqualTo(44),
+    );
+    expect(find.bySemanticsLabel('Continue after current task'), findsWidgets);
     final layoutError = tester.takeException();
     expect(
       layoutError,

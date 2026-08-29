@@ -112,6 +112,7 @@ AgentToolPermissionDescriptor describeAgentToolPermission(String toolName) {
     'get_generation_status',
     'get_recent_images',
     'preview_generated_image',
+    'display_images',
     'inspect_generation_preparation',
     'get_manual_inpaint_draft',
     'list_manual_inpaint_drafts',
@@ -188,6 +189,7 @@ AgentToolPermissionDescriptor describeAgentToolPermission(String toolName) {
             toolName == 'generate_image' ||
             toolName == 'get_recent_images' ||
             toolName == 'preview_generated_image' ||
+            toolName == 'display_images' ||
             toolName == 'interrogate_image' =>
       AgentPermissionDomain.generation,
     'get_prompt_state' ||

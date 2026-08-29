@@ -8,7 +8,6 @@ import 'session_types.dart';
 export 'session_state.dart';
 export 'session_types.dart';
 
-
 typedef IdGenerator = String Function();
 
 void _assertValidLimit(int? limit) => assertValidLimit(limit);
@@ -132,13 +131,13 @@ class Session implements SessionTree {
   Future<SessionEntry> appendEntry(ProvisionedEntry entry, String lane) =>
       _commitEntry(entry, lane);
 
-  Future<LaneRecord> appendRecord(NewRecord record) =>
-      _commitRecord(record);
+  Future<LaneRecord> appendRecord(NewRecord record) => _commitRecord(record);
 
   Future<List<LaneRecord>> findRecords([RecordQuery? query]) {
     final q = query ?? const RecordQuery();
     _assertValidLimit(q.limit);
     _assertValidCursor(q.afterSeq);
+    _assertValidCursor(q.cursor?.afterSeq);
     if (q.operationKind != null && q.type != 'operation_started') {
       throw SessionError(
         SessionErrorCode.invalidQuery,
@@ -219,10 +218,7 @@ class Session implements SessionTree {
     return storage.findEntriesOnBranch(effective, b, start: start);
   }
 
-  Future<String> _appendMessageToLane(
-    String lane,
-    AgentMessage message,
-  ) async {
+  Future<String> _appendMessageToLane(String lane, AgentMessage message) async {
     final entry = await _commitEntry(
       MessageEntry(id: idGenerator(), message: message),
       lane,
@@ -299,12 +295,7 @@ class _LaneSessionView implements SessionTree {
     EntryQuery? query,
     BranchBounds? bounds,
   ]) async {
-    final results = await _session._queryBranchEntries(
-      _lane,
-      query,
-      bounds,
-      1,
-    );
+    final results = await _session._queryBranchEntries(_lane, query, bounds, 1);
     return results.isEmpty ? null : results.first;
   }
 

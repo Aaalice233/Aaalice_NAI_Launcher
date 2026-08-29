@@ -52,6 +52,50 @@ void main() {
     );
   });
 
+  test('incompatible Agent entrypoints remain identifiable for retirement', () {
+    const args = [
+      'multi_window',
+      'old-window',
+      '{"protocolVersion":1,"businessId":"agent"}',
+    ];
+
+    expect(AgentWindowLaunchArguments.tryParseEntrypointArgs(args), isNull);
+    expect(identifiesAgentWindowEntrypointArgs(args), isTrue);
+    expect(
+      classifyAgentWindowEntrypoint(args),
+      AgentWindowEntrypointKind.incompatibleSecondary,
+    );
+    expect(
+      classifyAgentWindowEntrypoint(const []),
+      AgentWindowEntrypointKind.primary,
+    );
+    expect(
+      identifiesAgentWindowEntrypointArgs(const [
+        'multi_window',
+        'other',
+        '{"protocolVersion":1,"businessId":"other"}',
+      ]),
+      isFalse,
+    );
+  });
+
+  test('current Agent entrypoint is routed to the IPC-only secondary', () {
+    const arguments = AgentWindowLaunchArguments(
+      bounds: AgentWindowBounds(x: 0, y: 0, width: 560, height: 760),
+      alwaysOnTop: false,
+      handshakeToken: 'current-token',
+    );
+
+    expect(
+      classifyAgentWindowEntrypoint([
+        'multi_window',
+        'current-window',
+        arguments.encode(),
+      ]),
+      AgentWindowEntrypointKind.compatibleSecondary,
+    );
+  });
+
   test('window envelopes preserve and require the authenticated token', () {
     const envelope = AgentWindowEnvelope(
       kind: 'command',
@@ -67,6 +111,64 @@ void main() {
       () => AgentWindowEnvelope.fromJson({
         ...envelope.toJson(),
         'sessionToken': '',
+      }),
+      throwsFormatException,
+    );
+  });
+
+  test('legacy snapshots remain valid while timeline duration is strict', () {
+    expect(
+      AgentWindowSnapshot.fromJson({
+        'revision': 1,
+        'payload': {'messages': <Object?>[], 'sessions': <Object?>[]},
+      }).revision,
+      1,
+    );
+    expect(
+      () => AgentWindowSnapshot.fromJson({
+        'revision': 2,
+        'payload': {
+          'messages': <Object?>[],
+          'sessions': <Object?>[],
+          'timeline': [
+            {
+              'id': 'turn-1',
+              'status': 'completed',
+              'firstSeq': 1,
+              'lastSeq': 1,
+              'startedAt': 100,
+              'durationMs': 20,
+              'items': <Object?>[],
+            },
+          ],
+        },
+      }),
+      throwsFormatException,
+    );
+  });
+
+  test('snapshot transcript and session collections are bounded', () {
+    expect(
+      () => AgentWindowSnapshot.fromJson({
+        'revision': 1,
+        'payload': {
+          'messages': List<Object?>.filled(
+            agentWindowMaxTranscriptMessages + 1,
+            const {},
+          ),
+        },
+      }),
+      throwsFormatException,
+    );
+    expect(
+      () => AgentWindowSnapshot.fromJson({
+        'revision': 1,
+        'payload': {
+          'sessions': List<Object?>.filled(
+            agentWindowMaxSessionSummaries + 1,
+            const {},
+          ),
+        },
       }),
       throwsFormatException,
     );

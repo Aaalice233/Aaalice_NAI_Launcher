@@ -1,19 +1,33 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/agent/agent_types.dart';
+import 'package:nai_launcher/core/shortcuts/shortcut_config.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/agent_chat/providers/agent_chat_state.dart';
 import 'package:nai_launcher/presentation/agent_chat/widgets/agent_chat_tool_widgets.dart';
+import 'package:nai_launcher/presentation/providers/shortcuts_provider.dart';
+import 'package:nai_launcher/presentation/widgets/common/image_detail/file_image_detail_data.dart';
+import 'package:nai_launcher/presentation/widgets/common/image_detail/image_detail_viewer.dart';
 
 void main() {
   Future<void> pumpResult(WidgetTester tester, ToolResultMessage result) async {
     await tester.pumpWidget(
-      MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: Scaffold(body: AgentChatToolResultTile(result: result)),
+      ProviderScope(
+        overrides: [
+          shortcutConfigNotifierProvider.overrideWith(
+            _TestShortcutConfigNotifier.new,
+          ),
+        ],
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: AgentChatToolResultTile(result: result)),
+        ),
       ),
     );
   }
@@ -40,6 +54,59 @@ void main() {
       find.byKey(const ValueKey('agent-tool-result-details-success-1')),
       findsNothing,
     );
+  });
+
+  testWidgets('reasoning expansion isolates selectable scroll page storage', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: ListView(
+            key: const PageStorageKey('agent-chat-thread-test'),
+            children: const [
+              AgentChatReasoningTile(thinking: 'durable reasoning'),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('agent-reasoning-toggle')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('durable reasoning'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('internal API diagnostics stay out of the result summary', (
+    tester,
+  ) async {
+    final result = ToolResultMessage(
+      toolCallId: 'diagnostic-1',
+      toolName: 'submit_generation',
+      isError: true,
+      content: const [
+        ToolResultTextContent(
+          'DioException: status code of 400 RequestOptions '
+          'validateStatus response.data private protocol body',
+        ),
+      ],
+    );
+
+    await pumpResult(tester, result);
+
+    expect(find.textContaining('RequestOptions'), findsNothing);
+    expect(find.textContaining('validateStatus'), findsNothing);
+    expect(find.textContaining('HTTP 400'), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(const ValueKey('agent-tool-result-diagnostic-1')),
+    );
+    await tester.pump();
+    expect(find.textContaining('RequestOptions'), findsOneWidget);
   });
 
   testWidgets('error summary stays visible and details can be expanded', (
@@ -152,6 +219,64 @@ void main() {
     expect(find.byType(Image), findsOneWidget);
   });
 
+  testWidgets('local files take precedence over inline images and open', (
+    tester,
+  ) async {
+    final tempDir = Directory.systemTemp.createTempSync(
+      'agent_tool_result_mixed_image_',
+    );
+    final imageFile = File('${tempDir.path}${Platform.pathSeparator}result.png')
+      ..writeAsBytesSync(_onePixelPng);
+    addTearDown(() {
+      if (tempDir.existsSync()) tempDir.deleteSync(recursive: true);
+    });
+    final result = ToolResultMessage(
+      toolCallId: 'mixed-image-1',
+      toolName: 'generate_image',
+      content: [
+        ToolResultImageContent(
+          ImageContent(
+            source: ImageSource.base64(
+              mimeType: 'image/png',
+              base64Data: base64Encode(_onePixelPng),
+            ),
+          ),
+        ),
+      ],
+      details: {
+        'files': [imageFile.path],
+      },
+    );
+
+    await pumpResult(tester, result);
+    await tester.tap(
+      find.byKey(const ValueKey('agent-tool-result-mixed-image-1')),
+    );
+    await tester.pump();
+
+    final localCard = find.byKey(ValueKey(imageFile.path));
+    expect(localCard, findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('mixed-image-1-inline-0')),
+      findsNothing,
+      reason: 'persisted local output replaces the duplicate inline preview',
+    );
+    expect(find.byType(Image), findsOneWidget);
+
+    await tester.tap(localCard);
+    await tester.pump();
+    await tester.pump();
+
+    final viewer = tester.widget<ImageDetailViewer>(
+      find.byType(ImageDetailViewer),
+    );
+    expect(viewer.images, hasLength(1));
+    expect(
+      (viewer.images.single as FileImageDetailData).filePath,
+      imageFile.path,
+    );
+  });
+
   testWidgets('renders persisted generation files without a display tool', (
     tester,
   ) async {
@@ -175,7 +300,7 @@ void main() {
     expect(find.textContaining('missing-generated-result.png'), findsWidgets);
   });
 
-  testWidgets('tool group keeps a concrete failure summary visible', (
+  testWidgets('tool group hides failure payload until explicitly expanded', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -206,9 +331,104 @@ void main() {
       ),
     );
 
+    expect(find.textContaining('Upstream search timed out'), findsNothing);
+    expect(find.textContaining('"status"'), findsNothing);
+    await tester.tap(find.text('Ran 2 actions'));
+    await tester.pumpAndSettle();
     expect(find.textContaining('Upstream search timed out'), findsOneWidget);
     expect(find.textContaining('"status"'), findsNothing);
   });
+
+  testWidgets('running activity has no perpetual animation', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: SizedBox(
+            width: 220,
+            child: AgentChatToolActivityTile(
+              activity: AgentToolActivity(
+                toolCallId: 'running-static',
+                toolName: 'web_search',
+                args: {'query': 'a long query that must remain bounded'},
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(tester.binding.hasScheduledFrame, isFalse);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('task hierarchy stays bounded across supported widths', (
+    tester,
+  ) async {
+    for (final width in [320.0, 360.0, 412.0, 600.0, 840.0]) {
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: MediaQuery(
+            data: MediaQueryData(
+              size: Size(width, 900),
+              textScaler: const TextScaler.linear(2),
+              disableAnimations: true,
+            ),
+            child: Scaffold(
+              body: SizedBox(
+                width: width,
+                child: AgentChatToolResultGroup(
+                  results: [
+                    ToolResultMessage(
+                      toolCallId: 'responsive-ok',
+                      toolName: 'get_recent_images',
+                      content: const [
+                        ToolResultTextContent(
+                          '{"message":"Found the most recent generated image resource"}',
+                        ),
+                      ],
+                    ),
+                    ToolResultMessage(
+                      toolCallId: 'responsive-error',
+                      toolName: 'web_search',
+                      isError: true,
+                      content: const [
+                        ToolResultTextContent(
+                          '{"error":"Network request timed out while loading the reference"}',
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(
+        find.byKey(const PageStorageKey('agent-tool-group-responsive-ok-2')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('agent-tool-result-responsive-ok')),
+        findsNothing,
+      );
+      expect(tester.takeException(), isNull, reason: 'width $width');
+    }
+  });
+}
+
+class _TestShortcutConfigNotifier extends ShortcutConfigNotifier {
+  @override
+  Future<ShortcutConfig> build() async => ShortcutConfig.createDefault();
 }
 
 final _onePixelPng = base64Decode(

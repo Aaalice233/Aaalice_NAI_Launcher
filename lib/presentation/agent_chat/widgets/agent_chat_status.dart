@@ -1,11 +1,9 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 
 import '../../../core/agent/agent_types.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../providers/agent_chat_state.dart';
-import 'agent_chat_tool_widgets.dart';
+import 'agent_chat_approval.dart';
 import 'agent_chat_panel_view_data.dart';
 
 class AgentChatStatus extends StatelessWidget {
@@ -27,56 +25,24 @@ class AgentChatStatus extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         if (state.error.isNotEmpty)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            color: theme.colorScheme.errorContainer.withValues(alpha: 0.4),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    state.error,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onErrorContainer,
-                    ),
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                if (state.status != AgentChatRunStatus.running &&
-                    state.messages.any((message) => message is UserMessage))
-                  TextButton(
-                    onPressed: commands.retryLastMessage,
-                    child: Text(l10n.common_retry),
-                  ),
-                SizedBox(
-                  key: const ValueKey('agent-chat-error-dismiss'),
-                  width: viewData.mobile ? 48 : 24,
-                  height: viewData.mobile ? 48 : 24,
-                  child: InkWell(
-                    onTap: commands.dismissError,
-                    borderRadius: BorderRadius.circular(8),
-                    child: Icon(
-                      Icons.close,
-                      size: viewData.mobile ? 18 : 14,
-                      color: theme.colorScheme.onErrorContainer.withValues(
-                        alpha: 0.7,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+          _AgentChatErrorCard(
+            error: state.error,
+            touchOptimized: viewData.mobile,
+            canRetry:
+                state.status != AgentChatRunStatus.running &&
+                state.messages.any((message) => message is UserMessage),
+            onDismiss: commands.dismissError,
+            onRetry: commands.retryLastMessage,
           ),
         if (state.compacting)
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 4, 14, 0),
             child: Row(
               children: [
-                const SizedBox(
-                  width: 12,
-                  height: 12,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                Icon(
+                  Icons.compress_rounded,
+                  size: 15,
+                  color: theme.colorScheme.primary,
                 ),
                 const SizedBox(width: 8),
                 Text(
@@ -89,58 +55,229 @@ class AgentChatStatus extends StatelessWidget {
             ),
           ),
         if (state.approvalRequest case final request?)
-          _ApprovalBar(
+          AgentChatApprovalCard(
             toolName: request.toolName,
             args: request.args,
             estimatedAnlas: request.estimatedAnlas,
+            touchOptimized: viewData.mobile,
             onResolve: (approved) =>
                 commands.resolveApproval(request.toolCallId, approved),
           ),
-        if (state.routeReady)
-          Padding(
-            padding: EdgeInsets.fromLTRB(
-              viewData.mobile ? 14 : 10,
-              3,
-              viewData.mobile ? 14 : 10,
-              1,
+      ],
+    );
+  }
+}
+
+class _AgentChatErrorCard extends StatefulWidget {
+  const _AgentChatErrorCard({
+    required this.error,
+    required this.touchOptimized,
+    required this.canRetry,
+    required this.onDismiss,
+    required this.onRetry,
+  });
+
+  final String error;
+  final bool touchOptimized;
+  final bool canRetry;
+  final VoidCallback onDismiss;
+  final VoidCallback onRetry;
+
+  @override
+  State<_AgentChatErrorCard> createState() => _AgentChatErrorCardState();
+}
+
+class _AgentChatErrorCardState extends State<_AgentChatErrorCard> {
+  bool _detailsExpanded = false;
+
+  String _summary(BuildContext context) {
+    final status = RegExp(
+      r'(?:HTTP(?: status)?[: ]+|status code of )(\d{3})',
+      caseSensitive: false,
+    ).firstMatch(widget.error);
+    if (status case final match?) {
+      return context.l10n.networkError_requestFailed(
+        int.parse(match.group(1)!),
+      );
+    }
+    return context.l10n.agentChat_requestFailed;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final l10n = context.l10n;
+    final foreground = theme.colorScheme.onErrorContainer;
+    return Container(
+      key: const ValueKey('agent-chat-error-card'),
+      margin: EdgeInsets.fromLTRB(
+        widget.touchOptimized ? 12 : 10,
+        4,
+        widget.touchOptimized ? 12 : 10,
+        4,
+      ),
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(10, 7, 6, 6),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.errorContainer.withValues(alpha: 0.32),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.error_outline_rounded,
+                size: 18,
+                color: theme.colorScheme.error,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  _summary(context),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: foreground,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              SizedBox(
+                key: const ValueKey('agent-chat-error-dismiss'),
+                width: widget.touchOptimized ? 48 : 32,
+                height: widget.touchOptimized ? 48 : 32,
+                child: InkWell(
+                  onTap: widget.onDismiss,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Icon(
+                    Icons.close,
+                    size: widget.touchOptimized ? 18 : 14,
+                    color: foreground.withValues(alpha: 0.7),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (_detailsExpanded)
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 140),
+              child: SingleChildScrollView(
+                primary: false,
+                padding: const EdgeInsets.fromLTRB(26, 4, 8, 4),
+                child: SelectableText(
+                  widget.error,
+                  key: const ValueKey('agent-chat-error-details'),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: foreground.withValues(alpha: 0.78),
+                    fontFamily: 'monospace',
+                    height: 1.35,
+                  ),
+                ),
+              ),
             ),
-            child: Row(
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton.icon(
+                key: const ValueKey('agent-chat-error-details-toggle'),
+                onPressed: () =>
+                    setState(() => _detailsExpanded = !_detailsExpanded),
+                icon: Icon(
+                  _detailsExpanded
+                      ? Icons.expand_less_rounded
+                      : Icons.expand_more_rounded,
+                  size: 17,
+                ),
+                label: Text(l10n.agentChat_errorDetails),
+              ),
+              if (widget.canRetry)
+                TextButton.icon(
+                  key: const ValueKey('agent-chat-error-retry'),
+                  onPressed: widget.onRetry,
+                  icon: const Icon(Icons.refresh_rounded, size: 17),
+                  label: Text(l10n.common_retry),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class AgentChatWorkStatus extends StatelessWidget {
+  const AgentChatWorkStatus({
+    super.key,
+    required this.phase,
+    required this.routeLabel,
+    this.touchOptimized = false,
+  });
+
+  final AgentChatWorkPhase phase;
+  final String routeLabel;
+  final bool touchOptimized;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      key: const ValueKey('agent-chat-work-status'),
+      margin: EdgeInsets.fromLTRB(
+        touchOptimized ? 12 : 10,
+        4,
+        touchOptimized ? 12 : 10,
+        2,
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: phase == AgentChatWorkPhase.failed
+            ? theme.colorScheme.errorContainer.withValues(alpha: 0.24)
+            : theme.colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            _phaseIcon(phase),
+            size: 16,
+            color: phase == AgentChatWorkPhase.failed
+                ? theme.colorScheme.error
+                : theme.colorScheme.primary,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Flexible(
-                  child: Text(
-                    state.routeLabel,
+                Text(
+                  _phaseLabel(context, phase),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                if (routeLabel.trim().isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    routeLabel,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.labelSmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant.withValues(
-                        alpha: 0.72,
+                        alpha: 0.62,
                       ),
                     ),
                   ),
-                ),
-                if (state.workPhase != AgentChatWorkPhase.idle) ...[
-                  const SizedBox(width: 6),
-                  Text(
-                    '· ${_phaseLabel(context, state.workPhase)}',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: theme.colorScheme.primary.withValues(alpha: 0.8),
-                    ),
-                  ),
                 ],
-                const Spacer(),
-                Text(
-                  _contextLabel(context, state),
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant.withValues(
-                      alpha: 0.65,
-                    ),
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                  ),
-                ),
               ],
             ),
           ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -158,130 +295,15 @@ class AgentChatStatus extends StatelessWidget {
         AgentChatWorkPhase.idle => '',
       };
 
-  String _contextLabel(BuildContext context, AgentChatState state) {
-    final usage = state.contextUsage;
-    if (usage == null) return context.l10n.agentChat_contextUnavailable;
-    final tokens = usage.totalTokens > 0
-        ? usage.totalTokens
-        : usage.input + usage.output + usage.cacheRead + usage.cacheWrite;
-    if (tokens <= 0) return context.l10n.agentChat_contextUnavailable;
-    final window = state.contextWindow;
-    if (window == null || window <= 0) {
-      return context.l10n.agentChat_contextTokens(tokens);
-    }
-    final percent = (tokens / window * 100).clamp(0, 999).round();
-    return '${context.l10n.agentChat_contextTokens(tokens)} / $window · $percent%';
-  }
-}
-
-class _ApprovalBar extends StatelessWidget {
-  const _ApprovalBar({
-    required this.toolName,
-    required this.args,
-    required this.estimatedAnlas,
-    required this.onResolve,
-  });
-
-  final String toolName;
-  final Map<String, dynamic> args;
-  final int? estimatedAnlas;
-  final void Function(bool approved) onResolve;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final l10n = context.l10n;
-    var formattedArgs = const JsonEncoder.withIndent('  ').convert(args);
-    if (formattedArgs.length > 1200) {
-      formattedArgs = '${formattedArgs.substring(0, 1200)}…';
-    }
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.tertiaryContainer.withValues(alpha: 0.45),
-        border: Border(
-          top: BorderSide(
-            color: theme.colorScheme.tertiary.withValues(alpha: 0.3),
-          ),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.gpp_maybe_outlined,
-                size: 17,
-                color: theme.colorScheme.onTertiaryContainer,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  l10n.agentChat_approvalTitle(
-                    agentToolLabel(context, toolName),
-                  ),
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    color: theme.colorScheme.onTertiaryContainer,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            l10n.agentChat_approvalDescription,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onTertiaryContainer.withValues(
-                alpha: 0.8,
-              ),
-            ),
-          ),
-          if (estimatedAnlas case final cost?) ...[
-            const SizedBox(height: 4),
-            Text(
-              l10n.agentChat_approvalEstimatedAnlas(cost),
-              style: theme.textTheme.labelLarge?.copyWith(
-                color: theme.colorScheme.onTertiaryContainer,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-          const SizedBox(height: 6),
-          Container(
-            width: double.infinity,
-            constraints: const BoxConstraints(maxHeight: 96),
-            padding: const EdgeInsets.all(6),
-            color: theme.colorScheme.surface.withValues(alpha: 0.6),
-            child: SingleChildScrollView(
-              child: SelectableText(
-                formattedArgs,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  fontFamily: 'monospace',
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              TextButton.icon(
-                onPressed: () => onResolve(false),
-                icon: const Icon(Icons.close, size: 16),
-                label: Text(l10n.agentChat_approvalDeny),
-              ),
-              const SizedBox(width: 6),
-              FilledButton.icon(
-                onPressed: () => onResolve(true),
-                icon: const Icon(Icons.check, size: 16),
-                label: Text(l10n.agentChat_approvalAllow),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
+  IconData _phaseIcon(AgentChatWorkPhase phase) => switch (phase) {
+    AgentChatWorkPhase.preparing => Icons.hourglass_top_rounded,
+    AgentChatWorkPhase.thinking => Icons.psychology_alt_outlined,
+    AgentChatWorkPhase.responding => Icons.edit_note_rounded,
+    AgentChatWorkPhase.usingTools => Icons.build_circle_outlined,
+    AgentChatWorkPhase.awaitingApproval => Icons.gpp_maybe_outlined,
+    AgentChatWorkPhase.compacting => Icons.compress_rounded,
+    AgentChatWorkPhase.stopping => Icons.stop_circle_outlined,
+    AgentChatWorkPhase.failed => Icons.error_outline_rounded,
+    AgentChatWorkPhase.idle => Icons.circle_outlined,
+  };
 }

@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/agent/agent_types.dart';
 import '../../../core/agent/harness/harness_messages.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference_codec.dart';
+import '../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../core/windowing/agent_window_runtime.dart';
@@ -21,6 +22,7 @@ import '../../widgets/common/themed_input_dialog.dart';
 import '../providers/agent_chat_notifier.dart';
 import 'agent_chat_panel_controller.dart';
 import 'agent_chat_panel_view_data.dart';
+import 'agent_chat_resource_widgets.dart';
 
 /// Translates typed UI commands into notifier, session, model, permission and
 /// attachment operations. Widgets never reach into Riverpod or panel State.
@@ -37,11 +39,17 @@ class AgentChatPanelCoordinator {
   final AgentChatPanelController _controller;
   final bool Function() _isMounted;
 
-  AgentChatPanelCommands commands(BuildContext context, AgentChatState state) {
+  AgentChatPanelCommands commands(
+    BuildContext context,
+    AgentChatState state, {
+    AgentChatResourceReference? currentCanvasReference,
+  }) {
     return AgentChatPanelCommands(
       collapse: () => _ref
           .read(layoutStateNotifierProvider.notifier)
           .setRightPanelExpanded(false),
+      loadEarlierHistory: () =>
+          _ref.read(agentChatNotifierProvider.notifier).loadEarlierHistory(),
       detach: () async {
         try {
           await AgentWindowRuntime.instance.open();
@@ -74,6 +82,19 @@ class AgentChatPanelCoordinator {
           .read(agentSettingsProvider.notifier)
           .setWebAccessEnabled(enabled),
       pickImages: () => _pickImages(context),
+      attachCurrentCanvas: () =>
+          _attachCurrentCanvas(context, currentCanvasReference),
+      openReferenceGallery: () => AgentChatResourcePicker.showReferenceGallery(
+        context: context,
+        ref: _ref,
+        onSelected: _notifier.addPendingResource,
+      ),
+      openResourceLibrary: () => AgentChatResourcePicker.showResourceLibrary(
+        context: context,
+        ref: _ref,
+        onSelected: _notifier.addPendingResource,
+      ),
+      resolveResourcePreview: _notifier.resolveResourcePreview,
       send: () => _send(context),
       sendFollowUp: () => _send(context, followUp: true),
       stop: _notifier.abort,
@@ -84,7 +105,6 @@ class AgentChatPanelCoordinator {
       copyUserMessage: (message) => _copyUserMessage(context, message),
       copyAssistantMessage: (message) =>
           _copyAssistantMessage(context, message),
-      editLastUserMessage: (message) => _editLastUserMessage(context, message),
       editQueuedMessage: _editQueuedMessage,
       removeQueuedMessage: _notifier.removeQueuedMessage,
       clearQueuedMessages: _notifier.clearQueuedMessages,
@@ -120,9 +140,25 @@ class AgentChatPanelCoordinator {
     );
     if (result == null || !_isMounted()) return;
     for (final file in result.files) {
+      if (file.size > _maxInlineImageBytes) {
+        if (!_isMounted() || !context.mounted) return;
+        _showPickError(
+          context,
+          context.l10n.agentChat_imageTooLarge(file.name, 20),
+        );
+        continue;
+      }
       final bytes = await _readImageBytes(file);
       if (!_isMounted()) return;
       if (bytes == null) continue;
+      if (bytes.length > _maxInlineImageBytes) {
+        if (!_isMounted() || !context.mounted) return;
+        _showPickError(
+          context,
+          context.l10n.agentChat_imageTooLarge(file.name, 20),
+        );
+        continue;
+      }
       final mimeType = detectImageMime(bytes);
       if (mimeType == null) {
         if (!_isMounted() || !context.mounted) return;
@@ -143,6 +179,40 @@ class AgentChatPanelCoordinator {
     if (_isMounted()) _controller.inputFocus.requestFocus();
   }
 
+  static const int _maxInlineImageBytes = 20 * 1024 * 1024;
+
+  Future<void> _attachCurrentCanvas(
+    BuildContext context,
+    AgentChatResourceReference? reference,
+  ) async {
+    if (reference == null) return;
+    final unavailableMessage = context.l10n.agentChat_resourceUnavailable;
+    final canvasLabel = context.l10n.agentChat_currentCanvas;
+    try {
+      if (!await _notifier
+          .resolveResourcePreview(reference)
+          .then((value) => value?.bytes?.isNotEmpty == true)) {
+        throw StateError(unavailableMessage);
+      }
+      await _notifier.addPendingResource(
+        AgentChatResourceReference(
+          kind: reference.kind,
+          source: reference.source,
+          resourceId: reference.resourceId,
+          display: {'name': canvasLabel},
+        ),
+      );
+      if (_isMounted()) _controller.inputFocus.requestFocus();
+    } on Object catch (error) {
+      if (_isMounted() && context.mounted) {
+        AppToast.error(
+          context,
+          context.l10n.agentChat_addResourceFailed('$error'),
+        );
+      }
+    }
+  }
+
   Future<void> _copyUserMessage(
     BuildContext context,
     UserMessage message,
@@ -153,24 +223,6 @@ class AgentChatPanelCoordinator {
     if (_isMounted() && context.mounted) {
       AppToast.info(context, context.l10n.common_copied);
     }
-  }
-
-  Future<void> _editLastUserMessage(
-    BuildContext context,
-    UserMessage message,
-  ) async {
-    final draft = _draftForUserMessage(message);
-    if (draft == null) return;
-    final rewound = await _notifier.rewindLastUserMessage();
-    if (!_isMounted() ||
-        !context.mounted ||
-        rewound == null ||
-        rewound.timestamp != message.timestamp) {
-      return;
-    }
-    _controller.restoreDraft(draft.text, draft.images);
-    _controller.inputFocus.requestFocus();
-    _controller.scrollToBottom(force: true);
   }
 
   Future<void> _editQueuedMessage(AgentQueuedMessage queued) async {

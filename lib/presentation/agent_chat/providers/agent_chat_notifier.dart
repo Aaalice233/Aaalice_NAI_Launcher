@@ -219,13 +219,17 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       auditSink: auditSink,
       estimateAnlas: _estimatePreparedAnlas,
       onApprovalChanged: (request) {
+        final boundRequest = request?.bind(
+          turnId: _sessionControllerValue?.activeTurnId,
+          itemId: 'call:${request.toolCallId}',
+        );
         state = request == null
             ? state.copyWith(
                 clearApprovalRequest: true,
                 workPhase: AgentChatWorkPhase.usingTools,
               )
             : state.copyWith(
-                approvalRequest: request,
+                approvalRequest: boundRequest,
                 workPhase: AgentChatWorkPhase.awaitingApproval,
               );
       },
@@ -894,6 +898,8 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
   /// 建立新分支，与 `/rewind` 的语义一致。
   Future<UserMessage?> rewindLastUserMessage() =>
       _sessionController.rewindLastUserMessage();
+
+  Future<void> loadEarlierHistory() => _sessionController.loadEarlierHistory();
 
   /// 删除指定会话；删除当前会话时自动切到最近剩余会话（无则新建）。
   Future<void> deleteSession(String sessionId) =>

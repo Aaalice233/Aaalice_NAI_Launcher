@@ -116,6 +116,9 @@ class AgentWindowBridgeHost extends ChangeNotifier
     );
     if (response != null) {
       final envelope = AgentWindowEnvelope.fromJson(response);
+      if (envelope.kind != 'snapshot' || envelope.name != 'state') {
+        throw const FormatException('Ready response is not an Agent snapshot');
+      }
       if (envelope.sessionToken != launchArguments.handshakeToken) {
         throw StateError('Main window response has an invalid session token');
       }
@@ -125,24 +128,11 @@ class AgentWindowBridgeHost extends ChangeNotifier
 
   void _applySnapshot(Map<String, Object?> json) {
     final targetWindowId = json['windowId'];
-    if (targetWindowId != null && targetWindowId != controller.windowId) return;
-    final next = AgentWindowSnapshot.fromJson(json);
-    if (next.revision < _snapshot.revision) return;
-    final previousAssets = _snapshot.payload['imageAssets'];
-    final nextAssets = next.payload['imageAssets'];
-    final referencedAssets = next.payload['referencedImageAssets'];
-    final mergedAssets = <Object?, Object?>{
-      if (previousAssets is Map) ...previousAssets,
-      if (nextAssets is Map) ...nextAssets,
-    };
-    if (referencedAssets is List) {
-      final referenced = referencedAssets.whereType<String>().toSet();
-      mergedAssets.removeWhere((key, _) => !referenced.contains(key));
+    if (targetWindowId != null && targetWindowId != controller.windowId) {
+      throw StateError('Agent snapshot targets a different window');
     }
-    _snapshot = AgentWindowSnapshot(
-      revision: next.revision,
-      payload: {...next.payload, 'imageAssets': mergedAssets},
-    );
+    final next = AgentWindowSnapshot.fromJson(json);
+    _snapshot = mergeAgentWindowSnapshotAssets(_snapshot, next);
     notifyListeners();
   }
 
@@ -371,6 +361,24 @@ Future<void> runAgentWindowSecondary({
       // Keep the original startup failure and stack trace authoritative.
     }
     Error.throwWithStackTrace(error, stackTrace);
+  }
+}
+
+/// Closes a secondary whose persisted launch arguments no longer match the
+/// current protocol, without entering the primary app/Hive/Riverpod bootstrap.
+Future<void> closeIncompatibleAgentWindowSecondary() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  try {
+    _logSecondary('Closing incompatible secondary before app bootstrap');
+    await windowManager.ensureInitialized();
+    await windowManager.setPreventClose(false);
+    await windowManager.close();
+  } catch (error, stackTrace) {
+    _reportAgentWindowLifecycleError(
+      error,
+      stackTrace,
+      'while closing an incompatible Agent secondary',
+    );
   }
 }
 

@@ -496,23 +496,34 @@ Future<void> _runDeferredStartup(ProviderContainer container) async {
 }
 
 void main(List<String> args) {
-  final agentWindowArguments =
-      AgentWindowLaunchArguments.tryParseEntrypointArgs(args);
-  if (agentWindowArguments != null && AgentWindowRuntime.isDesktop) {
-    unawaited(
-      runAgentWindowSecondary(
-        arguments: agentWindowArguments,
-        builder: buildAgentWindowBridgeShell,
-      ).catchError((Object error, StackTrace stackTrace) {
-        AppErrorReporter.reportError(
-          error,
-          stackTrace,
-          source: 'agentWindowSecondary',
-          fatal: true,
+  if (AgentWindowRuntime.isDesktop) {
+    switch (classifyAgentWindowEntrypoint(args)) {
+      case AgentWindowEntrypointKind.compatibleSecondary:
+        final arguments = AgentWindowLaunchArguments.tryParseEntrypointArgs(
+          args,
+        )!;
+        unawaited(
+          runAgentWindowSecondary(
+            arguments: arguments,
+            builder: buildAgentWindowBridgeShell,
+          ).catchError((Object error, StackTrace stackTrace) {
+            AppErrorReporter.reportError(
+              error,
+              stackTrace,
+              source: 'agentWindowSecondary',
+              fatal: true,
+            );
+          }),
         );
-      }),
-    );
-    return;
+        return;
+      case AgentWindowEntrypointKind.incompatibleSecondary:
+        // An old secondary engine must remain IPC-only even when its launch
+        // protocol no longer matches this Dart code after a hot restart.
+        unawaited(closeIncompatibleAgentWindowSecondary());
+        return;
+      case AgentWindowEntrypointKind.primary:
+        break;
+    }
   }
 
   final bootstrap = runZonedGuarded<Future<void>>(_bootstrapApplication, (

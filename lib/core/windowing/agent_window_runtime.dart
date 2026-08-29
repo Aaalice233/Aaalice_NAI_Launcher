@@ -17,28 +17,6 @@ export 'agent_window_secondary.dart';
 const _screenEventDisplayAdded = 'display-added';
 const _screenEventDisplayRemoved = 'display-removed';
 
-@visibleForTesting
-AgentWindowSnapshot mergeAgentWindowSnapshotAssets(
-  AgentWindowSnapshot previous,
-  AgentWindowSnapshot next,
-) {
-  final previousAssets = previous.payload['imageAssets'];
-  final nextAssets = next.payload['imageAssets'];
-  final referencedAssets = next.payload['referencedImageAssets'];
-  final mergedAssets = <Object?, Object?>{
-    if (previousAssets is Map) ...previousAssets,
-    if (nextAssets is Map) ...nextAssets,
-  };
-  if (referencedAssets is List) {
-    final referenced = referencedAssets.whereType<String>().toSet();
-    mergedAssets.removeWhere((key, _) => !referenced.contains(key));
-  }
-  return AgentWindowSnapshot(
-    revision: next.revision,
-    payload: {...next.payload, 'imageAssets': mergedAssets},
-  );
-}
-
 class CallbackAgentWindowPreferences implements AgentWindowPreferences {
   const CallbackAgentWindowPreferences({
     required this.boundsReader,
@@ -324,7 +302,10 @@ class AgentWindowRuntime extends ScreenListener {
                 name: 'state',
                 sequence: _sequence++,
                 sessionToken: sessionToken,
-                payload: {..._snapshot.toJson(), 'windowId': windowId},
+                // Active secondaries maintain the same referenced-asset cache.
+                // Sending only this delta avoids retransmitting historical
+                // base64 data for every streaming-token snapshot.
+                payload: {...snapshot.toJson(), 'windowId': windowId},
               ).toJson(),
             )
             .timeout(const Duration(seconds: 3));
@@ -513,16 +494,18 @@ class AgentWindowRuntime extends ScreenListener {
       'Agent window snapshot channel is unavailable: $error',
       'AgentWindow',
     );
+    final bool windowStillExists;
     try {
       final windows = await WindowController.getAll();
-      if (windows.any((window) => window.windowId == windowId)) return;
+      windowStillExists = windows.any((window) => window.windowId == windowId);
     } on Object catch (lookupError) {
       AppLogger.w(
         'Unable to verify Agent window after channel failure: $lookupError',
         'AgentWindow',
       );
-      return;
+      throw error;
     }
+    if (windowStillExists) throw error;
     _ready.remove(windowId);
     _lastInboundSequence.remove(windowId);
     _handshakeTokensByWindow.remove(windowId);
@@ -570,14 +553,44 @@ class _DesktopAgentWindowBackend implements AgentWindowBackend {
         <
           ({WindowController controller, AgentWindowLaunchArguments arguments})
         >[];
+    final incompatible = <WindowController>[];
     for (final controller in await WindowController.getAll()) {
-      final arguments = AgentWindowLaunchArguments.tryParseEntrypointArgs([
+      final entrypointArgs = [
         'multi_window',
         controller.windowId,
         controller.arguments,
-      ]);
+      ];
+      final arguments = AgentWindowLaunchArguments.tryParseEntrypointArgs(
+        entrypointArgs,
+      );
       if (arguments != null) {
         matches.add((controller: controller, arguments: arguments));
+      } else if (identifiesAgentWindowEntrypointArgs(entrypointArgs)) {
+        incompatible.add(controller);
+      }
+    }
+    for (final controller in incompatible) {
+      AppLogger.w(
+        'Retiring incompatible Agent window: id=${controller.windowId}',
+        'AgentWindow',
+      );
+      try {
+        await controller
+            .invokeMethod<void>('window_close_cascade', false)
+            .timeout(const Duration(seconds: 3));
+      } on Object catch (closeError) {
+        try {
+          await controller.hide();
+        } on Object catch (hideError, stackTrace) {
+          AppLogger.e(
+            'Failed to retire incompatible Agent window '
+                '${controller.windowId}: close=$closeError, hide=$hideError',
+            hideError,
+            stackTrace,
+            'AgentWindow',
+          );
+          rethrow;
+        }
       }
     }
     AppLogger.i(

@@ -8,6 +8,9 @@ import '../../l10n/app_localizations.dart';
 import '../utils/app_logger.dart';
 import '../agent/resources/agent_chat_resource_drag_format.dart';
 import '../agent/resources/agent_chat_resource_reference_codec.dart';
+import 'agent_chat_session_picker.dart';
+import 'agent_chat_layout_contract.dart';
+import 'agent_chat_shared_widgets.dart';
 import 'agent_window_protocol.dart';
 import 'agent_window_shell_widgets.dart';
 import 'agent_window_transcript_widgets.dart';
@@ -44,6 +47,7 @@ class _AgentWindowBridgeShellState extends State<_AgentWindowBridgeShell> {
   final _scrollController = ScrollController();
   Timer? _composerSyncTimer;
   String _localError = '';
+  bool _composerExpanded = false;
 
   AgentWindowShellBridge get bridge => widget.bridge;
 
@@ -136,10 +140,12 @@ class _AgentWindowBridgeShellState extends State<_AgentWindowBridgeShell> {
     );
     final activeSessionId = payload['activeSessionId'] as String? ?? '';
     final running = payload['running'] == true;
+    final sessionTransitioning = payload['sessionTransitioning'] == true;
+    final sessionContentLoading = payload['sessionContentLoading'] == true;
+    final controlsLocked = running || sessionTransitioning;
     final initialized = payload['initialized'] == true;
     final routeReady = payload['routeReady'] == true;
     final compacting = payload['compacting'] == true;
-    final routeLabel = payload['routeLabel'] as String? ?? '';
     final remoteComposer = payload['composerText'] as String? ?? '';
     if (_composer.text != remoteComposer && !_composerFocus.hasFocus) {
       _composer.value = TextEditingValue(
@@ -169,11 +175,15 @@ class _AgentWindowBridgeShellState extends State<_AgentWindowBridgeShell> {
         }
       },
       child: Scaffold(
-        appBar: _buildAppBar(context, l10n, running),
+        appBar: _buildAppBar(
+          context,
+          l10n,
+          controlsLocked,
+          sessions,
+          activeSessionId,
+        ),
         body: Column(
           children: [
-            if (sessions.isNotEmpty)
-              _buildSessionPicker(l10n, sessions, activeSessionId, running),
             Expanded(
               child: AgentWindowMessageList(
                 messages: messages,
@@ -181,25 +191,42 @@ class _AgentWindowBridgeShellState extends State<_AgentWindowBridgeShell> {
                 copyText: _copyText,
                 retryLastMessage: () => bridge.sendCommand('retryLastMessage'),
                 running: running,
+                timeline: payload['timeline'] is List
+                    ? payload['timeline'] as List
+                    : const [],
+                activities: payload['activities'] is List
+                    ? payload['activities'] as List
+                    : const [],
+                history: payload['history'] is Map
+                    ? Map<Object?, Object?>.from(payload['history'] as Map)
+                    : const {},
+                approvalPending: approval != null,
+                loadEarlierHistory: () async {
+                  await bridge.sendCommand('loadEarlierHistory');
+                },
+                loadLatestHistory: () async {
+                  await bridge.sendCommand('loadLatestHistory');
+                },
               ),
             ),
             ..._buildStatusPanels(
               context,
               payload,
               compacting,
+              sessionContentLoading,
               approval,
-              resources,
               queue,
             ),
             _buildComposer(
               context,
               l10n,
               payload,
-              routeLabel,
               initialized,
               routeReady,
               running,
+              sessionTransitioning,
               hasUnavailableResources,
+              resources,
             ),
           ],
         ),
@@ -207,112 +234,281 @@ class _AgentWindowBridgeShellState extends State<_AgentWindowBridgeShell> {
     );
   }
 
-  AppBar _buildAppBar(
+  PreferredSizeWidget _buildAppBar(
     BuildContext context,
     AppLocalizations l10n,
-    bool running,
-  ) => AppBar(
-    title: Text(l10n.agentChat_heroTitle),
-    actions: [
-      IconButton(
-        tooltip: l10n.agentChat_newChat,
-        onPressed: running ? null : () => bridge.sendCommand('newSession'),
-        icon: const Icon(Icons.add_comment_outlined),
-      ),
-      PopupMenuButton<String>(
-        tooltip: l10n.agentChat_moreActions,
-        enabled: !running,
-        onSelected: (value) => _sessionAction(context, value),
-        itemBuilder: (_) => [
-          PopupMenuItem(
-            value: 'rename',
-            child: ListTile(
-              leading: const Icon(Icons.edit_outlined),
-              title: Text(l10n.common_rename),
-            ),
-          ),
-          PopupMenuItem(
-            value: 'compact',
-            child: ListTile(
-              leading: const Icon(Icons.compress_outlined),
-              title: Text(l10n.agentChat_compact),
-            ),
-          ),
-          PopupMenuItem(
-            value: 'delete',
-            child: ListTile(
-              leading: const Icon(Icons.delete_outline),
-              title: Text(l10n.common_delete),
-            ),
-          ),
-        ],
-      ),
-      IconButton(
-        tooltip: l10n.agentChat_alwaysOnTop,
-        onPressed: () => bridge.setAlwaysOnTop(!bridge.alwaysOnTop),
-        icon: Icon(
-          bridge.alwaysOnTop ? Icons.push_pin : Icons.push_pin_outlined,
-        ),
-      ),
-      IconButton(
-        tooltip: l10n.agentChat_dockWindow,
-        onPressed: bridge.dock,
-        icon: const Icon(Icons.call_received),
-      ),
-    ],
-  );
-
-  Widget _buildSessionPicker(
-    AppLocalizations l10n,
+    bool controlsLocked,
     List sessions,
     String activeSessionId,
-    bool running,
-  ) => Padding(
-    key: const ValueKey('agent-window-session-picker'),
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-    child: DropdownButtonFormField<String>(
-      initialValue:
-          sessions.any((item) => item is Map && item['id'] == activeSessionId)
-          ? activeSessionId
-          : null,
-      isExpanded: true,
-      items: [
-        for (final item in sessions)
-          if (item is Map)
-            DropdownMenuItem(
-              value: item['id'] as String?,
-              child: Text(
-                item['name'] as String? ?? l10n.agentChat_untitled,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-      ],
-      onChanged: running
-          ? null
-          : (value) {
-              if (value != null) {
-                bridge.sendCommand('switchSession', {'id': value});
-              }
-            },
-      decoration: const InputDecoration(
-        isDense: true,
-        prefixIcon: Icon(Icons.forum_outlined),
+  ) => PreferredSize(
+    preferredSize: const Size.fromHeight(64),
+    child: LayoutBuilder(
+      builder: (headerContext, constraints) => _buildHeaderContent(
+        headerContext,
+        l10n,
+        controlsLocked,
+        sessions,
+        activeSessionId,
+        constraints.maxWidth,
       ),
     ),
   );
+
+  Widget _buildHeaderContent(
+    BuildContext context,
+    AppLocalizations l10n,
+    bool controlsLocked,
+    List sessions,
+    String activeSessionId,
+    double width,
+  ) {
+    final compact = width < 760;
+    final showProduct = width >= 980;
+    final showActionLabels = width >= 1320;
+    final sessionPicker = AgentChatSessionPicker(
+      key: const ValueKey('agent-window-session-picker'),
+      sessions: [
+        for (final item in sessions)
+          if (item is Map && item['id'] is String)
+            AgentChatSessionOption(
+              id: item['id'] as String,
+              name: item['name'] as String? ?? '',
+              updatedAt: DateTime.tryParse(item['updatedAt'] as String? ?? ''),
+            ),
+      ],
+      activeSessionId: activeSessionId,
+      enabled: !controlsLocked,
+      compactTitle: true,
+      touchOptimized: compact,
+      onSelect: (id) async {
+        await bridge.sendCommand('switchSession', {'id': id});
+      },
+      onNew: () async {
+        await bridge.sendCommand('newSession');
+      },
+      onRename: (id) => _sessionAction(context, 'rename', sessionId: id),
+      onDelete: (id) => _sessionAction(context, 'delete', sessionId: id),
+    );
+    final newSession = AgentWindowHeaderAction(
+      tooltip: l10n.agentChat_newChat,
+      label: l10n.agentChat_newChat,
+      icon: Icons.add_comment_outlined,
+      showLabel: showActionLabels,
+      onPressed: controlsLocked ? null : () => bridge.sendCommand('newSession'),
+    );
+    final dock = AgentWindowHeaderAction(
+      tooltip: l10n.agentChat_dockWindow,
+      label: l10n.agentChat_dockWindow,
+      icon: Icons.call_received,
+      showLabel: showActionLabels,
+      onPressed: bridge.dock,
+    );
+    final actionItems = <Widget>[
+      if (!compact) newSession,
+      if (width >= 980)
+        AgentWindowHeaderAction(
+          tooltip: l10n.agentChat_alwaysOnTop,
+          label: l10n.agentChat_alwaysOnTop,
+          icon: bridge.alwaysOnTop ? Icons.push_pin : Icons.push_pin_outlined,
+          showLabel: showActionLabels,
+          selected: bridge.alwaysOnTop,
+          onPressed: _toggleAlwaysOnTop,
+        ),
+      dock,
+      _buildMoreMenu(
+        context,
+        l10n,
+        enabled: !controlsLocked,
+        includeNewSession: compact,
+        includeWindow: width < 980,
+        showLabel: showActionLabels,
+      ),
+    ];
+    return Material(
+      color: Theme.of(context).colorScheme.surfaceContainerLow,
+      child: SafeArea(
+        bottom: false,
+        child: SizedBox(
+          height: 64,
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: compact ? 8 : 16),
+            child: Row(
+              children: [
+                if (showProduct) ...[
+                  Container(
+                    width: 28,
+                    height: 28,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.primaryContainer.withValues(alpha: 0.72),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.auto_awesome_rounded,
+                      size: 15,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      l10n.agentChat_heroTitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  SizedBox(
+                    height: 28,
+                    child: VerticalDivider(
+                      width: 1,
+                      color: Theme.of(context).colorScheme.outlineVariant,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                ],
+                Expanded(flex: 2, child: sessionPicker),
+                const SizedBox(width: 4),
+                SizedBox(
+                  width: compact
+                      ? 96
+                      : showActionLabels
+                      ? 480
+                      : 192,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: actionItems,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  PopupMenuButton<String> _buildMoreMenu(
+    BuildContext context,
+    AppLocalizations l10n, {
+    required bool enabled,
+    bool includeNewSession = false,
+    bool includeWindow = false,
+    bool showLabel = false,
+  }) => PopupMenuButton<String>(
+    key: const ValueKey('agent-window-more-actions'),
+    constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+    padding: EdgeInsets.zero,
+    tooltip: l10n.agentChat_moreActions,
+    onSelected: (value) => _headerAction(context, value),
+    itemBuilder: (_) => [
+      if (enabled) ...[
+        if (includeNewSession)
+          PopupMenuItem(
+            value: 'new',
+            child: ListTile(
+              leading: const Icon(Icons.add_comment_outlined),
+              title: Text(l10n.agentChat_newChat),
+            ),
+          ),
+        PopupMenuItem(
+          value: 'rename',
+          child: ListTile(
+            leading: const Icon(Icons.edit_outlined),
+            title: Text(l10n.common_rename),
+          ),
+        ),
+        PopupMenuItem(
+          value: 'compact',
+          child: ListTile(
+            leading: const Icon(Icons.compress_outlined),
+            title: Text(l10n.agentChat_compact),
+          ),
+        ),
+        PopupMenuItem(
+          value: 'delete',
+          child: ListTile(
+            leading: const Icon(Icons.delete_outline),
+            title: Text(l10n.common_delete),
+          ),
+        ),
+      ],
+      if (includeWindow) ...[
+        PopupMenuItem(
+          value: 'pin',
+          child: ListTile(
+            leading: Icon(
+              bridge.alwaysOnTop ? Icons.push_pin : Icons.push_pin_outlined,
+            ),
+            title: Text(l10n.agentChat_alwaysOnTop),
+          ),
+        ),
+        PopupMenuItem(
+          value: 'dock',
+          child: ListTile(
+            leading: const Icon(Icons.call_received),
+            title: Text(l10n.agentChat_dockWindow),
+          ),
+        ),
+      ],
+    ],
+    child: AgentWindowHeaderAction(
+      tooltip: l10n.agentChat_moreActions,
+      label: l10n.agentChat_moreActions,
+      icon: Icons.more_horiz_rounded,
+      showLabel: showLabel,
+      onPressed: null,
+    ),
+  );
+
+  Future<void> _headerAction(BuildContext context, String value) async {
+    if (value == 'new') {
+      await bridge.sendCommand('newSession');
+      return;
+    }
+    if (value == 'pin') {
+      await _toggleAlwaysOnTop();
+      return;
+    }
+    if (value == 'dock') {
+      await bridge.dock();
+      return;
+    }
+    await _sessionAction(context, value);
+  }
+
+  Future<void> _toggleAlwaysOnTop() async {
+    await bridge.setAlwaysOnTop(!bridge.alwaysOnTop);
+    if (mounted) setState(() {});
+  }
 
   List<Widget> _buildStatusPanels(
     BuildContext context,
     Map<String, Object?> payload,
     bool compacting,
+    bool sessionContentLoading,
     Map<Object?, Object?>? approval,
-    List resources,
     List queue,
   ) => [
-    if (payload['activities'] case final List activities)
-      for (final activity in activities)
-        if (activity is Map && activity['status'] == 'running')
-          AgentWindowToolActivityTile(activity: activity, copyText: _copyText),
+    if (sessionContentLoading)
+      const LinearProgressIndicator(
+        key: ValueKey('agent-window-session-loading'),
+        minHeight: 2,
+      ),
+    if (!(payload['timeline'] is List &&
+        (payload['timeline'] as List).isNotEmpty))
+      if (payload['activities'] case final List activities)
+        for (final activity in activities)
+          if (activity is Map && activity['status'] == 'running')
+            AgentWindowToolActivityTile(
+              activity: activity,
+              copyText: _copyText,
+            ),
     if (compacting)
       Padding(
         padding: const EdgeInsets.fromLTRB(14, 4, 14, 4),
@@ -334,7 +530,11 @@ class _AgentWindowBridgeShellState extends State<_AgentWindowBridgeShell> {
         child: ListTile(
           dense: true,
           leading: const Icon(Icons.error_outline),
-          title: Text(error, maxLines: 3, overflow: TextOverflow.ellipsis),
+          title: Text(
+            _presentWindowError(context, error),
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+          ),
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -377,12 +577,6 @@ class _AgentWindowBridgeShellState extends State<_AgentWindowBridgeShell> {
           'value': value,
         }),
       ),
-    if (resources.isNotEmpty)
-      AgentWindowResourceList(
-        resources: resources,
-        remove: (encoded) =>
-            bridge.sendCommand('removeResource', {'reference': encoded}),
-      ),
     if (queue.isNotEmpty)
       AgentWindowQueuePanel(
         queue: queue,
@@ -413,25 +607,32 @@ class _AgentWindowBridgeShellState extends State<_AgentWindowBridgeShell> {
     BuildContext context,
     AppLocalizations l10n,
     Map<String, Object?> payload,
-    String routeLabel,
     bool initialized,
     bool routeReady,
     bool running,
+    bool sessionTransitioning,
     bool hasUnavailableResources,
+    List resources,
   ) {
+    final controlsLocked = running || sessionTransitioning;
     final permission = AgentWindowPermissionModeButton(
       sendCommand: (name, payload) => bridge.sendCommand(name, payload),
       payload: payload,
     );
     final webAccess = FilterChip(
+      key: const ValueKey('agent-window-web-access'),
       selected: payload['webAccessEnabled'] == true,
       avatar: const Icon(Icons.public, size: 16),
       label: Text(l10n.agentChat_webAccess),
-      onSelected: running
+      onSelected: controlsLocked
           ? null
           : (value) => bridge.sendCommand('setWebAccess', {'value': value}),
     );
     final model = AgentWindowModelButton(
+      payload: payload,
+      sendCommand: (name, payload) => bridge.sendCommand(name, payload),
+    );
+    final thinking = AgentWindowThinkingButton(
       payload: payload,
       sendCommand: (name, payload) => bridge.sendCommand(name, payload),
     );
@@ -467,7 +668,11 @@ class _AgentWindowBridgeShellState extends State<_AgentWindowBridgeShell> {
             : running
             ? l10n.agentChat_queued
             : l10n.agentChat_send,
-        onPressed: initialized && routeReady && !hasUnavailableResources
+        onPressed:
+            initialized &&
+                routeReady &&
+                !sessionTransitioning &&
+                !hasUnavailableResources
             ? _send
             : null,
         icon: Icon(running ? Icons.queue_rounded : Icons.send_rounded),
@@ -476,12 +681,15 @@ class _AgentWindowBridgeShellState extends State<_AgentWindowBridgeShell> {
     return SafeArea(
       top: false,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 6, 12, 10),
+        padding: AgentChatLayoutContract.composerOuterPadding(
+          MediaQuery.sizeOf(context).width,
+        ),
         child: Container(
-          padding: const EdgeInsets.fromLTRB(8, 8, 8, 6),
+          key: const ValueKey('agent-window-composer-surface'),
+          padding: const EdgeInsets.fromLTRB(10, 10, 8, 8),
           decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(16),
+            color: Theme.of(context).colorScheme.surfaceContainer,
+            borderRadius: BorderRadius.circular(14),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -520,90 +728,174 @@ class _AgentWindowBridgeShellState extends State<_AgentWindowBridgeShell> {
                     );
                     return KeyEventResult.handled;
                   }
-                  if (!hasUnavailableResources) unawaited(_send());
+                  if (initialized &&
+                      routeReady &&
+                      !sessionTransitioning &&
+                      !hasUnavailableResources) {
+                    unawaited(_send());
+                  }
                   return KeyEventResult.handled;
                 },
-                child: TextField(
-                  controller: _composer,
-                  focusNode: _composerFocus,
-                  enabled: initialized,
-                  minLines: 1,
-                  maxLines: 7,
-                  onChanged: _composerChanged,
-                  textInputAction: TextInputAction.newline,
-                  decoration: InputDecoration(
-                    hintText: l10n.agentChat_inputHint,
-                    border: InputBorder.none,
-                    isDense: true,
-                    contentPadding: const EdgeInsets.fromLTRB(8, 8, 8, 6),
-                  ),
+                child: Stack(
+                  children: [
+                    SizedBox(
+                      key: const ValueKey('agent-window-composer-editor'),
+                      height: _composerExpanded
+                          ? AgentChatComposerLayout.expandedEditorHeight(
+                              availableHeight:
+                                  AgentChatComposerLayout.availableViewportHeight(
+                                    context,
+                                  ),
+                              touchOptimized:
+                                  MediaQuery.sizeOf(context).width < 560,
+                            )
+                          : null,
+                      child: TextField(
+                        key: const ValueKey('agent-window-composer-input'),
+                        controller: _composer,
+                        focusNode: _composerFocus,
+                        enabled: initialized,
+                        expands: _composerExpanded,
+                        minLines: _composerExpanded
+                            ? null
+                            : AgentChatComposerLayout.defaultMinLines,
+                        maxLines: _composerExpanded
+                            ? null
+                            : AgentChatComposerLayout.defaultDesktopMaxLines,
+                        onChanged: _composerChanged,
+                        textInputAction: TextInputAction.newline,
+                        textAlignVertical: TextAlignVertical.top,
+                        decoration: InputDecoration(
+                          hintText: l10n.agentChat_inputHint,
+                          border: InputBorder.none,
+                          isDense: true,
+                          contentPadding: const EdgeInsets.fromLTRB(
+                            8,
+                            12,
+                            48,
+                            8,
+                          ),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      top: 0,
+                      right: 0,
+                      child: AgentChatComposerExpandButton(
+                        key: const ValueKey('agent-window-composer-expand'),
+                        expanded: _composerExpanded,
+                        touchOptimized: MediaQuery.sizeOf(context).width < 560,
+                        expandLabel:
+                            '${l10n.common_expand} · ${l10n.agentChat_inputHint}',
+                        collapseLabel:
+                            '${l10n.common_collapse} · ${l10n.agentChat_inputHint}',
+                        onPressed: () {
+                          setState(
+                            () => _composerExpanded = !_composerExpanded,
+                          );
+                          _composerFocus.requestFocus();
+                        },
+                      ),
+                    ),
+                  ],
                 ),
               ),
+              if (resources.isNotEmpty)
+                AgentWindowResourceList(
+                  resources: resources,
+                  remove: (encoded) => bridge.sendCommand('removeResource', {
+                    'reference': encoded,
+                  }),
+                ),
               const SizedBox(height: 6),
               LayoutBuilder(
                 builder: (context, constraints) {
+                  final contextUsage = payload['contextUsage'];
+                  final contextTokens = _contextTokens(contextUsage);
+                  final contextWindow = _contextWindow();
+                  final contextAvailable =
+                      contextTokens != null && contextWindow != null;
+                  final contextIndicator = AgentChatContextIndicator(
+                    usedTokens: contextTokens,
+                    contextWindow: contextWindow,
+                    usageLabel: contextAvailable
+                        ? '${_compactTokenCount(contextTokens)} / '
+                              '${_compactTokenCount(contextWindow)}'
+                        : l10n.agentChat_contextUnavailable,
+                    unavailableLabel: l10n.agentChat_contextUnavailable,
+                    compactingLabel: l10n.agentChat_compacting,
+                    compacting: payload['compacting'] == true,
+                    touchOptimized: constraints.maxWidth < 560,
+                    onPressed: contextAvailable && !running
+                        ? () => bridge.sendCommand('compact')
+                        : null,
+                  );
+                  final phaseLabel = _workPhaseLabel(
+                    l10n,
+                    payload['workPhase'],
+                  );
                   final status = Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          '$routeLabel${_workPhaseLabel(l10n, payload['workPhase'])}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.labelSmall,
-                        ),
-                        Text(
-                          _contextLabel(l10n, payload['contextUsage']),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.labelSmall
-                              ?.copyWith(
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.onSurfaceVariant,
-                                fontFeatures: const [
-                                  FontFeature.tabularFigures(),
-                                ],
-                              ),
-                        ),
-                      ],
+                    child: Text(
+                      phaseLabel,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
                     ),
                   );
-                  if (constraints.maxWidth < 560) {
+                  final largeText =
+                      MediaQuery.textScalerOf(context).scale(14) > 18;
+                  if (largeText ||
+                      AgentChatLayoutContract.stackComposerControls(
+                        constraints.maxWidth,
+                        running: running,
+                      )) {
                     return Column(
                       children: [
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: Wrap(
-                            spacing: 4,
-                            runSpacing: 4,
-                            crossAxisAlignment: WrapCrossAlignment.center,
-                            children: [
-                              permission,
-                              webAccess,
-                              ConstrainedBox(
-                                constraints: BoxConstraints(
-                                  maxWidth: constraints.maxWidth,
-                                ),
-                                child: model,
-                              ),
-                            ],
+                        Row(
+                          key: const ValueKey('agent-window-composer-actions'),
+                          children: [status, ...actions],
+                        ),
+                        const SizedBox(height: 3),
+                        SizedBox(
+                          height: 48,
+                          child: SingleChildScrollView(
+                            key: const ValueKey(
+                              'agent-window-composer-settings',
+                            ),
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              children: [
+                                model,
+                                const SizedBox(width: 4),
+                                permission,
+                                const SizedBox(width: 4),
+                                webAccess,
+                                const SizedBox(width: 4),
+                                thinking,
+                                const SizedBox(width: 4),
+                                contextIndicator,
+                              ],
+                            ),
                           ),
                         ),
-                        Row(children: [status, ...actions]),
                       ],
                     );
                   }
                   return Row(
                     children: [
+                      Flexible(child: model),
+                      const SizedBox(width: 4),
                       permission,
                       const SizedBox(width: 4),
                       webAccess,
                       const SizedBox(width: 4),
-                      Flexible(child: model),
+                      thinking,
                       const SizedBox(width: 10),
                       status,
+                      contextIndicator,
+                      const SizedBox(width: 4),
                       ...actions,
                     ],
                   );
@@ -627,19 +919,22 @@ class _AgentWindowBridgeShellState extends State<_AgentWindowBridgeShell> {
       'stopping' => l10n.agentChat_phaseStopping,
       _ => '',
     };
-    return label.isEmpty ? '' : ' · $label';
+    return label;
   }
 
-  String _contextLabel(AppLocalizations l10n, Object? value) {
-    if (value is! Map) return l10n.agentChat_contextUnavailable;
+  int? _contextTokens(Object? value) {
+    if (value is! Map) return null;
     final total = value['totalTokens'];
-    final count = total is num ? total.toInt() : 0;
-    if (count <= 0) return l10n.agentChat_contextUnavailable;
-    final window = _contextWindow();
-    return window == null
-        ? l10n.agentChat_contextTokens(count)
-        : '${l10n.agentChat_contextTokens(count)} / $window · '
-              '${(count / window * 100).clamp(0, 999).round()}%';
+    var count = total is num ? total.toInt() : 0;
+    if (count <= 0) {
+      count = [
+        'input',
+        'output',
+        'cacheRead',
+        'cacheWrite',
+      ].fold(0, (sum, key) => sum + ((value[key] as num?)?.toInt() ?? 0));
+    }
+    return count > 0 ? count : null;
   }
 
   int? _contextWindow() {
@@ -647,9 +942,24 @@ class _AgentWindowBridgeShellState extends State<_AgentWindowBridgeShell> {
     return value is num && value > 0 ? value.toInt() : null;
   }
 
-  Future<void> _sessionAction(BuildContext context, String value) async {
+  String _compactTokenCount(int value) {
+    if (value < 1000) return '$value';
+    if (value < 1000000) {
+      final compact = value / 1000;
+      return '${compact >= 100 ? compact.round() : compact.toStringAsFixed(1)}k';
+    }
+    final compact = value / 1000000;
+    return '${compact >= 100 ? compact.round() : compact.toStringAsFixed(1)}m';
+  }
+
+  Future<void> _sessionAction(
+    BuildContext context,
+    String value, {
+    String? sessionId,
+  }) async {
     final payload = bridge.snapshot.payload;
-    final sessionId = payload['activeSessionId'] as String? ?? '';
+    final targetSessionId =
+        sessionId ?? payload['activeSessionId'] as String? ?? '';
     if (value == 'compact') {
       await bridge.sendCommand('compact');
       return;
@@ -673,10 +983,11 @@ class _AgentWindowBridgeShellState extends State<_AgentWindowBridgeShell> {
           ],
         ),
       );
+      await WidgetsBinding.instance.endOfFrame;
       controller.dispose();
       if (name != null && name.isNotEmpty) {
         await bridge.sendCommand('renameSession', {
-          'id': sessionId,
+          'id': targetSessionId,
           'name': name,
         });
       }
@@ -705,7 +1016,7 @@ class _AgentWindowBridgeShellState extends State<_AgentWindowBridgeShell> {
         ),
       );
       if (confirmed == true) {
-        await bridge.sendCommand('deleteSession', {'id': sessionId});
+        await bridge.sendCommand('deleteSession', {'id': targetSessionId});
       }
     }
   }
@@ -737,6 +1048,20 @@ List<Object?> _resolveMessageImageAssets(
     else
       message,
 ];
+
+String _presentWindowError(BuildContext context, String error) {
+  final protocolError = RegExp(
+    r'api_error|requestoptions|validatestatus|dioexception|stacktrace',
+    caseSensitive: false,
+  ).hasMatch(error);
+  if (!protocolError) return error;
+  final status = RegExp(
+    r'(?:http|status(?:\s+code)?)\D{0,12}([45]\d\d)',
+    caseSensitive: false,
+  ).firstMatch(error)?.group(1);
+  final label = AppLocalizations.of(context)!.common_error;
+  return status == null ? label : '$label · HTTP $status';
+}
 
 final class _LocalizedWindowCommandException implements Exception {
   const _LocalizedWindowCommandException(this.message);
