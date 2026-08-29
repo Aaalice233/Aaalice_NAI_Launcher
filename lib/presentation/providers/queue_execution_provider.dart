@@ -430,6 +430,13 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
     try {
       await ref.read(generationCooldownProvider.notifier).waitUntilAvailable();
 
+      final generationNotifier = ref.read(
+        imageGenerationNotifierProvider.notifier,
+      );
+      // completed/error 会先于生成调用的 finally 对外可见。等待旧调用释放
+      // invocation 所有权，避免下一任务因 generate() 的并发保护而被静默丢弃。
+      await generationNotifier.waitUntilGenerationInvocationSettled();
+
       if (state.status != QueueExecutionStatus.ready) return;
       if (ref.read(imageGenerationNotifierProvider).isGenerating ||
           (PlatformCapabilities.current.supportsKritaBridge &&
@@ -477,9 +484,10 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
       // generate() 在首次异步让出前会把状态切到 generating；此后由生成状态
       // 本身阻止重复提交，不要让该锁跨越整次生成而吞掉下一任务的触发。
       _generationTriggerPending = false;
-      await ref
-          .read(imageGenerationNotifierProvider.notifier)
-          .generate(params, batchSizeOverride: batchSizeOverride);
+      await generationNotifier.generate(
+        params,
+        batchSizeOverride: batchSizeOverride,
+      );
     } on FormatException catch (error, stackTrace) {
       final taskId = state.currentTaskId;
       AppLogger.e(
