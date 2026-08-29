@@ -4295,7 +4295,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get randomMode_title => '选择随机模式';
 
   @override
-  String get randomMode_naiOfficial => '官网模式';
+  String get randomMode_naiOfficial => '默认';
 
   @override
   String get randomMode_custom => '自定义模式';
@@ -4304,19 +4304,26 @@ class AppLocalizationsZh extends AppLocalizations {
   String get randomMode_hybrid => '混合模式';
 
   @override
-  String get randomMode_naiOfficialDesc => '按当前模型使用 NovelAI 官网随机词库';
+  String get randomMode_naiOfficialDesc => '按当前模型自动选择内置随机方案';
 
   @override
   String get randomMode_customDesc => '使用完整离线标签 catalog 与自定义预设生成';
 
   @override
-  String get randomMode_hybridDesc => '同时使用官网词库与 catalog 扩展';
+  String get randomMode_hybridDesc => '同时使用模型感知的默认方案与 catalog 扩展';
 
   @override
-  String get randomMode_naiIndicator => '官网';
+  String get randomMode_naiIndicator => '默认';
 
   @override
   String get randomMode_customIndicator => '自定义';
+
+  @override
+  String get randomMode_unsupportedModel => '当前模型不支持默认随机模式';
+
+  @override
+  String get randomMode_unsupportedModelHint =>
+      '当前模型没有可验证的内置随机方案。请选择受支持的 NovelAI 模型，或改用自定义模式。';
 
   @override
   String get naiMode_noTags => '暂无标签';
@@ -4674,17 +4681,17 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get randomManager_defaultPresetV4 => '默认模式 (V4)';
+  String get randomManager_defaultPresetV4 => '通用预设 (V4/V5)';
 
   @override
-  String get randomManager_defaultPresetLegacy => '默认模式 (Legacy)';
+  String get randomManager_defaultPresetLegacy => '通用预设 (Legacy)';
 
   @override
-  String get randomManager_defaultPresetFurry => '默认模式 (Furry)';
+  String get randomManager_defaultPresetFurry => '通用预设 (Furry)';
 
   @override
   String get randomManager_defaultPresetV4Description =>
-      '基于 NAI V4 模型的随机算法配置，支持多角色';
+      '适用于 V4/V5 的 catalog 扩展预设，支持多角色';
 
   @override
   String get randomManager_defaultPresetLegacyDescription =>
@@ -17394,7 +17401,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get randomMode_title => '選擇隨機模式';
 
   @override
-  String get randomMode_naiOfficial => '官網模式';
+  String get randomMode_naiOfficial => '預設';
 
   @override
   String get randomMode_custom => '自定義模式';
@@ -17403,19 +17410,26 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get randomMode_hybrid => '混合模式';
 
   @override
-  String get randomMode_naiOfficialDesc => '按目前模型使用 NovelAI 官網隨機詞庫';
+  String get randomMode_naiOfficialDesc => '按目前模型自動選擇內建隨機方案';
 
   @override
   String get randomMode_customDesc => '使用完整離線標籤 catalog 與自定義預設生成';
 
   @override
-  String get randomMode_hybridDesc => '同時使用官網詞庫與 catalog 擴展';
+  String get randomMode_hybridDesc => '同時使用模型感知的預設方案與 catalog 擴展';
 
   @override
-  String get randomMode_naiIndicator => '官網';
+  String get randomMode_naiIndicator => '預設';
 
   @override
   String get randomMode_customIndicator => '自定義';
+
+  @override
+  String get randomMode_unsupportedModel => '目前模型不支援預設隨機模式';
+
+  @override
+  String get randomMode_unsupportedModelHint =>
+      '目前模型沒有可驗證的內建隨機方案。請選擇支援的 NovelAI 模型，或改用自定義模式。';
 
   @override
   String get naiMode_noTags => '暫無標籤';
@@ -17773,17 +17787,17 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
-  String get randomManager_defaultPresetV4 => '預設模式 (V4)';
+  String get randomManager_defaultPresetV4 => '通用預設 (V4/V5)';
 
   @override
-  String get randomManager_defaultPresetLegacy => '預設模式 (Legacy)';
+  String get randomManager_defaultPresetLegacy => '通用預設 (Legacy)';
 
   @override
-  String get randomManager_defaultPresetFurry => '預設模式 (Furry)';
+  String get randomManager_defaultPresetFurry => '通用預設 (Furry)';
 
   @override
   String get randomManager_defaultPresetV4Description =>
-      '基於 NAI V4 模型的隨機演算法配置，支援多角色';
+      '適用於 V4/V5 的 catalog 擴展預設，支援多角色';
 
   @override
   String get randomManager_defaultPresetLegacyDescription =>

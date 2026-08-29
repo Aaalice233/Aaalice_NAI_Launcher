@@ -19,6 +19,19 @@ import 'random_preset_provider.dart';
 
 part 'prompt_config_provider.g.dart';
 
+class UnsupportedRandomPromptModelException implements Exception {
+  const UnsupportedRandomPromptModelException(this.model);
+
+  static const errorCode = 'GENERATION_ERROR_UNSUPPORTED_RANDOM_MODEL';
+
+  final String model;
+
+  String get encodedMessage => '$errorCode|$model';
+
+  @override
+  String toString() => encodedMessage;
+}
+
 /// 随机提示词配置状态
 class PromptConfigState {
   final List<RandomPromptPreset> presets;
@@ -125,14 +138,21 @@ class PromptConfigNotifier extends _$PromptConfigNotifier {
 
   /// 统一随机提示词生成入口
   ///
-  /// 根据当前模式（官网/自定义/混合）生成随机提示词
-  /// [seed] 随机种子（可选）
-  /// [modelProfile] 由统一模型能力注册表提供的官网随机生成器分派。
+  /// 根据当前模式（默认/自定义/混合）生成随机提示词。
+  ///
+  /// [model] 必须来自当前生成参数。每次随机化都重新解析模型，确保切换
+  /// 模型后不会沿用上一次的官网 recipe。无法识别的模型只允许使用不依赖
+  /// 官网词库的自定义模式，避免静默套用不兼容的官方标签。
   Future<RandomPromptResult> generateRandomPrompt({
+    required String model,
     int? seed,
-    RandomPromptProfile modelProfile = RandomPromptProfile.characterPrompts,
   }) async {
     final mode = ref.read(randomModeNotifierProvider);
+    final capabilities = ModelCapabilityRegistry.tryOf(model);
+    if (capabilities == null && mode != RandomGenerationMode.custom) {
+      throw UnsupportedRandomPromptModelException(model);
+    }
+    final modelProfile = capabilities?.randomPromptProfile;
     if (mode != RandomGenerationMode.naiOfficial) {
       final presetNotifier = ref.read(randomPresetNotifierProvider.notifier);
       await presetNotifier.whenLoaded;
@@ -150,15 +170,12 @@ class PromptConfigNotifier extends _$PromptConfigNotifier {
     return switch (mode) {
       RandomGenerationMode.naiOfficial => _generateOfficialPrompt(
         seed: seed,
-        modelProfile: modelProfile,
+        modelProfile: modelProfile!,
       ),
-      RandomGenerationMode.custom => _generateCustomPresetPrompt(
-        seed: seed,
-        modelProfile: modelProfile,
-      ),
+      RandomGenerationMode.custom => _generateCustomPresetPrompt(seed: seed),
       RandomGenerationMode.hybrid => _generateHybridPrompt(
         seed: seed,
-        modelProfile: modelProfile,
+        modelProfile: modelProfile!,
       ),
     };
   }
@@ -181,10 +198,7 @@ class PromptConfigNotifier extends _$PromptConfigNotifier {
   }
 
   /// 自定义模式生成
-  Future<RandomPromptResult> _generateCustomPresetPrompt({
-    int? seed,
-    required RandomPromptProfile modelProfile,
-  }) async {
+  Future<RandomPromptResult> _generateCustomPresetPrompt({int? seed}) async {
     final generator = ref.read(randomPromptGeneratorProvider);
     final preset =
         _selectedCustomRandomPreset() ??
@@ -200,7 +214,6 @@ class PromptConfigNotifier extends _$PromptConfigNotifier {
 
     return generator.generateFromPreset(
       preset: preset,
-      isV4Model: modelProfile.supportsCharacterPrompts,
       seed: seed,
       mode: RandomGenerationMode.custom,
     );

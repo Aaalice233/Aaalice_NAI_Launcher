@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:nai_launcher/core/constants/api_constants.dart';
 import 'package:nai_launcher/data/datasources/local/pool_cache_service.dart';
 import 'package:nai_launcher/data/datasources/local/tag_group_cache_service.dart';
 import 'package:nai_launcher/data/models/prompt/algorithm_config.dart';
@@ -22,13 +23,16 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('PromptConfigNotifier.generateRandomPrompt provider routing', () {
-    test('official mode ignores the selected custom preset', () async {
+    test('default mode ignores the selected custom preset', () async {
       final container = _containerForMode(RandomGenerationMode.naiOfficial);
       addTearDown(container.dispose);
 
       final result = await container
           .read(promptConfigNotifierProvider.notifier)
-          .generateRandomPrompt(seed: 1);
+          .generateRandomPrompt(
+            model: ImageModels.animeDiffusionV5Full,
+            seed: 1,
+          );
 
       expect(result.mode, RandomGenerationMode.naiOfficial);
       expect(result.mainPrompt, isNotEmpty);
@@ -36,7 +40,7 @@ void main() {
       expect(result.mainPrompt, isNot(contains(_defaultCatalogTag)));
     });
 
-    test('official mode stays independent of catalog preset errors', () async {
+    test('default mode stays independent of catalog preset errors', () async {
       final container = _containerForMode(
         RandomGenerationMode.naiOfficial,
         presetError: 'catalog unavailable',
@@ -45,11 +49,65 @@ void main() {
 
       final result = await container
           .read(promptConfigNotifierProvider.notifier)
-          .generateRandomPrompt(seed: 1);
+          .generateRandomPrompt(
+            model: ImageModels.animeDiffusionV5Curated,
+            seed: 1,
+          );
 
       expect(result.mode, RandomGenerationMode.naiOfficial);
       expect(result.mainPrompt, isNotEmpty);
     });
+
+    test(
+      'default mode executes the official asset for every V4/V5 id',
+      () async {
+        final container = _containerForMode(RandomGenerationMode.naiOfficial);
+        addTearDown(container.dispose);
+
+        for (final model in _v4AndV5ModelIds) {
+          final result = await container
+              .read(promptConfigNotifierProvider.notifier)
+              .generateRandomPrompt(model: model, seed: 1);
+
+          expect(result.mode, RandomGenerationMode.naiOfficial, reason: model);
+          expect(result.mainPrompt, isNotEmpty, reason: model);
+        }
+      },
+    );
+
+    test(
+      'each call resolves the supplied model instead of caching the previous one',
+      () async {
+        final container = _containerForMode(RandomGenerationMode.naiOfficial);
+        addTearDown(container.dispose);
+        final notifier = container.read(promptConfigNotifierProvider.notifier);
+
+        final v4 = await notifier.generateRandomPrompt(
+          model: ImageModels.animeDiffusionV4Full,
+          seed: 42,
+        );
+        final v5 = await notifier.generateRandomPrompt(
+          model: ImageModels.animeDiffusionV5Full,
+          seed: 42,
+        );
+
+        expect(v4.mainPrompt, isNotEmpty);
+        expect(v5.mainPrompt, v4.mainPrompt);
+        expect(
+          () => notifier.generateRandomPrompt(
+            model: 'future-unknown-model',
+            seed: 42,
+          ),
+          throwsA(
+            isA<UnsupportedRandomPromptModelException>().having(
+              (error) => error.model,
+              'model',
+              'future-unknown-model',
+            ),
+          ),
+        );
+      },
+    );
 
     test('custom mode uses the selected RandomPreset', () async {
       final container = _containerForMode(RandomGenerationMode.custom);
@@ -57,7 +115,10 @@ void main() {
 
       final result = await container
           .read(promptConfigNotifierProvider.notifier)
-          .generateRandomPrompt(seed: 1);
+          .generateRandomPrompt(
+            model: ImageModels.animeDiffusionV5Full,
+            seed: 1,
+          );
 
       expect(result.mode, RandomGenerationMode.custom);
       expect(result.noHumans, isTrue);
@@ -74,10 +135,33 @@ void main() {
 
       final result = await container
           .read(promptConfigNotifierProvider.notifier)
-          .generateRandomPrompt(seed: 1);
+          .generateRandomPrompt(
+            model: ImageModels.animeDiffusionV4Full,
+            seed: 1,
+          );
 
       expect(result.mode, RandomGenerationMode.custom);
       expect(result.mainPrompt, contains(_defaultCatalogTag));
+    });
+
+    test('custom mode stays model-independent', () async {
+      final container = _containerForMode(RandomGenerationMode.custom);
+      addTearDown(container.dispose);
+      final notifier = container.read(promptConfigNotifierProvider.notifier);
+
+      for (final model in [
+        ImageModels.animeDiffusionV3,
+        ImageModels.animeDiffusionV5Full,
+        'future-unknown-model',
+      ]) {
+        final result = await notifier.generateRandomPrompt(
+          model: model,
+          seed: 1,
+        );
+
+        expect(result.mode, RandomGenerationMode.custom, reason: model);
+        expect(result.mainPrompt, contains(_customTag), reason: model);
+      }
     });
 
     test(
@@ -92,10 +176,16 @@ void main() {
 
         final official = await officialContainer
             .read(promptConfigNotifierProvider.notifier)
-            .generateRandomPrompt(seed: 1);
+            .generateRandomPrompt(
+              model: ImageModels.animeDiffusionV5Full,
+              seed: 1,
+            );
         final result = await hybridContainer
             .read(promptConfigNotifierProvider.notifier)
-            .generateRandomPrompt(seed: 1);
+            .generateRandomPrompt(
+              model: ImageModels.animeDiffusionV5Full,
+              seed: 1,
+            );
 
         expect(result.mode, RandomGenerationMode.hybrid);
         expect(result.mainPrompt, startsWith(official.mainPrompt));
@@ -112,12 +202,41 @@ void main() {
 
       final result = await container
           .read(promptConfigNotifierProvider.notifier)
-          .generateRandomPrompt(seed: 1);
+          .generateRandomPrompt(
+            model: ImageModels.animeDiffusionV5Curated,
+            seed: 1,
+          );
 
       expect(result.mode, RandomGenerationMode.hybrid);
       expect(result.mainPrompt, isNotEmpty);
       expect(result.mainPrompt, contains(_defaultCatalogTag));
     });
+
+    test(
+      'unknown models fail explicitly in default and hybrid modes',
+      () async {
+        for (final mode in [
+          RandomGenerationMode.naiOfficial,
+          RandomGenerationMode.hybrid,
+        ]) {
+          final container = _containerForMode(mode);
+          addTearDown(container.dispose);
+
+          expect(
+            () => container
+                .read(promptConfigNotifierProvider.notifier)
+                .generateRandomPrompt(model: 'future-unknown-model', seed: 1),
+            throwsA(
+              isA<UnsupportedRandomPromptModelException>().having(
+                (error) => error.model,
+                'model',
+                'future-unknown-model',
+              ),
+            ),
+          );
+        }
+      },
+    );
 
     test(
       'preset load error is surfaced instead of returning an empty result',
@@ -131,7 +250,10 @@ void main() {
         expect(
           () => container
               .read(promptConfigNotifierProvider.notifier)
-              .generateRandomPrompt(seed: 1),
+              .generateRandomPrompt(
+                model: ImageModels.animeDiffusionV5Full,
+                seed: 1,
+              ),
           throwsA(
             isA<StateError>().having(
               (error) => error.message,
@@ -144,6 +266,22 @@ void main() {
     );
   });
 }
+
+const _v4AndV5ModelIds = [
+  ImageModels.animeDiffusionV4Curated,
+  ImageModels.animeDiffusionV4CuratedInpainting,
+  ImageModels.animeDiffusionV4Full,
+  ImageModels.animeDiffusionV4FullInpainting,
+  ImageModels.animeDiffusionV45Curated,
+  ImageModels.animeDiffusionV45CuratedInpainting,
+  ImageModels.animeDiffusionV45Full,
+  ImageModels.animeDiffusionV45FullInpainting,
+  ImageModels.animeDiffusionV5Curated,
+  ImageModels.animeDiffusionV5CuratedInpainting,
+  ImageModels.animeDiffusionV5Full,
+  ImageModels.animeDiffusionV5FullInpainting,
+  ImageModels.v5StagingKey,
+];
 
 const _defaultCatalogTag = 'default catalog skyline fixture';
 const _customTag = 'custom lantern fixture';

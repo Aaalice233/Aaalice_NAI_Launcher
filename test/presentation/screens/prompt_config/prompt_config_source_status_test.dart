@@ -78,19 +78,61 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+
+  testWidgets('unknown models are not presented as verified Legacy sources', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1180, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await _pumpPromptScreen(
+      tester,
+      RandomGenerationMode.naiOfficial,
+      model: 'third-party-model',
+    );
+
+    expect(find.text('当前模型不支持默认随机模式'), findsOneWidget);
+    expect(find.text('官网 · Legacy Anime'), findsNothing);
+    expect(find.byIcon(Icons.error_outline_rounded), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('custom source stays available for unknown models', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1180, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await _pumpPromptScreen(
+      tester,
+      RandomGenerationMode.custom,
+      model: 'third-party-model',
+    );
+
+    expect(find.text('自定义 · Catalog 扩展'), findsOneWidget);
+    expect(find.text('当前模型不支持默认随机模式'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
 }
 
 Future<void> _pumpPromptScreen(
   WidgetTester tester,
-  RandomGenerationMode mode,
-) async {
+  RandomGenerationMode mode, {
+  String model = ImageModels.animeDiffusionV5Full,
+}) async {
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
         tagLibraryNotifierProvider.overrideWith(_FixedTagLibrary.new),
         randomPresetNotifierProvider.overrideWith(_FixedPresets.new),
         randomModeNotifierProvider.overrideWith(() => _FixedMode(mode)),
-        generationParamsNotifierProvider.overrideWith(_V5Params.new),
+        generationParamsNotifierProvider.overrideWith(
+          () => _FixedParams(model),
+        ),
         tagGroupSyncNotifierProvider.overrideWith(_FixedTagGroupSync.new),
         officialWordlistDataProvider.overrideWith((ref) async => _officialData),
       ],
@@ -163,8 +205,11 @@ class _FixedTagGroupSync extends TagGroupSyncNotifier {
   TagGroupSyncState build() => const TagGroupSyncState();
 }
 
-class _V5Params extends GenerationParamsNotifier {
+class _FixedParams extends GenerationParamsNotifier {
+  _FixedParams(this.model);
+
+  final String model;
+
   @override
-  ImageParams build() =>
-      const ImageParams(model: ImageModels.animeDiffusionV5Full);
+  ImageParams build() => ImageParams(model: model);
 }

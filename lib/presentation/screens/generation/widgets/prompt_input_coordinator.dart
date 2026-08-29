@@ -10,6 +10,7 @@ import '../../../prompt_assistant/providers/prompt_assistant_config_provider.dar
 import '../../../providers/character_prompt_provider.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/pending_prompt_provider.dart';
+import '../../../providers/prompt_config_provider.dart';
 import '../../../widgets/character/mobile_character_manager_sheet.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/prompt/random_mode_selector.dart';
@@ -245,10 +246,10 @@ class PromptInputCoordinator {
   void _showRandomError(Object error) {
     if (!_mounted()) return;
     final context = _context();
-    AppToast.error(
-      context,
-      context.l10n.tagLibrary_generateFailed(error.toString()),
-    );
+    final message = error is UnsupportedRandomPromptModelException
+        ? context.l10n.randomMode_unsupportedModelHint
+        : context.l10n.tagLibrary_generateFailed(error.toString());
+    AppToast.error(context, message);
   }
 
   void showRandomModeSelector() {

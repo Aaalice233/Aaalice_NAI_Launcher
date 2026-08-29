@@ -8020,7 +8020,7 @@ abstract class AppLocalizations {
   /// No description provided for @randomMode_naiOfficial.
   ///
   /// In en, this message translates to:
-  /// **'Official Mode'**
+  /// **'Default'**
   String get randomMode_naiOfficial;
 
   /// No description provided for @randomMode_custom.
@@ -8038,7 +8038,7 @@ abstract class AppLocalizations {
   /// No description provided for @randomMode_naiOfficialDesc.
   ///
   /// In en, this message translates to:
-  /// **'Use the NovelAI official random wordlist for the current model'**
+  /// **'Automatically select the bundled random recipe for the current model'**
   String get randomMode_naiOfficialDesc;
 
   /// No description provided for @randomMode_customDesc.
@@ -8050,13 +8050,13 @@ abstract class AppLocalizations {
   /// No description provided for @randomMode_hybridDesc.
   ///
   /// In en, this message translates to:
-  /// **'Combine the official wordlist with the catalog extension'**
+  /// **'Combine the model-aware default recipe with the catalog extension'**
   String get randomMode_hybridDesc;
 
   /// No description provided for @randomMode_naiIndicator.
   ///
   /// In en, this message translates to:
-  /// **'Official'**
+  /// **'Default'**
   String get randomMode_naiIndicator;
 
   /// No description provided for @randomMode_customIndicator.
@@ -8064,6 +8064,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Custom'**
   String get randomMode_customIndicator;
+
+  /// No description provided for @randomMode_unsupportedModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Default random mode is unavailable'**
+  String get randomMode_unsupportedModel;
+
+  /// No description provided for @randomMode_unsupportedModelHint.
+  ///
+  /// In en, this message translates to:
+  /// **'No verified bundled random profile is available for the current model. Select a supported NovelAI model or use Custom mode.'**
+  String get randomMode_unsupportedModelHint;
 
   /// No description provided for @naiMode_noTags.
   ///
@@ -8716,25 +8728,25 @@ abstract class AppLocalizations {
   /// No description provided for @randomManager_defaultPresetV4.
   ///
   /// In en, this message translates to:
-  /// **'Default Mode (V4)'**
+  /// **'General Preset (V4/V5)'**
   String get randomManager_defaultPresetV4;
 
   /// No description provided for @randomManager_defaultPresetLegacy.
   ///
   /// In en, this message translates to:
-  /// **'Default Mode (Legacy)'**
+  /// **'General Preset (Legacy)'**
   String get randomManager_defaultPresetLegacy;
 
   /// No description provided for @randomManager_defaultPresetFurry.
   ///
   /// In en, this message translates to:
-  /// **'Default Mode (Furry)'**
+  /// **'General Preset (Furry)'**
   String get randomManager_defaultPresetFurry;
 
   /// No description provided for @randomManager_defaultPresetV4Description.
   ///
   /// In en, this message translates to:
-  /// **'Random algorithm configuration based on the NAI V4 model, with multi-character support'**
+  /// **'Catalog extension preset for V4 and V5, with multi-character support'**
   String get randomManager_defaultPresetV4Description;
 
   /// No description provided for @randomManager_defaultPresetLegacyDescription.

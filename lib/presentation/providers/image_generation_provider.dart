@@ -300,7 +300,24 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       }
 
       final preparation = _preparationService();
-      final prepared = await preparation.prepareInitial(effectiveParams);
+      late final GenerationPreparationResult prepared;
+      try {
+        prepared = await preparation.prepareInitial(effectiveParams);
+      } on UnsupportedRandomPromptModelException catch (error, stackTrace) {
+        AppLogger.e(
+          'Generation preparation rejected an unsupported random model',
+          error,
+          stackTrace,
+        );
+        if (_isCurrentLifecycle(epoch) && _activeInvocationId == invocationId) {
+          state = state.copyWith(
+            status: GenerationStatus.error,
+            errorMessage: error.encodedMessage,
+            progress: 0,
+          );
+        }
+        return;
+      }
       if (!_isCurrentLifecycle(epoch) || _activeInvocationId != invocationId) {
         return;
       }
@@ -969,13 +986,11 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     if (_isDisposed) return '';
     final epoch = _lifecycleEpoch;
     final params = ref.read(generationParamsNotifierProvider);
-    final capabilities = ModelCapabilityRegistry.of(model ?? params.model);
+    final selectedModel = model ?? params.model;
+    final capabilities = ModelCapabilityRegistry.of(selectedModel);
     final result = await ref
         .read(promptConfigNotifierProvider.notifier)
-        .generateRandomPrompt(
-          modelProfile: capabilities.randomPromptProfile,
-          seed: seed,
-        );
+        .generateRandomPrompt(model: selectedModel, seed: seed);
     final formatted = NaiPromptFormatter.format(result.mainPrompt);
     if (!_isCurrentLifecycle(epoch)) return formatted;
     ref.read(generationParamsNotifierProvider.notifier).updatePrompt(formatted);

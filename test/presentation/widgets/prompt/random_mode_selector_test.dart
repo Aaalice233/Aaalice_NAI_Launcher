@@ -6,19 +6,26 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/random_mode_selector.dart';
 
 void main() {
-  testWidgets('RandomModeSelector exposes official, custom, and hybrid modes', (
-    tester,
-  ) async {
-    final storage = _FakeRandomModeStorage();
+  testWidgets(
+    'RandomModeSelector exposes one default, custom, and hybrid mode',
+    (tester) async {
+      final storage = _FakeRandomModeStorage();
 
-    await tester.pumpWidget(
-      _buildTestApp(storage: storage, child: const RandomModeSelector()),
-    );
+      await tester.pumpWidget(
+        _buildTestApp(storage: storage, child: const RandomModeSelector()),
+      );
 
-    expect(find.text('Official Mode'), findsOneWidget);
-    expect(find.text('Custom Mode'), findsOneWidget);
-    expect(find.text('Hybrid Mode'), findsOneWidget);
-  });
+      expect(find.text('Default'), findsOneWidget);
+      expect(find.text('Custom Mode'), findsOneWidget);
+      expect(find.text('Hybrid Mode'), findsOneWidget);
+      expect(
+        find.text(
+          'Automatically select the bundled random recipe for the current model',
+        ),
+        findsOneWidget,
+      );
+    },
+  );
 
   testWidgets('RandomModePopupMenu exposes hybrid mode', (tester) async {
     final storage = _FakeRandomModeStorage();
@@ -33,7 +40,7 @@ void main() {
     await tester.tap(find.text('mode menu'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Official Mode'), findsOneWidget);
+    expect(find.text('Default'), findsOneWidget);
     expect(find.text('Custom Mode'), findsOneWidget);
     expect(find.text('Hybrid Mode'), findsOneWidget);
   });

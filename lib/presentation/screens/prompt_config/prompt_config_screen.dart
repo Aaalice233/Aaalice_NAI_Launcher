@@ -467,7 +467,7 @@ class _RecipeHeading extends ConsumerWidget {
     final colors = theme.colorScheme;
     final mode = ref.watch(randomModeNotifierProvider);
     final model = ref.watch(generationParamsNotifierProvider).model;
-    final profile = ModelCapabilityRegistry.of(model).randomPromptProfile;
+    final profile = ModelCapabilityRegistry.tryOf(model)?.randomPromptProfile;
     final officialData = mode == RandomGenerationMode.custom
         ? null
         : ref.watch(officialWordlistDataProvider).valueOrNull;
@@ -573,46 +573,67 @@ class _LibraryStatusButton extends StatelessWidget {
 
   final TagLibrary library;
   final RandomGenerationMode mode;
-  final RandomPromptProfile profile;
+  final RandomPromptProfile? profile;
   final OfficialWordlistData? officialData;
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final officialCount = _officialProfileCount(profile);
-    final label = switch (mode) {
-      RandomGenerationMode.naiOfficial =>
-        context.l10n.randomManager_sourceOfficial(
-          _officialProfileName(context, profile),
-        ),
-      RandomGenerationMode.custom => context.l10n.randomManager_sourceCatalog,
-      RandomGenerationMode.hybrid => context.l10n.randomManager_sourceHybrid(
-        _officialProfileName(context, profile),
-      ),
-    };
-    final count = switch (mode) {
-      RandomGenerationMode.naiOfficial => '$officialCount',
-      RandomGenerationMode.custom => '${library.totalTagCount}',
-      RandomGenerationMode.hybrid =>
-        '$officialCount + ${library.totalTagCount}',
-    };
+    final includesOfficial = mode != RandomGenerationMode.custom;
+    final unsupported = includesOfficial && profile == null;
+    final supportedProfile = profile ?? RandomPromptProfile.characterPrompts;
+    final officialCount = unsupported
+        ? null
+        : _officialProfileCount(supportedProfile);
+    final label = unsupported
+        ? context.l10n.randomMode_unsupportedModel
+        : switch (mode) {
+            RandomGenerationMode.naiOfficial =>
+              context.l10n.randomManager_sourceOfficial(
+                _officialProfileName(context, supportedProfile),
+              ),
+            RandomGenerationMode.custom =>
+              context.l10n.randomManager_sourceCatalog,
+            RandomGenerationMode.hybrid =>
+              context.l10n.randomManager_sourceHybrid(
+                _officialProfileName(context, supportedProfile),
+              ),
+          };
+    final count = unsupported
+        ? null
+        : switch (mode) {
+            RandomGenerationMode.naiOfficial => '$officialCount',
+            RandomGenerationMode.custom => '${library.totalTagCount}',
+            RandomGenerationMode.hybrid =>
+              '$officialCount + ${library.totalTagCount}',
+          };
     return Tooltip(
-      message: context.l10n.randomManager_sourceDetails,
+      message: unsupported
+          ? context.l10n.randomMode_unsupportedModelHint
+          : context.l10n.randomManager_sourceDetails,
       child: InkWell(
-        onTap: () => _showSourceDetails(
-          context,
-          library,
-          mode: mode,
-          profile: profile,
-          officialData: officialData,
-        ),
+        onTap: unsupported
+            ? null
+            : () => _showSourceDetails(
+                context,
+                library,
+                mode: mode,
+                profile: supportedProfile,
+                officialData: officialData,
+              ),
         borderRadius: BorderRadius.circular(8),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.verified_rounded, size: 17, color: colors.primary),
+              Icon(
+                unsupported
+                    ? Icons.error_outline_rounded
+                    : Icons.verified_rounded,
+                size: 17,
+                color: unsupported ? colors.error : colors.primary,
+              ),
               const SizedBox(width: 7),
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 230),
@@ -623,14 +644,16 @@ class _LibraryStatusButton extends StatelessWidget {
                   style: Theme.of(context).textTheme.labelMedium,
                 ),
               ),
-              const SizedBox(width: 5),
-              Text(
-                count,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: colors.onSurfaceVariant,
-                  fontFeatures: const [FontFeature.tabularFigures()],
+              if (count != null) ...[
+                const SizedBox(width: 5),
+                Text(
+                  count,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: colors.onSurfaceVariant,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
                 ),
-              ),
+              ],
             ],
           ),
         ),
