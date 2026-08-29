@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/agent/agent_types.dart';
 import '../../../core/agent/harness/tools/image.dart';
@@ -9,16 +11,20 @@ import '../../providers/image_generation_provider.dart';
 import 'agent_resource_resolver.dart';
 import 'defined_agent_tool.dart';
 import 'generation_tool_results.dart';
+import 'generation_workspace_path_resolver.dart';
 
 class GenerationHistoryService {
   GenerationHistoryService(
     this._ref, {
     required AgentResourceResolver resourceResolver,
+    required GenerationWorkspacePathResolver pathResolver,
     required int maxRecentImageLimit,
   }) : _resourceResolver = resourceResolver,
+       _pathResolver = pathResolver,
        _maxRecentImageLimit = maxRecentImageLimit;
   final Ref _ref;
   final AgentResourceResolver _resourceResolver;
+  final GenerationWorkspacePathResolver _pathResolver;
   final int _maxRecentImageLimit;
   Future<AgentToolResult> recentImages(Map<String, dynamic> args) async {
     final rawLimit = args['limit'];
@@ -35,21 +41,23 @@ class GenerationHistoryService {
       );
     }
     final history = _ref.read(imageGenerationNotifierProvider).history;
-    final images = [
-      for (final image in history)
-        if (image.filePath != null) image,
-    ].take(limit).toList(growable: false);
-    final report = [
-      for (final image in images)
-        {
-          'seed': image.metadata?.seed,
-          'size': '${image.width}x${image.height}',
-          'resource_ref': AgentChatResourceReferenceCodec.encodeJsonMap(
-            generatedImageReference(image.id),
-          ),
-        },
-    ];
-    if (images.isEmpty) {
+    final report = <Map<String, dynamic>>[];
+    for (final image in history) {
+      final filePath = image.filePath;
+      if (filePath == null || !await File(filePath).exists()) continue;
+      final readablePath = _pathResolver.readableRelativePath(filePath);
+      if (readablePath == null) continue;
+      report.add({
+        'seed': image.metadata?.seed,
+        'size': '${image.width}x${image.height}',
+        'path': readablePath,
+        'resource_ref': AgentChatResourceReferenceCodec.encodeJsonMap(
+          generatedImageReference(image.id),
+        ),
+      });
+      if (report.length == limit) break;
+    }
+    if (report.isEmpty) {
       return generationErrorResult(
         'No saved images yet. generate_image results and queue outputs '
         'appear here after they are saved.',

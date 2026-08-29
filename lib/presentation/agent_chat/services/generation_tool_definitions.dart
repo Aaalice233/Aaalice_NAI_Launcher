@@ -338,9 +338,10 @@ class GenerationToolDefinitions {
         label: 'Get Recent Images',
         description:
             'Return the newest saved generation-history images (including '
-            'queue outputs) as stable resource references. "limit" is '
-            'required on every call. When the user requests a specific '
-            'number, pass that exact number.',
+            'queue outputs) with read-safe workspace-relative paths and '
+            'stable resource references. Never derive a filename from a '
+            'resource ID. "limit" is required on every call. When the user '
+            'requests a specific number, pass that exact number.',
         parameters: const {
           'type': 'object',
           'properties': {

@@ -262,6 +262,7 @@ class AgentResourceResolver {
       reference: reference,
       label: reference.display['label'] ?? 'Generated image',
       bytes: image.bytes,
+      filePath: image.filePath,
     );
   }
 

@@ -57,8 +57,11 @@ String buildAgentSystemPrompt({
         'batch. For DIFFERENT prompts, call it once per prompt. This '
         'compatibility tool also requires its returned estimate to be '
         'confirmed in a second call.',
-    '- get_generation_status reports generation progress, queue stats, '
-        'and recent output paths (read-only, safe).',
+    '- get_generation_status reports generation progress and queue stats.',
+    '- get_recent_images returns each saved image\'s read-safe relative path '
+        'and stable resource_ref. Never derive a filename or extension from a '
+        'resource_ref/resourceId; use the returned path with read, or pass the '
+        'resource_ref to preview_generated_image.',
     '- Image retrieval tools such as get_recent_images and gallery searches '
         'return metadata and stable resource_ref objects; they do not display '
         'their media automatically. Always pass the required get_recent_images '

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -637,6 +638,10 @@ void main() {
   );
 
   test('get_recent_images honors the requested newest-image limit', () async {
+    final workspace = await Directory.systemTemp.createTemp(
+      'generation-history-',
+    );
+    addTearDown(() => workspace.delete(recursive: true));
     final history = [
       for (var index = 0; index < 25; index++)
         GeneratedImage(
@@ -644,7 +649,9 @@ void main() {
           bytes: Uint8List(0),
           width: 832,
           height: 1216,
-          filePath: 'C:/images/image-$index.png',
+          filePath: (await File(
+            '${workspace.path}/image-$index.png',
+          ).writeAsBytes(const [])).path,
         ),
       GeneratedImage(
         id: 'unsaved',
@@ -663,6 +670,7 @@ void main() {
     addTearDown(container.dispose);
     final tool = GenerationToolbox(
       _makeRef(container),
+      workspaceDir: workspace.path,
     ).tools().firstWhere((t) => t.name == 'get_recent_images');
 
     final properties = tool.parameters['properties'] as Map<String, dynamic>;
@@ -687,8 +695,13 @@ void main() {
     expect(requestedResult.details['images'], hasLength(2));
     final images = requestedResult.details['images'] as List;
     expect(images.first['resource_ref']['resourceId'], 'image-0');
+    expect(images.first['path'], 'image-0.png');
     expect(images.last['resource_ref']['resourceId'], 'image-1');
-    expect(jsonEncode(requestedResult.details), isNot(contains('C:/images')));
+    expect(images.last['path'], 'image-1.png');
+    expect(
+      jsonEncode(requestedResult.details),
+      isNot(contains(workspace.path)),
+    );
   });
 
   test('get_recent_images rejects invalid limits', () async {

@@ -38,6 +38,7 @@ class GenerationToolbox {
     final history = GenerationHistoryService(
       ref,
       resourceResolver: resolver,
+      pathResolver: pathResolver,
       maxRecentImageLimit: maxRecentImageLimit,
     );
     final execution = GenerationExecutionService(
