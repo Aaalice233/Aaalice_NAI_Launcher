@@ -567,6 +567,43 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settings_integrations => 'Integrations';
 
   @override
+  String get settings_accountDetailsSection => 'Account details';
+
+  @override
+  String get settings_appearanceInterfaceSection => 'Interface';
+
+  @override
+  String get settings_appearanceWorkflowSection => 'Generation workflow';
+
+  @override
+  String get settings_storageImagesSection => 'Images';
+
+  @override
+  String get settings_storageLibrariesSection => 'Models and libraries';
+
+  @override
+  String get settings_storageCacheSection => 'Cache maintenance';
+
+  @override
+  String get settings_networkProxySection => 'Proxy connection';
+
+  @override
+  String get settings_shortcutManagementSection => 'Shortcut management';
+
+  @override
+  String get settings_aboutApplicationSection => 'Application';
+
+  @override
+  String get settings_aboutUpdatesSection => 'Updates';
+
+  @override
+  String get settings_aboutResourcesSection => 'Project resources';
+
+  @override
+  String get settings_integrationConnectionSection =>
+      'Connection and availability';
+
+  @override
   String get settings_generationInputSection => 'Input';
 
   @override

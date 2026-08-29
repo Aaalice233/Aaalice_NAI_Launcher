@@ -8,6 +8,7 @@ import 'package:hive/hive.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/services/danbooru_tags_lazy_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/providers/share_image_settings_provider.dart';
 import 'package:nai_launcher/presentation/screens/settings/sections/privacy_settings_section.dart';
 import 'package:nai_launcher/presentation/screens/settings/widgets/settings_card.dart';
 import 'package:nai_launcher/presentation/widgets/online_gallery/blacklist_settings_panel.dart';
@@ -41,6 +42,9 @@ void main() {
           danbooruTagsLazyServiceProvider.overrideWith(
             (ref) => Completer<DanbooruTagsLazyService>().future,
           ),
+          shareImageSettingsProvider.overrideWith(
+            _TestShareImageSettingsNotifier.new,
+          ),
         ],
         child: const MaterialApp(
           locale: Locale('zh'),
@@ -64,6 +68,29 @@ void main() {
     expect(find.text('限制生图频率'), findsOneWidget);
     expect(find.text('生图间隔'), findsOneWidget);
     expect(find.byType(OnlineGalleryBlacklistSettingsPanel), findsOneWidget);
+  });
+
+  testWidgets('保护模式卡片保留整卡点击并控制子设置', (tester) async {
+    await pumpSection(tester);
+
+    await tester.tap(find.text('保护模式'));
+    await tester.pumpAndSettle();
+
+    final protectionSwitch = tester.widget<Switch>(
+      find.descendant(
+        of: find.byType(SettingsCard).first,
+        matching: find.byType(Switch),
+      ),
+    );
+    expect(protectionSwitch.value, isTrue);
+
+    final stripTile = tester.widget<SwitchListTile>(
+      find.ancestor(
+        of: find.text('复制/拖拽时移除全部元数据'),
+        matching: find.byType(SwitchListTile),
+      ),
+    );
+    expect(stripTile.onChanged, isNotNull);
   });
 
   testWidgets('保护模式关闭时子开关不可用', (tester) async {
@@ -102,14 +129,30 @@ void main() {
       of: find.byType(OnlineGalleryBlacklistSettingsPanel),
       matching: find.byType(Card),
     );
-    expect(primaryCard, findsOneWidget);
+    expect(primaryCard, findsNWidgets(2));
     expect(blacklistCard, findsOneWidget);
 
-    final primaryRect = tester.getRect(primaryCard);
+    final primaryRect = tester.getRect(primaryCard.first);
     final blacklistRect = tester.getRect(blacklistCard);
 
+    for (var index = 1; index < 2; index++) {
+      final sectionRect = tester.getRect(primaryCard.at(index));
+      expect(sectionRect.left, primaryRect.left);
+      expect(sectionRect.right, primaryRect.right);
+      expect(sectionRect.width, primaryRect.width);
+    }
     expect(blacklistRect.left, primaryRect.left);
     expect(blacklistRect.right, primaryRect.right);
     expect(blacklistRect.width, primaryRect.width);
   });
+}
+
+class _TestShareImageSettingsNotifier extends ShareImageSettingsNotifier {
+  @override
+  ShareImageSettings build() => const ShareImageSettings();
+
+  @override
+  Future<void> setProtectionMode(bool value) async {
+    state = state.copyWith(protectionMode: value);
+  }
 }

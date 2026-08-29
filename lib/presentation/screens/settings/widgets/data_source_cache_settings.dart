@@ -32,200 +32,203 @@ class DataSourceCacheSettings extends ConsumerWidget {
         .watch(promptAssistantServiceProvider)
         .translateRouteLabel();
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SettingsCard(
-            title: context.l10n.autocomplete_settingsTitle,
-            icon: Icons.auto_awesome,
-            child: Column(
-              children: [
-                SwitchListTile.adaptive(
-                  title: Text(context.l10n.autocomplete_enable),
-                  value: autocompleteEnabled,
-                  onChanged: (value) {
-                    ref
-                        .read(
-                          generation_settings
-                              .autocompleteSettingsProvider
-                              .notifier,
-                        )
-                        .set(value);
-                  },
-                ),
-                ListTile(
-                  title: Text(context.l10n.autocomplete_resultLimit),
-                  trailing: DropdownButton<int>(
-                    value: settings.resultLimit,
-                    items: [
-                      ...const [10, 15, 20, 30, 50, 75, 100].map(
-                        (value) => DropdownMenuItem(
-                          value: value,
-                          child: Text('$value'),
-                        ),
-                      ),
-                      DropdownMenuItem(
-                        value: CompletionResultLimits.all,
-                        child: Text(context.l10n.autocomplete_allResults),
-                      ),
-                    ],
-                    onChanged: (value) {
-                      if (value != null) notifier.setResultLimit(value);
-                    },
-                  ),
-                ),
-                SwitchListTile.adaptive(
-                  title: Text(context.l10n.autocomplete_showAliases),
-                  value: settings.showAliases,
-                  onChanged: notifier.setShowAliases,
-                ),
-                SwitchListTile.adaptive(
-                  title: Text(context.l10n.autocomplete_showTranslations),
-                  value: settings.showTranslations,
-                  onChanged: notifier.setShowTranslations,
-                ),
-                SwitchListTile.adaptive(
-                  title: Text(context.l10n.autocomplete_autoComma),
-                  value: settings.autoInsertComma,
-                  onChanged: notifier.setAutoInsertComma,
-                ),
-                SwitchListTile.adaptive(
-                  title: Text(context.l10n.autocomplete_openOnTagClick),
-                  subtitle: Text(
-                    context.l10n.autocomplete_openOnTagClickSubtitle,
-                  ),
-                  value: settings.openOnTagClick,
-                  onChanged: notifier.setOpenOnTagClick,
-                ),
-                SwitchListTile.adaptive(
-                  title: Text(context.l10n.autocomplete_replaceUnderscores),
-                  value: settings.replaceUnderscores,
-                  onChanged: notifier.setReplaceUnderscores,
-                ),
-                const Divider(),
-                ListTile(
-                  leading: const Icon(Icons.storage_outlined),
-                  title: Text(context.l10n.autocomplete_dataSourcesTitle),
-                ),
-                _CatalogStatus(ref: ref),
-                const Divider(),
-                _ZhDictionaryStatus(state: zh),
-                const Divider(),
-                SwitchListTile.adaptive(
-                  title: Text(context.l10n.autocomplete_relatedTagsTitle),
-                  subtitle: Text(context.l10n.autocomplete_relatedTagsSubtitle),
-                  value: settings.relatedTagsEnabled,
-                  onChanged: (value) async {
-                    await notifier.setRelatedTagsEnabled(value);
-                    if (value && settings.autoDownloadRelatedData) {
-                      await ref
-                          .read(cooccurrenceDataPackServiceProvider.notifier)
-                          .install();
-                    }
-                  },
-                ),
-                SwitchListTile.adaptive(
-                  title: Text(
-                    context.l10n.autocomplete_cooccurrenceAutoDownload,
-                  ),
-                  subtitle: Text(
-                    context.l10n.autocomplete_cooccurrenceAutoDownloadSubtitle,
-                  ),
-                  value: settings.autoDownloadRelatedData,
-                  onChanged: (value) async {
-                    await notifier.setAutoDownloadRelatedData(value);
-                    if (value && settings.relatedTagsEnabled) {
-                      await ref
-                          .read(cooccurrenceDataPackServiceProvider.notifier)
-                          .install();
-                    }
-                  },
-                ),
-                const _CooccurrenceDataPackStatus(),
-                SwitchListTile.adaptive(
-                  title: Text(context.l10n.autocomplete_danbooruApi),
-                  subtitle: Text(context.l10n.autocomplete_danbooruPrivacy),
-                  value: settings.danbooruEnabled,
-                  onChanged: notifier.setDanbooruEnabled,
-                ),
-                SwitchListTile.adaptive(
-                  title: Text(context.l10n.autocomplete_llmTranslation),
-                  subtitle: Text(
-                    route.isEmpty
-                        ? context.l10n.autocomplete_llmRouteMissing
-                        : context.l10n.autocomplete_llmRoute(route),
-                  ),
-                  value: settings.llmTranslationEnabled,
-                  onChanged: (value) {
-                    if (value && route.isEmpty) {
-                      AppToast.warning(
-                        context,
-                        context.l10n.autocomplete_llmRouteMissing,
-                      );
-                      return;
-                    }
-                    notifier.setLlmTranslationEnabled(value);
-                  },
-                ),
-                const Divider(),
-                ListTile(
-                  leading: const Icon(Icons.cleaning_services_outlined),
-                  title: Text(context.l10n.autocomplete_cacheTitle),
-                  subtitle: cacheStatistics.when(
-                    data: (statistics) => Text(
-                      context.l10n.autocomplete_aiCacheEntries(
-                        statistics['aiTranslations'] ?? 0,
-                      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SettingsCard(
+          title: context.l10n.autocomplete_settingsTitle,
+          icon: Icons.auto_awesome,
+          child: Column(
+            children: [
+              SwitchListTile.adaptive(
+                title: Text(context.l10n.autocomplete_enable),
+                value: autocompleteEnabled,
+                onChanged: (value) {
+                  ref
+                      .read(
+                        generation_settings
+                            .autocompleteSettingsProvider
+                            .notifier,
+                      )
+                      .set(value);
+                },
+              ),
+              ListTile(
+                title: Text(context.l10n.autocomplete_resultLimit),
+                trailing: DropdownButton<int>(
+                  value: settings.resultLimit,
+                  items: [
+                    ...const [10, 15, 20, 30, 50, 75, 100].map(
+                      (value) =>
+                          DropdownMenuItem(value: value, child: Text('$value')),
                     ),
-                    loading: () => null,
-                    error: (_, _) => null,
-                  ),
-                ),
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 8,
-                  children: [
-                    OutlinedButton.icon(
-                      onPressed: () async {
-                        final count = await ref
-                            .read(autocompleteCacheDatabaseProvider)
-                            .clearDanbooruCache();
-                        ref.invalidate(autocompleteCacheStatisticsProvider);
-                        if (context.mounted) {
-                          AppToast.success(
-                            context,
-                            context.l10n.autocomplete_cacheCleared(count),
-                          );
-                        }
-                      },
-                      icon: const Icon(Icons.cloud_off_outlined),
-                      label: Text(context.l10n.autocomplete_clearDanbooruCache),
-                    ),
-                    OutlinedButton.icon(
-                      onPressed: () async {
-                        final count = await ref
-                            .read(autocompleteCacheDatabaseProvider)
-                            .clearAiTranslationCache();
-                        ref.invalidate(autocompleteCacheStatisticsProvider);
-                        if (context.mounted) {
-                          AppToast.success(
-                            context,
-                            context.l10n.autocomplete_cacheCleared(count),
-                          );
-                        }
-                      },
-                      icon: const Icon(Icons.translate_outlined),
-                      label: Text(context.l10n.autocomplete_clearAiCache),
+                    DropdownMenuItem(
+                      value: CompletionResultLimits.all,
+                      child: Text(context.l10n.autocomplete_allResults),
                     ),
                   ],
+                  onChanged: (value) {
+                    if (value != null) notifier.setResultLimit(value);
+                  },
                 ),
-              ],
-            ),
+              ),
+              SwitchListTile.adaptive(
+                title: Text(context.l10n.autocomplete_showAliases),
+                value: settings.showAliases,
+                onChanged: notifier.setShowAliases,
+              ),
+              SwitchListTile.adaptive(
+                title: Text(context.l10n.autocomplete_showTranslations),
+                value: settings.showTranslations,
+                onChanged: notifier.setShowTranslations,
+              ),
+              SwitchListTile.adaptive(
+                title: Text(context.l10n.autocomplete_autoComma),
+                value: settings.autoInsertComma,
+                onChanged: notifier.setAutoInsertComma,
+              ),
+              SwitchListTile.adaptive(
+                title: Text(context.l10n.autocomplete_openOnTagClick),
+                subtitle: Text(
+                  context.l10n.autocomplete_openOnTagClickSubtitle,
+                ),
+                value: settings.openOnTagClick,
+                onChanged: notifier.setOpenOnTagClick,
+              ),
+              SwitchListTile.adaptive(
+                title: Text(context.l10n.autocomplete_replaceUnderscores),
+                value: settings.replaceUnderscores,
+                onChanged: notifier.setReplaceUnderscores,
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 16),
+        SettingsCard(
+          title: context.l10n.autocomplete_dataSourcesTitle,
+          icon: Icons.storage_outlined,
+          child: Column(
+            children: [
+              _CatalogStatus(ref: ref),
+              _ZhDictionaryStatus(state: zh),
+              SwitchListTile.adaptive(
+                title: Text(context.l10n.autocomplete_relatedTagsTitle),
+                subtitle: Text(context.l10n.autocomplete_relatedTagsSubtitle),
+                value: settings.relatedTagsEnabled,
+                onChanged: (value) async {
+                  await notifier.setRelatedTagsEnabled(value);
+                  if (value && settings.autoDownloadRelatedData) {
+                    await ref
+                        .read(cooccurrenceDataPackServiceProvider.notifier)
+                        .install();
+                  }
+                },
+              ),
+              SwitchListTile.adaptive(
+                title: Text(context.l10n.autocomplete_cooccurrenceAutoDownload),
+                subtitle: Text(
+                  context.l10n.autocomplete_cooccurrenceAutoDownloadSubtitle,
+                ),
+                value: settings.autoDownloadRelatedData,
+                onChanged: (value) async {
+                  await notifier.setAutoDownloadRelatedData(value);
+                  if (value && settings.relatedTagsEnabled) {
+                    await ref
+                        .read(cooccurrenceDataPackServiceProvider.notifier)
+                        .install();
+                  }
+                },
+              ),
+              const _CooccurrenceDataPackStatus(),
+              SwitchListTile.adaptive(
+                title: Text(context.l10n.autocomplete_danbooruApi),
+                subtitle: Text(context.l10n.autocomplete_danbooruPrivacy),
+                value: settings.danbooruEnabled,
+                onChanged: notifier.setDanbooruEnabled,
+              ),
+              SwitchListTile.adaptive(
+                title: Text(context.l10n.autocomplete_llmTranslation),
+                subtitle: Text(
+                  route.isEmpty
+                      ? context.l10n.autocomplete_llmRouteMissing
+                      : context.l10n.autocomplete_llmRoute(route),
+                ),
+                value: settings.llmTranslationEnabled,
+                onChanged: (value) {
+                  if (value && route.isEmpty) {
+                    AppToast.warning(
+                      context,
+                      context.l10n.autocomplete_llmRouteMissing,
+                    );
+                    return;
+                  }
+                  notifier.setLlmTranslationEnabled(value);
+                },
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        SettingsCard(
+          title: context.l10n.autocomplete_cacheTitle,
+          icon: Icons.cleaning_services_outlined,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              cacheStatistics.when(
+                data: (statistics) => Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                  child: Text(
+                    context.l10n.autocomplete_aiCacheEntries(
+                      statistics['aiTranslations'] ?? 0,
+                    ),
+                  ),
+                ),
+                loading: () => const LinearProgressIndicator(),
+                error: (_, _) => const SizedBox.shrink(),
+              ),
+              Wrap(
+                spacing: 12,
+                runSpacing: 8,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      final count = await ref
+                          .read(autocompleteCacheDatabaseProvider)
+                          .clearDanbooruCache();
+                      ref.invalidate(autocompleteCacheStatisticsProvider);
+                      if (context.mounted) {
+                        AppToast.success(
+                          context,
+                          context.l10n.autocomplete_cacheCleared(count),
+                        );
+                      }
+                    },
+                    icon: const Icon(Icons.cloud_off_outlined),
+                    label: Text(context.l10n.autocomplete_clearDanbooruCache),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      final count = await ref
+                          .read(autocompleteCacheDatabaseProvider)
+                          .clearAiTranslationCache();
+                      ref.invalidate(autocompleteCacheStatisticsProvider);
+                      if (context.mounted) {
+                        AppToast.success(
+                          context,
+                          context.l10n.autocomplete_cacheCleared(count),
+                        );
+                      }
+                    },
+                    icon: const Icon(Icons.translate_outlined),
+                    label: Text(context.l10n.autocomplete_clearAiCache),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

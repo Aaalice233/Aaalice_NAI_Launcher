@@ -62,6 +62,7 @@ class _AgentSystemPromptEditorState
     }
     return SettingsCard(
       title: context.l10n.agentSettings_systemPrompt,
+      description: context.l10n.agentSettings_systemPromptDescription,
       icon: Icons.subject_outlined,
       trailing: TextButton.icon(
         onPressed: () => _togglePreview(draft.revision),
@@ -83,35 +84,33 @@ class _AgentSystemPromptEditorState
                 key: const ValueKey('agent-system-prompt-editor'),
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(
-                    context.l10n.agentSettings_systemPromptDescription,
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                  const SizedBox(height: 12),
-                  SegmentedButton<AgentSystemPromptMode>(
-                    key: const ValueKey('agent-system-prompt-mode'),
-                    segments: [
-                      ButtonSegment(
-                        value: AgentSystemPromptMode.append,
-                        icon: const Icon(Icons.playlist_add_outlined),
-                        label: Text(
-                          context.l10n.agentSettings_promptModeAppend,
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: SegmentedButton<AgentSystemPromptMode>(
+                      key: const ValueKey('agent-system-prompt-mode'),
+                      segments: [
+                        ButtonSegment(
+                          value: AgentSystemPromptMode.append,
+                          icon: const Icon(Icons.playlist_add_outlined),
+                          label: Text(
+                            context.l10n.agentSettings_promptModeAppend,
+                          ),
                         ),
-                      ),
-                      ButtonSegment(
-                        value: AgentSystemPromptMode.override,
-                        icon: const Icon(Icons.find_replace_outlined),
-                        label: Text(
-                          context.l10n.agentSettings_promptModeOverride,
+                        ButtonSegment(
+                          value: AgentSystemPromptMode.override,
+                          icon: const Icon(Icons.find_replace_outlined),
+                          label: Text(
+                            context.l10n.agentSettings_promptModeOverride,
+                          ),
                         ),
-                      ),
-                    ],
-                    selected: {draft.draftMode},
-                    onSelectionChanged: draft.saving
-                        ? null
-                        : (selection) => ref
-                              .read(agentPromptDraftProvider.notifier)
-                              .updateMode(selection.single),
+                      ],
+                      selected: {draft.draftMode},
+                      onSelectionChanged: draft.saving
+                          ? null
+                          : (selection) => ref
+                                .read(agentPromptDraftProvider.notifier)
+                                .updateMode(selection.single),
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Text(

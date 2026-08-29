@@ -54,11 +54,12 @@ class _ComfyUISettingsSectionState
     final builtinWorkflows = workflows.where((t) => t.isBuiltin).toList();
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SettingsCard(
-          title: 'ComfyUI',
-          icon: Icons.auto_fix_high,
+          title: context.l10n.settings_integrationConnectionSection,
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               SwitchListTile(
                 secondary: const Icon(Icons.power),
@@ -82,27 +83,24 @@ class _ComfyUISettingsSectionState
                     horizontal: 16,
                     vertical: 8,
                   ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: ThemedInput(
-                          controller: _urlController,
-                          decoration: InputDecoration(
-                            labelText: context.l10n.settings_comfyUiServerUrl,
-                            hintText: 'http://127.0.0.1:8188',
-                            border: const OutlineInputBorder(),
-                            isDense: true,
-                            prefixIcon: const Icon(Icons.dns_outlined),
-                          ),
-                          onChanged: (value) {
-                            ref
-                                .read(comfyUISettingsProvider.notifier)
-                                .setServerUrl(value);
-                          },
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final urlField = ThemedInput(
+                        controller: _urlController,
+                        decoration: InputDecoration(
+                          labelText: context.l10n.settings_comfyUiServerUrl,
+                          hintText: 'http://127.0.0.1:8188',
+                          border: const OutlineInputBorder(),
+                          isDense: true,
+                          prefixIcon: const Icon(Icons.dns_outlined),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      FilledButton.tonal(
+                        onChanged: (value) {
+                          ref
+                              .read(comfyUISettingsProvider.notifier)
+                              .setServerUrl(value);
+                        },
+                      );
+                      final testButton = FilledButton.tonal(
                         onPressed: _isTesting ? null : _testConnection,
                         child: _isTesting
                             ? const SizedBox(
@@ -113,8 +111,28 @@ class _ComfyUISettingsSectionState
                                 ),
                               )
                             : Text(context.l10n.settings_testConnection),
-                      ),
-                    ],
+                      );
+                      if (constraints.maxWidth < 520) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            urlField,
+                            const SizedBox(height: 12),
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: testButton,
+                            ),
+                          ],
+                        );
+                      }
+                      return Row(
+                        children: [
+                          Expanded(child: urlField),
+                          const SizedBox(width: 12),
+                          testButton,
+                        ],
+                      );
+                    },
                   ),
                 ),
                 if (_testResult != null)

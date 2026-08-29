@@ -91,8 +91,14 @@ class _ConflictItem extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(cloudSyncUiStateProvider);
-    return CloudSyncSurface(
+    return Container(
       key: ValueKey('cloud-sync-conflict-${conflict.id}'),
+      padding: const EdgeInsets.fromLTRB(0, 4, 0, 12),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: Theme.of(context).dividerColor),
+        ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

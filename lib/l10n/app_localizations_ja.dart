@@ -558,6 +558,42 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settings_integrations => '連携';
 
   @override
+  String get settings_accountDetailsSection => 'アカウント情報';
+
+  @override
+  String get settings_appearanceInterfaceSection => 'インターフェース';
+
+  @override
+  String get settings_appearanceWorkflowSection => '生成画面の操作';
+
+  @override
+  String get settings_storageImagesSection => '画像';
+
+  @override
+  String get settings_storageLibrariesSection => 'モデルとライブラリ';
+
+  @override
+  String get settings_storageCacheSection => 'キャッシュ管理';
+
+  @override
+  String get settings_networkProxySection => 'プロキシ接続';
+
+  @override
+  String get settings_shortcutManagementSection => 'ショートカット管理';
+
+  @override
+  String get settings_aboutApplicationSection => 'アプリ情報';
+
+  @override
+  String get settings_aboutUpdatesSection => 'アップデート';
+
+  @override
+  String get settings_aboutResourcesSection => 'プロジェクト情報';
+
+  @override
+  String get settings_integrationConnectionSection => '接続と利用状況';
+
+  @override
   String get settings_generationInputSection => '入力';
 
   @override

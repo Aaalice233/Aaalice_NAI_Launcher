@@ -5,6 +5,7 @@ import '../../../../core/utils/localization_extension.dart';
 import 'comfyui_settings_section.dart';
 import 'krita_bridge_settings_section.dart';
 import 'prompt_assistant_settings_section.dart';
+import '../widgets/settings_page_layout.dart';
 
 /// 集成设置板块
 ///
@@ -54,32 +55,30 @@ class _IntegrationsSettingsSectionState
     ];
     final selectedIndex = _selectedIndex.clamp(0, builders.length - 1);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return SettingsPageLayout(
+      title: context.l10n.settings_integrations,
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Center(
-            child: SegmentedButton<int>(
-              segments: [
-                for (var i = 0; i < labels.length; i++)
-                  ButtonSegment(
-                    value: i,
-                    enabled: i != 1 || supportsComfyUi,
-                    tooltip: i == 1 && !supportsComfyUi
-                        ? context.l10n.settings_comfyUiDesktopOnly
-                        : null,
-                    label: Text(labels[i]),
-                  ),
-              ],
-              selected: {selectedIndex},
-              showSelectedIcon: false,
-              onSelectionChanged: (selection) {
-                final nextIndex = selection.first;
-                if (nextIndex == 1 && !supportsComfyUi) return;
-                setState(() => _selectedIndex = nextIndex);
-              },
-            ),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: SegmentedButton<int>(
+            segments: [
+              for (var i = 0; i < labels.length; i++)
+                ButtonSegment(
+                  value: i,
+                  enabled: i != 1 || supportsComfyUi,
+                  tooltip: i == 1 && !supportsComfyUi
+                      ? context.l10n.settings_comfyUiDesktopOnly
+                      : null,
+                  label: Text(labels[i]),
+                ),
+            ],
+            selected: {selectedIndex},
+            showSelectedIcon: false,
+            onSelectionChanged: (selection) {
+              final nextIndex = selection.first;
+              if (nextIndex == 1 && !supportsComfyUi) return;
+              setState(() => _selectedIndex = nextIndex);
+            },
           ),
         ),
         builders[selectedIndex](context),

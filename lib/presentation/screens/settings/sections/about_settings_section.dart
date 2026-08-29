@@ -11,6 +11,7 @@ import '../../../../core/utils/app_logger.dart';
 import '../../../providers/update_provider.dart';
 import '../../../widgets/common/update_check_dialog.dart';
 import '../widgets/settings_card.dart';
+import '../widgets/settings_page_layout.dart';
 
 /// 关于设置板块
 ///
@@ -32,101 +33,121 @@ class _AboutSettingsSectionState extends ConsumerState<AboutSettingsSection> {
     final localStorageService = ref.watch(localStorageServiceProvider);
     final fileLoggingEnabled = localStorageService.getFileLoggingEnabled();
 
-    return SettingsCard(
+    return SettingsPageLayout(
       title: context.l10n.settings_about,
-      icon: Icons.info,
-      child: Column(
-        children: [
-          ListTile(
-            leading: const Icon(Icons.info_outline),
-            title: Text(context.l10n.app_title),
-            subtitle: Text(
-              context.l10n.settings_version(AppVersion.versionName),
-            ),
-          ),
-          SwitchListTile(
-            secondary: const Icon(Icons.article_outlined),
-            title: Text(context.l10n.settings_fileLogging),
-            subtitle: Text(context.l10n.settings_fileLoggingSubtitle),
-            value: fileLoggingEnabled,
-            onChanged: (value) async {
-              await AppLogger.setFileLoggingEnabled(value);
-              await localStorageService.setFileLoggingEnabled(
-                AppLogger.fileLoggingEnabled,
-              );
-              if (mounted) {
-                setState(() {});
-              }
-            },
-          ),
-          // 检查更新按钮
-          FutureBuilder<DateTime?>(
-            future: updateService.getLastCheckTime(),
-            builder: (context, snapshot) {
-              final lastCheckTime = snapshot.data;
-              return ListTile(
-                leading: Badge(
-                  isLabelVisible: updateState.hasNewVersion,
-                  smallSize: 7,
-                  child: const Icon(Icons.system_update),
-                ),
-                title: Text(context.l10n.checkForUpdate),
+      children: [
+        SettingsCard(
+          title: context.l10n.settings_aboutApplicationSection,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.info_outline),
+                title: Text(context.l10n.app_title),
                 subtitle: Text(
-                  updateState.hasDownloadedUpdate
-                      ? context.l10n.updateSettingsReady(
-                          updateState.versionInfo?.displayVersion ?? '',
-                        )
-                      : updateState.hasNewVersion
-                      ? context.l10n.updateSettingsAvailable(
-                          updateState.versionInfo?.displayVersion ?? '',
-                        )
-                      : _formatLastCheckTime(context, lastCheckTime),
+                  context.l10n.settings_version(AppVersion.versionName),
                 ),
-                trailing: updateState.isChecking
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.chevron_right),
-                onTap: updateState.isChecking
-                    ? null
-                    : () async {
-                        if (updateState.hasNewVersion ||
-                            updateState.hasDownloadedUpdate) {
-                          updateNotifier.showNotification();
-                        } else {
-                          await updateNotifier.checkForUpdates(manual: true);
-                        }
-                        if (context.mounted) {
-                          await UpdateCheckDialog.show(context);
-                        }
-                      },
-              );
-            },
-          ),
-          // 包含预发布版本开关
-          FutureBuilder<bool>(
-            future: Future.value(updateService.shouldIncludePrerelease()),
-            builder: (context, snapshot) {
-              final includePrerelease = snapshot.data ?? false;
-              return SwitchListTile(
-                secondary: const Icon(Icons.new_releases_outlined),
-                title: Text(context.l10n.includePrereleaseUpdates),
-                subtitle: Text(
-                  context.l10n.includePrereleaseUpdatesDescription,
-                ),
-                value: includePrerelease,
+              ),
+              SwitchListTile(
+                secondary: const Icon(Icons.article_outlined),
+                title: Text(context.l10n.settings_fileLogging),
+                subtitle: Text(context.l10n.settings_fileLoggingSubtitle),
+                value: fileLoggingEnabled,
                 onChanged: (value) async {
-                  await updateNotifier.setIncludePrerelease(value);
+                  await AppLogger.setFileLoggingEnabled(value);
+                  await localStorageService.setFileLoggingEnabled(
+                    AppLogger.fileLoggingEnabled,
+                  );
                   if (mounted) {
-                    setState(() {}); // Force widget rebuild to refresh value
+                    setState(() {});
                   }
                 },
-              );
-            },
+              ),
+            ],
           ),
-          ListTile(
+        ),
+        SettingsCard(
+          title: context.l10n.settings_aboutUpdatesSection,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // 检查更新按钮
+              FutureBuilder<DateTime?>(
+                future: updateService.getLastCheckTime(),
+                builder: (context, snapshot) {
+                  final lastCheckTime = snapshot.data;
+                  return ListTile(
+                    leading: Badge(
+                      isLabelVisible: updateState.hasNewVersion,
+                      smallSize: 7,
+                      child: const Icon(Icons.system_update),
+                    ),
+                    title: Text(context.l10n.checkForUpdate),
+                    subtitle: Text(
+                      updateState.hasDownloadedUpdate
+                          ? context.l10n.updateSettingsReady(
+                              updateState.versionInfo?.displayVersion ?? '',
+                            )
+                          : updateState.hasNewVersion
+                          ? context.l10n.updateSettingsAvailable(
+                              updateState.versionInfo?.displayVersion ?? '',
+                            )
+                          : _formatLastCheckTime(context, lastCheckTime),
+                    ),
+                    trailing: updateState.isChecking
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.chevron_right),
+                    onTap: updateState.isChecking
+                        ? null
+                        : () async {
+                            if (updateState.hasNewVersion ||
+                                updateState.hasDownloadedUpdate) {
+                              updateNotifier.showNotification();
+                            } else {
+                              await updateNotifier.checkForUpdates(
+                                manual: true,
+                              );
+                            }
+                            if (context.mounted) {
+                              await UpdateCheckDialog.show(context);
+                            }
+                          },
+                  );
+                },
+              ),
+              // 包含预发布版本开关
+              FutureBuilder<bool>(
+                future: Future.value(updateService.shouldIncludePrerelease()),
+                builder: (context, snapshot) {
+                  final includePrerelease = snapshot.data ?? false;
+                  return SwitchListTile(
+                    secondary: const Icon(Icons.new_releases_outlined),
+                    title: Text(context.l10n.includePrereleaseUpdates),
+                    subtitle: Text(
+                      context.l10n.includePrereleaseUpdatesDescription,
+                    ),
+                    value: includePrerelease,
+                    onChanged: (value) async {
+                      await updateNotifier.setIncludePrerelease(value);
+                      if (mounted) {
+                        setState(
+                          () {},
+                        ); // Force widget rebuild to refresh value
+                      }
+                    },
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+        SettingsCard(
+          title: context.l10n.settings_aboutResourcesSection,
+          child: ListTile(
             leading: const Icon(Icons.code),
             title: Text(context.l10n.settings_openSource),
             subtitle: Text(context.l10n.settings_openSourceSubtitle),
@@ -138,8 +159,8 @@ class _AboutSettingsSectionState extends ConsumerState<AboutSettingsSection> {
               }
             },
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 

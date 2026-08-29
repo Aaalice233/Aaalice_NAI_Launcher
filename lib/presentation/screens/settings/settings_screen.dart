@@ -326,11 +326,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           leading: _showCompactDetail
               ? BackButton(onPressed: _returnToCompactSettingsList)
               : null,
-          title: Text(
-            _showCompactDetail
-                ? sections[selectedIndex].label
-                : context.l10n.settings_title,
-          ),
+          title: Text(context.l10n.settings_title),
           backgroundColor: _isContentScrolled
               ? theme.colorScheme.surfaceContainerHighest
               : null,
@@ -378,16 +374,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Widget _buildSectionContent(Widget section, {required EdgeInsets padding}) {
-    return LayoutBuilder(
-      builder: (context, constraints) => SingleChildScrollView(
-        controller: _contentScrollController,
-        padding: padding,
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            minHeight: constraints.maxHeight,
-            maxWidth: 900,
+    return SafeArea(
+      top: false,
+      child: LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          key: const ValueKey('settings-section-scroll-view'),
+          controller: _contentScrollController,
+          padding: padding,
+          child: Align(
+            alignment: Alignment.topLeft,
+            child: SizedBox(
+              width: constraints.maxWidth > 960 ? 960 : constraints.maxWidth,
+              child: section,
+            ),
           ),
-          child: Align(alignment: Alignment.topCenter, child: section),
         ),
       ),
     );

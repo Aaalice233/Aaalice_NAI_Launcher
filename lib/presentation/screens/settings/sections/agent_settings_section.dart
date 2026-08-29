@@ -8,6 +8,7 @@ import '../../../prompt_assistant/models/prompt_assistant_models.dart';
 import '../../../prompt_assistant/providers/prompt_assistant_config_provider.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../settings/widgets/settings_card.dart';
+import '../../settings/widgets/settings_page_layout.dart';
 import 'web_access_settings.dart';
 import 'agent/agent_profile_actions.dart';
 import 'agent/skill_management_panel.dart';
@@ -49,102 +50,69 @@ class _AgentSettingsSectionState extends ConsumerState<AgentSettingsSection>
     final state = ref.watch(agentSettingsProvider);
     final promptConfig = ref.watch(promptAssistantConfigProvider);
     if (!state.initialized) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    if (state.error.isNotEmpty) {
-      return Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 560),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.error_outline,
-                color: Theme.of(context).colorScheme.error,
-              ),
-              const SizedBox(height: 12),
-              Text(
-                context.l10n.agentSettings_operationFailed(state.error),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 12),
-              FilledButton.tonal(
-                onPressed: () => ref
-                    .read(agentSettingsProvider.notifier)
-                    .retryInitialization(),
-                child: Text(context.l10n.common_retry),
-              ),
-            ],
+      return SettingsPageLayout(
+        title: context.l10n.settings_agent,
+        description: context.l10n.agentSettings_subtitle,
+        children: const [
+          SettingsCard(
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: CircularProgressIndicator(),
+            ),
           ),
-        ),
+        ],
       );
     }
-    return Align(
-      alignment: Alignment.topCenter,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 900),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(4, 6, 4, 14),
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final title = Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        context.l10n.settings_agent,
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(context.l10n.agentSettings_subtitle),
-                    ],
-                  );
-                  if (constraints.maxWidth < 620) {
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        title,
-                        const SizedBox(height: 12),
-                        const AgentProfileActions(),
-                      ],
-                    );
-                  }
-                  return Row(
-                    children: [
-                      Expanded(child: title),
-                      const SizedBox(width: 16),
-                      const AgentProfileActions(),
-                    ],
-                  );
-                },
-              ),
+    if (state.error.isNotEmpty) {
+      return SettingsPageLayout(
+        title: context.l10n.settings_agent,
+        description: context.l10n.agentSettings_subtitle,
+        children: [
+          SettingsCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.error_outline,
+                  color: Theme.of(context).colorScheme.error,
+                ),
+                const SizedBox(height: 12),
+                Text(context.l10n.agentSettings_operationFailed(state.error)),
+                const SizedBox(height: 12),
+                FilledButton.tonal(
+                  onPressed: () => ref
+                      .read(agentSettingsProvider.notifier)
+                      .retryInitialization(),
+                  child: Text(context.l10n.common_retry),
+                ),
+              ],
             ),
-            _ModelCard(settings: state.settings, promptConfig: promptConfig),
-            _PermissionCard(settings: state.settings),
-            _WebAccessCard(settings: state.settings),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(4, 8, 4, 4),
-              child: TabBar(
-                controller: _tabController,
-                tabs: [
-                  Tab(text: context.l10n.agentSettings_systemPrompt),
-                  Tab(text: context.l10n.agentSettings_skillsTitle),
-                ],
-              ),
-            ),
-            if (_tabController.index == 0)
-              const AgentSystemPromptEditor()
-            else
-              const SkillManagementPanel(),
-            const SizedBox(height: 24),
+          ),
+        ],
+      );
+    }
+    return SettingsPageLayout(
+      title: context.l10n.settings_agent,
+      description: context.l10n.agentSettings_subtitle,
+      actions: const AgentProfileActions(),
+      children: [
+        _ModelCard(settings: state.settings, promptConfig: promptConfig),
+        _PermissionCard(settings: state.settings),
+        _WebAccessCard(settings: state.settings),
+        TabBar(
+          controller: _tabController,
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
+          tabs: [
+            Tab(text: context.l10n.agentSettings_systemPrompt),
+            Tab(text: context.l10n.agentSettings_skillsTitle),
           ],
         ),
-      ),
+        if (_tabController.index == 0)
+          const AgentSystemPromptEditor()
+        else
+          const SkillManagementPanel(),
+      ],
     );
   }
 }

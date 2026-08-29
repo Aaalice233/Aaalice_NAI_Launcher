@@ -18,36 +18,55 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
     final state = ref.watch(promptAssistantConfigProvider);
     final notifier = ref.read(promptAssistantConfigProvider.notifier);
 
-    return SettingsCard(
-      title: context.l10n.settings_promptAssistant,
-      icon: Icons.auto_awesome,
-      child: Column(
-        children: [
-          SwitchListTile(
-            value: state.enabled,
-            title: Text(context.l10n.promptAssistant_enableAssistant),
-            subtitle: Text(
-              context.l10n.promptAssistant_settingsInputSwitchSubtitle,
-            ),
-            onChanged: notifier.setEnabled,
-          ),
-          if (PlatformCapabilities.current.supportsDesktopOverlayInteractions)
-            SwitchListTile(
-              value: state.desktopOverlayEnabled,
-              title: Text(context.l10n.promptAssistant_desktopOverlayTitle),
-              subtitle: Text(
-                context.l10n.promptAssistant_desktopOverlaySubtitle,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SettingsCard(
+          title: context.l10n.settings_integrationConnectionSection,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SwitchListTile(
+                value: state.enabled,
+                title: Text(context.l10n.promptAssistant_enableAssistant),
+                subtitle: Text(
+                  context.l10n.promptAssistant_settingsInputSwitchSubtitle,
+                ),
+                onChanged: notifier.setEnabled,
               ),
-              onChanged: notifier.setDesktopOverlayEnabled,
-            ),
-          const SizedBox(height: 24),
-          _buildRouting(context, state, notifier),
-          const SizedBox(height: 24),
-          _buildProviders(context, ref, state, notifier),
-          const SizedBox(height: 24),
-          _buildRules(context, state, notifier),
-        ],
-      ),
+              if (PlatformCapabilities
+                  .current
+                  .supportsDesktopOverlayInteractions)
+                SwitchListTile(
+                  value: state.desktopOverlayEnabled,
+                  title: Text(context.l10n.promptAssistant_desktopOverlayTitle),
+                  subtitle: Text(
+                    context.l10n.promptAssistant_desktopOverlaySubtitle,
+                  ),
+                  onChanged: notifier.setDesktopOverlayEnabled,
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        SettingsCard(
+          title: context.l10n.promptAssistant_taskRouting,
+          description: context.l10n.promptAssistant_taskRoutingSubtitle,
+          child: _buildRouting(context, state, notifier),
+        ),
+        const SizedBox(height: 16),
+        SettingsCard(
+          title: context.l10n.promptAssistant_providerManagement,
+          description: context.l10n.promptAssistant_providerManagementSubtitle,
+          child: _buildProviders(context, ref, state, notifier),
+        ),
+        const SizedBox(height: 16),
+        SettingsCard(
+          title: context.l10n.promptAssistant_ruleTemplates,
+          description: context.l10n.promptAssistant_ruleTemplatesSubtitle,
+          child: _buildRules(context, state, notifier),
+        ),
+      ],
     );
   }
 
@@ -63,11 +82,6 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-          title: Text(context.l10n.promptAssistant_taskRouting),
-          subtitle: Text(context.l10n.promptAssistant_taskRoutingSubtitle),
-        ),
         LayoutBuilder(
           builder: (context, constraints) {
             final twoCols = constraints.maxWidth > 860;
@@ -253,17 +267,16 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
   ) {
     return Column(
       children: [
-        ListTile(
-          title: Text(context.l10n.promptAssistant_providerManagement),
-          subtitle: Text(
-            context.l10n.promptAssistant_providerManagementSubtitle,
-          ),
-          trailing: IconButton(
+        Align(
+          alignment: Alignment.centerLeft,
+          child: FilledButton.tonalIcon(
             key: const ValueKey('prompt-assistant-add-provider'),
-            icon: const Icon(Icons.add),
             onPressed: () => _showProviderDialog(context, notifier, state),
+            icon: const Icon(Icons.add),
+            label: Text(context.l10n.promptAssistant_addProvider),
           ),
         ),
+        const SizedBox(height: 8),
         ...state.providers.map((provider) {
           final hasApiKey = state.providerHasApiKey[provider.id] ?? false;
 
@@ -443,10 +456,6 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
           ..sort((a, b) => a.order.compareTo(b.order));
     return Column(
       children: [
-        ListTile(
-          title: Text(context.l10n.promptAssistant_ruleTemplates),
-          subtitle: Text(context.l10n.promptAssistant_ruleTemplatesSubtitle),
-        ),
         ...rules.map(
           (rule) => ListTile(
             title: Text(_displayRuleName(context, rule)),

@@ -544,6 +544,42 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settings_integrations => '集成';
 
   @override
+  String get settings_accountDetailsSection => '账户信息';
+
+  @override
+  String get settings_appearanceInterfaceSection => '界面呈现';
+
+  @override
+  String get settings_appearanceWorkflowSection => '生成页交互';
+
+  @override
+  String get settings_storageImagesSection => '图像';
+
+  @override
+  String get settings_storageLibrariesSection => '模型与资源库';
+
+  @override
+  String get settings_storageCacheSection => '缓存维护';
+
+  @override
+  String get settings_networkProxySection => '代理连接';
+
+  @override
+  String get settings_shortcutManagementSection => '快捷键管理';
+
+  @override
+  String get settings_aboutApplicationSection => '应用信息';
+
+  @override
+  String get settings_aboutUpdatesSection => '更新';
+
+  @override
+  String get settings_aboutResourcesSection => '项目资源';
+
+  @override
+  String get settings_integrationConnectionSection => '连接与可用性';
+
+  @override
   String get settings_generationInputSection => '输入';
 
   @override
@@ -13651,6 +13687,42 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get settings_integrations => '整合';
+
+  @override
+  String get settings_accountDetailsSection => '賬戶資訊';
+
+  @override
+  String get settings_appearanceInterfaceSection => '介面呈現';
+
+  @override
+  String get settings_appearanceWorkflowSection => '生成頁互動';
+
+  @override
+  String get settings_storageImagesSection => '圖片';
+
+  @override
+  String get settings_storageLibrariesSection => '模型與資源庫';
+
+  @override
+  String get settings_storageCacheSection => '快取維護';
+
+  @override
+  String get settings_networkProxySection => '代理連線';
+
+  @override
+  String get settings_shortcutManagementSection => '快捷鍵管理';
+
+  @override
+  String get settings_aboutApplicationSection => '應用資訊';
+
+  @override
+  String get settings_aboutUpdatesSection => '更新';
+
+  @override
+  String get settings_aboutResourcesSection => '專案資源';
+
+  @override
+  String get settings_integrationConnectionSection => '連線與可用性';
 
   @override
   String get settings_generationInputSection => '輸入';

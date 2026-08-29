@@ -150,32 +150,29 @@ class CloudSyncDashboard extends ConsumerWidget {
     CloudSyncProgressView progress,
   ) => CloudSyncSection(
     title: context.l10n.cloudSync_progress,
-    child: CloudSyncSurface(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          LinearProgressIndicator(value: progress.fraction),
-          const SizedBox(height: 12),
-          Wrap(
-            children: [
-              CloudSyncMetadata(
-                label: context.l10n.cloudSync_stage,
-                value: _stageName(context, progress.stage),
-              ),
-              CloudSyncMetadata(
-                label: context.l10n.cloudSync_objects,
-                value:
-                    '${progress.completedObjects} / ${progress.totalObjects}',
-              ),
-              CloudSyncMetadata(
-                label: context.l10n.cloudSync_bytes,
-                value:
-                    '${formatCloudBytes(progress.completedBytes)} / ${formatCloudBytes(progress.totalBytes)}',
-              ),
-            ],
-          ),
-        ],
-      ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        LinearProgressIndicator(value: progress.fraction),
+        const SizedBox(height: 12),
+        Wrap(
+          children: [
+            CloudSyncMetadata(
+              label: context.l10n.cloudSync_stage,
+              value: _stageName(context, progress.stage),
+            ),
+            CloudSyncMetadata(
+              label: context.l10n.cloudSync_objects,
+              value: '${progress.completedObjects} / ${progress.totalObjects}',
+            ),
+            CloudSyncMetadata(
+              label: context.l10n.cloudSync_bytes,
+              value:
+                  '${formatCloudBytes(progress.completedBytes)} / ${formatCloudBytes(progress.totalBytes)}',
+            ),
+          ],
+        ),
+      ],
     ),
   );
 
