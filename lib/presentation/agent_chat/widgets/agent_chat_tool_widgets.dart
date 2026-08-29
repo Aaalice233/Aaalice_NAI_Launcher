@@ -1199,7 +1199,9 @@ class _OnlineGalleryResourceCardState
                               : const Duration(milliseconds: 120),
                           curve: Curves.easeOut,
                           color: _hovered
-                              ? theme.colorScheme.primary.withValues(alpha: 0.08)
+                              ? theme.colorScheme.primary.withValues(
+                                  alpha: 0.08,
+                                )
                               : Colors.transparent,
                         ),
                       ),

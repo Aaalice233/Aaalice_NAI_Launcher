@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,6 +18,7 @@ import 'package:nai_launcher/presentation/agent_chat/providers/agent_chat_state.
 import 'package:nai_launcher/presentation/agent_chat/services/agent_resource_resolver.dart';
 import 'package:nai_launcher/presentation/agent_chat/widgets/agent_chat_tool_widgets.dart';
 import 'package:nai_launcher/presentation/providers/shortcuts_provider.dart';
+import 'package:nai_launcher/presentation/widgets/common/image_card_hover_motion.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_detail/file_image_detail_data.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_detail/image_detail_data.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_detail/image_detail_viewer.dart';
@@ -447,6 +449,25 @@ void main() {
     expect(find.text('Ibuki 1'), findsOneWidget);
     expect(find.text('Artist 2'), findsOneWidget);
     expect(find.byType(Wrap), findsWidgets);
+
+    final firstCard = find
+        .byKey(const ValueKey('online-gallery-resource-card'))
+        .first;
+    final clip = tester.widget<ClipRRect>(
+      find.ancestor(of: firstCard, matching: find.byType(ClipRRect)).first,
+    );
+    expect(clip.borderRadius, BorderRadius.circular(12));
+
+    final pointer = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(pointer.removePointer);
+    await pointer.addPointer(location: tester.getCenter(firstCard));
+    await tester.pump();
+    final hoverMotion = tester.widget<ImageCardHoverMotion>(
+      find
+          .ancestor(of: firstCard, matching: find.byType(ImageCardHoverMotion))
+          .first,
+    );
+    expect(hoverMotion.hovered, isTrue);
   });
 
   testWidgets(

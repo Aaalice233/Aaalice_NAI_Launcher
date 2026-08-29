@@ -358,6 +358,14 @@ void main() {
     expect(find.textContaining('Generation submission failed'), findsNothing);
     expect(find.textContaining('private body'), findsNothing);
     expect(find.textContaining('private-id'), findsNothing);
+    final turnFinder = find.byKey(const ValueKey('agent-turn-work-0'));
+    final turn = tester.widget<Container>(turnFinder);
+    final turnTheme = Theme.of(tester.element(turnFinder));
+    expect(
+      (turn.decoration! as BoxDecoration).color,
+      turnTheme.colorScheme.surfaceContainerLow,
+    );
+    expect(find.byIcon(Icons.error_outline_rounded), findsNothing);
 
     await tester.tap(find.byKey(const ValueKey('agent-turn-work-header-0')));
     await tester.pump();

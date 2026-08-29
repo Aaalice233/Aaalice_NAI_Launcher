@@ -411,8 +411,7 @@ class _AgentChatWorkTrailState extends State<AgentChatWorkTrail> {
     final theme = Theme.of(context);
     // A recoverable tool failure belongs to that Item. The Turn itself only
     // becomes an error surface when the runtime reports a terminal Turn error.
-    final failed =
-        widget.turn.timeline?.status == AgentChatTurnStatus.failed;
+    final failed = widget.turn.timeline?.status == AgentChatTurnStatus.failed;
     final duration = _duration;
     final title = widget.running
         ? _workingLabel(context, duration)
