@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -1371,6 +1372,60 @@ void main() {
           .selectedSource,
       GallerySourceId.danbooru,
     );
+  });
+
+  testWidgets('desktop policy buttons open bounded dialogs', (tester) async {
+    await _setViewSize(tester, 1600);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          onlineGalleryNotifierProvider.overrideWith(
+            _GelbooruSearchGalleryNotifier.new,
+          ),
+          danbooruAuthProvider.overrideWith(_LoggedOutDanbooruAuth.new),
+          gelbooruAuthProvider.overrideWith(_UnconfiguredGelbooruAuth.new),
+          danbooruSuggestionNotifierProvider.overrideWith(
+            _EmptyDanbooruSuggestionNotifier.new,
+          ),
+        ],
+        child: const _TestApp(),
+      ),
+    );
+    await tester.pump();
+
+    final mouse = await tester.createGesture(
+      kind: PointerDeviceKind.mouse,
+      pointer: 1,
+    );
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(
+      location: tester.getCenter(
+        find.byKey(const ValueKey('online-gallery-output-filter')),
+      ),
+    );
+    await tester.pump();
+    await mouse.down(
+      tester.getCenter(
+        find.byKey(const ValueKey('online-gallery-output-filter')),
+      ),
+    );
+    await mouse.up();
+    await tester.pumpAndSettle();
+    expect(find.text('Output Filter'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
+
+    await mouse.moveTo(
+      tester.getCenter(find.byKey(const ValueKey('online-gallery-blacklist'))),
+    );
+    await mouse.down(
+      tester.getCenter(find.byKey(const ValueKey('online-gallery-blacklist'))),
+    );
+    await mouse.up();
+    await tester.pumpAndSettle();
+    expect(find.text('Online Gallery Blacklist Settings'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }
 

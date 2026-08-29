@@ -729,8 +729,8 @@ Future<void> showOnlineGalleryBlacklistDialog(
     context: context,
     builder: (dialogContext) => AlertDialog(
       title: Text(dialogContext.l10n.onlineGallery_blacklistSettingsTitle),
-      content: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 680),
+      content: SizedBox(
+        width: 680,
         child: SingleChildScrollView(
           child: OnlineGalleryBlacklistSettingsPanel(
             compact: true,
