@@ -199,6 +199,7 @@ tool/tag_catalog/.tmp/
 .specstory/
 .orca/
 .pi-analyze-worktree/
+.pi/openai-codex-images/
 
 # GSD (Get Shit Done) 工作流
 .planning/
