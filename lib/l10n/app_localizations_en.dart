@@ -12846,32 +12846,47 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cloudSync_description =>
-      'Encrypted cross-device backup and synchronization using storage you control.';
+      'Cross-device backup and synchronization using WebDAV or GitHub storage you control.';
 
   @override
   String get cloudSync_disconnected => 'Not connected';
 
   @override
-  String get cloudSync_disconnectedDescription =>
-      'Choose WebDAV or GitHub to configure cloud sync. Nothing is uploaded until connection testing and setup are complete.';
+  String get cloudSync_oneClickDescription =>
+      'Enter the provider-required details and save. The app verifies the connection, detects remote data, and syncs safely; future runs take one click.';
 
   @override
-  String get cloudSync_stepConfiguration => 'Configuration';
+  String get cloudSync_saveAndSync => 'Save and sync';
 
   @override
-  String get cloudSync_stepTest => 'Real test';
+  String get cloudSync_fillRequiredFields =>
+      'Enter the required connection details for this provider.';
 
   @override
-  String get cloudSync_stepData => 'Data scope';
+  String get cloudSync_advancedSettings => 'Advanced settings';
 
   @override
-  String get cloudSync_stepEncryption => 'Encryption';
+  String get cloudSync_connectionManagement => 'Connection management';
 
   @override
-  String get cloudSync_stepRemote => 'Remote check';
+  String get cloudSync_legacyBackupTitle => 'Legacy encrypted backup';
 
   @override
-  String get cloudSync_stepInitial => 'First sync';
+  String get cloudSync_legacyBackupDescription =>
+      'A legacy encrypted namespace was found. Enter its old encryption password once; conflict handling and history recovery remain available after unlocking.';
+
+  @override
+  String get cloudSync_legacyPassword => 'Legacy backup password';
+
+  @override
+  String get cloudSync_legacyRecovery => 'Use legacy recovery key';
+
+  @override
+  String get cloudSync_legacyRecoveryAction => 'Recover and continue';
+
+  @override
+  String get cloudSync_legacyConnectedNotice =>
+      'This connection remains compatible with existing encrypted snapshots. New configurations no longer create app-level keys.';
 
   @override
   String get cloudSync_chooseBackend => 'Choose a backend';
@@ -12888,7 +12903,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cloudSync_allowInsecureHttpWarning =>
-      'HTTP sends WebDAV credentials and encrypted data without transport encryption. Enable it only on a trusted network when you understand the risk.';
+      'HTTP sends WebDAV credentials and backup data without transport encryption. Enable it only on a trusted network when you understand the risk.';
 
   @override
   String get cloudSync_username => 'Username';
@@ -12912,35 +12927,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cloudSync_branch => 'Branch';
 
   @override
-  String get cloudSync_continueToTest => 'Continue to real test';
-
-  @override
-  String get cloudSync_continueToData => 'Continue to data scope';
-
-  @override
-  String get cloudSync_testConnection => 'Test the real connection';
-
-  @override
-  String get cloudSync_testConnectionDescription =>
-      'The service must verify authentication, reads, writes, conditional updates, history, deletion, and provider limits.';
-
-  @override
-  String get cloudSync_runRealTest => 'Run real test';
-
-  @override
-  String get cloudSync_testSucceeded => 'Connection verified';
-
-  @override
   String get cloudSync_testFailed => 'Connection test failed';
-
-  @override
-  String get cloudSync_serviceNotConnected =>
-      'The cloud sync service has not been connected yet.';
-
-  @override
-  String cloudSync_limit(Object value) {
-    return 'Provider limit: $value';
-  }
 
   @override
   String get cloudSync_manualBackupOnly => 'Manual cloud backup only';
@@ -12954,7 +12941,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cloudSync_dataScopeDescription =>
-      'Select only the local data categories that should be included in encrypted snapshots.';
+      'Choose the local data categories included in snapshots. Sensitive login credentials are never backed up.';
 
   @override
   String get cloudSync_kindSettings => 'Settings';
@@ -12970,82 +12957,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cloudSync_kindLargeFiles => 'Large binary files';
 
   @override
-  String get cloudSync_continueToEncryption => 'Continue to encryption';
-
-  @override
-  String get cloudSync_encryption => 'Set an encryption password';
-
-  @override
-  String get cloudSync_encryptionDescription =>
-      'Data is encrypted before upload. The password and one-time recovery key cannot be recovered by the provider.';
-
-  @override
-  String get cloudSync_encryptionPassword => 'Encryption password';
-
-  @override
-  String get cloudSync_confirmPassword => 'Confirm password';
-
-  @override
-  String get cloudSync_recoveryKeyConfirmed =>
-      'I saved and verified the one-time recovery key';
-
-  @override
-  String get cloudSync_recoveryKeyDescription =>
-      'Keep it outside this device. It is required if the password and local key material are lost.';
-
-  @override
-  String get cloudSync_generateRecoveryKey => 'Generate one-time recovery key';
-
-  @override
   String get cloudSync_oneTimeRecoveryKey => 'One-time recovery key';
-
-  @override
-  String get cloudSync_oneTimeRecoveryKeyDescription =>
-      'This key is shown only during setup. Save it now, then confirm the saved copy.';
-
-  @override
-  String get cloudSync_detectRemote => 'Detect remote data';
-
-  @override
-  String get cloudSync_detectRemoteDescription =>
-      'Check for an existing namespace and snapshots before choosing the first-sync direction.';
-
-  @override
-  String get cloudSync_detectRemoteAction => 'Check remote';
-
-  @override
-  String get cloudSync_initialSync => 'Choose the first sync';
-
-  @override
-  String get cloudSync_initialSyncDescription =>
-      'Uploading replaces the remote head, downloading applies the remote snapshot, and preview merge changes nothing until confirmed.';
-
-  @override
-  String get cloudSync_initialUpload => 'Upload this device';
-
-  @override
-  String get cloudSync_initialDownload => 'Download remote data';
-
-  @override
-  String get cloudSync_previewMergeRecommended =>
-      'Preview and merge (recommended)';
-
-  @override
-  String get cloudSync_dangerousFirstSyncTitle => 'Confirm overwrite direction';
-
-  @override
-  String get cloudSync_initialUploadWarning =>
-      'This replaces the current cloud version with this device\'s data. Confirm that the cloud has no unique data you need to keep.';
-
-  @override
-  String get cloudSync_initialDownloadWarning =>
-      'This replaces local data with the cloud snapshot after creating a local recovery point. Confirm that this device has no unique data you need to keep.';
-
-  @override
-  String get cloudSync_confirmOverwrite => 'Confirm overwrite';
-
-  @override
-  String get cloudSync_connect => 'Connect and continue';
 
   @override
   String cloudSync_actionFailed(Object error) {
@@ -13068,8 +12980,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cloudSync_remoteRevision => 'Remote revision';
 
   @override
-  String get cloudSync_connectedDescription =>
-      'Encrypted cloud connection is available.';
+  String get cloudSync_connectedDescription => 'Cloud sync is connected.';
 
   @override
   String get cloudSync_maintenanceWarning => 'Remote maintenance notice';
@@ -13197,41 +13108,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cloudSync_clearInstallIntent => 'Not now and clear reminder';
-
-  @override
-  String get cloudSync_securityAndConnection => 'Security & connection';
-
-  @override
-  String get cloudSync_changePassword => 'Change encryption password';
-
-  @override
-  String get cloudSync_rotateRecoveryKey => 'Replace recovery key';
-
-  @override
-  String get cloudSync_rotateRecoveryKeyDescription =>
-      'Invalidates the old recovery key and creates a new one-time key with a conditional update.';
-
-  @override
-  String get cloudSync_newRecoveryKeyPending =>
-      'The new recovery key is active';
-
-  @override
-  String get cloudSync_newRecoveryKeyMustSave =>
-      'The remote key has already changed and closing this view cannot roll it back. Save the new key outside this device and explicitly confirm it.';
-
-  @override
-  String get cloudSync_recoveryKeySavedAction => 'I saved the new key';
-
-  @override
-  String get cloudSync_recoveryKeySavedConfirm =>
-      'Confirm that the complete new recovery key is saved outside this device? The app will stop displaying it afterward.';
-
-  @override
-  String get cloudSync_saveLater => 'Confirm later (keep showing)';
-
-  @override
-  String get cloudSync_rewrapExplanation =>
-      'Only the encryption key is rewrapped; cloud data is not downloaded and re-encrypted.';
 
   @override
   String get cloudSync_newPassword => 'New password';

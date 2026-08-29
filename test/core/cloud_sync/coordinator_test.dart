@@ -1,14 +1,13 @@
 import 'dart:io';
-import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:nai_launcher/core/cloud_sync/backend/cloud_sync_backend.dart';
 import 'package:nai_launcher/core/cloud_sync/coordinator.dart';
-import 'package:nai_launcher/core/cloud_sync/crypto.dart';
 import 'package:nai_launcher/core/cloud_sync/data_source.dart';
 import 'package:nai_launcher/core/cloud_sync/journal.dart';
 import 'package:nai_launcher/core/cloud_sync/models.dart';
 import 'package:nai_launcher/core/cloud_sync/operation.dart';
+import 'package:nai_launcher/core/cloud_sync/object_codec.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'coordinator_test_backend.dart';
@@ -30,9 +29,9 @@ void main() {
       expect(fixture.backend.events.last, 'head');
       final manifest =
           fixture.backend.objects['snapshot.${outcome.snapshotId}']!;
-      final manifestText = utf8.decode(manifest.bytes, allowMalformed: true);
-      expect(manifestText, isNot(contains(outcome.snapshotId)));
-      expect(manifestText, isNot(contains('json')));
+      final decodedManifest = SnapshotManifest.decode(manifest.bytes);
+      expect(decodedManifest.snapshotId, outcome.snapshotId);
+      expect(decodedManifest.encoding, CloudSnapshotEncoding.plain);
       expect(
         fixture.source.base!.records['note'],
         fixture.source.local.records['note'],
@@ -365,14 +364,11 @@ class _Fixture {
         _record('note', [1, 2, 3]),
       ]),
     );
-    final crypto = CloudCrypto();
-    final key = (await crypto.create('password')).masterKey;
     final journal = JournalStore(File('${directory.path}/journal.json'));
     final coordinator = SyncCoordinator(
       backend: backend,
       dataSource: source,
-      crypto: crypto,
-      masterKey: key,
+      codec: const PlainCloudObjectCodec(),
       journalStore: journal,
     );
     return _Fixture(directory, backend, source, journal, coordinator);

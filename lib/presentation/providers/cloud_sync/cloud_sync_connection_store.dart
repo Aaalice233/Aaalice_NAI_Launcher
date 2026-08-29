@@ -35,6 +35,7 @@ class CloudSyncConnectionStore {
   final LocalStorageService _localStorage;
   final SecureStorageService _secureStorage;
   final String Function() _deviceIdFactory;
+  static const _configurationVersion = 2;
 
   Future<CloudSyncUiState> initializeState(CloudSyncUiState state) async {
     final deviceId = await ensureDeviceId();
@@ -69,6 +70,7 @@ class CloudSyncConnectionStore {
     await _localStorage.setSetting(
       StorageKeys.cloudSyncConfiguration,
       jsonEncode({
+        'version': _configurationVersion,
         'backend': draft.backend.name,
         'serverUrl': draft.serverUrl,
         'owner': draft.owner,
@@ -87,13 +89,16 @@ class CloudSyncConnectionStore {
     required String remoteRevision,
     required DateTime lastSync,
   }) async {
-    final persisted = await load();
-    if (persisted == null) return;
-    await save(
-      persisted.draft,
-      persisted.dataKinds,
-      remoteRevision: remoteRevision,
-      lastSync: lastSync,
+    final publicText = _localStorage.getSetting<String>(
+      StorageKeys.cloudSyncConfiguration,
+    );
+    if (publicText == null) return;
+    final public = Map<String, Object?>.from(jsonDecode(publicText) as Map);
+    public['remoteRevision'] = remoteRevision;
+    public['lastSync'] = lastSync.toUtc().toIso8601String();
+    await _localStorage.setSetting(
+      StorageKeys.cloudSyncConfiguration,
+      jsonEncode(public),
     );
   }
 
@@ -103,8 +108,19 @@ class CloudSyncConnectionStore {
     );
     final secretText = await _secureStorage.getCloudSyncCredentials();
     if (publicText == null || secretText == null) return null;
-    final public = jsonDecode(publicText) as Map;
+    final public = Map<String, Object?>.from(jsonDecode(publicText) as Map);
     final secret = jsonDecode(secretText) as Map;
+    final version = public['version'] as int? ?? 1;
+    if (version < 1 || version > _configurationVersion) {
+      throw const FormatException('Unsupported cloud sync configuration.');
+    }
+    if (version < _configurationVersion) {
+      public['version'] = _configurationVersion;
+      await _localStorage.setSetting(
+        StorageKeys.cloudSyncConfiguration,
+        jsonEncode(public),
+      );
+    }
     final scope = (public['dataKinds'] as List? ?? const [])
         .whereType<String>()
         .map(CloudSyncDataKind.values.byName)

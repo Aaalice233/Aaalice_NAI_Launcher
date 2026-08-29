@@ -110,16 +110,12 @@ class CloudSyncConnectRequest {
   const CloudSyncConnectRequest({
     required this.connection,
     required this.dataKinds,
-    required this.encryptionPassword,
-    required this.recoveryKeyConfirmed,
-    required this.initialAction,
+    this.legacyPassword = '',
   });
 
   final CloudSyncConnectionDraft connection;
   final Set<CloudSyncDataKind> dataKinds;
-  final String encryptionPassword;
-  final bool recoveryKeyConfirmed;
-  final CloudSyncInitialAction initialAction;
+  final String legacyPassword;
 }
 
 enum CloudSyncInitialAction { upload, download, mergePreview }
@@ -212,9 +208,10 @@ class CloudSyncUiState {
     this.snapshots = const [],
     this.conflicts = const [],
     this.remoteExists,
+    this.legacyEncryptedBackup = false,
+    this.legacyUnlockRequired = false,
     this.pendingPreview,
     this.pendingFfdkjInstall = false,
-    this.pendingRecoveryKey,
     this.maintenanceWarning,
     this.error,
   });
@@ -235,9 +232,10 @@ class CloudSyncUiState {
   final List<CloudSyncSnapshotView> snapshots;
   final List<CloudSyncConflictView> conflicts;
   final bool? remoteExists;
+  final bool legacyEncryptedBackup;
+  final bool legacyUnlockRequired;
   final CloudSyncPreviewView? pendingPreview;
   final bool pendingFfdkjInstall;
-  final String? pendingRecoveryKey;
   final String? maintenanceWarning;
   final String? error;
 
@@ -277,15 +275,15 @@ class CloudSyncUiState {
     List<CloudSyncSnapshotView>? snapshots,
     List<CloudSyncConflictView>? conflicts,
     bool? remoteExists,
+    bool? legacyEncryptedBackup,
+    bool? legacyUnlockRequired,
     CloudSyncPreviewView? pendingPreview,
     bool? pendingFfdkjInstall,
-    String? pendingRecoveryKey,
     String? maintenanceWarning,
     String? error,
     bool clearProgress = false,
     bool clearError = false,
     bool clearPendingPreview = false,
-    bool clearPendingRecoveryKey = false,
     bool clearMaintenanceWarning = false,
   }) => CloudSyncUiState(
     connectionStatus: connectionStatus ?? this.connectionStatus,
@@ -304,13 +302,12 @@ class CloudSyncUiState {
     snapshots: snapshots ?? this.snapshots,
     conflicts: conflicts ?? this.conflicts,
     remoteExists: remoteExists ?? this.remoteExists,
+    legacyEncryptedBackup: legacyEncryptedBackup ?? this.legacyEncryptedBackup,
+    legacyUnlockRequired: legacyUnlockRequired ?? this.legacyUnlockRequired,
     pendingPreview: clearPendingPreview
         ? null
         : pendingPreview ?? this.pendingPreview,
     pendingFfdkjInstall: pendingFfdkjInstall ?? this.pendingFfdkjInstall,
-    pendingRecoveryKey: clearPendingRecoveryKey
-        ? null
-        : pendingRecoveryKey ?? this.pendingRecoveryKey,
     maintenanceWarning: clearMaintenanceWarning
         ? null
         : maintenanceWarning ?? this.maintenanceWarning,
@@ -325,11 +322,11 @@ abstract interface class CloudSyncUiPort {
 
   Future<void> detectRemote(CloudSyncConnectionDraft connection);
 
-  Future<String> createRecoveryKey(String password);
-
-  Future<void> recoverKeyEnvelope(String recoveryKey, String newPassword);
-
   Future<void> connect(CloudSyncConnectRequest request);
+
+  Future<void> unlockLegacyBackup(String password);
+
+  Future<void> recoverLegacyBackup(String recoveryKey, String newPassword);
 
   Future<void> syncNow();
 
@@ -344,12 +341,6 @@ abstract interface class CloudSyncUiPort {
   Future<void> previewRestoreSnapshot(String snapshotId);
 
   Future<void> confirmRestoreSnapshot();
-
-  Future<void> changePassword(String password);
-
-  Future<void> rotateRecoveryKey();
-
-  Future<void> confirmRecoveryKeySaved();
 
   Future<void> deleteRemoteNamespace();
 
@@ -378,32 +369,20 @@ class CloudSyncUiPortAdapter implements CloudSyncUiPort {
   Future<void> cancel() => _unavailable();
 
   @override
-  Future<void> changePassword(String password) => _unavailable();
-
-  @override
-  Future<void> rotateRecoveryKey() => _unavailable();
-
-  @override
-  Future<void> confirmRecoveryKeySaved() => _unavailable();
-
-  @override
   Future<void> applyPendingPreview() => _unavailable();
 
   @override
   Future<void> connect(CloudSyncConnectRequest request) => _unavailable();
 
   @override
-  Future<void> deleteRemoteNamespace() => _unavailable();
+  Future<void> unlockLegacyBackup(String password) => _unavailable();
 
   @override
-  Future<String> createRecoveryKey(String password) async {
-    await _unavailable();
-    throw StateError('Cloud sync service is not connected.');
-  }
-
-  @override
-  Future<void> recoverKeyEnvelope(String recoveryKey, String newPassword) =>
+  Future<void> recoverLegacyBackup(String recoveryKey, String newPassword) =>
       _unavailable();
+
+  @override
+  Future<void> deleteRemoteNamespace() => _unavailable();
 
   @override
   Future<void> detectRemote(CloudSyncConnectionDraft connection) =>

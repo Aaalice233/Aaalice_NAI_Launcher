@@ -12302,32 +12302,45 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cloudSync_title => '同步与备份';
 
   @override
-  String get cloudSync_description => '使用你控制的存储，在设备间进行加密备份与同步。';
+  String get cloudSync_description => '使用你控制的 WebDAV 或 GitHub 存储，在设备间备份与同步。';
 
   @override
   String get cloudSync_disconnected => '尚未连接';
 
   @override
-  String get cloudSync_disconnectedDescription =>
-      '选择 WebDAV 或 GitHub 配置云同步。真实连接测试和设置完成前不会上传任何内容。';
+  String get cloudSync_oneClickDescription =>
+      '填写服务商必需信息并保存。应用会自动验证连接、检测远端并安全同步，之后只需点击一次。';
 
   @override
-  String get cloudSync_stepConfiguration => '配置';
+  String get cloudSync_saveAndSync => '保存并同步';
 
   @override
-  String get cloudSync_stepTest => '真实测试';
+  String get cloudSync_fillRequiredFields => '请填写当前服务商的必填连接信息。';
 
   @override
-  String get cloudSync_stepData => '数据范围';
+  String get cloudSync_advancedSettings => '高级设置';
 
   @override
-  String get cloudSync_stepEncryption => '加密';
+  String get cloudSync_connectionManagement => '连接管理';
 
   @override
-  String get cloudSync_stepRemote => '检测远端';
+  String get cloudSync_legacyBackupTitle => '旧加密备份';
 
   @override
-  String get cloudSync_stepInitial => '首次同步';
+  String get cloudSync_legacyBackupDescription =>
+      '检测到旧版加密 namespace。仅此次需要旧加密密码；解锁后仍可继续同步、处理冲突和恢复历史。';
+
+  @override
+  String get cloudSync_legacyPassword => '旧备份加密密码';
+
+  @override
+  String get cloudSync_legacyRecovery => '使用旧恢复密钥';
+
+  @override
+  String get cloudSync_legacyRecoveryAction => '恢复并继续';
+
+  @override
+  String get cloudSync_legacyConnectedNotice => '此连接继续兼容既有加密快照；新配置不会再创建应用层密钥。';
 
   @override
   String get cloudSync_chooseBackend => '选择后端';
@@ -12343,7 +12356,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get cloudSync_allowInsecureHttpWarning =>
-      'HTTP 会以明文传输 WebDAV 凭据和加密数据。仅在可信内网且明确了解风险时启用。';
+      'HTTP 会以明文传输 WebDAV 凭据和备份数据。仅在可信内网且明确了解风险时启用。';
 
   @override
   String get cloudSync_username => '用户名';
@@ -12367,34 +12380,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cloudSync_branch => '分支';
 
   @override
-  String get cloudSync_continueToTest => '继续真实测试';
-
-  @override
-  String get cloudSync_continueToData => '继续选择数据范围';
-
-  @override
-  String get cloudSync_testConnection => '测试真实连接';
-
-  @override
-  String get cloudSync_testConnectionDescription =>
-      '服务必须验证认证、读写、条件更新、历史、删除能力和服务商限额。';
-
-  @override
-  String get cloudSync_runRealTest => '运行真实测试';
-
-  @override
-  String get cloudSync_testSucceeded => '连接验证成功';
-
-  @override
   String get cloudSync_testFailed => '连接测试失败';
-
-  @override
-  String get cloudSync_serviceNotConnected => '云同步服务尚未接入。';
-
-  @override
-  String cloudSync_limit(Object value) {
-    return '服务商限额：$value';
-  }
 
   @override
   String get cloudSync_manualBackupOnly => '仅手动云备份';
@@ -12407,7 +12393,8 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cloudSync_dataScope => '选择同步数据';
 
   @override
-  String get cloudSync_dataScopeDescription => '只选择需要包含在加密快照中的本地数据类别。';
+  String get cloudSync_dataScopeDescription =>
+      '选择需要包含在快照中的本地数据类别。敏感登录凭据不会进入备份。';
 
   @override
   String get cloudSync_kindSettings => '设置';
@@ -12422,79 +12409,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cloudSync_kindLargeFiles => '大二进制文件';
 
   @override
-  String get cloudSync_continueToEncryption => '继续加密设置';
-
-  @override
-  String get cloudSync_encryption => '设置加密密码';
-
-  @override
-  String get cloudSync_encryptionDescription => '数据上传前会被加密；服务商无法找回密码和一次性恢复密钥。';
-
-  @override
-  String get cloudSync_encryptionPassword => '加密密码';
-
-  @override
-  String get cloudSync_confirmPassword => '确认密码';
-
-  @override
-  String get cloudSync_recoveryKeyConfirmed => '我已保存并核对一次性恢复密钥';
-
-  @override
-  String get cloudSync_recoveryKeyDescription =>
-      '请保存在本设备之外；密码与本地密钥材料均丢失时必须使用它。';
-
-  @override
-  String get cloudSync_generateRecoveryKey => '生成一次性恢复密钥';
-
-  @override
   String get cloudSync_oneTimeRecoveryKey => '一次性恢复密钥';
-
-  @override
-  String get cloudSync_oneTimeRecoveryKeyDescription =>
-      '此密钥只在设置期间显示。请立即保存并核对保存的副本。';
-
-  @override
-  String get cloudSync_detectRemote => '检测远端数据';
-
-  @override
-  String get cloudSync_detectRemoteDescription =>
-      '选择首次同步方向前，先检查已有 namespace 和快照。';
-
-  @override
-  String get cloudSync_detectRemoteAction => '检测远端';
-
-  @override
-  String get cloudSync_initialSync => '选择首次同步方式';
-
-  @override
-  String get cloudSync_initialSyncDescription =>
-      '上传会替换远端 head，下载会应用远端快照，预览合并在确认前不会修改数据。';
-
-  @override
-  String get cloudSync_initialUpload => '上传本设备数据';
-
-  @override
-  String get cloudSync_initialDownload => '下载远端数据';
-
-  @override
-  String get cloudSync_previewMergeRecommended => '预览并合并（推荐）';
-
-  @override
-  String get cloudSync_dangerousFirstSyncTitle => '确认覆盖方向';
-
-  @override
-  String get cloudSync_initialUploadWarning =>
-      '这会以本机数据替换当前云端版本。继续前请确认云端没有需要保留的独有数据。';
-
-  @override
-  String get cloudSync_initialDownloadWarning =>
-      '这会以云端快照替换本机数据，并先创建本机恢复点。继续前请确认本机没有需要保留的独有数据。';
-
-  @override
-  String get cloudSync_confirmOverwrite => '确认覆盖';
-
-  @override
-  String get cloudSync_connect => '连接并继续';
 
   @override
   String cloudSync_actionFailed(Object error) {
@@ -12517,7 +12432,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cloudSync_remoteRevision => '远端 revision';
 
   @override
-  String get cloudSync_connectedDescription => '加密云连接可用。';
+  String get cloudSync_connectedDescription => '云同步已连接。';
 
   @override
   String get cloudSync_maintenanceWarning => '远端维护提示';
@@ -12640,39 +12555,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get cloudSync_clearInstallIntent => '暂不安装并清除提示';
-
-  @override
-  String get cloudSync_securityAndConnection => '安全与连接';
-
-  @override
-  String get cloudSync_changePassword => '修改加密密码';
-
-  @override
-  String get cloudSync_rotateRecoveryKey => '更换恢复密钥';
-
-  @override
-  String get cloudSync_rotateRecoveryKeyDescription =>
-      '使旧恢复密钥失效，并通过条件写入生成新的单次恢复密钥。';
-
-  @override
-  String get cloudSync_newRecoveryKeyPending => '新的恢复密钥已生效';
-
-  @override
-  String get cloudSync_newRecoveryKeyMustSave =>
-      '远端密钥已经更换，无法通过关闭窗口回滚。请将新密钥保存到本设备之外并明确确认。';
-
-  @override
-  String get cloudSync_recoveryKeySavedAction => '我已保存新密钥';
-
-  @override
-  String get cloudSync_recoveryKeySavedConfirm =>
-      '确认已将新恢复密钥完整保存到本设备之外？确认后应用将不再显示它。';
-
-  @override
-  String get cloudSync_saveLater => '稍后确认（继续显示）';
-
-  @override
-  String get cloudSync_rewrapExplanation => '只重新封装加密密钥，不会下载并重新加密云端数据。';
 
   @override
   String get cloudSync_newPassword => '新密码';
@@ -25306,32 +25188,45 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get cloudSync_title => '同步與備份';
 
   @override
-  String get cloudSync_description => '使用你控制的儲存空間，在裝置間進行加密備份與同步。';
+  String get cloudSync_description => '使用你控制的 WebDAV 或 GitHub 儲存空間，在裝置間備份與同步。';
 
   @override
   String get cloudSync_disconnected => '尚未連線';
 
   @override
-  String get cloudSync_disconnectedDescription =>
-      '選擇 WebDAV 或 GitHub 設定雲端同步。完成真實連線測試與設定前不會上傳任何內容。';
+  String get cloudSync_oneClickDescription =>
+      '填寫服務商必需資訊並儲存。應用會自動驗證連線、偵測遠端並安全同步，之後只需點選一次。';
 
   @override
-  String get cloudSync_stepConfiguration => '設定';
+  String get cloudSync_saveAndSync => '儲存並同步';
 
   @override
-  String get cloudSync_stepTest => '真實測試';
+  String get cloudSync_fillRequiredFields => '請填寫目前服務商的必填連線資訊。';
 
   @override
-  String get cloudSync_stepData => '資料範圍';
+  String get cloudSync_advancedSettings => '進階設定';
 
   @override
-  String get cloudSync_stepEncryption => '加密';
+  String get cloudSync_connectionManagement => '連線管理';
 
   @override
-  String get cloudSync_stepRemote => '偵測遠端';
+  String get cloudSync_legacyBackupTitle => '舊加密備份';
 
   @override
-  String get cloudSync_stepInitial => '首次同步';
+  String get cloudSync_legacyBackupDescription =>
+      '偵測到舊版加密 namespace。僅此次需要舊加密密碼；解鎖後仍可繼續同步、處理衝突和復原歷史。';
+
+  @override
+  String get cloudSync_legacyPassword => '舊備份加密密碼';
+
+  @override
+  String get cloudSync_legacyRecovery => '使用舊復原金鑰';
+
+  @override
+  String get cloudSync_legacyRecoveryAction => '復原並繼續';
+
+  @override
+  String get cloudSync_legacyConnectedNotice => '此連線繼續相容既有加密快照；新設定不會再建立應用層金鑰。';
 
   @override
   String get cloudSync_chooseBackend => '選擇後端';
@@ -25347,7 +25242,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get cloudSync_allowInsecureHttpWarning =>
-      'HTTP 會以明文傳輸 WebDAV 憑證和加密資料。僅在可信內網且明確了解風險時啟用。';
+      'HTTP 會以明文傳輸 WebDAV 憑證和備份資料。僅在可信內網且明確了解風險時啟用。';
 
   @override
   String get cloudSync_username => '使用者名稱';
@@ -25371,34 +25266,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get cloudSync_branch => '分支';
 
   @override
-  String get cloudSync_continueToTest => '繼續真實測試';
-
-  @override
-  String get cloudSync_continueToData => '繼續選擇資料範圍';
-
-  @override
-  String get cloudSync_testConnection => '測試真實連線';
-
-  @override
-  String get cloudSync_testConnectionDescription =>
-      '服務必須驗證認證、讀寫、條件更新、歷史、刪除能力與服務商限制。';
-
-  @override
-  String get cloudSync_runRealTest => '執行真實測試';
-
-  @override
-  String get cloudSync_testSucceeded => '連線驗證成功';
-
-  @override
   String get cloudSync_testFailed => '連線測試失敗';
-
-  @override
-  String get cloudSync_serviceNotConnected => '雲端同步服務尚未接入。';
-
-  @override
-  String cloudSync_limit(Object value) {
-    return '服務商限制：$value';
-  }
 
   @override
   String get cloudSync_manualBackupOnly => '僅手動雲端備份';
@@ -25411,7 +25279,8 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get cloudSync_dataScope => '選擇同步資料';
 
   @override
-  String get cloudSync_dataScopeDescription => '只選擇需要包含在加密快照中的本機資料類別。';
+  String get cloudSync_dataScopeDescription =>
+      '選擇需要包含在快照中的本機資料類別。敏感登入憑證不會進入備份。';
 
   @override
   String get cloudSync_kindSettings => '設定';
@@ -25426,79 +25295,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get cloudSync_kindLargeFiles => '大型二進位檔案';
 
   @override
-  String get cloudSync_continueToEncryption => '繼續加密設定';
-
-  @override
-  String get cloudSync_encryption => '設定加密密碼';
-
-  @override
-  String get cloudSync_encryptionDescription => '資料上傳前會被加密；服務商無法找回密碼與一次性復原金鑰。';
-
-  @override
-  String get cloudSync_encryptionPassword => '加密密碼';
-
-  @override
-  String get cloudSync_confirmPassword => '確認密碼';
-
-  @override
-  String get cloudSync_recoveryKeyConfirmed => '我已儲存並核對一次性復原金鑰';
-
-  @override
-  String get cloudSync_recoveryKeyDescription =>
-      '請儲存在本裝置之外；密碼與本機金鑰材料均遺失時必須使用它。';
-
-  @override
-  String get cloudSync_generateRecoveryKey => '產生一次性復原金鑰';
-
-  @override
   String get cloudSync_oneTimeRecoveryKey => '一次性復原金鑰';
-
-  @override
-  String get cloudSync_oneTimeRecoveryKeyDescription =>
-      '此金鑰只在設定期間顯示。請立即儲存並核對儲存的副本。';
-
-  @override
-  String get cloudSync_detectRemote => '偵測遠端資料';
-
-  @override
-  String get cloudSync_detectRemoteDescription =>
-      '選擇首次同步方向前，先檢查既有 namespace 與快照。';
-
-  @override
-  String get cloudSync_detectRemoteAction => '偵測遠端';
-
-  @override
-  String get cloudSync_initialSync => '選擇首次同步方式';
-
-  @override
-  String get cloudSync_initialSyncDescription =>
-      '上傳會取代遠端 head，下載會套用遠端快照，預覽合併在確認前不會修改資料。';
-
-  @override
-  String get cloudSync_initialUpload => '上傳本裝置資料';
-
-  @override
-  String get cloudSync_initialDownload => '下載遠端資料';
-
-  @override
-  String get cloudSync_previewMergeRecommended => '預覽並合併（建議）';
-
-  @override
-  String get cloudSync_dangerousFirstSyncTitle => '確認覆蓋方向';
-
-  @override
-  String get cloudSync_initialUploadWarning =>
-      '這會以本機資料取代目前雲端版本。繼續前請確認雲端沒有需要保留的獨有資料。';
-
-  @override
-  String get cloudSync_initialDownloadWarning =>
-      '這會以雲端快照取代本機資料，並先建立本機復原點。繼續前請確認本機沒有需要保留的獨有資料。';
-
-  @override
-  String get cloudSync_confirmOverwrite => '確認覆蓋';
-
-  @override
-  String get cloudSync_connect => '連線並繼續';
 
   @override
   String cloudSync_actionFailed(Object error) {
@@ -25521,7 +25318,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get cloudSync_remoteRevision => '遠端 revision';
 
   @override
-  String get cloudSync_connectedDescription => '加密雲端連線可用。';
+  String get cloudSync_connectedDescription => '雲端同步已連線。';
 
   @override
   String get cloudSync_maintenanceWarning => '遠端維護提示';
@@ -25645,39 +25442,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get cloudSync_clearInstallIntent => '暫不安裝並清除提示';
-
-  @override
-  String get cloudSync_securityAndConnection => '安全與連線';
-
-  @override
-  String get cloudSync_changePassword => '變更加密密碼';
-
-  @override
-  String get cloudSync_rotateRecoveryKey => '更換復原金鑰';
-
-  @override
-  String get cloudSync_rotateRecoveryKeyDescription =>
-      '使舊復原金鑰失效，並透過條件寫入產生新的單次復原金鑰。';
-
-  @override
-  String get cloudSync_newRecoveryKeyPending => '新的復原金鑰已生效';
-
-  @override
-  String get cloudSync_newRecoveryKeyMustSave =>
-      '遠端金鑰已經更換，無法透過關閉視窗回復。請將新金鑰儲存在本機之外並明確確認。';
-
-  @override
-  String get cloudSync_recoveryKeySavedAction => '我已儲存新金鑰';
-
-  @override
-  String get cloudSync_recoveryKeySavedConfirm =>
-      '確認已將新復原金鑰完整儲存在本機之外？確認後應用程式將不再顯示它。';
-
-  @override
-  String get cloudSync_saveLater => '稍後確認（繼續顯示）';
-
-  @override
-  String get cloudSync_rewrapExplanation => '只重新封裝加密金鑰，不會下載並重新加密雲端資料。';
 
   @override
   String get cloudSync_newPassword => '新密碼';

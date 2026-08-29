@@ -7,6 +7,7 @@ import 'package:xml/xml.dart';
 
 import 'backend_http.dart';
 import 'cloud_sync_backend.dart';
+import 'webdav_collection_ensurer.dart';
 import 'webdav_etag_reader.dart';
 
 class WebDavCapabilityProbe {
@@ -27,9 +28,14 @@ class WebDavCapabilityProbe {
   final Uri snapshots;
 
   Future<CloudBackendCapability> run() async {
-    await _ensureCollection(root);
-    await _ensureCollection(objects);
-    await _ensureCollection(snapshots);
+    final collections = WebDavCollectionEnsurer(
+      http: http,
+      headers: headers,
+      baseUri: baseUri,
+    );
+    await collections.ensure(root);
+    await collections.ensure(objects);
+    await collections.ensure(snapshots);
     final id =
         'capability-${DateTime.now().microsecondsSinceEpoch}-${Random.secure().nextInt(1 << 32)}';
     final object = objects.resolve(id);
@@ -246,25 +252,6 @@ class WebDavCapabilityProbe {
   Future<void> _deleteUniqueProbe(Uri uri, {required String action}) async {
     final response = await http.request('DELETE', uri, headers: headers);
     _expect(response, const {200, 202, 204, 404}, action);
-  }
-
-  Future<void> _ensureCollection(Uri uri) async {
-    final segments = uri.pathSegments
-        .where((value) => value.isNotEmpty)
-        .toList();
-    final baseCount = baseUri.pathSegments
-        .where((value) => value.isNotEmpty)
-        .length;
-    var current = baseUri;
-    for (final segment in segments.skip(baseCount)) {
-      current = current.resolve('${Uri.encodeComponent(segment)}/');
-      final response = await http.request(
-        'MKCOL',
-        current,
-        headers: {...headers, 'Content-Length': '0'},
-      );
-      _expect(response, const {200, 201, 204, 405}, '创建 WebDAV 目录');
-    }
   }
 
   static CloudBackendCapability _manual(String message) =>

@@ -12520,32 +12520,46 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get cloudSync_description =>
-      '自分で管理するストレージを使用して、デバイス間で暗号化バックアップと同期を行います。';
+      '自分で管理する WebDAV または GitHub ストレージを使用して、デバイス間でバックアップと同期を行います。';
 
   @override
   String get cloudSync_disconnected => '未接続';
 
   @override
-  String get cloudSync_disconnectedDescription =>
-      'WebDAV または GitHub を選択して設定します。実接続テストと設定が完了するまでアップロードされません。';
+  String get cloudSync_oneClickDescription =>
+      'プロバイダーに必要な情報を入力して保存します。接続確認、リモート検出、安全な同期は自動で行われ、以後はワンクリックです。';
 
   @override
-  String get cloudSync_stepConfiguration => '設定';
+  String get cloudSync_saveAndSync => '保存して同期';
 
   @override
-  String get cloudSync_stepTest => '実接続テスト';
+  String get cloudSync_fillRequiredFields => 'このプロバイダーの必須接続情報を入力してください。';
 
   @override
-  String get cloudSync_stepData => 'データ範囲';
+  String get cloudSync_advancedSettings => '詳細設定';
 
   @override
-  String get cloudSync_stepEncryption => '暗号化';
+  String get cloudSync_connectionManagement => '接続管理';
 
   @override
-  String get cloudSync_stepRemote => 'リモート確認';
+  String get cloudSync_legacyBackupTitle => '旧暗号化バックアップ';
 
   @override
-  String get cloudSync_stepInitial => '初回同期';
+  String get cloudSync_legacyBackupDescription =>
+      '旧版の暗号化 namespace が見つかりました。旧パスワードは今回だけ必要で、解除後も競合処理と履歴復元を利用できます。';
+
+  @override
+  String get cloudSync_legacyPassword => '旧バックアップの暗号化パスワード';
+
+  @override
+  String get cloudSync_legacyRecovery => '旧復旧キーを使用';
+
+  @override
+  String get cloudSync_legacyRecoveryAction => '復旧して続行';
+
+  @override
+  String get cloudSync_legacyConnectedNotice =>
+      '既存の暗号化スナップショットとの互換性を維持します。新規設定ではアプリ独自のキーを作成しません。';
 
   @override
   String get cloudSync_chooseBackend => 'バックエンドを選択';
@@ -12562,7 +12576,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get cloudSync_allowInsecureHttpWarning =>
-      'HTTP では WebDAV 認証情報と暗号化データがトランスポート暗号化なしで送信されます。信頼できるネットワークでリスクを理解している場合のみ有効にしてください。';
+      'HTTP では WebDAV 認証情報とバックアップデータがトランスポート暗号化なしで送信されます。信頼できるネットワークでリスクを理解している場合のみ有効にしてください。';
 
   @override
   String get cloudSync_username => 'ユーザー名';
@@ -12586,34 +12600,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get cloudSync_branch => 'ブランチ';
 
   @override
-  String get cloudSync_continueToTest => '実接続テストへ';
-
-  @override
-  String get cloudSync_continueToData => 'データ範囲へ';
-
-  @override
-  String get cloudSync_testConnection => '実際の接続をテスト';
-
-  @override
-  String get cloudSync_testConnectionDescription =>
-      '認証、読み書き、条件付き更新、履歴、削除機能、プロバイダー制限を確認します。';
-
-  @override
-  String get cloudSync_runRealTest => '実接続テストを実行';
-
-  @override
-  String get cloudSync_testSucceeded => '接続を確認しました';
-
-  @override
   String get cloudSync_testFailed => '接続テストに失敗しました';
-
-  @override
-  String get cloudSync_serviceNotConnected => 'クラウド同期サービスはまだ接続されていません。';
-
-  @override
-  String cloudSync_limit(Object value) {
-    return 'プロバイダー制限：$value';
-  }
 
   @override
   String get cloudSync_manualBackupOnly => '手動クラウドバックアップのみ';
@@ -12627,7 +12614,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get cloudSync_dataScopeDescription =>
-      '暗号化スナップショットに含めるローカルデータのみ選択してください。';
+      'スナップショットに含めるローカルデータを選択します。機密性の高いログイン情報はバックアップされません。';
 
   @override
   String get cloudSync_kindSettings => '設定';
@@ -12642,80 +12629,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get cloudSync_kindLargeFiles => '大容量バイナリファイル';
 
   @override
-  String get cloudSync_continueToEncryption => '暗号化設定へ';
-
-  @override
-  String get cloudSync_encryption => '暗号化パスワードを設定';
-
-  @override
-  String get cloudSync_encryptionDescription =>
-      'データはアップロード前に暗号化されます。パスワードと一回限りの復旧キーはプロバイダーでも復元できません。';
-
-  @override
-  String get cloudSync_encryptionPassword => '暗号化パスワード';
-
-  @override
-  String get cloudSync_confirmPassword => 'パスワードを確認';
-
-  @override
-  String get cloudSync_recoveryKeyConfirmed => '一回限りの復旧キーを保存して確認しました';
-
-  @override
-  String get cloudSync_recoveryKeyDescription =>
-      'このデバイス以外に保管してください。パスワードとローカルキーを失った場合に必要です。';
-
-  @override
-  String get cloudSync_generateRecoveryKey => '一回限りの復旧キーを生成';
-
-  @override
   String get cloudSync_oneTimeRecoveryKey => '一回限りの復旧キー';
-
-  @override
-  String get cloudSync_oneTimeRecoveryKeyDescription =>
-      'このキーは設定中のみ表示されます。今すぐ保存し、保存した内容を確認してください。';
-
-  @override
-  String get cloudSync_detectRemote => 'リモートデータを確認';
-
-  @override
-  String get cloudSync_detectRemoteDescription =>
-      '初回同期の方向を選ぶ前に、既存の namespace とスナップショットを確認します。';
-
-  @override
-  String get cloudSync_detectRemoteAction => 'リモートを確認';
-
-  @override
-  String get cloudSync_initialSync => '初回同期を選択';
-
-  @override
-  String get cloudSync_initialSyncDescription =>
-      'アップロードはリモート head を置換し、ダウンロードはリモートスナップショットを適用します。マージプレビューは確認まで変更しません。';
-
-  @override
-  String get cloudSync_initialUpload => 'このデバイスをアップロード';
-
-  @override
-  String get cloudSync_initialDownload => 'リモートをダウンロード';
-
-  @override
-  String get cloudSync_previewMergeRecommended => 'プレビューしてマージ（推奨）';
-
-  @override
-  String get cloudSync_dangerousFirstSyncTitle => '上書き方向を確認';
-
-  @override
-  String get cloudSync_initialUploadWarning =>
-      'このデバイスのデータで現在のクラウド版を置き換えます。クラウドに残すべき固有データがないことを確認してください。';
-
-  @override
-  String get cloudSync_initialDownloadWarning =>
-      'ローカル復旧ポイントを作成後、クラウドスナップショットでローカルデータを置き換えます。このデバイスに残すべき固有データがないことを確認してください。';
-
-  @override
-  String get cloudSync_confirmOverwrite => '上書きを確認';
-
-  @override
-  String get cloudSync_connect => '接続して続行';
 
   @override
   String cloudSync_actionFailed(Object error) {
@@ -12738,7 +12652,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get cloudSync_remoteRevision => 'リモート revision';
 
   @override
-  String get cloudSync_connectedDescription => '暗号化クラウド接続を利用できます。';
+  String get cloudSync_connectedDescription => 'クラウド同期に接続しました。';
 
   @override
   String get cloudSync_maintenanceWarning => 'リモートメンテナンスのお知らせ';
@@ -12865,40 +12779,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get cloudSync_clearInstallIntent => '今回はインストールせず通知を消去';
-
-  @override
-  String get cloudSync_securityAndConnection => 'セキュリティと接続';
-
-  @override
-  String get cloudSync_changePassword => '暗号化パスワードを変更';
-
-  @override
-  String get cloudSync_rotateRecoveryKey => '復旧キーを交換';
-
-  @override
-  String get cloudSync_rotateRecoveryKeyDescription =>
-      '古い復旧キーを無効にし、条件付き更新で新しい一回限りのキーを作成します。';
-
-  @override
-  String get cloudSync_newRecoveryKeyPending => '新しい復旧キーは有効です';
-
-  @override
-  String get cloudSync_newRecoveryKeyMustSave =>
-      'リモートキーはすでに変更されており、画面を閉じても元に戻せません。新しいキーをこのデバイス以外に保存して明示的に確認してください。';
-
-  @override
-  String get cloudSync_recoveryKeySavedAction => '新しいキーを保存しました';
-
-  @override
-  String get cloudSync_recoveryKeySavedConfirm =>
-      '新しい復旧キー全体をこのデバイス以外に保存したことを確認しますか？確認後は表示されません。';
-
-  @override
-  String get cloudSync_saveLater => '後で確認（表示を維持）';
-
-  @override
-  String get cloudSync_rewrapExplanation =>
-      '暗号化キーのみを再ラップし、クラウドデータの再ダウンロードや再暗号化は行いません。';
 
   @override
   String get cloudSync_newPassword => '新しいパスワード';

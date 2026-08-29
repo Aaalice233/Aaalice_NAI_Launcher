@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -39,6 +41,32 @@ void main() {
 
     expect(response.statusCode, HttpStatus.noContent);
     expect(response.data, isEmpty);
+  });
+
+  test('List<int> XML payload is sent as raw bytes instead of JSON', () async {
+    final received = Completer<List<int>>();
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    server.listen((request) async {
+      received.complete(
+        await request.fold<List<int>>([], (all, chunk) {
+          all.addAll(chunk);
+          return all;
+        }),
+      );
+      request.response.statusCode = HttpStatus.multiStatus;
+      await request.response.close();
+    });
+    addTearDown(() => server.close(force: true));
+    final xml = utf8.encode('<d:propfind xmlns:d="DAV:"/>');
+
+    await BackendHttp().request(
+      'PROPFIND',
+      Uri.parse('http://127.0.0.1:${server.port}/dav'),
+      headers: const {'Content-Type': 'application/xml; charset=utf-8'},
+      data: xml,
+    );
+
+    expect(await received.future, xml);
   });
 
   test('chunked response stops at cumulative hard limit', () async {

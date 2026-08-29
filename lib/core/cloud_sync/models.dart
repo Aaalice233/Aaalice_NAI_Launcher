@@ -5,14 +5,18 @@ import 'package:crypto/crypto.dart' as crypto;
 
 const cloudSyncProtocol = 'aaalice-cloud-sync';
 const cloudSyncSchemaVersion = 1;
+const cloudSyncPlainSnapshotVersion = 2;
 
-/// Hard limit for each encrypted object sent to or received from a backend.
+enum CloudSnapshotEncoding { encrypted, plain }
+
+/// Hard limit for each object sent to or received from a backend.
 const maxCloudObjectBytes = 4 * 1024 * 1024;
 
-/// AES-GCM adds a 12-byte nonce and a 16-byte authentication tag.
+/// Legacy encrypted snapshots reserve a 12-byte nonce and 16-byte tag.
 const cloudObjectEncryptionOverhead = 28;
-const maxCloudClearObjectBytes =
+const maxCloudEncryptedClearObjectBytes =
     maxCloudObjectBytes - cloudObjectEncryptionOverhead;
+const maxCloudClearObjectBytes = maxCloudEncryptedClearObjectBytes;
 
 class CloudFormatException implements Exception {
   const CloudFormatException(this.message);
@@ -75,9 +79,11 @@ class SnapshotManifest {
     required this.snapshotId,
     required this.createdAt,
     required List<SnapshotObject> objects,
-    this.version = cloudSyncSchemaVersion,
-  }) : objects = UnmodifiableListView(List.of(objects)) {
-    if (version != cloudSyncSchemaVersion) {
+    this.encoding = CloudSnapshotEncoding.encrypted,
+    int? version,
+  }) : version = version ?? _versionForEncoding(encoding),
+       objects = UnmodifiableListView(List.of(objects)) {
+    if (this.version != _versionForEncoding(encoding)) {
       throw const CloudFormatException('unsupported manifest version');
     }
     _requireIdentity(snapshotId, 'snapshotId');
@@ -87,6 +93,7 @@ class SnapshotManifest {
   }
 
   final int version;
+  final CloudSnapshotEncoding encoding;
   final String snapshotId;
   final DateTime createdAt;
   final List<SnapshotObject> objects;
@@ -105,18 +112,21 @@ class SnapshotManifest {
   }
 
   factory SnapshotManifest.fromJson(Object? value) {
-    final json = _strictMap(value, {
-      'version',
-      'snapshotId',
-      'createdAt',
-      'objects',
-    });
+    if (value is! Map<String, dynamic>) {
+      throw const CloudFormatException('expected JSON object');
+    }
+    final version = value['version'];
+    final keys = version == cloudSyncPlainSnapshotVersion
+        ? {'version', 'encoding', 'snapshotId', 'createdAt', 'objects'}
+        : {'version', 'snapshotId', 'createdAt', 'objects'};
+    final json = _strictMap(value, keys);
     final rawObjects = json['objects'];
     if (rawObjects is! List) {
       throw const CloudFormatException('objects must be an array');
     }
     return SnapshotManifest(
       version: _integer(json, 'version'),
+      encoding: _encoding(json, version),
       snapshotId: _string(json, 'snapshotId'),
       createdAt: _date(json, 'createdAt'),
       objects: rawObjects.map(SnapshotObject.fromJson).toList(),
@@ -125,6 +135,7 @@ class SnapshotManifest {
 
   Map<String, Object> toJson() => {
     'version': version,
+    if (version == cloudSyncPlainSnapshotVersion) 'encoding': encoding.name,
     'snapshotId': snapshotId,
     'createdAt': createdAt.toUtc().toIso8601String(),
     'objects': objects.map((object) => object.toJson()).toList(),
@@ -138,9 +149,10 @@ class SnapshotHead {
     required this.snapshotId,
     required this.manifestSha256,
     required this.updatedAt,
-    this.version = cloudSyncSchemaVersion,
-  }) {
-    if (version != cloudSyncSchemaVersion) {
+    this.encoding = CloudSnapshotEncoding.encrypted,
+    int? version,
+  }) : version = version ?? _versionForEncoding(encoding) {
+    if (this.version != _versionForEncoding(encoding)) {
       throw const CloudFormatException('unsupported head version');
     }
     _requireIdentity(snapshotId, 'snapshotId');
@@ -148,6 +160,7 @@ class SnapshotHead {
   }
 
   final int version;
+  final CloudSnapshotEncoding encoding;
   final String snapshotId;
   final String manifestSha256;
   final DateTime updatedAt;
@@ -166,14 +179,17 @@ class SnapshotHead {
   }
 
   factory SnapshotHead.fromJson(Object? value) {
-    final json = _strictMap(value, {
-      'version',
-      'snapshotId',
-      'manifestSha256',
-      'updatedAt',
-    });
+    if (value is! Map<String, dynamic>) {
+      throw const CloudFormatException('expected JSON object');
+    }
+    final version = value['version'];
+    final keys = version == cloudSyncPlainSnapshotVersion
+        ? {'version', 'encoding', 'snapshotId', 'manifestSha256', 'updatedAt'}
+        : {'version', 'snapshotId', 'manifestSha256', 'updatedAt'};
+    final json = _strictMap(value, keys);
     return SnapshotHead(
       version: _integer(json, 'version'),
+      encoding: _encoding(json, version),
       snapshotId: _string(json, 'snapshotId'),
       manifestSha256: _string(json, 'manifestSha256'),
       updatedAt: _date(json, 'updatedAt'),
@@ -182,6 +198,7 @@ class SnapshotHead {
 
   Map<String, Object> toJson() => {
     'version': version,
+    if (version == cloudSyncPlainSnapshotVersion) 'encoding': encoding.name,
     'snapshotId': snapshotId,
     'manifestSha256': manifestSha256,
     'updatedAt': updatedAt.toUtc().toIso8601String(),
@@ -194,6 +211,21 @@ class SnapshotHead {
       throw const CloudFormatException('manifest SHA-256 mismatch');
     }
   }
+}
+
+int _versionForEncoding(CloudSnapshotEncoding encoding) => switch (encoding) {
+  CloudSnapshotEncoding.encrypted => cloudSyncSchemaVersion,
+  CloudSnapshotEncoding.plain => cloudSyncPlainSnapshotVersion,
+};
+
+CloudSnapshotEncoding _encoding(Map<String, Object?> json, Object? version) {
+  if (version == cloudSyncSchemaVersion) {
+    return CloudSnapshotEncoding.encrypted;
+  }
+  if (version != cloudSyncPlainSnapshotVersion || json['encoding'] != 'plain') {
+    throw const CloudFormatException('unsupported snapshot encoding');
+  }
+  return CloudSnapshotEncoding.plain;
 }
 
 Map<String, Object?> strictJsonMap(Object? value, Set<String> keys) =>

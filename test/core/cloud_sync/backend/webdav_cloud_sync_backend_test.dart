@@ -153,6 +153,9 @@ void main() {
       var putCount = 0;
       final adapter = RecordingAdapter((request) {
         if (request.method == 'MKCOL') return const TestHttpResponse(405);
+        if (request.method == 'PROPFIND') {
+          return _davResponse([_davFile(request.uri.path, collection: true)]);
+        }
         if (request.method == 'PUT') {
           putCount++;
           return const TestHttpResponse(412);
@@ -208,6 +211,9 @@ void main() {
   test('reuses recently verified collections across object uploads', () async {
     final adapter = RecordingAdapter((request) {
       if (request.method == 'MKCOL') return const TestHttpResponse(405);
+      if (request.method == 'PROPFIND') {
+        return _davResponse([_davFile(request.uri.path, collection: true)]);
+      }
       if (request.method == 'PUT') {
         return const TestHttpResponse(201, '', {
           'etag': ['"object"'],
@@ -231,6 +237,67 @@ void main() {
           .where((request) => request.method == 'MKCOL')
           .map((request) => request.headers['Content-Length']),
       everyElement('0'),
+    );
+  });
+
+  test(
+    'Nutstore 400 for an existing collection is verified before upload',
+    () async {
+      var puts = 0;
+      final adapter = RecordingAdapter((request) {
+        if (request.method == 'MKCOL') return const TestHttpResponse(400);
+        if (request.method == 'PROPFIND') {
+          expect(request.headers['Depth'], '0');
+          expect(request.data, isA<Uint8List>());
+          return _davResponse([_davFile(request.uri.path, collection: true)]);
+        }
+        if (request.method == 'PUT') {
+          puts++;
+          return const TestHttpResponse(201, '', {
+            'etag': ['"object"'],
+          });
+        }
+        fail('Unexpected ${request.method} ${request.uri}');
+      });
+      final bytes = Uint8List.fromList([1, 2, 3]);
+
+      await _backend(adapter).putObject(
+        'nutstore-object',
+        bytes,
+        sha256: sha256.convert(bytes).toString(),
+      );
+
+      expect(puts, 1);
+      expect(
+        adapter.requests.where((request) => request.method == 'PROPFIND'),
+        hasLength(2),
+      );
+    },
+  );
+
+  test('MKCOL 400 is not ignored when the target is a file', () async {
+    final adapter = RecordingAdapter((request) {
+      if (request.method == 'MKCOL') return const TestHttpResponse(400);
+      if (request.method == 'PROPFIND') {
+        return _davResponse([_davFile(request.uri.path)]);
+      }
+      fail('PUT must not run for a non-collection target');
+    });
+    final bytes = Uint8List.fromList([1]);
+
+    await expectLater(
+      _backend(adapter).putObject(
+        'unsafe-object',
+        bytes,
+        sha256: sha256.convert(bytes).toString(),
+      ),
+      throwsA(
+        isA<CloudBackendException>().having(
+          (error) => error.statusCode,
+          'statusCode',
+          400,
+        ),
+      ),
     );
   });
 

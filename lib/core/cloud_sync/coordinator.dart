@@ -1,15 +1,13 @@
 import 'dart:convert';
 import 'dart:math';
 
-import 'package:cryptography/cryptography.dart';
-
 import 'backend/cloud_sync_backend.dart';
-import 'crypto.dart';
 import 'data_source.dart';
 import 'journal.dart';
 import 'merge.dart';
 import 'models.dart';
 import 'operation.dart';
+import 'object_codec.dart';
 import 'record_merge.dart';
 import 'snapshot_transfer.dart';
 import 'sync_operation_runner.dart';
@@ -21,8 +19,7 @@ class SyncCoordinator {
   SyncCoordinator({
     required this.backend,
     required this.dataSource,
-    required this.crypto,
-    required this.masterKey,
+    required this.codec,
     required this.journalStore,
     DateTime Function()? now,
     Random? random,
@@ -31,8 +28,7 @@ class SyncCoordinator {
 
   final CloudSyncBackend backend;
   final CloudSyncDataSource dataSource;
-  final CloudCrypto crypto;
-  final SecretKey masterKey;
+  final CloudObjectCodec codec;
   final JournalStore journalStore;
   final DateTime Function() _now;
   final Random _random;
@@ -40,16 +36,14 @@ class SyncCoordinator {
   CloudSnapshotTransfer get _transfer => CloudSnapshotTransfer(
     backend: backend,
     dataSource: dataSource,
-    crypto: crypto,
-    masterKey: masterKey,
+    codec: codec,
     now: _now,
   );
 
   SyncOperationRunner get _runner => SyncOperationRunner(
     backend: backend,
     dataSource: dataSource,
-    crypto: crypto,
-    masterKey: masterKey,
+    codec: codec,
     journalStore: journalStore,
     now: _now,
   );
@@ -151,13 +145,11 @@ class SyncCoordinator {
         throw const CloudFormatException('history manifest is missing');
       }
       final manifest = SnapshotManifest.decode(
-        await crypto.decryptObject(
-          read.bytes,
-          masterKey,
-          objectId: id,
-          kind: 'manifest',
-        ),
+        await codec.decode(read.bytes, objectId: id, kind: 'manifest'),
       );
+      if (manifest.encoding != codec.encoding) {
+        throw const CloudFormatException('snapshot encoding mismatch');
+      }
       if (manifest.snapshotId != id) {
         throw const CloudFormatException('history manifest identity mismatch');
       }

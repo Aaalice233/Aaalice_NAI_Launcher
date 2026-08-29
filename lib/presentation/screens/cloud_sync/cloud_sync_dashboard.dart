@@ -95,13 +95,9 @@ class CloudSyncDashboard extends ConsumerWidget {
 
   Widget _status(BuildContext context) {
     final needsAction =
-        state.needsConflictResolution ||
-        state.needsPreviewConfirmation ||
-        state.pendingRecoveryKey != null;
+        state.needsConflictResolution || state.needsPreviewConfirmation;
     final title = needsAction
-        ? state.pendingRecoveryKey != null
-              ? context.l10n.cloudSync_newRecoveryKeyPending
-              : context.l10n.cloudSync_needsConflictResolution
+        ? context.l10n.cloudSync_needsConflictResolution
         : switch (state.activityStatus) {
             CloudSyncActivityStatus.syncing => context.l10n.cloudSync_syncing,
             CloudSyncActivityStatus.paused => context.l10n.cloudSync_paused,
@@ -115,8 +111,6 @@ class CloudSyncDashboard extends ConsumerWidget {
       message: needsAction
           ? state.needsConflictResolution
                 ? context.l10n.cloudSync_deferredConflictWarning
-                : state.pendingRecoveryKey != null
-                ? context.l10n.cloudSync_newRecoveryKeyMustSave
                 : context.l10n.cloudSync_previewAwaitingConfirmation
           : context.l10n.cloudSync_connectedDescription,
       warning: needsAction,

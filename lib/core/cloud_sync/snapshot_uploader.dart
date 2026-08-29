@@ -2,14 +2,12 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart' as hashes;
-import 'package:cryptography/cryptography.dart';
-
 import 'backend/cloud_sync_backend.dart';
-import 'crypto.dart';
 import 'data_source.dart';
 import 'journal.dart';
 import 'models.dart';
 import 'operation.dart';
+import 'object_codec.dart';
 import 'sync_types.dart';
 
 typedef JournalCheckpoint = Future<void> Function(SyncJournal journal);
@@ -18,15 +16,13 @@ class ResumableSnapshotUploader {
   const ResumableSnapshotUploader({
     required this.backend,
     required this.dataSource,
-    required this.crypto,
-    required this.masterKey,
+    required this.codec,
     required this.now,
   });
 
   final CloudSyncBackend backend;
   final CloudSyncDataSource dataSource;
-  final CloudCrypto crypto;
-  final SecretKey masterKey;
+  final CloudObjectCodec codec;
   final DateTime Function() now;
 
   Future<SyncJournal> resume({
@@ -65,12 +61,11 @@ class ResumableSnapshotUploader {
       );
       if (encrypted == null) {
         final clear = await record.encodeForTransport();
-        if (clear.length > maxCloudClearObjectBytes) {
+        if (clear.length > codec.maxClearObjectBytes) {
           throw const CloudFormatException('record object is too large');
         }
-        encrypted = await crypto.encryptObject(
+        encrypted = await codec.encode(
           clear,
-          masterKey,
           objectId: objectId,
           kind: record.kind,
         );
@@ -143,10 +138,10 @@ class ResumableSnapshotUploader {
         snapshotId: current.snapshotId,
         createdAt: now().toUtc(),
         objects: current.completedObjects,
+        encoding: codec.encoding,
       );
-      manifestBytes = await crypto.encryptObject(
+      manifestBytes = await codec.encode(
         Uint8List.fromList(manifest.encode()),
-        masterKey,
         objectId: current.snapshotId,
         kind: 'manifest',
       );
@@ -183,6 +178,7 @@ class ResumableSnapshotUploader {
       snapshotId: current.snapshotId,
       manifestSha256: manifestSha,
       updatedAt: now().toUtc(),
+      encoding: codec.encoding,
     ).encode();
     if (await dataSource.readUploadArtifact(current.operationId, 'head.json') ==
         null) {
