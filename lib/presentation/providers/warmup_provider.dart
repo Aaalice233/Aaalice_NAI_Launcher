@@ -394,7 +394,6 @@ class WarmupNotifier extends _$WarmupNotifier {
       return;
     }
     _startNonCriticalWarmup();
-    _startGlobalGalleryScan();
   }
 
   void _startNonCriticalWarmup() {
