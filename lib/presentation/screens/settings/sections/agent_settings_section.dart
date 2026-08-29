@@ -22,28 +22,8 @@ class AgentSettingsSection extends ConsumerStatefulWidget {
       _AgentSettingsSectionState();
 }
 
-class _AgentSettingsSectionState extends ConsumerState<AgentSettingsSection>
-    with SingleTickerProviderStateMixin {
-  late final TabController _tabController;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 2, vsync: this)
-      ..addListener(_handleTabChange);
-  }
-
-  @override
-  void dispose() {
-    _tabController
-      ..removeListener(_handleTabChange)
-      ..dispose();
-    super.dispose();
-  }
-
-  void _handleTabChange() {
-    if (!_tabController.indexIsChanging && mounted) setState(() {});
-  }
+class _AgentSettingsSectionState extends ConsumerState<AgentSettingsSection> {
+  int _selectedPanel = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -99,16 +79,28 @@ class _AgentSettingsSectionState extends ConsumerState<AgentSettingsSection>
         _ModelCard(settings: state.settings, promptConfig: promptConfig),
         _PermissionCard(settings: state.settings),
         _WebAccessCard(settings: state.settings),
-        TabBar(
-          controller: _tabController,
-          isScrollable: true,
-          tabAlignment: TabAlignment.start,
-          tabs: [
-            Tab(text: context.l10n.agentSettings_systemPrompt),
-            Tab(text: context.l10n.agentSettings_skillsTitle),
-          ],
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: SegmentedButton<int>(
+            key: const ValueKey('agent-settings-panel-selector'),
+            segments: [
+              ButtonSegment(
+                value: 0,
+                label: Text(context.l10n.agentSettings_systemPrompt),
+              ),
+              ButtonSegment(
+                value: 1,
+                label: Text(context.l10n.agentSettings_skillsTitle),
+              ),
+            ],
+            selected: {_selectedPanel},
+            showSelectedIcon: false,
+            onSelectionChanged: (selection) {
+              setState(() => _selectedPanel = selection.single);
+            },
+          ),
         ),
-        if (_tabController.index == 0)
+        if (_selectedPanel == 0)
           const AgentSystemPromptEditor()
         else
           const SkillManagementPanel(),

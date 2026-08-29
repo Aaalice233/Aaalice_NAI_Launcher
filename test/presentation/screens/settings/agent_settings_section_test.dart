@@ -175,9 +175,14 @@ void main() {
       );
       expect(find.text('导入配置'), findsOneWidget);
       expect(find.text('导出配置'), findsOneWidget);
-      expect(find.byType(TabBar), findsOneWidget);
+      final panelSelector = find.byKey(
+        const ValueKey('agent-settings-panel-selector'),
+      );
+      expect(panelSelector, findsOneWidget);
+      expect(find.byType(TabBar), findsNothing);
+      expect(tester.widget<SegmentedButton<int>>(panelSelector).selected, {0});
       final skillsTab = find.descendant(
-        of: find.byType(TabBar),
+        of: panelSelector,
         matching: find.text('Skills'),
       );
       expect(skillsTab, findsOneWidget);
@@ -186,10 +191,11 @@ void main() {
       await tester.ensureVisible(skillsTab.first);
       await tester.tap(skillsTab.first);
       await tester.pumpAndSettle();
+      expect(tester.widget<SegmentedButton<int>>(panelSelector).selected, {1});
       expect(find.text('已启用 0/0'), findsOneWidget);
       expect(find.text('没有匹配的 Skill'), findsOneWidget);
       final promptTab = find.descendant(
-        of: find.byType(TabBar),
+        of: panelSelector,
         matching: find.text('系统提示词'),
       );
       await tester.ensureVisible(promptTab.first);
@@ -320,8 +326,11 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      final panelSelector = find.byKey(
+        const ValueKey('agent-settings-panel-selector'),
+      );
       final skillsTab = find.descendant(
-        of: find.byType(TabBar),
+        of: panelSelector,
         matching: find.text('Skills'),
       );
       await tester.ensureVisible(skillsTab.first);
