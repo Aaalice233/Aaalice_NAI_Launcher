@@ -290,6 +290,11 @@ class MobileGenerationController extends ChangeNotifier
   }
 
   Future<void> generate(BuildContext context) async {
+    if (!ref.read(authNotifierProvider).isAuthenticated) {
+      await context.pushNamed('login');
+      return;
+    }
+
     final params = ref.read(generationParamsNotifierProvider);
     if (PlatformCapabilities.current.supportsKritaBridge &&
         ref.read(kritaBridgeNotifierProvider).isBridgeGenerating) {
@@ -304,10 +309,6 @@ class MobileGenerationController extends ChangeNotifier
       closePromptEditor();
       await Future<void>.delayed(Duration.zero);
       if (_disposed || !context.mounted) return;
-    }
-    if (!ref.read(authNotifierProvider).isAuthenticated) {
-      await context.pushNamed('login');
-      return;
     }
     final confirmed = await AssetProtectionGuard.confirmHighAnlasCost(
       context: context,
