@@ -140,6 +140,7 @@ void main() {
     final pageRect = tester.getRect(pageLayout);
     expect(pageRect.width, lessThanOrEqualTo(960));
     expect(pageRect.left, moreOrLessEquals(scrollRect.left + 24));
+    expect(pageRect.top, moreOrLessEquals(scrollRect.top + 24));
 
     final labels = rail.destinations
         .map((destination) => (destination.label as Text).data)

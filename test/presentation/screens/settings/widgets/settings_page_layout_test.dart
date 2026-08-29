@@ -88,7 +88,15 @@ void main() {
         expect(rect.width, greaterThan(0));
         final widget = card.widget as Card;
         expect(widget.elevation, 0);
-        expect(widget.color, Theme.of(card).colorScheme.surfaceContainerLow);
+        final colorScheme = Theme.of(card).colorScheme;
+        expect(
+          widget.color,
+          Color.alphaBlend(
+            colorScheme.onSurface.withValues(alpha: 0.05),
+            colorScheme.surfaceContainerLow,
+          ),
+        );
+        expect(widget.color, isNot(colorScheme.surface));
         expect(widget.shape, isNull);
       }
       expect(tester.takeException(), isNull);

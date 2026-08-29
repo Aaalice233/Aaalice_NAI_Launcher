@@ -41,6 +41,12 @@ class SettingsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    // 部分自定义主题未单独定义容器色阶，需保留最小色差才能让分组可见。
+    final cardColor = Color.alphaBlend(
+      colorScheme.onSurface.withValues(alpha: 0.05),
+      colorScheme.surfaceContainerLow,
+    );
 
     final description = this.description;
 
@@ -49,7 +55,7 @@ class SettingsCard extends StatelessWidget {
       elevation: 0,
       shadowColor: Colors.transparent,
       surfaceTintColor: Colors.transparent,
-      color: theme.colorScheme.surfaceContainerLow,
+      color: cardColor,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,

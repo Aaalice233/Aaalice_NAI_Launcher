@@ -284,6 +284,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               surfaceTintColor: Colors.transparent,
             ),
             body: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 _buildNavigationRail(context, sizeClass.isExpanded, sections),
                 const VerticalDivider(thickness: 1, width: 1),
