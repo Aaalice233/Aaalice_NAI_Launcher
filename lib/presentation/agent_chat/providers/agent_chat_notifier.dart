@@ -639,6 +639,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
 
   Future<String> _buildSystemPrompt({
     String? customInstructionsOverride,
+    AgentSystemPromptMode? modeOverride,
     Iterable<HarnessSkill>? skillsOverride,
     AgentSettings? settingsOverride,
   }) async {
@@ -669,11 +670,16 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       builtInPrompt: builtInPrompt,
       customInstructions: agentSettings.chat.behaviorInstructions(
         customPromptOverride: customInstructionsOverride,
+        modeOverride: modeOverride,
       ),
+      mode: modeOverride ?? agentSettings.chat.systemPromptMode,
     );
   }
 
-  Future<String> buildSystemPromptPreview({String? customInstructions}) async {
+  Future<String> buildSystemPromptPreview({
+    String? customInstructions,
+    AgentSystemPromptMode? mode,
+  }) async {
     await _initializing;
     await _settingsRefresh;
     final previewSkills = _usesPresetSkills
@@ -681,6 +687,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
         : (await _scanCurrentSkills()).enabledSkillMap().values;
     return _buildSystemPrompt(
       customInstructionsOverride: customInstructions,
+      modeOverride: mode,
       skillsOverride: previewSkills,
     );
   }

@@ -13,6 +13,7 @@ void main() {
         model: 'model-a',
       ),
       customSystemPrompt: 'Be concise.',
+      systemPromptMode: AgentSystemPromptMode.override,
     ),
     disabledSkillIds: {'demo'},
   );
@@ -24,6 +25,7 @@ void main() {
     expect(text, contains('model-a'));
     expect(text, contains('demo'));
     expect(text, contains('Be concise.'));
+    expect(text, contains('"systemPromptMode": "override"'));
     expect(text, isNot(contains('apiKey')));
     expect(text, isNot(contains('chatHistory')));
   });
@@ -109,6 +111,11 @@ void main() {
     expect(preview.warnings, contains('unmatchedModel:provider-a/model-a'));
     expect(preview.warnings, contains('unmatchedSkill:demo'));
     expect(preview.settings.disabledSkillIds, {'demo'});
+    expect(
+      preview.settings.chat.systemPromptMode,
+      AgentSystemPromptMode.override,
+    );
+    expect(preview.changes, contains('systemPromptMode'));
   });
 
   test('export and import round-trip every portable setting', () {

@@ -23279,8 +23279,32 @@ abstract class AppLocalizations {
   /// No description provided for @agentSettings_systemPromptDescription.
   ///
   /// In en, this message translates to:
-  /// **'Built-in safety and tool instructions are always retained. Your behavior instructions are appended here.'**
+  /// **'Choose how the content below is applied to the Agent system prompt.'**
   String get agentSettings_systemPromptDescription;
+
+  /// No description provided for @agentSettings_promptModeAppend.
+  ///
+  /// In en, this message translates to:
+  /// **'Append'**
+  String get agentSettings_promptModeAppend;
+
+  /// No description provided for @agentSettings_promptModeAppendDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep the built-in instructions and Skills list, then append the content below.'**
+  String get agentSettings_promptModeAppendDescription;
+
+  /// No description provided for @agentSettings_promptModeOverride.
+  ///
+  /// In en, this message translates to:
+  /// **'Override'**
+  String get agentSettings_promptModeOverride;
+
+  /// No description provided for @agentSettings_promptModeOverrideDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Use only the content below as the system prompt. Built-in instructions and the Skills list are omitted, while structured tool definitions required by the provider are still sent.'**
+  String get agentSettings_promptModeOverrideDescription;
 
   /// No description provided for @agentSettings_systemPromptHint.
   ///

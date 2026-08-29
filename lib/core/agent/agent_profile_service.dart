@@ -74,6 +74,9 @@ class AgentProfileService {
     if (current.chat.customSystemPrompt != imported.chat.customSystemPrompt) {
       changes.add('customSystemPrompt');
     }
+    if (current.chat.systemPromptMode != imported.chat.systemPromptMode) {
+      changes.add('systemPromptMode');
+    }
     if (jsonEncode(current.chat.migratedChatRules) !=
         jsonEncode(imported.chat.migratedChatRules)) {
       changes.add('migratedChatRules');

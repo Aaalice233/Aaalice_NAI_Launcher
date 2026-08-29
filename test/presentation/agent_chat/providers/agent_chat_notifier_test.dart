@@ -10,6 +10,7 @@ import 'package:nai_launcher/core/storage/secure_storage_service.dart';
 import 'package:nai_launcher/data/models/agent/agent_settings.dart';
 import 'package:nai_launcher/presentation/agent_chat/providers/agent_chat_notifier.dart';
 import 'package:nai_launcher/presentation/agent_settings/providers/agent_settings_provider.dart';
+import 'package:nai_launcher/presentation/prompt_assistant/models/agent_protocol.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/models/prompt_assistant_models.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/providers/prompt_assistant_config_provider.dart';
 
@@ -183,12 +184,14 @@ Legacy instructions.
     late _MemoryLocalStorage storage;
     late ProviderContainer container;
     late StateNotifierProvider<AgentChatNotifier, AgentChatState> provider;
+    late List<AgentChatRequest> requests;
 
     setUp(() async {
       tempDir = await Directory.systemTemp.createTemp(
         'agent_chat_notifier_test_',
       );
       storage = _MemoryLocalStorage();
+      requests = [];
       provider = StateNotifierProvider<AgentChatNotifier, AgentChatState>((
         ref,
       ) {
@@ -197,6 +200,13 @@ Legacy instructions.
           supportDir: tempDir,
           workspaceDir: tempDir,
           presetSkills: const [],
+          completeRequest: (request) {
+            requests.add(request);
+            return Stream<AgentWireEvent>.fromIterable(const [
+              AgentWireTextDelta('done'),
+              AgentWireFinish(stopReason: StopReason.stop),
+            ]);
+          },
         );
       });
       container = ProviderContainer(
@@ -262,6 +272,56 @@ Legacy instructions.
       expect(state.routeReady, isTrue);
       expect(state.routeLabel, contains('DeepSeek'));
     });
+
+    test(
+      'override is the exact outbound prompt for new and restored sessions',
+      () async {
+        final configNotifier = container.read(
+          promptAssistantConfigProvider.notifier,
+        );
+        await configNotifier.upsertProvider(
+          ProviderPreset.deepseek.createConfig(),
+        );
+        await configNotifier.upsertModel(
+          const ModelConfig(
+            providerId: 'deepseek',
+            name: 'deepseek-chat',
+            displayName: 'DeepSeek Chat',
+            forTask: AssistantTaskType.chat,
+          ),
+        );
+        await container
+            .read(agentSettingsProvider.notifier)
+            .setModelReference(
+              const AgentModelReference(
+                providerId: 'deepseek',
+                model: 'deepseek-chat',
+              ),
+            );
+        await container
+            .read(agentSettingsProvider.notifier)
+            .saveCustomSystemPrompt(
+              mode: AgentSystemPromptMode.override,
+              value: 'EXACT_OVERRIDE',
+            );
+
+        final notifier = container.read(provider.notifier);
+        final firstSessionId = container.read(provider).activeSessionId;
+        await notifier.send('first');
+        await notifier.newSession();
+        await notifier.send('new session');
+        await notifier.switchSession(firstSessionId);
+        await notifier.send('restored session');
+
+        expect(requests, hasLength(3));
+        for (final request in requests) {
+          expect(request.systemPrompt, 'EXACT_OVERRIDE');
+          expect(request.systemPrompt, isNot(contains('Aaalice')));
+          expect(request.systemPrompt, isNot(contains('<skills>')));
+          expect(request.tools, isNotEmpty);
+        }
+      },
+    );
 
     test(
       'restores usage per session and clears it for a new session',

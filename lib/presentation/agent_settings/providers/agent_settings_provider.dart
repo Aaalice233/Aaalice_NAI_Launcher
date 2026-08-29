@@ -215,13 +215,19 @@ class AgentSettingsNotifier extends StateNotifier<AgentSettingsState> {
     ),
   );
 
-  Future<void> saveCustomSystemPrompt(String value) {
+  Future<void> saveCustomSystemPrompt({
+    required AgentSystemPromptMode mode,
+    required String value,
+  }) {
     if (value.length > AgentSettings.maxCustomPromptLength) {
       throw const FormatException('Custom system prompt is too large.');
     }
     return _update(
       (current) => current.copyWith(
-        chat: current.chat.copyWith(customSystemPrompt: value),
+        chat: current.chat.copyWith(
+          systemPromptMode: mode,
+          customSystemPrompt: value,
+        ),
       ),
     );
   }

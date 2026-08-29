@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:nai_launcher/data/models/agent/agent_settings.dart';
 import 'package:nai_launcher/presentation/agent_settings/providers/agent_prompt_draft_provider.dart';
 
 void main() {
@@ -7,9 +8,12 @@ void main() {
     final notifier = AgentPromptDraftNotifier();
     addTearDown(notifier.dispose);
 
-    notifier.synchronizeSaved('已保存');
+    notifier.synchronizeSaved(value: '已保存', mode: AgentSystemPromptMode.append);
     notifier.updateDraft('用户草稿');
-    notifier.synchronizeSaved('延迟状态');
+    notifier.synchronizeSaved(
+      value: '延迟状态',
+      mode: AgentSystemPromptMode.override,
+    );
 
     expect(notifier.state.saved, '已保存');
     expect(notifier.state.draft, '用户草稿');
@@ -20,16 +24,36 @@ void main() {
     final notifier = AgentPromptDraftNotifier();
     addTearDown(notifier.dispose);
 
-    notifier.synchronizeSaved('旧值');
+    notifier.synchronizeSaved(value: '旧值', mode: AgentSystemPromptMode.append);
     notifier.updateDraft('待保存');
+    notifier.updateMode(AgentSystemPromptMode.override);
     final savingRevision = notifier.state.revision;
     notifier.beginSave();
     notifier.updateDraft('保存期间的新输入');
-    notifier.finishSave(revision: savingRevision, saved: '待保存');
+    notifier.finishSave(
+      revision: savingRevision,
+      saved: '待保存',
+      savedMode: AgentSystemPromptMode.override,
+    );
 
     expect(notifier.state.saved, '待保存');
     expect(notifier.state.draft, '保存期间的新输入');
+    expect(notifier.state.savedMode, AgentSystemPromptMode.override);
+    expect(notifier.state.draftMode, AgentSystemPromptMode.override);
     expect(notifier.state.dirty, isTrue);
     expect(notifier.state.saving, isFalse);
+  });
+
+  test('仅切换模式也会标记未保存并可放弃', () {
+    final notifier = AgentPromptDraftNotifier();
+    addTearDown(notifier.dispose);
+    notifier.synchronizeSaved(value: '内容', mode: AgentSystemPromptMode.append);
+
+    notifier.updateMode(AgentSystemPromptMode.override);
+    expect(notifier.state.dirty, isTrue);
+
+    notifier.discard();
+    expect(notifier.state.draftMode, AgentSystemPromptMode.append);
+    expect(notifier.state.dirty, isFalse);
   });
 }
