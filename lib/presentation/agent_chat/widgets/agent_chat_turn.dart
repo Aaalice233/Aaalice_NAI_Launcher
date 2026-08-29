@@ -682,7 +682,11 @@ class _WorkItemGroupTileState extends State<_WorkItemGroupTile> {
       _WorkGroupKind.exploration => Icons.manage_search_rounded,
       _WorkGroupKind.single => agentToolIcon(group.items.first.toolName),
     };
-    final railColor = theme.colorScheme.outlineVariant.withValues(alpha: 0.34);
+    final statusColor = failed
+        ? theme.colorScheme.error
+        : pending
+        ? theme.colorScheme.primary
+        : agentToolSuccessColor(theme);
     return Stack(
       clipBehavior: Clip.none,
       children: [
@@ -713,6 +717,24 @@ class _WorkItemGroupTileState extends State<_WorkItemGroupTile> {
                         style: theme.textTheme.bodySmall,
                       ),
                     ),
+                    if (!pending) ...[
+                      const SizedBox(width: 8),
+                      Semantics(
+                        label: failed
+                            ? context.l10n.common_error
+                            : context.l10n.common_success,
+                        child: ExcludeSemantics(
+                          child: Icon(
+                            failed ? Icons.close_rounded : Icons.check_rounded,
+                            key: ValueKey(
+                              'agent-turn-tool-status-${group.items.first.call?.id ?? group.items.first.result?.toolCallId ?? group.items.first.messageIndex}',
+                            ),
+                            size: 16,
+                            color: statusColor,
+                          ),
+                        ),
+                      ),
+                    ],
                     Icon(
                       _expanded
                           ? Icons.expand_less_rounded
@@ -733,27 +755,14 @@ class _WorkItemGroupTileState extends State<_WorkItemGroupTile> {
           top: 16,
           child: IgnorePointer(
             child: Container(
+              key: ValueKey(
+                'agent-turn-tool-dot-${group.items.first.call?.id ?? group.items.first.result?.toolCallId ?? group.items.first.messageIndex}',
+              ),
               width: 8,
               height: 8,
               decoration: BoxDecoration(
-                color: theme.colorScheme.surface,
+                color: statusColor,
                 shape: BoxShape.circle,
-                border: Border.all(color: railColor, width: 1.5),
-              ),
-              alignment: Alignment.center,
-              child: Container(
-                width: pending ? 4 : 3,
-                height: pending ? 4 : 3,
-                decoration: BoxDecoration(
-                  color: failed
-                      ? theme.colorScheme.error
-                      : pending
-                      ? theme.colorScheme.primary
-                      : theme.colorScheme.onSurfaceVariant.withValues(
-                          alpha: 0.72,
-                        ),
-                  shape: BoxShape.circle,
-                ),
               ),
             ),
           ),
@@ -773,13 +782,7 @@ String _workGroupSummary(BuildContext context, _WorkItemGroup group) {
   }
   final result = group.items.last.result;
   if (result == null) return '';
-  return agentToolResultSummary(
-    context,
-    result,
-    fallback: result.isError
-        ? context.l10n.common_error
-        : context.l10n.common_success,
-  );
+  return agentToolResultSummary(context, result, fallback: '');
 }
 
 class _AgentChatNarrationTile extends StatelessWidget {

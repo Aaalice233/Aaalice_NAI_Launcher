@@ -58,7 +58,12 @@ void main() {
     await pumpResult(tester, result);
 
     expect(find.textContaining('Found 3 matching tags'), findsOneWidget);
-    expect(find.textContaining('Success'), findsOneWidget);
+    expect(find.text('Success'), findsNothing);
+    final statusIcon = tester.widget<Icon>(
+      find.byKey(const ValueKey('agent-tool-result-status-success-1')),
+    );
+    expect(statusIcon.icon, Icons.check_rounded);
+    expect(statusIcon.color, Colors.green.shade700);
     expect(find.textContaining('{"ok":true,"message"'), findsNothing);
     expect(
       find.byKey(const ValueKey('agent-tool-result-details-success-1')),
@@ -136,7 +141,17 @@ void main() {
     await pumpResult(tester, result);
 
     expect(find.textContaining('Network request failed'), findsOneWidget);
-    expect(find.textContaining('Error'), findsOneWidget);
+    expect(find.text('Error'), findsNothing);
+    final statusIcon = tester.widget<Icon>(
+      find.byKey(const ValueKey('agent-tool-result-status-error-1')),
+    );
+    expect(statusIcon.icon, Icons.close_rounded);
+    expect(
+      statusIcon.color,
+      Theme.of(
+        tester.element(find.byType(AgentChatToolResultTile)),
+      ).colorScheme.error,
+    );
     expect(find.textContaining('"status": 503'), findsNothing);
 
     await tester.tap(find.byKey(const ValueKey('agent-tool-result-error-1')));

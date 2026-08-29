@@ -123,6 +123,11 @@ _AgentToolVisual _agentToolVisual(ThemeData theme, String toolName) =>
       color: theme.colorScheme.onSurfaceVariant,
     );
 
+Color agentToolSuccessColor(ThemeData theme) =>
+    theme.brightness == Brightness.dark
+    ? Colors.green.shade400
+    : Colors.green.shade700;
+
 class AgentChatToolActivityTile extends StatefulWidget {
   const AgentChatToolActivityTile({super.key, required this.activity});
 
@@ -142,22 +147,18 @@ class _AgentChatToolActivityTileState extends State<AgentChatToolActivityTile> {
     final activity = widget.activity;
     final toolLabel = agentToolLabel(context, activity.toolName);
     final visual = _agentToolVisual(theme, activity.toolName);
-    final statusColor = activity.status == AgentToolActivityStatus.failed
-        ? Color.lerp(
-            theme.colorScheme.onSurfaceVariant,
-            theme.colorScheme.error,
-            0.48,
-          )!
-        : visual.color;
-    final statusLabel = switch (activity.status) {
-      AgentToolActivityStatus.running => context.l10n.agentChat_toolRunning,
-      AgentToolActivityStatus.succeeded => context.l10n.common_success,
-      AgentToolActivityStatus.failed => context.l10n.common_error,
+    final statusColor = switch (activity.status) {
+      AgentToolActivityStatus.running => visual.color,
+      AgentToolActivityStatus.succeeded => agentToolSuccessColor(theme),
+      AgentToolActivityStatus.failed => theme.colorScheme.error,
     };
-    final icon = switch (activity.status) {
-      AgentToolActivityStatus.running => visual.icon,
-      AgentToolActivityStatus.succeeded => Icons.check_circle_outline_rounded,
-      AgentToolActivityStatus.failed => Icons.error_outline_rounded,
+    final statusLabel = activity.status == AgentToolActivityStatus.running
+        ? context.l10n.agentChat_toolRunning
+        : '';
+    final statusIcon = switch (activity.status) {
+      AgentToolActivityStatus.running => null,
+      AgentToolActivityStatus.succeeded => Icons.check_rounded,
+      AgentToolActivityStatus.failed => Icons.close_rounded,
     };
     final details = _activityDetails(activity);
     return RepaintBoundary(
@@ -169,11 +170,20 @@ class _AgentChatToolActivityTileState extends State<AgentChatToolActivityTile> {
             iconKey: ValueKey(
               'agent-tool-activity-icon-${activity.toolCallId}',
             ),
-            icon: icon,
-            iconColor: statusColor,
+            icon: visual.icon,
+            iconColor: visual.color,
             title: toolLabel,
             summary: _summarize(activity),
             status: statusLabel,
+            statusIcon: statusIcon,
+            statusIconKey: ValueKey(
+              'agent-tool-activity-status-${activity.toolCallId}',
+            ),
+            statusColor: statusColor,
+            statusSemanticsLabel:
+                activity.status == AgentToolActivityStatus.failed
+                ? context.l10n.common_error
+                : context.l10n.common_success,
             expanded: _expanded,
             expandable: details.isNotEmpty,
             failure: activity.status == AgentToolActivityStatus.failed,
@@ -197,9 +207,7 @@ class _AgentChatToolActivityTileState extends State<AgentChatToolActivityTile> {
     if (activity.content.trim().isEmpty) return '';
     return _safeToolTextSummary(
       activity.content,
-      fallback: activity.status == AgentToolActivityStatus.failed
-          ? context.l10n.common_error
-          : '',
+      fallback: '',
       failed: activity.status == AgentToolActivityStatus.failed,
     );
   }
@@ -254,13 +262,9 @@ class _AgentChatToolResultTileState extends State<AgentChatToolResultTile> {
         ? context.l10n.agentChat_toolResult
         : agentToolLabel(context, result.toolName);
     final visual = _agentToolVisual(theme, result.toolName);
-    final color = result.isError
-        ? Color.lerp(
-            theme.colorScheme.onSurfaceVariant,
-            theme.colorScheme.error,
-            0.48,
-          )!
-        : visual.color;
+    final statusColor = result.isError
+        ? theme.colorScheme.error
+        : agentToolSuccessColor(theme);
     final files = _extractImageFiles(result);
     final preferFileImages = files.isNotEmpty;
     final inlineImages = preferFileImages
@@ -296,13 +300,21 @@ class _AgentChatToolResultTileState extends State<AgentChatToolResultTile> {
         _ToolStepRow(
           key: ValueKey('agent-tool-result-${result.toolCallId}'),
           iconKey: ValueKey('agent-tool-result-icon-${result.toolCallId}'),
-          icon: result.isError
-              ? Icons.error_outline_rounded
-              : Icons.check_circle_outline_rounded,
-          iconColor: color,
+          icon: visual.icon,
+          iconColor: visual.color,
           title: toolLabel,
           summary: summary,
-          status: widget.nested ? '' : statusLabel,
+          status: '',
+          statusIcon: widget.nested
+              ? null
+              : result.isError
+              ? Icons.close_rounded
+              : Icons.check_rounded,
+          statusIconKey: ValueKey(
+            'agent-tool-result-status-${result.toolCallId}',
+          ),
+          statusColor: statusColor,
+          statusSemanticsLabel: statusLabel,
           expanded: _expanded,
           expandable: hasExpandedContent,
           failure: result.isError,
@@ -415,7 +427,8 @@ class _ToolTaskHeader extends StatelessWidget {
   const _ToolTaskHeader({
     required this.icon,
     required this.title,
-    required this.status,
+    required this.statusIcon,
+    required this.statusLabel,
     required this.statusColor,
     required this.expanded,
     this.onTap,
@@ -423,7 +436,8 @@ class _ToolTaskHeader extends StatelessWidget {
 
   final IconData icon;
   final String title;
-  final String status;
+  final IconData statusIcon;
+  final String statusLabel;
   final Color statusColor;
   final bool expanded;
   final VoidCallback? onTap;
@@ -455,11 +469,10 @@ class _ToolTaskHeader extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  status,
-                  maxLines: 1,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: statusColor,
+                Semantics(
+                  label: statusLabel,
+                  child: ExcludeSemantics(
+                    child: Icon(statusIcon, size: 16, color: statusColor),
                   ),
                 ),
                 if (onTap != null) ...[
@@ -493,6 +506,10 @@ class _ToolStepRow extends StatelessWidget {
     required this.expanded,
     required this.expandable,
     required this.onTap,
+    this.statusIcon,
+    this.statusIconKey,
+    this.statusColor,
+    this.statusSemanticsLabel,
     this.failure = false,
     this.showIcon = true,
     this.showRailConnector = false,
@@ -507,6 +524,10 @@ class _ToolStepRow extends StatelessWidget {
   final bool expanded;
   final bool expandable;
   final VoidCallback? onTap;
+  final IconData? statusIcon;
+  final Key? statusIconKey;
+  final Color? statusColor;
+  final String? statusSemanticsLabel;
   final bool failure;
   final bool showIcon;
   final bool showRailConnector;
@@ -573,7 +594,21 @@ class _ToolStepRow extends StatelessWidget {
                         status,
                         maxLines: 1,
                         style: theme.textTheme.labelSmall?.copyWith(
-                          color: iconColor,
+                          color: statusColor ?? iconColor,
+                        ),
+                      ),
+                    ],
+                    if (statusIcon case final statusIcon?) ...[
+                      const SizedBox(width: 8),
+                      Semantics(
+                        label: statusSemanticsLabel,
+                        child: ExcludeSemantics(
+                          child: Icon(
+                            statusIcon,
+                            key: statusIconKey,
+                            size: 16,
+                            color: statusColor ?? iconColor,
+                          ),
                         ),
                       ),
                     ],
@@ -726,7 +761,7 @@ class _AgentChatToolResultGroupState extends State<AgentChatToolResultGroup> {
         : context.l10n.common_success;
     final statusColor = failed > 0
         ? theme.colorScheme.error
-        : theme.colorScheme.onSurfaceVariant;
+        : agentToolSuccessColor(theme);
     return Container(
       key: PageStorageKey(
         'agent-tool-group-${results.first.toolCallId}-${results.length}',
@@ -747,7 +782,8 @@ class _AgentChatToolResultGroupState extends State<AgentChatToolResultGroup> {
                 ? Icons.error_outline_rounded
                 : Icons.task_alt_outlined,
             title: context.l10n.agentChat_toolGroupCount(results.length),
-            status: status,
+            statusIcon: failed > 0 ? Icons.close_rounded : Icons.check_rounded,
+            statusLabel: status,
             statusColor: statusColor,
             expanded: _expanded,
             onTap: () => setState(() => _expanded = !_expanded),

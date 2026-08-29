@@ -152,6 +152,18 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('agent-turn-work-header-0')));
     await tester.pumpAndSettle();
     expect(find.textContaining('Read file · prompt contents'), findsOneWidget);
+    expect(find.text('Success'), findsNothing);
+    final successIcon = tester.widget<Icon>(
+      find.byKey(const ValueKey('agent-turn-tool-status-call-1')),
+    );
+    expect(successIcon.icon, Icons.check_rounded);
+    expect(successIcon.color, Colors.green.shade700);
+    final successDot = tester.widget<Container>(
+      find.byKey(const ValueKey('agent-turn-tool-dot-call-1')),
+    );
+    final successDotDecoration = successDot.decoration! as BoxDecoration;
+    expect(successDotDecoration.color, Colors.green.shade700);
+    expect(successDotDecoration.border, isNull);
     expect(
       find.byKey(const ValueKey('agent-turn-tool-result-call-1')),
       findsNothing,
@@ -373,6 +385,21 @@ void main() {
       find.textContaining('Submit generation · Generation submission failed'),
       findsOneWidget,
     );
+    expect(find.text('Error'), findsNothing);
+    final errorIcon = tester.widget<Icon>(
+      find.byKey(const ValueKey('agent-turn-tool-status-failed-submit')),
+    );
+    final errorTheme = Theme.of(
+      tester.element(find.byKey(const ValueKey('agent-turn-work-0'))),
+    );
+    expect(errorIcon.icon, Icons.close_rounded);
+    expect(errorIcon.color, errorTheme.colorScheme.error);
+    final errorDot = tester.widget<Container>(
+      find.byKey(const ValueKey('agent-turn-tool-dot-failed-submit')),
+    );
+    final errorDotDecoration = errorDot.decoration! as BoxDecoration;
+    expect(errorDotDecoration.color, errorTheme.colorScheme.error);
+    expect(errorDotDecoration.border, isNull);
     expect(find.textContaining('private body'), findsNothing);
     expect(find.textContaining('private-id'), findsNothing);
   });
