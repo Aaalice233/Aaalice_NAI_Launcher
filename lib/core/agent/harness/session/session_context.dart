@@ -2,7 +2,6 @@ import '../../agent_types.dart';
 import '../harness_messages.dart';
 import 'session_types.dart';
 
-
 class SessionContext {
   const SessionContext({
     required this.messages,
@@ -17,15 +16,15 @@ class SessionContext {
   final List<String>? activeToolNames;
 }
 
-typedef ContextEntryTransform = List<SessionEntry> Function(
-  List<SessionEntry> entries,
-);
+typedef ContextEntryTransform =
+    List<SessionEntry> Function(List<SessionEntry> entries);
 
-typedef CustomEntryContextMessageProjector = List<AgentMessage>? Function(
-  CustomEntry entry,
-  int index,
-  List<SessionEntry> entries,
-);
+typedef CustomEntryContextMessageProjector =
+    List<AgentMessage>? Function(
+      CustomEntry entry,
+      int index,
+      List<SessionEntry> entries,
+    );
 
 class SessionContextBuildOptions {
   const SessionContextBuildOptions({
@@ -37,9 +36,12 @@ class SessionContextBuildOptions {
   final Map<String, CustomEntryContextMessageProjector>? entryProjectors;
 }
 
-({String thinkingLevel, ({String provider, String modelId})? model,
-        List<String>? activeToolNames})
-    _deriveSessionContextState(List<SessionEntry> pathEntries) {
+({
+  String thinkingLevel,
+  ({String provider, String modelId})? model,
+  List<String>? activeToolNames,
+})
+_deriveSessionContextState(List<SessionEntry> pathEntries) {
   var thinkingLevel = 'off';
   ({String provider, String modelId})? model;
   List<String>? activeToolNames;
@@ -119,6 +121,7 @@ List<AgentMessage> sessionEntryToContextMessages(
         entry.summary,
         entry.tokensBefore,
         entry.timestamp,
+        retainedTailLength: entry.retainedTail.length,
       ),
       ...entry.retainedTail,
     ];

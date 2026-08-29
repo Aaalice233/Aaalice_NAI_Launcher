@@ -49,19 +49,18 @@ AgentContextUsage resolveAgentContextUsage(
       ? contextWindow
       : null;
   final estimate = estimateContextTokens(messages);
-  final latestCompactionTimestamp = messages
-      .whereType<CompactionSummaryMessage>()
-      .fold<int?>(
-        null,
-        (latest, message) => latest == null || message.timestamp > latest
-            ? message.timestamp
-            : latest,
-      );
+  final latestCompactionIndex = messages.lastIndexWhere(
+    (message) => message is CompactionSummaryMessage,
+  );
+  final compactionBoundary = latestCompactionIndex < 0
+      ? -1
+      : latestCompactionIndex +
+            (messages[latestCompactionIndex] as CompactionSummaryMessage)
+                .retainedTailLength;
   final anchorIndex = estimate.lastUsageIndex;
   final hasPostCompactionAnchor =
-      latestCompactionTimestamp == null ||
-      (anchorIndex != null &&
-          messages[anchorIndex].timestamp > latestCompactionTimestamp);
+      latestCompactionIndex < 0 ||
+      (anchorIndex != null && anchorIndex > compactionBoundary);
   final tokens = hasPostCompactionAnchor ? estimate.tokens : null;
 
   return AgentContextUsage(

@@ -229,7 +229,12 @@ void main() {
     );
 
     test('context after compaction waits for a post-compaction anchor', () {
-      final summary = createCompactionSummaryMessage('summary', 400, 200);
+      final summary = createCompactionSummaryMessage(
+        'summary',
+        400,
+        200,
+        retainedTailLength: 1,
+      );
       final staleAssistant = AssistantMessage(
         content: const [AssistantTextContent('retained')],
         stopReason: StopReason.stop,
@@ -250,7 +255,9 @@ void main() {
         content: const [AssistantTextContent('fresh')],
         stopReason: StopReason.stop,
         usage: const Usage(totalTokens: 120),
-        timestamp: 300,
+        // Sequence, not wall-clock time, determines whether this response was
+        // produced after compaction.
+        timestamp: 100,
       );
       final known = resolveAgentContextUsage([
         summary,

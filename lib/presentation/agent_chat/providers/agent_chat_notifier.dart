@@ -543,6 +543,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
           entry.summary,
           entry.tokensBefore,
           entry.timestamp,
+          retainedTailLength: compactResult.retainedTail.length,
         ),
         ...compactResult.retainedTail,
       ];

@@ -304,6 +304,21 @@ void main() {
           toolCallId: 'read-image',
           toolName: 'read',
           content: const [ToolResultTextContent('Image read successfully')],
+        ),
+        AssistantMessage(
+          content: const [
+            ToolCallContent(
+              id: 'display-image',
+              name: 'display_images',
+              arguments: {},
+            ),
+          ],
+          stopReason: StopReason.toolUse,
+        ),
+        ToolResultMessage(
+          toolCallId: 'display-image',
+          toolName: 'display_images',
+          content: const [ToolResultTextContent('Image displayed')],
           details: {
             'files': [imageFile.path],
           },
@@ -421,7 +436,7 @@ void main() {
       final activityIcon = tester.widget<Icon>(
         find.descendant(of: activityIconSlot, matching: find.byType(Icon)),
       );
-      expect(activityIcon.icon, Icons.auto_awesome);
+      expect(activityIcon.icon, Icons.auto_awesome_outlined);
       expect(activityIcon.color, resultColor);
       expect(find.text('Generate image'), findsOneWidget);
 
