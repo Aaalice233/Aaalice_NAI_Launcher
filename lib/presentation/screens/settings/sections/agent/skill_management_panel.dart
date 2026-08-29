@@ -15,7 +15,9 @@ import '../../widgets/settings_card.dart';
 enum _SkillFilter { all, enabled, disabled, diagnostics }
 
 class SkillManagementPanel extends ConsumerStatefulWidget {
-  const SkillManagementPanel({super.key});
+  const SkillManagementPanel({super.key, this.panelSelector});
+
+  final Widget? panelSelector;
 
   @override
   ConsumerState<SkillManagementPanel> createState() =>
@@ -54,6 +56,7 @@ class _SkillManagementPanelState extends ConsumerState<SkillManagementPanel> {
       return matchesQuery && matchesFilter;
     }).toList();
     return SettingsCard(
+      navigation: widget.panelSelector,
       title: context.l10n.agentSettings_skillsTitle,
       description: context.l10n.agentSettings_skillsSourceHint,
       icon: Icons.extension_outlined,

@@ -179,6 +179,10 @@ void main() {
         const ValueKey('agent-settings-panel-selector'),
       );
       expect(panelSelector, findsOneWidget);
+      expect(
+        find.ancestor(of: panelSelector, matching: find.byType(SettingsCard)),
+        findsOneWidget,
+      );
       expect(find.byType(TabBar), findsNothing);
       expect(tester.widget<SegmentedButton<int>>(panelSelector).selected, {0});
       final skillsTab = find.descendant(

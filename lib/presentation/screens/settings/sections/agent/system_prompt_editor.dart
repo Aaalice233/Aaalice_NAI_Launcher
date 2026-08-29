@@ -10,7 +10,9 @@ import 'package:nai_launcher/presentation/widgets/common/app_toast.dart';
 import '../../widgets/settings_card.dart';
 
 class AgentSystemPromptEditor extends ConsumerStatefulWidget {
-  const AgentSystemPromptEditor({super.key});
+  const AgentSystemPromptEditor({super.key, this.panelSelector});
+
+  final Widget? panelSelector;
 
   @override
   ConsumerState<AgentSystemPromptEditor> createState() =>
@@ -61,6 +63,7 @@ class _AgentSystemPromptEditorState
       );
     }
     return SettingsCard(
+      navigation: widget.panelSelector,
       title: context.l10n.agentSettings_systemPrompt,
       description: context.l10n.agentSettings_systemPromptDescription,
       icon: Icons.subject_outlined,

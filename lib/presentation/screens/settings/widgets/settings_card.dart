@@ -15,6 +15,9 @@ class SettingsCard extends StatelessWidget {
   /// 可选图标
   final IconData? icon;
 
+  /// 可选卡片内分段导航，显示在标题栏上方。
+  final Widget? navigation;
+
   /// 可选右侧操作按钮
   final Widget? trailing;
 
@@ -32,6 +35,7 @@ class SettingsCard extends StatelessWidget {
     this.title,
     this.description,
     this.icon,
+    this.navigation,
     this.trailing,
     required this.child,
     this.onTap,
@@ -62,11 +66,26 @@ class SettingsCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (title != null)
+            if (navigation != null)
               Padding(
                 padding: const EdgeInsets.fromLTRB(
                   DesignTokens.spacingMd,
                   DesignTokens.spacingMd,
+                  DesignTokens.spacingMd,
+                  DesignTokens.spacingXxs,
+                ),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: navigation!,
+                ),
+              ),
+            if (title != null)
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                  DesignTokens.spacingMd,
+                  navigation == null
+                      ? DesignTokens.spacingMd
+                      : DesignTokens.spacingXs,
                   DesignTokens.spacingMd,
                   DesignTokens.spacingXs,
                 ),

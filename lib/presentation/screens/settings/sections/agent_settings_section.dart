@@ -71,6 +71,25 @@ class _AgentSettingsSectionState extends ConsumerState<AgentSettingsSection> {
         ],
       );
     }
+    final panelSelector = SegmentedButton<int>(
+      key: const ValueKey('agent-settings-panel-selector'),
+      segments: [
+        ButtonSegment(
+          value: 0,
+          label: Text(context.l10n.agentSettings_systemPrompt),
+        ),
+        ButtonSegment(
+          value: 1,
+          label: Text(context.l10n.agentSettings_skillsTitle),
+        ),
+      ],
+      selected: {_selectedPanel},
+      showSelectedIcon: false,
+      onSelectionChanged: (selection) {
+        setState(() => _selectedPanel = selection.single);
+      },
+    );
+
     return SettingsPageLayout(
       title: context.l10n.settings_agent,
       description: context.l10n.agentSettings_subtitle,
@@ -79,31 +98,10 @@ class _AgentSettingsSectionState extends ConsumerState<AgentSettingsSection> {
         _ModelCard(settings: state.settings, promptConfig: promptConfig),
         _PermissionCard(settings: state.settings),
         _WebAccessCard(settings: state.settings),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: SegmentedButton<int>(
-            key: const ValueKey('agent-settings-panel-selector'),
-            segments: [
-              ButtonSegment(
-                value: 0,
-                label: Text(context.l10n.agentSettings_systemPrompt),
-              ),
-              ButtonSegment(
-                value: 1,
-                label: Text(context.l10n.agentSettings_skillsTitle),
-              ),
-            ],
-            selected: {_selectedPanel},
-            showSelectedIcon: false,
-            onSelectionChanged: (selection) {
-              setState(() => _selectedPanel = selection.single);
-            },
-          ),
-        ),
         if (_selectedPanel == 0)
-          const AgentSystemPromptEditor()
+          AgentSystemPromptEditor(panelSelector: panelSelector)
         else
-          const SkillManagementPanel(),
+          SkillManagementPanel(panelSelector: panelSelector),
       ],
     );
   }
