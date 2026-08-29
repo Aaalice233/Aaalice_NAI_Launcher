@@ -74,14 +74,12 @@ The screenshots below follow the workflow from “generate” to “organize”,
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/screenshots/generation-panel.png" alt="Character and image-to-image panel" width="100%"></td>
-    <td width="50%"><img src="docs/screenshots/generation-params.png" alt="Generation parameters" width="100%"></td>
+    <td width="33%"><img src="docs/screenshots/generation-panel.png" alt="Character and image-to-image panel" width="100%"></td>
+    <td width="33%"><img src="docs/screenshots/generation-params.png" alt="Generation parameters" width="100%"></td>
+    <td width="33%"><img src="docs/screenshots/generation-batch.png" alt="Batch generation in progress" width="100%"></td>
   </tr>
   <tr>
-    <td><img src="docs/screenshots/generation-batch.png" alt="Batch generation in progress" width="100%"></td>
     <td><img src="docs/screenshots/generation-results.png" alt="Batch generation results" width="100%"></td>
-  </tr>
-  <tr>
     <td><img src="docs/screenshots/image-details-desktop.png" alt="Image details and generation parameters" width="100%"></td>
     <td><img src="docs/screenshots/image-copy-dialog.png" alt="Copy prompt categories" width="100%"></td>
   </tr>
@@ -91,24 +89,24 @@ The screenshots below follow the workflow from “generate” to “organize”,
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/screenshots/online-favorites.png" alt="Online gallery favorites and search" width="100%"></td>
-    <td width="50%"><img src="docs/screenshots/online-detail.png" alt="Online gallery image details" width="100%"></td>
+    <td width="33%"><img src="docs/screenshots/online-favorites.png" alt="Online gallery favorites and search" width="100%"></td>
+    <td width="33%"><img src="docs/screenshots/online-detail.png" alt="Online gallery image details" width="100%"></td>
+    <td width="33%"><img src="docs/screenshots/codex-detail.png" alt="Codex Gallery details" width="100%"></td>
   </tr>
   <tr>
-    <td><img src="docs/screenshots/codex-detail.png" alt="Codex Gallery details" width="100%"></td>
     <td><img src="docs/screenshots/blacklist-settings.png" alt="Online gallery blacklist settings" width="100%"></td>
-  </tr>
-  <tr>
     <td><img src="docs/screenshots/vibe-library.png" alt="Vibe library" width="100%"></td>
     <td><img src="docs/screenshots/precise-reference.png" alt="Precise Reference library" width="100%"></td>
   </tr>
   <tr>
     <td><img src="docs/screenshots/random-library.png" alt="Random tag library configuration" width="100%"></td>
     <td><img src="docs/screenshots/tag-library.png" alt="Character and artist tag library" width="100%"></td>
+    <td><img src="docs/screenshots/stats.png" alt="Statistics dashboard" width="100%"></td>
   </tr>
   <tr>
-    <td><img src="docs/screenshots/stats.png" alt="Statistics dashboard" width="100%"></td>
     <td><img src="docs/screenshots/queue.png" alt="Generation queue management" width="100%"></td>
+    <td></td>
+    <td></td>
   </tr>
 </table>
 
@@ -116,26 +114,22 @@ The screenshots below follow the workflow from “generate” to “organize”,
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/screenshots/agent.png" alt="Agent Chat and generation collaboration" width="100%"></td>
-    <td width="50%"><img src="docs/screenshots/agent-confirm.png" alt="Agent generation confirmation" width="100%"></td>
+    <td width="33%"><img src="docs/screenshots/agent.png" alt="Agent Chat and generation collaboration" width="100%"></td>
+    <td width="33%"><img src="docs/screenshots/agent-confirm.png" alt="Agent generation confirmation" width="100%"></td>
+    <td width="33%"><img src="docs/screenshots/agent-result.png" alt="Agent generation result" width="100%"></td>
   </tr>
   <tr>
-    <td><img src="docs/screenshots/agent-result.png" alt="Agent generation result" width="100%"></td>
     <td><img src="docs/screenshots/agent-search.png" alt="Agent tag library search" width="100%"></td>
-  </tr>
-  <tr>
     <td><img src="docs/screenshots/generation-settings.png" alt="Generation settings" width="100%"></td>
     <td><img src="docs/screenshots/agent-settings.png" alt="Agent settings" width="100%"></td>
   </tr>
   <tr>
     <td><img src="docs/screenshots/data-settings.png" alt="Data and storage settings" width="100%"></td>
     <td><img src="docs/screenshots/backup-settings.png" alt="Backup and restore settings" width="100%"></td>
-  </tr>
-  <tr>
     <td><img src="docs/screenshots/security-settings.png" alt="Security and sharing settings" width="100%"></td>
-    <td><img src="docs/screenshots/integrations-settings.png" alt="Integration settings" width="100%"></td>
   </tr>
   <tr>
+    <td><img src="docs/screenshots/integrations-settings.png" alt="Integration settings" width="100%"></td>
     <td><img src="docs/screenshots/autocomplete.png" alt="Tag autocomplete" width="100%"></td>
     <td><img src="docs/screenshots/tag-search.png" alt="Tag search and library results" width="100%"></td>
   </tr>
@@ -143,35 +137,29 @@ The screenshots below follow the workflow from “generate” to “organize”,
 
 ### Android
 
-<p align="center">
-  <img src="docs/screenshots/mobile-generation-progress.png" alt="Android generation in progress" width="32%">
-  <img src="docs/screenshots/generation-mobile.png" alt="Android completed generation" width="32%">
-  <img src="docs/screenshots/mobile-viewer.png" alt="Android image viewer" width="32%">
-</p>
-
 <table>
   <tr>
-    <td width="50%"><img src="docs/screenshots/mobile-image-menu.png" alt="Android image actions" width="100%"></td>
-    <td width="50%"><img src="docs/screenshots/mobile-generation-settings.png" alt="Android generation settings" width="100%"></td>
+    <td width="25%"><img src="docs/screenshots/mobile-generation-progress.png" alt="Android generation in progress" width="100%"></td>
+    <td width="25%"><img src="docs/screenshots/generation-mobile.png" alt="Android completed generation" width="100%"></td>
+    <td width="25%"><img src="docs/screenshots/mobile-viewer.png" alt="Android image viewer" width="100%"></td>
+    <td width="25%"><img src="docs/screenshots/mobile-image-menu.png" alt="Android image actions" width="100%"></td>
   </tr>
   <tr>
+    <td><img src="docs/screenshots/mobile-generation-settings.png" alt="Android generation settings" width="100%"></td>
     <td><img src="docs/screenshots/mobile-agent.png" alt="Android Agent Chat" width="100%"></td>
     <td><img src="docs/screenshots/mobile-agent-result.png" alt="Android Agent generation flow" width="100%"></td>
-  </tr>
-  <tr>
     <td><img src="docs/screenshots/mobile-gallery.png" alt="Android local gallery" width="100%"></td>
-    <td><img src="docs/screenshots/mobile-library.png" alt="Android tag library" width="100%"></td>
   </tr>
   <tr>
+    <td><img src="docs/screenshots/mobile-library.png" alt="Android tag library" width="100%"></td>
     <td><img src="docs/screenshots/mobile-more.png" alt="Android more menu" width="100%"></td>
     <td><img src="docs/screenshots/mobile-settings.png" alt="Android settings" width="100%"></td>
-  </tr>
-  <tr>
     <td><img src="docs/screenshots/mobile-extensions.png" alt="Android extensions" width="100%"></td>
-    <td><img src="docs/screenshots/mobile-image-menu-alt.png" alt="Android image menu" width="100%"></td>
   </tr>
   <tr>
+    <td><img src="docs/screenshots/mobile-image-menu-alt.png" alt="Android image menu" width="100%"></td>
     <td><img src="docs/screenshots/mobile-tag-library.png" alt="Android tag library" width="100%"></td>
+    <td></td>
     <td></td>
   </tr>
 </table>

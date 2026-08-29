@@ -74,14 +74,12 @@ NAI Launcher 面向长期使用 NovelAI 的创作者：生成图片、反复调�
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/screenshots/generation-panel.png" alt="角色与图生图面板" width="100%"></td>
-    <td width="50%"><img src="docs/screenshots/generation-params.png" alt="生成参数面板" width="100%"></td>
+    <td width="33%"><img src="docs/screenshots/generation-panel.png" alt="角色与图生图面板" width="100%"></td>
+    <td width="33%"><img src="docs/screenshots/generation-params.png" alt="生成参数面板" width="100%"></td>
+    <td width="33%"><img src="docs/screenshots/generation-batch.png" alt="批量生成过程" width="100%"></td>
   </tr>
   <tr>
-    <td><img src="docs/screenshots/generation-batch.png" alt="批量生成过程" width="100%"></td>
     <td><img src="docs/screenshots/generation-results.png" alt="批量生成结果" width="100%"></td>
-  </tr>
-  <tr>
     <td><img src="docs/screenshots/image-details-desktop.png" alt="图片详情与生成参数" width="100%"></td>
     <td><img src="docs/screenshots/image-copy-dialog.png" alt="提示词分类复制" width="100%"></td>
   </tr>
@@ -91,24 +89,24 @@ NAI Launcher 面向长期使用 NovelAI 的创作者：生成图片、反复调�
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/screenshots/online-favorites.png" alt="在线画廊收藏与搜索" width="100%"></td>
-    <td width="50%"><img src="docs/screenshots/online-detail.png" alt="在线画廊图片详情" width="100%"></td>
+    <td width="33%"><img src="docs/screenshots/online-favorites.png" alt="在线画廊收藏与搜索" width="100%"></td>
+    <td width="33%"><img src="docs/screenshots/online-detail.png" alt="在线画廊图片详情" width="100%"></td>
+    <td width="33%"><img src="docs/screenshots/codex-detail.png" alt="法典图鉴详情" width="100%"></td>
   </tr>
   <tr>
-    <td><img src="docs/screenshots/codex-detail.png" alt="法典图鉴详情" width="100%"></td>
     <td><img src="docs/screenshots/blacklist-settings.png" alt="在线画廊黑名单设置" width="100%"></td>
-  </tr>
-  <tr>
     <td><img src="docs/screenshots/vibe-library.png" alt="Vibe 资源库" width="100%"></td>
     <td><img src="docs/screenshots/precise-reference.png" alt="Precise Reference 资源库" width="100%"></td>
   </tr>
   <tr>
     <td><img src="docs/screenshots/random-library.png" alt="随机词库配置" width="100%"></td>
     <td><img src="docs/screenshots/tag-library.png" alt="角色与画师词库" width="100%"></td>
+    <td><img src="docs/screenshots/stats.png" alt="统计仪表盘" width="100%"></td>
   </tr>
   <tr>
-    <td><img src="docs/screenshots/stats.png" alt="统计仪表盘" width="100%"></td>
     <td><img src="docs/screenshots/queue.png" alt="生成队列管理" width="100%"></td>
+    <td></td>
+    <td></td>
   </tr>
 </table>
 
@@ -116,26 +114,22 @@ NAI Launcher 面向长期使用 NovelAI 的创作者：生成图片、反复调�
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/screenshots/agent.png" alt="智能代理对话与生成协作" width="100%"></td>
-    <td width="50%"><img src="docs/screenshots/agent-confirm.png" alt="智能代理生成确认" width="100%"></td>
+    <td width="33%"><img src="docs/screenshots/agent.png" alt="智能代理对话与生成协作" width="100%"></td>
+    <td width="33%"><img src="docs/screenshots/agent-confirm.png" alt="智能代理生成确认" width="100%"></td>
+    <td width="33%"><img src="docs/screenshots/agent-result.png" alt="智能代理生成结果" width="100%"></td>
   </tr>
   <tr>
-    <td><img src="docs/screenshots/agent-result.png" alt="智能代理生成结果" width="100%"></td>
     <td><img src="docs/screenshots/agent-search.png" alt="智能代理查询词库" width="100%"></td>
-  </tr>
-  <tr>
     <td><img src="docs/screenshots/generation-settings.png" alt="生成设置" width="100%"></td>
     <td><img src="docs/screenshots/agent-settings.png" alt="智能代理设置" width="100%"></td>
   </tr>
   <tr>
     <td><img src="docs/screenshots/data-settings.png" alt="数据与存储设置" width="100%"></td>
     <td><img src="docs/screenshots/backup-settings.png" alt="备份与恢复设置" width="100%"></td>
-  </tr>
-  <tr>
     <td><img src="docs/screenshots/security-settings.png" alt="安全与分享设置" width="100%"></td>
-    <td><img src="docs/screenshots/integrations-settings.png" alt="集成设置" width="100%"></td>
   </tr>
   <tr>
+    <td><img src="docs/screenshots/integrations-settings.png" alt="集成设置" width="100%"></td>
     <td><img src="docs/screenshots/autocomplete.png" alt="标签自动补全" width="100%"></td>
     <td><img src="docs/screenshots/tag-search.png" alt="标签搜索与词库候选" width="100%"></td>
   </tr>
@@ -143,35 +137,29 @@ NAI Launcher 面向长期使用 NovelAI 的创作者：生成图片、反复调�
 
 ### Android
 
-<p align="center">
-  <img src="docs/screenshots/mobile-generation-progress.png" alt="Android 生成中" width="32%">
-  <img src="docs/screenshots/generation-mobile.png" alt="Android 生成完成" width="32%">
-  <img src="docs/screenshots/mobile-viewer.png" alt="Android 图片查看器" width="32%">
-</p>
-
 <table>
   <tr>
-    <td width="50%"><img src="docs/screenshots/mobile-image-menu.png" alt="Android 图片操作菜单" width="100%"></td>
-    <td width="50%"><img src="docs/screenshots/mobile-generation-settings.png" alt="Android 生成设置" width="100%"></td>
+    <td width="25%"><img src="docs/screenshots/mobile-generation-progress.png" alt="Android 生成中" width="100%"></td>
+    <td width="25%"><img src="docs/screenshots/generation-mobile.png" alt="Android 生成完成" width="100%"></td>
+    <td width="25%"><img src="docs/screenshots/mobile-viewer.png" alt="Android 图片查看器" width="100%"></td>
+    <td width="25%"><img src="docs/screenshots/mobile-image-menu.png" alt="Android 图片操作菜单" width="100%"></td>
   </tr>
   <tr>
+    <td><img src="docs/screenshots/mobile-generation-settings.png" alt="Android 生成设置" width="100%"></td>
     <td><img src="docs/screenshots/mobile-agent.png" alt="Android 智能代理对话" width="100%"></td>
     <td><img src="docs/screenshots/mobile-agent-result.png" alt="Android 智能代理生成流程" width="100%"></td>
-  </tr>
-  <tr>
     <td><img src="docs/screenshots/mobile-gallery.png" alt="Android 本地画廊" width="100%"></td>
-    <td><img src="docs/screenshots/mobile-library.png" alt="Android 词库页面" width="100%"></td>
   </tr>
   <tr>
+    <td><img src="docs/screenshots/mobile-library.png" alt="Android 词库页面" width="100%"></td>
     <td><img src="docs/screenshots/mobile-more.png" alt="Android 更多菜单" width="100%"></td>
     <td><img src="docs/screenshots/mobile-settings.png" alt="Android 设置页面" width="100%"></td>
-  </tr>
-  <tr>
     <td><img src="docs/screenshots/mobile-extensions.png" alt="Android 扩展页面" width="100%"></td>
-    <td><img src="docs/screenshots/mobile-image-menu-alt.png" alt="Android 图片菜单" width="100%"></td>
   </tr>
   <tr>
+    <td><img src="docs/screenshots/mobile-image-menu-alt.png" alt="Android 图片菜单" width="100%"></td>
     <td><img src="docs/screenshots/mobile-tag-library.png" alt="Android 标签库" width="100%"></td>
+    <td></td>
     <td></td>
   </tr>
 </table>
