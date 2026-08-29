@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
@@ -18,19 +19,87 @@ class BackendHttp {
     CancelToken? cancelToken,
     int maxResponseBytes = 1024 * 1024,
     CloudBackendErrorKind tooLargeKind = CloudBackendErrorKind.invalidResponse,
+    bool? retryable,
   }) async {
-    return _request(
-      method,
-      uri,
-      headers: headers,
-      data: data is List<int> && data is! Uint8List
-          ? Uint8List.fromList(data)
-          : data,
-      cancelToken: cancelToken,
-      maxResponseBytes: maxResponseBytes,
-      tooLargeKind: tooLargeKind,
-      redirectsRemaining: 5,
-    );
+    final normalizedMethod = method.toUpperCase();
+    final normalizedData = data is List<int> && data is! Uint8List
+        ? Uint8List.fromList(data)
+        : data;
+    final mayRetry =
+        retryable ??
+        const {'GET', 'HEAD', 'OPTIONS', 'PROPFIND'}.contains(normalizedMethod);
+    const maxAttempts = 3;
+    for (var attempt = 1; ; attempt++) {
+      try {
+        final response = await _request(
+          normalizedMethod,
+          uri,
+          headers: headers,
+          data: normalizedData,
+          cancelToken: cancelToken,
+          maxResponseBytes: maxResponseBytes,
+          tooLargeKind: tooLargeKind,
+          redirectsRemaining: 5,
+        );
+        if (!mayRetry ||
+            attempt >= maxAttempts ||
+            !_transientStatuses.contains(response.statusCode)) {
+          return response;
+        }
+        await _waitBeforeRetry(_retryDelay(response, attempt), cancelToken);
+      } on CloudBackendException catch (error) {
+        if (!mayRetry ||
+            attempt >= maxAttempts ||
+            error.kind != CloudBackendErrorKind.network) {
+          rethrow;
+        }
+        await _waitBeforeRetry(_retryDelay(null, attempt), cancelToken);
+      }
+    }
+  }
+
+  static const _transientStatuses = {408, 425, 429, 500, 502, 503, 504};
+
+  static Future<void> _waitBeforeRetry(
+    Duration duration,
+    CancelToken? cancelToken,
+  ) async {
+    if (cancelToken == null) {
+      await Future<void>.delayed(duration);
+      return;
+    }
+    await Future.any<void>([
+      Future<void>.delayed(duration),
+      cancelToken.whenCancel.then<void>((error) => throw error),
+    ]);
+  }
+
+  static Duration _retryDelay(Response<Uint8List>? response, int attempt) {
+    final retryAfter = response?.headers.value('retry-after');
+    final seconds = int.tryParse(retryAfter ?? '');
+    if (seconds != null) {
+      return Duration(seconds: seconds.clamp(0, 30));
+    }
+    if (retryAfter != null) {
+      final date = _parseHttpDate(retryAfter);
+      if (date != null) {
+        final delay = date.difference(DateTime.now().toUtc());
+        if (!delay.isNegative) {
+          return delay > const Duration(seconds: 30)
+              ? const Duration(seconds: 30)
+              : delay;
+        }
+      }
+    }
+    return Duration(milliseconds: attempt == 1 ? 300 : 900);
+  }
+
+  static DateTime? _parseHttpDate(String value) {
+    try {
+      return HttpDate.parse(value).toUtc();
+    } on FormatException {
+      return DateTime.tryParse(value)?.toUtc();
+    }
   }
 
   Future<Response<Uint8List>> _request(
@@ -142,6 +211,11 @@ class BackendHttp {
       return _copyResponse(response, Uint8List(0));
     }
     if (declared != null && declared > maxResponseBytes) {
+      final body = response.data;
+      if (body != null) {
+        final subscription = body.stream.listen((_) {});
+        await subscription.cancel();
+      }
       throw CloudBackendException(
         tooLargeKind,
         '服务器响应超过允许的大小上限。',

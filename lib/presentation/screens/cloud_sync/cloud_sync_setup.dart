@@ -28,9 +28,6 @@ class _CloudSyncSetupState extends ConsumerState<CloudSyncSetup> {
   final _repository = TextEditingController();
   final _branch = TextEditingController(text: 'main');
   final _path = TextEditingController(text: 'aaalice-sync');
-  final _legacyPassword = TextEditingController();
-  final _legacyRecovery = TextEditingController();
-  final _legacyNewPassword = TextEditingController();
   var _backend = CloudSyncBackendKind.webDav;
   var _busy = false;
   var _allowInsecureHttp = false;
@@ -50,9 +47,6 @@ class _CloudSyncSetupState extends ConsumerState<CloudSyncSetup> {
     _repository,
     _branch,
     _path,
-    _legacyPassword,
-    _legacyRecovery,
-    _legacyNewPassword,
   ];
 
   @override
@@ -135,30 +129,14 @@ class _CloudSyncSetupState extends ConsumerState<CloudSyncSetup> {
             CloudSyncConnectRequest(
               connection: _draft,
               dataKinds: _dataKinds,
-              legacyPassword: _legacyPassword.text,
               contentSelection: _contentSelection,
             ),
           ),
     );
   }
 
-  Future<void> _recoverLegacy() => _run(() async {
-    final port = ref.read(cloudSyncUiPortProvider);
-    await port.recoverLegacyBackup(
-      _legacyRecovery.text.trim(),
-      _legacyNewPassword.text,
-    );
-  });
-
-  Future<void> _unlockLegacy() => _run(
-    () => ref
-        .read(cloudSyncUiPortProvider)
-        .unlockLegacyBackup(_legacyPassword.text),
-  );
-
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(cloudSyncUiStateProvider);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -168,41 +146,37 @@ class _CloudSyncSetupState extends ConsumerState<CloudSyncSetup> {
           message: context.l10n.cloudSync_oneClickDescription,
         ),
         const SizedBox(height: 20),
-        if (state.legacyUnlockRequired)
-          _legacyUnlock()
-        else ...[
-          CloudSyncSetupConfiguration(
-            backend: _backend,
-            url: _url,
-            username: _username,
-            secret: _secret,
-            owner: _owner,
-            repository: _repository,
-            branch: _branch,
-            path: _path,
-            allowInsecureHttp: _allowInsecureHttp,
-            onBackendChanged: (value) => setState(() => _backend = value),
-            onAllowInsecureHttpChanged: (value) =>
-                setState(() => _allowInsecureHttp = value),
+        CloudSyncSetupConfiguration(
+          backend: _backend,
+          url: _url,
+          username: _username,
+          secret: _secret,
+          owner: _owner,
+          repository: _repository,
+          branch: _branch,
+          path: _path,
+          allowInsecureHttp: _allowInsecureHttp,
+          onBackendChanged: (value) => setState(() => _backend = value),
+          onAllowInsecureHttpChanged: (value) =>
+              setState(() => _allowInsecureHttp = value),
+        ),
+        _dataScope(),
+        const SizedBox(height: 12),
+        Align(
+          alignment: Alignment.centerRight,
+          child: FilledButton.icon(
+            key: const ValueKey('cloud-sync-save-and-sync'),
+            onPressed: _busy ? null : _connect,
+            style: FilledButton.styleFrom(minimumSize: const Size(0, 48)),
+            icon: _busy
+                ? const SizedBox.square(
+                    dimension: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.sync),
+            label: Text(context.l10n.cloudSync_saveAndSync),
           ),
-          _dataScope(),
-          const SizedBox(height: 12),
-          Align(
-            alignment: Alignment.centerRight,
-            child: FilledButton.icon(
-              key: const ValueKey('cloud-sync-save-and-sync'),
-              onPressed: _busy ? null : _connect,
-              style: FilledButton.styleFrom(minimumSize: const Size(0, 48)),
-              icon: _busy
-                  ? const SizedBox.square(
-                      dimension: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.sync),
-              label: Text(context.l10n.cloudSync_saveAndSync),
-            ),
-          ),
-        ],
+        ),
       ],
     );
   }
@@ -254,62 +228,6 @@ class _CloudSyncSetupState extends ConsumerState<CloudSyncSetup> {
     }),
   );
 
-  Widget _legacyUnlock() => CloudSyncSection(
-    title: context.l10n.cloudSync_legacyBackupTitle,
-    subtitle: context.l10n.cloudSync_legacyBackupDescription,
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        CloudSyncField(
-          controller: _legacyPassword,
-          label: context.l10n.cloudSync_legacyPassword,
-          obscureText: true,
-          onChanged: (_) => setState(() {}),
-        ),
-        const SizedBox(height: 8),
-        Align(
-          alignment: Alignment.centerRight,
-          child: FilledButton.icon(
-            onPressed: _busy || _legacyPassword.text.isEmpty
-                ? null
-                : _unlockLegacy,
-            icon: const Icon(Icons.lock_open),
-            label: Text(context.l10n.cloudSync_unlockAndContinue),
-          ),
-        ),
-        ExpansionTile(
-          tilePadding: EdgeInsets.zero,
-          title: Text(context.l10n.cloudSync_legacyRecovery),
-          children: [
-            CloudSyncField(
-              controller: _legacyRecovery,
-              label: context.l10n.cloudSync_oneTimeRecoveryKey,
-              obscureText: true,
-            ),
-            const SizedBox(height: 8),
-            CloudSyncField(
-              controller: _legacyNewPassword,
-              label: context.l10n.cloudSync_newPassword,
-              obscureText: true,
-            ),
-            const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerRight,
-              child: FilledButton.tonal(
-                onPressed:
-                    _busy ||
-                        _legacyRecovery.text.trim().isEmpty ||
-                        _legacyNewPassword.text.isEmpty
-                    ? null
-                    : _recoverLegacy,
-                child: Text(context.l10n.cloudSync_legacyRecoveryAction),
-              ),
-            ),
-          ],
-        ),
-      ],
-    ),
-  );
   void _updateContentSelection(CloudSyncContentSelection value) {
     setState(() => _contentSelection = value);
     unawaited(_contentSelectionStore.save(value));

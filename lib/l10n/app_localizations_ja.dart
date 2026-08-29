@@ -12744,25 +12744,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get cloudSync_connectionManagement => '保存先の接続';
 
   @override
-  String get cloudSync_legacyBackupTitle => '以前のバックアップを解除';
-
-  @override
-  String get cloudSync_legacyBackupDescription =>
-      '旧バージョンで作成された暗号化バックアップがあります。当時使用したパスワードを入力してください。';
-
-  @override
-  String get cloudSync_legacyPassword => '以前のバックアップのパスワード';
-
-  @override
-  String get cloudSync_legacyRecovery => 'パスワードを忘れた場合は復旧キーを使用';
-
-  @override
-  String get cloudSync_legacyRecoveryAction => '復旧キーで解除';
-
-  @override
-  String get cloudSync_unlockAndContinue => '解除して続行';
-
-  @override
   String get cloudSync_chooseBackend => 'バックアップ先';
 
   @override
@@ -12866,9 +12847,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get cloudSync_noSkills => '一致する Skill はありません';
 
   @override
-  String get cloudSync_oneTimeRecoveryKey => '一回限りの復旧キー';
-
-  @override
   String cloudSync_actionFailed(Object error) {
     return '操作に失敗しました：$error';
   }
@@ -12915,7 +12893,24 @@ class AppLocalizationsJa extends AppLocalizations {
   String get cloudSync_syncControls => 'バックアップと同期';
 
   @override
-  String get cloudSync_syncNow => '今すぐ同期';
+  String get cloudSync_pushLocal => 'クラウドへプッシュ';
+
+  @override
+  String get cloudSync_pullRemote => 'クラウドからプル';
+
+  @override
+  String get cloudSync_pushConfirmTitle => 'ローカルデータをプッシュしますか？';
+
+  @override
+  String get cloudSync_pushConfirmDescription =>
+      '現在のローカルデータから新しいクラウドバックアップを作成し、クラウドの現在バージョンをこのバックアップに切り替えます。';
+
+  @override
+  String get cloudSync_pullConfirmTitle => 'クラウドデータをプルしますか？';
+
+  @override
+  String get cloudSync_pullConfirmDescription =>
+      'クラウドの最新バックアップで選択済みのローカルデータを更新します。未プッシュのローカル変更は置き換えられる場合があります。';
 
   @override
   String get cloudSync_pause => '一時停止';
@@ -13036,9 +13031,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get cloudSync_clearInstallIntent => '今回はインストールせず通知を消去';
-
-  @override
-  String get cloudSync_newPassword => '新しいパスワード';
 
   @override
   String get cloudSync_deleteRemoteNamespace => 'クラウドバックアップを削除';

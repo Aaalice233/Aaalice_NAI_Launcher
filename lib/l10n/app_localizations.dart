@@ -22754,42 +22754,6 @@ abstract class AppLocalizations {
   /// **'Storage connection'**
   String get cloudSync_connectionManagement;
 
-  /// No description provided for @cloudSync_legacyBackupTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Unlock an older backup'**
-  String get cloudSync_legacyBackupTitle;
-
-  /// No description provided for @cloudSync_legacyBackupDescription.
-  ///
-  /// In en, this message translates to:
-  /// **'The cloud contains an encrypted backup created by an older app version. Enter the password you used then to continue.'**
-  String get cloudSync_legacyBackupDescription;
-
-  /// No description provided for @cloudSync_legacyPassword.
-  ///
-  /// In en, this message translates to:
-  /// **'Older backup password'**
-  String get cloudSync_legacyPassword;
-
-  /// No description provided for @cloudSync_legacyRecovery.
-  ///
-  /// In en, this message translates to:
-  /// **'Forgot the password? Use a recovery key'**
-  String get cloudSync_legacyRecovery;
-
-  /// No description provided for @cloudSync_legacyRecoveryAction.
-  ///
-  /// In en, this message translates to:
-  /// **'Unlock with recovery key'**
-  String get cloudSync_legacyRecoveryAction;
-
-  /// No description provided for @cloudSync_unlockAndContinue.
-  ///
-  /// In en, this message translates to:
-  /// **'Unlock and continue'**
-  String get cloudSync_unlockAndContinue;
-
   /// No description provided for @cloudSync_chooseBackend.
   ///
   /// In en, this message translates to:
@@ -22976,12 +22940,6 @@ abstract class AppLocalizations {
   /// **'No matching Skills'**
   String get cloudSync_noSkills;
 
-  /// No description provided for @cloudSync_oneTimeRecoveryKey.
-  ///
-  /// In en, this message translates to:
-  /// **'One-time recovery key'**
-  String get cloudSync_oneTimeRecoveryKey;
-
   /// No description provided for @cloudSync_actionFailed.
   ///
   /// In en, this message translates to:
@@ -23066,11 +23024,41 @@ abstract class AppLocalizations {
   /// **'Backup and sync'**
   String get cloudSync_syncControls;
 
-  /// No description provided for @cloudSync_syncNow.
+  /// No description provided for @cloudSync_pushLocal.
   ///
   /// In en, this message translates to:
-  /// **'Sync now'**
-  String get cloudSync_syncNow;
+  /// **'Push to cloud'**
+  String get cloudSync_pushLocal;
+
+  /// No description provided for @cloudSync_pullRemote.
+  ///
+  /// In en, this message translates to:
+  /// **'Pull from cloud'**
+  String get cloudSync_pullRemote;
+
+  /// No description provided for @cloudSync_pushConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Push local data?'**
+  String get cloudSync_pushConfirmTitle;
+
+  /// No description provided for @cloudSync_pushConfirmDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'This creates a new cloud backup from the current local data and switches the current cloud version to it.'**
+  String get cloudSync_pushConfirmDescription;
+
+  /// No description provided for @cloudSync_pullConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pull cloud data?'**
+  String get cloudSync_pullConfirmTitle;
+
+  /// No description provided for @cloudSync_pullConfirmDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'This updates the selected local data from the latest cloud backup. Local changes that have not been pushed may be replaced.'**
+  String get cloudSync_pullConfirmDescription;
 
   /// No description provided for @cloudSync_pause.
   ///
@@ -23281,12 +23269,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Not now and clear reminder'**
   String get cloudSync_clearInstallIntent;
-
-  /// No description provided for @cloudSync_newPassword.
-  ///
-  /// In en, this message translates to:
-  /// **'New password'**
-  String get cloudSync_newPassword;
 
   /// No description provided for @cloudSync_deleteRemoteNamespace.
   ///

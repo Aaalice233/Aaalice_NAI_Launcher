@@ -115,10 +115,31 @@ class CloudSyncDashboard extends ConsumerWidget {
               onPressed:
                   state.activityStatus == CloudSyncActivityStatus.idle &&
                       !state.needsPreviewConfirmation
-                  ? () => _runAction(context, port.syncNow)
+                  ? () => _confirmDirection(
+                      context,
+                      title: context.l10n.cloudSync_pushConfirmTitle,
+                      message: context.l10n.cloudSync_pushConfirmDescription,
+                      action: port.pushNow,
+                    )
                   : null,
-              icon: const Icon(Icons.sync),
-              label: Text(context.l10n.cloudSync_syncNow),
+              icon: const Icon(Icons.cloud_upload_outlined),
+              label: Text(context.l10n.cloudSync_pushLocal),
+            ),
+            FilledButton.tonalIcon(
+              style: _buttonStyle,
+              onPressed:
+                  state.activityStatus == CloudSyncActivityStatus.idle &&
+                      !state.needsPreviewConfirmation &&
+                      state.remoteExists == true
+                  ? () => _confirmDirection(
+                      context,
+                      title: context.l10n.cloudSync_pullConfirmTitle,
+                      message: context.l10n.cloudSync_pullConfirmDescription,
+                      action: port.pullNow,
+                    )
+                  : null,
+              icon: const Icon(Icons.cloud_download_outlined),
+              label: Text(context.l10n.cloudSync_pullRemote),
             ),
             if (state.activityStatus == CloudSyncActivityStatus.syncing)
               FilledButton.tonalIcon(
@@ -144,6 +165,34 @@ class CloudSyncDashboard extends ConsumerWidget {
           ],
         ),
       );
+
+  Future<void> _confirmDirection(
+    BuildContext context, {
+    required String title,
+    required String message,
+    required Future<void> Function() action,
+  }) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(context.l10n.cloudSync_cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(context.l10n.cloudSync_confirm),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && context.mounted) {
+      await _runAction(context, action);
+    }
+  }
 
   Widget _progress(
     BuildContext context,

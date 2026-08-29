@@ -36,13 +36,37 @@ void main() {
         fixture.source.base!.records['note'],
         fixture.source.local.records['note'],
       );
-      expect(
-        progress.any((value) => value.phase == SyncPhase.uploading),
-        isTrue,
-      );
+      final uploads = progress
+          .where((value) => value.phase == SyncPhase.uploading)
+          .toList();
+      expect(uploads, isNotEmpty);
+      expect(uploads.last.bytesCompleted, uploads.last.bytesTotal);
+      expect(uploads.last.objectsCompleted, uploads.last.objectsTotal);
+      for (var index = 1; index < uploads.length; index++) {
+        expect(
+          uploads[index].bytesCompleted,
+          greaterThanOrEqualTo(uploads[index - 1].bytesCompleted),
+        );
+      }
       expect(progress.last.phase, SyncPhase.completed);
     },
   );
+
+  test('WebDAV-style backends use bounded concurrent object uploads', () async {
+    final backend = _ConcurrentTestBackend();
+    final fixture = await _Fixture.create(
+      backend: backend,
+      local: CloudSyncSnapshotData([
+        for (var index = 0; index < 12; index++)
+          _record('record-$index', [index]),
+      ]),
+    );
+    addTearDown(fixture.dispose);
+
+    await fixture.coordinator.uploadLocal();
+
+    expect(backend.maxActiveUploads, 4);
+  });
 
   test(
     'download merge is idempotent and history restore creates a new snapshot',
@@ -82,6 +106,36 @@ void main() {
     expect(fixture.source.rollbacks, 0);
     expect(await fixture.journal.read(), isNull);
   });
+
+  test(
+    'discardPending removes staged legacy work without replaying it',
+    () async {
+      final fixture = await _Fixture.create();
+      addTearDown(fixture.dispose);
+      const operationId = 'legacy-pending';
+      await fixture.source.stage(operationId, fixture.source.local);
+      await fixture.journal.write(
+        SyncJournal(
+          operationId: operationId,
+          operation: JournalOperation.uploadLocal,
+          phase: JournalPhase.prepared,
+          updatedAt: DateTime.now().toUtc(),
+          snapshotId: 'legacy-snapshot',
+          targetFingerprint: await fixture.source.stagedFingerprint(
+            operationId,
+          ),
+          expectedRevision: null,
+          uploadRequired: true,
+        ),
+      );
+
+      await fixture.coordinator.discardPending();
+
+      expect(await fixture.journal.read(), isNull);
+      expect(fixture.source.stages, isEmpty);
+      expect(fixture.backend.head, isNull);
+    },
+  );
 
   test(
     'recovering applying replays apply then saves base by snapshot id',
@@ -282,7 +336,7 @@ void main() {
     },
   );
 
-  test('a pending journal blocks every new write operation', () async {
+  test('a pending journal is recovered before the next write', () async {
     final fixture = await _Fixture.create();
     addTearDown(fixture.dispose);
     fixture.backend.loseFirstObjectResponse = true;
@@ -291,8 +345,11 @@ void main() {
       throwsA(isA<CloudBackendException>()),
     );
 
-    await expectLater(fixture.coordinator.synchronize(), throwsStateError);
-    await expectLater(fixture.coordinator.uploadLocal(), throwsStateError);
+    final outcome = await fixture.coordinator.synchronize();
+
+    expect(outcome.snapshotId, isNotEmpty);
+    expect(await fixture.journal.read(), isNull);
+    expect(fixture.source.savedSnapshotId, outcome.snapshotId);
   });
 
   test('recovery rejects a HEAD advanced by another device', () async {
@@ -354,27 +411,56 @@ class _Fixture {
   final JournalStore journal;
   final SyncCoordinator coordinator;
 
-  static Future<_Fixture> create() async {
+  static Future<_Fixture> create({
+    CoordinatorTestBackend? backend,
+    CloudSyncSnapshotData? local,
+  }) async {
     final directory = await Directory.systemTemp.createTemp(
       'cloud-sync-coordinator-',
     );
-    final backend = CoordinatorTestBackend();
+    final effectiveBackend = backend ?? CoordinatorTestBackend();
     final source = _MemorySource(
-      CloudSyncSnapshotData([
-        _record('note', [1, 2, 3]),
-      ]),
+      local ??
+          CloudSyncSnapshotData([
+            _record('note', [1, 2, 3]),
+          ]),
     );
     final journal = JournalStore(File('${directory.path}/journal.json'));
     final coordinator = SyncCoordinator(
-      backend: backend,
+      backend: effectiveBackend,
       dataSource: source,
       codec: const PlainCloudObjectCodec(),
       journalStore: journal,
     );
-    return _Fixture(directory, backend, source, journal, coordinator);
+    return _Fixture(directory, effectiveBackend, source, journal, coordinator);
   }
 
   Future<void> dispose() => directory.delete(recursive: true);
+}
+
+class _ConcurrentTestBackend extends CoordinatorTestBackend
+    implements ConcurrentCloudObjectUploadBackend {
+  var activeUploads = 0;
+  var maxActiveUploads = 0;
+
+  @override
+  int get maxConcurrentObjectUploads => 4;
+
+  @override
+  Future<CloudCommitResult> putObject(
+    String objectId,
+    Uint8List bytes, {
+    required String sha256,
+  }) async {
+    activeUploads++;
+    if (activeUploads > maxActiveUploads) maxActiveUploads = activeUploads;
+    try {
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      return await super.putObject(objectId, bytes, sha256: sha256);
+    } finally {
+      activeUploads--;
+    }
+  }
 }
 
 class _MemorySource implements CloudSyncDataSource {

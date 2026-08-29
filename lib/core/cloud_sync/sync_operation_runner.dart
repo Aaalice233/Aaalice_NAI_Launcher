@@ -107,7 +107,22 @@ class SyncOperationRunner {
     }
   }
 
-  Future<void> recoverPending() async {
+  Future<void> discardPending() async {
+    final journal = await journalStore.read();
+    if (journal == null) return;
+    if (journal.appliesLocally &&
+        journal.phase.index >= JournalPhase.applyStarted.index &&
+        journal.phase.index <= JournalPhase.savingBase.index) {
+      await dataSource.rollbackForRecovery(journal.operationId);
+    }
+    await dataSource.rollback(journal.operationId);
+    await journalStore.delete();
+  }
+
+  Future<void> recoverPending({
+    OperationToken? token,
+    SyncProgressCallback? onProgress,
+  }) async {
     final journal = await journalStore.read();
     if (journal == null) return;
     if (journal.phase == JournalPhase.completed) {
@@ -120,7 +135,12 @@ class SyncOperationRunner {
       await journalStore.delete();
       return;
     }
-    await run(journal, token: OperationToken(), recovering: true);
+    await run(
+      journal,
+      token: token ?? OperationToken(),
+      recovering: true,
+      onProgress: onProgress,
+    );
   }
 
   Future<void> _complete(SyncJournal journal) async {

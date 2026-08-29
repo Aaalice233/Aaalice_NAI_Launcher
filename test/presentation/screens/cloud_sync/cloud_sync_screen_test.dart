@@ -61,7 +61,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(port.request, isNotNull);
-    expect(port.request!.legacyPassword, isEmpty);
     expect(port.request!.dataKinds, {
       CloudSyncDataKind.settings,
       CloudSyncDataKind.prompts,
@@ -225,22 +224,28 @@ void main() {
     expect(bulk.onPressed, isNull);
   });
 
-  testWidgets('已解锁的旧快照兼容状态不作为连接管理项展示', (tester) async {
-    await tester.pumpWidget(
-      _subject(
-        state: _connectedState(
-          activityStatus: CloudSyncActivityStatus.idle,
-          capabilityMode: CloudSyncCapabilityMode.bidirectional,
-        ).copyWith(legacyEncryptedBackup: true, legacyUnlockRequired: false),
-        port: _FakePort(),
-      ),
-    );
+  testWidgets('推送和拉取使用独立按钮并在执行前确认方向', (tester) async {
+    final port = _FakePort();
+    final state = _connectedState(
+      activityStatus: CloudSyncActivityStatus.idle,
+      capabilityMode: CloudSyncCapabilityMode.bidirectional,
+    ).copyWith(remoteExists: true, conflicts: const [], clearProgress: true);
+    await tester.pumpWidget(_subject(state: state, port: port));
     await tester.pumpAndSettle();
 
-    expect(find.text('存储连接'), findsOneWidget);
-    expect(find.text('需要解锁旧备份'), findsNothing);
-    expect(find.text('删除云端备份'), findsOneWidget);
-    expect(find.text('断开连接'), findsOneWidget);
+    await _tapText(tester, '推送到云端');
+    expect(find.text('推送本机数据？'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, '确认'));
+    await tester.pumpAndSettle();
+    expect(port.pushes, 1);
+    expect(port.pulls, 0);
+
+    await _tapText(tester, '从云端拉取');
+    expect(find.text('拉取云端数据？'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, '确认'));
+    await tester.pumpAndSettle();
+    expect(port.pushes, 1);
+    expect(port.pulls, 1);
   });
 
   testWidgets('网络失败只显示可读提示且不暴露异常类型', (tester) async {
@@ -260,27 +265,13 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await _tapText(tester, '立即同步');
+    await _tapText(tester, '推送到云端');
+    expect(find.text('推送本机数据？'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, '确认'));
+    await tester.pumpAndSettle();
 
     expect(find.text('操作失败：无法连接服务器，请检查网络、代理和服务地址后重试。'), findsOneWidget);
     expect(find.textContaining('CloudBackendException'), findsNothing);
-  });
-
-  testWidgets('旧加密备份只在缺少本机密钥时显示兼容解锁', (tester) async {
-    final port = _FakePort();
-    const state = CloudSyncUiState(
-      remoteExists: true,
-      legacyEncryptedBackup: true,
-      legacyUnlockRequired: true,
-    );
-    await tester.pumpWidget(_subject(state: state, port: port));
-    await tester.pumpAndSettle();
-
-    expect(find.text('需要解锁旧备份'), findsOneWidget);
-    expect(_fieldWithLabel('旧备份密码'), findsOneWidget);
-    expect(find.text('忘记密码？使用恢复密钥'), findsOneWidget);
-    expect(find.text('解锁并继续'), findsOneWidget);
-    expect(find.text('设置加密密码'), findsNothing);
   });
 }
 
@@ -398,9 +389,19 @@ class _FakePort extends CloudSyncUiPortAdapter {
   bool previewApplied = false;
   bool? ffdkjInstallChoice;
   Object? syncError;
+  var pushes = 0;
+  var pulls = 0;
 
   @override
-  Future<void> syncNow() async {
+  Future<void> pushNow() async {
+    pushes++;
+    final error = syncError;
+    if (error != null) throw error;
+  }
+
+  @override
+  Future<void> pullNow() async {
+    pulls++;
     final error = syncError;
     if (error != null) throw error;
   }

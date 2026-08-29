@@ -96,8 +96,8 @@ class SyncCoordinator {
     OperationToken? token,
     SyncProgressCallback? onProgress,
   }) async {
-    await _ensureNoPending();
     final cancellation = token ?? OperationToken();
+    await _recoverPending(cancellation, onProgress);
     final plan = await preview(
       resolve: resolve,
       token: cancellation,
@@ -129,7 +129,12 @@ class SyncCoordinator {
     );
   }
 
-  Future<void> recoverPending() => _runner.recoverPending();
+  Future<void> discardPending() => _runner.discardPending();
+
+  Future<void> recoverPending({
+    OperationToken? token,
+    SyncProgressCallback? onProgress,
+  }) => _runner.recoverPending(token: token, onProgress: onProgress);
 
   Future<List<SnapshotHistoryEntry>> history({
     int limit = 20,
@@ -213,8 +218,8 @@ class SyncCoordinator {
     OperationToken? token,
     SyncProgressCallback? onProgress,
   }) async {
-    await _ensureNoPending();
     final cancellation = token ?? OperationToken();
+    await _recoverPending(cancellation, onProgress);
     final head = await backend.readHead();
     final restored = await _transfer.downloadId(
       oldSnapshotId,
@@ -243,8 +248,9 @@ class SyncCoordinator {
     OperationToken? token,
     SyncProgressCallback? onProgress,
   }) async {
-    await _ensureNoPending();
     final cancellation = token ?? OperationToken();
+    await _recoverPending(cancellation, onProgress);
+    onProgress?.call(const SyncProgress(phase: SyncPhase.preparing));
     final head = await backend.readHead();
     final local = await dataSource.captureLocal();
     final snapshotId = _newId('snapshot');
@@ -273,8 +279,8 @@ class SyncCoordinator {
     OperationToken? token,
     SyncProgressCallback? onProgress,
   }) async {
-    await _ensureNoPending();
     final cancellation = token ?? OperationToken();
+    await _recoverPending(cancellation, onProgress);
     final headRead = await backend.readHead();
     if (headRead == null) throw StateError('Remote snapshot is missing.');
     final head = SnapshotHead.decode(headRead.bytes);
@@ -304,10 +310,12 @@ class SyncCoordinator {
     );
   }
 
-  Future<void> _ensureNoPending() async {
-    if (await journalStore.read() != null) {
-      throw StateError('A cloud sync operation is pending recovery.');
-    }
+  Future<void> _recoverPending(
+    OperationToken token,
+    SyncProgressCallback? onProgress,
+  ) async {
+    if (await journalStore.read() == null) return;
+    await recoverPending(token: token, onProgress: onProgress);
   }
 
   bool _sameSnapshot(CloudSyncSnapshotData left, CloudSyncSnapshotData right) {

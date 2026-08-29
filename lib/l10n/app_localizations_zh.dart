@@ -12528,25 +12528,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cloudSync_connectionManagement => '存储连接';
 
   @override
-  String get cloudSync_legacyBackupTitle => '需要解锁旧备份';
-
-  @override
-  String get cloudSync_legacyBackupDescription =>
-      '云端有由旧版本创建的加密备份。输入当时使用的密码后即可继续。';
-
-  @override
-  String get cloudSync_legacyPassword => '旧备份密码';
-
-  @override
-  String get cloudSync_legacyRecovery => '忘记密码？使用恢复密钥';
-
-  @override
-  String get cloudSync_legacyRecoveryAction => '使用恢复密钥解锁';
-
-  @override
-  String get cloudSync_unlockAndContinue => '解锁并继续';
-
-  @override
   String get cloudSync_chooseBackend => '备份到哪里';
 
   @override
@@ -12649,9 +12630,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cloudSync_noSkills => '没有匹配的 Skill';
 
   @override
-  String get cloudSync_oneTimeRecoveryKey => '一次性恢复密钥';
-
-  @override
   String cloudSync_actionFailed(Object error) {
     return '操作失败：$error';
   }
@@ -12698,7 +12676,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cloudSync_syncControls => '备份与同步';
 
   @override
-  String get cloudSync_syncNow => '立即同步';
+  String get cloudSync_pushLocal => '推送到云端';
+
+  @override
+  String get cloudSync_pullRemote => '从云端拉取';
+
+  @override
+  String get cloudSync_pushConfirmTitle => '推送本机数据？';
+
+  @override
+  String get cloudSync_pushConfirmDescription =>
+      '将以当前本机数据创建新的云端备份，并把云端当前版本切换到该备份。';
+
+  @override
+  String get cloudSync_pullConfirmTitle => '拉取云端数据？';
+
+  @override
+  String get cloudSync_pullConfirmDescription =>
+      '将使用云端最新备份更新本机已选择的数据。尚未推送的本机更改可能被替换。';
 
   @override
   String get cloudSync_pause => '暂停';
@@ -12818,9 +12813,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get cloudSync_clearInstallIntent => '暂不安装并清除提示';
-
-  @override
-  String get cloudSync_newPassword => '新密码';
 
   @override
   String get cloudSync_deleteRemoteNamespace => '删除云端备份';
@@ -25681,25 +25673,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get cloudSync_connectionManagement => '儲存連線';
 
   @override
-  String get cloudSync_legacyBackupTitle => '需要解鎖舊備份';
-
-  @override
-  String get cloudSync_legacyBackupDescription =>
-      '雲端有由舊版本建立的加密備份。輸入當時使用的密碼後即可繼續。';
-
-  @override
-  String get cloudSync_legacyPassword => '舊備份密碼';
-
-  @override
-  String get cloudSync_legacyRecovery => '忘記密碼？使用復原金鑰';
-
-  @override
-  String get cloudSync_legacyRecoveryAction => '使用復原金鑰解鎖';
-
-  @override
-  String get cloudSync_unlockAndContinue => '解鎖並繼續';
-
-  @override
   String get cloudSync_chooseBackend => '備份到哪裡';
 
   @override
@@ -25802,9 +25775,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get cloudSync_noSkills => '沒有符合的 Skill';
 
   @override
-  String get cloudSync_oneTimeRecoveryKey => '一次性復原金鑰';
-
-  @override
   String cloudSync_actionFailed(Object error) {
     return '操作失敗：$error';
   }
@@ -25851,7 +25821,24 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get cloudSync_syncControls => '備份與同步';
 
   @override
-  String get cloudSync_syncNow => '立即同步';
+  String get cloudSync_pushLocal => '推送到雲端';
+
+  @override
+  String get cloudSync_pullRemote => '從雲端拉取';
+
+  @override
+  String get cloudSync_pushConfirmTitle => '推送本機資料？';
+
+  @override
+  String get cloudSync_pushConfirmDescription =>
+      '將以目前本機資料建立新的雲端備份，並把雲端目前版本切換到該備份。';
+
+  @override
+  String get cloudSync_pullConfirmTitle => '拉取雲端資料？';
+
+  @override
+  String get cloudSync_pullConfirmDescription =>
+      '將使用雲端最新備份更新本機已選取的資料。尚未推送的本機變更可能被取代。';
 
   @override
   String get cloudSync_pause => '暫停';
@@ -25971,9 +25958,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get cloudSync_clearInstallIntent => '暫不安裝並清除提示';
-
-  @override
-  String get cloudSync_newPassword => '新密碼';
 
   @override
   String get cloudSync_deleteRemoteNamespace => '刪除雲端備份';

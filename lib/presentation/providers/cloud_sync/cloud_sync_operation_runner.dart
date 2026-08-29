@@ -65,6 +65,11 @@ class CloudSyncOperationRunner {
           token: operation,
           onProgress: _updateProgress,
         ),
+        _ when readState().remoteExists != true =>
+          await coordinator.uploadLocal(
+            token: operation,
+            onProgress: _updateProgress,
+          ),
         _
             when readState().capabilityMode ==
                 CloudSyncCapabilityMode.manualBackupOnly =>
@@ -87,6 +92,7 @@ class CloudSyncOperationRunner {
           activityStatus: CloudSyncActivityStatus.idle,
           lastSync: lastSync,
           remoteRevision: outcome.snapshotId,
+          remoteExists: true,
           clearProgress: true,
           conflicts: const [],
           snapshots: history
@@ -234,6 +240,9 @@ class CloudSyncOperationRunner {
     writeState(
       state.copyWith(
         activityStatus: CloudSyncActivityStatus.syncing,
+        progress: mapCloudSyncProgress(
+          const SyncProgress(phase: SyncPhase.preparing),
+        ),
         clearError: clearError,
       ),
     );

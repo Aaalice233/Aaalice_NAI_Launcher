@@ -19,7 +19,8 @@ class WebDavCloudSyncBackend
     implements
         CloudSyncBackend,
         CloudKeyEnvelopeBackend,
-        CloudSyncBackendMaintenance {
+        CloudSyncBackendMaintenance,
+        ConcurrentCloudObjectUploadBackend {
   factory WebDavCloudSyncBackend.fromConfig({
     required WebDavBackendConfig config,
     required String username,
@@ -64,6 +65,9 @@ class WebDavCloudSyncBackend
   late final WebDavCollectionEnsurer _collections;
   final String namespace;
   CloudBackendMode? _verifiedMode;
+
+  @override
+  int get maxConcurrentObjectUploads => 4;
   Map<String, String> get _headers => {
     'Authorization': _authorization,
     'Accept-Encoding': 'identity',
@@ -175,6 +179,7 @@ class WebDavCloudSyncBackend
         uri,
         headers: _headers,
         data: bytes,
+        retryable: true,
       );
       _expect(response, const {200, 201, 204}, action: '上传手动备份对象');
       final stored = await _get(uri, maxBytes: maxBytes);
@@ -191,6 +196,7 @@ class WebDavCloudSyncBackend
       uri,
       headers: {..._headers, 'If-None-Match': '*'},
       data: bytes,
+      retryable: true,
     );
     if (response.statusCode == 412) {
       final existing = await _get(uri, maxBytes: maxBytes);

@@ -111,13 +111,11 @@ class CloudSyncConnectRequest {
   const CloudSyncConnectRequest({
     required this.connection,
     required this.dataKinds,
-    this.legacyPassword = '',
     this.contentSelection = const CloudSyncContentSelection(),
   });
 
   final CloudSyncConnectionDraft connection;
   final Set<CloudSyncDataKind> dataKinds;
-  final String legacyPassword;
   final CloudSyncContentSelection contentSelection;
 }
 
@@ -141,7 +139,12 @@ class CloudSyncProgressView {
   final int completedObjects;
   final int totalObjects;
 
-  double? get fraction => totalBytes == 0 ? null : completedBytes / totalBytes;
+  double? get fraction {
+    if (stage == 'preparing') return null;
+    if (totalBytes > 0) return completedBytes / totalBytes;
+    if (totalObjects > 0) return completedObjects / totalObjects;
+    return null;
+  }
 }
 
 @immutable
@@ -211,8 +214,6 @@ class CloudSyncUiState {
     this.snapshots = const [],
     this.conflicts = const [],
     this.remoteExists,
-    this.legacyEncryptedBackup = false,
-    this.legacyUnlockRequired = false,
     this.pendingPreview,
     this.pendingFfdkjInstall = false,
     this.maintenanceWarning,
@@ -235,8 +236,6 @@ class CloudSyncUiState {
   final List<CloudSyncSnapshotView> snapshots;
   final List<CloudSyncConflictView> conflicts;
   final bool? remoteExists;
-  final bool legacyEncryptedBackup;
-  final bool legacyUnlockRequired;
   final CloudSyncPreviewView? pendingPreview;
   final bool pendingFfdkjInstall;
   final String? maintenanceWarning;
@@ -278,8 +277,6 @@ class CloudSyncUiState {
     List<CloudSyncSnapshotView>? snapshots,
     List<CloudSyncConflictView>? conflicts,
     bool? remoteExists,
-    bool? legacyEncryptedBackup,
-    bool? legacyUnlockRequired,
     CloudSyncPreviewView? pendingPreview,
     bool? pendingFfdkjInstall,
     String? maintenanceWarning,
@@ -305,8 +302,6 @@ class CloudSyncUiState {
     snapshots: snapshots ?? this.snapshots,
     conflicts: conflicts ?? this.conflicts,
     remoteExists: remoteExists ?? this.remoteExists,
-    legacyEncryptedBackup: legacyEncryptedBackup ?? this.legacyEncryptedBackup,
-    legacyUnlockRequired: legacyUnlockRequired ?? this.legacyUnlockRequired,
     pendingPreview: clearPendingPreview
         ? null
         : pendingPreview ?? this.pendingPreview,
@@ -327,11 +322,9 @@ abstract interface class CloudSyncUiPort {
 
   Future<void> connect(CloudSyncConnectRequest request);
 
-  Future<void> unlockLegacyBackup(String password);
+  Future<void> pushNow();
 
-  Future<void> recoverLegacyBackup(String recoveryKey, String newPassword);
-
-  Future<void> syncNow();
+  Future<void> pullNow();
 
   Future<void> applyPendingPreview();
 
@@ -378,13 +371,6 @@ class CloudSyncUiPortAdapter implements CloudSyncUiPort {
   Future<void> connect(CloudSyncConnectRequest request) => _unavailable();
 
   @override
-  Future<void> unlockLegacyBackup(String password) => _unavailable();
-
-  @override
-  Future<void> recoverLegacyBackup(String recoveryKey, String newPassword) =>
-      _unavailable();
-
-  @override
   Future<void> deleteRemoteNamespace() => _unavailable();
 
   @override
@@ -421,7 +407,10 @@ class CloudSyncUiPortAdapter implements CloudSyncUiPort {
   Future<void> resume() => _unavailable();
 
   @override
-  Future<void> syncNow() => _unavailable();
+  Future<void> pushNow() => _unavailable();
+
+  @override
+  Future<void> pullNow() => _unavailable();
 
   Future<void> _unavailable() async {
     throw StateError('Cloud sync service is not connected.');

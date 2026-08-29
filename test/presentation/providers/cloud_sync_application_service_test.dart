@@ -42,6 +42,98 @@ void main() {
     expect(fixture.local.values[StorageKeys.cloudSyncConfiguration], isNotNull);
   });
 
+  test('legacy encrypted HEAD is ignored and replaced by plain v2', () async {
+    final backend = _ApplicationBackend();
+    backend.head = CloudHeadRead(
+      bytes: Uint8List.fromList(
+        SnapshotHead(
+          snapshotId: 'legacy-encrypted-snapshot',
+          manifestSha256:
+              'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+          updatedAt: DateTime.utc(2025),
+          encoding: CloudSnapshotEncoding.encrypted,
+        ).encode(),
+      ),
+      revision: 'legacy-head',
+    );
+    final fixture = await _Fixture.create(backend: backend);
+    addTearDown(fixture.dispose);
+    const legacyOperationId = 'legacy-pending-operation';
+    await fixture.source.stage(legacyOperationId, fixture.source.snapshot);
+    await fixture.journal.write(
+      SyncJournal(
+        operationId: legacyOperationId,
+        operation: JournalOperation.uploadLocal,
+        phase: JournalPhase.prepared,
+        updatedAt: DateTime.now().toUtc(),
+        snapshotId: 'legacy-pending-snapshot',
+        targetFingerprint: await fixture.source.stagedFingerprint(
+          legacyOperationId,
+        ),
+        expectedRevision: 'legacy-head',
+        uploadRequired: true,
+      ),
+    );
+
+    await fixture.service.connect(
+      const CloudSyncConnectRequest(
+        connection: _draft,
+        dataKinds: {CloudSyncDataKind.settings},
+      ),
+    );
+
+    final head = SnapshotHead.decode(backend.head!.bytes);
+    expect(head.snapshotId, isNot('legacy-encrypted-snapshot'));
+    expect(head.snapshotId, isNot('legacy-pending-snapshot'));
+    expect(head.encoding, CloudSnapshotEncoding.plain);
+    expect(await fixture.journal.read(), isNull);
+    expect(fixture.source.stages, isEmpty);
+    expect(fixture.states.last.remoteExists, isTrue);
+    expect(fixture.codecEncoding, CloudSnapshotEncoding.plain);
+  });
+
+  test(
+    'recovered initial upload is not followed by a duplicate snapshot',
+    () async {
+      final fixture = await _Fixture.create();
+      addTearDown(fixture.dispose);
+      const operationId = 'pending-initial-upload';
+      const snapshotId = 'pending-initial-snapshot';
+      await fixture.source.stage(operationId, fixture.source.snapshot);
+      await fixture.journal.write(
+        SyncJournal(
+          operationId: operationId,
+          operation: JournalOperation.uploadLocal,
+          phase: JournalPhase.prepared,
+          updatedAt: DateTime.now().toUtc(),
+          snapshotId: snapshotId,
+          targetFingerprint: await fixture.source.stagedFingerprint(
+            operationId,
+          ),
+          expectedRevision: null,
+          uploadRequired: true,
+        ),
+      );
+
+      await fixture.service.connect(
+        const CloudSyncConnectRequest(
+          connection: _draft,
+          dataKinds: {CloudSyncDataKind.settings},
+        ),
+      );
+
+      expect(
+        SnapshotHead.decode(fixture.backend.head!.bytes).snapshotId,
+        snapshotId,
+      );
+      expect(
+        fixture.backend.events.where((event) => event == 'head'),
+        hasLength(1),
+      );
+      expect(await fixture.journal.read(), isNull);
+    },
+  );
+
   test(
     'persisted fresh namespace remains connected for one-click retry',
     () async {
@@ -139,6 +231,8 @@ class _Fixture {
     required this.local,
     required this.secure,
     required this.states,
+    required this.source,
+    required this.journal,
     required this.service,
     required this.codecEncodingReader,
   });
@@ -148,6 +242,8 @@ class _Fixture {
   final _MemoryLocalStorage local;
   final _MemorySecureStorage secure;
   final List<CloudSyncUiState> states;
+  final _MemorySource source;
+  final JournalStore journal;
   final CloudSyncApplicationService service;
   final CloudSnapshotEncoding? Function() codecEncodingReader;
 
@@ -162,6 +258,8 @@ class _Fixture {
     final local = _MemoryLocalStorage();
     final secure = _MemorySecureStorage();
     final states = <CloudSyncUiState>[];
+    final source = _MemorySource(theme);
+    final journal = JournalStore(File('${directory.path}/journal.json'));
     CloudSnapshotEncoding? codecEncoding;
     final service = CloudSyncApplicationService(
       backendFactory: (_) => effectiveBackend,
@@ -169,9 +267,9 @@ class _Fixture {
         codecEncoding = codec.encoding;
         return SyncCoordinator(
           backend: effectiveBackend,
-          dataSource: _MemorySource(theme),
+          dataSource: source,
           codec: codec,
-          journalStore: JournalStore(File('${directory.path}/journal.json')),
+          journalStore: journal,
         );
       },
       secureStorage: secure,
@@ -185,6 +283,8 @@ class _Fixture {
       local: local,
       secure: secure,
       states: states,
+      source: source,
+      journal: journal,
       service: service,
       codecEncodingReader: () => codecEncoding,
     );

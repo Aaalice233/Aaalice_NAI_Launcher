@@ -90,6 +90,12 @@ class CloudBackendException implements Exception {
   String toString() => 'CloudBackendException($kind): $message';
 }
 
+/// Optional backend hint for immutable object uploads. Implementations must
+/// only opt in when parallel requests preserve their provider transaction.
+abstract interface class ConcurrentCloudObjectUploadBackend {
+  int get maxConcurrentObjectUploads;
+}
+
 abstract interface class CloudSyncBackend {
   Future<CloudBackendCapability> testCapability();
 

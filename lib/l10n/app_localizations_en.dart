@@ -13072,26 +13072,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cloudSync_connectionManagement => 'Storage connection';
 
   @override
-  String get cloudSync_legacyBackupTitle => 'Unlock an older backup';
-
-  @override
-  String get cloudSync_legacyBackupDescription =>
-      'The cloud contains an encrypted backup created by an older app version. Enter the password you used then to continue.';
-
-  @override
-  String get cloudSync_legacyPassword => 'Older backup password';
-
-  @override
-  String get cloudSync_legacyRecovery =>
-      'Forgot the password? Use a recovery key';
-
-  @override
-  String get cloudSync_legacyRecoveryAction => 'Unlock with recovery key';
-
-  @override
-  String get cloudSync_unlockAndContinue => 'Unlock and continue';
-
-  @override
   String get cloudSync_chooseBackend => 'Where to back up';
 
   @override
@@ -13196,9 +13176,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cloudSync_noSkills => 'No matching Skills';
 
   @override
-  String get cloudSync_oneTimeRecoveryKey => 'One-time recovery key';
-
-  @override
   String cloudSync_actionFailed(Object error) {
     return 'Action failed: $error';
   }
@@ -13246,7 +13223,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cloudSync_syncControls => 'Backup and sync';
 
   @override
-  String get cloudSync_syncNow => 'Sync now';
+  String get cloudSync_pushLocal => 'Push to cloud';
+
+  @override
+  String get cloudSync_pullRemote => 'Pull from cloud';
+
+  @override
+  String get cloudSync_pushConfirmTitle => 'Push local data?';
+
+  @override
+  String get cloudSync_pushConfirmDescription =>
+      'This creates a new cloud backup from the current local data and switches the current cloud version to it.';
+
+  @override
+  String get cloudSync_pullConfirmTitle => 'Pull cloud data?';
+
+  @override
+  String get cloudSync_pullConfirmDescription =>
+      'This updates the selected local data from the latest cloud backup. Local changes that have not been pushed may be replaced.';
 
   @override
   String get cloudSync_pause => 'Pause';
@@ -13369,9 +13363,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cloudSync_clearInstallIntent => 'Not now and clear reminder';
-
-  @override
-  String get cloudSync_newPassword => 'New password';
 
   @override
   String get cloudSync_deleteRemoteNamespace => 'Delete cloud backup';

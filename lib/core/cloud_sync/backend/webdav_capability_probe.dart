@@ -27,6 +27,8 @@ class WebDavCapabilityProbe {
   final Uri objects;
   final Uri snapshots;
 
+  static const _probeObjectBytes = 64 * 1024;
+
   Future<CloudBackendCapability> run() async {
     final collections = WebDavCollectionEnsurer(
       http: http,
@@ -44,7 +46,9 @@ class WebDavCapabilityProbe {
     String? manifestEtag;
     String? manualReason;
     try {
-      final maximum = Uint8List(maxCloudObjectResponseBytes);
+      // Capability checks run on every newly configured connection. Keep the
+      // probe representative without uploading the full per-object limit.
+      final maximum = Uint8List(_probeObjectBytes);
       maximum[0] = 1;
       maximum[maximum.length - 1] = 2;
       final initial = await http.request(
@@ -167,7 +171,7 @@ class WebDavCapabilityProbe {
       if (manualReason != null) return _manual(manualReason);
       return const CloudBackendCapability(
         mode: CloudBackendMode.bidirectional,
-        message: 'WebDAV 已验证认证、读写、条件更新、历史、删除与 4 MiB 对象限制。',
+        message: 'WebDAV 已验证认证、对象读写、条件更新、历史与删除。',
         supportsHistory: true,
         supportsDelete: true,
       );
