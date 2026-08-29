@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/cache/online_gallery_prefetch_coordinator.dart';
 import 'package:nai_launcher/data/models/online_gallery/gallery_item.dart';
@@ -154,7 +155,7 @@ void main() {
             state: OnlineGalleryState(searchCache: ModeCache(posts: items)),
             controller: controller,
             itemBuilder: (context, index, itemWidth, columnCount) {
-              builtIndices.add(index);
+              if (index < items.length) builtIndices.add(index);
               return const SizedBox(height: 120);
             },
           ),
@@ -255,6 +256,20 @@ void main() {
 
     expect(find.byKey(const ValueKey('loaded-0')), findsOneWidget);
     expect(find.byType(OnlineGalleryPendingCard), findsWidgets);
+    expect(
+      find.descendant(
+        of: find.byType(SliverGrid),
+        matching: find.byType(OnlineGalleryPendingCard),
+      ),
+      findsWidgets,
+    );
+    expect(
+      find.descendant(
+        of: find.byType(SliverMasonryGrid),
+        matching: find.byKey(const ValueKey('loaded-0')),
+      ),
+      findsOneWidget,
+    );
     final pending = tester.widgetList<OnlineGalleryPendingCard>(
       find.byType(OnlineGalleryPendingCard),
     );
@@ -263,6 +278,33 @@ void main() {
       controller.scrollController.position.maxScrollExtent,
       greaterThan(0),
     );
+
+    final completedItems = List.generate(
+      8,
+      (index) => GalleryItem(
+        id: index,
+        workId: 'post-$index',
+        sourceId: GallerySourceId.danbooru,
+      ),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: OnlineGalleryGrid(
+            state: OnlineGalleryState(
+              searchCache: ModeCache(posts: completedItems, hasMore: false),
+            ),
+            controller: controller,
+            itemBuilder: (context, index, itemWidth, columnCount) =>
+                SizedBox(key: ValueKey('completed-$index'), height: itemWidth),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byType(OnlineGalleryPendingCard), findsNothing);
+    expect(find.byKey(const ValueKey('completed-0')), findsOneWidget);
   });
 
   testWidgets(

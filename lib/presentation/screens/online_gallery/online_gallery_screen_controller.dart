@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../core/cache/gallery_image_request.dart';
 import '../../../core/cache/online_gallery_prefetch_coordinator.dart';
 import '../../../data/models/online_gallery/danbooru_post.dart';
 import '../../providers/online_gallery_provider.dart';
@@ -33,7 +34,15 @@ class OnlineGalleryScreenController extends ChangeNotifier {
   final primarySearchRevealKey = GlobalKey();
   final scrolling = ValueNotifier<bool>(false);
 
-  final Map<int, ({GalleryItem item, double itemWidth, double visibleTop})>
+  final Map<
+    int,
+    ({
+      GalleryItem item,
+      double itemWidth,
+      double visibleTop,
+      GalleryImageRequest? thumbnailRequest,
+    })
+  >
   visibleItems = {};
   final Set<String> pendingGalleryDetails = <String>{};
 
@@ -80,12 +89,14 @@ class OnlineGalleryScreenController extends ChangeNotifier {
     required GalleryItem item,
     required double itemWidth,
     required double visibleTop,
+    GalleryImageRequest? thumbnailRequest,
   }) {
     final previous = visibleItems[index];
     visibleItems[index] = (
       item: item,
       itemWidth: itemWidth,
       visibleTop: visibleTop,
+      thumbnailRequest: thumbnailRequest,
     );
     return previous?.item.stableKey != item.stableKey;
   }

@@ -93,18 +93,13 @@ class OnlineGalleryPaginationService {
         : state.sourceId;
     final generation = _beginRequest();
     final requestCancelToken = generation.cancelToken;
-    await Future.wait([_ensureQuickFilter(), _ensureAuth(sourceId)]);
-    if (!_isActive(generation) ||
-        state.randomEnabled ||
-        state.activeSourceId != sourceId) {
-      return;
-    }
-    final cache = state.currentCache;
-    final cursor = initialCursor ?? (refresh ? '1' : cache.nextCursor);
-    if (cursor == null) return;
-    final adapter = _repository().adapter(sourceId);
-    final cacheKey = state.currentCacheKey;
-    final isAppend = !refresh && cache.posts.isNotEmpty;
+    var cache = state.currentCache;
+    var cacheKey = state.currentCacheKey;
+    var isAppend = !refresh && cache.posts.isNotEmpty;
+
+    // Claim the append synchronously. Scroll and underfill callbacks can fire
+    // in the same frame; publishing this state before authentication/setup
+    // makes them converge on one request and exposes the runway immediately.
     state = state.copyWith(
       isLoading: !isAppend,
       isLoadingMore: isAppend,
@@ -115,6 +110,22 @@ class OnlineGalleryPaginationService {
     }
 
     try {
+      await Future.wait([_ensureQuickFilter(), _ensureAuth(sourceId)]);
+      if (!_isActive(generation) ||
+          state.randomEnabled ||
+          state.activeSourceId != sourceId) {
+        return;
+      }
+      cache = state.currentCache;
+      cacheKey = state.currentCacheKey;
+      isAppend = !refresh && cache.posts.isNotEmpty;
+      final cursor = initialCursor ?? (refresh ? '1' : cache.nextCursor);
+      if (cursor == null) {
+        state = state.copyWith(isLoading: false, isLoadingMore: false);
+        return;
+      }
+      state = state.copyWith(isLoading: !isAppend, isLoadingMore: isAppend);
+      final adapter = _repository().adapter(sourceId);
       await _ref
           .read(onlineGalleryBlacklistNotifierProvider.notifier)
           .ensureInitialized();

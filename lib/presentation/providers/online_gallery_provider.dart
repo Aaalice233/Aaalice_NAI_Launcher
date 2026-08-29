@@ -109,6 +109,8 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
   final Set<String> _remoteFavoriteKeys = <String>{};
   final OnlineGallerySearchService _search = OnlineGallerySearchService();
   int _detailRequestScopeRevision = 0;
+  bool _loadMoreClaimed = false;
+  int _loadMoreClaimRevision = 0;
 
   int get detailRequestScopeRevision => _detailRequestScopeRevision;
 
@@ -229,6 +231,8 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
 
   void _cancelCurrentRequest() {
     _loadCoordinator.cancel('Superseded by a gallery state change');
+    _loadMoreClaimRevision++;
+    _loadMoreClaimed = false;
     _detailRequestScopeRevision++;
     _detailCoordinator?.cancelQueuedVisible();
     if (state.isLoading || state.isLoadingMore) {
@@ -331,23 +335,24 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     final sourceId = state.activeSourceId;
     final requestHandle = _beginRequest();
     final requestCancelToken = requestHandle.cancelToken;
-    await Future.wait([
-      _ensureQuickTagCloudFilterInitialized(),
-      _ensureAuthenticationReady(sourceId),
-    ]);
-    if (!_loadCoordinator.isCurrent(requestHandle) ||
-        !state.randomEnabled ||
-        !state.supportsRandom ||
-        state.activeSourceId != sourceId) {
-      return;
-    }
-    final cacheKey = state.currentCacheKey;
+    var cacheKey = state.currentCacheKey;
     state = state.copyWith(
       isLoading: replace,
       isLoadingMore: !replace,
       clearError: true,
     );
     try {
+      await Future.wait([
+        _ensureQuickTagCloudFilterInitialized(),
+        _ensureAuthenticationReady(sourceId),
+      ]);
+      if (!_loadCoordinator.isCurrent(requestHandle) ||
+          !state.randomEnabled ||
+          !state.supportsRandom ||
+          state.activeSourceId != sourceId) {
+        return;
+      }
+      cacheKey = state.currentCacheKey;
       await ref
           .read(onlineGalleryBlacklistNotifierProvider.notifier)
           .ensureInitialized();
@@ -800,10 +805,19 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
         state.isLoadingMore ||
         state.hasError ||
         activeCache.appendErrorCode != null ||
-        !state.hasMore) {
+        !state.hasMore ||
+        _loadMoreClaimed) {
       return;
     }
-    await loadPosts();
+    _loadMoreClaimed = true;
+    final claimRevision = ++_loadMoreClaimRevision;
+    try {
+      await loadPosts();
+    } finally {
+      if (claimRevision == _loadMoreClaimRevision) {
+        _loadMoreClaimed = false;
+      }
+    }
   }
 
   Future<void> refresh() {
@@ -852,12 +866,6 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
 
   Future<void> _loadFavorites({required bool refresh, int? targetPage}) async {
     final sourceId = state.favoritesSourceId;
-    await _ensureAuthenticationReady(sourceId);
-    if (_lifecycle.disposed ||
-        state.viewMode != GalleryViewMode.favorites ||
-        state.favoritesSourceId != sourceId) {
-      return;
-    }
     final previousCache = state.currentCache;
     final pageNumber = targetPage ?? (refresh ? 1 : previousCache.page + 1);
     final generation = _beginRequest();
@@ -888,6 +896,13 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     Object? remoteError;
     var blacklistDetailFailures = 0;
     try {
+      await _ensureAuthenticationReady(sourceId);
+      if (_lifecycle.disposed ||
+          !_isCurrentRequest(generation, cacheKey) ||
+          state.viewMode != GalleryViewMode.favorites ||
+          state.favoritesSourceId != sourceId) {
+        return;
+      }
       await ref
           .read(onlineGalleryBlacklistNotifierProvider.notifier)
           .ensureInitialized();

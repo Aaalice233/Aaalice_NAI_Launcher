@@ -48,6 +48,44 @@ void main() {
   );
 
   test(
+    'concurrent load-more triggers claim one append synchronously',
+    () async {
+      final secondPage = Completer<GalleryPage>();
+      final adapter = _FakeGalleryAdapter(
+        GallerySourceId.danbooru,
+        onSearch: (request, _) => request.cursor == '1'
+            ? Future.value(_page('1', [_item(1)], nextCursor: '2'))
+            : secondPage.future,
+      );
+      final container = _container(danbooru: adapter);
+      addTearDown(container.dispose);
+      final notifier = container.read(onlineGalleryNotifierProvider.notifier);
+      await notifier.loadPosts();
+
+      final first = notifier.loadMore();
+      final duplicate = notifier.loadMore();
+      final underfillDuplicate = notifier.loadMore();
+
+      expect(
+        container.read(onlineGalleryNotifierProvider).isLoadingMore,
+        isTrue,
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(adapter.searchCursors, ['1', '2']);
+
+      secondPage.complete(_page('2', [_item(2)], nextCursor: null));
+      await Future.wait([first, duplicate, underfillDuplicate]);
+
+      final state = container.read(onlineGalleryNotifierProvider);
+      expect(state.posts.map((item) => item.id), [1, 2]);
+      expect(state.isLoadingMore, isFalse);
+      expect(state.hasMore, isFalse);
+      await notifier.loadMore();
+      expect(adapter.searchCursors, ['1', '2']);
+    },
+  );
+
+  test(
     'popular ranking advances from page 1 to page 2 without rendering page 1 again',
     () async {
       final adapter = _FakeGalleryAdapter(

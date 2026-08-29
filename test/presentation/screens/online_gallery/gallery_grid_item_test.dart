@@ -177,6 +177,7 @@ void main() {
         previewFileUrl: 'https://example.test/pending.jpg',
       );
       final loadMediaValues = <bool>[];
+      final mediaGate = Completer<bool>();
 
       await tester.pumpWidget(
         _app(
@@ -184,6 +185,7 @@ void main() {
           detailRequestScope: 1,
           loadDetail: (_, {required priority, forceRefresh = false}) =>
               throw StateError('detail should not load'),
+          prepareMedia: (_, __) => mediaGate.future,
           onBuildCard: loadMediaValues.add,
         ),
       );
@@ -204,11 +206,148 @@ void main() {
       );
       await tester.pump();
 
+      expect(loadMediaValues.last, isFalse);
+      mediaGate.complete(true);
+      await tester.pump();
+      await tester.pump();
+
       expect(loadMediaValues.last, isTrue);
       expect(find.byKey(const ValueKey('resolved-card')), findsOneWidget);
       expect(tester.getSize(find.byType(GalleryGridItem)).height, 200);
     },
   );
+
+  testWidgets('AI TAG resolved media is prepared using its real URL', (
+    tester,
+  ) async {
+    final resolved = _item.copyWith(
+      imageWidth: 1200,
+      imageHeight: 800,
+      previewFileUrl: 'https://example.test/ai-tag-resolved.jpg',
+    );
+    final prepared = <GalleryItem>[];
+    final mediaGate = Completer<bool>();
+    final loadMediaValues = <bool>[];
+    final layoutAspectRatios = <double>[];
+    await tester.pumpWidget(
+      _app(
+        detailRequestScope: 1,
+        loadDetail: (_, {required priority, forceRefresh = false}) =>
+            Future.value(GalleryDetail(item: resolved, media: const [])),
+        prepareMedia: (item, _) {
+          prepared.add(item);
+          return mediaGate.future;
+        },
+        onBuildCard: loadMediaValues.add,
+        onLayoutAspectRatio: layoutAspectRatios.add,
+      ),
+    );
+
+    final detector = tester.widget<VisibilityDetector>(
+      find.byType(VisibilityDetector),
+    );
+    detector.onVisibilityChanged?.call(
+      VisibilityInfo(
+        key: detector.key!,
+        size: const Size(200, 200),
+        visibleBounds: const Rect.fromLTWH(0, 0, 200, 200),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    expect(prepared, [resolved]);
+    expect(loadMediaValues.last, isFalse);
+    expect(layoutAspectRatios.last, 1.5);
+
+    mediaGate.complete(true);
+    await tester.pump();
+    await tester.pump();
+    expect(loadMediaValues.last, isTrue);
+  });
+
+  testWidgets('visible thumbnail retries after a transient prepare failure', (
+    tester,
+  ) async {
+    const item = GalleryItem(
+      id: 3,
+      workId: 'work-3',
+      sourceId: GallerySourceId.danbooru,
+      previewFileUrl: 'https://example.test/retry.jpg',
+    );
+    var attempts = 0;
+    final loadMediaValues = <bool>[];
+    await tester.pumpWidget(
+      _app(
+        post: item,
+        detailRequestScope: 1,
+        loadDetail: (_, {required priority, forceRefresh = false}) =>
+            throw StateError('detail should not load'),
+        prepareMedia: (_, __) async => ++attempts > 1,
+        onBuildCard: loadMediaValues.add,
+      ),
+    );
+
+    final detector = tester.widget<VisibilityDetector>(
+      find.byType(VisibilityDetector),
+    );
+    detector.onVisibilityChanged?.call(
+      VisibilityInfo(
+        key: detector.key!,
+        size: const Size(200, 200),
+        visibleBounds: const Rect.fromLTWH(0, 0, 200, 200),
+      ),
+    );
+    await tester.pump();
+    expect(attempts, 1);
+    expect(loadMediaValues.last, isFalse);
+
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump();
+    expect(attempts, 2);
+    expect(loadMediaValues.last, isTrue);
+  });
+
+  testWidgets('persistent prepare failures fall back without polling forever', (
+    tester,
+  ) async {
+    var attempts = 0;
+    final loadMediaValues = <bool>[];
+    await tester.pumpWidget(
+      _app(
+        post: _item.copyWith(previewFileUrl: 'https://example.test/broken.jpg'),
+        detailRequestScope: 1,
+        loadDetail: (_, {required priority, forceRefresh = false}) =>
+            throw StateError('detail should not load'),
+        prepareMedia: (_, __) async {
+          attempts++;
+          return false;
+        },
+        onBuildCard: loadMediaValues.add,
+      ),
+    );
+
+    final detector = tester.widget<VisibilityDetector>(
+      find.byType(VisibilityDetector),
+    );
+    detector.onVisibilityChanged?.call(
+      VisibilityInfo(
+        key: detector.key!,
+        size: const Size(200, 200),
+        visibleBounds: const Rect.fromLTWH(0, 0, 200, 200),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pump(const Duration(seconds: 15));
+    await tester.pump();
+
+    expect(attempts, 4);
+    expect(loadMediaValues.last, isTrue);
+    await tester.pump(const Duration(minutes: 1));
+    expect(attempts, 4);
+  });
 }
 
 const _item = GalleryItem(
@@ -226,7 +365,9 @@ Widget _app({
     bool forceRefresh,
   })
   loadDetail,
+  Future<bool> Function(GalleryItem item, double itemWidth)? prepareMedia,
   ValueChanged<bool>? onBuildCard,
+  ValueChanged<double>? onLayoutAspectRatio,
 }) {
   return MaterialApp(
     locale: const Locale('en'),
@@ -245,6 +386,7 @@ Widget _app({
           anchorKey: null,
           onVisibilityChanged: (_, __, ___, ____, _____, ______) {},
           detailRequestScope: detailRequestScope,
+          prepareMedia: prepareMedia ?? (_, __) => Future<bool>.value(true),
           loadDetail: loadDetail,
           buildCard:
               (
@@ -256,6 +398,7 @@ Widget _app({
                 detail,
               }) {
                 onBuildCard?.call(loadMedia);
+                onLayoutAspectRatio?.call(layoutAspectRatio);
                 return SizedBox(
                   key: const ValueKey('resolved-card'),
                   height: itemWidth / layoutAspectRatio,

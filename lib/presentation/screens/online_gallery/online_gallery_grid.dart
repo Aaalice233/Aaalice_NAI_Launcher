@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
@@ -41,10 +42,12 @@ class OnlineGalleryGrid extends StatelessWidget {
     if (!(state.isLoadingMore || (state.isLoading && state.posts.isEmpty))) {
       return 0;
     }
+    if (!state.hasMore) return 0;
     if (state.randomEnabled) return 1;
-    final total = state.currentCache.total;
-    if (total == null) return onlineGalleryPageSize;
-    return (total - state.posts.length).clamp(0, onlineGalleryPageSize);
+    // Keep one immutable runway for the whole request. Deriving this from a
+    // total that may arrive mid-request shrinks the sliver while it is being
+    // scrolled and defeats the placeholder's purpose.
+    return onlineGalleryPageSize;
   }
 
   @override
@@ -70,34 +73,72 @@ class OnlineGalleryGrid extends StatelessWidget {
             ? 'random:${state.randomSession.scopeKey}'
             : 'normal';
         final placeholderCount = _placeholderCount();
-        return MasonryGridView.count(
+        return CustomScrollView(
           key: PageStorageKey<String>(
             'online_gallery_$storageScope:${state.currentCacheKey}',
           ),
           controller: controller.scrollController,
-          cacheExtent: OnlineGalleryPreloadPolicy.cacheExtent(viewportHeight),
-          padding: const EdgeInsets.all(12),
-          crossAxisCount: columnCount,
-          mainAxisSpacing: spacing,
-          crossAxisSpacing: spacing,
-          itemCount: state.posts.length + placeholderCount + 1,
-          itemBuilder: (context, index) {
-            if (index >= state.posts.length &&
-                index < state.posts.length + placeholderCount) {
-              return OnlineGalleryPendingCard(
-                key: ValueKey(
-                  'online-gallery-pending:${state.currentCacheKey}:$index',
+          scrollCacheExtent: ScrollCacheExtent.pixels(
+            OnlineGalleryPreloadPolicy.cacheExtent(viewportHeight),
+          ),
+          slivers: [
+            SliverPadding(
+              padding: EdgeInsets.fromLTRB(
+                12,
+                12,
+                12,
+                state.posts.isEmpty ? 0 : 6,
+              ),
+              sliver: SliverMasonryGrid.count(
+                crossAxisCount: columnCount,
+                mainAxisSpacing: spacing,
+                crossAxisSpacing: spacing,
+                childCount: state.posts.length,
+                itemBuilder: (context, index) =>
+                    itemBuilder(context, index, itemWidth, columnCount),
+              ),
+            ),
+            if (placeholderCount > 0)
+              SliverPadding(
+                padding: EdgeInsets.fromLTRB(
+                  12,
+                  state.posts.isEmpty ? 12 : 0,
+                  12,
+                  0,
                 ),
-                itemWidth: itemWidth,
-              );
-            }
-            return itemBuilder(
-              context,
-              index < state.posts.length ? index : state.posts.length,
-              itemWidth,
-              columnCount,
-            );
-          },
+                sliver: SliverGrid(
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: columnCount,
+                    mainAxisSpacing: spacing,
+                    crossAxisSpacing: spacing,
+                  ),
+                  delegate: SliverChildBuilderDelegate(
+                    (context, placeholderIndex) => OnlineGalleryPendingCard(
+                      key: ValueKey(
+                        'online-gallery-pending:'
+                        '${state.currentCacheKey}:$placeholderIndex',
+                      ),
+                      itemWidth: itemWidth,
+                    ),
+                    childCount: placeholderCount,
+                  ),
+                ),
+              ),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(12, 6, 12, 12),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, _) => itemBuilder(
+                    context,
+                    state.posts.length,
+                    itemWidth,
+                    columnCount,
+                  ),
+                  childCount: 1,
+                ),
+              ),
+            ),
+          ],
         );
       },
     );

@@ -10,12 +10,14 @@ class OnlineGalleryPrefetchCoordinator {
   OnlineGalleryPrefetchCoordinator({
     required GalleryImagePreloader preloader,
     this.maxConcurrent = 4,
+    this.maxQueued = 64,
     DateTime Function()? now,
   }) : _preloader = preloader,
        _now = now ?? DateTime.now;
 
   final GalleryImagePreloader _preloader;
   final int maxConcurrent;
+  final int maxQueued;
   final DateTime Function() _now;
 
   final ListQueue<_PrefetchTask> _interactive = ListQueue<_PrefetchTask>();
@@ -55,7 +57,7 @@ class OnlineGalleryPrefetchCoordinator {
   void rotateGeneration() {
     _generation++;
     for (final task in _pending.values) {
-      if (!task.completer.isCompleted) task.completer.complete(false);
+      _completeCancelled(task);
     }
     _pending.clear();
     _interactive.clear();
@@ -67,6 +69,34 @@ class OnlineGalleryPrefetchCoordinator {
   void setScrolling(bool scrolling) {
     _lowPriorityPaused = scrolling;
     if (!scrolling) _pump();
+  }
+
+  /// Cancels queued work for a card that left the active viewport window.
+  /// Downloads already handed to the image pipeline are allowed to finish so
+  /// the shared disk cache is not left with a partially consumed response.
+  void cancelPending(GalleryImageRequest request) {
+    final task = _pending.remove(request.stableRequestKey);
+    if (task == null) return;
+    _removeFromQueue(task);
+    _completeCancelled(task);
+  }
+
+  /// Keeps the moving thumbnail window bounded while a user scrolls through
+  /// many rows faster than the network can consume them.
+  void retainThumbnailWindow(Set<String> stableRequestKeys) {
+    final stale = _pending.values
+        .where(
+          (task) =>
+              (task.priority == GalleryImagePriority.visible ||
+                  task.priority == GalleryImagePriority.lookahead) &&
+              !stableRequestKeys.contains(task.request.stableRequestKey),
+        )
+        .toList(growable: false);
+    for (final task in stale) {
+      _pending.remove(task.request.stableRequestKey);
+      _removeFromQueue(task);
+      _completeCancelled(task);
+    }
   }
 
   Future<bool> submit(
@@ -106,6 +136,10 @@ class OnlineGalleryPrefetchCoordinator {
       });
     }
 
+    if (_pending.length >= maxQueued && !_makeRoomFor(priority)) {
+      return Future<bool>.value(false);
+    }
+
     final task = _PrefetchTask(
       request: request,
       priority: priority,
@@ -136,11 +170,31 @@ class OnlineGalleryPrefetchCoordinator {
     _queueFor(task.priority).remove(task);
   }
 
+  bool _makeRoomFor(GalleryImagePriority incoming) {
+    for (final priority in GalleryImagePriority.values.reversed) {
+      if (priority.index < incoming.index) continue;
+      final queue = _queueFor(priority);
+      if (queue.isEmpty) continue;
+      final evicted = queue.removeLast();
+      _pending.remove(evicted.request.stableRequestKey);
+      _completeCancelled(evicted);
+      return true;
+    }
+    return false;
+  }
+
+  void _completeCancelled(_PrefetchTask task) {
+    if (!task.downloadCompleter.isCompleted) {
+      task.downloadCompleter.complete(false);
+    }
+    if (!task.completer.isCompleted) task.completer.complete(false);
+  }
+
   _PrefetchTask? _takeNext() {
     if (_interactive.isNotEmpty) return _interactive.removeFirst();
     if (_hover.isNotEmpty) return _hover.removeFirst();
-    if (_lowPriorityPaused) return null;
     if (_visible.isNotEmpty) return _visible.removeFirst();
+    if (_lowPriorityPaused) return null;
     if (_lookahead.isNotEmpty) return _lookahead.removeFirst();
     return null;
   }

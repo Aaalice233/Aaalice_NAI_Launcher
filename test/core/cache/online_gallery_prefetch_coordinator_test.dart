@@ -145,30 +145,103 @@ void main() {
   );
 
   test(
-    'scrolling pauses low priority work but still starts hover work',
+    'scrolling keeps visible work moving but pauses lookahead work',
     () async {
       final started = <String>[];
       final coordinator = OnlineGalleryPrefetchCoordinator(
+        maxConcurrent: 1,
         preloader: (request) async => started.add(request.url),
       );
       coordinator.setScrolling(true);
 
-      final low = coordinator.submit(
+      final lookahead = coordinator.submit(
         _request(1),
         priority: GalleryImagePriority.lookahead,
       );
-      final hover = coordinator.submit(
-        _request(2, tier: GalleryImageTier.sample),
-        priority: GalleryImagePriority.hover,
+      final visible = coordinator.submit(
+        _request(2),
+        priority: GalleryImagePriority.visible,
       );
       await Future<void>.delayed(Duration.zero);
 
       expect(started, ['https://example.com/2.jpg']);
-      expect(await hover, isTrue);
+      expect(await visible, isTrue);
       coordinator.setScrolling(false);
-      expect(await low, isTrue);
+      expect(await lookahead, isTrue);
     },
   );
+
+  test('moving thumbnail window cancels stale queued requests', () async {
+    final gate = Completer<void>();
+    final coordinator = OnlineGalleryPrefetchCoordinator(
+      maxConcurrent: 1,
+      preloader: (request) =>
+          request.url.endsWith('/0.jpg') ? gate.future : Future<void>.value(),
+    );
+    final active = coordinator.submit(
+      _request(0),
+      priority: GalleryImagePriority.visible,
+    );
+    final stale = coordinator.submit(
+      _request(1),
+      priority: GalleryImagePriority.lookahead,
+    );
+    final retained = coordinator.submit(
+      _request(2),
+      priority: GalleryImagePriority.lookahead,
+    );
+
+    coordinator.retainThumbnailWindow({_request(2).stableRequestKey});
+    expect(await stale, isFalse);
+    expect(coordinator.queueDepth, 1);
+
+    gate.complete();
+    expect(await active, isTrue);
+    expect(await retained, isTrue);
+  });
+
+  test('queue stays bounded and visible work displaces lookahead', () async {
+    final gate = Completer<void>();
+    final started = <String>[];
+    final coordinator = OnlineGalleryPrefetchCoordinator(
+      maxConcurrent: 1,
+      maxQueued: 2,
+      preloader: (request) {
+        started.add(request.url);
+        return request.url.endsWith('/0.jpg')
+            ? gate.future
+            : Future<void>.value();
+      },
+    );
+    final active = coordinator.submit(
+      _request(0),
+      priority: GalleryImagePriority.visible,
+    );
+    final oldestLookahead = coordinator.submit(
+      _request(1),
+      priority: GalleryImagePriority.lookahead,
+    );
+    final newestLookahead = coordinator.submit(
+      _request(2),
+      priority: GalleryImagePriority.lookahead,
+    );
+    final visible = coordinator.submit(
+      _request(3),
+      priority: GalleryImagePriority.visible,
+    );
+
+    expect(coordinator.queueDepth, 2);
+    expect(await newestLookahead, isFalse);
+    gate.complete();
+    expect(await active, isTrue);
+    expect(await visible, isTrue);
+    expect(await oldestLookahead, isTrue);
+    expect(started, [
+      'https://example.com/0.jpg',
+      'https://example.com/3.jpg',
+      'https://example.com/1.jpg',
+    ]);
+  });
 
   test(
     'completed sample LRU retains only the latest sixteen requests',
