@@ -13,8 +13,11 @@ enum GalleryStartupIndexAction { none, fullScan }
 GalleryStartupIndexAction chooseStartupIndexAction({
   required int databaseImageCount,
   required int fileSystemImageCount,
+  int? unparsedImageCount = 0,
 }) {
-  if (databaseImageCount > 0 && databaseImageCount == fileSystemImageCount) {
+  if (databaseImageCount > 0 &&
+      databaseImageCount == fileSystemImageCount &&
+      unparsedImageCount == 0) {
     return GalleryStartupIndexAction.none;
   }
   return GalleryStartupIndexAction.fullScan;
@@ -145,9 +148,20 @@ class GalleryScanCoordinator {
         'Database has $existingCount images, file system has ${files.length} images',
         'LocalGalleryService',
       );
+      int? unparsedImageCount;
+      try {
+        final metadataCounts = await _dataSource.countImagesByMetadataStatus();
+        unparsedImageCount = metadataCounts['none'];
+      } catch (error) {
+        AppLogger.w(
+          'Metadata status count unavailable; running startup scan: $error',
+          'LocalGalleryService',
+        );
+      }
       final action = chooseStartupIndexAction(
         databaseImageCount: existingCount,
         fileSystemImageCount: files.length,
+        unparsedImageCount: unparsedImageCount,
       );
       if (action == GalleryStartupIndexAction.none) {
         AppLogger.i(
@@ -204,9 +218,11 @@ class GalleryScanCoordinator {
     }
 
     AppLogger.i('[UGS] 开始执行${full ? '全量' : ''}流式扫描', 'LocalGalleryService');
-    await GalleryStreamScanner(
-      dataSource: _dataSource,
-    ).startScanning(Directory(rootPath), fileSnapshot: files);
+    await GalleryStreamScanner(dataSource: _dataSource).startScanning(
+      Directory(rootPath),
+      retryMissingMetadata: true,
+      fileSnapshot: files,
+    );
     AppLogger.i('[UGS] ${full ? '全量' : ''}流式扫描完成', 'LocalGalleryService');
   }
 }

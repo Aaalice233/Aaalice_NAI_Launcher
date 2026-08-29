@@ -18,6 +18,7 @@ import 'package:nai_launcher/data/services/gallery/gallery_stream_scanner.dart'
         GalleryStreamScanner,
         StreamScanStats,
         buildRetryPriorityPaths;
+import 'package:nai_launcher/data/services/gallery/local_gallery_repository.dart';
 import 'package:nai_launcher/data/services/image_metadata_service.dart';
 import 'package:nai_launcher/data/services/metadata/isolate_metadata_service.dart';
 import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
@@ -70,42 +71,12 @@ void main() {
     });
 
     test(
-      'should skip stale none records during default incremental scan',
+      'retry scan indexes NovelAI tags from stale unparsed records',
       () async {
         final file = await _createWrappedNovelAiPng(
           tempDir,
-          'stale_skip.png',
-          prompt: 'artist:shycocoa, 1girl, solo',
-        );
-
-        final imageId = await _seedStaleNoneRecord(dataSource, file);
-        final scanner = GalleryStreamScanner(dataSource: dataSource);
-
-        await scanner.startScanning(tempDir);
-
-        final imageRecord = await dataSource.getImageById(imageId);
-        final metadata = (await dataSource.getMetadataByImageIds([
-          imageId,
-        ]))[imageId];
-        final results = await dataSource.advancedSearch(
-          textQuery: 'shycocoa',
-          limit: 10,
-        );
-
-        expect(imageRecord, isNotNull);
-        expect(imageRecord!.metadataStatus, MetadataStatus.none);
-        expect(metadata, isNull);
-        expect(results, isNot(contains(imageId)));
-      },
-    );
-
-    test(
-      'should retry stale none records when retryMissingMetadata is enabled',
-      () async {
-        final file = await _createWrappedNovelAiPng(
-          tempDir,
-          'stale_retry.png',
-          prompt: 'artist:shycocoa, 1girl, solo',
+          'evil_neuro_sama.png',
+          prompt: '1girl, evil_neuro-sama, solo',
         );
 
         final imageId = await _seedStaleNoneRecord(dataSource, file);
@@ -117,18 +88,76 @@ void main() {
         final metadata = (await dataSource.getMetadataByImageIds([
           imageId,
         ]))[imageId];
-        final results = await dataSource.advancedSearch(
-          textQuery: 'shycocoa',
-          limit: 10,
-        );
 
         expect(imageRecord, isNotNull);
         expect(imageRecord!.metadataStatus, MetadataStatus.success);
-        expect(metadata, isNotNull);
-        expect(metadata!.prompt, contains('artist:shycocoa'));
-        expect(results, contains(imageId));
+        expect(metadata?.prompt, contains('evil_neuro-sama'));
+        for (final query in const [
+          'evil_neuro-sama',
+          'EVIL_NEURO-SAMA',
+          'evil neuro-sama',
+          'evil-neuro-sama',
+        ]) {
+          final results = await dataSource.advancedSearch(
+            textQuery: query,
+            limit: 10,
+          );
+          expect(results, contains(imageId), reason: 'query=$query');
+        }
       },
     );
+
+    test('immediate gallery add parses and indexes NovelAI tags', () async {
+      final file = await _createWrappedNovelAiPng(
+        tempDir,
+        'immediate_add.png',
+        prompt: '1girl, evil_neuro-sama, solo',
+      );
+      final repository = LocalGalleryRepository(dataSource: dataSource);
+
+      await repository.addImage(file);
+
+      final imageId = await dataSource.getImageIdByPath(file.path);
+      expect(imageId, isNotNull);
+      final imageRecord = await dataSource.getImageById(imageId!);
+      final metadata = (await dataSource.getMetadataByImageIds([
+        imageId,
+      ]))[imageId];
+      final results = await dataSource.advancedSearch(
+        textQuery: 'evil_neuro-sama',
+        limit: 10,
+      );
+
+      expect(imageRecord?.metadataStatus, MetadataStatus.success);
+      expect(metadata?.prompt, contains('evil_neuro-sama'));
+      expect(results, contains(imageId));
+    });
+
+    test('can explicitly skip stale unparsed records', () async {
+      final file = await _createWrappedNovelAiPng(
+        tempDir,
+        'stale_skip.png',
+        prompt: 'artist:shycocoa, 1girl, solo',
+      );
+
+      final imageId = await _seedStaleNoneRecord(dataSource, file);
+      final scanner = GalleryStreamScanner(dataSource: dataSource);
+
+      await scanner.startScanning(tempDir, retryMissingMetadata: false);
+
+      final imageRecord = await dataSource.getImageById(imageId);
+      final metadata = (await dataSource.getMetadataByImageIds([
+        imageId,
+      ]))[imageId];
+      final results = await dataSource.advancedSearch(
+        textQuery: 'shycocoa',
+        limit: 10,
+      );
+
+      expect(imageRecord?.metadataStatus, MetadataStatus.none);
+      expect(metadata, isNull);
+      expect(results, isNot(contains(imageId)));
+    });
 
     test(
       'should mark stale none records as failed when retry finds no metadata',

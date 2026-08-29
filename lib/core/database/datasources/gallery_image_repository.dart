@@ -769,7 +769,7 @@ class SqliteGalleryImageRepository implements GalleryImageRepository {
           stack,
           'GalleryDS',
         );
-        return {'success': 0, 'failed': 0, 'none': 0};
+        rethrow;
       }
     });
   }
