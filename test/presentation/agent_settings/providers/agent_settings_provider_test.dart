@@ -231,6 +231,62 @@ void main() {
     expect(persisted.chat.customSystemPrompt, 'Replacement prompt');
   });
 
+  test(
+    'builds the editable built-in prompt from current workspace and Skills',
+    () async {
+      final storage = _MemoryStorage();
+      storage.values[StorageKeys.agentSettingsJson] = const AgentSettings()
+          .encode();
+      final skillCatalog = _ControlledSkillCatalogService();
+      final container = ProviderContainer(
+        overrides: [
+          localStorageServiceProvider.overrideWithValue(storage),
+          secureStorageServiceProvider.overrideWithValue(
+            _MemorySecureStorage(),
+          ),
+          agentSettingsProvider.overrideWith(
+            (ref) => AgentSettingsNotifier(
+              ref,
+              supportDirectory: temp,
+              workspaceDirectory: temp,
+              environment: const {},
+              skillCatalogService: skillCatalog,
+            ),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      await _waitUntilInitialized(container);
+
+      final notifier = container.read(agentSettingsProvider.notifier);
+      final builtIn = notifier.buildDefaultSystemPrompt();
+      expect(builtIn, startsWith('You are the AI agent inside Aaalice'));
+      expect(builtIn, contains(temp.path));
+      expect(builtIn, contains('<name>test-skill</name>'));
+      expect(builtIn, contains('<description>test</description>'));
+
+      final appended = notifier.buildSystemPromptPreview(
+        customInstructions: 'Keep answers brief.',
+        mode: AgentSystemPromptMode.append,
+      );
+      expect(appended, contains(builtIn));
+      expect(
+        appended,
+        contains(
+          '<user_behavior_instructions>\nKeep answers brief.\n'
+          '</user_behavior_instructions>',
+        ),
+      );
+      expect(
+        notifier.buildSystemPromptPreview(
+          customInstructions: 'Replacement prompt',
+          mode: AgentSystemPromptMode.override,
+        ),
+        'Replacement prompt',
+      );
+    },
+  );
+
   test('persists legacy Agent settings as the current schema', () async {
     final storage = _MemoryStorage();
     storage.values[StorageKeys.agentSettingsJson] = jsonEncode({

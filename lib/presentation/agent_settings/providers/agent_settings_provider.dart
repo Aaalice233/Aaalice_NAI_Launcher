@@ -5,14 +5,17 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 
-import '../../../core/agent/skill_catalog.dart';
+import '../../../core/agent/agent_system_prompt.dart';
+import '../../../core/agent/harness/harness_types.dart';
 import '../../../core/agent/skill_archive_service.dart';
+import '../../../core/agent/skill_catalog.dart';
 import '../../../core/constants/storage_keys.dart';
 import '../../../core/network/web_access/web_access_models.dart';
 import '../../../core/storage/local_storage_service.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../data/models/agent/agent_settings.dart';
 import '../../../data/repositories/gallery_folder_repository.dart';
+import '../../agent_chat/services/agent_system_prompt.dart';
 import '../../providers/image_save_settings_provider.dart';
 import '../../prompt_assistant/models/prompt_assistant_models.dart';
 
@@ -86,6 +89,7 @@ class AgentSettingsNotifier extends StateNotifier<AgentSettingsState> {
   final Ref _ref;
   final SkillCatalogService _skillCatalogService;
   final Directory? _providedWorkspaceDirectory;
+  Directory? _resolvedWorkspaceDirectory;
   Directory? _supportDirectory;
   final Map<String, String>? _environment;
   final Future<Directory> Function()? _workspaceDirectoryResolver;
@@ -248,6 +252,41 @@ class AgentSettingsNotifier extends StateNotifier<AgentSettingsState> {
       chat: current.chat.copyWith(webAccessEnabled: enabled),
     ),
   );
+
+  String buildDefaultSystemPrompt() {
+    final workspaceDirectory =
+        _providedWorkspaceDirectory ??
+        _resolvedWorkspaceDirectory ??
+        (_supportDirectory == null
+            ? Directory.current
+            : Directory(
+                '${_supportDirectory!.path}${Platform.pathSeparator}agent'
+                '${Platform.pathSeparator}workspace',
+              ));
+    final skillBlock = formatSkillsForSystemPrompt(
+      state.skills.enabledSkillMap().values.toList(growable: false),
+    );
+    return buildAgentSystemPrompt(
+      workspacePath: workspaceDirectory.path,
+      webAccessEnabled: state.settings.chat.webAccessEnabled,
+      skillBlock: skillBlock,
+    );
+  }
+
+  String buildSystemPromptPreview({
+    required String customInstructions,
+    required AgentSystemPromptMode mode,
+  }) {
+    final builtInPrompt = buildDefaultSystemPrompt();
+    return composeAgentSystemPrompt(
+      builtInPrompt: builtInPrompt,
+      customInstructions: state.settings.chat.behaviorInstructions(
+        customPromptOverride: customInstructions,
+        modeOverride: mode,
+      ),
+      mode: mode,
+    );
+  }
 
   Future<void> saveCustomSystemPrompt({
     required AgentSystemPromptMode mode,
@@ -457,10 +496,14 @@ class AgentSettingsNotifier extends StateNotifier<AgentSettingsState> {
 
   Future<Directory?> _resolveWorkspaceDirectory() async {
     final resolver = _workspaceDirectoryResolver;
-    if (resolver != null) return resolver();
+    if (resolver != null) {
+      return _resolvedWorkspaceDirectory = await resolver();
+    }
     try {
       final root = await GalleryFolderRepository.instance.getRootPath();
-      if (root != null && root.isNotEmpty) return Directory(root);
+      if (root != null && root.isNotEmpty) {
+        return _resolvedWorkspaceDirectory = Directory(root);
+      }
     } catch (error) {
       AppLogger.w(
         'Gallery workspace lookup failed; project Skills are unavailable: '
@@ -468,6 +511,7 @@ class AgentSettingsNotifier extends StateNotifier<AgentSettingsState> {
         'AgentSettings',
       );
     }
+    _resolvedWorkspaceDirectory = null;
     return null;
   }
 }

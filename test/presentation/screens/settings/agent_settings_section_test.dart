@@ -215,11 +215,31 @@ void main() {
       );
       expect(find.text('追加'), findsOneWidget);
       expect(find.text('覆盖'), findsOneWidget);
-      expect(find.textContaining('保留内置说明与 Skills 列表'), findsOneWidget);
-
-      await tester.tap(find.text('覆盖'));
-      await tester.pumpAndSettle();
+      final promptMode = tester.widget<SegmentedButton<AgentSystemPromptMode>>(
+        find.byKey(const ValueKey('agent-system-prompt-mode')),
+      );
+      expect(promptMode.selected, {AgentSystemPromptMode.override});
+      final promptField = tester.widget<TextField>(
+        find.byKey(const ValueKey('agent-custom-system-prompt')),
+      );
+      expect(
+        promptField.controller!.text,
+        startsWith('You are the AI agent inside Aaalice'),
+      );
       expect(find.textContaining('仅将下方内容作为系统提示词'), findsOneWidget);
+
+      await tester.tap(find.text('追加'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('保留内置说明与 Skills 列表'), findsOneWidget);
+      expect(
+        tester
+            .widget<TextField>(
+              find.byKey(const ValueKey('agent-custom-system-prompt')),
+            )
+            .controller!
+            .text,
+        isEmpty,
+      );
       expect(tester.takeException(), isNull);
 
       for (final size in const [

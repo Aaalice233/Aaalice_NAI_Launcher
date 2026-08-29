@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:nai_launcher/data/models/agent/agent_settings.dart';
-import 'package:nai_launcher/presentation/agent_chat/providers/agent_chat_notifier.dart';
 import 'package:nai_launcher/presentation/agent_settings/providers/agent_prompt_draft_provider.dart';
 import 'package:nai_launcher/presentation/agent_settings/providers/agent_settings_provider.dart';
 import 'package:nai_launcher/presentation/widgets/common/app_toast.dart';
@@ -24,6 +23,7 @@ class _AgentSystemPromptEditorState
   late final TextEditingController _controller;
   bool _showPreview = false;
   String _preview = '';
+  String _defaultPrompt = '';
   int _previewRevision = 0;
   bool _syncScheduled = false;
 
@@ -52,16 +52,27 @@ class _AgentSystemPromptEditorState
 
   @override
   Widget build(BuildContext context) {
-    final settings = ref.watch(agentSettingsProvider).settings;
+    final settingsState = ref.watch(agentSettingsProvider);
+    final settings = settingsState.settings;
     final draft = ref.watch(agentPromptDraftProvider);
-    if (draft.saved != settings.chat.customSystemPrompt ||
-        draft.savedMode != settings.chat.systemPromptMode ||
+    _defaultPrompt = ref
+        .read(agentSettingsProvider.notifier)
+        .buildDefaultSystemPrompt();
+    final usesDefaultPrompt = settings.chat.customSystemPrompt.trim().isEmpty;
+    final saved = usesDefaultPrompt && _defaultPrompt.isNotEmpty
+        ? _defaultPrompt
+        : settings.chat.customSystemPrompt;
+    final savedMode = usesDefaultPrompt && _defaultPrompt.isNotEmpty
+        ? AgentSystemPromptMode.override
+        : settings.chat.systemPromptMode;
+    if (draft.saved != saved ||
+        draft.savedMode != savedMode ||
         _controller.text != draft.draft) {
-      _scheduleSynchronization(
-        settings.chat.customSystemPrompt,
-        settings.chat.systemPromptMode,
-      );
+      _scheduleSynchronization(saved, savedMode);
     }
+    final defaultDraft =
+        draft.draftMode == AgentSystemPromptMode.override &&
+        draft.draft == _defaultPrompt;
     return SettingsCard(
       navigation: widget.panelSelector,
       title: context.l10n.agentSettings_systemPrompt,
@@ -110,9 +121,7 @@ class _AgentSystemPromptEditorState
                       selected: {draft.draftMode},
                       onSelectionChanged: draft.saving
                           ? null
-                          : (selection) => ref
-                                .read(agentPromptDraftProvider.notifier)
-                                .updateMode(selection.single),
+                          : (selection) => _updateMode(selection.single, draft),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -145,14 +154,9 @@ class _AgentSystemPromptEditorState
                     spacing: 8,
                     children: [
                       TextButton(
-                        onPressed: draft.saving || draft.draft.isEmpty
+                        onPressed: draft.saving || defaultDraft
                             ? null
-                            : () {
-                                _controller.clear();
-                                ref
-                                    .read(agentPromptDraftProvider.notifier)
-                                    .updateDraft('');
-                              },
+                            : _restoreDefault,
                         child: Text(context.l10n.agentSettings_restoreDefault),
                       ),
                       FilledButton.icon(
@@ -175,6 +179,35 @@ class _AgentSystemPromptEditorState
                 ],
               ),
       ),
+    );
+  }
+
+  void _updateMode(AgentSystemPromptMode mode, AgentPromptDraftState draft) {
+    if (mode == draft.draftMode) return;
+    final notifier = ref.read(agentPromptDraftProvider.notifier);
+    if (mode == AgentSystemPromptMode.append && draft.draft == _defaultPrompt) {
+      _setControllerText('');
+      notifier.updateMode(mode);
+      return;
+    }
+    if (mode == AgentSystemPromptMode.override && draft.draft.trim().isEmpty) {
+      _setControllerText(_defaultPrompt);
+    }
+    notifier.updateMode(mode);
+  }
+
+  void _restoreDefault() {
+    _setControllerText(_defaultPrompt);
+    ref
+        .read(agentPromptDraftProvider.notifier)
+        .updateMode(AgentSystemPromptMode.override);
+  }
+
+  void _setControllerText(String text) {
+    if (_controller.text == text) return;
+    _controller.value = TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
     );
   }
 
@@ -201,14 +234,23 @@ class _AgentSystemPromptEditorState
   Future<void> _save(AgentPromptDraftState draft) async {
     final notifier = ref.read(agentPromptDraftProvider.notifier);
     notifier.beginSave();
+    final restoresDefault =
+        draft.draftMode == AgentSystemPromptMode.override &&
+        draft.draft == _defaultPrompt;
+    final persistedMode = restoresDefault
+        ? AgentSystemPromptMode.append
+        : draft.draftMode;
+    final persistedValue = restoresDefault ? '' : draft.draft;
     try {
       await ref
           .read(agentSettingsProvider.notifier)
-          .saveCustomSystemPrompt(mode: draft.draftMode, value: draft.draft);
+          .saveCustomSystemPrompt(mode: persistedMode, value: persistedValue);
       notifier.finishSave(
         revision: draft.revision,
-        saved: draft.draft,
-        savedMode: draft.draftMode,
+        saved: restoresDefault ? _defaultPrompt : draft.draft,
+        savedMode: restoresDefault
+            ? AgentSystemPromptMode.override
+            : draft.draftMode,
       );
       if (mounted) {
         AppToast.success(context, context.l10n.agentSettings_promptSaved);
@@ -230,8 +272,8 @@ class _AgentSystemPromptEditorState
       return;
     }
     final currentRevision = ++_previewRevision;
-    final preview = await ref
-        .read(agentChatNotifierProvider.notifier)
+    final preview = ref
+        .read(agentSettingsProvider.notifier)
         .buildSystemPromptPreview(
           customInstructions: ref.read(agentPromptDraftProvider).draft,
           mode: ref.read(agentPromptDraftProvider).draftMode,
