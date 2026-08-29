@@ -40,6 +40,7 @@ class ImageCardController extends ChangeNotifier {
 
   ImageCardViewData _data;
   ImageCardCapabilities _capabilities;
+  bool isPointerInside = false;
   bool isHovering = false;
   bool showPreparedIndexBadge = false;
   bool completedImageHasFrame = false;
@@ -127,9 +128,17 @@ class ImageCardController extends ChangeNotifier {
       scheduleCompletedImagePrecache(context);
     }
 
-    if ((!capabilities.hoverEffectsEnabled || !data.dragPreparationReady) &&
-        isHovering) {
+    final hoverEffectsBecameAvailable =
+        capabilities.hoverEffectsEnabled &&
+        data.dragPreparationReady &&
+        (!oldCapabilities.hoverEffectsEnabled || !oldData.dragPreparationReady);
+    if (!capabilities.hoverEffectsEnabled || !data.dragPreparationReady) {
       isHovering = false;
+    } else if (isPointerInside && hoverEffectsBecameAvailable) {
+      isHovering = true;
+      if (capabilities.enableGlossEffect) {
+        glossController.forward(from: 0);
+      }
     }
     if (!data.dragPreparationReady ||
         (!oldData.dragPreparationReady && data.dragPreparationReady)) {
@@ -154,6 +163,7 @@ class ImageCardController extends ChangeNotifier {
   }
 
   void hoverEnter({required VoidCallback warmShareCache}) {
+    isPointerInside = true;
     if (_capabilities.shareWarmupEnabled) {
       warmShareCache();
     }
@@ -168,6 +178,7 @@ class ImageCardController extends ChangeNotifier {
   }
 
   void hoverExit() {
+    isPointerInside = false;
     if (!_capabilities.hoverEffectsEnabled && !isHovering) return;
     if (isHovering) {
       isHovering = false;

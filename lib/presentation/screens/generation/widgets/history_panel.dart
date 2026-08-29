@@ -487,6 +487,10 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
       _historyScrollIdleTimer = Timer(const Duration(milliseconds: 250), () {
         if (!mounted) return;
         _setHistoryScrolling(false);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted || _isHistoryScrolling) return;
+          RendererBinding.instance.mouseTracker.updateAllDevices();
+        });
         final currentState = ref.read(imageGenerationNotifierProvider);
         final currentStripMetadata = ref
             .read(shareImageSettingsProvider)

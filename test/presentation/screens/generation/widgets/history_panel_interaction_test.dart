@@ -14,6 +14,7 @@ import 'package:nai_launcher/presentation/providers/image_generation_provider.da
 import 'package:nai_launcher/presentation/providers/shortcuts_provider.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/history_panel.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_detail/components/detail_top_bar.dart';
+import 'package:nai_launcher/presentation/widgets/common/image_card_hover_motion.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_detail/image_detail_viewer.dart';
 import 'package:nai_launcher/presentation/widgets/common/selectable_image_card.dart';
 
@@ -282,6 +283,61 @@ void main() {
     expect(
       scrollable.position.pixels,
       greaterThanOrEqualTo(latestPosition - 10),
+    );
+  });
+
+  testWidgets('scroll idle refreshes hover under a stationary pointer', (
+    tester,
+  ) async {
+    final images = [
+      for (var index = 0; index < 6; index++)
+        _image('hover-$index', kind: GeneratedImageKind.failedStreamSnapshot),
+    ];
+    final container = _createContainer(images);
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(_historyApp(container));
+    await tester.pumpAndSettle();
+
+    final firstCard = find.byKey(const ValueKey('hover-0'));
+    final pointerPosition = tester.getCenter(firstCard);
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(gesture.removePointer);
+    await gesture.addPointer(location: Offset.zero);
+    await gesture.moveTo(pointerPosition);
+    await tester.pump();
+
+    expect(
+      tester
+          .widget<ImageCardHoverMotion>(
+            find.descendant(
+              of: firstCard,
+              matching: find.byType(ImageCardHoverMotion),
+            ),
+          )
+          .hovered,
+      isTrue,
+    );
+
+    await tester.sendEventToBinding(
+      PointerScrollEvent(
+        position: pointerPosition,
+        scrollDelta: const Offset(0, 360),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump();
+
+    final scrollable = tester.state<ScrollableState>(find.byType(Scrollable));
+    expect(scrollable.position.pixels, greaterThan(0));
+    expect(
+      find
+          .byType(ImageCardHoverMotion)
+          .evaluate()
+          .map((element) => (element.widget as ImageCardHoverMotion).hovered)
+          .where((hovered) => hovered),
+      hasLength(1),
     );
   });
 
