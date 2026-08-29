@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -25,6 +27,7 @@ class GalleryGridItem extends StatefulWidget {
     required this.anchorKey,
     required this.onVisibilityChanged,
     required this.detailRequestScope,
+    required this.prepareMedia,
     required this.loadDetail,
     required this.buildCard,
   });
@@ -45,6 +48,7 @@ class GalleryGridItem extends StatefulWidget {
   )
   onVisibilityChanged;
   final Object detailRequestScope;
+  final Future<bool> Function(GalleryItem item, double itemWidth) prepareMedia;
   final Future<GalleryDetail> Function(
     GalleryItem item, {
     required GalleryDetailPriority priority,
@@ -89,6 +93,7 @@ class _GalleryGridItemState extends State<GalleryGridItem> {
   }
 
   void _handleVisibility(bool visible, double visibleTop) {
+    final visibilityChanged = _isVisible != visible;
     _isVisible = visible;
     widget.onVisibilityChanged(
       widget.index,
@@ -98,10 +103,13 @@ class _GalleryGridItemState extends State<GalleryGridItem> {
       visible,
       visibleTop,
     );
+    if (!mounted) return;
     if (visible && _needsDetail && _detailFuture == null) {
       setState(() {
         _detailFuture = _loadDetail();
       });
+    } else if (visibilityChanged) {
+      setState(() {});
     }
   }
 
@@ -161,11 +169,25 @@ class _GalleryGridItemState extends State<GalleryGridItem> {
         onVisibilityChanged: _handleVisibility,
         builder: (context, hasBeenVisible, isScrolling) {
           if (!_needsDetail) {
-            return _buildResourceCard(
-              context,
-              post,
-              layoutAspectRatio,
-              loadMedia: hasBeenVisible,
+            if (!hasBeenVisible) {
+              return _buildResourceCard(
+                context,
+                post,
+                layoutAspectRatio,
+                loadMedia: false,
+              );
+            }
+            return _PreparedGalleryMediaCard(
+              item: post,
+              itemWidth: widget.itemWidth,
+              visible: _isVisible,
+              prepareMedia: widget.prepareMedia,
+              builder: (loadMedia) => _buildResourceCard(
+                context,
+                post,
+                layoutAspectRatio,
+                loadMedia: loadMedia,
+              ),
             );
           }
           if (!hasBeenVisible) {
@@ -222,12 +244,22 @@ class _GalleryGridItemState extends State<GalleryGridItem> {
                   ),
                 );
               }
-              return _buildResourceCard(
-                context,
-                resolved,
-                layoutAspectRatio,
-                loadMedia: true,
-                detail: detail,
+              final resolvedAspectRatio =
+                  resolved.width > 0 && resolved.height > 0
+                  ? resolved.width / resolved.height
+                  : layoutAspectRatio;
+              return _PreparedGalleryMediaCard(
+                item: resolved,
+                itemWidth: widget.itemWidth,
+                visible: _isVisible,
+                prepareMedia: widget.prepareMedia,
+                builder: (loadMedia) => _buildResourceCard(
+                  context,
+                  resolved,
+                  resolvedAspectRatio,
+                  loadMedia: loadMedia,
+                  detail: detail,
+                ),
               );
             },
           );
@@ -235,4 +267,100 @@ class _GalleryGridItemState extends State<GalleryGridItem> {
       ),
     );
   }
+}
+
+class _PreparedGalleryMediaCard extends StatefulWidget {
+  const _PreparedGalleryMediaCard({
+    required this.item,
+    required this.itemWidth,
+    required this.visible,
+    required this.prepareMedia,
+    required this.builder,
+  });
+
+  final GalleryItem item;
+  final double itemWidth;
+  final bool visible;
+  final Future<bool> Function(GalleryItem item, double itemWidth) prepareMedia;
+  final Widget Function(bool loadMedia) builder;
+
+  @override
+  State<_PreparedGalleryMediaCard> createState() =>
+      _PreparedGalleryMediaCardState();
+}
+
+class _PreparedGalleryMediaCardState extends State<_PreparedGalleryMediaCard> {
+  static const _retryDelays = <Duration>[
+    Duration(seconds: 1),
+    Duration(seconds: 3),
+    Duration(seconds: 15),
+  ];
+
+  Timer? _retryTimer;
+  bool _ready = false;
+  bool _preparing = false;
+  int _revision = 0;
+  int _retryCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.visible) _prepare();
+  }
+
+  @override
+  void didUpdateWidget(covariant _PreparedGalleryMediaCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final requestChanged =
+        oldWidget.item.stableKey != widget.item.stableKey ||
+        oldWidget.item.previewUrl != widget.item.previewUrl ||
+        oldWidget.itemWidth != widget.itemWidth;
+    if (requestChanged) {
+      _retryTimer?.cancel();
+      _revision++;
+      _ready = false;
+      _preparing = false;
+      _retryCount = 0;
+    }
+    if (!widget.visible) {
+      _retryTimer?.cancel();
+      return;
+    }
+    if (requestChanged || !oldWidget.visible) _prepare();
+  }
+
+  void _prepare() {
+    if (_ready || _preparing || !widget.visible) return;
+    _retryTimer?.cancel();
+    _preparing = true;
+    final revision = ++_revision;
+    widget.prepareMedia(widget.item, widget.itemWidth).then((ready) {
+      if (!mounted || revision != _revision) return;
+      _preparing = false;
+      if (ready) {
+        _retryCount = 0;
+        setState(() => _ready = true);
+        return;
+      }
+      if (!widget.visible) return;
+      if (_retryCount >= _retryDelays.length) {
+        // Preparation only warms the shared cache. After bounded retries,
+        // reveal the real image widget so its normal error UI remains the
+        // source of truth instead of polling a broken URL forever.
+        setState(() => _ready = true);
+        return;
+      }
+      _retryTimer = Timer(_retryDelays[_retryCount++], _prepare);
+    });
+  }
+
+  @override
+  void dispose() {
+    _retryTimer?.cancel();
+    _revision++;
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.builder(_ready);
 }

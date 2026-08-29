@@ -310,6 +310,7 @@ class _OnlineGalleryContentPresenter {
         state.currentCacheKey,
         _galleryNotifier.detailRequestScopeRevision,
       ),
+      prepareMedia: _scrollCoordinator.prepareVisibleMedia,
       loadDetail: (item, {required priority, forceRefresh = false}) =>
           _galleryNotifier.loadDetail(
             item,

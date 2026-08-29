@@ -1,3 +1,4 @@
+import 'dart:collection';
 import 'dart:io';
 
 import '../utils/app_logger.dart';
@@ -10,6 +11,7 @@ import '../utils/app_logger.dart';
 class SystemProxyHttpOverrides extends HttpOverrides {
   /// 代理配置字符串
   final String _proxyString;
+  final LinkedHashSet<String> _loggedRoutes = LinkedHashSet<String>();
 
   /// 构造函数
   ///
@@ -24,10 +26,13 @@ class SystemProxyHttpOverrides extends HttpOverrides {
     // 设置代理配置
     // findProxy 回调接收请求 URI，返回代理字符串
     client.findProxy = (uri) {
-      AppLogger.d(
-        'Proxy request for: ${uri.host}:${uri.port} -> $_proxyString',
-        'PROXY',
-      );
+      final route = '${uri.host}:${uri.port}';
+      if (_loggedRoutes.add(route)) {
+        AppLogger.d('Proxy route: $route -> $_proxyString', 'PROXY');
+        if (_loggedRoutes.length > 64) {
+          _loggedRoutes.remove(_loggedRoutes.first);
+        }
+      }
       return _proxyString;
     };
 

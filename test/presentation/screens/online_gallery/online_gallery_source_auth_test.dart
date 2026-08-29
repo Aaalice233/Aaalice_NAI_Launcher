@@ -911,8 +911,9 @@ void main() {
     expect(find.byKey(const ValueKey('danbooru:401')), findsOneWidget);
     expect(
       tester
-          .widget<CachedNetworkImage>(find.byType(CachedNetworkImage).first)
-          .imageUrl,
+          .widget<DanbooruPostCard>(find.byType(DanbooruPostCard))
+          .post
+          .previewUrl,
       contains('page-1'),
     );
 
@@ -935,8 +936,9 @@ void main() {
     expect(find.byKey(const ValueKey('danbooru:402')), findsOneWidget);
     expect(
       tester
-          .widget<CachedNetworkImage>(find.byType(CachedNetworkImage).first)
-          .imageUrl,
+          .widget<DanbooruPostCard>(find.byType(DanbooruPostCard))
+          .post
+          .previewUrl,
       contains('page-2'),
     );
     expect(
