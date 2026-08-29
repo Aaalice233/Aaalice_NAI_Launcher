@@ -25,8 +25,6 @@
   <a href="https://discord.gg/R48n6GwXzD">Join Discord</a>
 </p>
 
-> **The current version is still in beta.** Features are actively being refined; back up important data before upgrading.
->
 > NAI Launcher is a third-party client, not an official NovelAI product. Before using online features, make sure you have your own NovelAI account and follow the applicable terms of service and local laws.
 
 ![Generation workspace](docs/screenshots/generation-desktop.png)

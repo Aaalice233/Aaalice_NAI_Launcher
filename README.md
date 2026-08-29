@@ -25,8 +25,6 @@
   <a href="https://discord.gg/R48n6GwXzD">加入 Discord</a>
 </p>
 
-> **当前版本仍处于 beta 阶段。** 功能持续完善中，升级前请先备份重要数据。
->
 > NAI Launcher 是 NovelAI 的第三方客户端，并非 NovelAI 官方产品。使用在线功能前，请确保你拥有自己的 NovelAI 账号，并遵守相关服务条款与当地法律。
 
 ![生成工作台](docs/screenshots/generation-desktop.png)
