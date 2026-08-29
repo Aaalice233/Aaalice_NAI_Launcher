@@ -131,6 +131,9 @@ class _GenerationSettingsSectionState
     final straightAlpha = ref.watch(
       generationParamsNotifierProvider.select((params) => params.straightAlpha),
     );
+    final streamPreviewEnabled = ref.watch(
+      generationStreamPreviewSettingsProvider,
+    );
     final storage = ref.watch(localStorageServiceProvider);
     final notificationSettings = ref.watch(
       notificationSettingsNotifierProvider,
@@ -203,58 +206,83 @@ class _GenerationSettingsSectionState
         ),
         SettingsCard(
           title: l10n.settings_generationOutputSection,
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final selector = SegmentedButton<bool>(
-                key: const Key('settings-alpha-mode-selector'),
-                segments: [
-                  ButtonSegment<bool>(
-                    value: true,
-                    label: Text(l10n.settings_alphaModeStraight),
-                  ),
-                  ButtonSegment<bool>(
-                    value: false,
-                    label: Text(l10n.settings_alphaModePremultiplied),
-                  ),
-                ],
-                selected: {straightAlpha},
-                showSelectedIcon: false,
-                onSelectionChanged: (selection) {
-                  ref
-                      .read(generationParamsNotifierProvider.notifier)
-                      .updateStraightAlpha(selection.single);
-                },
-              );
-              final tile = ListTile(
-                leading: const Icon(Icons.layers_outlined),
-                title: Text(l10n.settings_alphaModeTitle),
-                subtitle: Text(
-                  straightAlpha
-                      ? l10n.settings_alphaModeStraightDescription
-                      : l10n.settings_alphaModePremultipliedDescription,
-                ),
-                trailing: constraints.maxWidth >= 680 ? selector : null,
-              );
-
-              if (constraints.maxWidth >= 680) {
-                return tile;
-              }
-              return Column(
-                children: [
-                  tile,
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                    child: Align(
-                      alignment: Alignment.centerRight,
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: selector,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SwitchListTile(
+                secondary: const Icon(Icons.preview_outlined),
+                title: Text(l10n.settings_generationStreamPreview),
+                subtitle: Text(l10n.settings_generationStreamPreviewSubtitle),
+                value: streamPreviewEnabled,
+                onChanged: (value) async {
+                  final messenger = ScaffoldMessenger.maybeOf(context);
+                  try {
+                    await ref
+                        .read(generationStreamPreviewSettingsProvider.notifier)
+                        .set(value);
+                  } catch (error) {
+                    messenger?.showSnackBar(
+                      SnackBar(
+                        content: Text(l10n.globalSettings_saveFailed('$error')),
                       ),
+                    );
+                  }
+                },
+              ),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final selector = SegmentedButton<bool>(
+                    key: const Key('settings-alpha-mode-selector'),
+                    segments: [
+                      ButtonSegment<bool>(
+                        value: true,
+                        label: Text(l10n.settings_alphaModeStraight),
+                      ),
+                      ButtonSegment<bool>(
+                        value: false,
+                        label: Text(l10n.settings_alphaModePremultiplied),
+                      ),
+                    ],
+                    selected: {straightAlpha},
+                    showSelectedIcon: false,
+                    onSelectionChanged: (selection) {
+                      ref
+                          .read(generationParamsNotifierProvider.notifier)
+                          .updateStraightAlpha(selection.single);
+                    },
+                  );
+                  final tile = ListTile(
+                    leading: const Icon(Icons.layers_outlined),
+                    title: Text(l10n.settings_alphaModeTitle),
+                    subtitle: Text(
+                      straightAlpha
+                          ? l10n.settings_alphaModeStraightDescription
+                          : l10n.settings_alphaModePremultipliedDescription,
                     ),
-                  ),
-                ],
-              );
-            },
+                    trailing: constraints.maxWidth >= 680 ? selector : null,
+                  );
+
+                  if (constraints.maxWidth >= 680) {
+                    return tile;
+                  }
+                  return Column(
+                    children: [
+                      tile,
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: selector,
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ],
           ),
         ),
         SettingsCard(

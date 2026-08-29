@@ -222,6 +222,8 @@
   "settings_generationOutputSection": "影象輸出",
   "settings_generationRetrySection": "失敗重試",
   "settings_generationFeedbackSection": "完成提醒",
+  "settings_generationStreamPreview": "串流預覽",
+  "settings_generationStreamPreviewSubtitle": "生成時顯示中間圖像；關閉後將直接等待最終圖像。",
   "settings_alphaModeTitle": "透明影象 Alpha 模式",
   "settings_alphaModeStraight": "直通（Straight）",
   "settings_alphaModePremultiplied": "預乘（Premultiplied）",

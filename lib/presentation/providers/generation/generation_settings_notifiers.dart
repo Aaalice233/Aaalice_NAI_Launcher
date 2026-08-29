@@ -187,6 +187,52 @@ class RandomPromptToolsVisibility extends _$RandomPromptToolsVisibility {
   }
 }
 
+/// 生成时流式预览设置 Notifier
+@Riverpod(keepAlive: true)
+class GenerationStreamPreviewSettings
+    extends _$GenerationStreamPreviewSettings {
+  LocalStorageService get _storage => ref.read(localStorageServiceProvider);
+
+  Future<void> _writeQueue = Future<void>.value();
+  late bool _lastConfirmedValue;
+  int _latestRevision = 0;
+
+  @override
+  bool build() {
+    final storedValue = _storage.getGenerationStreamPreviewEnabled();
+    _lastConfirmedValue = storedValue;
+    return storedValue;
+  }
+
+  Future<void> set(bool value) {
+    final revision = ++_latestRevision;
+    state = value;
+
+    final operation = _writeQueue.then<void>((_) async {
+      try {
+        await _storage.setGenerationStreamPreviewEnabled(value);
+        _lastConfirmedValue = value;
+      } catch (error, stackTrace) {
+        if (revision == _latestRevision) {
+          state = _lastConfirmedValue;
+        }
+        AppLogger.e(
+          'Failed to persist generation stream preview setting',
+          error,
+          stackTrace,
+        );
+        rethrow;
+      }
+    });
+
+    _writeQueue = operation.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace _) {},
+    );
+    return operation;
+  }
+}
+
 /// 每次请求生成图片数量设置 Notifier（1-4张）
 @Riverpod(keepAlive: true)
 class ImagesPerRequest extends _$ImagesPerRequest {

@@ -294,6 +294,8 @@ final kritaBridgeNotifierProvider =
               .round()
               .clamp(16, 192)
               .toInt(),
+          readStreamPreviewEnabled: () =>
+              ref.read(generationStreamPreviewSettingsProvider),
           send: server.send,
           isUiGenerating: () =>
               ref.read(imageGenerationNotifierProvider).isGenerating,

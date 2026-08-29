@@ -1235,6 +1235,18 @@ abstract class AppLocalizations {
   /// **'Completion Alert'**
   String get settings_generationFeedbackSection;
 
+  /// No description provided for @settings_generationStreamPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Streaming preview'**
+  String get settings_generationStreamPreview;
+
+  /// No description provided for @settings_generationStreamPreviewSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Show intermediate images while generating. Turn this off to wait for the final image instead.'**
+  String get settings_generationStreamPreviewSubtitle;
+
   /// No description provided for @settings_alphaModeTitle.
   ///
   /// In en, this message translates to:

@@ -392,6 +392,20 @@ class LocalStorageService {
     await setSetting(StorageKeys.showRandomPromptTools, value);
   }
 
+  /// 获取生成时是否启用流式预览（默认开启）
+  bool getGenerationStreamPreviewEnabled() {
+    return getSetting<bool>(
+          StorageKeys.generationStreamPreviewEnabled,
+          defaultValue: true,
+        ) ??
+        true;
+  }
+
+  /// 保存生成时是否启用流式预览
+  Future<void> setGenerationStreamPreviewEnabled(bool value) async {
+    await setSetting(StorageKeys.generationStreamPreviewEnabled, value);
+  }
+
   /// 获取随机生成算法模式
   String getRandomGenerationMode() {
     return getSetting<String>(

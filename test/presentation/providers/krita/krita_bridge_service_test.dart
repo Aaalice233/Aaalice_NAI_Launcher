@@ -514,6 +514,52 @@ void main() {
     });
 
     test(
+      'disabled stream preview sends Krita generation directly to fallback',
+      () async {
+        final sent = <Map<String, dynamic>>[];
+        final finalImage = Uint8List.fromList([7, 8, 9]);
+        var streamCalls = 0;
+        var fallbackCalls = 0;
+
+        final service = KritaBridgeService(
+          readBaseParams: () => const ImageParams(),
+          readStreamPreviewEnabled: () => false,
+          send: sent.add,
+          isUiGenerating: () => false,
+          authGuard: () => true,
+          generateStream: (_) {
+            streamCalls++;
+            return const Stream.empty();
+          },
+          generateFallback: (_) async {
+            fallbackCalls++;
+            return [ImageGenerationArtifact(displayImageBytes: finalImage)];
+          },
+          registerExternalImage: (_, {required params, addToDisplay}) async =>
+              null,
+          cancelGeneration: () {},
+        );
+
+        await service.handle(
+          KritaImg2ImgMessage(
+            id: 'img-no-preview',
+            image: Uint8List.fromList([1, 2, 3]),
+            prompt: 'cat',
+            negativePrompt: '',
+            strength: 0.5,
+            noise: 0,
+          ),
+        );
+
+        expect(streamCalls, 0);
+        expect(fallbackCalls, 1);
+        expect(sent, hasLength(1));
+        expect(sent.single['type'], 'result');
+        expect(base64Decode(sent.single['image'] as String), finalImage);
+      },
+    );
+
+    test(
       'relays stream progress, result, and registers history image',
       () async {
         final sent = <Map<String, dynamic>>[];

@@ -19,6 +19,7 @@ typedef KritaBridgePromptSnapshotReader =
     KritaBridgePromptSnapshot Function(ImageParams params);
 typedef KritaBridgeMinimumContextReader = int Function();
 typedef KritaBridgeBusyReader = bool Function();
+typedef KritaBridgeStreamPreviewReader = bool Function();
 typedef KritaBridgeAuthGuard = bool Function();
 typedef KritaBridgeSender = void Function(Map<String, dynamic> message);
 typedef KritaBridgeStreamGenerator =
@@ -75,6 +76,7 @@ class KritaBridgeService implements KritaBridgeMessageService {
     KritaBridgePostBillingRefresh? schedulePostBillingRefresh,
     KritaBridgePromptSnapshotReader? readPromptSnapshot,
     KritaBridgeMinimumContextReader? readMinimumContextPixels,
+    KritaBridgeStreamPreviewReader? readStreamPreviewEnabled,
     KritaBridgeClock? clock,
     Duration failureCooldown = const Duration(seconds: 2),
   }) : _readBaseParams = readBaseParams,
@@ -92,11 +94,13 @@ class KritaBridgeService implements KritaBridgeMessageService {
        _schedulePostBillingRefresh = schedulePostBillingRefresh ?? _noop,
        _clock = clock ?? DateTime.now,
        _failureCooldown = failureCooldown,
-       _readMinimumContextPixels = readMinimumContextPixels ?? (() => 88);
+       _readMinimumContextPixels = readMinimumContextPixels ?? (() => 88),
+       _readStreamPreviewEnabled = readStreamPreviewEnabled ?? (() => true);
 
   final KritaBridgeBaseParamsReader _readBaseParams;
   final KritaBridgePromptSnapshotReader _readPromptSnapshot;
   final KritaBridgeMinimumContextReader _readMinimumContextPixels;
+  final KritaBridgeStreamPreviewReader _readStreamPreviewEnabled;
   final KritaBridgeSender _send;
   final KritaBridgeBusyReader _isUiGenerating;
   final KritaBridgeAuthGuard _authGuard;
@@ -337,7 +341,7 @@ class KritaBridgeService implements KritaBridgeMessageService {
   Future<ImageGenerationArtifact?> _generateImage(
     KritaBridgeGenerateRequest request,
   ) async {
-    if (_shouldUseDirectFallback(request)) {
+    if (!_readStreamPreviewEnabled() || _shouldUseDirectFallback(request)) {
       final fallback = await _generateFallback(request);
       return fallback.isEmpty ? null : fallback.first;
     }

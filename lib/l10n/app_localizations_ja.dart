@@ -606,6 +606,13 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settings_generationFeedbackSection => '完了通知';
 
   @override
+  String get settings_generationStreamPreview => 'ストリーミングプレビュー';
+
+  @override
+  String get settings_generationStreamPreviewSubtitle =>
+      '生成中に途中画像を表示します。オフにすると最終画像が完成するまで待機します。';
+
+  @override
   String get settings_alphaModeTitle => '透過画像のアルファモード';
 
   @override

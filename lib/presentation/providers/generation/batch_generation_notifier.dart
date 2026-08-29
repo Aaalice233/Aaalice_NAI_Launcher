@@ -7,6 +7,7 @@ import '../../../core/utils/app_logger.dart';
 import '../../../data/datasources/remote/nai_image_generation_api_service.dart';
 import '../../../data/models/image/image_params.dart';
 import 'generation_models.dart';
+import 'generation_settings_notifiers.dart';
 import 'image_generation_service.dart';
 
 part 'batch_generation_notifier.g.dart';
@@ -327,6 +328,7 @@ class BatchGenerationNotifier extends _$BatchGenerationNotifier {
 
       final service = ImageGenerationService(
         apiService: ref.read(naiImageGenerationApiServiceProvider),
+        streamPreviewEnabled: ref.read(generationStreamPreviewSettingsProvider),
       );
       _activeServices.add(service);
       late final ImageGenerationResult result;
