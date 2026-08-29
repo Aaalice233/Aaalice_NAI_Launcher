@@ -27,6 +27,8 @@ final class ResolvedAgentResource {
     this.text,
     this.vibeEntryId,
     this.preciseReferenceEntryId,
+    this.onlineGalleryItem,
+    this.onlineGalleryDetail,
   });
 
   final AgentChatResourceReference reference;
@@ -39,6 +41,8 @@ final class ResolvedAgentResource {
   final String? text;
   final String? vibeEntryId;
   final String? preciseReferenceEntryId;
+  final GalleryItem? onlineGalleryItem;
+  final GalleryDetail? onlineGalleryDetail;
 }
 
 typedef InpaintDraftImageLoader =
@@ -327,6 +331,8 @@ class AgentResourceResolver {
       bytes: await file.readAsBytes(),
       filePath: file.path,
       text: media.prompt ?? detail.prompt,
+      onlineGalleryItem: detail.item.copyWith(focusedMediaId: media.id),
+      onlineGalleryDetail: detail,
     );
   }
 

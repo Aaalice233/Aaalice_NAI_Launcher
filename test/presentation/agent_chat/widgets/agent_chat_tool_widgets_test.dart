@@ -10,6 +10,8 @@ import 'package:nai_launcher/core/agent/agent_types.dart';
 import 'package:nai_launcher/core/agent/resources/agent_chat_resource_reference.dart';
 import 'package:nai_launcher/core/agent/resources/agent_chat_resource_reference_codec.dart';
 import 'package:nai_launcher/core/shortcuts/shortcut_config.dart';
+import 'package:nai_launcher/data/models/online_gallery/gallery_item.dart';
+import 'package:nai_launcher/data/models/online_gallery/gallery_source.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/agent_chat/providers/agent_chat_state.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/agent_resource_resolver.dart';
@@ -18,6 +20,7 @@ import 'package:nai_launcher/presentation/providers/shortcuts_provider.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_detail/file_image_detail_data.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_detail/image_detail_data.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_detail/image_detail_viewer.dart';
+import 'package:nai_launcher/presentation/widgets/online_gallery/gallery_detail_dialog.dart';
 
 void main() {
   Future<void> pumpResult(WidgetTester tester, ToolResultMessage result) async {
@@ -440,11 +443,90 @@ void main() {
       find.byKey(const ValueKey('online-gallery-resource-card')),
       findsNWidgets(3),
     );
-    expect(find.text('Danbooru'), findsNWidgets(3));
+    expect(find.text('Danbooru'), findsNothing);
     expect(find.text('Ibuki 1'), findsOneWidget);
     expect(find.text('Artist 2'), findsOneWidget);
     expect(find.byType(Wrap), findsWidgets);
   });
+
+  testWidgets(
+    'online gallery card opens gallery detail instead of PNG metadata',
+    (tester) async {
+      final reference = AgentChatResourceReference(
+        kind: AgentChatResourceKind.onlineGalleryMedia,
+        source: 'danbooru',
+        resourceId: '42',
+        mediaId: '42',
+      );
+      const media = GalleryMedia(id: '42', width: 832, height: 1216);
+      const item = GalleryItem(
+        id: 42,
+        sourceId: GallerySourceId.danbooru,
+        title: 'Ibuki',
+        tagString: 'ibuki blue_archive',
+        cover: media,
+      );
+      const detail = GalleryDetail(
+        item: item,
+        media: [media],
+        rawTags: ['ibuki', 'blue_archive'],
+      );
+      final result = ToolResultMessage(
+        toolCallId: 'display-online-detail',
+        toolName: 'display_images',
+        content: [
+          ToolResultImageContent(
+            ImageContent(
+              source: ImageSource.base64(
+                mimeType: 'image/png',
+                base64Data: base64Encode(_onePixelPng),
+              ),
+            ),
+          ),
+        ],
+        details: {
+          'images': [
+            {
+              'resource_ref': AgentChatResourceReferenceCodec.encodeJsonMap(
+                reference,
+              ),
+            },
+          ],
+        },
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: AgentChatToolResultMedia(
+                result: result,
+                resolveResource: (_) async => ResolvedAgentResource(
+                  reference: reference,
+                  label: 'Ibuki',
+                  bytes: _onePixelPng,
+                  onlineGalleryItem: item,
+                  onlineGalleryDetail: detail,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(
+        find.byKey(const ValueKey('online-gallery-resource-card')),
+      );
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.byType(GalleryDetailDialog), findsOneWidget);
+      expect(find.byType(ImageDetailViewer), findsNothing);
+      await tester.pump(const Duration(milliseconds: 1));
+    },
+  );
 
   testWidgets('tool group hides failure payload until explicitly expanded', (
     tester,

@@ -16,6 +16,7 @@ import '../../../core/utils/nai_resolution_adapter.dart';
 import '../../../data/models/gallery/local_image_record.dart';
 import '../../utils/image_detail_opener.dart';
 import '../../providers/krita/krita_bridge_notifier.dart';
+import '../../screens/online_gallery/online_gallery_detail_launcher.dart';
 import '../../services/image_send_action_dispatcher.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/image_card_hover_motion.dart';
@@ -1034,7 +1035,17 @@ class _ToolResultResourcePreviewState
         AppToast.error(context, context.l10n.agentChat_resourceUnavailable);
         return;
       }
-      if (resolved.filePath case final path?) {
+      if (resolved.onlineGalleryItem case final item?) {
+        final detail = resolved.onlineGalleryDetail;
+        if (detail == null) {
+          AppToast.error(context, context.l10n.agentChat_resourceUnavailable);
+          return;
+        }
+        await OnlineGalleryDetailLauncher(
+          context: context,
+          ref: ref,
+        ).show(context, item, preloadedDetail: detail);
+      } else if (resolved.filePath case final path?) {
         ImageDetailOpener.showSingleImmediate(
           context,
           image: FileImageDetailData(filePath: path),
@@ -1109,6 +1120,7 @@ class _OnlineGalleryResourceCard extends StatelessWidget {
     final source = reference.display['source_label'] ?? reference.source;
     final title = reference.display['title'];
     final author = reference.display['author'];
+    final hasDetails = title != null || author != null;
     return Semantics(
       button: true,
       label: [source, title, author].whereType<String>().join(', '),
@@ -1129,42 +1141,33 @@ class _OnlineGalleryResourceCard extends StatelessWidget {
                   child: image,
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(10, 8, 10, 9),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      source,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.primary,
-                      ),
-                    ),
-                    if (title != null) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.labelLarge,
-                      ),
-                    ],
-                    if (author != null) ...[
-                      const SizedBox(height: 1),
-                      Text(
-                        author,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
+              if (hasDetails)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(10, 8, 10, 9),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (title != null)
+                        Text(
+                          title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.labelLarge,
                         ),
-                      ),
+                      if (author != null) ...[
+                        if (title != null) const SizedBox(height: 1),
+                        Text(
+                          author,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
-              ),
             ],
           ),
         ),

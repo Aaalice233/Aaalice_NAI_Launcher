@@ -183,7 +183,7 @@ void main() {
         final trailingTool = ToolResultMessage(
           toolCallId: 'call',
           toolName: 'read',
-          content: [ToolResultTextContent('tool output')],
+          content: const [ToolResultTextContent('tool output')],
         );
         final usage = resolveAgentContextUsage([
           _assistant('done', usage: const Usage(totalTokens: 100)),
