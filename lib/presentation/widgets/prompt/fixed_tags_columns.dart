@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/utils/localization_extension.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference.dart';
+import '../../../core/platform/platform_capabilities.dart';
+import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/fixed_tag/fixed_tag_entry.dart';
 import '../../../data/models/fixed_tag/fixed_tag_prompt_type.dart';
 import '../../../data/models/tag_library/tag_library_entry.dart';
@@ -393,6 +394,9 @@ class _EntryList extends StatelessWidget {
       final content = libraryEntry == null
           ? tile
           : TagLibraryEntryHoverPreview(entry: libraryEntry, child: tile);
+      if (PlatformCapabilities.current.hasTouchInput) {
+        return KeyedSubtree(key: ValueKey(entry.id), child: content);
+      }
       return AgentResourceDragSource(
         key: ValueKey(entry.id),
         reference: AgentChatResourceReference(

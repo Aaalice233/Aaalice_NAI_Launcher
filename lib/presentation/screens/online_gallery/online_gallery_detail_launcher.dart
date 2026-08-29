@@ -21,10 +21,10 @@ import '../../providers/character_prompt_provider.dart';
 import '../../providers/online_gallery_output_filter_provider.dart';
 import '../../providers/online_gallery_prompt_tag_settings_provider.dart';
 import '../../providers/online_gallery_provider.dart';
-import '../../providers/pending_prompt_provider.dart';
 import '../../providers/replication_queue_provider.dart';
 import '../../providers/reverse_prompt_provider.dart';
 import '../../services/gallery_prompt_projection_service.dart';
+import '../../services/generation_prompt_transfer_service.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/online_gallery/gallery_detail_dialog.dart';
 import 'online_gallery_screen_controller.dart';
@@ -569,8 +569,8 @@ class OnlineGalleryDetailLauncher {
         .read(characterPromptNotifierProvider.notifier)
         .replaceAll(_codexCharacters(item, projection));
     ref
-        .read(pendingPromptNotifierProvider.notifier)
-        .set(
+        .read(generationPromptTransferServiceProvider)
+        .replaceMainPrompt(
           prompt: projection.positivePrompt,
           negativePrompt: projection.negativePrompt,
         );

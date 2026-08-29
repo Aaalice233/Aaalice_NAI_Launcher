@@ -88,6 +88,31 @@ void main() {
   );
 
   test(
+    'explicit tool access loads while the gallery page remains paused',
+    () async {
+      final adapter = _FakeGalleryAdapter(
+        GallerySourceId.danbooru,
+        onSearch: (request, _) async =>
+            _page(request.cursor, [_item(1)], nextCursor: null),
+      );
+      final container = _container(danbooru: adapter);
+      addTearDown(container.dispose);
+      final notifier = container.read(onlineGalleryNotifierProvider.notifier);
+
+      notifier.setBackgroundNetworkPaused(true);
+      await notifier.runWithExplicitNetworkAccess(
+        () => notifier.search('blue_archive'),
+      );
+
+      expect(adapter.searchQueries, ['blue_archive']);
+      expect(container.read(onlineGalleryNotifierProvider).posts, hasLength(1));
+
+      await notifier.search('should_remain_paused');
+      expect(adapter.searchQueries, ['blue_archive']);
+    },
+  );
+
+  test(
     'background pause resumes an interrupted append from the same cursor',
     () async {
       final appendStarted = Completer<void>();

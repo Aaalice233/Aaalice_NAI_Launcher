@@ -1,7 +1,13 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/agent/agent_types.dart';
+import 'package:nai_launcher/core/storage/local_storage_service.dart';
+import 'package:nai_launcher/data/datasources/remote/online_gallery/gallery_source_adapter.dart';
+import 'package:nai_launcher/data/models/online_gallery/gallery_item.dart';
+import 'package:nai_launcher/data/models/online_gallery/gallery_source.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/online_gallery_toolbox.dart';
+import 'package:nai_launcher/presentation/providers/online_gallery_provider.dart';
 
 final _refProvider = Provider<Ref>((ref) => ref);
 
@@ -76,4 +82,117 @@ void main() {
       contains('never displays'),
     );
   });
+
+  test('browse loads results while the gallery page is hidden', () async {
+    final adapter = _ToolGalleryAdapter();
+    final toolContainer = ProviderContainer(
+      overrides: [
+        localStorageServiceProvider.overrideWithValue(_MemoryStorage()),
+        onlineGalleryTagMetadataLoaderProvider.overrideWithValue(
+          (_) async => const {},
+        ),
+        onlineGallerySourceAdaptersProvider.overrideWithValue({
+          for (final source in GallerySourceId.values)
+            source: source == GallerySourceId.danbooru
+                ? adapter
+                : _EmptyGalleryAdapter(source),
+        }),
+      ],
+    );
+    addTearDown(toolContainer.dispose);
+    final notifier = toolContainer.read(onlineGalleryNotifierProvider.notifier);
+    notifier.setBackgroundNetworkPaused(true);
+    final browse = OnlineGalleryToolbox(
+      toolContainer.read(_refProvider),
+    ).tools().singleWhere((tool) => tool.name == 'browse_online_gallery');
+
+    final result = await browse.execute('hidden-gallery', {
+      'source': 'danbooru',
+      'mode': 'search',
+      'query': 'blue_archive',
+      'limit': 5,
+    });
+
+    expect(result.isError, isFalse);
+    expect((result.details['items'] as List), hasLength(1));
+    expect(adapter.queries, ['blue_archive']);
+  });
+}
+
+class _MemoryStorage extends LocalStorageService {
+  final Map<String, Object?> _values = {};
+
+  @override
+  T? getSetting<T>(String key, {T? defaultValue}) =>
+      (_values[key] ?? defaultValue) as T?;
+
+  @override
+  Future<void> setSetting<T>(String key, T value) async {
+    _values[key] = value;
+  }
+
+  @override
+  Future<void> deleteSetting(String key) async {
+    _values.remove(key);
+  }
+}
+
+class _ToolGalleryAdapter extends GallerySourceAdapter {
+  final List<String> queries = [];
+
+  @override
+  GallerySourceId get sourceId => GallerySourceId.danbooru;
+
+  @override
+  Future<GalleryPage> search(
+    GallerySearchRequest request, {
+    CancelToken? cancelToken,
+  }) async {
+    queries.add(request.query);
+    final item = GalleryItem(
+      id: 1,
+      sourceId: sourceId,
+      createdAt: '2026-08-30',
+      uploaderId: 1,
+      width: 768,
+      height: 1024,
+      rating: 'g',
+      tags: const ['blue_archive'],
+      cover: const GalleryMedia(
+        id: '1',
+        previewUrl: 'https://example.test/preview.webp',
+        displayUrl: 'https://example.test/image.webp',
+        downloadUrl: 'https://example.test/image.webp',
+        width: 768,
+        height: 1024,
+        extension: 'webp',
+      ),
+    );
+    return GalleryPage(
+      items: [item],
+      cursor: request.cursor,
+      nextCursor: null,
+      hasMore: false,
+      rawItemCount: 1,
+    );
+  }
+}
+
+class _EmptyGalleryAdapter extends GallerySourceAdapter {
+  _EmptyGalleryAdapter(this.sourceId);
+
+  @override
+  final GallerySourceId sourceId;
+
+  @override
+  Future<GalleryPage> search(
+    GallerySearchRequest request, {
+    CancelToken? cancelToken,
+  }) async => GalleryPage(
+    items: const [],
+    cursor: request.cursor,
+    nextCursor: null,
+    hasMore: false,
+    rawItemCount: 0,
+  );
 }

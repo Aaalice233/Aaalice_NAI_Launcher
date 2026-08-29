@@ -19,9 +19,9 @@ import '../../data/models/online_gallery/danbooru_post.dart';
 import '../../data/models/queue/replication_task.dart';
 import '../../core/autocomplete/tag_translation_lookup.dart';
 import '../providers/character_prompt_provider.dart';
-import '../providers/pending_prompt_provider.dart';
 import '../providers/replication_queue_provider.dart';
 import '../providers/reverse_prompt_provider.dart';
+import '../services/generation_prompt_transfer_service.dart';
 import '../themes/theme_extension.dart';
 import 'common/card_action_buttons.dart';
 import 'common/image_card_hover_motion.dart';
@@ -835,9 +835,9 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                                       ]);
                                   ref
                                       .read(
-                                        pendingPromptNotifierProvider.notifier,
+                                        generationPromptTransferServiceProvider,
                                       )
-                                      .set(
+                                      .replaceMainPrompt(
                                         prompt: prompt,
                                         negativePrompt:
                                             widget.negativePromptOverride,

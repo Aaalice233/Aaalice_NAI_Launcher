@@ -112,26 +112,42 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
   bool _loadMoreClaimed = false;
   int _loadMoreClaimRevision = 0;
   bool _backgroundNetworkPaused = false;
+  int _explicitNetworkAccessCount = 0;
   bool _resumeInitialLoadAfterBackgroundPause = false;
   bool _resumeAppendAfterBackgroundPause = false;
 
   int get detailRequestScopeRevision => _detailRequestScopeRevision;
+  bool get _networkRequestsPaused =>
+      _backgroundNetworkPaused && _explicitNetworkAccessCount == 0;
 
   OnlineGalleryDetailCoordinator get _details =>
       _detailCoordinator ??= OnlineGalleryDetailCoordinator(
         loader: (item, cancelToken) =>
             _repository.detail(item, cancelToken: cancelToken),
-      )..setBackgroundPaused(_backgroundNetworkPaused);
+      )..setBackgroundPaused(_networkRequestsPaused);
+
+  Future<T> runWithExplicitNetworkAccess<T>(Future<T> Function() action) async {
+    _explicitNetworkAccessCount++;
+    _detailCoordinator?.setBackgroundPaused(false);
+    try {
+      return await action();
+    } finally {
+      _explicitNetworkAccessCount--;
+      if (_explicitNetworkAccessCount == 0) {
+        _detailCoordinator?.setBackgroundPaused(_backgroundNetworkPaused);
+      }
+    }
+  }
 
   void setBackgroundNetworkPaused(bool paused) {
     if (_backgroundNetworkPaused == paused) return;
     _backgroundNetworkPaused = paused;
-    if (paused) {
+    if (paused && _explicitNetworkAccessCount == 0) {
       _resumeInitialLoadAfterBackgroundPause = state.isLoading;
       _resumeAppendAfterBackgroundPause = state.isLoadingMore;
       _cancelCurrentRequest();
     }
-    _details.setBackgroundPaused(paused);
+    _details.setBackgroundPaused(_networkRequestsPaused);
     if (!paused) {
       _detailRequestScopeRevision++;
       state = state.copyWith();
@@ -142,7 +158,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
       if (resumeInitial || resumeAppend) {
         unawaited(
           Future<void>(() async {
-            if (_backgroundNetworkPaused) return;
+            if (_networkRequestsPaused) return;
             if (resumeAppend) {
               await loadMore();
             } else {
@@ -362,7 +378,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     required bool replace,
     bool restart = false,
   }) async {
-    if (_backgroundNetworkPaused ||
+    if (_networkRequestsPaused ||
         !state.randomEnabled ||
         !state.supportsRandom) {
       return;
@@ -815,7 +831,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
   }
 
   Future<void> loadPosts({bool refresh = false}) async {
-    if (_backgroundNetworkPaused) return;
+    if (_networkRequestsPaused) return;
     if (state.randomEnabled) {
       await _loadRandom(replace: refresh);
       return;
@@ -865,13 +881,13 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
   }
 
   Future<void> refresh() async {
-    if (_backgroundNetworkPaused) return;
+    if (_networkRequestsPaused) return;
     _cancelCurrentRequest();
     await loadPosts(refresh: true);
   }
 
   Future<void> retryAppend() async {
-    if (_backgroundNetworkPaused ||
+    if (_networkRequestsPaused ||
         state.randomEnabled ||
         state.isLoading ||
         state.isLoadingMore ||
@@ -882,7 +898,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
   }
 
   Future<void> goToPage(int page) async {
-    if (_backgroundNetworkPaused ||
+    if (_networkRequestsPaused ||
         page < 1 ||
         state.isLoading ||
         state.isLoadingMore) {

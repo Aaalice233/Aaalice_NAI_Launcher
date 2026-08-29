@@ -4,6 +4,7 @@ import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 import '../../../core/agent/resources/agent_chat_resource_drag_format.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference.dart';
+import '../../../core/agent/resources/agent_chat_resource_reference_codec.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../providers/agent_chat_notifier.dart';
 
@@ -105,7 +106,7 @@ class AgentResourceDragSource extends ConsumerWidget {
         final item = DragItem(
           suggestedName:
               reference.display['name'] ?? reference.display['title'],
-          localData: reference,
+          localData: AgentChatResourceReferenceCodec.encodeJson(reference),
         );
         addAgentResourceDragPayload(item, reference);
         return item;

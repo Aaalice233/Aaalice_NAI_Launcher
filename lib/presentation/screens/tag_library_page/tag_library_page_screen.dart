@@ -233,6 +233,7 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
     ThemeData theme,
     TagLibraryPageState state, {
     bool forPanel = false,
+    VoidCallback? onCategorySelectionComplete,
   }) {
     return Container(
       key: forPanel ? null : const Key('tag-library-category-sidebar'),
@@ -305,9 +306,7 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
                 ref
                     .read(tagLibraryPageNotifierProvider.notifier)
                     .selectCategory(id);
-                if (forPanel) {
-                  Navigator.of(context).pop();
-                }
+                onCategorySelectionComplete?.call();
               },
               onCategoryRename: (id, name) {
                 ref
@@ -348,8 +347,12 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
       context: context,
       title: context.l10n.tagLibrary_categories,
       initialChildSize: 0.76,
-      builder: (context, scrollController) =>
-          _buildCategorySidebar(theme, state, forPanel: true),
+      builder: (panelContext, scrollController) => _buildCategorySidebar(
+        theme,
+        state,
+        forPanel: true,
+        onCategorySelectionComplete: () => Navigator.of(panelContext).pop(),
+      ),
     );
   }
 

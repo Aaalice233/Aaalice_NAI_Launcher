@@ -137,61 +137,65 @@ class OnlineGalleryToolbox {
         );
       }
       final notifier = _ref.read(onlineGalleryNotifierProvider.notifier);
-      final limit = (params['limit'] as int? ?? 30).clamp(1, 100);
-      if (params['load_more'] == true) {
-        final state = _ref.read(onlineGalleryNotifierProvider);
-        if (state.activeSourceId != source || state.viewMode.name != mode) {
-          return agentToolError(
-            'pagination_scope_changed',
-            'The active source or mode changed; start a new browse request.',
-          );
-        }
-        await notifier.loadMore();
-      } else {
-        await _configureBrowse(notifier, source, mode, params);
-      }
-      var state = _ref.read(onlineGalleryNotifierProvider);
-      if (state.errorCode != null || state.error != null) {
-        return agentToolError(
-          state.errorCode?.name ?? 'gallery_error',
-          state.error ?? 'Online gallery request failed.',
-        );
-      }
-      if (params['random'] == true && params['load_more'] != true) {
-        while (state.posts.length < limit && state.hasMore) {
-          final previousCount = state.posts.length;
+      return notifier.runWithExplicitNetworkAccess(() async {
+        final limit = (params['limit'] as int? ?? 30).clamp(1, 100);
+        if (params['load_more'] == true) {
+          final state = _ref.read(onlineGalleryNotifierProvider);
+          if (state.activeSourceId != source || state.viewMode.name != mode) {
+            return agentToolError(
+              'pagination_scope_changed',
+              'The active source or mode changed; start a new browse request.',
+            );
+          }
           await notifier.loadMore();
-          state = _ref.read(onlineGalleryNotifierProvider);
-          if (state.errorCode != null || state.error != null) {
-            return agentToolError(
-              state.errorCode?.name ?? 'gallery_error',
-              state.error ?? 'Online gallery random sampling failed.',
-            );
-          }
-          if (state.posts.length <= previousCount && state.hasMore) {
-            return agentToolError(
-              'random_sampling_stalled',
-              'The gallery could not make progress while sampling matching results.',
-            );
-          }
+        } else {
+          await _configureBrowse(notifier, source, mode, params);
         }
-        if (state.posts.length < limit) {
+        var state = _ref.read(onlineGalleryNotifierProvider);
+        if (state.errorCode != null || state.error != null) {
           return agentToolError(
-            'insufficient_random_matches',
-            'Only ${state.posts.length} matching random items are available; $limit were requested.',
+            state.errorCode?.name ?? 'gallery_error',
+            state.error ?? 'Online gallery request failed.',
           );
         }
-      }
-      return agentToolJsonResult({
-        'ok': true,
-        'source': source.key,
-        'mode': state.viewMode.name,
-        'random': params['random'] == true,
-        'requested_limit': limit,
-        'page': state.page,
-        'has_more': state.hasMore,
-        'total': state.currentCache.total,
-        'items': [for (final item in state.posts.take(limit)) _itemJson(item)],
+        if (params['random'] == true && params['load_more'] != true) {
+          while (state.posts.length < limit && state.hasMore) {
+            final previousCount = state.posts.length;
+            await notifier.loadMore();
+            state = _ref.read(onlineGalleryNotifierProvider);
+            if (state.errorCode != null || state.error != null) {
+              return agentToolError(
+                state.errorCode?.name ?? 'gallery_error',
+                state.error ?? 'Online gallery random sampling failed.',
+              );
+            }
+            if (state.posts.length <= previousCount && state.hasMore) {
+              return agentToolError(
+                'random_sampling_stalled',
+                'The gallery could not make progress while sampling matching results.',
+              );
+            }
+          }
+          if (state.posts.length < limit) {
+            return agentToolError(
+              'insufficient_random_matches',
+              'Only ${state.posts.length} matching random items are available; $limit were requested.',
+            );
+          }
+        }
+        return agentToolJsonResult({
+          'ok': true,
+          'source': source.key,
+          'mode': state.viewMode.name,
+          'random': params['random'] == true,
+          'requested_limit': limit,
+          'page': state.page,
+          'has_more': state.hasMore,
+          'total': state.currentCache.total,
+          'items': [
+            for (final item in state.posts.take(limit)) _itemJson(item),
+          ],
+        });
       });
     },
   );
@@ -230,37 +234,38 @@ class OnlineGalleryToolbox {
           'The work is not in the current source cache; browse it first.',
         );
       }
-      final detail = await _ref
-          .read(onlineGalleryNotifierProvider.notifier)
-          .loadDetail(item);
-      return agentToolJsonResult({
-        'ok': true,
-        'item': _itemJson(detail.item),
-        'prompt': detail.prompt,
-        'negative_prompt': detail.negativePrompt,
-        'description': detail.description,
-        'tags': detail.rawTags,
-        'character_prompts': [
-          for (final value in detail.characterPrompts)
-            {
-              'label': value.label,
-              'prompt': value.prompt,
-              'negative_prompt': value.negativePrompt,
-            },
-        ],
-        'contributors': [
-          for (final contributor in detail.contributors)
-            {'name': contributor.name, 'role': contributor.role},
-        ],
-        'media': [
-          for (final media in detail.media)
-            _mediaJson(
-              media,
-              source: detail.item.sourceId,
-              workId: detail.item.sourceWorkId,
-              title: detail.item.title,
-            ),
-        ],
+      final notifier = _ref.read(onlineGalleryNotifierProvider.notifier);
+      return notifier.runWithExplicitNetworkAccess(() async {
+        final detail = await notifier.loadDetail(item);
+        return agentToolJsonResult({
+          'ok': true,
+          'item': _itemJson(detail.item),
+          'prompt': detail.prompt,
+          'negative_prompt': detail.negativePrompt,
+          'description': detail.description,
+          'tags': detail.rawTags,
+          'character_prompts': [
+            for (final value in detail.characterPrompts)
+              {
+                'label': value.label,
+                'prompt': value.prompt,
+                'negative_prompt': value.negativePrompt,
+              },
+          ],
+          'contributors': [
+            for (final contributor in detail.contributors)
+              {'name': contributor.name, 'role': contributor.role},
+          ],
+          'media': [
+            for (final media in detail.media)
+              _mediaJson(
+                media,
+                source: detail.item.sourceId,
+                workId: detail.item.sourceWorkId,
+                title: detail.item.title,
+              ),
+          ],
+        });
       });
     },
   );
@@ -282,65 +287,73 @@ class OnlineGalleryToolbox {
       if (item == null) {
         return agentToolError('not_loaded', 'Browse the work first.');
       }
-      final detail = await _ref
-          .read(onlineGalleryNotifierProvider.notifier)
-          .loadDetail(item);
-      final mediaId = params['media_id'] as String?;
-      final media = mediaId == null
-          ? detail.media.firstOrNull
-          : detail.media.where((value) => value.id == mediaId).firstOrNull;
-      if (media == null) {
-        return agentToolError(
-          'media_not_found',
-          'Gallery media was not found.',
+      final notifier = _ref.read(onlineGalleryNotifierProvider.notifier);
+      return notifier.runWithExplicitNetworkAccess(() async {
+        final detail = await notifier.loadDetail(item);
+        final mediaId = params['media_id'] as String?;
+        final media = mediaId == null
+            ? detail.media.firstOrNull
+            : detail.media.where((value) => value.id == mediaId).firstOrNull;
+        if (media == null) {
+          return agentToolError(
+            'media_not_found',
+            'Gallery media was not found.',
+          );
+        }
+        final url = media.previewUrl.isNotEmpty
+            ? media.previewUrl
+            : media.displayUrl;
+        if (url.isEmpty) {
+          return agentToolError('preview_unavailable', 'Media has no preview.');
+        }
+        final file = await OnlineGalleryImageCacheManager.instance
+            .getSingleFile(
+              url,
+              key: onlineGalleryImageCacheKeyForUrl(url),
+              headers: onlineGalleryImageHeadersForUrl(url),
+            );
+        final thumbnail = await DisplayThumbnailUtils.normalize(
+          await file.readAsBytes(),
         );
-      }
-      final url = media.previewUrl.isNotEmpty
-          ? media.previewUrl
-          : media.displayUrl;
-      if (url.isEmpty) {
-        return agentToolError('preview_unavailable', 'Media has no preview.');
-      }
-      final file = await OnlineGalleryImageCacheManager.instance.getSingleFile(
-        url,
-        key: onlineGalleryImageCacheKeyForUrl(url),
-        headers: onlineGalleryImageHeadersForUrl(url),
-      );
-      final thumbnail = await DisplayThumbnailUtils.normalize(
-        await file.readAsBytes(),
-      );
-      if (thumbnail == null) {
-        return agentToolError('preview_invalid', 'Gallery preview is invalid.');
-      }
-      final mime = detectSupportedImageMimeType(thumbnail);
-      if (mime == null) {
-        return agentToolError('preview_invalid', 'Unsupported preview format.');
-      }
-      final details = <String, dynamic>{
-        'ok': true,
-        'source': item.sourceId.key,
-        'work_id': item.sourceWorkId,
-        'media': _mediaJson(
-          media,
-          source: item.sourceId,
-          workId: item.sourceWorkId,
-          title: item.title,
-        ),
-      };
-      return AgentToolResult(
-        content: [
-          ToolResultTextContent(jsonEncode(details)),
-          ToolResultImageContent(
-            ImageContent(
-              source: ImageSource.base64(
-                mimeType: mime,
-                base64Data: base64Encode(thumbnail),
+        if (thumbnail == null) {
+          return agentToolError(
+            'preview_invalid',
+            'Gallery preview is invalid.',
+          );
+        }
+        final mime = detectSupportedImageMimeType(thumbnail);
+        if (mime == null) {
+          return agentToolError(
+            'preview_invalid',
+            'Unsupported preview format.',
+          );
+        }
+        final details = <String, dynamic>{
+          'ok': true,
+          'source': item.sourceId.key,
+          'work_id': item.sourceWorkId,
+          'media': _mediaJson(
+            media,
+            source: item.sourceId,
+            workId: item.sourceWorkId,
+            title: item.title,
+          ),
+        };
+        return AgentToolResult(
+          content: [
+            ToolResultTextContent(jsonEncode(details)),
+            ToolResultImageContent(
+              ImageContent(
+                source: ImageSource.base64(
+                  mimeType: mime,
+                  base64Data: base64Encode(thumbnail),
+                ),
               ),
             ),
-          ),
-        ],
-        details: details,
-      );
+          ],
+          details: details,
+        );
+      });
     },
   );
 

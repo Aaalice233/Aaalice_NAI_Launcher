@@ -3,10 +3,15 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:nai_launcher/core/platform/platform_capabilities.dart';
+import 'package:nai_launcher/core/storage/local_storage_service.dart';
+import 'package:nai_launcher/data/models/character/character_prompt.dart';
 import 'package:nai_launcher/data/models/online_gallery/danbooru_post.dart';
 import 'package:nai_launcher/data/models/queue/replication_task.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/providers/character_prompt_provider.dart';
+import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/providers/replication_queue_provider.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_card_hover_motion.dart';
 import 'package:nai_launcher/presentation/widgets/danbooru_post_card.dart';
@@ -70,6 +75,76 @@ void main() {
     expect(rating.right, lessThanOrEqualTo(actions.left));
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'sending a card updates the collapsed generation prompt state immediately',
+    (tester) async {
+      const post = DanbooruPost(
+        id: 129,
+        width: 600,
+        height: 900,
+        rating: 'g',
+        previewFileUrl: 'https://example.com/portrait.jpg',
+        tagString: 'blue_archive 1girl',
+      );
+      final container = ProviderContainer(
+        overrides: [
+          localStorageServiceProvider.overrideWithValue(_MemoryStorage()),
+          characterPromptNotifierProvider.overrideWith(
+            _TestCharacterPromptNotifier.new,
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      final router = GoRouter(
+        initialLocation: '/gallery',
+        routes: [
+          GoRoute(
+            path: '/',
+            builder: (_, _) => const Scaffold(body: Text('Home')),
+          ),
+          GoRoute(
+            path: '/gallery',
+            builder: (_, _) => Scaffold(
+              body: DanbooruPostCard(
+                post: post,
+                itemWidth: 400,
+                isFavorited: false,
+                onTap: () {},
+                onTagTap: (_) {},
+              ),
+            ),
+          ),
+        ],
+      );
+      addTearDown(router.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp.router(
+            routerConfig: router,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+          ),
+        ),
+      );
+      final card = find.byType(DanbooruPostCard);
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      addTearDown(mouse.removePointer);
+      await mouse.addPointer(location: tester.getCenter(card));
+      await tester.pump();
+      await tester.tap(find.byTooltip('Send to Text to Image'));
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(
+        container.read(generationParamsNotifierProvider).prompt,
+        'blue_archive, 1girl',
+      );
+      expect(router.routeInformationProvider.value.uri.path, '/');
+      await tester.pump(const Duration(seconds: 3));
+    },
+  );
 
   testWidgets('layoutAspectRatio keeps masonry card geometry stable', (
     tester,
@@ -623,6 +698,39 @@ void main() {
     expect(find.byTooltip('Read-only favorites'), findsOneWidget);
     expect(find.byTooltip('Unfavorite'), findsNothing);
   });
+}
+
+class _TestCharacterPromptNotifier extends CharacterPromptNotifier {
+  @override
+  CharacterPromptConfig build() => const CharacterPromptConfig();
+
+  @override
+  void replaceAll(List<CharacterPrompt> characters) {
+    state = CharacterPromptConfig(characters: characters);
+  }
+}
+
+class _MemoryStorage extends LocalStorageService {
+  final Map<String, Object?> _values = {};
+
+  @override
+  T? getSetting<T>(String key, {T? defaultValue}) =>
+      (_values[key] ?? defaultValue) as T?;
+
+  @override
+  Future<void> setSetting<T>(String key, T value) async {
+    _values[key] = value;
+  }
+
+  @override
+  Future<void> setSettings(Map<String, Object?> values) async {
+    _values.addAll(values);
+  }
+
+  @override
+  Future<void> deleteSetting(String key) async {
+    _values.remove(key);
+  }
 }
 
 class _TestReplicationQueueNotifier extends ReplicationQueueNotifier {

@@ -44,65 +44,67 @@ class _FixedTagEntryTileState extends State<FixedTagEntryTile> {
     final positionColor = entry.isPrefix
         ? theme.colorScheme.primary
         : theme.colorScheme.tertiary;
-    return ReorderableDragStartListener(
-      index: widget.index,
-      child: MouseRegion(
-        onEnter: (_) => setState(() => _hovering = true),
-        onExit: (_) => setState(() => _hovering = false),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          curve: Curves.easeOut,
-          margin: EdgeInsets.symmetric(
-            horizontal: widget.compact ? 6 : 10,
-            vertical: 4,
-          ),
-          padding: EdgeInsets.symmetric(
-            horizontal: widget.compact ? 8 : 12,
-            vertical: 8,
-          ),
-          decoration: BoxDecoration(
-            color: entry.enabled
-                ? (widget.isDark
-                      ? theme.colorScheme.surfaceContainerHigh
-                      : theme.colorScheme.surfaceContainerHighest)
-                : theme.colorScheme.surfaceContainerLow.withValues(alpha: 0.6),
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: entry.enabled
-                ? [
-                    BoxShadow(
-                      color: theme.colorScheme.shadow.withValues(
-                        alpha: widget.isDark ? 0.3 : 0.1,
-                      ),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                      spreadRadius: -2,
+    final tile = MouseRegion(
+      onEnter: (_) => setState(() => _hovering = true),
+      onExit: (_) => setState(() => _hovering = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        curve: Curves.easeOut,
+        margin: EdgeInsets.symmetric(
+          horizontal: widget.compact ? 6 : 10,
+          vertical: 4,
+        ),
+        padding: EdgeInsets.symmetric(
+          horizontal: widget.compact ? 8 : 12,
+          vertical: 8,
+        ),
+        decoration: BoxDecoration(
+          color: entry.enabled
+              ? (widget.isDark
+                    ? theme.colorScheme.surfaceContainerHigh
+                    : theme.colorScheme.surfaceContainerHighest)
+              : theme.colorScheme.surfaceContainerLow.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: entry.enabled
+              ? [
+                  BoxShadow(
+                    color: theme.colorScheme.shadow.withValues(
+                      alpha: widget.isDark ? 0.3 : 0.1,
                     ),
-                    if (_hovering)
-                      BoxShadow(
-                        color: theme.colorScheme.primary.withValues(
-                          alpha: 0.15,
-                        ),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      ),
-                  ]
-                : [
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                    spreadRadius: -2,
+                  ),
+                  if (_hovering)
                     BoxShadow(
-                      color: theme.colorScheme.shadow.withValues(alpha: 0.05),
-                      blurRadius: 4,
-                      offset: const Offset(0, 1),
+                      color: theme.colorScheme.primary.withValues(alpha: 0.15),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
                     ),
-                  ],
-          ),
-          child: Opacity(
-            opacity: entry.enabled ? 1 : 0.5,
-            child: widget.compact
-                ? _buildCompact(context, positionColor)
-                : _buildDesktop(context, positionColor),
-          ),
+                ]
+              : [
+                  BoxShadow(
+                    color: theme.colorScheme.shadow.withValues(alpha: 0.05),
+                    blurRadius: 4,
+                    offset: const Offset(0, 1),
+                  ),
+                ],
+        ),
+        child: Opacity(
+          opacity: entry.enabled ? 1 : 0.5,
+          child: widget.compact
+              ? _buildCompact(context, positionColor)
+              : _buildDesktop(context, positionColor),
         ),
       ),
     );
+    if (PlatformCapabilities.current.hasTouchInput) {
+      return ReorderableDelayedDragStartListener(
+        index: widget.index,
+        child: tile,
+      );
+    }
+    return ReorderableDragStartListener(index: widget.index, child: tile);
   }
 
   Widget _buildDesktop(BuildContext context, Color positionColor) {

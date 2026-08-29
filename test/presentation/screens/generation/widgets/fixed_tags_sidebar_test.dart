@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
+import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_entry.dart';
 import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_link.dart';
@@ -15,6 +16,7 @@ import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_prompt_type.dart';
 import 'package:nai_launcher/data/models/tag_library/tag_library_category.dart';
 import 'package:nai_launcher/data/models/tag_library/tag_library_entry.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/agent_chat/widgets/agent_resource_drop_region.dart';
 import 'package:nai_launcher/presentation/providers/fixed_tags_provider.dart';
 import 'package:nai_launcher/presentation/providers/layout_state_provider.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/fixed_tags_sidebar.dart';
@@ -23,6 +25,7 @@ import 'package:nai_launcher/presentation/screens/generation/widgets/sidebar_lin
 import 'package:nai_launcher/presentation/widgets/common/hover_image_preview.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_switch.dart';
 import 'package:nai_launcher/presentation/widgets/common/thumbnail_display.dart';
+import 'package:nai_launcher/presentation/widgets/prompt/fixed_tag_entry_tile.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/fixed_tags_button.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/fixed_tags_dialog.dart';
 
@@ -73,7 +76,7 @@ void main() {
 
     final tile = find.ancestor(
       of: find.text('clickable fixed tag'),
-      matching: find.byType(ReorderableDragStartListener),
+      matching: find.byType(FixedTagEntryTile),
     );
     final entrySwitch = find.descendant(
       of: tile,
@@ -85,6 +88,85 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(tester.widget<ThemedSwitch>(entrySwitch).value, isTrue);
+  });
+
+  testWidgets('mobile entries scroll before a long-press starts reordering', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 700);
+    tester.view.devicePixelRatio = 1;
+    PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
+      TargetPlatform.android,
+    );
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(() => PlatformCapabilities.debugOverride = null);
+    final storage = _SidebarTestStorage(
+      fixedEntries: [
+        for (var index = 0; index < 20; index++)
+          FixedTagEntry.create(
+            name: 'mobile fixed tag $index',
+            content: 'tag_$index',
+          ),
+      ],
+      categories: const [],
+      libraryEntries: const [],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: FixedTagsDialog()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ReorderableDelayedDragStartListener), findsWidgets);
+    expect(find.byType(ReorderableDragStartListener), findsNothing);
+    expect(find.byType(AgentResourceDragSource), findsNothing);
+
+    final firstCenter = tester.getCenter(find.text('mobile fixed tag 0'));
+    final thirdCenter = tester.getCenter(find.text('mobile fixed tag 2'));
+    final reorderGesture = await tester.startGesture(firstCenter);
+    await tester.pump(kLongPressTimeout + const Duration(milliseconds: 100));
+    await reorderGesture.moveTo(thirdCenter + const Offset(0, 24));
+    await tester.pump(const Duration(milliseconds: 300));
+    await reorderGesture.up();
+    await tester.pumpAndSettle();
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(FixedTagsDialog)),
+    );
+    expect(
+      container
+          .read(fixedTagsNotifierProvider)
+          .positiveEntries
+          .sortedByOrder()
+          .first
+          .name,
+      isNot('mobile fixed tag 0'),
+    );
+    expect(tester.takeException(), isNull);
+
+    final scrollable = find
+        .descendant(
+          of: find.byType(ReorderableListView),
+          matching: find.byType(Scrollable),
+        )
+        .first;
+    final position = tester.state<ScrollableState>(scrollable).position;
+    expect(position.pixels, 0);
+
+    await tester.drag(find.text('mobile fixed tag 0'), const Offset(0, -240));
+    await tester.pumpAndSettle();
+
+    expect(position.pixels, greaterThan(0));
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets(
