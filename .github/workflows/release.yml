@@ -476,10 +476,26 @@ jobs:
           test -x "$apksigner"
           verification="$("$apksigner" verify --verbose --print-certs "$apk" 2>&1)"
           printf '%s\n' "$verification"
-          actual_signer_sha256="$(
-            sed -nE 's/^Signer #1 certificate SHA-256 digest: ([0-9a-fA-F]+)$/\1/p' \
-              <<< "$verification" | head -n 1 | tr '[:upper:]' '[:lower:]'
+          signer_count="$(
+            sed -nE 's/^Number of signers: ([0-9]+)$/\1/p' \
+              <<< "$verification"
           )"
+          if [[ "$signer_count" != "1" ]]; then
+            echo "Android release APK must contain exactly one signer; found: ${signer_count:-unknown}" >&2
+            exit 1
+          fi
+          mapfile -t signer_digests < <(
+            sed -nE \
+              -e 's/^[[:space:]]*(Signer #1 certificate|V2 Signer: certificate) SHA-256 digest: ([0-9a-fA-F]{64})[[:space:]]*$/\2/p' \
+              <<< "$verification" |
+              tr '[:upper:]' '[:lower:]' |
+              sort -u
+          )
+          if (( ${#signer_digests[@]} != 1 )); then
+            echo 'Unable to determine exactly one Android APK signer digest.' >&2
+            exit 1
+          fi
+          actual_signer_sha256="${signer_digests[0]}"
           if [[ "$actual_signer_sha256" != "$ANDROID_EXPECTED_SIGNER_SHA256" ]]; then
             echo 'Android release APK signer does not match the configured keystore.' >&2
             exit 1

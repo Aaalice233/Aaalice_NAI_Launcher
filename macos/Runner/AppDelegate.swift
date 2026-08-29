@@ -6,7 +6,7 @@ import FlutterMacOS
 class AppDelegate: FlutterAppDelegate {
   private static let wakePrimaryNotification =
     Notification.Name("com.aaalice.nai-launcher.wake-primary")
-  private static var primaryInstanceLock = -2
+  private static var primaryInstanceLock: Int32 = -2
 
   static func acquirePrimaryInstanceLock() -> Bool {
     if primaryInstanceLock >= 0 { return true }
