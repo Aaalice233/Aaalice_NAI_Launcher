@@ -1583,6 +1583,12 @@ abstract class AppLocalizations {
   /// **'Chat'**
   String get agentChat_tab;
 
+  /// No description provided for @nav_agent.
+  ///
+  /// In en, this message translates to:
+  /// **'Agent'**
+  String get nav_agent;
+
   /// No description provided for @agentChat_inputHint.
   ///
   /// In en, this message translates to:

@@ -796,6 +796,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get agentChat_tab => 'チャット';
 
   @override
+  String get nav_agent => 'エージェント';
+
+  @override
   String get agentChat_inputHint => 'AI アシスタントにメッセージを送る…';
 
   @override

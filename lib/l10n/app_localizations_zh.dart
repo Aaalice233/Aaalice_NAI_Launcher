@@ -781,6 +781,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agentChat_tab => '聊天';
 
   @override
+  String get nav_agent => '智能体';
+
+  @override
   String get agentChat_inputHint => '给 AI 助手发消息…';
 
   @override
@@ -13885,6 +13888,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get agentChat_tab => '聊天';
+
+  @override
+  String get nav_agent => '智慧體';
 
   @override
   String get agentChat_inputHint => '給 AI 助手傳送訊息…';

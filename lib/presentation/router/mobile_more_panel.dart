@@ -6,12 +6,13 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants/community_links.dart';
 import '../../core/utils/localization_extension.dart';
 import '../adaptive/adaptive_presenter.dart';
+import '../agent_chat/providers/agent_chat_notifier.dart';
 import '../providers/replication_queue_provider.dart';
 import '../providers/update_provider.dart';
 import '../widgets/common/app_toast.dart';
 import '../widgets/navigation/main_nav_rail.dart';
 import 'app_branch.dart';
-import 'queue_shell_overlay.dart';
+import 'shell_panels_overlay.dart';
 
 Future<void> showMobileMorePanel({
   required BuildContext context,
@@ -20,6 +21,9 @@ Future<void> showMobileMorePanel({
 }) {
   final queueCount = ref.read(replicationQueueNotifierProvider).count;
   final hasUpdate = ref.read(updateStateProvider).hasNewVersion;
+  final activePanel = ref.read(shellPanelProvider);
+  final agentRunning =
+      ref.read(agentChatNotifierProvider).status == AgentChatRunStatus.running;
 
   return AdaptivePresenter.showPanel<void>(
     context: context,
@@ -34,12 +38,25 @@ Future<void> showMobileMorePanel({
       padding: const EdgeInsets.fromLTRB(8, 8, 8, 24),
       children: [
         _MobileMoreDestination(
+          key: const ValueKey('mobile-more-agent'),
+          icon: Icons.smart_toy_outlined,
+          label: panelContext.l10n.nav_agent,
+          selected: activePanel == ShellPanel.agent,
+          showBadge: agentRunning,
+          onTap: () {
+            Navigator.of(panelContext).pop();
+            ref.read(shellPanelProvider.notifier).state = ShellPanel.agent;
+          },
+        ),
+        _MobileMoreDestination(
+          key: const ValueKey('mobile-more-queue'),
           icon: Icons.playlist_play_rounded,
           label: panelContext.l10n.queue_management,
+          selected: activePanel == ShellPanel.queue,
           badgeCount: queueCount,
           onTap: () {
             Navigator.of(panelContext).pop();
-            ref.read(queueManagementVisibleProvider.notifier).state = true;
+            ref.read(shellPanelProvider.notifier).state = ShellPanel.queue;
           },
         ),
         const Divider(indent: 16, endIndent: 16),
@@ -177,11 +194,13 @@ class _MobileCommunityButton extends StatelessWidget {
 
 class _MobileMoreDestination extends StatelessWidget {
   const _MobileMoreDestination({
+    super.key,
     required this.icon,
     required this.label,
     required this.onTap,
     this.badgeCount = 0,
     this.showBadge = false,
+    this.selected = false,
   });
 
   final IconData icon;
@@ -189,6 +208,7 @@ class _MobileMoreDestination extends StatelessWidget {
   final VoidCallback onTap;
   final int badgeCount;
   final bool showBadge;
+  final bool selected;
 
   @override
   Widget build(BuildContext context) {
@@ -204,7 +224,10 @@ class _MobileMoreDestination extends StatelessWidget {
         child: Icon(icon),
       ),
       title: Text(label),
-      trailing: const Icon(Icons.chevron_right),
+      trailing: selected
+          ? const Icon(Icons.check_rounded)
+          : const Icon(Icons.chevron_right),
+      selected: selected,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       onTap: onTap,
     );

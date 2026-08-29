@@ -16,11 +16,11 @@ import 'app_branch.dart';
 import 'app_routes.dart';
 import 'desktop_shell.dart';
 import 'mobile_shell.dart';
-import 'queue_shell_overlay.dart';
+import 'shell_panels_overlay.dart';
 
 export 'desktop_shell.dart' show DesktopShell;
 export 'mobile_shell.dart' show MobileShell;
-export 'queue_shell_overlay.dart' show queueManagementVisibleProvider;
+export 'shell_panels_overlay.dart' show ShellPanel, shellPanelProvider;
 
 /// 主布局 Shell - 包含导航 (StatefulShellRoute 版本)
 ///
@@ -136,8 +136,9 @@ class _MainShellState extends ConsumerState<MainShell> {
         ShortcutHelpDialog.show(context);
       },
       ShortcutIds.toggleQueue: () {
-        final isVisible = ref.read(queueManagementVisibleProvider);
-        ref.read(queueManagementVisibleProvider.notifier).state = !isVisible;
+        final activePanel = ref.read(shellPanelProvider);
+        ref.read(shellPanelProvider.notifier).state =
+            activePanel == ShellPanel.queue ? null : ShellPanel.queue;
       },
     };
 
