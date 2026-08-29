@@ -124,10 +124,10 @@ class MainNavRail extends ConsumerWidget {
                           navigationShell.goBranch(AppBranch.generation.index),
                     ),
 
-                    // 本地画廊（App生成的图片）
+                    // 本地图库（App生成的图片）
                     _NavIcon(
                       icon: Icons.folder, // Local Generated Images
-                      label: context.l10n.localGallery_title,
+                      label: context.l10n.nav_localGallery,
                       isSelected: selectedIndex == 1,
                       onTap: () => navigationShell.goBranch(
                         AppBranch.localGallery.index,
@@ -182,10 +182,10 @@ class MainNavRail extends ConsumerWidget {
                           navigationShell.goBranch(AppBranch.tagLibrary.index),
                     ),
 
-                    // 画廊统计
+                    // 统计
                     _NavIcon(
                       icon: Icons.bar_chart, // Gallery Statistics
-                      label: context.l10n.statistics_title,
+                      label: context.l10n.nav_statistics,
                       isSelected: selectedIndex == 7,
                       onTap: () =>
                           navigationShell.goBranch(AppBranch.statistics.index),

@@ -72,7 +72,7 @@ Future<void> showMobileMorePanel({
         ),
         _MobileMoreDestination(
           icon: Icons.insights_outlined,
-          label: panelContext.l10n.statistics_title,
+          label: panelContext.l10n.nav_statistics,
           onTap: () => _selectBranch(
             panelContext,
             navigationShell,

@@ -130,7 +130,9 @@ void main() {
       MainNavRail.expandedWidth,
     );
     expect(find.text('画布'), findsOneWidget);
-    expect(find.text('本地画廊'), findsOneWidget);
+    expect(find.text('本地图库'), findsOneWidget);
+    expect(find.text('在线画廊'), findsOneWidget);
+    expect(find.text('统计'), findsOneWidget);
     expect(find.text('Discord 社群'), findsOneWidget);
     expect(find.text('GitHub 仓库'), findsOneWidget);
     expect(find.text('队列管理'), findsOneWidget);

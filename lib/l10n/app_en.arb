@@ -98,7 +98,9 @@
   },
 
   "nav_canvas": "Canvas",
+  "nav_localGallery": "Local Library",
   "nav_onlineGallery": "Online Gallery",
+  "nav_statistics": "Statistics",
   "nav_randomConfig": "Random Config",
   "nav_dictionary": "Dictionary",
   "nav_discordCommunity": "Discord Community",

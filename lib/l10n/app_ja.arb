@@ -94,7 +94,9 @@
     }
   },
   "nav_canvas": "キャンバス",
-  "nav_onlineGallery": "オンライン ギャラリー",
+  "nav_localGallery": "ローカルライブラリ",
+  "nav_onlineGallery": "オンラインギャラリー",
+  "nav_statistics": "統計",
   "nav_randomConfig": "ランダム構成",
   "nav_dictionary": "辞書",
   "nav_discordCommunity": "Discord コミュニティ",

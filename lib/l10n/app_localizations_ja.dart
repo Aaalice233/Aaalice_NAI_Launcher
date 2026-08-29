@@ -241,7 +241,13 @@ class AppLocalizationsJa extends AppLocalizations {
   String get nav_canvas => 'キャンバス';
 
   @override
-  String get nav_onlineGallery => 'オンライン ギャラリー';
+  String get nav_localGallery => 'ローカルライブラリ';
+
+  @override
+  String get nav_onlineGallery => 'オンラインギャラリー';
+
+  @override
+  String get nav_statistics => '統計';
 
   @override
   String get nav_randomConfig => 'ランダム構成';

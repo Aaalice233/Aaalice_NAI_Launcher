@@ -239,7 +239,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get nav_canvas => '画布';
 
   @override
-  String get nav_onlineGallery => '画廊';
+  String get nav_localGallery => '本地图库';
+
+  @override
+  String get nav_onlineGallery => '在线画廊';
+
+  @override
+  String get nav_statistics => '统计';
 
   @override
   String get nav_randomConfig => '随机配置';
@@ -13332,7 +13338,13 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get nav_canvas => '畫布';
 
   @override
-  String get nav_onlineGallery => '畫廊';
+  String get nav_localGallery => '本地圖庫';
+
+  @override
+  String get nav_onlineGallery => '線上畫廊';
+
+  @override
+  String get nav_statistics => '統計';
 
   @override
   String get nav_randomConfig => '隨機配置';
