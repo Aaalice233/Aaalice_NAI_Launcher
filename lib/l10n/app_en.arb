@@ -316,6 +316,7 @@
   "generation_history": "History",
   "generation_historyRecord": "History Records",
   "agentChat_tab": "Chat",
+  "nav_agent": "Agent",
   "agentChat_inputHint": "Message the AI agent…",
   "agentChat_addAttachment": "Add attachment or reference",
   "agentChat_photoLibrary": "Photos",

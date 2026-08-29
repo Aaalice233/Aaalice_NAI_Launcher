@@ -238,8 +238,9 @@ class NAILauncherApp extends ConsumerWidget {
         },
       },
       ShortcutIds.toggleQueue: () {
-        final isVisible = ref.read(queueManagementVisibleProvider);
-        ref.read(queueManagementVisibleProvider.notifier).state = !isVisible;
+        final activePanel = ref.read(shellPanelProvider);
+        ref.read(shellPanelProvider.notifier).state =
+            activePanel == ShellPanel.queue ? null : ShellPanel.queue;
       },
       ShortcutIds.toggleQueuePause: () {
         final executionState = ref.read(queueExecutionNotifierProvider);

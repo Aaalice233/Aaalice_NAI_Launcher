@@ -807,6 +807,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get agentChat_tab => 'Chat';
 
   @override
+  String get nav_agent => 'Agent';
+
+  @override
   String get agentChat_inputHint => 'Message the AI agent…';
 
   @override

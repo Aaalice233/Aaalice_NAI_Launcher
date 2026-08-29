@@ -10,7 +10,7 @@ import '../../providers/replication_queue_provider.dart';
 import '../../providers/generation/preview_selection_provider.dart';
 import '../../router/app_router_config.dart';
 import '../../router/app_routes.dart';
-import '../../router/queue_shell_overlay.dart';
+import '../../router/shell_panels_overlay.dart';
 import 'defined_agent_tool.dart';
 import 'toolbox_json.dart';
 
@@ -101,7 +101,7 @@ class ApplicationContextToolbox {
         'detail': null,
         'drafts': loadDrafts == null ? const [] : await loadDrafts!(),
         'queue': {
-          'panel_visible': _ref.read(queueManagementVisibleProvider),
+          'panel_visible': _ref.read(shellPanelProvider) == ShellPanel.queue,
           'status': execution.status.name,
           'current_task_id': execution.currentTaskId,
           'pending_count': queue.tasks.length,
@@ -129,7 +129,7 @@ class ApplicationContextToolbox {
     executeFn: (_, params) async {
       final destination = params['destination'] as String;
       if (destination == 'queue') {
-        _ref.read(queueManagementVisibleProvider.notifier).state = true;
+        _ref.read(shellPanelProvider.notifier).state = ShellPanel.queue;
         return agentToolJsonResult({
           'ok': true,
           'destination': destination,

@@ -309,6 +309,7 @@
   "generation_history": "履歴",
   "generation_historyRecord": "履歴レコード",
   "agentChat_tab": "チャット",
+  "nav_agent": "エージェント",
   "agentChat_inputHint": "AI アシスタントにメッセージを送る…",
   "agentChat_addAttachment": "添付または参照を追加",
   "agentChat_photoLibrary": "写真",

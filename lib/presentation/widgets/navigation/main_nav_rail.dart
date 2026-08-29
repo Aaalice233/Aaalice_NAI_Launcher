@@ -52,17 +52,27 @@ class MainNavRail extends ConsumerWidget {
   ];
 
   final StatefulNavigationShell navigationShell;
+  final bool isAgentVisible;
+  final bool isAgentRunning;
   final bool isQueueVisible;
+  final FocusNode? agentFocusNode;
+  final FocusNode? queueFocusNode;
+  final ValueChanged<bool> onAgentVisibilityChanged;
   final ValueChanged<bool> onQueueVisibilityChanged;
 
   const MainNavRail({
     super.key,
     required this.navigationShell,
+    this.isAgentVisible = false,
+    this.isAgentRunning = false,
     this.isQueueVisible = false,
-    this.onQueueVisibilityChanged = _ignoreQueueVisibilityChange,
+    this.agentFocusNode,
+    this.queueFocusNode,
+    this.onAgentVisibilityChanged = _ignorePanelVisibilityChange,
+    this.onQueueVisibilityChanged = _ignorePanelVisibilityChange,
   });
 
-  static void _ignoreQueueVisibilityChange(bool _) {}
+  static void _ignorePanelVisibilityChange(bool _) {}
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -203,7 +213,20 @@ class MainNavRail extends ConsumerWidget {
           ),
 
           _NavIcon(
+            key: const Key('agent-nav-item'),
+            focusNode: agentFocusNode,
+            icon: isAgentRunning
+                ? Icons.smart_toy_rounded
+                : Icons.smart_toy_outlined,
+            label: context.l10n.nav_agent,
+            isSelected: isAgentVisible,
+            showBadge: isAgentRunning,
+            onTap: () => onAgentVisibilityChanged(!isAgentVisible),
+          ),
+
+          _NavIcon(
             key: const Key('queue-nav-item'),
+            focusNode: queueFocusNode,
             icon: switch (queueExecutionStatus) {
               QueueExecutionStatus.running => Icons.play_arrow_rounded,
               QueueExecutionStatus.paused => Icons.pause_rounded,
@@ -908,6 +931,7 @@ class _NavIcon extends StatefulWidget {
   final VoidCallback onTap;
   final bool showBadge;
   final String? badgeLabel;
+  final FocusNode? focusNode;
 
   const _NavIcon({
     super.key,
@@ -917,6 +941,7 @@ class _NavIcon extends StatefulWidget {
     required this.onTap,
     this.showBadge = false,
     this.badgeLabel,
+    this.focusNode,
   });
 
   @override
@@ -954,6 +979,7 @@ class _NavIconState extends State<_NavIcon> {
         child: Material(
           color: Colors.transparent,
           child: InkWell(
+            focusNode: widget.focusNode,
             onTap: widget.onTap,
             onHover: (val) => setState(() => _isHovering = val),
             onTapDown: (_) => setState(() => _isPressed = true),

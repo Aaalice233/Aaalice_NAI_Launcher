@@ -297,6 +297,7 @@
   "generation_history": "歷史",
   "generation_historyRecord": "歷史記錄",
   "agentChat_tab": "聊天",
+  "nav_agent": "智慧體",
   "agentChat_inputHint": "給 AI 助手傳送訊息…",
   "agentChat_addAttachment": "新增附件或引用",
   "agentChat_photoLibrary": "相簿",
