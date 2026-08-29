@@ -227,6 +227,8 @@
   "settings_generationOutputSection": "Image Output",
   "settings_generationRetrySection": "Retry on Failure",
   "settings_generationFeedbackSection": "Completion Alert",
+  "settings_generationStreamPreview": "Streaming preview",
+  "settings_generationStreamPreviewSubtitle": "Show intermediate images while generating. Turn this off to wait for the final image instead.",
   "settings_alphaModeTitle": "Alpha mode for transparent images",
   "settings_alphaModeStraight": "Straight",
   "settings_alphaModePremultiplied": "Premultiplied",

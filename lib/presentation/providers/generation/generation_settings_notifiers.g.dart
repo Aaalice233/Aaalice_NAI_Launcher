@@ -176,6 +176,25 @@ final randomPromptToolsVisibilityProvider =
 );
 
 typedef _$RandomPromptToolsVisibility = Notifier<bool>;
+String _$generationStreamPreviewSettingsHash() =>
+    r'03edb441a44b619fbd2ada4e448d9bbb2d00dc81';
+
+/// 生成时流式预览设置 Notifier
+///
+/// Copied from [GenerationStreamPreviewSettings].
+@ProviderFor(GenerationStreamPreviewSettings)
+final generationStreamPreviewSettingsProvider =
+    NotifierProvider<GenerationStreamPreviewSettings, bool>.internal(
+  GenerationStreamPreviewSettings.new,
+  name: r'generationStreamPreviewSettingsProvider',
+  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+      ? null
+      : _$generationStreamPreviewSettingsHash,
+  dependencies: null,
+  allTransitiveDependencies: null,
+);
+
+typedef _$GenerationStreamPreviewSettings = Notifier<bool>;
 String _$imagesPerRequestHash() => r'1100f132419f744de697cc84ea53fe27a258abbd';
 
 /// 每次请求生成图片数量设置 Notifier（1-4张）

@@ -53,6 +53,7 @@ class ImageGenerationService {
       Duration(seconds: 4),
     ],
     Future<void> Function(Duration) delay = Future<void>.delayed,
+    this.streamPreviewEnabled = true,
   }) : _apiService = apiService,
        _coordinator = ImageGenerationCoordinator(
          apiService: apiService,
@@ -62,6 +63,7 @@ class ImageGenerationService {
 
   final NAIImageGenerationApiService _apiService;
   final ImageGenerationCoordinator _coordinator;
+  final bool streamPreviewEnabled;
   GenerationRunHandle? _activeRun;
   var _runCounter = 0;
   var _cancelled = false;
@@ -144,6 +146,7 @@ class ImageGenerationService {
       materializeRandomSeed: false,
       requestEachImage: true,
       cancellableFallback: false,
+      streamPreviewEnabled: streamPreviewEnabled,
     );
     final handle = _coordinator.start(command);
     _activeRun = handle;

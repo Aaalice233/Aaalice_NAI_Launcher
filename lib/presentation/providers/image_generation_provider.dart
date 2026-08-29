@@ -343,6 +343,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         minimumContextMegaPixels:
             prepared.focusedSnapshot.minimumContextMegaPixels,
         focusedSelectionRect: prepared.focusedSnapshot.selectionRect,
+        streamPreviewEnabled: ref.read(generationStreamPreviewSettingsProvider),
       );
       final handle = coordinator.start(command);
       _activeRun = handle;

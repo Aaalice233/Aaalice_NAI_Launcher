@@ -219,6 +219,8 @@
   "settings_generationOutputSection": "画像出力",
   "settings_generationRetrySection": "失敗時リトライ",
   "settings_generationFeedbackSection": "完了通知",
+  "settings_generationStreamPreview": "ストリーミングプレビュー",
+  "settings_generationStreamPreviewSubtitle": "生成中に途中画像を表示します。オフにすると最終画像が完成するまで待機します。",
   "settings_alphaModeTitle": "透過画像のアルファモード",
   "settings_alphaModeStraight": "ストレート",
   "settings_alphaModePremultiplied": "乗算済み",

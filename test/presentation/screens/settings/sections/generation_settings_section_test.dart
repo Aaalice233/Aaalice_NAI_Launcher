@@ -71,6 +71,36 @@ void main() {
     expect(storage.values, isEmpty);
   });
 
+  testWidgets('流式预览默认开启并可持久化关闭', (tester) async {
+    final storage = _MemoryLocalStorageService();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: SingleChildScrollView(child: GenerationSettingsSection()),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final tileFinder = find.widgetWithText(SwitchListTile, '流式预览');
+    expect(tileFinder, findsOneWidget);
+    expect(tester.widget<SwitchListTile>(tileFinder).value, isTrue);
+    expect(find.textContaining('直接等待最终图像'), findsOneWidget);
+
+    await tester.tap(find.text('流式预览'));
+    await tester.pump();
+
+    expect(tester.widget<SwitchListTile>(tileFinder).value, isFalse);
+    expect(storage.values[StorageKeys.generationStreamPreviewEnabled], isFalse);
+  });
+
   testWidgets('按任务流展示输入、输出、重试、提醒四个小节', (tester) async {
     final storage = _MemoryLocalStorageService();
     await tester.binding.setSurfaceSize(const Size(1000, 1600));

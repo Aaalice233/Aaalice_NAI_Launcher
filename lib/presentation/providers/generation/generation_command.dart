@@ -20,6 +20,7 @@ class GenerationCommand {
     this.materializeRandomSeed = true,
     this.requestEachImage = false,
     this.cancellableFallback = true,
+    this.streamPreviewEnabled = true,
   });
 
   final int runId;
@@ -34,6 +35,7 @@ class GenerationCommand {
   final bool materializeRandomSeed;
   final bool requestEachImage;
   final bool cancellableFallback;
+  final bool streamPreviewEnabled;
 
   int get totalImages => batchCount * batchSize;
 }

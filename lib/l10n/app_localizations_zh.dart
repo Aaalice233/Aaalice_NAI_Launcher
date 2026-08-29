@@ -592,6 +592,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settings_generationFeedbackSection => '完成提醒';
 
   @override
+  String get settings_generationStreamPreview => '流式预览';
+
+  @override
+  String get settings_generationStreamPreviewSubtitle =>
+      '生成时显示中间图像；关闭后将直接等待最终图像。';
+
+  @override
   String get settings_alphaModeTitle => '透明图像 Alpha 模式';
 
   @override
@@ -13735,6 +13742,13 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get settings_generationFeedbackSection => '完成提醒';
+
+  @override
+  String get settings_generationStreamPreview => '串流預覽';
+
+  @override
+  String get settings_generationStreamPreviewSubtitle =>
+      '生成時顯示中間圖像；關閉後將直接等待最終圖像。';
 
   @override
   String get settings_alphaModeTitle => '透明影象 Alpha 模式';

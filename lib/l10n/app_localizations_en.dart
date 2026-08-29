@@ -616,6 +616,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settings_generationFeedbackSection => 'Completion Alert';
 
   @override
+  String get settings_generationStreamPreview => 'Streaming preview';
+
+  @override
+  String get settings_generationStreamPreviewSubtitle =>
+      'Show intermediate images while generating. Turn this off to wait for the final image instead.';
+
+  @override
   String get settings_alphaModeTitle => 'Alpha mode for transparent images';
 
   @override

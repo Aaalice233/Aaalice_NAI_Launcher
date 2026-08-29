@@ -50,6 +50,57 @@ void main() {
     );
   });
 
+  test(
+    'disabled stream preview uses the non-stream endpoint directly',
+    () async {
+      final apiService = _MockNAIImageGenerationApiService();
+      final image = Uint8List.fromList([1, 2, 3]);
+      when(
+        () => apiService.generateImage(
+          any(),
+          onProgress: any(named: 'onProgress'),
+          focusedInpaintEnabled: any(named: 'focusedInpaintEnabled'),
+          minimumContextMegaPixels: any(named: 'minimumContextMegaPixels'),
+          focusedSelectionRect: any(named: 'focusedSelectionRect'),
+        ),
+      ).thenAnswer((_) async => (<Uint8List>[image], <int, String>{}));
+
+      final coordinator = ImageGenerationCoordinator(apiService: apiService);
+      final command = GenerationCommand(
+        runId: 1,
+        params: const ImageParams(prompt: 'test'),
+        batchCount: 1,
+        batchSize: 1,
+        prepareBatch: (_, params) async => params,
+        streamPreviewEnabled: false,
+      );
+      final handle = coordinator.start(command);
+
+      final events = await coordinator.execute(command, handle).toList();
+
+      expect(events.whereType<GenerationPreviewReceived>(), isEmpty);
+      expect(events.whereType<GenerationRequestCompleted>(), hasLength(1));
+      expect(events.last, isA<GenerationCompleted>());
+      verifyNever(
+        () => apiService.generateImageStream(
+          any(),
+          focusedInpaintEnabled: any(named: 'focusedInpaintEnabled'),
+          minimumContextMegaPixels: any(named: 'minimumContextMegaPixels'),
+          focusedSelectionRect: any(named: 'focusedSelectionRect'),
+        ),
+      );
+      verify(
+        () => apiService.generateImage(
+          any(),
+          onProgress: any(named: 'onProgress'),
+          focusedInpaintEnabled: any(named: 'focusedInpaintEnabled'),
+          minimumContextMegaPixels: any(named: 'minimumContextMegaPixels'),
+          focusedSelectionRect: any(named: 'focusedSelectionRect'),
+        ),
+      ).called(1);
+    },
+  );
+
   test('cancel interrupts an injected 429 concurrency retry delay', () async {
     final apiService = _MockNAIImageGenerationApiService();
     final delayStarted = Completer<void>();

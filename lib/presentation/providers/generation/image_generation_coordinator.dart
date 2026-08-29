@@ -273,8 +273,9 @@ class ImageGenerationCoordinator {
     required bool retryStreamFailures,
   }) async* {
     DateTime? concurrencyDeadline;
-    var mode = nonStreamOnly ? _RequestMode.fallback : _RequestMode.stream;
-    var persistFallbackMode = nonStreamOnly;
+    final startWithFallback = nonStreamOnly || !command.streamPreviewEnabled;
+    var mode = startWithFallback ? _RequestMode.fallback : _RequestMode.stream;
+    var persistFallbackMode = startWithFallback;
 
     for (var attempt = 0; ; attempt++) {
       if (_aborted(handle) || _skipCurrentRequest) return;

@@ -121,6 +121,7 @@ const portableSettingKeys = <String>{
   StorageKeys.ucPresetCustomIds,
   StorageKeys.randomPromptMode,
   StorageKeys.showRandomPromptTools,
+  StorageKeys.generationStreamPreviewEnabled,
   StorageKeys.randomGenerationMode,
   StorageKeys.imagesPerRequest,
   StorageKeys.enableAutocomplete,
