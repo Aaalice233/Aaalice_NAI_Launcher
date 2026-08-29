@@ -1068,14 +1068,16 @@ class _ToolResultResourcePreviewState
   }
 
   Widget _buildPreview(Uint8List bytes) {
+    final isOnlineGallery =
+        widget.reference.kind == AgentChatResourceKind.onlineGalleryMedia;
     final image = Image.memory(
       bytes,
-      fit: BoxFit.contain,
+      fit: isOnlineGallery ? BoxFit.cover : BoxFit.contain,
       alignment: Alignment.center,
       gaplessPlayback: true,
       errorBuilder: (_, _, _) => const _AgentResourceUnavailableImage(),
     );
-    if (widget.reference.kind == AgentChatResourceKind.onlineGalleryMedia) {
+    if (isOnlineGallery) {
       return _OnlineGalleryResourceCard(
         reference: widget.reference,
         onTap: () => unawaited(_openOriginal()),
@@ -1103,7 +1105,7 @@ class _ToolResultResourcePreviewState
   }
 }
 
-class _OnlineGalleryResourceCard extends StatelessWidget {
+class _OnlineGalleryResourceCard extends StatefulWidget {
   const _OnlineGalleryResourceCard({
     required this.reference,
     required this.onTap,
@@ -1115,60 +1117,97 @@ class _OnlineGalleryResourceCard extends StatelessWidget {
   final Widget image;
 
   @override
+  State<_OnlineGalleryResourceCard> createState() =>
+      _OnlineGalleryResourceCardState();
+}
+
+class _OnlineGalleryResourceCardState
+    extends State<_OnlineGalleryResourceCard> {
+  bool _hovered = false;
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final source = reference.display['source_label'] ?? reference.source;
-    final title = reference.display['title'];
-    final author = reference.display['author'];
+    final source =
+        widget.reference.display['source_label'] ?? widget.reference.source;
+    final title = widget.reference.display['title'];
+    final author = widget.reference.display['author'];
     final hasDetails = title != null || author != null;
+    final radius = BorderRadius.circular(12);
     return Semantics(
       button: true,
       label: [source, title, author].whereType<String>().join(', '),
-      child: Material(
-        key: const ValueKey('online-gallery-resource-card'),
-        color: theme.colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(10),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              AspectRatio(
-                aspectRatio: 4 / 3,
-                child: ColoredBox(
-                  color: theme.colorScheme.surfaceContainerHighest,
-                  child: image,
-                ),
-              ),
-              if (hasDetails)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(10, 8, 10, 9),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (title != null)
-                        Text(
-                          title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.labelLarge,
-                        ),
-                      if (author != null) ...[
-                        if (title != null) const SizedBox(height: 1),
-                        Text(
-                          author,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        onEnter: (_) => setState(() => _hovered = true),
+        onExit: (_) => setState(() => _hovered = false),
+        child: ImageCardHoverMotion(
+          hovered: _hovered,
+          child: ClipRRect(
+            borderRadius: radius,
+            child: Material(
+              key: const ValueKey('online-gallery-resource-card'),
+              color: theme.colorScheme.surfaceContainerLow,
+              child: InkWell(
+                onTap: widget.onTap,
+                child: Stack(
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        AspectRatio(
+                          aspectRatio: 4 / 3,
+                          child: ColoredBox(
+                            color: theme.colorScheme.surfaceContainerHighest,
+                            child: widget.image,
                           ),
                         ),
+                        if (hasDetails)
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(10, 8, 10, 9),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (title != null)
+                                  Text(
+                                    title,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: theme.textTheme.labelLarge,
+                                  ),
+                                if (author != null) ...[
+                                  if (title != null) const SizedBox(height: 1),
+                                  Text(
+                                    author,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
                       ],
-                    ],
-                  ),
+                    ),
+                    Positioned.fill(
+                      child: IgnorePointer(
+                        child: AnimatedContainer(
+                          duration: MediaQuery.disableAnimationsOf(context)
+                              ? Duration.zero
+                              : const Duration(milliseconds: 120),
+                          curve: Curves.easeOut,
+                          color: _hovered
+                              ? theme.colorScheme.primary.withValues(alpha: 0.08)
+                              : Colors.transparent,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-            ],
+              ),
+            ),
           ),
         ),
       ),

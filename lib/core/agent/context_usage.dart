@@ -45,9 +45,10 @@ AgentContextUsage resolveAgentContextUsage(
   List<AgentMessage> messages, {
   required int? contextWindow,
 }) {
-  final validWindow = contextWindow != null && contextWindow > 0
-      ? contextWindow
-      : null;
+  if (contextWindow == null || contextWindow <= 0) {
+    return const AgentContextUsage.unknown();
+  }
+  final validWindow = contextWindow;
   final estimate = estimateContextTokens(messages);
   final latestCompactionIndex = messages.lastIndexWhere(
     (message) => message is CompactionSummaryMessage,

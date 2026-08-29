@@ -172,8 +172,30 @@ void main() {
   });
 
   group('compaction', () {
-    test('estimateTokens uses chars/4 for user text', () {
+    test('estimateTokens uses chars/4 for user and custom text', () {
       expect(estimateTokens(UserMessage.text('a' * 40)), 10);
+      expect(
+        estimateTokens(
+          HarnessCustomMessage(
+            customType: 'status',
+            display: true,
+            textContent: 'a' * 40,
+            timestamp: 1,
+          ),
+        ),
+        10,
+      );
+    });
+
+    test('context usage is unknown without a valid model window', () {
+      final usage = resolveAgentContextUsage([
+        _assistant('done', usage: const Usage(totalTokens: 100)),
+      ], contextWindow: 0);
+
+      expect(usage.tokens, isNull);
+      expect(usage.contextWindow, isNull);
+      expect(usage.percent, isNull);
+      expect(usage.estimated, isFalse);
     });
 
     test(

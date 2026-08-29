@@ -409,12 +409,10 @@ class _AgentChatWorkTrailState extends State<AgentChatWorkTrail> {
       return const SizedBox.shrink();
     }
     final theme = Theme.of(context);
+    // A recoverable tool failure belongs to that Item. The Turn itself only
+    // becomes an error surface when the runtime reports a terminal Turn error.
     final failed =
-        widget.turn.timeline?.status == AgentChatTurnStatus.failed ||
-        widget.turn.workItems.any((item) => item.failed) ||
-        widget.activities.any(
-          (activity) => activity.status == AgentToolActivityStatus.failed,
-        );
+        widget.turn.timeline?.status == AgentChatTurnStatus.failed;
     final duration = _duration;
     final title = widget.running
         ? _workingLabel(context, duration)
@@ -685,9 +683,7 @@ class _WorkItemGroupTileState extends State<_WorkItemGroupTile> {
       _WorkGroupKind.exploration => Icons.manage_search_rounded,
       _WorkGroupKind.single => agentToolIcon(group.items.first.toolName),
     };
-    final railColor = failed
-        ? theme.colorScheme.error.withValues(alpha: 0.34)
-        : theme.colorScheme.outlineVariant.withValues(alpha: 0.34);
+    final railColor = theme.colorScheme.outlineVariant.withValues(alpha: 0.34);
     return Stack(
       clipBehavior: Clip.none,
       children: [

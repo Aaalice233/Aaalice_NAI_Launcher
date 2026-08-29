@@ -270,6 +270,10 @@ int estimateTokens(AgentMessage message) {
     chars = message.command.length + message.output.length;
     return (chars / 4).ceil();
   }
+  if (message is HarnessCustomMessage) {
+    chars = _estimateTextAndImageContentChars(message.content);
+    return (chars / 4).ceil();
+  }
   if (message is BranchSummaryMessage) {
     chars = message.summary.length;
     return (chars / 4).ceil();
