@@ -18,6 +18,7 @@ import '../widgets/cache_statistics_tile.dart';
 import '../widgets/data_source_cache_settings.dart';
 import '../widgets/gallery_cache_actions.dart';
 import '../widgets/settings_card.dart';
+import '../widgets/settings_page_layout.dart';
 
 /// 存储设置板块
 class StorageSettingsSection extends ConsumerStatefulWidget {
@@ -163,12 +164,12 @@ class _StorageSettingsSectionState
     final localOnnxService = ref.watch(localOnnxModelServiceProvider);
     final localOnnxDirectory = localOnnxService.taggerDirectory;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return SettingsPageLayout(
+      title: context.l10n.settings_dataStorage,
       children: [
         SettingsCard(
-          title: context.l10n.settings_dataStorage,
-          icon: Icons.storage,
+          title: context.l10n.settings_storageImagesSection,
+          icon: Icons.image_outlined,
           child: Column(
             children: [
               // 图片保存路径设置
@@ -235,7 +236,6 @@ class _StorageSettingsSectionState
                                 }
                               },
                             ),
-                          const Icon(Icons.chevron_right),
                         ],
                       )
                     : null,
@@ -258,7 +258,14 @@ class _StorageSettingsSectionState
                       .setAutoSave(value);
                 },
               ),
-              const Divider(height: 24),
+            ],
+          ),
+        ),
+        SettingsCard(
+          title: context.l10n.settings_storageLibrariesSection,
+          icon: Icons.folder_copy_outlined,
+          child: Column(
+            children: [
               ListTile(
                 leading: const Icon(Icons.sell_outlined),
                 title: Text(context.l10n.settings_localOnnxTaggerFolder),
@@ -314,7 +321,6 @@ class _StorageSettingsSectionState
                           onPressed: () =>
                               _openLocalOnnxTaggerDirectory(localOnnxDirectory),
                         ),
-                      const Icon(Icons.chevron_right),
                     ],
                   ],
                 ),
@@ -324,12 +330,17 @@ class _StorageSettingsSectionState
               const VibeLibraryPathTile(),
               // Hive 数据存储路径设置
               const HiveStoragePathTile(),
-              const Divider(height: 32),
+            ],
+          ),
+        ),
+        SettingsCard(
+          title: context.l10n.settings_storageCacheSection,
+          child: const Column(
+            children: [
               // 缓存统计
-              const CacheStatisticsTile(),
-              const Divider(height: 32),
+              CacheStatisticsTile(),
               // 画廊缓存操作（清除缓存 + 重建索引）
-              const GalleryCacheActions(),
+              GalleryCacheActions(),
             ],
           ),
         ),
@@ -446,7 +457,6 @@ class _VibeLibraryPathTileState extends State<VibeLibraryPathTile> {
                     tooltip: context.l10n.common_reset,
                     onPressed: () => _resetToDefault(context),
                   ),
-                const Icon(Icons.chevron_right),
               ],
             )
           : null,
@@ -592,7 +602,6 @@ class _HiveStoragePathTileState extends State<HiveStoragePathTile> {
                     tooltip: context.l10n.common_reset,
                     onPressed: () => _resetToDefault(context),
                   ),
-                const Icon(Icons.chevron_right),
               ],
             )
           : null,

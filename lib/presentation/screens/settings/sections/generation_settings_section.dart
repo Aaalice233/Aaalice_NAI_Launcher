@@ -13,7 +13,7 @@ import '../../../themes/core/input_surface_style.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/themed_input.dart';
 import '../widgets/settings_card.dart';
-import '../widgets/settings_section_label.dart';
+import '../widgets/settings_page_layout.dart';
 
 /// 构建标准输入框装饰（自原队列设置迁入）
 InputDecoration _buildSettingsInputDecoration(
@@ -159,43 +159,51 @@ class _GenerationSettingsSectionState
       _retryIntervalController.text = retryInterval.toStringAsFixed(1);
     }
 
-    return SettingsCard(
+    return SettingsPageLayout(
       title: l10n.settings_generation,
-      icon: Icons.tune_outlined,
-      child: Column(
-        children: [
-          SettingsSectionLabel(l10n.settings_generationInputSection),
-          SwitchListTile(
-            secondary: const Icon(Icons.casino_outlined),
-            title: Text(l10n.settings_showRandomPromptTools),
-            subtitle: Text(l10n.settings_showRandomPromptToolsSubtitle),
-            value: showRandomTools,
-            onChanged: (value) {
-              ref.read(randomPromptToolsVisibilityProvider.notifier).set(value);
-            },
+      children: [
+        SettingsCard(
+          title: l10n.settings_generationInputSection,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SwitchListTile(
+                secondary: const Icon(Icons.casino_outlined),
+                title: Text(l10n.settings_showRandomPromptTools),
+                subtitle: Text(l10n.settings_showRandomPromptToolsSubtitle),
+                value: showRandomTools,
+                onChanged: (value) {
+                  ref
+                      .read(randomPromptToolsVisibilityProvider.notifier)
+                      .set(value);
+                },
+              ),
+              SwitchListTile(
+                secondary: const Icon(Icons.mouse_outlined),
+                title: Text(l10n.settings_enablePromptWeightScroll),
+                subtitle: Text(l10n.settings_enablePromptWeightScrollSubtitle),
+                value: promptWeightScrollEnabled,
+                onChanged: (value) async {
+                  final messenger = ScaffoldMessenger.maybeOf(context);
+                  try {
+                    await ref
+                        .read(promptWeightScrollSettingsProvider.notifier)
+                        .set(value);
+                  } catch (error) {
+                    messenger?.showSnackBar(
+                      SnackBar(
+                        content: Text(l10n.globalSettings_saveFailed('$error')),
+                      ),
+                    );
+                  }
+                },
+              ),
+            ],
           ),
-          SwitchListTile(
-            secondary: const Icon(Icons.mouse_outlined),
-            title: Text(l10n.settings_enablePromptWeightScroll),
-            subtitle: Text(l10n.settings_enablePromptWeightScrollSubtitle),
-            value: promptWeightScrollEnabled,
-            onChanged: (value) async {
-              final messenger = ScaffoldMessenger.maybeOf(context);
-              try {
-                await ref
-                    .read(promptWeightScrollSettingsProvider.notifier)
-                    .set(value);
-              } catch (error) {
-                messenger?.showSnackBar(
-                  SnackBar(
-                    content: Text(l10n.globalSettings_saveFailed('$error')),
-                  ),
-                );
-              }
-            },
-          ),
-          SettingsSectionLabel(l10n.settings_generationOutputSection),
-          LayoutBuilder(
+        ),
+        SettingsCard(
+          title: l10n.settings_generationOutputSection,
+          child: LayoutBuilder(
             builder: (context, constraints) {
               final selector = SegmentedButton<bool>(
                 key: const Key('settings-alpha-mode-selector'),
@@ -248,101 +256,119 @@ class _GenerationSettingsSectionState
               );
             },
           ),
-          SettingsSectionLabel(l10n.settings_generationRetrySection),
-          _buildRetrySliderRow(
-            theme: theme,
-            label: l10n.settings_queueRetryCount,
-            valueLabel: l10n.settings_queueRetryCountMax(retryCount.toString()),
-            value: retryCount.toDouble(),
-            min: 1,
-            max: 30,
-            unit: l10n.unit_times,
-            controller: _retryCountController,
-            onDecrease: retryCount > 1
-                ? () => _updateRetryCount(retryCount - 1)
-                : null,
-            onIncrease: retryCount < 30
-                ? () => _updateRetryCount(retryCount + 1)
-                : null,
-            onSliderChanged: (value) => _updateRetryCount(value.round()),
-            onSubmitted: (value) {
-              final parsed = int.tryParse(value);
-              if (parsed != null) {
-                _updateRetryCount(parsed);
-              } else {
-                _retryCountController.text = '$retryCount';
-              }
-            },
-          ),
-          _buildRetrySliderRow(
-            theme: theme,
-            label: l10n.settings_queueRetryInterval,
-            valueLabel: l10n.settings_queueRetryIntervalValue(
-              retryInterval.toStringAsFixed(1),
-            ),
-            value: retryInterval,
-            min: 0.5,
-            max: 10.0,
-            unit: l10n.unit_seconds,
-            controller: _retryIntervalController,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            onDecrease: retryInterval > 0.5
-                ? () => _updateRetryInterval(retryInterval - 0.5)
-                : null,
-            onIncrease: retryInterval < 10.0
-                ? () => _updateRetryInterval(retryInterval + 0.5)
-                : null,
-            onSliderChanged: (value) =>
-                _updateRetryInterval((value * 2).round() / 2),
-            onSubmitted: (value) {
-              final parsed = double.tryParse(value);
-              if (parsed != null) {
-                _updateRetryInterval(parsed);
-              } else {
-                _retryIntervalController.text = retryInterval.toStringAsFixed(
-                  1,
-                );
-              }
-            },
-          ),
-          SettingsSectionLabel(l10n.settings_generationFeedbackSection),
-          SwitchListTile(
-            secondary: const Icon(Icons.volume_up_outlined),
-            title: Text(l10n.settings_notificationSound),
-            subtitle: Text(l10n.settings_notificationSoundSubtitle),
-            value: notificationSettings.soundEnabled,
-            onChanged: (value) => notificationNotifier.setSoundEnabled(value),
-          ),
-          if (notificationSettings.soundEnabled)
-            ListTile(
-              leading: const Icon(Icons.audiotrack_outlined),
-              title: Text(l10n.settings_notificationCustomSound),
-              subtitle: Text(
-                notificationSettings.customSoundPath != null
-                    ? Uri.file(
-                        notificationSettings.customSoundPath!,
-                      ).pathSegments.last
-                    : l10n.settings_notificationSelectSound,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+        ),
+        SettingsCard(
+          title: l10n.settings_generationRetrySection,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildRetrySliderRow(
+                theme: theme,
+                label: l10n.settings_queueRetryCount,
+                valueLabel: l10n.settings_queueRetryCountMax(
+                  retryCount.toString(),
+                ),
+                value: retryCount.toDouble(),
+                min: 1,
+                max: 30,
+                unit: l10n.unit_times,
+                controller: _retryCountController,
+                onDecrease: retryCount > 1
+                    ? () => _updateRetryCount(retryCount - 1)
+                    : null,
+                onIncrease: retryCount < 30
+                    ? () => _updateRetryCount(retryCount + 1)
+                    : null,
+                onSliderChanged: (value) => _updateRetryCount(value.round()),
+                onSubmitted: (value) {
+                  final parsed = int.tryParse(value);
+                  if (parsed != null) {
+                    _updateRetryCount(parsed);
+                  } else {
+                    _retryCountController.text = '$retryCount';
+                  }
+                },
               ),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (notificationSettings.customSoundPath != null)
-                    IconButton(
-                      icon: const Icon(Icons.close, size: 20),
-                      tooltip: l10n.settings_notificationResetSound,
-                      onPressed: () =>
-                          notificationNotifier.setCustomSoundPath(null),
-                    ),
-                  const Icon(Icons.chevron_right),
-                ],
+              _buildRetrySliderRow(
+                theme: theme,
+                label: l10n.settings_queueRetryInterval,
+                valueLabel: l10n.settings_queueRetryIntervalValue(
+                  retryInterval.toStringAsFixed(1),
+                ),
+                value: retryInterval,
+                min: 0.5,
+                max: 10.0,
+                unit: l10n.unit_seconds,
+                controller: _retryIntervalController,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                onDecrease: retryInterval > 0.5
+                    ? () => _updateRetryInterval(retryInterval - 0.5)
+                    : null,
+                onIncrease: retryInterval < 10.0
+                    ? () => _updateRetryInterval(retryInterval + 0.5)
+                    : null,
+                onSliderChanged: (value) =>
+                    _updateRetryInterval((value * 2).round() / 2),
+                onSubmitted: (value) {
+                  final parsed = double.tryParse(value);
+                  if (parsed != null) {
+                    _updateRetryInterval(parsed);
+                  } else {
+                    _retryIntervalController.text = retryInterval
+                        .toStringAsFixed(1);
+                  }
+                },
               ),
-              onTap: () => _selectCustomSound(notificationNotifier),
-            ),
-        ],
-      ),
+            ],
+          ),
+        ),
+        SettingsCard(
+          title: l10n.settings_generationFeedbackSection,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SwitchListTile(
+                secondary: const Icon(Icons.volume_up_outlined),
+                title: Text(l10n.settings_notificationSound),
+                subtitle: Text(l10n.settings_notificationSoundSubtitle),
+                value: notificationSettings.soundEnabled,
+                onChanged: (value) =>
+                    notificationNotifier.setSoundEnabled(value),
+              ),
+              if (notificationSettings.soundEnabled)
+                ListTile(
+                  leading: const Icon(Icons.audiotrack_outlined),
+                  title: Text(l10n.settings_notificationCustomSound),
+                  subtitle: Text(
+                    notificationSettings.customSoundPath != null
+                        ? Uri.file(
+                            notificationSettings.customSoundPath!,
+                          ).pathSegments.last
+                        : l10n.settings_notificationSelectSound,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (notificationSettings.customSoundPath != null)
+                        IconButton(
+                          icon: const Icon(Icons.close, size: 20),
+                          tooltip: l10n.settings_notificationResetSound,
+                          onPressed: () =>
+                              notificationNotifier.setCustomSoundPath(null),
+                        ),
+                      const Icon(Icons.chevron_right),
+                    ],
+                  ),
+                  onTap: () => _selectCustomSound(notificationNotifier),
+                ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

@@ -1139,6 +1139,78 @@ abstract class AppLocalizations {
   /// **'Integrations'**
   String get settings_integrations;
 
+  /// No description provided for @settings_accountDetailsSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Account details'**
+  String get settings_accountDetailsSection;
+
+  /// No description provided for @settings_appearanceInterfaceSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Interface'**
+  String get settings_appearanceInterfaceSection;
+
+  /// No description provided for @settings_appearanceWorkflowSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Generation workflow'**
+  String get settings_appearanceWorkflowSection;
+
+  /// No description provided for @settings_storageImagesSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Images'**
+  String get settings_storageImagesSection;
+
+  /// No description provided for @settings_storageLibrariesSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Models and libraries'**
+  String get settings_storageLibrariesSection;
+
+  /// No description provided for @settings_storageCacheSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Cache maintenance'**
+  String get settings_storageCacheSection;
+
+  /// No description provided for @settings_networkProxySection.
+  ///
+  /// In en, this message translates to:
+  /// **'Proxy connection'**
+  String get settings_networkProxySection;
+
+  /// No description provided for @settings_shortcutManagementSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Shortcut management'**
+  String get settings_shortcutManagementSection;
+
+  /// No description provided for @settings_aboutApplicationSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Application'**
+  String get settings_aboutApplicationSection;
+
+  /// No description provided for @settings_aboutUpdatesSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Updates'**
+  String get settings_aboutUpdatesSection;
+
+  /// No description provided for @settings_aboutResourcesSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Project resources'**
+  String get settings_aboutResourcesSection;
+
+  /// No description provided for @settings_integrationConnectionSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection and availability'**
+  String get settings_integrationConnectionSection;
+
   /// No description provided for @settings_generationInputSection.
   ///
   /// In en, this message translates to:

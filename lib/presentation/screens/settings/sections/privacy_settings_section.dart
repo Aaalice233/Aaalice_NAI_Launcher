@@ -5,7 +5,7 @@ import '../../../../core/utils/localization_extension.dart';
 import '../../../providers/share_image_settings_provider.dart';
 import '../../../widgets/online_gallery/blacklist_settings_panel.dart';
 import '../widgets/settings_card.dart';
-import '../widgets/settings_section_label.dart';
+import '../widgets/settings_page_layout.dart';
 
 /// 安全与分享设置板块
 ///
@@ -119,26 +119,35 @@ class _PrivacySettingsSectionState
   Widget build(BuildContext context) {
     final shareSettings = ref.watch(shareImageSettingsProvider);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return SettingsPageLayout(
+      title: context.l10n.settings_privacySharing,
       children: [
         SettingsCard(
-          title: context.l10n.settings_privacySharing,
+          title: context.l10n.settings_protectionMode,
           icon: Icons.shield_outlined,
+          onTap: () async {
+            await ref
+                .read(shareImageSettingsProvider.notifier)
+                .setProtectionMode(!shareSettings.protectionMode);
+          },
+          trailing: Switch.adaptive(
+            value: shareSettings.protectionMode,
+            onChanged: (value) async {
+              await ref
+                  .read(shareImageSettingsProvider.notifier)
+                  .setProtectionMode(value);
+            },
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            child: Text(context.l10n.settings_protectionModeSubtitle),
+          ),
+        ),
+        SettingsCard(
+          title: context.l10n.settings_protectionFeatures,
+          icon: Icons.security_outlined,
           child: Column(
             children: [
-              SwitchListTile(
-                secondary: const Icon(Icons.shield_outlined),
-                title: Text(context.l10n.settings_protectionMode),
-                subtitle: Text(context.l10n.settings_protectionModeSubtitle),
-                value: shareSettings.protectionMode,
-                onChanged: (value) async {
-                  await ref
-                      .read(shareImageSettingsProvider.notifier)
-                      .setProtectionMode(value);
-                },
-              ),
-              SettingsSectionLabel(context.l10n.settings_protectionFeatures),
               SwitchListTile(
                 secondary: const Icon(Icons.cleaning_services_outlined),
                 title: Text(context.l10n.settings_stripMetadataTitle),

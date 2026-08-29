@@ -55,6 +55,7 @@ class _SkillManagementPanelState extends ConsumerState<SkillManagementPanel> {
     }).toList();
     return SettingsCard(
       title: context.l10n.agentSettings_skillsTitle,
+      description: context.l10n.agentSettings_skillsSourceHint,
       icon: Icons.extension_outlined,
       trailing: Wrap(
         spacing: 4,
@@ -89,13 +90,6 @@ class _SkillManagementPanelState extends ConsumerState<SkillManagementPanel> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            context.l10n.agentSettings_skillsSourceHint,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 10),
           TextField(
             controller: _searchController,
             onChanged: (_) => setState(() {}),

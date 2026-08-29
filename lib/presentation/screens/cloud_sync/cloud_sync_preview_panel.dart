@@ -21,66 +21,64 @@ class CloudSyncPreviewPanel extends ConsumerWidget {
       subtitle: preview.isRestore
           ? context.l10n.cloudSync_restorePreviewDescription
           : context.l10n.cloudSync_mergePreviewDescription,
-      child: CloudSyncSurface(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (preview.conflictSafeDeletionCount > 0) ...[
-              CloudSyncStatusBanner(
-                icon: Icons.warning_amber_rounded,
-                title: context.l10n.cloudSync_previewDeletesTitle,
-                message: context.l10n.cloudSync_previewDeletesDescription(
-                  preview.conflictSafeDeletionCount,
-                ),
-                warning: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (preview.conflictSafeDeletionCount > 0) ...[
+            CloudSyncStatusBanner(
+              icon: Icons.warning_amber_rounded,
+              title: context.l10n.cloudSync_previewDeletesTitle,
+              message: context.l10n.cloudSync_previewDeletesDescription(
+                preview.conflictSafeDeletionCount,
               ),
-              const SizedBox(height: 12),
-            ],
-            if (preview.changes.isEmpty)
-              Text(context.l10n.cloudSync_previewNoChanges)
-            else
-              for (final row in preview.changes)
-                ListTile(
-                  key: ValueKey('cloud-sync-preview-${row.kind.name}'),
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(_kindLabel(context, row.kind)),
-                  subtitle: Text(
-                    context.l10n.cloudSync_previewCounts(
-                      row.added,
-                      row.modified,
-                      row.deleted,
-                    ),
+              warning: true,
+            ),
+            const SizedBox(height: 12),
+          ],
+          if (preview.changes.isEmpty)
+            Text(context.l10n.cloudSync_previewNoChanges)
+          else
+            for (final row in preview.changes)
+              ListTile(
+                key: ValueKey('cloud-sync-preview-${row.kind.name}'),
+                contentPadding: EdgeInsets.zero,
+                title: Text(_kindLabel(context, row.kind)),
+                subtitle: Text(
+                  context.l10n.cloudSync_previewCounts(
+                    row.added,
+                    row.modified,
+                    row.deleted,
                   ),
                 ),
-            const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerRight,
-              child: FilledButton.icon(
-                key: const ValueKey('cloud-sync-confirm-preview'),
-                onPressed: state.isBusy || hasUnresolved
-                    ? null
-                    : () => _run(
-                        context,
-                        preview.isRestore
-                            ? ref
-                                  .read(cloudSyncUiPortProvider)
-                                  .confirmRestoreSnapshot
-                            : ref
-                                  .read(cloudSyncUiPortProvider)
-                                  .applyPendingPreview,
-                      ),
-                icon: Icon(
-                  preview.isRestore ? Icons.restore : Icons.merge_outlined,
-                ),
-                label: Text(
-                  preview.isRestore
-                      ? context.l10n.cloudSync_confirmRestore
-                      : context.l10n.cloudSync_confirmMerge,
-                ),
+              ),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerRight,
+            child: FilledButton.icon(
+              key: const ValueKey('cloud-sync-confirm-preview'),
+              onPressed: state.isBusy || hasUnresolved
+                  ? null
+                  : () => _run(
+                      context,
+                      preview.isRestore
+                          ? ref
+                                .read(cloudSyncUiPortProvider)
+                                .confirmRestoreSnapshot
+                          : ref
+                                .read(cloudSyncUiPortProvider)
+                                .applyPendingPreview,
+                    ),
+              icon: Icon(
+                preview.isRestore ? Icons.restore : Icons.merge_outlined,
+              ),
+              label: Text(
+                preview.isRestore
+                    ? context.l10n.cloudSync_confirmRestore
+                    : context.l10n.cloudSync_confirmMerge,
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

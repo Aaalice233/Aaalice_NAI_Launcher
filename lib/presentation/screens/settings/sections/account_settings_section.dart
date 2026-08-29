@@ -10,6 +10,7 @@ import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/settings/account_detail_tile.dart';
 import '../../../widgets/settings/account_profile_sheet.dart';
 import '../widgets/settings_card.dart';
+import '../widgets/settings_page_layout.dart';
 
 /// 账户设置板块
 ///
@@ -31,20 +32,17 @@ class _AccountSettingsSectionState
       onLogin: () => _navigateToLogin(context),
     );
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (constraints.maxWidth < 600) {
-          return accountTile;
-        }
-        return SettingsCard(
-          title: context.l10n.settings_account,
-          icon: Icons.person,
+    return SettingsPageLayout(
+      title: context.l10n.settings_account,
+      children: [
+        SettingsCard(
+          title: context.l10n.settings_accountDetailsSection,
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: accountTile,
           ),
-        );
-      },
+        ),
+      ],
     );
   }
 

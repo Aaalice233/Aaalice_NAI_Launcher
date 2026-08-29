@@ -83,7 +83,12 @@ class _WebAccessSettingsState extends ConsumerState<WebAccessSettings> {
           child: enabled
               ? Padding(
                   key: const ValueKey('web-access-settings-enabled'),
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  padding: EdgeInsets.fromLTRB(
+                    widget.showEnableControl ? 16 : 0,
+                    8,
+                    widget.showEnableControl ? 16 : 0,
+                    0,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [

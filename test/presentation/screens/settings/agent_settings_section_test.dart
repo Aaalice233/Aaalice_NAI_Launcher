@@ -18,6 +18,8 @@ import 'package:nai_launcher/presentation/prompt_assistant/models/prompt_assista
 import 'package:nai_launcher/presentation/screens/settings/sections/agent/agent_profile_actions.dart';
 import 'package:nai_launcher/presentation/screens/settings/sections/agent/skill_management_panel.dart';
 import 'package:nai_launcher/presentation/screens/settings/sections/agent_settings_section.dart';
+import 'package:nai_launcher/presentation/screens/settings/widgets/settings_card.dart';
+import 'package:nai_launcher/presentation/screens/settings/widgets/settings_page_layout.dart';
 
 class _MemoryLocalStorage extends LocalStorageService {
   final Map<String, Object?> _values = {};
@@ -164,6 +166,13 @@ void main() {
       await tester.pump(const Duration(milliseconds: 500));
 
       expect(find.byType(AgentSettingsSection), findsOneWidget);
+      expect(find.byType(SettingsPageLayout), findsOneWidget);
+      final pageLeft = tester.getTopLeft(find.byType(SettingsPageLayout)).dx;
+      expect(tester.getTopLeft(find.byType(SettingsCard).first).dx, pageLeft);
+      expect(
+        tester.getTopLeft(find.byKey(const ValueKey('settings-page-title'))).dx,
+        pageLeft,
+      );
       expect(find.text('导入配置'), findsOneWidget);
       expect(find.text('导出配置'), findsOneWidget);
       expect(find.byType(TabBar), findsOneWidget);

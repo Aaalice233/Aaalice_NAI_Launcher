@@ -128,6 +128,19 @@ void main() {
     final rail = tester.widget<NavigationRail>(find.byType(NavigationRail));
     expect(rail.destinations.length, 11);
 
+    final sectionScrollView = find.byKey(
+      const ValueKey('settings-section-scroll-view'),
+    );
+    final pageLayout = find.byKey(const ValueKey('settings-page-layout'));
+    expect(
+      find.ancestor(of: sectionScrollView, matching: find.byType(SafeArea)),
+      findsOneWidget,
+    );
+    final scrollRect = tester.getRect(sectionScrollView);
+    final pageRect = tester.getRect(pageLayout);
+    expect(pageRect.width, lessThanOrEqualTo(960));
+    expect(pageRect.left, moreOrLessEquals(scrollRect.left + 24));
+
     final labels = rail.destinations
         .map((destination) => (destination.label as Text).data)
         .toList();
@@ -212,8 +225,10 @@ void main() {
     final promptAssistantSection = find.byType(PromptAssistantSettingsSection);
     expect(promptAssistantSection, findsOneWidget);
     expect(
-      find.descendant(of: promptAssistantSection, matching: find.text('提示词助手')),
-      findsOneWidget,
+      tester
+          .widget<Text>(find.byKey(const ValueKey('settings-page-title')))
+          .data,
+      '集成',
     );
     expect(segmentLabels, const ['提示词助手', 'ComfyUI', 'Krita']);
     debugDefaultTargetPlatformOverride = null;
@@ -264,7 +279,18 @@ void main() {
     final addProvider = find.byKey(
       const ValueKey('prompt-assistant-add-provider'),
     );
-    await tester.scrollUntilVisible(addProvider, 200);
+    final contentScrollable = find.descendant(
+      of: find.byKey(const ValueKey('settings-section-scroll-view')),
+      matching: find.byWidgetPredicate(
+        (widget) =>
+            widget is Scrollable && widget.axisDirection == AxisDirection.down,
+      ),
+    );
+    await tester.scrollUntilVisible(
+      addProvider,
+      200,
+      scrollable: contentScrollable,
+    );
     await tester.tap(addProvider);
     await tester.pumpAndSettle();
 
@@ -342,6 +368,29 @@ void main() {
     expect(find.text('外观'), findsOneWidget);
     expect(find.bySemanticsLabel('外观'), findsWidgets);
 
+    await tester.binding.setSurfaceSize(const Size(390, 480));
+    await tester.pump();
+
+    final contentScrollable = find.descendant(
+      of: find.byKey(const ValueKey('settings-section-scroll-view')),
+      matching: find.byWidgetPredicate(
+        (widget) =>
+            widget is Scrollable && widget.axisDirection == AxisDirection.down,
+      ),
+    );
+    expect(
+      tester.state<ScrollableState>(contentScrollable).position.maxScrollExtent,
+      greaterThan(0),
+    );
+    await tester.scrollUntilVisible(
+      find.text('历史记录点击行为'),
+      200,
+      scrollable: contentScrollable,
+    );
+    expect(find.text('历史记录点击行为').hitTestable(), findsOneWidget);
+
+    await tester.binding.setSurfaceSize(const Size(390, 820));
+    await tester.pump();
     await tester.binding.handlePopRoute();
     await pumpTransition();
 
