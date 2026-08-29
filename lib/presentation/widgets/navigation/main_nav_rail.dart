@@ -17,15 +17,27 @@ import '../../providers/replication_queue_provider.dart';
 import '../../providers/update_provider.dart';
 import '../../router/app_branch.dart';
 import '../../router/app_routes.dart';
+import '../../themes/theme_extension.dart';
 import '../auth/account_avatar.dart';
 import '../auth/login_form_container.dart';
 
 import '../common/app_toast.dart';
 
+Duration _boundedMotionDuration(
+  BuildContext context,
+  Duration source, {
+  required int minMilliseconds,
+  required int maxMilliseconds,
+}) {
+  if (MediaQuery.disableAnimationsOf(context)) return Duration.zero;
+  return Duration(
+    milliseconds: source.inMilliseconds.clamp(minMilliseconds, maxMilliseconds),
+  );
+}
+
 class MainNavRail extends ConsumerWidget {
   static const double collapsedWidth = 60;
   static const double expandedWidth = 196;
-  static const Duration animationDuration = Duration(milliseconds: 240);
 
   static const List<AppBranch> _railBranches = [
     AppBranch.generation,
@@ -72,16 +84,20 @@ class MainNavRail extends ConsumerWidget {
     final selectedIndex = _railBranches.indexWhere(
       (branch) => branch.index == currentIndex,
     );
+    final motion = theme.appTheme;
+    final animationDuration = _boundedMotionDuration(
+      context,
+      motion.slowDuration,
+      minMilliseconds: 200,
+      maxMilliseconds: 280,
+    );
 
     return _NavRailExpansionScope(
       isExpanded: isExpanded,
-      child: AnimatedContainer(
-        key: const Key('main-nav-rail'),
+      child: _NavRailWidthTransition(
+        isExpanded: isExpanded,
         duration: animationDuration,
-        curve: Curves.easeInOutCubic,
-        width: isExpanded ? expandedWidth : collapsedWidth,
-        height: double.infinity,
-        clipBehavior: Clip.hardEdge,
+        curve: isExpanded ? motion.enterCurve : motion.exitCurve,
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
           border: Border(
@@ -233,6 +249,57 @@ class MainNavRail extends ConsumerWidget {
   }
 }
 
+class _NavRailWidthTransition extends StatelessWidget {
+  const _NavRailWidthTransition({
+    required this.isExpanded,
+    required this.duration,
+    required this.curve,
+    required this.decoration,
+    required this.child,
+  });
+
+  final bool isExpanded;
+  final Duration duration;
+  final Curve curve;
+  final Decoration decoration;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(end: isExpanded ? 1 : 0),
+      duration: duration,
+      curve: curve,
+      builder: (context, value, child) {
+        final width =
+            MainNavRail.collapsedWidth +
+            (MainNavRail.expandedWidth - MainNavRail.collapsedWidth) * value;
+        return Container(
+          key: const Key('main-nav-rail'),
+          width: width,
+          height: double.infinity,
+          clipBehavior: Clip.hardEdge,
+          decoration: decoration,
+          child: OverflowBox(
+            alignment: Alignment.centerLeft,
+            minWidth: MainNavRail.expandedWidth,
+            maxWidth: MainNavRail.expandedWidth,
+            child: RepaintBoundary(
+              child: SizedBox(
+                key: const Key('main-nav-rail-content'),
+                width: MainNavRail.expandedWidth,
+                height: double.infinity,
+                child: child,
+              ),
+            ),
+          ),
+        );
+      },
+      child: child,
+    );
+  }
+}
+
 class _NavRailExpansionScope extends InheritedWidget {
   const _NavRailExpansionScope({
     required this.isExpanded,
@@ -254,6 +321,31 @@ class _NavRailExpansionScope extends InheritedWidget {
   }
 }
 
+class _ExpandedRailContent extends StatelessWidget {
+  const _ExpandedRailContent({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final isExpanded = _NavRailExpansionScope.isExpandedOf(context);
+    final motion = Theme.of(context).appTheme;
+    final duration = _boundedMotionDuration(
+      context,
+      motion.normalDuration,
+      minMilliseconds: 120,
+      maxMilliseconds: 180,
+    );
+
+    return AnimatedOpacity(
+      opacity: isExpanded ? 1 : 0,
+      duration: duration,
+      curve: isExpanded ? motion.enterCurve : motion.exitCurve,
+      child: child,
+    );
+  }
+}
+
 class _NavRailToggle extends StatelessWidget {
   const _NavRailToggle({required this.isExpanded, required this.onTap});
 
@@ -271,72 +363,58 @@ class _NavRailToggle extends StatelessWidget {
       height: 48,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 6),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            // 侧栏宽度正在动画时提前切换为紧凑按钮，避免展开内容溢出。
-            if (isExpanded && constraints.maxWidth >= 170) {
-              return Row(
-                key: const ValueKey('expanded-nav-toggle'),
+        child: Tooltip(
+          message: label,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(8),
+              child: Row(
                 children: [
+                  SizedBox(
+                    key: const Key('main-nav-toggle'),
+                    width: 48,
+                    height: 48,
+                    child: Icon(
+                      isExpanded
+                          ? Icons.keyboard_double_arrow_left
+                          : Icons.keyboard_double_arrow_right,
+                      size: 20,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.only(left: 6, right: 4),
+                    child: _ExpandedRailContent(
                       child: Text(
-                        'v${AppVersion.versionName}',
-                        key: const Key('main-nav-version'),
+                        label,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant.withValues(
-                            alpha: 0.72,
-                          ),
-                          fontFeatures: const [FontFeature.tabularFigures()],
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ),
                   ),
-                  TextButton.icon(
-                    key: const Key('main-nav-toggle'),
-                    onPressed: onTap,
-                    style: TextButton.styleFrom(
-                      foregroundColor: theme.colorScheme.onSurfaceVariant,
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      minimumSize: const Size(0, 48),
-                      visualDensity: VisualDensity.compact,
+                  _ExpandedRailContent(
+                    child: Text(
+                      'v${AppVersion.versionName}',
+                      key: const Key('main-nav-version'),
+                      maxLines: 1,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant.withValues(
+                          alpha: 0.72,
+                        ),
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
                     ),
-                    icon: const Icon(
-                      Icons.keyboard_double_arrow_left,
-                      size: 18,
-                    ),
-                    label: Text(label),
                   ),
+                  const SizedBox(width: 8),
                 ],
-              );
-            }
-
-            return Center(
-              key: const ValueKey('collapsed-nav-toggle'),
-              child: IconButton(
-                key: const Key('main-nav-toggle'),
-                onPressed: onTap,
-                tooltip: label,
-                visualDensity: VisualDensity.compact,
-                style: IconButton.styleFrom(
-                  foregroundColor: theme.colorScheme.onSurfaceVariant,
-                  hoverColor: theme.colorScheme.surfaceContainerHighest,
-                  highlightColor: theme.colorScheme.primary.withValues(
-                    alpha: 0.1,
-                  ),
-                ),
-                icon: Icon(
-                  isExpanded
-                      ? Icons.keyboard_double_arrow_left
-                      : Icons.keyboard_double_arrow_right,
-                  size: 20,
-                ),
               ),
-            );
-          },
+            ),
+          ),
         ),
       ),
     );
@@ -736,37 +814,25 @@ class _RailLinkItem extends StatelessWidget {
                       : Colors.transparent,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final showLabel = constraints.maxWidth > 60;
-                    final labelOpacity = ((constraints.maxWidth - 60) / 48)
-                        .clamp(0.0, 1.0);
-                    return Row(
-                      children: [
-                        SizedBox(
-                          width: constraints.maxWidth.clamp(0.0, 48.0),
-                          height: 48,
-                          child: Center(child: icon),
-                        ),
-                        if (showLabel)
-                          Expanded(
-                            child: Opacity(
-                              opacity: labelOpacity,
-                              child: Text(
-                                label,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: theme.colorScheme.onSurface,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
+                child: Row(
+                  children: [
+                    SizedBox(width: 48, height: 48, child: Center(child: icon)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _ExpandedRailContent(
+                        child: Text(
+                          label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurface,
+                            fontWeight: FontWeight.w500,
                           ),
-                        if (showLabel) const SizedBox(width: 12),
-                      ],
-                    );
-                  },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                  ],
                 ),
               ),
             ),
@@ -846,51 +912,43 @@ class _NavIconState extends State<_NavIcon> {
                   color: backgroundColor,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final showLabel = constraints.maxWidth > 60;
-                    final labelOpacity = ((constraints.maxWidth - 60) / 48)
-                        .clamp(0.0, 1.0);
-                    return Row(
-                      children: [
-                        SizedBox(
-                          width: constraints.maxWidth.clamp(0.0, 48.0),
-                          height: 48,
-                          child: Center(
-                            child: Badge(
-                              isLabelVisible:
-                                  widget.showBadge || widget.badgeLabel != null,
-                              smallSize: 7,
-                              label: widget.badgeLabel == null
-                                  ? null
-                                  : Text(widget.badgeLabel!),
-                              child: Icon(widget.icon, color: color, size: 24),
-                            ),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 48,
+                      height: 48,
+                      child: Center(
+                        child: Badge(
+                          isLabelVisible:
+                              widget.showBadge || widget.badgeLabel != null,
+                          smallSize: 7,
+                          label: widget.badgeLabel == null
+                              ? null
+                              : Text(widget.badgeLabel!),
+                          child: Icon(widget.icon, color: color, size: 24),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _ExpandedRailContent(
+                        child: Text(
+                          widget.label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: widget.isSelected
+                                ? theme.colorScheme.primary
+                                : theme.colorScheme.onSurface,
+                            fontWeight: widget.isSelected
+                                ? FontWeight.w600
+                                : FontWeight.w500,
                           ),
                         ),
-                        if (showLabel)
-                          Expanded(
-                            child: Opacity(
-                              opacity: labelOpacity,
-                              child: Text(
-                                widget.label,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: widget.isSelected
-                                      ? theme.colorScheme.primary
-                                      : theme.colorScheme.onSurface,
-                                  fontWeight: widget.isSelected
-                                      ? FontWeight.w600
-                                      : FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ),
-                        if (showLabel) const SizedBox(width: 12),
-                      ],
-                    );
-                  },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                  ],
                 ),
               ),
             ),
@@ -976,49 +1034,31 @@ class _AccountAvatarButtonState extends State<_AccountAvatarButton> {
                     : Colors.transparent,
                 borderRadius: BorderRadius.circular(22),
               ),
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final showLabel = constraints.maxWidth > 80;
-                  final labelOpacity = ((constraints.maxWidth - 80) / 48).clamp(
-                    0.0,
-                    1.0,
-                  );
-                  return Row(
-                    children: [
-                      SizedBox(
-                        width: constraints.maxWidth.clamp(0.0, 40.0),
-                        height: 48,
-                        child: Center(child: avatar),
+              child: Row(
+                children: [
+                  SizedBox(width: 48, height: 48, child: Center(child: avatar)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _ExpandedRailContent(
+                      child: Text(
+                        currentAccount?.displayName ?? context.l10n.auth_login,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                      if (showLabel) ...[
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Opacity(
-                            opacity: labelOpacity,
-                            child: Text(
-                              currentAccount?.displayName ??
-                                  context.l10n.auth_login,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ),
-                        Opacity(
-                          opacity: labelOpacity,
-                          child: Icon(
-                            Icons.expand_more,
-                            size: 18,
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                      ],
-                    ],
-                  );
-                },
+                    ),
+                  ),
+                  _ExpandedRailContent(
+                    child: Icon(
+                      Icons.expand_more,
+                      size: 18,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                ],
               ),
             ),
           ),

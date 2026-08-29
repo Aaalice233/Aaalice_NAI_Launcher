@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
@@ -34,6 +36,32 @@ void main() {
           .read(layoutStateNotifierProvider.notifier)
           .setMainNavRailExpanded(false);
 
+      expect(storage.mainNavExpanded, isFalse);
+    });
+
+    test('rapid updates persist in interaction order', () async {
+      final firstWrite = Completer<void>();
+      final storage = _DelayedMainNavStorage(firstWrite.future);
+      final container = ProviderContainer(
+        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
+      );
+      addTearDown(container.dispose);
+      final notifier = container.read(layoutStateNotifierProvider.notifier);
+
+      final expand = notifier.setMainNavRailExpanded(true);
+      final collapse = notifier.setMainNavRailExpanded(false);
+
+      expect(
+        container.read(layoutStateNotifierProvider).mainNavRailExpanded,
+        isFalse,
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(storage.requestedValues, [true]);
+
+      firstWrite.complete();
+      await Future.wait([expand, collapse]);
+
+      expect(storage.requestedValues, [true, false]);
       expect(storage.mainNavExpanded, isFalse);
     });
   });
@@ -253,5 +281,19 @@ class _FakeLayoutStorage extends LocalStorageService {
   @override
   Future<void> setWebLeftPanelExpanded(bool value) async {
     webExpanded = value;
+  }
+}
+
+class _DelayedMainNavStorage extends _FakeLayoutStorage {
+  _DelayedMainNavStorage(this.firstWrite);
+
+  final Future<void> firstWrite;
+  final List<bool> requestedValues = [];
+
+  @override
+  Future<void> setMainNavRailExpanded(bool value) async {
+    requestedValues.add(value);
+    if (requestedValues.length == 1) await firstWrite;
+    mainNavExpanded = value;
   }
 }

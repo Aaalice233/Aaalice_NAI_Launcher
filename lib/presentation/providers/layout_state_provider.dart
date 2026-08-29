@@ -77,6 +77,8 @@ class LayoutState {
 /// UI布局状态 Notifier
 @riverpod
 class LayoutStateNotifier extends _$LayoutStateNotifier {
+  Future<void> _mainNavRailPersistence = Future<void>.value();
+
   @override
   LayoutState build() {
     // 从本地存储加载布局状态
@@ -168,7 +170,16 @@ class LayoutStateNotifier extends _$LayoutStateNotifier {
     state = state.copyWith(mainNavRailExpanded: expanded);
 
     final storage = ref.read(localStorageServiceProvider);
-    await storage.setMainNavRailExpanded(expanded);
+    final write = _mainNavRailPersistence.then(
+      (_) => storage.setMainNavRailExpanded(expanded),
+    );
+    // A failed write must not block later clicks; this invocation still
+    // awaits `write` directly so its storage error remains observable.
+    _mainNavRailPersistence = write.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace __) {},
+    );
+    await write;
   }
 
   /// 切换桌面主导航栏展开状态
