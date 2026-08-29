@@ -12629,6 +12629,42 @@ class AppLocalizationsJa extends AppLocalizations {
   String get cloudSync_kindLargeFiles => '大容量バイナリファイル';
 
   @override
+  String get cloudSync_agentContentTitle => 'エージェントの内容';
+
+  @override
+  String get cloudSync_agentSystemPrompt => 'エージェントのカスタムシステムプロンプト';
+
+  @override
+  String get cloudSync_agentSystemPromptDescription =>
+      '既定でバックアップします。カスタムプロンプトと追加／上書きモードのみを含み、モデルと認証情報は端末に残します。';
+
+  @override
+  String get cloudSync_skillsBackup => 'Skill をバックアップ';
+
+  @override
+  String get cloudSync_skillsBackupDescription =>
+      '既定ではオフです。オンにしてから、フォルダー全体を含める Skill を個別に選択します。';
+
+  @override
+  String cloudSync_skillsSelectedCount(Object count) {
+    return '$count 件の Skill を選択中';
+  }
+
+  @override
+  String cloudSync_missingSelectedSkills(Object count) {
+    return '選択中の $count 件は現在利用できません';
+  }
+
+  @override
+  String get cloudSync_removeMissingSkills => '利用不可の項目を削除';
+
+  @override
+  String get cloudSync_searchSkills => 'Skill を検索';
+
+  @override
+  String get cloudSync_noSkills => '一致する Skill はありません';
+
+  @override
   String get cloudSync_oneTimeRecoveryKey => '一回限りの復旧キー';
 
   @override

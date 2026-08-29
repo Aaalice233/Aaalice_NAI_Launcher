@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import '../../../core/constants/storage_keys.dart';
+import '../../../core/cloud_sync/content_selection.dart';
 import '../../../core/storage/local_storage_service.dart';
 import '../../../core/storage/secure_storage_service.dart';
 import 'cloud_sync_ui_provider.dart';
@@ -10,12 +11,14 @@ class PersistedCloudSyncConnection {
   const PersistedCloudSyncConnection({
     required this.draft,
     required this.dataKinds,
+    required this.contentSelection,
     this.remoteRevision,
     this.lastSync,
   });
 
   final CloudSyncConnectionDraft draft;
   final Set<CloudSyncDataKind> dataKinds;
+  final CloudSyncContentSelection contentSelection;
   final String? remoteRevision;
   final DateTime? lastSync;
 }
@@ -61,6 +64,8 @@ class CloudSyncConnectionStore {
   Future<void> save(
     CloudSyncConnectionDraft draft,
     Set<CloudSyncDataKind> dataKinds, {
+    CloudSyncContentSelection contentSelection =
+        const CloudSyncContentSelection(),
     String? remoteRevision,
     DateTime? lastSync,
   }) async {
@@ -79,6 +84,7 @@ class CloudSyncConnectionStore {
         'path': draft.path,
         'allowInsecureHttp': draft.allowInsecureHttp,
         'dataKinds': dataKinds.map((value) => value.name).toList(),
+        'contentSelection': contentSelection.toJson(),
         'remoteRevision': remoteRevision,
         'lastSync': lastSync?.toUtc().toIso8601String(),
       }),
@@ -140,6 +146,11 @@ class CloudSyncConnectionStore {
         allowInsecureHttp: public['allowInsecureHttp'] as bool? ?? false,
       ),
       dataKinds: scope.isEmpty ? CloudSyncDataKind.values.toSet() : scope,
+      contentSelection: public['contentSelection'] == null
+          ? const CloudSyncContentSelection()
+          : CloudSyncContentSelection.decode(
+              jsonEncode(public['contentSelection']),
+            ),
       remoteRevision: public['remoteRevision'] as String?,
       lastSync: DateTime.tryParse(public['lastSync'] as String? ?? ''),
     );

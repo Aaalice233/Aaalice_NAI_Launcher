@@ -164,8 +164,11 @@ class SkillArchiveService {
   Future<SkillArchivePreview> previewImport({
     required Uint8List bytes,
     required Directory targetDirectory,
+    bool recoverInterruptedTransactions = true,
   }) async {
-    await recoverInterruptedInstalls(targetDirectory);
+    if (recoverInterruptedTransactions) {
+      await recoverInterruptedInstalls(targetDirectory);
+    }
     final temporary = await Directory.systemTemp.createTemp(
       'aaalice-skill-preview-',
     );

@@ -165,7 +165,7 @@ class _Fixture {
     CloudSnapshotEncoding? codecEncoding;
     final service = CloudSyncApplicationService(
       backendFactory: (_) => effectiveBackend,
-      coordinatorFactory: (_, codec, __) async {
+      coordinatorFactory: (_, codec, __, ___) async {
         codecEncoding = codec.encoding;
         return SyncCoordinator(
           backend: effectiveBackend,

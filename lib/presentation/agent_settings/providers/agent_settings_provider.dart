@@ -46,6 +46,13 @@ class AgentSettingsState {
   );
 }
 
+class AgentSkillBackupContext {
+  const AgentSkillBackupContext({required this.roots, required this.entries});
+
+  final List<SkillRoot> roots;
+  final List<SkillCatalogEntry> entries;
+}
+
 final agentSettingsProvider =
     StateNotifierProvider<AgentSettingsNotifier, AgentSettingsState>((ref) {
       final notifier = AgentSettingsNotifier(ref);
@@ -73,7 +80,7 @@ class AgentSettingsNotifier extends StateNotifier<AgentSettingsState> {
        _skillCatalogService =
            skillCatalogService ?? const SkillCatalogService(),
        super(const AgentSettingsState()) {
-    unawaited(_load());
+    _initialization = _load();
   }
 
   final Ref _ref;
@@ -83,6 +90,7 @@ class AgentSettingsNotifier extends StateNotifier<AgentSettingsState> {
   final Map<String, String>? _environment;
   final Future<Directory> Function()? _workspaceDirectoryResolver;
   Future<void> _mutationQueue = Future.value();
+  late Future<void> _initialization;
   var _skillReloadGeneration = 0;
   var _imageProjectRefreshPending = false;
 
@@ -312,7 +320,10 @@ class AgentSettingsNotifier extends StateNotifier<AgentSettingsState> {
     return operation;
   }
 
-  Future<void> retryInitialization() => _load();
+  Future<void> retryInitialization() {
+    _initialization = _load();
+    return _initialization;
+  }
 
   Future<void> setSkillEnabled(String id, bool enabled) async {
     await _update((current) {
@@ -416,15 +427,31 @@ class AgentSettingsNotifier extends StateNotifier<AgentSettingsState> {
   }
 
   Future<Directory> userSkillDirectory() async {
+    final roots = await _skillRoots();
+    return Directory(
+      roots.firstWhere((root) => root.source == SkillSource.piUser).path,
+    );
+  }
+
+  Future<AgentSkillBackupContext> skillBackupContext() async {
+    await _initialization;
+    if (!state.initialized || state.error.isNotEmpty) {
+      throw StateError('Agent Skills are not available for backup.');
+    }
+    return AgentSkillBackupContext(
+      roots: await _skillRoots(),
+      entries: List.unmodifiable(state.skills.entries),
+    );
+  }
+
+  Future<List<SkillRoot>> _skillRoots() async {
     _supportDirectory ??= await getApplicationSupportDirectory();
     final workspaceDirectory =
         _providedWorkspaceDirectory ?? await _resolveWorkspaceDirectory();
-    return Directory(
-      SkillCatalogService.roots(
-        workspaceDirectory: workspaceDirectory,
-        supportDirectory: _supportDirectory!,
-        environment: _environment,
-      ).firstWhere((root) => root.source == SkillSource.piUser).path,
+    return SkillCatalogService.roots(
+      workspaceDirectory: workspaceDirectory,
+      supportDirectory: _supportDirectory!,
+      environment: _environment,
     );
   }
 

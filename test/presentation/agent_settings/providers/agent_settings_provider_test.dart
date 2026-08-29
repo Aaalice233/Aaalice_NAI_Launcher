@@ -203,14 +203,14 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         localStorageServiceProvider.overrideWithValue(storage),
-        secureStorageServiceProvider.overrideWithValue(
-          _MemorySecureStorageService(),
-        ),
-        agentProfileServiceProvider.overrideWithValue(
-          _FakeAgentProfileService(_profile()),
-        ),
-        agentSkillCatalogProvider.overrideWithValue(
-          _FakeAgentSkillCatalog(const <AgentSkillDescriptor>[]),
+        secureStorageServiceProvider.overrideWithValue(_MemorySecureStorage()),
+        agentSettingsProvider.overrideWith(
+          (ref) => AgentSettingsNotifier(
+            ref,
+            supportDirectory: temp,
+            workspaceDirectory: temp,
+            environment: const {},
+          ),
         ),
       ],
     );

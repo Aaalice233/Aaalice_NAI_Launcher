@@ -1,8 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/cloud_sync/content_selection.dart';
 import '../../../core/utils/localization_extension.dart';
+import '../../../core/storage/local_storage_service.dart';
+import '../../../data/cloud_sync/cloud_sync_content_selection_store.dart';
+import '../../agent_settings/providers/agent_settings_provider.dart';
 import '../../providers/cloud_sync/cloud_sync_ui_provider.dart';
+import 'cloud_sync_agent_content_section.dart';
 import 'cloud_sync_setup_configuration.dart';
 import 'cloud_sync_widgets.dart';
 
@@ -32,6 +39,8 @@ class _CloudSyncSetupState extends ConsumerState<CloudSyncSetup> {
     CloudSyncDataKind.prompts,
     CloudSyncDataKind.galleries,
   };
+  late final CloudSyncContentSelectionStore _contentSelectionStore;
+  late CloudSyncContentSelection _contentSelection;
 
   Iterable<TextEditingController> get _controllers => [
     _url,
@@ -51,6 +60,14 @@ class _CloudSyncSetupState extends ConsumerState<CloudSyncSetup> {
     super.initState();
     for (final controller in _controllers) {
       controller.addListener(_refreshInputState);
+    }
+    _contentSelectionStore = CloudSyncContentSelectionStore(
+      ref.read(localStorageServiceProvider),
+    );
+    try {
+      _contentSelection = _contentSelectionStore.load();
+    } on FormatException {
+      _contentSelection = const CloudSyncContentSelection();
     }
   }
 
@@ -119,6 +136,7 @@ class _CloudSyncSetupState extends ConsumerState<CloudSyncSetup> {
               connection: _draft,
               dataKinds: _dataKinds,
               legacyPassword: _legacyPassword.text,
+              contentSelection: _contentSelection,
             ),
           ),
     );
@@ -192,22 +210,36 @@ class _CloudSyncSetupState extends ConsumerState<CloudSyncSetup> {
   Widget _dataScope() => CloudSyncSection(
     title: context.l10n.cloudSync_dataScope,
     subtitle: context.l10n.cloudSync_dataScopeDescription,
-    child: Wrap(
-      spacing: 8,
-      runSpacing: 8,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _filter(
-          CloudSyncDataKind.settings,
-          context.l10n.cloudSync_kindSettings,
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _filter(
+              CloudSyncDataKind.settings,
+              context.l10n.cloudSync_kindSettings,
+            ),
+            _filter(
+              CloudSyncDataKind.prompts,
+              context.l10n.cloudSync_kindPrompts,
+            ),
+            _filter(
+              CloudSyncDataKind.galleries,
+              context.l10n.cloudSync_kindGalleries,
+            ),
+            _filter(
+              CloudSyncDataKind.largeBinary,
+              context.l10n.cloudSync_kindLargeFiles,
+            ),
+          ],
         ),
-        _filter(CloudSyncDataKind.prompts, context.l10n.cloudSync_kindPrompts),
-        _filter(
-          CloudSyncDataKind.galleries,
-          context.l10n.cloudSync_kindGalleries,
-        ),
-        _filter(
-          CloudSyncDataKind.largeBinary,
-          context.l10n.cloudSync_kindLargeFiles,
+        const SizedBox(height: 16),
+        CloudSyncAgentContentSection(
+          selection: _contentSelection,
+          skills: ref.watch(agentSettingsProvider).skills,
+          onChanged: _updateContentSelection,
         ),
       ],
     ),
@@ -278,4 +310,8 @@ class _CloudSyncSetupState extends ConsumerState<CloudSyncSetup> {
       ],
     ),
   );
+  void _updateContentSelection(CloudSyncContentSelection value) {
+    setState(() => _contentSelection = value);
+    unawaited(_contentSelectionStore.save(value));
+  }
 }
