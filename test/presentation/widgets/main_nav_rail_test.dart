@@ -121,6 +121,18 @@ void main() {
     );
     expect(_labelOpacity(tester, '画布'), 0);
 
+    final agentIcon = find.byIcon(Icons.smart_toy_outlined);
+    final agentTooltip = find.ancestor(
+      of: agentIcon,
+      matching: find.byType(Tooltip),
+    );
+    expect(agentTooltip, findsOneWidget);
+    expect(tester.getSize(agentTooltip), const Size.square(48));
+    expect(tester.getCenter(agentTooltip), tester.getCenter(agentIcon));
+    final tooltip = tester.widget<Tooltip>(agentTooltip);
+    expect(tooltip.message, '智能体');
+    expect(tooltip.verticalOffset, 24);
+
     await tester.tap(find.byKey(const Key('main-nav-toggle')));
     await tester.pumpAndSettle();
 

@@ -444,16 +444,18 @@ class _NavRailToggle extends StatelessWidget {
       height: 48,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 6),
-        child: Tooltip(
-          message: label,
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: onTap,
-              borderRadius: BorderRadius.circular(8),
-              child: Row(
-                children: [
-                  SizedBox(
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(8),
+            child: Row(
+              children: [
+                Tooltip(
+                  message: label,
+                  preferBelow: false,
+                  verticalOffset: 24,
+                  child: SizedBox(
                     key: const Key('main-nav-toggle'),
                     width: 48,
                     height: 48,
@@ -465,35 +467,35 @@ class _NavRailToggle extends StatelessWidget {
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _ExpandedRailContent(
-                      child: Text(
-                        label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.labelLarge?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ),
-                  ),
-                  _ExpandedRailContent(
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _ExpandedRailContent(
                     child: Text(
-                      'v${AppVersion.versionName}',
-                      key: const Key('main-nav-version'),
+                      label,
                       maxLines: 1,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant.withValues(
-                          alpha: 0.72,
-                        ),
-                        fontFeatures: const [FontFeature.tabularFigures()],
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                ],
-              ),
+                ),
+                _ExpandedRailContent(
+                  child: Text(
+                    'v${AppVersion.versionName}',
+                    key: const Key('main-nav-version'),
+                    maxLines: 1,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant.withValues(
+                        alpha: 0.72,
+                      ),
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
             ),
           ),
         ),
@@ -868,53 +870,58 @@ class _RailLinkItem extends StatelessWidget {
     final isExpanded = _NavRailExpansionScope.isExpandedOf(context);
     final theme = Theme.of(context);
 
-    return Tooltip(
-      message: isExpanded ? '' : label,
-      preferBelow: false,
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-        height: 48,
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onTap,
-            onHover: onHover,
-            onTapDown: (_) => onTapDown(),
-            onTapUp: (_) => onTapEnd(),
-            onTapCancel: onTapEnd,
-            borderRadius: BorderRadius.circular(8),
-            child: AnimatedScale(
-              scale: isPressed ? 0.97 : 1.0,
-              duration: const Duration(milliseconds: 140),
-              curve: Curves.easeOutCubic,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                decoration: BoxDecoration(
-                  color: isHovering
-                      ? color.withValues(alpha: 0.15)
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    SizedBox(width: 48, height: 48, child: Center(child: icon)),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _ExpandedRailContent(
-                        child: Text(
-                          label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurface,
-                            fontWeight: FontWeight.w500,
-                          ),
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      height: 48,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          onHover: onHover,
+          onTapDown: (_) => onTapDown(),
+          onTapUp: (_) => onTapEnd(),
+          onTapCancel: onTapEnd,
+          borderRadius: BorderRadius.circular(8),
+          child: AnimatedScale(
+            scale: isPressed ? 0.97 : 1.0,
+            duration: const Duration(milliseconds: 140),
+            curve: Curves.easeOutCubic,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              decoration: BoxDecoration(
+                color: isHovering
+                    ? color.withValues(alpha: 0.15)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Tooltip(
+                    message: isExpanded ? '' : label,
+                    preferBelow: false,
+                    verticalOffset: 24,
+                    child: SizedBox(
+                      width: 48,
+                      height: 48,
+                      child: Center(child: icon),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _ExpandedRailContent(
+                      child: Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurface,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: 12),
+                ],
               ),
             ),
           ),
@@ -970,36 +977,37 @@ class _NavIconState extends State<_NavIcon> {
       );
     }
 
-    return Tooltip(
-      message: isExpanded ? '' : widget.label,
-      preferBelow: false,
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-        height: 48,
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            focusNode: widget.focusNode,
-            focusColor: Colors.transparent,
-            onTap: widget.onTap,
-            onHover: (val) => setState(() => _isHovering = val),
-            onTapDown: (_) => setState(() => _isPressed = true),
-            onTapUp: (_) => setState(() => _isPressed = false),
-            onTapCancel: () => setState(() => _isPressed = false),
-            borderRadius: BorderRadius.circular(8),
-            child: AnimatedScale(
-              scale: _isPressed ? 0.97 : 1.0,
-              duration: const Duration(milliseconds: 140),
-              curve: Curves.easeOutCubic,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                decoration: BoxDecoration(
-                  color: backgroundColor,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    SizedBox(
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      height: 48,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          focusNode: widget.focusNode,
+          focusColor: Colors.transparent,
+          onTap: widget.onTap,
+          onHover: (val) => setState(() => _isHovering = val),
+          onTapDown: (_) => setState(() => _isPressed = true),
+          onTapUp: (_) => setState(() => _isPressed = false),
+          onTapCancel: () => setState(() => _isPressed = false),
+          borderRadius: BorderRadius.circular(8),
+          child: AnimatedScale(
+            scale: _isPressed ? 0.97 : 1.0,
+            duration: const Duration(milliseconds: 140),
+            curve: Curves.easeOutCubic,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              decoration: BoxDecoration(
+                color: backgroundColor,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Tooltip(
+                    message: isExpanded ? '' : widget.label,
+                    preferBelow: false,
+                    verticalOffset: 24,
+                    child: SizedBox(
                       width: 48,
                       height: 48,
                       child: Center(
@@ -1014,27 +1022,27 @@ class _NavIconState extends State<_NavIcon> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _ExpandedRailContent(
-                        child: Text(
-                          widget.label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: widget.isSelected
-                                ? theme.colorScheme.primary
-                                : theme.colorScheme.onSurface,
-                            fontWeight: widget.isSelected
-                                ? FontWeight.w600
-                                : FontWeight.w500,
-                          ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _ExpandedRailContent(
+                      child: Text(
+                        widget.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: widget.isSelected
+                              ? theme.colorScheme.primary
+                              : theme.colorScheme.onSurface,
+                          fontWeight: widget.isSelected
+                              ? FontWeight.w600
+                              : FontWeight.w500,
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: 12),
+                ],
               ),
             ),
           ),
