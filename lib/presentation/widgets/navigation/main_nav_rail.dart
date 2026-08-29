@@ -980,6 +980,7 @@ class _NavIconState extends State<_NavIcon> {
           color: Colors.transparent,
           child: InkWell(
             focusNode: widget.focusNode,
+            focusColor: Colors.transparent,
             onTap: widget.onTap,
             onHover: (val) => setState(() => _isHovering = val),
             onTapDown: (_) => setState(() => _isPressed = true),

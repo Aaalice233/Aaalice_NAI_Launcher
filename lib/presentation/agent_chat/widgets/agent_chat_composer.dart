@@ -210,7 +210,7 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
         // mobile, while the model selector absorbs the remaining width.
         final modelWidth =
             (constraints.maxWidth - target - compactTarget * 4 - gap * 5)
-                .clamp(compactTarget, 164.0)
+                .clamp(compactTarget, viewData.mobile ? 220.0 : 280.0)
                 .toDouble();
         final hasDraft =
             controller.inputController.text.trim().isNotEmpty ||
@@ -898,10 +898,14 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
     if (label.isEmpty) {
       label = activeModel.isEmpty ? viewData.state.routeLabel : activeModel;
     }
-    final displayLabel = _shortModelLabel(label);
+    final displayLabel = label.trim().split('/').last;
     return PopupMenuButton<(String, String)>(
       enabled: viewData.sessionActionsEnabled && _agentSettingsInteractive,
       tooltip: '${l10n.agentChat_model}: $label',
+      constraints: BoxConstraints(
+        minWidth: viewData.mobile ? 280 : 320,
+        maxWidth: viewData.mobile ? 360 : 420,
+      ),
       onSelected: (route) => route.$1 == '__thinking__'
           ? commands.selectThinkingLevel(
               ThinkingLevel.values.firstWhere(
@@ -1036,25 +1040,6 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
         ),
       ),
     );
-  }
-
-  String _shortModelLabel(String label) {
-    final routeName = label.trim().split('/').last;
-    final words = routeName
-        .replaceAll(RegExp(r'[_-]+'), ' ')
-        .split(RegExp(r'\s+'))
-        .where((word) => word.isNotEmpty)
-        .toList(growable: false);
-    if (words.isEmpty) return label.trim();
-    final selected = <String>[];
-    for (final word in words) {
-      final normalized = word.toLowerCase() == 'deepseek' ? 'DeepSeek' : word;
-      final candidate = [...selected, normalized].join(' ');
-      if (selected.isNotEmpty && candidate.length > 20) break;
-      selected.add(normalized);
-      if (selected.length == 3) break;
-    }
-    return selected.join(' ');
   }
 
   String _thinkingLevelLabel(AppLocalizations l10n, ThinkingLevel level) =>

@@ -415,6 +415,7 @@ void main() {
       find.descendant(of: agentEntry, matching: find.byType(InkWell)),
     );
     expect(agentInkWell.focusNode?.hasFocus, isTrue);
+    expect(agentInkWell.focusColor, Colors.transparent);
 
     await tester.tap(
       find.descendant(of: agentEntry, matching: find.byType(Icon)).first,

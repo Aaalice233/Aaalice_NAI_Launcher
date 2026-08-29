@@ -7,6 +7,7 @@ import 'package:nai_launcher/core/agent/agent_types.dart';
 import 'package:nai_launcher/core/agent/context_usage.dart';
 import 'package:nai_launcher/core/agent/resources/agent_chat_resource_reference.dart';
 import 'package:nai_launcher/core/windowing/agent_chat_shared_widgets.dart';
+import 'package:nai_launcher/data/models/agent/agent_settings.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/agent_chat/providers/agent_chat_state.dart';
 import 'package:nai_launcher/presentation/agent_chat/widgets/agent_chat_composer.dart';
@@ -152,6 +153,62 @@ void main() {
       find.byKey(const ValueKey('agent-chat-context-ring')),
       findsOneWidget,
     );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('desktop model selector shows the complete model name', (
+    tester,
+  ) async {
+    const modelName = 'deepseek-v4-flash-vision-exp';
+    final config = PromptAssistantConfigState.defaults().copyWith(
+      providers: const [
+        ProviderConfig(
+          id: 'deepseek',
+          name: 'DeepSeek',
+          baseUrl: 'https://api.deepseek.com',
+        ),
+      ],
+      models: const [
+        ModelConfig(
+          providerId: 'deepseek',
+          name: modelName,
+          displayName: modelName,
+          forTask: AssistantTaskType.chat,
+        ),
+      ],
+    );
+    const agentSettings = AgentSettingsState(
+      initialized: true,
+      settings: AgentSettings(
+        chat: AgentChatConfig(
+          modelReference: AgentModelReference(
+            providerId: 'deepseek',
+            model: modelName,
+          ),
+        ),
+      ),
+    );
+
+    await _pumpComposer(
+      tester,
+      width: 520,
+      mobile: false,
+      config: config,
+      agentSettings: agentSettings,
+    );
+
+    final selector = find.byKey(const ValueKey('agent-chat-model-selector'));
+    expect(find.text(modelName), findsOneWidget);
+    expect(tester.getSize(selector).width, greaterThan(164));
+
+    await tester.tap(selector);
+    await tester.pumpAndSettle();
+
+    expect(find.text(modelName), findsNWidgets(2));
+    final popup = tester.widget<PopupMenuButton<(String, String)>>(
+      find.byType(PopupMenuButton<(String, String)>),
+    );
+    expect(popup.constraints?.minWidth, 320);
     expect(tester.takeException(), isNull);
   });
 
@@ -561,6 +618,8 @@ Future<void> _pumpComposer(
   Future<void> Function()? onSend,
   Future<void> Function()? onAttachCurrentCanvas,
   AgentChatResourceReference? currentCanvasReference,
+  PromptAssistantConfigState? config,
+  AgentSettingsState? agentSettings,
   bool mobile = true,
 }) async {
   await tester.binding.setSurfaceSize(Size(width, height));
@@ -588,6 +647,8 @@ Future<void> _pumpComposer(
               onSend: onSend,
               onAttachCurrentCanvas: onAttachCurrentCanvas,
               currentCanvasReference: currentCanvasReference,
+              config: config,
+              agentSettings: agentSettings,
               mobile: mobile,
             ),
           ),
@@ -607,6 +668,8 @@ class _ComposerHarness extends StatefulWidget {
     this.onSend,
     this.onAttachCurrentCanvas,
     this.currentCanvasReference,
+    this.config,
+    this.agentSettings,
     this.mobile = true,
   });
 
@@ -617,6 +680,8 @@ class _ComposerHarness extends StatefulWidget {
   final Future<void> Function()? onSend;
   final Future<void> Function()? onAttachCurrentCanvas;
   final AgentChatResourceReference? currentCanvasReference;
+  final PromptAssistantConfigState? config;
+  final AgentSettingsState? agentSettings;
   final bool mobile;
 
   @override
@@ -684,8 +749,9 @@ class _ComposerHarnessState extends State<_ComposerHarness> {
     return AgentChatComposer(
       viewData: AgentChatPanelViewData(
         state: widget.state,
-        config: PromptAssistantConfigState.defaults(),
-        agentSettings: const AgentSettingsState(initialized: true),
+        config: widget.config ?? PromptAssistantConfigState.defaults(),
+        agentSettings:
+            widget.agentSettings ?? const AgentSettingsState(initialized: true),
         webAccess: const WebAccessConfigState(initialized: true),
         mobile: widget.mobile,
         fullScreen: true,
