@@ -75,9 +75,12 @@ class AgentChatEventController {
             message is! AssistantMessage ||
             message.content.any(
               (content) => switch (content) {
-                AssistantTextContent() => content.text.trim().isNotEmpty,
+                AssistantTextContent() =>
+                  content.text.trim().isNotEmpty ||
+                      content.signature?.isNotEmpty == true,
                 AssistantThinkingContent() =>
-                  content.thinking.trim().isNotEmpty,
+                  content.thinking.trim().isNotEmpty ||
+                      content.signature?.isNotEmpty == true,
                 ToolCallContent() =>
                   content.id.trim().isNotEmpty &&
                       content.name.trim().isNotEmpty,

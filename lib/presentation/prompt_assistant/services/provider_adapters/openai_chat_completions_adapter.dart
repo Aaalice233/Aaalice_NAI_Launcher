@@ -76,7 +76,7 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
       if (request.responseFormat == PromptAssistantResponseFormat.jsonObject)
         'response_format': {'type': 'json_object'},
       if (request.maxOutputTokens case final maxOutputTokens?)
-        'max_tokens': maxOutputTokens,
+        _maxTokensField(request.provider): maxOutputTokens,
       if (request.provider.preset == ProviderPreset.deepseek &&
           request.reasoningMode == PromptAssistantReasoningMode.disabled)
         'thinking': {'type': 'disabled'},
@@ -164,6 +164,19 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
               final content = delta['content'];
               if (content is String && content.isNotEmpty) {
                 pending.add(AgentWireTextDelta(content));
+              } else if (content is List) {
+                for (final item in content) {
+                  if (item is! Map<String, dynamic>) continue;
+                  if (item['type'] == 'text' && item['text'] is String) {
+                    final text = item['text'] as String;
+                    if (text.isNotEmpty) pending.add(AgentWireTextDelta(text));
+                  } else if (item['type'] == 'thinking') {
+                    final thinking = _mistralThinkingText(item['thinking']);
+                    if (thinking.isNotEmpty) {
+                      pending.add(AgentWireThinkingDelta(thinking));
+                    }
+                  }
+                }
               }
               final reasoning =
                   delta['reasoning_content'] ?? delta['reasoning'];
@@ -352,10 +365,12 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
       if (stream) 'stream': true,
       if (stream) 'stream_options': {'include_usage': true},
       'messages': _buildAgentMessages(request),
-      if (request.provider.preset == ProviderPreset.deepseek)
-        'thinking': {
-          'type': request.reasoning == null ? 'disabled' : 'enabled',
-        },
+      if (request.effectiveMaxOutputTokens case final maxTokens?)
+        _maxTokensField(
+          request.provider,
+          reasoningApi: request.reasoningRequest?.api,
+        ): maxTokens,
+      ..._reasoningPayload(request),
       if (request.tools.isNotEmpty) ...{
         'tools': [
           for (final tool in request.tools)
@@ -373,6 +388,51 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
     };
   }
 
+  Map<String, dynamic> _reasoningPayload(AgentChatRequest request) {
+    final reasoning = request.reasoningRequest;
+    if (reasoning == null) {
+      if (request.provider.preset == ProviderPreset.deepseek) {
+        return {
+          'thinking': {
+            'type': request.reasoning == null ? 'disabled' : 'enabled',
+          },
+        };
+      }
+      return const {};
+    }
+
+    return switch (reasoning.api) {
+      AgentReasoningApi.deepSeek => {
+        if (reasoning.enabled || reasoning.sendWhenDisabled)
+          'thinking': {'type': reasoning.enabled ? 'enabled' : 'disabled'},
+        if (reasoning.enabled)
+          if (reasoning.effort case final effort?) 'reasoning_effort': effort,
+      },
+      AgentReasoningApi.qwen => {
+        'enable_thinking': reasoning.enabled,
+        if (reasoning.effort case final effort?) 'reasoning_effort': effort,
+      },
+      AgentReasoningApi.openRouter => {
+        if (reasoning.enabled || reasoning.sendWhenDisabled)
+          'reasoning': {
+            'effort': reasoning.enabled
+                ? reasoning.effort
+                : reasoning.effort ?? 'none',
+          },
+      },
+      AgentReasoningApi.openAiCompletions => {
+        if (reasoning.effort case final effort?) 'reasoning_effort': effort,
+      },
+      AgentReasoningApi.mistralPromptMode => {
+        if (reasoning.enabled) 'prompt_mode': 'reasoning',
+      },
+      AgentReasoningApi.mistralEffort => {
+        if (reasoning.enabled) 'reasoning_effort': reasoning.effort ?? 'high',
+      },
+      _ => const {},
+    };
+  }
+
   List<Map<String, dynamic>> _buildAgentMessages(AgentChatRequest request) {
     return [
       if (request.systemPrompt.trim().isNotEmpty)
@@ -382,8 +442,13 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
           message,
           allowImageInput: request.provider.allowImageInput,
           preserveReasoning:
-              request.provider.preset == ProviderPreset.deepseek &&
-              request.reasoning != null,
+              request.reasoningRequest?.preserveReasoningContent == true ||
+              (request.provider.preset == ProviderPreset.deepseek &&
+                  request.reasoning != null),
+          useMistralContent:
+              request.reasoningRequest?.api ==
+                  AgentReasoningApi.mistralPromptMode ||
+              request.reasoningRequest?.api == AgentReasoningApi.mistralEffort,
         ),
     ];
   }
@@ -392,6 +457,7 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
     Message message, {
     required bool allowImageInput,
     required bool preserveReasoning,
+    required bool useMistralContent,
   }) {
     if (message is UserMessage) {
       final images = allowImageInput ? inlineImagesOf(message) : const [];
@@ -427,8 +493,26 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
       return [
         {
           'role': 'assistant',
-          if (message.text.isNotEmpty) 'content': message.text,
-          if (preserveReasoning && reasoning.isNotEmpty)
+          if (useMistralContent)
+            'content': [
+              for (final block in message.content)
+                switch (block) {
+                  AssistantTextContent() when block.text.isNotEmpty => {
+                    'type': 'text',
+                    'text': block.text,
+                  },
+                  AssistantThinkingContent() when block.thinking.isNotEmpty => {
+                    'type': 'thinking',
+                    'thinking': [
+                      {'type': 'text', 'text': block.thinking},
+                    ],
+                  },
+                  _ => null,
+                },
+            ].whereType<Map<String, dynamic>>().toList()
+          else if (message.text.isNotEmpty)
+            'content': message.text,
+          if (!useMistralContent && preserveReasoning && reasoning.isNotEmpty)
             'reasoning_content': reasoning,
           if (message.toolCalls.isNotEmpty)
             'tool_calls': [
@@ -472,6 +556,15 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
       ];
     }
     return const [];
+  }
+
+  static String _mistralThinkingText(dynamic value) {
+    if (value is! List) return '';
+    return value
+        .whereType<Map<String, dynamic>>()
+        .map((part) => part['text'])
+        .whereType<String>()
+        .join();
   }
 
   String? _openAiImageUrl(ImageContent image) {
@@ -582,6 +675,41 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
       return part.text;
     }
     return '';
+  }
+
+  String _maxTokensField(
+    ProviderConfig provider, {
+    AgentReasoningApi? reasoningApi,
+  }) {
+    final id = provider.id.toLowerCase();
+    final baseUrl = provider.baseUrl.toLowerCase();
+    final usesLegacyField =
+        reasoningApi == AgentReasoningApi.deepSeek ||
+        reasoningApi == AgentReasoningApi.mistralPromptMode ||
+        reasoningApi == AgentReasoningApi.mistralEffort ||
+        provider.preset == ProviderPreset.mistral ||
+        id == 'mistral' ||
+        baseUrl.contains('api.mistral.ai') ||
+        id == 'deepseek' ||
+        baseUrl.contains('deepseek.com') ||
+        id == 'moonshotai' ||
+        id == 'moonshotai-cn' ||
+        baseUrl.contains('api.moonshot.') ||
+        baseUrl.contains('chutes.ai') ||
+        id == 'together' ||
+        baseUrl.contains('api.together.ai') ||
+        baseUrl.contains('api.together.xyz') ||
+        id == 'cloudflare-ai-gateway' ||
+        baseUrl.contains('gateway.ai.cloudflare.com') ||
+        id == 'nvidia' ||
+        baseUrl.contains('integrate.api.nvidia.com') ||
+        id == 'ant-ling' ||
+        baseUrl.contains('api.ant-ling.com') ||
+        id == 'zai' ||
+        id == 'zai-coding-cn' ||
+        baseUrl.contains('api.z.ai') ||
+        baseUrl.contains('open.bigmodel.cn');
+    return usesLegacyField ? 'max_tokens' : 'max_completion_tokens';
   }
 
   String _resolveEndpoint(ProviderConfig provider) {

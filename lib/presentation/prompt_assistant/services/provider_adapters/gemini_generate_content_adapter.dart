@@ -112,14 +112,40 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
                     continue;
                   }
                   final text = part['text'];
-                  if (text is String && text.isNotEmpty) {
+                  final signature = part['thoughtSignature'];
+                  final isThinking = part['thought'] == true;
+                  final functionCall = part['functionCall'];
+                  if (text is String &&
+                      (text.isNotEmpty || signature is String)) {
                     pending.add(
-                      part['thought'] == true
+                      isThinking
                           ? AgentWireThinkingDelta(text)
                           : AgentWireTextDelta(text),
                     );
+                    if (signature is String && signature.isNotEmpty) {
+                      pending.add(
+                        isThinking
+                            ? AgentWireThinkingSignature(
+                                signature,
+                                replace: true,
+                              )
+                            : AgentWireTextSignature(signature),
+                      );
+                    }
+                  } else if (signature is String &&
+                      signature.isNotEmpty &&
+                      functionCall is! Map<String, dynamic>) {
+                    pending.add(
+                      isThinking
+                          ? const AgentWireThinkingDelta('')
+                          : const AgentWireTextDelta(''),
+                    );
+                    pending.add(
+                      isThinking
+                          ? AgentWireThinkingSignature(signature, replace: true)
+                          : AgentWireTextSignature(signature),
+                    );
                   }
-                  final functionCall = part['functionCall'];
                   if (functionCall is Map<String, dynamic>) {
                     stopReason = StopReason.toolUse;
                     final args = functionCall['args'];
@@ -132,6 +158,9 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
                         arguments: args is Map<String, dynamic>
                             ? args
                             : const {},
+                        thoughtSignature: signature is String
+                            ? signature
+                            : null,
                       ),
                     );
                   }
@@ -203,13 +232,40 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
           });
         }
       } else if (message is AssistantMessage) {
-        if (message.text.isNotEmpty) {
-          appendTurn('model', {'text': message.text});
-        }
-        for (final call in message.toolCalls) {
-          appendTurn('model', {
-            'functionCall': {'name': call.name, 'args': call.arguments},
-          });
+        final sameProviderAndModel =
+            message.provider == request.provider.id &&
+            message.model == request.model;
+        for (final block in message.content) {
+          switch (block) {
+            case AssistantTextContent()
+                when block.text.isNotEmpty ||
+                    (sameProviderAndModel &&
+                        block.signature?.isNotEmpty == true):
+              appendTurn('model', {
+                'text': block.text,
+                if (sameProviderAndModel && block.signature?.isNotEmpty == true)
+                  'thoughtSignature': block.signature,
+              });
+            case AssistantThinkingContent()
+                when block.thinking.isNotEmpty ||
+                    (sameProviderAndModel &&
+                        block.signature?.isNotEmpty == true):
+              appendTurn('model', {
+                if (sameProviderAndModel) 'thought': true,
+                'text': block.thinking,
+                if (sameProviderAndModel && block.signature?.isNotEmpty == true)
+                  'thoughtSignature': block.signature,
+              });
+            case ToolCallContent():
+              appendTurn('model', {
+                'functionCall': {'name': block.name, 'args': block.arguments},
+                if (sameProviderAndModel &&
+                    block.thoughtSignature?.isNotEmpty == true)
+                  'thoughtSignature': block.thoughtSignature,
+              });
+            default:
+              break;
+          }
         }
       } else if (message is ToolResultMessage) {
         appendTurn('user', {
@@ -228,6 +284,23 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
       }
     }
 
+    final reasoning = request.reasoningRequest;
+    final thinkingConfig = switch (reasoning?.api) {
+      AgentReasoningApi.geminiBudget =>
+        reasoning!.enabled
+            ? {
+                'includeThoughts': true,
+                'thinkingBudget': reasoning.budgetTokens,
+              }
+            : {'thinkingBudget': 0},
+      AgentReasoningApi.geminiLevel =>
+        reasoning!.enabled
+            ? {'includeThoughts': true, 'thinkingLevel': reasoning.effort}
+            : reasoning.sendWhenDisabled
+            ? {'thinkingLevel': reasoning.effort}
+            : null,
+      _ => null,
+    };
     return {
       'system_instruction': {
         'parts': [
@@ -235,6 +308,12 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
         ],
       },
       'contents': turns,
+      if (thinkingConfig != null || request.effectiveMaxOutputTokens != null)
+        'generationConfig': {
+          if (thinkingConfig != null) 'thinkingConfig': thinkingConfig,
+          if (request.effectiveMaxOutputTokens case final maxTokens?)
+            'maxOutputTokens': maxTokens,
+        },
       if (request.tools.isNotEmpty)
         'tools': [
           {

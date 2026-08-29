@@ -81,12 +81,17 @@ void main() {
       apiKey: 'key',
       reasoning: 'high',
       maxOutputTokens: 2048,
+      modelMaxOutputTokens: 128000,
     );
 
     final payload = adapter.buildAgentPayload(request);
 
-    expect(payload['thinking'], {'type': 'enabled', 'budget_tokens': 8192});
-    expect(payload['max_tokens'], greaterThan(8192));
+    expect(payload['thinking'], {
+      'type': 'enabled',
+      'budget_tokens': 16384,
+      'display': 'summarized',
+    });
+    expect(payload['max_tokens'], 18432);
   });
 
   test('agent payload replays signed thinking blocks in content order', () {
@@ -124,6 +129,57 @@ void main() {
       {'type': 'text', 'text': 'before'},
       {'type': 'tool_use', 'id': 'call-1', 'name': 'read', 'input': {}},
       {'type': 'text', 'text': 'after'},
+    ]);
+  });
+
+  test('agent payload handles provider-specific empty thinking signatures', () {
+    const adapter = AnthropicMessagesAdapter();
+    AgentChatRequest request({required bool allowEmptySignature}) =>
+        AgentChatRequest(
+          sessionId: 'session',
+          provider: const ProviderConfig(
+            id: 'provider',
+            name: 'Provider',
+            protocol: ProviderProtocol.anthropicMessages,
+            baseUrl: 'https://example.test',
+          ),
+          model: 'model',
+          systemPrompt: 'system',
+          messages: [
+            AssistantMessage(
+              content: const [AssistantThinkingContent('unsigned')],
+              stopReason: StopReason.stop,
+            ),
+          ],
+          tools: const [],
+          apiKey: 'key',
+          reasoningRequest: AgentReasoningRequest(
+            api: AgentReasoningApi.anthropicAdaptive,
+            enabled: true,
+            allowEmptySignature: allowEmptySignature,
+          ),
+        );
+
+    final compatible =
+        ((adapter.buildAgentPayload(
+                      request(allowEmptySignature: true),
+                    )['messages']
+                    as List)
+                .single
+            as Map)['content'];
+    final strict =
+        ((adapter.buildAgentPayload(
+                      request(allowEmptySignature: false),
+                    )['messages']
+                    as List)
+                .single
+            as Map)['content'];
+
+    expect(compatible, [
+      {'type': 'thinking', 'thinking': 'unsigned', 'signature': ''},
+    ]);
+    expect(strict, [
+      {'type': 'text', 'text': 'unsigned'},
     ]);
   });
 

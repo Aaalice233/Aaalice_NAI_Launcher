@@ -25,7 +25,11 @@ abstract final class SessionJsonlCodec {
         'content': [
           for (final block in message.content)
             switch (block) {
-              AssistantTextContent() => {'type': 'text', 'text': block.text},
+              AssistantTextContent() => {
+                'type': 'text',
+                'text': block.text,
+                if (block.signature != null) 'signature': block.signature,
+              },
               AssistantThinkingContent() => {
                 'type': 'thinking',
                 'thinking': block.thinking,
@@ -36,6 +40,8 @@ abstract final class SessionJsonlCodec {
                 'id': block.id,
                 'name': block.name,
                 'arguments': block.arguments,
+                if (block.thoughtSignature != null)
+                  'thoughtSignature': block.thoughtSignature,
               },
             },
         ],
@@ -47,7 +53,13 @@ abstract final class SessionJsonlCodec {
         ],
         'toolCalls': [
           for (final call in message.toolCalls)
-            {'id': call.id, 'name': call.name, 'arguments': call.arguments},
+            {
+              'id': call.id,
+              'name': call.name,
+              'arguments': call.arguments,
+              if (call.thoughtSignature != null)
+                'thoughtSignature': call.thoughtSignature,
+            },
         ],
         'stopReason': message.stopReason.name,
         'errorMessage': message.errorMessage,
@@ -156,7 +168,10 @@ abstract final class SessionJsonlCodec {
         for (final item in content)
           if (item is Map<String, dynamic>)
             switch (item['type']) {
-              'text' => AssistantTextContent(item['text'] as String? ?? ''),
+              'text' => AssistantTextContent(
+                item['text'] as String? ?? '',
+                signature: item['signature'] as String?,
+              ),
               'thinking' => AssistantThinkingContent(
                 item['thinking'] as String? ?? '',
                 signature: item['signature'] as String?,
@@ -167,6 +182,7 @@ abstract final class SessionJsonlCodec {
                 arguments:
                     (item['arguments'] as Map?)?.cast<String, dynamic>() ??
                     const {},
+                thoughtSignature: item['thoughtSignature'] as String?,
               ),
               _ => null,
             },
@@ -185,6 +201,7 @@ abstract final class SessionJsonlCodec {
             arguments:
                 (call['arguments'] as Map?)?.cast<String, dynamic>() ??
                 const {},
+            thoughtSignature: call['thoughtSignature'] as String?,
           ),
     ];
   }

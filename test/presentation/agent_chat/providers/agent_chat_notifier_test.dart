@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/agent/harness/session/session_jsonl.dart';
+import 'package:nai_launcher/core/agent/agent_types.dart' show ThinkingLevel;
 import 'package:nai_launcher/core/agent/harness/session/session_types.dart';
 import 'package:nai_launcher/core/agent/llm_types.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
@@ -353,6 +354,54 @@ User instructions.
       expect(state.routeReady, isTrue);
       expect(state.routeLabel, contains('DeepSeek'));
     });
+
+    test(
+      'resolves the selected Pi reasoning contract before dispatch',
+      () async {
+        final configNotifier = container.read(
+          promptAssistantConfigProvider.notifier,
+        );
+        await configNotifier.upsertProvider(
+          ProviderPreset.deepseek.createConfig(),
+        );
+        await configNotifier.upsertModel(
+          const ModelConfig(
+            providerId: 'deepseek',
+            name: 'deepseek-v4-pro',
+            displayName: 'DeepSeek V4 Pro',
+            forTask: AssistantTaskType.chat,
+          ),
+        );
+        await container
+            .read(agentSettingsProvider.notifier)
+            .setModelReference(
+              const AgentModelReference(
+                providerId: 'deepseek',
+                model: 'deepseek-v4-pro',
+              ),
+            );
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+
+        final notifier = container.read(provider.notifier);
+        await notifier.setThinkingLevel(ThinkingLevel.high);
+        await notifier.send('reason');
+
+        expect(requests, hasLength(1));
+        expect(requests.single.reasoning, 'high');
+        expect(
+          requests.single.reasoningRequest?.api,
+          AgentReasoningApi.deepSeek,
+        );
+        expect(requests.single.reasoningRequest?.enabled, isTrue);
+        expect(requests.single.reasoningRequest?.effort, isNull);
+        expect(requests.single.maxOutputTokens, 384000);
+        expect(requests.single.modelMaxOutputTokens, 384000);
+        expect(
+          requests.single.reasoningRequest?.preserveReasoningContent,
+          isTrue,
+        );
+      },
+    );
 
     test(
       'override is the exact outbound prompt for new and restored sessions',

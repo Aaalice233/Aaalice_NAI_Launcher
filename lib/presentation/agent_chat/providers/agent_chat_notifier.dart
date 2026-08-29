@@ -593,6 +593,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       if (route == null) {
         return _errorStream('No LLM provider configured for chat.');
       }
+      final capability = AgentChatModelCapability.resolve(route.$1, route.$2);
       final request = AgentChatRequest(
         sessionId: 'agent_chat',
         provider: route.$1,
@@ -610,8 +611,16 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
             ),
         ],
         apiKey: route.$3,
-        maxOutputTokens: options?.maxTokens,
+        maxOutputTokens: _clampMaxOutputTokens(
+          capability,
+          context.messages,
+          options?.maxTokens,
+        ),
+        modelMaxOutputTokens: capability.metadata.maxOutputTokens,
         reasoning: options?.reasoning,
+        reasoningRequest: capability.resolveReasoningRequest(
+          options?.reasoning,
+        ),
       );
       final wireEvents =
           _completeRequest?.call(request) ?? _client.complete(request);
@@ -627,6 +636,28 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     } catch (e) {
       return _errorStream(e.toString());
     }
+  }
+
+  static int? _clampMaxOutputTokens(
+    AgentChatModelCapability capability,
+    List<Message> messages,
+    int? requested,
+  ) {
+    final modelMax = capability.metadata.maxOutputTokens;
+    if (requested == null && modelMax <= 0) return null;
+
+    var result = requested ?? modelMax;
+    if (modelMax > 0 && result > modelMax) result = modelMax;
+
+    final contextWindow = capability.metadata.contextWindow;
+    if (contextWindow > 0) {
+      const contextSafetyTokens = 4096;
+      final used = estimateContextTokens(messages).tokens;
+      final available = contextWindow - used - contextSafetyTokens;
+      final contextMax = available < 1 ? 1 : available;
+      if (result > contextMax) result = contextMax;
+    }
+    return result < 1 ? 1 : result;
   }
 
   static AssistantMessageEventStream _errorStream(String message) {
