@@ -111,6 +111,10 @@ class _InlineCharacterCardState extends ConsumerState<InlineCharacterCard> {
     // 退出逻辑全权交给面板自己的 TapRegion
     if (!widget.inlineEditor) return;
     if (_modalOpen) return;
+    // 对话框属于独立 Route，点击其中的执行按钮也会被底层 TapRegion
+    // 视为卡外点击；此时卸载编辑器会连带取消正在启动的助手任务。
+    final route = ModalRoute.of(context);
+    if (route != null && !route.isCurrent) return;
     // 位置画布打开时，点画布拖锚点是位置编辑的一部分，不退出编辑态
     if (ref.read(characterPositionCanvasProvider)) return;
     // TapRegion 恒挂（结构稳定），非选中卡的外部点击直接忽略
@@ -118,6 +122,8 @@ class _InlineCharacterCardState extends ConsumerState<InlineCharacterCard> {
     // TapRegion 回调发生在指针按下时，等本帧手势与焦点变化尘埃落定再判断
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      final currentRoute = ModalRoute.of(context);
+      if (currentRoute != null && !currentRoute.isCurrent) return;
       // 用户点了另一张卡：选中已切换，别把新选择清掉
       if (ref.read(selectedCharacterIdProvider) != widget.character.id) {
         return;

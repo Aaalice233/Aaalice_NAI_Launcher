@@ -31,6 +31,7 @@ class PromptAssistantOverlay extends ConsumerStatefulWidget {
     super.key,
     required this.sessionId,
     required this.controller,
+    this.onChanged,
     this.onOpenSettings,
     this.enabled = true,
     this.floatOverEditor = true,
@@ -39,6 +40,7 @@ class PromptAssistantOverlay extends ConsumerStatefulWidget {
 
   final String sessionId;
   final TextEditingController controller;
+  final ValueChanged<String>? onChanged;
   final VoidCallback? onOpenSettings;
   final bool enabled;
 
@@ -225,11 +227,7 @@ class _PromptAssistantOverlayState
       },
       onDone: () {
         if (buffer.isNotEmpty) {
-          final finalText = buffer.toString();
-          widget.controller.text = finalText;
-          widget.controller.selection = TextSelection.collapsed(
-            offset: widget.controller.text.length,
-          );
+          _replaceText(buffer.toString());
         }
         stateNotifier.finishProcessing(widget.sessionId);
         final afterText = widget.controller.text;
@@ -292,11 +290,7 @@ class _PromptAssistantOverlayState
           },
           onDone: () {
             if (buffer.isNotEmpty) {
-              final finalText = buffer.toString();
-              widget.controller.text = finalText;
-              widget.controller.selection = TextSelection.collapsed(
-                offset: widget.controller.text.length,
-              );
+              _replaceText(buffer.toString());
             }
             stateNotifier.finishProcessing(widget.sessionId);
             final afterText = widget.controller.text;
@@ -321,15 +315,18 @@ class _PromptAssistantOverlayState
         .stripFromPrompt(widget.controller.text);
   }
 
+  void _replaceText(String value) {
+    widget.controller.text = value;
+    widget.controller.selection = TextSelection.collapsed(offset: value.length);
+    widget.onChanged?.call(value);
+  }
+
   void _undo() {
     final value = ref
         .read(promptAssistantHistoryProvider.notifier)
         .undo(widget.sessionId, widget.controller.text);
     if (value != null) {
-      widget.controller.text = value;
-      widget.controller.selection = TextSelection.collapsed(
-        offset: value.length,
-      );
+      _replaceText(value);
     }
   }
 
@@ -338,10 +335,7 @@ class _PromptAssistantOverlayState
         .read(promptAssistantHistoryProvider.notifier)
         .redo(widget.sessionId, widget.controller.text);
     if (value != null) {
-      widget.controller.text = value;
-      widget.controller.selection = TextSelection.collapsed(
-        offset: value.length,
-      );
+      _replaceText(value);
     }
   }
 
@@ -359,10 +353,7 @@ class _PromptAssistantOverlayState
             return ListTile(
               title: Text(entry, maxLines: 2, overflow: TextOverflow.ellipsis),
               onTap: () {
-                widget.controller.text = entry;
-                widget.controller.selection = TextSelection.collapsed(
-                  offset: entry.length,
-                );
+                _replaceText(entry);
                 Navigator.pop(context);
               },
             );

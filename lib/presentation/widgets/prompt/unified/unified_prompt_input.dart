@@ -406,6 +406,7 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
           _effectiveController.selection = TextSelection.collapsed(
             offset: _effectiveController.text.length,
           );
+          widget.onChanged?.call(finalText);
         }
         stateNotifier.finishProcessing(_sessionId);
         final afterText = _effectiveController.text;
@@ -1077,6 +1078,7 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
           PromptAssistantOverlay(
             sessionId: _sessionId,
             controller: _effectiveController,
+            onChanged: widget.onChanged,
             onOpenSettings: widget.onOpenAssistantSettings,
           ),
       ],

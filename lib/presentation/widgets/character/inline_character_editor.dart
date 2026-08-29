@@ -3,6 +3,7 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/models/character/character_prompt.dart';
+import '../../prompt_assistant/providers/prompt_assistant_history_provider.dart';
 import '../../providers/character_prompt_provider.dart';
 import '../../providers/image_generation_provider.dart';
 import '../prompt/toolbar/toolbar.dart';
@@ -176,6 +177,9 @@ class _CharacterPromptEditorState extends ConsumerState<CharacterPromptEditor> {
       inputConfig: inputConfig,
       controller: controller,
       focusNode: focusNode,
+      sessionId: _tabIndex == 0
+          ? PromptHistorySessionIds.characterPrompt(widget.character.id)
+          : PromptHistorySessionIds.characterNegative(widget.character.id),
       onChanged: onChanged,
       onCleared: () => onChanged(''),
       minLines: widget.compact ? 1 : 2,

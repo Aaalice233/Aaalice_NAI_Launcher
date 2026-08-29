@@ -7,6 +7,8 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/data/models/character/character_prompt.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/prompt_assistant/providers/prompt_assistant_history_provider.dart';
+import 'package:nai_launcher/presentation/prompt_assistant/widgets/prompt_assistant_overlay.dart';
 import 'package:nai_launcher/presentation/providers/character_prompt_provider.dart';
 import 'package:nai_launcher/presentation/widgets/character/inline_character_card.dart';
 
@@ -109,8 +111,77 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
 
       expect(capturedRef.read(selectedCharacterIdProvider), equals('char-1'));
-      // 编辑态显示输入框
+      // 编辑态显示输入框，并使用角色专属会话承载助手任务状态。
       expect(find.byType(TextField), findsWidgets);
+      expect(
+        tester
+            .widget<PromptAssistantOverlay>(find.byType(PromptAssistantOverlay))
+            .sessionId,
+        PromptHistorySessionIds.characterPrompt(character.id),
+      );
+    });
+
+    testWidgets('子对话框内点击不会退出角色编辑态', (tester) async {
+      late WidgetRef capturedRef;
+      late BuildContext pageContext;
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: Builder(
+                builder: (context) {
+                  pageContext = context;
+                  return Consumer(
+                    builder: (context, ref, child) {
+                      capturedRef = ref;
+                      return const SizedBox(
+                        width: 400,
+                        child: SingleChildScrollView(
+                          child: InlineCharacterCard(
+                            character: character,
+                            index: 0,
+                            total: 1,
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('girl, silver hair, maid dress'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(capturedRef.read(selectedCharacterIdProvider), 'char-1');
+
+      final dialog = showDialog<void>(
+        context: pageContext,
+        builder: (context) => AlertDialog(
+          content: const Text('Custom assistant request'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Execute'),
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Execute'));
+      await tester.pumpAndSettle();
+      await dialog;
+
+      expect(capturedRef.read(selectedCharacterIdProvider), 'char-1');
+      expect(find.byType(TextField), findsWidgets);
+      await tester.pump(const Duration(seconds: 3));
+      await tester.pumpAndSettle();
     });
 
     testWidgets('禁用的角色整卡半透明', (tester) async {

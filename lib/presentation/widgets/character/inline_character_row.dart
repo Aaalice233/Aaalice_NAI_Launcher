@@ -284,10 +284,16 @@ class _RowEditorPanelState extends ConsumerState<_RowEditorPanel> {
 
   void _handleTapOutside() {
     if (_modalOpen) return;
+    // 助手等子对话框位于独立 Route；点击其内容不能卸载底层编辑器，
+    // 否则编辑器持有的流订阅会在任务启动时被取消。
+    final route = ModalRoute.of(context);
+    if (route != null && !route.isCurrent) return;
     // 位置画布打开时，点画布拖锚点是位置编辑的一部分，不退出编辑态
     if (ref.read(characterPositionCanvasProvider)) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      final currentRoute = ModalRoute.of(context);
+      if (currentRoute != null && !currentRoute.isCurrent) return;
       if (ref.read(selectedCharacterIdProvider) != widget.character.id) {
         return;
       }
