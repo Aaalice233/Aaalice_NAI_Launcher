@@ -70,7 +70,7 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
             Padding(
               padding: EdgeInsets.fromLTRB(
                 6,
-                0,
+                viewData.mobile ? 6 : 8,
                 viewData.mobile ? 6 : 8,
                 viewData.mobile ? 6 : 8,
               ),
