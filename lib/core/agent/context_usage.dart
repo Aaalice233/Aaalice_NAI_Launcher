@@ -1,5 +1,6 @@
 import 'agent_types.dart';
 import 'harness/compaction/compaction.dart';
+import 'harness/harness_messages.dart';
 
 /// Current model-context occupancy using Pi's last-valid-usage anchor semantics.
 class AgentContextUsage {
@@ -36,18 +37,33 @@ class AgentContextUsage {
   };
 }
 
-/// Resolves current context use from the last successful non-zero assistant
-/// usage plus locally estimated trailing messages. Without such an anchor the
-/// token count remains unknown rather than presenting a whole-history guess.
+/// Mirrors Pi's context-usage contract: use the latest valid provider usage as
+/// an anchor and estimate trailing messages; when no anchor exists, estimate
+/// the complete context. Immediately after compaction the pre-compaction
+/// anchor is invalid, so usage remains unknown until a later assistant response.
 AgentContextUsage resolveAgentContextUsage(
   List<AgentMessage> messages, {
   required int? contextWindow,
 }) {
-  final estimate = estimateContextTokens(messages);
-  final tokens = estimate.lastUsageIndex == null ? null : estimate.tokens;
   final validWindow = contextWindow != null && contextWindow > 0
       ? contextWindow
       : null;
+  final estimate = estimateContextTokens(messages);
+  final latestCompactionTimestamp = messages
+      .whereType<CompactionSummaryMessage>()
+      .fold<int?>(
+        null,
+        (latest, message) => latest == null || message.timestamp > latest
+            ? message.timestamp
+            : latest,
+      );
+  final anchorIndex = estimate.lastUsageIndex;
+  final hasPostCompactionAnchor =
+      latestCompactionTimestamp == null ||
+      (anchorIndex != null &&
+          messages[anchorIndex].timestamp > latestCompactionTimestamp);
+  final tokens = hasPostCompactionAnchor ? estimate.tokens : null;
+
   return AgentContextUsage(
     tokens: tokens,
     contextWindow: validWindow,

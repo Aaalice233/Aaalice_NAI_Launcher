@@ -200,38 +200,66 @@ void main() {
       },
     );
 
-    test('aborted, error and zero usage do not become context anchors', () {
-      for (final message in [
-        AssistantMessage(
-          content: const [AssistantTextContent('aborted')],
-          stopReason: StopReason.aborted,
-          usage: const Usage(totalTokens: 100),
-        ),
-        AssistantMessage(
-          content: const [AssistantTextContent('error')],
-          stopReason: StopReason.error,
-          usage: const Usage(totalTokens: 100),
-        ),
-        _assistant('zero', usage: Usage.empty),
-      ]) {
-        final usage = resolveAgentContextUsage([
-          message,
-          UserMessage.text('tail'),
-        ], contextWindow: 1000);
-        expect(usage.tokens, isNull);
-        expect(usage.percent, isNull);
-      }
-    });
+    test(
+      'invalid usage is skipped while the complete context is estimated',
+      () {
+        for (final message in [
+          AssistantMessage(
+            content: const [AssistantTextContent('aborted')],
+            stopReason: StopReason.aborted,
+            usage: const Usage(totalTokens: 100),
+          ),
+          AssistantMessage(
+            content: const [AssistantTextContent('error')],
+            stopReason: StopReason.error,
+            usage: const Usage(totalTokens: 100),
+          ),
+          _assistant('zero', usage: Usage.empty),
+        ]) {
+          final tail = UserMessage.text('tail');
+          final usage = resolveAgentContextUsage([
+            message,
+            tail,
+          ], contextWindow: 1000);
+          expect(usage.tokens, estimateTokens(message) + estimateTokens(tail));
+          expect(usage.percent, isNotNull);
+          expect(usage.estimated, isTrue);
+        }
+      },
+    );
 
-    test('context after compaction stays unknown without a valid anchor', () {
-      final usage = resolveAgentContextUsage([
-        createCompactionSummaryMessage('summary', 400, 1),
+    test('context after compaction waits for a post-compaction anchor', () {
+      final summary = createCompactionSummaryMessage('summary', 400, 200);
+      final staleAssistant = AssistantMessage(
+        content: const [AssistantTextContent('retained')],
+        stopReason: StopReason.stop,
+        usage: const Usage(totalTokens: 400),
+        timestamp: 100,
+      );
+      final unknown = resolveAgentContextUsage([
+        summary,
+        staleAssistant,
         UserMessage.text('retained tail'),
       ], contextWindow: 1000);
 
-      expect(usage.tokens, isNull);
-      expect(usage.contextWindow, 1000);
-      expect(usage.percent, isNull);
+      expect(unknown.tokens, isNull);
+      expect(unknown.contextWindow, 1000);
+      expect(unknown.percent, isNull);
+
+      final freshAssistant = AssistantMessage(
+        content: const [AssistantTextContent('fresh')],
+        stopReason: StopReason.stop,
+        usage: const Usage(totalTokens: 120),
+        timestamp: 300,
+      );
+      final known = resolveAgentContextUsage([
+        summary,
+        staleAssistant,
+        freshAssistant,
+      ], contextWindow: 1000);
+      expect(known.tokens, 120);
+      expect(known.percent, 12);
+      expect(known.estimated, isFalse);
     });
 
     test('shouldCompact respects threshold', () {
