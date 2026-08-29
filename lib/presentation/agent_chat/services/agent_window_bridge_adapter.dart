@@ -238,10 +238,13 @@ final class AgentWindowBridgeAdapter {
             .setWebAccessEnabled(value);
       case 'resolveApproval':
         final value = payload['value'];
-        if (value is! bool) {
-          throw const FormatException('resolveApproval requires bool value');
+        final toolCallId = payload['toolCallId'];
+        if (value is! bool || toolCallId is! String || toolCallId.isEmpty) {
+          throw const FormatException(
+            'resolveApproval requires toolCallId and bool value',
+          );
         }
-        notifier.resolveToolApproval(value);
+        return {'ok': notifier.resolveToolApproval(toolCallId, value)};
       default:
         throw UnsupportedError('Unsupported Agent window command: $name');
     }

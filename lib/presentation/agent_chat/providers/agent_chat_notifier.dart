@@ -312,8 +312,8 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     AbortSignal? signal,
   ) => _permissionController!.beforeToolCall(context, signal);
 
-  void resolveToolApproval(bool approved) =>
-      _permissionController?.resolveApproval(approved);
+  bool resolveToolApproval(String toolCallId, bool approved) =>
+      _permissionController?.resolveApproval(toolCallId, approved) ?? false;
 
   Future<void> setPermissionMode(AgentPermissionMode mode) async {
     if (!canManageAgentChatSessions(state)) {
@@ -1133,7 +1133,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     }
     state = state.copyWith(workPhase: AgentChatWorkPhase.stopping);
     agent.abort();
-    resolveToolApproval(false);
+    _permissionController?.cancelApproval();
     _client.cancel('agent_chat');
     await agent.waitForIdle();
   }

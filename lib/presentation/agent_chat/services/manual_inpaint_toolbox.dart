@@ -10,7 +10,6 @@ import '../../../core/agent/harness/env/dart_io_execution_env.dart';
 import '../../../core/agent/harness/harness_result.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference_codec.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference.dart';
-import '../../../core/services/anlas_calculator.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/image/image_params.dart';
@@ -22,6 +21,7 @@ import '../../providers/image_generation_provider.dart';
 import '../../widgets/image_editor/image_editor_screen.dart';
 import 'agent_resource_resolver.dart';
 import 'defined_agent_tool.dart';
+import 'generation_anlas_estimator.dart';
 import 'manual_inpaint_tool_definitions.dart';
 import 'manual_inpaint_toolbox_serialization.dart';
 
@@ -37,6 +37,8 @@ typedef ManualInpaintDraftListener =
     FutureOr<void> Function(String sessionId, InpaintDraft draft);
 typedef ManualInpaintResourceLoader =
     Future<Uint8List?> Function(AgentChatResourceReference reference);
+typedef ManualInpaintAnlasEstimator =
+    int Function(ImageParams params, int batchSize);
 
 class ManualInpaintEditorSession {
   const ManualInpaintEditorSession({required this.result, required this.close});
@@ -70,6 +72,7 @@ class ManualInpaintToolbox {
     String Function()? activeSessionId,
     ManualInpaintDraftListener? onDraftChanged,
     ManualInpaintResourceLoader? resourceLoader,
+    ManualInpaintAnlasEstimator? anlasEstimator,
   }) : _repository =
            repository ??
            InpaintDraftFileRepository(
@@ -87,7 +90,12 @@ class ManualInpaintToolbox {
        _navigator = navigator,
        _activeSessionId = activeSessionId,
        _onDraftChanged = onDraftChanged,
-       _resourceLoader = resourceLoader;
+       _resourceLoader = resourceLoader,
+       _estimateAnlas =
+           anlasEstimator ??
+           ((params, batchSize) => GenerationAnlasEstimator(
+             _ref,
+           ).estimate(params, requestCount: 1, batchSize: batchSize));
 
   final Ref _ref;
   final InpaintDraftRepository _repository;
@@ -97,6 +105,7 @@ class ManualInpaintToolbox {
   final NavigatorState? Function()? _navigator;
   final String Function()? _activeSessionId;
   final ManualInpaintDraftListener? _onDraftChanged;
+  final ManualInpaintAnlasEstimator _estimateAnlas;
   final Map<String, ManualInpaintEditorSession> _sessions = {};
   final Map<String, String> _draftSessionIds = {};
   ManualInpaintResourceLoader? _resourceLoader;
@@ -118,7 +127,18 @@ class ManualInpaintToolbox {
 
   Future<int?> estimateAnlasForDraft(String draftId) async {
     final draft = await _repository.get(draftId);
-    return draft?.estimatedAnlas.toInt();
+    if (draft == null) return null;
+    final snapshot = draft.parameterSnapshot;
+    final storedBatchSize = snapshot['_agentBatchSize'];
+    final batchSize = storedBatchSize is int && storedBatchSize > 0
+        ? storedBatchSize
+        : _ref.read(imagesPerRequestProvider);
+    return _estimateAnlas(
+      ImageParams.fromJson(snapshot).copyWith(
+        action: ImageGenerationAction.infill,
+      ),
+      batchSize,
+    );
   }
 
   List<AgentTool> tools() => buildManualInpaintToolDefinitions(
@@ -262,10 +282,9 @@ class ManualInpaintToolbox {
       final prepared = await _repository.prepare(
         sourceBytes: source,
         parameterSnapshot: snapshot,
-        estimatedAnlas: AnlasCalculator.calculate(
+        estimatedAnlas: _estimateAnlas(
           params.copyWith(action: ImageGenerationAction.infill),
-          isOpus: true,
-          batchSize: batchSize,
+          batchSize,
         ),
       );
       createdDraftId = prepared.id;
