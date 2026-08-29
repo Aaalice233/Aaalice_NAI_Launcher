@@ -155,6 +155,39 @@ void main() {
     },
   );
 
+  test('invalidated decode completion uses the bounded loader again', () async {
+    var starts = 0;
+    final request = _request(1);
+    final sampleRequest = _request(1, tier: GalleryImageTier.sample);
+    final coordinator = OnlineGalleryPrefetchCoordinator(
+      preloader: (_) {
+        starts++;
+        return _operation(Future<void>.value());
+      },
+    );
+    addTearDown(coordinator.dispose);
+
+    expect(
+      await coordinator.submit(request, priority: GalleryImagePriority.visible),
+      isTrue,
+    );
+    expect(
+      await coordinator.submit(
+        sampleRequest,
+        priority: GalleryImagePriority.visible,
+      ),
+      isTrue,
+    );
+    coordinator.invalidateCompleted(request);
+    expect(coordinator.isReady(request), isFalse);
+    expect(coordinator.isReady(sampleRequest), isFalse);
+    expect(
+      await coordinator.submit(request, priority: GalleryImagePriority.visible),
+      isTrue,
+    );
+    expect(starts, 3);
+  });
+
   test(
     'generation rotation rejects old queued and in-flight results',
     () async {

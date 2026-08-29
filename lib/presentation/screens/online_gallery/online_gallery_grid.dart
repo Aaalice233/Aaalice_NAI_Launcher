@@ -22,6 +22,7 @@ typedef OnlineGalleryVisibilityItemBuilder =
       BuildContext context,
       bool hasBeenVisible,
       bool isScrolling,
+      bool isVisible,
     );
 
 /// Responsive masonry grid. Item interaction is supplied as commands so this
@@ -260,13 +261,21 @@ class OnlineGalleryVisibilityDrivenItemState
           widget.onVisibilityChanged(false, 0);
         }
         if (_isVisible == visible) return;
-        _isVisible = visible;
         if (visible && !_hasBeenVisible && !_isScrolling && mounted) {
           _stopListeningForScrolling();
-          setState(() => _hasBeenVisible = true);
+          setState(() {
+            _isVisible = true;
+            _hasBeenVisible = true;
+          });
+        } else if (!_hasBeenVisible && mounted) {
+          // A currently visible card may resolve a memory/disk hit even during
+          // a fling. The image coordinator still bounds new network work.
+          setState(() => _isVisible = visible);
+        } else {
+          _isVisible = visible;
         }
       },
-      child: widget.builder(context, _hasBeenVisible, _isScrolling),
+      child: widget.builder(context, _hasBeenVisible, _isScrolling, _isVisible),
     );
   }
 }

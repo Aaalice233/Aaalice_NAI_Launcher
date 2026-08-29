@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:isolate';
 import 'dart:math';
 
 import 'package:dio/dio.dart';
@@ -67,9 +68,9 @@ class AiTagGallerySourceAdapter implements GallerySourceAdapter {
         );
       }
       final json = Map<String, dynamic>.from(response.data as Map);
-      final assetBaseUrl = json['asset_base_url']?.toString().trim() ?? '';
-      if (Uri.tryParse(assetBaseUrl)?.isAbsolute != true ||
-          assetBaseUrl.isEmpty) {
+      final rawAssetBaseUrl = json['asset_base_url']?.toString().trim() ?? '';
+      final assetBaseUrl = _normalizeAiTagAssetBaseUrl(rawAssetBaseUrl);
+      if (assetBaseUrl == null) {
         throw const GallerySourceException(
           GallerySourceErrorCode.configurationUnavailable,
           source: GallerySourceId.aiTag,
@@ -77,9 +78,7 @@ class AiTagGallerySourceAdapter implements GallerySourceAdapter {
         );
       }
       final config = AiTagSourceConfig(
-        assetBaseUrl: assetBaseUrl.endsWith('/')
-            ? assetBaseUrl
-            : '$assetBaseUrl/',
+        assetBaseUrl: assetBaseUrl,
         pageSize: (_asInt(json['page_size']) ?? 60).clamp(60, 200),
         availableYears: _parseIntList(json['available_years']),
         availableMonths: _parseStringList(json['available_months'])
@@ -304,25 +303,29 @@ class AiTagGallerySourceAdapter implements GallerySourceAdapter {
       }
       final work = Map<String, dynamic>.from(payload['work'] as Map);
       final imageRows = payload['images'] as List;
-      final media = <GalleryMedia>[];
-      for (final raw in imageRows) {
-        if (raw is! Map) continue;
-        try {
-          media.add(
-            _parseMedia(Map<String, dynamic>.from(raw), config.assetBaseUrl),
-          );
-        } catch (error) {
-          final fileName = raw['file_name']?.toString() ?? '<unknown>';
-          AppLogger.w(
-            'Skipped malformed AI TAG media (source=ai_tag, work=${item.id}, file=$fileName): $error',
-            'AiTagGallery',
-          );
-        }
-      }
-      media.sort(
-        (left, right) =>
-            _mediaPageIndex(left.id).compareTo(_mediaPageIndex(right.id)),
+      final copiedImageRows = imageRows
+          .whereType<Map>()
+          .map((row) => Map<String, dynamic>.from(row))
+          .toList(growable: false);
+      // Some works contain many embedded metadata blobs. Keep JSON metadata
+      // parsing off the UI isolate so a completed detail request cannot stall
+      // an active masonry-grid fling.
+      final parsedBatch = await Isolate.run(
+        () => _parseAiTagMediaRows(copiedImageRows, config.assetBaseUrl),
       );
+      if (cancelToken?.isCancelled ?? false) {
+        throw DioException.requestCancelled(
+          requestOptions: response.requestOptions,
+          reason: 'AI TAG detail parsing cancelled',
+        );
+      }
+      for (final failure in parsedBatch.failures) {
+        AppLogger.w(
+          'Skipped malformed AI TAG media (source=ai_tag, work=${item.id}, file=${failure.fileName}): ${failure.error}',
+          'AiTagGallery',
+        );
+      }
+      final media = parsedBatch.media;
       if (media.isEmpty) {
         throw const GallerySourceException(
           GallerySourceErrorCode.imageUnavailable,
@@ -436,36 +439,10 @@ class AiTagGallerySourceAdapter implements GallerySourceAdapter {
     );
   }
 
-  GalleryMedia _parseMedia(Map<String, dynamic> json, String assetBaseUrl) {
-    final imageType = json['image_type']?.toString().trim() ?? '';
-    final authorId = json['author_id']?.toString().trim() ?? '';
-    final fileName = json['file_name']?.toString().trim() ?? '';
-    if (imageType.isEmpty || authorId.isEmpty || fileName.isEmpty) {
-      throw const FormatException('AI TAG image path fields are incomplete');
-    }
-    final url = '$assetBaseUrl$imageType/$authorId/$fileName.webp';
-    final rawAiJson = _rawJsonString(json['ai_json']);
-    final promptText = json['prompt_text']?.toString();
-    final parsed = _parseMetadata(rawAiJson, promptText);
-    return GalleryMedia(
-      id: fileName,
-      previewUrl: url,
-      displayUrl: url,
-      downloadUrl: url,
-      width: parsed.metadata?.width ?? 0,
-      height: parsed.metadata?.height ?? 0,
-      extension: 'webp',
-      mediaType: 'image',
-      prompt: parsed.metadata?.prompt,
-      negativePrompt: parsed.metadata?.negativePrompt,
-      rawMetadata: rawAiJson ?? promptText,
-      metadataFormat: parsed.sourceFormat,
-      metadataError: parsed.success ? null : parsed.errorMessage,
-      metadata: _metadataMap(parsed.metadata, json),
-    );
-  }
-
-  MetadataParseResult _parseMetadata(String? rawAiJson, String? promptText) {
+  static MetadataParseResult _parseMetadata(
+    String? rawAiJson,
+    String? promptText,
+  ) {
     if ((rawAiJson == null || rawAiJson.isEmpty) &&
         (promptText == null || promptText.isEmpty)) {
       return MetadataParseResult.failed(
@@ -509,7 +486,7 @@ class AiTagGallerySourceAdapter implements GallerySourceAdapter {
     });
   }
 
-  Map<String, Object?> _metadataMap(
+  static Map<String, Object?> _metadataMap(
     NaiImageMetadata? metadata,
     Map<String, dynamic> raw,
   ) {
@@ -541,7 +518,7 @@ class AiTagGallerySourceAdapter implements GallerySourceAdapter {
     return html_parser.parseFragment(withBreaks).text?.trim() ?? '';
   }
 
-  String? _rawJsonString(Object? value) {
+  static String? _rawJsonString(Object? value) {
     if (value == null) return null;
     if (value is String) return value;
     try {
@@ -551,7 +528,7 @@ class AiTagGallerySourceAdapter implements GallerySourceAdapter {
     }
   }
 
-  int _mediaPageIndex(String value) {
+  static int _mediaPageIndex(String value) {
     final match = RegExp(r'_p(\d+)(?:\D|$)').firstMatch(value);
     return int.tryParse(match?.group(1) ?? '') ?? 0;
   }
@@ -883,4 +860,115 @@ class AiTagGallerySourceAdapter implements GallerySourceAdapter {
     }
     return const [];
   }
+}
+
+String? _normalizeAiTagAssetBaseUrl(String raw) {
+  final uri = Uri.tryParse(raw);
+  if (uri == null ||
+      uri.scheme.toLowerCase() != 'https' ||
+      uri.host.isEmpty ||
+      uri.userInfo.isNotEmpty) {
+    return null;
+  }
+  final pathSegments = uri.pathSegments
+      .where((segment) => segment.isNotEmpty && segment != '.')
+      .toList(growable: true);
+  if (pathSegments.any((segment) => segment == '..')) return null;
+  pathSegments.add('');
+  return Uri(
+    scheme: uri.scheme,
+    host: uri.host,
+    port: uri.hasPort ? uri.port : null,
+    pathSegments: pathSegments,
+  ).toString();
+}
+
+_ParsedAiTagMediaBatch _parseAiTagMediaRows(
+  List<Map<String, dynamic>> rows,
+  String assetBaseUrl,
+) {
+  final media = <GalleryMedia>[];
+  final failures = <_AiTagMediaFailure>[];
+  for (final row in rows) {
+    final fileName = row['file_name']?.toString().trim() ?? '';
+    try {
+      final imageType = row['image_type']?.toString().trim() ?? '';
+      final authorId = row['author_id']?.toString().trim() ?? '';
+      if (imageType.isEmpty || authorId.isEmpty || fileName.isEmpty) {
+        throw const FormatException('AI TAG image path fields are incomplete');
+      }
+      final baseUri = Uri.parse(assetBaseUrl);
+      final baseSegments = baseUri.pathSegments
+          .where((segment) => segment.isNotEmpty)
+          .toList(growable: false);
+      final url = baseUri
+          .replace(
+            pathSegments: [
+              ...baseSegments,
+              imageType,
+              authorId,
+              '$fileName.webp',
+            ],
+            query: null,
+            fragment: null,
+          )
+          .toString();
+      final rawAiJson = AiTagGallerySourceAdapter._rawJsonString(
+        row['ai_json'],
+      );
+      final promptText = row['prompt_text']?.toString();
+      final parsed = AiTagGallerySourceAdapter._parseMetadata(
+        rawAiJson,
+        promptText,
+      );
+      media.add(
+        GalleryMedia(
+          id: fileName,
+          previewUrl: url,
+          displayUrl: url,
+          downloadUrl: url,
+          width: parsed.metadata?.width ?? 0,
+          height: parsed.metadata?.height ?? 0,
+          extension: 'webp',
+          mediaType: 'image',
+          prompt: parsed.metadata?.prompt,
+          negativePrompt: parsed.metadata?.negativePrompt,
+          rawMetadata: rawAiJson ?? promptText,
+          metadataFormat: parsed.sourceFormat,
+          metadataError: parsed.success ? null : parsed.errorMessage,
+          metadata: AiTagGallerySourceAdapter._metadataMap(
+            parsed.metadata,
+            row,
+          ),
+        ),
+      );
+    } catch (error) {
+      failures.add(
+        _AiTagMediaFailure(
+          fileName: fileName.isEmpty ? '<unknown>' : fileName,
+          error: error.toString(),
+        ),
+      );
+    }
+  }
+  media.sort(
+    (left, right) => AiTagGallerySourceAdapter._mediaPageIndex(
+      left.id,
+    ).compareTo(AiTagGallerySourceAdapter._mediaPageIndex(right.id)),
+  );
+  return _ParsedAiTagMediaBatch(media: media, failures: failures);
+}
+
+class _ParsedAiTagMediaBatch {
+  const _ParsedAiTagMediaBatch({required this.media, required this.failures});
+
+  final List<GalleryMedia> media;
+  final List<_AiTagMediaFailure> failures;
+}
+
+class _AiTagMediaFailure {
+  const _AiTagMediaFailure({required this.fileName, required this.error});
+
+  final String fileName;
+  final String error;
 }

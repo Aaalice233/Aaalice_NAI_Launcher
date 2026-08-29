@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/cache/gallery_image_request.dart';
 import 'package:nai_launcher/core/cache/online_gallery_prefetch_coordinator.dart';
+import 'package:nai_launcher/presentation/themes/theme_extension.dart';
 import 'package:nai_launcher/presentation/widgets/online_gallery/coordinated_gallery_image.dart';
 import 'package:nai_launcher/presentation/widgets/online_gallery/progressive_gallery_image.dart';
 
@@ -40,7 +41,9 @@ void main() {
     expect(transition.duration, Duration.zero);
   });
 
-  testWidgets('sample promotion fades for 140ms after loading', (tester) async {
+  testWidgets('sample promotion uses the bounded fast motion token', (
+    tester,
+  ) async {
     final gate = Completer<void>();
     final coordinator = OnlineGalleryPrefetchCoordinator(
       preloader: (_) => GalleryImagePreloadOperation.fromFuture(gate.future),
@@ -56,7 +59,7 @@ void main() {
     final transition = tester.widget<TweenAnimationBuilder<double>>(
       find.byType(TweenAnimationBuilder<double>),
     );
-    expect(transition.duration, const Duration(milliseconds: 140));
+    expect(transition.duration, const Duration(milliseconds: 120));
   });
 
   testWidgets('reduced motion promotes the sample immediately', (tester) async {
@@ -176,6 +179,44 @@ void main() {
     expect(find.text('waiting'), findsNothing);
   });
 
+  testWidgets('request replacement clears a stale failure', (tester) async {
+    var request = _thumbnail;
+    late StateSetter update;
+    final coordinator = OnlineGalleryPrefetchCoordinator(
+      preloader: (candidate) => GalleryImagePreloadOperation.fromFuture(
+        candidate == _thumbnail
+            ? Future<void>.error(StateError('bad image'))
+            : Future<void>.value(),
+      ),
+    );
+    addTearDown(coordinator.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: StatefulBuilder(
+          builder: (context, setState) {
+            update = setState;
+            return CoordinatedGalleryImage(
+              request: request,
+              coordinator: coordinator,
+              placeholder: const Text('waiting'),
+              errorWidget: const Text('failed'),
+            );
+          },
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.text('failed'), findsOneWidget);
+
+    update(() => request = _sample);
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('failed'), findsNothing);
+    expect(find.byType(Image), findsOneWidget);
+  });
+
   testWidgets('coordinated images keep the placeholder until the first frame', (
     tester,
   ) async {
@@ -200,14 +241,69 @@ void main() {
     final frameBuilder = image.frameBuilder!;
     final context = tester.element(find.byType(Image));
     expect(frameBuilder(context, const SizedBox(), null, false), isA<Text>());
-    final firstFrame = frameBuilder(
-      context,
-      const SizedBox(key: ValueKey('decoded-image')),
-      0,
-      false,
-    );
+    const decoded = SizedBox(key: ValueKey('decoded-image'));
+    final firstFrame = frameBuilder(context, decoded, 0, false);
     expect(firstFrame, isA<Stack>());
+    final stack = firstFrame as Stack;
+    final fade = stack.children.last as TweenAnimationBuilder<double>;
+    expect(fade.duration, const Duration(milliseconds: 120));
   });
+
+  testWidgets('gallery fade clamps long theme motion to 160ms', (tester) async {
+    final coordinator = OnlineGalleryPrefetchCoordinator(
+      preloader: (_) =>
+          GalleryImagePreloadOperation.fromFuture(Future<void>.value()),
+    );
+    addTearDown(coordinator.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(
+          extensions: const [
+            AppThemeExtension(fastDuration: Duration(milliseconds: 400)),
+          ],
+        ),
+        home: CoordinatedGalleryImage(
+          request: _thumbnail,
+          coordinator: coordinator,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final image = tester.widget<Image>(find.byType(Image));
+    final context = tester.element(find.byType(Image));
+    final result = image.frameBuilder!(context, const SizedBox(), 0, false);
+    final fade =
+        (result as Stack).children.last as TweenAnimationBuilder<double>;
+    expect(fade.duration, const Duration(milliseconds: 160));
+  });
+
+  testWidgets(
+    'synchronous cache frame bypasses fade and keeps gapless playback',
+    (tester) async {
+      final coordinator = OnlineGalleryPrefetchCoordinator(
+        preloader: (_) =>
+            GalleryImagePreloadOperation.fromFuture(Future<void>.value()),
+      );
+      addTearDown(coordinator.dispose);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: CoordinatedGalleryImage(
+            request: _thumbnail,
+            coordinator: coordinator,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final image = tester.widget<Image>(find.byType(Image));
+      expect(image.gaplessPlayback, isTrue);
+      final context = tester.element(find.byType(Image));
+      const decoded = SizedBox(key: ValueKey('cached-frame'));
+      final result = image.frameBuilder!(context, decoded, 0, true);
+      expect(identical(result, decoded), isTrue);
+    },
+  );
 }
 
 Widget _app(

@@ -494,6 +494,58 @@ void main() {
       },
     );
 
+    test('normalizes the HTTPS CDN base before building media URLs', () async {
+      final http = _RecordingHttpAdapter((request) {
+        if (request.uri.path == '/api/config') {
+          return {
+            ..._configJson,
+            'asset_base_url': 'https://CDN.example/root/?v=1#old',
+          };
+        }
+        if (request.uri.path == '/api/work/503') {
+          return {
+            'work': _aiWork(503),
+            'images': [_aiImage('503 p0')],
+          };
+        }
+        throw StateError('Unexpected request ${request.uri}');
+      });
+      final adapter = AiTagGallerySourceAdapter(
+        dio: Dio()..httpClientAdapter = http,
+      );
+
+      final detail = await adapter.detail(
+        const GalleryItem(id: 503, sourceId: GallerySourceId.aiTag),
+      );
+
+      expect(
+        detail.media.single.previewUrl,
+        'https://cdn.example/root/SD/9/503%20p0.webp',
+      );
+      expect(detail.media.single.previewUrl, isNot(contains('pximg.net')));
+      expect(detail.media.single.id, '503 p0');
+    });
+
+    test('rejects non-HTTPS AI TAG asset bases', () async {
+      final http = _RecordingHttpAdapter(
+        (_) => {..._configJson, 'asset_base_url': 'http://cdn.example/'},
+      );
+      final adapter = AiTagGallerySourceAdapter(
+        dio: Dio()..httpClientAdapter = http,
+      );
+
+      await expectLater(
+        adapter.getConfig(),
+        throwsA(
+          isA<GallerySourceException>().having(
+            (error) => error.code,
+            'code',
+            GallerySourceErrorCode.configurationUnavailable,
+          ),
+        ),
+      );
+    });
+
     test('random page one reuses the exact total probe response', () async {
       var listRequests = 0;
       final http = _RecordingHttpAdapter((request) {

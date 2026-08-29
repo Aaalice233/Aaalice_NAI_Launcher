@@ -91,6 +91,17 @@ class OnlineGalleryPrefetchCoordinator extends ChangeNotifier {
     GalleryImageTier.original => false,
   };
 
+  /// Forgets a transport completion whose cached bytes could not be decoded.
+  /// The next mount will pass through the normal bounded loader again instead
+  /// of repeatedly trusting the stale completion marker.
+  void invalidateCompleted(GalleryImageRequest request) {
+    final transportPrefix = '${request.transportKey}:';
+    _completedThumbnails.removeWhere(
+      (key, _) => key.startsWith(transportPrefix),
+    );
+    _completedSamples.removeWhere((key, _) => key.startsWith(transportPrefix));
+  }
+
   bool isNegativelyCached(GalleryImageRequest request) {
     final failedAt = _failures[request.stableRequestKey];
     if (failedAt == null) return false;
