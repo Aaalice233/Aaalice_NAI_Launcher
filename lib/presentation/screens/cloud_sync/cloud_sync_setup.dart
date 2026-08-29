@@ -274,7 +274,7 @@ class _CloudSyncSetupState extends ConsumerState<CloudSyncSetup> {
                 ? null
                 : _unlockLegacy,
             icon: const Icon(Icons.lock_open),
-            label: Text(context.l10n.cloudSync_saveAndSync),
+            label: Text(context.l10n.cloudSync_unlockAndContinue),
           ),
         ),
         ExpansionTile(

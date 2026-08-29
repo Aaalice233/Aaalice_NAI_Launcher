@@ -4,7 +4,6 @@ import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 import '../../../core/agent/resources/agent_chat_resource_drag_format.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference.dart';
-import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../providers/agent_chat_notifier.dart';
 
@@ -87,40 +86,19 @@ class AgentResourceDropRegion extends StatelessWidget {
   }
 }
 
-class AgentResourceDragSource extends ConsumerStatefulWidget {
+class AgentResourceDragSource extends ConsumerWidget {
   const AgentResourceDragSource({
     super.key,
     required this.reference,
     required this.child,
-    this.deferDesktopRegistration = false,
   });
 
   final AgentChatResourceReference reference;
   final Widget child;
 
-  /// Keeps the native drag detector and snapshot layer out of large desktop
-  /// virtualized lists until the pointer reaches this item.
-  ///
-  /// Touch platforms retain eager registration so long-press dragging keeps
-  /// receiving the original pointer sequence.
-  final bool deferDesktopRegistration;
-
   @override
-  ConsumerState<AgentResourceDragSource> createState() =>
-      _AgentResourceDragSourceState();
-}
-
-class _AgentResourceDragSourceState
-    extends ConsumerState<AgentResourceDragSource> {
-  final _childKey = GlobalKey();
-  bool _desktopPointerInside = false;
-  bool _desktopPointerDown = false;
-
-  Widget get _preservedChild =>
-      KeyedSubtree(key: _childKey, child: widget.child);
-
-  Widget _buildSource(BuildContext context, WidgetRef ref) {
-    final reference = widget.reference;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final reference = this.reference;
     return DragItemWidget(
       allowedOperations: () => [DropOperation.copy],
       dragItemProvider: (_) async {
@@ -140,60 +118,7 @@ class _AgentResourceDragSourceState
           position: details.globalPosition,
           reference: reference,
         ),
-        child: DraggableWidget(child: _preservedChild),
-      ),
-    );
-  }
-
-  Widget _buildContextMenuTarget(BuildContext context, WidgetRef ref) {
-    return GestureDetector(
-      behavior: HitTestBehavior.deferToChild,
-      onSecondaryTapDown: (details) => showAddAgentResourceMenu(
-        context: context,
-        ref: ref,
-        position: details.globalPosition,
-        reference: widget.reference,
-      ),
-      child: _preservedChild,
-    );
-  }
-
-  void _releaseDesktopPointer() {
-    if (!_desktopPointerDown) return;
-    if (_desktopPointerInside) {
-      _desktopPointerDown = false;
-    } else {
-      setState(() => _desktopPointerDown = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final defersRegistration =
-        widget.deferDesktopRegistration &&
-        PlatformCapabilities.current.hasPrecisePointer;
-    if (!defersRegistration) return _buildSource(context, ref);
-
-    return Listener(
-      onPointerDown: (_) => _desktopPointerDown = true,
-      onPointerUp: (_) => _releaseDesktopPointer(),
-      onPointerCancel: (_) => _releaseDesktopPointer(),
-      child: MouseRegion(
-        onEnter: (_) {
-          if (!_desktopPointerInside) {
-            setState(() => _desktopPointerInside = true);
-          }
-        },
-        onExit: (_) {
-          if (_desktopPointerDown) {
-            _desktopPointerInside = false;
-          } else {
-            setState(() => _desktopPointerInside = false);
-          }
-        },
-        child: _desktopPointerInside || _desktopPointerDown
-            ? _buildSource(context, ref)
-            : _buildContextMenuTarget(context, ref),
+        child: DraggableWidget(child: child),
       ),
     );
   }

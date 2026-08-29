@@ -12581,14 +12581,14 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get cloudSync_description =>
-      '自分で管理する WebDAV または GitHub ストレージを使用して、デバイス間でバックアップと同期を行います。';
+      '設定やプロンプトなどを自分の WebDAV または GitHub に保存し、デバイス間で同期します。';
 
   @override
   String get cloudSync_disconnected => '未接続';
 
   @override
   String get cloudSync_oneClickDescription =>
-      'プロバイダーに必要な情報を入力して保存します。接続確認、リモート検出、安全な同期は自動で行われ、以後はワンクリックです。';
+      '保存先を選び、アカウント情報を入力します。保存すると既存のバックアップを確認し、初回同期を開始します。';
 
   @override
   String get cloudSync_saveAndSync => '保存して同期';
@@ -12600,34 +12600,33 @@ class AppLocalizationsJa extends AppLocalizations {
   String get cloudSync_advancedSettings => '詳細設定';
 
   @override
-  String get cloudSync_connectionManagement => '接続管理';
+  String get cloudSync_connectionManagement => '保存先の接続';
 
   @override
-  String get cloudSync_legacyBackupTitle => '旧暗号化バックアップ';
+  String get cloudSync_legacyBackupTitle => '以前のバックアップを解除';
 
   @override
   String get cloudSync_legacyBackupDescription =>
-      '旧版の暗号化 namespace が見つかりました。旧パスワードは今回だけ必要で、解除後も競合処理と履歴復元を利用できます。';
+      '旧バージョンで作成された暗号化バックアップがあります。当時使用したパスワードを入力してください。';
 
   @override
-  String get cloudSync_legacyPassword => '旧バックアップの暗号化パスワード';
+  String get cloudSync_legacyPassword => '以前のバックアップのパスワード';
 
   @override
-  String get cloudSync_legacyRecovery => '旧復旧キーを使用';
+  String get cloudSync_legacyRecovery => 'パスワードを忘れた場合は復旧キーを使用';
 
   @override
-  String get cloudSync_legacyRecoveryAction => '復旧して続行';
+  String get cloudSync_legacyRecoveryAction => '復旧キーで解除';
 
   @override
-  String get cloudSync_legacyConnectedNotice =>
-      '既存の暗号化スナップショットとの互換性を維持します。新規設定ではアプリ独自のキーを作成しません。';
+  String get cloudSync_unlockAndContinue => '解除して続行';
 
   @override
-  String get cloudSync_chooseBackend => 'バックエンドを選択';
+  String get cloudSync_chooseBackend => 'バックアップ先';
 
   @override
   String get cloudSync_chooseBackendDescription =>
-      '認証情報は常に非表示で、同期サービス接続後にのみ渡されます。';
+      '使用中の保存サービスを選択します。アカウント情報はこのデバイスだけに保存されます。';
 
   @override
   String get cloudSync_webDavUrl => 'WebDAV URL';
@@ -12646,36 +12645,36 @@ class AppLocalizationsJa extends AppLocalizations {
   String get cloudSync_password => 'パスワード';
 
   @override
-  String get cloudSync_remotePath => 'リモートパス';
+  String get cloudSync_remotePath => 'バックアップフォルダー';
 
   @override
-  String get cloudSync_githubToken => 'GitHub トークン';
+  String get cloudSync_githubToken => 'GitHub アクセストークン';
 
   @override
-  String get cloudSync_owner => 'オーナー';
+  String get cloudSync_owner => 'GitHub ユーザーまたは組織';
 
   @override
   String get cloudSync_repository => 'リポジトリ';
 
   @override
-  String get cloudSync_branch => 'ブランチ';
+  String get cloudSync_branch => 'ブランチ（通常は main）';
 
   @override
   String get cloudSync_testFailed => '接続テストに失敗しました';
 
   @override
-  String get cloudSync_manualBackupOnly => '手動クラウドバックアップのみ';
+  String get cloudSync_manualBackupOnly => '手動バックアップのみ';
 
   @override
   String get cloudSync_manualBackupOnlyDescription =>
-      '安全な双方向更新を保証できないため、自動双方向同期は使用できません。';
+      'このサービスでは複数デバイスからの同時変更を安全に処理できません。上書きを防ぐため、手動アップロードのみ利用できます。';
 
   @override
-  String get cloudSync_dataScope => '同期するデータを選択';
+  String get cloudSync_dataScope => '保存する内容を選択';
 
   @override
   String get cloudSync_dataScopeDescription =>
-      'スナップショットに含めるローカルデータを選択します。機密性の高いログイン情報はバックアップされません。';
+      'バックアップと同期の対象を選択します。アカウント、パスワード、API キーはアップロードされません。';
 
   @override
   String get cloudSync_kindSettings => '設定';
@@ -12687,24 +12686,24 @@ class AppLocalizationsJa extends AppLocalizations {
   String get cloudSync_kindGalleries => 'オンラインギャラリーのお気に入り・分類・フィルター';
 
   @override
-  String get cloudSync_kindLargeFiles => '大容量バイナリファイル';
+  String get cloudSync_kindLargeFiles => '画像などの大きなファイル';
 
   @override
-  String get cloudSync_agentContentTitle => 'エージェントの内容';
+  String get cloudSync_agentContentTitle => 'エージェント設定';
 
   @override
-  String get cloudSync_agentSystemPrompt => 'エージェントのカスタムシステムプロンプト';
+  String get cloudSync_agentSystemPrompt => 'カスタムシステムプロンプト';
 
   @override
   String get cloudSync_agentSystemPromptDescription =>
-      '既定でバックアップします。カスタムプロンプトと追加／上書きモードのみを含み、モデルと認証情報は端末に残します。';
+      '変更したプロンプトと適用方法を保存します。モデルとアカウント情報はこのデバイスに残ります。';
 
   @override
-  String get cloudSync_skillsBackup => 'Skill をバックアップ';
+  String get cloudSync_skillsBackup => '選択した Skill をバックアップ';
 
   @override
   String get cloudSync_skillsBackupDescription =>
-      '既定ではオフです。オンにしてから、フォルダー全体を含める Skill を個別に選択します。';
+      '既定ではオフです。他のデバイスへ移す Skill を選択できます。';
 
   @override
   String cloudSync_skillsSelectedCount(Object count) {
@@ -12734,35 +12733,36 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get cloudSync_connectionDetails => '接続情報';
+  String get cloudSync_connectionDetails => '保存先情報';
 
   @override
-  String get cloudSync_backend => 'バックエンド';
+  String get cloudSync_backend => '保存サービス';
 
   @override
-  String get cloudSync_deviceName => 'デバイス名';
+  String get cloudSync_deviceName => 'このデバイス';
 
   @override
-  String get cloudSync_lastSync => '最終同期';
+  String get cloudSync_lastSync => '最終完了';
 
   @override
-  String get cloudSync_remoteRevision => 'リモート revision';
+  String get cloudSync_connectedDescription => '接続は正常です。バックアップと同期を開始できます。';
 
   @override
-  String get cloudSync_connectedDescription => 'クラウド同期に接続しました。';
+  String get cloudSync_maintenanceWarning => '確認が必要です';
 
   @override
-  String get cloudSync_maintenanceWarning => 'リモートメンテナンスのお知らせ';
+  String get cloudSync_maintenanceWarningDescription =>
+      'クラウド領域を一時的に自動整理できません。既存のバックアップには影響せず、後でもう一度試します。';
 
   @override
-  String get cloudSync_githubHistoryRetention => 'GitHub 履歴の保持';
+  String get cloudSync_githubHistoryRetention => 'GitHub の保存容量について';
 
   @override
   String get cloudSync_githubHistoryRetentionDescription =>
-      '同期オブジェクトや namespace を削除しても、Git のコミット履歴と使用領域は回収されません。完全に削除する必要がある場合は、GitHub 側でリポジトリを作り直してください。';
+      'クラウドバックアップを削除しても、GitHub の以前のコミットはリポジトリ容量を使用します。完全に消去するには GitHub で新しいリポジトリを作成してください。';
 
   @override
-  String get cloudSync_upToDate => '同期済み';
+  String get cloudSync_upToDate => '最新です';
 
   @override
   String get cloudSync_syncing => '同期中';
@@ -12771,7 +12771,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get cloudSync_paused => '一時停止中';
 
   @override
-  String get cloudSync_syncControls => '同期操作';
+  String get cloudSync_syncControls => 'バックアップと同期';
 
   @override
   String get cloudSync_syncNow => '今すぐ同期';
@@ -12789,60 +12789,79 @@ class AppLocalizationsJa extends AppLocalizations {
   String get cloudSync_progress => '進行状況';
 
   @override
-  String get cloudSync_stage => '段階';
+  String get cloudSync_stage => '現在の進行状況';
 
   @override
-  String get cloudSync_object => '現在のオブジェクト';
+  String get cloudSync_objects => '処理済み';
 
   @override
-  String get cloudSync_objects => 'オブジェクト';
+  String get cloudSync_bytes => '転送済み';
 
   @override
-  String get cloudSync_bytes => 'バイト';
+  String get cloudSync_stagePreparing => '準備中';
 
   @override
-  String get cloudSync_activityLog => 'アクティビティログ';
+  String get cloudSync_stageDownloading => 'ダウンロード中';
 
   @override
-  String get cloudSync_noActivity => '同期アクティビティはまだありません。';
+  String get cloudSync_stageMerging => '変更を整理中';
 
   @override
-  String get cloudSync_snapshotHistory => 'スナップショット履歴';
+  String get cloudSync_stageUploading => 'アップロード中';
+
+  @override
+  String get cloudSync_stageApplying => '変更を保存中';
+
+  @override
+  String get cloudSync_stageRollingBack => '元の状態に復元中';
+
+  @override
+  String get cloudSync_stageCompleted => '完了';
+
+  @override
+  String get cloudSync_stageWorking => '処理中';
+
+  @override
+  String get cloudSync_snapshotHistory => '以前のバックアップ';
 
   @override
   String get cloudSync_snapshotHistoryDescription =>
-      '復元は新しいローカル変更を作成し、履歴を暗黙に削除しません。';
+      '復元前に変更内容を確認できます。現在のデータがすぐに上書きされることはありません。';
 
   @override
-  String get cloudSync_noSnapshots => '利用可能なリモートスナップショットはありません。';
+  String get cloudSync_noSnapshots => '復元できるバックアップはまだありません。';
 
   @override
-  String get cloudSync_previewRestore => '復元をプレビュー';
+  String cloudSync_backupItemCount(int count) {
+    return '$count 件の内容';
+  }
 
   @override
-  String get cloudSync_restorePreviewTitle => '復元差分プレビュー';
+  String get cloudSync_previewRestore => '確認して復元';
+
+  @override
+  String get cloudSync_restorePreviewTitle => '復元前の確認';
 
   @override
   String get cloudSync_restorePreviewDescription =>
-      '履歴スナップショットと現在のローカルデータの検証済み差分です。確認すると履歴を巻き戻さず新しいスナップショットを作成します。';
+      '追加・変更・削除される内容を確認します。確定するまで現在のデータは変更されません。';
 
   @override
-  String get cloudSync_mergePreviewTitle => '初回マージのプレビュー';
+  String get cloudSync_mergePreviewTitle => '初回同期の確認';
 
   @override
   String get cloudSync_mergePreviewDescription =>
-      'マージは未適用です。追加・変更・削除を確認し、すべての競合を解決してから確定してください。';
+      'デバイス間でデータが異なります。変更内容と残すバージョンを確認してください。確定するまでデータは変更されません。';
 
   @override
-  String get cloudSync_previewAwaitingConfirmation =>
-      'プレビューが未確認のため、同期は完了していません。';
+  String get cloudSync_previewAwaitingConfirmation => '先に以下の変更内容を確認してください。';
 
   @override
-  String get cloudSync_previewDeletesTitle => '削除を含みます';
+  String get cloudSync_previewDeletesTitle => 'このデバイスの内容が削除されます';
 
   @override
   String cloudSync_previewDeletesDescription(Object count) {
-    return '確認するとローカルデータ $count 件を削除します。先にカテゴリを確認してください。';
+    return '復元するとこのデバイスから $count 件が削除されます。意図した変更か確認してください。';
   }
 
   @override
@@ -12858,21 +12877,21 @@ class AppLocalizationsJa extends AppLocalizations {
   String get cloudSync_previewNoChanges => '適用する変更はありません。';
 
   @override
-  String get cloudSync_confirmMerge => 'マージを確認して適用';
+  String get cloudSync_confirmMerge => '同期を確定';
 
   @override
-  String get cloudSync_confirmRestore => '復元して新しいスナップショットを作成';
+  String get cloudSync_confirmRestore => '復元を確定';
 
   @override
-  String get cloudSync_ffdkjIntentTitle => 'ffdkj 辞書のインストール意図を検出しました';
+  String get cloudSync_ffdkjIntentTitle => '辞書設定が見つかりました';
 
   @override
   String get cloudSync_ffdkjIntentDescription =>
-      '同期するのはインストール意図だけです。tag.sqlite は含めず転送もしません。';
+      '別のデバイスに ffdkj 中国語辞書がインストールされています。辞書ファイルはクラウド経由では転送されません。';
 
   @override
   String get cloudSync_ffdkjInstallWarning =>
-      '公式 ffdkj アップストリームから中国語辞書を直接ダウンロードしてインストールしますか？クラウドスナップショット由来ではありません。';
+      'ffdkj の公式配布元から中国語辞書をダウンロードしてインストールしますか？';
 
   @override
   String get cloudSync_clearInstallIntent => '今回はインストールせず通知を消去';
@@ -12881,66 +12900,68 @@ class AppLocalizationsJa extends AppLocalizations {
   String get cloudSync_newPassword => '新しいパスワード';
 
   @override
-  String get cloudSync_deleteRemoteNamespace => 'クラウド namespace のみ削除';
+  String get cloudSync_deleteRemoteNamespace => 'クラウドバックアップを削除';
 
   @override
   String get cloudSync_deleteRemoteNamespaceDescription =>
-      'ローカルデータを残し、このアプリのリモート namespace のみ削除します。';
+      'このサービスに Aaalice が保存したすべてのバックアップを削除します。このデバイスのデータは削除されません。';
 
   @override
   String get cloudSync_deleteRemoteConfirm =>
-      'リモート namespace を完全に削除しますか？ローカルデータは保持されます。';
+      'クラウドバックアップをすべて削除しますか？このデバイスのデータは保持されます。';
 
   @override
-  String get cloudSync_disconnect => 'このデバイスを切断';
+  String get cloudSync_disconnect => '接続を解除';
 
   @override
-  String get cloudSync_disconnectDescription => 'ローカル接続を削除し、すべてのリモートデータを保持します。';
+  String get cloudSync_disconnectDescription =>
+      'このデバイスのバックアップと同期を停止し、クラウドの既存バックアップは保持します。';
 
   @override
   String get cloudSync_disconnectConfirm =>
-      'リモート namespace を保持してこのデバイスを切断しますか？';
+      'このデバイスの接続を解除しますか？クラウドの既存バックアップは保持されます。';
 
   @override
   String get cloudSync_confirm => '確認';
 
   @override
-  String get cloudSync_conflictCenter => '競合センター';
+  String get cloudSync_conflictCenter => '内容が一致しません';
 
   @override
   String get cloudSync_conflictDescription =>
-      'データ種別ごとに base、ローカル、リモートの概要を確認して解決方法を適用します。';
+      '同じ内容がこのデバイスとクラウドの両方で変更されました。残すバージョンを選択してください。';
 
   @override
-  String get cloudSync_needsConflictResolution => '競合の対応が必要です';
+  String get cloudSync_needsConflictResolution => '残す内容を選択してください';
 
   @override
-  String get cloudSync_deferredConflictWarning => '保留中の競合があるため、同期完了とはみなされません。';
+  String get cloudSync_deferredConflictWarning =>
+      '未選択の内容があります。すべて選ぶと同期を続行できます。';
 
   @override
-  String get cloudSync_applyAll => '一括適用：';
+  String get cloudSync_applyAll => 'すべて選択：';
 
   @override
-  String get cloudSync_base => 'Base';
+  String get cloudSync_base => '前回の同期';
 
   @override
-  String get cloudSync_local => 'ローカル';
+  String get cloudSync_local => 'このデバイス';
 
   @override
-  String get cloudSync_remote => 'リモート';
+  String get cloudSync_remote => 'クラウド';
 
   @override
-  String get cloudSync_chooseLocal => 'ローカルを使用';
+  String get cloudSync_chooseLocal => 'このデバイスの版を残す';
 
   @override
-  String get cloudSync_chooseRemote => 'リモートを使用';
+  String get cloudSync_chooseRemote => 'クラウドの版を残す';
 
   @override
   String get cloudSync_keepBoth => '両方を保持';
 
   @override
   String get cloudSync_largeBinaryKeepBothDefault =>
-      '大容量バイナリの競合は既定で両方のコピーを保持します。';
+      '大きなファイルはデータ損失を防ぐため、既定で両方の版を残します。';
 
   @override
   String get settings_agent => 'エージェント';

@@ -22463,7 +22463,7 @@ abstract class AppLocalizations {
   /// No description provided for @cloudSync_description.
   ///
   /// In en, this message translates to:
-  /// **'Cross-device backup and synchronization using WebDAV or GitHub storage you control.'**
+  /// **'Save settings, prompts, and more to your own WebDAV or GitHub storage and keep them in sync across devices.'**
   String get cloudSync_description;
 
   /// No description provided for @cloudSync_disconnected.
@@ -22475,7 +22475,7 @@ abstract class AppLocalizations {
   /// No description provided for @cloudSync_oneClickDescription.
   ///
   /// In en, this message translates to:
-  /// **'Enter the provider-required details and save. The app verifies the connection, detects remote data, and syncs safely; future runs take one click.'**
+  /// **'Choose a storage service and enter your account details. Saving checks for an existing backup and starts the first sync.'**
   String get cloudSync_oneClickDescription;
 
   /// No description provided for @cloudSync_saveAndSync.
@@ -22499,55 +22499,55 @@ abstract class AppLocalizations {
   /// No description provided for @cloudSync_connectionManagement.
   ///
   /// In en, this message translates to:
-  /// **'Connection management'**
+  /// **'Storage connection'**
   String get cloudSync_connectionManagement;
 
   /// No description provided for @cloudSync_legacyBackupTitle.
   ///
   /// In en, this message translates to:
-  /// **'Legacy encrypted backup'**
+  /// **'Unlock an older backup'**
   String get cloudSync_legacyBackupTitle;
 
   /// No description provided for @cloudSync_legacyBackupDescription.
   ///
   /// In en, this message translates to:
-  /// **'A legacy encrypted namespace was found. Enter its old encryption password once; conflict handling and history recovery remain available after unlocking.'**
+  /// **'The cloud contains an encrypted backup created by an older app version. Enter the password you used then to continue.'**
   String get cloudSync_legacyBackupDescription;
 
   /// No description provided for @cloudSync_legacyPassword.
   ///
   /// In en, this message translates to:
-  /// **'Legacy backup password'**
+  /// **'Older backup password'**
   String get cloudSync_legacyPassword;
 
   /// No description provided for @cloudSync_legacyRecovery.
   ///
   /// In en, this message translates to:
-  /// **'Use legacy recovery key'**
+  /// **'Forgot the password? Use a recovery key'**
   String get cloudSync_legacyRecovery;
 
   /// No description provided for @cloudSync_legacyRecoveryAction.
   ///
   /// In en, this message translates to:
-  /// **'Recover and continue'**
+  /// **'Unlock with recovery key'**
   String get cloudSync_legacyRecoveryAction;
 
-  /// No description provided for @cloudSync_legacyConnectedNotice.
+  /// No description provided for @cloudSync_unlockAndContinue.
   ///
   /// In en, this message translates to:
-  /// **'This connection remains compatible with existing encrypted snapshots. New configurations no longer create app-level keys.'**
-  String get cloudSync_legacyConnectedNotice;
+  /// **'Unlock and continue'**
+  String get cloudSync_unlockAndContinue;
 
   /// No description provided for @cloudSync_chooseBackend.
   ///
   /// In en, this message translates to:
-  /// **'Choose a backend'**
+  /// **'Where to back up'**
   String get cloudSync_chooseBackend;
 
   /// No description provided for @cloudSync_chooseBackendDescription.
   ///
   /// In en, this message translates to:
-  /// **'Credentials stay hidden and are passed only to the sync service when it is connected.'**
+  /// **'Choose a storage service you already use. Account details stay on this device.'**
   String get cloudSync_chooseBackendDescription;
 
   /// No description provided for @cloudSync_webDavUrl.
@@ -22583,19 +22583,19 @@ abstract class AppLocalizations {
   /// No description provided for @cloudSync_remotePath.
   ///
   /// In en, this message translates to:
-  /// **'Remote path'**
+  /// **'Backup folder'**
   String get cloudSync_remotePath;
 
   /// No description provided for @cloudSync_githubToken.
   ///
   /// In en, this message translates to:
-  /// **'GitHub token'**
+  /// **'GitHub access token'**
   String get cloudSync_githubToken;
 
   /// No description provided for @cloudSync_owner.
   ///
   /// In en, this message translates to:
-  /// **'Owner'**
+  /// **'GitHub user or organization'**
   String get cloudSync_owner;
 
   /// No description provided for @cloudSync_repository.
@@ -22607,7 +22607,7 @@ abstract class AppLocalizations {
   /// No description provided for @cloudSync_branch.
   ///
   /// In en, this message translates to:
-  /// **'Branch'**
+  /// **'Branch (usually main)'**
   String get cloudSync_branch;
 
   /// No description provided for @cloudSync_testFailed.
@@ -22619,25 +22619,25 @@ abstract class AppLocalizations {
   /// No description provided for @cloudSync_manualBackupOnly.
   ///
   /// In en, this message translates to:
-  /// **'Manual cloud backup only'**
+  /// **'Manual backup only'**
   String get cloudSync_manualBackupOnly;
 
   /// No description provided for @cloudSync_manualBackupOnlyDescription.
   ///
   /// In en, this message translates to:
-  /// **'This backend cannot safely guarantee bidirectional updates. Automatic two-way sync is unavailable.'**
+  /// **'This service cannot reliably handle changes from multiple devices at once. To prevent overwrites, it only supports manual uploads here.'**
   String get cloudSync_manualBackupOnlyDescription;
 
   /// No description provided for @cloudSync_dataScope.
   ///
   /// In en, this message translates to:
-  /// **'Choose data to sync'**
+  /// **'Choose what to save'**
   String get cloudSync_dataScope;
 
   /// No description provided for @cloudSync_dataScopeDescription.
   ///
   /// In en, this message translates to:
-  /// **'Choose the local data categories included in snapshots. Sensitive login credentials are never backed up.'**
+  /// **'Choose what to back up and sync. Accounts, passwords, and API keys are never uploaded.'**
   String get cloudSync_dataScopeDescription;
 
   /// No description provided for @cloudSync_kindSettings.
@@ -22661,37 +22661,37 @@ abstract class AppLocalizations {
   /// No description provided for @cloudSync_kindLargeFiles.
   ///
   /// In en, this message translates to:
-  /// **'Large binary files'**
+  /// **'Images and other large files'**
   String get cloudSync_kindLargeFiles;
 
   /// No description provided for @cloudSync_agentContentTitle.
   ///
   /// In en, this message translates to:
-  /// **'Agent content'**
+  /// **'Agent settings'**
   String get cloudSync_agentContentTitle;
 
   /// No description provided for @cloudSync_agentSystemPrompt.
   ///
   /// In en, this message translates to:
-  /// **'Custom Agent system prompt'**
+  /// **'Custom system prompt'**
   String get cloudSync_agentSystemPrompt;
 
   /// No description provided for @cloudSync_agentSystemPromptDescription.
   ///
   /// In en, this message translates to:
-  /// **'Included by default. Only your custom prompt and its append/override mode are backed up; model and credentials stay local.'**
+  /// **'Saves your prompt and how it is applied. Models and account details remain on this device.'**
   String get cloudSync_agentSystemPromptDescription;
 
   /// No description provided for @cloudSync_skillsBackup.
   ///
   /// In en, this message translates to:
-  /// **'Back up Skills'**
+  /// **'Back up selected Skills'**
   String get cloudSync_skillsBackup;
 
   /// No description provided for @cloudSync_skillsBackupDescription.
   ///
   /// In en, this message translates to:
-  /// **'Off by default. Turn it on, then choose the specific Skills whose complete folders should be included.'**
+  /// **'Off by default. Turn it on to choose which Skills to bring to your other devices.'**
   String get cloudSync_skillsBackupDescription;
 
   /// No description provided for @cloudSync_skillsSelectedCount.
@@ -22739,61 +22739,61 @@ abstract class AppLocalizations {
   /// No description provided for @cloudSync_connectionDetails.
   ///
   /// In en, this message translates to:
-  /// **'Connection'**
+  /// **'Storage details'**
   String get cloudSync_connectionDetails;
 
   /// No description provided for @cloudSync_backend.
   ///
   /// In en, this message translates to:
-  /// **'Backend'**
+  /// **'Storage service'**
   String get cloudSync_backend;
 
   /// No description provided for @cloudSync_deviceName.
   ///
   /// In en, this message translates to:
-  /// **'Device name'**
+  /// **'This device'**
   String get cloudSync_deviceName;
 
   /// No description provided for @cloudSync_lastSync.
   ///
   /// In en, this message translates to:
-  /// **'Last sync'**
+  /// **'Last completed'**
   String get cloudSync_lastSync;
-
-  /// No description provided for @cloudSync_remoteRevision.
-  ///
-  /// In en, this message translates to:
-  /// **'Remote revision'**
-  String get cloudSync_remoteRevision;
 
   /// No description provided for @cloudSync_connectedDescription.
   ///
   /// In en, this message translates to:
-  /// **'Cloud sync is connected.'**
+  /// **'The connection is working and ready to back up or sync.'**
   String get cloudSync_connectedDescription;
 
   /// No description provided for @cloudSync_maintenanceWarning.
   ///
   /// In en, this message translates to:
-  /// **'Remote maintenance notice'**
+  /// **'Needs attention'**
   String get cloudSync_maintenanceWarning;
+
+  /// No description provided for @cloudSync_maintenanceWarningDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Cloud storage could not be cleaned up automatically. Existing backups are unaffected, and the app will try again later.'**
+  String get cloudSync_maintenanceWarningDescription;
 
   /// No description provided for @cloudSync_githubHistoryRetention.
   ///
   /// In en, this message translates to:
-  /// **'GitHub history retention'**
+  /// **'About GitHub storage'**
   String get cloudSync_githubHistoryRetention;
 
   /// No description provided for @cloudSync_githubHistoryRetentionDescription.
   ///
   /// In en, this message translates to:
-  /// **'Deleting sync objects or the namespace does not reclaim Git commit history or its storage. Recreate the repository on GitHub when complete removal is required.'**
+  /// **'Older GitHub commits still use repository space after you delete the cloud backup. Create a new repository on GitHub if you need to remove everything.'**
   String get cloudSync_githubHistoryRetentionDescription;
 
   /// No description provided for @cloudSync_upToDate.
   ///
   /// In en, this message translates to:
-  /// **'Synced'**
+  /// **'Up to date'**
   String get cloudSync_upToDate;
 
   /// No description provided for @cloudSync_syncing.
@@ -22811,7 +22811,7 @@ abstract class AppLocalizations {
   /// No description provided for @cloudSync_syncControls.
   ///
   /// In en, this message translates to:
-  /// **'Sync controls'**
+  /// **'Backup and sync'**
   String get cloudSync_syncControls;
 
   /// No description provided for @cloudSync_syncNow.
@@ -22847,103 +22847,139 @@ abstract class AppLocalizations {
   /// No description provided for @cloudSync_stage.
   ///
   /// In en, this message translates to:
-  /// **'Stage'**
+  /// **'Current step'**
   String get cloudSync_stage;
-
-  /// No description provided for @cloudSync_object.
-  ///
-  /// In en, this message translates to:
-  /// **'Current object'**
-  String get cloudSync_object;
 
   /// No description provided for @cloudSync_objects.
   ///
   /// In en, this message translates to:
-  /// **'Objects'**
+  /// **'Items processed'**
   String get cloudSync_objects;
 
   /// No description provided for @cloudSync_bytes.
   ///
   /// In en, this message translates to:
-  /// **'Bytes'**
+  /// **'Transferred'**
   String get cloudSync_bytes;
 
-  /// No description provided for @cloudSync_activityLog.
+  /// No description provided for @cloudSync_stagePreparing.
   ///
   /// In en, this message translates to:
-  /// **'Activity log'**
-  String get cloudSync_activityLog;
+  /// **'Preparing'**
+  String get cloudSync_stagePreparing;
 
-  /// No description provided for @cloudSync_noActivity.
+  /// No description provided for @cloudSync_stageDownloading.
   ///
   /// In en, this message translates to:
-  /// **'No sync activity yet.'**
-  String get cloudSync_noActivity;
+  /// **'Downloading'**
+  String get cloudSync_stageDownloading;
+
+  /// No description provided for @cloudSync_stageMerging.
+  ///
+  /// In en, this message translates to:
+  /// **'Organizing changes'**
+  String get cloudSync_stageMerging;
+
+  /// No description provided for @cloudSync_stageUploading.
+  ///
+  /// In en, this message translates to:
+  /// **'Uploading'**
+  String get cloudSync_stageUploading;
+
+  /// No description provided for @cloudSync_stageApplying.
+  ///
+  /// In en, this message translates to:
+  /// **'Saving changes'**
+  String get cloudSync_stageApplying;
+
+  /// No description provided for @cloudSync_stageRollingBack.
+  ///
+  /// In en, this message translates to:
+  /// **'Restoring previous state'**
+  String get cloudSync_stageRollingBack;
+
+  /// No description provided for @cloudSync_stageCompleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Complete'**
+  String get cloudSync_stageCompleted;
+
+  /// No description provided for @cloudSync_stageWorking.
+  ///
+  /// In en, this message translates to:
+  /// **'Working'**
+  String get cloudSync_stageWorking;
 
   /// No description provided for @cloudSync_snapshotHistory.
   ///
   /// In en, this message translates to:
-  /// **'Snapshot history'**
+  /// **'Previous backups'**
   String get cloudSync_snapshotHistory;
 
   /// No description provided for @cloudSync_snapshotHistoryDescription.
   ///
   /// In en, this message translates to:
-  /// **'Restore creates a new local change; it does not silently erase history.'**
+  /// **'Review what an older backup would change before restoring it. Your current data is not overwritten immediately.'**
   String get cloudSync_snapshotHistoryDescription;
 
   /// No description provided for @cloudSync_noSnapshots.
   ///
   /// In en, this message translates to:
-  /// **'No remote snapshots are available.'**
+  /// **'No restorable backups yet.'**
   String get cloudSync_noSnapshots;
+
+  /// No description provided for @cloudSync_backupItemCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Contains {count} items'**
+  String cloudSync_backupItemCount(int count);
 
   /// No description provided for @cloudSync_previewRestore.
   ///
   /// In en, this message translates to:
-  /// **'Preview restore'**
+  /// **'Review and restore'**
   String get cloudSync_previewRestore;
 
   /// No description provided for @cloudSync_restorePreviewTitle.
   ///
   /// In en, this message translates to:
-  /// **'Restore diff preview'**
+  /// **'Review before restoring'**
   String get cloudSync_restorePreviewTitle;
 
   /// No description provided for @cloudSync_restorePreviewDescription.
   ///
   /// In en, this message translates to:
-  /// **'These are the verified changes from the historical snapshot to current local data. Confirmation creates a new snapshot without rewinding history.'**
+  /// **'Check what will be added, changed, or removed. Nothing changes until you confirm.'**
   String get cloudSync_restorePreviewDescription;
 
   /// No description provided for @cloudSync_mergePreviewTitle.
   ///
   /// In en, this message translates to:
-  /// **'First merge preview'**
+  /// **'Review the first sync'**
   String get cloudSync_mergePreviewTitle;
 
   /// No description provided for @cloudSync_mergePreviewDescription.
   ///
   /// In en, this message translates to:
-  /// **'The merge has not been applied. Review additions, changes, and deletions and resolve every conflict before confirming.'**
+  /// **'The devices contain different data. Review the changes and choose what to keep. Nothing changes until you confirm.'**
   String get cloudSync_mergePreviewDescription;
 
   /// No description provided for @cloudSync_previewAwaitingConfirmation.
   ///
   /// In en, this message translates to:
-  /// **'The preview is awaiting confirmation, so sync is not complete.'**
+  /// **'Review and confirm the changes below first.'**
   String get cloudSync_previewAwaitingConfirmation;
 
   /// No description provided for @cloudSync_previewDeletesTitle.
   ///
   /// In en, this message translates to:
-  /// **'Includes deletions'**
+  /// **'Items will be removed from this device'**
   String get cloudSync_previewDeletesTitle;
 
   /// No description provided for @cloudSync_previewDeletesDescription.
   ///
   /// In en, this message translates to:
-  /// **'Confirmation will delete {count} local items. Review their categories first.'**
+  /// **'Restoring will remove {count} items from this device. Make sure these changes are expected.'**
   String cloudSync_previewDeletesDescription(Object count);
 
   /// No description provided for @cloudSync_previewCounts.
@@ -22961,31 +22997,31 @@ abstract class AppLocalizations {
   /// No description provided for @cloudSync_confirmMerge.
   ///
   /// In en, this message translates to:
-  /// **'Confirm and apply merge'**
+  /// **'Confirm sync'**
   String get cloudSync_confirmMerge;
 
   /// No description provided for @cloudSync_confirmRestore.
   ///
   /// In en, this message translates to:
-  /// **'Confirm restore and create snapshot'**
+  /// **'Confirm restore'**
   String get cloudSync_confirmRestore;
 
   /// No description provided for @cloudSync_ffdkjIntentTitle.
   ///
   /// In en, this message translates to:
-  /// **'ffdkj dictionary install intent detected'**
+  /// **'Dictionary setting found'**
   String get cloudSync_ffdkjIntentTitle;
 
   /// No description provided for @cloudSync_ffdkjIntentDescription.
   ///
   /// In en, this message translates to:
-  /// **'Sync migrates only the install intent; tag.sqlite is never included or transferred.'**
+  /// **'Another device has the ffdkj Chinese dictionary installed. The dictionary file is not transferred through cloud backup.'**
   String get cloudSync_ffdkjIntentDescription;
 
   /// No description provided for @cloudSync_ffdkjInstallWarning.
   ///
   /// In en, this message translates to:
-  /// **'Download and install the Chinese dictionary directly from the official ffdkj upstream? This file does not come from the cloud snapshot.'**
+  /// **'Download and install the Chinese dictionary from the official ffdkj source?'**
   String get cloudSync_ffdkjInstallWarning;
 
   /// No description provided for @cloudSync_clearInstallIntent.
@@ -23003,37 +23039,37 @@ abstract class AppLocalizations {
   /// No description provided for @cloudSync_deleteRemoteNamespace.
   ///
   /// In en, this message translates to:
-  /// **'Delete cloud namespace only'**
+  /// **'Delete cloud backup'**
   String get cloudSync_deleteRemoteNamespace;
 
   /// No description provided for @cloudSync_deleteRemoteNamespaceDescription.
   ///
   /// In en, this message translates to:
-  /// **'Deletes this app\'s remote namespace without deleting local data.'**
+  /// **'Deletes every backup Aaalice saved to this service without deleting data on this device.'**
   String get cloudSync_deleteRemoteNamespaceDescription;
 
   /// No description provided for @cloudSync_deleteRemoteConfirm.
   ///
   /// In en, this message translates to:
-  /// **'Permanently delete this app\'s remote namespace? Local data is kept.'**
+  /// **'Delete all cloud backups? Data on this device will be kept.'**
   String get cloudSync_deleteRemoteConfirm;
 
   /// No description provided for @cloudSync_disconnect.
   ///
   /// In en, this message translates to:
-  /// **'Disconnect this device'**
+  /// **'Disconnect'**
   String get cloudSync_disconnect;
 
   /// No description provided for @cloudSync_disconnectDescription.
   ///
   /// In en, this message translates to:
-  /// **'Removes the local connection and keeps all remote data.'**
+  /// **'Stops backup and sync on this device while keeping existing cloud backups.'**
   String get cloudSync_disconnectDescription;
 
   /// No description provided for @cloudSync_disconnectConfirm.
   ///
   /// In en, this message translates to:
-  /// **'Disconnect this device and keep the remote namespace?'**
+  /// **'Disconnect this device? Existing cloud backups will be kept.'**
   String get cloudSync_disconnectConfirm;
 
   /// No description provided for @cloudSync_confirm.
@@ -23045,61 +23081,61 @@ abstract class AppLocalizations {
   /// No description provided for @cloudSync_conflictCenter.
   ///
   /// In en, this message translates to:
-  /// **'Conflict center'**
+  /// **'Some content differs'**
   String get cloudSync_conflictCenter;
 
   /// No description provided for @cloudSync_conflictDescription.
   ///
   /// In en, this message translates to:
-  /// **'Review base, local, and remote summaries by data kind before applying resolutions.'**
+  /// **'The same content was changed on this device and in the cloud. Choose which version to keep.'**
   String get cloudSync_conflictDescription;
 
   /// No description provided for @cloudSync_needsConflictResolution.
   ///
   /// In en, this message translates to:
-  /// **'Conflicts need attention'**
+  /// **'Choose what to keep'**
   String get cloudSync_needsConflictResolution;
 
   /// No description provided for @cloudSync_deferredConflictWarning.
   ///
   /// In en, this message translates to:
-  /// **'Sync is not complete while deferred conflicts remain.'**
+  /// **'Some content still needs a choice before sync can continue.'**
   String get cloudSync_deferredConflictWarning;
 
   /// No description provided for @cloudSync_applyAll.
   ///
   /// In en, this message translates to:
-  /// **'Apply to all:'**
+  /// **'Choose for all:'**
   String get cloudSync_applyAll;
 
   /// No description provided for @cloudSync_base.
   ///
   /// In en, this message translates to:
-  /// **'Base'**
+  /// **'Last sync'**
   String get cloudSync_base;
 
   /// No description provided for @cloudSync_local.
   ///
   /// In en, this message translates to:
-  /// **'Local'**
+  /// **'This device'**
   String get cloudSync_local;
 
   /// No description provided for @cloudSync_remote.
   ///
   /// In en, this message translates to:
-  /// **'Remote'**
+  /// **'Cloud'**
   String get cloudSync_remote;
 
   /// No description provided for @cloudSync_chooseLocal.
   ///
   /// In en, this message translates to:
-  /// **'Use local'**
+  /// **'Keep this device\'s version'**
   String get cloudSync_chooseLocal;
 
   /// No description provided for @cloudSync_chooseRemote.
   ///
   /// In en, this message translates to:
-  /// **'Use remote'**
+  /// **'Keep cloud version'**
   String get cloudSync_chooseRemote;
 
   /// No description provided for @cloudSync_keepBoth.
@@ -23111,7 +23147,7 @@ abstract class AppLocalizations {
   /// No description provided for @cloudSync_largeBinaryKeepBothDefault.
   ///
   /// In en, this message translates to:
-  /// **'Large binary conflicts default to keeping both copies.'**
+  /// **'Large files keep both versions by default to prevent data loss.'**
   String get cloudSync_largeBinaryKeepBothDefault;
 
   /// No description provided for @settings_agent.

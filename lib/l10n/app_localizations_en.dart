@@ -12907,14 +12907,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cloudSync_description =>
-      'Cross-device backup and synchronization using WebDAV or GitHub storage you control.';
+      'Save settings, prompts, and more to your own WebDAV or GitHub storage and keep them in sync across devices.';
 
   @override
   String get cloudSync_disconnected => 'Not connected';
 
   @override
   String get cloudSync_oneClickDescription =>
-      'Enter the provider-required details and save. The app verifies the connection, detects remote data, and syncs safely; future runs take one click.';
+      'Choose a storage service and enter your account details. Saving checks for an existing backup and starts the first sync.';
 
   @override
   String get cloudSync_saveAndSync => 'Save and sync';
@@ -12927,34 +12927,34 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cloudSync_advancedSettings => 'Advanced settings';
 
   @override
-  String get cloudSync_connectionManagement => 'Connection management';
+  String get cloudSync_connectionManagement => 'Storage connection';
 
   @override
-  String get cloudSync_legacyBackupTitle => 'Legacy encrypted backup';
+  String get cloudSync_legacyBackupTitle => 'Unlock an older backup';
 
   @override
   String get cloudSync_legacyBackupDescription =>
-      'A legacy encrypted namespace was found. Enter its old encryption password once; conflict handling and history recovery remain available after unlocking.';
+      'The cloud contains an encrypted backup created by an older app version. Enter the password you used then to continue.';
 
   @override
-  String get cloudSync_legacyPassword => 'Legacy backup password';
+  String get cloudSync_legacyPassword => 'Older backup password';
 
   @override
-  String get cloudSync_legacyRecovery => 'Use legacy recovery key';
+  String get cloudSync_legacyRecovery =>
+      'Forgot the password? Use a recovery key';
 
   @override
-  String get cloudSync_legacyRecoveryAction => 'Recover and continue';
+  String get cloudSync_legacyRecoveryAction => 'Unlock with recovery key';
 
   @override
-  String get cloudSync_legacyConnectedNotice =>
-      'This connection remains compatible with existing encrypted snapshots. New configurations no longer create app-level keys.';
+  String get cloudSync_unlockAndContinue => 'Unlock and continue';
 
   @override
-  String get cloudSync_chooseBackend => 'Choose a backend';
+  String get cloudSync_chooseBackend => 'Where to back up';
 
   @override
   String get cloudSync_chooseBackendDescription =>
-      'Credentials stay hidden and are passed only to the sync service when it is connected.';
+      'Choose a storage service you already use. Account details stay on this device.';
 
   @override
   String get cloudSync_webDavUrl => 'WebDAV URL';
@@ -12973,36 +12973,36 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cloudSync_password => 'Password';
 
   @override
-  String get cloudSync_remotePath => 'Remote path';
+  String get cloudSync_remotePath => 'Backup folder';
 
   @override
-  String get cloudSync_githubToken => 'GitHub token';
+  String get cloudSync_githubToken => 'GitHub access token';
 
   @override
-  String get cloudSync_owner => 'Owner';
+  String get cloudSync_owner => 'GitHub user or organization';
 
   @override
   String get cloudSync_repository => 'Repository';
 
   @override
-  String get cloudSync_branch => 'Branch';
+  String get cloudSync_branch => 'Branch (usually main)';
 
   @override
   String get cloudSync_testFailed => 'Connection test failed';
 
   @override
-  String get cloudSync_manualBackupOnly => 'Manual cloud backup only';
+  String get cloudSync_manualBackupOnly => 'Manual backup only';
 
   @override
   String get cloudSync_manualBackupOnlyDescription =>
-      'This backend cannot safely guarantee bidirectional updates. Automatic two-way sync is unavailable.';
+      'This service cannot reliably handle changes from multiple devices at once. To prevent overwrites, it only supports manual uploads here.';
 
   @override
-  String get cloudSync_dataScope => 'Choose data to sync';
+  String get cloudSync_dataScope => 'Choose what to save';
 
   @override
   String get cloudSync_dataScopeDescription =>
-      'Choose the local data categories included in snapshots. Sensitive login credentials are never backed up.';
+      'Choose what to back up and sync. Accounts, passwords, and API keys are never uploaded.';
 
   @override
   String get cloudSync_kindSettings => 'Settings';
@@ -13015,24 +13015,24 @@ class AppLocalizationsEn extends AppLocalizations {
       'Online gallery favorites, categories, and filters';
 
   @override
-  String get cloudSync_kindLargeFiles => 'Large binary files';
+  String get cloudSync_kindLargeFiles => 'Images and other large files';
 
   @override
-  String get cloudSync_agentContentTitle => 'Agent content';
+  String get cloudSync_agentContentTitle => 'Agent settings';
 
   @override
-  String get cloudSync_agentSystemPrompt => 'Custom Agent system prompt';
+  String get cloudSync_agentSystemPrompt => 'Custom system prompt';
 
   @override
   String get cloudSync_agentSystemPromptDescription =>
-      'Included by default. Only your custom prompt and its append/override mode are backed up; model and credentials stay local.';
+      'Saves your prompt and how it is applied. Models and account details remain on this device.';
 
   @override
-  String get cloudSync_skillsBackup => 'Back up Skills';
+  String get cloudSync_skillsBackup => 'Back up selected Skills';
 
   @override
   String get cloudSync_skillsBackupDescription =>
-      'Off by default. Turn it on, then choose the specific Skills whose complete folders should be included.';
+      'Off by default. Turn it on to choose which Skills to bring to your other devices.';
 
   @override
   String cloudSync_skillsSelectedCount(Object count) {
@@ -13062,35 +13062,37 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get cloudSync_connectionDetails => 'Connection';
+  String get cloudSync_connectionDetails => 'Storage details';
 
   @override
-  String get cloudSync_backend => 'Backend';
+  String get cloudSync_backend => 'Storage service';
 
   @override
-  String get cloudSync_deviceName => 'Device name';
+  String get cloudSync_deviceName => 'This device';
 
   @override
-  String get cloudSync_lastSync => 'Last sync';
+  String get cloudSync_lastSync => 'Last completed';
 
   @override
-  String get cloudSync_remoteRevision => 'Remote revision';
+  String get cloudSync_connectedDescription =>
+      'The connection is working and ready to back up or sync.';
 
   @override
-  String get cloudSync_connectedDescription => 'Cloud sync is connected.';
+  String get cloudSync_maintenanceWarning => 'Needs attention';
 
   @override
-  String get cloudSync_maintenanceWarning => 'Remote maintenance notice';
+  String get cloudSync_maintenanceWarningDescription =>
+      'Cloud storage could not be cleaned up automatically. Existing backups are unaffected, and the app will try again later.';
 
   @override
-  String get cloudSync_githubHistoryRetention => 'GitHub history retention';
+  String get cloudSync_githubHistoryRetention => 'About GitHub storage';
 
   @override
   String get cloudSync_githubHistoryRetentionDescription =>
-      'Deleting sync objects or the namespace does not reclaim Git commit history or its storage. Recreate the repository on GitHub when complete removal is required.';
+      'Older GitHub commits still use repository space after you delete the cloud backup. Create a new repository on GitHub if you need to remove everything.';
 
   @override
-  String get cloudSync_upToDate => 'Synced';
+  String get cloudSync_upToDate => 'Up to date';
 
   @override
   String get cloudSync_syncing => 'Syncing';
@@ -13099,7 +13101,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cloudSync_paused => 'Paused';
 
   @override
-  String get cloudSync_syncControls => 'Sync controls';
+  String get cloudSync_syncControls => 'Backup and sync';
 
   @override
   String get cloudSync_syncNow => 'Sync now';
@@ -13117,60 +13119,81 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cloudSync_progress => 'Progress';
 
   @override
-  String get cloudSync_stage => 'Stage';
+  String get cloudSync_stage => 'Current step';
 
   @override
-  String get cloudSync_object => 'Current object';
+  String get cloudSync_objects => 'Items processed';
 
   @override
-  String get cloudSync_objects => 'Objects';
+  String get cloudSync_bytes => 'Transferred';
 
   @override
-  String get cloudSync_bytes => 'Bytes';
+  String get cloudSync_stagePreparing => 'Preparing';
 
   @override
-  String get cloudSync_activityLog => 'Activity log';
+  String get cloudSync_stageDownloading => 'Downloading';
 
   @override
-  String get cloudSync_noActivity => 'No sync activity yet.';
+  String get cloudSync_stageMerging => 'Organizing changes';
 
   @override
-  String get cloudSync_snapshotHistory => 'Snapshot history';
+  String get cloudSync_stageUploading => 'Uploading';
+
+  @override
+  String get cloudSync_stageApplying => 'Saving changes';
+
+  @override
+  String get cloudSync_stageRollingBack => 'Restoring previous state';
+
+  @override
+  String get cloudSync_stageCompleted => 'Complete';
+
+  @override
+  String get cloudSync_stageWorking => 'Working';
+
+  @override
+  String get cloudSync_snapshotHistory => 'Previous backups';
 
   @override
   String get cloudSync_snapshotHistoryDescription =>
-      'Restore creates a new local change; it does not silently erase history.';
+      'Review what an older backup would change before restoring it. Your current data is not overwritten immediately.';
 
   @override
-  String get cloudSync_noSnapshots => 'No remote snapshots are available.';
+  String get cloudSync_noSnapshots => 'No restorable backups yet.';
 
   @override
-  String get cloudSync_previewRestore => 'Preview restore';
+  String cloudSync_backupItemCount(int count) {
+    return 'Contains $count items';
+  }
 
   @override
-  String get cloudSync_restorePreviewTitle => 'Restore diff preview';
+  String get cloudSync_previewRestore => 'Review and restore';
+
+  @override
+  String get cloudSync_restorePreviewTitle => 'Review before restoring';
 
   @override
   String get cloudSync_restorePreviewDescription =>
-      'These are the verified changes from the historical snapshot to current local data. Confirmation creates a new snapshot without rewinding history.';
+      'Check what will be added, changed, or removed. Nothing changes until you confirm.';
 
   @override
-  String get cloudSync_mergePreviewTitle => 'First merge preview';
+  String get cloudSync_mergePreviewTitle => 'Review the first sync';
 
   @override
   String get cloudSync_mergePreviewDescription =>
-      'The merge has not been applied. Review additions, changes, and deletions and resolve every conflict before confirming.';
+      'The devices contain different data. Review the changes and choose what to keep. Nothing changes until you confirm.';
 
   @override
   String get cloudSync_previewAwaitingConfirmation =>
-      'The preview is awaiting confirmation, so sync is not complete.';
+      'Review and confirm the changes below first.';
 
   @override
-  String get cloudSync_previewDeletesTitle => 'Includes deletions';
+  String get cloudSync_previewDeletesTitle =>
+      'Items will be removed from this device';
 
   @override
   String cloudSync_previewDeletesDescription(Object count) {
-    return 'Confirmation will delete $count local items. Review their categories first.';
+    return 'Restoring will remove $count items from this device. Make sure these changes are expected.';
   }
 
   @override
@@ -13186,22 +13209,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cloudSync_previewNoChanges => 'There are no changes to apply.';
 
   @override
-  String get cloudSync_confirmMerge => 'Confirm and apply merge';
+  String get cloudSync_confirmMerge => 'Confirm sync';
 
   @override
-  String get cloudSync_confirmRestore => 'Confirm restore and create snapshot';
+  String get cloudSync_confirmRestore => 'Confirm restore';
 
   @override
-  String get cloudSync_ffdkjIntentTitle =>
-      'ffdkj dictionary install intent detected';
+  String get cloudSync_ffdkjIntentTitle => 'Dictionary setting found';
 
   @override
   String get cloudSync_ffdkjIntentDescription =>
-      'Sync migrates only the install intent; tag.sqlite is never included or transferred.';
+      'Another device has the ffdkj Chinese dictionary installed. The dictionary file is not transferred through cloud backup.';
 
   @override
   String get cloudSync_ffdkjInstallWarning =>
-      'Download and install the Chinese dictionary directly from the official ffdkj upstream? This file does not come from the cloud snapshot.';
+      'Download and install the Chinese dictionary from the official ffdkj source?';
 
   @override
   String get cloudSync_clearInstallIntent => 'Not now and clear reminder';
@@ -13210,68 +13232,68 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cloudSync_newPassword => 'New password';
 
   @override
-  String get cloudSync_deleteRemoteNamespace => 'Delete cloud namespace only';
+  String get cloudSync_deleteRemoteNamespace => 'Delete cloud backup';
 
   @override
   String get cloudSync_deleteRemoteNamespaceDescription =>
-      'Deletes this app\'s remote namespace without deleting local data.';
+      'Deletes every backup Aaalice saved to this service without deleting data on this device.';
 
   @override
   String get cloudSync_deleteRemoteConfirm =>
-      'Permanently delete this app\'s remote namespace? Local data is kept.';
+      'Delete all cloud backups? Data on this device will be kept.';
 
   @override
-  String get cloudSync_disconnect => 'Disconnect this device';
+  String get cloudSync_disconnect => 'Disconnect';
 
   @override
   String get cloudSync_disconnectDescription =>
-      'Removes the local connection and keeps all remote data.';
+      'Stops backup and sync on this device while keeping existing cloud backups.';
 
   @override
   String get cloudSync_disconnectConfirm =>
-      'Disconnect this device and keep the remote namespace?';
+      'Disconnect this device? Existing cloud backups will be kept.';
 
   @override
   String get cloudSync_confirm => 'Confirm';
 
   @override
-  String get cloudSync_conflictCenter => 'Conflict center';
+  String get cloudSync_conflictCenter => 'Some content differs';
 
   @override
   String get cloudSync_conflictDescription =>
-      'Review base, local, and remote summaries by data kind before applying resolutions.';
+      'The same content was changed on this device and in the cloud. Choose which version to keep.';
 
   @override
-  String get cloudSync_needsConflictResolution => 'Conflicts need attention';
+  String get cloudSync_needsConflictResolution => 'Choose what to keep';
 
   @override
   String get cloudSync_deferredConflictWarning =>
-      'Sync is not complete while deferred conflicts remain.';
+      'Some content still needs a choice before sync can continue.';
 
   @override
-  String get cloudSync_applyAll => 'Apply to all:';
+  String get cloudSync_applyAll => 'Choose for all:';
 
   @override
-  String get cloudSync_base => 'Base';
+  String get cloudSync_base => 'Last sync';
 
   @override
-  String get cloudSync_local => 'Local';
+  String get cloudSync_local => 'This device';
 
   @override
-  String get cloudSync_remote => 'Remote';
+  String get cloudSync_remote => 'Cloud';
 
   @override
-  String get cloudSync_chooseLocal => 'Use local';
+  String get cloudSync_chooseLocal => 'Keep this device\'s version';
 
   @override
-  String get cloudSync_chooseRemote => 'Use remote';
+  String get cloudSync_chooseRemote => 'Keep cloud version';
 
   @override
   String get cloudSync_keepBoth => 'Keep both';
 
   @override
   String get cloudSync_largeBinaryKeepBothDefault =>
-      'Large binary conflicts default to keeping both copies.';
+      'Large files keep both versions by default to prevent data loss.';
 
   @override
   String get settings_agent => 'Agent';

@@ -201,13 +201,17 @@ class AgentChatComposer extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           ...leading,
-          if (!viewData.mobile) const Spacer(),
           if (viewData.mobile)
             Expanded(
               child: SizedBox(height: 48, child: _modelSelector(theme, l10n)),
             )
           else
-            _modelSelector(theme, l10n),
+            Expanded(
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: _modelSelector(theme, l10n),
+              ),
+            ),
           const SizedBox(width: 4),
           if (viewData.running) ...[
             _followUpButton(l10n),

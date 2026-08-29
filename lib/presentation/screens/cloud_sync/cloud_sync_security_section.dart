@@ -17,14 +17,6 @@ class CloudSyncSecuritySection extends ConsumerWidget {
       title: context.l10n.cloudSync_connectionManagement,
       child: Column(
         children: [
-          if (state.legacyEncryptedBackup)
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              minTileHeight: 56,
-              leading: const Icon(Icons.lock_clock_outlined),
-              title: Text(context.l10n.cloudSync_legacyBackupTitle),
-              subtitle: Text(context.l10n.cloudSync_legacyConnectedNotice),
-            ),
           if (state.supportsDelete)
             ListTile(
               contentPadding: EdgeInsets.zero,

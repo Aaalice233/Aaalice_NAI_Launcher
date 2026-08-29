@@ -198,6 +198,21 @@ void main() {
     );
     expect(container.read(webAccessConfigProvider).config.enabled, isTrue);
     expect(tester.takeException(), isNull);
+
+    final notifier =
+        container.read(agentChatNotifierProvider.notifier)
+            as _TestAgentChatNotifier;
+    notifier.setRunningActivity(
+      const AgentToolActivity(
+        toolCallId: 'narrow-running',
+        toolName: 'read',
+        args: {},
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('agent-chat-stop')), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets(

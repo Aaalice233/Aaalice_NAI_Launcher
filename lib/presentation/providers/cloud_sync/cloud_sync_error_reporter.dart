@@ -15,7 +15,7 @@ class CloudSyncErrorReporter {
 
   void record(Object error, {bool resetActivity = false}) {
     final state = readState();
-    final message = _safeMessage(error);
+    final message = cloudSyncErrorMessage(error);
     if (!resetActivity && state.error == message) return;
     writeState(
       state.copyWith(
@@ -31,13 +31,13 @@ class CloudSyncErrorReporter {
       ),
     );
   }
-
-  String _safeMessage(Object error) => switch (error) {
-    CloudBackendException() => error.message,
-    CloudCryptoException() => error.message,
-    CloudFormatException() => '远端备份格式或完整性校验失败：${error.message}',
-    StateError() => error.message,
-    FormatException() => '保存的同步配置或旧备份信息无法读取。',
-    _ => '同步失败，请检查网络、服务商地址与账号权限后重试。',
-  };
 }
+
+String cloudSyncErrorMessage(Object error) => switch (error) {
+  CloudBackendException() => error.message,
+  CloudCryptoException() => error.message,
+  CloudFormatException() => '远端备份格式或完整性校验失败：${error.message}',
+  StateError() => error.message,
+  FormatException() => '保存的同步配置或旧备份信息无法读取。',
+  _ => '同步失败，请检查网络、服务商地址与账号权限后重试。',
+};

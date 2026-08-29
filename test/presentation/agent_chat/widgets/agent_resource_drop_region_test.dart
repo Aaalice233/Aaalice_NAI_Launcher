@@ -1,102 +1,46 @@
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/agent/resources/agent_chat_resource_reference.dart';
-import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/presentation/agent_chat/widgets/agent_resource_drop_region.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 void main() {
-  tearDown(() => PlatformCapabilities.debugOverride = null);
-
-  testWidgets('desktop deferred drag source registers only while hovered', (
+  testWidgets('drag sources keep a stable registered widget tree', (
     tester,
   ) async {
-    PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
-      TargetPlatform.windows,
-    );
     await tester.pumpWidget(_manySourcesApp());
 
     expect(find.byType(AgentResourceDragSource), findsAtLeastNWidgets(8));
-    expect(find.byType(DragItemWidget), findsNothing);
-    expect(find.byType(DraggableWidget), findsNothing);
-
-    final pointer = TestPointer(1, PointerDeviceKind.mouse);
-    await tester.sendEventToBinding(pointer.hover(const Offset(50, 50)));
-    await tester.pump();
-
-    expect(find.byType(DragItemWidget), findsOneWidget);
-    expect(find.byType(DraggableWidget), findsOneWidget);
-
-    await tester.sendEventToBinding(pointer.hover(const Offset(900, 700)));
-    await tester.pump();
-
-    expect(find.byType(DragItemWidget), findsNothing);
-    expect(find.byType(DraggableWidget), findsNothing);
+    expect(find.byType(DragItemWidget), findsAtLeastNWidgets(8));
+    expect(find.byType(DraggableWidget), findsAtLeastNWidgets(8));
   });
 
-  testWidgets('desktop hover registration preserves the card state', (
-    tester,
-  ) async {
-    PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
-      TargetPlatform.windows,
-    );
+  testWidgets('parent layout changes preserve the card state', (tester) async {
     var initializations = 0;
     var disposals = 0;
+    final width = ValueNotifier<double>(100);
+    addTearDown(width.dispose);
     await tester.pumpWidget(
-      _app(
-        deferDesktopRegistration: true,
-        child: _LifecycleProbe(
-          onInit: () => initializations++,
-          onDispose: () => disposals++,
+      ValueListenableBuilder<double>(
+        valueListenable: width,
+        builder: (context, value, _) => _app(
+          width: value,
+          child: LayoutBuilder(
+            builder: (context, constraints) => _LifecycleProbe(
+              onInit: () => initializations++,
+              onDispose: () => disposals++,
+            ),
+          ),
         ),
       ),
     );
-
-    final pointer = TestPointer(1, PointerDeviceKind.mouse);
-    await tester.sendEventToBinding(pointer.hover(const Offset(50, 50)));
-    await tester.pump();
-    await tester.sendEventToBinding(pointer.hover(const Offset(500, 500)));
-    await tester.pump();
+    width.value = 120;
+    await tester.pumpAndSettle();
 
     expect(initializations, 1);
     expect(disposals, 0);
-  });
-
-  testWidgets('desktop drag source stays registered until pointer up', (
-    tester,
-  ) async {
-    PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
-      TargetPlatform.windows,
-    );
-    await tester.pumpWidget(_app(deferDesktopRegistration: true));
-
-    final pointer = TestPointer(1, PointerDeviceKind.mouse);
-    await tester.sendEventToBinding(pointer.hover(const Offset(50, 50)));
-    await tester.pump();
-    await tester.sendEventToBinding(pointer.down(const Offset(50, 50)));
-    await tester.sendEventToBinding(pointer.move(const Offset(500, 500)));
-    await tester.pump();
-
-    expect(find.byType(DragItemWidget), findsOneWidget);
-
-    await tester.sendEventToBinding(pointer.up());
-    await tester.pump();
-
-    expect(find.byType(DragItemWidget), findsNothing);
-  });
-
-  testWidgets('touch platform keeps deferred drag source registered', (
-    tester,
-  ) async {
-    PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
-      TargetPlatform.android,
-    );
-    await tester.pumpWidget(_app(deferDesktopRegistration: true));
-
-    expect(find.byType(DragItemWidget), findsOneWidget);
-    expect(find.byType(DraggableWidget), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }
 
@@ -109,7 +53,6 @@ Widget _manySourcesApp() {
           children: List.generate(
             24,
             (index) => AgentResourceDragSource(
-              deferDesktopRegistration: true,
               reference: AgentChatResourceReference(
                 kind: AgentChatResourceKind.onlineGalleryMedia,
                 source: 'danbooru',
@@ -124,17 +67,16 @@ Widget _manySourcesApp() {
   );
 }
 
-Widget _app({required bool deferDesktopRegistration, Widget? child}) {
+Widget _app({double width = 100, Widget? child}) {
   return ProviderScope(
     child: MaterialApp(
       home: Scaffold(
         body: Align(
           alignment: Alignment.topLeft,
           child: SizedBox(
-            width: 100,
+            width: width,
             height: 100,
             child: AgentResourceDragSource(
-              deferDesktopRegistration: deferDesktopRegistration,
               reference: AgentChatResourceReference(
                 kind: AgentChatResourceKind.onlineGalleryMedia,
                 source: 'danbooru',

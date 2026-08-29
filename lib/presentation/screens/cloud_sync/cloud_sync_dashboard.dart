@@ -43,16 +43,7 @@ class CloudSyncDashboard extends ConsumerWidget {
           CloudSyncStatusBanner(
             icon: Icons.cleaning_services_outlined,
             title: context.l10n.cloudSync_maintenanceWarning,
-            message: state.maintenanceWarning!,
-            warning: true,
-          ),
-        ],
-        for (final warning in state.capabilityWarnings) ...[
-          const SizedBox(height: 12),
-          CloudSyncStatusBanner(
-            icon: Icons.warning_amber_rounded,
-            title: context.l10n.cloudSync_maintenanceWarning,
-            message: warning,
+            message: context.l10n.cloudSync_maintenanceWarningDescription,
             warning: true,
           ),
         ],
@@ -73,10 +64,6 @@ class CloudSyncDashboard extends ConsumerWidget {
                 label: context.l10n.cloudSync_lastSync,
                 value: _date(state.lastSync),
               ),
-              CloudSyncMetadata(
-                label: context.l10n.cloudSync_remoteRevision,
-                value: state.remoteRevision ?? '—',
-              ),
             ],
           ),
         ),
@@ -86,8 +73,7 @@ class CloudSyncDashboard extends ConsumerWidget {
         if (state.pendingPreview != null) CloudSyncPreviewPanel(state: state),
         if (state.conflicts.isNotEmpty)
           CloudSyncConflictCenter(conflicts: state.conflicts),
-        _activity(context),
-        _history(context, port),
+        if (state.supportsHistory) _history(context, port),
         CloudSyncSecuritySection(state: state),
       ],
     );
@@ -174,11 +160,7 @@ class CloudSyncDashboard extends ConsumerWidget {
             children: [
               CloudSyncMetadata(
                 label: context.l10n.cloudSync_stage,
-                value: progress.stage,
-              ),
-              CloudSyncMetadata(
-                label: context.l10n.cloudSync_object,
-                value: progress.objectName,
+                value: _stageName(context, progress.stage),
               ),
               CloudSyncMetadata(
                 label: context.l10n.cloudSync_objects,
@@ -197,26 +179,6 @@ class CloudSyncDashboard extends ConsumerWidget {
     ),
   );
 
-  Widget _activity(BuildContext context) => CloudSyncSection(
-    title: context.l10n.cloudSync_activityLog,
-    child: state.logs.isEmpty
-        ? Text(context.l10n.cloudSync_noActivity)
-        : CloudSyncSurface(
-            child: Column(
-              children: [
-                for (final entry in state.logs)
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    minTileHeight: 48,
-                    leading: const Icon(Icons.notes),
-                    title: Text(entry.message),
-                    subtitle: Text(_date(entry.time)),
-                  ),
-              ],
-            ),
-          ),
-  );
-
   Widget _history(
     BuildContext context,
     CloudSyncUiPort port,
@@ -231,10 +193,12 @@ class CloudSyncDashboard extends ConsumerWidget {
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   minTileHeight: 56,
-                  title: Text(snapshot.summary),
-                  subtitle: Text(
-                    '${_date(snapshot.createdAt)} · ${snapshot.id}',
+                  title: Text(
+                    context.l10n.cloudSync_backupItemCount(
+                      snapshot.objectCount,
+                    ),
                   ),
+                  subtitle: Text(_date(snapshot.createdAt)),
                   trailing:
                       state.capabilityMode ==
                           CloudSyncCapabilityMode.manualBackupOnly
@@ -264,9 +228,7 @@ class CloudSyncDashboard extends ConsumerWidget {
       await action();
     } catch (error) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.cloudSync_actionFailed('$error'))),
-      );
+      showCloudSyncActionError(context, error);
     }
   }
 
@@ -281,4 +243,15 @@ class CloudSyncDashboard extends ConsumerWidget {
 
   String _date(DateTime? value) =>
       value == null ? '—' : value.toLocal().toString().split('.').first;
+
+  String _stageName(BuildContext context, String stage) => switch (stage) {
+    'preparing' => context.l10n.cloudSync_stagePreparing,
+    'downloading' => context.l10n.cloudSync_stageDownloading,
+    'merging' => context.l10n.cloudSync_stageMerging,
+    'uploading' => context.l10n.cloudSync_stageUploading,
+    'applying' => context.l10n.cloudSync_stageApplying,
+    'rollingBack' => context.l10n.cloudSync_stageRollingBack,
+    'completed' => context.l10n.cloudSync_stageCompleted,
+    _ => context.l10n.cloudSync_stageWorking,
+  };
 }

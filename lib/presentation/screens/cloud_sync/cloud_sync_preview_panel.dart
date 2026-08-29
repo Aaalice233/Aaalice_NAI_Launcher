@@ -99,8 +99,6 @@ Future<void> _run(BuildContext context, Future<void> Function() action) async {
     await action();
   } catch (error) {
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(context.l10n.cloudSync_actionFailed('$error'))),
-    );
+    showCloudSyncActionError(context, error);
   }
 }

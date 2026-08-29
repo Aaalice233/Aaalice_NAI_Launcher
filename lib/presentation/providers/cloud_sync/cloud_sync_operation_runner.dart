@@ -94,7 +94,7 @@ class CloudSyncOperationRunner {
                 (entry) => CloudSyncSnapshotView(
                   id: entry.id,
                   createdAt: entry.createdAt,
-                  summary: '${entry.objectCount} objects',
+                  objectCount: entry.objectCount,
                 ),
               )
               .toList(),

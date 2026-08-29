@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/cloud_sync/backend/cloud_sync_backend.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/cloud_sync/cloud_sync_ui_provider.dart';
@@ -31,7 +32,7 @@ void main() {
     await tester.pumpWidget(_subject(port: port));
     await tester.pumpAndSettle();
 
-    final urlField = _fieldWithLabel('WebDAV URL');
+    final urlField = _fieldWithLabel('WebDAV 地址');
     final usernameField = _fieldWithLabel('用户名');
     await tester.enterText(urlField, 'https://dav.test');
     await tester.enterText(usernameField, 'user');
@@ -47,8 +48,10 @@ void main() {
       'webdav-secret',
     );
     expect(tester.widget<TextField>(passwordField).obscureText, isTrue);
-    expect(find.text('选择同步数据'), findsOneWidget);
-    expect(find.text('大二进制文件'), findsOneWidget);
+    expect(find.text('选择要保存的内容'), findsOneWidget);
+    expect(find.text('图片与其他大文件'), findsOneWidget);
+    expect(find.textContaining('快照'), findsNothing);
+    expect(find.textContaining('后端'), findsNothing);
     expect(find.text('设置加密密码'), findsNothing);
     expect(find.text('生成一次性恢复密钥'), findsNothing);
     final save = find.byKey(const ValueKey('cloud-sync-save-and-sync'));
@@ -77,10 +80,10 @@ void main() {
 
     await tester.tap(find.text('GitHub'));
     await tester.pumpAndSettle();
-    final tokenField = _fieldWithLabel('GitHub Token');
+    final tokenField = _fieldWithLabel('GitHub 访问令牌');
     expect(tester.widget<TextField>(tokenField).obscureText, isTrue);
     await tester.enterText(tokenField, 'github-sensitive-token');
-    await tester.enterText(_fieldWithLabel('Owner'), 'alice');
+    await tester.enterText(_fieldWithLabel('GitHub 用户或组织'), 'alice');
     await tester.enterText(_fieldWithLabel('仓库'), 'backup');
     final save = find.byKey(const ValueKey('cloud-sync-save-and-sync'));
     await tester.scrollUntilVisible(save, 180, scrollable: _pageScrollable);
@@ -99,22 +102,28 @@ void main() {
       await tester.pumpWidget(_subject(state: state, port: port));
       await tester.pumpAndSettle();
 
-      expect(find.text('仅手动云备份'), findsOneWidget);
-      expect(find.text('GitHub 历史保留'), findsOneWidget);
-      expect(find.text('远端维护提示'), findsOneWidget);
-      expect(find.text('cleanup delayed'), findsOneWidget);
-      expect(find.text('需处理冲突'), findsWidgets);
-      expect(find.text('已完全同步'), findsNothing);
-      expect(find.text('settings.json'), findsOneWidget);
+      expect(find.text('只支持手动备份'), findsOneWidget);
+      expect(find.text('GitHub 空间说明'), findsOneWidget);
+      expect(find.text('需要注意'), findsOneWidget);
+      expect(find.text('云端空间暂时无法自动整理。现有备份不受影响，稍后会自动重试。'), findsOneWidget);
+      expect(find.text('cleanup delayed'), findsNothing);
+      expect(find.text('请选择要保留的内容'), findsWidgets);
+      expect(find.text('已是最新'), findsNothing);
+      expect(find.text('settings.json'), findsNothing);
       expect(find.text('2 / 5'), findsOneWidget);
+      expect(find.text('正在上传'), findsOneWidget);
       expect(find.text('暂停'), findsOneWidget);
       expect(find.text('取消'), findsOneWidget);
-      expect(find.text('历史快照'), findsOneWidget);
-      expect(find.text('大二进制冲突默认保留两个副本。'), findsOneWidget);
+      expect(find.text('以前的备份'), findsOneWidget);
+      expect(find.text('包含 12 项内容'), findsOneWidget);
+      expect(find.text('大文件会默认保留两个版本，避免丢失。'), findsOneWidget);
       expect(find.text('两者都保留'), findsWidgets);
       expect(find.text('修改加密密码'), findsNothing);
-      expect(find.text('仅删除云端 namespace'), findsOneWidget);
-      expect(find.text('断开此设备'), findsOneWidget);
+      expect(find.text('删除云端备份'), findsOneWidget);
+      expect(find.text('断开连接'), findsOneWidget);
+      expect(find.textContaining('namespace'), findsNothing);
+      expect(find.textContaining('revision'), findsNothing);
+      expect(find.textContaining('Base'), findsNothing);
       expect(tester.takeException(), isNull, reason: 'width=$width');
     }
     await tester.pumpWidget(
@@ -183,12 +192,12 @@ void main() {
     await tester.pumpWidget(_subject(state: state, port: port));
     await tester.pumpAndSettle();
 
-    expect(find.text('首次合并预览'), findsOneWidget);
+    expect(find.text('首次同步确认'), findsOneWidget);
     expect(find.text('新增 2 · 修改 3 · 删除 1'), findsOneWidget);
-    expect(find.text('已完全同步'), findsNothing);
-    expect(find.textContaining('不包含或传输 tag.sqlite'), findsOneWidget);
+    expect(find.text('已是最新'), findsNothing);
+    expect(find.textContaining('词库文件不会通过云端传输'), findsOneWidget);
     final restorePreview = tester.widget<TextButton>(
-      find.widgetWithText(TextButton, '预览恢复'),
+      find.widgetWithText(TextButton, '查看并恢复'),
     );
     expect(restorePreview.onPressed, isNull);
     final confirm = find.byKey(const ValueKey('cloud-sync-confirm-preview'));
@@ -209,11 +218,52 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('预览恢复'), findsNothing);
+    expect(find.text('查看并恢复'), findsNothing);
     final bulk = tester.widget<FilledButton>(
       find.byKey(const ValueKey('cloud-sync-bulk-local')),
     );
     expect(bulk.onPressed, isNull);
+  });
+
+  testWidgets('已解锁的旧快照兼容状态不作为连接管理项展示', (tester) async {
+    await tester.pumpWidget(
+      _subject(
+        state: _connectedState(
+          activityStatus: CloudSyncActivityStatus.idle,
+          capabilityMode: CloudSyncCapabilityMode.bidirectional,
+        ).copyWith(legacyEncryptedBackup: true, legacyUnlockRequired: false),
+        port: _FakePort(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('存储连接'), findsOneWidget);
+    expect(find.text('需要解锁旧备份'), findsNothing);
+    expect(find.text('删除云端备份'), findsOneWidget);
+    expect(find.text('断开连接'), findsOneWidget);
+  });
+
+  testWidgets('网络失败只显示可读提示且不暴露异常类型', (tester) async {
+    final port = _FakePort()
+      ..syncError = const CloudBackendException(
+        CloudBackendErrorKind.network,
+        '无法连接服务器，请检查网络、代理和服务地址后重试。',
+      );
+    await tester.pumpWidget(
+      _subject(
+        state: _connectedState(
+          activityStatus: CloudSyncActivityStatus.idle,
+          capabilityMode: CloudSyncCapabilityMode.bidirectional,
+        ),
+        port: port,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _tapText(tester, '立即同步');
+
+    expect(find.text('操作失败：无法连接服务器，请检查网络、代理和服务地址后重试。'), findsOneWidget);
+    expect(find.textContaining('CloudBackendException'), findsNothing);
   });
 
   testWidgets('旧加密备份只在缺少本机密钥时显示兼容解锁', (tester) async {
@@ -226,9 +276,10 @@ void main() {
     await tester.pumpWidget(_subject(state: state, port: port));
     await tester.pumpAndSettle();
 
-    expect(find.text('旧加密备份'), findsOneWidget);
-    expect(_fieldWithLabel('旧备份加密密码'), findsOneWidget);
-    expect(find.text('使用旧恢复密钥'), findsOneWidget);
+    expect(find.text('需要解锁旧备份'), findsOneWidget);
+    expect(_fieldWithLabel('旧备份密码'), findsOneWidget);
+    expect(find.text('忘记密码？使用恢复密钥'), findsOneWidget);
+    expect(find.text('解锁并继续'), findsOneWidget);
     expect(find.text('设置加密密码'), findsNothing);
   });
 }
@@ -299,7 +350,7 @@ CloudSyncUiState _connectedState({
   capabilityMode: capabilityMode,
   maintenanceWarning: 'cleanup delayed',
   progress: const CloudSyncProgressView(
-    stage: 'Uploading',
+    stage: 'uploading',
     objectName: 'settings.json',
     completedBytes: 1024,
     totalBytes: 4096,
@@ -316,7 +367,7 @@ CloudSyncUiState _connectedState({
     CloudSyncSnapshotView(
       id: 'snapshot-41',
       createdAt: DateTime.utc(2026, 3, 11),
-      summary: 'Before tablet sync',
+      objectCount: 12,
     ),
   ],
   conflicts: const [
@@ -346,6 +397,13 @@ class _FakePort extends CloudSyncUiPortAdapter {
   CloudSyncConflictChoice? bulkChoice;
   bool previewApplied = false;
   bool? ffdkjInstallChoice;
+  Object? syncError;
+
+  @override
+  Future<void> syncNow() async {
+    final error = syncError;
+    if (error != null) throw error;
+  }
 
   @override
   Future<void> applyPendingPreview() async => previewApplied = true;

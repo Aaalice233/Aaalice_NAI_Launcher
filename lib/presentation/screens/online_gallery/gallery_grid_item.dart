@@ -120,7 +120,6 @@ class _GalleryGridItemState extends State<GalleryGridItem> {
     GalleryDetail? detail,
   }) {
     return AgentResourceDragSource(
-      deferDesktopRegistration: true,
       reference: AgentChatResourceReference(
         kind: AgentChatResourceKind.onlineGalleryMedia,
         source: item.sourceId.key,

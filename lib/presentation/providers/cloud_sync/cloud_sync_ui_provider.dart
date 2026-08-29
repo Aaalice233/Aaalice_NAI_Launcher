@@ -157,12 +157,12 @@ class CloudSyncSnapshotView {
   const CloudSyncSnapshotView({
     required this.id,
     required this.createdAt,
-    required this.summary,
+    required this.objectCount,
   });
 
   final String id;
   final DateTime createdAt;
-  final String summary;
+  final int objectCount;
 }
 
 @immutable

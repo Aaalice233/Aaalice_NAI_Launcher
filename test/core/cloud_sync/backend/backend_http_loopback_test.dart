@@ -97,6 +97,32 @@ void main() {
     );
   });
 
+  test('connection failures expose a user-readable message', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    final port = server.port;
+    await server.close(force: true);
+
+    await expectLater(
+      BackendHttp().request(
+        'GET',
+        Uri.parse('http://127.0.0.1:$port/unreachable'),
+      ),
+      throwsA(
+        isA<CloudBackendException>()
+            .having(
+              (error) => error.kind,
+              'kind',
+              CloudBackendErrorKind.network,
+            )
+            .having(
+              (error) => error.message,
+              'message',
+              '无法连接服务器，请检查网络、代理和服务地址后重试。',
+            ),
+      ),
+    );
+  });
+
   test(
     'loopback cross-origin redirect never sends Authorization to target',
     () async {

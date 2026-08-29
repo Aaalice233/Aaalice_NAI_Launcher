@@ -1,5 +1,21 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/utils/localization_extension.dart';
+import '../../providers/cloud_sync/cloud_sync_error_reporter.dart';
+
+void showCloudSyncActionError(BuildContext context, Object error) {
+  final messenger = ScaffoldMessenger.of(context);
+  messenger
+    ..hideCurrentSnackBar()
+    ..showSnackBar(
+      SnackBar(
+        content: Text(
+          context.l10n.cloudSync_actionFailed(cloudSyncErrorMessage(error)),
+        ),
+      ),
+    );
+}
+
 class CloudSyncSection extends StatelessWidget {
   const CloudSyncSection({
     super.key,

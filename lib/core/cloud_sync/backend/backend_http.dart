@@ -102,11 +102,20 @@ class BackendHttp {
       if (CancelToken.isCancel(error)) rethrow;
       throw CloudBackendException(
         CloudBackendErrorKind.network,
-        '网络请求失败（${error.type.name}）。',
+        _networkMessage(error.type),
         cause: error,
       );
     }
   }
+
+  static String _networkMessage(DioExceptionType type) => switch (type) {
+    DioExceptionType.connectionTimeout ||
+    DioExceptionType.sendTimeout ||
+    DioExceptionType.receiveTimeout => '网络连接超时，请检查网络或代理后重试。',
+    DioExceptionType.badCertificate => '无法验证服务器证书，请检查服务地址或证书配置。',
+    DioExceptionType.connectionError => '无法连接服务器，请检查网络、代理和服务地址后重试。',
+    _ => '网络请求失败，请检查网络、代理和服务地址后重试。',
+  };
 
   Future<Response<Uint8List>> _bufferResponse(
     Response<ResponseBody> response, {

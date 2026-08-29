@@ -56,9 +56,7 @@ class CloudSyncFfdkjPrompt extends ConsumerWidget {
           .respondToFfdkjInstallIntent(install: true);
     } catch (error) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.cloudSync_actionFailed('$error'))),
-      );
+      showCloudSyncActionError(context, error);
     }
   }
 }
