@@ -195,9 +195,20 @@ Future<void> _verifyAiTag(Dio dio) async {
     !firstImage.contains('pximg.net'),
     'Pixiv must not be used as CDN fallback',
   );
-  await _verifyMedia(dio, firstImage, 'AI TAG first CDN image');
+  const aiTagImageHeaders = {'Referer': '$base/'};
+  await _verifyMedia(
+    dio,
+    firstImage,
+    'AI TAG first CDN image',
+    headers: aiTagImageHeaders,
+  );
   if (lastImage != firstImage) {
-    await _verifyMedia(dio, lastImage, 'AI TAG last CDN image');
+    await _verifyMedia(
+      dio,
+      lastImage,
+      'AI TAG last CDN image',
+      headers: aiTagImageHeaders,
+    );
   }
 }
 
@@ -324,13 +335,21 @@ Future<Object?> _getJson(
   }
 }
 
-Future<void> _verifyMedia(Dio dio, String url, String label) async {
+Future<void> _verifyMedia(
+  Dio dio,
+  String url,
+  String label, {
+  Map<String, String> headers = const {},
+}) async {
   _require(Uri.tryParse(url)?.isAbsolute == true, '$label URL is invalid');
   final response = await dio.get<List<int>>(
     url,
     options: Options(
       responseType: ResponseType.bytes,
-      headers: const {'Accept': 'image/avif,image/webp,image/*,*/*;q=0.8'},
+      headers: {
+        'Accept': 'image/avif,image/webp,image/*,*/*;q=0.8',
+        ...headers,
+      },
     ),
   );
   final bytes = response.data ?? const <int>[];

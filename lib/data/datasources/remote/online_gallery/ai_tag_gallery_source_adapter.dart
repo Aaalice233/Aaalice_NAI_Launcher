@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:dio/dio.dart';
 import 'package:html/parser.dart' as html_parser;
 
+import '../../../../core/cache/online_gallery_image_cache_manager.dart';
 import '../../../../core/utils/app_logger.dart';
 import '../../../models/gallery/nai_image_metadata.dart';
 import '../../../models/online_gallery/gallery_item.dart';
@@ -48,6 +49,7 @@ class AiTagGallerySourceAdapter implements GallerySourceAdapter {
     if (!forceRefresh &&
         cached != null &&
         DateTime.now().difference(cached.fetchedAt) < _configTtl) {
+      registerAiTagImageBaseUrl(cached.assetBaseUrl);
       return cached;
     }
 
@@ -85,6 +87,7 @@ class AiTagGallerySourceAdapter implements GallerySourceAdapter {
             .toList(growable: false),
         fetchedAt: DateTime.now(),
       );
+      registerAiTagImageBaseUrl(config.assetBaseUrl);
       _cachedConfig = config;
       return config;
     } on GallerySourceException {

@@ -82,7 +82,7 @@ void main() {
     await tester.pump();
   });
 
-  testWidgets('Android 窄卡片将角标和元数据放入底部安全区', (tester) async {
+  testWidgets('Android 窄卡片不显示图片元数据信息层', (tester) async {
     final tempDirectory = (await tester.runAsync(
       () => Directory.systemTemp.createTemp('nai_local_card_layout_'),
     ))!;
@@ -134,22 +134,22 @@ void main() {
     );
     await tester.pump();
 
-    final actions = find.byKey(const ValueKey('local-image-card-actions'));
-    final badge = find.byKey(
-      const ValueKey('local-image-card-source-status-badge'),
+    expect(
+      find.byKey(const ValueKey('local-image-card-actions')),
+      findsOneWidget,
     );
-    final safeArea = find.byKey(
-      const ValueKey('local-image-card-metadata-safe-area'),
-    );
-
-    expect(actions, findsOneWidget);
-    expect(badge, findsOneWidget);
-    expect(safeArea, findsOneWidget);
     expect(find.byIcon(Icons.more_vert_rounded), findsOneWidget);
-    expect(tester.getRect(actions).overlaps(tester.getRect(safeArea)), isFalse);
+    expect(
+      find.byKey(const ValueKey('local-image-card-source-status-badge')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey('local-image-card-metadata-safe-area')),
+      findsNothing,
+    );
     expect(
       find.byKey(const ValueKey('local-image-card-resolution')),
-      findsOneWidget,
+      findsNothing,
     );
     expect(
       find.byKey(const ValueKey('local-image-card-file-size')),

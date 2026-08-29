@@ -14,7 +14,28 @@ void main() {
       expect(headers['Cookie'], 'fringeBenefits=yup');
     });
 
-    test('does not add Gelbooru headers for other or invalid URLs', () {
+    test('adds required AI TAG CDN request headers', () {
+      final headers = onlineGalleryImageHeadersForUrl(
+        'https://ai-img.10118899.xyz/NAI/42/example.webp',
+      );
+
+      expect(headers['Referer'], 'https://aitag.win/');
+      expect(headers['Accept'], contains('image/'));
+      expect(headers['User-Agent'], contains('Mozilla/5.0'));
+      expect(headers, isNot(contains('Cookie')));
+    });
+
+    test('uses the asset host discovered from AI TAG config', () {
+      registerAiTagImageBaseUrl('https://future-ai-cdn.example/assets/');
+
+      final headers = onlineGalleryImageHeadersForUrl(
+        'https://future-ai-cdn.example/assets/NAI/42/example.webp',
+      );
+
+      expect(headers['Referer'], 'https://aitag.win/');
+    });
+
+    test('does not add source headers for other or invalid URLs', () {
       expect(
         onlineGalleryImageHeadersForUrl(
           'https://cdn.donmai.us/sample/test.jpg',
