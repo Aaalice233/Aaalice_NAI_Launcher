@@ -26,6 +26,26 @@ void main() {
     );
   });
 
+  test('resolves official DeepSeek v4 context and output metadata', () {
+    const provider = ProviderConfig(
+      id: 'deepseek',
+      name: 'DeepSeek',
+      protocol: ProviderProtocol.openaiChatCompletions,
+      baseUrl: 'https://api.deepseek.com',
+      preset: ProviderPreset.deepseek,
+    );
+
+    for (final model in [
+      'deepseek-v4-flash',
+      'deepseek-v4-pro',
+      'deepseek-v4-flash-vision-exp',
+    ]) {
+      final capability = AgentChatModelCapability.resolve(provider, model);
+      expect(capability.model.contextWindow, 1000000, reason: model);
+      expect(capability.model.maxTokens, 384000, reason: model);
+    }
+  });
+
   test('keeps unknown compatible models explicitly unavailable', () {
     const provider = ProviderConfig(
       id: 'custom',
@@ -40,6 +60,19 @@ void main() {
     expect(capability.model.contextWindow, 0);
     expect(capability.model.reasoning, isFalse);
     expect(capability.levels, isEmpty);
+    expect(
+      AgentChatModelCapability.resolve(
+        const ProviderConfig(
+          id: 'deepseek',
+          name: 'DeepSeek',
+          protocol: ProviderProtocol.openaiChatCompletions,
+          baseUrl: 'https://api.deepseek.com',
+          preset: ProviderPreset.deepseek,
+        ),
+        'deepseek-v4-unknown',
+      ).model.contextWindow,
+      0,
+    );
   });
 
   test('mandatory reasoning models do not advertise a false off mode', () {

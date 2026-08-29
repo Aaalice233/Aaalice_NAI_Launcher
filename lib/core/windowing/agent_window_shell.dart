@@ -812,14 +812,16 @@ class _AgentWindowBridgeShellState extends State<_AgentWindowBridgeShell> {
                 builder: (context, constraints) {
                   final contextUsage = payload['contextUsage'];
                   final contextTokens = _contextTokens(contextUsage);
-                  final contextWindow = _contextWindow();
+                  final contextWindow = _contextWindow(contextUsage);
+                  final contextEstimated =
+                      contextUsage is Map && contextUsage['estimated'] == true;
                   final contextAvailable =
                       contextTokens != null && contextWindow != null;
                   final contextIndicator = AgentChatContextIndicator(
                     usedTokens: contextTokens,
                     contextWindow: contextWindow,
                     usageLabel: contextAvailable
-                        ? '${_compactTokenCount(contextTokens)} / '
+                        ? '${contextEstimated ? '~' : ''}${_compactTokenCount(contextTokens)} / '
                               '${_compactTokenCount(contextWindow)}'
                         : l10n.agentChat_contextUnavailable,
                     unavailableLabel: l10n.agentChat_contextUnavailable,
@@ -924,22 +926,14 @@ class _AgentWindowBridgeShellState extends State<_AgentWindowBridgeShell> {
 
   int? _contextTokens(Object? value) {
     if (value is! Map) return null;
-    final total = value['totalTokens'];
-    var count = total is num ? total.toInt() : 0;
-    if (count <= 0) {
-      count = [
-        'input',
-        'output',
-        'cacheRead',
-        'cacheWrite',
-      ].fold(0, (sum, key) => sum + ((value[key] as num?)?.toInt() ?? 0));
-    }
-    return count > 0 ? count : null;
+    final tokens = value['tokens'];
+    return tokens is num && tokens > 0 ? tokens.toInt() : null;
   }
 
-  int? _contextWindow() {
-    final value = bridge.snapshot.payload['contextWindow'];
-    return value is num && value > 0 ? value.toInt() : null;
+  int? _contextWindow(Object? value) {
+    if (value is! Map) return null;
+    final window = value['contextWindow'];
+    return window is num && window > 0 ? window.toInt() : null;
   }
 
   String _compactTokenCount(int value) {

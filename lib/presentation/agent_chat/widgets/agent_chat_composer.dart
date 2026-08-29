@@ -251,27 +251,22 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
 
   Widget _contextIndicator(ThemeData theme, AppLocalizations l10n) {
     final usage = viewData.state.contextUsage;
-    final tokens = usage == null
-        ? null
-        : usage.totalTokens > 0
-        ? usage.totalTokens
-        : usage.input + usage.output + usage.cacheRead + usage.cacheWrite;
-    final window = viewData.state.contextWindow;
-    final available =
-        tokens != null && tokens >= 0 && window != null && window > 0;
+    final tokens = usage.tokens;
+    final window = usage.contextWindow;
+    final available = usage.available;
     final loading =
         viewData.state.compacting ||
         viewData.state.sessionContentLoading ||
         (!viewData.state.routeReady && viewData.state.routeError.isEmpty);
     final percent = available
-        ? (tokens / window * 100).clamp(0, 999).round()
+        ? (tokens! / window! * 100).clamp(0, 999).round()
         : null;
     final label = loading
         ? viewData.state.compacting
               ? l10n.agentChat_compacting
               : l10n.common_loading
         : available
-        ? '$percent% · ${_compactTokenCount(tokens)} / ${_compactTokenCount(window)}'
+        ? '$percent% · ${usage.estimated ? '~' : ''}${_compactTokenCount(tokens!)} / ${_compactTokenCount(window!)}'
         : l10n.agentChat_contextUnavailable;
     final onPressed = available && !loading && viewData.sessionActionsEnabled
         ? () => commands.moreAction(AgentChatMoreAction.compact)
@@ -315,7 +310,7 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
                             CircularProgressIndicator(
                               strokeWidth: 2.5,
                               value: available
-                                  ? (tokens / window).clamp(0.0, 1.0)
+                                  ? (tokens! / window!).clamp(0.0, 1.0)
                                   : 0,
                               color: theme.colorScheme.primary,
                               backgroundColor:

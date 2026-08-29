@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/agent/agent_types.dart';
+import 'package:nai_launcher/core/agent/context_usage.dart';
 import 'package:nai_launcher/core/agent/resources/agent_chat_resource_reference.dart';
 import 'package:nai_launcher/core/windowing/agent_chat_shared_widgets.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
@@ -29,8 +30,12 @@ void main() {
       tester,
       width: 412,
       state: _readyState.copyWith(
-        contextUsage: const Usage(input: 29300, totalTokens: 29300),
-        contextWindow: 128000,
+        contextUsage: const AgentContextUsage(
+          tokens: 29300,
+          contextWindow: 128000,
+          percent: 22.890625,
+          estimated: false,
+        ),
         pendingResources: [resource],
       ),
     );
@@ -118,8 +123,7 @@ void main() {
       width: 320,
       mobile: false,
       state: _readyState.copyWith(
-        contextUsage: const Usage(input: 0, totalTokens: 0),
-        contextWindow: 128000,
+        contextUsage: const AgentContextUsage.unknown(contextWindow: 128000),
       ),
     );
 
@@ -143,7 +147,7 @@ void main() {
         closeTo(toolbar.center.dy, 0.1),
       );
     }
-    expect(find.text('0%'), findsOneWidget);
+    expect(find.text('—'), findsOneWidget);
     expect(
       find.byKey(const ValueKey('agent-chat-context-ring')),
       findsOneWidget,
@@ -158,7 +162,7 @@ void main() {
       tester,
       width: 320,
       mobile: false,
-      state: _readyState.copyWith(compacting: true, clearContextUsage: true),
+      state: _readyState.copyWith(compacting: true),
     );
 
     expect(
@@ -355,8 +359,12 @@ void main() {
       state: _readyState.copyWith(
         status: AgentChatRunStatus.running,
         queuedMessages: [queued],
-        contextUsage: const Usage(input: 78100, totalTokens: 78100),
-        contextWindow: 128000,
+        contextUsage: const AgentContextUsage(
+          tokens: 78100,
+          contextWindow: 128000,
+          percent: 61.015625,
+          estimated: false,
+        ),
       ),
     );
 

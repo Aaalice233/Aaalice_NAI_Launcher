@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../../core/agent/agent.dart';
 import '../../../core/agent/agent_system_prompt.dart';
+import '../../../core/agent/context_usage.dart';
 import '../../../core/agent/audit/jsonl_audit_sink.dart';
 import '../../../core/agent/harness/compaction/compaction.dart';
 import '../../../core/agent/harness/harness_types.dart';
@@ -556,6 +557,12 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       state = state.copyWith(
         messages: List.of(compressed),
         totalUsage: _sessionController.totalUsage,
+        lastRequestUsage: compactResult.usage,
+        clearLastRequestUsage: compactResult.usage == null,
+        contextUsage: resolveAgentContextUsage(
+          compressed,
+          contextWindow: contextWindow,
+        ),
       );
       return messages;
     } catch (e) {
@@ -741,7 +748,10 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
             ? 'The chat task has no usable model. Pick a model in Settings.'
             : 'No LLM provider configured. Add one in Settings > '
                   'Integrations.',
-        clearContextWindow: true,
+        contextUsage: resolveAgentContextUsage(
+          _sessionControllerValue?.agent?.state.messages ?? state.messages,
+          contextWindow: null,
+        ),
         availableThinkingLevels: const [],
         thinkingLevel: ThinkingLevel.off,
       );
@@ -760,10 +770,10 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       routeReady: true,
       routeLabel: '${_routeCache!.$1.name} / ${_routeCache!.$2}',
       routeError: '',
-      contextWindow: capability.model.contextWindow > 0
-          ? capability.model.contextWindow
-          : null,
-      clearContextWindow: capability.model.contextWindow <= 0,
+      contextUsage: resolveAgentContextUsage(
+        _sessionControllerValue?.agent?.state.messages ?? state.messages,
+        contextWindow: capability.model.contextWindow,
+      ),
       availableThinkingLevels: capability.levels,
       thinkingLevel: currentLevel,
     );

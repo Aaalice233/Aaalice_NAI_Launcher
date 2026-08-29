@@ -9,12 +9,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/agent/agent_types.dart';
 import '../../../core/agent/harness/harness_messages.dart';
+import '../../../core/agent/harness/tools/image.dart';
+import '../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference_codec.dart';
 import '../../../core/windowing/agent_window_protocol.dart';
 import '../../../core/windowing/agent_window_runtime.dart';
 import '../../agent_settings/providers/agent_settings_provider.dart';
 import '../providers/agent_chat_notifier.dart';
 import '../models/agent_chat_turn_timeline.dart';
+import 'agent_resource_resolver.dart';
 import '../../prompt_assistant/models/prompt_assistant_models.dart';
 import '../../prompt_assistant/providers/prompt_assistant_config_provider.dart';
 import '../../providers/layout_state_provider.dart';
@@ -28,16 +31,22 @@ import '../../providers/theme_provider.dart';
 /// commands; it never owns providers, sessions, queues, or model clients.
 final class AgentWindowBridgeAdapter {
   AgentWindowBridgeAdapter._(this._container)
-    : _loadEarlierHistoryForTesting = null;
+    : _loadEarlierHistoryForTesting = null,
+      _resolveResourceForTesting = null;
 
   @visibleForTesting
   AgentWindowBridgeAdapter.forTesting(
     this._container, {
     Future<void> Function()? loadEarlierHistory,
-  }) : _loadEarlierHistoryForTesting = loadEarlierHistory;
+    Future<ResolvedAgentResource?> Function(AgentChatResourceReference)?
+    resolveResource,
+  }) : _loadEarlierHistoryForTesting = loadEarlierHistory,
+       _resolveResourceForTesting = resolveResource;
 
   final ProviderContainer _container;
   final Future<void> Function()? _loadEarlierHistoryForTesting;
+  final Future<ResolvedAgentResource?> Function(AgentChatResourceReference)?
+  _resolveResourceForTesting;
   ProviderSubscription<AgentChatState>? _subscription;
   ProviderSubscription<Locale>? _localeSubscription;
   ProviderSubscription<Object?>? _appearanceSubscription;
@@ -54,6 +63,8 @@ final class AgentWindowBridgeAdapter {
   final Map<String, String> _fileImageAssetIds = {};
   final Set<String> _currentFileImageKeys = {};
   final Map<String, String> _fileImageErrors = {};
+  final Map<String, String> _resourceImageAssetIds = {};
+  final Map<String, String> _resourceImageErrors = {};
   final Set<String> _publishedImageAssetIds = {};
   final Set<String> _currentImageAssetIds = {};
   final Map<String, Object?> _pendingImageAssets = {};
@@ -332,6 +343,7 @@ final class AgentWindowBridgeAdapter {
     _currentImageAssetIds.clear();
     _currentFileImageKeys.clear();
     _fileImageErrors.clear();
+    _resourceImageErrors.clear();
     final historyWindow = _historyWindow(state);
     final visibleTurnIds = historyWindow.turns.map((turn) => turn.id).toSet();
     final messageMetadata = _timelineMetadataByMessageIndex(state);
@@ -440,8 +452,7 @@ final class AgentWindowBridgeAdapter {
             'editable': _messageImages(queued.message).isEmpty,
           },
       ],
-      if (state.contextUsage case final usage?) 'contextUsage': usage.toJson(),
-      if (state.contextWindow case final window?) 'contextWindow': window,
+      'contextUsage': state.contextUsage.toJson(),
       'activities': [
         for (final activity in state.activities)
           if ((activity.turnId == null && !window.hasNewer) ||
@@ -655,6 +666,61 @@ final class AgentWindowBridgeAdapter {
           _fileImageErrors[key] = 'image_invalid';
         }
       }
+      if (_toolResultFilePaths(message).isEmpty) {
+        await _prepareToolResultResourceAssets(message);
+      }
+    }
+  }
+
+  Future<void> _prepareToolResultResourceAssets(
+    ToolResultMessage message,
+  ) async {
+    for (final reference in _toolResultResourceReferences(message)) {
+      final key = _toolResultResourceKey(message, reference);
+      if (_resourceImageAssetIds[key] case final existing?
+          when _publishedImageAssetIds.contains(existing)) {
+        _currentImageAssetIds.add(existing);
+        continue;
+      }
+      try {
+        final resolver = _resolveResourceForTesting;
+        final resolved = resolver != null
+            ? await resolver(reference)
+            : await _container
+                  .read(agentChatNotifierProvider.notifier)
+                  .resolveResourcePreview(reference);
+        final bytes = resolved?.bytes;
+        if (bytes == null) {
+          _resourceImageErrors[key] = 'image_unavailable';
+          continue;
+        }
+        if (bytes.length > agentWindowMaxImageAssetBytes) {
+          _resourceImageErrors[key] = 'image_too_large';
+          continue;
+        }
+        final mimeType = detectSupportedImageMimeType(bytes);
+        if (mimeType == null) {
+          _resourceImageErrors[key] = 'image_invalid';
+          continue;
+        }
+        final assetId =
+            _resourceImageAssetIds[key] ??
+            'resource-image-${_nextImageAssetId++}';
+        _resourceImageAssetIds[key] = assetId;
+        if (_queueImageAsset(
+          assetId,
+          base64Encode(bytes),
+          bytes.length,
+          mimeType,
+        )) {
+          _currentImageAssetIds.add(assetId);
+          _resourceImageErrors.remove(key);
+        } else {
+          _resourceImageErrors[key] = 'image_snapshot_limit';
+        }
+      } on Object {
+        _resourceImageErrors[key] = 'image_unavailable';
+      }
     }
   }
 
@@ -666,6 +732,7 @@ final class AgentWindowBridgeAdapter {
     _currentImageAssetIds.clear();
     _currentFileImageKeys.clear();
     _fileImageErrors.clear();
+    _resourceImageErrors.clear();
     await _prepareToolResultImageAssets([message]);
     final result = <String, Object?>{
       'message': _serializeToolResultMessage(message),
@@ -807,6 +874,12 @@ final class AgentWindowBridgeAdapter {
   Map<String, Object?> _serializeToolResultMessage(ToolResultMessage message) {
     final files = _toolResultFilePaths(message);
     final preferFileImages = files.any(_isImagePath);
+    final resourceReferences = files.isEmpty
+        ? _toolResultResourceReferences(message)
+        : const <AgentChatResourceReference>[];
+    final inlineContents = message.content
+        .whereType<ToolResultImageContent>()
+        .toList(growable: false);
     return {
       'role': 'tool',
       'toolCallId': message.toolCallId,
@@ -835,11 +908,21 @@ final class AgentWindowBridgeAdapter {
             else
               {'url': sanitizeAgentWindowRemoteUrl(path)},
         if (!preferFileImages)
-          for (final content in message.content)
-            if (content is ToolResultImageContent)
-              if (_serializeToolContentImage(message, content, files)
-                  case final image?)
-                image,
+          for (final reference in resourceReferences)
+            _serializeToolResourceImage(message, reference),
+        if (!preferFileImages)
+          for (
+            var index = resourceReferences.length;
+            index < inlineContents.length;
+            index++
+          )
+            if (_serializeToolContentImage(
+                  message,
+                  inlineContents[index],
+                  files,
+                )
+                case final image?)
+              image,
       ],
     };
   }
@@ -855,6 +938,18 @@ final class AgentWindowBridgeAdapter {
       return _serializeToolFileImage(message, path);
     }
     return _serializeImage(content.image);
+  }
+
+  Map<String, Object?> _serializeToolResourceImage(
+    ToolResultMessage message,
+    AgentChatResourceReference reference,
+  ) {
+    final key = _toolResultResourceKey(message, reference);
+    if (_resourceImageAssetIds[key] case final assetId?
+        when _currentImageAssetIds.contains(assetId)) {
+      return {'assetId': assetId};
+    }
+    return {'error': _resourceImageErrors[key] ?? 'image_unavailable'};
   }
 
   Map<String, Object?> _serializeToolFileImage(
@@ -891,6 +986,52 @@ final class AgentWindowBridgeAdapter {
 
   String _toolResultFileKey(ToolResultMessage message, String path) =>
       '${message.toolCallId}\u0000$path';
+
+  String _toolResultResourceKey(
+    ToolResultMessage message,
+    AgentChatResourceReference reference,
+  ) =>
+      '${message.toolCallId}\u0000${AgentChatResourceReferenceCodec.encodeJson(reference)}';
+
+  List<AgentChatResourceReference> _toolResultResourceReferences(
+    ToolResultMessage message,
+  ) {
+    final references = <AgentChatResourceReference>[];
+    final seen = <String>{};
+
+    void collect(Object? value) {
+      if (value is Map) {
+        if (value['resource_ref'] case final Map resource) {
+          try {
+            final reference = AgentChatResourceReferenceCodec.decodeJsonMap(
+              Map<String, dynamic>.from(resource),
+            );
+            final key = AgentChatResourceReferenceCodec.encodeJson(reference);
+            if (seen.add(key)) references.add(reference);
+          } on FormatException {
+            // External tool metadata is not trusted at the IPC boundary.
+          }
+        }
+        for (final child in value.values) {
+          collect(child);
+        }
+      } else if (value is List) {
+        for (final child in value) {
+          collect(child);
+        }
+      }
+    }
+
+    collect(message.details);
+    for (final content in message.content.whereType<ToolResultTextContent>()) {
+      try {
+        collect(jsonDecode(content.text));
+      } on FormatException {
+        // Ordinary tool text does not contain stable references.
+      }
+    }
+    return references;
+  }
 
   String _artifactDisplayName(String value) {
     final uri = Uri.tryParse(value);
@@ -973,6 +1114,7 @@ final class AgentWindowBridgeAdapter {
     _pendingImageAssets.clear();
     _currentImageAssetIds.clear();
     _fileImageErrors.clear();
+    _resourceImageErrors.clear();
     if (message is ToolResultMessage) {
       await _prepareToolResultImageAssets([message]);
     }

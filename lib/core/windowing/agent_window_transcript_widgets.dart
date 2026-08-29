@@ -1,10 +1,13 @@
 import 'dart:convert';
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../presentation/utils/image_detail_opener.dart';
+import '../../presentation/widgets/common/image_detail/image_detail_data.dart';
 import '../agent/agent_media_display_policy.dart';
 import '../agent/agent_tool_presentation.dart';
 import 'agent_chat_layout_contract.dart';
@@ -1781,10 +1784,11 @@ class _AgentWindowImageCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Widget Function() imageBuilder;
+    Uint8List? originalBytes;
     if (image['base64'] case final String data) {
       try {
-        final bytes = base64Decode(data);
-        imageBuilder = () => Image.memory(bytes, fit: BoxFit.contain);
+        originalBytes = base64Decode(data);
+        imageBuilder = () => Image.memory(originalBytes!, fit: BoxFit.contain);
       } on FormatException {
         return const _AgentWindowBrokenImage();
       }
@@ -1804,8 +1808,13 @@ class _AgentWindowImageCard extends StatelessWidget {
       label: AppLocalizations.of(context)!.agentChat_toolGenerateImage,
       child: InkWell(
         borderRadius: BorderRadius.circular(10),
-        onTap: () =>
-            _showAgentWindowImagePreview(context, imageBuilder: imageBuilder),
+        onTap: () => originalBytes == null
+            ? _showAgentWindowImagePreview(context, imageBuilder: imageBuilder)
+            : ImageDetailOpener.showSingleImmediate(
+                context,
+                image: GeneratedImageDetailData(imageBytes: originalBytes),
+                showMetadataPanel: true,
+              ),
         child: Container(
           margin: const EdgeInsets.only(top: 8),
           constraints: const BoxConstraints(minHeight: 120, maxHeight: 420),

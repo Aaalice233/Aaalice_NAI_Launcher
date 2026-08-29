@@ -23,6 +23,7 @@ final class ResolvedAgentResource {
     required this.reference,
     required this.label,
     this.bytes,
+    this.filePath,
     this.text,
     this.vibeEntryId,
     this.preciseReferenceEntryId,
@@ -31,6 +32,10 @@ final class ResolvedAgentResource {
   final AgentChatResourceReference reference;
   final String label;
   final Uint8List? bytes;
+
+  /// Application-owned identity for detail viewers. This is never serialized
+  /// into model-visible tool output or detached-window DTOs.
+  final String? filePath;
   final String? text;
   final String? vibeEntryId;
   final String? preciseReferenceEntryId;
@@ -238,6 +243,7 @@ class AgentResourceResolver {
       reference: reference,
       label: record.fileName,
       bytes: await file.readAsBytes(),
+      filePath: record.filePath,
     );
   }
 
@@ -303,9 +309,9 @@ class AgentResourceResolver {
               .where((value) => value.id == reference.mediaId)
               .firstOrNull;
     if (media == null) return null;
-    final url = media.displayUrl.isNotEmpty
-        ? media.displayUrl
-        : (media.downloadUrl.isNotEmpty ? media.downloadUrl : media.previewUrl);
+    final url = media.downloadUrl.isNotEmpty
+        ? media.downloadUrl
+        : (media.displayUrl.isNotEmpty ? media.displayUrl : media.previewUrl);
     if (url.isEmpty) return null;
     final file = await OnlineGalleryImageCacheManager.instance.getSingleFile(
       url,
@@ -319,6 +325,7 @@ class AgentResourceResolver {
           detail.item.title ??
           '${source.label} ${reference.resourceId}',
       bytes: await file.readAsBytes(),
+      filePath: file.path,
       text: media.prompt ?? detail.prompt,
     );
   }
@@ -404,6 +411,7 @@ class AgentResourceResolver {
       reference: reference,
       label: entry.name,
       bytes: await file.readAsBytes(),
+      filePath: entry.imagePath,
       preciseReferenceEntryId: entry.id,
     );
   }

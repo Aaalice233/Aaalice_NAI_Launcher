@@ -1,4 +1,5 @@
 import '../../../core/agent/agent.dart';
+import '../../../core/agent/context_usage.dart';
 import '../../../core/agent/harness/harness_types.dart';
 import '../../../core/agent/harness/harness_messages.dart';
 import '../../../core/agent/harness/session/session_types.dart'
@@ -29,8 +30,8 @@ class AgentChatState {
     this.sessionContentLoading = false,
     this.approvalRequest,
     this.totalUsage,
-    this.contextUsage,
-    this.contextWindow,
+    this.lastRequestUsage,
+    this.contextUsage = const AgentContextUsage.unknown(),
     this.thinkingLevel = ThinkingLevel.off,
     this.availableThinkingLevels = const [],
     this.pendingResources = const [],
@@ -65,9 +66,11 @@ class AgentChatState {
   final AgentToolApprovalRequest? approvalRequest;
   final Usage? totalUsage;
 
-  /// Usage of the most recent model request, not the cumulative session sum.
-  final Usage? contextUsage;
-  final int? contextWindow;
+  /// Provider usage from the most recent model request.
+  final Usage? lastRequestUsage;
+
+  /// Current context occupancy, anchored to the last valid assistant usage.
+  final AgentContextUsage contextUsage;
   final ThinkingLevel thinkingLevel;
   final List<ThinkingLevel> availableThinkingLevels;
   final List<AgentChatResourceReference> pendingResources;
@@ -101,10 +104,9 @@ class AgentChatState {
     AgentToolApprovalRequest? approvalRequest,
     bool clearApprovalRequest = false,
     Usage? totalUsage,
-    Usage? contextUsage,
-    bool clearContextUsage = false,
-    int? contextWindow,
-    bool clearContextWindow = false,
+    Usage? lastRequestUsage,
+    bool clearLastRequestUsage = false,
+    AgentContextUsage? contextUsage,
     ThinkingLevel? thinkingLevel,
     List<ThinkingLevel>? availableThinkingLevels,
     List<AgentChatResourceReference>? pendingResources,
@@ -143,12 +145,10 @@ class AgentChatState {
           ? null
           : approvalRequest ?? this.approvalRequest,
       totalUsage: totalUsage ?? this.totalUsage,
-      contextUsage: clearContextUsage
+      lastRequestUsage: clearLastRequestUsage
           ? null
-          : contextUsage ?? this.contextUsage,
-      contextWindow: clearContextWindow
-          ? null
-          : contextWindow ?? this.contextWindow,
+          : lastRequestUsage ?? this.lastRequestUsage,
+      contextUsage: contextUsage ?? this.contextUsage,
       thinkingLevel: thinkingLevel ?? this.thinkingLevel,
       availableThinkingLevels:
           availableThinkingLevels ?? this.availableThinkingLevels,

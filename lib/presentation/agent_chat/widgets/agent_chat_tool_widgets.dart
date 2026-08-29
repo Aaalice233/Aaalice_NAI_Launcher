@@ -270,10 +270,12 @@ class _AgentChatToolResultTileState extends State<AgentChatToolResultTile> {
         : _extractRemoteImages(
             result,
           ).where((url) => !files.contains(url)).toList(growable: false);
-    final resourceReferences =
-        files.isEmpty && inlineImages.isEmpty && remoteImages.isEmpty
+    final resourceReferences = files.isEmpty
         ? _extractResourceReferences(result)
         : const <AgentChatResourceReference>[];
+    final unpairedInlineImages = resourceReferences.isEmpty
+        ? inlineImages
+        : inlineImages.skip(resourceReferences.length).toList(growable: false);
     final detailText = _resultDetailText(result);
     final statusLabel = result.isError
         ? context.l10n.common_error
@@ -282,7 +284,7 @@ class _AgentChatToolResultTileState extends State<AgentChatToolResultTile> {
     final summary = rawSummary == statusLabel ? '' : rawSummary;
     final hasMedia =
         files.isNotEmpty ||
-        inlineImages.isNotEmpty ||
+        unpairedInlineImages.isNotEmpty ||
         remoteImages.isNotEmpty ||
         resourceReferences.isNotEmpty;
     final hasExpandedContent =
@@ -321,15 +323,25 @@ class _AgentChatToolResultTileState extends State<AgentChatToolResultTile> {
               children: [
                 for (final path in files)
                   _ToolResultImage(key: ValueKey(path), path: path),
-                for (var index = 0; index < inlineImages.length; index++)
+                for (var index = 0; index < resourceReferences.length; index++)
+                  _ToolResultResourcePreview(
+                    key: ValueKey('${result.toolCallId}-ref-$index'),
+                    reference: resourceReferences[index],
+                    thumbnailBytes: index < inlineImages.length
+                        ? inlineImages[index]
+                        : null,
+                  ),
+                for (
+                  var index = 0;
+                  index < unpairedInlineImages.length;
+                  index++
+                )
                   _ToolResultInlineImage(
                     key: ValueKey('${result.toolCallId}-inline-$index'),
-                    bytes: inlineImages[index],
+                    bytes: unpairedInlineImages[index],
                   ),
                 for (final url in remoteImages)
                   _ToolResultNetworkImage(key: ValueKey(url), url: url),
-                for (final reference in resourceReferences)
-                  _ToolResultResourcePreview(reference: reference),
               ],
             ),
           ),
@@ -339,9 +351,17 @@ class _AgentChatToolResultTileState extends State<AgentChatToolResultTile> {
 }
 
 class AgentChatToolResultMedia extends StatelessWidget {
-  const AgentChatToolResultMedia({super.key, required this.result});
+  const AgentChatToolResultMedia({
+    super.key,
+    required this.result,
+    this.resolveResource,
+  });
 
   final ToolResultMessage result;
+  final Future<ResolvedAgentResource?> Function(
+    AgentChatResourceReference reference,
+  )?
+  resolveResource;
 
   @override
   Widget build(BuildContext context) {
@@ -355,12 +375,14 @@ class AgentChatToolResultMedia extends StatelessWidget {
         : _extractRemoteImages(
             result,
           ).where((url) => !files.contains(url)).toList(growable: false);
-    final resourceReferences =
-        files.isEmpty && inlineImages.isEmpty && remoteImages.isEmpty
+    final resourceReferences = files.isEmpty
         ? _extractResourceReferences(result)
         : const <AgentChatResourceReference>[];
+    final unpairedInlineImages = resourceReferences.isEmpty
+        ? inlineImages
+        : inlineImages.skip(resourceReferences.length).toList(growable: false);
     if (files.isEmpty &&
-        inlineImages.isEmpty &&
+        unpairedInlineImages.isEmpty &&
         remoteImages.isEmpty &&
         resourceReferences.isEmpty) {
       return const SizedBox.shrink();
@@ -372,15 +394,22 @@ class AgentChatToolResultMedia extends StatelessWidget {
         children: [
           for (final path in files)
             _ToolResultImage(key: ValueKey(path), path: path),
-          for (var index = 0; index < inlineImages.length; index++)
+          for (var index = 0; index < resourceReferences.length; index++)
+            _ToolResultResourcePreview(
+              key: ValueKey('${result.toolCallId}-media-ref-$index'),
+              reference: resourceReferences[index],
+              thumbnailBytes: index < inlineImages.length
+                  ? inlineImages[index]
+                  : null,
+              resolveResource: resolveResource,
+            ),
+          for (var index = 0; index < unpairedInlineImages.length; index++)
             _ToolResultInlineImage(
               key: ValueKey('${result.toolCallId}-media-inline-$index'),
-              bytes: inlineImages[index],
+              bytes: unpairedInlineImages[index],
             ),
           for (final url in remoteImages)
             _ToolResultNetworkImage(key: ValueKey(url), url: url),
-          for (final reference in resourceReferences)
-            _ToolResultResourcePreview(reference: reference),
         ],
       ),
     );
@@ -926,9 +955,19 @@ List<AgentChatResourceReference> _extractResourceReferences(
 }
 
 class _ToolResultResourcePreview extends ConsumerStatefulWidget {
-  const _ToolResultResourcePreview({required this.reference});
+  const _ToolResultResourcePreview({
+    super.key,
+    required this.reference,
+    this.thumbnailBytes,
+    this.resolveResource,
+  });
 
   final AgentChatResourceReference reference;
+  final Uint8List? thumbnailBytes;
+  final Future<ResolvedAgentResource?> Function(
+    AgentChatResourceReference reference,
+  )?
+  resolveResource;
 
   @override
   ConsumerState<_ToolResultResourcePreview> createState() =>
@@ -937,35 +976,99 @@ class _ToolResultResourcePreview extends ConsumerStatefulWidget {
 
 class _ToolResultResourcePreviewState
     extends ConsumerState<_ToolResultResourcePreview> {
-  late Future<ResolvedAgentResource?> _resolution;
+  Future<ResolvedAgentResource?>? _resolution;
+  bool _opening = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _resolution = ref
-        .read(agentChatNotifierProvider.notifier)
-        .resolveResourcePreview(widget.reference);
-  }
+  Future<ResolvedAgentResource?> _resolve() => _resolution ??=
+      widget.resolveResource?.call(widget.reference) ??
+      ref
+          .read(agentChatNotifierProvider.notifier)
+          .resolveResourcePreview(widget.reference);
 
   @override
   void didUpdateWidget(covariant _ToolResultResourcePreview oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.reference != widget.reference) {
-      _resolution = ref
-          .read(agentChatNotifierProvider.notifier)
-          .resolveResourcePreview(widget.reference);
+      _resolution = null;
+      _opening = false;
+    }
+  }
+
+  Future<void> _openOriginal() async {
+    if (_opening) return;
+    setState(() => _opening = true);
+    try {
+      final resolved = await _resolve();
+      if (!mounted) return;
+      if (resolved == null ||
+          (resolved.filePath == null && resolved.bytes == null)) {
+        AppToast.error(context, context.l10n.agentChat_resourceUnavailable);
+        return;
+      }
+      if (resolved.filePath case final path?) {
+        ImageDetailOpener.showSingleImmediate(
+          context,
+          image: FileImageDetailData(filePath: path),
+          showMetadataPanel: true,
+        );
+      } else {
+        ImageDetailOpener.showSingleImmediate(
+          context,
+          image: GeneratedImageDetailData(imageBytes: resolved.bytes!),
+          showMetadataPanel: true,
+        );
+      }
+    } on Object {
+      if (mounted) {
+        AppToast.error(context, context.l10n.agentChat_resourceUnavailable);
+      }
+    } finally {
+      if (mounted) setState(() => _opening = false);
     }
   }
 
   @override
-  Widget build(BuildContext context) => FutureBuilder<ResolvedAgentResource?>(
-    future: _resolution,
-    builder: (context, snapshot) {
-      final bytes = snapshot.data?.bytes;
-      return bytes == null
-          ? const SizedBox.shrink()
-          : _ToolResultInlineImage(bytes: bytes);
-    },
+  Widget build(BuildContext context) {
+    final thumbnail = widget.thumbnailBytes;
+    if (thumbnail != null) {
+      return _ToolResultInteractiveImageCard(
+        onTap: () => unawaited(_openOriginal()),
+        child: Image.memory(
+          thumbnail,
+          fit: BoxFit.contain,
+          alignment: Alignment.center,
+          gaplessPlayback: true,
+          errorBuilder: (_, _, _) => const _AgentResourceUnavailableImage(),
+        ),
+      );
+    }
+    return FutureBuilder<ResolvedAgentResource?>(
+      future: _resolve(),
+      builder: (context, snapshot) {
+        final bytes = snapshot.data?.bytes;
+        if (bytes == null) return const _AgentResourceUnavailableImage();
+        return _ToolResultInteractiveImageCard(
+          onTap: () => unawaited(_openOriginal()),
+          child: Image.memory(bytes, fit: BoxFit.contain),
+        );
+      },
+    );
+  }
+}
+
+class _AgentResourceUnavailableImage extends StatelessWidget {
+  const _AgentResourceUnavailableImage();
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: 160,
+    height: 120,
+    child: Center(
+      child: Text(
+        context.l10n.agentChat_resourceUnavailable,
+        textAlign: TextAlign.center,
+      ),
+    ),
   );
 }
 

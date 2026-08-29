@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/agent/agent_types.dart';
+import 'package:nai_launcher/core/agent/context_usage.dart';
 import 'package:nai_launcher/core/agent/harness/compaction/compaction.dart';
 import 'package:nai_launcher/core/agent/harness/harness_messages.dart';
 import 'package:nai_launcher/core/agent/harness/harness_result.dart';
@@ -173,6 +174,64 @@ void main() {
   group('compaction', () {
     test('estimateTokens uses chars/4 for user text', () {
       expect(estimateTokens(UserMessage.text('a' * 40)), 10);
+    });
+
+    test(
+      'context usage anchors valid usage and estimates trailing messages',
+      () {
+        final trailingUser = UserMessage.text('a' * 40);
+        final trailingTool = ToolResultMessage(
+          toolCallId: 'call',
+          toolName: 'read',
+          content: [ToolResultTextContent('tool output')],
+        );
+        final usage = resolveAgentContextUsage([
+          _assistant('done', usage: const Usage(totalTokens: 100)),
+          trailingTool,
+          trailingUser,
+        ], contextWindow: 1000);
+
+        expect(
+          usage.tokens,
+          100 + estimateTokens(trailingTool) + estimateTokens(trailingUser),
+        );
+        expect(usage.estimated, isTrue);
+        expect(usage.percent, isNotNull);
+      },
+    );
+
+    test('aborted, error and zero usage do not become context anchors', () {
+      for (final message in [
+        AssistantMessage(
+          content: const [AssistantTextContent('aborted')],
+          stopReason: StopReason.aborted,
+          usage: const Usage(totalTokens: 100),
+        ),
+        AssistantMessage(
+          content: const [AssistantTextContent('error')],
+          stopReason: StopReason.error,
+          usage: const Usage(totalTokens: 100),
+        ),
+        _assistant('zero', usage: Usage.empty),
+      ]) {
+        final usage = resolveAgentContextUsage([
+          message,
+          UserMessage.text('tail'),
+        ], contextWindow: 1000);
+        expect(usage.tokens, isNull);
+        expect(usage.percent, isNull);
+      }
+    });
+
+    test('context after compaction stays unknown without a valid anchor', () {
+      final usage = resolveAgentContextUsage([
+        createCompactionSummaryMessage('summary', 400, 1),
+        UserMessage.text('retained tail'),
+      ], contextWindow: 1000);
+
+      expect(usage.tokens, isNull);
+      expect(usage.contextWindow, 1000);
+      expect(usage.percent, isNull);
     });
 
     test('shouldCompact respects threshold', () {
@@ -462,7 +521,9 @@ void main() {
       final session = Session(storage);
 
       await session.appendMessage(UserMessage.text('old question'));
-      await session.appendMessage(_assistant('old answer'));
+      await session.appendMessage(
+        _assistant('old answer', usage: const Usage(totalTokens: 900)),
+      );
 
       await session.appendEntry(
         CompactionEntry(
@@ -487,6 +548,10 @@ void main() {
       expect(context.messages.length, 2);
       expect(context.messages.first, isA<CompactionSummaryMessage>());
       expect((context.messages.last as UserMessage).text, 'recent');
+      expect(
+        resolveAgentContextUsage(context.messages, contextWindow: 1000).tokens,
+        isNull,
+      );
 
       // 重放后语义一致。
       final reopened = JsonlSessionStorage(file, metadata);
@@ -497,6 +562,10 @@ void main() {
       );
       final context2 = buildSessionContext(entries2);
       expect(context2.messages.length, 2);
+      expect(
+        resolveAgentContextUsage(context2.messages, contextWindow: 1000).tokens,
+        isNull,
+      );
       final reopenedCompaction = entries2.whereType<CompactionEntry>().single;
       expect(reopenedCompaction.usage?.totalTokens, 12);
       final details = reopenedCompaction.details as CompactionDetails;

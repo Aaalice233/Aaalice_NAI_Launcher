@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 
 import '../../../core/agent/agent.dart';
+import '../../../core/agent/context_usage.dart';
 import '../../../core/agent/harness/harness_messages.dart';
 import '../../../core/agent/harness/session/session.dart';
 import '../../../core/agent/harness/session/session_context.dart';
@@ -128,11 +129,15 @@ class AgentChatSessionController {
     final context = buildSessionContext(entries);
     final restoredMessages = _restoreLegacyReadImageDetails(context.messages);
     final usage = calculateAgentChatSessionUsage(entries);
-    final latestContextUsage = restoredMessages.reversed
+    final latestRequestUsage = restoredMessages.reversed
         .whereType<AssistantMessage>()
         .map((message) => message.usage)
         .whereType<Usage>()
         .firstOrNull;
+    final contextUsage = resolveAgentContextUsage(
+      restoredMessages,
+      contextWindow: _readState().contextUsage.contextWindow,
+    );
     nextAgent.state.messages = restoredMessages;
     nextAgent.state.thinkingLevel = ThinkingLevel.values.firstWhere(
       (level) => level.name == context.thinkingLevel,
@@ -200,8 +205,9 @@ class AgentChatSessionController {
         workPhase: AgentChatWorkPhase.idle,
         sessions: await listSessions(),
         totalUsage: usage,
-        contextUsage: latestContextUsage,
-        clearContextUsage: latestContextUsage == null,
+        lastRequestUsage: latestRequestUsage,
+        clearLastRequestUsage: latestRequestUsage == null,
+        contextUsage: contextUsage,
         thinkingLevel: nextAgent.state.thinkingLevel,
         pendingResources: draft.resources,
         composerText: draft.composerText,

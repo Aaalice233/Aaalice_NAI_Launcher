@@ -1,13 +1,17 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/agent/agent_types.dart';
+import 'package:nai_launcher/core/agent/context_usage.dart';
 import 'package:nai_launcher/core/agent/resources/agent_chat_resource_reference.dart';
 import 'package:nai_launcher/core/agent/resources/agent_chat_resource_reference_codec.dart';
+import 'package:nai_launcher/core/windowing/agent_window_protocol.dart';
 import 'package:nai_launcher/presentation/agent_chat/providers/agent_chat_state.dart';
 import 'package:nai_launcher/presentation/agent_chat/models/agent_chat_turn_timeline.dart';
+import 'package:nai_launcher/presentation/agent_chat/services/agent_resource_resolver.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/agent_window_bridge_adapter.dart';
 
 void main() {
@@ -202,8 +206,12 @@ void main() {
         sessionContentLoading: true,
         activeSessionId: 'session-2',
         composerText: 'draft survives',
-        contextUsage: const Usage(input: 12, totalTokens: 34),
-        contextWindow: 128000,
+        contextUsage: const AgentContextUsage(
+          tokens: 34,
+          contextWindow: 128000,
+          percent: 0.0265625,
+          estimated: true,
+        ),
         queuedMessages: [
           AgentQueuedMessage(
             kind: AgentQueuedMessageKind.followUp,
@@ -229,8 +237,10 @@ void main() {
       expect(payload, containsPair('sessionContentLoading', true));
       expect(payload, containsPair('composerText', 'draft survives'));
       expect(payload, containsPair('workPhase', 'awaitingApproval'));
-      expect(payload, containsPair('contextWindow', 128000));
-      expect((payload['contextUsage'] as Map)['totalTokens'], 34);
+      final contextUsage = payload['contextUsage'] as Map;
+      expect(contextUsage['tokens'], 34);
+      expect(contextUsage['contextWindow'], 128000);
+      expect(contextUsage['estimated'], isTrue);
       expect(payload, containsPair('error', 'request failed'));
       expect(payload, containsPair('routeError', 'model unavailable'));
       expect(payload['queue'], [
@@ -288,6 +298,106 @@ void main() {
       expect(next['referencedImageAssets'], [assetId]);
     },
   );
+
+  test(
+    'stable resource serializes original bytes instead of inline thumbnail',
+    () async {
+      final reference = AgentChatResourceReference(
+        kind: AgentChatResourceKind.generatedImage,
+        source: 'generation',
+        resourceId: 'original-1',
+      );
+      final original = Uint8List.fromList([
+        ...base64Decode(_oneByOnePngBase64),
+        1,
+        2,
+        3,
+      ]);
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final adapter = AgentWindowBridgeAdapter.forTesting(
+        container,
+        resolveResource: (value) async => ResolvedAgentResource(
+          reference: value,
+          label: 'Original',
+          bytes: original,
+        ),
+      );
+      final message = ToolResultMessage(
+        toolCallId: 'display-1',
+        toolName: 'display_images',
+        content: const [
+          ToolResultImageContent(
+            ImageContent(
+              source: ImageSource.base64(
+                mimeType: 'image/png',
+                base64Data: _oneByOnePngBase64,
+              ),
+            ),
+          ),
+        ],
+        details: {
+          'images': [
+            {
+              'resource_ref': AgentChatResourceReferenceCodec.encodeJsonMap(
+                reference,
+              ),
+            },
+          ],
+        },
+      );
+
+      final payload = await adapter.serializeToolResultForTesting(message);
+      final serialized = payload['message']! as Map<String, Object?>;
+      final image = (serialized['images']! as List).single as Map;
+      final asset = (payload['imageAssets']! as Map)[image['assetId']] as Map;
+
+      expect(base64Decode(asset['base64'] as String), original);
+      expect(asset['base64'], isNot(_oneByOnePngBase64));
+    },
+  );
+
+  test('stable resource asset remains bounded and fails explicitly', () async {
+    final reference = AgentChatResourceReference(
+      kind: AgentChatResourceKind.generatedImage,
+      source: 'generation',
+      resourceId: 'oversized-1',
+    );
+    final oversized = Uint8List(agentWindowMaxImageAssetBytes + 1)
+      ..setRange(0, 8, const [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final adapter = AgentWindowBridgeAdapter.forTesting(
+      container,
+      resolveResource: (value) async => ResolvedAgentResource(
+        reference: value,
+        label: 'Too large',
+        bytes: oversized,
+      ),
+    );
+    final payload = await adapter.serializeToolResultForTesting(
+      ToolResultMessage(
+        toolCallId: 'display-large',
+        toolName: 'display_images',
+        content: const [],
+        details: {
+          'images': [
+            {
+              'resource_ref': AgentChatResourceReferenceCodec.encodeJsonMap(
+                reference,
+              ),
+            },
+          ],
+        },
+      ),
+    );
+    final serialized = payload['message']! as Map<String, Object?>;
+
+    expect((serialized['images']! as List).single, {
+      'error': 'image_too_large',
+    });
+    expect(payload['imageAssets'], isEmpty);
+  });
 
   test(
     'missing and damaged tool images are explicit and do not throw',

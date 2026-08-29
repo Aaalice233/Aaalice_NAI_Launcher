@@ -1,6 +1,7 @@
 import 'dart:collection';
 
 import '../../../core/agent/agent.dart';
+import '../../../core/agent/context_usage.dart';
 import '../../../core/agent/harness/harness_messages.dart';
 import '../../../core/agent/harness/session/session_types.dart'
     as session_types;
@@ -101,13 +102,23 @@ class AgentChatEventController {
         if (message is AssistantMessage && message.usage != null) {
           _sessionController.totalUsage =
               _sessionController.totalUsage + message.usage!;
-          _writeState(
-            _readState().copyWith(
-              totalUsage: _sessionController.totalUsage,
-              contextUsage: message.usage,
-            ),
-          );
         }
+        final current = _readState();
+        final contextUsage = resolveAgentContextUsage(
+          _sessionController.agent?.state.messages ?? current.messages,
+          contextWindow: current.contextUsage.contextWindow,
+        );
+        _writeState(
+          current.copyWith(
+            totalUsage: _sessionController.totalUsage,
+            lastRequestUsage: message is AssistantMessage
+                ? message.usage
+                : null,
+            clearLastRequestUsage:
+                message is AssistantMessage && message.usage == null,
+            contextUsage: contextUsage,
+          ),
+        );
       case AgentEventToolExecutionStart():
         final args = event.args;
         final normalizedArgs = args is Map<String, dynamic>

@@ -5,13 +5,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:image/image.dart' as image_lib;
 import 'package:nai_launcher/core/agent/agent_types.dart';
+import 'package:nai_launcher/core/agent/resources/agent_chat_resource_reference.dart';
+import 'package:nai_launcher/core/agent/resources/agent_chat_resource_reference_codec.dart';
 import 'package:nai_launcher/core/shortcuts/shortcut_config.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/agent_chat/providers/agent_chat_state.dart';
+import 'package:nai_launcher/presentation/agent_chat/services/agent_resource_resolver.dart';
 import 'package:nai_launcher/presentation/agent_chat/widgets/agent_chat_tool_widgets.dart';
 import 'package:nai_launcher/presentation/providers/shortcuts_provider.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_detail/file_image_detail_data.dart';
+import 'package:nai_launcher/presentation/widgets/common/image_detail/image_detail_data.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_detail/image_detail_viewer.dart';
 
 void main() {
@@ -298,6 +303,85 @@ void main() {
     );
     await tester.pump();
     expect(find.textContaining('missing-generated-result.png'), findsWidgets);
+  });
+
+  testWidgets('stable ref replaces inline thumbnail and opens original bytes', (
+    tester,
+  ) async {
+    final originalBytes = Uint8List.fromList(
+      image_lib.encodePng(image_lib.Image(width: 4, height: 3)),
+    );
+    final reference = AgentChatResourceReference(
+      kind: AgentChatResourceKind.generatedImage,
+      source: 'generation',
+      resourceId: 'original-1',
+    );
+    final result = ToolResultMessage(
+      toolCallId: 'display-ref-1',
+      toolName: 'display_images',
+      content: [
+        ToolResultImageContent(
+          ImageContent(
+            source: ImageSource.base64(
+              mimeType: 'image/png',
+              base64Data: base64Encode(_onePixelPng),
+            ),
+          ),
+        ),
+      ],
+      details: {
+        'images': [
+          {
+            'resource_ref': AgentChatResourceReferenceCodec.encodeJsonMap(
+              reference,
+            ),
+          },
+        ],
+      },
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          shortcutConfigNotifierProvider.overrideWith(
+            _TestShortcutConfigNotifier.new,
+          ),
+        ],
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: AgentChatToolResultMedia(
+              result: result,
+              resolveResource: (value) async => ResolvedAgentResource(
+                reference: value,
+                label: 'Original',
+                bytes: originalBytes,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byType(Image), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('display-ref-1-media-inline-0')),
+      findsNothing,
+    );
+
+    tester.widget<GestureDetector>(find.byType(GestureDetector)).onTap!();
+    await tester.pump();
+    await tester.pump();
+
+    final viewer = tester.widget<ImageDetailViewer>(
+      find.byType(ImageDetailViewer),
+    );
+    final detail = viewer.images.single as GeneratedImageDetailData;
+    expect(detail.imageBytes, originalBytes);
+    final decoded = image_lib.decodeImage(detail.imageBytes);
+    expect(decoded?.width, 4);
+    expect(decoded?.height, 3);
   });
 
   testWidgets('tool group hides failure payload until explicitly expanded', (
