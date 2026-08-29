@@ -40,6 +40,9 @@ class PromptEditorWithToolbar extends ConsumerStatefulWidget {
   /// 文本变化回调
   final ValueChanged<String>? onChanged;
 
+  /// 提示词助手的稳定会话标识
+  final String? sessionId;
+
   /// 随机按钮点击回调
   final VoidCallback? onRandomPressed;
 
@@ -84,6 +87,7 @@ class PromptEditorWithToolbar extends ConsumerStatefulWidget {
     this.focusNode,
     this.decoration,
     this.onChanged,
+    this.sessionId,
     this.onRandomPressed,
     this.onRandomLongPressed,
     this.onFullscreenPressed,
@@ -188,6 +192,7 @@ class _PromptEditorWithToolbarState
             focusNode: widget.focusNode,
             decoration: widget.decoration,
             onChanged: widget.onChanged,
+            sessionId: widget.sessionId,
             maxLines: widget.maxLines,
             minLines: widget.minLines,
             expands: widget.expands,
