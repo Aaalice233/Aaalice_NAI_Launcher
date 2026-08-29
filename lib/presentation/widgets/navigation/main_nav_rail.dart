@@ -87,169 +87,161 @@ class MainNavRail extends ConsumerWidget {
     final motion = theme.appTheme;
     final animationDuration = _boundedMotionDuration(
       context,
-      motion.slowDuration,
-      minMilliseconds: 200,
-      maxMilliseconds: 280,
+      motion.normalDuration,
+      minMilliseconds: 120,
+      maxMilliseconds: 180,
     );
 
-    return _NavRailExpansionScope(
+    return _NavRailWidthTransition(
       isExpanded: isExpanded,
-      child: _NavRailWidthTransition(
-        isExpanded: isExpanded,
-        duration: animationDuration,
-        curve: isExpanded ? motion.enterCurve : motion.exitCurve,
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          border: Border(
-            right: BorderSide(color: theme.dividerColor, width: 1),
-          ),
-        ),
-        child: Column(
-          children: [
-            const SizedBox(height: 16),
-            // 账户头像区域
-            _AccountAvatarButton(ref: ref),
+      duration: animationDuration,
+      curve: motion.standardCurve,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        border: Border(right: BorderSide(color: theme.dividerColor, width: 1)),
+      ),
+      child: Column(
+        children: [
+          const SizedBox(height: 16),
+          // 账户头像区域
+          _AccountAvatarButton(ref: ref),
 
-            Expanded(
-              child: SingleChildScrollView(
-                key: const Key('main-nav-primary-scroll'),
-                child: Column(
-                  children: [
-                    // Navigation Items
-                    _NavIcon(
-                      icon: Icons.brush, // Canvas/Edit
-                      label: context.l10n.nav_canvas,
-                      isSelected: selectedIndex == 0,
-                      onTap: () =>
-                          navigationShell.goBranch(AppBranch.generation.index),
-                    ),
+          Expanded(
+            child: SingleChildScrollView(
+              key: const Key('main-nav-primary-scroll'),
+              child: Column(
+                children: [
+                  // Navigation Items
+                  _NavIcon(
+                    icon: Icons.brush, // Canvas/Edit
+                    label: context.l10n.nav_canvas,
+                    isSelected: selectedIndex == 0,
+                    onTap: () =>
+                        navigationShell.goBranch(AppBranch.generation.index),
+                  ),
 
-                    // 本地图库（App生成的图片）
-                    _NavIcon(
-                      icon: Icons.folder, // Local Generated Images
-                      label: context.l10n.nav_localGallery,
-                      isSelected: selectedIndex == 1,
-                      onTap: () => navigationShell.goBranch(
-                        AppBranch.localGallery.index,
-                      ),
-                    ),
+                  // 本地图库（App生成的图片）
+                  _NavIcon(
+                    icon: Icons.folder, // Local Generated Images
+                    label: context.l10n.nav_localGallery,
+                    isSelected: selectedIndex == 1,
+                    onTap: () =>
+                        navigationShell.goBranch(AppBranch.localGallery.index),
+                  ),
 
-                    // 在线画廊
-                    _NavIcon(
-                      icon: Icons.photo_library, // Online Gallery
-                      label: context.l10n.nav_onlineGallery,
-                      isSelected: selectedIndex == 2,
-                      onTap: () => navigationShell.goBranch(
-                        AppBranch.onlineGallery.index,
-                      ),
-                    ),
+                  // 在线画廊
+                  _NavIcon(
+                    icon: Icons.photo_library, // Online Gallery
+                    label: context.l10n.nav_onlineGallery,
+                    isSelected: selectedIndex == 2,
+                    onTap: () =>
+                        navigationShell.goBranch(AppBranch.onlineGallery.index),
+                  ),
 
-                    // Vibe库
-                    _NavIcon(
-                      icon: Icons.auto_awesome, // Vibe Library
-                      label: context.l10n.vibeLibrary_title,
-                      isSelected: selectedIndex == 3,
-                      onTap: () =>
-                          navigationShell.goBranch(AppBranch.vibeLibrary.index),
-                    ),
+                  // Vibe库
+                  _NavIcon(
+                    icon: Icons.auto_awesome, // Vibe Library
+                    label: context.l10n.vibeLibrary_title,
+                    isSelected: selectedIndex == 3,
+                    onTap: () =>
+                        navigationShell.goBranch(AppBranch.vibeLibrary.index),
+                  ),
 
-                    // 精准参考库
-                    _NavIcon(
-                      icon: Icons.center_focus_strong,
-                      label: context.l10n.nav_preciseRefLibrary,
-                      isSelected: selectedIndex == 4,
-                      onTap: () => navigationShell.goBranch(
-                        AppBranch.preciseRefLibrary.index,
-                      ),
+                  // 精准参考库
+                  _NavIcon(
+                    icon: Icons.center_focus_strong,
+                    label: context.l10n.nav_preciseRefLibrary,
+                    isSelected: selectedIndex == 4,
+                    onTap: () => navigationShell.goBranch(
+                      AppBranch.preciseRefLibrary.index,
                     ),
+                  ),
 
-                    // 随机配置
-                    _NavIcon(
-                      icon: Icons.casino, // Random prompt config
-                      label: context.l10n.nav_randomConfig,
-                      isSelected: selectedIndex == 5,
-                      onTap: () => navigationShell.goBranch(
-                        AppBranch.promptConfig.index,
-                      ),
-                    ),
+                  // 随机配置
+                  _NavIcon(
+                    icon: Icons.casino, // Random prompt config
+                    label: context.l10n.nav_randomConfig,
+                    isSelected: selectedIndex == 5,
+                    onTap: () =>
+                        navigationShell.goBranch(AppBranch.promptConfig.index),
+                  ),
 
-                    // 词库
-                    _NavIcon(
-                      icon: Icons.book,
-                      label: context.l10n.nav_dictionary,
-                      isSelected: selectedIndex == 6,
-                      onTap: () =>
-                          navigationShell.goBranch(AppBranch.tagLibrary.index),
-                    ),
+                  // 词库
+                  _NavIcon(
+                    icon: Icons.book,
+                    label: context.l10n.nav_dictionary,
+                    isSelected: selectedIndex == 6,
+                    onTap: () =>
+                        navigationShell.goBranch(AppBranch.tagLibrary.index),
+                  ),
 
-                    // 统计
-                    _NavIcon(
-                      icon: Icons.bar_chart, // Gallery Statistics
-                      label: context.l10n.nav_statistics,
-                      isSelected: selectedIndex == 7,
-                      onTap: () =>
-                          navigationShell.goBranch(AppBranch.statistics.index),
-                    ),
-                  ],
-                ),
+                  // 统计
+                  _NavIcon(
+                    icon: Icons.bar_chart, // Gallery Statistics
+                    label: context.l10n.nav_statistics,
+                    isSelected: selectedIndex == 7,
+                    onTap: () =>
+                        navigationShell.goBranch(AppBranch.statistics.index),
+                  ),
+                ],
               ),
             ),
+          ),
 
-            // Discord 社群
-            _ExternalLinkIcon(
-              icon: Icons.discord,
-              label: context.l10n.nav_discordCommunity,
-              color: const Color(0xFF5865F2), // Discord 紫色
-              url: CommunityLinks.discord,
-            ),
+          // Discord 社群
+          _ExternalLinkIcon(
+            icon: Icons.discord,
+            label: context.l10n.nav_discordCommunity,
+            color: const Color(0xFF5865F2), // Discord 紫色
+            url: CommunityLinks.discord,
+          ),
 
-            // GitHub 仓库
-            _GitHubIcon(
-              url: CommunityLinks.github,
-              label: context.l10n.nav_githubRepo,
-            ),
+          // GitHub 仓库
+          _GitHubIcon(
+            url: CommunityLinks.github,
+            label: context.l10n.nav_githubRepo,
+          ),
 
-            _NavIcon(
-              key: const Key('queue-nav-item'),
-              icon: switch (queueExecutionStatus) {
-                QueueExecutionStatus.running => Icons.play_arrow_rounded,
-                QueueExecutionStatus.paused => Icons.pause_rounded,
-                _ => Icons.playlist_play_rounded,
-              },
-              label: context.l10n.queue_management,
-              isSelected: isQueueVisible,
-              badgeLabel: queueCount > 0
-                  ? (queueCount > 99 ? '99+' : queueCount.toString())
-                  : null,
-              onTap: () => onQueueVisibilityChanged(!isQueueVisible),
-            ),
+          _NavIcon(
+            key: const Key('queue-nav-item'),
+            icon: switch (queueExecutionStatus) {
+              QueueExecutionStatus.running => Icons.play_arrow_rounded,
+              QueueExecutionStatus.paused => Icons.pause_rounded,
+              _ => Icons.playlist_play_rounded,
+            },
+            label: context.l10n.queue_management,
+            isSelected: isQueueVisible,
+            badgeLabel: queueCount > 0
+                ? (queueCount > 99 ? '99+' : queueCount.toString())
+                : null,
+            onTap: () => onQueueVisibilityChanged(!isQueueVisible),
+          ),
 
-            // Bottom Settings
-            _NavIcon(
-              icon: Icons.settings,
-              label: context.l10n.nav_settings,
-              isSelected: selectedIndex == 8,
-              showBadge: showUpdateBadge,
-              onTap: () => navigationShell.goBranch(AppBranch.settings.index),
-            ),
-            const SizedBox(height: 2),
-            _NavRailToggle(
-              isExpanded: isExpanded,
-              onTap: () {
-                ref
-                    .read(layoutStateNotifierProvider.notifier)
-                    .toggleMainNavRail();
-              },
-            ),
-            const SizedBox(height: 6),
-          ],
-        ),
+          // Bottom Settings
+          _NavIcon(
+            icon: Icons.settings,
+            label: context.l10n.nav_settings,
+            isSelected: selectedIndex == 8,
+            showBadge: showUpdateBadge,
+            onTap: () => navigationShell.goBranch(AppBranch.settings.index),
+          ),
+          const SizedBox(height: 2),
+          _NavRailToggle(
+            isExpanded: isExpanded,
+            onTap: () {
+              ref
+                  .read(layoutStateNotifierProvider.notifier)
+                  .toggleMainNavRail();
+            },
+          ),
+          const SizedBox(height: 6),
+        ],
       ),
     );
   }
 }
 
-class _NavRailWidthTransition extends StatelessWidget {
+class _NavRailWidthTransition extends StatefulWidget {
   const _NavRailWidthTransition({
     required this.isExpanded,
     required this.duration,
@@ -265,21 +257,84 @@ class _NavRailWidthTransition extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween<double>(end: isExpanded ? 1 : 0),
-      duration: duration,
+  State<_NavRailWidthTransition> createState() =>
+      _NavRailWidthTransitionState();
+}
+
+// 宽度与所有标签共享同一时间轴，避免高频切换同时启动多组 ticker。
+class _NavRailWidthTransitionState extends State<_NavRailWidthTransition>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late CurvedAnimation _expansion;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      value: widget.isExpanded ? 1 : 0,
+      duration: widget.duration,
+    );
+    _updateCurve();
+  }
+
+  @override
+  void didUpdateWidget(_NavRailWidthTransition oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _controller.duration = widget.duration;
+    if (oldWidget.curve != widget.curve) {
+      _expansion.dispose();
+      _updateCurve();
+    }
+    if (oldWidget.isExpanded != widget.isExpanded ||
+        oldWidget.duration != widget.duration) {
+      _animateToTarget();
+    }
+  }
+
+  void _updateCurve() {
+    final curve = _ClampedCurve(widget.curve);
+    _expansion = CurvedAnimation(
+      parent: _controller,
       curve: curve,
-      builder: (context, value, child) {
+      reverseCurve: curve,
+    );
+  }
+
+  void _animateToTarget() {
+    if (widget.duration == Duration.zero) {
+      _controller.value = widget.isExpanded ? 1 : 0;
+      return;
+    }
+    if (widget.isExpanded) {
+      _controller.forward();
+    } else {
+      _controller.reverse();
+    }
+  }
+
+  @override
+  void dispose() {
+    _expansion.dispose();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _expansion,
+      builder: (context, child) {
         final width =
             MainNavRail.collapsedWidth +
-            (MainNavRail.expandedWidth - MainNavRail.collapsedWidth) * value;
+            (MainNavRail.expandedWidth - MainNavRail.collapsedWidth) *
+                _expansion.value;
         return Container(
           key: const Key('main-nav-rail'),
           width: width,
           height: double.infinity,
           clipBehavior: Clip.hardEdge,
-          decoration: decoration,
+          decoration: widget.decoration,
           child: OverflowBox(
             alignment: Alignment.centerLeft,
             minWidth: MainNavRail.expandedWidth,
@@ -295,29 +350,45 @@ class _NavRailWidthTransition extends StatelessWidget {
           ),
         );
       },
-      child: child,
+      child: _NavRailExpansionScope(
+        isExpanded: widget.isExpanded,
+        expansion: _expansion,
+        child: widget.child,
+      ),
     );
   }
+}
+
+class _ClampedCurve extends Curve {
+  const _ClampedCurve(this.curve);
+
+  final Curve curve;
+
+  @override
+  double transformInternal(double t) => curve.transform(t).clamp(0.0, 1.0);
 }
 
 class _NavRailExpansionScope extends InheritedWidget {
   const _NavRailExpansionScope({
     required this.isExpanded,
+    required this.expansion,
     required super.child,
   });
 
   final bool isExpanded;
+  final Animation<double> expansion;
 
-  static bool isExpandedOf(BuildContext context) {
+  static _NavRailExpansionScope of(BuildContext context) {
     return context
-            .dependOnInheritedWidgetOfExactType<_NavRailExpansionScope>()
-            ?.isExpanded ??
-        false;
+        .dependOnInheritedWidgetOfExactType<_NavRailExpansionScope>()!;
   }
+
+  static bool isExpandedOf(BuildContext context) => of(context).isExpanded;
 
   @override
   bool updateShouldNotify(_NavRailExpansionScope oldWidget) {
-    return isExpanded != oldWidget.isExpanded;
+    return isExpanded != oldWidget.isExpanded ||
+        expansion != oldWidget.expansion;
   }
 }
 
@@ -328,21 +399,8 @@ class _ExpandedRailContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isExpanded = _NavRailExpansionScope.isExpandedOf(context);
-    final motion = Theme.of(context).appTheme;
-    final duration = _boundedMotionDuration(
-      context,
-      motion.normalDuration,
-      minMilliseconds: 120,
-      maxMilliseconds: 180,
-    );
-
-    return AnimatedOpacity(
-      opacity: isExpanded ? 1 : 0,
-      duration: duration,
-      curve: isExpanded ? motion.enterCurve : motion.exitCurve,
-      child: child,
-    );
+    final scope = _NavRailExpansionScope.of(context);
+    return FadeTransition(opacity: scope.expansion, child: child);
   }
 }
 
