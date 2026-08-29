@@ -59,8 +59,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     final lifecycleState = WidgetsBinding.instance.lifecycleState;
-    _appForeground =
-        lifecycleState == null || lifecycleState == AppLifecycleState.resumed;
+    _appForeground = _isForegroundLifecycleState(lifecycleState);
     _imageLoader = CancellableGalleryImageLoader();
     _controller = OnlineGalleryScreenController(
       prefetchCoordinator: OnlineGalleryPrefetchCoordinator(
@@ -132,7 +131,9 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     if (_controller.branchVisible == visible) return;
     _controller.branchVisible = visible;
     _controller.prefetchCoordinator.setPageVisible(visible);
-    _syncBackgroundNetworkActivity();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _syncBackgroundNetworkActivity();
+    });
     if (!visible) {
       _controller.hoverController.dismiss();
       _controller.scheduledAutoLoadCacheKey = null;
@@ -167,10 +168,15 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    _appForeground = state == AppLifecycleState.resumed;
+    _appForeground = _isForegroundLifecycleState(state);
     _controller.prefetchCoordinator.setAppForeground(_appForeground);
     _syncBackgroundNetworkActivity();
   }
+
+  bool _isForegroundLifecycleState(AppLifecycleState? state) =>
+      state == null ||
+      state == AppLifecycleState.resumed ||
+      state == AppLifecycleState.inactive;
 
   void _handleGalleryStateChanged(OnlineGalleryState state) {
     final browsingContextChanged =
