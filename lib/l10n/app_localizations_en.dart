@@ -4480,7 +4480,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get randomMode_title => 'Select Random Mode';
 
   @override
-  String get randomMode_naiOfficial => 'Official Mode';
+  String get randomMode_naiOfficial => 'Default';
 
   @override
   String get randomMode_custom => 'Custom Mode';
@@ -4490,7 +4490,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get randomMode_naiOfficialDesc =>
-      'Use the NovelAI official random wordlist for the current model';
+      'Automatically select the bundled random recipe for the current model';
 
   @override
   String get randomMode_customDesc =>
@@ -4498,13 +4498,21 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get randomMode_hybridDesc =>
-      'Combine the official wordlist with the catalog extension';
+      'Combine the model-aware default recipe with the catalog extension';
 
   @override
-  String get randomMode_naiIndicator => 'Official';
+  String get randomMode_naiIndicator => 'Default';
 
   @override
   String get randomMode_customIndicator => 'Custom';
+
+  @override
+  String get randomMode_unsupportedModel =>
+      'Default random mode is unavailable';
+
+  @override
+  String get randomMode_unsupportedModelHint =>
+      'No verified bundled random profile is available for the current model. Select a supported NovelAI model or use Custom mode.';
 
   @override
   String get naiMode_noTags => 'No tags';
@@ -4873,17 +4881,17 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get randomManager_defaultPresetV4 => 'Default Mode (V4)';
+  String get randomManager_defaultPresetV4 => 'General Preset (V4/V5)';
 
   @override
-  String get randomManager_defaultPresetLegacy => 'Default Mode (Legacy)';
+  String get randomManager_defaultPresetLegacy => 'General Preset (Legacy)';
 
   @override
-  String get randomManager_defaultPresetFurry => 'Default Mode (Furry)';
+  String get randomManager_defaultPresetFurry => 'General Preset (Furry)';
 
   @override
   String get randomManager_defaultPresetV4Description =>
-      'Random algorithm configuration based on the NAI V4 model, with multi-character support';
+      'Catalog extension preset for V4 and V5, with multi-character support';
 
   @override
   String get randomManager_defaultPresetLegacyDescription =>

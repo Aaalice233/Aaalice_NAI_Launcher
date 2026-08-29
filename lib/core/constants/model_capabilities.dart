@@ -11,7 +11,8 @@ enum PromptStructure {
 
 /// 官网随机提示词生成器分派。
 ///
-/// NovelAI 当前仅有三套词库；V4、V4.5 与 V5 共用角色独立词库。
+/// 已验证官网来源中可分派的三类词库。V4、V4.5 与 V5 当前均映射到
+/// 同一套 `Character Prompts` 数据；此映射不代表各模型拥有独立 preset。
 enum RandomPromptProfile {
   legacyAnime,
   furryV3,
@@ -372,12 +373,18 @@ class ModelCapabilityRegistry {
     ImageModels.v5StagingKey: v5Curated,
   };
 
+  /// 只查询已验证的精确模型 ID。
+  ///
+  /// 不能冒险套用旧模型数据的功能使用此入口，并对 null 显式拒绝。
+  static ModelCapabilities? tryOf(String model) => _exactMatches[model];
+
   /// 查询模型能力。
   ///
-  /// 未登记的模型按 ID 命名规律归入最接近的家族，避免新模型静默掉进 V1 路径；
-  /// 判断顺序必须从长到短，`nai-diffusion-4-5-full` 同时包含 `diffusion-4`。
+  /// 通用参数兼容保留历史行为：未登记但可识别家族的模型按 ID 命名规律
+  /// 归入最接近的家族，完全无法识别时回退到 V1。判断顺序必须从长到短，
+  /// `nai-diffusion-4-5-full` 同时包含 `diffusion-4`。
   static ModelCapabilities of(String model) {
-    final exact = _exactMatches[model];
+    final exact = tryOf(model);
     if (exact != null) return exact;
 
     if (model.contains('diffusion-5')) {

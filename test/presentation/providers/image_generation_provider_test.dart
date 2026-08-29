@@ -232,6 +232,28 @@ void main() {
     });
 
     test(
+      'publishes an explicit random-mode error for unknown models',
+      () async {
+        container.read(subscriptionNotifierProvider);
+        container.read(randomPromptModeProvider.notifier).set(true);
+        final params = container
+            .read(generationParamsNotifierProvider)
+            .copyWith(model: 'future-unknown-model', prompt: 'fixture prompt');
+
+        await container
+            .read(imageGenerationNotifierProvider.notifier)
+            .generate(params);
+
+        final state = container.read(imageGenerationNotifierProvider);
+        expect(state.status, GenerationStatus.error);
+        expect(
+          state.errorMessage,
+          'GENERATION_ERROR_UNSUPPORTED_RANDOM_MODEL|future-unknown-model',
+        );
+      },
+    );
+
+    test(
       'generate applies positive and negative fixed tags before request',
       () async {
         final mockApiService = MockNAIImageGenerationApiService();

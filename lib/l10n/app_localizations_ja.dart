@@ -4380,7 +4380,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get randomMode_title => 'ランダム モードを選択';
 
   @override
-  String get randomMode_naiOfficial => '公式モード';
+  String get randomMode_naiOfficial => 'デフォルト';
 
   @override
   String get randomMode_custom => 'カスタムモード';
@@ -4389,20 +4389,26 @@ class AppLocalizationsJa extends AppLocalizations {
   String get randomMode_hybrid => 'ハイブリッド モード';
 
   @override
-  String get randomMode_naiOfficialDesc =>
-      '現在のモデルに対応する NovelAI 公式ランダムワードリストを使用';
+  String get randomMode_naiOfficialDesc => '現在のモデルに応じて内蔵ランダムレシピを自動選択';
 
   @override
   String get randomMode_customDesc => '完全なオフラインタグカタログとカスタムプリセットから生成';
 
   @override
-  String get randomMode_hybridDesc => '公式ワードリストとカタログ拡張を組み合わせる';
+  String get randomMode_hybridDesc => 'モデル対応のデフォルトレシピとカタログ拡張を組み合わせる';
 
   @override
-  String get randomMode_naiIndicator => '公式';
+  String get randomMode_naiIndicator => 'デフォルト';
 
   @override
   String get randomMode_customIndicator => 'カスタム';
+
+  @override
+  String get randomMode_unsupportedModel => '現在のモデルではデフォルトランダムモードを使用できません';
+
+  @override
+  String get randomMode_unsupportedModelHint =>
+      '現在のモデルに利用できる検証済みの内蔵ランダムプロファイルがありません。対応する NovelAI モデルを選択するか、カスタムモードを使用してください。';
 
   @override
   String get naiMode_noTags => 'タグがありません';
@@ -4764,17 +4770,17 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get randomManager_defaultPresetV4 => 'デフォルト モード (V4)';
+  String get randomManager_defaultPresetV4 => '汎用プリセット (V4/V5)';
 
   @override
-  String get randomManager_defaultPresetLegacy => 'デフォルト モード (レガシー)';
+  String get randomManager_defaultPresetLegacy => '汎用プリセット (レガシー)';
 
   @override
-  String get randomManager_defaultPresetFurry => 'デフォルト モード (毛皮)';
+  String get randomManager_defaultPresetFurry => '汎用プリセット (Furry)';
 
   @override
   String get randomManager_defaultPresetV4Description =>
-      'NAI V4 モデルに基づくランダムアルゴリズム設定 (複数キャラクター対応)';
+      'V4/V5 向けのカタログ拡張プリセット (複数キャラクター対応)';
 
   @override
   String get randomManager_defaultPresetLegacyDescription =>

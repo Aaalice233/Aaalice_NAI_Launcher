@@ -60,6 +60,28 @@ void main() {
 
       expect(caps.promptStructure, PromptStructure.legacy);
       expect(caps.anlasFormula, AnlasFormula.legacy);
+      expect(ModelCapabilityRegistry.tryOf('totally-unknown-model'), isNull);
+    });
+
+    test('tryOf accepts only verified exact model ids', () {
+      expect(
+        ModelCapabilityRegistry.tryOf(ImageModels.animeDiffusionV5Full),
+        same(ModelCapabilityRegistry.v5Full),
+      );
+      for (final model in [
+        'nai-diffusion-5-full-next',
+        'nai-diffusion-50-full',
+        'nai-diffusion-5-experimental',
+        'nai-diffusion-4-5-curated-next',
+        'nai-future-model',
+        'third-party-diffusion-5-test',
+      ]) {
+        expect(
+          ModelCapabilityRegistry.tryOf(model),
+          isNull,
+          reason: '$model has no verified random-profile mapping',
+        );
+      }
     });
   });
 
@@ -85,11 +107,17 @@ void main() {
         );
         for (final model in [
           ImageModels.animeDiffusionV4Curated,
+          ImageModels.animeDiffusionV4CuratedInpainting,
           ImageModels.animeDiffusionV4Full,
+          ImageModels.animeDiffusionV4FullInpainting,
           ImageModels.animeDiffusionV45Curated,
+          ImageModels.animeDiffusionV45CuratedInpainting,
           ImageModels.animeDiffusionV45Full,
+          ImageModels.animeDiffusionV45FullInpainting,
           ImageModels.animeDiffusionV5Curated,
+          ImageModels.animeDiffusionV5CuratedInpainting,
           ImageModels.animeDiffusionV5Full,
+          ImageModels.animeDiffusionV5FullInpainting,
           ImageModels.v5StagingKey,
         ]) {
           expect(

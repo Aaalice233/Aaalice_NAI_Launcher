@@ -37,6 +37,7 @@ import '../../../providers/image_generation_provider.dart';
 import '../../../providers/local_gallery_provider.dart';
 import '../../../providers/quality_preset_provider.dart';
 import '../../../providers/preview_transparency_provider.dart';
+import '../../../providers/prompt_config_provider.dart';
 import '../../../providers/reverse_prompt_provider.dart';
 import '../../../providers/tag_library_page_provider.dart';
 import '../../../providers/shortcuts_provider.dart';
@@ -520,6 +521,11 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
         return (
           context.l10n.settings_notLoggedIn,
           context.l10n.settings_goToLoginPage,
+        );
+      case UnsupportedRandomPromptModelException.errorCode:
+        return (
+          context.l10n.randomMode_unsupportedModel,
+          context.l10n.randomMode_unsupportedModelHint,
         );
       case 'GENERATION_ERROR_INVALID_RESOLUTION':
         if (parts.length >= 5) {

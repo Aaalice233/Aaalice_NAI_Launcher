@@ -23,8 +23,19 @@
   - Character Prompts：`2,456`
 
 构建器逐数组保存原始顺序、重复记录、权重以及全部尾部字段，不去重、不归一化、不截断。
-运行时按模型能力注册表分派：Legacy 模型使用 Legacy Anime，Furry V3 使用 Furry V3，
-V4/V4.5/V5 Full 与 Curated 都使用 Character Prompts。V5 没有独立随机词表。
+运行时按客户端模型能力注册表分派：Legacy 模型使用 Legacy Anime，Furry V3 使用 Furry V3，
+V4/V4.5/V5 Full 与 Curated 使用 Character Prompts。锁定资产可重建的官方来源只有上述三个
+profile；NovelAI 官方[模型文档](https://docs.novelai.net/en/image/models/)确认 V5
+Full/Curated 模型系列，[标签文档](https://docs.novelai.net/en/image/tags/)只说明 Random
+Prompt 从内部标签列表抽取，没有发布可独立校验的 V5 专属随机词表。因此当前映射是客户端在
+可验证来源范围内采用的保守兼容策略，不代表断言 NovelAI 的私有当前数据永远不会出现 V5
+专属内容；若上游发布或能够锁定独立 V5 来源，必须先更新来源锁和完整资产，再调整分派。
+
+当前基础模型 ID 为 `nai-diffusion-4-curated-preview`、`nai-diffusion-4-full`、
+`nai-diffusion-4-5-curated`、`nai-diffusion-4-5-full`、
+`nai-diffusion-5-curated` 与 `nai-diffusion-5-full`；对应 inpainting 变体在客户端能力注册表中
+复用所属基础模型。完全无法归类的未来 ID 不得静默套用官方词表，只有 ID 能明确归入已知
+NovelAI 模型家族时才允许使用同一 profile。
 
 `tool/random_tag_library/source_lock.json` 同时固定来源文件、来源 SHA-256、输出 SHA-256、
 三个 generator 计数及每个原始数组的计数。随包资产只包含数据，不包含 NovelAI 前端脚本。
