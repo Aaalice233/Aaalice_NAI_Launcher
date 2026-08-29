@@ -96,31 +96,36 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
           mobile: widget.mobile,
           fullScreen: widget.fullScreen,
           compactMobile: widget.mobile && constraints.maxHeight < 480,
+          width: constraints.maxWidth,
+          height: constraints.maxHeight,
           onClose: widget.onClose,
           onOpenSettings: widget.onOpenSettings,
           mobileHeaderWrapper: widget.mobileHeaderWrapper,
         );
-        return AgentResourceDropRegion(
-          onDrop: commands.addPendingResource,
-          child: Column(
-            children: [
-              AgentChatHeader(viewData: viewData, commands: commands),
-              const Divider(height: 1),
-              Expanded(
-                child: AgentChatMessages(
-                  viewData: viewData,
-                  commands: commands,
-                  controller: _controller,
+        return SafeArea(
+          top: widget.mobile,
+          bottom: widget.mobile,
+          child: AgentResourceDropRegion(
+            onDrop: commands.addPendingResource,
+            child: Column(
+              children: [
+                AgentChatHeader(viewData: viewData, commands: commands),
+                Expanded(
+                  child: AgentChatMessages(
+                    viewData: viewData,
+                    commands: commands,
+                    controller: _controller,
+                  ),
                 ),
-              ),
-              AgentChatStatus(viewData: viewData, commands: commands),
-              if (state.routeReady)
-                AgentChatComposer(
-                  viewData: viewData,
-                  commands: commands,
-                  controller: _controller,
-                ),
-            ],
+                AgentChatStatus(viewData: viewData, commands: commands),
+                if (state.routeReady)
+                  AgentChatComposer(
+                    viewData: viewData,
+                    commands: commands,
+                    controller: _controller,
+                  ),
+              ],
+            ),
           ),
         );
       },

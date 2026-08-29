@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../../core/agent/agent_types.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference_codec.dart';
 import '../../../core/utils/localization_extension.dart';
+import '../../../core/windowing/agent_chat_layout_contract.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../prompt_assistant/models/prompt_assistant_models.dart';
 import '../providers/agent_chat_state.dart';
@@ -29,18 +30,11 @@ class AgentChatComposer extends StatelessWidget {
     final l10n = context.l10n;
     return Padding(
       key: const ValueKey('agent-chat-input-container'),
-      padding: EdgeInsets.fromLTRB(
-        viewData.mobile ? 12 : 8,
-        6,
-        viewData.mobile ? 12 : 8,
-        viewData.mobile ? 10 : 8,
-      ),
+      padding: AgentChatLayoutContract.composerOuterPadding(viewData.width),
       child: Container(
         decoration: BoxDecoration(
-          color: viewData.mobile
-              ? theme.colorScheme.surfaceContainerHigh
-              : theme.colorScheme.surfaceContainerLow,
-          borderRadius: BorderRadius.circular(viewData.mobile ? 16 : 12),
+          color: theme.colorScheme.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -93,12 +87,12 @@ class AgentChatComposer extends StatelessWidget {
                 controller: controller.inputController,
                 focusNode: controller.inputFocus,
                 enabled: viewData.state.initialized,
-                minLines: viewData.compactMobile
+                minLines: viewData.compactMobile || viewData.compactWidth
                     ? 1
-                    : (viewData.mobile ? 2 : 3),
+                    : 2,
                 maxLines: viewData.compactMobile
                     ? 3
-                    : (viewData.mobile ? 5 : 8),
+                    : (viewData.mobile ? 5 : 7),
                 style:
                     (viewData.mobile
                             ? theme.textTheme.bodyMedium
@@ -151,28 +145,23 @@ class AgentChatComposer extends StatelessWidget {
       touchOptimized: viewData.mobile,
       onSend: commands.send,
     );
-    final leading = <Widget>[
-      _attachButton(theme, l10n),
-      _moreMenu(theme, l10n),
-      SizedBox(width: viewData.mobile ? 0 : 2),
-      _permissionModeButton(theme, l10n),
-      const SizedBox(width: 2),
-      _webAccessToggle(theme, l10n),
-      const SizedBox(width: 2),
-    ];
-    if (viewData.mobile && viewData.running) {
+    if (viewData.stackComposerControls) {
       return Column(
         key: const ValueKey('agent-chat-composer-controls'),
         mainAxisSize: MainAxisSize.min,
         children: [
           SizedBox(
-            height: 48,
+            key: const ValueKey('agent-chat-session-controls'),
+            height: viewData.mobile ? 48 : 34,
             child: Row(
               children: [
-                ...leading,
+                _permissionModeButton(theme, l10n),
+                const SizedBox(width: 2),
+                _webAccessToggle(theme, l10n),
+                const SizedBox(width: 4),
                 Expanded(
                   child: SizedBox(
-                    height: 48,
+                    height: viewData.mobile ? 48 : 34,
                     child: _modelSelector(theme, l10n),
                   ),
                 ),
@@ -180,12 +169,20 @@ class AgentChatComposer extends StatelessWidget {
             ),
           ),
           SizedBox(
-            height: 44,
+            key: const ValueKey('agent-chat-message-actions'),
+            height: viewData.mobile ? 48 : 34,
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                _followUpButton(l10n),
-                _StopButton(touchOptimized: true, onStop: commands.stop),
+                _attachButton(theme, l10n),
+                _moreMenu(theme, l10n),
+                const Spacer(),
+                if (viewData.running) ...[
+                  _followUpButton(l10n),
+                  _StopButton(
+                    touchOptimized: viewData.mobile,
+                    onStop: commands.stop,
+                  ),
+                ],
                 const SizedBox(width: 4),
                 sendButton,
               ],
@@ -200,7 +197,13 @@ class AgentChatComposer extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          ...leading,
+          _attachButton(theme, l10n),
+          _moreMenu(theme, l10n),
+          const SizedBox(width: 2),
+          _permissionModeButton(theme, l10n),
+          const SizedBox(width: 2),
+          _webAccessToggle(theme, l10n),
+          const SizedBox(width: 2),
           if (viewData.mobile)
             Expanded(
               child: SizedBox(height: 48, child: _modelSelector(theme, l10n)),

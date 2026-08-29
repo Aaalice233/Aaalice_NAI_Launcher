@@ -10,6 +10,7 @@ import '../agent/resources/agent_chat_resource_drag_format.dart';
 import '../agent/resources/agent_chat_resource_reference_codec.dart';
 import 'agent_window_protocol.dart';
 import 'agent_window_shell_widgets.dart';
+import 'agent_window_transcript_widgets.dart';
 
 abstract interface class AgentWindowShellBridge {
   AgentWindowSnapshot get snapshot;
@@ -81,6 +82,20 @@ class _AgentWindowBridgeShellState extends State<_AgentWindowBridgeShell> {
       }
       if (mounted) setState(() => _localError = error.toString());
     }
+  }
+
+  Future<void> _copyText(String text) async {
+    await Clipboard.setData(ClipboardData(text: text));
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.common_copied),
+          duration: const Duration(seconds: 2),
+        ),
+      );
   }
 
   void _composerChanged(String value) {
@@ -163,8 +178,9 @@ class _AgentWindowBridgeShellState extends State<_AgentWindowBridgeShell> {
               child: AgentWindowMessageList(
                 messages: messages,
                 controller: _scrollController,
-                copyText: (text) =>
-                    Clipboard.setData(ClipboardData(text: text)),
+                copyText: _copyText,
+                retryLastMessage: () => bridge.sendCommand('retryLastMessage'),
+                running: running,
               ),
             ),
             ..._buildStatusPanels(
@@ -252,6 +268,7 @@ class _AgentWindowBridgeShellState extends State<_AgentWindowBridgeShell> {
     String activeSessionId,
     bool running,
   ) => Padding(
+    key: const ValueKey('agent-window-session-picker'),
     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
     child: DropdownButtonFormField<String>(
       initialValue:
@@ -294,7 +311,8 @@ class _AgentWindowBridgeShellState extends State<_AgentWindowBridgeShell> {
   ) => [
     if (payload['activities'] case final List activities)
       for (final activity in activities)
-        if (activity is Map) AgentWindowToolActivityTile(activity: activity),
+        if (activity is Map && activity['status'] == 'running')
+          AgentWindowToolActivityTile(activity: activity, copyText: _copyText),
     if (compacting)
       Padding(
         padding: const EdgeInsets.fromLTRB(14, 4, 14, 4),
@@ -400,170 +418,203 @@ class _AgentWindowBridgeShellState extends State<_AgentWindowBridgeShell> {
     bool routeReady,
     bool running,
     bool hasUnavailableResources,
-  ) => SafeArea(
-    top: false,
-    child: Padding(
-      padding: const EdgeInsets.all(10),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Focus(
-            onKeyEvent: (_, event) {
-              if (event is! KeyDownEvent) return KeyEventResult.ignored;
-              if (event.logicalKey == LogicalKeyboardKey.escape && running) {
-                bridge.sendCommand('stop');
-                return KeyEventResult.handled;
-              }
-              if (event.logicalKey != LogicalKeyboardKey.enter &&
-                  event.logicalKey != LogicalKeyboardKey.numpadEnter) {
-                return KeyEventResult.ignored;
-              }
-              if (_composer.value.composing.isValid &&
-                  !_composer.value.composing.isCollapsed) {
-                return KeyEventResult.ignored;
-              }
-              if (HardwareKeyboard.instance.isShiftPressed ||
-                  HardwareKeyboard.instance.isControlPressed ||
-                  HardwareKeyboard.instance.isMetaPressed) {
-                final value = _composer.value;
-                final selection = value.selection;
-                final start = selection.isValid
-                    ? selection.start
-                    : value.text.length;
-                final end = selection.isValid
-                    ? selection.end
-                    : value.text.length;
-                _composer.value = value.copyWith(
-                  text: value.text.replaceRange(start, end, '\n'),
-                  selection: TextSelection.collapsed(offset: start + 1),
-                  composing: TextRange.empty,
-                );
-                return KeyEventResult.handled;
-              }
-              if (!hasUnavailableResources) unawaited(_send());
-              return KeyEventResult.handled;
-            },
-            child: TextField(
-              controller: _composer,
-              focusNode: _composerFocus,
-              enabled: initialized,
-              minLines: 2,
-              maxLines: 7,
-              onChanged: _composerChanged,
-              textInputAction: TextInputAction.newline,
-              decoration: InputDecoration(
-                hintText: l10n.agentChat_inputHint,
-                filled: true,
-                fillColor: Theme.of(context).colorScheme.surfaceContainerLow,
-                border: OutlineInputBorder(
-                  borderSide: BorderSide.none,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                isDense: true,
+  ) {
+    final permission = AgentWindowPermissionModeButton(
+      sendCommand: (name, payload) => bridge.sendCommand(name, payload),
+      payload: payload,
+    );
+    final webAccess = FilterChip(
+      selected: payload['webAccessEnabled'] == true,
+      avatar: const Icon(Icons.public, size: 16),
+      label: Text(l10n.agentChat_webAccess),
+      onSelected: running
+          ? null
+          : (value) => bridge.sendCommand('setWebAccess', {'value': value}),
+    );
+    final model = AgentWindowModelButton(
+      payload: payload,
+      sendCommand: (name, payload) => bridge.sendCommand(name, payload),
+    );
+    final actions = <Widget>[
+      if (running)
+        PopupMenuButton<bool>(
+          tooltip: l10n.agentChat_queueFollowUp,
+          onSelected: (_) => _send(followUp: true),
+          itemBuilder: (_) => [
+            PopupMenuItem<bool>(
+              value: true,
+              child: ListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.playlist_add_rounded),
+                title: Text(l10n.agentChat_queueFollowUp),
               ),
             ),
-          ),
-          const SizedBox(height: 6),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                AgentWindowPermissionModeButton(
-                  sendCommand: (name, payload) =>
-                      bridge.sendCommand(name, payload),
-                  payload: payload,
-                ),
-                const SizedBox(width: 4),
-                FilterChip(
-                  selected: payload['webAccessEnabled'] == true,
-                  avatar: const Icon(Icons.public, size: 16),
-                  label: Text(l10n.agentChat_webAccess),
-                  onSelected: running
-                      ? null
-                      : (value) => bridge.sendCommand('setWebAccess', {
-                          'value': value,
-                        }),
-                ),
-                const SizedBox(width: 4),
-                AgentWindowModelButton(
-                  payload: payload,
-                  sendCommand: (name, payload) =>
-                      bridge.sendCommand(name, payload),
-                ),
-                const SizedBox(width: 8),
-                ConstrainedBox(
-                  constraints: const BoxConstraints(
-                    minWidth: 96,
-                    maxWidth: 180,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        '$routeLabel${_workPhaseLabel(l10n, payload['workPhase'])}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.labelSmall,
-                      ),
-                      Text(
-                        _contextLabel(l10n, payload['contextUsage']),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          fontFeatures: const [FontFeature.tabularFigures()],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (running)
-                  PopupMenuButton<bool>(
-                    tooltip: l10n.agentChat_queueFollowUp,
-                    onSelected: (_) => _send(followUp: true),
-                    itemBuilder: (_) => [
-                      PopupMenuItem<bool>(
-                        value: true,
-                        child: ListTile(
-                          dense: true,
-                          contentPadding: EdgeInsets.zero,
-                          leading: const Icon(Icons.playlist_add_rounded),
-                          title: Text(l10n.agentChat_queueFollowUp),
-                        ),
-                      ),
-                    ],
-                    icon: const Icon(Icons.playlist_add_rounded),
-                  ),
-                if (running)
-                  IconButton(
-                    tooltip: l10n.agentChat_stop,
-                    onPressed: () => bridge.sendCommand('stop'),
-                    color: Theme.of(context).colorScheme.error,
-                    icon: const Icon(Icons.stop_rounded),
-                  ),
-                IconButton.filled(
-                  tooltip: hasUnavailableResources
-                      ? l10n.agentChat_resourceUnavailable
-                      : running
-                      ? l10n.agentChat_queued
-                      : l10n.agentChat_send,
-                  onPressed: initialized && routeReady
-                      ? hasUnavailableResources
-                            ? null
-                            : _send
-                      : null,
-                  icon: Icon(
-                    running ? Icons.queue_rounded : Icons.send_rounded,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+          ],
+          icon: const Icon(Icons.playlist_add_rounded),
+        ),
+      if (running)
+        IconButton(
+          tooltip: l10n.agentChat_stop,
+          onPressed: () => bridge.sendCommand('stop'),
+          color: Theme.of(context).colorScheme.error,
+          icon: const Icon(Icons.stop_rounded),
+        ),
+      IconButton.filled(
+        key: const ValueKey('agent-window-send'),
+        tooltip: hasUnavailableResources
+            ? l10n.agentChat_resourceUnavailable
+            : running
+            ? l10n.agentChat_queued
+            : l10n.agentChat_send,
+        onPressed: initialized && routeReady && !hasUnavailableResources
+            ? _send
+            : null,
+        icon: Icon(running ? Icons.queue_rounded : Icons.send_rounded),
       ),
-    ),
-  );
+    ];
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 6, 12, 10),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(8, 8, 8, 6),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Focus(
+                onKeyEvent: (_, event) {
+                  if (event is! KeyDownEvent) return KeyEventResult.ignored;
+                  if (event.logicalKey == LogicalKeyboardKey.escape &&
+                      running) {
+                    bridge.sendCommand('stop');
+                    return KeyEventResult.handled;
+                  }
+                  if (event.logicalKey != LogicalKeyboardKey.enter &&
+                      event.logicalKey != LogicalKeyboardKey.numpadEnter) {
+                    return KeyEventResult.ignored;
+                  }
+                  if (_composer.value.composing.isValid &&
+                      !_composer.value.composing.isCollapsed) {
+                    return KeyEventResult.ignored;
+                  }
+                  if (HardwareKeyboard.instance.isShiftPressed ||
+                      HardwareKeyboard.instance.isControlPressed ||
+                      HardwareKeyboard.instance.isMetaPressed) {
+                    final value = _composer.value;
+                    final selection = value.selection;
+                    final start = selection.isValid
+                        ? selection.start
+                        : value.text.length;
+                    final end = selection.isValid
+                        ? selection.end
+                        : value.text.length;
+                    _composer.value = value.copyWith(
+                      text: value.text.replaceRange(start, end, '\n'),
+                      selection: TextSelection.collapsed(offset: start + 1),
+                      composing: TextRange.empty,
+                    );
+                    return KeyEventResult.handled;
+                  }
+                  if (!hasUnavailableResources) unawaited(_send());
+                  return KeyEventResult.handled;
+                },
+                child: TextField(
+                  controller: _composer,
+                  focusNode: _composerFocus,
+                  enabled: initialized,
+                  minLines: 1,
+                  maxLines: 7,
+                  onChanged: _composerChanged,
+                  textInputAction: TextInputAction.newline,
+                  decoration: InputDecoration(
+                    hintText: l10n.agentChat_inputHint,
+                    border: InputBorder.none,
+                    isDense: true,
+                    contentPadding: const EdgeInsets.fromLTRB(8, 8, 8, 6),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final status = Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '$routeLabel${_workPhaseLabel(l10n, payload['workPhase'])}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.labelSmall,
+                        ),
+                        Text(
+                          _contextLabel(l10n, payload['contextUsage']),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
+                                fontFeatures: const [
+                                  FontFeature.tabularFigures(),
+                                ],
+                              ),
+                        ),
+                      ],
+                    ),
+                  );
+                  if (constraints.maxWidth < 560) {
+                    return Column(
+                      children: [
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Wrap(
+                            spacing: 4,
+                            runSpacing: 4,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              permission,
+                              webAccess,
+                              ConstrainedBox(
+                                constraints: BoxConstraints(
+                                  maxWidth: constraints.maxWidth,
+                                ),
+                                child: model,
+                              ),
+                            ],
+                          ),
+                        ),
+                        Row(children: [status, ...actions]),
+                      ],
+                    );
+                  }
+                  return Row(
+                    children: [
+                      permission,
+                      const SizedBox(width: 4),
+                      webAccess,
+                      const SizedBox(width: 4),
+                      Flexible(child: model),
+                      const SizedBox(width: 10),
+                      status,
+                      ...actions,
+                    ],
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   String _workPhaseLabel(AppLocalizations l10n, Object? value) {
     final label = switch (value) {

@@ -1,11 +1,12 @@
-import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_markdown_plus/flutter_markdown_plus.dart' as md;
 
 import '../../../core/agent/agent_types.dart';
 import '../../../core/agent/harness/harness_messages.dart';
 import '../../../core/utils/localization_extension.dart';
+import '../../../core/windowing/agent_chat_layout_contract.dart';
+import '../../../core/windowing/agent_chat_shared_widgets.dart';
 import '../../widgets/common/draggable_memory_image.dart';
 import '../providers/agent_chat_notifier.dart';
 import 'agent_chat_panel_controller.dart';
@@ -58,6 +59,9 @@ class AgentChatMessages extends StatelessWidget {
         break;
       }
     }
+    final lastAssistantMessageIndex = state.messages.lastIndexWhere(
+      (message) => message is AssistantMessage,
+    );
     final items = _transcriptItems(state.messages);
     return Stack(
       children: [
@@ -67,24 +71,59 @@ class AgentChatMessages extends StatelessWidget {
             controller: controller.scrollController,
             reverse: true,
             padding: EdgeInsets.symmetric(
-              horizontal: viewData.mobile ? 16 : 10,
-              vertical: viewData.mobile ? 12 : 8,
+              horizontal: AgentChatLayoutContract.transcriptHorizontalPadding(
+                viewData.width,
+              ),
+              vertical: 12,
             ),
             itemCount: items.length + 1,
             itemBuilder: (context, itemIndex) {
               if (itemIndex == 0) {
-                return _liveTile(context, theme, state);
+                return Align(
+                  alignment: Alignment.center,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: AgentChatLayoutContract.transcriptMaxWidth(
+                        viewData.width,
+                      ),
+                    ),
+                    child: _liveTile(context, theme, state),
+                  ),
+                );
               }
               final item = items[items.length - itemIndex];
               if (item.toolResults != null) {
-                return AgentChatToolResultGroup(results: item.toolResults!);
+                return Align(
+                  alignment: Alignment.center,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: AgentChatLayoutContract.transcriptMaxWidth(
+                        viewData.width,
+                      ),
+                    ),
+                    child: AgentChatToolResultGroup(results: item.toolResults!),
+                  ),
+                );
               }
-              return _messageTile(
-                context,
-                theme,
-                item.message!,
-                messageIndex: item.messageIndex,
-                isLastUserMessage: item.messageIndex == lastUserMessageIndex,
+              return Align(
+                alignment: Alignment.center,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: AgentChatLayoutContract.transcriptMaxWidth(
+                      viewData.width,
+                    ),
+                  ),
+                  child: _messageTile(
+                    context,
+                    theme,
+                    item.message!,
+                    messageIndex: item.messageIndex,
+                    isLastUserMessage:
+                        item.messageIndex == lastUserMessageIndex,
+                    isLastAssistantMessage:
+                        item.messageIndex == lastAssistantMessageIndex,
+                  ),
+                ),
               );
             },
           ),
@@ -322,6 +361,7 @@ class AgentChatMessages extends StatelessWidget {
     Message message, {
     required int messageIndex,
     required bool isLastUserMessage,
+    required bool isLastAssistantMessage,
   }) {
     if (message is HarnessCustomMessage &&
         message.customType == 'agentResourcePrompt') {
@@ -334,6 +374,7 @@ class AgentChatMessages extends StatelessWidget {
         ),
         messageIndex: messageIndex,
         isLastUserMessage: isLastUserMessage,
+        isLastAssistantMessage: isLastAssistantMessage,
       );
     }
     if (message is UserMessage) {
@@ -363,6 +404,11 @@ class AgentChatMessages extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Container(
+                  key: ValueKey('agent-user-message-bubble-$messageIndex'),
+                  constraints: BoxConstraints(
+                    minWidth: hasText ? 44 : 0,
+                    maxWidth: viewData.userBubbleMaxWidth,
+                  ),
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
                     vertical: 8,
@@ -391,7 +437,11 @@ class AgentChatMessages extends StatelessWidget {
                             alignment: WrapAlignment.end,
                             children: [
                               for (final image in message.images)
-                                _userImage(theme, image),
+                                _userImage(
+                                  theme,
+                                  image,
+                                  maxWidth: viewData.userBubbleMaxWidth - 24,
+                                ),
                             ],
                           ),
                         ),
@@ -476,64 +526,48 @@ class AgentChatMessages extends StatelessWidget {
       if (message.text.trim().isEmpty && thinking.trim().isEmpty) {
         return const SizedBox.shrink();
       }
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (thinking.trim().isNotEmpty)
-            AgentChatReasoningTile(thinking: thinking),
-          if (message.text.trim().isNotEmpty)
-            Container(
-              width: double.infinity,
-              margin: const EdgeInsets.only(bottom: 10, right: 12),
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-              child: md.MarkdownBody(
-                data: message.text,
-                selectable: true,
-                imageBuilder: (uri, _, alt) => _markdownImage(theme, uri, alt),
-                styleSheet: md.MarkdownStyleSheet.fromTheme(theme).copyWith(
-                  p:
-                      (viewData.mobile
-                              ? theme.textTheme.bodyMedium
-                              : theme.textTheme.bodySmall)
-                          ?.copyWith(height: 1.55),
-                  code:
-                      (viewData.mobile
-                              ? theme.textTheme.bodyMedium
-                              : theme.textTheme.bodySmall)
-                          ?.copyWith(
-                            fontFamily: 'monospace',
-                            backgroundColor: theme
-                                .colorScheme
-                                .surfaceContainerHighest
-                                .withValues(alpha: 0.6),
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: viewData.assistantMaxWidth),
+          child: Padding(
+            padding: const EdgeInsets.only(right: 8, bottom: 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (thinking.trim().isNotEmpty)
+                  AgentChatReasoningTile(thinking: thinking),
+                if (message.text.trim().isNotEmpty)
+                  _assistantMarkdown(message.text),
+                if (message.text.trim().isNotEmpty)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _MessageActionButton(
+                        key: ValueKey(
+                          'agent-assistant-message-copy-$messageIndex',
+                        ),
+                        tooltip: context.l10n.common_copy,
+                        icon: Icons.copy_all_outlined,
+                        largeHitArea: viewData.mobile,
+                        onPressed: () => commands.copyAssistantMessage(message),
+                      ),
+                      if (isLastAssistantMessage && !viewData.running)
+                        _MessageActionButton(
+                          key: ValueKey(
+                            'agent-assistant-message-retry-$messageIndex',
                           ),
-                  codeblockDecoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainerHighest.withValues(
-                      alpha: 0.6,
-                    ),
-                    borderRadius: BorderRadius.circular(8),
+                          tooltip: context.l10n.common_retry,
+                          icon: Icons.refresh_rounded,
+                          largeHitArea: viewData.mobile,
+                          onPressed: commands.retryLastMessage,
+                        ),
+                    ],
                   ),
-                  blockquoteDecoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainerHigh.withValues(
-                      alpha: 0.5,
-                    ),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ),
+              ],
             ),
-          if (message.text.trim().isNotEmpty)
-            Align(
-              alignment: Alignment.centerLeft,
-              child: _MessageActionButton(
-                key: ValueKey('agent-assistant-message-copy-$messageIndex'),
-                tooltip: context.l10n.common_copy,
-                icon: Icons.copy_all_outlined,
-                largeHitArea: viewData.mobile,
-                onPressed: () => commands.copyAssistantMessage(message),
-              ),
-            ),
-        ],
+          ),
+        ),
       );
     }
     if (message is ToolResultMessage) {
@@ -542,7 +576,11 @@ class AgentChatMessages extends StatelessWidget {
     return const SizedBox.shrink();
   }
 
-  Widget _userImage(ThemeData theme, ImageContent image) {
+  Widget _userImage(
+    ThemeData theme,
+    ImageContent image, {
+    required double maxWidth,
+  }) {
     final source = image.source;
     final bytes = controller.bytesForMessageImage(source);
     final Size size;
@@ -573,9 +611,11 @@ class AgentChatMessages extends StatelessWidget {
       size = const Size(160, 120);
       imageWidget = _brokenImage(theme);
     }
+    final scale = size.width > maxWidth ? maxWidth / size.width : 1.0;
+    final displaySize = Size(size.width * scale, size.height * scale);
     final content = SizedBox(
-      width: size.width,
-      height: size.height,
+      width: displaySize.width,
+      height: displaySize.height,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(8),
         child: imageWidget,
@@ -591,73 +631,26 @@ class AgentChatMessages extends StatelessWidget {
     );
   }
 
-  Widget _markdownImage(ThemeData theme, Uri uri, String? alt) {
-    Widget image;
-    final scheme = uri.scheme.toLowerCase();
-    if (scheme == 'http' || scheme == 'https') {
-      image = Image.network(
-        uri.toString(),
-        fit: BoxFit.contain,
-        gaplessPlayback: true,
-        filterQuality: FilterQuality.medium,
-        errorBuilder: (_, __, ___) => _brokenImage(theme),
-      );
-    } else if (scheme == 'data') {
+  Widget _markdownImage(Uri uri, String? alt) {
+    Uint8List? dataBytes;
+    if (uri.scheme.toLowerCase() == 'data') {
       try {
         final key = uri.toString();
-        final bytes = controller.markdownDataImageBytes.putIfAbsent(
+        dataBytes = controller.markdownDataImageBytes.putIfAbsent(
           key,
           () => uri.data!.contentAsBytes(),
         );
-        image = Image.memory(
-          bytes,
-          fit: BoxFit.contain,
-          gaplessPlayback: true,
-          filterQuality: FilterQuality.medium,
-          errorBuilder: (_, __, ___) => _brokenImage(theme),
-        );
-      } catch (_) {
-        image = _brokenImage(theme);
-      }
-    } else if (scheme == 'resource') {
-      image = Image.asset(
-        uri.path,
-        fit: BoxFit.contain,
-        gaplessPlayback: true,
-        filterQuality: FilterQuality.medium,
-        errorBuilder: (_, __, ___) => _brokenImage(theme),
-      );
-    } else {
-      try {
-        final file = scheme == 'file'
-            ? File.fromUri(uri)
-            : File(uri.toFilePath(windows: Platform.isWindows));
-        image = Image.file(
-          file,
-          fit: BoxFit.contain,
-          gaplessPlayback: true,
-          filterQuality: FilterQuality.medium,
-          errorBuilder: (_, __, ___) => _brokenImage(theme),
-        );
-      } catch (_) {
-        image = _brokenImage(theme);
-      }
+      } catch (_) {}
     }
-    return Semantics(
-      label: alt,
-      image: true,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 320, maxHeight: 220),
-        child: AspectRatio(
-          aspectRatio: 320 / 220,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: image,
-          ),
-        ),
-      ),
-    );
+    return AgentChatMarkdownImage(uri: uri, alt: alt, dataBytes: dataBytes);
   }
+
+  Widget _assistantMarkdown(String text) => AgentChatMarkdownContent(
+    key: ValueKey('agent-assistant-markdown-${text.hashCode}'),
+    text: text,
+    touchOptimized: viewData.mobile,
+    imageBuilder: (uri, _, alt) => _markdownImage(uri, alt),
+  );
 
   Widget _brokenImage(ThemeData theme) => ColoredBox(
     color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
@@ -705,17 +698,11 @@ class AgentChatMessages extends StatelessWidget {
               live: streaming.text.isEmpty,
             ),
           if (streaming.text.isNotEmpty)
-            Container(
-              width: double.infinity,
-              margin: const EdgeInsets.only(bottom: 10, right: 12),
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-              child: Text(
-                streaming.text,
-                style:
-                    (viewData.mobile
-                            ? theme.textTheme.bodyMedium
-                            : theme.textTheme.bodySmall)
-                        ?.copyWith(height: 1.55),
+            ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: viewData.assistantMaxWidth),
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 10, right: 8),
+                child: _assistantMarkdown(streaming.text),
               ),
             ),
         ],
