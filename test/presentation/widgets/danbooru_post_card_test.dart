@@ -113,6 +113,58 @@ void main() {
     );
   });
 
+  testWidgets(
+    'offscreen cards defer image creation without changing geometry',
+    (tester) async {
+      const post = DanbooruPost(
+        id: 124,
+        previewFileUrl: 'https://example.com/pending.jpg',
+        tagString: 'test_tag',
+      );
+
+      Widget app(bool loadMedia) => ProviderScope(
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.topLeft,
+              child: DanbooruPostCard(
+                post: post,
+                itemWidth: 200,
+                layoutAspectRatio: 1,
+                loadMedia: loadMedia,
+                isFavorited: false,
+                onTap: () {},
+                onTagTap: (_) {},
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpWidget(app(false));
+
+      expect(find.byType(CachedNetworkImage), findsNothing);
+      expect(
+        tester
+            .getSize(find.byKey(const ValueKey('online-gallery-card-layout')))
+            .height,
+        200,
+      );
+
+      await tester.pumpWidget(app(true));
+
+      expect(find.byType(CachedNetworkImage), findsOneWidget);
+      expect(
+        tester
+            .getSize(find.byKey(const ValueKey('online-gallery-card-layout')))
+            .height,
+        200,
+      );
+    },
+  );
+
   testWidgets('online gallery cards use the shared hover scale', (
     tester,
   ) async {

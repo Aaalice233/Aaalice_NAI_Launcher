@@ -7,6 +7,7 @@ import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/online_gallery/danbooru_post.dart';
 import 'online_gallery_grid.dart';
 import '../../agent_chat/widgets/agent_resource_drop_region.dart';
+import '../../widgets/online_gallery/online_gallery_image_placeholder.dart';
 
 /// Owns one gallery tile's visibility and detail request lifecycle.
 ///
@@ -55,6 +56,7 @@ class GalleryGridItem extends StatefulWidget {
     GalleryItem item,
     double itemWidth, {
     required double layoutAspectRatio,
+    required bool loadMedia,
     GalleryDetail? detail,
   })
   buildCard;
@@ -117,6 +119,7 @@ class _GalleryGridItemState extends State<GalleryGridItem> {
     BuildContext context,
     GalleryItem item,
     double layoutAspectRatio, {
+    required bool loadMedia,
     GalleryDetail? detail,
   }) {
     return AgentResourceDragSource(
@@ -137,6 +140,7 @@ class _GalleryGridItemState extends State<GalleryGridItem> {
         item,
         widget.itemWidth,
         layoutAspectRatio: layoutAspectRatio,
+        loadMedia: loadMedia,
         detail: detail,
       ),
     );
@@ -156,63 +160,76 @@ class _GalleryGridItemState extends State<GalleryGridItem> {
         scrolling: widget.scrolling,
         onVisibilityChanged: _handleVisibility,
         builder: (context, hasBeenVisible, isScrolling) {
-          if (!hasBeenVisible && isScrolling && !_needsDetail) {
+          if (!_needsDetail) {
+            return _buildResourceCard(
+              context,
+              post,
+              layoutAspectRatio,
+              loadMedia: hasBeenVisible,
+            );
+          }
+          if (!hasBeenVisible) {
             return SizedBox(
               height: (widget.itemWidth / layoutAspectRatio).clamp(
                 80.0,
                 widget.itemWidth * 2.5,
               ),
-              child: const Card(child: SizedBox.shrink()),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: const OnlineGalleryImagePlaceholder(),
+              ),
             );
           }
-          if (!_needsDetail) {
-            return _buildResourceCard(context, post, layoutAspectRatio);
-          }
-          if (!hasBeenVisible || _detailFuture == null) {
+          if (_detailFuture == null) {
             return const AspectRatio(
               aspectRatio: 1,
-              child: Card(child: SizedBox.shrink()),
+              child: ClipRRect(
+                borderRadius: BorderRadius.all(Radius.circular(8)),
+                child: OnlineGalleryImagePlaceholder(),
+              ),
             );
           }
-          return AnimatedSize(
-            duration: const Duration(milliseconds: 180),
-            curve: Curves.easeOutCubic,
-            child: FutureBuilder<GalleryDetail>(
-              key: ValueKey((post.detailStableKey, widget.detailRequestScope)),
-              future: _detailFuture,
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return AspectRatio(
-                    aspectRatio: 1,
-                    child: Card(
-                      child: Center(
-                        child: TextButton.icon(
-                          onPressed: _retryDetail,
-                          icon: const Icon(Icons.refresh),
-                          label: Text(context.l10n.common_retry),
-                        ),
+          return FutureBuilder<GalleryDetail>(
+            key: ValueKey((post.detailStableKey, widget.detailRequestScope)),
+            future: _detailFuture,
+            builder: (context, snapshot) {
+              if (snapshot.hasError) {
+                return AspectRatio(
+                  aspectRatio: 1,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surfaceContainerLow,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Center(
+                      child: TextButton.icon(
+                        onPressed: _retryDetail,
+                        icon: const Icon(Icons.refresh),
+                        label: Text(context.l10n.common_retry),
                       ),
                     ),
-                  );
-                }
-                final detail = snapshot.data;
-                final resolved = detail?.item;
-                if (resolved == null) {
-                  return const AspectRatio(
-                    aspectRatio: 1,
-                    child: Card(
-                      child: Center(child: CircularProgressIndicator()),
-                    ),
-                  );
-                }
-                return _buildResourceCard(
-                  context,
-                  resolved,
-                  layoutAspectRatio,
-                  detail: detail,
+                  ),
                 );
-              },
-            ),
+              }
+              final detail = snapshot.data;
+              final resolved = detail?.item;
+              if (resolved == null) {
+                return const AspectRatio(
+                  aspectRatio: 1,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.all(Radius.circular(8)),
+                    child: OnlineGalleryImagePlaceholder(),
+                  ),
+                );
+              }
+              return _buildResourceCard(
+                context,
+                resolved,
+                layoutAspectRatio,
+                loadMedia: true,
+                detail: detail,
+              );
+            },
           );
         },
       ),

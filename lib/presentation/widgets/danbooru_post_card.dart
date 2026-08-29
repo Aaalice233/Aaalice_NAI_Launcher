@@ -28,6 +28,7 @@ import 'common/card_action_buttons.dart';
 import 'common/image_card_hover_motion.dart';
 import 'online_gallery/online_gallery_hover_controller.dart';
 import 'online_gallery/online_gallery_card_status_overlays.dart';
+import 'online_gallery/online_gallery_image_placeholder.dart';
 import 'online_gallery/progressive_gallery_image.dart';
 
 import 'common/app_toast.dart';
@@ -72,6 +73,7 @@ class DanbooruPostCard extends StatefulWidget {
   final OnlineGalleryHoverController? hoverController;
   final VoidCallback? onHoverIntent;
   final OnlineGalleryPrefetchCoordinator? imageCoordinator;
+  final bool loadMedia;
 
   const DanbooruPostCard({
     super.key,
@@ -103,6 +105,7 @@ class DanbooruPostCard extends StatefulWidget {
     this.hoverController,
     this.onHoverIntent,
     this.imageCoordinator,
+    this.loadMedia = true,
   });
 
   @override
@@ -149,7 +152,8 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
     }
     if (oldWidget.post.previewUrl != widget.post.previewUrl ||
         oldWidget.post.width != widget.post.width ||
-        oldWidget.post.height != widget.post.height) {
+        oldWidget.post.height != widget.post.height ||
+        oldWidget.loadMedia != widget.loadMedia) {
       _resolvedAspectRatio = null;
       _resolveUnknownDimensions();
     }
@@ -157,7 +161,8 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
 
   void _resolveUnknownDimensions() {
     final post = widget.post;
-    if ((post.width > 0 && post.height > 0) ||
+    if (!widget.loadMedia ||
+        (post.width > 0 && post.height > 0) ||
         _resolvedAspectRatio != null ||
         post.previewUrl.isEmpty) {
       _detachDimensionListener();
@@ -507,7 +512,9 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                       child: Stack(
                         fit: StackFit.expand,
                         children: [
-                          if (gridImageRequest.url.isEmpty)
+                          if (!widget.loadMedia)
+                            const OnlineGalleryImagePlaceholder()
+                          else if (gridImageRequest.url.isEmpty)
                             _buildNoImageContent(theme)
                           else
                             CachedNetworkImage(
@@ -521,23 +528,12 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                               errorListener: (error) {
                                 // 静默处理图片加载错误，避免控制台警告
                               },
-                              placeholder: (context, url) => Container(
-                                color:
-                                    theme.colorScheme.surfaceContainerHighest,
-                                child: const Center(
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
+                              placeholder: (context, url) =>
+                                  const OnlineGalleryImagePlaceholder(),
+                              errorWidget: (context, url, error) =>
+                                  const OnlineGalleryImagePlaceholder(
+                                    failed: true,
                                   ),
-                                ),
-                              ),
-                              errorWidget: (context, url, error) => Container(
-                                color:
-                                    theme.colorScheme.surfaceContainerHighest,
-                                child: Icon(
-                                  Icons.broken_image,
-                                  color: theme.colorScheme.onSurfaceVariant,
-                                ),
-                              ),
                             ),
                           if (widget.selectionMode) ...[
                             // Selection Overlay
