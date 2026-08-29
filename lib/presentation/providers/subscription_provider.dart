@@ -1,10 +1,10 @@
 import 'dart:async';
-import 'dart:io';
 
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import '../../core/constants/api_constants.dart';
+import '../../core/network/critical_network_activity.dart';
 import '../../core/utils/app_logger.dart';
 import '../../data/datasources/remote/nai_user_info_api_service.dart';
 import '../../data/models/user/user_subscription.dart';
@@ -12,6 +12,8 @@ import '../../data/services/anlas_statistics_service.dart';
 import 'auth_provider.dart';
 
 part 'subscription_provider.g.dart';
+
+enum SubscriptionRefreshPriority { background, postBilling, userInitiated }
 
 /// 订阅状态 Notifier
 ///
@@ -23,25 +25,39 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
   bool _hasInitiallyLoaded = false;
   Timer? _refreshTimer;
   Future<void>? _inflightFetch;
+  CancelToken? _inflightFetchCancelToken;
   Future<bool>? _inflightBalanceRefresh;
+  CancelToken? _inflightBalanceRefreshCancelToken;
   bool _balanceRefreshQueued = false;
+  SubscriptionRefreshPriority _activeBalanceRefreshPriority =
+      SubscriptionRefreshPriority.background;
+  SubscriptionRefreshPriority _queuedBalanceRefreshPriority =
+      SubscriptionRefreshPriority.background;
+  int _balanceRefreshGeneration = 0;
+  bool _lastBalanceRefreshWasPreempted = false;
   Timer? _postBillingRefreshTimer;
-  Timer? _networkRecoveryProbeTimer;
-  bool _isNetworkRecoveryProbing = false;
   int _networkFailureCount = 0;
   bool _isAppForeground = true;
+  bool _criticalActivityListenerAttached = false;
+  bool _refreshDeferredForCriticalActivity = false;
+  SubscriptionRefreshPriority _deferredRefreshPriority =
+      SubscriptionRefreshPriority.background;
 
   /// 自动刷新间隔
   static const Duration _refreshInterval = Duration(seconds: 30);
   static const Duration _initialFetchTimeout = Duration(seconds: 6);
   static const Duration _maxBackoffInterval = Duration(minutes: 2);
-  static const Duration _networkProbeInterval = Duration(seconds: 3);
-  static const Duration _networkProbeTimeout = Duration(seconds: 2);
   static const Duration postBillingRefreshDelay = Duration(milliseconds: 500);
 
   @override
   SubscriptionState build() {
     ref.keepAlive();
+    if (!_criticalActivityListenerAttached) {
+      _criticalActivityListenerAttached = true;
+      CriticalNetworkActivityCoordinator.instance.addListener(
+        _handleCriticalNetworkActivityChanged,
+      );
+    }
 
     // Watch authentication state changes
     final authState = ref.watch(authNotifierProvider);
@@ -59,14 +75,22 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
         previousAuthState?.isAuthenticated == true;
 
     if (switchedAccount || loggedOut) {
-      // 旧请求无法取消，但会被 session 校验丢弃。切换账号时解除去重，
-      // 让新账号无需等待旧请求结束即可立即拉取自己的余额。
-      if (switchedAccount) _inflightFetch = null;
+      _inflightFetchCancelToken?.cancel('Authentication session changed');
+      _inflightBalanceRefreshCancelToken?.cancel(
+        'Authentication session changed',
+      );
+      _inflightFetch = null;
+      _inflightFetchCancelToken = null;
+      _inflightBalanceRefresh = null;
+      _inflightBalanceRefreshCancelToken = null;
+      _balanceRefreshQueued = false;
+      _balanceRefreshGeneration += 1;
       _lastKnownState = null;
       _hasInitiallyLoaded = false;
       _networkFailureCount = 0;
+      _refreshDeferredForCriticalActivity = false;
+      _deferredRefreshPriority = SubscriptionRefreshPriority.background;
       _stopAutoRefresh();
-      _stopNetworkRecoveryProbe();
       _cancelPostBillingRefresh();
     }
 
@@ -95,8 +119,15 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
     // Cleanup on dispose
     ref.onDispose(() {
       _stopAutoRefresh();
-      _stopNetworkRecoveryProbe();
       _cancelPostBillingRefresh();
+      _inflightFetchCancelToken?.cancel('Subscription notifier disposed');
+      _inflightBalanceRefreshCancelToken?.cancel(
+        'Subscription notifier disposed',
+      );
+      CriticalNetworkActivityCoordinator.instance.removeListener(
+        _handleCriticalNetworkActivityChanged,
+      );
+      _criticalActivityListenerAttached = false;
     });
 
     if (hydratedState != null) {
@@ -175,11 +206,19 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
   }
 
   Future<void> _runRefreshCycle() async {
+    if (CriticalNetworkActivityCoordinator.instance.isActive) {
+      _deferRefresh(SubscriptionRefreshPriority.background);
+      _refreshTimer = null;
+      AppLogger.d(
+        'Subscription background refresh deferred for critical network activity',
+        'Subscription',
+      );
+      return;
+    }
     if (!state.isLoaded) {
       await fetchSubscription();
       if (state.isLoaded) {
         _networkFailureCount = 0;
-        _stopNetworkRecoveryProbe();
         _scheduleNextRefresh(_refreshInterval);
       }
       return;
@@ -188,10 +227,10 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
     final success = await refreshBalance();
     if (success) {
       _networkFailureCount = 0;
-      _stopNetworkRecoveryProbe();
       _scheduleNextRefresh(_refreshInterval);
       return;
     }
+    if (_lastBalanceRefreshWasPreempted) return;
 
     _networkFailureCount += 1;
     final backoff = _computeBackoffDuration();
@@ -200,48 +239,6 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
       'Subscription',
     );
     _scheduleNextRefresh(backoff);
-    _startNetworkRecoveryProbe();
-  }
-
-  void _startNetworkRecoveryProbe() {
-    if (!_isAppForeground || _networkRecoveryProbeTimer != null) {
-      return;
-    }
-
-    AppLogger.d('Starting network recovery probe', 'Subscription');
-    _networkRecoveryProbeTimer = Timer.periodic(_networkProbeInterval, (
-      _,
-    ) async {
-      if (_isNetworkRecoveryProbing) {
-        return;
-      }
-
-      _isNetworkRecoveryProbing = true;
-      try {
-        final reachable = await _isNovelApiReachable();
-        if (!reachable) {
-          return;
-        }
-
-        AppLogger.i(
-          'Network recovered, triggering immediate subscription refresh',
-          'Subscription',
-        );
-        _networkFailureCount = 0;
-        _stopNetworkRecoveryProbe();
-        _scheduleNextRefresh(Duration.zero);
-      } finally {
-        _isNetworkRecoveryProbing = false;
-      }
-    });
-  }
-
-  void _stopNetworkRecoveryProbe() {
-    if (_networkRecoveryProbeTimer != null) {
-      AppLogger.d('Stopping network recovery probe', 'Subscription');
-      _networkRecoveryProbeTimer?.cancel();
-      _networkRecoveryProbeTimer = null;
-    }
   }
 
   /// Stops periodic network work while the app is backgrounded and performs
@@ -252,45 +249,83 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
 
     if (!isForeground) {
       _stopAutoRefresh();
-      _stopNetworkRecoveryProbe();
       return;
     }
 
     if (_previousAuthState?.isAuthenticated == true) {
-      _networkFailureCount = 0;
       _scheduleNextRefresh(Duration.zero);
     }
   }
 
-  Future<bool> _isNovelApiReachable() async {
-    try {
-      final result = await InternetAddress.lookup(
-        Uri.parse(ApiConstants.imageBaseUrl).host,
-      ).timeout(_networkProbeTimeout);
-      return result.isNotEmpty;
-    } catch (_) {
-      return false;
+  void _handleCriticalNetworkActivityChanged() {
+    if (CriticalNetworkActivityCoordinator.instance.isActive) {
+      if (_inflightFetchCancelToken?.isCancelled == false) {
+        _deferRefresh(SubscriptionRefreshPriority.background);
+        _inflightFetchCancelToken?.cancel(
+          'Subscription fetch preempted by critical network activity',
+        );
+      }
+      if (_inflightBalanceRefreshCancelToken?.isCancelled == false) {
+        _deferRefresh(_activeBalanceRefreshPriority);
+        _inflightBalanceRefreshCancelToken?.cancel(
+          'Balance refresh preempted by critical network activity',
+        );
+      }
+      return;
     }
+    if (!_refreshDeferredForCriticalActivity || !_isAppForeground) {
+      return;
+    }
+    _refreshDeferredForCriticalActivity = false;
+    final priority = _deferredRefreshPriority;
+    _deferredRefreshPriority = SubscriptionRefreshPriority.background;
+    AppLogger.d(
+      'Critical network activity ended; resuming one deferred subscription refresh',
+      'Subscription',
+    );
+    if (priority == SubscriptionRefreshPriority.background) {
+      _scheduleNextRefresh(Duration.zero);
+    } else {
+      unawaited(refreshBalance(priority: priority));
+    }
+  }
+
+  void _deferRefresh(SubscriptionRefreshPriority priority) {
+    _refreshDeferredForCriticalActivity = true;
+    if (priority.index > _deferredRefreshPriority.index) {
+      _deferredRefreshPriority = priority;
+    }
+    AppLogger.d(
+      'Subscription refresh deferred: priority=${priority.name}',
+      'Subscription',
+    );
   }
 
   /// 获取订阅信息
   Future<void> fetchSubscription() async {
+    if (CriticalNetworkActivityCoordinator.instance.isActive) {
+      _deferRefresh(SubscriptionRefreshPriority.background);
+      return;
+    }
     if (_inflightFetch != null) {
       return _inflightFetch;
     }
 
-    final fetchFuture = _doFetchSubscription();
+    final cancelToken = CancelToken();
+    _inflightFetchCancelToken = cancelToken;
+    final fetchFuture = _doFetchSubscription(cancelToken);
     _inflightFetch = fetchFuture;
     try {
       await fetchFuture;
     } finally {
       if (identical(_inflightFetch, fetchFuture)) {
         _inflightFetch = null;
+        _inflightFetchCancelToken = null;
       }
     }
   }
 
-  Future<void> _doFetchSubscription() async {
+  Future<void> _doFetchSubscription(CancelToken cancelToken) async {
     final authSession = ref.read(authNotifierProvider);
     if (!authSession.isAuthenticated) return;
 
@@ -312,6 +347,7 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
       final apiService = ref.read(naiUserInfoApiServiceProvider);
       final data = await apiService.getUserSubscription(
         receiveTimeout: _initialFetchTimeout,
+        cancelToken: cancelToken,
       );
       if (!_isCurrentAuthSession(authSession)) return;
 
@@ -327,6 +363,13 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
       );
     } catch (e) {
       if (!_isCurrentAuthSession(authSession)) return;
+      if (e is DioException && CancelToken.isCancel(e)) {
+        AppLogger.d(
+          'Subscription fetch cancelled for critical network activity',
+          'Subscription',
+        );
+        return;
+      }
       AppLogger.e('Failed to fetch subscription: $e', 'Subscription');
 
       // 首次加载失败时不进入 error 态，避免 UI 因网络抖动出现卡顿感
@@ -353,7 +396,6 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
         AppLogger.w('Network error detected, allowing retry', 'Subscription');
         _networkFailureCount += 1;
         _scheduleNextRefresh(_computeBackoffDuration());
-        _startNetworkRecoveryProbe();
       }
     }
   }
@@ -375,7 +417,17 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
     _postBillingRefreshTimer?.cancel();
     _postBillingRefreshTimer = Timer(delay, () {
       _postBillingRefreshTimer = null;
-      unawaited(refreshBalance());
+      if (CriticalNetworkActivityCoordinator.instance.isActive) {
+        _deferRefresh(SubscriptionRefreshPriority.postBilling);
+        AppLogger.d(
+          'Post-billing balance refresh deferred for critical network activity',
+          'Subscription',
+        );
+        return;
+      }
+      unawaited(
+        refreshBalance(priority: SubscriptionRefreshPriority.postBilling),
+      );
     });
   }
 
@@ -388,32 +440,61 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
   ///
   /// 刷新进行中收到的新请求不会被丢弃：当前请求结束后再拉取一次，确保生成
   /// 完成时恰逢定时刷新也能拿到扣费后的余额。
-  Future<bool> refreshBalance() {
+  Future<bool> refreshBalance({
+    SubscriptionRefreshPriority priority =
+        SubscriptionRefreshPriority.background,
+  }) {
     if (!ref.read(authNotifierProvider).isAuthenticated) {
+      return Future.value(false);
+    }
+    if (CriticalNetworkActivityCoordinator.instance.isActive) {
+      _deferRefresh(priority);
       return Future.value(false);
     }
 
     final inflightRefresh = _inflightBalanceRefresh;
     if (inflightRefresh != null) {
       _balanceRefreshQueued = true;
+      if (priority.index > _queuedBalanceRefreshPriority.index) {
+        _queuedBalanceRefreshPriority = priority;
+      }
       return inflightRefresh;
     }
 
+    _activeBalanceRefreshPriority = priority;
+    _queuedBalanceRefreshPriority = SubscriptionRefreshPriority.background;
+    final refreshGeneration = _balanceRefreshGeneration;
     late final Future<bool> trackedRefresh;
-    trackedRefresh = _drainBalanceRefreshQueue().whenComplete(() {
-      if (identical(_inflightBalanceRefresh, trackedRefresh)) {
-        _inflightBalanceRefresh = null;
-      }
-    });
+    trackedRefresh = _drainBalanceRefreshQueue(priority, refreshGeneration)
+        .whenComplete(() {
+          if (identical(_inflightBalanceRefresh, trackedRefresh)) {
+            _inflightBalanceRefresh = null;
+            _inflightBalanceRefreshCancelToken = null;
+          }
+        });
     _inflightBalanceRefresh = trackedRefresh;
     return trackedRefresh;
   }
 
-  Future<bool> _drainBalanceRefreshQueue() async {
+  Future<bool> _drainBalanceRefreshQueue(
+    SubscriptionRefreshPriority initialPriority,
+    int refreshGeneration,
+  ) async {
     var latestRefreshSucceeded = false;
+    var currentPriority = initialPriority;
     do {
+      if (CriticalNetworkActivityCoordinator.instance.isActive) {
+        _deferRefresh(currentPriority);
+        _balanceRefreshQueued = false;
+        _lastBalanceRefreshWasPreempted = true;
+        return false;
+      }
       _balanceRefreshQueued = false;
+      _activeBalanceRefreshPriority = currentPriority;
       latestRefreshSucceeded = await _refreshBalanceOnce();
+      if (refreshGeneration != _balanceRefreshGeneration) return false;
+      currentPriority = _queuedBalanceRefreshPriority;
+      _queuedBalanceRefreshPriority = SubscriptionRefreshPriority.background;
     } while (_balanceRefreshQueued);
     return latestRefreshSucceeded;
   }
@@ -422,21 +503,38 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
     // 保持当前状态，静默刷新
     final authSession = ref.read(authNotifierProvider);
     if (!authSession.isAuthenticated) return false;
+    final cancelToken = CancelToken();
+    _inflightBalanceRefreshCancelToken = cancelToken;
+    _lastBalanceRefreshWasPreempted = false;
 
     try {
       final apiService = ref.read(naiUserInfoApiServiceProvider);
       final data = await apiService.getUserSubscription(
         receiveTimeout: _initialFetchTimeout,
+        cancelToken: cancelToken,
       );
       if (!_isCurrentAuthSession(authSession)) return false;
 
       final subscription = UserSubscription.fromJson(data);
       _updateState(SubscriptionState.loaded(subscription));
+      _networkFailureCount = 0;
       return true;
     } catch (e) {
+      if (e is DioException && CancelToken.isCancel(e)) {
+        _lastBalanceRefreshWasPreempted = true;
+        AppLogger.d(
+          'Balance refresh cancelled for critical network activity',
+          'Subscription',
+        );
+        return false;
+      }
       AppLogger.w('Failed to refresh balance: $e', 'Subscription');
       // 刷新失败不更新状态，保持上次数据
       return false;
+    } finally {
+      if (identical(_inflightBalanceRefreshCancelToken, cancelToken)) {
+        _inflightBalanceRefreshCancelToken = null;
+      }
     }
   }
 

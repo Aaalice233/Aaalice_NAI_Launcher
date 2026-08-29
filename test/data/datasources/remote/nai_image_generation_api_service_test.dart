@@ -12,9 +12,11 @@ import 'package:msgpack_dart/msgpack_dart.dart' as msgpack;
 import 'package:nai_launcher/core/constants/api_constants.dart';
 import 'package:nai_launcher/core/network/nai_api_endpoint.dart';
 import 'package:nai_launcher/core/network/nai_api_endpoint_service.dart';
+import 'package:nai_launcher/core/network/critical_network_activity.dart';
 import 'package:nai_launcher/data/datasources/remote/nai_image_enhancement_api_service.dart';
 import 'package:nai_launcher/data/datasources/remote/nai_image_generation_api_service.dart';
 import 'package:nai_launcher/data/models/image/image_params.dart';
+import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 import 'package:nai_launcher/presentation/providers/generation/image_generation_service.dart';
 
 void main() {
@@ -163,6 +165,97 @@ void main() {
 
     adapter.requests.single.completeWithEmptyZip();
     await expectLater(generation, throwsA(isA<Exception>()));
+  });
+
+  test(
+    'proxy multipart read timeout remains a failed generation and releases QoS',
+    () async {
+      final adapter = _PendingDioAdapter();
+      final dio = Dio()..httpClientAdapter = adapter;
+      final endpointService = NaiApiEndpointService();
+      final networkActivity = CriticalNetworkActivityCoordinator();
+      final service = NAIImageGenerationApiService(
+        dio,
+        NAIImageEnhancementApiService(dio, endpointService),
+        endpointService,
+        networkActivity,
+      );
+
+      final generation = service.generateImage(
+        const ImageParams(prompt: 'slow multipart contract'),
+      );
+      await _waitForRequestCount(adapter, 1);
+      expect(networkActivity.isActive, isTrue);
+      adapter.requests.single.completeWithStatus(
+        400,
+        'failed to read multipart part: multipart: NextPart: '
+        'read tcp 10.5.218.109:3000->10.4.100.238:50298: i/o timeout',
+      );
+
+      await expectLater(
+        generation,
+        throwsA(
+          isA<DioException>().having(
+            (error) {
+              final data = error.response?.data;
+              return data is List<int> ? utf8.decode(data) : data.toString();
+            },
+            'response body',
+            contains('multipart: NextPart'),
+          ),
+        ),
+      );
+      expect(networkActivity.isActive, isFalse);
+    },
+  );
+
+  test('generation retains its lease across nested vibe encoding', () async {
+    final adapter = _PendingDioAdapter();
+    final dio = Dio()..httpClientAdapter = adapter;
+    final endpointService = NaiApiEndpointService();
+    final networkActivity = CriticalNetworkActivityCoordinator();
+    final enhancementService = NAIImageEnhancementApiService(
+      dio,
+      endpointService,
+      networkActivity,
+    );
+    final service = NAIImageGenerationApiService(
+      dio,
+      enhancementService,
+      endpointService,
+      networkActivity,
+    );
+
+    final generation = service.generateImage(
+      ImageParams(
+        prompt: 'nested vibe lease',
+        model: ImageModels.animeDiffusionV4Full,
+        vibeReferencesV4: [
+          VibeReference(
+            displayName: 'raw',
+            vibeEncoding: '',
+            rawImageData: Uint8List.fromList(const [1, 2, 3]),
+          ),
+        ],
+      ),
+    );
+    await _waitForRequestCount(adapter, 1);
+    expect(networkActivity.activeTypes, {
+      CriticalNetworkActivityType.imageGeneration,
+      CriticalNetworkActivityType.vibeEncoding,
+    });
+
+    adapter.requests.single.response.complete(
+      ResponseBody.fromBytes(const [4, 5, 6], 200),
+    );
+    await _waitForRequestCount(adapter, 2);
+    expect(networkActivity.activeTypes, {
+      CriticalNetworkActivityType.imageGeneration,
+    });
+
+    adapter.requests[1].completeWithEmptyZip();
+    await expectLater(generation, throwsA(isA<Exception>()));
+    expect(networkActivity.isActive, isFalse);
   });
 
   test('completed older request must not clear newer cancel token', () async {
@@ -1174,6 +1267,18 @@ class _PendingRequest {
 
   void completeWithError(Object error) {
     response.completeError(error);
+  }
+
+  void completeWithStatus(int statusCode, String body) {
+    response.complete(
+      ResponseBody.fromString(
+        body,
+        statusCode,
+        headers: {
+          Headers.contentTypeHeader: ['text/plain; charset=utf-8'],
+        },
+      ),
+    );
   }
 }
 

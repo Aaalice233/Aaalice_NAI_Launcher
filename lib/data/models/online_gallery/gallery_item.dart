@@ -1,4 +1,5 @@
 import 'artist_chain.dart';
+import 'gallery_media_capability.dart';
 import 'gallery_source.dart';
 
 class GalleryMedia {
@@ -12,7 +13,7 @@ class GalleryMedia {
     this.extension,
     this.mimeType,
     this.rawMetadata,
-    this.mediaType = 'image',
+    this.mediaType = 'unknown',
     this.prompt,
     this.negativePrompt,
     this.metadataFormat,
@@ -39,6 +40,15 @@ class GalleryMedia {
   bool get hasKnownDimensions => width > 0 && height > 0;
   double get aspectRatio => hasKnownDimensions ? width / height : 1;
 
+  GalleryMediaCapability get capability => GalleryMediaCapability.resolve(
+    declaredType: mediaType,
+    extension: extension,
+    mimeType: mimeType,
+    previewUrl: previewUrl,
+    displayUrl: displayUrl,
+    downloadUrl: downloadUrl,
+  );
+
   GalleryMedia copyWith({
     String? id,
     String? previewUrl,
@@ -49,6 +59,7 @@ class GalleryMedia {
     String? extension,
     String? mimeType,
     String? rawMetadata,
+    String? mediaType,
   }) {
     return GalleryMedia(
       id: id ?? this.id,
@@ -60,7 +71,7 @@ class GalleryMedia {
       extension: extension ?? this.extension,
       mimeType: mimeType ?? this.mimeType,
       rawMetadata: rawMetadata ?? this.rawMetadata,
-      mediaType: mediaType,
+      mediaType: mediaType ?? this.mediaType,
       prompt: prompt,
       negativePrompt: negativePrompt,
       metadataFormat: metadataFormat,
@@ -228,20 +239,16 @@ class GalleryItem {
   List<String> get metaTags => _splitTags(tagStringMeta);
   String get downloadUrl => cover.downloadUrl;
 
-  bool get isVideo {
-    final extension = fileExt?.toLowerCase();
-    return extension == 'webm' || extension == 'mp4';
-  }
-
-  bool get isAnimated => fileExt?.toLowerCase() == 'gif';
+  GalleryMediaCapability get mediaCapability => cover.capability;
+  bool get isVideo => mediaCapability.isVideo;
+  bool get isAnimated => mediaCapability.isAnimatedImage;
 
   bool get hasValidPreview => previewUrl.isNotEmpty;
   bool get hasFile => downloadUrl.isNotEmpty;
   bool get hasLarge => (largeFileUrl ?? '').isNotEmpty;
   String? get mediaTypeLabel {
-    final extension = fileExt?.toLowerCase();
-    if (extension == 'webm' || extension == 'mp4') return 'Video';
-    if (extension == 'gif') return 'GIF';
+    if (mediaCapability.isVideo) return 'Video';
+    if (mediaCapability.isAnimatedImage) return 'GIF';
     return null;
   }
 

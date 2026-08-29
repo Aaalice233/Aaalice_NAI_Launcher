@@ -37,8 +37,10 @@ class OnlineGallerySelectionActions {
         GalleryViewMode.favorites => state.favoritesSourceId,
       };
 
-  Future<String?> _queueThumbnailPath(String previewUrl) async {
-    if (previewUrl.isEmpty) return null;
+  Future<String?> _queueThumbnailPath(GalleryMedia media) async {
+    final capability = media.capability;
+    if (!capability.canPrefetchPreview) return null;
+    final previewUrl = capability.previewUrl;
     try {
       final file = await OnlineGalleryImageCacheManager.instance.getSingleFile(
         previewUrl,
@@ -92,9 +94,7 @@ class OnlineGallerySelectionActions {
           !hasCharacterPrompt) {
         return (task: null, failed: true);
       }
-      final thumbnailPath = await _queueThumbnailPath(
-        media?.previewUrl ?? post.previewUrl,
-      );
+      final thumbnailPath = await _queueThumbnailPath(media ?? post.cover);
       return (
         task: ReplicationTask.create(
           prompt: projection.positivePrompt,

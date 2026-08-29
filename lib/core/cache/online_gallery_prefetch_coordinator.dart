@@ -1,45 +1,83 @@
 import 'dart:async';
 import 'dart:collection';
 
+import 'package:flutter/foundation.dart';
+
+import '../utils/app_logger.dart';
 import 'gallery_image_request.dart';
 
 typedef GalleryImagePreloader =
-    Future<void> Function(GalleryImageRequest request);
+    GalleryImagePreloadOperation Function(GalleryImageRequest request);
 
-class OnlineGalleryPrefetchCoordinator {
+class GalleryImagePreloadOperation {
+  GalleryImagePreloadOperation({
+    required this.future,
+    required void Function() cancel,
+  }) : _cancel = cancel;
+
+  factory GalleryImagePreloadOperation.fromFuture(Future<void> future) =>
+      GalleryImagePreloadOperation(future: future, cancel: () {});
+
+  final Future<void> future;
+  final void Function() _cancel;
+  bool _cancelled = false;
+
+  bool get isCancelled => _cancelled;
+
+  void cancel() {
+    if (_cancelled) return;
+    _cancelled = true;
+    _cancel();
+  }
+}
+
+enum GalleryPrefetchPauseReason {
+  scrolling,
+  pageHidden,
+  appBackground,
+  criticalNetworkActivity,
+}
+
+class OnlineGalleryPrefetchCoordinator extends ChangeNotifier {
   OnlineGalleryPrefetchCoordinator({
     required GalleryImagePreloader preloader,
     this.maxConcurrent = 4,
     this.maxQueued = 64,
     DateTime Function()? now,
-  }) : _preloader = preloader,
+  }) : assert(maxConcurrent > 0),
+       _preloader = preloader,
        _now = now ?? DateTime.now;
 
   final GalleryImagePreloader _preloader;
   final int maxConcurrent;
   final int maxQueued;
   final DateTime Function() _now;
-
-  final ListQueue<_PrefetchTask> _interactive = ListQueue<_PrefetchTask>();
-  final ListQueue<_PrefetchTask> _hover = ListQueue<_PrefetchTask>();
-  final ListQueue<_PrefetchTask> _visible = ListQueue<_PrefetchTask>();
-  final ListQueue<_PrefetchTask> _lookahead = ListQueue<_PrefetchTask>();
-  final Map<String, _PrefetchTask> _pending = <String, _PrefetchTask>{};
-  final Map<String, _PrefetchTask> _inFlight = <String, _PrefetchTask>{};
-  final LinkedHashMap<String, DateTime> _completedSamples =
-      LinkedHashMap<String, DateTime>();
-  final LinkedHashMap<String, DateTime> _failures =
-      LinkedHashMap<String, DateTime>();
+  final Map<GalleryImagePriority, ListQueue<_PrefetchTask>> _queues = {
+    for (final priority in GalleryImagePriority.values)
+      priority: ListQueue<_PrefetchTask>(),
+  };
+  final Map<String, _PrefetchTask> _pending = {};
+  final Map<String, _PrefetchTask> _inFlight = {};
+  final LinkedHashMap<String, DateTime> _completedSamples = LinkedHashMap();
+  final LinkedHashMap<String, DateTime> _failures = LinkedHashMap();
+  final Set<GalleryPrefetchPauseReason> _pauseReasons = {};
 
   int _generation = 0;
   int _active = 0;
-  bool _lowPriorityPaused = false;
+  int _interactiveStreak = 0;
+  bool _disposed = false;
+  int debugRequestCount = 0;
+  int debugDeduplicatedCount = 0;
+  int debugCancelledCount = 0;
+  int debugNegativeCacheHitCount = 0;
 
   int get generation => _generation;
   int get activeCount => _active;
   int get queueDepth => _pending.length;
-  int debugRequestCount = 0;
-  int debugDeduplicatedCount = 0;
+  bool get isPaused => _pauseReasons.isNotEmpty;
+  bool get isDisposed => _disposed;
+  Set<GalleryPrefetchPauseReason> get pauseReasons =>
+      Set.unmodifiable(_pauseReasons);
 
   bool isSampleReady(GalleryImageRequest request) =>
       _completedSamples.containsKey(request.stableRequestKey);
@@ -55,21 +93,39 @@ class OnlineGalleryPrefetchCoordinator {
   }
 
   void rotateGeneration() {
+    if (_disposed) return;
     _generation++;
-    for (final task in _pending.values) {
-      _completeCancelled(task);
-    }
-    _pending.clear();
-    _interactive.clear();
-    _hover.clear();
-    _visible.clear();
-    _lookahead.clear();
+    _cancelWhere((_) => true, reason: 'generation-rotated');
+    notifyListeners();
   }
 
-  void setScrolling(bool scrolling) {
-    _lowPriorityPaused = scrolling;
-    if (!scrolling) _pump();
-  }
+  void setScrolling(bool scrolling) => _setPause(
+    GalleryPrefetchPauseReason.scrolling,
+    scrolling,
+    cancelPriorities: const {GalleryImagePriority.lookahead},
+  );
+
+  void setPageVisible(bool visible) => _setPause(
+    GalleryPrefetchPauseReason.pageHidden,
+    !visible,
+    cancelPriorities: GalleryImagePriority.values.toSet(),
+  );
+
+  void setAppForeground(bool foreground) => _setPause(
+    GalleryPrefetchPauseReason.appBackground,
+    !foreground,
+    cancelPriorities: GalleryImagePriority.values.toSet(),
+  );
+
+  void setCriticalNetworkActive(bool active) => _setPause(
+    GalleryPrefetchPauseReason.criticalNetworkActivity,
+    active,
+    cancelPriorities: const {
+      GalleryImagePriority.visible,
+      GalleryImagePriority.hover,
+      GalleryImagePriority.lookahead,
+    },
+  );
 
   /// Cancels queued work for a card that left the active viewport window.
   /// Downloads already handed to the image pipeline are allowed to finish so
@@ -104,36 +160,25 @@ class OnlineGalleryPrefetchCoordinator {
     required GalleryImagePriority priority,
     bool retry = false,
   }) {
+    if (_disposed || !_accepts(priority)) return Future.value(false);
     if (retry) _failures.remove(request.stableRequestKey);
     if (!retry && isNegativelyCached(request)) {
-      return Future<bool>.value(false);
+      debugNegativeCacheHitCount++;
+      return Future.value(false);
     }
     if (request.tier == GalleryImageTier.sample && isSampleReady(request)) {
-      return Future<bool>.value(true);
+      return Future.value(true);
     }
     final key = request.stableRequestKey;
-    final existing = _pending[key];
-    if (existing != null) {
+    final existing = _pending[key] ?? _inFlight[key];
+    if (existing != null && !existing.cancelled) {
       debugDeduplicatedCount++;
-      if (priority.index < existing.priority.index) {
-        _removeFromQueue(existing);
+      if (_pending[key] != null && priority.index < existing.priority.index) {
+        _queues[existing.priority]!.remove(existing);
         existing.priority = priority;
-        _queueFor(priority).add(existing);
+        _queues[priority]!.add(existing);
       }
       return existing.completer.future;
-    }
-    final active = _inFlight[key];
-    if (active != null) {
-      debugDeduplicatedCount++;
-      if (active.generation == _generation) return active.completer.future;
-      final submittedGeneration = _generation;
-      return active.downloadCompleter.future.then((downloaded) {
-        if (!downloaded || submittedGeneration != _generation) return false;
-        if (request.tier == GalleryImageTier.sample) {
-          _rememberCompletedSample(key);
-        }
-        return true;
-      });
     }
 
     if (_pending.length >= maxQueued && !_makeRoomFor(priority)) {
@@ -146,25 +191,83 @@ class OnlineGalleryPrefetchCoordinator {
       generation: _generation,
     );
     _pending[key] = task;
-    _queueFor(priority).add(task);
+    _queues[priority]!.add(task);
     _pump();
     return task.completer.future;
   }
 
-  void dispose() {
-    rotateGeneration();
-    _completedSamples.clear();
-    _failures.clear();
+  void cancel(
+    GalleryImageRequest request, {
+    GalleryImagePriority? priority,
+    String reason = 'request-cancelled',
+  }) {
+    if (_disposed) return;
+    final key = request.stableRequestKey;
+    _cancelWhere(
+      (task) =>
+          task.request.stableRequestKey == key &&
+          (priority == null || task.priority == priority),
+      reason: reason,
+    );
   }
 
-  ListQueue<_PrefetchTask> _queueFor(GalleryImagePriority priority) {
-    return switch (priority) {
-      GalleryImagePriority.interactiveDetail => _interactive,
-      GalleryImagePriority.hover => _hover,
-      GalleryImagePriority.visible => _visible,
-      GalleryImagePriority.lookahead => _lookahead,
-    };
+  @override
+  void dispose() {
+    if (_disposed) return;
+    _disposed = true;
+    _cancelWhere((_) => true, reason: 'disposed');
+    _completedSamples.clear();
+    _failures.clear();
+    super.dispose();
   }
+
+  void _setPause(
+    GalleryPrefetchPauseReason reason,
+    bool paused, {
+    required Set<GalleryImagePriority> cancelPriorities,
+  }) {
+    if (_disposed) return;
+    final changed = paused
+        ? _pauseReasons.add(reason)
+        : _pauseReasons.remove(reason);
+    if (!changed) return;
+    if (paused) {
+      _cancelWhere(
+        (task) => cancelPriorities.contains(task.priority),
+        reason: reason.name,
+      );
+    } else {
+      _pump();
+    }
+    notifyListeners();
+    AppLogger.d(
+      'Gallery prefetch ${paused ? 'paused' : 'resumed'}: '
+          'reason=${reason.name}, queue=$queueDepth, active=$activeCount, '
+          'reasons=${_pauseReasons.map((value) => value.name).join(',')}',
+      'GalleryPrefetch',
+    );
+  }
+
+  bool _accepts(GalleryImagePriority priority) {
+    if (_pauseReasons.contains(GalleryPrefetchPauseReason.pageHidden) ||
+        _pauseReasons.contains(GalleryPrefetchPauseReason.appBackground)) {
+      return false;
+    }
+    if (_pauseReasons.contains(
+          GalleryPrefetchPauseReason.criticalNetworkActivity,
+        ) &&
+        priority != GalleryImagePriority.interactiveDetail) {
+      return false;
+    }
+    if (_pauseReasons.contains(GalleryPrefetchPauseReason.scrolling) &&
+        priority == GalleryImagePriority.lookahead) {
+      return false;
+    }
+    return true;
+  }
+
+  ListQueue<_PrefetchTask> _queueFor(GalleryImagePriority priority) =>
+      _queues[priority]!;
 
   void _removeFromQueue(_PrefetchTask task) {
     _queueFor(task.priority).remove(task);
@@ -184,28 +287,39 @@ class OnlineGalleryPrefetchCoordinator {
   }
 
   void _completeCancelled(_PrefetchTask task) {
-    if (!task.downloadCompleter.isCompleted) {
-      task.downloadCompleter.complete(false);
-    }
     if (!task.completer.isCompleted) task.completer.complete(false);
   }
 
   _PrefetchTask? _takeNext() {
-    if (_interactive.isNotEmpty) return _interactive.removeFirst();
-    if (_hover.isNotEmpty) return _hover.removeFirst();
-    if (_visible.isNotEmpty) return _visible.removeFirst();
-    if (_lowPriorityPaused) return null;
-    if (_lookahead.isNotEmpty) return _lookahead.removeFirst();
+    final interactive = _queues[GalleryImagePriority.interactiveDetail]!;
+    final visible = _queues[GalleryImagePriority.visible]!;
+    if (interactive.isNotEmpty && (_interactiveStreak < 3 || visible.isEmpty)) {
+      _interactiveStreak++;
+      return interactive.removeFirst();
+    }
+    if (visible.isNotEmpty) {
+      _interactiveStreak = 0;
+      return visible.removeFirst();
+    }
+    for (final priority in const [
+      GalleryImagePriority.hover,
+      GalleryImagePriority.lookahead,
+    ]) {
+      if (!_accepts(priority)) continue;
+      final queue = _queues[priority]!;
+      if (queue.isNotEmpty) return queue.removeFirst();
+    }
     return null;
   }
 
   void _pump() {
+    if (_disposed) return;
     while (_active < maxConcurrent) {
       final task = _takeNext();
       if (task == null) return;
       final key = task.request.stableRequestKey;
       if (_pending.remove(key) != task || task.generation != _generation) {
-        if (!task.completer.isCompleted) task.completer.complete(false);
+        _completeCancelled(task);
         continue;
       }
       _active++;
@@ -218,34 +332,69 @@ class OnlineGalleryPrefetchCoordinator {
   Future<void> _run(_PrefetchTask task) async {
     final key = task.request.stableRequestKey;
     try {
-      await _preloader(task.request);
-      if (!task.downloadCompleter.isCompleted) {
-        task.downloadCompleter.complete(true);
-      }
-      if (task.generation != _generation) {
-        if (!task.completer.isCompleted) task.completer.complete(false);
+      final operation = _preloader(task.request);
+      task.operation = operation;
+      if (task.cancelled) operation.cancel();
+      await operation.future;
+      if (task.cancelled ||
+          task.generation != _generation ||
+          operation.isCancelled) {
+        _completeCancelled(task);
         return;
       }
       if (task.request.tier == GalleryImageTier.sample) {
         _rememberCompletedSample(key);
       }
       if (!task.completer.isCompleted) task.completer.complete(true);
-    } catch (_) {
-      if (task.generation == _generation) {
+    } catch (error) {
+      if (!task.cancelled && task.generation == _generation) {
         _failures.remove(key);
         _failures[key] = _now();
         while (_failures.length > 500) {
           _failures.remove(_failures.keys.first);
         }
-      }
-      if (!task.downloadCompleter.isCompleted) {
-        task.downloadCompleter.complete(false);
+        AppLogger.d(
+          'Gallery prefetch failed: source=${task.request.sourceKey}, '
+              'tier=${task.request.tier.name}, '
+              'errorType=${error.runtimeType}',
+          'GalleryPrefetch',
+        );
       }
       if (!task.completer.isCompleted) task.completer.complete(false);
     } finally {
-      _inFlight.remove(key);
+      if (_inFlight[key] == task) _inFlight.remove(key);
       _active--;
       _pump();
+    }
+  }
+
+  void _cancelWhere(
+    bool Function(_PrefetchTask task) predicate, {
+    required String reason,
+  }) {
+    var cancelled = 0;
+    for (final task in _pending.values.toList()) {
+      if (!predicate(task)) continue;
+      _pending.remove(task.request.stableRequestKey);
+      _queues[task.priority]!.remove(task);
+      task.cancelled = true;
+      _completeCancelled(task);
+      cancelled++;
+    }
+    for (final task in _inFlight.values.toList()) {
+      if (!predicate(task) || task.cancelled) continue;
+      task.cancelled = true;
+      task.operation?.cancel();
+      _completeCancelled(task);
+      cancelled++;
+    }
+    if (cancelled > 0) {
+      debugCancelledCount += cancelled;
+      AppLogger.d(
+        'Gallery prefetch cancelled: reason=$reason, count=$cancelled, '
+            'queue=$queueDepth, active=$activeCount',
+        'GalleryPrefetch',
+      );
     }
   }
 
@@ -269,5 +418,6 @@ class _PrefetchTask {
   GalleryImagePriority priority;
   final int generation;
   final Completer<bool> completer = Completer<bool>();
-  final Completer<bool> downloadCompleter = Completer<bool>();
+  GalleryImagePreloadOperation? operation;
+  bool cancelled = false;
 }

@@ -123,14 +123,15 @@ class GalleryDetailMediaViewer extends StatelessWidget {
     GalleryMedia media,
     int index,
   ) {
-    final imageUrl = galleryMediaDisplayUrl(media);
-    if (imageUrl.isEmpty) return _noImageState(theme, dark: true);
-    final extension = media.extension?.toLowerCase();
-    if (media.mediaType == 'video' ||
-        extension == 'webm' ||
-        extension == 'mp4') {
-      return VideoPlayerWidget(videoUrl: imageUrl);
+    final capability = media.capability;
+    if (capability.isVideo) {
+      final videoUrl = capability.videoUrl;
+      return videoUrl.isEmpty
+          ? _videoPlaceholder(theme)
+          : VideoPlayerWidget(videoUrl: videoUrl);
     }
+    final imageUrl = capability.imageDisplayUrl;
+    if (imageUrl.isEmpty) return _noImageState(theme, dark: true);
 
     return InteractiveViewer(
       minScale: 0.75,
@@ -161,6 +162,20 @@ class GalleryDetailMediaViewer extends StatelessWidget {
       ),
     );
   }
+
+  Widget _videoPlaceholder(ThemeData theme) => Center(
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(Icons.play_circle_outline, color: Colors.white70, size: 54),
+        const SizedBox(height: 10),
+        Text(
+          viewModel.labels.noImageDescription,
+          style: theme.textTheme.bodySmall?.copyWith(color: Colors.white70),
+        ),
+      ],
+    ),
+  );
 
   Widget _imageError(ThemeData theme, GalleryMedia media) {
     return Column(
@@ -259,8 +274,11 @@ class GalleryDetailMediaViewer extends StatelessWidget {
           separatorBuilder: (_, __) => const SizedBox(width: 8),
           itemBuilder: (context, index) {
             final media = viewModel.media[index];
+            final capability = media.capability;
             final selected = index == viewModel.mediaIndex;
-            final previewUrl = galleryMediaPreviewUrl(media);
+            final previewUrl = capability.canPrefetchPreview
+                ? capability.previewUrl
+                : '';
             return Semantics(
               button: true,
               selected: selected,
@@ -288,7 +306,11 @@ class GalleryDetailMediaViewer extends StatelessWidget {
                     ),
                   ),
                   child: previewUrl.isEmpty
-                      ? const Icon(Icons.image_not_supported_outlined)
+                      ? Icon(
+                          capability.isVideo
+                              ? Icons.play_circle_outline
+                              : Icons.image_not_supported_outlined,
+                        )
                       : CachedNetworkImage(
                           imageUrl: previewUrl,
                           cacheManager: OnlineGalleryImageCacheManager.instance,

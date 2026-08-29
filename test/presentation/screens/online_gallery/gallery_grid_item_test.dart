@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/cache/online_gallery_detail_coordinator.dart';
@@ -347,6 +348,58 @@ void main() {
     expect(loadMediaValues.last, isTrue);
     await tester.pump(const Duration(minutes: 1));
     expect(attempts, 4);
+  });
+
+  testWidgets('cancelled background detail stays quiet and scope resumes it', (
+    tester,
+  ) async {
+    final firstAttempt = Completer<GalleryDetail>();
+    final resolvedItem = _item.copyWith(
+      previewFileUrl: 'https://example.test/resolved.jpg',
+    );
+    var calls = 0;
+
+    Future<GalleryDetail> loadDetail(
+      GalleryItem item, {
+      required GalleryDetailPriority priority,
+      bool forceRefresh = false,
+    }) {
+      calls++;
+      return calls == 1
+          ? firstAttempt.future
+          : Future.value(GalleryDetail(item: resolvedItem, media: const []));
+    }
+
+    await tester.pumpWidget(
+      _app(detailRequestScope: 1, loadDetail: loadDetail),
+    );
+    final detector = tester.widget<VisibilityDetector>(
+      find.byType(VisibilityDetector),
+    );
+    detector.onVisibilityChanged?.call(
+      VisibilityInfo(
+        key: detector.key!,
+        size: const Size(200, 200),
+        visibleBounds: const Rect.fromLTWH(0, 0, 200, 200),
+      ),
+    );
+    await tester.pump();
+
+    firstAttempt.completeError(
+      DioException.requestCancelled(
+        requestOptions: RequestOptions(path: '/detail'),
+        reason: 'Gallery paused',
+      ),
+    );
+    await tester.pump();
+    expect(find.text('Retry'), findsNothing);
+
+    await tester.pumpWidget(
+      _app(detailRequestScope: 2, loadDetail: loadDetail),
+    );
+    await tester.pump();
+    expect(calls, 2);
+    expect(find.byKey(const ValueKey('resolved-card')), findsOneWidget);
   });
 }
 

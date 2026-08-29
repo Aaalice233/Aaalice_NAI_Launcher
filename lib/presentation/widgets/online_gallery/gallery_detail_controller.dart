@@ -3,17 +3,19 @@ import 'package:flutter/material.dart';
 
 import '../../../core/cache/gallery_image_request.dart';
 import '../../../core/cache/online_gallery_image_cache_manager.dart';
+import '../../../core/cache/online_gallery_prefetch_coordinator.dart';
 import '../../../data/models/online_gallery/gallery_item.dart';
-import 'gallery_detail_models.dart';
 
 class GalleryDetailController extends ChangeNotifier {
   GalleryDetailController({
     required GalleryItem item,
     required GalleryDetail detail,
     required bool isFavorited,
+    OnlineGalleryPrefetchCoordinator? prefetchCoordinator,
   }) : _item = item,
        _detail = detail,
        _isFavorited = isFavorited,
+       _prefetchCoordinator = prefetchCoordinator,
        mediaIndex = _resolveInitialMediaIndex(item, detail) {
     pageController = PageController(initialPage: mediaIndex);
   }
@@ -30,6 +32,7 @@ class GalleryDetailController extends ChangeNotifier {
   bool queueActionPending = false;
   bool downloadActionPending = false;
   bool _disposed = false;
+  final OnlineGalleryPrefetchCoordinator? _prefetchCoordinator;
 
   bool get isFavorited => _isFavorited;
   List<GalleryMedia> get media => _detail.media;
@@ -85,7 +88,11 @@ class GalleryDetailController extends ChangeNotifier {
   void prefetchAdjacent(BuildContext context, int index) {
     for (final targetIndex in [index - 1, index + 1]) {
       if (targetIndex < 0 || targetIndex >= media.length) continue;
-      final url = galleryMediaDisplayUrl(media[targetIndex]);
+      final target = media[targetIndex];
+      final capability = target.capability;
+      final url = capability.isVideo
+          ? (capability.hasStaticThumbnail ? capability.previewUrl : '')
+          : capability.imageDisplayUrl;
       if (url.isEmpty) continue;
       final request = GalleryImageRequest.forUrl(
         sourceId: _item.sourceId,
@@ -96,9 +103,9 @@ class GalleryDetailController extends ChangeNotifier {
           MediaQuery.sizeOf(context).width,
         ),
       );
-      precacheImage(
-        request.createImageProvider(OnlineGalleryImageCacheManager.instance),
-        context,
+      _prefetchCoordinator?.submit(
+        request,
+        priority: GalleryImagePriority.interactiveDetail,
       );
     }
   }

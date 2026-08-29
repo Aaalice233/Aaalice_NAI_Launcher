@@ -28,6 +28,7 @@ import 'common/card_action_buttons.dart';
 import 'common/image_card_hover_motion.dart';
 import 'online_gallery/online_gallery_hover_controller.dart';
 import 'online_gallery/online_gallery_card_status_overlays.dart';
+import 'online_gallery/coordinated_gallery_image.dart';
 import 'online_gallery/online_gallery_image_placeholder.dart';
 import 'online_gallery/progressive_gallery_image.dart';
 
@@ -72,6 +73,7 @@ class DanbooruPostCard extends StatefulWidget {
   final VoidCallback? onLongPress;
   final OnlineGalleryHoverController? hoverController;
   final VoidCallback? onHoverIntent;
+  final VoidCallback? onHoverDismiss;
   final OnlineGalleryPrefetchCoordinator? imageCoordinator;
   final bool loadMedia;
 
@@ -104,6 +106,7 @@ class DanbooruPostCard extends StatefulWidget {
     this.onLongPress,
     this.hoverController,
     this.onHoverIntent,
+    this.onHoverDismiss,
     this.imageCoordinator,
     this.loadMedia = true,
   });
@@ -164,7 +167,7 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
     if (!widget.loadMedia ||
         (post.width > 0 && post.height > 0) ||
         _resolvedAspectRatio != null ||
-        post.previewUrl.isEmpty) {
+        !post.mediaCapability.canPrefetchPreview) {
       _detachDimensionListener();
       return;
     }
@@ -245,6 +248,7 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
       targetRect: targetRect,
       previewSize: previewSize,
       onIntent: widget.onHoverIntent,
+      onDismissIntent: widget.onHoverDismiss,
       builder: (_) => _HoverPreviewCardInner(
         post: widget.post,
         aspectRatio:
@@ -433,7 +437,9 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
     final pixelRatio = MediaQuery.devicePixelRatioOf(context);
     final gridImageRequest = GalleryImageRequest.forUrl(
       sourceId: widget.post.sourceId,
-      url: widget.post.previewUrl,
+      url: widget.post.mediaCapability.canPrefetchPreview
+          ? widget.post.previewUrl
+          : '',
       tier: GalleryImageTier.thumbnail,
       targetDecodeWidth: GalleryImageSizing.gridTargetWidth(
         layoutWidth: widget.itemWidth,
@@ -516,6 +522,16 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                             const OnlineGalleryImagePlaceholder()
                           else if (gridImageRequest.url.isEmpty)
                             _buildNoImageContent(theme)
+                          else if (widget.imageCoordinator != null)
+                            CoordinatedGalleryImage(
+                              request: gridImageRequest,
+                              coordinator: widget.imageCoordinator!,
+                              placeholder:
+                                  const OnlineGalleryImagePlaceholder(),
+                              errorWidget: const OnlineGalleryImagePlaceholder(
+                                failed: true,
+                              ),
+                            )
                           else
                             CachedNetworkImage(
                               imageUrl: gridImageRequest.url,
@@ -917,17 +933,22 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                                   );
                                 },
                               ),
-                              if (widget.post.hasValidPreview)
+                              if (widget.post.mediaCapability.isFlutterImage &&
+                                  widget
+                                      .post
+                                      .mediaCapability
+                                      .imageDisplayUrl
+                                      .isNotEmpty)
                                 CardActionButtonConfig(
                                   icon: Icons.manage_search_rounded,
                                   tooltip: context
                                       .l10n
                                       .onlineGallery_sendToReversePrompt,
                                   onPressed: () async {
-                                    final imageUrl =
-                                        widget.post.sampleUrl ??
-                                        widget.post.fileUrl ??
-                                        widget.post.previewUrl;
+                                    final imageUrl = widget
+                                        .post
+                                        .mediaCapability
+                                        .imageDisplayUrl;
                                     if (imageUrl.isEmpty) {
                                       AppToast.warning(
                                         context,
@@ -1141,7 +1162,10 @@ class _HoverPreviewCardInnerState
         ? Alignment.topCenter
         : Alignment.center;
 
-    final imageUrl = post.sampleUrl ?? post.largeFileUrl ?? post.previewUrl;
+    final capability = post.mediaCapability;
+    final imageUrl = capability.isVideo
+        ? (capability.hasStaticThumbnail ? capability.previewUrl : '')
+        : capability.imageDisplayUrl;
 
     return Material(
       color: Colors.transparent,
@@ -1176,7 +1200,17 @@ class _HoverPreviewCardInnerState
                   fit: StackFit.expand,
                   children: [
                     ColoredBox(color: theme.colorScheme.surfaceContainerLowest),
-                    if (imageCoordinator != null)
+                    if (imageUrl.isEmpty)
+                      Center(
+                        child: Icon(
+                          post.isVideo
+                              ? Icons.play_circle_outline
+                              : Icons.image_not_supported_outlined,
+                          color: Colors.white70,
+                          size: 48,
+                        ),
+                      )
+                    else if (imageCoordinator != null)
                       ProgressiveGalleryImage(
                         thumbnail: GalleryImageRequest.forUrl(
                           sourceId: post.sourceId,

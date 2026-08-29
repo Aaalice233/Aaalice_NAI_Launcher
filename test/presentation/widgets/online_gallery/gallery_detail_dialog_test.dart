@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +8,7 @@ import 'package:nai_launcher/data/models/online_gallery/gallery_source.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/widgets/online_gallery/gallery_detail_dialog.dart';
 import 'package:nai_launcher/presentation/widgets/online_gallery/gallery_detail_overview_card.dart';
+import 'package:nai_launcher/presentation/widgets/online_gallery/video_player_widget.dart';
 import 'package:nai_launcher/presentation/widgets/tag_chip.dart';
 
 void main() {
@@ -180,6 +182,64 @@ void main() {
       );
     },
   );
+
+  testWidgets('conflicting video metadata renders a stable placeholder', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    const item = GalleryItem(
+      id: 7,
+      workId: '7',
+      sourceId: GallerySourceId.danbooru,
+    );
+    const detail = GalleryDetail(
+      item: item,
+      media: [
+        GalleryMedia(
+          id: 'video-conflict',
+          mediaType: 'video',
+          displayUrl: 'https://example.test/not-a-video.jpg',
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            body: GalleryDetailDialog(
+              item: item,
+              detail: detail,
+              isFavorited: false,
+              favoriteLoading: false,
+              labels: _labels(),
+              onCopyPrompt: () {},
+              onCopyNegativePrompt: () {},
+              onCopyCharacter: (_) {},
+              onCopyAll: () {},
+              onToggleFavorite: () async => true,
+              onOpenSource: () {},
+              onSendToGenerate: () {},
+              onAddToQueue: () async {},
+              onSendToReverse: (_) async {},
+              onDownloadCurrentOriginal: (_) async {},
+              onTagSearch: (_) {},
+              onBlacklistChanged: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byType(VideoPlayerWidget), findsNothing);
+    expect(find.byType(CachedNetworkImage), findsNothing);
+    expect(find.byIcon(Icons.play_circle_outline), findsOneWidget);
+    expect(find.widgetWithText(OutlinedButton, 'Reverse'), findsNothing);
+  });
 
   testWidgets('tag context menu searches one normalized tag', (tester) async {
     tester.view.physicalSize = const Size(1280, 900);

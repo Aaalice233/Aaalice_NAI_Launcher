@@ -14,6 +14,9 @@ GalleryImageRequest _request(
   targetDecodeWidth: 320,
 );
 
+GalleryImagePreloadOperation _operation(Future<void> future) =>
+    GalleryImagePreloadOperation.fromFuture(future);
+
 Future<void> _waitUntil(bool Function() condition) async {
   for (var attempt = 0; attempt < 100; attempt++) {
     if (condition()) return;
@@ -33,7 +36,7 @@ void main() {
         if (active > maxActive) maxActive = active;
         final gate = Completer<void>();
         gates.add(gate);
-        return gate.future.whenComplete(() => active--);
+        return _operation(gate.future.whenComplete(() => active--));
       },
     );
 
@@ -64,7 +67,7 @@ void main() {
         started.add(request.url);
         final gate = Completer<void>();
         gates.add(gate);
-        return gate.future;
+        return _operation(gate.future);
       },
     );
 
@@ -99,7 +102,7 @@ void main() {
       final gate = Completer<void>();
       final coordinator = OnlineGalleryPrefetchCoordinator(
         maxConcurrent: 1,
-        preloader: (_) => gate.future,
+        preloader: (_) => _operation(gate.future),
       );
       final request = _request(1, tier: GalleryImageTier.sample);
 
@@ -126,7 +129,7 @@ void main() {
       final gate = Completer<void>();
       final coordinator = OnlineGalleryPrefetchCoordinator(
         maxConcurrent: 1,
-        preloader: (_) => gate.future,
+        preloader: (_) => _operation(gate.future),
       );
       final running = coordinator.submit(
         _request(1),
@@ -144,39 +147,37 @@ void main() {
     },
   );
 
-  test(
-    'scrolling keeps visible work moving but pauses lookahead work',
-    () async {
-      final started = <String>[];
-      final coordinator = OnlineGalleryPrefetchCoordinator(
-        maxConcurrent: 1,
-        preloader: (request) async => started.add(request.url),
-      );
-      coordinator.setScrolling(true);
+  test('scrolling rejects lookahead but still starts hover work', () async {
+    final started = <String>[];
+    final coordinator = OnlineGalleryPrefetchCoordinator(
+      preloader: (request) =>
+          _operation(Future<void>.sync(() => started.add(request.url))),
+    );
+    coordinator.setScrolling(true);
 
-      final lookahead = coordinator.submit(
-        _request(1),
-        priority: GalleryImagePriority.lookahead,
-      );
-      final visible = coordinator.submit(
-        _request(2),
-        priority: GalleryImagePriority.visible,
-      );
-      await Future<void>.delayed(Duration.zero);
+    final low = coordinator.submit(
+      _request(1),
+      priority: GalleryImagePriority.lookahead,
+    );
+    final hover = coordinator.submit(
+      _request(2, tier: GalleryImageTier.sample),
+      priority: GalleryImagePriority.hover,
+    );
+    await Future<void>.delayed(Duration.zero);
 
-      expect(started, ['https://example.com/2.jpg']);
-      expect(await visible, isTrue);
-      coordinator.setScrolling(false);
-      expect(await lookahead, isTrue);
-    },
-  );
+    expect(started, ['https://example.com/2.jpg']);
+    expect(await hover, isTrue);
+    coordinator.setScrolling(false);
+    expect(await low, isFalse);
+  });
 
   test('moving thumbnail window cancels stale queued requests', () async {
     final gate = Completer<void>();
     final coordinator = OnlineGalleryPrefetchCoordinator(
       maxConcurrent: 1,
-      preloader: (request) =>
-          request.url.endsWith('/0.jpg') ? gate.future : Future<void>.value(),
+      preloader: (request) => _operation(
+        request.url.endsWith('/0.jpg') ? gate.future : Future<void>.value(),
+      ),
     );
     final active = coordinator.submit(
       _request(0),
@@ -208,9 +209,9 @@ void main() {
       maxQueued: 2,
       preloader: (request) {
         started.add(request.url);
-        return request.url.endsWith('/0.jpg')
-            ? gate.future
-            : Future<void>.value();
+        return _operation(
+          request.url.endsWith('/0.jpg') ? gate.future : Future<void>.value(),
+        );
       },
     );
     final active = coordinator.submit(
@@ -247,7 +248,7 @@ void main() {
     'completed sample LRU retains only the latest sixteen requests',
     () async {
       final coordinator = OnlineGalleryPrefetchCoordinator(
-        preloader: (_) async {},
+        preloader: (_) => _operation(Future<void>.value()),
       );
 
       for (var index = 0; index < 17; index++) {
@@ -268,8 +269,9 @@ void main() {
     },
   );
 
-  test('new generation can reuse an old in-flight disk download', () async {
+  test('new generation cancels stale in-flight work on the wire', () async {
     final gates = <Completer<void>>[];
+    var cancels = 0;
     var starts = 0;
     final request = _request(1);
     final coordinator = OnlineGalleryPrefetchCoordinator(
@@ -278,7 +280,15 @@ void main() {
         starts++;
         final gate = Completer<void>();
         gates.add(gate);
-        return gate.future;
+        return GalleryImagePreloadOperation(
+          future: gate.future,
+          cancel: () {
+            cancels++;
+            if (!gate.isCompleted) {
+              gate.completeError(StateError('cancelled'));
+            }
+          },
+        );
       },
     );
 
@@ -291,10 +301,203 @@ void main() {
       request,
       priority: GalleryImagePriority.visible,
     );
-    gates.first.complete();
     expect(await old, isFalse);
+    await _waitUntil(() => gates.length == 2);
+    gates[1].complete();
     expect(await current, isTrue);
-    expect(starts, 1);
+    expect(starts, 2);
+    expect(cancels, 1);
+  });
+
+  test(
+    'stale completion cannot remove the replacement in-flight task',
+    () async {
+      final gates = <Completer<void>>[];
+      final coordinator = OnlineGalleryPrefetchCoordinator(
+        maxConcurrent: 2,
+        preloader: (_) {
+          final gate = Completer<void>();
+          gates.add(gate);
+          return GalleryImagePreloadOperation(
+            future: gate.future,
+            cancel: () {},
+          );
+        },
+      );
+      addTearDown(coordinator.dispose);
+      final request = _request(1);
+
+      final stale = coordinator.submit(
+        request,
+        priority: GalleryImagePriority.visible,
+      );
+      coordinator.rotateGeneration();
+      final replacement = coordinator.submit(
+        request,
+        priority: GalleryImagePriority.visible,
+      );
+      await _waitUntil(() => gates.length == 2);
+
+      gates.first.complete();
+      expect(await stale, isFalse);
+      expect(coordinator.activeCount, 1);
+
+      gates.last.complete();
+      expect(await replacement, isTrue);
+      expect(coordinator.activeCount, 0);
+    },
+  );
+
+  test(
+    'critical activity cancels low-priority work but keeps detail',
+    () async {
+      final cancelled = <String>[];
+      final gates = <String, Completer<void>>{};
+      final coordinator = OnlineGalleryPrefetchCoordinator(
+        preloader: (request) {
+          final gate = Completer<void>();
+          gates[request.url] = gate;
+          return GalleryImagePreloadOperation(
+            future: gate.future,
+            cancel: () {
+              cancelled.add(request.url);
+              if (!gate.isCompleted) {
+                gate.completeError(StateError('cancelled'));
+              }
+            },
+          );
+        },
+      );
+
+      final visible = coordinator.submit(
+        _request(1),
+        priority: GalleryImagePriority.visible,
+      );
+      coordinator.setCriticalNetworkActive(true);
+      expect(await visible, isFalse);
+      expect(cancelled, ['https://example.com/1.jpg']);
+
+      final rejected = coordinator.submit(
+        _request(2),
+        priority: GalleryImagePriority.hover,
+      );
+      final detail = coordinator.submit(
+        _request(3),
+        priority: GalleryImagePriority.interactiveDetail,
+      );
+      expect(await rejected, isFalse);
+      await _waitUntil(() => gates.containsKey('https://example.com/3.jpg'));
+      gates['https://example.com/3.jpg']!.complete();
+      expect(await detail, isTrue);
+    },
+  );
+
+  test('nested pause reasons resume only after every reason clears', () async {
+    final started = <String>[];
+    final coordinator = OnlineGalleryPrefetchCoordinator(
+      preloader: (request) =>
+          _operation(Future<void>.sync(() => started.add(request.url))),
+    );
+
+    coordinator.setPageVisible(false);
+    coordinator.setAppForeground(false);
+    expect(coordinator.pauseReasons, {
+      GalleryPrefetchPauseReason.pageHidden,
+      GalleryPrefetchPauseReason.appBackground,
+    });
+
+    coordinator.setPageVisible(true);
+    expect(coordinator.isPaused, isTrue);
+    expect(
+      await coordinator.submit(
+        _request(1),
+        priority: GalleryImagePriority.interactiveDetail,
+      ),
+      isFalse,
+    );
+
+    coordinator.setAppForeground(true);
+    expect(coordinator.isPaused, isFalse);
+    expect(
+      await coordinator.submit(
+        _request(2),
+        priority: GalleryImagePriority.visible,
+      ),
+      isTrue,
+    );
+    expect(started, ['https://example.com/2.jpg']);
+  });
+
+  test('visible work is not starved by continuous detail work', () async {
+    final started = <String>[];
+    final gates = <Completer<void>>[];
+    final coordinator = OnlineGalleryPrefetchCoordinator(
+      maxConcurrent: 1,
+      preloader: (request) {
+        started.add(request.url);
+        final gate = Completer<void>();
+        gates.add(gate);
+        return _operation(gate.future);
+      },
+    );
+
+    final first = coordinator.submit(
+      _request(0),
+      priority: GalleryImagePriority.interactiveDetail,
+    );
+    final visible = coordinator.submit(
+      _request(9),
+      priority: GalleryImagePriority.visible,
+    );
+    final details = [
+      for (var index = 1; index <= 4; index++)
+        coordinator.submit(
+          _request(index),
+          priority: GalleryImagePriority.interactiveDetail,
+        ),
+    ];
+
+    for (var index = 0; index < 3; index++) {
+      gates[index].complete();
+      await _waitUntil(() => gates.length > index + 1);
+    }
+    expect(started[3], 'https://example.com/9.jpg');
+
+    for (var index = 3; index < 6; index++) {
+      gates[index].complete();
+      if (index < 5) await _waitUntil(() => gates.length > index + 1);
+    }
+    expect(await first, isTrue);
+    expect(await visible, isTrue);
+    expect(await Future.wait(details), everyElement(isTrue));
+  });
+
+  test('dispose cancels active work and rejects future submissions', () async {
+    final gate = Completer<void>();
+    var cancelled = false;
+    final coordinator = OnlineGalleryPrefetchCoordinator(
+      preloader: (_) => GalleryImagePreloadOperation(
+        future: gate.future,
+        cancel: () {
+          cancelled = true;
+          if (!gate.isCompleted) gate.completeError(StateError('cancelled'));
+        },
+      ),
+    );
+    final active = coordinator.submit(
+      _request(1),
+      priority: GalleryImagePriority.visible,
+    );
+    coordinator.dispose();
+    expect(await active, isFalse);
+    expect(cancelled, isTrue);
+    expect(
+      await coordinator.submit(
+        _request(2),
+        priority: GalleryImagePriority.visible,
+      ),
+      isFalse,
+    );
   });
 
   test(
@@ -305,10 +508,12 @@ void main() {
       final request = _request(1, tier: GalleryImageTier.sample);
       final coordinator = OnlineGalleryPrefetchCoordinator(
         now: () => now,
-        preloader: (_) async {
-          attempts++;
-          throw StateError('failed');
-        },
+        preloader: (_) => _operation(
+          Future<void>.sync(() {
+            attempts++;
+            throw StateError('failed');
+          }),
+        ),
       );
 
       expect(
@@ -335,4 +540,45 @@ void main() {
       expect(coordinator.isNegativelyCached(request), isFalse);
     },
   );
+
+  test('cancels one hover request without cancelling visible work', () async {
+    final gates = <String, Completer<void>>{};
+    final cancelled = <String>[];
+    final coordinator = OnlineGalleryPrefetchCoordinator(
+      maxConcurrent: 2,
+      preloader: (request) {
+        final gate = Completer<void>();
+        gates[request.url] = gate;
+        return GalleryImagePreloadOperation(
+          future: gate.future,
+          cancel: () {
+            cancelled.add(request.url);
+            gate.completeError(StateError('cancelled'));
+          },
+        );
+      },
+    );
+    addTearDown(coordinator.dispose);
+    final hoverRequest = _request(1, tier: GalleryImageTier.sample);
+    final visibleRequest = _request(2);
+    final hover = coordinator.submit(
+      hoverRequest,
+      priority: GalleryImagePriority.hover,
+    );
+    final visible = coordinator.submit(
+      visibleRequest,
+      priority: GalleryImagePriority.visible,
+    );
+
+    coordinator.cancel(
+      hoverRequest,
+      priority: GalleryImagePriority.hover,
+      reason: 'hover-dismissed',
+    );
+    expect(await hover, isFalse);
+    expect(cancelled, [hoverRequest.url]);
+
+    gates[visibleRequest.url]!.complete();
+    expect(await visible, isTrue);
+  });
 }

@@ -13,7 +13,8 @@ void main() {
   test('scroll state changes do not notify grid listeners', () {
     final controller = OnlineGalleryScreenController(
       prefetchCoordinator: OnlineGalleryPrefetchCoordinator(
-        preloader: (_) async {},
+        preloader: (_) =>
+            GalleryImagePreloadOperation.fromFuture(Future<void>.value()),
       ),
     );
     addTearDown(controller.dispose);
@@ -94,7 +95,8 @@ void main() {
   test('repeated visibility updates only enter the viewport once', () {
     final controller = OnlineGalleryScreenController(
       prefetchCoordinator: OnlineGalleryPrefetchCoordinator(
-        preloader: (_) async {},
+        preloader: (_) =>
+            GalleryImagePreloadOperation.fromFuture(Future<void>.value()),
       ),
     );
     addTearDown(controller.dispose);
@@ -134,7 +136,8 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     final controller = OnlineGalleryScreenController(
       prefetchCoordinator: OnlineGalleryPrefetchCoordinator(
-        preloader: (_) async {},
+        preloader: (_) =>
+            GalleryImagePreloadOperation.fromFuture(Future<void>.value()),
       ),
     );
     addTearDown(controller.dispose);
@@ -187,7 +190,8 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     final controller = OnlineGalleryScreenController(
       prefetchCoordinator: OnlineGalleryPrefetchCoordinator(
-        preloader: (_) async {},
+        preloader: (_) =>
+            GalleryImagePreloadOperation.fromFuture(Future<void>.value()),
       ),
     );
     addTearDown(controller.dispose);
@@ -225,7 +229,8 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     final controller = OnlineGalleryScreenController(
       prefetchCoordinator: OnlineGalleryPrefetchCoordinator(
-        preloader: (_) async {},
+        preloader: (_) =>
+            GalleryImagePreloadOperation.fromFuture(Future<void>.value()),
       ),
     );
     addTearDown(controller.dispose);
@@ -317,7 +322,8 @@ void main() {
 
       final controller = OnlineGalleryScreenController(
         prefetchCoordinator: OnlineGalleryPrefetchCoordinator(
-          preloader: (_) async {},
+          preloader: (_) =>
+              GalleryImagePreloadOperation.fromFuture(Future<void>.value()),
         ),
       );
       addTearDown(controller.dispose);

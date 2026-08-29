@@ -58,7 +58,10 @@ class TestSubscriptionNotifier extends SubscriptionNotifier {
   }
 
   @override
-  Future<bool> refreshBalance() async => true;
+  Future<bool> refreshBalance({
+    SubscriptionRefreshPriority priority =
+        SubscriptionRefreshPriority.userInitiated,
+  }) async => true;
 }
 
 /// 记录请求与取消状态的假 HTTP 适配器。

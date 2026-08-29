@@ -20,7 +20,11 @@ class GalleryDetailActionPanel extends StatelessWidget {
         media != null &&
         galleryMediaHasOriginal(media) &&
         galleryMediaDownloadUrl(media).isNotEmpty;
-    final canReverse = media != null && actions.sendToReverse != null;
+    final canReverse =
+        media != null &&
+        media.capability.isFlutterImage &&
+        media.capability.imageDisplayUrl.isNotEmpty &&
+        actions.sendToReverse != null;
     final canDownloadAll =
         actions.downloadAll != null && viewModel.media.length > 1;
     const actionStyle = ButtonStyle(

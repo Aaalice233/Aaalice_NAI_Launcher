@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/cache/online_gallery_prefetch_coordinator.dart';
 import '../../../data/models/online_gallery/gallery_item.dart';
 import '../../providers/online_gallery_output_filter_provider.dart';
 import 'gallery_detail_controller.dart';
@@ -42,6 +43,7 @@ class GalleryDetailDialog extends ConsumerStatefulWidget {
     this.onCopyRawArtistFragments,
     this.hasArtistChain,
     this.isOutputFiltered,
+    this.prefetchCoordinator,
   });
 
   final GalleryItem item;
@@ -69,6 +71,7 @@ class GalleryDetailDialog extends ConsumerStatefulWidget {
   final void Function(GalleryMedia media)? onCopyRawArtistFragments;
   final bool Function(GalleryMedia media)? hasArtistChain;
   final bool Function(String tag)? isOutputFiltered;
+  final OnlineGalleryPrefetchCoordinator? prefetchCoordinator;
 
   @override
   ConsumerState<GalleryDetailDialog> createState() =>
@@ -85,6 +88,7 @@ class _GalleryDetailDialogState extends ConsumerState<GalleryDetailDialog> {
       item: widget.item,
       detail: widget.detail,
       isFavorited: widget.isFavorited,
+      prefetchCoordinator: widget.prefetchCoordinator,
     )..addListener(_rebuild);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {

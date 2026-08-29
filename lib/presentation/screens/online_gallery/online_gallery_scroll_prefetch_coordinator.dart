@@ -47,7 +47,9 @@ class OnlineGalleryScrollPrefetchCoordinator {
       OnlineGalleryPreloadPolicy.loadAheadDistance(metrics.viewportDimension);
 
   Future<bool> prepareVisibleMedia(GalleryItem item, double itemWidth) {
-    if (item.previewUrl.isEmpty) return Future<bool>.value(true);
+    if (!item.mediaCapability.canPrefetchPreview) {
+      return Future<bool>.value(true);
+    }
     return controller.prefetchCoordinator.submit(
       imageRequest(
         item,
@@ -72,6 +74,7 @@ class OnlineGalleryScrollPrefetchCoordinator {
       controller.setScrolling(true);
       controller.prefetchCoordinator.setScrolling(true);
       if (startedScrolling) _retainVisibleThumbnailWindow();
+      notifier.cancelLookaheadDetailRequests();
       controller.scrollStopTimer?.cancel();
       controller.scrollStopTimer = Timer(const Duration(milliseconds: 150), () {
         if (!isMounted() || !controller.branchVisible) return;
@@ -193,7 +196,7 @@ class OnlineGalleryScrollPrefetchCoordinator {
       }
       return;
     }
-    final thumbnailRequest = item.previewUrl.isEmpty
+    final thumbnailRequest = !item.mediaCapability.canPrefetchPreview
         ? null
         : imageRequest(
             item,
@@ -255,7 +258,7 @@ class OnlineGalleryScrollPrefetchCoordinator {
       final index = edge + step * controller.scrollDirection;
       if (index < 0 || index >= state.posts.length) continue;
       final item = state.posts[index];
-      if (item.previewUrl.isNotEmpty) {
+      if (item.mediaCapability.canPrefetchPreview) {
         final request = imageRequest(
           item,
           item.previewUrl,
@@ -273,11 +276,37 @@ class OnlineGalleryScrollPrefetchCoordinator {
         detailCount++;
         unawaited(
           notifier
-              .loadDetail(item, priority: GalleryDetailPriority.visible)
+              .loadDetail(item, priority: GalleryDetailPriority.lookahead)
               .then<void>((_) {})
               .catchError((_) {}),
         );
       }
+    }
+    for (final entry in visible.take(12)) {
+      final item = entry.value.item;
+      if (item.isVideo ||
+          item.isAnimated ||
+          !item.mediaCapability.isFlutterImage ||
+          item.sourceId == GallerySourceId.aiTag) {
+        continue;
+      }
+      final sampleUrl = item.sampleUrl ?? item.largeFileUrl;
+      if (sampleUrl == null ||
+          sampleUrl.isEmpty ||
+          sampleUrl == item.previewUrl) {
+        continue;
+      }
+      unawaited(
+        controller.prefetchCoordinator.submit(
+          imageRequest(
+            item,
+            sampleUrl,
+            GalleryImageTier.sample,
+            entry.value.itemWidth,
+          ),
+          priority: GalleryImagePriority.lookahead,
+        ),
+      );
     }
     controller.prefetchCoordinator.retainThumbnailWindow(thumbnailWindow);
   }

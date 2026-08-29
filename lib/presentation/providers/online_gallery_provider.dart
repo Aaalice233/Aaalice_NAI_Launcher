@@ -111,6 +111,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
   int _detailRequestScopeRevision = 0;
   bool _loadMoreClaimed = false;
   int _loadMoreClaimRevision = 0;
+  bool _backgroundNetworkPaused = false;
 
   int get detailRequestScopeRevision => _detailRequestScopeRevision;
 
@@ -118,7 +119,27 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
       _detailCoordinator ??= OnlineGalleryDetailCoordinator(
         loader: (item, cancelToken) =>
             _repository.detail(item, cancelToken: cancelToken),
-      );
+      )..setBackgroundPaused(_backgroundNetworkPaused);
+
+  void setBackgroundNetworkPaused(bool paused) {
+    if (_backgroundNetworkPaused == paused) return;
+    _backgroundNetworkPaused = paused;
+    if (paused) {
+      _loadCoordinator.cancel('Gallery background network paused');
+      if (state.isLoading || state.isLoadingMore) {
+        state = state.copyWith(isLoading: false, isLoadingMore: false);
+      }
+    }
+    _details.setBackgroundPaused(paused);
+    if (!paused) {
+      _detailRequestScopeRevision++;
+      state = state.copyWith();
+    }
+  }
+
+  void cancelLookaheadDetailRequests() {
+    _detailCoordinator?.cancelLookahead();
+  }
 
   OnlineGalleryPaginationService get _pagination =>
       _paginationService ??= OnlineGalleryPaginationService(
@@ -235,6 +256,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     _loadMoreClaimed = false;
     _detailRequestScopeRevision++;
     _detailCoordinator?.cancelQueuedVisible();
+    _detailCoordinator?.cancelLookahead();
     if (state.isLoading || state.isLoadingMore) {
       state = state.copyWith(isLoading: false, isLoadingMore: false);
     }
@@ -323,7 +345,11 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     required bool replace,
     bool restart = false,
   }) async {
-    if (!state.randomEnabled || !state.supportsRandom) return;
+    if (_backgroundNetworkPaused ||
+        !state.randomEnabled ||
+        !state.supportsRandom) {
+      return;
+    }
     if (!replace &&
         (state.isLoading ||
             state.isLoadingMore ||
@@ -772,6 +798,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
   }
 
   Future<void> loadPosts({bool refresh = false}) async {
+    if (_backgroundNetworkPaused) return;
     if (state.randomEnabled) {
       await _loadRandom(replace: refresh);
       return;
@@ -820,13 +847,15 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     }
   }
 
-  Future<void> refresh() {
+  Future<void> refresh() async {
+    if (_backgroundNetworkPaused) return;
     _cancelCurrentRequest();
-    return loadPosts(refresh: true);
+    await loadPosts(refresh: true);
   }
 
   Future<void> retryAppend() async {
-    if (state.randomEnabled ||
+    if (_backgroundNetworkPaused ||
+        state.randomEnabled ||
         state.isLoading ||
         state.isLoadingMore ||
         state.currentCache.appendErrorCode == null) {
@@ -836,7 +865,12 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
   }
 
   Future<void> goToPage(int page) async {
-    if (page < 1 || state.isLoading || state.isLoadingMore) return;
+    if (_backgroundNetworkPaused ||
+        page < 1 ||
+        state.isLoading ||
+        state.isLoadingMore) {
+      return;
+    }
     if (state.viewMode == GalleryViewMode.favorites) {
       await _loadFavorites(refresh: true, targetPage: page);
       return;

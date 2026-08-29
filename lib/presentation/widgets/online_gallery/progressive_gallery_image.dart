@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/cache/gallery_image_request.dart';
 import '../../../core/cache/online_gallery_image_cache_manager.dart';
 import '../../../core/cache/online_gallery_prefetch_coordinator.dart';
+import 'coordinated_gallery_image.dart';
 
 class ProgressiveGalleryImage extends StatefulWidget {
   const ProgressiveGalleryImage({
@@ -33,8 +34,15 @@ class _ProgressiveGalleryImageState extends State<ProgressiveGalleryImage> {
   @override
   void initState() {
     super.initState();
+    widget.coordinator.addListener(_handleCoordinatorChanged);
     _sampleReady = widget.coordinator.isSampleReady(widget.sample);
     _showSampleImmediately = _sampleReady;
+  }
+
+  @override
+  void dispose() {
+    widget.coordinator.removeListener(_handleCoordinatorChanged);
+    super.dispose();
   }
 
   @override
@@ -46,12 +54,26 @@ class _ProgressiveGalleryImageState extends State<ProgressiveGalleryImage> {
   @override
   void didUpdateWidget(ProgressiveGalleryImage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.sample.stableRequestKey != widget.sample.stableRequestKey) {
+    final coordinatorChanged = !identical(
+      oldWidget.coordinator,
+      widget.coordinator,
+    );
+    final sampleChanged =
+        oldWidget.sample.stableRequestKey != widget.sample.stableRequestKey;
+    if (coordinatorChanged) {
+      oldWidget.coordinator.removeListener(_handleCoordinatorChanged);
+      widget.coordinator.addListener(_handleCoordinatorChanged);
+    }
+    if (coordinatorChanged || sampleChanged) {
       _revision++;
       _sampleReady = widget.coordinator.isSampleReady(widget.sample);
       _showSampleImmediately = _sampleReady;
       _requestSample();
     }
+  }
+
+  void _handleCoordinatorChanged() {
+    if (!_sampleReady && !widget.coordinator.isPaused) _requestSample();
   }
 
   void _requestSample() {
@@ -71,12 +93,13 @@ class _ProgressiveGalleryImageState extends State<ProgressiveGalleryImage> {
   @override
   Widget build(BuildContext context) {
     final manager = OnlineGalleryImageCacheManager.instance;
-    final thumbnail = Image(
-      image: widget.thumbnail.createImageProvider(manager),
+    final thumbnail = CoordinatedGalleryImage(
+      request: widget.thumbnail,
+      coordinator: widget.coordinator,
+      priority: GalleryImagePriority.visible,
       fit: widget.fit,
       alignment: widget.alignment,
-      gaplessPlayback: true,
-      errorBuilder: (_, __, ___) => const ColoredBox(
+      errorWidget: const ColoredBox(
         color: Colors.black12,
         child: Center(child: Icon(Icons.broken_image_outlined)),
       ),
