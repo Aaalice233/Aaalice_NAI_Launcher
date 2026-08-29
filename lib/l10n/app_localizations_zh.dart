@@ -12794,6 +12794,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agentSettings_skillsTitle => 'Skills';
 
   @override
+  String get agentSettings_skillsSourceHint =>
+      '当前图片项目中的 Skill 会自动启用；Pi 用户与用户全局 Skill 仅在手动开启后使用。';
+
+  @override
   String get agentSettings_skillTransfer => '导入或导出';
 
   @override
@@ -12841,13 +12845,13 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get agentSettings_sourceWorkspace => '工作区';
+  String get agentSettings_sourceWorkspace => '当前图片项目';
 
   @override
   String get agentSettings_sourcePiUser => 'Pi 用户';
 
   @override
-  String get agentSettings_sourceCommonUser => '共享用户';
+  String get agentSettings_sourceCommonUser => '用户全局';
 
   @override
   String get agentSettings_exportProfileTitle => '导出智能体配置';
@@ -25681,6 +25685,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get agentSettings_skillsTitle => 'Skills';
 
   @override
+  String get agentSettings_skillsSourceHint =>
+      '目前圖片專案中的 Skill 會自動啟用；Pi 使用者與使用者全域 Skill 僅在手動啟用後使用。';
+
+  @override
   String get agentSettings_skillTransfer => '匯入或匯出';
 
   @override
@@ -25728,13 +25736,13 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
-  String get agentSettings_sourceWorkspace => '工作區';
+  String get agentSettings_sourceWorkspace => '目前圖片專案';
 
   @override
   String get agentSettings_sourcePiUser => 'Pi 使用者';
 
   @override
-  String get agentSettings_sourceCommonUser => '共用使用者';
+  String get agentSettings_sourceCommonUser => '使用者全域';
 
   @override
   String get agentSettings_exportProfileTitle => '匯出智慧體設定';

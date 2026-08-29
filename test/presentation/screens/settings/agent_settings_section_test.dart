@@ -16,6 +16,7 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/agent_settings/providers/agent_settings_provider.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/models/prompt_assistant_models.dart';
 import 'package:nai_launcher/presentation/screens/settings/sections/agent/agent_profile_actions.dart';
+import 'package:nai_launcher/presentation/screens/settings/sections/agent/skill_management_panel.dart';
 import 'package:nai_launcher/presentation/screens/settings/sections/agent_settings_section.dart';
 
 class _MemoryLocalStorage extends LocalStorageService {
@@ -55,7 +56,7 @@ class _EmptySkillCatalogService extends SkillCatalogService {
   @override
   Future<SkillCatalogSnapshot> scan({
     required List<SkillRoot> roots,
-    Set<String> disabledSkillIds = const {},
+    Map<String, bool> skillEnabledOverrides = const {},
   }) async => const SkillCatalogSnapshot();
 }
 
@@ -65,7 +66,7 @@ class _ManySkillCatalogService extends SkillCatalogService {
   @override
   Future<SkillCatalogSnapshot> scan({
     required List<SkillRoot> roots,
-    Set<String> disabledSkillIds = const {},
+    Map<String, bool> skillEnabledOverrides = const {},
   }) async => SkillCatalogSnapshot(
     entries: [
       for (var index = 0; index < 100; index++)
@@ -79,7 +80,35 @@ class _ManySkillCatalogService extends SkillCatalogService {
           ),
           source: SkillSource.workspace,
           safePath: 'workspace:/.../skill-$index/SKILL.md',
-          enabled: !disabledSkillIds.contains('skill-$index'),
+          enabled: skillEnabledOverrides['skill-$index'] ?? true,
+        ),
+    ],
+  );
+}
+
+class _SourcedSkillCatalogService extends SkillCatalogService {
+  const _SourcedSkillCatalogService();
+
+  @override
+  Future<SkillCatalogSnapshot> scan({
+    required List<SkillRoot> roots,
+    Map<String, bool> skillEnabledOverrides = const {},
+  }) async => SkillCatalogSnapshot(
+    entries: [
+      for (final source in SkillSource.values)
+        SkillCatalogEntry(
+          id: '${source.name}-skill',
+          skill: HarnessSkill(
+            name: '${source.name}-skill',
+            description: '${source.name} description',
+            content: '${source.name} instructions',
+            filePath: '${source.name}/SKILL.md',
+          ),
+          source: source,
+          safePath: '${source.name}:/.../SKILL.md',
+          enabled:
+              skillEnabledOverrides['${source.name}-skill'] ??
+              source.defaultEnabled,
         ),
     ],
   );
@@ -293,6 +322,89 @@ void main() {
       expect(find.text('已启用 100/100'), findsOneWidget);
       expect(find.byType(SwitchListTile), findsWidgets);
       expect(find.byType(SwitchListTile).evaluate().length, lessThan(100));
+      expect(tester.takeException(), isNull);
+    } finally {
+      await tester.pumpWidget(const SizedBox.shrink());
+      container.dispose();
+      await tester.binding.setSurfaceSize(null);
+      root.deleteSync(recursive: true);
+    }
+  });
+
+  testWidgets('Skills 清晰区分图片项目与用户来源及默认状态', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 820));
+    final root = Directory('tool/.tmp/agent-settings-skill-source-test')
+      ..createSync(recursive: true);
+    final container = ProviderContainer(
+      overrides: [
+        localStorageServiceProvider.overrideWithValue(_MemoryLocalStorage()),
+        secureStorageServiceProvider.overrideWithValue(_MemorySecureStorage()),
+        agentSettingsProvider.overrideWith(
+          (ref) => AgentSettingsNotifier(
+            ref,
+            supportDirectory: root,
+            workspaceDirectory: root,
+            environment: const {},
+            skillCatalogService: const _SourcedSkillCatalogService(),
+          ),
+        ),
+      ],
+    );
+    try {
+      await tester.runAsync(() async {
+        container.read(agentSettingsProvider);
+        for (var attempt = 0; attempt < 100; attempt++) {
+          if (container.read(agentSettingsProvider).initialized) return;
+          await Future<void>.delayed(const Duration(milliseconds: 10));
+        }
+        fail('Agent settings did not initialize.');
+      });
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(
+            locale: Locale('zh'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: SingleChildScrollView(child: SkillManagementPanel()),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('当前图片项目'), findsOneWidget);
+      expect(find.text('Pi 用户'), findsOneWidget);
+      expect(find.text('用户全局'), findsOneWidget);
+      expect(
+        find.text('当前图片项目中的 Skill 会自动启用；Pi 用户与用户全局 Skill 仅在手动开启后使用。'),
+        findsOneWidget,
+      );
+      expect(
+        tester
+            .widget<SwitchListTile>(
+              find.byKey(const ValueKey('agent-skill-workspace-skill')),
+            )
+            .value,
+        isTrue,
+      );
+      expect(
+        tester
+            .widget<SwitchListTile>(
+              find.byKey(const ValueKey('agent-skill-piUser-skill')),
+            )
+            .value,
+        isFalse,
+      );
+      expect(
+        tester
+            .widget<SwitchListTile>(
+              find.byKey(const ValueKey('agent-skill-commonUser-skill')),
+            )
+            .value,
+        isFalse,
+      );
       expect(tester.takeException(), isNull);
     } finally {
       await tester.pumpWidget(const SizedBox.shrink());

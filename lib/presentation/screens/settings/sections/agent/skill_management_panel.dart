@@ -89,6 +89,13 @@ class _SkillManagementPanelState extends ConsumerState<SkillManagementPanel> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          Text(
+            context.l10n.agentSettings_skillsSourceHint,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 10),
           TextField(
             controller: _searchController,
             onChanged: (_) => setState(() {}),
@@ -471,7 +478,7 @@ class _DiagnosticsList extends StatelessWidget {
               leading: const Icon(Icons.layers_outlined),
               title: Text(context.l10n.agentSettings_skillShadowed(entry.id)),
               subtitle: Text(
-                '${entry.safePath}\n'
+                '${_skillSourceLabel(context, entry.source)} · ${entry.safePath}\n'
                 '${context.l10n.agentSettings_preferredSource(_skillSourceLabel(context, entry.shadowedBy!))}',
               ),
             );

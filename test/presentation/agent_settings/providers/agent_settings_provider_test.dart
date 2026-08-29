@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -55,11 +56,44 @@ class _ControlledSkillCatalogService extends SkillCatalogService {
   @override
   Future<SkillCatalogSnapshot> scan({
     required List<SkillRoot> roots,
-    Set<String> disabledSkillIds = const {},
+    Map<String, bool> skillEnabledOverrides = const {},
   }) {
     scanCount++;
     if (scanCount == 1) return Future.value(snapshot);
     return secondScan.future;
+  }
+}
+
+class _QueuedSkillCatalogService extends SkillCatalogService {
+  var scanCount = 0;
+  final pendingScans = <Completer<SkillCatalogSnapshot>>[];
+
+  @override
+  Future<SkillCatalogSnapshot> scan({
+    required List<SkillRoot> roots,
+    Map<String, bool> skillEnabledOverrides = const {},
+  }) {
+    scanCount++;
+    if (scanCount == 1) {
+      return Future.value(_skillSnapshot('initial-project'));
+    }
+    final pending = Completer<SkillCatalogSnapshot>();
+    pendingScans.add(pending);
+    return pending.future;
+  }
+}
+
+class _AllQueuedSkillCatalogService extends SkillCatalogService {
+  final pendingScans = <Completer<SkillCatalogSnapshot>>[];
+
+  @override
+  Future<SkillCatalogSnapshot> scan({
+    required List<SkillRoot> roots,
+    Map<String, bool> skillEnabledOverrides = const {},
+  }) {
+    final pending = Completer<SkillCatalogSnapshot>();
+    pendingScans.add(pending);
+    return pending.future;
   }
 }
 
@@ -169,14 +203,14 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         localStorageServiceProvider.overrideWithValue(storage),
-        secureStorageServiceProvider.overrideWithValue(_MemorySecureStorage()),
-        agentSettingsProvider.overrideWith(
-          (ref) => AgentSettingsNotifier(
-            ref,
-            supportDirectory: temp,
-            workspaceDirectory: temp,
-            environment: const {},
-          ),
+        secureStorageServiceProvider.overrideWithValue(
+          _MemorySecureStorageService(),
+        ),
+        agentProfileServiceProvider.overrideWithValue(
+          _FakeAgentProfileService(_profile()),
+        ),
+        agentSkillCatalogProvider.overrideWithValue(
+          _FakeAgentSkillCatalog(const <AgentSkillDescriptor>[]),
         ),
       ],
     );
@@ -195,6 +229,39 @@ void main() {
     );
     expect(persisted.chat.systemPromptMode, AgentSystemPromptMode.override);
     expect(persisted.chat.customSystemPrompt, 'Replacement prompt');
+  });
+
+  test('persists legacy Agent settings as the current schema', () async {
+    final storage = _MemoryStorage();
+    storage.values[StorageKeys.agentSettingsJson] = jsonEncode({
+      'schemaVersion': 3,
+      'chat': const AgentChatConfig().toJson(),
+      'disabledSkillIds': ['project-off'],
+    });
+    final container = ProviderContainer(
+      overrides: [
+        localStorageServiceProvider.overrideWithValue(storage),
+        secureStorageServiceProvider.overrideWithValue(_MemorySecureStorage()),
+        agentSettingsProvider.overrideWith(
+          (ref) => AgentSettingsNotifier(
+            ref,
+            supportDirectory: temp,
+            workspaceDirectory: temp,
+            environment: const {},
+          ),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await _waitUntilInitialized(container);
+
+    final persisted =
+        jsonDecode(storage.values[StorageKeys.agentSettingsJson]! as String)
+            as Map<String, dynamic>;
+    expect(persisted['schemaVersion'], AgentSettings.currentSchemaVersion);
+    expect(persisted, isNot(contains('disabledSkillIds')));
+    expect(persisted['skillEnabledOverrides'], {'project-off': false});
   });
 
   test(
@@ -261,7 +328,7 @@ void main() {
   );
 
   test(
-    'reloadSkills rebases a stale scan on the latest disabled IDs',
+    'reloadSkills rebases a stale scan on the latest Skill overrides',
     () async {
       final storage = _MemoryStorage();
       storage.values[StorageKeys.agentSettingsJson] = const AgentSettings()
@@ -302,8 +369,278 @@ void main() {
         isFalse,
       );
       expect(
-        container.read(agentSettingsProvider).settings.disabledSkillIds,
-        contains('test-skill'),
+        container
+            .read(agentSettingsProvider)
+            .settings
+            .skillEnabledOverrides['test-skill'],
+        isFalse,
+      );
+    },
+  );
+
+  test(
+    'defaults, explicit choices, new Skills, restart, and project switch persist',
+    () async {
+      final storage = _MemoryStorage();
+      storage.values[StorageKeys.agentSettingsJson] = const AgentSettings()
+          .encode();
+      final projectA = Directory('${temp.path}/project-a');
+      final projectB = Directory('${temp.path}/project-b');
+      final home = Directory('${temp.path}/home');
+      var currentProject = projectA;
+      await _writeSkill(Directory('${projectA.path}/.pi/skills'), 'project-a');
+      await _writeSkill(Directory('${projectB.path}/.pi/skills'), 'project-b');
+      await _writeSkill(
+        Directory('${home.path}/.pi/agent/skills'),
+        'pi-user-skill',
+      );
+      await _writeSkill(
+        Directory('${home.path}/.agents/skills'),
+        'global-skill',
+      );
+
+      ProviderContainer createContainer() => ProviderContainer(
+        overrides: [
+          localStorageServiceProvider.overrideWithValue(storage),
+          secureStorageServiceProvider.overrideWithValue(
+            _MemorySecureStorage(),
+          ),
+          agentSettingsProvider.overrideWith(
+            (ref) => AgentSettingsNotifier(
+              ref,
+              supportDirectory: temp,
+              environment: {'HOME': home.path},
+              workspaceDirectoryResolver: () async => currentProject,
+            ),
+          ),
+        ],
+      );
+
+      var container = createContainer();
+      await _waitUntilInitialized(container);
+      expect(_skillStates(container), {
+        'project-a': true,
+        'pi-user-skill': false,
+        'global-skill': false,
+      });
+
+      final notifier = container.read(agentSettingsProvider.notifier);
+      await notifier.setSkillEnabled('project-a', false);
+      await notifier.setSkillEnabled('global-skill', true);
+      container.dispose();
+
+      container = createContainer();
+      addTearDown(container.dispose);
+      await _waitUntilInitialized(container);
+      expect(_skillStates(container), {
+        'project-a': false,
+        'pi-user-skill': false,
+        'global-skill': true,
+      });
+
+      await _writeSkill(
+        Directory('${projectA.path}/.pi/skills'),
+        'new-project',
+      );
+      await _writeSkill(Directory('${home.path}/.agents/skills'), 'new-global');
+      await container.read(agentSettingsProvider.notifier).reloadSkills();
+      expect(_skillStates(container), {
+        'project-a': false,
+        'new-project': true,
+        'pi-user-skill': false,
+        'global-skill': true,
+        'new-global': false,
+      });
+
+      currentProject = projectB;
+      await container
+          .read(agentSettingsProvider.notifier)
+          .handleImageProjectChanged();
+      expect(_skillStates(container), {
+        'project-b': true,
+        'pi-user-skill': false,
+        'global-skill': true,
+        'new-global': false,
+      });
+    },
+  );
+
+  test(
+    'latest image project wins when Skill scans finish out of order',
+    () async {
+      final storage = _MemoryStorage();
+      storage.values[StorageKeys.agentSettingsJson] = const AgentSettings()
+          .encode();
+      final catalog = _QueuedSkillCatalogService();
+      var currentProject = Directory('${temp.path}/initial');
+      final container = ProviderContainer(
+        overrides: [
+          localStorageServiceProvider.overrideWithValue(storage),
+          secureStorageServiceProvider.overrideWithValue(
+            _MemorySecureStorage(),
+          ),
+          agentSettingsProvider.overrideWith(
+            (ref) => AgentSettingsNotifier(
+              ref,
+              supportDirectory: temp,
+              environment: const {},
+              skillCatalogService: catalog,
+              workspaceDirectoryResolver: () => Future.value(currentProject),
+            ),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      await _waitUntilInitialized(container);
+
+      currentProject = Directory('${temp.path}/project-a');
+      final projectARefresh = container
+          .read(agentSettingsProvider.notifier)
+          .handleImageProjectChanged();
+      await _waitForPendingScans(catalog, 1);
+      currentProject = Directory('${temp.path}/project-b');
+      final projectBRefresh = container
+          .read(agentSettingsProvider.notifier)
+          .handleImageProjectChanged();
+      await _waitForPendingScans(catalog, 2);
+
+      catalog.pendingScans[1].complete(_skillSnapshot('project-b'));
+      await projectBRefresh;
+      catalog.pendingScans[0].complete(_skillSnapshot('project-a'));
+      await projectARefresh;
+
+      expect(_skillStates(container), {'project-b': true});
+      expect(container.read(agentSettingsProvider).refreshingSkills, isFalse);
+    },
+  );
+
+  test(
+    'image project changes during initialization trigger a final rescan',
+    () async {
+      final storage = _MemoryStorage();
+      storage.values[StorageKeys.agentSettingsJson] = const AgentSettings()
+          .encode();
+      final catalog = _AllQueuedSkillCatalogService();
+      var currentProject = Directory('${temp.path}/project-a');
+      final container = ProviderContainer(
+        overrides: [
+          localStorageServiceProvider.overrideWithValue(storage),
+          secureStorageServiceProvider.overrideWithValue(
+            _MemorySecureStorage(),
+          ),
+          agentSettingsProvider.overrideWith(
+            (ref) => AgentSettingsNotifier(
+              ref,
+              supportDirectory: temp,
+              environment: const {},
+              skillCatalogService: catalog,
+              workspaceDirectoryResolver: () => Future.value(currentProject),
+            ),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      container.read(agentSettingsProvider);
+      await _waitForAllQueuedScans(catalog, 1);
+
+      currentProject = Directory('${temp.path}/project-b');
+      await container
+          .read(agentSettingsProvider.notifier)
+          .handleImageProjectChanged();
+      catalog.pendingScans[0].complete(_skillSnapshot('project-a'));
+      await _waitForAllQueuedScans(catalog, 2);
+      catalog.pendingScans[1].complete(_skillSnapshot('project-b'));
+
+      await _waitForSkillStates(container, {'project-b': true});
+      expect(container.read(agentSettingsProvider).initialized, isTrue);
+    },
+  );
+
+  test(
+    'profile import cannot restore Skills from an old image project',
+    () async {
+      final storage = _MemoryStorage();
+      storage.values[StorageKeys.agentSettingsJson] = const AgentSettings()
+          .encode();
+      final catalog = _QueuedSkillCatalogService();
+      var currentProject = Directory('${temp.path}/project-a');
+      final container = ProviderContainer(
+        overrides: [
+          localStorageServiceProvider.overrideWithValue(storage),
+          secureStorageServiceProvider.overrideWithValue(
+            _MemorySecureStorage(),
+          ),
+          agentSettingsProvider.overrideWith(
+            (ref) => AgentSettingsNotifier(
+              ref,
+              supportDirectory: temp,
+              environment: const {},
+              skillCatalogService: catalog,
+              workspaceDirectoryResolver: () => Future.value(currentProject),
+            ),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      await _waitUntilInitialized(container);
+
+      final replacement = container
+          .read(agentSettingsProvider.notifier)
+          .replaceSettings(const AgentSettings());
+      await _waitForPendingScans(catalog, 1);
+      currentProject = Directory('${temp.path}/project-b');
+      final projectRefresh = container
+          .read(agentSettingsProvider.notifier)
+          .handleImageProjectChanged();
+      await _waitForPendingScans(catalog, 2);
+      catalog.pendingScans[1].complete(_skillSnapshot('project-b'));
+      await projectRefresh;
+      catalog.pendingScans[0].complete(_skillSnapshot('project-a'));
+      await _waitForPendingScans(catalog, 3);
+      catalog.pendingScans[2].complete(_skillSnapshot('project-b'));
+      await replacement;
+
+      expect(_skillStates(container), {'project-b': true});
+    },
+  );
+
+  test(
+    'image project refresh consumes scan errors after exposing them',
+    () async {
+      final storage = _MemoryStorage();
+      storage.values[StorageKeys.agentSettingsJson] = const AgentSettings()
+          .encode();
+      final catalog = _ControlledSkillCatalogService();
+      final container = ProviderContainer(
+        overrides: [
+          localStorageServiceProvider.overrideWithValue(storage),
+          secureStorageServiceProvider.overrideWithValue(
+            _MemorySecureStorage(),
+          ),
+          agentSettingsProvider.overrideWith(
+            (ref) => AgentSettingsNotifier(
+              ref,
+              supportDirectory: temp,
+              workspaceDirectory: temp,
+              environment: const {},
+              skillCatalogService: catalog,
+            ),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      await _waitUntilInitialized(container);
+
+      final refresh = container
+          .read(agentSettingsProvider.notifier)
+          .handleImageProjectChanged();
+      await _waitForScanCount(catalog, 2);
+      catalog.secondScan.completeError(StateError('scan failed'));
+
+      await expectLater(refresh, completes);
+      expect(
+        container.read(agentSettingsProvider).error,
+        contains('scan failed'),
       );
     },
   );
@@ -492,6 +829,25 @@ void main() {
   );
 }
 
+Map<String, bool> _skillStates(ProviderContainer container) => {
+  for (final entry
+      in container.read(agentSettingsProvider).skills.effectiveEntries)
+    entry.id: entry.enabled,
+};
+
+Future<void> _writeSkill(Directory root, String name) async {
+  final directory = Directory('${root.path}${Platform.pathSeparator}$name');
+  await directory.create(recursive: true);
+  await File(
+    '${directory.path}${Platform.pathSeparator}SKILL.md',
+  ).writeAsString('''---
+name: $name
+description: $name test Skill
+---
+$name instructions.
+''');
+}
+
 class _MemorySecureStorage extends SecureStorageService {
   @override
   Future<String?> getAgentWebAccessExaApiKey() async => null;
@@ -504,3 +860,69 @@ Future<void> _waitUntilInitialized(ProviderContainer container) async {
   }
   fail('Agent settings did not initialize.');
 }
+
+Future<void> _waitForPendingScans(
+  _QueuedSkillCatalogService catalog,
+  int count,
+) async {
+  for (var attempt = 0; attempt < 100; attempt++) {
+    if (catalog.pendingScans.length >= count) return;
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+  }
+  fail('Expected $count pending Skill scans.');
+}
+
+Future<void> _waitForScanCount(
+  _ControlledSkillCatalogService catalog,
+  int count,
+) async {
+  for (var attempt = 0; attempt < 100; attempt++) {
+    if (catalog.scanCount >= count) return;
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+  }
+  fail('Expected $count Skill scans.');
+}
+
+Future<void> _waitForAllQueuedScans(
+  _AllQueuedSkillCatalogService catalog,
+  int count,
+) async {
+  for (var attempt = 0; attempt < 100; attempt++) {
+    if (catalog.pendingScans.length >= count) return;
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+  }
+  fail('Expected $count queued Skill scans.');
+}
+
+Future<void> _waitForSkillStates(
+  ProviderContainer container,
+  Map<String, bool> expected,
+) async {
+  for (var attempt = 0; attempt < 100; attempt++) {
+    if (_mapsEqual(_skillStates(container), expected)) return;
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+  }
+  fail('Expected Skill states $expected, got ${_skillStates(container)}.');
+}
+
+bool _mapsEqual(Map<String, bool> left, Map<String, bool> right) {
+  if (left.length != right.length) return false;
+  return left.entries.every((entry) => right[entry.key] == entry.value);
+}
+
+SkillCatalogSnapshot _skillSnapshot(String id) => SkillCatalogSnapshot(
+  entries: [
+    SkillCatalogEntry(
+      id: id,
+      skill: HarnessSkill(
+        name: id,
+        description: '$id description',
+        content: '$id instructions',
+        filePath: '$id/SKILL.md',
+      ),
+      source: SkillSource.workspace,
+      safePath: 'workspace:/$id/SKILL.md',
+      enabled: true,
+    ),
+  ],
+);

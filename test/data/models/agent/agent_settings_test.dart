@@ -18,14 +18,14 @@ void main() {
           permissionMode: AgentPermissionMode.safe,
           webAccessEnabled: false,
         ),
-        disabledSkillIds: {'demo'},
+        skillEnabledOverrides: {'demo': false, 'global-demo': true},
       );
 
       final decoded = AgentSettings.decode(jsonEncode(settings.toJson()));
       expect(decoded.chat.modelReference, settings.chat.modelReference);
       expect(decoded.chat.customSystemPrompt, settings.chat.customSystemPrompt);
       expect(decoded.chat.systemPromptMode, AgentSystemPromptMode.override);
-      expect(decoded.disabledSkillIds, settings.disabledSkillIds);
+      expect(decoded.skillEnabledOverrides, settings.skillEnabledOverrides);
       expect(
         settings.toJson()['schemaVersion'],
         AgentSettings.currentSchemaVersion,
@@ -70,7 +70,7 @@ void main() {
           jsonEncode(const {
             'schemaVersion': 99,
             'chat': <String, Object?>{},
-            'disabledSkillIds': <String>[],
+            'skillEnabledOverrides': <String, bool>{},
           }),
         ),
         throwsFormatException,
@@ -86,6 +86,40 @@ void main() {
         ),
         throwsFormatException,
       );
+    });
+
+    test('migrates legacy disabled IDs into explicit false overrides', () {
+      final legacy = AgentSettings.decode(
+        jsonEncode({
+          'schemaVersion': 3,
+          'chat': const AgentChatConfig().toJson(),
+          'disabledSkillIds': ['project-off', 'global-off'],
+        }),
+      );
+
+      expect(legacy.skillEnabledOverrides, {
+        'project-off': false,
+        'global-off': false,
+      });
+      expect(legacy.toJson(), isNot(contains('disabledSkillIds')));
+    });
+
+    test('rejects invalid explicit Skill preferences', () {
+      for (final preferences in [
+        {'INVALID': true},
+        {'valid': 'true'},
+      ]) {
+        expect(
+          () => AgentSettings.decode(
+            jsonEncode({
+              'schemaVersion': AgentSettings.currentSchemaVersion,
+              'chat': const AgentChatConfig().toJson(),
+              'skillEnabledOverrides': preferences,
+            }),
+          ),
+          throwsFormatException,
+        );
+      }
     });
 
     test('migrates chat_default without copying provider credentials', () {

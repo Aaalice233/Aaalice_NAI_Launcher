@@ -73,11 +73,13 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     JsonlSessionRepo? sessionRepo,
     AgentWireCompletion? completeRequest,
     Map<String, String>? skillEnvironment,
+    Future<Directory?> Function()? imageProjectDirectoryResolver,
   }) : _providedSupportDir = supportDir,
        _providedWorkspaceDir = workspaceDir,
        _providedSessionRepo = sessionRepo,
        _completeRequest = completeRequest,
        _skillEnvironment = skillEnvironment,
+       _imageProjectDirectoryResolver = imageProjectDirectoryResolver,
        super(const AgentChatState()) {
     _ref.listen<WebAccessConfigState>(webAccessConfigProvider, (_, _) {
       unawaited(_refreshWebAccessTools());
@@ -110,6 +112,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
   final JsonlSessionRepo? _providedSessionRepo;
   final AgentWireCompletion? _completeRequest;
   final Map<String, String>? _skillEnvironment;
+  final Future<Directory?> Function()? _imageProjectDirectoryResolver;
   late Directory _supportDir;
   late Directory _workspaceDir;
   late AgentChatDraftController _draftController;
@@ -172,10 +175,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     Directory? workspaceDir = _providedWorkspaceDir;
     if (workspaceDir == null) {
       try {
-        final exportRoot = await GalleryFolderRepository.instance.getRootPath();
-        if (exportRoot != null && exportRoot.isNotEmpty) {
-          workspaceDir = Directory(exportRoot);
-        }
+        workspaceDir = await _resolveCurrentImageProjectDirectory();
       } catch (e) {
         AppLogger.w('resolve image export dir failed: $e', 'AgentChat');
       }
@@ -338,11 +338,14 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     agent.setSystemPrompt(await _buildSystemPrompt());
   }
 
-  Future<void> _loadSkillsFromDisk({Set<String>? disabledSkillIds}) async {
+  Future<void> _loadSkillsFromDisk({
+    Map<String, bool>? skillEnabledOverrides,
+  }) async {
     try {
       final loaded = await _scanCurrentSkills(
-        disabledSkillIds: disabledSkillIds,
+        skillEnabledOverrides: skillEnabledOverrides,
       );
+      if (!mounted) return;
       _skills.clear();
       _skillDiagnostics
         ..clear()
@@ -354,27 +357,48 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
   }
 
   Future<SkillCatalogSnapshot> _scanCurrentSkills({
-    Set<String>? disabledSkillIds,
-  }) => const SkillCatalogService().scan(
-    roots: SkillCatalogService.roots(
-      workspaceDirectory: _workspaceDir,
-      supportDirectory: _supportDir,
-      environment: _skillEnvironment,
-    ),
-    disabledSkillIds:
-        disabledSkillIds ??
-        _ref.read(agentSettingsProvider).settings.disabledSkillIds,
-  );
+    Map<String, bool>? skillEnabledOverrides,
+  }) async {
+    final resolvedOverrides =
+        skillEnabledOverrides ??
+        _ref.read(agentSettingsProvider).settings.skillEnabledOverrides;
+    Directory? skillWorkspace = _providedWorkspaceDir;
+    if (_providedWorkspaceDir == null) {
+      try {
+        skillWorkspace = await _resolveCurrentImageProjectDirectory();
+      } catch (error) {
+        AppLogger.w(
+          'resolve current image project for Skills failed: $error',
+          'AgentChat',
+        );
+      }
+    }
+    return const SkillCatalogService().scan(
+      roots: SkillCatalogService.roots(
+        workspaceDirectory: skillWorkspace,
+        supportDirectory: _supportDir,
+        environment: _skillEnvironment,
+      ),
+      skillEnabledOverrides: resolvedOverrides,
+    );
+  }
+
+  Future<Directory?> _resolveCurrentImageProjectDirectory() async {
+    final resolver = _imageProjectDirectoryResolver;
+    if (resolver != null) return resolver();
+    final currentRoot = await GalleryFolderRepository.instance.getRootPath();
+    if (currentRoot == null || currentRoot.isEmpty) return null;
+    return Directory(currentRoot);
+  }
 
   Future<int> reloadSkills() async {
     if (!_usesPresetSkills) {
       await _loadSkillsFromDisk(
-        disabledSkillIds: _activeAgentSettings?.disabledSkillIds,
+        skillEnabledOverrides: _activeAgentSettings?.skillEnabledOverrides,
       );
     }
-    if (mounted) {
-      state = state.copyWith(skills: _skills.values.toList(growable: false));
-    }
+    if (!mounted) return _skills.length;
+    state = state.copyWith(skills: _skills.values.toList(growable: false));
     final agent = _sessionController.agent;
     if (agent != null) {
       final mode = _ref
@@ -393,9 +417,11 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
   }
 
   Future<void> _applyAgentSettings() async {
+    if (!mounted) return;
     _settingsApplyPending = true;
     if (!_runtimeReady || _runActive) return;
     if (!_usesPresetSkills) await _loadSkillsFromDisk();
+    if (!mounted) return;
     _refreshRoute();
     final agent = _sessionControllerValue?.agent;
     if (agent != null) {
@@ -419,12 +445,16 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       _preparingRun || state.status == AgentChatRunStatus.running;
 
   void _queueSettingsRefresh() {
+    if (!mounted) return;
     _settingsApplyPending = true;
     _settingsRefresh = _settingsRefresh
         .catchError((Object error) {
           AppLogger.w('agent settings refresh failed: $error', 'AgentChat');
         })
-        .then((_) => _applyAgentSettings());
+        .then((_) async {
+          if (!mounted) return;
+          await _applyAgentSettings();
+        });
   }
 
   /// 代理 compaction：上下文超阈值时折叠旧消息为摘要消息

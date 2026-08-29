@@ -127,8 +127,13 @@ void main() {
       '${supportDir.path}${Platform.pathSeparator}agent'
       '${Platform.pathSeparator}skills${Platform.pathSeparator}app-only',
     );
+    final piUserSkillDir = Directory(
+      '${supportDir.path}${Platform.pathSeparator}pi-user'
+      '${Platform.pathSeparator}skills${Platform.pathSeparator}user-only',
+    );
     await workspaceSkillDir.create(recursive: true);
     await legacyAppSkillDir.create(recursive: true);
+    await piUserSkillDir.create(recursive: true);
     await File(
       '${workspaceSkillDir.path}${Platform.pathSeparator}SKILL.md',
     ).writeAsString('''---
@@ -145,6 +150,14 @@ description: Must not load from the legacy app directory.
 ---
 Legacy instructions.
 ''');
+    await File(
+      '${piUserSkillDir.path}${Platform.pathSeparator}SKILL.md',
+    ).writeAsString('''---
+name: user-only
+description: Available globally but disabled by default.
+---
+User instructions.
+''');
 
     final storage = _MemoryLocalStorage();
     final provider = StateNotifierProvider<AgentChatNotifier, AgentChatState>((
@@ -154,6 +167,7 @@ Legacy instructions.
         ref,
         supportDir: supportDir,
         workspaceDir: workspaceDir,
+        skillEnvironment: const {},
       );
     });
     final container = ProviderContainer(
@@ -176,8 +190,75 @@ Legacy instructions.
 
     final names = container.read(provider).skills.map((skill) => skill.name);
     expect(names, contains('workspace-only'));
+    expect(names, isNot(contains('user-only')));
     expect(names, isNot(contains('app-only')));
+
+    await container
+        .read(agentSettingsProvider.notifier)
+        .setSkillEnabled('user-only', true);
+    await _waitForSkill(container, provider, 'user-only');
+    expect(
+      container.read(provider).skills.map((skill) => skill.name),
+      contains('user-only'),
+    );
   });
+
+  test(
+    'replaces injected Skills when the current image project changes',
+    () async {
+      final root = await Directory.systemTemp.createTemp(
+        'agent_chat_project_switch_',
+      );
+      addTearDown(() => root.delete(recursive: true));
+      final supportDir = Directory('${root.path}/support');
+      final projectA = Directory('${root.path}/project-a');
+      final projectB = Directory('${root.path}/project-b');
+      await _writeProjectSkill(projectA, 'project-a-skill');
+      await _writeProjectSkill(projectB, 'project-b-skill');
+      var currentProject = projectA;
+      final storage = _MemoryLocalStorage();
+      final provider = StateNotifierProvider<AgentChatNotifier, AgentChatState>(
+        (ref) {
+          return AgentChatNotifier(
+            ref,
+            supportDir: supportDir,
+            skillEnvironment: const {},
+            imageProjectDirectoryResolver: () => Future.value(currentProject),
+          );
+        },
+      );
+      final container = ProviderContainer(
+        overrides: [
+          localStorageServiceProvider.overrideWithValue(storage),
+          agentSettingsProvider.overrideWith(
+            (ref) => AgentSettingsNotifier(
+              ref,
+              supportDirectory: supportDir,
+              environment: const {},
+              workspaceDirectoryResolver: () => Future.value(currentProject),
+            ),
+          ),
+          secureStorageServiceProvider.overrideWithValue(
+            _MemorySecureStorage(),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      container.read(provider);
+      await _waitForInitialized(container, provider);
+      await _waitForSkill(container, provider, 'project-a-skill');
+
+      currentProject = projectB;
+      await container
+          .read(agentSettingsProvider.notifier)
+          .handleImageProjectChanged();
+      await _waitForSkill(container, provider, 'project-b-skill');
+
+      final names = container.read(provider).skills.map((skill) => skill.name);
+      expect(names, contains('project-b-skill'));
+      expect(names, isNot(contains('project-a-skill')));
+    },
+  );
 
   group('AgentChatNotifier sessions', () {
     late Directory tempDir;
@@ -458,6 +539,22 @@ Legacy instructions.
   });
 }
 
+Future<void> _writeProjectSkill(Directory project, String name) async {
+  final skillDirectory = Directory(
+    '${project.path}${Platform.pathSeparator}.pi'
+    '${Platform.pathSeparator}skills${Platform.pathSeparator}$name',
+  );
+  await skillDirectory.create(recursive: true);
+  await File(
+    '${skillDirectory.path}${Platform.pathSeparator}SKILL.md',
+  ).writeAsString('''---
+name: $name
+description: $name description
+---
+$name instructions.
+''');
+}
+
 class _MemorySecureStorage extends SecureStorageService {
   @override
   Future<String?> getAgentWebAccessExaApiKey() async => null;
@@ -484,6 +581,20 @@ Future<void> _waitForInitialized(
     await Future<void>.delayed(const Duration(milliseconds: 10));
   }
   fail('AgentChatNotifier did not initialize');
+}
+
+Future<void> _waitForSkill(
+  ProviderContainer container,
+  StateNotifierProvider<AgentChatNotifier, AgentChatState> provider,
+  String name,
+) async {
+  for (var attempt = 0; attempt < 200; attempt++) {
+    if (container.read(provider).skills.any((skill) => skill.name == name)) {
+      return;
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+  }
+  fail('AgentChatNotifier did not inject enabled Skill $name');
 }
 
 class _MemoryLocalStorage extends LocalStorageService {
