@@ -94,7 +94,7 @@ class OnlineGalleryDetailLauncher {
           favoriteLoading: galleryState.favoriteLoadingPostKeys.contains(
             stableKey,
           ),
-          prefetchCoordinator: _controller.prefetchCoordinator,
+          prefetchCoordinator: controller?.prefetchCoordinator,
           canToggleFavorite: true,
           labels: GalleryDetailDialogLabels(
             sourceName: item.sourceId == GallerySourceId.quickTagCloud
