@@ -10,7 +10,6 @@ import '../../core/database/database.dart';
 import '../../core/services/warmup_task_scheduler.dart';
 import '../../core/utils/app_logger.dart';
 import '../../data/repositories/gallery_folder_repository.dart';
-import '../../data/services/gallery/unified_gallery_service.dart';
 import 'auth_provider.dart';
 import 'font_provider.dart';
 import 'prompt_config_provider.dart';
@@ -317,41 +316,6 @@ class WarmupNotifier extends _$WarmupNotifier {
         task: _initializeCriticalServices,
       ),
     );
-  }
-
-  /// 启动全局画廊扫描（预热结束后自动调用，不绑定页面）
-  ///
-  /// 这会触发 galleryServiceProvider 的初始化，从而启动后台索引扫描
-  void _startGlobalGalleryScan() {
-    AppLogger.i('[Warmup] 预热完成，启动全局画廊扫描...', 'Warmup');
-
-    // 使用 Future.microtask 延迟到当前帧完成后执行，避免阻塞 UI
-    Future.microtask(() async {
-      try {
-        // 【修复】读取 provider 会触发 GalleryService 的创建和初始化
-        // 但需要等待真正的初始化完成，扫描才会开始
-        var attempts = 0;
-        const maxAttempts = 100; // 最多等待10秒
-
-        while (attempts < maxAttempts) {
-          final service = ref.read(galleryServiceProvider);
-
-          if (service.isInitialized) {
-            AppLogger.i('[Warmup] 画廊服务已就绪，后台扫描进行中', 'Warmup');
-            return;
-          }
-
-          // 服务还在初始化中，等待
-          await Future.delayed(const Duration(milliseconds: 100));
-          attempts++;
-        }
-
-        AppLogger.w('[Warmup] 等待画廊服务初始化超时', 'Warmup');
-      } catch (e) {
-        // 画廊扫描失败不应影响主流程
-        AppLogger.w('[Warmup] 画廊扫描启动失败（非关键）: $e', 'Warmup');
-      }
-    });
   }
 
   /// 开始预热流程。
