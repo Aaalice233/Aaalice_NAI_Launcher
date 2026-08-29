@@ -197,6 +197,15 @@ void main() {
     );
     expect(_railContentWidth(tester), MainNavRail.expandedWidth);
     expect(tester.getCenter(find.byIcon(Icons.brush)), collapsedIconCenter);
+    final sharedLabelAnimation = _labelFade(tester, '画布').opacity;
+    final sharedFadeCount = tester
+        .widgetList<FadeTransition>(
+          find.byType(FadeTransition, skipOffstage: false),
+        )
+        .where((fade) => identical(fade.opacity, sharedLabelAnimation))
+        .length;
+    expect(sharedFadeCount, greaterThan(5));
+    expect(find.byType(AnimatedOpacity), findsNothing);
 
     await tester.tap(find.byKey(const Key('main-nav-toggle')));
     await tester.pump();
@@ -215,6 +224,67 @@ void main() {
     expect(_railWidth(tester), MainNavRail.expandedWidth);
     expect(_labelOpacity(tester, '画布'), 1);
     expect(storage.isExpanded, isTrue);
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.byKey(const Key('main-nav-toggle')));
+    await tester.pump(const Duration(milliseconds: 40));
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('disableAnimations 下切换首帧到达终态', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(620, 600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final navigationShell = _MockNavigationShell();
+    final storage = _FakeMainNavStorage();
+    when(() => navigationShell.currentIndex).thenReturn(1);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          localStorageServiceProvider.overrideWith((ref) => storage),
+          authNotifierProvider.overrideWith(_FakeAuthNotifier.new),
+          accountManagerNotifierProvider.overrideWith(
+            _FakeAccountManagerNotifier.new,
+          ),
+          queueExecutionNotifierProvider.overrideWith(
+            _FakeQueueExecutionNotifier.new,
+          ),
+          replicationQueueNotifierProvider.overrideWith(
+            _FakeReplicationQueueNotifier.new,
+          ),
+        ],
+        child: MaterialApp(
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: MediaQuery(
+            data: const MediaQueryData(
+              size: Size(620, 600),
+              disableAnimations: true,
+            ),
+            child: Scaffold(
+              body: MainNavRail(navigationShell: navigationShell),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final selectedBefore = tester.widget<Icon>(find.byIcon(Icons.folder)).color;
+    await tester.tap(find.byKey(const Key('main-nav-toggle')));
+    await tester.pump();
+
+    expect(_railWidth(tester), MainNavRail.expandedWidth);
+    expect(_labelOpacity(tester, '画布'), 1);
+    expect(
+      tester.widget<Icon>(find.byIcon(Icons.folder)).color,
+      selectedBefore,
+    );
+    verifyNever(() => navigationShell.goBranch(any()));
     expect(tester.takeException(), isNull);
   });
 
@@ -269,10 +339,13 @@ double _railWidth(WidgetTester tester) =>
 double _railContentWidth(WidgetTester tester) =>
     tester.getSize(find.byKey(const Key('main-nav-rail-content'))).width;
 
-double _labelOpacity(WidgetTester tester, String label) {
-  final opacity = find.ancestor(
+FadeTransition _labelFade(WidgetTester tester, String label) {
+  final fade = find.ancestor(
     of: find.text(label),
-    matching: find.byType(AnimatedOpacity),
+    matching: find.byType(FadeTransition),
   );
-  return tester.widget<AnimatedOpacity>(opacity.first).opacity;
+  return tester.widget<FadeTransition>(fade.first);
 }
+
+double _labelOpacity(WidgetTester tester, String label) =>
+    _labelFade(tester, label).opacity.value;
