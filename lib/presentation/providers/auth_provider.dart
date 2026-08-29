@@ -11,7 +11,6 @@ import '../../core/network/nai_api_endpoint_service.dart';
 import '../../core/storage/secure_storage_service.dart';
 import '../../core/utils/app_logger.dart';
 import '../../data/datasources/remote/nai_auth_api_service.dart';
-import '../../data/datasources/remote/nai_user_info_api_service.dart';
 import '../../data/models/auth/saved_account.dart';
 import 'account_manager_provider.dart';
 
@@ -1059,19 +1058,6 @@ class AuthNotifier extends _$AuthNotifier {
     } else {
       state = const AuthState(status: AuthStatus.unauthenticated);
       AppLogger.w('[AuthNotifier] state set to unauthenticated', 'AUTH');
-    }
-  }
-
-  /// 刷新订阅信息
-  Future<void> refreshSubscription() async {
-    if (!state.isAuthenticated) return;
-
-    try {
-      final apiService = ref.read(naiUserInfoApiServiceProvider);
-      final subscriptionInfo = await apiService.getUserSubscription();
-      state = state.copyWith(subscriptionInfo: subscriptionInfo);
-    } catch (e) {
-      AppLogger.e('Failed to refresh subscription: $e');
     }
   }
 

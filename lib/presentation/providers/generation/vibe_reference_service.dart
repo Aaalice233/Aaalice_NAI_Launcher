@@ -253,7 +253,6 @@ final class VibeReferenceService {
         model: model,
         informationExtracted: informationExtracted,
       );
-      _schedulePostBillingRefresh();
       storeCached(
         imageData,
         encoding,
@@ -269,6 +268,8 @@ final class VibeReferenceService {
         'VibeCache',
       );
       return VibeEncodingResult.failed(error);
+    } finally {
+      _schedulePostBillingRefresh();
     }
   }
 

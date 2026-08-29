@@ -257,4 +257,75 @@ void main() {
       expect(calls, 2);
     },
   );
+
+  test('background pause cancels low-priority details and resumes', () async {
+    final item = _item(6);
+    var calls = 0;
+    final coordinator = OnlineGalleryDetailCoordinator(
+      loader: (requested, cancelToken) async {
+        calls++;
+        if (calls == 1) throw await cancelToken.whenCancel;
+        return _detail(requested, 'resumed');
+      },
+    );
+
+    final active = coordinator.request(
+      item,
+      priority: GalleryDetailPriority.lookahead,
+    );
+    coordinator.setBackgroundPaused(true);
+
+    await expectLater(
+      active,
+      throwsA(
+        isA<DioException>().having(
+          (error) => error.type,
+          'type',
+          DioExceptionType.cancel,
+        ),
+      ),
+    );
+    await expectLater(
+      coordinator.request(item, priority: GalleryDetailPriority.visible),
+      throwsA(isA<DioException>()),
+    );
+
+    coordinator.setBackgroundPaused(false);
+    expect(
+      (await coordinator.request(
+        item,
+        priority: GalleryDetailPriority.visible,
+      )).description,
+      'resumed',
+    );
+    expect(calls, 2);
+  });
+
+  test(
+    'scroll cancellation stops lookahead but keeps visible detail',
+    () async {
+      final visibleGate = Completer<GalleryDetail>();
+      final coordinator = OnlineGalleryDetailCoordinator(
+        maxConcurrent: 2,
+        loader: (item, cancelToken) async {
+          if (item.id == 1) return visibleGate.future;
+          throw await cancelToken.whenCancel;
+        },
+      );
+      final visible = coordinator.request(
+        _item(1),
+        priority: GalleryDetailPriority.visible,
+      );
+      final lookahead = coordinator.request(
+        _item(2),
+        priority: GalleryDetailPriority.lookahead,
+      );
+
+      coordinator.cancelLookahead();
+      await expectLater(lookahead, throwsA(isA<DioException>()));
+
+      visibleGate.complete(_detail(_item(1), 'visible'));
+      expect((await visible).description, 'visible');
+    },
+  );
 }

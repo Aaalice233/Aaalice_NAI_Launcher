@@ -242,6 +242,25 @@ void main() {
       },
     );
 
+    test('known video URLs are rejected before image provider creation', () {
+      final generic = GalleryImageRequest.forUrl(
+        url: 'https://example.com/clip.WEBM?token=secret',
+        tier: GalleryImageTier.thumbnail,
+        targetDecodeWidth: 320,
+      );
+      final gelbooru = GalleryImageRequest.gelbooru(
+        url: 'https://img4.gelbooru.com/video/clip.mp4',
+        tier: GalleryImageTier.sample,
+      );
+
+      expect(generic.url, isEmpty);
+      expect(generic.cacheKey, isNull);
+      expect(generic.headers, isEmpty);
+      expect(gelbooru.url, isEmpty);
+      expect(gelbooru.cacheKey, isNull);
+      expect(gelbooru.headers, isEmpty);
+    });
+
     test('toString returns readable representation', () {
       final request = GalleryImageRequest(
         sourceId: 'test',
@@ -252,7 +271,7 @@ void main() {
 
       expect(
         request.toString(),
-        'GalleryImageRequest(test:https://example.com/image.jpg:thumbnail:320)',
+        'GalleryImageRequest(source=test, tier=thumbnail, targetWidth=320)',
       );
     });
   });

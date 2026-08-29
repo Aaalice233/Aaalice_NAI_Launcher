@@ -2,12 +2,13 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/painting.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
+import '../../data/models/online_gallery/gallery_media_capability.dart';
 import '../../data/models/online_gallery/gallery_source.dart';
 import 'online_gallery_image_cache_manager.dart';
 
 enum GalleryImageTier { thumbnail, sample, original }
 
-enum GalleryImagePriority { interactiveDetail, hover, visible, lookahead }
+enum GalleryImagePriority { interactiveDetail, visible, hover, lookahead }
 
 class GalleryImageSizing {
   const GalleryImageSizing._();
@@ -110,11 +111,16 @@ class GalleryImageRequest {
     required GalleryImageTier tier,
     required int targetDecodeWidth,
   }) {
+    final imageUrl = GalleryMediaCapability.isKnownVideoUrl(url) ? '' : url;
     return GalleryImageRequest(
       sourceId: sourceId ?? _sourceIdForUrl(url),
-      url: url,
-      cacheKey: onlineGalleryImageCacheKeyForUrl(url),
-      headers: onlineGalleryImageHeadersForUrl(url),
+      url: imageUrl,
+      cacheKey: imageUrl.isEmpty
+          ? null
+          : onlineGalleryImageCacheKeyForUrl(imageUrl),
+      headers: imageUrl.isEmpty
+          ? const <String, String>{}
+          : onlineGalleryImageHeadersForUrl(imageUrl),
       tier: tier,
       targetDecodeWidth: targetDecodeWidth,
     );
@@ -125,12 +131,16 @@ class GalleryImageRequest {
     required GalleryImageTier tier,
     int? targetDecodeWidth,
   }) {
-    final isGelbooru = Uri.tryParse(url)?.host.contains('gelbooru') == true;
+    final imageUrl = GalleryMediaCapability.isKnownVideoUrl(url) ? '' : url;
+    final isGelbooru =
+        Uri.tryParse(imageUrl)?.host.contains('gelbooru') == true;
     return GalleryImageRequest(
       sourceId: GallerySourceId.gelbooru.key,
-      url: url,
-      cacheKey: isGelbooru ? onlineGalleryImageCacheKeyForUrl(url) : null,
-      headers: isGelbooru ? onlineGalleryImageHeadersForUrl(url) : const {},
+      url: imageUrl,
+      cacheKey: isGelbooru ? onlineGalleryImageCacheKeyForUrl(imageUrl) : null,
+      headers: isGelbooru
+          ? onlineGalleryImageHeadersForUrl(imageUrl)
+          : const {},
       tier: tier,
       targetDecodeWidth: targetDecodeWidth,
     );
@@ -183,5 +193,7 @@ class GalleryImageRequest {
   int get hashCode => stableRequestKey.hashCode;
 
   @override
-  String toString() => 'GalleryImageRequest($stableRequestKey)';
+  String toString() =>
+      'GalleryImageRequest(source=$sourceKey, tier=${tier.name}, '
+      'targetWidth=${targetDecodeWidth ?? 'auto'})';
 }

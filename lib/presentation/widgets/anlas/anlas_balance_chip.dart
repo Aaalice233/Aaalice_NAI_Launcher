@@ -102,7 +102,11 @@ class AnlasBalanceChip extends ConsumerWidget {
     return InkWell(
       onTap: () {
         HapticFeedback.lightImpact();
-        ref.read(subscriptionNotifierProvider.notifier).refreshBalance();
+        ref
+            .read(subscriptionNotifierProvider.notifier)
+            .refreshBalance(
+              priority: SubscriptionRefreshPriority.userInitiated,
+            );
       },
       borderRadius: BorderRadius.circular(8),
       child: _ChipContainer(

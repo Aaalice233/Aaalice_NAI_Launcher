@@ -14,6 +14,7 @@ import '../fixed_tags_provider.dart';
 import '../generation/image_workflow_controller.dart';
 import '../image_generation_provider.dart';
 import '../image_save_settings_provider.dart';
+import '../subscription_provider.dart';
 import 'krita_bridge_service.dart';
 
 typedef KritaBridgeServerFactory = KritaBridgeServer Function();
@@ -329,6 +330,9 @@ final kritaBridgeNotifierProvider =
               ),
           cancelGeneration: () =>
               ref.read(naiImageGenerationApiServiceProvider).cancelGeneration(),
+          schedulePostBillingRefresh: () => ref
+              .read(subscriptionNotifierProvider.notifier)
+              .schedulePostBillingRefresh(),
         ),
       );
       final enabled =

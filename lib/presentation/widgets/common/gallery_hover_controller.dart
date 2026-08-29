@@ -15,6 +15,8 @@ class GalleryHoverController with WidgetsBindingObserver {
   String? _stableKey;
   bool _observingMetrics = false;
   bool _metricsRebuildScheduled = false;
+  VoidCallback? _onDismissIntent;
+  bool _intentStarted = false;
 
   String? get activeStableKey => _stableKey;
   bool get isShowing => _entry != null;
@@ -27,12 +29,13 @@ class GalleryHoverController with WidgetsBindingObserver {
     required Size previewSize,
     required WidgetBuilder builder,
     VoidCallback? onIntent,
+    VoidCallback? onDismissIntent,
     Duration delay = const Duration(milliseconds: 280),
   }) {
-    onIntent?.call();
     dismiss();
     final revision = ++_revision;
     _stableKey = stableKey;
+    _onDismissIntent = onDismissIntent;
     _startObservingMetrics();
     _showTimer = Timer(delay, () {
       if (_revision != revision ||
@@ -40,6 +43,8 @@ class GalleryHoverController with WidgetsBindingObserver {
           !context.mounted) {
         return;
       }
+      _intentStarted = true;
+      onIntent?.call();
       final overlay = Overlay.of(context, rootOverlay: true);
       _entry = OverlayEntry(
         builder: (overlayContext) {
@@ -112,6 +117,9 @@ class GalleryHoverController with WidgetsBindingObserver {
   }
 
   void dismiss() {
+    if (_intentStarted) _onDismissIntent?.call();
+    _intentStarted = false;
+    _onDismissIntent = null;
     _revision++;
     _showTimer?.cancel();
     _showTimer = null;

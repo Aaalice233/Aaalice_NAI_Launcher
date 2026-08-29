@@ -34,6 +34,7 @@ typedef KritaBridgeExternalImageRegistrar =
       bool? addToDisplay,
     });
 typedef KritaBridgeCancelGeneration = void Function();
+typedef KritaBridgePostBillingRefresh = void Function();
 typedef KritaBridgeClock = DateTime Function();
 typedef KritaBridgeActiveRequestReporter = void Function(String? requestId);
 
@@ -71,6 +72,7 @@ class KritaBridgeService implements KritaBridgeMessageService {
     required KritaBridgeFallbackGenerator generateFallback,
     required KritaBridgeExternalImageRegistrar registerExternalImage,
     required KritaBridgeCancelGeneration cancelGeneration,
+    KritaBridgePostBillingRefresh? schedulePostBillingRefresh,
     KritaBridgePromptSnapshotReader? readPromptSnapshot,
     KritaBridgeMinimumContextReader? readMinimumContextPixels,
     KritaBridgeClock? clock,
@@ -87,6 +89,7 @@ class KritaBridgeService implements KritaBridgeMessageService {
        _generateFallback = generateFallback,
        _registerExternalImage = registerExternalImage,
        _cancelGeneration = cancelGeneration,
+       _schedulePostBillingRefresh = schedulePostBillingRefresh ?? _noop,
        _clock = clock ?? DateTime.now,
        _failureCooldown = failureCooldown,
        _readMinimumContextPixels = readMinimumContextPixels ?? (() => 88);
@@ -101,6 +104,7 @@ class KritaBridgeService implements KritaBridgeMessageService {
   final KritaBridgeFallbackGenerator _generateFallback;
   final KritaBridgeExternalImageRegistrar _registerExternalImage;
   final KritaBridgeCancelGeneration _cancelGeneration;
+  final KritaBridgePostBillingRefresh _schedulePostBillingRefresh;
   final KritaBridgeClock _clock;
   final Duration _failureCooldown;
 
@@ -296,12 +300,15 @@ class KritaBridgeService implements KritaBridgeMessageService {
         _sendError(id, code, _publicErrorMessage(code));
       }
     } finally {
+      _schedulePostBillingRefresh();
       _isBridgeGenerating = false;
       _activeRequestId = null;
       _activeRequestReporter?.call(null);
       _cancelled = false;
     }
   }
+
+  static void _noop() {}
 
   Rect? _resolveFocusedSelectionRect(KritaImageParamsMapping mapping) {
     final selection = _toRect(mapping.selectionRect);

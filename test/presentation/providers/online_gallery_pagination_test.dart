@@ -47,6 +47,39 @@ void main() {
     },
   );
 
+  test('background pause cancels gallery page traffic until resume', () async {
+    final started = Completer<void>();
+    var calls = 0;
+    final adapter = _FakeGalleryAdapter(
+      GallerySourceId.danbooru,
+      onSearch: (request, cancelToken) async {
+        calls++;
+        if (calls == 1) {
+          started.complete();
+          throw await cancelToken!.whenCancel;
+        }
+        return _page(request.cursor, [_item(1)], nextCursor: null);
+      },
+    );
+    final container = _container(danbooru: adapter);
+    addTearDown(container.dispose);
+    final notifier = container.read(onlineGalleryNotifierProvider.notifier);
+
+    final active = notifier.loadPosts();
+    await started.future;
+    notifier.setBackgroundNetworkPaused(true);
+    await active;
+    expect(container.read(onlineGalleryNotifierProvider).isLoading, isFalse);
+
+    await notifier.loadPosts();
+    expect(calls, 1);
+
+    notifier.setBackgroundNetworkPaused(false);
+    await notifier.loadPosts();
+    expect(calls, 2);
+    expect(container.read(onlineGalleryNotifierProvider).posts, hasLength(1));
+  });
+
   test(
     'concurrent load-more triggers claim one append synchronously',
     () async {

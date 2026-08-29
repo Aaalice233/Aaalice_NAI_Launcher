@@ -138,6 +138,7 @@ void main() {
         var streamCalls = 0;
         var fallbackCalls = 0;
         var registerCalls = 0;
+        var refreshCalls = 0;
         final service = KritaBridgeService(
           readBaseParams: () => const ImageParams(),
           send: sent.add,
@@ -156,6 +157,7 @@ void main() {
             return null;
           },
           cancelGeneration: () {},
+          schedulePostBillingRefresh: () => refreshCalls++,
         )..setActiveRequestReporter(activeRequests.add);
 
         await service.handle(
@@ -172,6 +174,7 @@ void main() {
         expect(streamCalls, 0);
         expect(fallbackCalls, 0);
         expect(registerCalls, 0);
+        expect(refreshCalls, 0);
         expect(service.isBridgeGenerating, isFalse);
         expect(activeRequests, isEmpty);
         expect(sent, hasLength(1));
@@ -224,6 +227,7 @@ void main() {
     test('rate limits immediate retry after failed Krita request', () async {
       final sent = <Map<String, dynamic>>[];
       var streamCalls = 0;
+      var refreshCalls = 0;
       var now = DateTime.utc(2026, 5, 10, 12);
       final service = KritaBridgeService(
         readBaseParams: () => const ImageParams(),
@@ -238,6 +242,7 @@ void main() {
         registerExternalImage: (_, {required params, addToDisplay}) async =>
             null,
         cancelGeneration: () {},
+        schedulePostBillingRefresh: () => refreshCalls++,
         clock: () => now,
         failureCooldown: const Duration(seconds: 5),
       );
@@ -259,6 +264,7 @@ void main() {
       await sendRequest('img-fail-2');
 
       expect(streamCalls, 1);
+      expect(refreshCalls, 1);
       expect(sent, hasLength(2));
       expect(sent.first['code'], KritaBridgeErrorCode.serverError.value);
       expect(sent.last['id'], 'img-fail-2');
@@ -268,6 +274,7 @@ void main() {
       await sendRequest('img-fail-3');
 
       expect(streamCalls, 2);
+      expect(refreshCalls, 2);
       expect(sent.last['id'], 'img-fail-3');
       expect(sent.last['code'], KritaBridgeErrorCode.serverError.value);
     });
@@ -511,6 +518,7 @@ void main() {
       () async {
         final sent = <Map<String, dynamic>>[];
         final registered = <({Uint8List image, ImageParams params})>[];
+        var refreshCalls = 0;
         late KritaBridgeGenerateRequest capturedRequest;
         final finalImage = Uint8List.fromList([7, 8, 9]);
 
@@ -542,6 +550,7 @@ void main() {
                 return 'G:/AIdarw/generated/krita-result.png';
               },
           cancelGeneration: () {},
+          schedulePostBillingRefresh: () => refreshCalls++,
         );
 
         await service.handle(
@@ -587,6 +596,7 @@ void main() {
         expect(registered, hasLength(1));
         expect(registered.single.image, finalImage);
         expect(registered.single.params.prompt, 'dog');
+        expect(refreshCalls, 1);
       },
     );
 
@@ -893,6 +903,7 @@ void main() {
       () async {
         final sent = <Map<String, dynamic>>[];
         var cancelCalled = false;
+        var refreshCalls = 0;
         final streamController = StreamController<ImageStreamChunk>();
         final service = KritaBridgeService(
           readBaseParams: () => const ImageParams(),
@@ -906,6 +917,7 @@ void main() {
           cancelGeneration: () {
             cancelCalled = true;
           },
+          schedulePostBillingRefresh: () => refreshCalls++,
         );
 
         final generation = service.handle(
@@ -941,6 +953,7 @@ void main() {
 
         await streamController.close();
         await generation;
+        expect(refreshCalls, 1);
       },
     );
 

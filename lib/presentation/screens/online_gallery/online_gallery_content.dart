@@ -466,7 +466,11 @@ class _OnlineGalleryContentPresenter {
           hoverController: _controller.hoverController,
           imageCoordinator: _controller.prefetchCoordinator,
           onHoverIntent: () {
-            if (post.isVideo || post.isAnimated) return;
+            if (post.isVideo ||
+                post.isAnimated ||
+                !post.mediaCapability.isFlutterImage) {
+              return;
+            }
             final sampleUrl =
                 post.sampleUrl ?? post.largeFileUrl ?? post.cover.displayUrl;
             if (sampleUrl.isEmpty) return;
@@ -480,6 +484,26 @@ class _OnlineGalleryContentPresenter {
                 ),
                 priority: GalleryImagePriority.hover,
               ),
+            );
+          },
+          onHoverDismiss: () {
+            if (post.isVideo ||
+                post.isAnimated ||
+                !post.mediaCapability.isFlutterImage) {
+              return;
+            }
+            final sampleUrl =
+                post.sampleUrl ?? post.largeFileUrl ?? post.cover.displayUrl;
+            if (sampleUrl.isEmpty) return;
+            _controller.prefetchCoordinator.cancel(
+              _imageRequest(
+                post,
+                sampleUrl,
+                GalleryImageTier.sample,
+                itemWidth,
+              ),
+              priority: GalleryImagePriority.hover,
+              reason: 'hover-dismissed',
             );
           },
           onTap: () => unawaited(_commands.showDetail(context, post)),

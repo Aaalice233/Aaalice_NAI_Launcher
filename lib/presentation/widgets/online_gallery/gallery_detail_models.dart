@@ -233,16 +233,14 @@ bool galleryMediaHasOriginal(GalleryMedia media) {
 }
 
 String galleryMediaDisplayUrl(GalleryMedia media) {
-  if (media.displayUrl.isNotEmpty) return media.displayUrl;
-  if (media.previewUrl.isNotEmpty) return media.previewUrl;
-  return media.downloadUrl;
+  final capability = media.capability;
+  return capability.isVideo ? capability.videoUrl : capability.imageDisplayUrl;
 }
 
-String galleryMediaPreviewUrl(GalleryMedia media) => media.previewUrl.isNotEmpty
-    ? media.previewUrl
-    : galleryMediaDisplayUrl(media);
+String galleryMediaPreviewUrl(GalleryMedia media) =>
+    media.capability.canPrefetchPreview ? media.capability.previewUrl : '';
 
 String galleryMediaDownloadUrl(GalleryMedia media) =>
-    media.downloadUrl.isNotEmpty
-    ? media.downloadUrl
-    : galleryMediaDisplayUrl(media);
+    media.capability.downloadUrl.isNotEmpty
+    ? media.capability.downloadUrl
+    : media.capability.displayUrl;

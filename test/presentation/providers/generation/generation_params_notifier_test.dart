@@ -140,7 +140,7 @@ void main() {
     expect(subscriptionNotifier.refreshScheduleCount, 3);
   });
 
-  test('Vibe 编码失败不调度计费刷新', () async {
+  test('Vibe 编码失败也调度计费刷新以核对服务端余额', () async {
     final apiService = _FakeEnhancementApiService(shouldFail: true);
     final subscriptionNotifier = _TestSubscriptionNotifier();
     final container = ProviderContainer(
@@ -163,7 +163,7 @@ void main() {
 
     expect(encoding, isNull);
     expect(apiService.callCount, 1);
-    expect(subscriptionNotifier.refreshScheduleCount, 0);
+    expect(subscriptionNotifier.refreshScheduleCount, 1);
   });
 
   for (final status in [AuthStatus.unauthenticated, AuthStatus.loading]) {

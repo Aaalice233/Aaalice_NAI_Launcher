@@ -5,7 +5,7 @@ import 'package:dio/dio.dart';
 
 import '../../data/models/online_gallery/gallery_item.dart';
 
-enum GalleryDetailPriority { interactive, visible }
+enum GalleryDetailPriority { interactive, visible, lookahead }
 
 typedef GalleryDetailLoader =
     Future<GalleryDetail> Function(GalleryItem item, CancelToken cancelToken);
@@ -31,11 +31,14 @@ class OnlineGalleryDetailCoordinator {
   final Map<String, _DetailTask> _tasks = <String, _DetailTask>{};
   final List<_DetailTask> _interactiveQueue = <_DetailTask>[];
   final List<_DetailTask> _visibleQueue = <_DetailTask>[];
+  final List<_DetailTask> _lookaheadQueue = <_DetailTask>[];
   final Map<String, int> _revisions = <String, int>{};
   int _active = 0;
+  bool _backgroundPaused = false;
 
   int get activeCount => _active;
-  int get queuedCount => _interactiveQueue.length + _visibleQueue.length;
+  int get queuedCount =>
+      _interactiveQueue.length + _visibleQueue.length + _lookaheadQueue.length;
   int get completedCount {
     _pruneExpired();
     return _completed.length;
@@ -46,6 +49,9 @@ class OnlineGalleryDetailCoordinator {
     GalleryDetailPriority priority = GalleryDetailPriority.interactive,
     bool forceRefresh = false,
   }) {
+    if (_backgroundPaused && priority != GalleryDetailPriority.interactive) {
+      return Future<GalleryDetail>.error(_cancelled(item, 'Gallery paused'));
+    }
     final key = item.detailStableKey;
     if (forceRefresh) {
       _completed.remove(key);
@@ -53,13 +59,11 @@ class OnlineGalleryDetailCoordinator {
       if (oldTask != null) {
         _interactiveQueue.remove(oldTask);
         _visibleQueue.remove(oldTask);
+        _lookaheadQueue.remove(oldTask);
         if (!oldTask.started && !oldTask.completer.isCompleted) {
           oldTask.cancelToken.cancel('Superseded by a forced detail refresh');
           oldTask.completer.completeError(
-            DioException.requestCancelled(
-              requestOptions: RequestOptions(path: item.postUrl),
-              reason: 'Superseded by a forced detail refresh',
-            ),
+            _cancelled(item, 'Superseded by a forced detail refresh'),
           );
         } else if (!oldTask.cancelToken.isCancelled) {
           oldTask.cancelToken.cancel('Superseded by a forced detail refresh');
@@ -70,12 +74,10 @@ class OnlineGalleryDetailCoordinator {
       if (cached != null) return Future<GalleryDetail>.value(cached);
       final existing = _tasks[key];
       if (existing != null) {
-        if (!existing.started &&
-            priority == GalleryDetailPriority.interactive &&
-            existing.priority == GalleryDetailPriority.visible) {
-          _visibleQueue.remove(existing);
-          existing.priority = GalleryDetailPriority.interactive;
-          _interactiveQueue.add(existing);
+        if (!existing.started && priority.index < existing.priority.index) {
+          _queueFor(existing.priority).remove(existing);
+          existing.priority = priority;
+          _queueFor(priority).add(existing);
         }
         return existing.completer.future;
       }
@@ -89,10 +91,7 @@ class OnlineGalleryDetailCoordinator {
       priority: priority,
     );
     _tasks[key] = task;
-    (priority == GalleryDetailPriority.interactive
-            ? _interactiveQueue
-            : _visibleQueue)
-        .add(task);
+    _queueFor(priority).add(task);
     _pump();
     return task.completer.future;
   }
@@ -105,17 +104,41 @@ class OnlineGalleryDetailCoordinator {
     _cancelVisibleTasks(includeActive: true);
   }
 
+  void cancelLookahead() {
+    _cancelTasks(
+      (task) => task.priority == GalleryDetailPriority.lookahead,
+      includeActive: true,
+    );
+  }
+
+  void setBackgroundPaused(bool paused) {
+    if (_backgroundPaused == paused) return;
+    _backgroundPaused = paused;
+    if (paused) {
+      _cancelVisibleTasks(includeActive: true);
+    } else {
+      _pump();
+    }
+  }
+
   void _cancelVisibleTasks({required bool includeActive}) {
+    _cancelTasks(
+      (task) => task.priority != GalleryDetailPriority.interactive,
+      includeActive: includeActive,
+    );
+  }
+
+  void _cancelTasks(
+    bool Function(_DetailTask task) predicate, {
+    required bool includeActive,
+  }) {
     final tasks = _tasks.values
-        .where(
-          (task) =>
-              task.priority == GalleryDetailPriority.visible &&
-              (includeActive || !task.started),
-        )
+        .where((task) => predicate(task) && (includeActive || !task.started))
         .toList(growable: false);
     for (final task in tasks) {
       _interactiveQueue.remove(task);
       _visibleQueue.remove(task);
+      _lookaheadQueue.remove(task);
       if (_tasks[task.item.detailStableKey] == task) {
         _tasks.remove(task.item.detailStableKey);
       }
@@ -123,12 +146,7 @@ class OnlineGalleryDetailCoordinator {
         task.cancelToken.cancel('Gallery scope changed');
       }
       if (!task.completer.isCompleted) {
-        task.completer.completeError(
-          DioException.requestCancelled(
-            requestOptions: RequestOptions(path: task.item.postUrl),
-            reason: 'Gallery scope changed',
-          ),
-        );
+        task.completer.completeError(_cancelled(task.item, 'Gallery paused'));
       }
     }
     _pump();
@@ -141,14 +159,10 @@ class OnlineGalleryDetailCoordinator {
     _revisions[key] = (_revisions[key] ?? task.revision) + 1;
     _interactiveQueue.remove(task);
     _visibleQueue.remove(task);
+    _lookaheadQueue.remove(task);
     if (!task.cancelToken.isCancelled) task.cancelToken.cancel(reason);
     if (!task.completer.isCompleted) {
-      task.completer.completeError(
-        DioException.requestCancelled(
-          requestOptions: RequestOptions(path: item.postUrl),
-          reason: reason,
-        ),
-      );
+      task.completer.completeError(_cancelled(item, reason));
     }
     _pump();
   }
@@ -157,17 +171,13 @@ class OnlineGalleryDetailCoordinator {
     for (final task in _tasks.values) {
       if (!task.cancelToken.isCancelled) task.cancelToken.cancel('Disposed');
       if (!task.completer.isCompleted) {
-        task.completer.completeError(
-          DioException.requestCancelled(
-            requestOptions: RequestOptions(path: task.item.postUrl),
-            reason: 'Disposed',
-          ),
-        );
+        task.completer.completeError(_cancelled(task.item, 'Disposed'));
       }
     }
     _tasks.clear();
     _interactiveQueue.clear();
     _visibleQueue.clear();
+    _lookaheadQueue.clear();
     _completed.clear();
   }
 
@@ -207,6 +217,8 @@ class OnlineGalleryDetailCoordinator {
           ? _interactiveQueue.removeAt(0)
           : _visibleQueue.isNotEmpty
           ? _visibleQueue.removeAt(0)
+          : !_backgroundPaused && _lookaheadQueue.isNotEmpty
+          ? _lookaheadQueue.removeAt(0)
           : null;
       if (task == null) return;
       if (_tasks[task.item.detailStableKey] != task ||
@@ -240,6 +252,21 @@ class OnlineGalleryDetailCoordinator {
       _pump();
     }
   }
+
+  List<_DetailTask> _queueFor(GalleryDetailPriority priority) =>
+      switch (priority) {
+        GalleryDetailPriority.interactive => _interactiveQueue,
+        GalleryDetailPriority.visible => _visibleQueue,
+        GalleryDetailPriority.lookahead => _lookaheadQueue,
+      };
+
+  DioException _cancelled(GalleryItem item, String reason) =>
+      DioException.requestCancelled(
+        requestOptions: RequestOptions(
+          path: '/gallery-detail/${item.sourceId.key}/${item.id}',
+        ),
+        reason: reason,
+      );
 }
 
 class _DetailTask {

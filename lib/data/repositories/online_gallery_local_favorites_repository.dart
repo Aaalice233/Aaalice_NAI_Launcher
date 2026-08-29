@@ -550,6 +550,7 @@ OnlineGalleryFavoriteRecord _quickTagCloudRecord(
         width: dimensions.width,
         height: dimensions.height,
         extension: extension.isEmpty ? null : extension,
+        mediaType: 'image',
         rawMetadata: image.rawTag.isEmpty ? entry.rawTag : image.rawTag,
         prompt: entry.tags,
         negativePrompt: entry.negative,

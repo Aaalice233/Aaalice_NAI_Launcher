@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/cache/gallery_image_request.dart';
 import 'package:nai_launcher/core/cache/online_gallery_prefetch_coordinator.dart';
+import 'package:nai_launcher/presentation/widgets/online_gallery/coordinated_gallery_image.dart';
 import 'package:nai_launcher/presentation/widgets/online_gallery/progressive_gallery_image.dart';
 
 const _thumbnail = GalleryImageRequest(
@@ -22,7 +23,8 @@ const _sample = GalleryImageRequest(
 void main() {
   testWidgets('preloaded sample is shown without a transition', (tester) async {
     final coordinator = OnlineGalleryPrefetchCoordinator(
-      preloader: (_) async {},
+      preloader: (_) =>
+          GalleryImagePreloadOperation.fromFuture(Future<void>.value()),
     );
     addTearDown(coordinator.dispose);
     expect(
@@ -41,7 +43,7 @@ void main() {
   testWidgets('sample promotion fades for 140ms after loading', (tester) async {
     final gate = Completer<void>();
     final coordinator = OnlineGalleryPrefetchCoordinator(
-      preloader: (_) => gate.future,
+      preloader: (_) => GalleryImagePreloadOperation.fromFuture(gate.future),
     );
     addTearDown(coordinator.dispose);
 
@@ -60,7 +62,7 @@ void main() {
   testWidgets('reduced motion promotes the sample immediately', (tester) async {
     final gate = Completer<void>();
     final coordinator = OnlineGalleryPrefetchCoordinator(
-      preloader: (_) => gate.future,
+      preloader: (_) => GalleryImagePreloadOperation.fromFuture(gate.future),
     );
     addTearDown(coordinator.dispose);
 
@@ -72,6 +74,106 @@ void main() {
       find.byType(TweenAnimationBuilder<double>),
     );
     expect(transition.duration, Duration.zero);
+  });
+
+  testWidgets(
+    'visible image download is cancelled for critical activity and resumes',
+    (tester) async {
+      var starts = 0;
+      var cancellations = 0;
+      final coordinator = OnlineGalleryPrefetchCoordinator(
+        preloader: (_) {
+          starts += 1;
+          final gate = Completer<void>();
+          return GalleryImagePreloadOperation(
+            future: gate.future,
+            cancel: () {
+              cancellations += 1;
+              gate.completeError(StateError('cancelled'));
+            },
+          );
+        },
+      );
+      addTearDown(coordinator.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: CoordinatedGalleryImage(
+            request: _thumbnail,
+            coordinator: coordinator,
+            placeholder: const Text('waiting'),
+          ),
+        ),
+      );
+      expect(starts, 1);
+
+      coordinator.setCriticalNetworkActive(true);
+      await tester.pump();
+      expect(cancellations, 1);
+      expect(find.text('waiting'), findsOneWidget);
+
+      coordinator.setCriticalNetworkActive(false);
+      await tester.pump();
+      expect(starts, 2);
+    },
+  );
+
+  testWidgets('cancelled sample preload resumes with the coordinator', (
+    tester,
+  ) async {
+    var sampleStarts = 0;
+    final gates = <Completer<void>>[];
+    final coordinator = OnlineGalleryPrefetchCoordinator(
+      preloader: (request) {
+        if (request.tier == GalleryImageTier.thumbnail) {
+          return GalleryImagePreloadOperation.fromFuture(Future<void>.value());
+        }
+        sampleStarts += 1;
+        final gate = Completer<void>();
+        gates.add(gate);
+        return GalleryImagePreloadOperation(
+          future: gate.future,
+          cancel: () => gate.completeError(StateError('cancelled')),
+        );
+      },
+    );
+    addTearDown(coordinator.dispose);
+
+    await tester.pumpWidget(_app(coordinator));
+    expect(sampleStarts, 1);
+
+    coordinator.setCriticalNetworkActive(true);
+    await tester.pump();
+    coordinator.setCriticalNetworkActive(false);
+    await tester.pump();
+
+    expect(sampleStarts, 2);
+  });
+
+  testWidgets('failed coordinated download renders a stable error state', (
+    tester,
+  ) async {
+    final coordinator = OnlineGalleryPrefetchCoordinator(
+      preloader: (_) => GalleryImagePreloadOperation.fromFuture(
+        Future<void>.error(StateError('bad image')),
+      ),
+    );
+    addTearDown(coordinator.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CoordinatedGalleryImage(
+          request: _thumbnail,
+          coordinator: coordinator,
+          placeholder: const Text('waiting'),
+          errorWidget: const Text('failed'),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('failed'), findsOneWidget);
+    expect(find.text('waiting'), findsNothing);
   });
 }
 

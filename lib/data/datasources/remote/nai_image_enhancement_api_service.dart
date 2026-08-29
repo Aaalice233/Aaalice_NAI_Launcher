@@ -8,6 +8,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../core/constants/api_constants.dart';
 import '../../../core/network/dio_client.dart';
+import '../../../core/network/critical_network_activity.dart';
 import '../../../core/network/nai_api_endpoint_service.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/zip_utils.dart';
@@ -18,11 +19,15 @@ part 'nai_image_enhancement_api_service.g.dart';
 class NAIImageEnhancementApiService {
   final Dio _dio;
   final NaiApiEndpointService _endpointService;
+  final CriticalNetworkActivityCoordinator _networkActivity;
 
   NAIImageEnhancementApiService(
     this._dio, [
     NaiApiEndpointService? endpointService,
-  ]) : _endpointService = endpointService ?? NaiApiEndpointService();
+    CriticalNetworkActivityCoordinator? networkActivity,
+  ]) : _endpointService = endpointService ?? NaiApiEndpointService(),
+       _networkActivity =
+           networkActivity ?? CriticalNetworkActivityCoordinator.instance;
 
   // ==================== 图像增强类型常量 ====================
   static const String _reqTypeEmotion = 'emotion';
@@ -54,6 +59,9 @@ class NAIImageEnhancementApiService {
     int scale = 2,
     void Function(int, int)? onProgress,
   }) async {
+    final activity = _networkActivity.acquire(
+      CriticalNetworkActivityType.cloudUpscale,
+    );
     try {
       final request = jsonEncode({
         'image': 'image',
@@ -96,6 +104,8 @@ class NAIImageEnhancementApiService {
         'NAIEnhancement',
       );
       return _upscaleImageLegacy(image, scale: scale, onProgress: onProgress);
+    } finally {
+      activity.release();
     }
   }
 
@@ -144,6 +154,9 @@ class NAIImageEnhancementApiService {
     required String model,
     double informationExtracted = 1.0,
   }) async {
+    final activity = _networkActivity.acquire(
+      CriticalNetworkActivityType.vibeEncoding,
+    );
     try {
       final response = await _dio.post(
         _endpointService.imageUrl(ApiConstants.encodeVibeEndpoint),
@@ -159,6 +172,8 @@ class NAIImageEnhancementApiService {
     } on DioException catch (e) {
       AppLogger.w('Encode vibe failed: ${e.message}', 'NAIEnhancement');
       throw Exception('Vibe编码失败: ${_mapDioError(e)}');
+    } finally {
+      activity.release();
     }
   }
 
@@ -169,6 +184,9 @@ class NAIImageEnhancementApiService {
     String? prompt,
     int defry = 0,
   }) async {
+    final activity = _networkActivity.acquire(
+      CriticalNetworkActivityType.directorTool,
+    );
     try {
       final decoded = img.decodeImage(image);
       if (decoded == null) {
@@ -202,6 +220,8 @@ class NAIImageEnhancementApiService {
     } on DioException catch (e) {
       AppLogger.w('Augment image failed: ${e.message}', 'NAIEnhancement');
       throw Exception('图像增强失败: ${_mapDioError(e)}');
+    } finally {
+      activity.release();
     }
   }
 

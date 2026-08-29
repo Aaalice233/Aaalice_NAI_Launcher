@@ -10,6 +10,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/models/image_generation_artifact.dart';
 import '../../../core/network/dio_client.dart';
+import '../../../core/network/critical_network_activity.dart';
 import '../../../core/network/nai_api_endpoint_service.dart';
 import '../../../core/network/request_builders/nai_image_request_builder.dart';
 import '../../../core/utils/app_logger.dart';
@@ -29,15 +30,19 @@ class NAIImageGenerationApiService {
   NAIImageGenerationApiService(
     Dio dio,
     this._enhancementService,
-    NaiApiEndpointService endpointService,
-  ) : _transport = NaiGenerationTransport(dio, endpointService),
-      _responseProcessor = NaiGenerationResponseProcessor();
+    NaiApiEndpointService endpointService, [
+    CriticalNetworkActivityCoordinator? networkActivity,
+  ]) : _transport = NaiGenerationTransport(dio, endpointService),
+       _responseProcessor = NaiGenerationResponseProcessor(),
+       _networkActivity =
+           networkActivity ?? CriticalNetworkActivityCoordinator.instance;
 
   static final Object _cancellationLeaseZoneKey = Object();
 
   final NAIImageEnhancementApiService _enhancementService;
   final NaiGenerationTransport _transport;
   final NaiGenerationResponseProcessor _responseProcessor;
+  final CriticalNetworkActivityCoordinator _networkActivity;
   var _legacyCancellationEpoch = 0;
 
   static T withCancellationLease<T>(
@@ -170,6 +175,9 @@ class NAIImageGenerationApiService {
     Rect? focusedSelectionRect,
     NaiGenerationCancellationLease? cancellationLease,
   }) async {
+    final activity = _networkActivity.acquire(
+      CriticalNetworkActivityType.imageGeneration,
+    );
     final request = _transport.beginRequest(
       _effectiveCancellationLease(cancellationLease),
     );
@@ -193,6 +201,7 @@ class NAIImageGenerationApiService {
       return (artifacts, command.buildResult.vibeEncodingMap);
     } finally {
       _transport.completeRequest(request);
+      activity.release();
     }
   }
 
@@ -247,6 +256,9 @@ class NAIImageGenerationApiService {
   }) async* {
     // async* does not execute until listen, so an abandoned stream owns no
     // transport request. Leases and the legacy epoch retain pre-listen cancel.
+    final activity = _networkActivity.acquire(
+      CriticalNetworkActivityType.imageGeneration,
+    );
     final request = _transport.beginRequest(cancellationLease);
     try {
       if (legacyCancellationEpoch != null &&
@@ -287,6 +299,7 @@ class NAIImageGenerationApiService {
       yield ImageStreamChunk.error(error.toString());
     } finally {
       _transport.completeRequest(request);
+      activity.release();
     }
   }
 

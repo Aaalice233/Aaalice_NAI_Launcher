@@ -174,6 +174,7 @@ class QuickTagCloudGalleryMapper {
       width: dimensions.width,
       height: dimensions.height,
       extension: extension.isEmpty ? null : extension,
+      mediaType: 'image',
       rawMetadata: image.rawTag.isEmpty ? record.entry.rawTag : image.rawTag,
       prompt: record.entry.tags,
       negativePrompt: record.entry.negative,

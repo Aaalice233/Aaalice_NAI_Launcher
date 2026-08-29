@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -7,6 +8,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:mocktail/mocktail.dart';
 import 'package:nai_launcher/data/datasources/remote/nai_image_enhancement_api_service.dart';
+import 'package:nai_launcher/core/network/critical_network_activity.dart';
+import 'package:nai_launcher/core/network/nai_api_endpoint_service.dart';
 
 class _MockDio extends Mock implements Dio {}
 
@@ -215,6 +218,94 @@ void main() {
       expect(capturedData?['model'], equals('nai-diffusion-4-5-full'));
       expect(capturedData?['information_extracted'], equals(0.35));
       expect(capturedData?.containsKey('informationExtracted'), isFalse);
+    });
+
+    test(
+      'critical network lease covers transport and releases on error',
+      () async {
+        final dio = _MockDio();
+        final activity = CriticalNetworkActivityCoordinator();
+        final response = Completer<Response<dynamic>>();
+        when(
+          () => dio.post<dynamic>(
+            any(),
+            data: any(named: 'data'),
+            options: any(named: 'options'),
+          ),
+        ).thenAnswer((_) => response.future);
+        final service = NAIImageEnhancementApiService(
+          dio,
+          NaiApiEndpointService(),
+          activity,
+        );
+
+        final request = service.encodeVibe(
+          _buildPng(width: 8, height: 8),
+          model: 'nai-diffusion-4-5-full',
+          informationExtracted: 1,
+        );
+        await Future<void>.delayed(Duration.zero);
+        expect(activity.isActive, isTrue);
+        expect(activity.activeTypes, {
+          CriticalNetworkActivityType.vibeEncoding,
+        });
+
+        response.completeError(
+          DioException(requestOptions: RequestOptions(path: '/encode-vibe')),
+        );
+        await expectLater(request, throwsA(isA<Exception>()));
+        expect(activity.isActive, isFalse);
+      },
+    );
+
+    test('cloud upscale uses its own critical network activity type', () async {
+      final dio = _MockDio();
+      final activity = CriticalNetworkActivityCoordinator();
+      final response = Completer<Response<dynamic>>();
+      when(
+        () => dio.post<dynamic>(
+          any(),
+          data: any(named: 'data'),
+          options: any(named: 'options'),
+          onReceiveProgress: any(named: 'onReceiveProgress'),
+        ),
+      ).thenAnswer((_) => response.future);
+      final service = NAIImageEnhancementApiService(
+        dio,
+        NaiApiEndpointService(),
+        activity,
+      );
+
+      final request = service.upscaleImage(_buildPng(width: 8, height: 8));
+      await Future<void>.delayed(Duration.zero);
+      expect(activity.activeTypes, {CriticalNetworkActivityType.cloudUpscale});
+
+      response.completeError(
+        DioException(
+          requestOptions: RequestOptions(path: '/upscale'),
+          response: Response<dynamic>(
+            requestOptions: RequestOptions(path: '/upscale'),
+            statusCode: 500,
+          ),
+        ),
+      );
+      await expectLater(request, throwsA(isA<Exception>()));
+      expect(activity.isActive, isFalse);
+    });
+
+    test('director lease releases when local validation fails', () async {
+      final activity = CriticalNetworkActivityCoordinator();
+      final service = NAIImageEnhancementApiService(
+        _MockDio(),
+        NaiApiEndpointService(),
+        activity,
+      );
+
+      await expectLater(
+        service.augmentImage(Uint8List(0), reqType: 'bg-removal'),
+        throwsA(isA<RangeError>()),
+      );
+      expect(activity.isActive, isFalse);
     });
   });
 }

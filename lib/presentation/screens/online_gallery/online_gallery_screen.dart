@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/cache/online_gallery_image_cache_manager.dart';
+import '../../../core/cache/cancellable_gallery_image_loader.dart';
+import '../../../core/cache/gallery_image_request.dart';
 import '../../../core/cache/online_gallery_prefetch_coordinator.dart';
+import '../../../core/network/critical_network_activity.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/services/danbooru_auth_service.dart';
 import '../../../data/services/gelbooru_auth_service.dart';
@@ -31,13 +33,15 @@ class OnlineGalleryScreen extends ConsumerStatefulWidget {
 }
 
 class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
-    with AutomaticKeepAliveClientMixin {
+    with AutomaticKeepAliveClientMixin, WidgetsBindingObserver {
   late final OnlineGalleryScreenController _controller;
+  late final CancellableGalleryImageLoader _imageLoader;
   late final OnlineGalleryScrollPrefetchCoordinator _scrollCoordinator;
   late final OnlineGalleryDetailLauncher _detailLauncher;
   late final OnlineGallerySelectionActions _selectionActions;
   late final OnlineGalleryScreenCommands _commands;
   late final ProviderSubscription<OnlineGalleryState> _gallerySubscription;
+  bool _appForeground = true;
 
   @override
   bool get wantKeepAlive => true;
@@ -53,14 +57,21 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    final lifecycleState = WidgetsBinding.instance.lifecycleState;
+    _appForeground =
+        lifecycleState == null || lifecycleState == AppLifecycleState.resumed;
+    _imageLoader = CancellableGalleryImageLoader();
     _controller = OnlineGalleryScreenController(
       prefetchCoordinator: OnlineGalleryPrefetchCoordinator(
-        preloader: (request) => precacheImage(
-          request.createImageProvider(OnlineGalleryImageCacheManager.instance),
-          context,
-        ),
+        preloader: _startImagePreload,
       ),
     );
+    CriticalNetworkActivityCoordinator.instance.addListener(
+      _handleCriticalNetworkActivity,
+    );
+    _controller.prefetchCoordinator.setAppForeground(_appForeground);
+    _handleCriticalNetworkActivity();
     _detailLauncher = OnlineGalleryDetailLauncher(
       context: context,
       ref: ref,
@@ -120,6 +131,8 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     final visible = AppBranchVisibility.of(context);
     if (_controller.branchVisible == visible) return;
     _controller.branchVisible = visible;
+    _controller.prefetchCoordinator.setPageVisible(visible);
+    _syncBackgroundNetworkActivity();
     if (!visible) {
       _controller.hoverController.dismiss();
       _controller.scheduledAutoLoadCacheKey = null;
@@ -131,6 +144,32 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         );
       });
     }
+  }
+
+  GalleryImagePreloadOperation _startImagePreload(
+    GalleryImageRequest request,
+  ) => _imageLoader.start(request);
+
+  void _handleCriticalNetworkActivity() {
+    _controller.prefetchCoordinator.setCriticalNetworkActive(
+      CriticalNetworkActivityCoordinator.instance.isActive,
+    );
+    _syncBackgroundNetworkActivity();
+  }
+
+  void _syncBackgroundNetworkActivity() {
+    _galleryNotifier.setBackgroundNetworkPaused(
+      !_controller.branchVisible ||
+          !_appForeground ||
+          CriticalNetworkActivityCoordinator.instance.isActive,
+    );
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _appForeground = state == AppLifecycleState.resumed;
+    _controller.prefetchCoordinator.setAppForeground(_appForeground);
+    _syncBackgroundNetworkActivity();
   }
 
   void _handleGalleryStateChanged(OnlineGalleryState state) {
@@ -173,6 +212,10 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    CriticalNetworkActivityCoordinator.instance.removeListener(
+      _handleCriticalNetworkActivity,
+    );
     _scrollCoordinator.saveScrollOffset();
     _gallerySubscription.close();
     _controller.scrollController.removeListener(_scrollCoordinator.onScroll);
@@ -180,6 +223,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       _controller.cancelPageEditingWhenUnfocused,
     );
     _controller.dispose();
+    _imageLoader.dispose();
     super.dispose();
   }
 

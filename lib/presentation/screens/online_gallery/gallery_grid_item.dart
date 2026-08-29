@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -211,57 +212,74 @@ class _GalleryGridItemState extends State<GalleryGridItem> {
               ),
             );
           }
-          return FutureBuilder<GalleryDetail>(
-            key: ValueKey((post.detailStableKey, widget.detailRequestScope)),
-            future: _detailFuture,
-            builder: (context, snapshot) {
-              if (snapshot.hasError) {
-                return AspectRatio(
-                  aspectRatio: 1,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surfaceContainerLow,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Center(
-                      child: TextButton.icon(
-                        onPressed: _retryDetail,
-                        icon: const Icon(Icons.refresh),
-                        label: Text(context.l10n.common_retry),
+          return AnimatedSize(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOutCubic,
+            child: FutureBuilder<GalleryDetail>(
+              key: ValueKey((post.detailStableKey, widget.detailRequestScope)),
+              future: _detailFuture,
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  final error = snapshot.error;
+                  if (error is DioException &&
+                      error.type == DioExceptionType.cancel) {
+                    return const AspectRatio(
+                      aspectRatio: 1,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.all(Radius.circular(8)),
+                        child: OnlineGalleryImagePlaceholder(),
+                      ),
+                    );
+                  }
+                  return AspectRatio(
+                    aspectRatio: 1,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.surfaceContainerLow,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Center(
+                        child: TextButton.icon(
+                          onPressed: _retryDetail,
+                          icon: const Icon(Icons.refresh),
+                          label: Text(context.l10n.common_retry),
+                        ),
                       ),
                     ),
+                  );
+                }
+                final detail = snapshot.data;
+                final resolved = detail?.item;
+                if (resolved == null) {
+                  return const AspectRatio(
+                    aspectRatio: 1,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.all(Radius.circular(8)),
+                      child: OnlineGalleryImagePlaceholder(),
+                    ),
+                  );
+                }
+                final resolvedAspectRatio =
+                    resolved.width > 0 && resolved.height > 0
+                    ? resolved.width / resolved.height
+                    : layoutAspectRatio;
+                return _PreparedGalleryMediaCard(
+                  item: resolved,
+                  itemWidth: widget.itemWidth,
+                  visible: _isVisible,
+                  prepareMedia: widget.prepareMedia,
+                  builder: (loadMedia) => _buildResourceCard(
+                    context,
+                    resolved,
+                    resolvedAspectRatio,
+                    loadMedia: loadMedia,
+                    detail: detail,
                   ),
                 );
-              }
-              final detail = snapshot.data;
-              final resolved = detail?.item;
-              if (resolved == null) {
-                return const AspectRatio(
-                  aspectRatio: 1,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.all(Radius.circular(8)),
-                    child: OnlineGalleryImagePlaceholder(),
-                  ),
-                );
-              }
-              final resolvedAspectRatio =
-                  resolved.width > 0 && resolved.height > 0
-                  ? resolved.width / resolved.height
-                  : layoutAspectRatio;
-              return _PreparedGalleryMediaCard(
-                item: resolved,
-                itemWidth: widget.itemWidth,
-                visible: _isVisible,
-                prepareMedia: widget.prepareMedia,
-                builder: (loadMedia) => _buildResourceCard(
-                  context,
-                  resolved,
-                  resolvedAspectRatio,
-                  loadMedia: loadMedia,
-                  detail: detail,
-                ),
-              );
-            },
+              },
+            ),
           );
         },
       ),

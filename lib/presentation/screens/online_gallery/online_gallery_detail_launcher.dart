@@ -86,6 +86,7 @@ class OnlineGalleryDetailLauncher {
           favoriteLoading: galleryState.favoriteLoadingPostKeys.contains(
             stableKey,
           ),
+          prefetchCoordinator: _controller.prefetchCoordinator,
           canToggleFavorite: true,
           labels: GalleryDetailDialogLabels(
             sourceName: item.sourceId == GallerySourceId.quickTagCloud
@@ -353,9 +354,8 @@ class OnlineGalleryDetailLauncher {
     GalleryItem item,
     GalleryMedia media,
   ) async {
-    final url = media.displayUrl.isNotEmpty
-        ? media.displayUrl
-        : (media.downloadUrl.isNotEmpty ? media.downloadUrl : media.previewUrl);
+    final capability = media.capability;
+    final url = capability.isFlutterImage ? capability.imageDisplayUrl : '';
     if (url.isEmpty) {
       AppToast.info(dialogContext, dialogContext.l10n.onlineGallery_noImageUrl);
       return;
