@@ -97,7 +97,9 @@
     }
   },
   "nav_canvas": "畫布",
-  "nav_onlineGallery": "畫廊",
+  "nav_localGallery": "本地圖庫",
+  "nav_onlineGallery": "線上畫廊",
+  "nav_statistics": "統計",
   "nav_randomConfig": "隨機配置",
   "nav_dictionary": "詞庫",
   "nav_discordCommunity": "Discord 社群",

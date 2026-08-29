@@ -98,7 +98,9 @@
   },
 
   "nav_canvas": "画布",
-  "nav_onlineGallery": "画廊",
+  "nav_localGallery": "本地图库",
+  "nav_onlineGallery": "在线画廊",
+  "nav_statistics": "统计",
   "nav_randomConfig": "随机配置",
   "nav_dictionary": "词库",
   "nav_discordCommunity": "Discord 社群",

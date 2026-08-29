@@ -545,11 +545,23 @@ abstract class AppLocalizations {
   /// **'Canvas'**
   String get nav_canvas;
 
+  /// No description provided for @nav_localGallery.
+  ///
+  /// In en, this message translates to:
+  /// **'Local Library'**
+  String get nav_localGallery;
+
   /// No description provided for @nav_onlineGallery.
   ///
   /// In en, this message translates to:
   /// **'Online Gallery'**
   String get nav_onlineGallery;
+
+  /// No description provided for @nav_statistics.
+  ///
+  /// In en, this message translates to:
+  /// **'Statistics'**
+  String get nav_statistics;
 
   /// No description provided for @nav_randomConfig.
   ///

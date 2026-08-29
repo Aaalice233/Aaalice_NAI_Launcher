@@ -245,7 +245,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get nav_canvas => 'Canvas';
 
   @override
+  String get nav_localGallery => 'Local Library';
+
+  @override
   String get nav_onlineGallery => 'Online Gallery';
+
+  @override
+  String get nav_statistics => 'Statistics';
 
   @override
   String get nav_randomConfig => 'Random Config';
