@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:file/file.dart' as fs;
+import 'package:file/memory.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/cache/cancellable_gallery_image_loader.dart';
@@ -49,6 +51,56 @@ void main() {
       finishResponse.complete();
       await Future<void>.delayed(const Duration(milliseconds: 20));
       expect(cache.putCalled, isFalse);
+    },
+  );
+
+  test(
+    'cancelled transport can be retried before old cleanup finishes',
+    () async {
+      final firstRequestArrived = Completer<void>();
+      final releaseFirstResponse = Completer<void>();
+      addTearDown(() {
+        if (!releaseFirstResponse.isCompleted) releaseFirstResponse.complete();
+      });
+      var requestCount = 0;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() => server.close(force: true));
+      server.listen((request) async {
+        requestCount++;
+        if (requestCount == 1) {
+          firstRequestArrived.complete();
+          await releaseFirstResponse.future;
+          try {
+            await request.response.close();
+          } on Object {
+            // The first consumer intentionally aborted this transport.
+          }
+          return;
+        }
+        request.response.headers.contentType = ContentType('image', 'webp');
+        request.response.add([0x52, 0x49, 0x46, 0x46]);
+        await request.response.close();
+      });
+      final cache = _RecordingCacheManager(allowPut: true);
+      final loader = CancellableGalleryImageLoader(cacheManager: cache);
+      addTearDown(loader.dispose);
+      final request = GalleryImageRequest(
+        sourceId: 'test',
+        url: 'http://${server.address.host}:${server.port}/retry-cancel.webp',
+        tier: GalleryImageTier.thumbnail,
+      );
+
+      final cancelled = loader.start(request);
+      await firstRequestArrived.future.timeout(const Duration(seconds: 2));
+      cancelled.cancel();
+      await expectLater(cancelled.future, throwsA(isA<Exception>()));
+
+      final retry = loader.start(request);
+      await retry.future.timeout(const Duration(seconds: 2));
+      releaseFirstResponse.complete();
+
+      expect(requestCount, 2);
+      expect(cache.putCount, 1);
     },
   );
 
@@ -163,6 +215,115 @@ void main() {
     expect(cache.putCalled, isFalse);
   });
 
+  test(
+    'shares one transport across decode tiers and keeps remaining consumer',
+    () async {
+      final requestArrived = Completer<void>();
+      final finishResponse = Completer<void>();
+      var requestCount = 0;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() => server.close(force: true));
+      server.listen((request) async {
+        requestCount++;
+        if (!requestArrived.isCompleted) requestArrived.complete();
+        await finishResponse.future;
+        request.response.headers.contentType = ContentType('image', 'webp');
+        request.response.add([0x52, 0x49, 0x46, 0x46]);
+        await request.response.close();
+      });
+      final cache = _RecordingCacheManager(allowPut: true);
+      final loader = CancellableGalleryImageLoader(cacheManager: cache);
+      addTearDown(loader.dispose);
+      final url = 'http://${server.address.host}:${server.port}/shared.webp';
+      final thumbnail = GalleryImageRequest(
+        sourceId: 'ai_tag',
+        url: url,
+        tier: GalleryImageTier.thumbnail,
+        targetDecodeWidth: 320,
+      );
+      final sample = GalleryImageRequest(
+        sourceId: 'ai_tag',
+        url: url,
+        tier: GalleryImageTier.sample,
+        targetDecodeWidth: 960,
+      );
+
+      final first = loader.start(thumbnail);
+      final second = loader.start(sample);
+      await requestArrived.future.timeout(const Duration(seconds: 2));
+      first.cancel();
+      await expectLater(first.future, throwsA(isA<Exception>()));
+      finishResponse.complete();
+      await second.future;
+
+      expect(requestCount, 1);
+      expect(cache.putCount, 1);
+    },
+  );
+
+  test('valid disk cache hit completes without opening the network', () async {
+    final file = MemoryFileSystem().file('cached.webp')..writeAsBytesSync([1]);
+    final cache = _RecordingCacheManager(
+      cached: FileInfo(
+        file,
+        FileSource.Cache,
+        DateTime.now().add(const Duration(days: 1)),
+        'http://gallery.invalid/cached.webp',
+      ),
+    );
+    final loader = CancellableGalleryImageLoader(cacheManager: cache);
+    addTearDown(loader.dispose);
+
+    await loader
+        .start(
+          const GalleryImageRequest(
+            sourceId: 'test',
+            url: 'http://gallery.invalid/cached.webp',
+            tier: GalleryImageTier.thumbnail,
+          ),
+        )
+        .future;
+
+    expect(cache.cacheLookups, 1);
+    expect(cache.putCount, 0);
+  });
+
+  test(
+    'retries one transient response without publishing a failed body',
+    () async {
+      var requestCount = 0;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() => server.close(force: true));
+      server.listen((request) async {
+        requestCount++;
+        if (requestCount == 1) {
+          request.response.statusCode = HttpStatus.serviceUnavailable;
+          await request.response.close();
+          return;
+        }
+        request.response.headers.contentType = ContentType('image', 'webp');
+        request.response.add([0x52, 0x49, 0x46, 0x46]);
+        await request.response.close();
+      });
+      final cache = _RecordingCacheManager(allowPut: true);
+      final loader = CancellableGalleryImageLoader(cacheManager: cache);
+      addTearDown(loader.dispose);
+
+      await loader
+          .start(
+            GalleryImageRequest(
+              sourceId: 'ai_tag',
+              url: 'http://${server.address.host}:${server.port}/retry.webp',
+              tier: GalleryImageTier.thumbnail,
+            ),
+          )
+          .future;
+
+      expect(requestCount, 2);
+      expect(cache.putCount, 1);
+    },
+  );
+
   test('non-image responses are rejected without publishing cache', () async {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     addTearDown(() => server.close(force: true));
@@ -189,19 +350,31 @@ void main() {
 }
 
 class _RecordingCacheManager implements BaseCacheManager {
-  bool putCalled = false;
+  _RecordingCacheManager({this.allowPut = false, this.cached});
+
+  final bool allowPut;
+  final FileInfo? cached;
+  int putCount = 0;
+  int cacheLookups = 0;
+  bool get putCalled => putCount > 0;
 
   @override
   Future<FileInfo?> getFileFromCache(
     String key, {
     bool ignoreMemCache = false,
-  }) async => null;
+  }) async {
+    cacheLookups++;
+    return cached;
+  }
 
   @override
   dynamic noSuchMethod(Invocation invocation) {
     if (invocation.memberName == #putFile) {
-      putCalled = true;
-      return Future<Object>.error(
+      putCount++;
+      if (allowPut) {
+        return Future<fs.File>.value(MemoryFileSystem().file('unused-cache'));
+      }
+      return Future<fs.File>.error(
         StateError('Cancelled responses must not be cached'),
       );
     }

@@ -105,7 +105,7 @@ class _GalleryGridItemState extends State<GalleryGridItem> {
       setState(() {
         _detailFuture = _loadDetail();
       });
-    } else if (visibilityChanged) {
+    } else if (visibilityChanged && _needsDetail) {
       setState(() {});
     }
   }
@@ -164,13 +164,13 @@ class _GalleryGridItemState extends State<GalleryGridItem> {
         visibilityKey: post.stableKey,
         scrolling: widget.scrolling,
         onVisibilityChanged: _handleVisibility,
-        builder: (context, hasBeenVisible, isScrolling) {
+        builder: (context, hasBeenVisible, isScrolling, isVisible) {
           if (!_needsDetail) {
             return _buildResourceCard(
               context,
               post,
               layoutAspectRatio,
-              loadMedia: hasBeenVisible,
+              loadMedia: hasBeenVisible || isVisible,
             );
           }
           if (!hasBeenVisible) {

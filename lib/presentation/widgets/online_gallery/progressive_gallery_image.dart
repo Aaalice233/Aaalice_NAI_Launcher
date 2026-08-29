@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/cache/gallery_image_request.dart';
-import '../../../core/cache/online_gallery_image_cache_manager.dart';
 import '../../../core/cache/online_gallery_prefetch_coordinator.dart';
+import '../../themes/theme_extension.dart';
 import 'coordinated_gallery_image.dart';
 
 class ProgressiveGalleryImage extends StatefulWidget {
@@ -92,7 +92,6 @@ class _ProgressiveGalleryImageState extends State<ProgressiveGalleryImage> {
 
   @override
   Widget build(BuildContext context) {
-    final manager = OnlineGalleryImageCacheManager.instance;
     final thumbnail = CoordinatedGalleryImage(
       request: widget.thumbnail,
       coordinator: widget.coordinator,
@@ -111,6 +110,10 @@ class _ProgressiveGalleryImageState extends State<ProgressiveGalleryImage> {
     }
 
     final disableAnimations = MediaQuery.disableAnimationsOf(context);
+    final motion = Theme.of(context).appTheme;
+    final fadeDuration = Duration(
+      milliseconds: motion.fastDuration.inMilliseconds.clamp(120, 160),
+    );
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -119,15 +122,17 @@ class _ProgressiveGalleryImageState extends State<ProgressiveGalleryImage> {
           tween: Tween<double>(begin: 0, end: 1),
           duration: disableAnimations || _showSampleImmediately
               ? Duration.zero
-              : const Duration(milliseconds: 140),
+              : fadeDuration,
+          curve: Curves.easeOutCubic,
           builder: (_, opacity, child) =>
               Opacity(opacity: opacity, child: child),
-          child: Image(
-            image: widget.sample.createImageProvider(manager),
+          child: CoordinatedGalleryImage(
+            request: widget.sample,
+            coordinator: widget.coordinator,
+            priority: GalleryImagePriority.hover,
             fit: widget.fit,
             alignment: widget.alignment,
-            gaplessPlayback: true,
-            errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+            fadeIn: false,
           ),
         ),
       ],

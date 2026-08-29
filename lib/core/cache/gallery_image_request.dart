@@ -167,10 +167,15 @@ class GalleryImageRequest {
       ? (sourceId as GallerySourceId).key
       : sourceId.toString();
 
-  String get stableRequestKey =>
-      '$sourceKey:$canonicalCacheKey:${tier.name}:${targetDecodeWidth ?? 'auto'}';
+  /// Network and disk identity, intentionally independent from decode size.
+  /// Thumbnail/sample widgets may request different decoded widths while still
+  /// sharing one bounded transfer of the same source bytes.
+  String get transportKey => '$sourceKey:$canonicalCacheKey';
 
-  ImageProvider<Object> createImageProvider(CacheManager cacheManager) {
+  String get stableRequestKey =>
+      '$transportKey:${tier.name}:${targetDecodeWidth ?? 'auto'}';
+
+  ImageProvider<Object> createImageProvider(BaseCacheManager cacheManager) {
     final provider = CachedNetworkImageProvider(
       url,
       cacheManager: cacheManager,

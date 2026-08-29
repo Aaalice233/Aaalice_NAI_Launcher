@@ -46,6 +46,7 @@ void main() {
     var builds = 0;
     var lastHasBeenVisible = false;
     var lastIsScrolling = false;
+    var lastIsVisible = false;
 
     await tester.pumpWidget(
       MaterialApp(
@@ -54,10 +55,11 @@ void main() {
             visibilityKey: 'post-1',
             scrolling: scrolling,
             onVisibilityChanged: (_, __) {},
-            builder: (context, hasBeenVisible, isScrolling) {
+            builder: (context, hasBeenVisible, isScrolling, isVisible) {
               builds++;
               lastHasBeenVisible = hasBeenVisible;
               lastIsScrolling = isScrolling;
+              lastIsVisible = isVisible;
               return const SizedBox.square(dimension: 100);
             },
           ),
@@ -81,15 +83,18 @@ void main() {
       ),
     );
     await tester.pump();
-    expect((builds, lastHasBeenVisible, lastIsScrolling), (2, false, true));
+    expect(
+      (builds, lastHasBeenVisible, lastIsScrolling, lastIsVisible),
+      (3, false, true, true),
+    );
 
     scrolling.value = false;
     await tester.pump();
-    expect((builds, lastHasBeenVisible, lastIsScrolling), (3, true, false));
+    expect((builds, lastHasBeenVisible, lastIsScrolling), (4, true, false));
 
     scrolling.value = true;
     await tester.pump();
-    expect(builds, 3);
+    expect(builds, 4);
   });
 
   test('repeated visibility updates only enter the viewport once', () {

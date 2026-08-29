@@ -1,9 +1,13 @@
 // ignore_for_file: prefer_const_constructors
 
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/cache/gallery_image_request.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   group('GalleryImageTier', () {
     test('has correct enum values', () {
       expect(GalleryImageTier.values.length, 3);
@@ -173,6 +177,43 @@ void main() {
       );
     });
 
+    test('transport identity ignores tier and decode width', () {
+      const url = 'https://example.com/image.webp';
+      final thumbnail = GalleryImageRequest(
+        sourceId: 'ai_tag',
+        url: url,
+        tier: GalleryImageTier.thumbnail,
+        targetDecodeWidth: 320,
+      );
+      final sample = GalleryImageRequest(
+        sourceId: 'ai_tag',
+        url: url,
+        tier: GalleryImageTier.sample,
+        targetDecodeWidth: 960,
+      );
+
+      expect(thumbnail.transportKey, sample.transportKey);
+      expect(thumbnail.stableRequestKey, isNot(sample.stableRequestKey));
+    });
+
+    test('provider identity is stable and decode width remains bounded', () {
+      final request = GalleryImageRequest(
+        sourceId: 'ai_tag',
+        url: 'https://example.com/image.webp',
+        tier: GalleryImageTier.thumbnail,
+        targetDecodeWidth: 960,
+      );
+      final cacheManager = _NoopCacheManager();
+      final first = request.createImageProvider(cacheManager);
+      final second = request.createImageProvider(cacheManager);
+
+      expect(first, isA<ResizeImage>());
+      expect(first, second);
+      final resized = first as ResizeImage;
+      expect(resized.width, 960);
+      expect(resized.imageProvider, isA<CachedNetworkImageProvider>());
+    });
+
     test('equality is based on stable request key', () {
       final request1 = GalleryImageRequest(
         sourceId: 'test',
@@ -275,4 +316,9 @@ void main() {
       );
     });
   });
+}
+
+class _NoopCacheManager implements BaseCacheManager {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

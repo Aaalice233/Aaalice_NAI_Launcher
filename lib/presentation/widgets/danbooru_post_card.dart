@@ -1,4 +1,3 @@
-import 'dart:collection';
 import 'dart:math';
 
 import 'package:cached_network_image/cached_network_image.dart';
@@ -116,16 +115,8 @@ class DanbooruPostCard extends StatefulWidget {
 }
 
 class _DanbooruPostCardState extends State<DanbooruPostCard> {
-  static final LinkedHashMap<String, double> _aspectRatioCache =
-      LinkedHashMap<String, double>();
-  static const int _maxAspectRatioEntries = 1000;
-
   bool _isHovering = false;
   bool _isFocused = false;
-  double? _resolvedAspectRatio;
-  String? _dimensionRequestUrl;
-  ImageStream? _dimensionStream;
-  ImageStreamListener? _dimensionListener;
   late final OnlineGalleryHoverController _ownedHoverController;
   final _layerLink = LayerLink();
 
@@ -139,12 +130,6 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
   }
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _resolveUnknownDimensions();
-  }
-
-  @override
   void didUpdateWidget(covariant DanbooruPostCard oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.post.stableKey != widget.post.stableKey) {
@@ -153,78 +138,10 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
       );
       _isHovering = false;
     }
-    if (oldWidget.post.previewUrl != widget.post.previewUrl ||
-        oldWidget.post.width != widget.post.width ||
-        oldWidget.post.height != widget.post.height ||
-        oldWidget.loadMedia != widget.loadMedia) {
-      _resolvedAspectRatio = null;
-      _resolveUnknownDimensions();
-    }
-  }
-
-  void _resolveUnknownDimensions() {
-    final post = widget.post;
-    if (!widget.loadMedia ||
-        (post.width > 0 && post.height > 0) ||
-        _resolvedAspectRatio != null ||
-        !post.mediaCapability.canPrefetchPreview) {
-      _detachDimensionListener();
-      return;
-    }
-    final url = post.previewUrl;
-    final request = GalleryImageRequest.forUrl(
-      sourceId: post.sourceId,
-      url: url,
-      tier: GalleryImageTier.thumbnail,
-      targetDecodeWidth: GalleryImageSizing.gridTargetWidth(
-        layoutWidth: widget.itemWidth,
-        devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
-      ),
-    );
-    final cachedRatio = _aspectRatioCache.remove(request.stableRequestKey);
-    if (cachedRatio != null) {
-      _aspectRatioCache[request.stableRequestKey] = cachedRatio;
-      _resolvedAspectRatio = cachedRatio;
-      return;
-    }
-    if (_dimensionRequestUrl == request.stableRequestKey) return;
-    _detachDimensionListener();
-    _dimensionRequestUrl = request.stableRequestKey;
-    final provider = request.createImageProvider(
-      OnlineGalleryImageCacheManager.instance,
-    );
-    final stream = provider.resolve(createLocalImageConfiguration(context));
-    late final ImageStreamListener listener;
-    listener = ImageStreamListener((imageInfo, _) {
-      if (!mounted || widget.post.previewUrl != url) return;
-      final width = imageInfo.image.width;
-      final height = imageInfo.image.height;
-      if (width > 0 && height > 0) {
-        final ratio = width / height;
-        _aspectRatioCache[request.stableRequestKey] = ratio;
-        while (_aspectRatioCache.length > _maxAspectRatioEntries) {
-          _aspectRatioCache.remove(_aspectRatioCache.keys.first);
-        }
-        setState(() => _resolvedAspectRatio = ratio);
-      }
-      _detachDimensionListener();
-    }, onError: (_, __) => _detachDimensionListener());
-    _dimensionStream = stream;
-    _dimensionListener = listener;
-    stream.addListener(listener);
-  }
-
-  void _detachDimensionListener() {
-    final listener = _dimensionListener;
-    if (listener != null) _dimensionStream?.removeListener(listener);
-    _dimensionStream = null;
-    _dimensionListener = null;
-    _dimensionRequestUrl = null;
   }
 
   @override
   void dispose() {
-    _detachDimensionListener();
     _hoverController.dismissFor(widget.post.stableKey);
     _ownedHoverController.dispose();
     super.dispose();
@@ -251,11 +168,9 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
       onDismissIntent: widget.onHoverDismiss,
       builder: (_) => _HoverPreviewCardInner(
         post: widget.post,
-        aspectRatio:
-            _resolvedAspectRatio ??
-            (widget.post.width > 0 && widget.post.height > 0
-                ? widget.post.width / widget.post.height
-                : null),
+        aspectRatio: widget.post.width > 0 && widget.post.height > 0
+            ? widget.post.width / widget.post.height
+            : null,
         maxWidth: previewSize.width,
         maxHeight: previewSize.height,
         imageCoordinator: widget.imageCoordinator,
@@ -424,7 +339,7 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
 
     final aspectRatio = widget.post.width > 0 && widget.post.height > 0
         ? widget.post.width / widget.post.height
-        : _resolvedAspectRatio ?? 1.0;
+        : 1.0;
     final layoutAspectRatio = widget.layoutAspectRatio;
     final stableAspectRatio = layoutAspectRatio != null && layoutAspectRatio > 0
         ? layoutAspectRatio
