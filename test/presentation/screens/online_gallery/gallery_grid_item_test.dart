@@ -152,6 +152,7 @@ void main() {
 
     firstAttempt.completeError(StateError('network failed'));
     await tester.pump();
+    await tester.pump();
 
     expect(find.text('Retry'), findsOneWidget);
     expect(find.byIcon(Icons.refresh), findsOneWidget);
@@ -165,6 +166,49 @@ void main() {
     expect(find.byKey(const ValueKey('resolved-card')), findsOneWidget);
     expect(find.text('Retry'), findsNothing);
   });
+
+  testWidgets(
+    'missing dimensions remain an empty stable card until first visibility',
+    (tester) async {
+      const item = GalleryItem(
+        id: 2,
+        workId: 'work-2',
+        sourceId: GallerySourceId.danbooru,
+        previewFileUrl: 'https://example.test/pending.jpg',
+      );
+      final loadMediaValues = <bool>[];
+
+      await tester.pumpWidget(
+        _app(
+          post: item,
+          detailRequestScope: 1,
+          loadDetail: (_, {required priority, forceRefresh = false}) =>
+              throw StateError('detail should not load'),
+          onBuildCard: loadMediaValues.add,
+        ),
+      );
+
+      expect(loadMediaValues, [isFalse]);
+      expect(find.byKey(const ValueKey('resolved-card')), findsOneWidget);
+      expect(tester.getSize(find.byType(GalleryGridItem)).height, 200);
+
+      final detector = tester.widget<VisibilityDetector>(
+        find.byType(VisibilityDetector),
+      );
+      detector.onVisibilityChanged?.call(
+        VisibilityInfo(
+          key: detector.key!,
+          size: const Size(200, 200),
+          visibleBounds: const Rect.fromLTWH(0, 0, 200, 200),
+        ),
+      );
+      await tester.pump();
+
+      expect(loadMediaValues.last, isTrue);
+      expect(find.byKey(const ValueKey('resolved-card')), findsOneWidget);
+      expect(tester.getSize(find.byType(GalleryGridItem)).height, 200);
+    },
+  );
 }
 
 const _item = GalleryItem(
@@ -174,6 +218,7 @@ const _item = GalleryItem(
 );
 
 Widget _app({
+  GalleryItem post = _item,
   required Object detailRequestScope,
   required Future<GalleryDetail> Function(
     GalleryItem item, {
@@ -181,6 +226,7 @@ Widget _app({
     bool forceRefresh,
   })
   loadDetail,
+  ValueChanged<bool>? onBuildCard,
 }) {
   return MaterialApp(
     locale: const Locale('en'),
@@ -191,7 +237,7 @@ Widget _app({
         width: 200,
         height: 200,
         child: GalleryGridItem(
-          post: _item,
+          post: post,
           index: 0,
           itemWidth: 200,
           columnCount: 1,
@@ -206,8 +252,15 @@ Widget _app({
                 item,
                 itemWidth, {
                 required layoutAspectRatio,
+                required loadMedia,
                 detail,
-              }) => const SizedBox(key: ValueKey('resolved-card')),
+              }) {
+                onBuildCard?.call(loadMedia);
+                return SizedBox(
+                  key: const ValueKey('resolved-card'),
+                  height: itemWidth / layoutAspectRatio,
+                );
+              },
         ),
       ),
     ),

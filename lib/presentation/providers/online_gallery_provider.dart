@@ -80,9 +80,11 @@ export 'online_gallery_state.dart'
 
 part 'online_gallery_provider.g.dart';
 
+const int onlineGalleryPageSize = 60;
+
 @riverpod
 class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
-  static const int _pageSize = 60;
+  static const int _pageSize = onlineGalleryPageSize;
   final OnlineGalleryLoadCoordinator _loadCoordinator =
       OnlineGalleryLoadCoordinator();
   final OnlineGalleryArtistHuntService _artistHunt =

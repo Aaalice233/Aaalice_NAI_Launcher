@@ -919,6 +919,18 @@ void main() {
     await tester.tap(find.byIcon(Icons.chevron_right));
     await tester.pump();
 
+    final detector = tester.widget<VisibilityDetector>(
+      find.byKey(const ValueKey('gallery-visibility:danbooru:402')),
+    );
+    detector.onVisibilityChanged?.call(
+      VisibilityInfo(
+        key: detector.key!,
+        size: const Size(200, 200),
+        visibleBounds: const Rect.fromLTWH(0, 0, 200, 200),
+      ),
+    );
+    await tester.pump();
+
     expect(find.byKey(const ValueKey('danbooru:401')), findsNothing);
     expect(find.byKey(const ValueKey('danbooru:402')), findsOneWidget);
     expect(

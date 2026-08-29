@@ -5,6 +5,7 @@ import 'package:visibility_detector/visibility_detector.dart';
 
 import '../../../core/cache/online_gallery_preload_policy.dart';
 import '../../providers/online_gallery_provider.dart';
+import '../../widgets/online_gallery/online_gallery_image_placeholder.dart';
 import 'online_gallery_screen_controller.dart';
 
 typedef OnlineGalleryGridItemBuilder =
@@ -36,6 +37,16 @@ class OnlineGalleryGrid extends StatelessWidget {
   final OnlineGalleryScreenController controller;
   final OnlineGalleryGridItemBuilder itemBuilder;
 
+  int _placeholderCount() {
+    if (!(state.isLoadingMore || (state.isLoading && state.posts.isEmpty))) {
+      return 0;
+    }
+    if (state.randomEnabled) return 1;
+    final total = state.currentCache.total;
+    if (total == null) return onlineGalleryPageSize;
+    return (total - state.posts.length).clamp(0, onlineGalleryPageSize);
+  }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -58,6 +69,7 @@ class OnlineGalleryGrid extends StatelessWidget {
         final storageScope = state.randomEnabled
             ? 'random:${state.randomSession.scopeKey}'
             : 'normal';
+        final placeholderCount = _placeholderCount();
         return MasonryGridView.count(
           key: PageStorageKey<String>(
             'online_gallery_$storageScope:${state.currentCacheKey}',
@@ -68,11 +80,43 @@ class OnlineGalleryGrid extends StatelessWidget {
           crossAxisCount: columnCount,
           mainAxisSpacing: spacing,
           crossAxisSpacing: spacing,
-          itemCount: state.posts.length + 1,
-          itemBuilder: (context, index) =>
-              itemBuilder(context, index, itemWidth, columnCount),
+          itemCount: state.posts.length + placeholderCount + 1,
+          itemBuilder: (context, index) {
+            if (index >= state.posts.length &&
+                index < state.posts.length + placeholderCount) {
+              return OnlineGalleryPendingCard(
+                key: ValueKey(
+                  'online-gallery-pending:${state.currentCacheKey}:$index',
+                ),
+                itemWidth: itemWidth,
+              );
+            }
+            return itemBuilder(
+              context,
+              index < state.posts.length ? index : state.posts.length,
+              itemWidth,
+              columnCount,
+            );
+          },
         );
       },
+    );
+  }
+}
+
+class OnlineGalleryPendingCard extends StatelessWidget {
+  const OnlineGalleryPendingCard({super.key, required this.itemWidth});
+
+  final double itemWidth;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: itemWidth,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: const OnlineGalleryImagePlaceholder(),
+      ),
     );
   }
 }
@@ -137,11 +181,23 @@ class OnlineGalleryVisibilityDrivenItemState
   void _handleScrollingChanged() {
     final value = widget.scrolling.value;
     if (_isScrolling == value) return;
-    if (!_hasBeenVisible && value && mounted) {
-      setState(() => _isScrolling = value);
-    } else {
+    if (_hasBeenVisible || !mounted) {
       _isScrolling = value;
+      return;
     }
+    if (!value && _isVisible) {
+      _stopListeningForScrolling();
+      setState(() {
+        _isScrolling = false;
+        _hasBeenVisible = true;
+      });
+      return;
+    }
+    if (!value) {
+      _isScrolling = false;
+      return;
+    }
+    setState(() => _isScrolling = value);
   }
 
   @override
@@ -164,7 +220,7 @@ class OnlineGalleryVisibilityDrivenItemState
         }
         if (_isVisible == visible) return;
         _isVisible = visible;
-        if (visible && !_hasBeenVisible && mounted) {
+        if (visible && !_hasBeenVisible && !_isScrolling && mounted) {
           _stopListeningForScrolling();
           setState(() => _hasBeenVisible = true);
         }
