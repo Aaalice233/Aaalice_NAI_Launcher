@@ -31,6 +31,7 @@ class OnlineGalleryScreenController extends ChangeNotifier {
   final dateRangeLayerLink = LayerLink();
   final anchorRestoreKey = GlobalKey();
   final primarySearchRevealKey = GlobalKey();
+  final scrolling = ValueNotifier<bool>(false);
 
   final Map<int, ({GalleryItem item, double itemWidth, double visibleTop})>
   visibleItems = {};
@@ -46,7 +47,7 @@ class OnlineGalleryScreenController extends ChangeNotifier {
   double lastScrollOffset = 0;
   int scrollDirection = 1;
   int lookaheadItemCount = 12;
-  bool isScrolling = false;
+  bool get isScrolling => scrolling.value;
   bool isEditingPage = false;
   GalleryViewMode? lastViewMode;
   GallerySourceId? lastFavoritesSource;
@@ -71,8 +72,22 @@ class OnlineGalleryScreenController extends ChangeNotifier {
 
   void setScrolling(bool value) {
     if (isScrolling == value) return;
-    isScrolling = value;
-    notifyListeners();
+    scrolling.value = value;
+  }
+
+  bool recordVisibleItem({
+    required int index,
+    required GalleryItem item,
+    required double itemWidth,
+    required double visibleTop,
+  }) {
+    final previous = visibleItems[index];
+    visibleItems[index] = (
+      item: item,
+      itemWidth: itemWidth,
+      visibleTop: visibleTop,
+    );
+    return previous?.item.stableKey != item.stableKey;
   }
 
   void beginPageEditing(int currentPage) {
@@ -134,6 +149,7 @@ class OnlineGalleryScreenController extends ChangeNotifier {
     scrollController.dispose();
     pageController.dispose();
     pageFocusNode.dispose();
+    scrolling.dispose();
     super.dispose();
   }
 }

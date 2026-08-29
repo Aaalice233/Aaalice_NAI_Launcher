@@ -39,16 +39,13 @@ class OnlineGalleryContent extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return ListenableBuilder(
-      listenable: controller,
-      builder: (context, _) => _OnlineGalleryContentPresenter(
-        context: context,
-        ref: ref,
-        controller: controller,
-        scrollCoordinator: scrollCoordinator,
-        commands: commands,
-      ).build(Theme.of(context), state),
-    );
+    return _OnlineGalleryContentPresenter(
+      context: context,
+      ref: ref,
+      controller: controller,
+      scrollCoordinator: scrollCoordinator,
+      commands: commands,
+    ).build(Theme.of(context), state);
   }
 }
 
@@ -304,7 +301,7 @@ class _OnlineGalleryContentPresenter {
       index: index,
       itemWidth: itemWidth,
       columnCount: columnCount,
-      isScrolling: _controller.isScrolling,
+      scrolling: _controller.scrolling,
       anchorKey: post.stableKey == _controller.pendingAnchorStableKey
           ? _controller.anchorRestoreKey
           : null,
