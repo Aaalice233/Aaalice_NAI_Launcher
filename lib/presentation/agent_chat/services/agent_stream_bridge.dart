@@ -22,6 +22,7 @@ AssistantMessageEventStream agentWireEventStream(
     String? errorMessage;
     var started = false;
     var sawFinish = false;
+    final thinkingIndexes = <String, int>{};
 
     AssistantMessage finalMessage() {
       return _snapshot(
@@ -47,21 +48,66 @@ AssistantMessageEventStream agentWireEventStream(
         switch (event) {
           case wire.AgentWireThinkingDelta():
             emitStart();
-            _appendThinking(content, event.delta);
+            var index = event.itemId == null
+                ? null
+                : thinkingIndexes[event.itemId!];
+            if (index != null && content[index] is AssistantThinkingContent) {
+              final block = content[index] as AssistantThinkingContent;
+              content[index] = AssistantThinkingContent(
+                '${block.thinking}${event.delta}',
+                signature: block.signature,
+              );
+            } else {
+              if (event.itemId == null) {
+                _appendThinking(content, event.delta);
+              } else {
+                content.add(AssistantThinkingContent(event.delta));
+              }
+              index = content.length - 1;
+              if (event.itemId case final itemId?) {
+                thinkingIndexes[itemId] = index;
+              }
+            }
             stream.push(
               AmThinkingDelta(
                 partial: finalMessage(),
                 delta: event.delta,
-                contentIndex: content.length - 1,
+                contentIndex: index,
               ),
             );
           case wire.AgentWireThinkingSignature():
+            if (event.signature.isEmpty) break;
+            emitStart();
+            var index = event.itemId == null
+                ? null
+                : thinkingIndexes[event.itemId!];
+            if (index == null || content[index] is! AssistantThinkingContent) {
+              final lastIndex = content.length - 1;
+              if (event.itemId == null &&
+                  lastIndex >= 0 &&
+                  content[lastIndex] is AssistantThinkingContent) {
+                index = lastIndex;
+              } else {
+                content.add(const AssistantThinkingContent(''));
+                index = content.length - 1;
+              }
+              if (event.itemId case final itemId?) {
+                thinkingIndexes[itemId] = index;
+              }
+            }
+            final block = content[index] as AssistantThinkingContent;
+            content[index] = AssistantThinkingContent(
+              block.thinking,
+              signature: event.replace
+                  ? event.signature
+                  : '${block.signature ?? ''}${event.signature}',
+            );
+          case wire.AgentWireTextSignature():
             final last = content.lastOrNull;
-            if (last is AssistantThinkingContent &&
-                event.signature.isNotEmpty) {
-              content[content.length - 1] = AssistantThinkingContent(
-                last.thinking,
-                signature: '${last.signature ?? ''}${event.signature}',
+            if (last is AssistantTextContent && event.signature.isNotEmpty) {
+              content[content.length - 1] = AssistantTextContent(
+                last.text,
+                signature: event.signature,
               );
             }
           case wire.AgentWireTextDelta():
@@ -80,6 +126,7 @@ AssistantMessageEventStream agentWireEventStream(
               id: event.id,
               name: event.name,
               arguments: event.arguments,
+              thoughtSignature: event.thoughtSignature,
             );
             content.add(toolCall);
             stream.push(
@@ -172,7 +219,10 @@ void _appendThinking(List<AssistantContent> content, String delta) {
 void _appendText(List<AssistantContent> content, String delta) {
   final last = content.lastOrNull;
   if (last is AssistantTextContent) {
-    content[content.length - 1] = AssistantTextContent('${last.text}$delta');
+    content[content.length - 1] = AssistantTextContent(
+      '${last.text}$delta',
+      signature: last.signature,
+    );
   } else {
     content.add(AssistantTextContent(delta));
   }

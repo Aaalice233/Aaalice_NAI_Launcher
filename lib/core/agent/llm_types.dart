@@ -18,9 +18,12 @@ sealed class AssistantContent {
 }
 
 class AssistantTextContent extends AssistantContent {
-  const AssistantTextContent(this.text);
+  const AssistantTextContent(this.text, {this.signature});
 
   final String text;
+
+  /// Provider proof attached to a visible text part (Gemini).
+  final String? signature;
 }
 
 class AssistantThinkingContent extends AssistantContent {
@@ -38,17 +41,22 @@ class ToolCallContent extends AssistantContent {
     required this.id,
     required this.name,
     required this.arguments,
+    this.thoughtSignature,
   });
 
   final String id;
   final String name;
   final Map<String, dynamic> arguments;
 
+  /// Provider proof attached to a function-call part (Gemini).
+  final String? thoughtSignature;
+
   Map<String, dynamic> toJson() => {
     'type': 'toolCall',
     'id': id,
     'name': name,
     'arguments': arguments,
+    if (thoughtSignature != null) 'thoughtSignature': thoughtSignature,
   };
 }
 

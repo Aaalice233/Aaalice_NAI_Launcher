@@ -35,6 +35,30 @@ void main() {
     },
   );
 
+  test('Mistral typed content emits thinking and visible text', () async {
+    final dio = Dio()
+      ..httpClientAdapter = _SseAdapter(
+        'data: {"choices":[{"delta":{"content":['
+        '{"type":"thinking","thinking":[{"type":"text","text":"reason"}]},'
+        '{"type":"text","text":"answer"}'
+        ']},"finish_reason":"stop"}]}\n\n'
+        'data: [DONE]\n\n',
+      );
+    addTearDown(dio.close);
+
+    final events = await const OpenAiChatCompletionsAdapter()
+        .completeAgent(
+          dio: dio,
+          request: _request(ProviderProtocol.openaiChatCompletions),
+          cancelToken: CancelToken(),
+        )
+        .toList();
+
+    expect(events.whereType<AgentWireThinkingDelta>().single.delta, 'reason');
+    expect(events.whereType<AgentWireTextDelta>().single.delta, 'answer');
+    expect(events.whereType<AgentWireFinish>(), hasLength(1));
+  });
+
   test('OpenAI chat rejects a truncated stream', () async {
     final dio = Dio()
       ..httpClientAdapter = _SseAdapter(
@@ -471,6 +495,194 @@ void main() {
 
     expect(events.whereType<AgentWireError>(), hasLength(1));
     expect(events.whereType<AgentWireFinish>(), isEmpty);
+  });
+
+  test('OpenAI Responses persists encrypted reasoning and replays it', () async {
+    final dio = Dio()
+      ..httpClientAdapter = _SseAdapter(
+        'event: response.output_item.added\n'
+        'data: {"output_index":0,"item":{"type":"reasoning","id":"rs_1"}}\n\n'
+        'event: response.reasoning_summary_text.delta\n'
+        'data: {"output_index":0,"delta":"summary"}\n\n'
+        'event: response.output_item.done\n'
+        'data: {"output_index":0,"item":{"type":"reasoning","id":"rs_1","summary":[{"type":"summary_text","text":"summary"}]}}\n\n'
+        'event: response.completed\n'
+        'data: {"response":{"output":[{"type":"reasoning","id":"rs_1","encrypted_content":"secret"}],"usage":{"input_tokens":1,"output_tokens":2,"total_tokens":3}}}\n\n',
+      );
+    addTearDown(dio.close);
+
+    final events = await const OpenAiResponsesAdapter()
+        .completeAgent(
+          dio: dio,
+          request: _request(ProviderProtocol.openaiResponses),
+          cancelToken: CancelToken(),
+        )
+        .toList();
+    final signature = events
+        .whereType<AgentWireThinkingSignature>()
+        .last
+        .signature;
+    expect(signature, contains('"encrypted_content":"secret"'));
+
+    final capture = _CaptureAdapter();
+    final replayDio = Dio()..httpClientAdapter = capture;
+    addTearDown(replayDio.close);
+    final base = _request(ProviderProtocol.openaiResponses);
+    await const OpenAiResponsesAdapter()
+        .completeAgent(
+          dio: replayDio,
+          request: AgentChatRequest(
+            sessionId: base.sessionId,
+            provider: base.provider,
+            model: base.model,
+            systemPrompt: base.systemPrompt,
+            messages: [
+              AssistantMessage(
+                content: [
+                  AssistantThinkingContent('summary', signature: signature),
+                ],
+                stopReason: StopReason.stop,
+                provider: base.provider.id,
+                model: base.model,
+              ),
+            ],
+            tools: const [],
+            apiKey: null,
+          ),
+          cancelToken: CancelToken(),
+        )
+        .toList();
+
+    final input =
+        (capture.options!.data as Map<String, dynamic>)['input'] as List;
+    expect(
+      input.cast<Map<String, dynamic>>().singleWhere(
+        (item) => item['type'] == 'reasoning',
+      )['encrypted_content'],
+      'secret',
+    );
+  });
+
+  test(
+    'OpenAI Responses keeps item_id on interleaved reasoning deltas',
+    () async {
+      final dio = Dio()
+        ..httpClientAdapter = _SseAdapter(
+          'event: response.reasoning_summary_text.delta\n'
+          'data: {"item_id":"reason-1","delta":"first"}\n\n'
+          'event: response.reasoning_summary_text.delta\n'
+          'data: {"item_id":"reason-2","delta":"second"}\n\n'
+          'event: response.completed\n'
+          'data: {"response":{"usage":{}}}\n\n',
+        );
+      addTearDown(dio.close);
+
+      final events = await const OpenAiResponsesAdapter()
+          .completeAgent(
+            dio: dio,
+            request: _request(ProviderProtocol.openaiResponses),
+            cancelToken: CancelToken(),
+          )
+          .toList();
+
+      expect(
+        events.whereType<AgentWireThinkingDelta>().map((event) => event.itemId),
+        ['reason-1', 'reason-2'],
+      );
+    },
+  );
+
+  test('Gemini persists and replays signatures on text and tool parts', () async {
+    final dio = Dio()
+      ..httpClientAdapter = _SseAdapter(
+        'data: {"candidates":[{"content":{"parts":['
+        '{"text":"answer","thoughtSignature":"text-sig"},'
+        '{"functionCall":{"name":"tool","args":{"x":1}},"thoughtSignature":"tool-sig"}'
+        ']},"finishReason":"STOP"}]}\n\n',
+      );
+    addTearDown(dio.close);
+
+    final events = await const GeminiGenerateContentAdapter()
+        .completeAgent(
+          dio: dio,
+          request: _request(ProviderProtocol.geminiGenerateContent),
+          cancelToken: CancelToken(),
+        )
+        .toList();
+    expect(
+      events.whereType<AgentWireTextSignature>().single.signature,
+      'text-sig',
+    );
+    expect(
+      events.whereType<AgentWireToolCallDone>().single.thoughtSignature,
+      'tool-sig',
+    );
+
+    final capture = _CaptureAdapter();
+    final replayDio = Dio()..httpClientAdapter = capture;
+    addTearDown(replayDio.close);
+    final base = _request(ProviderProtocol.geminiGenerateContent);
+    await const GeminiGenerateContentAdapter()
+        .completeAgent(
+          dio: replayDio,
+          request: AgentChatRequest(
+            sessionId: base.sessionId,
+            provider: base.provider,
+            model: base.model,
+            systemPrompt: base.systemPrompt,
+            messages: [
+              AssistantMessage(
+                content: const [
+                  AssistantTextContent('answer', signature: 'text-sig'),
+                  AssistantThinkingContent('thought', signature: 'think-sig'),
+                  ToolCallContent(
+                    id: 'call-1',
+                    name: 'tool',
+                    arguments: {'x': 1},
+                    thoughtSignature: 'tool-sig',
+                  ),
+                ],
+                stopReason: StopReason.toolUse,
+                provider: base.provider.id,
+                model: base.model,
+              ),
+            ],
+            tools: const [],
+            apiKey: null,
+          ),
+          cancelToken: CancelToken(),
+        )
+        .toList();
+
+    final contents =
+        (capture.options!.data as Map<String, dynamic>)['contents'] as List;
+    final parts = ((contents.single as Map)['parts'] as List).cast<Map>();
+    expect(parts[0]['thoughtSignature'], 'text-sig');
+    expect(parts[1]['thoughtSignature'], 'think-sig');
+    expect(parts[2]['thoughtSignature'], 'tool-sig');
+  });
+
+  test('Gemini preserves a signature-only part', () async {
+    final dio = Dio()
+      ..httpClientAdapter = _SseAdapter(
+        'data: {"candidates":[{"content":{"parts":['
+        '{"thoughtSignature":"proof-only"}'
+        ']},"finishReason":"STOP"}]}\n\n',
+      );
+    addTearDown(dio.close);
+
+    final events = await const GeminiGenerateContentAdapter()
+        .completeAgent(
+          dio: dio,
+          request: _request(ProviderProtocol.geminiGenerateContent),
+          cancelToken: CancelToken(),
+        )
+        .toList();
+
+    expect(
+      events.whereType<AgentWireTextSignature>().single.signature,
+      'proof-only',
+    );
   });
 
   test('every Agent protocol sends the exact final system prompt', () async {

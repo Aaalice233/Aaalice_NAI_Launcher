@@ -7,8 +7,14 @@ void main() {
     final message = AssistantMessage(
       content: const [
         AssistantThinkingContent('inspect', signature: 'signed-inspect'),
-        AssistantTextContent('answer'),
+        AssistantTextContent('answer', signature: 'text-sig'),
         AssistantThinkingContent('verify'),
+        ToolCallContent(
+          id: 'call-1',
+          name: 'tool',
+          arguments: {},
+          thoughtSignature: 'tool-sig',
+        ),
       ],
       stopReason: StopReason.stop,
       provider: 'provider',
@@ -24,16 +30,21 @@ void main() {
       isA<AssistantThinkingContent>()
           .having((block) => block.thinking, 'thinking', 'inspect')
           .having((block) => block.signature, 'signature', 'signed-inspect'),
-      isA<AssistantTextContent>().having(
-        (block) => block.text,
-        'text',
-        'answer',
-      ),
+      isA<AssistantTextContent>()
+          .having((block) => block.text, 'text', 'answer')
+          .having((block) => block.signature, 'signature', 'text-sig'),
       isA<AssistantThinkingContent>().having(
         (block) => block.thinking,
         'thinking',
         'verify',
       ),
+      isA<ToolCallContent>()
+          .having((block) => block.name, 'name', 'tool')
+          .having(
+            (block) => block.thoughtSignature,
+            'thoughtSignature',
+            'tool-sig',
+          ),
     ]);
     expect(restored.provider, 'provider');
     expect(restored.model, 'model');

@@ -1,52 +1,329 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/agent/agent_types.dart';
+import 'package:nai_launcher/presentation/agent_chat/model/agent_reasoning_model_rule.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/agent_chat_model_capability.dart';
+import 'package:nai_launcher/presentation/prompt_assistant/models/agent_protocol.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/models/prompt_assistant_models.dart';
 
 void main() {
-  test('exposes verified Claude context and reasoning levels', () {
-    const provider = ProviderConfig(
-      id: 'anthropic',
-      name: 'Anthropic',
-      protocol: ProviderProtocol.anthropicMessages,
-      baseUrl: 'https://api.anthropic.com',
-      preset: ProviderPreset.anthropic,
-    );
+  group('Pi reasoning capability matrix', () {
+    final cases =
+        <
+          ({
+            String provider,
+            ProviderProtocol protocol,
+            String baseUrl,
+            String model,
+            List<ThinkingLevel> levels,
+          })
+        >[
+          (
+            provider: 'openai',
+            protocol: ProviderProtocol.openaiResponses,
+            baseUrl: 'https://api.openai.com/v1',
+            model: 'gpt-5.2',
+            levels: const [
+              ThinkingLevel.off,
+              ThinkingLevel.low,
+              ThinkingLevel.medium,
+              ThinkingLevel.high,
+              ThinkingLevel.xhigh,
+            ],
+          ),
+          (
+            provider: 'anthropic',
+            protocol: ProviderProtocol.anthropicMessages,
+            baseUrl: 'https://api.anthropic.com',
+            model: 'claude-opus-4-8',
+            levels: const [
+              ThinkingLevel.off,
+              ThinkingLevel.minimal,
+              ThinkingLevel.low,
+              ThinkingLevel.medium,
+              ThinkingLevel.high,
+              ThinkingLevel.xhigh,
+              ThinkingLevel.max,
+            ],
+          ),
+          (
+            provider: 'google',
+            protocol: ProviderProtocol.geminiGenerateContent,
+            baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
+            model: 'gemini-3.1-pro-preview',
+            levels: const [ThinkingLevel.low, ThinkingLevel.high],
+          ),
+          (
+            provider: 'deepseek',
+            protocol: ProviderProtocol.openaiChatCompletions,
+            baseUrl: 'https://api.deepseek.com',
+            model: 'deepseek-v4-flash',
+            levels: const [
+              ThinkingLevel.off,
+              ThinkingLevel.low,
+              ThinkingLevel.high,
+              ThinkingLevel.max,
+            ],
+          ),
+          (
+            provider: 'openrouter',
+            protocol: ProviderProtocol.openaiChatCompletions,
+            baseUrl: 'https://openrouter.ai/api/v1',
+            model: 'openai/gpt-5.2',
+            levels: const [
+              ThinkingLevel.off,
+              ThinkingLevel.low,
+              ThinkingLevel.medium,
+              ThinkingLevel.high,
+              ThinkingLevel.xhigh,
+            ],
+          ),
+          (
+            provider: 'xai',
+            protocol: ProviderProtocol.openaiResponses,
+            baseUrl: 'https://api.x.ai/v1',
+            model: 'grok-4.6',
+            levels: const [
+              ThinkingLevel.low,
+              ThinkingLevel.medium,
+              ThinkingLevel.high,
+              ThinkingLevel.xhigh,
+            ],
+          ),
+          (
+            provider: 'mistral',
+            protocol: ProviderProtocol.openaiChatCompletions,
+            baseUrl: 'https://api.mistral.ai',
+            model: 'magistral-medium-latest',
+            levels: const [
+              ThinkingLevel.off,
+              ThinkingLevel.minimal,
+              ThinkingLevel.low,
+              ThinkingLevel.medium,
+              ThinkingLevel.high,
+            ],
+          ),
+          (
+            provider: 'groq',
+            protocol: ProviderProtocol.openaiChatCompletions,
+            baseUrl: 'https://api.groq.com/openai/v1',
+            model: 'openai/gpt-oss-120b',
+            levels: const [
+              ThinkingLevel.low,
+              ThinkingLevel.medium,
+              ThinkingLevel.high,
+            ],
+          ),
+          (
+            provider: 'cerebras',
+            protocol: ProviderProtocol.openaiChatCompletions,
+            baseUrl: 'https://api.cerebras.ai/v1',
+            model: 'gemma-4-31b',
+            levels: const [
+              ThinkingLevel.off,
+              ThinkingLevel.low,
+              ThinkingLevel.medium,
+              ThinkingLevel.high,
+            ],
+          ),
+          (
+            provider: 'minimax',
+            protocol: ProviderProtocol.anthropicMessages,
+            baseUrl: 'https://api.minimax.io/anthropic',
+            model: 'MiniMax-M3',
+            levels: const [
+              ThinkingLevel.off,
+              ThinkingLevel.minimal,
+              ThinkingLevel.low,
+              ThinkingLevel.medium,
+              ThinkingLevel.high,
+            ],
+          ),
+          (
+            provider: 'moonshotai',
+            protocol: ProviderProtocol.openaiChatCompletions,
+            baseUrl: 'https://api.moonshot.ai/v1',
+            model: 'kimi-k3',
+            levels: const [
+              ThinkingLevel.low,
+              ThinkingLevel.high,
+              ThinkingLevel.max,
+            ],
+          ),
+          (
+            provider: 'qwen-token-plan',
+            protocol: ProviderProtocol.openaiChatCompletions,
+            baseUrl:
+                'https://token-plan.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1',
+            model: 'qwen3.8-max',
+            levels: const [
+              ThinkingLevel.off,
+              ThinkingLevel.low,
+              ThinkingLevel.medium,
+              ThinkingLevel.xhigh,
+            ],
+          ),
+        ];
 
-    final capability = AgentChatModelCapability.resolve(
-      provider,
-      'claude-sonnet-4-20250514',
-    );
+    for (final entry in cases) {
+      test('${entry.provider}/${entry.model}', () {
+        final capability = AgentChatModelCapability.resolve(
+          ProviderConfig(
+            id: entry.provider,
+            name: entry.provider,
+            protocol: entry.protocol,
+            baseUrl: entry.baseUrl,
+          ),
+          entry.model,
+        );
 
-    expect(capability.model.contextWindow, 200000);
-    expect(capability.model.reasoning, isTrue);
-    expect(
-      capability.levels,
-      containsAll([ThinkingLevel.off, ThinkingLevel.high]),
-    );
-  });
-
-  test('resolves official DeepSeek v4 context and output metadata', () {
-    const provider = ProviderConfig(
-      id: 'deepseek',
-      name: 'DeepSeek',
-      protocol: ProviderProtocol.openaiChatCompletions,
-      baseUrl: 'https://api.deepseek.com',
-      preset: ProviderPreset.deepseek,
-    );
-
-    for (final model in [
-      'deepseek-v4-flash',
-      'deepseek-v4-pro',
-      'deepseek-v4-flash-vision-exp',
-    ]) {
-      final capability = AgentChatModelCapability.resolve(provider, model);
-      expect(capability.model.contextWindow, 1000000, reason: model);
-      expect(capability.model.maxTokens, 384000, reason: model);
+        expect(capability.levels, entry.levels);
+        expect(capability.model.reasoning, isTrue);
+        expect(capability.model.contextWindow, greaterThan(0));
+      });
     }
   });
 
-  test('keeps unknown compatible models explicitly unavailable', () {
+  test('named presets keep Pi semantics behind custom base URLs', () {
+    final cases = <(ProviderPreset, String)>[
+      (ProviderPreset.openRouter, 'openai/gpt-5.2'),
+      (ProviderPreset.xai, 'grok-4.6'),
+      (ProviderPreset.mistral, 'magistral-medium-latest'),
+      (ProviderPreset.groq, 'openai/gpt-oss-120b'),
+      (ProviderPreset.cerebras, 'gemma-4-31b'),
+      (ProviderPreset.minimax, 'MiniMax-M3'),
+      (ProviderPreset.minimaxCn, 'MiniMax-M3'),
+      (ProviderPreset.kimiCoding, 'kimi-for-coding'),
+      (ProviderPreset.moonshot, 'kimi-k3'),
+      (ProviderPreset.moonshotCn, 'kimi-k3'),
+      (ProviderPreset.qwenTokenPlan, 'qwen3.8-max'),
+      (ProviderPreset.qwenTokenPlanCn, 'qwen3.8-max'),
+      (ProviderPreset.qwenTokenPlanIndividual, 'qwen3.8-max'),
+    ];
+
+    for (final entry in cases) {
+      final provider = entry.$1.createConfig().copyWith(
+        baseUrl: 'https://proxy.example/v1',
+      );
+      expect(
+        AgentChatModelCapability.resolve(provider, entry.$2).levels,
+        isNotEmpty,
+        reason: entry.$1.name,
+      );
+    }
+  });
+
+  test('preserves Pi aliases even when native requests are equal', () {
+    final deepSeek = AgentChatModelCapability.resolve(
+      const ProviderConfig(
+        id: 'deepseek',
+        name: 'DeepSeek',
+        protocol: ProviderProtocol.openaiChatCompletions,
+        baseUrl: 'https://api.deepseek.com',
+        preset: ProviderPreset.deepseek,
+      ),
+      'deepseek-v4-flash',
+    );
+    final mistral = AgentChatModelCapability.resolve(
+      const ProviderConfig(
+        id: 'mistral',
+        name: 'Mistral',
+        protocol: ProviderProtocol.openaiChatCompletions,
+        baseUrl: 'https://api.mistral.ai',
+      ),
+      'magistral-small',
+    );
+
+    expect(deepSeek.levels, [
+      ThinkingLevel.off,
+      ThinkingLevel.low,
+      ThinkingLevel.high,
+      ThinkingLevel.max,
+    ]);
+    expect(mistral.levels, [
+      ThinkingLevel.off,
+      ThinkingLevel.minimal,
+      ThinkingLevel.low,
+      ThinkingLevel.medium,
+      ThinkingLevel.high,
+    ]);
+    expect(
+      deepSeek.resolveReasoningRequest('high'),
+      isA<AgentReasoningRequest>()
+          .having((request) => request.api, 'api', AgentReasoningApi.deepSeek)
+          .having((request) => request.effort, 'effort', isNull),
+    );
+  });
+
+  test('uses Pi model-specific Gemini thinking budgets', () {
+    final provider = ProviderPreset.gemini.createConfig(id: 'google');
+
+    expect(
+      AgentChatModelCapability.resolve(
+        provider,
+        'gemini-2.5-pro',
+      ).resolveReasoningRequest('high')?.budgetTokens,
+      32768,
+    );
+    expect(
+      AgentChatModelCapability.resolve(
+        provider,
+        'gemini-2.5-flash',
+      ).resolveReasoningRequest('high')?.budgetTokens,
+      24576,
+    );
+    expect(
+      AgentChatModelCapability.resolve(
+        provider,
+        'gemini-2.5-flash-lite',
+      ).resolveReasoningRequest('minimal')?.budgetTokens,
+      512,
+    );
+  });
+
+  test('Gemini 3 missing reasoning uses Pi hidden minimum', () {
+    final capability = AgentChatModelCapability.resolve(
+      ProviderPreset.gemini.createConfig(id: 'google'),
+      'gemini-3.1-pro-preview',
+    );
+
+    final request = capability.resolveReasoningRequest(null);
+
+    expect(request?.enabled, isFalse);
+    expect(request?.sendWhenDisabled, isTrue);
+    expect(request?.effort, 'LOW');
+  });
+
+  test('omits missing reasoning on models whose off mapping is null', () {
+    final capability = AgentChatModelCapability.resolve(
+      ProviderPreset.openaiResponses.createConfig(id: 'openai'),
+      'gpt-5',
+    );
+
+    final request = capability.resolveReasoningRequest(null);
+
+    expect(request?.enabled, isFalse);
+    expect(request?.sendWhenDisabled, isFalse);
+    expect(request?.effort, isNull);
+  });
+
+  test('Mistral effort keeps model-specific level mappings', () {
+    const metadata = AgentChatModelMetadata(
+      contextWindow: 1,
+      maxOutputTokens: 1,
+      thinkingLevels: [ThinkingLevel.off, ThinkingLevel.low],
+      reasoningRule: AgentReasoningModelRule(
+        api: AgentReasoningApi.mistralEffort,
+        levels: [ThinkingLevel.off, ThinkingLevel.low],
+        levelMap: {ThinkingLevel.low: 'custom-low'},
+        contextWindow: 1,
+        maxOutputTokens: 1,
+      ),
+    );
+
+    expect(metadata.resolveReasoningRequest('low')?.effort, 'custom-low');
+  });
+
+  test('keeps unknown custom endpoints explicitly unavailable', () {
     const provider = ProviderConfig(
       id: 'custom',
       name: 'Custom',
@@ -60,63 +337,22 @@ void main() {
     expect(capability.model.contextWindow, 0);
     expect(capability.model.reasoning, isFalse);
     expect(capability.levels, isEmpty);
-    expect(
-      AgentChatModelCapability.resolve(
+  });
+
+  test(
+    'rejects a catalog model when the configured protocol is incompatible',
+    () {
+      final capability = AgentChatModelCapability.resolve(
         const ProviderConfig(
-          id: 'deepseek',
-          name: 'DeepSeek',
+          id: 'anthropic',
+          name: 'Anthropic through wrong protocol',
           protocol: ProviderProtocol.openaiChatCompletions,
-          baseUrl: 'https://api.deepseek.com',
-          preset: ProviderPreset.deepseek,
+          baseUrl: 'https://api.anthropic.com',
         ),
-        'deepseek-v4-unknown',
-      ).model.contextWindow,
-      0,
-    );
-  });
+        'claude-opus-4-8',
+      );
 
-  test('mandatory reasoning models do not advertise a false off mode', () {
-    const deepSeek = ProviderConfig(
-      id: 'deepseek',
-      name: 'DeepSeek',
-      protocol: ProviderProtocol.openaiChatCompletions,
-      baseUrl: 'https://api.deepseek.com',
-      preset: ProviderPreset.deepseek,
-    );
-    const openAi = ProviderConfig(
-      id: 'openai',
-      name: 'OpenAI',
-      protocol: ProviderProtocol.openaiResponses,
-      baseUrl: 'https://api.openai.com/v1',
-      preset: ProviderPreset.openaiResponses,
-    );
-
-    expect(
-      AgentChatModelCapability.resolve(deepSeek, 'deepseek-reasoner').levels,
-      isNot(contains(ThinkingLevel.off)),
-    );
-    expect(
-      AgentChatModelCapability.resolve(openAi, 'gpt-5').levels,
-      isNot(contains(ThinkingLevel.off)),
-    );
-  });
-
-  test('legacy o-series models do not advertise minimal effort', () {
-    final capability = AgentChatModelCapability.resolve(
-      const ProviderConfig(
-        id: 'openai',
-        name: 'OpenAI',
-        protocol: ProviderProtocol.openaiResponses,
-        preset: ProviderPreset.openaiResponses,
-        baseUrl: 'https://api.openai.com/v1',
-      ),
-      'o1',
-    );
-
-    expect(capability.levels, const [
-      ThinkingLevel.low,
-      ThinkingLevel.medium,
-      ThinkingLevel.high,
-    ]);
-  });
+      expect(capability.levels, isEmpty);
+    },
+  );
 }

@@ -92,6 +92,19 @@ enum ProviderPreset {
   anthropic,
   gemini,
   deepseek,
+  openRouter,
+  xai,
+  mistral,
+  groq,
+  cerebras,
+  minimax,
+  minimaxCn,
+  kimiCoding,
+  moonshot,
+  moonshotCn,
+  qwenTokenPlan,
+  qwenTokenPlanCn,
+  qwenTokenPlanIndividual,
   lmStudioChat,
   lmStudioResponses,
   ollama,
@@ -115,6 +128,32 @@ extension ProviderPresetDefaults on ProviderPreset {
         return 'Gemini';
       case ProviderPreset.deepseek:
         return 'DeepSeek';
+      case ProviderPreset.openRouter:
+        return 'OpenRouter';
+      case ProviderPreset.xai:
+        return 'xAI';
+      case ProviderPreset.mistral:
+        return 'Mistral';
+      case ProviderPreset.groq:
+        return 'Groq';
+      case ProviderPreset.cerebras:
+        return 'Cerebras';
+      case ProviderPreset.minimax:
+        return 'MiniMax';
+      case ProviderPreset.minimaxCn:
+        return 'MiniMax CN';
+      case ProviderPreset.kimiCoding:
+        return 'Kimi Coding';
+      case ProviderPreset.moonshot:
+        return 'Moonshot AI';
+      case ProviderPreset.moonshotCn:
+        return 'Moonshot AI CN';
+      case ProviderPreset.qwenTokenPlan:
+        return 'Qwen Token Plan';
+      case ProviderPreset.qwenTokenPlanCn:
+        return 'Qwen Token Plan CN';
+      case ProviderPreset.qwenTokenPlanIndividual:
+        return 'Qwen Token Plan Individual';
       case ProviderPreset.lmStudioChat:
         return 'LM Studio Chat';
       case ProviderPreset.lmStudioResponses:
@@ -142,6 +181,32 @@ extension ProviderPresetDefaults on ProviderPreset {
         return 'gemini';
       case ProviderPreset.deepseek:
         return 'deepseek';
+      case ProviderPreset.openRouter:
+        return 'openrouter';
+      case ProviderPreset.xai:
+        return 'xai';
+      case ProviderPreset.mistral:
+        return 'mistral';
+      case ProviderPreset.groq:
+        return 'groq';
+      case ProviderPreset.cerebras:
+        return 'cerebras';
+      case ProviderPreset.minimax:
+        return 'minimax';
+      case ProviderPreset.minimaxCn:
+        return 'minimax-cn';
+      case ProviderPreset.kimiCoding:
+        return 'kimi-coding';
+      case ProviderPreset.moonshot:
+        return 'moonshotai';
+      case ProviderPreset.moonshotCn:
+        return 'moonshotai-cn';
+      case ProviderPreset.qwenTokenPlan:
+        return 'qwen-token-plan';
+      case ProviderPreset.qwenTokenPlanCn:
+        return 'qwen-token-plan-cn';
+      case ProviderPreset.qwenTokenPlanIndividual:
+        return 'qwen-token-plan-individual';
       case ProviderPreset.lmStudioChat:
         return 'lmstudio_chat';
       case ProviderPreset.lmStudioResponses:
@@ -169,6 +234,32 @@ extension ProviderPresetDefaults on ProviderPreset {
         return 'Gemini';
       case ProviderPreset.deepseek:
         return 'DeepSeek';
+      case ProviderPreset.openRouter:
+        return 'OpenRouter';
+      case ProviderPreset.xai:
+        return 'xAI';
+      case ProviderPreset.mistral:
+        return 'Mistral';
+      case ProviderPreset.groq:
+        return 'Groq';
+      case ProviderPreset.cerebras:
+        return 'Cerebras';
+      case ProviderPreset.minimax:
+        return 'MiniMax';
+      case ProviderPreset.minimaxCn:
+        return 'MiniMax CN';
+      case ProviderPreset.kimiCoding:
+        return 'Kimi Coding';
+      case ProviderPreset.moonshot:
+        return 'Moonshot AI';
+      case ProviderPreset.moonshotCn:
+        return 'Moonshot AI CN';
+      case ProviderPreset.qwenTokenPlan:
+        return 'Qwen Token Plan';
+      case ProviderPreset.qwenTokenPlanCn:
+        return 'Qwen Token Plan CN';
+      case ProviderPreset.qwenTokenPlanIndividual:
+        return 'Qwen Token Plan Individual';
       case ProviderPreset.lmStudioChat:
         return 'LM Studio Chat';
       case ProviderPreset.lmStudioResponses:
@@ -194,6 +285,33 @@ extension ProviderPresetDefaults on ProviderPreset {
         return 'https://generativelanguage.googleapis.com';
       case ProviderPreset.deepseek:
         return 'https://api.deepseek.com';
+      case ProviderPreset.openRouter:
+        return 'https://openrouter.ai/api/v1';
+      case ProviderPreset.xai:
+        return 'https://api.x.ai/v1';
+      case ProviderPreset.mistral:
+        return 'https://api.mistral.ai';
+      case ProviderPreset.groq:
+        return 'https://api.groq.com/openai/v1';
+      case ProviderPreset.cerebras:
+        return 'https://api.cerebras.ai/v1';
+      case ProviderPreset.minimax:
+        return 'https://api.minimax.io/anthropic';
+      case ProviderPreset.minimaxCn:
+        return 'https://api.minimaxi.com/anthropic';
+      case ProviderPreset.kimiCoding:
+        return 'https://api.kimi.com/coding';
+      case ProviderPreset.moonshot:
+        return 'https://api.moonshot.ai/v1';
+      case ProviderPreset.moonshotCn:
+        return 'https://api.moonshot.cn/v1';
+      case ProviderPreset.qwenTokenPlan:
+      case ProviderPreset.qwenTokenPlanIndividual:
+        return 'https://token-plan.ap-southeast-1.maas.aliyuncs.com/'
+            'compatible-mode/v1';
+      case ProviderPreset.qwenTokenPlanCn:
+        return 'https://token-plan.cn-beijing.maas.aliyuncs.com/'
+            'compatible-mode/v1';
       case ProviderPreset.lmStudioChat:
       case ProviderPreset.lmStudioResponses:
         return 'http://localhost:1234/v1';
@@ -209,14 +327,27 @@ extension ProviderPresetDefaults on ProviderPreset {
       case ProviderPreset.openaiChat:
       case ProviderPreset.openaiCompatibleChat:
       case ProviderPreset.deepseek:
+      case ProviderPreset.openRouter:
+      case ProviderPreset.mistral:
+      case ProviderPreset.groq:
+      case ProviderPreset.cerebras:
+      case ProviderPreset.moonshot:
+      case ProviderPreset.moonshotCn:
+      case ProviderPreset.qwenTokenPlan:
+      case ProviderPreset.qwenTokenPlanCn:
+      case ProviderPreset.qwenTokenPlanIndividual:
       case ProviderPreset.lmStudioChat:
       case ProviderPreset.pollinations:
         return ProviderProtocol.openaiChatCompletions;
       case ProviderPreset.openaiResponses:
       case ProviderPreset.openaiCompatibleResponses:
+      case ProviderPreset.xai:
       case ProviderPreset.lmStudioResponses:
         return ProviderProtocol.openaiResponses;
       case ProviderPreset.anthropic:
+      case ProviderPreset.minimax:
+      case ProviderPreset.minimaxCn:
+      case ProviderPreset.kimiCoding:
         return ProviderProtocol.anthropicMessages;
       case ProviderPreset.gemini:
         return ProviderProtocol.geminiGenerateContent;
@@ -228,14 +359,38 @@ extension ProviderPresetDefaults on ProviderPreset {
   List<String> get defaultModelNames {
     switch (this) {
       case ProviderPreset.openaiChat:
-      case ProviderPreset.openaiResponses:
         return const ['gpt-4.1-mini'];
+      case ProviderPreset.openaiResponses:
+        return const ['gpt-5.5'];
       case ProviderPreset.anthropic:
-        return const ['claude-sonnet-4-20250514'];
+        return const ['claude-opus-4-8'];
       case ProviderPreset.gemini:
-        return const ['gemini-2.5-flash'];
+        return const ['gemini-3.1-pro-preview'];
       case ProviderPreset.deepseek:
-        return const ['deepseek-v4-flash', 'deepseek-v4-pro'];
+        return const ['deepseek-v4-pro'];
+      case ProviderPreset.openRouter:
+        return const ['moonshotai/kimi-k2.6'];
+      case ProviderPreset.xai:
+        return const ['grok-4.6'];
+      case ProviderPreset.mistral:
+        return const ['devstral-medium-latest'];
+      case ProviderPreset.groq:
+        return const ['openai/gpt-oss-120b'];
+      case ProviderPreset.cerebras:
+        return const ['gpt-oss-120b'];
+      case ProviderPreset.minimax:
+      case ProviderPreset.minimaxCn:
+        return const ['MiniMax-M2.7'];
+      case ProviderPreset.kimiCoding:
+        return const ['kimi-for-coding'];
+      case ProviderPreset.moonshot:
+      case ProviderPreset.moonshotCn:
+        return const ['kimi-k2.6'];
+      case ProviderPreset.qwenTokenPlan:
+      case ProviderPreset.qwenTokenPlanCn:
+        return const ['qwen3.7-max'];
+      case ProviderPreset.qwenTokenPlanIndividual:
+        return const ['qwen3.8-max'];
       case ProviderPreset.pollinations:
         return const ['openai-large'];
       case ProviderPreset.openaiCompatibleChat:
@@ -261,6 +416,19 @@ extension ProviderPresetDefaults on ProviderPreset {
       case ProviderPreset.anthropic:
       case ProviderPreset.gemini:
       case ProviderPreset.deepseek:
+      case ProviderPreset.openRouter:
+      case ProviderPreset.xai:
+      case ProviderPreset.mistral:
+      case ProviderPreset.groq:
+      case ProviderPreset.cerebras:
+      case ProviderPreset.minimax:
+      case ProviderPreset.minimaxCn:
+      case ProviderPreset.kimiCoding:
+      case ProviderPreset.moonshot:
+      case ProviderPreset.moonshotCn:
+      case ProviderPreset.qwenTokenPlan:
+      case ProviderPreset.qwenTokenPlanCn:
+      case ProviderPreset.qwenTokenPlanIndividual:
         return true;
     }
   }
@@ -273,10 +441,23 @@ extension ProviderPresetDefaults on ProviderPreset {
       case ProviderPreset.openaiCompatibleResponses:
       case ProviderPreset.anthropic:
       case ProviderPreset.gemini:
+      case ProviderPreset.openRouter:
+      case ProviderPreset.xai:
+      case ProviderPreset.kimiCoding:
+      case ProviderPreset.moonshot:
+      case ProviderPreset.moonshotCn:
+      case ProviderPreset.qwenTokenPlanIndividual:
       case ProviderPreset.lmStudioChat:
       case ProviderPreset.lmStudioResponses:
         return true;
       case ProviderPreset.deepseek:
+      case ProviderPreset.mistral:
+      case ProviderPreset.groq:
+      case ProviderPreset.cerebras:
+      case ProviderPreset.minimax:
+      case ProviderPreset.minimaxCn:
+      case ProviderPreset.qwenTokenPlan:
+      case ProviderPreset.qwenTokenPlanCn:
       case ProviderPreset.ollama:
       case ProviderPreset.pollinations:
         return false;
@@ -312,6 +493,19 @@ extension ProviderPresetDefaults on ProviderPreset {
       case ProviderPreset.anthropic:
       case ProviderPreset.gemini:
       case ProviderPreset.deepseek:
+      case ProviderPreset.openRouter:
+      case ProviderPreset.xai:
+      case ProviderPreset.mistral:
+      case ProviderPreset.groq:
+      case ProviderPreset.cerebras:
+      case ProviderPreset.minimax:
+      case ProviderPreset.minimaxCn:
+      case ProviderPreset.kimiCoding:
+      case ProviderPreset.moonshot:
+      case ProviderPreset.moonshotCn:
+      case ProviderPreset.qwenTokenPlan:
+      case ProviderPreset.qwenTokenPlanCn:
+      case ProviderPreset.qwenTokenPlanIndividual:
       case ProviderPreset.lmStudioChat:
       case ProviderPreset.lmStudioResponses:
         return ProviderType.openaiCompatible;

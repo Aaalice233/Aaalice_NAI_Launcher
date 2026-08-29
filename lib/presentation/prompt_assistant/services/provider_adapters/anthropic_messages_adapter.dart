@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:dio/dio.dart';
 
@@ -277,6 +278,16 @@ class AnthropicMessagesAdapter extends PromptAssistantProviderAdapter {
                 'thinking': block.thinking,
                 'signature': block.signature,
               });
+            case AssistantThinkingContent()
+                when block.thinking.isNotEmpty &&
+                    request.reasoningRequest?.allowEmptySignature == true:
+              appendTurn('assistant', {
+                'type': 'thinking',
+                'thinking': block.thinking,
+                'signature': '',
+              });
+            case AssistantThinkingContent() when block.thinking.isNotEmpty:
+              appendTurn('assistant', {'type': 'text', 'text': block.thinking});
             case AssistantTextContent() when block.text.isNotEmpty:
               appendTurn('assistant', {'type': 'text', 'text': block.text});
             case ToolCallContent():
@@ -321,24 +332,52 @@ class AnthropicMessagesAdapter extends PromptAssistantProviderAdapter {
       }
     }
 
-    final thinkingBudget = switch (request.reasoning) {
+    final reasoning = request.reasoningRequest;
+    final legacyThinkingBudget = switch (request.reasoning) {
       'minimal' => 1024,
       'low' => 2048,
-      'medium' => 4096,
-      'high' => 8192,
-      'xhigh' || 'max' => 16384,
+      'medium' => 8192,
+      'high' || 'xhigh' || 'max' => 16384,
       _ => null,
     };
-    final maxTokens = request.maxOutputTokens ?? 4096;
+    final thinkingBudget = reasoning?.api == AgentReasoningApi.anthropicBudget
+        ? reasoning!.budgetTokens
+        : legacyThinkingBudget;
+    final adaptive = reasoning?.api == AgentReasoningApi.anthropicAdaptive;
+    final enabled = reasoning?.enabled ?? thinkingBudget != null;
+    final configuredModelMaxTokens = request.modelMaxOutputTokens;
+    final modelMaxTokens =
+        configuredModelMaxTokens != null && configuredModelMaxTokens > 0
+        ? configuredModelMaxTokens
+        : 4096;
+    final maxTokens = enabled && thinkingBudget != null
+        ? request.maxOutputTokens == null
+              ? modelMaxTokens
+              : math.min(
+                  request.maxOutputTokens! + thinkingBudget,
+                  modelMaxTokens,
+                )
+        : request.maxOutputTokens ?? modelMaxTokens;
+    final clampedThinkingBudget = thinkingBudget == null
+        ? null
+        : math.min(thinkingBudget, math.max(0, maxTokens - 1024));
     return {
       'model': request.model,
-      'max_tokens': thinkingBudget == null
-          ? maxTokens
-          : maxTokens > thinkingBudget
-          ? maxTokens
-          : thinkingBudget + 4096,
-      if (thinkingBudget != null)
-        'thinking': {'type': 'enabled', 'budget_tokens': thinkingBudget},
+      'max_tokens': maxTokens,
+      if (adaptive && enabled) ...{
+        'thinking': {'type': 'adaptive', 'display': 'summarized'},
+        if (reasoning?.effort case final effort?)
+          'output_config': {'effort': effort},
+      } else if (enabled && thinkingBudget != null)
+        'thinking': {
+          'type': 'enabled',
+          'budget_tokens': clampedThinkingBudget == 0
+              ? 1024
+              : clampedThinkingBudget,
+          'display': 'summarized',
+        }
+      else if (reasoning != null && !enabled && reasoning.sendWhenDisabled)
+        'thinking': {'type': 'disabled'},
       if (request.systemPrompt.trim().isNotEmpty)
         'system': request.systemPrompt.trim(),
       'messages': turns,

@@ -17,6 +17,46 @@ class AgentSummaryMessage extends CustomMessage {
   final String summary;
 }
 
+enum AgentReasoningApi {
+  openAiResponses,
+  openAiCompletions,
+  deepSeek,
+  openRouter,
+  qwen,
+  anthropicBudget,
+  anthropicAdaptive,
+  geminiBudget,
+  geminiLevel,
+  mistralPromptMode,
+  mistralEffort,
+}
+
+/// A fully resolved provider-native reasoning request.
+class AgentReasoningRequest {
+  const AgentReasoningRequest({
+    required this.api,
+    required this.enabled,
+    this.effort,
+    this.budgetTokens,
+    this.sendWhenDisabled = true,
+    this.preserveReasoningContent = false,
+    this.allowEmptySignature = false,
+    this.alwaysIncludeEncryptedReasoning = false,
+  });
+
+  final AgentReasoningApi api;
+  final bool enabled;
+  final String? effort;
+  final int? budgetTokens;
+
+  /// Whether Pi sends an explicit provider-native disabled value. An explicit
+  /// `off: null` mapping means the field must be omitted instead.
+  final bool sendWhenDisabled;
+  final bool preserveReasoningContent;
+  final bool allowEmptySignature;
+  final bool alwaysIncludeEncryptedReasoning;
+}
+
 /// Agent 请求：完整消息历史 + 工具集 + 系统提示词。
 class AgentChatRequest {
   const AgentChatRequest({
@@ -28,7 +68,9 @@ class AgentChatRequest {
     required this.tools,
     required this.apiKey,
     this.maxOutputTokens,
+    this.modelMaxOutputTokens,
     this.reasoning,
+    this.reasoningRequest,
   });
 
   final String sessionId;
@@ -39,10 +81,22 @@ class AgentChatRequest {
   final List<Tool> tools;
   final String? apiKey;
   final int? maxOutputTokens;
+  final int? modelMaxOutputTokens;
 
-  /// Provider-native reasoning effort. Null means the selected model does not
-  /// expose a configurable reasoning contract.
+  int? get effectiveMaxOutputTokens {
+    final modelLimit = modelMaxOutputTokens;
+    final requested = maxOutputTokens;
+    if (modelLimit == null || modelLimit <= 0) return requested;
+    if (requested == null) return modelLimit;
+    return requested < modelLimit ? requested : modelLimit;
+  }
+
+  /// Selected UI reasoning level. Null is retained for backwards-compatible
+  /// callers and represents Off before model-specific request resolution.
   final String? reasoning;
+
+  /// Provider-native request resolved from Pi's model registry contract.
+  final AgentReasoningRequest? reasoningRequest;
 }
 
 /// 适配器流式输出的线事件。非流式适配器把完整结果拆成
@@ -60,15 +114,29 @@ class AgentWireTextDelta extends AgentWireEvent {
 /// Provider-returned reasoning/thinking text. This is never synthesized from
 /// model activity or hidden chain-of-thought.
 class AgentWireThinkingDelta extends AgentWireEvent {
-  const AgentWireThinkingDelta(this.delta);
+  const AgentWireThinkingDelta(this.delta, {this.itemId});
 
   final String delta;
+  final String? itemId;
 }
 
 /// Provider metadata for the active thinking block. It is persisted but never
 /// rendered as model-authored reasoning text.
 class AgentWireThinkingSignature extends AgentWireEvent {
-  const AgentWireThinkingSignature(this.signature);
+  const AgentWireThinkingSignature(
+    this.signature, {
+    this.itemId,
+    this.replace = false,
+  });
+
+  final String signature;
+  final String? itemId;
+  final bool replace;
+}
+
+/// Provider proof attached to the active visible text block (Gemini).
+class AgentWireTextSignature extends AgentWireEvent {
+  const AgentWireTextSignature(this.signature);
 
   final String signature;
 }
@@ -78,11 +146,13 @@ class AgentWireToolCallDone extends AgentWireEvent {
     required this.id,
     required this.name,
     required this.arguments,
+    this.thoughtSignature,
   });
 
   final String id;
   final String name;
   final Map<String, dynamic> arguments;
+  final String? thoughtSignature;
 }
 
 class AgentWireFinish extends AgentWireEvent {

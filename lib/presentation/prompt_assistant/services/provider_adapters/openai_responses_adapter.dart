@@ -69,6 +69,10 @@ class OpenAiResponsesAdapter extends PromptAssistantProviderAdapter {
     var sawError = false;
     var sawTerminalEvent = false;
     final emittedToolCalls = <String>{};
+    final reasoningIdsByOutput = <int, String>{};
+    final reasoningItems = <String, Map<String, dynamic>>{};
+    final reasoningTextSeen = <String>{};
+    String? activeReasoningId;
 
     final parser = AgentSseParser(
       onEvent: (event, data) {
@@ -82,15 +86,59 @@ class OpenAiResponsesAdapter extends PromptAssistantProviderAdapter {
             if (delta is String && delta.isNotEmpty) {
               pending.add(AgentWireTextDelta(delta));
             }
+          case 'response.output_item.added':
+            final item = json['item'];
+            final outputIndex = (json['output_index'] as num?)?.toInt();
+            if (item is Map<String, dynamic> &&
+                item['type'] == 'reasoning' &&
+                outputIndex != null &&
+                item['id'] is String) {
+              reasoningIdsByOutput[outputIndex] = item['id'] as String;
+              activeReasoningId = item['id'] as String;
+            }
           case 'response.reasoning_summary_text.delta':
           case 'response.reasoning_text.delta':
             final delta = json['delta'];
+            final outputIndex = (json['output_index'] as num?)?.toInt();
+            final itemId =
+                json['item_id'] as String? ??
+                (outputIndex == null
+                    ? activeReasoningId
+                    : reasoningIdsByOutput[outputIndex] ??
+                          'reasoning-output-$outputIndex');
             if (delta is String && delta.isNotEmpty) {
-              pending.add(AgentWireThinkingDelta(delta));
+              if (itemId != null) reasoningTextSeen.add(itemId);
+              pending.add(AgentWireThinkingDelta(delta, itemId: itemId));
             }
           case 'response.output_item.done':
             final item = json['item'];
-            if (item is Map<String, dynamic> &&
+            if (item is Map<String, dynamic> && item['type'] == 'reasoning') {
+              final itemId = item['id'] as String? ?? '';
+              final outputIndex = (json['output_index'] as num?)?.toInt();
+              if (outputIndex != null && itemId.isNotEmpty) {
+                reasoningIdsByOutput[outputIndex] = itemId;
+              }
+              if (itemId.isNotEmpty) activeReasoningId = itemId;
+              final summaryText = _responseReasoningText(item['summary']);
+              final contentText = _responseReasoningText(item['content']);
+              final completeText = summaryText.isNotEmpty
+                  ? summaryText
+                  : contentText;
+              if (!reasoningTextSeen.contains(itemId)) {
+                pending.add(
+                  AgentWireThinkingDelta(completeText, itemId: itemId),
+                );
+                reasoningTextSeen.add(itemId);
+              }
+              reasoningItems[itemId] = Map<String, dynamic>.from(item);
+              pending.add(
+                AgentWireThinkingSignature(
+                  jsonEncode(item),
+                  itemId: itemId,
+                  replace: true,
+                ),
+              );
+            } else if (item is Map<String, dynamic> &&
                 item['type'] == 'function_call') {
               final callId = item['call_id'] as String? ?? '';
               if (emittedToolCalls.add(callId)) {
@@ -108,6 +156,45 @@ class OpenAiResponsesAdapter extends PromptAssistantProviderAdapter {
             sawTerminalEvent = true;
             final response = json['response'];
             if (response is Map<String, dynamic>) {
+              final output = response['output'];
+              if (output is List) {
+                for (final rawItem in output) {
+                  if (rawItem is! Map<String, dynamic> ||
+                      rawItem['type'] != 'reasoning' ||
+                      rawItem['id'] is! String) {
+                    continue;
+                  }
+                  final itemId = rawItem['id'] as String;
+                  final stored = reasoningItems[itemId];
+                  final merged = <String, dynamic>{
+                    if (stored != null) ...stored,
+                    ...rawItem,
+                  };
+                  if (!reasoningTextSeen.contains(itemId)) {
+                    final summaryText = _responseReasoningText(
+                      merged['summary'],
+                    );
+                    final contentText = _responseReasoningText(
+                      merged['content'],
+                    );
+                    pending.add(
+                      AgentWireThinkingDelta(
+                        summaryText.isNotEmpty ? summaryText : contentText,
+                        itemId: itemId,
+                      ),
+                    );
+                    reasoningTextSeen.add(itemId);
+                  }
+                  reasoningItems[itemId] = merged;
+                  pending.add(
+                    AgentWireThinkingSignature(
+                      jsonEncode(merged),
+                      itemId: itemId,
+                      replace: true,
+                    ),
+                  );
+                }
+              }
               final usageRaw = response['usage'];
               if (usageRaw is Map<String, dynamic>) {
                 usage = Usage(
@@ -212,6 +299,12 @@ class OpenAiResponsesAdapter extends PromptAssistantProviderAdapter {
       } else if (message is AssistantMessage) {
         for (final block in message.content) {
           switch (block) {
+            case AssistantThinkingContent()
+                when message.provider == request.provider.id &&
+                    message.model == request.model &&
+                    block.signature?.isNotEmpty == true:
+              final item = _decodeReasoningItem(block.signature!);
+              if (item != null) input.add(item);
             case AssistantTextContent() when block.text.isNotEmpty:
               input.add({
                 'type': 'message',
@@ -256,11 +349,24 @@ class OpenAiResponsesAdapter extends PromptAssistantProviderAdapter {
       }
     }
 
+    final reasoning = request.reasoningRequest;
+    final effort = reasoning?.api == AgentReasoningApi.openAiResponses
+        ? reasoning!.enabled
+              ? reasoning.effort
+              : reasoning.sendWhenDisabled
+              ? reasoning.effort ?? 'none'
+              : null
+        : request.reasoning;
     return {
       'model': request.model,
       'stream': true,
-      if (request.reasoning case final effort?)
-        'reasoning': {'effort': effort, 'summary': 'auto'},
+      'store': false,
+      if (request.effectiveMaxOutputTokens case final maxTokens?)
+        'max_output_tokens': maxTokens < 16 ? 16 : maxTokens,
+      if (effort != null) 'reasoning': {'effort': effort, 'summary': 'auto'},
+      if (reasoning?.api == AgentReasoningApi.openAiResponses &&
+          (reasoning!.enabled || reasoning.alwaysIncludeEncryptedReasoning))
+        'include': ['reasoning.encrypted_content'],
       if (request.systemPrompt.trim().isNotEmpty)
         'instructions': request.systemPrompt.trim(),
       'input': input,
@@ -275,6 +381,24 @@ class OpenAiResponsesAdapter extends PromptAssistantProviderAdapter {
             },
         ],
     };
+  }
+
+  Map<String, dynamic>? _decodeReasoningItem(String signature) {
+    try {
+      final value = jsonDecode(signature);
+      return value is Map<String, dynamic> ? value : null;
+    } on FormatException {
+      return null;
+    }
+  }
+
+  static String _responseReasoningText(dynamic value) {
+    if (value is! List) return '';
+    return value
+        .whereType<Map<String, dynamic>>()
+        .map((item) => item['text'])
+        .whereType<String>()
+        .join('\n\n');
   }
 
   String? _openAiImageUrl(ImageContent image) {
