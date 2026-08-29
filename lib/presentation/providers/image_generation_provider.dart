@@ -83,6 +83,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
   Future<void>? _historyRestoreInFlight;
   bool _hasRestoredHistory = false;
   bool _generationInvocationStarting = false;
+  Completer<void>? _generationInvocationSettled;
   int _invocationCounter = 0;
   int _activeInvocationId = 0;
   int _runCounter = 0;
@@ -101,6 +102,12 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     ref.onDispose(() {
       _isDisposed = true;
       _lifecycleEpoch++;
+      _generationInvocationStarting = false;
+      final invocationSettled = _generationInvocationSettled;
+      _generationInvocationSettled = null;
+      if (invocationSettled != null && !invocationSettled.isCompleted) {
+        invocationSettled.complete();
+      }
       final coordinator = _coordinator;
       final handle = _activeRun;
       if (coordinator != null && handle != null) coordinator.cancel(handle);
@@ -221,11 +228,16 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     );
   }
 
+  Future<void> waitUntilGenerationInvocationSettled() =>
+      _generationInvocationSettled?.future ?? Future<void>.value();
+
   Future<void> generate(ImageParams params, {int? batchSizeOverride}) async {
     if (_isDisposed || _generationInvocationStarting || state.isGenerating) {
       return;
     }
     _generationInvocationStarting = true;
+    final invocationSettled = Completer<void>();
+    _generationInvocationSettled = invocationSettled;
     final epoch = _lifecycleEpoch;
     final lifecycle = _lifecycle();
     final subscription = ref.exists(subscriptionNotifierProvider)
@@ -324,6 +336,12 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       if (_isCurrentLifecycle(epoch) && _activeInvocationId == invocationId) {
         _activeInvocationId = 0;
         _generationInvocationStarting = false;
+      }
+      if (!invocationSettled.isCompleted) {
+        invocationSettled.complete();
+      }
+      if (identical(_generationInvocationSettled, invocationSettled)) {
+        _generationInvocationSettled = null;
       }
       if (foregroundStarted) {
         _foregroundInvocationIds.remove(invocationId);
