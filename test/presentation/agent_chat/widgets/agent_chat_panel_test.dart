@@ -91,6 +91,11 @@ void main() {
       find.byKey(const ValueKey('agent-chat-compact-header')),
       findsOneWidget,
     );
+    await tester.tap(find.byKey(const ValueKey('agent-chat-compact-more')));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
 
     PopupMenuButton<String> selector() => tester.widget(

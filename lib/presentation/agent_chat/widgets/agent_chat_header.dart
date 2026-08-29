@@ -171,7 +171,6 @@ class AgentChatHeader extends StatelessWidget {
           PopupMenuButton<String>(
             key: const ValueKey('agent-chat-compact-more'),
             tooltip: l10n.agentChat_moreActions,
-            constraints: const BoxConstraints.tightFor(width: 40, height: 40),
             onSelected: (value) {
               if (value == 'detach') commands.detach();
               if (value == 'settings') _openAgentSettings(context);
