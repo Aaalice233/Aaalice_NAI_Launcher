@@ -28,6 +28,7 @@ class AgentChatHeader extends StatelessWidget {
     final theme = Theme.of(context);
     final l10n = context.l10n;
     if (viewData.mobile) return _mobile(context, theme, l10n);
+    if (viewData.compactWidth) return _compact(context, theme, l10n);
     Widget iconButton({
       Key? key,
       required IconData icon,
@@ -47,33 +48,19 @@ class AgentChatHeader extends StatelessWidget {
       ),
     );
     return Padding(
-      padding: const EdgeInsets.only(left: 8, right: 4, top: 12, bottom: 12),
+      key: const ValueKey('agent-chat-desktop-header'),
+      padding: const EdgeInsets.fromLTRB(10, 8, 6, 8),
       child: Row(
         children: [
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: commands.collapse,
-              borderRadius: BorderRadius.circular(4),
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest.withValues(
-                    alpha: 0.5,
-                  ),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Icon(
-                  Icons.chevron_right,
-                  size: 16,
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                ),
-              ),
-            ),
+          iconButton(
+            key: const ValueKey('agent-chat-collapse'),
+            icon: Icons.chevron_right_rounded,
+            tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+            onTap: commands.collapse,
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 4),
           ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 96),
+            constraints: const BoxConstraints(maxWidth: 120),
             child: Text(
               l10n.agentChat_tab,
               style: theme.textTheme.titleSmall?.copyWith(
@@ -82,7 +69,7 @@ class AgentChatHeader extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
           iconButton(
             icon: Icons.add_comment_outlined,
             tooltip: l10n.agentChat_newChat,
@@ -93,7 +80,9 @@ class AgentChatHeader extends StatelessWidget {
             child: Align(
               alignment: Alignment.centerLeft,
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 180),
+                constraints: BoxConstraints(
+                  maxWidth: viewData.width >= 760 ? 260 : 180,
+                ),
                 child: SizedBox(
                   height: 30,
                   child: _sessionSelector(context, theme, l10n),
@@ -130,6 +119,88 @@ class AgentChatHeader extends StatelessWidget {
             icon: Icons.settings_outlined,
             tooltip: l10n.settings_agent,
             onTap: () => _openAgentSettings(context),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _compact(
+    BuildContext context,
+    ThemeData theme,
+    AppLocalizations l10n,
+  ) {
+    Widget action({
+      required Key key,
+      required IconData icon,
+      required String tooltip,
+      required VoidCallback? onPressed,
+    }) => IconButton(
+      key: key,
+      icon: Icon(icon, size: 18),
+      tooltip: tooltip,
+      onPressed: onPressed,
+      constraints: const BoxConstraints.tightFor(width: 40, height: 40),
+      padding: EdgeInsets.zero,
+    );
+    return Padding(
+      key: const ValueKey('agent-chat-compact-header'),
+      padding: const EdgeInsets.fromLTRB(4, 4, 4, 4),
+      child: Row(
+        children: [
+          action(
+            key: const ValueKey('agent-chat-collapse'),
+            icon: Icons.chevron_right_rounded,
+            tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+            onPressed: commands.collapse,
+          ),
+          Expanded(
+            child: SizedBox(
+              height: 40,
+              child: _sessionSelector(context, theme, l10n),
+            ),
+          ),
+          action(
+            key: const ValueKey('agent-chat-compact-new-session'),
+            icon: Icons.add_comment_outlined,
+            tooltip: l10n.agentChat_newChat,
+            onPressed: viewData.sessionActionsEnabled
+                ? commands.newSession
+                : null,
+          ),
+          PopupMenuButton<String>(
+            key: const ValueKey('agent-chat-compact-more'),
+            tooltip: l10n.agentChat_moreActions,
+            constraints: const BoxConstraints.tightFor(width: 40, height: 40),
+            onSelected: (value) {
+              if (value == 'detach') commands.detach();
+              if (value == 'settings') _openAgentSettings(context);
+            },
+            itemBuilder: (_) => [
+              if (AgentWindowRuntime.isDesktop)
+                PopupMenuItem(
+                  value: 'detach',
+                  child: ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.open_in_new_rounded),
+                    title: Text(l10n.agentChat_detachWindow),
+                  ),
+                ),
+              PopupMenuItem(
+                value: 'settings',
+                child: ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.settings_outlined),
+                  title: Text(l10n.settings_agent),
+                ),
+              ),
+            ],
+            child: const SizedBox.square(
+              dimension: 40,
+              child: Icon(Icons.more_horiz_rounded, size: 19),
+            ),
           ),
         ],
       ),

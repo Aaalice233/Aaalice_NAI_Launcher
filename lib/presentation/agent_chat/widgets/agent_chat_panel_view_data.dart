@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/agent/agent_types.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference.dart';
+import '../../../core/windowing/agent_chat_layout_contract.dart';
 import '../../prompt_assistant/models/prompt_assistant_models.dart';
 import '../../prompt_assistant/providers/web_access_provider.dart';
 import '../../agent_settings/providers/agent_settings_provider.dart';
@@ -17,6 +18,8 @@ class AgentChatPanelViewData {
     required this.mobile,
     required this.fullScreen,
     required this.compactMobile,
+    required this.width,
+    required this.height,
     required this.onClose,
     required this.onOpenSettings,
     required this.mobileHeaderWrapper,
@@ -29,11 +32,22 @@ class AgentChatPanelViewData {
   final bool mobile;
   final bool fullScreen;
   final bool compactMobile;
+  final double width;
+  final double height;
   final VoidCallback? onClose;
   final VoidCallback? onOpenSettings;
   final Widget Function(Widget child)? mobileHeaderWrapper;
 
   bool get running => state.status == AgentChatRunStatus.running;
+  AgentChatWidthClass get widthClass =>
+      AgentChatLayoutContract.widthClassFor(width);
+  bool get compactWidth => widthClass == AgentChatWidthClass.compact;
+  bool get stackComposerControls =>
+      AgentChatLayoutContract.stackComposerControls(width, running: running);
+  double get userBubbleMaxWidth =>
+      AgentChatLayoutContract.userBubbleMaxWidth(width);
+  double get assistantMaxWidth =>
+      AgentChatLayoutContract.assistantMaxWidth(width);
   bool get sessionActionsEnabled => canManageAgentChatSessions(state);
   bool get controlsLocked => running || state.sessionTransitioning;
   bool get canSend =>

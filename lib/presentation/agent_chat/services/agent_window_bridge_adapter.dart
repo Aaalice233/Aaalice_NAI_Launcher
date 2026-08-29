@@ -140,6 +140,10 @@ final class AgentWindowBridgeAdapter {
       case 'stop':
         notifier.abort();
       case 'retryLastMessage':
+        if (_container.read(agentChatNotifierProvider).status ==
+            AgentChatRunStatus.running) {
+          return const {'ok': false, 'error': 'agent_running'};
+        }
         final message = await notifier.rewindLastUserMessage();
         if (message == null) return const {'ok': false};
         await notifier.sendContent(message.content);
@@ -341,6 +345,7 @@ final class AgentWindowBridgeAdapter {
                 'toolName': activity.toolName,
                 'status': activity.status.name,
                 'content': activity.content,
+                'args': _ipcValue(activity.args),
               },
           ],
           if (state.approvalRequest case final approval?)
@@ -449,6 +454,7 @@ final class AgentWindowBridgeAdapter {
       'toolName': message.toolName,
       'text': message.text,
       'isError': message.isError,
+      if (message.details != null) 'details': _ipcValue(message.details),
       'images': [
         if (!preferFileImages)
           for (final content in message.content)
@@ -458,6 +464,22 @@ final class AgentWindowBridgeAdapter {
       ],
       'files': files,
     };
+  }
+
+  Object? _ipcValue(Object? value) {
+    if (value == null || value is String || value is bool || value is num) {
+      return value;
+    }
+    if (value is Map) {
+      return {
+        for (final entry in value.entries)
+          entry.key.toString(): _ipcValue(entry.value),
+      };
+    }
+    if (value is Iterable) {
+      return [for (final item in value) _ipcValue(item)];
+    }
+    return value.toString();
   }
 
   List<ImageContent> _messageImages(AgentMessage message) => switch (message) {

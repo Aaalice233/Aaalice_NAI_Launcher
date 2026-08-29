@@ -82,11 +82,16 @@ void main() {
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
-            body: SizedBox(width: 420, height: 720, child: AgentChatPanel()),
+            body: SizedBox(width: 240, height: 720, child: AgentChatPanel()),
           ),
         ),
       ),
     );
+    expect(
+      find.byKey(const ValueKey('agent-chat-compact-header')),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
 
     PopupMenuButton<String> selector() => tester.widget(
       find.byKey(const ValueKey('agent-chat-session-selector')),
@@ -108,6 +113,26 @@ void main() {
     notifier.setSessionTransitioning(false);
     await tester.pump();
     expect(selector().enabled, isTrue);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(
+          locale: Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: SizedBox(width: 960, height: 720, child: AgentChatPanel()),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('agent-chat-desktop-header')),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('web access button reads the shared agent configuration', (
@@ -187,14 +212,18 @@ void main() {
       Colors.transparent,
     );
     expect(
-      tester
-          .getSize(find.byKey(const ValueKey('agent-chat-composer-controls')))
-          .height,
-      30,
+      find.byKey(const ValueKey('agent-chat-session-controls')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('agent-chat-message-actions')),
+      findsOneWidget,
     );
     expect(
       tester.getCenter(find.byKey(key)).dy,
-      tester.getCenter(find.byIcon(Icons.image_outlined)).dy,
+      tester
+          .getCenter(find.byKey(const ValueKey('agent-chat-permission-mode')))
+          .dy,
     );
     expect(container.read(webAccessConfigProvider).config.enabled, isTrue);
     expect(tester.takeException(), isNull);
@@ -304,6 +333,8 @@ void main() {
       expect(find.byType(md.MarkdownBody), findsNothing);
       expect(find.byType(ExpansionTile), findsOneWidget);
       expect(find.text('Ran 2 actions'), findsOneWidget);
+      await tester.tap(find.byType(ExpansionTile));
+      await tester.pump();
       final resultIcon = tester.widget<Icon>(
         find.descendant(
           of: find.byKey(const ValueKey('agent-tool-result-icon-read-image')),
@@ -311,7 +342,15 @@ void main() {
         ),
       );
       expect(resultIcon.icon, Icons.description_outlined);
-      expect(find.text('Read file'), findsOneWidget);
+      expect(find.textContaining('Image read successfully'), findsOneWidget);
+      expect(find.byKey(ValueKey(imageFile.path)), findsNothing);
+      final resultTile = find.byKey(
+        const ValueKey('agent-tool-result-read-image'),
+      );
+      await tester.ensureVisible(resultTile);
+      await tester.pumpAndSettle();
+      await tester.tap(resultTile);
+      await tester.pumpAndSettle();
 
       notifier.setRunningActivity(
         const AgentToolActivity(
@@ -335,13 +374,17 @@ void main() {
       expect(activityIcon.color, isNot(resultIcon.color));
       expect(find.text('Generate image'), findsOneWidget);
 
-      final firstDecoration = tester.widget<Container>(activity).decoration;
+      final activityInk = find.descendant(
+        of: activity,
+        matching: find.byType(Ink),
+      );
+      final firstDecoration = tester.widget<Ink>(activityInk).decoration;
       expect(firstDecoration, isA<BoxDecoration>());
       final firstGradient = (firstDecoration! as BoxDecoration).gradient;
       expect(firstGradient, isA<LinearGradient>());
       await tester.pump(const Duration(milliseconds: 600));
       final secondGradient =
-          (tester.widget<Container>(activity).decoration! as BoxDecoration)
+          (tester.widget<Ink>(activityInk).decoration! as BoxDecoration)
                   .gradient!
               as LinearGradient;
       expect(
@@ -512,6 +555,16 @@ void main() {
       find.byType(DraggableMemoryImage),
     );
     expect(memoryDrag.localData, {'source': 'agent_chat_internal'});
+    expect(
+      find.byKey(const ValueKey('agent-assistant-message-retry-3')),
+      findsOneWidget,
+    );
+    expect(
+      tester
+          .getSize(find.byKey(const ValueKey('agent-user-message-bubble-0')))
+          .width,
+      lessThan(100),
+    );
 
     final latestMessage = find.byKey(const ValueKey('agent-user-message-2'));
     final actions = find.byKey(const ValueKey('agent-user-message-actions-2'));
@@ -660,21 +713,28 @@ void main() {
 
     var closed = false;
     var settingsOpened = false;
-    Widget buildPanel(double height) {
+    Widget buildPanel({
+      required double width,
+      required double height,
+      EdgeInsets padding = EdgeInsets.zero,
+    }) {
       return UncontrolledProviderScope(
         container: container,
         child: MaterialApp(
           locale: const Locale('en'),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: SizedBox(
-              width: 320,
-              height: height,
-              child: AgentChatPanel(
-                mobile: true,
-                onClose: () => closed = true,
-                onOpenSettings: () => settingsOpened = true,
+          home: MediaQuery(
+            data: MediaQueryData(size: Size(width, height), padding: padding),
+            child: Scaffold(
+              body: SizedBox(
+                width: width,
+                height: height,
+                child: AgentChatPanel(
+                  mobile: true,
+                  onClose: () => closed = true,
+                  onOpenSettings: () => settingsOpened = true,
+                ),
               ),
             ),
           ),
@@ -682,8 +742,20 @@ void main() {
       );
     }
 
-    await tester.pumpWidget(buildPanel(640));
+    await tester.pumpWidget(
+      buildPanel(
+        width: 320,
+        height: 640,
+        padding: const EdgeInsets.only(top: 24, bottom: 28),
+      ),
+    );
     await tester.pump();
+    expect(
+      tester
+          .getTopLeft(find.byKey(const ValueKey('agent-chat-mobile-header')))
+          .dy,
+      greaterThanOrEqualTo(24),
+    );
 
     for (final key in [
       'agent-chat-mobile-close',
@@ -719,6 +791,15 @@ void main() {
       expect(size.width, greaterThanOrEqualTo(48), reason: '$key width');
       expect(size.height, greaterThanOrEqualTo(48), reason: '$key height');
     }
+    await tester.enterText(
+      find.byKey(const ValueKey('agent-chat-input')),
+      List.filled(20, 'line').join('\n'),
+    );
+    await tester.pump();
+    expect(
+      tester.getSize(find.byKey(const ValueKey('agent-chat-input'))).height,
+      lessThanOrEqualTo(176),
+    );
 
     notifier.setError('Request failed');
     await tester.pump();
@@ -738,7 +819,7 @@ void main() {
       ),
     );
     notifier.setQueuedMessages(20);
-    await tester.pumpWidget(buildPanel(420));
+    await tester.pumpWidget(buildPanel(width: 320, height: 420));
     await tester.pump();
     expect(find.byKey(const ValueKey('agent-chat-stop')), findsOneWidget);
     expect(
@@ -755,6 +836,19 @@ void main() {
           'header=${tester.getSize(find.byKey(const ValueKey('agent-chat-mobile-header')))}, '
           'input=${tester.getSize(find.byKey(const ValueKey('agent-chat-input-container')))}',
     );
+
+    for (final size in const [Size(640, 360), Size(800, 640)]) {
+      await tester.pumpWidget(
+        buildPanel(width: size.width, height: size.height),
+      );
+      await tester.pump();
+      expect(
+        tester.takeException(),
+        isNull,
+        reason: 'mobile Agent overflow at ${size.width}x${size.height}',
+      );
+      expect(find.byKey(const ValueKey('agent-chat-send')), findsOneWidget);
+    }
 
     await tester.tap(find.byKey(const ValueKey('agent-chat-mobile-close')));
     await tester.pump();

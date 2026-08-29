@@ -1,12 +1,14 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/agent/agent_types.dart';
+import '../../../core/agent/agent_tool_presentation.dart';
+import '../../../core/windowing/agent_chat_shared_widgets.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference_codec.dart';
 import '../../../core/utils/localization_extension.dart';
@@ -15,6 +17,7 @@ import '../../../data/models/gallery/local_image_record.dart';
 import '../../utils/image_detail_opener.dart';
 import '../../providers/krita/krita_bridge_notifier.dart';
 import '../../services/image_send_action_dispatcher.dart';
+import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/image_card_hover_motion.dart';
 import '../../widgets/common/image_detail/file_image_detail_data.dart';
 import '../../widgets/gallery/draggable_image_card.dart';
@@ -141,6 +144,7 @@ class AgentChatToolActivityTile extends StatefulWidget {
 class _AgentChatToolActivityTileState extends State<AgentChatToolActivityTile>
     with SingleTickerProviderStateMixin {
   late final AnimationController _gradientController;
+  bool _expanded = false;
 
   @override
   void initState() {
@@ -191,87 +195,121 @@ class _AgentChatToolActivityTileState extends State<AgentChatToolActivityTile>
     final animation = MediaQuery.disableAnimationsOf(context)
         ? const AlwaysStoppedAnimation<double>(0.5)
         : _gradientController;
+    final details = _activityDetails(activity);
     return RepaintBoundary(
-      child: AnimatedBuilder(
-        animation: animation,
-        builder: (context, _) {
-          final progress = Curves.easeInOut.transform(animation.value);
-          final changingColor = Color.lerp(
-            visual.color,
-            Color.lerp(
-              theme.colorScheme.onSurfaceVariant,
-              theme.colorScheme.onSurface,
-              0.18,
-            )!,
-            0.16 + progress * 0.24,
-          )!;
-          return Container(
-            key: ValueKey('agent-tool-activity-${activity.toolCallId}'),
-            constraints: const BoxConstraints(minHeight: 28),
-            margin: const EdgeInsets.only(bottom: 6),
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-            decoration: BoxDecoration(
-              gradient: activity.status == AgentToolActivityStatus.running
-                  ? LinearGradient(
-                      begin: Alignment(-1.15 + progress * 0.45, -0.35),
-                      end: Alignment(0.45 + progress * 0.45, 0.35),
-                      colors: [
-                        theme.colorScheme.surfaceContainerHighest.withValues(
-                          alpha: 0.42,
-                        ),
-                        changingColor.withValues(alpha: 0.13),
-                        theme.colorScheme.surfaceContainerHighest.withValues(
-                          alpha: 0.38,
-                        ),
-                      ],
-                      stops: const [0, 0.52, 1],
-                    )
-                  : null,
-              color: activity.status == AgentToolActivityStatus.running
-                  ? null
-                  : theme.colorScheme.surfaceContainerHighest.withValues(
-                      alpha: 0.42,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          AnimatedBuilder(
+            animation: animation,
+            builder: (context, _) {
+              final progress = Curves.easeInOut.transform(animation.value);
+              final changingColor = Color.lerp(
+                visual.color,
+                Color.lerp(
+                  theme.colorScheme.onSurfaceVariant,
+                  theme.colorScheme.onSurface,
+                  0.18,
+                )!,
+                0.16 + progress * 0.24,
+              )!;
+              return Material(
+                type: MaterialType.transparency,
+                child: InkWell(
+                  key: ValueKey('agent-tool-activity-${activity.toolCallId}'),
+                  borderRadius: BorderRadius.circular(8),
+                  onTap: details.isEmpty
+                      ? null
+                      : () => setState(() => _expanded = !_expanded),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(minHeight: 28),
+                    child: Ink(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        gradient:
+                            activity.status == AgentToolActivityStatus.running
+                            ? LinearGradient(
+                                begin: Alignment(
+                                  -1.15 + progress * 0.45,
+                                  -0.35,
+                                ),
+                                end: Alignment(0.45 + progress * 0.45, 0.35),
+                                colors: [
+                                  theme.colorScheme.surfaceContainerHighest
+                                      .withValues(alpha: 0.42),
+                                  changingColor.withValues(alpha: 0.13),
+                                  theme.colorScheme.surfaceContainerHighest
+                                      .withValues(alpha: 0.38),
+                                ],
+                                stops: const [0, 0.52, 1],
+                              )
+                            : null,
+                        color:
+                            activity.status == AgentToolActivityStatus.running
+                            ? null
+                            : theme.colorScheme.surfaceContainerHighest
+                                  .withValues(alpha: 0.42),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          SizedBox.square(
+                            key: ValueKey(
+                              'agent-tool-activity-icon-${activity.toolCallId}',
+                            ),
+                            dimension: 18,
+                            child: Center(
+                              child: Icon(icon, size: 15, color: statusColor),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(statusLabel, style: theme.textTheme.labelSmall),
+                          const SizedBox(width: 6),
+                          Container(
+                            width: 3,
+                            height: 3,
+                            decoration: BoxDecoration(
+                              color: statusColor.withValues(alpha: 0.7),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              _summarize(activity, toolLabel),
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: statusColor.withValues(alpha: 0.9),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (details.isNotEmpty)
+                            Icon(
+                              _expanded ? Icons.expand_less : Icons.expand_more,
+                              size: 16,
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                        ],
+                      ),
                     ),
-              borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              );
+            },
+          ),
+          if (_expanded)
+            _ToolDetailPanel(
+              key: ValueKey(
+                'agent-tool-activity-details-${activity.toolCallId}',
+              ),
+              text: details,
             ),
-            child: Row(
-              children: [
-                SizedBox.square(
-                  key: ValueKey(
-                    'agent-tool-activity-icon-${activity.toolCallId}',
-                  ),
-                  dimension: 18,
-                  child: Center(
-                    child: Icon(icon, size: 15, color: statusColor),
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Text(statusLabel, style: theme.textTheme.labelSmall),
-                const SizedBox(width: 6),
-                Container(
-                  width: 3,
-                  height: 3,
-                  decoration: BoxDecoration(
-                    color: statusColor.withValues(alpha: 0.7),
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    _summarize(activity, toolLabel),
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: statusColor.withValues(alpha: 0.9),
-                      fontFamily: 'monospace',
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
+          const SizedBox(height: 6),
+        ],
       ),
     );
   }
@@ -280,22 +318,37 @@ class _AgentChatToolActivityTileState extends State<AgentChatToolActivityTile>
     if (activity.status == AgentToolActivityStatus.running) {
       return toolLabel;
     }
-    final text = activity.content.trim();
-    if (text.isEmpty) return toolLabel;
-    final normalized = text.replaceAll(RegExp(r'\s+'), ' ');
-    return normalized.length <= 60
-        ? normalized
-        : '${normalized.substring(0, 60)}…';
+    return _humanReadableTextSummary(activity.content, fallback: toolLabel);
+  }
+
+  String _activityDetails(AgentToolActivity activity) {
+    final sections = <String>[];
+    if (activity.args.isNotEmpty) {
+      sections.add(_formatDetailValue(activity.args));
+    }
+    if (activity.content.trim().isNotEmpty) {
+      sections.add(_formatDetailText(activity.content));
+    }
+    return sections.join('\n\n');
   }
 }
 
-class AgentChatToolResultTile extends StatelessWidget {
+class AgentChatToolResultTile extends StatefulWidget {
   const AgentChatToolResultTile({super.key, required this.result});
 
   final ToolResultMessage result;
 
   @override
+  State<AgentChatToolResultTile> createState() =>
+      _AgentChatToolResultTileState();
+}
+
+class _AgentChatToolResultTileState extends State<AgentChatToolResultTile> {
+  bool _expanded = false;
+
+  @override
   Widget build(BuildContext context) {
+    final result = widget.result;
     final theme = Theme.of(context);
     final toolLabel = agentToolLabel(context, result.toolName);
     final visual = _agentToolVisual(theme, result.toolName);
@@ -323,42 +376,78 @@ class AgentChatToolResultTile extends StatelessWidget {
         files.isEmpty && inlineImages.isEmpty && remoteImages.isEmpty
         ? _extractResourceReferences(result)
         : const <AgentChatResourceReference>[];
+    final detailText = _resultDetailText(result);
+    final summary = _resultSummary(context, result);
+    final hasExpandedContent =
+        detailText.isNotEmpty ||
+        files.isNotEmpty ||
+        inlineImages.isNotEmpty ||
+        remoteImages.isNotEmpty ||
+        resourceReferences.isNotEmpty;
     return Padding(
       padding: const EdgeInsets.only(bottom: 6, left: 4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              SizedBox.square(
-                key: ValueKey('agent-tool-result-icon-${result.toolCallId}'),
-                dimension: 18,
-                child: Center(
-                  child: Icon(
-                    result.isError ? Icons.error_outline : visual.icon,
-                    size: 15,
-                    color: color.withValues(alpha: 0.82),
-                  ),
+          Material(
+            type: MaterialType.transparency,
+            child: InkWell(
+              key: ValueKey('agent-tool-result-${result.toolCallId}'),
+              borderRadius: BorderRadius.circular(8),
+              onTap: !hasExpandedContent
+                  ? null
+                  : () => setState(() => _expanded = !_expanded),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 5),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    SizedBox.square(
+                      key: ValueKey(
+                        'agent-tool-result-icon-${result.toolCallId}',
+                      ),
+                      dimension: 18,
+                      child: Center(
+                        child: Icon(
+                          result.isError ? Icons.error_outline : visual.icon,
+                          size: 15,
+                          color: color.withValues(alpha: 0.82),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        '$toolLabel · ${result.isError ? context.l10n.common_error : context.l10n.common_success} · $summary',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: color.withValues(alpha: 0.9),
+                          height: 1,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (hasExpandedContent)
+                      Icon(
+                        _expanded ? Icons.expand_less : Icons.expand_more,
+                        size: 17,
+                        color: color.withValues(alpha: 0.78),
+                      ),
+                  ],
                 ),
               ),
-              const SizedBox(width: 6),
-              Flexible(
-                child: Text(
-                  toolLabel,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: color.withValues(alpha: 0.78),
-                    height: 1,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
+            ),
           ),
-          if (files.isNotEmpty ||
-              inlineImages.isNotEmpty ||
-              remoteImages.isNotEmpty ||
-              resourceReferences.isNotEmpty)
+          if (_expanded && detailText.isNotEmpty)
+            _ToolDetailPanel(
+              key: ValueKey('agent-tool-result-details-${result.toolCallId}'),
+              text: detailText,
+            ),
+          if (_expanded &&
+              (files.isNotEmpty ||
+                  inlineImages.isNotEmpty ||
+                  remoteImages.isNotEmpty ||
+                  resourceReferences.isNotEmpty))
             Padding(
               padding: const EdgeInsets.only(top: 4),
               child: Column(
@@ -384,9 +473,76 @@ class AgentChatToolResultTile extends StatelessWidget {
   }
 }
 
+class _ToolDetailPanel extends StatelessWidget {
+  const _ToolDetailPanel({super.key, required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return AgentToolDetailSurface(
+      text: text,
+      copyTooltip: context.l10n.common_copy,
+      onCopy: () async {
+        await Clipboard.setData(ClipboardData(text: text));
+        if (context.mounted) {
+          AppToast.info(context, context.l10n.common_copied);
+        }
+      },
+    );
+  }
+}
+
+String _resultSummary(BuildContext context, ToolResultMessage result) {
+  final text = result.text.trim();
+  if (text.isEmpty) {
+    return result.isError
+        ? context.l10n.common_error
+        : context.l10n.common_success;
+  }
+  return _humanReadableTextSummary(
+    text,
+    fallback: result.isError
+        ? context.l10n.common_error
+        : context.l10n.common_success,
+  );
+}
+
+String _humanReadableTextSummary(String text, {required String fallback}) {
+  return AgentToolPresentation.summary(text, fallback: fallback);
+}
+
+String _resultDetailText(ToolResultMessage result) {
+  final sections = <String>[];
+  for (final content in result.content.whereType<ToolResultTextContent>()) {
+    if (content.text.trim().isNotEmpty) {
+      sections.add(_formatDetailText(content.text));
+    }
+  }
+  if (result.details != null) {
+    final formatted = _formatDetailValue(result.details);
+    if (formatted.isNotEmpty && !sections.contains(formatted)) {
+      sections.add(formatted);
+    }
+  }
+  return sections.join('\n\n');
+}
+
+String _formatDetailText(String text) {
+  return AgentToolPresentation.formattedDetails(text);
+}
+
+String _formatDetailValue(Object? value) {
+  if (value == null) return '';
+  try {
+    return const JsonEncoder.withIndent('  ').convert(value);
+  } on JsonUnsupportedObjectError {
+    return value.toString();
+  }
+}
+
 /// Keeps consecutive tool results in one quiet, auditable turn activity unit.
-/// Image/error results expand by default because hiding them would obscure the
-/// outcome the user is waiting for.
+/// Groups stay compact by default while their title keeps failures visible.
 class AgentChatToolResultGroup extends StatelessWidget {
   const AgentChatToolResultGroup({super.key, required this.results});
 
@@ -399,12 +555,14 @@ class AgentChatToolResultGroup extends StatelessWidget {
     }
     final theme = Theme.of(context);
     final failed = results.where((result) => result.isError).length;
-    final containsImages = results.any(
-      (result) =>
-          result.content.any((item) => item is ToolResultImageContent) ||
-          _extractImageFiles(result).isNotEmpty ||
-          _extractResourceReferences(result).isNotEmpty,
-    );
+    String? failureSummary;
+    for (final result in results) {
+      if (result.isError) {
+        failureSummary = _resultSummary(context, result);
+        break;
+      }
+    }
+    final disableAnimations = MediaQuery.disableAnimationsOf(context);
     return Theme(
       data: theme.copyWith(dividerColor: Colors.transparent),
       child: Material(
@@ -413,7 +571,13 @@ class AgentChatToolResultGroup extends StatelessWidget {
           key: PageStorageKey(
             'agent-tool-group-${results.first.toolCallId}-${results.length}',
           ),
-          initiallyExpanded: containsImages || failed > 0,
+          initiallyExpanded: false,
+          expansionAnimationStyle: disableAnimations
+              ? const AnimationStyle(
+                  duration: Duration.zero,
+                  reverseDuration: Duration.zero,
+                )
+              : null,
           tilePadding: const EdgeInsets.symmetric(horizontal: 4),
           childrenPadding: const EdgeInsets.only(left: 12),
           minTileHeight: 34,
@@ -429,10 +593,13 @@ class AgentChatToolResultGroup extends StatelessWidget {
             style: theme.textTheme.labelMedium,
           ),
           subtitle: Text(
-            results
-                .map((result) => agentToolLabel(context, result.toolName))
-                .toSet()
-                .join(' · '),
+            [
+              if (failed > 0) context.l10n.common_error,
+              if (failureSummary != null) failureSummary,
+              ...results
+                  .map((result) => agentToolLabel(context, result.toolName))
+                  .toSet(),
+            ].join(' · '),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: theme.textTheme.labelSmall?.copyWith(
@@ -621,7 +788,7 @@ class _ToolResultInlineImage extends StatelessWidget {
           child: Image.memory(
             bytes,
             fit: BoxFit.contain,
-            alignment: Alignment.centerLeft,
+            alignment: Alignment.center,
             gaplessPlayback: true,
             errorBuilder: (_, _, _) => const SizedBox.shrink(),
           ),
@@ -646,7 +813,7 @@ class _ToolResultNetworkImage extends StatelessWidget {
         child: Image.network(
           url,
           fit: BoxFit.contain,
-          alignment: Alignment.centerLeft,
+          alignment: Alignment.center,
           gaplessPlayback: true,
           errorBuilder: (_, _, _) => const SizedBox.shrink(),
         ),
