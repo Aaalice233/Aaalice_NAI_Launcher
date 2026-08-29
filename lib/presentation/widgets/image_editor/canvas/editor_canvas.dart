@@ -50,18 +50,41 @@ class _EditorCanvasState extends State<EditorCanvas>
       onStateChanged: () => setState(() {}),
     );
 
-    // 初始化选区动画
+    // 初始化选区动画（仅在存在选区或预览路径时循环播放）
     _selectionAnimationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 500),
-    )..repeat();
+    );
+    widget.state.renderNotifier.addListener(_syncSelectionAnimation);
+    _syncSelectionAnimation();
 
     // 添加硬件键盘监听（优先级高于 IME，解决中文输入法下快捷键失效问题）
     HardwareKeyboard.instance.addHandler(_inputHandler.handleHardwareKey);
   }
 
+  void _syncSelectionAnimation() {
+    final hasSelection =
+        widget.state.previewPath != null || widget.state.selectionPath != null;
+    if (hasSelection && !_selectionAnimationController.isAnimating) {
+      _selectionAnimationController.repeat();
+    } else if (!hasSelection && _selectionAnimationController.isAnimating) {
+      _selectionAnimationController.stop();
+    }
+  }
+
+  @override
+  void didUpdateWidget(EditorCanvas oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.state != widget.state) {
+      oldWidget.state.renderNotifier.removeListener(_syncSelectionAnimation);
+      widget.state.renderNotifier.addListener(_syncSelectionAnimation);
+      _syncSelectionAnimation();
+    }
+  }
+
   @override
   void dispose() {
+    widget.state.renderNotifier.removeListener(_syncSelectionAnimation);
     HardwareKeyboard.instance.removeHandler(_inputHandler.handleHardwareKey);
     _selectionAnimationController.dispose();
     _focusNode.dispose();

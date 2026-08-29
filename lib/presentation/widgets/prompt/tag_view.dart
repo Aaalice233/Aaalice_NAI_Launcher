@@ -95,7 +95,9 @@ class _TagViewState extends ConsumerState<TagView>
       vsync: this,
     );
     _entranceController.forward();
-    _shimmerController.repeat();
+    if (widget.isLoading) {
+      _shimmerController.repeat();
+    }
   }
 
   @override
@@ -103,6 +105,13 @@ class _TagViewState extends ConsumerState<TagView>
     super.didUpdateWidget(oldWidget);
     if (widget.tags.length != oldWidget.tags.length) {
       _updateTagKeys();
+    }
+    if (widget.isLoading != oldWidget.isLoading) {
+      if (widget.isLoading) {
+        _shimmerController.repeat();
+      } else {
+        _shimmerController.stop();
+      }
     }
   }
 
@@ -659,7 +668,7 @@ class _TagViewState extends ConsumerState<TagView>
                   return Transform.rotate(
                     angle: (1 - iconValue) * 0.3,
                     child: Opacity(
-                      opacity: iconValue,
+                      opacity: iconValue.clamp(0.0, 1.0),
                       child: Icon(
                         Icons.label_outline_rounded,
                         size: 56,
