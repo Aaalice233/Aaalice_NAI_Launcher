@@ -72,17 +72,21 @@ class AgentToolPermissionController {
     final args = context.args is Map<String, dynamic>
         ? Map<String, dynamic>.from(context.args as Map<String, dynamic>)
         : const <String, dynamic>{};
-    final catalogDecision = catalog.decide(
-      toolName: context.toolCall.name,
-      policy: permissionPolicy,
-    );
     final isNonBillingPreparation =
         (context.toolCall.name == 'generate_image' ||
             context.toolCall.name == 'queue_image_task') &&
         args['preparation_id'] is! String;
+    int? estimatedAnlas;
+    if (!isNonBillingPreparation && descriptor.mayConsumeAnlas) {
+      estimatedAnlas = await _estimateAnlas(context.toolCall.name, args);
+    }
     final decision = isNonBillingPreparation
         ? AgentPermissionDecision.allow
-        : catalogDecision;
+        : catalog.decide(
+            toolName: context.toolCall.name,
+            policy: permissionPolicy,
+            estimatedAnlas: estimatedAnlas,
+          );
     _toolDecisions[context.toolCall.id] = decision;
     await writeAudit(
       id: '${context.toolCall.id}.decision',
@@ -106,7 +110,8 @@ class AgentToolPermissionController {
     }
     final completer = Completer<bool>();
     _approvalCompleter = completer;
-    final estimatedAnlas = await _estimateAnlas(context.toolCall.name, args);
+    _activeApprovalToolCallId = context.toolCall.id;
+    estimatedAnlas ??= await _estimateAnlas(context.toolCall.name, args);
     _onApprovalChanged(
       AgentToolApprovalRequest(
         toolCallId: context.toolCall.id,
@@ -127,6 +132,7 @@ class AgentToolPermissionController {
     signal?.removeListener(onAbort);
     if (identical(_approvalCompleter, completer)) {
       _approvalCompleter = null;
+      _activeApprovalToolCallId = null;
       if (_isMounted()) {
         _onApprovalChanged(null);
       }
@@ -147,11 +153,22 @@ class AgentToolPermissionController {
           );
   }
 
-  void resolveApproval(bool approved) {
+  bool resolveApproval(String toolCallId, bool approved) {
     final completer = _approvalCompleter;
-    if (completer != null && !completer.isCompleted) {
-      completer.complete(approved);
+    if (completer == null ||
+        completer.isCompleted ||
+        _activeApprovalToolCallId != toolCallId) {
+      return false;
     }
+    completer.complete(approved);
+    return true;
+  }
+
+  String? _activeApprovalToolCallId;
+
+  void cancelApproval() {
+    final toolCallId = _activeApprovalToolCallId;
+    if (toolCallId != null) resolveApproval(toolCallId, false);
   }
 
   AgentPermissionDecision takeDecision(String toolCallId) =>
@@ -178,5 +195,5 @@ class AgentToolPermissionController {
     }
   }
 
-  void dispose() => resolveApproval(false);
+  void dispose() => cancelApproval();
 }

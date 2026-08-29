@@ -22,7 +22,7 @@ class AgentWindowPermissionModeButton extends StatelessWidget {
     final current = payload['permissionMode'] as String? ?? 'safe';
     final label = switch (current) {
       'fullAccess' => l10n.agentChat_permissionFull,
-      'ask' => l10n.agentChat_permissionAsk,
+      'askBeforeSensitiveActions' => l10n.agentChat_permissionAsk,
       _ => l10n.agentChat_permissionSafe,
     };
     return PopupMenuButton<String>(
@@ -33,7 +33,10 @@ class AgentWindowPermissionModeButton extends StatelessWidget {
           value: 'safe',
           child: Text(l10n.agentChat_permissionSafe),
         ),
-        PopupMenuItem(value: 'ask', child: Text(l10n.agentChat_permissionAsk)),
+        PopupMenuItem(
+          value: 'askBeforeSensitiveActions',
+          child: Text(l10n.agentChat_permissionAsk),
+        ),
         PopupMenuItem(
           value: 'fullAccess',
           child: Text(l10n.agentChat_permissionFull),

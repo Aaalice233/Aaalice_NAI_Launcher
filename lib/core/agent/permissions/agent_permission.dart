@@ -29,7 +29,6 @@ enum AgentPermissionOperation {
   overwrite,
   move,
   execute,
-  charge,
 }
 
 /// Action the caller must take before invoking a tool.
@@ -51,14 +50,6 @@ class AgentPermissionPolicy {
     AgentPermissionDomain domain,
     AgentPermissionOperation operation,
   ) {
-    // These gates describe the operation itself. Dispatchers still enforce
-    // the domain access mode before presenting or honoring confirmation.
-    if (operation == AgentPermissionOperation.charge) {
-      return AgentPermissionDecision.confirmCharge;
-    }
-    if (_destructiveOperations.contains(operation)) {
-      return AgentPermissionDecision.ask;
-    }
     final mode = modeFor(domain);
     if (mode == AgentAccessMode.blocked) {
       return AgentPermissionDecision.block;
@@ -66,6 +57,12 @@ class AgentPermissionPolicy {
     if (mode == AgentAccessMode.readOnly &&
         operation != AgentPermissionOperation.read) {
       return AgentPermissionDecision.block;
+    }
+    // Destructive actions retain an explicit confirmation even in full-access
+    // mode. Billing is evaluated separately from the operation because a tool
+    // that can consume Anlas may have an exact zero-cost invocation.
+    if (_destructiveOperations.contains(operation)) {
+      return AgentPermissionDecision.ask;
     }
     return switch (mode) {
       AgentAccessMode.blocked => AgentPermissionDecision.block,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/windowing/agent_window_protocol.dart';
 import 'package:nai_launcher/core/windowing/agent_window_shell.dart';
+import 'package:nai_launcher/core/windowing/agent_window_shell_widgets.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 
 void main() {
@@ -134,6 +135,81 @@ void main() {
       ),
       isTrue,
     );
+  });
+
+  testWidgets('secondary uses canonical ask permission mode value', (
+    tester,
+  ) async {
+    final commands = <(String, Map<String, Object?>)>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: AgentWindowPermissionModeButton(
+            payload: const {'permissionMode': 'askBeforeSensitiveActions'},
+            sendCommand: (name, payload) async {
+              commands.add((name, payload));
+              return null;
+            },
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Ask'), findsOneWidget);
+    await tester.tap(find.text('Ask'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Ask').last);
+    await tester.pumpAndSettle();
+
+    expect(commands, hasLength(1));
+    expect(commands.single.$1, 'setPermissionMode');
+    expect(commands.single.$2, {'value': 'askBeforeSensitiveActions'});
+  });
+
+  testWidgets('secondary approval response carries its tool call id', (
+    tester,
+  ) async {
+    final bridge = _FakeBridge()
+      ..snapshot = const AgentWindowSnapshot(
+        revision: 4,
+        payload: {
+          'ready': true,
+          'initialized': true,
+          'routeReady': true,
+          'sessions': [],
+          'messages': [],
+          'activities': [],
+          'resources': [],
+          'composerText': '',
+          'routeLabel': 'Default',
+          'permissionMode': 'fullAccess',
+          'webAccessEnabled': false,
+          'approval': {
+            'toolCallId': 'charge-1',
+            'toolName': 'submit_generation',
+            'estimatedAnlas': 3,
+          },
+        },
+      );
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Builder(
+          builder: (context) => buildAgentWindowBridgeShell(context, bridge),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Allow once'));
+    await tester.pump();
+
+    final approval = bridge.commands.singleWhere(
+      (entry) => entry.$1 == 'resolveApproval',
+    );
+    expect(approval.$2, {'toolCallId': 'charge-1', 'value': true});
   });
 
   testWidgets('secondary shell renders user images and survives corrupt data', (

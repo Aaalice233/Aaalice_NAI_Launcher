@@ -523,6 +523,13 @@ void main() {
       expect(imageSource.mimeType, 'image/png');
       expect(imageSource.base64Data, isNotEmpty);
       expect(submitted.details['files'], ['saved.png']);
+
+      final replayed = await submit.execute('submit-replayed', {
+        'preparation_id': payload['preparation_id'],
+        'confirmed': true,
+      });
+      expect(replayed.isError, isTrue);
+      expect(fake.generateCalls, 1);
     },
   );
 
