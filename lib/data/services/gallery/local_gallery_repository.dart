@@ -195,32 +195,36 @@ class LocalGalleryRepository {
 
   Future<bool> addImage(File file, {NaiImageMetadata? metadata}) async {
     final stat = await file.stat();
-    final metadataStatus = metadata != null && metadata.hasData
-        ? MetadataStatus.success
-        : MetadataStatus.none;
+    final resolvedMetadata = metadata?.hasData == true
+        ? metadata
+        : await getMetadata(file.path);
+    final hasMetadata = resolvedMetadata?.hasData == true;
     final imageId = await _dataSource.upsertImage(
       filePath: file.path,
       fileName: p.basename(file.path),
       fileSize: stat.size,
-      width: metadata?.width,
-      height: metadata?.height,
+      width: resolvedMetadata?.width,
+      height: resolvedMetadata?.height,
       aspectRatio:
-          metadata?.width != null &&
-              metadata?.height != null &&
-              metadata!.height! > 0
-          ? metadata.width! / metadata.height!
+          resolvedMetadata?.width != null &&
+              resolvedMetadata?.height != null &&
+              resolvedMetadata!.height! > 0
+          ? resolvedMetadata.width! / resolvedMetadata.height!
           : null,
       createdAt: stat.modified,
       modifiedAt: stat.modified,
-      resolutionKey: metadata?.width != null && metadata?.height != null
-          ? '${metadata!.width}x${metadata.height}'
+      resolutionKey:
+          resolvedMetadata?.width != null && resolvedMetadata?.height != null
+          ? '${resolvedMetadata!.width}x${resolvedMetadata.height}'
           : null,
-      lastScannedAt: DateTime.now(),
-      metadataStatus: metadataStatus,
+      lastScannedAt: hasMetadata ? DateTime.now() : null,
+      metadataStatus: hasMetadata
+          ? MetadataStatus.success
+          : MetadataStatus.none,
     );
-    if (metadata != null && metadata.hasData) {
-      await _dataSource.upsertMetadata(imageId, metadata);
-      ImageMetadataService().cacheMetadata(file.path, metadata);
+    if (hasMetadata) {
+      await _dataSource.upsertMetadata(imageId, resolvedMetadata!);
+      ImageMetadataService().cacheMetadata(file.path, resolvedMetadata);
     }
     AppLogger.i(
       '[AddNewImage] Added new image immediately: ${p.basename(file.path)} '

@@ -182,7 +182,7 @@ class GalleryStreamScanner {
   ///
   /// [onFileProcessed] - 每个文件处理完成时的回调
   /// [checkConsistency] - 是否在扫描前检查数据一致性（删除不存在的文件记录）
-  /// [retryMissingMetadata] - 是否重新尝试历史上标记为无元数据的文件
+  /// [retryMissingMetadata] - 是否重新尝试尚未解析元数据的历史文件
   /// [retryFailedMetadata] - 是否重新尝试历史上提取失败的文件
   /// [fileSnapshot] - 调用方已枚举时复用同一份文件快照
   ///
