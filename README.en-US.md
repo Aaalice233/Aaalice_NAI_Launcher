@@ -1,134 +1,241 @@
 # NAI Launcher
 
 <p align="center">
-  <a href="README.md">简体中文</a> | English
+  <a href="README.md">简体中文</a> · English
 </p>
 
 <p align="center">
-  <img src="assets/icons/Icon.png" alt="NAI Launcher Logo" width="120">
+  <img src="assets/icons/Icon.png" alt="NAI Launcher icon" width="112">
 </p>
 
 <p align="center">
-  <strong>A third-party cross-platform client for NovelAI image generation</strong>
+  <strong>A third-party cross-platform client for NovelAI, bringing generation, editing, galleries, tags, and queues together.</strong>
 </p>
 
 <p align="center">
   <a href="https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases/latest"><img src="https://img.shields.io/github/v/release/Aaalice233/Aaalice_NAI_Launcher?display_name=tag&sort=semver" alt="Latest release"></a>
-  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Android-lightgrey" alt="Platforms">
-  <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
-  <a href="https://discord.gg/R48n6GwXzD"><img src="https://img.shields.io/badge/Discord-Join-5865F2?logo=discord&logoColor=white" alt="Discord"></a>
+  <img src="https://img.shields.io/badge/Windows%20%7C%20macOS%20%7C%20Android-available-6f7785" alt="Supported platforms">
+  <img src="https://img.shields.io/badge/license-MIT-5b8c5a" alt="MIT License">
+  <a href="https://discord.gg/R48n6GwXzD"><img src="https://img.shields.io/badge/Discord-Join-5865F2?logo=discord&logoColor=white" alt="Discord community"></a>
 </p>
 
-NAI Launcher is a cross-platform third-party client for NovelAI built with Flutter. It integrates image generation, image-to-image, inpainting, Vibe / Precise Reference, local gallery, online gallery, generation queues, Krita integration, and statistical tools into a single application for daily generation, batch processing, and long-term management of local artwork.
+<p align="center">
+  <a href="https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases/latest">Download latest release</a> ·
+  <a href="https://github.com/Aaalice233/Aaalice_NAI_Launcher/issues">Report an issue</a> ·
+  <a href="https://discord.gg/R48n6GwXzD">Join Discord</a>
+</p>
 
-> This project is not an official NovelAI product. Please ensure you have your own NovelAI account and comply with NovelAI's Terms of Service before use.
+> **The current version is still in beta.** Features are actively being refined; back up important data before upgrading.
+>
+> NAI Launcher is a third-party client, not an official NovelAI product. Before using online features, make sure you have your own NovelAI account and follow the applicable terms of service and local laws.
 
-## ✨ Features Overview
+![Generation workspace](docs/screenshots/generation-desktop.png)
 
-| Feature | Description |
+## What can it do?
+
+NAI Launcher is built for people who use NovelAI regularly: generate images, refine prompts, save references, find inspiration, and manage finished work in one application.
+
+### 🎨 Create
+
+- **Generation and editing**: text-to-image, image-to-image, Inpaint, Focused Inpaint, Outpaint, and upscale/enhance workflows.
+- **References and characters**: Vibe Transfer, Precise Reference, multi-character prompts, reference images, and independent negative prompts.
+- **Prompt workspace**: tag autocomplete, weight syntax, token counts, pinned words, random tag libraries, and prompt import/export.
+
+### 🗂️ Organize
+
+- **Local gallery**: scan local artwork, search Prompts and metadata, organize categories, favorites, and collections, and perform batch operations.
+- **Generation queue**: submit batches, pause/resume, reorder, handle failures, and track progress.
+- **Image details**: inspect generation parameters, positive/negative prompts, and character prompts; copy selected content back to the generator or tag library.
+- **Statistics**: review creation habits by size, sampler, time, and Anlas usage.
+
+### 🌐 Explore
+
+- **Online galleries**: search Danbooru, Safebooru, Gelbooru, AI TAG, and Codex Gallery (NovelAI QuickTagCloud).
+- **Source filters**: search, favorites, date/rankings, content ratings, blacklist, and output filters as provided by each source.
+- **Libraries and references**: manage personal tags, pinned words, Vibe resources, and Precise Reference resources.
+
+### 🤝 Connect
+
+- **Agent Chat**: use the generation sidebar or mobile drawer to search tags, organize Prompts, inspect history, and prepare generations; every operation that may consume Anlas requires separate confirmation.
+- **Desktop integrations**: connect Krita Bridge and local ComfyUI workflows to your existing tools.
+- **Sync and backup**: manually push and pull selected data through GitHub or WebDAV; credentials and NovelAI Tokens are excluded from backups.
+
+## Interface preview
+
+The screenshots below follow the workflow from “generate” to “organize”, “explore”, “connect”, and “use on mobile”.
+
+### Generation and editing
+
+<p align="center">
+  <img src="docs/screenshots/generation-desktop.png" alt="Desktop generation workspace" width="100%">
+  <br>
+  <em>Generation workspace: Prompt, characters, parameters, and history in one view</em>
+</p>
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/generation-panel.png" alt="Character and image-to-image panel" width="100%"></td>
+    <td width="50%"><img src="docs/screenshots/generation-params.png" alt="Generation parameters" width="100%"></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/generation-batch.png" alt="Batch generation in progress" width="100%"></td>
+    <td><img src="docs/screenshots/generation-results.png" alt="Batch generation results" width="100%"></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/image-details-desktop.png" alt="Image details and generation parameters" width="100%"></td>
+    <td><img src="docs/screenshots/image-copy-dialog.png" alt="Copy prompt categories" width="100%"></td>
+  </tr>
+</table>
+
+### Galleries and libraries
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/online-favorites.png" alt="Online gallery favorites and search" width="100%"></td>
+    <td width="50%"><img src="docs/screenshots/online-detail.png" alt="Online gallery image details" width="100%"></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/codex-detail.png" alt="Codex Gallery details" width="100%"></td>
+    <td><img src="docs/screenshots/blacklist-settings.png" alt="Online gallery blacklist settings" width="100%"></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/vibe-library.png" alt="Vibe library" width="100%"></td>
+    <td><img src="docs/screenshots/precise-reference.png" alt="Precise Reference library" width="100%"></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/random-library.png" alt="Random tag library configuration" width="100%"></td>
+    <td><img src="docs/screenshots/tag-library.png" alt="Character and artist tag library" width="100%"></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/stats.png" alt="Statistics dashboard" width="100%"></td>
+    <td><img src="docs/screenshots/queue.png" alt="Generation queue management" width="100%"></td>
+  </tr>
+</table>
+
+### Agent Chat and settings
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/agent.png" alt="Agent Chat and generation collaboration" width="100%"></td>
+    <td width="50%"><img src="docs/screenshots/agent-confirm.png" alt="Agent generation confirmation" width="100%"></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/agent-result.png" alt="Agent generation result" width="100%"></td>
+    <td><img src="docs/screenshots/agent-search.png" alt="Agent tag library search" width="100%"></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/generation-settings.png" alt="Generation settings" width="100%"></td>
+    <td><img src="docs/screenshots/agent-settings.png" alt="Agent settings" width="100%"></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/data-settings.png" alt="Data and storage settings" width="100%"></td>
+    <td><img src="docs/screenshots/backup-settings.png" alt="Backup and restore settings" width="100%"></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/security-settings.png" alt="Security and sharing settings" width="100%"></td>
+    <td><img src="docs/screenshots/integrations-settings.png" alt="Integration settings" width="100%"></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/autocomplete.png" alt="Tag autocomplete" width="100%"></td>
+    <td><img src="docs/screenshots/tag-search.png" alt="Tag search and library results" width="100%"></td>
+  </tr>
+</table>
+
+### Android
+
+<p align="center">
+  <img src="docs/screenshots/mobile-generation-progress.png" alt="Android generation in progress" width="32%">
+  <img src="docs/screenshots/generation-mobile.png" alt="Android completed generation" width="32%">
+  <img src="docs/screenshots/mobile-viewer.png" alt="Android image viewer" width="32%">
+</p>
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/mobile-image-menu.png" alt="Android image actions" width="100%"></td>
+    <td width="50%"><img src="docs/screenshots/mobile-generation-settings.png" alt="Android generation settings" width="100%"></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/mobile-agent.png" alt="Android Agent Chat" width="100%"></td>
+    <td><img src="docs/screenshots/mobile-agent-result.png" alt="Android Agent generation flow" width="100%"></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/mobile-gallery.png" alt="Android local gallery" width="100%"></td>
+    <td><img src="docs/screenshots/mobile-library.png" alt="Android tag library" width="100%"></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/mobile-more.png" alt="Android more menu" width="100%"></td>
+    <td><img src="docs/screenshots/mobile-settings.png" alt="Android settings" width="100%"></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/mobile-extensions.png" alt="Android extensions" width="100%"></td>
+    <td><img src="docs/screenshots/mobile-image-menu-alt.png" alt="Android image menu" width="100%"></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/mobile-tag-library.png" alt="Android tag library" width="100%"></td>
+    <td></td>
+  </tr>
+</table>
+
+## Platform support
+
+| Platform | Current status | Notes |
+| --- | --- | --- |
+| **Windows** | Primary development and release platform | Suited to long sessions, batch generation, and Krita / ComfyUI integration. Installer and portable packages are available. |
+| **macOS** | Available and still being refined | Portable package available. If macOS blocks an unnotarized build, allow it in the system security prompt. |
+| **Android** | Beta | Supports phones, landscape layouts, tablets, and large screens, with mobile entry points for generation, galleries, libraries, queues, and settings. |
+| **Linux** | No official release package | Not currently a supported download target. |
+
+## Download and first steps
+
+### 1. Download
+
+Download the package for your platform from [GitHub Releases](https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases/latest). Every release also includes `checksums.txt`, which can help diagnose a damaged download or installation failure.
+
+| Platform | File | Notes |
+| --- | --- | --- |
+| Windows | `NAI_Launcher_Windows_<version>_Setup.exe` | Installer package, recommended for most users. |
+| Windows | `NAI_Launcher_Windows_<version>_Portable.zip` | Portable package; extract and run without installing. |
+| macOS | `NAI_Launcher_macOS_<version>_Portable.zip` | Extract and open `Aaalice NAI Launcher.app`. |
+| Android | `NAI_Launcher_Android_<version>.apk` | Sideload the APK; the first installation may require permission to install unknown apps. |
+
+### 2. Sign in to NovelAI
+
+You can sign in with NovelAI credentials or a **Persistent API Token**. If web security verification prevents password login, Persistent API Token is the more reliable option. Local galleries, libraries, resource libraries, and settings can be used without signing in; generation, Vibe encoding, cloud upscale, and other online operations require authentication.
+
+### 3. Set up your workflow
+
+- **Local gallery**: choose artwork folders in Settings, then open the gallery to start scanning. Scanning is performed on demand rather than immediately on application startup.
+- **Autocomplete**: the base tag catalog is included and works offline. Related-tag recommendations, the Chinese tag dictionary, and AI translation are optional data sources managed under **Settings → Data Sources & Cache**.
+- **Krita**: enable Krita Bridge in Launcher Settings, then follow [`krita_plugin/README.md`](krita_plugin/README.md) to install the plugin.
+- **ComfyUI**: configure the local ComfyUI address and workflow under **Settings → Integrations**. Models and nodes remain managed by your ComfyUI environment.
+
+## Data and privacy
+
+NAI Launcher does not host your account or artwork on a project-operated server. Different features send data to different services:
+
+| Feature in use | Recipient |
 | --- | --- |
-| 🎨 Image Generation | Supports NovelAI Diffusion V1/V2/V3/V4/V4.5/V5, Furry series, common samplers, size presets, multi-character parameters, and Anlas estimation. |
-| 🖼️ Image-to-Image & Editing | Supports img2img, inpainting, Focused Inpaint, Outpaint, virtual canvas expansion, hard-edge masks, and click-to-fill region selection. |
-| 🌈 Reference & Style | Supports Vibe Transfer, Precise Reference, multi-image references, Vibe pack import/export, and PNG metadata embedding/export. |
-| ✍️ Prompt Tools | Includes the complete offline merged Danbooru/e621 tag and alias catalog. Local Danbooru co-occurrence recommendations are delivered as an optional data pack downloaded in the background after the home screen opens. Press `Ctrl/⌘+Shift+Space` for tags related to the tag before the cursor, pin the source tag for continuous insertion, and optionally merge Danbooru online relations, Chinese translations, and AI translations for missing entries. Also includes NAI/SD weight syntax assistance, token counting, in-box prompt search, and pinned words. |
-| 🤖 Agent Chat | Uses a configured third-party model for multi-turn conversations in the generation sidebar. It can inspect and adjust prompts, characters, and generation settings, search tags and generation history, and perform generation or image-reading operations according to the selected permission mode. Optional web tools can search through SearXNG, anonymous Exa MCP, or the Exa API and read individual public pages on demand. Sessions are stored locally as JSONL. |
-| 🎲 Random Tag Library | Includes a complete restoration of NovelAI's official random wordlists and selects Legacy Anime, Furry V3, or Character Prompts for the current model. Custom mode uses the complete offline tag catalog, while hybrid mode combines both sources. Catalog categories, groups, weights, exclusions, and dependency rules are editable; custom presets support preview, import, and export. |
-| 📚 Local Gallery | Supports recursive scanning, SQLite full-text search, categories/collections/favorites, metadata parsing, batch operations, and large image previews. |
-| 🌐 Online Gallery | Supports Danbooru / Safebooru / Gelbooru / AI TAG / Codex Gallery search, native rankings, multi-image details, metadata reuse, and batch downloads. |
-| 📦 Generation Queue | Supports task sorting, batch generation, pause/resume, failure handling strategies, progress statistics, and queue import/export. |
-| ☁️ Sync & Backup | One-click synchronization of selected data across Windows, macOS, and Android through your own WebDAV or GitHub storage, with integrity-checked snapshots, history restore, per-item conflict resolution, and compatibility with legacy encrypted backups. Backends without sufficient capabilities are limited to manual cloud backup. |
-| 🔌 External Integration | Desktop builds support local Krita and ComfyUI workflows, while platform integrations include system proxy, image copying, native sharing, file import/export, and file location where available. |
-| 🌏 Interface Languages | Supports Simplified Chinese, Traditional Chinese, English, and Japanese. Traditional Chinese queries can use the optional Simplified Chinese tag translation dictionary. |
+| Generation, image-to-image, editing, Vibe encoding | NovelAI, including the relevant Prompt, parameters, and reference/source images. |
+| Online gallery search and downloads | The third-party gallery you selected; availability, rate limits, and content rules belong to each site. |
+| AI translation or Agent Chat | The model service you configured; conversations, attached images, and tool results needed for the task may incur service charges. |
+| Sync and backup | The GitHub or WebDAV storage you configured; only the data categories you explicitly select are uploaded. |
 
-### Online Gallery Sources
+- NovelAI Tokens, WebDAV passwords, and GitHub Tokens are stored in the device secure store and are not included in backups.
+- Local Prompts, gallery indexes, tags, and Agent sessions are stored on the device by default; Agent web tools are off by default.
+- Online galleries contain third-party content. Rating filters do not replace user judgment; follow source-site rules, local laws, and NovelAI's terms of service.
+- WebDAV security depends on the server and transport you configure. Confirm that the server is trusted and keep important local backups before syncing.
 
-- **Danbooru / Safebooru**: Support tag and date searches plus native daily, weekly, and monthly rankings for a selected date. Danbooru supports login and writable favorites; Safebooru uses anonymous, read-only access to `safebooru.donmai.us`.
-- **Gelbooru**: Supports public search. Optional API credentials accelerate searches and enable read-only website favorites; no synthetic local ranking is presented.
-- **AI TAG**: Supports combined work/author/title/tag/model queries and verbatim Prompt syntax searches such as `::artist:`, with time ranges loaded from the live source configuration. Native live monthly, historical monthly, and older archives are available. Multi-image details support navigation, prefetching, and per-image NAI / Stable Diffusion / ComfyUI metadata reuse, plus current-image and whole-work downloads. AI TAG requires no account and is read-only.
-- **Codex Gallery (NovelAI QuickTagCloud)**: Browses fixed public codexes by codex, category, update batch, image state, and full text fields. Supports multi-image and text-only entries, contributor attribution, positive/negative/multi-character Prompt copying, generation and queue handoff, local favorites, and recent history. Content ratings reuse the gallery's existing selector with General, Questionable (adult), and Explicit (R18G / extreme) filters. Versioned codex JSON is cached only after size and SHA-256 verification, while images use the normal runtime network cache; all content remains upstream-only and is neither bundled nor mirrored.
+## Support and feedback
 
-## 🖥️ Interface Preview
+- [Open an Issue](https://github.com/Aaalice233/Aaalice_NAI_Launcher/issues) for a reproducible bug or feature request.
+- [Join Discord](https://discord.gg/R48n6GwXzD) for usage discussion and community help.
+- [View Releases](https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases) for packages, checksums, and release notes.
+- Pull Requests are welcome. For UI changes, include screenshots or a recording to make review and reproduction easier.
 
-<p align="center">
-  <img src="assets/images/1.png" alt="Image Generation Interface" width="80%">
-  <br>
-  <em>Main image generation interface</em>
-</p>
+## Acknowledgments
 
-<p align="center">
-  <img src="assets/images/2.png" alt="Local Gallery" width="80%">
-  <br>
-  <em>Local gallery and waterfall layout browsing</em>
-</p>
+Thanks to [NovelAI](https://novelai.net/), [Codex Gallery](https://novelai.quicktagcloud.com/), [AgIzT/NovelAI-Tag](https://github.com/AgIzT/NovelAI-Tag), [Flutter](https://flutter.dev/), [Riverpod](https://riverpod.dev/), and all contributors and testers.
 
-<p align="center">
-  <img src="assets/images/4.png" alt="Image Details" width="80%">
-  <br>
-  <em>Image details, metadata, and parameter reuse</em>
-</p>
+## License
 
-<p align="center">
-  <img src="assets/images/5.png" alt="Danbooru Online Gallery" width="80%">
-  <br>
-  <em>Danbooru Online Gallery</em>
-</p>
-
-<p align="center">
-  <img src="assets/images/7.png" alt="Statistics Dashboard" width="80%">
-  <br>
-  <em>Statistics Dashboard</em>
-</p>
-
-## 🧩 Platform Support
-
-| Platform | Status | Description |
-| --- | --- | --- |
-| Windows | Available | Primary development and release platform. Supports system tray, window state persistence, video playback, clipboard, and file location. |
-| macOS | Minimal Support | Supports building, launching, login, local database, video playback, Keychain, system proxy, image copying, and file location. System tray support to be added later. |
-| Android | Available | Supports Android 7.0+ phones, landscape layouts, tablets, and large screens. Generation, galleries, libraries, queues, and settings are included, together with system file picking/export, gallery saving, sharing, and APK updates. |
-| Linux | Unreleased | Desktop code branches exist, but official packages are not currently provided. |
-
-## 📦 Download & Install
-
-Download the latest version from [Releases](https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases). The app persistently surfaces available updates before and after login and fully renders the GitHub Flavored Markdown under the Release’s “What’s Changed” section, including headings, lists, tables, quotes, code, links, and images, without repeating platform downloads or file verification details.
-
-| Platform | Download File | Usage |
-| --- | --- | --- |
-| Windows | `NAI_Launcher_Windows_<version>_Setup.exe` | Installer version, recommended for general users. Supports resumable in-app downloads, verification, automatic installation, and restart. Manual setup also detects and closes an older version still running in the tray. |
-| Windows | `NAI_Launcher_Windows_<version>_Portable.zip` | Portable version. In-app updates stage the new version, preserve user files, atomically swap directories, and automatically roll back and restart the previous version on failure. |
-| macOS | `NAI_Launcher_macOS_<version>_Portable.zip` | Portable version. Extract and open `Aaalice NAI Launcher.app`. If an unnotarized build is blocked, you can allow it to open in System Settings > Privacy & Security. |
-| Android | `NAI_Launcher_Android_<version>.apk` | Requires Android 7.0 or later. Let Android confirm the installation after download. First-time installs may require allowing your browser or file manager to install unknown apps; later releases can be downloaded and verified in the app before Android confirms the update. |
-
-You can log in for the first time using your NovelAI account credentials or an API Token. Account data is stored locally on the device only. Supported platforms use system secure storage for sensitive information.
-
-### Autocomplete, Agent Chat & Privacy
-
-- The complete base Danbooru/e621 tag and alias catalog ships with the app and is queried locally without a network connection.
-- The local related-tag co-occurrence data is built by this project from a pinned revision of [newtextdoc1111/danbooru-tag-csv](https://huggingface.co/datasets/newtextdoc1111/danbooru-tag-csv) and published as a separate optional data pack. When related tags are enabled, the app downloads about 30.3 MiB in the background after the home screen opens; installation uses about 78.7 MiB and never blocks startup or base autocomplete.
-- If the pack is unavailable, downloading, disabled, or has failed, the related-tag popup can still show Danbooru online results. Under Settings → Data Sources & Cache you can pause, retry, repair, or remove the pack and disable automatic downloads; removal can also opt out of future automatic downloads.
-- The Simplified Chinese translation dictionary is optional. Traditional Chinese UI and tag queries can use the same dictionary; queries are converted locally for matching and are not uploaded. It is downloaded directly from the [ffdkj/ComfyUI_Danbooru_Tag_Assistant](https://github.com/ffdkj/ComfyUI_Danbooru_Tag_Assistant) upstream only after user confirmation; this project does not redistribute that database.
-- The Danbooru online supplement is enabled by default. It sends only the current English token under the cursor, never the complete prompt; it can be disabled and its cache cleared separately under Settings → Data Sources & Cache.
-- AI translation for missing entries is disabled by default. When enabled, it reuses the Prompt Assistant `Translate` route and sends at most 8 untranslated tags to the model service selected by the user, which may incur API charges. Its cache can be cleared separately.
-- Agent Chat sends conversation text, user-attached images, and tool results needed for the current task to the model service selected by the user. This may incur that service's API charges and is subject to its privacy policy. Session records are stored locally as JSONL in the application's data directory. File reads are limited to the image export directory by default; files outside it become accessible only after the user explicitly selects Full Access.
-- Agent Chat web tools are disabled by default and can be controlled with the globe icon in the chat composer. Searches send the query and selected recency or domain filters to the configured SearXNG instance or to Exa. Auto mode prefers a configured SearXNG instance and falls back to anonymous Exa MCP without an API key when SearXNG is unavailable or not configured. The Exa API key in system secure storage is read and sent to the Exa API only when the user explicitly selects Exa API mode.
-- `web_read` directly fetches one public HTTP(S) page only when the model requests it and extracts readable text locally; when the app proxy is enabled, that proxy handles the request and hostname resolution. The extracted page text is sent to the selected model service as a tool result. Search results are not all read automatically.
-- Sync & Backup uploads only data categories explicitly selected by the user. WebDAV passwords and GitHub tokens stay in system secure storage, never enter a backup, and are never echoed in the interface. New configurations no longer add an app-level encryption password or recovery key; content confidentiality therefore relies on HTTPS and the provider's storage security, and the provider may be able to read uploaded content. Snapshots still verify size, SHA-256, format version, and concurrent updates. Legacy encrypted namespaces remain supported and require the old password or recovery key only if the local secure key is unavailable.
-
-## 💬 Support & Contributing
-
-- For bugs or feature requests, open a [GitHub Issue](https://github.com/Aaalice233/Aaalice_NAI_Launcher/issues).
-- Join [Discord](https://discord.gg/R48n6GwXzD) for community help and usage discussions.
-- Pull Requests are welcome. Please describe the goal and verification steps, and include screenshots or recordings for UI changes when possible.
-- See [CHANGELOG.md](CHANGELOG.md) or [Releases](https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases) for complete version changes.
-
-## 🙏 Acknowledgments
-
-- [NovelAI](https://novelai.net/) for providing the image generation service.
-- [Suozhang Codex Site (Codex Gallery)](https://novelai.quicktagcloud.com/) and its [AgIzT/NovelAI-Tag](https://github.com/AgIzT/NovelAI-Tag) project for providing Codex Gallery content and services.
-- [Flutter](https://flutter.dev/) for cross-platform UI capabilities.
-- [Riverpod](https://riverpod.dev/) for state management capabilities.
-- Thanks to all contributors and testers.
-
-## 📄 License
-
-This project is open-source under the MIT License. See [LICENSE](LICENSE) for details.
+This project is open source under the [MIT License](LICENSE).

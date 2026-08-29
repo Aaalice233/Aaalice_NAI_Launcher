@@ -157,7 +157,6 @@ flutter:
   generate: true
 
   assets:
-    - assets/images/
     - assets/icons/
     - assets/data/
     - assets/data/opencc/
