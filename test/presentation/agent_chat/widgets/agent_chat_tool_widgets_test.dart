@@ -1,19 +1,43 @@
 import 'dart:convert';
+import 'dart:io';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:image/image.dart' as image_lib;
 import 'package:nai_launcher/core/agent/agent_types.dart';
+import 'package:nai_launcher/core/agent/resources/agent_chat_resource_reference.dart';
+import 'package:nai_launcher/core/agent/resources/agent_chat_resource_reference_codec.dart';
+import 'package:nai_launcher/core/shortcuts/shortcut_config.dart';
+import 'package:nai_launcher/data/models/online_gallery/gallery_item.dart';
+import 'package:nai_launcher/data/models/online_gallery/gallery_source.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/agent_chat/providers/agent_chat_state.dart';
+import 'package:nai_launcher/presentation/agent_chat/services/agent_resource_resolver.dart';
 import 'package:nai_launcher/presentation/agent_chat/widgets/agent_chat_tool_widgets.dart';
+import 'package:nai_launcher/presentation/providers/shortcuts_provider.dart';
+import 'package:nai_launcher/presentation/widgets/common/image_card_hover_motion.dart';
+import 'package:nai_launcher/presentation/widgets/common/image_detail/file_image_detail_data.dart';
+import 'package:nai_launcher/presentation/widgets/common/image_detail/image_detail_data.dart';
+import 'package:nai_launcher/presentation/widgets/common/image_detail/image_detail_viewer.dart';
+import 'package:nai_launcher/presentation/widgets/online_gallery/gallery_detail_dialog.dart';
 
 void main() {
   Future<void> pumpResult(WidgetTester tester, ToolResultMessage result) async {
     await tester.pumpWidget(
-      MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: Scaffold(body: AgentChatToolResultTile(result: result)),
+      ProviderScope(
+        overrides: [
+          shortcutConfigNotifierProvider.overrideWith(
+            _TestShortcutConfigNotifier.new,
+          ),
+        ],
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: AgentChatToolResultTile(result: result)),
+        ),
       ),
     );
   }
@@ -40,6 +64,59 @@ void main() {
       find.byKey(const ValueKey('agent-tool-result-details-success-1')),
       findsNothing,
     );
+  });
+
+  testWidgets('reasoning expansion isolates selectable scroll page storage', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: ListView(
+            key: const PageStorageKey('agent-chat-thread-test'),
+            children: const [
+              AgentChatReasoningTile(thinking: 'durable reasoning'),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('agent-reasoning-toggle')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('durable reasoning'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('internal API diagnostics stay out of the result summary', (
+    tester,
+  ) async {
+    final result = ToolResultMessage(
+      toolCallId: 'diagnostic-1',
+      toolName: 'submit_generation',
+      isError: true,
+      content: const [
+        ToolResultTextContent(
+          'DioException: status code of 400 RequestOptions '
+          'validateStatus response.data private protocol body',
+        ),
+      ],
+    );
+
+    await pumpResult(tester, result);
+
+    expect(find.textContaining('RequestOptions'), findsNothing);
+    expect(find.textContaining('validateStatus'), findsNothing);
+    expect(find.textContaining('HTTP 400'), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(const ValueKey('agent-tool-result-diagnostic-1')),
+    );
+    await tester.pump();
+    expect(find.textContaining('RequestOptions'), findsOneWidget);
   });
 
   testWidgets('error summary stays visible and details can be expanded', (
@@ -152,6 +229,64 @@ void main() {
     expect(find.byType(Image), findsOneWidget);
   });
 
+  testWidgets('local files take precedence over inline images and open', (
+    tester,
+  ) async {
+    final tempDir = Directory.systemTemp.createTempSync(
+      'agent_tool_result_mixed_image_',
+    );
+    final imageFile = File('${tempDir.path}${Platform.pathSeparator}result.png')
+      ..writeAsBytesSync(_onePixelPng);
+    addTearDown(() {
+      if (tempDir.existsSync()) tempDir.deleteSync(recursive: true);
+    });
+    final result = ToolResultMessage(
+      toolCallId: 'mixed-image-1',
+      toolName: 'generate_image',
+      content: [
+        ToolResultImageContent(
+          ImageContent(
+            source: ImageSource.base64(
+              mimeType: 'image/png',
+              base64Data: base64Encode(_onePixelPng),
+            ),
+          ),
+        ),
+      ],
+      details: {
+        'files': [imageFile.path],
+      },
+    );
+
+    await pumpResult(tester, result);
+    await tester.tap(
+      find.byKey(const ValueKey('agent-tool-result-mixed-image-1')),
+    );
+    await tester.pump();
+
+    final localCard = find.byKey(ValueKey(imageFile.path));
+    expect(localCard, findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('mixed-image-1-inline-0')),
+      findsNothing,
+      reason: 'persisted local output replaces the duplicate inline preview',
+    );
+    expect(find.byType(Image), findsOneWidget);
+
+    await tester.tap(localCard);
+    await tester.pump();
+    await tester.pump();
+
+    final viewer = tester.widget<ImageDetailViewer>(
+      find.byType(ImageDetailViewer),
+    );
+    expect(viewer.images, hasLength(1));
+    expect(
+      (viewer.images.single as FileImageDetailData).filePath,
+      imageFile.path,
+    );
+  });
+
   testWidgets('renders persisted generation files without a display tool', (
     tester,
   ) async {
@@ -175,7 +310,246 @@ void main() {
     expect(find.textContaining('missing-generated-result.png'), findsWidgets);
   });
 
-  testWidgets('tool group keeps a concrete failure summary visible', (
+  testWidgets('stable ref replaces inline thumbnail and opens original bytes', (
+    tester,
+  ) async {
+    final originalBytes = Uint8List.fromList(
+      image_lib.encodePng(image_lib.Image(width: 4, height: 3)),
+    );
+    final reference = AgentChatResourceReference(
+      kind: AgentChatResourceKind.generatedImage,
+      source: 'generation',
+      resourceId: 'original-1',
+    );
+    final result = ToolResultMessage(
+      toolCallId: 'display-ref-1',
+      toolName: 'display_images',
+      content: [
+        ToolResultImageContent(
+          ImageContent(
+            source: ImageSource.base64(
+              mimeType: 'image/png',
+              base64Data: base64Encode(_onePixelPng),
+            ),
+          ),
+        ),
+      ],
+      details: {
+        'images': [
+          {
+            'resource_ref': AgentChatResourceReferenceCodec.encodeJsonMap(
+              reference,
+            ),
+          },
+        ],
+      },
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          shortcutConfigNotifierProvider.overrideWith(
+            _TestShortcutConfigNotifier.new,
+          ),
+        ],
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: AgentChatToolResultMedia(
+              result: result,
+              resolveResource: (value) async => ResolvedAgentResource(
+                reference: value,
+                label: 'Original',
+                bytes: originalBytes,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byType(Image), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('display-ref-1-media-inline-0')),
+      findsNothing,
+    );
+
+    tester.widget<GestureDetector>(find.byType(GestureDetector)).onTap!();
+    await tester.pump();
+    await tester.pump();
+
+    final viewer = tester.widget<ImageDetailViewer>(
+      find.byType(ImageDetailViewer),
+    );
+    final detail = viewer.images.single as GeneratedImageDetailData;
+    expect(detail.imageBytes, originalBytes);
+    final decoded = image_lib.decodeImage(detail.imageBytes);
+    expect(decoded?.width, 4);
+    expect(decoded?.height, 3);
+  });
+
+  testWidgets('online gallery refs render quiet multi-card metadata layout', (
+    tester,
+  ) async {
+    final references = [
+      for (var index = 0; index < 3; index++)
+        AgentChatResourceReference(
+          kind: AgentChatResourceKind.onlineGalleryMedia,
+          source: 'danbooru',
+          resourceId: '$index',
+          display: {
+            'source_label': 'Danbooru',
+            'title': 'Ibuki $index',
+            'author': 'Artist $index',
+          },
+        ),
+    ];
+    final result = ToolResultMessage(
+      toolCallId: 'display-online',
+      toolName: 'display_images',
+      content: [
+        for (var index = 0; index < references.length; index++)
+          ToolResultImageContent(
+            ImageContent(
+              source: ImageSource.base64(
+                mimeType: 'image/png',
+                base64Data: base64Encode(_onePixelPng),
+              ),
+            ),
+          ),
+      ],
+      details: {
+        'images': [
+          for (final reference in references)
+            {
+              'resource_ref': AgentChatResourceReferenceCodec.encodeJsonMap(
+                reference,
+              ),
+            },
+        ],
+      },
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: AgentChatToolResultMedia(result: result)),
+        ),
+      ),
+    );
+
+    expect(
+      find.byKey(const ValueKey('online-gallery-resource-card')),
+      findsNWidgets(3),
+    );
+    expect(find.text('Danbooru'), findsNothing);
+    expect(find.text('Ibuki 1'), findsOneWidget);
+    expect(find.text('Artist 2'), findsOneWidget);
+    expect(find.byType(Wrap), findsWidgets);
+
+    final firstCard = find
+        .byKey(const ValueKey('online-gallery-resource-card'))
+        .first;
+    final clip = tester.widget<ClipRRect>(
+      find.ancestor(of: firstCard, matching: find.byType(ClipRRect)).first,
+    );
+    expect(clip.borderRadius, BorderRadius.circular(12));
+
+    final pointer = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(pointer.removePointer);
+    await pointer.addPointer(location: tester.getCenter(firstCard));
+    await tester.pump();
+    final hoverMotion = tester.widget<ImageCardHoverMotion>(
+      find
+          .ancestor(of: firstCard, matching: find.byType(ImageCardHoverMotion))
+          .first,
+    );
+    expect(hoverMotion.hovered, isTrue);
+  });
+
+  testWidgets(
+    'online gallery card opens gallery detail instead of PNG metadata',
+    (tester) async {
+      final reference = AgentChatResourceReference(
+        kind: AgentChatResourceKind.onlineGalleryMedia,
+        source: 'danbooru',
+        resourceId: '42',
+        mediaId: '42',
+      );
+      const media = GalleryMedia(id: '42', width: 832, height: 1216);
+      const item = GalleryItem(
+        id: 42,
+        sourceId: GallerySourceId.danbooru,
+        title: 'Ibuki',
+        tagString: 'ibuki blue_archive',
+        cover: media,
+      );
+      const detail = GalleryDetail(
+        item: item,
+        media: [media],
+        rawTags: ['ibuki', 'blue_archive'],
+      );
+      final result = ToolResultMessage(
+        toolCallId: 'display-online-detail',
+        toolName: 'display_images',
+        content: [
+          ToolResultImageContent(
+            ImageContent(
+              source: ImageSource.base64(
+                mimeType: 'image/png',
+                base64Data: base64Encode(_onePixelPng),
+              ),
+            ),
+          ),
+        ],
+        details: {
+          'images': [
+            {
+              'resource_ref': AgentChatResourceReferenceCodec.encodeJsonMap(
+                reference,
+              ),
+            },
+          ],
+        },
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: AgentChatToolResultMedia(
+                result: result,
+                resolveResource: (_) async => ResolvedAgentResource(
+                  reference: reference,
+                  label: 'Ibuki',
+                  bytes: _onePixelPng,
+                  onlineGalleryItem: item,
+                  onlineGalleryDetail: detail,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(
+        find.byKey(const ValueKey('online-gallery-resource-card')),
+      );
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.byType(GalleryDetailDialog), findsOneWidget);
+      expect(find.byType(ImageDetailViewer), findsNothing);
+      await tester.pump(const Duration(milliseconds: 1));
+    },
+  );
+
+  testWidgets('tool group hides failure payload until explicitly expanded', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -206,9 +580,104 @@ void main() {
       ),
     );
 
+    expect(find.textContaining('Upstream search timed out'), findsNothing);
+    expect(find.textContaining('"status"'), findsNothing);
+    await tester.tap(find.text('Ran 2 actions'));
+    await tester.pumpAndSettle();
     expect(find.textContaining('Upstream search timed out'), findsOneWidget);
     expect(find.textContaining('"status"'), findsNothing);
   });
+
+  testWidgets('running activity has no perpetual animation', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: SizedBox(
+            width: 220,
+            child: AgentChatToolActivityTile(
+              activity: AgentToolActivity(
+                toolCallId: 'running-static',
+                toolName: 'web_search',
+                args: {'query': 'a long query that must remain bounded'},
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(tester.binding.hasScheduledFrame, isFalse);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('task hierarchy stays bounded across supported widths', (
+    tester,
+  ) async {
+    for (final width in [320.0, 360.0, 412.0, 600.0, 840.0]) {
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: MediaQuery(
+            data: MediaQueryData(
+              size: Size(width, 900),
+              textScaler: const TextScaler.linear(2),
+              disableAnimations: true,
+            ),
+            child: Scaffold(
+              body: SizedBox(
+                width: width,
+                child: AgentChatToolResultGroup(
+                  results: [
+                    ToolResultMessage(
+                      toolCallId: 'responsive-ok',
+                      toolName: 'get_recent_images',
+                      content: const [
+                        ToolResultTextContent(
+                          '{"message":"Found the most recent generated image resource"}',
+                        ),
+                      ],
+                    ),
+                    ToolResultMessage(
+                      toolCallId: 'responsive-error',
+                      toolName: 'web_search',
+                      isError: true,
+                      content: const [
+                        ToolResultTextContent(
+                          '{"error":"Network request timed out while loading the reference"}',
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(
+        find.byKey(const PageStorageKey('agent-tool-group-responsive-ok-2')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('agent-tool-result-responsive-ok')),
+        findsNothing,
+      );
+      expect(tester.takeException(), isNull, reason: 'width $width');
+    }
+  });
+}
+
+class _TestShortcutConfigNotifier extends ShortcutConfigNotifier {
+  @override
+  Future<ShortcutConfig> build() async => ShortcutConfig.createDefault();
 }
 
 final _onePixelPng = base64Decode(

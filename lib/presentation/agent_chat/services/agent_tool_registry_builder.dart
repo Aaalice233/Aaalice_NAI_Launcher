@@ -9,6 +9,7 @@ import '../../prompt_assistant/models/prompt_assistant_models.dart';
 import '../../prompt_assistant/providers/web_access_provider.dart';
 import 'agent_resource_resolver.dart';
 import 'application_toolbox.dart';
+import 'display_images_toolbox.dart';
 import 'execution_toolbox.dart';
 import 'gallery_toolbox.dart';
 import 'generation_preparation_runtime.dart';
@@ -106,6 +107,7 @@ class AgentToolRegistryBuilder {
       ).tools(),
       ...GalleryToolbox(_ref).tools(),
       ...ReferenceLibraryToolbox(_ref, resourceResolver).tools(),
+      ...DisplayImagesToolbox(resourceResolver).tools(),
       if (webAccessEnabled)
         ...WebAccessToolbox(
           config: _ref

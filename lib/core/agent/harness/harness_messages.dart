@@ -1,6 +1,5 @@
 import '../agent_types.dart';
 
-
 export 'llm_helpers.dart';
 
 const String compactionSummaryPrefix =
@@ -92,10 +91,15 @@ class CompactionSummaryMessage extends CustomMessage {
     required this.summary,
     required this.tokensBefore,
     required super.timestamp,
+    this.retainedTailLength = 0,
   });
 
   final String summary;
   final int tokensBefore;
+
+  /// Number of retained pre-compaction messages placed directly after this
+  /// summary in the projected context.
+  final int retainedTailLength;
 
   @override
   String get role => 'compactionSummary';
@@ -116,12 +120,14 @@ BranchSummaryMessage createBranchSummaryMessage(
 CompactionSummaryMessage createCompactionSummaryMessage(
   String summary,
   int tokensBefore,
-  int timestamp,
-) {
+  int timestamp, {
+  int retainedTailLength = 0,
+}) {
   return CompactionSummaryMessage(
     summary: summary,
     tokensBefore: tokensBefore,
     timestamp: timestamp,
+    retainedTailLength: retainedTailLength,
   );
 }
 
@@ -279,7 +285,9 @@ List<Message> harnessConvertToLlm(List<AgentMessage> messages) {
         UserMessage(
           content: [
             UserTextContent(
-              compactionSummaryPrefix + message.summary + compactionSummarySuffix,
+              compactionSummaryPrefix +
+                  message.summary +
+                  compactionSummarySuffix,
             ),
           ],
           timestamp: message.timestamp,

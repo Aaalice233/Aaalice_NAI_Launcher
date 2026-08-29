@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../../core/agent/agent.dart';
 import '../../../core/agent/agent_system_prompt.dart';
+import '../../../core/agent/context_usage.dart';
 import '../../../core/agent/audit/jsonl_audit_sink.dart';
 import '../../../core/agent/harness/compaction/compaction.dart';
 import '../../../core/agent/harness/harness_types.dart';
@@ -219,13 +220,17 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       auditSink: auditSink,
       estimateAnlas: _estimatePreparedAnlas,
       onApprovalChanged: (request) {
+        final boundRequest = request?.bind(
+          turnId: _sessionControllerValue?.activeTurnId,
+          itemId: 'call:${request.toolCallId}',
+        );
         state = request == null
             ? state.copyWith(
                 clearApprovalRequest: true,
                 workPhase: AgentChatWorkPhase.usingTools,
               )
             : state.copyWith(
-                approvalRequest: request,
+                approvalRequest: boundRequest,
                 workPhase: AgentChatWorkPhase.awaitingApproval,
               );
       },
@@ -538,6 +543,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
           entry.summary,
           entry.tokensBefore,
           entry.timestamp,
+          retainedTailLength: compactResult.retainedTail.length,
         ),
         ...compactResult.retainedTail,
       ];
@@ -552,6 +558,12 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       state = state.copyWith(
         messages: List.of(compressed),
         totalUsage: _sessionController.totalUsage,
+        lastRequestUsage: compactResult.usage,
+        clearLastRequestUsage: compactResult.usage == null,
+        contextUsage: resolveAgentContextUsage(
+          compressed,
+          contextWindow: contextWindow,
+        ),
       );
       return messages;
     } catch (e) {
@@ -737,7 +749,10 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
             ? 'The chat task has no usable model. Pick a model in Settings.'
             : 'No LLM provider configured. Add one in Settings > '
                   'Integrations.',
-        clearContextWindow: true,
+        contextUsage: resolveAgentContextUsage(
+          _sessionControllerValue?.agent?.state.messages ?? state.messages,
+          contextWindow: null,
+        ),
         availableThinkingLevels: const [],
         thinkingLevel: ThinkingLevel.off,
       );
@@ -756,10 +771,10 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       routeReady: true,
       routeLabel: '${_routeCache!.$1.name} / ${_routeCache!.$2}',
       routeError: '',
-      contextWindow: capability.model.contextWindow > 0
-          ? capability.model.contextWindow
-          : null,
-      clearContextWindow: capability.model.contextWindow <= 0,
+      contextUsage: resolveAgentContextUsage(
+        _sessionControllerValue?.agent?.state.messages ?? state.messages,
+        contextWindow: capability.model.contextWindow,
+      ),
       availableThinkingLevels: capability.levels,
       thinkingLevel: currentLevel,
     );
@@ -894,6 +909,8 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
   /// 建立新分支，与 `/rewind` 的语义一致。
   Future<UserMessage?> rewindLastUserMessage() =>
       _sessionController.rewindLastUserMessage();
+
+  Future<void> loadEarlierHistory() => _sessionController.loadEarlierHistory();
 
   /// 删除指定会话；删除当前会话时自动切到最近剩余会话（无则新建）。
   Future<void> deleteSession(String sessionId) =>

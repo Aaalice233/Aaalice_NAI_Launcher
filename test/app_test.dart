@@ -1879,7 +1879,7 @@ void main() {
             request: PromptAssistantRequest(
               sessionId: 'tag-translation',
               provider: ProviderPreset.deepseek.createConfig(),
-              model: 'deepseek-v4-flash',
+              model: 'deepseek-chat',
               systemPrompt: 'Return one JSON object.',
               userParts: const [PromptAssistantTextPart('["blue_eyes"]')],
               apiKey: 'key',

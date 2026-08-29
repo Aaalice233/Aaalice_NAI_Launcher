@@ -256,7 +256,8 @@ int estimateTokens(AgentMessage message) {
       } else if (block is AssistantThinkingContent) {
         chars += block.thinking.length;
       } else if (block is ToolCallContent) {
-        chars += block.name.length +
+        chars +=
+            block.name.length +
             compactionSafeJsonStringify(block.arguments).length;
       }
     }
@@ -268,6 +269,10 @@ int estimateTokens(AgentMessage message) {
   }
   if (message is BashExecutionMessage) {
     chars = message.command.length + message.output.length;
+    return (chars / 4).ceil();
+  }
+  if (message is HarnessCustomMessage) {
+    chars = _estimateTextAndImageContentChars(message.content);
     return (chars / 4).ceil();
   }
   if (message is BranchSummaryMessage) {
@@ -393,8 +398,9 @@ CutPointResult findCutPoint(
   final cutEntry = entries[cutIndex];
   final isUserMessage =
       cutEntry is MessageEntry && cutEntry.message.role == 'user';
-  final turnStartIndex =
-      isUserMessage ? -1 : findTurnStartIndex(entries, cutIndex, startIndex);
+  final turnStartIndex = isUserMessage
+      ? -1
+      : findTurnStartIndex(entries, cutIndex, startIndex);
 
   return CutPointResult(
     firstKeptEntryIndex: cutIndex,
@@ -503,9 +509,7 @@ Future<HarnessResult<String, CompactionError>> generateSummary(
 }
 
 /// 生成或更新会话摘要并返回其 provider 用量。
-Future<
-    HarnessResult<({String text, Usage usage}), CompactionError>
->
+Future<HarnessResult<({String text, Usage usage}), CompactionError>>
 generateSummaryWithUsage(
   List<AgentMessage> currentMessages,
   CompleteSimpleFn completeSimple,
@@ -531,7 +535,8 @@ generateSummaryWithUsage(
   final conversationText = serializeConversation(llmMessages);
   var promptText = '<conversation>\n$conversationText\n</conversation>\n\n';
   if (previousSummary != null) {
-    promptText += '<previous-summary>\n$previousSummary\n</previous-summary>\n\n';
+    promptText +=
+        '<previous-summary>\n$previousSummary\n</previous-summary>\n\n';
   }
   promptText += basePrompt;
 
@@ -551,9 +556,8 @@ generateSummaryWithUsage(
     ),
     SimpleStreamOptions(
       signal: signal,
-      reasoning: model.reasoning &&
-              thinkingLevel != null &&
-              thinkingLevel != 'off'
+      reasoning:
+          model.reasoning && thinkingLevel != null && thinkingLevel != 'off'
           ? thinkingLevel
           : null,
       maxTokens: maxTokens,
@@ -633,7 +637,11 @@ AgentMessage? _getMessageFromEntry(SessionEntry entry) {
     return entry.message;
   }
   if (entry is BranchSummaryEntry) {
-    return createBranchSummaryMessage(entry.summary, entry.fromId, entry.timestamp);
+    return createBranchSummaryMessage(
+      entry.summary,
+      entry.fromId,
+      entry.timestamp,
+    );
   }
   if (entry is CompactionEntry) {
     return createCompactionSummaryMessage(
@@ -715,7 +723,11 @@ HarnessResult<CompactionPreparation?, CompactionError> prepareCompaction(
   }
   final turnPrefixMessages = <AgentMessage>[];
   if (cutPoint.isSplitTurn) {
-    for (var i = cutPoint.turnStartIndex; i < cutPoint.firstKeptEntryIndex; i++) {
+    for (
+      var i = cutPoint.turnStartIndex;
+      i < cutPoint.firstKeptEntryIndex;
+      i++
+    ) {
       final msg = _getMessageFromEntryForCompaction(compactableEntries[i]);
       if (msg != null) {
         turnPrefixMessages.add(msg);
@@ -880,9 +892,7 @@ Future<HarnessResult<CompactResult, CompactionError>> compact(
   );
 }
 
-Future<
-    HarnessResult<({String text, Usage usage}), CompactionError>
->
+Future<HarnessResult<({String text, Usage usage}), CompactionError>>
 _generateTurnPrefixSummary(
   List<AgentMessage> messages,
   CompleteSimpleFn completeSimple,
@@ -917,9 +927,8 @@ _generateTurnPrefixSummary(
     ),
     SimpleStreamOptions(
       signal: signal,
-      reasoning: model.reasoning &&
-              thinkingLevel != null &&
-              thinkingLevel != 'off'
+      reasoning:
+          model.reasoning && thinkingLevel != null && thinkingLevel != 'off'
           ? thinkingLevel
           : null,
       maxTokens: maxTokens,
@@ -940,7 +949,7 @@ _generateTurnPrefixSummary(
       CompactionError(
         CompactionErrorCode.summarizationFailed,
         'Turn prefix summarization failed: '
-            '${response.errorMessage ?? "Unknown error"}',
+        '${response.errorMessage ?? "Unknown error"}',
       ),
     );
   }

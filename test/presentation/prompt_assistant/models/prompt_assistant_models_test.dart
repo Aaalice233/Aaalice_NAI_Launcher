@@ -4,6 +4,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/models/prompt_assistant_models.dart';
 
 void main() {
+  test('DeepSeek preset keeps official v4 model IDs', () {
+    expect(ProviderPreset.deepseek.defaultModelNames, const [
+      'deepseek-v4-flash',
+      'deepseek-v4-pro',
+    ]);
+  });
+
   group('Agent chat isolation', () {
     test('defaults and default merge do not recreate chat rules', () {
       final defaults = PromptAssistantConfigState.defaults();

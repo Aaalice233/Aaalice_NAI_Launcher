@@ -31,32 +31,36 @@ class MobileGenerationShell extends StatelessWidget {
           key: const ValueKey('generation-mobile-primary-workspaces'),
           children: [
             MobileGenerationWorkspace(controller: controller, data: data),
-            MobileWorkspaceMotion(
-              active: controller.agentFullScreen,
-              hiddenOffset: const Offset(0, 0.08),
-              child: TickerMode(
-                enabled: controller.agentFullScreen,
-                child: controller.agentHasOpened
-                    ? SafeArea(
-                        key: const ValueKey('generation-agent-fullscreen'),
-                        child: AgentChatPanel(
-                          mobile: true,
-                          fullScreen: true,
-                          onClose: controller.closeAgentChat,
-                          onOpenSettings: () =>
-                              controller.openAgentSettings(context),
-                          mobileHeaderWrapper: (child) =>
-                              MobileVerticalCloseGesture(
-                                key: const ValueKey(
-                                  'generation-agent-close-drag-handle',
+            Positioned.fill(
+              child: MobileWorkspaceMotion(
+                active: controller.agentFullScreen,
+                hiddenOffset: const Offset(0, 0.08),
+                child: TickerMode(
+                  enabled: controller.agentFullScreen,
+                  child: controller.agentHasOpened
+                      ? ColoredBox(
+                          key: const ValueKey('generation-agent-fullscreen'),
+                          color: Theme.of(context).colorScheme.surface,
+                          child: AgentChatPanel(
+                            key: const ValueKey('generation-agent-chat-panel'),
+                            mobile: true,
+                            fullScreen: true,
+                            onClose: controller.closeAgentChat,
+                            onOpenSettings: () =>
+                                controller.openAgentSettings(context),
+                            mobileHeaderWrapper: (child) =>
+                                MobileVerticalCloseGesture(
+                                  key: const ValueKey(
+                                    'generation-agent-close-drag-handle',
+                                  ),
+                                  closeDirection: AxisDirection.down,
+                                  onClose: controller.closeAgentChat,
+                                  child: child,
                                 ),
-                                closeDirection: AxisDirection.down,
-                                onClose: controller.closeAgentChat,
-                                child: child,
-                              ),
-                        ),
-                      )
-                    : const SizedBox.shrink(),
+                          ),
+                        )
+                      : const SizedBox.shrink(),
+                ),
               ),
             ),
           ],

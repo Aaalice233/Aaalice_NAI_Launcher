@@ -54,6 +54,260 @@ void main() {
     expect(events.whereType<AgentWireFinish>(), isEmpty);
   });
 
+  test('DeepSeek replays reasoning content before tool results', () async {
+    final capture = _CaptureAdapter();
+    final dio = Dio()..httpClientAdapter = capture;
+    addTearDown(dio.close);
+
+    await const OpenAiChatCompletionsAdapter()
+        .completeAgent(
+          dio: dio,
+          request: AgentChatRequest(
+            sessionId: 'session',
+            provider: const ProviderConfig(
+              id: 'deepseek',
+              name: 'DeepSeek',
+              protocol: ProviderProtocol.openaiChatCompletions,
+              preset: ProviderPreset.deepseek,
+              baseUrl: 'https://example.test',
+            ),
+            model: 'deepseek-v4-pro',
+            systemPrompt: 'system',
+            messages: [
+              UserMessage.text('show recent images'),
+              AssistantMessage(
+                content: const [
+                  AssistantThinkingContent('I should inspect the gallery.'),
+                  ToolCallContent(
+                    id: 'call-1',
+                    name: 'list_recent_images',
+                    arguments: {},
+                  ),
+                ],
+                stopReason: StopReason.toolUse,
+              ),
+              ToolResultMessage(
+                toolCallId: 'call-1',
+                toolName: 'list_recent_images',
+                content: const [ToolResultTextContent('image.png')],
+                isError: false,
+              ),
+            ],
+            tools: const [],
+            apiKey: null,
+            reasoning: 'high',
+          ),
+          cancelToken: CancelToken(),
+        )
+        .toList();
+
+    final messages =
+        (capture.options!.data as Map<String, dynamic>)['messages'] as List;
+    final assistant = messages.cast<Map>().firstWhere(
+      (message) => message['role'] == 'assistant',
+    );
+    expect(assistant['reasoning_content'], 'I should inspect the gallery.');
+    expect((messages.last as Map)['tool_call_id'], 'call-1');
+    final payload = capture.options!.data as Map<String, dynamic>;
+    expect(payload['model'], 'deepseek-v4-pro');
+    expect(payload['thinking'], {'type': 'enabled'});
+  });
+
+  test('DeepSeek Agent uses the official chat completions endpoint', () async {
+    final capture = _CaptureAdapter();
+    final dio = Dio()..httpClientAdapter = capture;
+    addTearDown(dio.close);
+    final base = _request(ProviderProtocol.openaiChatCompletions);
+
+    await const OpenAiChatCompletionsAdapter()
+        .completeAgent(
+          dio: dio,
+          request: AgentChatRequest(
+            sessionId: base.sessionId,
+            provider: const ProviderConfig(
+              id: 'deepseek',
+              name: 'DeepSeek',
+              protocol: ProviderProtocol.openaiChatCompletions,
+              preset: ProviderPreset.deepseek,
+              baseUrl: 'https://api.deepseek.com',
+            ),
+            model: 'deepseek-v4-flash',
+            systemPrompt: base.systemPrompt,
+            messages: base.messages,
+            tools: base.tools,
+            apiKey: null,
+          ),
+          cancelToken: CancelToken(),
+        )
+        .toList();
+
+    expect(
+      capture.options!.uri.toString(),
+      'https://api.deepseek.com/chat/completions',
+    );
+    final payload = capture.options!.data as Map<String, dynamic>;
+    expect(payload['model'], 'deepseek-v4-flash');
+    expect(payload['thinking'], {'type': 'disabled'});
+  });
+
+  test(
+    'DeepSeek tool replay keeps tool pairing without image_url payloads',
+    () async {
+      final capture = _CaptureAdapter();
+      final dio = Dio()..httpClientAdapter = capture;
+      addTearDown(dio.close);
+
+      await const OpenAiChatCompletionsAdapter()
+          .completeAgent(
+            dio: dio,
+            request: AgentChatRequest(
+              sessionId: 'session',
+              provider: ProviderPreset.deepseek.createConfig(id: 'deepseek'),
+              model: 'deepseek-v4-flash',
+              systemPrompt: 'system',
+              messages: [
+                UserMessage(
+                  content: [
+                    const UserTextContent('show recent images'),
+                    const UserImageContent(
+                      ImageContent(
+                        source: ImageSource.base64(
+                          mimeType: 'image/png',
+                          base64Data: 'AA==',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                AssistantMessage(
+                  content: const [
+                    ToolCallContent(
+                      id: 'recent-1',
+                      name: 'get_recent_images',
+                      arguments: {'limit': 1},
+                    ),
+                  ],
+                  stopReason: StopReason.toolUse,
+                ),
+                ToolResultMessage(
+                  toolCallId: 'recent-1',
+                  toolName: 'get_recent_images',
+                  content: [
+                    const ToolResultTextContent(
+                      '{"files":["recent.png"],"count":1}',
+                    ),
+                    const ToolResultImageContent(
+                      ImageContent(
+                        source: ImageSource.base64(
+                          mimeType: 'image/png',
+                          base64Data: 'AA==',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+              tools: const [],
+              apiKey: null,
+            ),
+            cancelToken: CancelToken(),
+          )
+          .toList();
+
+      final payload = capture.options!.data as Map<String, dynamic>;
+      final messages = (payload['messages'] as List).cast<Map>();
+      expect(payload.toString(), isNot(contains('image_url')));
+      expect(
+        messages.where((message) => message['role'] == 'user'),
+        hasLength(1),
+      );
+      expect(
+        messages.firstWhere((message) => message['role'] == 'user')['content'],
+        'show recent images',
+      );
+      final tool = messages.firstWhere((message) => message['role'] == 'tool');
+      expect(tool['tool_call_id'], 'recent-1');
+      expect(tool['content'], contains('recent.png'));
+    },
+  );
+
+  test('image-capable OpenAI replay keeps image_url content', () async {
+    final capture = _CaptureAdapter();
+    final dio = Dio()..httpClientAdapter = capture;
+    addTearDown(dio.close);
+
+    await const OpenAiChatCompletionsAdapter()
+        .completeAgent(
+          dio: dio,
+          request: AgentChatRequest(
+            sessionId: 'session',
+            provider: ProviderPreset.openaiChat.createConfig(id: 'openai'),
+            model: 'gpt-4.1-mini',
+            systemPrompt: 'system',
+            messages: [
+              UserMessage(
+                content: const [
+                  UserTextContent('inspect this'),
+                  UserImageContent(
+                    ImageContent(
+                      source: ImageSource.base64(
+                        mimeType: 'image/png',
+                        base64Data: 'AA==',
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              AssistantMessage(
+                content: const [
+                  ToolCallContent(
+                    id: 'preview-1',
+                    name: 'preview_generated_image',
+                    arguments: {},
+                  ),
+                ],
+                stopReason: StopReason.toolUse,
+              ),
+              ToolResultMessage(
+                toolCallId: 'preview-1',
+                toolName: 'preview_generated_image',
+                content: const [
+                  ToolResultTextContent('preview ready'),
+                  ToolResultImageContent(
+                    ImageContent(
+                      source: ImageSource.base64(
+                        mimeType: 'image/png',
+                        base64Data: 'AA==',
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            tools: const [],
+            apiKey: null,
+          ),
+          cancelToken: CancelToken(),
+        )
+        .toList();
+
+    final payload = capture.options!.data as Map<String, dynamic>;
+    final messages = (payload['messages'] as List).cast<Map>();
+    final imageMessages = messages
+        .where((message) => message['role'] == 'user')
+        .where(
+          (message) => (message['content'] as List).cast<Map>().any(
+            (part) => part['type'] == 'image_url',
+          ),
+        );
+    expect(imageMessages, hasLength(2));
+    expect(messages.firstWhere((message) => message['role'] == 'tool'), {
+      'role': 'tool',
+      'tool_call_id': 'preview-1',
+      'content': 'preview ready',
+    });
+  });
+
   test('Gemini function call finishes the turn with toolUse', () async {
     final dio = Dio()
       ..httpClientAdapter = _SseAdapter(

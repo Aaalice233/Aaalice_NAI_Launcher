@@ -100,6 +100,28 @@ class AgentChatPanelController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void removePendingImage(int index) {
+    if (index < 0 || index >= _pendingImages.length) return;
+    hideInlineImagePreview();
+    _pendingImages.removeAt(index);
+    final removedNumber = index + 1;
+    inputController.value = inputController.value.copyWith(
+      text: inputController.text
+          .replaceAllMapped(AgentChatInputController.imagePattern, (match) {
+            final number = int.tryParse(match.group(1) ?? '');
+            if (number == null) return match.group(0)!;
+            if (number == removedNumber) return '';
+            return number > removedNumber
+                ? '[image${number - 1}]'
+                : match.group(0)!;
+          })
+          .replaceAll(RegExp(r' {2,}'), ' '),
+      composing: TextRange.empty,
+    );
+    inputController.imageCount = _pendingImages.length;
+    notifyListeners();
+  }
+
   List<PendingAgentChatImage> takePendingImages() {
     final images = List<PendingAgentChatImage>.of(_pendingImages);
     hideInlineImagePreview();

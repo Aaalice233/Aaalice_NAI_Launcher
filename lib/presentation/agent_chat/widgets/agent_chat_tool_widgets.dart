@@ -16,14 +16,17 @@ import '../../../core/utils/nai_resolution_adapter.dart';
 import '../../../data/models/gallery/local_image_record.dart';
 import '../../utils/image_detail_opener.dart';
 import '../../providers/krita/krita_bridge_notifier.dart';
+import '../../screens/online_gallery/online_gallery_detail_launcher.dart';
 import '../../services/image_send_action_dispatcher.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/image_card_hover_motion.dart';
 import '../../widgets/common/image_detail/file_image_detail_data.dart';
+import '../../widgets/common/image_detail/image_detail_data.dart';
 import '../../widgets/gallery/draggable_image_card.dart';
 import '../../widgets/gallery/local_image_context_menu.dart';
 import '../providers/agent_chat_notifier.dart';
 import '../services/agent_resource_resolver.dart';
+import 'agent_chat_resource_widgets.dart';
 
 class _AgentToolVisual {
   const _AgentToolVisual({required this.icon, required this.color});
@@ -39,6 +42,7 @@ String agentToolLabel(BuildContext context, String toolName) {
     'queue_image_task' => l10n.agentChat_toolQueueImageTask,
     'interrogate_image' => l10n.agentChat_toolInterrogateImage,
     'get_recent_images' => l10n.agentChat_toolRecentImages,
+    'display_images' => l10n.agentChat_toolDisplayImages,
     'get_generation_status' => l10n.agentChat_toolGenerationStatus,
     'get_generation_settings' => l10n.agentChat_toolGetGenerationSettings,
     'update_generation_settings' => l10n.agentChat_toolUpdateGenerationSettings,
@@ -85,51 +89,39 @@ String agentToolLabel(BuildContext context, String toolName) {
   };
 }
 
-_AgentToolVisual _agentToolVisual(ThemeData theme, String toolName) {
-  final neutral = theme.colorScheme.onSurfaceVariant;
-  return switch (toolName) {
-    'generate_image' => _AgentToolVisual(
-      icon: Icons.auto_awesome,
-      color: neutral,
-    ),
-    'queue_image_task' => _AgentToolVisual(
-      icon: Icons.schedule_send_outlined,
-      color: neutral,
-    ),
-    'interrogate_image' || 'get_recent_images' || 'get_generation_status' =>
-      _AgentToolVisual(icon: Icons.image_search_outlined, color: neutral),
-    'get_generation_settings' || 'update_generation_settings' =>
-      _AgentToolVisual(icon: Icons.tune, color: neutral),
-    'get_prompt_state' || 'set_positive_prompt' || 'set_negative_prompt' =>
-      _AgentToolVisual(icon: Icons.edit_note, color: neutral),
-    'add_character' || 'update_character' || 'remove_character' =>
-      _AgentToolVisual(icon: Icons.manage_accounts_outlined, color: neutral),
-    'read_skill' ||
-    'read_skill_resource' ||
-    'get_skill_diagnostics' ||
-    'reload_skills' => _AgentToolVisual(
-      icon: Icons.extension_outlined,
-      color: neutral,
-    ),
-    'search_tags' => _AgentToolVisual(
-      icon: Icons.sell_outlined,
-      color: neutral,
-    ),
-    'read' => _AgentToolVisual(
-      icon: Icons.description_outlined,
-      color: neutral,
-    ),
-    'web_search' => _AgentToolVisual(
-      icon: Icons.travel_explore_outlined,
-      color: neutral,
-    ),
-    'web_read' => _AgentToolVisual(
-      icon: Icons.language_outlined,
-      color: neutral,
-    ),
-    _ => _AgentToolVisual(icon: Icons.build_outlined, color: neutral),
-  };
-}
+IconData agentToolIcon(String toolName) => switch (toolName) {
+  'generate_image' || 'submit_generation' => Icons.auto_awesome_outlined,
+  'queue_image_task' => Icons.schedule_send_outlined,
+  'interrogate_image' ||
+  'get_recent_images' ||
+  'preview_generated_image' ||
+  'get_generation_status' => Icons.image_search_outlined,
+  'display_images' => Icons.photo_library_outlined,
+  'get_generation_settings' || 'update_generation_settings' => Icons.tune,
+  'get_prompt_state' ||
+  'set_positive_prompt' ||
+  'set_negative_prompt' => Icons.edit_note_outlined,
+  'add_character' ||
+  'update_character' ||
+  'remove_character' => Icons.manage_accounts_outlined,
+  'read_skill' ||
+  'read_skill_resource' ||
+  'get_skill_diagnostics' ||
+  'reload_skills' => Icons.extension_outlined,
+  'search_tags' => Icons.sell_outlined,
+  'read' => Icons.description_outlined,
+  'web_search' => Icons.travel_explore_outlined,
+  'web_read' => Icons.language_outlined,
+  String() when toolName.contains('gallery') => Icons.collections_outlined,
+  String() when toolName.contains('queue') => Icons.list_alt_outlined,
+  _ => Icons.build_outlined,
+};
+
+_AgentToolVisual _agentToolVisual(ThemeData theme, String toolName) =>
+    _AgentToolVisual(
+      icon: agentToolIcon(toolName),
+      color: theme.colorScheme.onSurfaceVariant,
+    );
 
 class AgentChatToolActivityTile extends StatefulWidget {
   const AgentChatToolActivityTile({super.key, required this.activity});
@@ -141,37 +133,8 @@ class AgentChatToolActivityTile extends StatefulWidget {
       _AgentChatToolActivityTileState();
 }
 
-class _AgentChatToolActivityTileState extends State<AgentChatToolActivityTile>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _gradientController;
+class _AgentChatToolActivityTileState extends State<AgentChatToolActivityTile> {
   bool _expanded = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _gradientController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2400),
-    )..repeat(reverse: true);
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (MediaQuery.disableAnimationsOf(context)) {
-      _gradientController
-        ..stop()
-        ..value = 0.5;
-    } else if (!_gradientController.isAnimating) {
-      _gradientController.repeat(reverse: true);
-    }
-  }
-
-  @override
-  void dispose() {
-    _gradientController.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -186,120 +149,37 @@ class _AgentChatToolActivityTileState extends State<AgentChatToolActivityTile>
             0.48,
           )!
         : visual.color;
-    final statusLabel = activity.status == AgentToolActivityStatus.running
-        ? context.l10n.agentChat_toolRunning
-        : toolLabel;
-    final icon = activity.status == AgentToolActivityStatus.failed
-        ? Icons.error_outline
-        : visual.icon;
-    final animation = MediaQuery.disableAnimationsOf(context)
-        ? const AlwaysStoppedAnimation<double>(0.5)
-        : _gradientController;
+    final statusLabel = switch (activity.status) {
+      AgentToolActivityStatus.running => context.l10n.agentChat_toolRunning,
+      AgentToolActivityStatus.succeeded => context.l10n.common_success,
+      AgentToolActivityStatus.failed => context.l10n.common_error,
+    };
+    final icon = switch (activity.status) {
+      AgentToolActivityStatus.running => visual.icon,
+      AgentToolActivityStatus.succeeded => Icons.check_circle_outline_rounded,
+      AgentToolActivityStatus.failed => Icons.error_outline_rounded,
+    };
     final details = _activityDetails(activity);
     return RepaintBoundary(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          AnimatedBuilder(
-            animation: animation,
-            builder: (context, _) {
-              final progress = Curves.easeInOut.transform(animation.value);
-              final changingColor = Color.lerp(
-                visual.color,
-                Color.lerp(
-                  theme.colorScheme.onSurfaceVariant,
-                  theme.colorScheme.onSurface,
-                  0.18,
-                )!,
-                0.16 + progress * 0.24,
-              )!;
-              return Material(
-                type: MaterialType.transparency,
-                child: InkWell(
-                  key: ValueKey('agent-tool-activity-${activity.toolCallId}'),
-                  borderRadius: BorderRadius.circular(8),
-                  onTap: details.isEmpty
-                      ? null
-                      : () => setState(() => _expanded = !_expanded),
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(minHeight: 28),
-                    child: Ink(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 5,
-                      ),
-                      decoration: BoxDecoration(
-                        gradient:
-                            activity.status == AgentToolActivityStatus.running
-                            ? LinearGradient(
-                                begin: Alignment(
-                                  -1.15 + progress * 0.45,
-                                  -0.35,
-                                ),
-                                end: Alignment(0.45 + progress * 0.45, 0.35),
-                                colors: [
-                                  theme.colorScheme.surfaceContainerHighest
-                                      .withValues(alpha: 0.42),
-                                  changingColor.withValues(alpha: 0.13),
-                                  theme.colorScheme.surfaceContainerHighest
-                                      .withValues(alpha: 0.38),
-                                ],
-                                stops: const [0, 0.52, 1],
-                              )
-                            : null,
-                        color:
-                            activity.status == AgentToolActivityStatus.running
-                            ? null
-                            : theme.colorScheme.surfaceContainerHighest
-                                  .withValues(alpha: 0.42),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        children: [
-                          SizedBox.square(
-                            key: ValueKey(
-                              'agent-tool-activity-icon-${activity.toolCallId}',
-                            ),
-                            dimension: 18,
-                            child: Center(
-                              child: Icon(icon, size: 15, color: statusColor),
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(statusLabel, style: theme.textTheme.labelSmall),
-                          const SizedBox(width: 6),
-                          Container(
-                            width: 3,
-                            height: 3,
-                            decoration: BoxDecoration(
-                              color: statusColor.withValues(alpha: 0.7),
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              _summarize(activity, toolLabel),
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: statusColor.withValues(alpha: 0.9),
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          if (details.isNotEmpty)
-                            Icon(
-                              _expanded ? Icons.expand_less : Icons.expand_more,
-                              size: 16,
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            },
+          _ToolStepRow(
+            key: ValueKey('agent-tool-activity-${activity.toolCallId}'),
+            iconKey: ValueKey(
+              'agent-tool-activity-icon-${activity.toolCallId}',
+            ),
+            icon: icon,
+            iconColor: statusColor,
+            title: toolLabel,
+            summary: _summarize(activity),
+            status: statusLabel,
+            expanded: _expanded,
+            expandable: details.isNotEmpty,
+            failure: activity.status == AgentToolActivityStatus.failed,
+            onTap: details.isEmpty
+                ? null
+                : () => setState(() => _expanded = !_expanded),
           ),
           if (_expanded)
             _ToolDetailPanel(
@@ -308,17 +188,20 @@ class _AgentChatToolActivityTileState extends State<AgentChatToolActivityTile>
               ),
               text: details,
             ),
-          const SizedBox(height: 6),
         ],
       ),
     );
   }
 
-  String _summarize(AgentToolActivity activity, String toolLabel) {
-    if (activity.status == AgentToolActivityStatus.running) {
-      return toolLabel;
-    }
-    return _humanReadableTextSummary(activity.content, fallback: toolLabel);
+  String _summarize(AgentToolActivity activity) {
+    if (activity.content.trim().isEmpty) return '';
+    return _safeToolTextSummary(
+      activity.content,
+      fallback: activity.status == AgentToolActivityStatus.failed
+          ? context.l10n.common_error
+          : '',
+      failed: activity.status == AgentToolActivityStatus.failed,
+    );
   }
 
   String _activityDetails(AgentToolActivity activity) {
@@ -334,9 +217,20 @@ class _AgentChatToolActivityTileState extends State<AgentChatToolActivityTile>
 }
 
 class AgentChatToolResultTile extends StatefulWidget {
-  const AgentChatToolResultTile({super.key, required this.result});
+  const AgentChatToolResultTile({
+    super.key,
+    required this.result,
+    this.initiallyExpanded = false,
+    this.showMedia = true,
+    this.showRailConnector = false,
+    this.nested = false,
+  });
 
   final ToolResultMessage result;
+  final bool initiallyExpanded;
+  final bool showMedia;
+  final bool showRailConnector;
+  final bool nested;
 
   @override
   State<AgentChatToolResultTile> createState() =>
@@ -344,13 +238,21 @@ class AgentChatToolResultTile extends StatefulWidget {
 }
 
 class _AgentChatToolResultTileState extends State<AgentChatToolResultTile> {
-  bool _expanded = false;
+  late bool _expanded;
+
+  @override
+  void initState() {
+    super.initState();
+    _expanded = widget.initiallyExpanded;
+  }
 
   @override
   Widget build(BuildContext context) {
     final result = widget.result;
     final theme = Theme.of(context);
-    final toolLabel = agentToolLabel(context, result.toolName);
+    final toolLabel = widget.nested
+        ? context.l10n.agentChat_toolResult
+        : agentToolLabel(context, result.toolName);
     final visual = _agentToolVisual(theme, result.toolName);
     final color = result.isError
         ? Color.lerp(
@@ -360,10 +262,7 @@ class _AgentChatToolResultTileState extends State<AgentChatToolResultTile> {
           )!
         : visual.color;
     final files = _extractImageFiles(result);
-    final preferFileImages =
-        files.isNotEmpty &&
-        result.details is Map &&
-        (result.details as Map)['preferFileImages'] == true;
+    final preferFileImages = files.isNotEmpty;
     final inlineImages = preferFileImages
         ? const <Uint8List>[]
         : _extractInlineImages(result);
@@ -372,103 +271,341 @@ class _AgentChatToolResultTileState extends State<AgentChatToolResultTile> {
         : _extractRemoteImages(
             result,
           ).where((url) => !files.contains(url)).toList(growable: false);
-    final resourceReferences =
-        files.isEmpty && inlineImages.isEmpty && remoteImages.isEmpty
+    final resourceReferences = files.isEmpty
         ? _extractResourceReferences(result)
         : const <AgentChatResourceReference>[];
+    final unpairedInlineImages = resourceReferences.isEmpty
+        ? inlineImages
+        : inlineImages.skip(resourceReferences.length).toList(growable: false);
     final detailText = _resultDetailText(result);
-    final summary = _resultSummary(context, result);
-    final hasExpandedContent =
-        detailText.isNotEmpty ||
+    final statusLabel = result.isError
+        ? context.l10n.common_error
+        : context.l10n.common_success;
+    final rawSummary = _resultSummary(context, result);
+    final summary = rawSummary == statusLabel ? '' : rawSummary;
+    final hasMedia =
         files.isNotEmpty ||
-        inlineImages.isNotEmpty ||
+        unpairedInlineImages.isNotEmpty ||
         remoteImages.isNotEmpty ||
         resourceReferences.isNotEmpty;
+    final hasExpandedContent =
+        detailText.isNotEmpty || (widget.showMedia && hasMedia);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _ToolStepRow(
+          key: ValueKey('agent-tool-result-${result.toolCallId}'),
+          iconKey: ValueKey('agent-tool-result-icon-${result.toolCallId}'),
+          icon: result.isError
+              ? Icons.error_outline_rounded
+              : Icons.check_circle_outline_rounded,
+          iconColor: color,
+          title: toolLabel,
+          summary: summary,
+          status: widget.nested ? '' : statusLabel,
+          expanded: _expanded,
+          expandable: hasExpandedContent,
+          failure: result.isError,
+          showIcon: !widget.nested,
+          showRailConnector: widget.showRailConnector,
+          onTap: !hasExpandedContent
+              ? null
+              : () => setState(() => _expanded = !_expanded),
+        ),
+        if (_expanded && detailText.isNotEmpty)
+          _ToolDetailPanel(
+            key: ValueKey('agent-tool-result-details-${result.toolCallId}'),
+            text: detailText,
+          ),
+        if (_expanded && widget.showMedia && hasMedia)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(32, 0, 8, 8),
+            child: AgentChatResourceGallery(
+              children: [
+                for (final path in files)
+                  _ToolResultImage(key: ValueKey(path), path: path),
+                ..._buildResourcePreviewWidgets(
+                  references: resourceReferences,
+                  inlineImages: inlineImages,
+                  keyPrefix: '${result.toolCallId}-ref',
+                ),
+                for (
+                  var index = 0;
+                  index < unpairedInlineImages.length;
+                  index++
+                )
+                  _ToolResultInlineImage(
+                    key: ValueKey('${result.toolCallId}-inline-$index'),
+                    bytes: unpairedInlineImages[index],
+                  ),
+                for (final url in remoteImages)
+                  _ToolResultNetworkImage(key: ValueKey(url), url: url),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class AgentChatToolResultMedia extends StatelessWidget {
+  const AgentChatToolResultMedia({
+    super.key,
+    required this.result,
+    this.resolveResource,
+  });
+
+  final ToolResultMessage result;
+  final Future<ResolvedAgentResource?> Function(
+    AgentChatResourceReference reference,
+  )?
+  resolveResource;
+
+  @override
+  Widget build(BuildContext context) {
+    final files = _extractImageFiles(result);
+    final preferFileImages = files.isNotEmpty;
+    final inlineImages = preferFileImages
+        ? const <Uint8List>[]
+        : _extractInlineImages(result);
+    final remoteImages = preferFileImages
+        ? const <String>[]
+        : _extractRemoteImages(
+            result,
+          ).where((url) => !files.contains(url)).toList(growable: false);
+    final resourceReferences = files.isEmpty
+        ? _extractResourceReferences(result)
+        : const <AgentChatResourceReference>[];
+    final unpairedInlineImages = resourceReferences.isEmpty
+        ? inlineImages
+        : inlineImages.skip(resourceReferences.length).toList(growable: false);
+    if (files.isEmpty &&
+        unpairedInlineImages.isEmpty &&
+        remoteImages.isEmpty &&
+        resourceReferences.isEmpty) {
+      return const SizedBox.shrink();
+    }
     return Padding(
-      padding: const EdgeInsets.only(bottom: 6, left: 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      key: ValueKey('agent-tool-media-${result.toolCallId}'),
+      padding: const EdgeInsets.only(bottom: 12),
+      child: AgentChatResourceGallery(
         children: [
-          Material(
-            type: MaterialType.transparency,
-            child: InkWell(
-              key: ValueKey('agent-tool-result-${result.toolCallId}'),
-              borderRadius: BorderRadius.circular(8),
-              onTap: !hasExpandedContent
-                  ? null
-                  : () => setState(() => _expanded = !_expanded),
+          for (final path in files)
+            _ToolResultImage(key: ValueKey(path), path: path),
+          ..._buildResourcePreviewWidgets(
+            references: resourceReferences,
+            inlineImages: inlineImages,
+            keyPrefix: '${result.toolCallId}-media-ref',
+            resolveResource: resolveResource,
+          ),
+          for (var index = 0; index < unpairedInlineImages.length; index++)
+            _ToolResultInlineImage(
+              key: ValueKey('${result.toolCallId}-media-inline-$index'),
+              bytes: unpairedInlineImages[index],
+            ),
+          for (final url in remoteImages)
+            _ToolResultNetworkImage(key: ValueKey(url), url: url),
+        ],
+      ),
+    );
+  }
+}
+
+class _ToolTaskHeader extends StatelessWidget {
+  const _ToolTaskHeader({
+    required this.icon,
+    required this.title,
+    required this.status,
+    required this.statusColor,
+    required this.expanded,
+    this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String status;
+  final Color statusColor;
+  final bool expanded;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.62),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(10)),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 44),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            child: Row(
+              children: [
+                Icon(icon, size: 18, color: theme.colorScheme.onSurfaceVariant),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  status,
+                  maxLines: 1,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: statusColor,
+                  ),
+                ),
+                if (onTap != null) ...[
+                  const SizedBox(width: 4),
+                  Icon(
+                    expanded
+                        ? Icons.expand_less_rounded
+                        : Icons.expand_more_rounded,
+                    size: 18,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ToolStepRow extends StatelessWidget {
+  const _ToolStepRow({
+    super.key,
+    required this.iconKey,
+    required this.icon,
+    required this.iconColor,
+    required this.title,
+    required this.summary,
+    required this.status,
+    required this.expanded,
+    required this.expandable,
+    required this.onTap,
+    this.failure = false,
+    this.showIcon = true,
+    this.showRailConnector = false,
+  });
+
+  final Key iconKey;
+  final IconData icon;
+  final Color iconColor;
+  final String title;
+  final String summary;
+  final String status;
+  final bool expanded;
+  final bool expandable;
+  final VoidCallback? onTap;
+  final bool failure;
+  final bool showIcon;
+  final bool showRailConnector;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Material(
+          color: failure
+              ? theme.colorScheme.errorContainer.withValues(alpha: 0.18)
+              : Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 48),
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 7,
+                ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    SizedBox.square(
-                      key: ValueKey(
-                        'agent-tool-result-icon-${result.toolCallId}',
+                    if (showIcon) ...[
+                      SizedBox.square(
+                        key: iconKey,
+                        dimension: 18,
+                        child: Icon(icon, size: 17, color: iconColor),
                       ),
-                      dimension: 18,
-                      child: Center(
-                        child: Icon(
-                          result.isError ? Icons.error_outline : visual.icon,
-                          size: 15,
-                          color: color.withValues(alpha: 0.82),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
+                      const SizedBox(width: 8),
+                    ],
                     Expanded(
-                      child: Text(
-                        '$toolLabel · ${result.isError ? context.l10n.common_error : context.l10n.common_success} · $summary',
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: color.withValues(alpha: 0.9),
-                          height: 1,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.labelMedium,
+                          ),
+                          if (summary.trim().isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              summary,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: failure
+                                    ? theme.colorScheme.onErrorContainer
+                                    : theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
-                    if (hasExpandedContent)
-                      Icon(
-                        _expanded ? Icons.expand_less : Icons.expand_more,
-                        size: 17,
-                        color: color.withValues(alpha: 0.78),
+                    if (status.isNotEmpty) ...[
+                      const SizedBox(width: 8),
+                      Text(
+                        status,
+                        maxLines: 1,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: iconColor,
+                        ),
                       ),
+                    ],
+                    if (expandable) ...[
+                      const SizedBox(width: 2),
+                      Icon(
+                        expanded
+                            ? Icons.expand_less_rounded
+                            : Icons.expand_more_rounded,
+                        size: 18,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ],
                   ],
                 ),
               ),
             ),
           ),
-          if (_expanded && detailText.isNotEmpty)
-            _ToolDetailPanel(
-              key: ValueKey('agent-tool-result-details-${result.toolCallId}'),
-              text: detailText,
-            ),
-          if (_expanded &&
-              (files.isNotEmpty ||
-                  inlineImages.isNotEmpty ||
-                  remoteImages.isNotEmpty ||
-                  resourceReferences.isNotEmpty))
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  for (final path in files)
-                    _ToolResultImage(key: ValueKey(path), path: path),
-                  for (var index = 0; index < inlineImages.length; index++)
-                    _ToolResultInlineImage(
-                      key: ValueKey('${result.toolCallId}-inline-$index'),
-                      bytes: inlineImages[index],
-                    ),
-                  for (final url in remoteImages)
-                    _ToolResultNetworkImage(key: ValueKey(url), url: url),
-                  for (final reference in resourceReferences)
-                    _ToolResultResourcePreview(reference: reference),
-                ],
+        ),
+        if (showRailConnector)
+          Positioned(
+            left: -6,
+            top: 23,
+            child: IgnorePointer(
+              child: Container(
+                width: 16,
+                height: 2,
+                color: iconColor.withValues(alpha: 0.38),
               ),
             ),
-        ],
-      ),
+          ),
+      ],
     );
   }
 }
@@ -493,23 +630,44 @@ class _ToolDetailPanel extends StatelessWidget {
   }
 }
 
-String _resultSummary(BuildContext context, ToolResultMessage result) {
+String _resultSummary(BuildContext context, ToolResultMessage result) =>
+    agentToolResultSummary(
+      context,
+      result,
+      fallback: result.isError
+          ? context.l10n.common_error
+          : context.l10n.common_success,
+    );
+
+String agentToolResultSummary(
+  BuildContext context,
+  ToolResultMessage result, {
+  required String fallback,
+}) {
   final text = result.text.trim();
-  if (text.isEmpty) {
-    return result.isError
-        ? context.l10n.common_error
-        : context.l10n.common_success;
-  }
-  return _humanReadableTextSummary(
-    text,
-    fallback: result.isError
-        ? context.l10n.common_error
-        : context.l10n.common_success,
-  );
+  if (text.isEmpty) return fallback;
+  return _safeToolTextSummary(text, fallback: fallback, failed: result.isError);
 }
 
-String _humanReadableTextSummary(String text, {required String fallback}) {
-  return AgentToolPresentation.summary(text, fallback: fallback);
+String _safeToolTextSummary(
+  String text, {
+  required String fallback,
+  required bool failed,
+}) {
+  final summary = AgentToolPresentation.summary(text, fallback: fallback);
+  if (!failed) return summary;
+  final diagnostic = RegExp(
+    r'(RequestOptions|DioException|validateStatus|response\.data|stack\s*trace|package:[^\s]+\.dart|API_ERROR|authorization\s*:|bearer\s+)',
+    caseSensitive: false,
+  );
+  if (diagnostic.hasMatch(text) || diagnostic.hasMatch(summary)) {
+    final status = RegExp(
+      r'(?:HTTP(?: status)?[: ]+|status code of\s*)(\d{3})',
+      caseSensitive: false,
+    ).firstMatch(text);
+    return status == null ? fallback : '$fallback (HTTP ${status.group(1)})';
+  }
+  return summary;
 }
 
 String _resultDetailText(ToolResultMessage result) {
@@ -542,81 +700,98 @@ String _formatDetailValue(Object? value) {
 }
 
 /// Keeps consecutive tool results in one quiet, auditable turn activity unit.
-/// Groups stay compact by default while their title keeps failures visible.
-class AgentChatToolResultGroup extends StatelessWidget {
+/// The group keeps consecutive steps visible while each verbose payload stays
+/// collapsed until requested.
+class AgentChatToolResultGroup extends StatefulWidget {
   const AgentChatToolResultGroup({super.key, required this.results});
 
   final List<ToolResultMessage> results;
 
   @override
+  State<AgentChatToolResultGroup> createState() =>
+      _AgentChatToolResultGroupState();
+}
+
+class _AgentChatToolResultGroupState extends State<AgentChatToolResultGroup> {
+  bool _expanded = false;
+
+  @override
   Widget build(BuildContext context) {
-    if (results.length == 1) {
-      return AgentChatToolResultTile(result: results.single);
-    }
+    final results = widget.results;
+    if (results.isEmpty) return const SizedBox.shrink();
     final theme = Theme.of(context);
     final failed = results.where((result) => result.isError).length;
-    String? failureSummary;
-    for (final result in results) {
-      if (result.isError) {
-        failureSummary = _resultSummary(context, result);
-        break;
-      }
-    }
-    final disableAnimations = MediaQuery.disableAnimationsOf(context);
-    return Theme(
-      data: theme.copyWith(dividerColor: Colors.transparent),
-      child: Material(
-        type: MaterialType.transparency,
-        child: ExpansionTile(
-          key: PageStorageKey(
-            'agent-tool-group-${results.first.toolCallId}-${results.length}',
+    final status = failed > 0
+        ? context.l10n.common_error
+        : context.l10n.common_success;
+    final statusColor = failed > 0
+        ? theme.colorScheme.error
+        : theme.colorScheme.onSurfaceVariant;
+    return Container(
+      key: PageStorageKey(
+        'agent-tool-group-${results.first.toolCallId}-${results.length}',
+      ),
+      margin: const EdgeInsets.only(bottom: 8),
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: failed > 0
+            ? theme.colorScheme.errorContainer.withValues(alpha: 0.16)
+            : theme.colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _ToolTaskHeader(
+            icon: failed > 0
+                ? Icons.error_outline_rounded
+                : Icons.task_alt_outlined,
+            title: context.l10n.agentChat_toolGroupCount(results.length),
+            status: status,
+            statusColor: statusColor,
+            expanded: _expanded,
+            onTap: () => setState(() => _expanded = !_expanded),
           ),
-          initiallyExpanded: false,
-          expansionAnimationStyle: disableAnimations
-              ? const AnimationStyle(
-                  duration: Duration.zero,
-                  reverseDuration: Duration.zero,
-                )
-              : null,
-          tilePadding: const EdgeInsets.symmetric(horizontal: 4),
-          childrenPadding: const EdgeInsets.only(left: 12),
-          minTileHeight: 34,
-          leading: Icon(
-            failed > 0 ? Icons.error_outline : Icons.task_alt_outlined,
-            size: 17,
-            color: failed > 0
-                ? theme.colorScheme.error
-                : theme.colorScheme.onSurfaceVariant,
-          ),
-          title: Text(
-            context.l10n.agentChat_toolGroupCount(results.length),
-            style: theme.textTheme.labelMedium,
-          ),
-          subtitle: Text(
-            [
-              if (failed > 0) context.l10n.common_error,
-              if (failureSummary != null) failureSummary,
-              ...results
-                  .map((result) => agentToolLabel(context, result.toolName))
-                  .toSet(),
-            ].join(' · '),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+          if (_expanded)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 6, 6, 6),
+              child: Stack(
+                children: [
+                  Positioned(
+                    left: 0,
+                    top: 8,
+                    bottom: 8,
+                    child: Container(
+                      width: 2,
+                      decoration: BoxDecoration(
+                        color: statusColor.withValues(alpha: 0.28),
+                        borderRadius: BorderRadius.circular(1),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        for (final result in results)
+                          AgentChatToolResultTile(
+                            result: result,
+                            showRailConnector: true,
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          children: [
-            for (final result in results)
-              AgentChatToolResultTile(result: result),
-          ],
-        ),
+        ],
       ),
     );
   }
 }
 
-class AgentChatReasoningTile extends StatelessWidget {
+class AgentChatReasoningTile extends StatefulWidget {
   const AgentChatReasoningTile({
     super.key,
     required this.thinking,
@@ -627,48 +802,94 @@ class AgentChatReasoningTile extends StatelessWidget {
   final bool live;
 
   @override
+  State<AgentChatReasoningTile> createState() => _AgentChatReasoningTileState();
+}
+
+class _AgentChatReasoningTileState extends State<AgentChatReasoningTile> {
+  late bool _expanded;
+  bool _userOverrodeExpansion = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _expanded = widget.live;
+  }
+
+  @override
+  void didUpdateWidget(covariant AgentChatReasoningTile oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!_userOverrodeExpansion && oldWidget.live != widget.live) {
+      _expanded = widget.live;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Theme(
-      data: theme.copyWith(dividerColor: Colors.transparent),
-      child: Material(
-        type: MaterialType.transparency,
-        child: ExpansionTile(
-          key: ValueKey('agent-reasoning-${thinking.hashCode}-$live'),
-          initiallyExpanded: live,
-          minTileHeight: 32,
-          tilePadding: const EdgeInsets.symmetric(horizontal: 4),
-          childrenPadding: const EdgeInsets.fromLTRB(28, 0, 8, 8),
-          leading: live
-              ? const SizedBox.square(
-                  dimension: 14,
-                  child: CircularProgressIndicator(strokeWidth: 1.6),
-                )
-              : Icon(
-                  Icons.psychology_alt_outlined,
-                  size: 16,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-          title: Text(
-            context.l10n.agentChat_reasoning,
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          children: [
-            Align(
-              alignment: Alignment.centerLeft,
-              child: SelectableText(
-                thinking,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                  height: 1.5,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Semantics(
+          button: true,
+          expanded: _expanded,
+          child: InkWell(
+            key: const ValueKey('agent-reasoning-toggle'),
+            onTap: () {
+              setState(() {
+                _userOverrodeExpansion = true;
+                _expanded = !_expanded;
+              });
+            },
+            borderRadius: BorderRadius.circular(8),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 32),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Row(
+                  children: [
+                    Icon(
+                      widget.live
+                          ? Icons.hourglass_top_rounded
+                          : Icons.psychology_alt_outlined,
+                      size: 16,
+                      color: widget.live
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        context.l10n.agentChat_reasoning,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                    Icon(
+                      _expanded
+                          ? Icons.expand_less_rounded
+                          : Icons.expand_more_rounded,
+                      size: 18,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ],
                 ),
               ),
             ),
-          ],
+          ),
         ),
-      ),
+        if (_expanded)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(28, 0, 8, 8),
+            child: SelectableText(
+              widget.thinking,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                height: 1.5,
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
@@ -728,10 +949,55 @@ List<AgentChatResourceReference> _extractResourceReferences(
   return references;
 }
 
+List<Widget> _buildResourcePreviewWidgets({
+  required List<AgentChatResourceReference> references,
+  required List<Uint8List> inlineImages,
+  required String keyPrefix,
+  Future<ResolvedAgentResource?> Function(AgentChatResourceReference reference)?
+  resolveResource,
+}) {
+  final online = <Widget>[];
+  final other = <Widget>[];
+  for (var index = 0; index < references.length; index++) {
+    final reference = references[index];
+    final preview = _ToolResultResourcePreview(
+      key: ValueKey('$keyPrefix-$index'),
+      reference: reference,
+      thumbnailBytes: index < inlineImages.length ? inlineImages[index] : null,
+      resolveResource: resolveResource,
+    );
+    if (reference.kind == AgentChatResourceKind.onlineGalleryMedia) {
+      online.add(SizedBox(width: 200, child: preview));
+    } else {
+      other.add(preview);
+    }
+  }
+  return [
+    if (online.isNotEmpty)
+      Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        alignment: WrapAlignment.center,
+        children: online,
+      ),
+    ...other,
+  ];
+}
+
 class _ToolResultResourcePreview extends ConsumerStatefulWidget {
-  const _ToolResultResourcePreview({required this.reference});
+  const _ToolResultResourcePreview({
+    super.key,
+    required this.reference,
+    this.thumbnailBytes,
+    this.resolveResource,
+  });
 
   final AgentChatResourceReference reference;
+  final Uint8List? thumbnailBytes;
+  final Future<ResolvedAgentResource?> Function(
+    AgentChatResourceReference reference,
+  )?
+  resolveResource;
 
   @override
   ConsumerState<_ToolResultResourcePreview> createState() =>
@@ -740,35 +1006,230 @@ class _ToolResultResourcePreview extends ConsumerStatefulWidget {
 
 class _ToolResultResourcePreviewState
     extends ConsumerState<_ToolResultResourcePreview> {
-  late Future<ResolvedAgentResource?> _resolution;
+  Future<ResolvedAgentResource?>? _resolution;
+  bool _opening = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _resolution = ref
-        .read(agentChatNotifierProvider.notifier)
-        .resolveResourcePreview(widget.reference);
-  }
+  Future<ResolvedAgentResource?> _resolve() => _resolution ??=
+      widget.resolveResource?.call(widget.reference) ??
+      ref
+          .read(agentChatNotifierProvider.notifier)
+          .resolveResourcePreview(widget.reference);
 
   @override
   void didUpdateWidget(covariant _ToolResultResourcePreview oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.reference != widget.reference) {
-      _resolution = ref
-          .read(agentChatNotifierProvider.notifier)
-          .resolveResourcePreview(widget.reference);
+      _resolution = null;
+      _opening = false;
     }
   }
 
+  Future<void> _openOriginal() async {
+    if (_opening) return;
+    setState(() => _opening = true);
+    try {
+      final resolved = await _resolve();
+      if (!mounted) return;
+      if (resolved == null ||
+          (resolved.filePath == null && resolved.bytes == null)) {
+        AppToast.error(context, context.l10n.agentChat_resourceUnavailable);
+        return;
+      }
+      if (resolved.onlineGalleryItem case final item?) {
+        final detail = resolved.onlineGalleryDetail;
+        if (detail == null) {
+          AppToast.error(context, context.l10n.agentChat_resourceUnavailable);
+          return;
+        }
+        await OnlineGalleryDetailLauncher(
+          context: context,
+          ref: ref,
+        ).show(context, item, preloadedDetail: detail);
+      } else if (resolved.filePath case final path?) {
+        ImageDetailOpener.showSingleImmediate(
+          context,
+          image: FileImageDetailData(filePath: path),
+          showMetadataPanel: true,
+        );
+      } else {
+        ImageDetailOpener.showSingleImmediate(
+          context,
+          image: GeneratedImageDetailData(imageBytes: resolved.bytes!),
+          showMetadataPanel: true,
+        );
+      }
+    } on Object {
+      if (mounted) {
+        AppToast.error(context, context.l10n.agentChat_resourceUnavailable);
+      }
+    } finally {
+      if (mounted) setState(() => _opening = false);
+    }
+  }
+
+  Widget _buildPreview(Uint8List bytes) {
+    final isOnlineGallery =
+        widget.reference.kind == AgentChatResourceKind.onlineGalleryMedia;
+    final image = Image.memory(
+      bytes,
+      fit: isOnlineGallery ? BoxFit.cover : BoxFit.contain,
+      alignment: Alignment.center,
+      gaplessPlayback: true,
+      errorBuilder: (_, _, _) => const _AgentResourceUnavailableImage(),
+    );
+    if (isOnlineGallery) {
+      return _OnlineGalleryResourceCard(
+        reference: widget.reference,
+        onTap: () => unawaited(_openOriginal()),
+        image: image,
+      );
+    }
+    return _ToolResultInteractiveImageCard(
+      onTap: () => unawaited(_openOriginal()),
+      child: image,
+    );
+  }
+
   @override
-  Widget build(BuildContext context) => FutureBuilder<ResolvedAgentResource?>(
-    future: _resolution,
-    builder: (context, snapshot) {
-      final bytes = snapshot.data?.bytes;
-      return bytes == null
-          ? const SizedBox.shrink()
-          : _ToolResultInlineImage(bytes: bytes);
-    },
+  Widget build(BuildContext context) {
+    final thumbnail = widget.thumbnailBytes;
+    if (thumbnail != null) return _buildPreview(thumbnail);
+    return FutureBuilder<ResolvedAgentResource?>(
+      future: _resolve(),
+      builder: (context, snapshot) {
+        final bytes = snapshot.data?.bytes;
+        if (bytes == null) return const _AgentResourceUnavailableImage();
+        return _buildPreview(bytes);
+      },
+    );
+  }
+}
+
+class _OnlineGalleryResourceCard extends StatefulWidget {
+  const _OnlineGalleryResourceCard({
+    required this.reference,
+    required this.onTap,
+    required this.image,
+  });
+
+  final AgentChatResourceReference reference;
+  final VoidCallback onTap;
+  final Widget image;
+
+  @override
+  State<_OnlineGalleryResourceCard> createState() =>
+      _OnlineGalleryResourceCardState();
+}
+
+class _OnlineGalleryResourceCardState
+    extends State<_OnlineGalleryResourceCard> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final source =
+        widget.reference.display['source_label'] ?? widget.reference.source;
+    final title = widget.reference.display['title'];
+    final author = widget.reference.display['author'];
+    final hasDetails = title != null || author != null;
+    final radius = BorderRadius.circular(12);
+    return Semantics(
+      button: true,
+      label: [source, title, author].whereType<String>().join(', '),
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        onEnter: (_) => setState(() => _hovered = true),
+        onExit: (_) => setState(() => _hovered = false),
+        child: ImageCardHoverMotion(
+          hovered: _hovered,
+          child: ClipRRect(
+            borderRadius: radius,
+            child: Material(
+              key: const ValueKey('online-gallery-resource-card'),
+              color: theme.colorScheme.surfaceContainerLow,
+              child: InkWell(
+                onTap: widget.onTap,
+                child: Stack(
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        AspectRatio(
+                          aspectRatio: 4 / 3,
+                          child: ColoredBox(
+                            color: theme.colorScheme.surfaceContainerHighest,
+                            child: widget.image,
+                          ),
+                        ),
+                        if (hasDetails)
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(10, 8, 10, 9),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (title != null)
+                                  Text(
+                                    title,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: theme.textTheme.labelLarge,
+                                  ),
+                                if (author != null) ...[
+                                  if (title != null) const SizedBox(height: 1),
+                                  Text(
+                                    author,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                    Positioned.fill(
+                      child: IgnorePointer(
+                        child: AnimatedContainer(
+                          duration: MediaQuery.disableAnimationsOf(context)
+                              ? Duration.zero
+                              : const Duration(milliseconds: 120),
+                          curve: Curves.easeOut,
+                          color: _hovered
+                              ? theme.colorScheme.primary.withValues(
+                                  alpha: 0.08,
+                                )
+                              : Colors.transparent,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AgentResourceUnavailableImage extends StatelessWidget {
+  const _AgentResourceUnavailableImage();
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: 160,
+    height: 120,
+    child: Center(
+      child: Text(
+        context.l10n.agentChat_resourceUnavailable,
+        textAlign: TextAlign.center,
+      ),
+    ),
   );
 }
 
@@ -778,24 +1239,20 @@ class _ToolResultInlineImage extends StatelessWidget {
   final Uint8List bytes;
 
   @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxHeight: 240),
-          child: Image.memory(
-            bytes,
-            fit: BoxFit.contain,
-            alignment: Alignment.center,
-            gaplessPlayback: true,
-            errorBuilder: (_, _, _) => const SizedBox.shrink(),
-          ),
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => _ToolResultInteractiveImageCard(
+    onTap: () => ImageDetailOpener.showSingleImmediate(
+      context,
+      image: GeneratedImageDetailData(imageBytes: bytes),
+      showMetadataPanel: true,
+    ),
+    child: Image.memory(
+      bytes,
+      fit: BoxFit.contain,
+      alignment: Alignment.center,
+      gaplessPlayback: true,
+      errorBuilder: (_, _, _) => const SizedBox.shrink(),
+    ),
+  );
 }
 
 class _ToolResultNetworkImage extends StatelessWidget {
@@ -804,18 +1261,116 @@ class _ToolResultNetworkImage extends StatelessWidget {
   final String url;
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 4),
-    child: ClipRRect(
-      borderRadius: BorderRadius.circular(8),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxHeight: 240),
-        child: Image.network(
-          url,
-          fit: BoxFit.contain,
-          alignment: Alignment.center,
-          gaplessPlayback: true,
-          errorBuilder: (_, _, _) => const SizedBox.shrink(),
+  Widget build(BuildContext context) => _ToolResultInteractiveImageCard(
+    onTap: () => _showNetworkImagePreview(context, url),
+    child: Image.network(
+      url,
+      fit: BoxFit.contain,
+      alignment: Alignment.center,
+      gaplessPlayback: true,
+      errorBuilder: (_, _, _) => const SizedBox.shrink(),
+    ),
+  );
+}
+
+class _ToolResultInteractiveImageCard extends StatefulWidget {
+  const _ToolResultInteractiveImageCard({
+    required this.child,
+    required this.onTap,
+  });
+
+  final Widget child;
+  final VoidCallback onTap;
+
+  @override
+  State<_ToolResultInteractiveImageCard> createState() =>
+      _ToolResultInteractiveImageCardState();
+}
+
+class _ToolResultInteractiveImageCardState
+    extends State<_ToolResultInteractiveImageCard> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Semantics(
+      button: true,
+      label: context.l10n.detail_imageDetails,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 4),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 320, maxHeight: 320),
+            child: MouseRegion(
+              cursor: SystemMouseCursors.click,
+              onEnter: (_) => setState(() => _hovered = true),
+              onExit: (_) => setState(() => _hovered = false),
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: widget.onTap,
+                child: ImageCardHoverMotion(
+                  hovered: _hovered,
+                  child: AnimatedContainer(
+                    duration: MediaQuery.disableAnimationsOf(context)
+                        ? Duration.zero
+                        : const Duration(milliseconds: 120),
+                    curve: Curves.easeOut,
+                    foregroundDecoration: BoxDecoration(
+                      color: _hovered
+                          ? theme.colorScheme.primary.withValues(alpha: 0.07)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: widget.child,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+Future<void> _showNetworkImagePreview(BuildContext context, String url) {
+  final viewport = MediaQuery.sizeOf(context);
+  return showDialog<void>(
+    context: context,
+    builder: (dialogContext) => Dialog(
+      clipBehavior: Clip.antiAlias,
+      child: SizedBox(
+        width: (viewport.width * 0.86).clamp(280.0, 1080.0).toDouble(),
+        height: (viewport.height * 0.82).clamp(240.0, 820.0).toDouble(),
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: InteractiveViewer(
+                minScale: 0.5,
+                maxScale: 8,
+                child: Center(
+                  child: Image.network(
+                    url,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: IconButton.filledTonal(
+                tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                icon: const Icon(Icons.close_rounded),
+              ),
+            ),
+          ],
         ),
       ),
     ),

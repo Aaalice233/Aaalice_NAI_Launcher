@@ -61,20 +61,21 @@ void main() {
     await tester.pump();
 
     final initialState = tester.state(find.byType(HistoryPanel));
-    expect(_panelContainer(tester).duration, const Duration(milliseconds: 200));
+    expect(
+      find.byKey(const ValueKey('generation-right-panel')),
+      findsOneWidget,
+    );
 
     isResizing.value = true;
     await tester.pump();
     expect(tester.state(find.byType(HistoryPanel)), same(initialState));
-    expect(_panelContainer(tester).duration, Duration.zero);
 
     isResizing.value = false;
     await tester.pump();
     expect(tester.state(find.byType(HistoryPanel)), same(initialState));
-    expect(_panelContainer(tester).duration, const Duration(milliseconds: 200));
   });
 
-  testWidgets('expanded content waits for the panel width animation', (
+  testWidgets('collapsed entries open the selected panel immediately', (
     tester,
   ) async {
     addTearDown(() async {
@@ -112,12 +113,7 @@ void main() {
 
     await tester.tap(find.byIcon(Icons.smart_toy_outlined));
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
 
-    expect(find.byType(AgentChatPanel), findsNothing);
-    expect(tester.takeException(), isNull);
-
-    await tester.pump(const Duration(milliseconds: 150));
     expect(find.byType(AgentChatPanel), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
@@ -136,13 +132,4 @@ class _MemoryLocalStorage extends LocalStorageService {
   Future<void> setSetting<T>(String key, T value) async {
     _values[key] = value;
   }
-}
-
-AnimatedContainer _panelContainer(WidgetTester tester) {
-  return tester.widget<AnimatedContainer>(
-    find.ancestor(
-      of: find.byType(HistoryPanel),
-      matching: find.byType(AnimatedContainer),
-    ),
-  );
 }

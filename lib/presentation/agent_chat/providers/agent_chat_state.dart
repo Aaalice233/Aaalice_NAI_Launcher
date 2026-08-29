@@ -1,9 +1,11 @@
 import '../../../core/agent/agent.dart';
+import '../../../core/agent/context_usage.dart';
 import '../../../core/agent/harness/harness_types.dart';
 import '../../../core/agent/harness/harness_messages.dart';
 import '../../../core/agent/harness/session/session_types.dart'
     as session_types;
 import '../../../core/agent/resources/agent_chat_resource_reference.dart';
+import '../models/agent_chat_turn_timeline.dart';
 import 'agent_chat_session_view.dart';
 
 /// Agent 会话 UI 状态。
@@ -28,13 +30,18 @@ class AgentChatState {
     this.sessionContentLoading = false,
     this.approvalRequest,
     this.totalUsage,
-    this.contextUsage,
-    this.contextWindow,
+    this.lastRequestUsage,
+    this.contextUsage = const AgentContextUsage.unknown(),
     this.thinkingLevel = ThinkingLevel.off,
     this.availableThinkingLevels = const [],
     this.pendingResources = const [],
     this.unavailableResourceKeys = const {},
     this.composerText = '',
+    this.turns = const [],
+    this.hasEarlierTurns = false,
+    this.historyLoading = false,
+    this.historyCursor,
+    this.prependAnchorEntryId,
   });
 
   final bool initialized;
@@ -59,14 +66,21 @@ class AgentChatState {
   final AgentToolApprovalRequest? approvalRequest;
   final Usage? totalUsage;
 
-  /// Usage of the most recent model request, not the cumulative session sum.
-  final Usage? contextUsage;
-  final int? contextWindow;
+  /// Provider usage from the most recent model request.
+  final Usage? lastRequestUsage;
+
+  /// Current context occupancy, anchored to the last valid assistant usage.
+  final AgentContextUsage contextUsage;
   final ThinkingLevel thinkingLevel;
   final List<ThinkingLevel> availableThinkingLevels;
   final List<AgentChatResourceReference> pendingResources;
   final Set<String> unavailableResourceKeys;
   final String composerText;
+  final List<AgentChatTurnTimeline> turns;
+  final bool hasEarlierTurns;
+  final bool historyLoading;
+  final AgentChatHistoryCursor? historyCursor;
+  final String? prependAnchorEntryId;
 
   AgentChatState copyWith({
     bool? initialized,
@@ -90,15 +104,21 @@ class AgentChatState {
     AgentToolApprovalRequest? approvalRequest,
     bool clearApprovalRequest = false,
     Usage? totalUsage,
-    Usage? contextUsage,
-    bool clearContextUsage = false,
-    int? contextWindow,
-    bool clearContextWindow = false,
+    Usage? lastRequestUsage,
+    bool clearLastRequestUsage = false,
+    AgentContextUsage? contextUsage,
     ThinkingLevel? thinkingLevel,
     List<ThinkingLevel>? availableThinkingLevels,
     List<AgentChatResourceReference>? pendingResources,
     Set<String>? unavailableResourceKeys,
     String? composerText,
+    List<AgentChatTurnTimeline>? turns,
+    bool? hasEarlierTurns,
+    bool? historyLoading,
+    AgentChatHistoryCursor? historyCursor,
+    bool clearHistoryCursor = false,
+    String? prependAnchorEntryId,
+    bool clearPrependAnchorEntryId = false,
   }) {
     return AgentChatState(
       initialized: initialized ?? this.initialized,
@@ -125,12 +145,10 @@ class AgentChatState {
           ? null
           : approvalRequest ?? this.approvalRequest,
       totalUsage: totalUsage ?? this.totalUsage,
-      contextUsage: clearContextUsage
+      lastRequestUsage: clearLastRequestUsage
           ? null
-          : contextUsage ?? this.contextUsage,
-      contextWindow: clearContextWindow
-          ? null
-          : contextWindow ?? this.contextWindow,
+          : lastRequestUsage ?? this.lastRequestUsage,
+      contextUsage: contextUsage ?? this.contextUsage,
       thinkingLevel: thinkingLevel ?? this.thinkingLevel,
       availableThinkingLevels:
           availableThinkingLevels ?? this.availableThinkingLevels,
@@ -138,6 +156,15 @@ class AgentChatState {
       unavailableResourceKeys:
           unavailableResourceKeys ?? this.unavailableResourceKeys,
       composerText: composerText ?? this.composerText,
+      turns: turns ?? this.turns,
+      hasEarlierTurns: hasEarlierTurns ?? this.hasEarlierTurns,
+      historyLoading: historyLoading ?? this.historyLoading,
+      historyCursor: clearHistoryCursor
+          ? null
+          : historyCursor ?? this.historyCursor,
+      prependAnchorEntryId: clearPrependAnchorEntryId
+          ? null
+          : prependAnchorEntryId ?? this.prependAnchorEntryId,
     );
   }
 }
@@ -212,6 +239,10 @@ class AgentToolActivity {
     required this.args,
     this.status = AgentToolActivityStatus.running,
     this.content = '',
+    this.turnId,
+    this.itemId,
+    this.startedAt,
+    this.completedAt,
   });
 
   final String toolCallId;
@@ -219,10 +250,18 @@ class AgentToolActivity {
   final Map<String, dynamic> args;
   final AgentToolActivityStatus status;
   final String content;
+  final String? turnId;
+  final String? itemId;
+  final int? startedAt;
+  final int? completedAt;
 
   AgentToolActivity copyWith({
     AgentToolActivityStatus? status,
     String? content,
+    String? turnId,
+    String? itemId,
+    int? startedAt,
+    int? completedAt,
   }) {
     return AgentToolActivity(
       toolCallId: toolCallId,
@@ -230,6 +269,10 @@ class AgentToolActivity {
       args: args,
       status: status ?? this.status,
       content: content ?? this.content,
+      turnId: turnId ?? this.turnId,
+      itemId: itemId ?? this.itemId,
+      startedAt: startedAt ?? this.startedAt,
+      completedAt: completedAt ?? this.completedAt,
     );
   }
 }
@@ -242,10 +285,24 @@ class AgentToolApprovalRequest {
     required this.toolName,
     required this.args,
     this.estimatedAnlas,
+    this.turnId,
+    this.itemId,
   });
 
   final String toolCallId;
   final String toolName;
   final Map<String, dynamic> args;
   final int? estimatedAnlas;
+  final String? turnId;
+  final String? itemId;
+
+  AgentToolApprovalRequest bind({String? turnId, String? itemId}) =>
+      AgentToolApprovalRequest(
+        toolCallId: toolCallId,
+        toolName: toolName,
+        args: args,
+        estimatedAnlas: estimatedAnlas,
+        turnId: turnId ?? this.turnId,
+        itemId: itemId ?? this.itemId,
+      );
 }

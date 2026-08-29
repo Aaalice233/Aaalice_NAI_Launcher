@@ -801,23 +801,51 @@ class AppLocalizationsEn extends AppLocalizations {
   String get agentChat_tab => 'Chat';
 
   @override
-  String get agentChat_detachWindow => 'Open in separate window';
-
-  @override
-  String get agentChat_detachWindowFailed =>
-      'Could not open the separate window. Try again.';
-
-  @override
-  String get agentChat_dockWindow => 'Dock back to the main window';
-
-  @override
-  String get agentChat_alwaysOnTop => 'Always on top';
-
-  @override
   String get agentChat_inputHint => 'Message the AI agent…';
 
   @override
-  String get agentChat_attachImage => 'Attach images';
+  String get agentChat_addAttachment => 'Add attachment or reference';
+
+  @override
+  String get agentChat_photoLibrary => 'Photos';
+
+  @override
+  String get agentChat_currentCanvas => 'Current canvas';
+
+  @override
+  String get agentChat_referenceGallery => 'Reference gallery';
+
+  @override
+  String get agentChat_resourceLibrary => 'Resource library';
+
+  @override
+  String get agentChat_generationHistory => 'Generation history';
+
+  @override
+  String get agentChat_localGallery => 'Local gallery';
+
+  @override
+  String get agentChat_tagLibrary => 'Tag library';
+
+  @override
+  String get agentChat_vibeLibrary => 'Vibe library';
+
+  @override
+  String get agentChat_preciseRefLibrary => 'Precise reference library';
+
+  @override
+  String get agentChat_generatedImage => 'Generated image';
+
+  @override
+  String get agentChat_reference => 'Reference';
+
+  @override
+  String get agentChat_noResources => 'No resources are available here yet.';
+
+  @override
+  String agentChat_imageTooLarge(String fileName, int maxSizeMB) {
+    return '$fileName is larger than $maxSizeMB MB.';
+  }
 
   @override
   String get agentChat_enableWebAccess => 'Enable web access';
@@ -835,6 +863,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get agentChat_newChat => 'New chat';
+
+  @override
+  String get agentChat_searchSessions => 'Search chats';
 
   @override
   String get agentChat_send => 'Send';
@@ -893,6 +924,50 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get agentChat_working => 'Working';
+
+  @override
+  String agentChat_workingFor(String duration) {
+    return 'Working for $duration';
+  }
+
+  @override
+  String get agentChat_worked => 'Worked';
+
+  @override
+  String agentChat_workedFor(String duration) {
+    return 'Worked for $duration';
+  }
+
+  @override
+  String agentChat_workItemCount(int count) {
+    return '$count items';
+  }
+
+  @override
+  String agentChat_ranCommands(int count) {
+    return 'Ran $count commands';
+  }
+
+  @override
+  String agentChat_exploredItems(int count) {
+    return 'Explored $count sources';
+  }
+
+  @override
+  String agentChat_earlierMessages(int count) {
+    return '$count earlier messages';
+  }
+
+  @override
+  String get agentChat_loadEarlierMessages => 'Earlier messages';
+
+  @override
+  String agentChat_turnNavigation(int number, String preview) {
+    return 'Turn $number: $preview';
+  }
+
+  @override
   String get agentChat_phasePreparing => 'Preparing';
 
   @override
@@ -903,11 +978,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get agentChat_phaseStopping => 'Stopping';
-
-  @override
-  String agentChat_contextTokens(int count) {
-    return 'Context $count tokens';
-  }
 
   @override
   String get agentChat_contextUnavailable => 'Context usage unavailable';
@@ -923,6 +993,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get agentChat_toolRecentImages => 'View recent images';
+
+  @override
+  String get agentChat_toolDisplayImages => 'Display images';
+
+  @override
+  String get agentChat_toolResult => 'Result';
 
   @override
   String get agentChat_toolGenerationStatus => 'Check generation status';
@@ -1048,11 +1124,11 @@ class AppLocalizationsEn extends AppLocalizations {
       'No chat model configured. Add a provider with tool-calling support in Settings first.';
 
   @override
-  String get agentChat_heroTitle => 'AI Agent';
+  String get agentChat_heroTitle => 'What would you like to do today?';
 
   @override
   String get agentChat_heroSubtitle =>
-      'Edit prompts and characters through conversation';
+      'Prepare character prompts, organize ideas, or fine-tune settings.';
 
   @override
   String get agentChat_moreActions => 'More actions';
@@ -1062,6 +1138,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get agentChat_compacting => 'Compacting context…';
+
+  @override
+  String get agentChat_requestFailed => 'Request failed. Please try again.';
+
+  @override
+  String get agentChat_errorDetails => 'Error details';
 
   @override
   String get agentChat_model => 'Select model';
@@ -1076,14 +1158,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get agentChat_renameHint => 'Session name';
 
   @override
-  String get agentChat_suggestion1 => 'Improve my current positive prompt';
+  String get agentChat_suggestion1 => 'Review current generation settings';
 
   @override
-  String get agentChat_suggestion2 => 'Add two characters with distinct poses';
+  String get agentChat_suggestion2 => 'Organize prompts from the gallery';
 
   @override
-  String get agentChat_suggestion3 =>
-      'Rewrite the negative prompt for photorealistic style';
+  String get agentChat_suggestion3 => 'Help me improve character tags';
 
   @override
   String get agentChat_permissionMode => 'Agent permissions';

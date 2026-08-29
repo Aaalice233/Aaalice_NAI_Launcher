@@ -11,7 +11,9 @@ import '../../widgets/common/draggable_memory_image.dart';
 import '../providers/agent_chat_notifier.dart';
 import 'agent_chat_panel_controller.dart';
 import 'agent_chat_panel_view_data.dart';
+import 'agent_chat_history.dart';
 import 'agent_chat_tool_widgets.dart';
+import 'agent_chat_turn.dart';
 
 class AgentChatMessages extends StatelessWidget {
   const AgentChatMessages({
@@ -49,83 +51,93 @@ class AgentChatMessages extends StatelessWidget {
     if (viewData.isEmpty) {
       return _hero(context, theme);
     }
-    var lastUserMessageIndex = -1;
-    for (var index = state.messages.length - 1; index >= 0; index--) {
-      final message = state.messages[index];
-      if (message is UserMessage ||
-          (message is HarnessCustomMessage &&
-              message.customType == 'agentResourcePrompt')) {
-        lastUserMessageIndex = index;
-        break;
-      }
-    }
     final lastAssistantMessageIndex = state.messages.lastIndexWhere(
-      (message) => message is AssistantMessage,
+      (message) =>
+          message is AssistantMessage &&
+          message.toolCalls.isEmpty &&
+          message.stopReason != StopReason.toolUse &&
+          message.text.trim().isNotEmpty,
     );
-    final items = _transcriptItems(state.messages);
+    final thread = AgentChatThreadModel.fromMessages(
+      state.messages,
+      timeline: state.turns,
+    );
+    final streaming = state.streamingMessage;
+    final streamingUsesTools =
+        streaming != null &&
+        (streaming.toolCalls.isNotEmpty ||
+            streaming.stopReason == StopReason.toolUse);
+    final streamingReasoning = streaming == null
+        ? ''
+        : [
+            streaming.content
+                .whereType<AssistantThinkingContent>()
+                .map((content) => content.thinking.trim())
+                .where((text) => text.isNotEmpty)
+                .join('\n\n'),
+            if (streamingUsesTools) streaming.text.trim(),
+          ].where((text) => text.isNotEmpty).join('\n\n');
+    if (thread.turns.isEmpty &&
+        (state.streamingMessage != null ||
+            state.status == AgentChatRunStatus.running ||
+            state.activities.isNotEmpty)) {
+      thread.turns.add(
+        AgentChatTurnModel(
+          ordinal: 0,
+          timeline: state.turns.isEmpty ? null : state.turns.last,
+        ),
+      );
+    }
     return Stack(
       children: [
-        NotificationListener<ScrollNotification>(
-          onNotification: controller.handleScrollNotification,
-          child: ListView.builder(
-            controller: controller.scrollController,
-            reverse: true,
-            padding: EdgeInsets.symmetric(
-              horizontal: AgentChatLayoutContract.transcriptHorizontalPadding(
+        AgentChatThreadViewport(
+          sessionId: state.activeSessionId,
+          turns: thread.turns,
+          controller: controller,
+          horizontalPadding:
+              AgentChatLayoutContract.transcriptHorizontalPadding(
                 viewData.width,
               ),
-              vertical: 12,
-            ),
-            itemCount: items.length + 1,
-            itemBuilder: (context, itemIndex) {
-              if (itemIndex == 0) {
-                return Align(
-                  alignment: Alignment.center,
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxWidth: AgentChatLayoutContract.transcriptMaxWidth(
-                        viewData.width,
-                      ),
-                    ),
-                    child: _liveTile(context, theme, state),
-                  ),
-                );
-              }
-              final item = items[items.length - itemIndex];
-              if (item.toolResults != null) {
-                return Align(
-                  alignment: Alignment.center,
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxWidth: AgentChatLayoutContract.transcriptMaxWidth(
-                        viewData.width,
-                      ),
-                    ),
-                    child: AgentChatToolResultGroup(results: item.toolResults!),
-                  ),
-                );
-              }
-              return Align(
-                alignment: Alignment.center,
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxWidth: AgentChatLayoutContract.transcriptMaxWidth(
-                      viewData.width,
-                    ),
-                  ),
-                  child: _messageTile(
-                    context,
-                    theme,
-                    item.message!,
-                    messageIndex: item.messageIndex,
-                    isLastUserMessage:
-                        item.messageIndex == lastUserMessageIndex,
-                    isLastAssistantMessage:
-                        item.messageIndex == lastAssistantMessageIndex,
-                  ),
+          maxWidth: AgentChatLayoutContract.transcriptMaxWidth(viewData.width),
+          mobile: viewData.mobile,
+          hasEarlier: state.hasEarlierTurns,
+          historyLoading: state.historyLoading,
+          prependAnchorEntryId: state.prependAnchorEntryId,
+          onLoadEarlier: commands.loadEarlierHistory,
+          live: const SizedBox.shrink(),
+          turnBuilder: (context, turn, current) => Column(
+            key: ValueKey('agent-turn-content-${turn.ordinal}'),
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (turn.userMessage != null)
+                _messageTile(
+                  context,
+                  theme,
+                  turn.userMessage!,
+                  messageIndex: turn.userMessageIndex,
+                  isLastAssistantMessage: false,
                 ),
-              );
-            },
+              AgentChatWorkTrail(
+                turn: turn,
+                running: current && state.status == AgentChatRunStatus.running,
+                activities: current ? state.activities : const [],
+                streamingReasoning: current ? streamingReasoning : '',
+              ),
+              for (final result in turn.mediaResults)
+                AgentChatToolResultMedia(result: result),
+              for (final finalMessage in turn.finalMessages)
+                _messageTile(
+                  context,
+                  theme,
+                  finalMessage.message,
+                  messageIndex: finalMessage.index,
+                  isLastAssistantMessage:
+                      finalMessage.index == lastAssistantMessageIndex,
+                  showReasoning: false,
+                ),
+              if (current && streaming != null && !streamingUsesTools)
+                _streamingFinalTile(context, theme, streaming),
+            ],
           ),
         ),
         if (controller.showJumpToLatest)
@@ -147,59 +159,9 @@ class AgentChatMessages extends StatelessWidget {
     );
   }
 
-  List<_AgentTranscriptItem> _transcriptItems(List<Message> messages) {
-    final items = <_AgentTranscriptItem>[];
-    var index = 0;
-    while (index < messages.length) {
-      final message = messages[index];
-      if (message is AssistantMessage &&
-          !_hasVisibleAssistantContent(message) &&
-          message.toolCalls.isNotEmpty &&
-          index + 1 < messages.length &&
-          messages[index + 1] is ToolResultMessage) {
-        index++;
-        continue;
-      }
-      if (message is ToolResultMessage) {
-        final results = <ToolResultMessage>[];
-        final firstIndex = index;
-        while (index < messages.length) {
-          final candidate = messages[index];
-          if (candidate is ToolResultMessage) {
-            results.add(candidate);
-            index++;
-            continue;
-          }
-          if (candidate is AssistantMessage &&
-              !_hasVisibleAssistantContent(candidate) &&
-              candidate.toolCalls.isNotEmpty &&
-              index + 1 < messages.length &&
-              messages[index + 1] is ToolResultMessage) {
-            index++;
-            continue;
-          }
-          break;
-        }
-        items.add(
-          _AgentTranscriptItem.toolResults(results, messageIndex: firstIndex),
-        );
-        continue;
-      }
-      items.add(_AgentTranscriptItem.message(message, messageIndex: index));
-      index++;
-    }
-    return items;
-  }
-
-  bool _hasVisibleAssistantContent(AssistantMessage message) =>
-      message.text.trim().isNotEmpty ||
-      message.content.whereType<AssistantThinkingContent>().any(
-        (content) => content.thinking.trim().isNotEmpty,
-      );
-
   Widget _hero(BuildContext context, ThemeData theme) {
     final l10n = context.l10n;
-    final muted = theme.colorScheme.onSurface.withValues(alpha: 0.55);
+    final muted = theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.78);
     final suggestions = [
       l10n.agentChat_suggestion1,
       l10n.agentChat_suggestion2,
@@ -213,76 +175,108 @@ class AgentChatMessages extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Center(
-              child: Wrap(
-                crossAxisAlignment: WrapCrossAlignment.center,
-                spacing: 12,
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.asset(
-                      'assets/icons/Icon.png',
-                      width: 44,
-                      height: 44,
-                      filterQuality: FilterQuality.medium,
-                      errorBuilder: (_, __, ___) => Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.primaryContainer,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(
-                          Icons.smart_toy_outlined,
-                          size: 26,
-                          color: theme.colorScheme.onPrimaryContainer,
-                        ),
-                      ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(18),
+                child: Image.asset(
+                  'assets/icons/Icon.png',
+                  width: 64,
+                  height: 64,
+                  filterQuality: FilterQuality.medium,
+                  errorBuilder: (_, __, ___) => Container(
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: Icon(
+                      Icons.auto_awesome_rounded,
+                      size: 30,
+                      color: theme.colorScheme.primary,
                     ),
                   ),
-                  Text(
-                    l10n.agentChat_heroTitle,
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.9),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 24),
             Text(
-              l10n.agentChat_heroSubtitle,
-              style: theme.textTheme.bodySmall?.copyWith(color: muted),
+              l10n.agentChat_heroTitle,
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: theme.colorScheme.onSurface,
+              ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 16),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              alignment: WrapAlignment.center,
-              children: [
-                for (final suggestion in suggestions)
-                  ActionChip(
-                    label: Text(
-                      suggestion,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.onSurface.withValues(
-                          alpha: 0.75,
+            const SizedBox(height: 8),
+            Text(
+              l10n.agentChat_heroSubtitle,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: muted,
+                height: 1.45,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 28),
+            Align(
+              alignment: Alignment.center,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 360),
+                child: Column(
+                  children: [
+                    for (var index = 0; index < suggestions.length; index++)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Material(
+                          color: Colors.transparent,
+                          borderRadius: BorderRadius.circular(10),
+                          child: InkWell(
+                            key: ValueKey('agent-chat-suggestion-$index'),
+                            onTap: () =>
+                                commands.useSuggestion(suggestions[index]),
+                            borderRadius: BorderRadius.circular(10),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 12,
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    switch (index) {
+                                      0 => Icons.tune_rounded,
+                                      1 => Icons.image_search_outlined,
+                                      _ => Icons.sell_outlined,
+                                    },
+                                    size: 17,
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      suggestions[index],
+                                      style: theme.textTheme.bodySmall
+                                          ?.copyWith(
+                                            color: theme.colorScheme.onSurface
+                                                .withValues(alpha: 0.86),
+                                            height: 1.35,
+                                          ),
+                                    ),
+                                  ),
+                                  Icon(
+                                    Icons.chevron_right_rounded,
+                                    size: 17,
+                                    color: theme.colorScheme.onSurfaceVariant
+                                        .withValues(alpha: 0.52),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                    tooltip: suggestion,
-                    visualDensity: viewData.mobile
-                        ? VisualDensity.standard
-                        : VisualDensity.compact,
-                    backgroundColor: theme.colorScheme.surfaceContainerHighest
-                        .withValues(alpha: 0.4),
-                    side: BorderSide(
-                      color: theme.colorScheme.outline.withValues(alpha: 0.25),
-                    ),
-                    onPressed: () => commands.useSuggestion(suggestion),
-                  ),
-              ],
+                  ],
+                ),
+              ),
             ),
           ],
         ),
@@ -360,8 +354,8 @@ class AgentChatMessages extends StatelessWidget {
     ThemeData theme,
     Message message, {
     required int messageIndex,
-    required bool isLastUserMessage,
     required bool isLastAssistantMessage,
+    bool showReasoning = true,
   }) {
     if (message is HarnessCustomMessage &&
         message.customType == 'agentResourcePrompt') {
@@ -373,14 +367,13 @@ class AgentChatMessages extends StatelessWidget {
           timestamp: message.timestamp,
         ),
         messageIndex: messageIndex,
-        isLastUserMessage: isLastUserMessage,
         isLastAssistantMessage: isLastAssistantMessage,
+        showReasoning: showReasoning,
       );
     }
     if (message is UserMessage) {
       final hasText = message.text.trim().isNotEmpty;
       final hovered = controller.hoveredUserMessageIndex == messageIndex;
-      final canEdit = isLastUserMessage && viewData.sessionActionsEnabled;
       final sentAt = MaterialLocalizations.of(context).formatTimeOfDay(
         TimeOfDay.fromDateTime(
           DateTime.fromMillisecondsSinceEpoch(message.timestamp),
@@ -457,12 +450,34 @@ class AgentChatMessages extends StatelessWidget {
                                     height: 1.45,
                                   ),
                         ),
+                      const SizedBox(height: 4),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            sentAt,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: theme.colorScheme.onPrimaryContainer
+                                  .withValues(alpha: 0.58),
+                              fontSize: 9,
+                              height: 1,
+                            ),
+                          ),
+                          const SizedBox(width: 3),
+                          Icon(
+                            Icons.done_all_rounded,
+                            size: 11,
+                            color: theme.colorScheme.onPrimaryContainer
+                                .withValues(alpha: 0.58),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
                 const SizedBox(height: 2),
                 SizedBox(
-                  height: viewData.mobile ? 44 : 22,
+                  height: viewData.mobile ? 48 : 22,
                   child: AnimatedOpacity(
                     key: ValueKey('agent-user-message-actions-$messageIndex'),
                     opacity: viewData.mobile || hovered ? 1 : 0,
@@ -474,15 +489,6 @@ class AgentChatMessages extends StatelessWidget {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text(
-                              sentAt,
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant
-                                    .withValues(alpha: 0.58),
-                                height: 1,
-                              ),
-                            ),
-                            const SizedBox(width: 5),
                             _MessageActionButton(
                               key: ValueKey(
                                 'agent-user-message-copy-$messageIndex',
@@ -493,19 +499,6 @@ class AgentChatMessages extends StatelessWidget {
                               onPressed: () =>
                                   commands.copyUserMessage(message),
                             ),
-                            if (isLastUserMessage)
-                              _MessageActionButton(
-                                key: ValueKey(
-                                  'agent-user-message-edit-$messageIndex',
-                                ),
-                                tooltip: context.l10n.common_edit,
-                                icon: Icons.edit_outlined,
-                                largeHitArea: viewData.mobile,
-                                onPressed: canEdit
-                                    ? () =>
-                                          commands.editLastUserMessage(message)
-                                    : null,
-                              ),
                           ],
                         ),
                       ),
@@ -529,41 +522,38 @@ class AgentChatMessages extends StatelessWidget {
       return Align(
         alignment: Alignment.centerLeft,
         child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: viewData.assistantMaxWidth),
+          constraints: BoxConstraints(
+            maxWidth: viewData.assistantMaxWidth.clamp(0, 680),
+          ),
           child: Padding(
-            padding: const EdgeInsets.only(right: 8, bottom: 10),
+            padding: const EdgeInsets.only(right: 8, bottom: 18),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (thinking.trim().isNotEmpty)
+                if (showReasoning && thinking.trim().isNotEmpty)
                   AgentChatReasoningTile(thinking: thinking),
                 if (message.text.trim().isNotEmpty)
                   _assistantMarkdown(message.text),
-                if (message.text.trim().isNotEmpty)
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _MessageActionButton(
-                        key: ValueKey(
-                          'agent-assistant-message-copy-$messageIndex',
-                        ),
-                        tooltip: context.l10n.common_copy,
-                        icon: Icons.copy_all_outlined,
-                        largeHitArea: viewData.mobile,
-                        onPressed: () => commands.copyAssistantMessage(message),
+                if (message.text.trim().isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    _formatMessageTime(context, message.timestamp),
+                    key: ValueKey('agent-assistant-message-time-$messageIndex'),
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant.withValues(
+                        alpha: 0.7,
                       ),
-                      if (isLastAssistantMessage && !viewData.running)
-                        _MessageActionButton(
-                          key: ValueKey(
-                            'agent-assistant-message-retry-$messageIndex',
-                          ),
-                          tooltip: context.l10n.common_retry,
-                          icon: Icons.refresh_rounded,
-                          largeHitArea: viewData.mobile,
-                          onPressed: commands.retryLastMessage,
-                        ),
-                    ],
+                    ),
                   ),
+                  const SizedBox(height: 8),
+                  _AssistantActionBar(
+                    messageIndex: messageIndex,
+                    onCopy: () => commands.copyAssistantMessage(message),
+                    onRetry: isLastAssistantMessage && !viewData.running
+                        ? commands.retryLastMessage
+                        : null,
+                  ),
+                ],
               ],
             ),
           ),
@@ -663,70 +653,111 @@ class AgentChatMessages extends StatelessWidget {
     ),
   );
 
-  Widget _liveTile(
+  Widget _streamingFinalTile(
     BuildContext context,
     ThemeData theme,
-    AgentChatState state,
+    AssistantMessage streaming,
   ) {
-    final runningActivities = state.activities
-        .where((activity) => activity.status == AgentToolActivityStatus.running)
-        .toList();
-    final hasActivities = runningActivities.isNotEmpty;
-    final streaming = state.streamingMessage;
-    final hasStreaming = streaming != null;
-    final running = state.status == AgentChatRunStatus.running;
-    if (!hasActivities && !hasStreaming && !running) {
-      return const SizedBox.shrink();
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        for (final activity in runningActivities)
-          AgentChatToolActivityTile(activity: activity),
-        if (streaming != null) ...[
-          if (streaming.content
-              .whereType<AssistantThinkingContent>()
-              .map((content) => content.thinking)
-              .join()
-              .trim()
-              .isNotEmpty)
-            AgentChatReasoningTile(
-              thinking: streaming.content
-                  .whereType<AssistantThinkingContent>()
-                  .map((content) => content.thinking)
-                  .join(),
-              live: streaming.text.isEmpty,
-            ),
-          if (streaming.text.isNotEmpty)
-            ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: viewData.assistantMaxWidth),
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 10, right: 8),
-                child: _assistantMarkdown(streaming.text),
-              ),
-            ),
-        ],
-        if (running && !hasStreaming && !hasActivities)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Row(
-              children: [
-                const SizedBox(
-                  width: 12,
-                  height: 12,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  context.l10n.agentChat_thinking,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
-                  ),
-                ),
-              ],
+    if (streaming.text.trim().isEmpty) return const SizedBox.shrink();
+    return RepaintBoundary(
+      key: const ValueKey('agent-streaming-final'),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: viewData.assistantMaxWidth.clamp(0, 680),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 14, right: 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _assistantMarkdown(streaming.text),
+              const SizedBox(height: 8),
+              _StreamingStatus(theme: theme),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+String _formatMessageTime(BuildContext context, int timestamp) =>
+    MaterialLocalizations.of(context).formatTimeOfDay(
+      TimeOfDay.fromDateTime(DateTime.fromMillisecondsSinceEpoch(timestamp)),
+      alwaysUse24HourFormat: true,
+    );
+
+class _StreamingStatus extends StatelessWidget {
+  const _StreamingStatus({required this.theme});
+
+  final ThemeData theme;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      liveRegion: true,
+      label: context.l10n.agentChat_phaseResponding,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox.square(
+            dimension: 10,
+            child: CircularProgressIndicator(
+              strokeWidth: 1.5,
+              color: theme.colorScheme.primary,
             ),
           ),
-      ],
+          const SizedBox(width: 8),
+          Text(
+            context.l10n.agentChat_phaseResponding,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AssistantActionBar extends StatelessWidget {
+  const _AssistantActionBar({
+    required this.messageIndex,
+    required this.onCopy,
+    required this.onRetry,
+  });
+
+  final int messageIndex;
+  final VoidCallback onCopy;
+  final VoidCallback? onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      key: ValueKey('agent-assistant-message-actions-$messageIndex'),
+      color: theme.colorScheme.surfaceContainerLow,
+      borderRadius: BorderRadius.circular(12),
+      clipBehavior: Clip.antiAlias,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _MessageActionButton(
+            key: ValueKey('agent-assistant-message-copy-$messageIndex'),
+            tooltip: context.l10n.common_copy,
+            icon: Icons.copy_all_outlined,
+            largeHitArea: true,
+            onPressed: onCopy,
+          ),
+          _MessageActionButton(
+            key: ValueKey('agent-assistant-message-retry-$messageIndex'),
+            tooltip: context.l10n.common_retry,
+            icon: Icons.refresh_rounded,
+            largeHitArea: true,
+            onPressed: onRetry,
+          ),
+        ],
+      ),
     );
   }
 }
@@ -773,7 +804,7 @@ class _MessageActionButton extends StatelessWidget {
         containedInkWell: true,
         highlightShape: BoxShape.rectangle,
         child: SizedBox.square(
-          dimension: largeHitArea ? 44 : 22,
+          dimension: largeHitArea ? 48 : 22,
           child: Center(
             child: Icon(
               icon,
@@ -787,27 +818,4 @@ class _MessageActionButton extends StatelessWidget {
       ),
     );
   }
-}
-
-class _AgentTranscriptItem {
-  const _AgentTranscriptItem._({
-    required this.messageIndex,
-    this.message,
-    this.toolResults,
-  });
-
-  factory _AgentTranscriptItem.message(
-    Message message, {
-    required int messageIndex,
-  }) => _AgentTranscriptItem._(messageIndex: messageIndex, message: message);
-
-  factory _AgentTranscriptItem.toolResults(
-    List<ToolResultMessage> results, {
-    required int messageIndex,
-  }) =>
-      _AgentTranscriptItem._(messageIndex: messageIndex, toolResults: results);
-
-  final int messageIndex;
-  final Message? message;
-  final List<ToolResultMessage>? toolResults;
 }

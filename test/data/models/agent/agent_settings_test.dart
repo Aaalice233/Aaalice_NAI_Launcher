@@ -54,6 +54,8 @@ void main() {
       ).toJson();
       raw['schemaVersion'] = 3;
       (raw['chat']! as Map<String, dynamic>).remove('systemPromptMode');
+      raw['disabledSkillIds'] = const <String>[];
+      raw.remove('skillEnabledOverrides');
 
       final decoded = AgentSettings.decode(jsonEncode(raw));
 

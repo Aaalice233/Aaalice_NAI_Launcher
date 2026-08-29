@@ -5,14 +5,16 @@ import '../../../core/agent/agent_types.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference_codec.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../core/windowing/agent_chat_layout_contract.dart';
+import '../../../core/windowing/agent_chat_shared_widgets.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../prompt_assistant/models/prompt_assistant_models.dart';
 import '../providers/agent_chat_state.dart';
 import 'agent_chat_header.dart';
 import 'agent_chat_panel_controller.dart';
 import 'agent_chat_panel_view_data.dart';
+import 'agent_chat_resource_widgets.dart';
 
-class AgentChatComposer extends StatelessWidget {
+class AgentChatComposer extends StatefulWidget {
   const AgentChatComposer({
     super.key,
     required this.viewData,
@@ -25,6 +27,22 @@ class AgentChatComposer extends StatelessWidget {
   final AgentChatPanelController controller;
 
   @override
+  State<AgentChatComposer> createState() => _AgentChatComposerState();
+}
+
+class _AgentChatComposerState extends State<AgentChatComposer> {
+  bool _editorExpanded = false;
+
+  AgentChatPanelViewData get viewData => widget.viewData;
+  AgentChatPanelCommands get commands => widget.commands;
+  AgentChatPanelController get controller => widget.controller;
+
+  void _toggleEditorExpanded() {
+    setState(() => _editorExpanded = !_editorExpanded);
+    controller.inputFocus.requestFocus();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final l10n = context.l10n;
@@ -32,100 +50,29 @@ class AgentChatComposer extends StatelessWidget {
       key: const ValueKey('agent-chat-input-container'),
       padding: AgentChatLayoutContract.composerOuterPadding(viewData.width),
       child: Container(
+        key: const ValueKey('agent-chat-composer-surface'),
         decoration: BoxDecoration(
           color: theme.colorScheme.surfaceContainerLow,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(viewData.mobile ? 18 : 14),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (viewData.state.queuedMessages.isNotEmpty)
+            if (!viewData.mobile && viewData.state.queuedMessages.isNotEmpty)
               _queuedMessages(theme, l10n),
-            if (viewData.state.pendingResources.isNotEmpty)
-              _resourceCards(theme),
-            Focus(
-              onKeyEvent: (node, event) {
-                if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
-                  return KeyEventResult.ignored;
-                }
-                final key = event.logicalKey;
-                if (key == LogicalKeyboardKey.escape && viewData.running) {
-                  commands.stop();
-                  return KeyEventResult.handled;
-                }
-                if (key == LogicalKeyboardKey.arrowUp &&
-                    HardwareKeyboard.instance.isAltPressed &&
-                    viewData.state.queuedMessages.isNotEmpty) {
-                  commands.editQueuedMessage(
-                    viewData.state.queuedMessages.last,
-                  );
-                  return KeyEventResult.handled;
-                }
-                if (key != LogicalKeyboardKey.enter &&
-                    key != LogicalKeyboardKey.numpadEnter) {
-                  return KeyEventResult.ignored;
-                }
-                if (controller.inputController.value.composing.isValid &&
-                    !controller.inputController.value.composing.isCollapsed) {
-                  return KeyEventResult.ignored;
-                }
-                if (HardwareKeyboard.instance.isShiftPressed ||
-                    HardwareKeyboard.instance.isControlPressed ||
-                    HardwareKeyboard.instance.isMetaPressed) {
-                  controller.insertNewline();
-                  return KeyEventResult.handled;
-                }
-                if (controller.inputController.text.trim().isNotEmpty ||
-                    controller.pendingImages.isNotEmpty) {
-                  commands.send();
-                }
-                return KeyEventResult.handled;
-              },
-              child: TextField(
-                key: const ValueKey('agent-chat-input'),
-                controller: controller.inputController,
-                focusNode: controller.inputFocus,
-                enabled: viewData.state.initialized,
-                minLines: viewData.compactMobile || viewData.compactWidth
-                    ? 1
-                    : 2,
-                maxLines: viewData.compactMobile
-                    ? 3
-                    : (viewData.mobile ? 5 : 7),
-                style:
-                    (viewData.mobile
-                            ? theme.textTheme.bodyMedium
-                            : theme.textTheme.bodySmall)
-                        ?.copyWith(height: 1.45),
-                textInputAction: TextInputAction.newline,
-                decoration: InputDecoration(
-                  isDense: true,
-                  hintText: l10n.agentChat_inputHint,
-                  hintStyle:
-                      (viewData.mobile
-                              ? theme.textTheme.bodyMedium
-                              : theme.textTheme.bodySmall)
-                          ?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant
-                                .withValues(alpha: 0.75),
-                          ),
-                  contentPadding: EdgeInsets.fromLTRB(
-                    viewData.mobile ? 14 : 12,
-                    viewData.mobile ? 12 : 10,
-                    viewData.mobile ? 14 : 12,
-                    6,
-                  ),
-                  border: InputBorder.none,
-                ),
-              ),
-            ),
+            _editor(context, theme, l10n),
+            if (viewData.state.pendingResources.isNotEmpty ||
+                controller.pendingImages.isNotEmpty)
+              _attachmentCards(),
+            if (viewData.mobile && viewData.state.queuedMessages.isNotEmpty)
+              _queuedMessages(theme, l10n),
             Padding(
               padding: EdgeInsets.fromLTRB(
-                4,
-                0,
-                viewData.mobile ? 4 : 8,
-                viewData.mobile ? 4 : 6,
+                6,
+                viewData.mobile ? 6 : 8,
+                viewData.mobile ? 6 : 8,
+                viewData.mobile ? 6 : 8,
               ),
               child: _composerControls(theme, l10n),
             ),
@@ -135,380 +82,602 @@ class AgentChatComposer extends StatelessWidget {
     );
   }
 
-  Widget _composerControls(ThemeData theme, AppLocalizations l10n) {
-    final sendButton = _SendButton(
-      running: viewData.running,
-      enabled:
-          viewData.canSend &&
-          (controller.inputController.text.trim().isNotEmpty ||
-              controller.pendingImages.isNotEmpty),
-      touchOptimized: viewData.mobile,
-      onSend: commands.send,
+  Widget _editor(BuildContext context, ThemeData theme, AppLocalizations l10n) {
+    final target = viewData.mobile ? 44.0 : 40.0;
+    final trailingControls = viewData.running ? 2 : 1;
+    final editor = TextField(
+      key: const ValueKey('agent-chat-input'),
+      controller: controller.inputController,
+      focusNode: controller.inputFocus,
+      enabled: viewData.state.initialized,
+      expands: _editorExpanded,
+      minLines: _editorExpanded
+          ? null
+          : AgentChatComposerLayout.defaultMinLines,
+      maxLines: _editorExpanded
+          ? null
+          : viewData.mobile
+          ? AgentChatComposerLayout.defaultMobileMaxLines
+          : AgentChatComposerLayout.defaultDesktopMaxLines,
+      style: theme.textTheme.bodyMedium?.copyWith(height: 1.45),
+      textInputAction: TextInputAction.newline,
+      textAlignVertical: TextAlignVertical.top,
+      decoration: InputDecoration(
+        isDense: true,
+        hintText: l10n.agentChat_inputHint,
+        hintStyle: theme.textTheme.bodyMedium?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.68),
+        ),
+        contentPadding: EdgeInsets.fromLTRB(
+          viewData.mobile ? 14 : 13,
+          14,
+          target * trailingControls + 6,
+          10,
+        ),
+        border: InputBorder.none,
+      ),
     );
-    if (viewData.stackComposerControls) {
-      return Column(
-        key: const ValueKey('agent-chat-composer-controls'),
-        mainAxisSize: MainAxisSize.min,
+    final availableHeight = viewData.height
+        .clamp(0, AgentChatComposerLayout.availableViewportHeight(context))
+        .toDouble();
+
+    return Focus(
+      onKeyEvent: (node, event) {
+        if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+          return KeyEventResult.ignored;
+        }
+        final key = event.logicalKey;
+        if (key == LogicalKeyboardKey.escape && viewData.running) {
+          commands.stop();
+          return KeyEventResult.handled;
+        }
+        if (key == LogicalKeyboardKey.arrowUp &&
+            HardwareKeyboard.instance.isAltPressed &&
+            viewData.state.queuedMessages.isNotEmpty) {
+          commands.editQueuedMessage(viewData.state.queuedMessages.last);
+          return KeyEventResult.handled;
+        }
+        if (key != LogicalKeyboardKey.enter &&
+            key != LogicalKeyboardKey.numpadEnter) {
+          return KeyEventResult.ignored;
+        }
+        if (controller.inputController.value.composing.isValid &&
+            !controller.inputController.value.composing.isCollapsed) {
+          return KeyEventResult.ignored;
+        }
+        if (HardwareKeyboard.instance.isShiftPressed ||
+            HardwareKeyboard.instance.isControlPressed ||
+            HardwareKeyboard.instance.isMetaPressed) {
+          controller.insertNewline();
+          return KeyEventResult.handled;
+        }
+        if (viewData.canSend &&
+            (controller.inputController.text.trim().isNotEmpty ||
+                controller.pendingImages.isNotEmpty)) {
+          commands.send();
+        }
+        return KeyEventResult.handled;
+      },
+      child: Stack(
         children: [
           SizedBox(
-            key: const ValueKey('agent-chat-session-controls'),
-            height: viewData.mobile ? 48 : 34,
-            child: Row(
-              children: [
-                _permissionModeButton(theme, l10n),
-                const SizedBox(width: 2),
-                _webAccessToggle(theme, l10n),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: SizedBox(
-                    height: viewData.mobile ? 48 : 34,
-                    child: _modelSelector(theme, l10n),
-                  ),
-                ),
-              ],
-            ),
+            key: const ValueKey('agent-chat-composer-editor'),
+            height: _editorExpanded
+                ? AgentChatComposerLayout.expandedEditorHeight(
+                    availableHeight: availableHeight,
+                    touchOptimized: viewData.mobile,
+                  )
+                : null,
+            child: editor,
           ),
-          SizedBox(
-            key: const ValueKey('agent-chat-message-actions'),
-            height: viewData.mobile ? 48 : 34,
+          Positioned(
+            top: 2,
+            right: 4,
             child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                _attachButton(theme, l10n),
-                _moreMenu(theme, l10n),
-                const Spacer(),
-                if (viewData.running) ...[
-                  _followUpButton(l10n),
+                if (viewData.running)
                   _StopButton(
                     touchOptimized: viewData.mobile,
                     onStop: commands.stop,
                   ),
-                ],
-                const SizedBox(width: 4),
-                sendButton,
+                AgentChatComposerExpandButton(
+                  key: const ValueKey('agent-chat-composer-expand'),
+                  expanded: _editorExpanded,
+                  touchOptimized: viewData.mobile,
+                  expandLabel:
+                      '${l10n.common_expand} · ${l10n.agentChat_inputHint}',
+                  collapseLabel:
+                      '${l10n.common_collapse} · ${l10n.agentChat_inputHint}',
+                  onPressed: _toggleEditorExpanded,
+                ),
               ],
             ),
           ),
-        ],
-      );
-    }
-    return SizedBox(
-      key: const ValueKey('agent-chat-composer-controls'),
-      height: viewData.mobile ? 48 : 30,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          _attachButton(theme, l10n),
-          _moreMenu(theme, l10n),
-          const SizedBox(width: 2),
-          _permissionModeButton(theme, l10n),
-          const SizedBox(width: 2),
-          _webAccessToggle(theme, l10n),
-          const SizedBox(width: 2),
-          if (viewData.mobile)
-            Expanded(
-              child: SizedBox(height: 48, child: _modelSelector(theme, l10n)),
-            )
-          else
-            Expanded(
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: _modelSelector(theme, l10n),
-              ),
-            ),
-          const SizedBox(width: 4),
-          if (viewData.running) ...[
-            _followUpButton(l10n),
-            _StopButton(touchOptimized: viewData.mobile, onStop: commands.stop),
-            const SizedBox(width: 4),
-          ],
-          sendButton,
         ],
       ),
     );
   }
 
-  Widget _followUpButton(AppLocalizations l10n) => PopupMenuButton<bool>(
-    tooltip: l10n.agentChat_queueFollowUp,
-    onSelected: (_) => commands.sendFollowUp(),
-    itemBuilder: (_) => [
-      PopupMenuItem<bool>(
-        value: true,
-        child: ListTile(
-          dense: true,
-          leading: const Icon(Icons.playlist_add_rounded),
-          title: Text(l10n.agentChat_queueFollowUp),
-          contentPadding: EdgeInsets.zero,
+  Widget _composerControls(ThemeData theme, AppLocalizations l10n) {
+    return LayoutBuilder(
+      key: const ValueKey('agent-chat-composer-controls'),
+      builder: (context, constraints) {
+        final target = viewData.mobile ? 48.0 : 40.0;
+        final compactTarget = viewData.mobile ? 44.0 : 40.0;
+        const gap = 4.0;
+        // The attachment target is larger than the other compact controls on
+        // mobile, while the model selector absorbs the remaining width.
+        final modelWidth =
+            (constraints.maxWidth - target - compactTarget * 4 - gap * 5)
+                .clamp(compactTarget, 164.0)
+                .toDouble();
+        final hasDraft =
+            controller.inputController.text.trim().isNotEmpty ||
+            controller.pendingImages.isNotEmpty;
+        final primaryAction = _SendButton(
+          running: viewData.running,
+          enabled: viewData.canSend && hasDraft,
+          touchOptimized: viewData.mobile,
+          onSend: commands.send,
+        );
+
+        return SizedBox(
+          key: const ValueKey('agent-chat-session-controls'),
+          height: target,
+          child: Row(
+            key: const ValueKey('agent-chat-message-actions'),
+            children: [
+              _attachmentSourceButton(theme, l10n),
+              const SizedBox(width: gap),
+              SizedBox(
+                width: modelWidth,
+                child: _modelSelector(theme, l10n, iconOnly: modelWidth < 76),
+              ),
+              const Spacer(),
+              _permissionModeButton(theme, l10n),
+              const SizedBox(width: gap),
+              _webAccessToggle(theme, l10n),
+              const SizedBox(width: gap),
+              _contextIndicator(theme, l10n),
+              const SizedBox(width: gap),
+              primaryAction,
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _contextIndicator(ThemeData theme, AppLocalizations l10n) {
+    final usage = viewData.state.contextUsage;
+    final tokens = usage.tokens;
+    final window = usage.contextWindow;
+    final available = usage.available;
+    final loading =
+        viewData.state.compacting ||
+        viewData.state.sessionContentLoading ||
+        (!viewData.state.routeReady && viewData.state.routeError.isEmpty);
+    final percent = available
+        ? (tokens! / window! * 100).clamp(0, 999).round()
+        : null;
+    final label = loading
+        ? viewData.state.compacting
+              ? l10n.agentChat_compacting
+              : l10n.common_loading
+        : available
+        ? '$percent% · ${usage.estimated ? '~' : ''}${_compactTokenCount(tokens!)} / ${_compactTokenCount(window!)}'
+        : l10n.agentChat_contextUnavailable;
+    final onPressed = available && !loading && viewData.sessionActionsEnabled
+        ? () => commands.moreAction(AgentChatMoreAction.compact)
+        : null;
+    final target = viewData.mobile ? 44.0 : 40.0;
+    final ringSize = viewData.mobile ? 36.0 : 32.0;
+
+    return Semantics(
+      button: onPressed != null,
+      label: label,
+      value: percent == null ? null : '$percent%',
+      child: Tooltip(
+        message: label,
+        child: Material(
+          color: Colors.transparent,
+          shape: const CircleBorder(),
+          child: InkWell(
+            onTap: onPressed,
+            customBorder: const CircleBorder(),
+            child: SizedBox.square(
+              key: const ValueKey('agent-chat-context-target'),
+              dimension: target,
+              child: Center(
+                child: SizedBox.square(
+                  key: const ValueKey('agent-chat-context-ring'),
+                  dimension: ringSize,
+                  child: loading
+                      ? Padding(
+                          padding: const EdgeInsets.all(6),
+                          child: CircularProgressIndicator(
+                            key: const ValueKey('agent-chat-context-loading'),
+                            strokeWidth: 2,
+                            color: theme.colorScheme.primary,
+                            backgroundColor:
+                                theme.colorScheme.surfaceContainerHighest,
+                          ),
+                        )
+                      : Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              value: available
+                                  ? (tokens! / window!).clamp(0.0, 1.0)
+                                  : 0,
+                              color: theme.colorScheme.primary,
+                              backgroundColor:
+                                  theme.colorScheme.surfaceContainerHighest,
+                            ),
+                            Center(
+                              child: Text(
+                                available ? '$percent%' : '—',
+                                key: available
+                                    ? const ValueKey(
+                                        'agent-chat-context-token-label',
+                                      )
+                                    : const ValueKey(
+                                        'agent-chat-context-unavailable',
+                                      ),
+                                maxLines: 1,
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                  fontSize: available && percent! >= 100
+                                      ? 8
+                                      : 9,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                ),
+              ),
+            ),
+          ),
         ),
       ),
-    ],
-    icon: const Icon(Icons.playlist_add_rounded, size: 18),
-    constraints: BoxConstraints.tightFor(
-      width: viewData.mobile ? 44 : 30,
-      height: viewData.mobile ? 44 : 30,
-    ),
-  );
+    );
+  }
+
+  String _compactTokenCount(int value) {
+    if (value < 1000) return '$value';
+    if (value < 1000000) {
+      final compact = value / 1000;
+      return '${compact >= 100 ? compact.round() : compact.toStringAsFixed(1)}k';
+    }
+    final compact = value / 1000000;
+    return '${compact >= 100 ? compact.round() : compact.toStringAsFixed(1)}m';
+  }
 
   Widget _queuedMessages(ThemeData theme, AppLocalizations l10n) {
     final queued = viewData.state.queuedMessages;
-    return Theme(
-      data: theme.copyWith(dividerColor: Colors.transparent),
-      child: Material(
-        type: MaterialType.transparency,
-        child: ExpansionTile(
-          key: const ValueKey('agent-chat-queue'),
-          minTileHeight: viewData.mobile ? 44 : 32,
-          tilePadding: const EdgeInsets.symmetric(horizontal: 10),
-          childrenPadding: const EdgeInsets.fromLTRB(10, 0, 6, 6),
-          leading: Icon(
-            Icons.queue_outlined,
-            size: 17,
-            color: theme.colorScheme.tertiary,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 8, 8, 2),
+      child: Theme(
+        data: theme.copyWith(dividerColor: Colors.transparent),
+        child: Material(
+          color: theme.colorScheme.surfaceContainerHighest.withValues(
+            alpha: 0.48,
           ),
-          title: Text(
-            '${l10n.agentChat_queued} · ${queued.length}',
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+          borderRadius: BorderRadius.circular(10),
+          clipBehavior: Clip.antiAlias,
+          child: KeyedSubtree(
+            key: const ValueKey('agent-chat-queue'),
+            child: ExpansionTile(
+              key: const PageStorageKey('agent-chat-queue-expansion'),
+              minTileHeight: viewData.mobile ? 44 : 32,
+              tilePadding: const EdgeInsets.symmetric(horizontal: 10),
+              childrenPadding: const EdgeInsets.fromLTRB(10, 0, 6, 6),
+              leading: Icon(
+                Icons.queue_outlined,
+                size: 17,
+                color: theme.colorScheme.tertiary,
+              ),
+              title: Text(
+                '${l10n.agentChat_queued} · ${queued.length}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              trailing: const Icon(Icons.expand_more_rounded, size: 18),
+              children: [
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: viewData.compactMobile
+                        ? 64
+                        : viewData.mobile
+                        ? 96
+                        : 160,
+                  ),
+                  child: ListView.builder(
+                    key: const PageStorageKey('agent-chat-queue-list'),
+                    primary: false,
+                    shrinkWrap: true,
+                    itemCount: queued.length,
+                    itemBuilder: (context, index) {
+                      final item = queued[index];
+                      return Row(
+                        children: [
+                          if (viewData.mobile)
+                            Tooltip(
+                              message:
+                                  item.kind == AgentQueuedMessageKind.steering
+                                  ? l10n.agentChat_queueSteering
+                                  : l10n.agentChat_queueFollowUp,
+                              child: Icon(
+                                item.kind == AgentQueuedMessageKind.steering
+                                    ? Icons.turn_right_rounded
+                                    : Icons.playlist_add_rounded,
+                                size: 16,
+                                color: theme.colorScheme.tertiary,
+                              ),
+                            )
+                          else
+                            Text(
+                              item.kind == AgentQueuedMessageKind.steering
+                                  ? l10n.agentChat_queueSteering
+                                  : l10n.agentChat_queueFollowUp,
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: theme.colorScheme.tertiary,
+                              ),
+                            ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              item.text.trim().isEmpty
+                                  ? l10n.agentChat_queued
+                                  : item.text.trim(),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.bodySmall,
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: l10n.common_edit,
+                            onPressed: () => commands.editQueuedMessage(item),
+                            icon: const Icon(Icons.edit_outlined, size: 16),
+                            constraints: BoxConstraints.tightFor(
+                              width: viewData.mobile ? 44 : 32,
+                              height: viewData.mobile ? 44 : 32,
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: l10n.common_delete,
+                            onPressed: () => commands.removeQueuedMessage(item),
+                            icon: const Icon(Icons.close, size: 16),
+                            constraints: BoxConstraints.tightFor(
+                              width: viewData.mobile ? 44 : 32,
+                              height: viewData.mobile ? 44 : 32,
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+                Wrap(
+                  alignment: WrapAlignment.end,
+                  spacing: 4,
+                  children: [
+                    TextButton.icon(
+                      key: const ValueKey('agent-chat-follow-up'),
+                      onPressed: commands.sendFollowUp,
+                      icon: const Icon(Icons.playlist_add_rounded, size: 17),
+                      label: Text(l10n.agentChat_queueFollowUp),
+                    ),
+                    TextButton(
+                      onPressed: commands.clearQueuedMessages,
+                      child: Text(l10n.common_clear),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
-          trailing: TextButton(
-            onPressed: commands.clearQueuedMessages,
-            child: Text(l10n.common_clear),
-          ),
-          children: [
-            ConstrainedBox(
-              constraints: BoxConstraints(
-                maxHeight: viewData.mobile ? 96 : 160,
-              ),
-              child: ListView.builder(
-                primary: false,
-                shrinkWrap: true,
-                itemCount: queued.length,
-                itemBuilder: (context, index) {
-                  final item = queued[index];
-                  return Row(
-                    children: [
-                      if (viewData.mobile)
-                        Tooltip(
-                          message: item.kind == AgentQueuedMessageKind.steering
-                              ? l10n.agentChat_queueSteering
-                              : l10n.agentChat_queueFollowUp,
-                          child: Icon(
-                            item.kind == AgentQueuedMessageKind.steering
-                                ? Icons.turn_right_rounded
-                                : Icons.playlist_add_rounded,
-                            size: 16,
-                            color: theme.colorScheme.tertiary,
-                          ),
-                        )
-                      else
-                        Text(
-                          item.kind == AgentQueuedMessageKind.steering
-                              ? l10n.agentChat_queueSteering
-                              : l10n.agentChat_queueFollowUp,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: theme.colorScheme.tertiary,
-                          ),
-                        ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          item.text.trim().isEmpty
-                              ? l10n.agentChat_queued
-                              : item.text.trim(),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodySmall,
-                        ),
-                      ),
-                      IconButton(
-                        tooltip: l10n.common_edit,
-                        onPressed: () => commands.editQueuedMessage(item),
-                        icon: const Icon(Icons.edit_outlined, size: 16),
-                        constraints: BoxConstraints.tightFor(
-                          width: viewData.mobile ? 44 : 32,
-                          height: viewData.mobile ? 44 : 32,
-                        ),
-                      ),
-                      IconButton(
-                        tooltip: l10n.common_delete,
-                        onPressed: () => commands.removeQueuedMessage(item),
-                        icon: const Icon(Icons.close, size: 16),
-                        constraints: BoxConstraints.tightFor(
-                          width: viewData.mobile ? 44 : 32,
-                          height: viewData.mobile ? 44 : 32,
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              ),
-            ),
-          ],
         ),
       ),
     );
   }
 
-  Widget _resourceCards(ThemeData theme) {
+  Widget _attachmentCards() {
+    final imageCount = controller.pendingImages.length;
     return SizedBox(
-      height: 46,
+      height: viewData.mobile ? 58 : 48,
       child: ListView.separated(
         padding: const EdgeInsets.fromLTRB(10, 8, 10, 2),
         scrollDirection: Axis.horizontal,
-        itemCount: viewData.state.pendingResources.length,
+        itemCount: imageCount + viewData.state.pendingResources.length,
         separatorBuilder: (_, __) => const SizedBox(width: 6),
         itemBuilder: (context, index) {
-          final reference = viewData.state.pendingResources[index];
-          final label =
-              reference.display['name'] ??
-              reference.display['title'] ??
-              reference.resourceId;
+          if (index < imageCount) {
+            return AgentChatPendingImageCard(
+              image: controller.pendingImages[index],
+              touchOptimized: viewData.mobile,
+              onRemove: () => controller.removePendingImage(index),
+            );
+          }
+          final resourceIndex = index - imageCount;
+          final reference = viewData.state.pendingResources[resourceIndex];
           final unavailable = viewData.state.unavailableResourceKeys.contains(
             AgentChatResourceReferenceCodec.encodeJson(reference),
           );
-          return Container(
-            constraints: const BoxConstraints(maxWidth: 220),
-            padding: const EdgeInsets.only(left: 9),
-            decoration: BoxDecoration(
-              color: unavailable
-                  ? theme.colorScheme.errorContainer.withValues(alpha: 0.55)
-                  : theme.colorScheme.secondaryContainer.withValues(
-                      alpha: 0.55,
-                    ),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  unavailable ? Icons.link_off_outlined : Icons.link_outlined,
-                  size: 15,
-                  color: theme.colorScheme.onSecondaryContainer,
-                ),
-                const SizedBox(width: 6),
-                Flexible(
-                  child: Text(
-                    unavailable
-                        ? '$label · ${context.l10n.agentChat_resourceUnavailable}'
-                        : label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.labelSmall,
-                  ),
-                ),
-                IconButton(
-                  tooltip: MaterialLocalizations.of(
-                    context,
-                  ).deleteButtonTooltip,
-                  visualDensity: VisualDensity.compact,
-                  iconSize: 15,
-                  onPressed: () => commands.removePendingResource(index),
-                  icon: const Icon(Icons.close),
-                ),
-              ],
-            ),
+          return AgentChatPendingResourceCard(
+            reference: reference,
+            loadPreview: () => commands.resolveResourcePreview(reference),
+            unavailable: unavailable,
+            touchOptimized: viewData.mobile,
+            onRemove: () => commands.removePendingResource(resourceIndex),
           );
         },
       ),
     );
   }
 
-  Widget _attachButton(ThemeData theme, AppLocalizations l10n) {
-    final enabled = viewData.state.initialized;
-    return Tooltip(
-      message: l10n.agentChat_attachImage,
-      waitDuration: const Duration(milliseconds: 400),
-      child: SizedBox(
-        key: const ValueKey('agent-chat-attach-image'),
-        width: viewData.mobile ? 48 : 30,
-        height: viewData.mobile ? 48 : 30,
-        child: InkWell(
-          onTap: enabled ? commands.pickImages : null,
-          borderRadius: BorderRadius.circular(8),
-          child: Icon(
-            Icons.image_outlined,
-            size: 18,
-            color: theme.colorScheme.onSurface.withValues(
-              alpha: enabled ? 0.65 : 0.25,
-            ),
-          ),
+  Widget _attachmentSourceButton(ThemeData theme, AppLocalizations l10n) {
+    final child = Container(
+      width: viewData.mobile ? 48 : 40,
+      height: viewData.mobile ? 48 : 40,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(
+          alpha: 0.76,
         ),
+        borderRadius: BorderRadius.circular(9),
       ),
+      child: Icon(
+        Icons.add,
+        size: 18,
+        color: theme.colorScheme.onSurface.withValues(alpha: 0.65),
+      ),
+    );
+    if (viewData.mobile) {
+      return Semantics(
+        key: const ValueKey('agent-chat-more-actions'),
+        button: true,
+        label: l10n.agentChat_addAttachment,
+        child: InkWell(
+          onTap: viewData.state.initialized
+              ? () => _showMobileAttachmentSources(l10n)
+              : null,
+          borderRadius: BorderRadius.circular(9),
+          child: child,
+        ),
+      );
+    }
+    return PopupMenuButton<AgentChatAttachmentAction>(
+      key: const ValueKey('agent-chat-more-actions'),
+      tooltip: l10n.agentChat_addAttachment,
+      enabled: viewData.state.initialized,
+      onSelected: _handleAttachmentAction,
+      itemBuilder: (_) => [
+        _attachmentItem(
+          AgentChatAttachmentAction.images,
+          Icons.photo_library_outlined,
+          l10n.agentChat_photoLibrary,
+        ),
+        _attachmentItem(
+          AgentChatAttachmentAction.currentCanvas,
+          Icons.crop_free_rounded,
+          l10n.agentChat_currentCanvas,
+          enabled: viewData.currentCanvasReference != null,
+        ),
+        _attachmentItem(
+          AgentChatAttachmentAction.referenceGallery,
+          Icons.collections_outlined,
+          l10n.agentChat_referenceGallery,
+        ),
+        _attachmentItem(
+          AgentChatAttachmentAction.resourceLibrary,
+          Icons.bookmarks_outlined,
+          l10n.agentChat_resourceLibrary,
+        ),
+      ],
+      child: child,
     );
   }
 
-  Widget _moreMenu(ThemeData theme, AppLocalizations l10n) =>
-      PopupMenuButton<AgentChatMoreAction>(
-        key: const ValueKey('agent-chat-more-actions'),
-        tooltip: l10n.agentChat_moreActions,
-        onSelected: commands.moreAction,
-        itemBuilder: (context) => [
-          _moreItem(
-            theme,
-            AgentChatMoreAction.newSession,
-            Icons.add_comment_outlined,
-            l10n.agentChat_newChat,
-          ),
-          _moreItem(
-            theme,
-            AgentChatMoreAction.rename,
-            Icons.edit_outlined,
-            l10n.common_rename,
-          ),
-          _moreItem(
-            theme,
-            AgentChatMoreAction.compact,
-            Icons.compress_outlined,
-            l10n.agentChat_compact,
-          ),
-          _moreItem(
-            theme,
-            AgentChatMoreAction.delete,
-            Icons.delete_outline,
-            l10n.common_delete,
-            danger: true,
-          ),
-        ],
-        child: SizedBox(
-          width: viewData.mobile ? 48 : 30,
-          height: viewData.mobile ? 48 : 30,
-          child: Icon(
-            Icons.add,
-            size: 18,
-            color: theme.colorScheme.onSurface.withValues(alpha: 0.65),
-          ),
-        ),
-      );
-
-  PopupMenuItem<AgentChatMoreAction> _moreItem(
-    ThemeData theme,
-    AgentChatMoreAction value,
+  PopupMenuItem<AgentChatAttachmentAction> _attachmentItem(
+    AgentChatAttachmentAction action,
     IconData icon,
     String label, {
-    bool danger = false,
-  }) {
-    final color = danger
-        ? theme.colorScheme.error
-        : theme.colorScheme.onSurface.withValues(alpha: 0.8);
-    return PopupMenuItem(
-      value: value,
-      enabled: viewData.sessionActionsEnabled,
-      height: viewData.mobile ? 48 : 36,
-      child: Row(
-        children: [
-          Icon(icon, size: 15, color: color),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: viewData.sessionActionsEnabled
-                  ? color
-                  : color.withValues(alpha: 0.4),
+    bool enabled = true,
+  }) => PopupMenuItem(
+    value: action,
+    enabled: enabled,
+    height: 44,
+    child: Row(
+      children: [
+        Icon(icon, size: 19),
+        const SizedBox(width: 10),
+        Flexible(
+          child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+        ),
+      ],
+    ),
+  );
+
+  Future<void> _showMobileAttachmentSources(AppLocalizations l10n) async {
+    final context = controller.inputFocus.context;
+    if (context == null) return;
+    controller.inputFocus.unfocus();
+    final action = await showModalBottomSheet<AgentChatAttachmentAction>(
+      context: context,
+      useSafeArea: true,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) => Padding(
+        padding: EdgeInsets.only(
+          left: 12,
+          right: 12,
+          bottom: MediaQuery.viewInsetsOf(sheetContext).bottom + 12,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _mobileAttachmentTile(
+              sheetContext,
+              AgentChatAttachmentAction.images,
+              Icons.photo_library_outlined,
+              l10n.agentChat_photoLibrary,
             ),
-          ),
-        ],
+            _mobileAttachmentTile(
+              sheetContext,
+              AgentChatAttachmentAction.currentCanvas,
+              Icons.crop_free_rounded,
+              l10n.agentChat_currentCanvas,
+              enabled: viewData.currentCanvasReference != null,
+            ),
+            _mobileAttachmentTile(
+              sheetContext,
+              AgentChatAttachmentAction.referenceGallery,
+              Icons.collections_outlined,
+              l10n.agentChat_referenceGallery,
+            ),
+            _mobileAttachmentTile(
+              sheetContext,
+              AgentChatAttachmentAction.resourceLibrary,
+              Icons.bookmarks_outlined,
+              l10n.agentChat_resourceLibrary,
+            ),
+          ],
+        ),
       ),
     );
+    if (action != null) await _handleAttachmentAction(action);
+  }
+
+  Widget _mobileAttachmentTile(
+    BuildContext context,
+    AgentChatAttachmentAction action,
+    IconData icon,
+    String label, {
+    bool enabled = true,
+  }) => ListTile(
+    minTileHeight: 48,
+    enabled: enabled,
+    leading: Icon(icon),
+    title: Text(label),
+    onTap: enabled ? () => Navigator.pop(context, action) : null,
+  );
+
+  Future<void> _handleAttachmentAction(AgentChatAttachmentAction action) {
+    return switch (action) {
+      AgentChatAttachmentAction.images => commands.pickImages(),
+      AgentChatAttachmentAction.currentCanvas => commands.attachCurrentCanvas(),
+      AgentChatAttachmentAction.referenceGallery =>
+        commands.openReferenceGallery(),
+      AgentChatAttachmentAction.resourceLibrary =>
+        commands.openResourceLibrary(),
+    };
   }
 
   Widget _permissionModeButton(ThemeData theme, AppLocalizations l10n) {
@@ -568,15 +737,28 @@ class AgentChatComposer extends StatelessWidget {
             ),
           ),
       ],
-      child: SizedBox(
-        width: viewData.mobile ? 48 : 30,
-        height: viewData.mobile ? 48 : 30,
-        child: Icon(
-          icon,
-          size: 17,
-          color: theme.colorScheme.onSurface.withValues(
-            alpha: _agentSettingsInteractive ? 0.6 : 0.25,
+      child: Container(
+        width: viewData.mobile ? 44 : 40,
+        height: viewData.mobile ? 44 : 40,
+        padding: EdgeInsets.zero,
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest.withValues(
+            alpha: 0.56,
           ),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 16,
+              color: theme.colorScheme.onSurface.withValues(
+                alpha: _agentSettingsInteractive ? 0.7 : 0.25,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -596,61 +778,80 @@ class AgentChatComposer extends StatelessWidget {
       button: true,
       toggled: enabled,
       label: tooltip,
-      child: SizedBox.square(
-        dimension: viewData.mobile ? 48 : 30,
-        child: IconButton(
-          key: const ValueKey('agent-chat-web-access-toggle'),
-          tooltip: tooltip,
-          onPressed: interactive
-              ? () => commands.setWebAccessEnabled(!enabled)
-              : null,
-          isSelected: enabled,
-          icon: const Icon(Icons.public_off_outlined),
-          selectedIcon: const Icon(Icons.public),
-          iconSize: 18,
-          alignment: Alignment.center,
-          padding: EdgeInsets.zero,
-          constraints: BoxConstraints.tightFor(
-            width: viewData.mobile ? 48 : 30,
-            height: viewData.mobile ? 48 : 30,
-          ),
-          style: ButtonStyle(
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            splashFactory: NoSplash.splashFactory,
-            shape: const WidgetStatePropertyAll(CircleBorder()),
-            foregroundColor: WidgetStateProperty.resolveWith((states) {
-              if (states.contains(WidgetState.disabled)) {
-                return theme.colorScheme.onSurface.withValues(alpha: 0.25);
-              }
-              if (states.contains(WidgetState.hovered)) {
-                return enabled
-                    ? theme.colorScheme.primary
-                    : theme.colorScheme.onSurface.withValues(alpha: 0.72);
-              }
-              return iconColor;
-            }),
-            overlayColor: WidgetStateProperty.resolveWith((states) {
-              if (states.contains(WidgetState.focused)) {
-                return iconColor.withValues(alpha: 0.12);
-              }
-              if (states.contains(WidgetState.pressed)) {
-                return iconColor.withValues(alpha: 0.08);
-              }
-              return Colors.transparent;
-            }),
-          ),
+      child: Container(
+        width: viewData.mobile ? 44 : 40,
+        height: viewData.mobile ? 44 : 40,
+        decoration: BoxDecoration(
+          color: enabled
+              ? theme.colorScheme.primaryContainer.withValues(alpha: 0.4)
+              : theme.colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.56,
+                ),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              key: const ValueKey('agent-chat-web-access-toggle'),
+              tooltip: tooltip,
+              onPressed: interactive
+                  ? () => commands.setWebAccessEnabled(!enabled)
+                  : null,
+              isSelected: enabled,
+              icon: const Icon(Icons.public_off_outlined),
+              selectedIcon: const Icon(Icons.public),
+              iconSize: 18,
+              alignment: Alignment.center,
+              padding: EdgeInsets.zero,
+              constraints: BoxConstraints.tightFor(
+                width: viewData.mobile ? 44 : 40,
+                height: viewData.mobile ? 44 : 40,
+              ),
+              style: ButtonStyle(
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                splashFactory: NoSplash.splashFactory,
+                shape: const WidgetStatePropertyAll(CircleBorder()),
+                foregroundColor: WidgetStateProperty.resolveWith((states) {
+                  if (states.contains(WidgetState.disabled)) {
+                    return theme.colorScheme.onSurface.withValues(alpha: 0.25);
+                  }
+                  if (states.contains(WidgetState.hovered)) {
+                    return enabled
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.onSurface.withValues(alpha: 0.72);
+                  }
+                  return iconColor;
+                }),
+                overlayColor: WidgetStateProperty.resolveWith((states) {
+                  if (states.contains(WidgetState.focused)) {
+                    return iconColor.withValues(alpha: 0.12);
+                  }
+                  if (states.contains(WidgetState.pressed)) {
+                    return iconColor.withValues(alpha: 0.08);
+                  }
+                  return Colors.transparent;
+                }),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _modelSelector(ThemeData theme, AppLocalizations l10n) {
+  Widget _modelSelector(
+    ThemeData theme,
+    AppLocalizations l10n, {
+    required bool iconOnly,
+  }) {
     final config = viewData.config;
     final enabled = config.providers
         .where((provider) => provider.enabled)
         .toList();
     if (enabled.isEmpty || !viewData.state.routeReady) {
       return Tooltip(
+        key: const ValueKey('agent-chat-model-selector'),
         message: viewData.state.routeError.isNotEmpty
             ? viewData.state.routeError
             : l10n.agentChat_noModel,
@@ -697,9 +898,10 @@ class AgentChatComposer extends StatelessWidget {
     if (label.isEmpty) {
       label = activeModel.isEmpty ? viewData.state.routeLabel : activeModel;
     }
+    final displayLabel = _shortModelLabel(label);
     return PopupMenuButton<(String, String)>(
       enabled: viewData.sessionActionsEnabled && _agentSettingsInteractive,
-      tooltip: l10n.agentChat_model,
+      tooltip: '${l10n.agentChat_model}: $label',
       onSelected: (route) => route.$1 == '__thinking__'
           ? commands.selectThinkingLevel(
               ThinkingLevel.values.firstWhere(
@@ -790,15 +992,9 @@ class AgentChatComposer extends StatelessWidget {
         ],
       ],
       child: Container(
-        width: viewData.mobile ? double.infinity : null,
-        padding: EdgeInsets.symmetric(
-          horizontal: viewData.mobile ? 12 : 8,
-          vertical: 5,
-        ),
-        constraints: BoxConstraints(
-          minHeight: viewData.mobile ? 48 : 0,
-          maxWidth: viewData.mobile ? double.infinity : 140,
-        ),
+        key: const ValueKey('agent-chat-model-selector'),
+        height: viewData.mobile ? 44 : 40,
+        padding: EdgeInsets.symmetric(horizontal: iconOnly ? 0 : 8),
         decoration: BoxDecoration(
           color: theme.colorScheme.surfaceContainerHighest.withValues(
             alpha: 0.4,
@@ -807,26 +1003,58 @@ class AgentChatComposer extends StatelessWidget {
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
-          children: [
-            Flexible(
-              child: Text(
-                label,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            const SizedBox(width: 3),
-            Icon(
-              Icons.expand_more,
-              size: 13,
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
-            ),
-          ],
+          children: iconOnly
+              ? [
+                  Expanded(
+                    child: Icon(
+                      Icons.smart_toy_outlined,
+                      size: 18,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ]
+              : [
+                  Flexible(
+                    child: Text(
+                      displayLabel,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.8,
+                        ),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 2),
+                  Icon(
+                    Icons.expand_more,
+                    size: 13,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                  ),
+                ],
         ),
       ),
     );
+  }
+
+  String _shortModelLabel(String label) {
+    final routeName = label.trim().split('/').last;
+    final words = routeName
+        .replaceAll(RegExp(r'[_-]+'), ' ')
+        .split(RegExp(r'\s+'))
+        .where((word) => word.isNotEmpty)
+        .toList(growable: false);
+    if (words.isEmpty) return label.trim();
+    final selected = <String>[];
+    for (final word in words) {
+      final normalized = word.toLowerCase() == 'deepseek' ? 'DeepSeek' : word;
+      final candidate = [...selected, normalized].join(' ');
+      if (selected.isNotEmpty && candidate.length > 20) break;
+      selected.add(normalized);
+      if (selected.length == 3) break;
+    }
+    return selected.join(' ');
   }
 
   String _thinkingLevelLabel(AppLocalizations l10n, ThinkingLevel level) =>
@@ -866,37 +1094,36 @@ class _SendButton extends StatelessWidget {
     final backgroundColor = enabled
         ? theme.colorScheme.primary
         : theme.colorScheme.surfaceContainerHighest;
-    final foregroundColor = touchOptimized
-        ? enabled
-              ? theme.colorScheme.onPrimary
-              : ThemeData.estimateBrightnessForColor(backgroundColor) ==
-                    Brightness.light
-              ? Colors.black54
-              : Colors.white54
-        : enabled
-        ? theme.colorScheme.primary
-        : theme.colorScheme.onSurface.withValues(alpha: 0.3);
-    return Tooltip(
-      message: running ? l10n.agentChat_queueSteering : l10n.agentChat_send,
-      waitDuration: const Duration(milliseconds: 500),
-      child: SizedBox(
-        key: const ValueKey('agent-chat-send'),
-        width: touchOptimized ? 48 : 30,
-        height: touchOptimized ? 48 : 30,
-        child: Center(
-          child: Material(
-            color: touchOptimized ? backgroundColor : Colors.transparent,
-            borderRadius: BorderRadius.circular(touchOptimized ? 14 : 8),
-            clipBehavior: Clip.antiAlias,
-            child: InkWell(
-              onTap: enabled ? onSend : null,
-              child: SizedBox(
-                width: touchOptimized ? 40 : 30,
-                height: touchOptimized ? 40 : 30,
-                child: Icon(
-                  running ? Icons.queue_rounded : Icons.arrow_upward_rounded,
-                  size: touchOptimized ? 20 : 18,
-                  color: foregroundColor,
+    final foregroundColor = enabled
+        ? theme.colorScheme.onPrimary
+        : theme.colorScheme.onSurface.withValues(alpha: 0.34);
+    final label = running ? l10n.agentChat_queueSteering : l10n.agentChat_send;
+    return Semantics(
+      button: true,
+      enabled: enabled,
+      label: label,
+      child: Tooltip(
+        message: label,
+        waitDuration: const Duration(milliseconds: 500),
+        child: SizedBox(
+          key: const ValueKey('agent-chat-send'),
+          width: touchOptimized ? 44 : 40,
+          height: touchOptimized ? 44 : 40,
+          child: Center(
+            child: Material(
+              color: backgroundColor,
+              borderRadius: BorderRadius.circular(touchOptimized ? 14 : 10),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: enabled ? onSend : null,
+                child: SizedBox(
+                  width: touchOptimized ? 40 : 36,
+                  height: touchOptimized ? 40 : 36,
+                  child: Icon(
+                    running ? Icons.queue_rounded : Icons.arrow_upward_rounded,
+                    size: touchOptimized ? 20 : 18,
+                    color: foregroundColor,
+                  ),
                 ),
               ),
             ),
@@ -916,19 +1143,24 @@ class _StopButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Tooltip(
-      message: context.l10n.agentChat_stop,
-      child: IconButton(
-        key: const ValueKey('agent-chat-stop'),
-        onPressed: onStop,
-        icon: const Icon(Icons.stop_rounded),
-        iconSize: touchOptimized ? 20 : 18,
-        color: theme.colorScheme.error,
-        constraints: BoxConstraints.tightFor(
-          width: touchOptimized ? 48 : 30,
-          height: touchOptimized ? 48 : 30,
+    final label = context.l10n.agentChat_stop;
+    return Semantics(
+      button: true,
+      label: label,
+      child: Tooltip(
+        message: label,
+        child: IconButton(
+          key: const ValueKey('agent-chat-stop'),
+          onPressed: onStop,
+          icon: const Icon(Icons.stop_rounded),
+          iconSize: touchOptimized ? 20 : 18,
+          color: theme.colorScheme.error,
+          constraints: BoxConstraints.tightFor(
+            width: touchOptimized ? 44 : 40,
+            height: touchOptimized ? 44 : 40,
+          ),
+          padding: EdgeInsets.zero,
         ),
-        padding: EdgeInsets.zero,
       ),
     );
   }

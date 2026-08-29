@@ -1,6 +1,5 @@
 import 'session_types.dart';
 
-
 sealed class SessionMutation {
   const SessionMutation();
 
@@ -66,7 +65,7 @@ class LabelFactMutation extends SessionMutation {
 void _invalidMutation(String message) => throw SessionError(
   SessionErrorCode.invalidEntry,
   'Invalid session mutation: $message',
-  );
+);
 
 void assertValidLimit(int? limit) {
   if (limit != null && limit <= 0) {
@@ -99,7 +98,8 @@ class SessionState {
   final List<SessionEntry> _entries = [];
   final Map<String, SessionEntry> _entriesById = {};
   final List<LaneRecord> _records = [];
-  final Map<String, Map<String, OperationStartedRecord>> _openOperationsByLane = {};
+  final Map<String, Map<String, OperationStartedRecord>> _openOperationsByLane =
+      {};
   final Map<String, String?> _lanes = {'main': null};
   final List<LogItem> _log = [];
   final SessionStats _stats = SessionStats();
@@ -170,7 +170,8 @@ class SessionState {
             _invalidMutation('does not chain to the lane leaf');
           }
         }
-        if (entry.parentId != null && !_entriesById.containsKey(entry.parentId)) {
+        if (entry.parentId != null &&
+            !_entriesById.containsKey(entry.parentId)) {
           _invalidMutation('references missing parent ${entry.parentId}');
         }
         _sequence = seq;
@@ -196,9 +197,8 @@ class SessionState {
         _usedIds.add(record.id);
         _records.add(record);
         if (record is OperationStartedRecord) {
-          _openOperationsByLane
-              .putIfAbsent(record.lane, () => {})
-              [record.id] = record;
+          _openOperationsByLane.putIfAbsent(record.lane, () => {})[record.id] =
+              record;
         } else if (record is OperationFinishedRecord) {
           _openOperationsByLane[record.lane]?.remove(record.runId);
         }
@@ -301,6 +301,7 @@ class SessionState {
     final q = query ?? const RecordQuery();
     assertValidLimit(q.limit);
     assertValidCursor(q.afterSeq);
+    assertValidCursor(q.cursor?.afterSeq);
     final results = <LaneRecord>[];
     for (final record in _ordered(_records, q.order)) {
       if (!_matchesRecordQuery(record, q)) {
@@ -314,10 +315,7 @@ class SessionState {
     return results;
   }
 
-  List<OperationStartedRecord> findOpenOperations(
-    String lane, {
-    int? limit,
-  }) {
+  List<OperationStartedRecord> findOpenOperations(String lane, {int? limit}) {
     assertValidLimit(limit);
     final openOperationsById = _openOperationsByLane[lane];
     final openOperations = openOperationsById == null
@@ -369,8 +367,7 @@ class SessionState {
           );
         }
         final position =
-            options.position ??
-            (options.entryId == null ? 'at' : 'before');
+            options.position ?? (options.entryId == null ? 'at' : 'before');
         targetId = position == 'at' ? entry.id : entry.parentId;
       }
       copiedEntries = targetId == null
@@ -391,7 +388,11 @@ class SessionState {
     }
     for (final pointer in forkLanes) {
       mutations.add(
-        LaneMutation(seq: sequence++, lane: pointer.lane, leafId: pointer.leafId),
+        LaneMutation(
+          seq: sequence++,
+          lane: pointer.lane,
+          leafId: pointer.leafId,
+        ),
       );
     }
     if (_name != null) {
@@ -461,7 +462,8 @@ class SessionState {
   bool _matchesRecordQuery(LaneRecord record, RecordQuery query) {
     final laneOk = query.lane == null || record.lane == query.lane;
     final typeOk = query.type == null || record.type == query.type;
-    final runIdOk = query.runId == null ||
+    final runIdOk =
+        query.runId == null ||
         (record is OperationStartedRecord
             ? record.id == query.runId
             : switch (record) {
@@ -480,6 +482,11 @@ class SessionState {
         (record is OperationStartedRecord &&
             record.intent.kind == query.operationKind);
     final afterSeqOk = query.afterSeq == null || record.seq > query.afterSeq!;
-    return laneOk && typeOk && runIdOk && opKindOk && afterSeqOk;
+    final cursorOk =
+        query.cursor == null ||
+        (query.order == EntryOrder.oldestFirst
+            ? record.seq > query.cursor!.afterSeq
+            : record.seq < query.cursor!.afterSeq);
+    return laneOk && typeOk && runIdOk && opKindOk && afterSeqOk && cursorOk;
   }
 }

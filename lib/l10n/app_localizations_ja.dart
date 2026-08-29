@@ -790,22 +790,51 @@ class AppLocalizationsJa extends AppLocalizations {
   String get agentChat_tab => 'チャット';
 
   @override
-  String get agentChat_detachWindow => '別ウィンドウで開く';
-
-  @override
-  String get agentChat_detachWindowFailed => '別ウィンドウを開けませんでした。もう一度お試しください';
-
-  @override
-  String get agentChat_dockWindow => 'メインウィンドウに戻す';
-
-  @override
-  String get agentChat_alwaysOnTop => '常に手前に表示';
-
-  @override
   String get agentChat_inputHint => 'AI アシスタントにメッセージを送る…';
 
   @override
-  String get agentChat_attachImage => '画像を追加';
+  String get agentChat_addAttachment => '添付または参照を追加';
+
+  @override
+  String get agentChat_photoLibrary => '写真';
+
+  @override
+  String get agentChat_currentCanvas => '現在のキャンバス';
+
+  @override
+  String get agentChat_referenceGallery => '参照ギャラリー';
+
+  @override
+  String get agentChat_resourceLibrary => 'リソースライブラリ';
+
+  @override
+  String get agentChat_generationHistory => '生成履歴';
+
+  @override
+  String get agentChat_localGallery => 'ローカルギャラリー';
+
+  @override
+  String get agentChat_tagLibrary => 'タグライブラリ';
+
+  @override
+  String get agentChat_vibeLibrary => 'Vibe ライブラリ';
+
+  @override
+  String get agentChat_preciseRefLibrary => '精密参照ライブラリ';
+
+  @override
+  String get agentChat_generatedImage => '生成画像';
+
+  @override
+  String get agentChat_reference => '参照';
+
+  @override
+  String get agentChat_noResources => '利用できるリソースはまだありません。';
+
+  @override
+  String agentChat_imageTooLarge(String fileName, int maxSizeMB) {
+    return '$fileName は $maxSizeMB MB を超えています。';
+  }
 
   @override
   String get agentChat_enableWebAccess => 'ウェブアクセスを有効にする';
@@ -823,6 +852,9 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get agentChat_newChat => '新しいチャット';
+
+  @override
+  String get agentChat_searchSessions => 'チャットを検索';
 
   @override
   String get agentChat_send => '送信';
@@ -881,6 +913,50 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
+  String get agentChat_working => '作業中';
+
+  @override
+  String agentChat_workingFor(String duration) {
+    return '$duration 作業中';
+  }
+
+  @override
+  String get agentChat_worked => '作業完了';
+
+  @override
+  String agentChat_workedFor(String duration) {
+    return '作業時間 $duration';
+  }
+
+  @override
+  String agentChat_workItemCount(int count) {
+    return '$count 件';
+  }
+
+  @override
+  String agentChat_ranCommands(int count) {
+    return '$count 件のコマンドを実行';
+  }
+
+  @override
+  String agentChat_exploredItems(int count) {
+    return '$count 件のソースを調査';
+  }
+
+  @override
+  String agentChat_earlierMessages(int count) {
+    return '以前のメッセージ $count 件';
+  }
+
+  @override
+  String get agentChat_loadEarlierMessages => '以前のメッセージ';
+
+  @override
+  String agentChat_turnNavigation(int number, String preview) {
+    return 'ターン $number：$preview';
+  }
+
+  @override
   String get agentChat_phasePreparing => '準備中';
 
   @override
@@ -891,11 +967,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get agentChat_phaseStopping => '停止中';
-
-  @override
-  String agentChat_contextTokens(int count) {
-    return 'コンテキスト $count tokens';
-  }
 
   @override
   String get agentChat_contextUnavailable => 'コンテキスト使用量を取得できません';
@@ -911,6 +982,12 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get agentChat_toolRecentImages => '最近の画像を表示';
+
+  @override
+  String get agentChat_toolDisplayImages => '画像を表示';
+
+  @override
+  String get agentChat_toolResult => '結果';
 
   @override
   String get agentChat_toolGenerationStatus => '生成状態を確認';
@@ -1035,10 +1112,10 @@ class AppLocalizationsJa extends AppLocalizations {
       'チャットモデルが未設定です。先に設定でツール呼び出しに対応したプロバイダーを追加してください。';
 
   @override
-  String get agentChat_heroTitle => 'AI アシスタント';
+  String get agentChat_heroTitle => '今日は何をしますか？';
 
   @override
-  String get agentChat_heroSubtitle => '会話でプロンプトとキャラクターを編集';
+  String get agentChat_heroSubtitle => 'キャラクタープロンプトの準備、アイデアの整理、設定の調整ができます。';
 
   @override
   String get agentChat_moreActions => '操作メニュー';
@@ -1048,6 +1125,12 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get agentChat_compacting => 'コンテキストを圧縮中…';
+
+  @override
+  String get agentChat_requestFailed => 'リクエストに失敗しました。もう一度お試しください。';
+
+  @override
+  String get agentChat_errorDetails => 'エラーの詳細';
 
   @override
   String get agentChat_model => 'モデルを選択';
@@ -1062,13 +1145,13 @@ class AppLocalizationsJa extends AppLocalizations {
   String get agentChat_renameHint => 'チャット名';
 
   @override
-  String get agentChat_suggestion1 => '現在のポジティブプロンプトを改善して';
+  String get agentChat_suggestion1 => '現在の生成設定を確認';
 
   @override
-  String get agentChat_suggestion2 => '2人のキャラを追加してポーズを設定して';
+  String get agentChat_suggestion2 => 'ギャラリーからプロンプトを整理';
 
   @override
-  String get agentChat_suggestion3 => 'ネガティブプロンプトをリアル系に書き換えて';
+  String get agentChat_suggestion3 => 'キャラクタータグを改善';
 
   @override
   String get agentChat_permissionMode => 'Agent 権限';

@@ -100,8 +100,6 @@ dependencies:
   logger: ^2.4.0
 
   # 窗口管理 (桌面端)
-  desktop_multi_window: ^0.3.1
-  # 0.5.0+ fixes Windows multi-engine channel collisions used by Agent windows.
   window_manager: ^0.5.1
   # 屏幕信息（读取工作区，避免窗口超出屏幕；window_manager 的传递依赖，此处提为直接依赖）
   screen_retriever: any

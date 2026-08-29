@@ -34,21 +34,29 @@ class OnlineGalleryDetailLauncher {
   OnlineGalleryDetailLauncher({
     required this.context,
     required this.ref,
-    required this.controller,
+    this.controller,
   });
 
   final BuildContext context;
   final WidgetRef ref;
-  final OnlineGalleryScreenController controller;
+  final OnlineGalleryScreenController? controller;
+  static final Set<String> _standalonePendingDetails = <String>{};
 
   OnlineGalleryNotifier get _galleryNotifier =>
       ref.read(onlineGalleryNotifierProvider.notifier);
-  OnlineGalleryScreenController get _controller => controller;
 
-  Future<void> show(BuildContext context, GalleryItem item) async {
-    if (!_controller.pendingGalleryDetails.add(item.stableKey)) return;
+  Future<void> show(
+    BuildContext context,
+    GalleryItem item, {
+    GalleryDetail? preloadedDetail,
+  }) async {
+    final pendingDetails =
+        controller?.pendingGalleryDetails ?? _standalonePendingDetails;
+    if (!pendingDetails.add(item.stableKey)) return;
     try {
-      final detail = await _loadGalleryDetailWithProgress(context, item);
+      final detail =
+          preloadedDetail ??
+          await _loadGalleryDetailWithProgress(context, item);
       if (detail == null) return;
       if (item.sourceId == GallerySourceId.quickTagCloud) {
         try {
@@ -206,7 +214,7 @@ class OnlineGalleryDetailLauncher {
           onDownloadCurrentOriginal: (media) =>
               _downloadCodexMedia(context, item, media),
           onTagSearch: (tag) {
-            _controller.searchController.text = tag;
+            controller?.searchController.text = tag;
             _galleryNotifier.search(tag);
           },
           onBlacklistChanged: () => _galleryNotifier.refresh(),
@@ -279,7 +287,7 @@ class OnlineGalleryDetailLauncher {
         );
       }
     } finally {
-      _controller.pendingGalleryDetails.remove(item.stableKey);
+      pendingDetails.remove(item.stableKey);
     }
   }
 

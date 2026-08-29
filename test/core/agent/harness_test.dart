@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/agent/agent_types.dart';
+import 'package:nai_launcher/core/agent/context_usage.dart';
 import 'package:nai_launcher/core/agent/harness/compaction/compaction.dart';
 import 'package:nai_launcher/core/agent/harness/harness_messages.dart';
 import 'package:nai_launcher/core/agent/harness/harness_result.dart';
@@ -171,8 +172,123 @@ void main() {
   });
 
   group('compaction', () {
-    test('estimateTokens uses chars/4 for user text', () {
+    test('estimateTokens uses chars/4 for user and custom text', () {
       expect(estimateTokens(UserMessage.text('a' * 40)), 10);
+      expect(
+        estimateTokens(
+          HarnessCustomMessage(
+            customType: 'status',
+            display: true,
+            textContent: 'a' * 40,
+            timestamp: 1,
+          ),
+        ),
+        10,
+      );
+    });
+
+    test('context usage is unknown without a valid model window', () {
+      final usage = resolveAgentContextUsage([
+        _assistant('done', usage: const Usage(totalTokens: 100)),
+      ], contextWindow: 0);
+
+      expect(usage.tokens, isNull);
+      expect(usage.contextWindow, isNull);
+      expect(usage.percent, isNull);
+      expect(usage.estimated, isFalse);
+    });
+
+    test(
+      'context usage anchors valid usage and estimates trailing messages',
+      () {
+        final trailingUser = UserMessage.text('a' * 40);
+        final trailingTool = ToolResultMessage(
+          toolCallId: 'call',
+          toolName: 'read',
+          content: const [ToolResultTextContent('tool output')],
+        );
+        final usage = resolveAgentContextUsage([
+          _assistant('done', usage: const Usage(totalTokens: 100)),
+          trailingTool,
+          trailingUser,
+        ], contextWindow: 1000);
+
+        expect(
+          usage.tokens,
+          100 + estimateTokens(trailingTool) + estimateTokens(trailingUser),
+        );
+        expect(usage.estimated, isTrue);
+        expect(usage.percent, isNotNull);
+      },
+    );
+
+    test(
+      'invalid usage is skipped while the complete context is estimated',
+      () {
+        for (final message in [
+          AssistantMessage(
+            content: const [AssistantTextContent('aborted')],
+            stopReason: StopReason.aborted,
+            usage: const Usage(totalTokens: 100),
+          ),
+          AssistantMessage(
+            content: const [AssistantTextContent('error')],
+            stopReason: StopReason.error,
+            usage: const Usage(totalTokens: 100),
+          ),
+          _assistant('zero', usage: Usage.empty),
+        ]) {
+          final tail = UserMessage.text('tail');
+          final usage = resolveAgentContextUsage([
+            message,
+            tail,
+          ], contextWindow: 1000);
+          expect(usage.tokens, estimateTokens(message) + estimateTokens(tail));
+          expect(usage.percent, isNotNull);
+          expect(usage.estimated, isTrue);
+        }
+      },
+    );
+
+    test('context after compaction waits for a post-compaction anchor', () {
+      final summary = createCompactionSummaryMessage(
+        'summary',
+        400,
+        200,
+        retainedTailLength: 1,
+      );
+      final staleAssistant = AssistantMessage(
+        content: const [AssistantTextContent('retained')],
+        stopReason: StopReason.stop,
+        usage: const Usage(totalTokens: 400),
+        timestamp: 100,
+      );
+      final unknown = resolveAgentContextUsage([
+        summary,
+        staleAssistant,
+        UserMessage.text('retained tail'),
+      ], contextWindow: 1000);
+
+      expect(unknown.tokens, isNull);
+      expect(unknown.contextWindow, 1000);
+      expect(unknown.percent, isNull);
+
+      final freshAssistant = AssistantMessage(
+        content: const [AssistantTextContent('fresh')],
+        stopReason: StopReason.stop,
+        usage: const Usage(totalTokens: 120),
+        // Sequence, not wall-clock time, determines whether this response was
+        // produced after compaction.
+        timestamp: 100,
+      );
+      final known = resolveAgentContextUsage([
+        summary,
+        staleAssistant,
+        freshAssistant,
+      ], contextWindow: 1000);
+      expect(known.tokens, 120);
+      expect(known.percent, 12);
+      expect(known.estimated, isFalse);
     });
 
     test('shouldCompact respects threshold', () {
@@ -462,7 +578,9 @@ void main() {
       final session = Session(storage);
 
       await session.appendMessage(UserMessage.text('old question'));
-      await session.appendMessage(_assistant('old answer'));
+      await session.appendMessage(
+        _assistant('old answer', usage: const Usage(totalTokens: 900)),
+      );
 
       await session.appendEntry(
         CompactionEntry(
@@ -487,6 +605,10 @@ void main() {
       expect(context.messages.length, 2);
       expect(context.messages.first, isA<CompactionSummaryMessage>());
       expect((context.messages.last as UserMessage).text, 'recent');
+      expect(
+        resolveAgentContextUsage(context.messages, contextWindow: 1000).tokens,
+        isNull,
+      );
 
       // 重放后语义一致。
       final reopened = JsonlSessionStorage(file, metadata);
@@ -497,6 +619,10 @@ void main() {
       );
       final context2 = buildSessionContext(entries2);
       expect(context2.messages.length, 2);
+      expect(
+        resolveAgentContextUsage(context2.messages, contextWindow: 1000).tokens,
+        isNull,
+      );
       final reopenedCompaction = entries2.whereType<CompactionEntry>().single;
       expect(reopenedCompaction.usage?.totalTokens, 12);
       final details = reopenedCompaction.details as CompactionDetails;

@@ -1571,41 +1571,95 @@ abstract class AppLocalizations {
   /// **'Chat'**
   String get agentChat_tab;
 
-  /// No description provided for @agentChat_detachWindow.
-  ///
-  /// In en, this message translates to:
-  /// **'Open in separate window'**
-  String get agentChat_detachWindow;
-
-  /// No description provided for @agentChat_detachWindowFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Could not open the separate window. Try again.'**
-  String get agentChat_detachWindowFailed;
-
-  /// No description provided for @agentChat_dockWindow.
-  ///
-  /// In en, this message translates to:
-  /// **'Dock back to the main window'**
-  String get agentChat_dockWindow;
-
-  /// No description provided for @agentChat_alwaysOnTop.
-  ///
-  /// In en, this message translates to:
-  /// **'Always on top'**
-  String get agentChat_alwaysOnTop;
-
   /// No description provided for @agentChat_inputHint.
   ///
   /// In en, this message translates to:
   /// **'Message the AI agent…'**
   String get agentChat_inputHint;
 
-  /// No description provided for @agentChat_attachImage.
+  /// No description provided for @agentChat_addAttachment.
   ///
   /// In en, this message translates to:
-  /// **'Attach images'**
-  String get agentChat_attachImage;
+  /// **'Add attachment or reference'**
+  String get agentChat_addAttachment;
+
+  /// No description provided for @agentChat_photoLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'Photos'**
+  String get agentChat_photoLibrary;
+
+  /// No description provided for @agentChat_currentCanvas.
+  ///
+  /// In en, this message translates to:
+  /// **'Current canvas'**
+  String get agentChat_currentCanvas;
+
+  /// No description provided for @agentChat_referenceGallery.
+  ///
+  /// In en, this message translates to:
+  /// **'Reference gallery'**
+  String get agentChat_referenceGallery;
+
+  /// No description provided for @agentChat_resourceLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'Resource library'**
+  String get agentChat_resourceLibrary;
+
+  /// No description provided for @agentChat_generationHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'Generation history'**
+  String get agentChat_generationHistory;
+
+  /// No description provided for @agentChat_localGallery.
+  ///
+  /// In en, this message translates to:
+  /// **'Local gallery'**
+  String get agentChat_localGallery;
+
+  /// No description provided for @agentChat_tagLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'Tag library'**
+  String get agentChat_tagLibrary;
+
+  /// No description provided for @agentChat_vibeLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'Vibe library'**
+  String get agentChat_vibeLibrary;
+
+  /// No description provided for @agentChat_preciseRefLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'Precise reference library'**
+  String get agentChat_preciseRefLibrary;
+
+  /// No description provided for @agentChat_generatedImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Generated image'**
+  String get agentChat_generatedImage;
+
+  /// No description provided for @agentChat_reference.
+  ///
+  /// In en, this message translates to:
+  /// **'Reference'**
+  String get agentChat_reference;
+
+  /// No description provided for @agentChat_noResources.
+  ///
+  /// In en, this message translates to:
+  /// **'No resources are available here yet.'**
+  String get agentChat_noResources;
+
+  /// No description provided for @agentChat_imageTooLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'{fileName} is larger than {maxSizeMB} MB.'**
+  String agentChat_imageTooLarge(String fileName, int maxSizeMB);
 
   /// No description provided for @agentChat_enableWebAccess.
   ///
@@ -1636,6 +1690,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'New chat'**
   String get agentChat_newChat;
+
+  /// No description provided for @agentChat_searchSessions.
+  ///
+  /// In en, this message translates to:
+  /// **'Search chats'**
+  String get agentChat_searchSessions;
 
   /// No description provided for @agentChat_send.
   ///
@@ -1745,6 +1805,66 @@ abstract class AppLocalizations {
   /// **'Ran {count} actions'**
   String agentChat_toolGroupCount(int count);
 
+  /// No description provided for @agentChat_working.
+  ///
+  /// In en, this message translates to:
+  /// **'Working'**
+  String get agentChat_working;
+
+  /// No description provided for @agentChat_workingFor.
+  ///
+  /// In en, this message translates to:
+  /// **'Working for {duration}'**
+  String agentChat_workingFor(String duration);
+
+  /// No description provided for @agentChat_worked.
+  ///
+  /// In en, this message translates to:
+  /// **'Worked'**
+  String get agentChat_worked;
+
+  /// No description provided for @agentChat_workedFor.
+  ///
+  /// In en, this message translates to:
+  /// **'Worked for {duration}'**
+  String agentChat_workedFor(String duration);
+
+  /// No description provided for @agentChat_workItemCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} items'**
+  String agentChat_workItemCount(int count);
+
+  /// No description provided for @agentChat_ranCommands.
+  ///
+  /// In en, this message translates to:
+  /// **'Ran {count} commands'**
+  String agentChat_ranCommands(int count);
+
+  /// No description provided for @agentChat_exploredItems.
+  ///
+  /// In en, this message translates to:
+  /// **'Explored {count} sources'**
+  String agentChat_exploredItems(int count);
+
+  /// No description provided for @agentChat_earlierMessages.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} earlier messages'**
+  String agentChat_earlierMessages(int count);
+
+  /// No description provided for @agentChat_loadEarlierMessages.
+  ///
+  /// In en, this message translates to:
+  /// **'Earlier messages'**
+  String get agentChat_loadEarlierMessages;
+
+  /// No description provided for @agentChat_turnNavigation.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn {number}: {preview}'**
+  String agentChat_turnNavigation(int number, String preview);
+
   /// No description provided for @agentChat_phasePreparing.
   ///
   /// In en, this message translates to:
@@ -1768,12 +1888,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Stopping'**
   String get agentChat_phaseStopping;
-
-  /// No description provided for @agentChat_contextTokens.
-  ///
-  /// In en, this message translates to:
-  /// **'Context {count} tokens'**
-  String agentChat_contextTokens(int count);
 
   /// No description provided for @agentChat_contextUnavailable.
   ///
@@ -1804,6 +1918,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'View recent images'**
   String get agentChat_toolRecentImages;
+
+  /// No description provided for @agentChat_toolDisplayImages.
+  ///
+  /// In en, this message translates to:
+  /// **'Display images'**
+  String get agentChat_toolDisplayImages;
+
+  /// No description provided for @agentChat_toolResult.
+  ///
+  /// In en, this message translates to:
+  /// **'Result'**
+  String get agentChat_toolResult;
 
   /// No description provided for @agentChat_toolGenerationStatus.
   ///
@@ -2042,13 +2168,13 @@ abstract class AppLocalizations {
   /// No description provided for @agentChat_heroTitle.
   ///
   /// In en, this message translates to:
-  /// **'AI Agent'**
+  /// **'What would you like to do today?'**
   String get agentChat_heroTitle;
 
   /// No description provided for @agentChat_heroSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Edit prompts and characters through conversation'**
+  /// **'Prepare character prompts, organize ideas, or fine-tune settings.'**
   String get agentChat_heroSubtitle;
 
   /// No description provided for @agentChat_moreActions.
@@ -2068,6 +2194,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Compacting context…'**
   String get agentChat_compacting;
+
+  /// No description provided for @agentChat_requestFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Request failed. Please try again.'**
+  String get agentChat_requestFailed;
+
+  /// No description provided for @agentChat_errorDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Error details'**
+  String get agentChat_errorDetails;
 
   /// No description provided for @agentChat_model.
   ///
@@ -2096,19 +2234,19 @@ abstract class AppLocalizations {
   /// No description provided for @agentChat_suggestion1.
   ///
   /// In en, this message translates to:
-  /// **'Improve my current positive prompt'**
+  /// **'Review current generation settings'**
   String get agentChat_suggestion1;
 
   /// No description provided for @agentChat_suggestion2.
   ///
   /// In en, this message translates to:
-  /// **'Add two characters with distinct poses'**
+  /// **'Organize prompts from the gallery'**
   String get agentChat_suggestion2;
 
   /// No description provided for @agentChat_suggestion3.
   ///
   /// In en, this message translates to:
-  /// **'Rewrite the negative prompt for photorealistic style'**
+  /// **'Help me improve character tags'**
   String get agentChat_suggestion3;
 
   /// No description provided for @agentChat_permissionMode.

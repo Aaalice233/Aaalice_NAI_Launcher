@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 
 import '../../../core/agent/agent.dart';
+import '../../../core/agent/context_usage.dart';
 import '../../../core/agent/harness/harness_messages.dart';
 import '../../../core/agent/harness/session/session.dart';
 import '../../../core/agent/harness/session/session_context.dart';
@@ -17,9 +18,14 @@ import '../../../core/utils/app_logger.dart';
 import '../../../data/models/inpaint/inpaint_draft.dart';
 import '../providers/agent_chat_session_view.dart';
 import '../providers/agent_chat_state.dart';
+import '../models/agent_chat_turn_timeline.dart';
 import 'agent_chat_draft_controller.dart';
 
 class AgentChatSessionController {
+  static const sessionSummaryLimit = 100;
+  static const recentHistoryEntryLimit = 200;
+  static const historyPageEntryLimit = 120;
+  static const historyRecordLimit = 800;
   AgentChatSessionController({
     required JsonlSessionRepo repository,
     required LocalStorageService localStorage,
@@ -53,6 +59,15 @@ class AgentChatSessionController {
   Agent? agent;
   Session? session;
   Usage totalUsage = const Usage();
+  final List<session_types.MessageEntry> _visibleEntries = [];
+  final List<session_types.LaneRecord> _visibleRecords = [];
+  String? _activeTurnId;
+  String? _activeAssistantEntryId;
+  final Set<String> _finishedTurnIds = {};
+  final Set<String> _finishingTurnIds = {};
+  final Map<String, String> _pendingToolResultEntryIds = {};
+
+  String? get activeTurnId => _activeTurnId;
 
   Future<void> restoreLastSession() async {
     final sessions = await listSessions();
@@ -81,7 +96,7 @@ class AgentChatSessionController {
             name: name,
             updatedAt: updatedAt,
           ),
-      ];
+      ].take(sessionSummaryLimit).toList(growable: false);
     } catch (error) {
       AppLogger.w('list sessions failed: $error', 'AgentChat');
       return const [];
@@ -114,17 +129,56 @@ class AgentChatSessionController {
     final context = buildSessionContext(entries);
     final restoredMessages = _restoreLegacyReadImageDetails(context.messages);
     final usage = calculateAgentChatSessionUsage(entries);
-    final latestContextUsage = restoredMessages.reversed
+    final latestRequestUsage = restoredMessages.reversed
         .whereType<AssistantMessage>()
         .map((message) => message.usage)
         .whereType<Usage>()
         .firstOrNull;
+    final contextUsage = resolveAgentContextUsage(
+      restoredMessages,
+      contextWindow: _readState().contextUsage.contextWindow,
+    );
     nextAgent.state.messages = restoredMessages;
     nextAgent.state.thinkingLevel = ThinkingLevel.values.firstWhere(
       (level) => level.name == context.thinkingLevel,
       orElse: () => ThinkingLevel.off,
     );
     nextAgent.setSystemPrompt(await _buildSystemPrompt());
+
+    final recentEntries = (await nextSession.findEntriesOnBranch(
+      const session_types.EntryQuery(
+        type: 'message',
+        order: session_types.EntryOrder.newestFirst,
+        limit: recentHistoryEntryLimit,
+      ),
+    )).whereType<session_types.MessageEntry>().toList().reversed.toList();
+    final recentRecords = await nextSession.findRecords(
+      const session_types.RecordQuery(
+        lane: 'main',
+        order: session_types.EntryOrder.newestFirst,
+        limit: historyRecordLimit,
+      ),
+    );
+    _visibleEntries
+      ..clear()
+      ..addAll(recentEntries);
+    _visibleRecords
+      ..clear()
+      ..addAll(recentRecords);
+    _activeTurnId = null;
+    _activeAssistantEntryId = null;
+    _finishedTurnIds
+      ..clear()
+      ..addAll(
+        recentRecords.whereType<session_types.OperationFinishedRecord>().map(
+          (record) => record.runId,
+        ),
+      );
+    _finishingTurnIds.clear();
+    _pendingToolResultEntryIds.clear();
+    final timelinePage = _buildVisibleTimelinePage(
+      hasEarlier: entries.length > recentEntries.length,
+    );
 
     session = nextSession;
     agent = nextAgent;
@@ -138,7 +192,12 @@ class AgentChatSessionController {
     _writeState(
       _readState().copyWith(
         activeSessionId: sessionId,
-        messages: List.of(restoredMessages),
+        messages: timelinePage.messages,
+        turns: timelinePage.turns,
+        hasEarlierTurns: timelinePage.hasEarlier,
+        historyCursor: timelinePage.earlierCursor,
+        clearHistoryCursor: timelinePage.earlierCursor == null,
+        clearPrependAnchorEntryId: true,
         activities: const [],
         clearStreamingMessage: true,
         error: '',
@@ -146,14 +205,221 @@ class AgentChatSessionController {
         workPhase: AgentChatWorkPhase.idle,
         sessions: await listSessions(),
         totalUsage: usage,
-        contextUsage: latestContextUsage,
-        clearContextUsage: latestContextUsage == null,
+        lastRequestUsage: latestRequestUsage,
+        clearLastRequestUsage: latestRequestUsage == null,
+        contextUsage: contextUsage,
         thinkingLevel: nextAgent.state.thinkingLevel,
         pendingResources: draft.resources,
         composerText: draft.composerText,
       ),
     );
     await _draftController.refreshPendingResourceAvailability();
+  }
+
+  AgentChatTimelinePage _buildVisibleTimelinePage({
+    required bool hasEarlier,
+    String? prependAnchorEntryId,
+  }) => buildAgentChatTimelinePage(
+    entries: List.unmodifiable(_visibleEntries),
+    records: List.unmodifiable(_visibleRecords),
+    hasEarlier: hasEarlier,
+    prependAnchorEntryId: prependAnchorEntryId,
+    activeTurnId: _activeTurnId,
+  );
+
+  void _publishVisibleTimeline({String? prependAnchorEntryId}) {
+    final page = _buildVisibleTimelinePage(
+      hasEarlier: _readState().hasEarlierTurns,
+      prependAnchorEntryId: prependAnchorEntryId,
+    );
+    _writeState(
+      _readState().copyWith(
+        messages: page.messages,
+        turns: page.turns,
+        historyCursor: page.earlierCursor,
+        clearHistoryCursor: page.earlierCursor == null,
+        prependAnchorEntryId: prependAnchorEntryId,
+        clearPrependAnchorEntryId: prependAnchorEntryId == null,
+      ),
+    );
+  }
+
+  /// Prepends one bounded branch page. The returned anchor is the entry that
+  /// occupied the top of the previous window, allowing stable scroll restore.
+  Future<void> loadEarlierHistory() async {
+    final currentSession = session;
+    final cursor = _readState().historyCursor;
+    if (currentSession == null ||
+        cursor == null ||
+        _readState().historyLoading) {
+      return;
+    }
+    _writeState(_readState().copyWith(historyLoading: true));
+    final anchor = _visibleEntries.firstOrNull?.id;
+    try {
+      final older = (await currentSession.findEntriesOnBranch(
+        session_types.EntryQuery(
+          type: 'message',
+          order: session_types.EntryOrder.newestFirst,
+          limit: historyPageEntryLimit,
+          cursor: session_types.EntryCursor(afterSeq: cursor.beforeSeq),
+        ),
+      )).whereType<session_types.MessageEntry>().toList().reversed.toList();
+      final oldestSeq = older.firstOrNull?.seq;
+      final records = oldestSeq == null
+          ? const <session_types.LaneRecord>[]
+          : await currentSession.findRecords(
+              session_types.RecordQuery(
+                lane: 'main',
+                order: session_types.EntryOrder.newestFirst,
+                limit: historyRecordLimit,
+                cursor: session_types.EntryCursor(afterSeq: cursor.beforeSeq),
+              ),
+            );
+      final existingIds = _visibleEntries.map((entry) => entry.id).toSet();
+      _visibleEntries.insertAll(
+        0,
+        older.where((entry) => !existingIds.contains(entry.id)),
+      );
+      final recordIds = _visibleRecords.map((record) => record.id).toSet();
+      _visibleRecords.addAll(
+        records.where((record) => !recordIds.contains(record.id)),
+      );
+      final hasEarlier = older.length == historyPageEntryLimit;
+      final page = _buildVisibleTimelinePage(
+        hasEarlier: hasEarlier,
+        prependAnchorEntryId: anchor,
+      );
+      _writeState(
+        _readState().copyWith(
+          messages: page.messages,
+          turns: page.turns,
+          hasEarlierTurns: hasEarlier,
+          historyCursor: page.earlierCursor,
+          clearHistoryCursor: page.earlierCursor == null,
+          prependAnchorEntryId: anchor,
+        ),
+      );
+    } finally {
+      if (_isMounted()) {
+        _writeState(_readState().copyWith(historyLoading: false));
+      }
+    }
+  }
+
+  Future<String?> startTurn() async {
+    final currentSession = session;
+    if (currentSession == null) return null;
+    final id = currentSession.idGenerator();
+    final sourceLeafId = await currentSession.getLeafId();
+    final record = await currentSession.appendRecord(
+      session_types.OperationStartedRecord(
+        id: id,
+        lane: 'main',
+        sourceLeafId: sourceLeafId,
+        intent: const session_types.RunIntent(
+          kind: session_types.RunIntentKind.run,
+        ),
+      ),
+    );
+    _activeTurnId = id;
+    _activeAssistantEntryId = null;
+    _visibleRecords.add(record);
+    _publishVisibleTimeline();
+    return id;
+  }
+
+  Future<void> finishTurn({
+    required String turnId,
+    required session_types.OperationOutcomeKind outcome,
+    String? error,
+  }) async {
+    final currentSession = session;
+    if (currentSession == null ||
+        _finishedTurnIds.contains(turnId) ||
+        !_finishingTurnIds.add(turnId)) {
+      return;
+    }
+    try {
+      final durableFinish = await currentSession.findRecords(
+        session_types.RecordQuery(
+          lane: 'main',
+          type: 'operation_finished',
+          runId: turnId,
+          limit: 1,
+        ),
+      );
+      if (durableFinish.isNotEmpty) {
+        _finishedTurnIds.add(turnId);
+        final record = durableFinish.single;
+        if (_visibleRecords.every((candidate) => candidate.id != record.id)) {
+          _visibleRecords.add(record);
+        }
+        if (_activeTurnId == turnId) {
+          _activeTurnId = null;
+          _activeAssistantEntryId = null;
+        }
+        _publishVisibleTimeline();
+        return;
+      }
+      final record = await currentSession.appendRecord(
+        session_types.OperationFinishedRecord(
+          id: currentSession.idGenerator(),
+          lane: 'main',
+          runId: turnId,
+          outcome: outcome,
+          error: error == null ? null : (code: 'agent_error', message: error),
+        ),
+      );
+      _finishedTurnIds.add(turnId);
+      _visibleRecords.add(record);
+      if (_activeTurnId == turnId) {
+        _activeTurnId = null;
+        _activeAssistantEntryId = null;
+      }
+      _publishVisibleTimeline();
+    } finally {
+      _finishingTurnIds.remove(turnId);
+    }
+  }
+
+  Future<void> recordToolStarted({
+    required String toolCallId,
+    required String toolName,
+    required Map<String, dynamic> args,
+  }) async {
+    final currentSession = session;
+    final turnId = _activeTurnId;
+    final assistantEntryId = _activeAssistantEntryId;
+    if (currentSession == null || turnId == null || assistantEntryId == null) {
+      return;
+    }
+    final assistant = await currentSession.getEntry(assistantEntryId);
+    final toolIndex =
+        assistant is session_types.MessageEntry &&
+            assistant.message is AssistantMessage
+        ? (assistant.message as AssistantMessage).toolCalls.indexWhere(
+            (call) => call.id == toolCallId,
+          )
+        : -1;
+    final resultEntryId = currentSession.idGenerator();
+    _pendingToolResultEntryIds[toolCallId] = resultEntryId;
+    final record = await currentSession.appendRecord(
+      session_types.ToolStartedRecord(
+        id: currentSession.idGenerator(),
+        lane: 'main',
+        runId: turnId,
+        assistantEntryId: assistantEntryId,
+        toolIndex: toolIndex < 0 ? 0 : toolIndex,
+        toolCallId: toolCallId,
+        toolName: toolName,
+        effectiveArgs: args,
+        resultEntryId: resultEntryId,
+        replay: session_types.ReplayMode.never,
+      ),
+    );
+    _visibleRecords.add(record);
+    _publishVisibleTimeline();
   }
 
   List<AgentMessage> _restoreLegacyReadImageDetails(
@@ -423,16 +689,34 @@ class AgentChatSessionController {
     }
   }
 
-  Future<void> persistMessage(Message message) async {
+  Future<session_types.MessageEntry?> persistMessage(Message message) async {
     final currentSession = session;
-    if (currentSession == null) return;
+    if (currentSession == null) return null;
     if (message is AssistantMessage && !isReplayableAssistantMessage(message)) {
-      return;
+      return null;
     }
     try {
-      await currentSession.appendMessage(message);
+      final preferredId = message is ToolResultMessage
+          ? _pendingToolResultEntryIds.remove(message.toolCallId)
+          : null;
+      final entry =
+          await currentSession.appendEntry(
+                session_types.MessageEntry(
+                  id: preferredId ?? currentSession.idGenerator(),
+                  message: message,
+                ),
+                'main',
+              )
+              as session_types.MessageEntry;
+      _visibleEntries.add(entry);
+      if (message is AssistantMessage) {
+        _activeAssistantEntryId = entry.id;
+      }
+      _publishVisibleTimeline();
+      return entry;
     } catch (error) {
       AppLogger.w('persist message failed: $error', 'AgentChat');
+      return null;
     }
   }
 }

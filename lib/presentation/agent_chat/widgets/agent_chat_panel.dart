@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../prompt_assistant/providers/prompt_assistant_config_provider.dart';
 import '../../prompt_assistant/providers/web_access_provider.dart';
 import '../../agent_settings/providers/agent_settings_provider.dart';
+import '../../providers/image_generation_provider.dart';
+import '../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../providers/agent_chat_notifier.dart';
 import 'agent_chat_composer.dart';
 import 'agent_chat_header.dart';
@@ -80,14 +82,30 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
     final config = ref.watch(promptAssistantConfigProvider);
     final agentSettings = ref.watch(agentSettingsProvider);
     final webAccess = ref.watch(webAccessConfigProvider);
+    final generation = ref.watch(imageGenerationNotifierProvider);
+    final currentCanvas = generation.displayImages
+        .where((image) => image.kind == GeneratedImageKind.completed)
+        .firstOrNull;
+    final currentCanvasReference = currentCanvas == null
+        ? null
+        : AgentChatResourceReference(
+            kind: AgentChatResourceKind.generatedImage,
+            source: 'generation_history',
+            resourceId: currentCanvas.id,
+          );
     _controller
       ..attachOverlayContext(context)
       ..observe(state)
       ..syncComposerText(state.composerText);
-    final commands = _coordinator.commands(context, state);
+    final commands = _coordinator.commands(
+      context,
+      state,
+      currentCanvasReference: currentCanvasReference,
+    );
 
     return LayoutBuilder(
       builder: (context, constraints) {
+        final keyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
         final viewData = AgentChatPanelViewData(
           state: state,
           config: config,
@@ -95,40 +113,147 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
           webAccess: webAccess,
           mobile: widget.mobile,
           fullScreen: widget.fullScreen,
-          compactMobile: widget.mobile && constraints.maxHeight < 480,
+          compactMobile:
+              widget.mobile &&
+              (constraints.maxHeight <= 520 || keyboardVisible),
           width: constraints.maxWidth,
           height: constraints.maxHeight,
           onClose: widget.onClose,
           onOpenSettings: widget.onOpenSettings,
           mobileHeaderWrapper: widget.mobileHeaderWrapper,
+          currentCanvasReference: currentCanvasReference,
+        );
+        final panel = AgentResourceDropRegion(
+          onDrop: commands.addPendingResource,
+          child: widget.mobile
+              ? _MobileAgentChatLayout(
+                  viewData: viewData,
+                  commands: commands,
+                  controller: _controller,
+                )
+              : _EmbeddedAgentChatLayout(
+                  viewData: viewData,
+                  commands: commands,
+                  controller: _controller,
+                ),
         );
         return SafeArea(
           top: widget.mobile,
           bottom: widget.mobile,
-          child: AgentResourceDropRegion(
-            onDrop: commands.addPendingResource,
-            child: Column(
-              children: [
-                AgentChatHeader(viewData: viewData, commands: commands),
-                Expanded(
-                  child: AgentChatMessages(
-                    viewData: viewData,
-                    commands: commands,
-                    controller: _controller,
-                  ),
-                ),
-                AgentChatStatus(viewData: viewData, commands: commands),
-                if (state.routeReady)
-                  AgentChatComposer(
-                    viewData: viewData,
-                    commands: commands,
-                    controller: _controller,
-                  ),
-              ],
-            ),
-          ),
+          child: panel,
         );
       },
+    );
+  }
+}
+
+class _EmbeddedAgentChatLayout extends StatelessWidget {
+  const _EmbeddedAgentChatLayout({
+    required this.viewData,
+    required this.commands,
+    required this.controller,
+  });
+
+  final AgentChatPanelViewData viewData;
+  final AgentChatPanelCommands commands;
+  final AgentChatPanelController controller;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    children: [
+      AgentChatHeader(viewData: viewData, commands: commands),
+      Expanded(
+        child: AgentChatMessages(
+          viewData: viewData,
+          commands: commands,
+          controller: controller,
+        ),
+      ),
+      AgentChatStatus(viewData: viewData, commands: commands),
+      if (viewData.state.routeReady)
+        AgentChatComposer(
+          viewData: viewData,
+          commands: commands,
+          controller: controller,
+        ),
+    ],
+  );
+}
+
+class _MobileAgentChatLayout extends StatelessWidget {
+  const _MobileAgentChatLayout({
+    required this.viewData,
+    required this.commands,
+    required this.controller,
+  });
+
+  final AgentChatPanelViewData viewData;
+  final AgentChatPanelCommands commands;
+  final AgentChatPanelController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return ColoredBox(
+      key: const ValueKey('agent-chat-mobile-viewport'),
+      color: theme.colorScheme.surface,
+      child: Column(
+        children: [
+          MediaQuery.withClampedTextScaling(
+            maxScaleFactor: 1.6,
+            child: AgentChatHeader(viewData: viewData, commands: commands),
+          ),
+          Expanded(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                // Keep decisions adjacent to the composer without allowing a
+                // long approval or error to displace input on an IME viewport.
+                final statusFraction = viewData.compactMobile ? 0.24 : 0.38;
+                final statusMaxHeight = (constraints.maxHeight * statusFraction)
+                    .clamp(0.0, 280.0);
+                return Column(
+                  children: [
+                    Expanded(
+                      child: AgentChatMessages(
+                        viewData: viewData,
+                        commands: commands,
+                        controller: controller,
+                      ),
+                    ),
+                    ConstrainedBox(
+                      key: const ValueKey('agent-chat-mobile-status-viewport'),
+                      constraints: BoxConstraints(maxHeight: statusMaxHeight),
+                      child: SingleChildScrollView(
+                        primary: false,
+                        child: AgentChatStatus(
+                          viewData: viewData,
+                          commands: commands,
+                        ),
+                      ),
+                    ),
+                    if (viewData.state.routeReady) _composer(),
+                  ],
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _composer() {
+    // Keep the EditableText under the same element hierarchy when the IME
+    // changes the available height. Swapping this wrapper only for the compact
+    // layout detached the externally-owned FocusNode and dismissed Android's
+    // keyboard immediately after it opened.
+    return MediaQuery.withClampedTextScaling(
+      maxScaleFactor: 1.6,
+      child: AgentChatComposer(
+        viewData: viewData,
+        commands: commands,
+        controller: controller,
+      ),
     );
   }
 }

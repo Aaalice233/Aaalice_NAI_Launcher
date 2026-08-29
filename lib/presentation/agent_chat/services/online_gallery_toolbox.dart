@@ -7,6 +7,7 @@ import '../../../core/agent/harness/tools/image.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference_codec.dart';
 import '../../../core/cache/online_gallery_image_cache_manager.dart';
+import '../../../core/online_gallery/gallery_tag_query.dart';
 import '../../../core/utils/display_thumbnail_utils.dart';
 import '../../../data/datasources/remote/danbooru_api_service.dart';
 import '../../../data/models/online_gallery/gallery_item.dart';
@@ -33,7 +34,8 @@ class OnlineGalleryToolbox {
   DefinedAgentTool _listSources() => DefinedAgentTool(
     name: 'list_online_gallery_sources',
     label: 'List Online Gallery Sources',
-    description: 'List gallery sources and their verified capabilities.',
+    description:
+        'List gallery sources and their verified feed and tag-search capabilities, including per-account server limits and client residual filtering.',
     parameters: toolboxObject(),
     executeFn: (_, __) async => agentToolJsonResult({
       'ok': true,
@@ -47,7 +49,10 @@ class OnlineGalleryToolbox {
     name: 'browse_online_gallery',
     label: 'Browse Online Gallery',
     description:
-        'Browse search, ranking, favorites, or random modes with source-specific filters and pagination.',
+        'Browse an online gallery and return structured stable resource_ref objects only; this tool never displays images. '
+        'A query may contain at most 6 ordinary tags globally. Sources can enforce lower server limits, so the client pushes down a supported seed and applies remaining tags as residual local filters. '
+        'When random=true, limit=N means randomly sample exactly N items from the matching feed (when available); never fetch a larger page and choose items yourself. '
+        'To show returned media, pass 1-12 resource_ref objects to display_images.',
     parameters: toolboxObject(
       properties: {
         'source': {
@@ -58,7 +63,12 @@ class OnlineGalleryToolbox {
           'type': 'string',
           'enum': ['search', 'ranking', 'favorites'],
         },
-        'query': {'type': 'string', 'maxLength': 1000},
+        'query': {
+          'type': 'string',
+          'maxLength': 1000,
+          'description':
+              'Space/comma-separated query with at most 6 ordinary tags; metatags do not count toward this global cap.',
+        },
         'prompt': {'type': 'string', 'maxLength': 4000},
         'ratings': {
           'type': 'array',
@@ -69,7 +79,11 @@ class OnlineGalleryToolbox {
           'maxItems': 4,
         },
         'fuzzy': {'type': 'boolean'},
-        'random': {'type': 'boolean'},
+        'random': {
+          'type': 'boolean',
+          'description':
+              'If true, sample from the matching source/feed. Requires that source to advertise this mode in random_feeds.',
+        },
         'ranking_scale': {
           'type': 'string',
           'enum': PopularScale.values.map((value) => value.name).toList(),
@@ -78,7 +92,13 @@ class OnlineGalleryToolbox {
         'ai_tag_time_range': {'type': 'string'},
         'ai_tag_period': {'type': 'string'},
         'load_more': {'type': 'boolean'},
-        'limit': {'type': 'integer', 'minimum': 1, 'maximum': 100},
+        'limit': {
+          'type': 'integer',
+          'minimum': 1,
+          'maximum': 100,
+          'description':
+              'Maximum returned items. With random=true this is the requested random sample size, not a candidate-page size.',
+        },
       },
       required: const ['source', 'mode'],
     ),
@@ -96,7 +116,28 @@ class OnlineGalleryToolbox {
           '${source.label} does not support $mode.',
         );
       }
+      final query = GalleryTagQueryParser.parse(
+        params['query'] as String? ?? '',
+      );
+      if (!query.isValid) {
+        return agentToolError(
+          'too_many_query_tags',
+          'Online gallery queries support at most $maxGallerySearchTags ordinary tags; received ${query.ordinaryTagCount}.',
+        );
+      }
+      final feed = switch (mode) {
+        'ranking' => GalleryFeedKind.ranking,
+        'favorites' => GalleryFeedKind.favorites,
+        _ => GalleryFeedKind.search,
+      };
+      if (params['random'] == true && !capabilities.supportsRandomFeed(feed)) {
+        return agentToolError(
+          'unsupported_random_feed',
+          '${source.label} does not support random ${feed.name} results.',
+        );
+      }
       final notifier = _ref.read(onlineGalleryNotifierProvider.notifier);
+      final limit = (params['limit'] as int? ?? 30).clamp(1, 100);
       if (params['load_more'] == true) {
         final state = _ref.read(onlineGalleryNotifierProvider);
         if (state.activeSourceId != source || state.viewMode.name != mode) {
@@ -109,18 +150,44 @@ class OnlineGalleryToolbox {
       } else {
         await _configureBrowse(notifier, source, mode, params);
       }
-      final state = _ref.read(onlineGalleryNotifierProvider);
+      var state = _ref.read(onlineGalleryNotifierProvider);
       if (state.errorCode != null || state.error != null) {
         return agentToolError(
           state.errorCode?.name ?? 'gallery_error',
           state.error ?? 'Online gallery request failed.',
         );
       }
-      final limit = (params['limit'] as int? ?? 30).clamp(1, 100);
+      if (params['random'] == true && params['load_more'] != true) {
+        while (state.posts.length < limit && state.hasMore) {
+          final previousCount = state.posts.length;
+          await notifier.loadMore();
+          state = _ref.read(onlineGalleryNotifierProvider);
+          if (state.errorCode != null || state.error != null) {
+            return agentToolError(
+              state.errorCode?.name ?? 'gallery_error',
+              state.error ?? 'Online gallery random sampling failed.',
+            );
+          }
+          if (state.posts.length <= previousCount && state.hasMore) {
+            return agentToolError(
+              'random_sampling_stalled',
+              'The gallery could not make progress while sampling matching results.',
+            );
+          }
+        }
+        if (state.posts.length < limit) {
+          return agentToolError(
+            'insufficient_random_matches',
+            'Only ${state.posts.length} matching random items are available; $limit were requested.',
+          );
+        }
+      }
       return agentToolJsonResult({
         'ok': true,
         'source': source.key,
         'mode': state.viewMode.name,
+        'random': params['random'] == true,
+        'requested_limit': limit,
         'page': state.page,
         'has_more': state.hasMore,
         'total': state.currentCache.total,
@@ -313,9 +380,9 @@ class OnlineGalleryToolbox {
   ) async {
     final ratings = toolboxStrings(params['ratings']);
     final random = params['random'] as bool? ?? false;
-    if (!random) {
-      await notifier.setRandomEnabled(false);
-    }
+    // A prior random session belongs to its original query and source. Leave it
+    // before configuring a new request so enabling random always resamples.
+    await notifier.setRandomEnabled(false);
     await notifier.setRatings(ratings.toSet());
     await notifier.setFuzzySearchEnabled(params['fuzzy'] as bool? ?? false);
     if (mode == 'ranking') {
@@ -389,6 +456,20 @@ Map<String, dynamic> _capabilitiesJson(GallerySourceId source) {
     'details': value.supportsDetails,
     'multiple_media': value.supportsMultipleMedia,
     'random_feeds': value.randomFeeds.map((feed) => feed.name).toList(),
+    'tag_search': {
+      'strategy': value.tagSearch.strategy.name,
+      'max_query_tags': maxGallerySearchTags,
+      'server_limits': {
+        'anonymous': value.tagSearch.anonymousLimit,
+        if (value.tagSearch.authenticatedLimit case final limit?)
+          'authenticated': limit,
+        if (value.tagSearch.goldLimit case final limit?) 'gold': limit,
+        if (value.tagSearch.unlimitedFromLevel case final level?)
+          'max_query_tags_from_account_level': level,
+      },
+      'residual_filtering':
+          'Ordinary tags beyond the active server limit are evaluated by the client against returned item tags; the global query cap remains $maxGallerySearchTags.',
+    },
   };
 }
 
@@ -403,6 +484,7 @@ Map<String, dynamic> _itemJson(GalleryItem item) => {
       resourceId: item.sourceWorkId,
       mediaId: item.cover.id,
       display: {
+        'source_label': item.sourceId.label,
         if (item.title?.trim().isNotEmpty == true) 'title': item.title!.trim(),
         if (item.author?.trim().isNotEmpty == true)
           'author': item.author!.trim(),
@@ -431,7 +513,10 @@ Map<String, dynamic> _mediaJson(
       source: source.key,
       resourceId: workId,
       mediaId: media.id,
-      display: {if (title?.trim().isNotEmpty == true) 'title': title!.trim()},
+      display: {
+        'source_label': source.label,
+        if (title?.trim().isNotEmpty == true) 'title': title!.trim(),
+      },
     ),
   ),
   'width': media.width,
