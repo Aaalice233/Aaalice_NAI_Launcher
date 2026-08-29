@@ -113,7 +113,11 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
                   }
                   final text = part['text'];
                   if (text is String && text.isNotEmpty) {
-                    pending.add(AgentWireTextDelta(text));
+                    pending.add(
+                      part['thought'] == true
+                          ? AgentWireThinkingDelta(text)
+                          : AgentWireTextDelta(text),
+                    );
                   }
                   final functionCall = part['functionCall'];
                   if (functionCall is Map<String, dynamic>) {
@@ -214,6 +218,13 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
             'response': {'result': message.text},
           },
         });
+        for (final image in toolResultImagesOf(message)) {
+          if (image.source.base64Data case final data?) {
+            appendTurn('user', {
+              'inline_data': {'mime_type': image.source.mimeType, 'data': data},
+            });
+          }
+        }
       }
     }
 

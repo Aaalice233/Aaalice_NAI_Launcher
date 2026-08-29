@@ -5,10 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/agent/agent_types.dart';
-import '../../../../core/utils/app_logger.dart';
-import '../../../../core/utils/localization_extension.dart';
-import '../../../../core/windowing/agent_window_runtime.dart';
+import '../../../core/agent/agent_types.dart';
+import '../../../core/agent/harness/harness_messages.dart';
+import '../../../core/agent/resources/agent_chat_resource_reference_codec.dart';
+import '../../../core/utils/app_logger.dart';
+import '../../../core/utils/localization_extension.dart';
+import '../../../core/windowing/agent_window_runtime.dart';
 import 'package:nai_launcher/presentation/providers/layout_state_provider.dart';
 
 import '../../agent_settings/providers/agent_settings_provider.dart';
@@ -66,18 +68,26 @@ class AgentChatPanelCoordinator {
       moreAction: (action) => _handleMoreAction(context, state, action),
       selectModel: (providerId, model) =>
           _notifier.selectChatModel(providerId, model),
+      selectThinkingLevel: _notifier.setThinkingLevel,
       selectPermissionMode: _notifier.setPermissionMode,
       setWebAccessEnabled: (enabled) => _ref
           .read(agentSettingsProvider.notifier)
           .setWebAccessEnabled(enabled),
       pickImages: () => _pickImages(context),
-      send: () => _send(context, state),
+      send: () => _send(context),
+      sendFollowUp: () => _send(context, followUp: true),
       stop: _notifier.abort,
       dismissError: _notifier.dismissError,
+      retryLastMessage: _retryLastMessage,
       resolveApproval: _notifier.resolveToolApproval,
       useSuggestion: _controller.setSuggestion,
       copyUserMessage: (message) => _copyUserMessage(context, message),
+      copyAssistantMessage: (message) =>
+          _copyAssistantMessage(context, message),
       editLastUserMessage: (message) => _editLastUserMessage(context, message),
+      editQueuedMessage: _editQueuedMessage,
+      removeQueuedMessage: _notifier.removeQueuedMessage,
+      clearQueuedMessages: _notifier.clearQueuedMessages,
       addPendingResource: _notifier.addPendingResource,
       removePendingResource: _notifier.removePendingResource,
     );
@@ -86,7 +96,7 @@ class AgentChatPanelCoordinator {
   AgentChatNotifier get _notifier =>
       _ref.read(agentChatNotifierProvider.notifier);
 
-  Future<void> _send(BuildContext context, AgentChatState state) async {
+  Future<void> _send(BuildContext context, {bool followUp = false}) async {
     if (!await _notifier.validatePendingResourcesForSend()) {
       if (!context.mounted) return;
       AppToast.error(context, context.l10n.agentChat_resourceUnavailable);
@@ -98,7 +108,7 @@ class AgentChatPanelCoordinator {
     if (content.isEmpty) return;
     _controller.takePendingImages();
     await _notifier.clearComposerText();
-    await _notifier.sendContent(content);
+    await _notifier.sendContent(content, followUp: followUp);
     if (_isMounted()) _controller.inputFocus.requestFocus();
   }
 
@@ -161,6 +171,55 @@ class AgentChatPanelCoordinator {
     _controller.restoreDraft(draft.text, draft.images);
     _controller.inputFocus.requestFocus();
     _controller.scrollToBottom(force: true);
+  }
+
+  Future<void> _editQueuedMessage(AgentQueuedMessage queued) async {
+    final removed = _notifier.removeQueuedMessage(queued);
+    if (removed == null || !_isMounted()) return;
+    UserMessage? userMessage;
+    if (removed is UserMessage) {
+      userMessage = removed;
+    } else if (removed is HarnessCustomMessage &&
+        removed.customType == 'agentResourcePrompt') {
+      userMessage = UserMessage(
+        content: removed.content.skip(1).toList(growable: false),
+        timestamp: removed.timestamp,
+      );
+      final details = removed.details;
+      final references = details is Map ? details['references'] : null;
+      if (references is List) {
+        for (final value in references) {
+          if (value is Map) {
+            await _notifier.addPendingResource(
+              AgentChatResourceReferenceCodec.decodeJsonMap(
+                Map<String, dynamic>.from(value),
+              ),
+            );
+          }
+        }
+      }
+    }
+    if (userMessage == null || !_isMounted()) return;
+    final draft = _draftForUserMessage(userMessage);
+    if (draft == null) return;
+    _controller.restoreDraft(draft.text, draft.images);
+    _controller.inputFocus.requestFocus();
+  }
+
+  Future<void> _copyAssistantMessage(
+    BuildContext context,
+    AssistantMessage message,
+  ) async {
+    await Clipboard.setData(ClipboardData(text: message.text));
+    if (_isMounted() && context.mounted) {
+      AppToast.info(context, context.l10n.common_copied);
+    }
+  }
+
+  Future<void> _retryLastMessage() async {
+    final message = await _notifier.rewindLastUserMessage();
+    if (message == null || !_isMounted()) return;
+    await _notifier.sendContent(message.content);
   }
 
   _AgentChatMessageDraft? _draftForUserMessage(UserMessage message) {

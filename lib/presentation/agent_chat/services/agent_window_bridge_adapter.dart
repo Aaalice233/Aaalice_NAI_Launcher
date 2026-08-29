@@ -8,6 +8,7 @@ import '../../../core/agent/harness/harness_messages.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference_codec.dart';
 import '../../../core/windowing/agent_window_protocol.dart';
 import '../../../core/windowing/agent_window_runtime.dart';
+import '../../agent_settings/providers/agent_settings_provider.dart';
 import '../providers/agent_chat_notifier.dart';
 import '../../prompt_assistant/models/prompt_assistant_models.dart';
 import '../../prompt_assistant/providers/prompt_assistant_config_provider.dart';
@@ -16,7 +17,6 @@ import '../../providers/locale_provider.dart';
 import '../../providers/font_provider.dart';
 import '../../providers/font_scale_provider.dart';
 import '../../providers/theme_provider.dart';
-import '../../prompt_assistant/providers/web_access_provider.dart';
 
 /// Binds the secondary window to the one authoritative Agent notifier owned
 /// by the main engine. The secondary engine only renders snapshots and emits
@@ -31,8 +31,15 @@ final class AgentWindowBridgeAdapter {
   ProviderSubscription<Object?>? _fontSubscription;
   ProviderSubscription<Object?>? _fontScaleSubscription;
   ProviderSubscription<Object?>? _configSubscription;
-  ProviderSubscription<WebAccessConfigState>? _webAccessSubscription;
+  ProviderSubscription<AgentSettingsState>? _agentSettingsSubscription;
   int _revision = 0;
+  AgentChatState? _pendingState;
+  bool _publishing = false;
+  final Map<ImageContent, String> _imageAssetIds = Map.identity();
+  final Set<String> _publishedImageAssetIds = {};
+  final Set<String> _currentImageAssetIds = {};
+  final Map<String, Object?> _pendingImageAssets = {};
+  int _nextImageAssetId = 0;
 
   static Future<AgentWindowBridgeAdapter> attach(
     ProviderContainer container,
@@ -73,8 +80,8 @@ final class AgentWindowBridgeAdapter {
         adapter._publish(container.read(agentChatNotifierProvider)),
       ),
     );
-    adapter._webAccessSubscription = container.listen<WebAccessConfigState>(
-      webAccessConfigProvider,
+    adapter._agentSettingsSubscription = container.listen<AgentSettingsState>(
+      agentSettingsProvider,
       (_, _) => unawaited(
         adapter._publish(container.read(agentChatNotifierProvider)),
       ),
@@ -101,7 +108,9 @@ final class AgentWindowBridgeAdapter {
           return const {'ok': false, 'error': 'resource_unavailable'};
         }
         await notifier.clearComposerText();
-        await notifier.send(text.trim());
+        await notifier.sendContent([
+          UserTextContent(text.trim()),
+        ], followUp: payload['followUp'] == true);
         return const {'ok': true};
       case 'updateComposer':
         final text = payload['text'];
@@ -130,6 +139,45 @@ final class AgentWindowBridgeAdapter {
         if (index >= 0) await notifier.removePendingResource(index);
       case 'stop':
         notifier.abort();
+      case 'retryLastMessage':
+        final message = await notifier.rewindLastUserMessage();
+        if (message == null) return const {'ok': false};
+        await notifier.sendContent(message.content);
+        return const {'ok': true};
+      case 'removeQueuedMessage':
+        final queued = _queuedMessage(payload);
+        if (queued == null) {
+          throw const FormatException('queued message no longer exists');
+        }
+        notifier.removeQueuedMessage(queued);
+      case 'editQueuedMessage':
+        final queued = _queuedMessage(payload);
+        if (queued == null) {
+          throw const FormatException('queued message no longer exists');
+        }
+        if (_messageImages(queued.message).isNotEmpty) {
+          return const {'ok': false, 'error': 'queued_attachments'};
+        }
+        final removed = notifier.removeQueuedMessage(queued);
+        if (removed is HarnessCustomMessage) {
+          final references = removed.details is Map
+              ? (removed.details as Map)['references']
+              : null;
+          if (references is List) {
+            for (final value in references) {
+              if (value is Map) {
+                await notifier.addPendingResource(
+                  AgentChatResourceReferenceCodec.decodeJsonMap(
+                    Map<String, dynamic>.from(value),
+                  ),
+                );
+              }
+            }
+          }
+        }
+        return {'ok': true, 'text': queued.text};
+      case 'clearQueuedMessages':
+        notifier.clearQueuedMessages();
       case 'newSession':
         await notifier.newSession();
       case 'switchSession':
@@ -164,12 +212,30 @@ final class AgentWindowBridgeAdapter {
           throw const FormatException('Invalid permission mode');
         }
         await notifier.setPermissionMode(mode);
+      case 'selectModel':
+        final providerId = payload['providerId'];
+        final model = payload['model'];
+        if (providerId is! String || model is! String) {
+          throw const FormatException(
+            'selectModel requires providerId and model',
+          );
+        }
+        await notifier.selectChatModel(providerId, model);
+      case 'setThinkingLevel':
+        final value = payload['value'];
+        final level = ThinkingLevel.values
+            .where((candidate) => candidate.name == value)
+            .firstOrNull;
+        if (level == null) {
+          throw const FormatException('Invalid thinking level');
+        }
+        await notifier.setThinkingLevel(level);
       case 'setWebAccess':
         final value = payload['value'];
         if (value is! bool) throw const FormatException('value must be bool');
         await _container
-            .read(webAccessConfigProvider.notifier)
-            .setEnabled(value);
+            .read(agentSettingsProvider.notifier)
+            .setWebAccessEnabled(value);
       case 'resolveApproval':
         final value = payload['value'];
         if (value is! bool) {
@@ -182,8 +248,28 @@ final class AgentWindowBridgeAdapter {
     return null;
   }
 
-  Future<void> _publish(AgentChatState state) {
-    return AgentWindowRuntime.instance.publishSnapshot(
+  Future<void> _publish(AgentChatState state) async {
+    _pendingState = state;
+    if (_publishing) return;
+    _publishing = true;
+    try {
+      while (_pendingState != null) {
+        final next = _pendingState!;
+        _pendingState = null;
+        await _publishNow(next);
+      }
+    } finally {
+      _publishing = false;
+    }
+  }
+
+  Future<void> _publishNow(AgentChatState state) {
+    _pendingImageAssets.clear();
+    _currentImageAssetIds.clear();
+    final config = _container.read(promptAssistantConfigProvider);
+    final chatSettings = _container.read(agentSettingsProvider).settings.chat;
+    final modelReference = chatSettings.modelReference;
+    final operation = AgentWindowRuntime.instance.publishSnapshot(
       AgentWindowSnapshot(
         revision: _revision++,
         payload: {
@@ -194,16 +280,34 @@ final class AgentWindowBridgeAdapter {
           'fontScale': _container.read(fontScaleNotifierProvider),
           'composerText': state.composerText,
           'running': state.status == AgentChatRunStatus.running,
+          'workPhase': state.workPhase.name,
           'routeLabel': state.routeLabel,
+          'activeProviderId': modelReference.providerId,
+          'activeModel': modelReference.model,
+          'modelOptions': [
+            for (final provider in config.providers.where(
+              (item) => item.enabled,
+            ))
+              for (final model in config.modelsForProviderTask(
+                providerId: provider.id,
+                taskType: AssistantTaskType.chat,
+              ))
+                if (!model.isPlaceholder)
+                  {
+                    'providerId': provider.id,
+                    'providerName': provider.name,
+                    'model': model.name,
+                    'displayName': model.displayName,
+                  },
+          ],
+          'thinkingLevel': state.thinkingLevel.name,
+          'thinkingLevels': [
+            for (final level in state.availableThinkingLevels) level.name,
+          ],
+          if (state.contextWindow case final window?) 'contextWindow': window,
           'routeReady': state.routeReady,
-          'permissionMode': _container
-              .read(promptAssistantConfigProvider)
-              .agentPermissionMode
-              .name,
-          'webAccessEnabled': _container
-              .read(webAccessConfigProvider)
-              .config
-              .enabled,
+          'permissionMode': chatSettings.permissionMode.name,
+          'webAccessEnabled': chatSettings.webAccessEnabled,
           'compacting': state.compacting,
           'activeSessionId': state.activeSessionId,
           'sessions': [
@@ -212,9 +316,24 @@ final class AgentWindowBridgeAdapter {
           ],
           'messages': [
             for (final message in state.messages) _serializeMessage(message),
-            if (state.streamingText.isNotEmpty)
-              {'role': 'assistant', 'text': state.streamingText, 'live': true},
+            if (state.streamingMessage case final message?)
+              {..._serializeMessage(message), 'live': true},
           ],
+          'imageAssets': Map<String, Object?>.from(_pendingImageAssets),
+          'referencedImageAssets': _currentImageAssetIds.toList(
+            growable: false,
+          ),
+          'queue': [
+            for (final queued in state.queuedMessages)
+              {
+                'kind': queued.kind.name,
+                'id': queued.id,
+                'text': queued.text,
+                'editable': _messageImages(queued.message).isEmpty,
+              },
+          ],
+          if (state.contextUsage case final usage?)
+            'contextUsage': usage.toJson(),
           'activities': [
             for (final activity in state.activities)
               {
@@ -246,11 +365,17 @@ final class AgentWindowBridgeAdapter {
         },
       ),
     );
+    _publishedImageAssetIds.retainAll(_currentImageAssetIds);
+    return operation;
   }
 
   Map<String, Object?> _serializeMessage(Message message) {
     return switch (message) {
-      UserMessage() => {'role': 'user', 'text': message.text},
+      UserMessage() => {
+        'role': 'user',
+        'text': message.text,
+        'images': [for (final image in message.images) _serializeImage(image)],
+      },
       HarnessCustomMessage() when message.customType == 'agentResourcePrompt' =>
         {
           'role': 'user',
@@ -259,12 +384,90 @@ final class AgentWindowBridgeAdapter {
               .whereType<UserTextContent>()
               .map((content) => content.text)
               .join(),
+          'images': [
+            for (final image in _messageImages(message)) _serializeImage(image),
+          ],
         },
-      AssistantMessage() => {'role': 'assistant', 'text': message.text},
-      ToolResultMessage() => {'role': 'tool', 'text': message.text},
+      AssistantMessage() => {
+        'role': 'assistant',
+        'text': message.text,
+        'thinking': message.content
+            .whereType<AssistantThinkingContent>()
+            .map((content) => content.thinking)
+            .join(),
+        'stopReason': message.stopReason.name,
+        if (message.errorMessage != null) 'error': message.errorMessage,
+      },
+      ToolResultMessage() => _serializeToolResultMessage(message),
       _ => {'role': 'system', 'text': message.toString()},
     };
   }
+
+  AgentQueuedMessage? _queuedMessage(Map<String, Object?> payload) {
+    final kind = payload['kind'];
+    final id = payload['id'];
+    if (kind is! String || id is! int) return null;
+    return _container
+        .read(agentChatNotifierProvider)
+        .queuedMessages
+        .where((item) => item.kind.name == kind && item.id == id)
+        .firstOrNull;
+  }
+
+  Map<String, Object?> _serializeImage(ImageContent image) {
+    if (image.source.base64Data case final data?) {
+      final assetId = _imageAssetIds.putIfAbsent(
+        image,
+        () => 'image-${_nextImageAssetId++}',
+      );
+      _currentImageAssetIds.add(assetId);
+      if (_publishedImageAssetIds.add(assetId)) {
+        _pendingImageAssets[assetId] = {
+          'base64': data,
+          if (image.source.mimeType case final mime?) 'mimeType': mime,
+        };
+      }
+      return {'assetId': assetId};
+    }
+    return {if (image.source.url case final url?) 'url': url};
+  }
+
+  Map<String, Object?> _serializeToolResultMessage(ToolResultMessage message) {
+    final details = message.details;
+    final files = <String>[
+      if (details is Map && details['files'] is List)
+        for (final file in details['files'] as List)
+          if (file is String) file,
+    ];
+    final preferFileImages =
+        files.isNotEmpty &&
+        details is Map &&
+        details['preferFileImages'] == true;
+    return {
+      'role': 'tool',
+      'toolCallId': message.toolCallId,
+      'toolName': message.toolName,
+      'text': message.text,
+      'isError': message.isError,
+      'images': [
+        if (!preferFileImages)
+          for (final content in message.content)
+            if (content is ToolResultImageContent &&
+                !files.contains(content.image.source.url))
+              _serializeImage(content.image),
+      ],
+      'files': files,
+    };
+  }
+
+  List<ImageContent> _messageImages(AgentMessage message) => switch (message) {
+    UserMessage() => message.images,
+    HarnessCustomMessage() when message.customType == 'agentResourcePrompt' => [
+      for (final content in message.content.skip(1))
+        if (content is UserImageContent) content.image,
+    ],
+    _ => const [],
+  };
 
   void dispose() {
     _subscription?.close();
@@ -279,7 +482,7 @@ final class AgentWindowBridgeAdapter {
     _fontScaleSubscription = null;
     _configSubscription?.close();
     _configSubscription = null;
-    _webAccessSubscription?.close();
-    _webAccessSubscription = null;
+    _agentSettingsSubscription?.close();
+    _agentSettingsSubscription = null;
   }
 }

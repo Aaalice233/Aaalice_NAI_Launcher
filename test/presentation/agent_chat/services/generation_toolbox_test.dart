@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image/image.dart' as image_lib;
 import 'package:nai_launcher/core/agent/agent_types.dart';
 import 'package:nai_launcher/core/agent/resources/agent_chat_resource_reference.dart';
 import 'package:nai_launcher/core/agent/resources/agent_chat_resource_reference_codec.dart';
@@ -514,6 +515,14 @@ void main() {
       expect(submitted.isError, isFalse);
       expect(fake.generateCalls, 1);
       expect(fake.batchSize, confirmedBatchSize);
+      final imageSource = submitted.content
+          .whereType<ToolResultImageContent>()
+          .single
+          .image
+          .source;
+      expect(imageSource.mimeType, 'image/png');
+      expect(imageSource.base64Data, isNotEmpty);
+      expect(submitted.details['files'], ['saved.png']);
     },
   );
 
@@ -852,7 +861,9 @@ class _FakeImageGenerationNotifier extends ImageGenerationNotifier {
       currentImages: [
         GeneratedImage(
           id: 'generated-$generateCalls',
-          bytes: Uint8List.fromList(const [1, 2, 3]),
+          bytes: Uint8List.fromList(
+            image_lib.encodePng(image_lib.Image(width: 1, height: 1)),
+          ),
           width: 1,
           height: 1,
           filePath: 'saved.png',

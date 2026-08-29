@@ -834,10 +834,71 @@ class AppLocalizationsJa extends AppLocalizations {
   String get agentChat_queued => '待機中';
 
   @override
+  String get agentChat_queueSteering => '現在の作業に割り込む';
+
+  @override
+  String get agentChat_queueFollowUp => '現在のタスク後に続ける';
+
+  @override
   String get agentChat_thinking => '思考中…';
 
   @override
   String get agentChat_toolRunning => 'ツール実行中';
+
+  @override
+  String get agentChat_reasoning => '思考過程';
+
+  @override
+  String get agentChat_reasoningLevel => '推論の強度';
+
+  @override
+  String get agentChat_reasoningOff => 'オフ';
+
+  @override
+  String get agentChat_reasoningMinimal => '最小';
+
+  @override
+  String get agentChat_reasoningLow => '低';
+
+  @override
+  String get agentChat_reasoningMedium => '中';
+
+  @override
+  String get agentChat_reasoningHigh => '高';
+
+  @override
+  String get agentChat_reasoningXHigh => '非常に高い';
+
+  @override
+  String get agentChat_reasoningMax => '最大';
+
+  @override
+  String get agentChat_jumpToLatest => '最新へ移動';
+
+  @override
+  String agentChat_toolGroupCount(int count) {
+    return '$count 件の操作を実行';
+  }
+
+  @override
+  String get agentChat_phasePreparing => '準備中';
+
+  @override
+  String get agentChat_phaseResponding => '応答中';
+
+  @override
+  String get agentChat_phaseAwaitingApproval => '確認待ち';
+
+  @override
+  String get agentChat_phaseStopping => '停止中';
+
+  @override
+  String agentChat_contextTokens(int count) {
+    return 'コンテキスト $count tokens';
+  }
+
+  @override
+  String get agentChat_contextUnavailable => 'コンテキスト使用量を取得できません';
 
   @override
   String get agentChat_toolGenerateImage => '画像を生成';

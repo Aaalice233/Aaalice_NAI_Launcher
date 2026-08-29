@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 import '../../l10n/app_localizations.dart';
@@ -54,14 +55,17 @@ class _AgentWindowBridgeShellState extends State<_AgentWindowBridgeShell> {
     super.dispose();
   }
 
-  Future<void> _send() async {
+  Future<void> _send({bool followUp = false}) async {
     final text = _composer.text.trim();
     if (text.isEmpty) return;
     _composer.clear();
     _composerFocus.requestFocus();
     if (_localError.isNotEmpty) setState(() => _localError = '');
     try {
-      final result = await bridge.sendCommand('sendText', {'text': text});
+      final result = await bridge.sendCommand('sendText', {
+        'text': text,
+        'followUp': followUp,
+      });
       if (result is Map && result['error'] == 'resource_unavailable') {
         if (!mounted) return;
         throw _LocalizedWindowCommandException(
@@ -97,14 +101,20 @@ class _AgentWindowBridgeShellState extends State<_AgentWindowBridgeShell> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final payload = bridge.snapshot.payload;
-    final messages = payload['messages'] is List
-        ? payload['messages'] as List
-        : const [];
+    final messages = _resolveMessageImageAssets(
+      payload['messages'] is List ? payload['messages'] as List : const [],
+      payload['imageAssets'] is Map
+          ? Map<Object?, Object?>.from(payload['imageAssets'] as Map)
+          : const {},
+    );
     final sessions = payload['sessions'] is List
         ? payload['sessions'] as List
         : const [];
     final resources = payload['resources'] is List
         ? payload['resources'] as List
+        : const [];
+    final queue = payload['queue'] is List
+        ? payload['queue'] as List
         : const [];
     final hasUnavailableResources = resources.any(
       (resource) => resource is Map && resource['unavailable'] == true,
@@ -153,6 +163,8 @@ class _AgentWindowBridgeShellState extends State<_AgentWindowBridgeShell> {
               child: AgentWindowMessageList(
                 messages: messages,
                 controller: _scrollController,
+                copyText: (text) =>
+                    Clipboard.setData(ClipboardData(text: text)),
               ),
             ),
             ..._buildStatusPanels(
@@ -161,6 +173,7 @@ class _AgentWindowBridgeShellState extends State<_AgentWindowBridgeShell> {
               compacting,
               approval,
               resources,
+              queue,
             ),
             _buildComposer(
               context,
@@ -277,6 +290,7 @@ class _AgentWindowBridgeShellState extends State<_AgentWindowBridgeShell> {
     bool compacting,
     Map<Object?, Object?>? approval,
     List resources,
+    List queue,
   ) => [
     if (payload['activities'] case final List activities)
       for (final activity in activities)
@@ -303,9 +317,20 @@ class _AgentWindowBridgeShellState extends State<_AgentWindowBridgeShell> {
           dense: true,
           leading: const Icon(Icons.error_outline),
           title: Text(error, maxLines: 3, overflow: TextOverflow.ellipsis),
-          trailing: IconButton(
-            onPressed: () => bridge.sendCommand('dismissError'),
-            icon: const Icon(Icons.close),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (payload['running'] != true)
+                TextButton(
+                  onPressed: () => bridge.sendCommand('retryLastMessage'),
+                  child: Text(AppLocalizations.of(context)!.common_retry),
+                ),
+              IconButton(
+                tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+                onPressed: () => bridge.sendCommand('dismissError'),
+                icon: const Icon(Icons.close),
+              ),
+            ],
           ),
         ),
       ),
@@ -338,7 +363,31 @@ class _AgentWindowBridgeShellState extends State<_AgentWindowBridgeShell> {
         remove: (encoded) =>
             bridge.sendCommand('removeResource', {'reference': encoded}),
       ),
+    if (queue.isNotEmpty)
+      AgentWindowQueuePanel(
+        queue: queue,
+        edit: _editQueuedMessage,
+        remove: (item) => bridge.sendCommand('removeQueuedMessage', {
+          'kind': item['kind'],
+          'id': item['id'],
+        }),
+        clear: () => bridge.sendCommand('clearQueuedMessages'),
+      ),
   ];
+
+  Future<void> _editQueuedMessage(Map item) async {
+    final result = await bridge.sendCommand('editQueuedMessage', {
+      'kind': item['kind'],
+      'id': item['id'],
+    });
+    if (!mounted || result is! Map || result['ok'] != true) return;
+    final text = result['text'] as String? ?? '';
+    _composer.value = TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
+    );
+    _composerFocus.requestFocus();
+  }
 
   Widget _buildComposer(
     BuildContext context,
@@ -356,70 +405,194 @@ class _AgentWindowBridgeShellState extends State<_AgentWindowBridgeShell> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          TextField(
-            controller: _composer,
-            focusNode: _composerFocus,
-            enabled: initialized,
-            minLines: 2,
-            maxLines: 7,
-            onChanged: _composerChanged,
-            onSubmitted: (_) {
+          Focus(
+            onKeyEvent: (_, event) {
+              if (event is! KeyDownEvent) return KeyEventResult.ignored;
+              if (event.logicalKey == LogicalKeyboardKey.escape && running) {
+                bridge.sendCommand('stop');
+                return KeyEventResult.handled;
+              }
+              if (event.logicalKey != LogicalKeyboardKey.enter &&
+                  event.logicalKey != LogicalKeyboardKey.numpadEnter) {
+                return KeyEventResult.ignored;
+              }
+              if (_composer.value.composing.isValid &&
+                  !_composer.value.composing.isCollapsed) {
+                return KeyEventResult.ignored;
+              }
+              if (HardwareKeyboard.instance.isShiftPressed ||
+                  HardwareKeyboard.instance.isControlPressed ||
+                  HardwareKeyboard.instance.isMetaPressed) {
+                final value = _composer.value;
+                final selection = value.selection;
+                final start = selection.isValid
+                    ? selection.start
+                    : value.text.length;
+                final end = selection.isValid
+                    ? selection.end
+                    : value.text.length;
+                _composer.value = value.copyWith(
+                  text: value.text.replaceRange(start, end, '\n'),
+                  selection: TextSelection.collapsed(offset: start + 1),
+                  composing: TextRange.empty,
+                );
+                return KeyEventResult.handled;
+              }
               if (!hasUnavailableResources) unawaited(_send());
+              return KeyEventResult.handled;
             },
-            decoration: InputDecoration(
-              hintText: l10n.agentChat_inputHint,
-              border: const OutlineInputBorder(),
-              isDense: true,
+            child: TextField(
+              controller: _composer,
+              focusNode: _composerFocus,
+              enabled: initialized,
+              minLines: 2,
+              maxLines: 7,
+              onChanged: _composerChanged,
+              textInputAction: TextInputAction.newline,
+              decoration: InputDecoration(
+                hintText: l10n.agentChat_inputHint,
+                filled: true,
+                fillColor: Theme.of(context).colorScheme.surfaceContainerLow,
+                border: OutlineInputBorder(
+                  borderSide: BorderSide.none,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                isDense: true,
+              ),
             ),
           ),
           const SizedBox(height: 6),
-          Row(
-            children: [
-              AgentWindowPermissionModeButton(
-                sendCommand: (name, payload) =>
-                    bridge.sendCommand(name, payload),
-                payload: payload,
-              ),
-              const SizedBox(width: 4),
-              FilterChip(
-                selected: payload['webAccessEnabled'] == true,
-                avatar: const Icon(Icons.public, size: 16),
-                label: Text(l10n.agentChat_webAccess),
-                onSelected: running
-                    ? null
-                    : (value) =>
-                          bridge.sendCommand('setWebAccess', {'value': value}),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  routeLabel,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.labelSmall,
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                AgentWindowPermissionModeButton(
+                  sendCommand: (name, payload) =>
+                      bridge.sendCommand(name, payload),
+                  payload: payload,
                 ),
-              ),
-              IconButton.filled(
-                tooltip: running
-                    ? l10n.agentChat_stop
-                    : hasUnavailableResources
-                    ? l10n.agentChat_resourceUnavailable
-                    : l10n.agentChat_send,
-                onPressed: initialized && routeReady
-                    ? running
-                          ? () => bridge.sendCommand('stop')
-                          : hasUnavailableResources
-                          ? null
-                          : _send
-                    : null,
-                icon: Icon(running ? Icons.stop : Icons.send),
-              ),
-            ],
+                const SizedBox(width: 4),
+                FilterChip(
+                  selected: payload['webAccessEnabled'] == true,
+                  avatar: const Icon(Icons.public, size: 16),
+                  label: Text(l10n.agentChat_webAccess),
+                  onSelected: running
+                      ? null
+                      : (value) => bridge.sendCommand('setWebAccess', {
+                          'value': value,
+                        }),
+                ),
+                const SizedBox(width: 4),
+                AgentWindowModelButton(
+                  payload: payload,
+                  sendCommand: (name, payload) =>
+                      bridge.sendCommand(name, payload),
+                ),
+                const SizedBox(width: 8),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    minWidth: 96,
+                    maxWidth: 180,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '$routeLabel${_workPhaseLabel(l10n, payload['workPhase'])}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.labelSmall,
+                      ),
+                      Text(
+                        _contextLabel(l10n, payload['contextUsage']),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (running)
+                  PopupMenuButton<bool>(
+                    tooltip: l10n.agentChat_queueFollowUp,
+                    onSelected: (_) => _send(followUp: true),
+                    itemBuilder: (_) => [
+                      PopupMenuItem<bool>(
+                        value: true,
+                        child: ListTile(
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                          leading: const Icon(Icons.playlist_add_rounded),
+                          title: Text(l10n.agentChat_queueFollowUp),
+                        ),
+                      ),
+                    ],
+                    icon: const Icon(Icons.playlist_add_rounded),
+                  ),
+                if (running)
+                  IconButton(
+                    tooltip: l10n.agentChat_stop,
+                    onPressed: () => bridge.sendCommand('stop'),
+                    color: Theme.of(context).colorScheme.error,
+                    icon: const Icon(Icons.stop_rounded),
+                  ),
+                IconButton.filled(
+                  tooltip: hasUnavailableResources
+                      ? l10n.agentChat_resourceUnavailable
+                      : running
+                      ? l10n.agentChat_queued
+                      : l10n.agentChat_send,
+                  onPressed: initialized && routeReady
+                      ? hasUnavailableResources
+                            ? null
+                            : _send
+                      : null,
+                  icon: Icon(
+                    running ? Icons.queue_rounded : Icons.send_rounded,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
     ),
   );
+
+  String _workPhaseLabel(AppLocalizations l10n, Object? value) {
+    final label = switch (value) {
+      'preparing' => l10n.agentChat_phasePreparing,
+      'thinking' => l10n.agentChat_thinking,
+      'responding' => l10n.agentChat_phaseResponding,
+      'usingTools' => l10n.agentChat_toolRunning,
+      'awaitingApproval' => l10n.agentChat_phaseAwaitingApproval,
+      'compacting' => l10n.agentChat_compacting,
+      'stopping' => l10n.agentChat_phaseStopping,
+      _ => '',
+    };
+    return label.isEmpty ? '' : ' · $label';
+  }
+
+  String _contextLabel(AppLocalizations l10n, Object? value) {
+    if (value is! Map) return l10n.agentChat_contextUnavailable;
+    final total = value['totalTokens'];
+    final count = total is num ? total.toInt() : 0;
+    if (count <= 0) return l10n.agentChat_contextUnavailable;
+    final window = _contextWindow();
+    return window == null
+        ? l10n.agentChat_contextTokens(count)
+        : '${l10n.agentChat_contextTokens(count)} / $window · '
+              '${(count / window * 100).clamp(0, 999).round()}%';
+  }
+
+  int? _contextWindow() {
+    final value = bridge.snapshot.payload['contextWindow'];
+    return value is num && value > 0 ? value.toInt() : null;
+  }
 
   Future<void> _sessionAction(BuildContext context, String value) async {
     final payload = bridge.snapshot.payload;
@@ -484,6 +657,33 @@ class _AgentWindowBridgeShellState extends State<_AgentWindowBridgeShell> {
     }
   }
 }
+
+List<Object?> _resolveMessageImageAssets(
+  List messages,
+  Map<Object?, Object?> assets,
+) => [
+  for (final message in messages)
+    if (message is Map)
+      {
+        ...message,
+        if (message['images'] is List)
+          'images': [
+            for (final image in message['images'] as List)
+              if (image is Map && image['assetId'] is String)
+                {
+                  ...image,
+                  if (assets[image['assetId']] is Map)
+                    ...Map<Object?, Object?>.from(
+                      assets[image['assetId']] as Map,
+                    ),
+                }
+              else
+                image,
+          ],
+      }
+    else
+      message,
+];
 
 final class _LocalizedWindowCommandException implements Exception {
   const _LocalizedWindowCommandException(this.message);

@@ -6,12 +6,12 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/agent/agent_types.dart';
-import '../../../../core/agent/resources/agent_chat_resource_reference.dart';
-import '../../../../core/agent/resources/agent_chat_resource_reference_codec.dart';
-import '../../../../core/utils/localization_extension.dart';
-import '../../../../core/utils/nai_resolution_adapter.dart';
-import '../../../../data/models/gallery/local_image_record.dart';
+import '../../../core/agent/agent_types.dart';
+import '../../../core/agent/resources/agent_chat_resource_reference.dart';
+import '../../../core/agent/resources/agent_chat_resource_reference_codec.dart';
+import '../../../core/utils/localization_extension.dart';
+import '../../../core/utils/nai_resolution_adapter.dart';
+import '../../../data/models/gallery/local_image_record.dart';
 import '../../utils/image_detail_opener.dart';
 import '../../providers/krita/krita_bridge_notifier.dart';
 import '../../services/image_send_action_dispatcher.dart';
@@ -83,64 +83,48 @@ String agentToolLabel(BuildContext context, String toolName) {
 }
 
 _AgentToolVisual _agentToolVisual(ThemeData theme, String toolName) {
-  final colors = theme.colorScheme;
-  Color muted(Color accent) =>
-      Color.lerp(colors.onSurfaceVariant, accent, 0.36)!;
-  final primary = muted(colors.primary);
-  final secondary = muted(colors.secondary);
-  final tertiary = muted(colors.tertiary);
-  final imageColor = muted(Color.lerp(colors.primary, colors.tertiary, 0.55)!);
-  final settingsColor = muted(
-    Color.lerp(colors.primary, colors.secondary, 0.5)!,
-  );
-  final skillColor = muted(Color.lerp(colors.secondary, colors.tertiary, 0.5)!);
-  final tagColor = muted(Color.lerp(colors.secondary, colors.error, 0.22)!);
-  final readColor = muted(Color.lerp(colors.tertiary, colors.onSurface, 0.3)!);
-  final webColor = muted(Color.lerp(colors.secondary, colors.primary, 0.4)!);
+  final neutral = theme.colorScheme.onSurfaceVariant;
   return switch (toolName) {
     'generate_image' => _AgentToolVisual(
       icon: Icons.auto_awesome,
-      color: primary,
+      color: neutral,
     ),
     'queue_image_task' => _AgentToolVisual(
       icon: Icons.schedule_send_outlined,
-      color: primary,
+      color: neutral,
     ),
     'interrogate_image' || 'get_recent_images' || 'get_generation_status' =>
-      _AgentToolVisual(icon: Icons.image_search_outlined, color: imageColor),
+      _AgentToolVisual(icon: Icons.image_search_outlined, color: neutral),
     'get_generation_settings' || 'update_generation_settings' =>
-      _AgentToolVisual(icon: Icons.tune, color: settingsColor),
+      _AgentToolVisual(icon: Icons.tune, color: neutral),
     'get_prompt_state' || 'set_positive_prompt' || 'set_negative_prompt' =>
-      _AgentToolVisual(icon: Icons.edit_note, color: secondary),
+      _AgentToolVisual(icon: Icons.edit_note, color: neutral),
     'add_character' || 'update_character' || 'remove_character' =>
-      _AgentToolVisual(icon: Icons.manage_accounts_outlined, color: tertiary),
+      _AgentToolVisual(icon: Icons.manage_accounts_outlined, color: neutral),
     'read_skill' ||
     'read_skill_resource' ||
     'get_skill_diagnostics' ||
     'reload_skills' => _AgentToolVisual(
       icon: Icons.extension_outlined,
-      color: skillColor,
+      color: neutral,
     ),
     'search_tags' => _AgentToolVisual(
       icon: Icons.sell_outlined,
-      color: tagColor,
+      color: neutral,
     ),
     'read' => _AgentToolVisual(
       icon: Icons.description_outlined,
-      color: readColor,
+      color: neutral,
     ),
     'web_search' => _AgentToolVisual(
       icon: Icons.travel_explore_outlined,
-      color: webColor,
+      color: neutral,
     ),
     'web_read' => _AgentToolVisual(
       icon: Icons.language_outlined,
-      color: webColor,
+      color: neutral,
     ),
-    _ => _AgentToolVisual(
-      icon: Icons.build_outlined,
-      color: colors.onSurfaceVariant,
-    ),
+    _ => _AgentToolVisual(icon: Icons.build_outlined, color: neutral),
   };
 }
 
@@ -216,8 +200,8 @@ class _AgentChatToolActivityTileState extends State<AgentChatToolActivityTile>
             visual.color,
             Color.lerp(
               theme.colorScheme.onSurfaceVariant,
-              theme.colorScheme.primary,
-              0.32,
+              theme.colorScheme.onSurface,
+              0.18,
             )!,
             0.16 + progress * 0.24,
           )!;
@@ -323,10 +307,22 @@ class AgentChatToolResultTile extends StatelessWidget {
           )!
         : visual.color;
     final files = _extractImageFiles(result);
-    final inlineImages = _extractInlineImages(result);
-    final resourceReference = files.isEmpty && inlineImages.isEmpty
-        ? _extractTopLevelResourceReference(result)
-        : null;
+    final preferFileImages =
+        files.isNotEmpty &&
+        result.details is Map &&
+        (result.details as Map)['preferFileImages'] == true;
+    final inlineImages = preferFileImages
+        ? const <Uint8List>[]
+        : _extractInlineImages(result);
+    final remoteImages = preferFileImages
+        ? const <String>[]
+        : _extractRemoteImages(
+            result,
+          ).where((url) => !files.contains(url)).toList(growable: false);
+    final resourceReferences =
+        files.isEmpty && inlineImages.isEmpty && remoteImages.isEmpty
+        ? _extractResourceReferences(result)
+        : const <AgentChatResourceReference>[];
     return Padding(
       padding: const EdgeInsets.only(bottom: 6, left: 4),
       child: Column(
@@ -361,7 +357,8 @@ class AgentChatToolResultTile extends StatelessWidget {
           ),
           if (files.isNotEmpty ||
               inlineImages.isNotEmpty ||
-              resourceReference != null)
+              remoteImages.isNotEmpty ||
+              resourceReferences.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 4),
               child: Column(
@@ -374,12 +371,136 @@ class AgentChatToolResultTile extends StatelessWidget {
                       key: ValueKey('${result.toolCallId}-inline-$index'),
                       bytes: inlineImages[index],
                     ),
-                  if (resourceReference != null)
-                    _ToolResultResourcePreview(reference: resourceReference),
+                  for (final url in remoteImages)
+                    _ToolResultNetworkImage(key: ValueKey(url), url: url),
+                  for (final reference in resourceReferences)
+                    _ToolResultResourcePreview(reference: reference),
                 ],
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// Keeps consecutive tool results in one quiet, auditable turn activity unit.
+/// Image/error results expand by default because hiding them would obscure the
+/// outcome the user is waiting for.
+class AgentChatToolResultGroup extends StatelessWidget {
+  const AgentChatToolResultGroup({super.key, required this.results});
+
+  final List<ToolResultMessage> results;
+
+  @override
+  Widget build(BuildContext context) {
+    if (results.length == 1) {
+      return AgentChatToolResultTile(result: results.single);
+    }
+    final theme = Theme.of(context);
+    final failed = results.where((result) => result.isError).length;
+    final containsImages = results.any(
+      (result) =>
+          result.content.any((item) => item is ToolResultImageContent) ||
+          _extractImageFiles(result).isNotEmpty ||
+          _extractResourceReferences(result).isNotEmpty,
+    );
+    return Theme(
+      data: theme.copyWith(dividerColor: Colors.transparent),
+      child: Material(
+        type: MaterialType.transparency,
+        child: ExpansionTile(
+          key: PageStorageKey(
+            'agent-tool-group-${results.first.toolCallId}-${results.length}',
+          ),
+          initiallyExpanded: containsImages || failed > 0,
+          tilePadding: const EdgeInsets.symmetric(horizontal: 4),
+          childrenPadding: const EdgeInsets.only(left: 12),
+          minTileHeight: 34,
+          leading: Icon(
+            failed > 0 ? Icons.error_outline : Icons.task_alt_outlined,
+            size: 17,
+            color: failed > 0
+                ? theme.colorScheme.error
+                : theme.colorScheme.onSurfaceVariant,
+          ),
+          title: Text(
+            context.l10n.agentChat_toolGroupCount(results.length),
+            style: theme.textTheme.labelMedium,
+          ),
+          subtitle: Text(
+            results
+                .map((result) => agentToolLabel(context, result.toolName))
+                .toSet()
+                .join(' · '),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          children: [
+            for (final result in results)
+              AgentChatToolResultTile(result: result),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class AgentChatReasoningTile extends StatelessWidget {
+  const AgentChatReasoningTile({
+    super.key,
+    required this.thinking,
+    this.live = false,
+  });
+
+  final String thinking;
+  final bool live;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Theme(
+      data: theme.copyWith(dividerColor: Colors.transparent),
+      child: Material(
+        type: MaterialType.transparency,
+        child: ExpansionTile(
+          key: ValueKey('agent-reasoning-${thinking.hashCode}-$live'),
+          initiallyExpanded: live,
+          minTileHeight: 32,
+          tilePadding: const EdgeInsets.symmetric(horizontal: 4),
+          childrenPadding: const EdgeInsets.fromLTRB(28, 0, 8, 8),
+          leading: live
+              ? const SizedBox.square(
+                  dimension: 14,
+                  child: CircularProgressIndicator(strokeWidth: 1.6),
+                )
+              : Icon(
+                  Icons.psychology_alt_outlined,
+                  size: 16,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+          title: Text(
+            context.l10n.agentChat_reasoning,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          children: [
+            Align(
+              alignment: Alignment.centerLeft,
+              child: SelectableText(
+                thinking,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  height: 1.5,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -391,21 +512,53 @@ List<Uint8List> _extractInlineImages(ToolResultMessage result) => [
       content.image.source.bytes!,
 ];
 
-AgentChatResourceReference? _extractTopLevelResourceReference(
+List<String> _extractRemoteImages(ToolResultMessage result) => [
+  for (final content in result.content)
+    if (content is ToolResultImageContent && content.image.source.url != null)
+      content.image.source.url!,
+];
+
+List<AgentChatResourceReference> _extractResourceReferences(
   ToolResultMessage result,
 ) {
-  for (final content in result.content.whereType<ToolResultTextContent>()) {
-    try {
-      final decoded = jsonDecode(content.text);
-      if (decoded is! Map || decoded['resource_ref'] is! Map) continue;
-      return AgentChatResourceReferenceCodec.decodeJsonMap(
-        Map<String, dynamic>.from(decoded['resource_ref'] as Map),
-      );
-    } on FormatException {
-      continue;
+  final references = <AgentChatResourceReference>[];
+  final seen = <String>{};
+
+  void collect(Object? value) {
+    if (value is Map) {
+      final resource = value['resource_ref'];
+      if (resource is Map) {
+        try {
+          final encoded = Map<String, dynamic>.from(resource);
+          final key = jsonEncode(encoded);
+          if (seen.add(key)) {
+            references.add(
+              AgentChatResourceReferenceCodec.decodeJsonMap(encoded),
+            );
+          }
+        } on FormatException {
+          // Ignore malformed resource metadata from external tools.
+        }
+      }
+      for (final child in value.values) {
+        collect(child);
+      }
+    } else if (value is List) {
+      for (final child in value) {
+        collect(child);
+      }
     }
   }
-  return null;
+
+  collect(result.details);
+  for (final content in result.content.whereType<ToolResultTextContent>()) {
+    try {
+      collect(jsonDecode(content.text));
+    } on FormatException {
+      // Tool output may be ordinary text.
+    }
+  }
+  return references;
 }
 
 class _ToolResultResourcePreview extends ConsumerStatefulWidget {
@@ -476,6 +629,30 @@ class _ToolResultInlineImage extends StatelessWidget {
       ),
     );
   }
+}
+
+class _ToolResultNetworkImage extends StatelessWidget {
+  const _ToolResultNetworkImage({super.key, required this.url});
+
+  final String url;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 4),
+    child: ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxHeight: 240),
+        child: Image.network(
+          url,
+          fit: BoxFit.contain,
+          alignment: Alignment.centerLeft,
+          gaplessPlayback: true,
+          errorBuilder: (_, _, _) => const SizedBox.shrink(),
+        ),
+      ),
+    ),
+  );
 }
 
 List<String> _extractImageFiles(ToolResultMessage result) {

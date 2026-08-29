@@ -29,6 +29,7 @@ abstract final class SessionJsonlCodec {
               AssistantThinkingContent() => {
                 'type': 'thinking',
                 'thinking': block.thinking,
+                if (block.signature != null) 'signature': block.signature,
               },
               ToolCallContent() => {
                 'type': 'toolCall',
@@ -62,8 +63,26 @@ abstract final class SessionJsonlCodec {
         'role': 'toolResult',
         'toolCallId': message.toolCallId,
         'toolName': message.toolName,
+        'contentBlocks': [
+          for (final block in message.content)
+            switch (block) {
+              ToolResultTextContent() => {'type': 'text', 'text': block.text},
+              ToolResultImageContent() => {
+                'type': 'image',
+                if (block.image.source.url case final url?) 'url': url,
+                if (block.image.source.mimeType case final mimeType?)
+                  'mimeType': mimeType,
+                if (block.image.source.base64Data case final base64?)
+                  'base64': base64,
+              },
+            },
+        ],
+        // Legacy readers only understand the flattened textual result.
         'content': message.text,
         if (details != null) 'details': details,
+        if (message.usage != null) 'usage': message.usage!.toJson(),
+        if (message.addedToolNames != null)
+          'addedToolNames': message.addedToolNames,
         'isError': message.isError,
         'timestamp': message.timestamp,
       };
@@ -114,11 +133,12 @@ abstract final class SessionJsonlCodec {
         return ToolResultMessage(
           toolCallId: value['toolCallId'] as String? ?? '',
           toolName: value['toolName'] as String? ?? '',
-          content: [
-            if (value['content'] case final String text when text.isNotEmpty)
-              ToolResultTextContent(text),
-          ],
+          content: _decodeToolResultContent(value),
           details: value['details'],
+          usage: decodeUsage(value['usage']),
+          addedToolNames: (value['addedToolNames'] as List?)
+              ?.whereType<String>()
+              .toList(growable: false),
           isError: value['isError'] as bool? ?? false,
           timestamp: timestamp,
         );
@@ -139,6 +159,7 @@ abstract final class SessionJsonlCodec {
               'text' => AssistantTextContent(item['text'] as String? ?? ''),
               'thinking' => AssistantThinkingContent(
                 item['thinking'] as String? ?? '',
+                signature: item['signature'] as String?,
               ),
               'toolCall' => ToolCallContent(
                 id: item['id'] as String? ?? '',
@@ -165,6 +186,42 @@ abstract final class SessionJsonlCodec {
                 (call['arguments'] as Map?)?.cast<String, dynamic>() ??
                 const {},
           ),
+    ];
+  }
+
+  static List<ToolResultContent> _decodeToolResultContent(
+    Map<String, dynamic> value,
+  ) {
+    final blocks = value['contentBlocks'];
+    if (blocks is List) {
+      return [
+        for (final block in blocks)
+          if (block is Map<String, dynamic>)
+            switch (block['type']) {
+              'text' => ToolResultTextContent(block['text'] as String? ?? ''),
+              'image' when block['url'] is String => ToolResultImageContent(
+                ImageContent(
+                  source: ImageSource.url(url: block['url'] as String),
+                ),
+              ),
+              'image'
+                  when block['mimeType'] is String &&
+                      block['base64'] is String =>
+                ToolResultImageContent(
+                  ImageContent(
+                    source: ImageSource.base64(
+                      mimeType: block['mimeType'] as String,
+                      base64Data: block['base64'] as String,
+                    ),
+                  ),
+                ),
+              _ => null,
+            },
+      ].whereType<ToolResultContent>().toList(growable: false);
+    }
+    return [
+      if (value['content'] case final String text when text.isNotEmpty)
+        ToolResultTextContent(text),
     ];
   }
 

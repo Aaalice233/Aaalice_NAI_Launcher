@@ -3,9 +3,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart' as md;
 
-import '../../../../core/agent/agent_types.dart';
-import '../../../../core/agent/harness/harness_messages.dart';
-import '../../../../core/utils/localization_extension.dart';
+import '../../../core/agent/agent_types.dart';
+import '../../../core/agent/harness/harness_messages.dart';
+import '../../../core/utils/localization_extension.dart';
 import '../../widgets/common/draggable_memory_image.dart';
 import '../providers/agent_chat_notifier.dart';
 import 'agent_chat_panel_controller.dart';
@@ -58,28 +58,105 @@ class AgentChatMessages extends StatelessWidget {
         break;
       }
     }
-    return SingleChildScrollView(
-      controller: controller.scrollController,
-      padding: EdgeInsets.symmetric(
-        horizontal: viewData.mobile ? 16 : 10,
-        vertical: viewData.mobile ? 12 : 8,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (var index = 0; index < state.messages.length; index++)
-            _messageTile(
-              context,
-              theme,
-              state.messages[index],
-              messageIndex: index,
-              isLastUserMessage: index == lastUserMessageIndex,
+    final items = _transcriptItems(state.messages);
+    return Stack(
+      children: [
+        NotificationListener<ScrollNotification>(
+          onNotification: controller.handleScrollNotification,
+          child: ListView.builder(
+            controller: controller.scrollController,
+            reverse: true,
+            padding: EdgeInsets.symmetric(
+              horizontal: viewData.mobile ? 16 : 10,
+              vertical: viewData.mobile ? 12 : 8,
             ),
-          _liveTile(context, theme, state),
-        ],
-      ),
+            itemCount: items.length + 1,
+            itemBuilder: (context, itemIndex) {
+              if (itemIndex == 0) {
+                return _liveTile(context, theme, state);
+              }
+              final item = items[items.length - itemIndex];
+              if (item.toolResults != null) {
+                return AgentChatToolResultGroup(results: item.toolResults!);
+              }
+              return _messageTile(
+                context,
+                theme,
+                item.message!,
+                messageIndex: item.messageIndex,
+                isLastUserMessage: item.messageIndex == lastUserMessageIndex,
+              );
+            },
+          ),
+        ),
+        if (controller.showJumpToLatest)
+          Positioned(
+            right: viewData.mobile ? 16 : 10,
+            bottom: 10,
+            child: FilledButton.tonalIcon(
+              key: const ValueKey('agent-chat-jump-to-latest'),
+              onPressed: () => controller.scrollToBottom(force: true),
+              icon: const Icon(Icons.arrow_downward_rounded, size: 16),
+              label: Text(context.l10n.agentChat_jumpToLatest),
+              style: FilledButton.styleFrom(
+                minimumSize: Size(0, viewData.mobile ? 44 : 34),
+                visualDensity: VisualDensity.compact,
+              ),
+            ),
+          ),
+      ],
     );
   }
+
+  List<_AgentTranscriptItem> _transcriptItems(List<Message> messages) {
+    final items = <_AgentTranscriptItem>[];
+    var index = 0;
+    while (index < messages.length) {
+      final message = messages[index];
+      if (message is AssistantMessage &&
+          !_hasVisibleAssistantContent(message) &&
+          message.toolCalls.isNotEmpty &&
+          index + 1 < messages.length &&
+          messages[index + 1] is ToolResultMessage) {
+        index++;
+        continue;
+      }
+      if (message is ToolResultMessage) {
+        final results = <ToolResultMessage>[];
+        final firstIndex = index;
+        while (index < messages.length) {
+          final candidate = messages[index];
+          if (candidate is ToolResultMessage) {
+            results.add(candidate);
+            index++;
+            continue;
+          }
+          if (candidate is AssistantMessage &&
+              !_hasVisibleAssistantContent(candidate) &&
+              candidate.toolCalls.isNotEmpty &&
+              index + 1 < messages.length &&
+              messages[index + 1] is ToolResultMessage) {
+            index++;
+            continue;
+          }
+          break;
+        }
+        items.add(
+          _AgentTranscriptItem.toolResults(results, messageIndex: firstIndex),
+        );
+        continue;
+      }
+      items.add(_AgentTranscriptItem.message(message, messageIndex: index));
+      index++;
+    }
+    return items;
+  }
+
+  bool _hasVisibleAssistantContent(AssistantMessage message) =>
+      message.text.trim().isNotEmpty ||
+      message.content.whereType<AssistantThinkingContent>().any(
+        (content) => content.thinking.trim().isNotEmpty,
+      );
 
   Widget _hero(BuildContext context, ThemeData theme) {
     final l10n = context.l10n;
@@ -335,15 +412,15 @@ class AgentChatMessages extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 SizedBox(
-                  height: 22,
+                  height: viewData.mobile ? 44 : 22,
                   child: AnimatedOpacity(
                     key: ValueKey('agent-user-message-actions-$messageIndex'),
-                    opacity: hovered ? 1 : 0,
+                    opacity: viewData.mobile || hovered ? 1 : 0,
                     duration: const Duration(milliseconds: 120),
                     child: IgnorePointer(
-                      ignoring: !hovered,
+                      ignoring: !viewData.mobile && !hovered,
                       child: ExcludeSemantics(
-                        excluding: !hovered,
+                        excluding: !viewData.mobile && !hovered,
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -362,6 +439,7 @@ class AgentChatMessages extends StatelessWidget {
                               ),
                               tooltip: context.l10n.common_copy,
                               icon: Icons.copy_all_outlined,
+                              largeHitArea: viewData.mobile,
                               onPressed: () =>
                                   commands.copyUserMessage(message),
                             ),
@@ -372,6 +450,7 @@ class AgentChatMessages extends StatelessWidget {
                                 ),
                                 tooltip: context.l10n.common_edit,
                                 icon: Icons.edit_outlined,
+                                largeHitArea: viewData.mobile,
                                 onPressed: canEdit
                                     ? () =>
                                           commands.editLastUserMessage(message)
@@ -390,46 +469,71 @@ class AgentChatMessages extends StatelessWidget {
       );
     }
     if (message is AssistantMessage) {
-      if (message.text.trim().isEmpty) {
+      final thinking = message.content
+          .whereType<AssistantThinkingContent>()
+          .map((content) => content.thinking)
+          .join();
+      if (message.text.trim().isEmpty && thinking.trim().isEmpty) {
         return const SizedBox.shrink();
       }
-      return Container(
-        width: double.infinity,
-        margin: const EdgeInsets.only(bottom: 10, right: 12),
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-        child: md.MarkdownBody(
-          data: message.text.isEmpty ? ' ' : message.text,
-          selectable: true,
-          imageBuilder: (uri, _, alt) => _markdownImage(theme, uri, alt),
-          styleSheet: md.MarkdownStyleSheet.fromTheme(theme).copyWith(
-            p:
-                (viewData.mobile
-                        ? theme.textTheme.bodyMedium
-                        : theme.textTheme.bodySmall)
-                    ?.copyWith(height: 1.55),
-            code:
-                (viewData.mobile
-                        ? theme.textTheme.bodyMedium
-                        : theme.textTheme.bodySmall)
-                    ?.copyWith(
-                      fontFamily: 'monospace',
-                      backgroundColor: theme.colorScheme.surfaceContainerHighest
-                          .withValues(alpha: 0.6),
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (thinking.trim().isNotEmpty)
+            AgentChatReasoningTile(thinking: thinking),
+          if (message.text.trim().isNotEmpty)
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: 10, right: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+              child: md.MarkdownBody(
+                data: message.text,
+                selectable: true,
+                imageBuilder: (uri, _, alt) => _markdownImage(theme, uri, alt),
+                styleSheet: md.MarkdownStyleSheet.fromTheme(theme).copyWith(
+                  p:
+                      (viewData.mobile
+                              ? theme.textTheme.bodyMedium
+                              : theme.textTheme.bodySmall)
+                          ?.copyWith(height: 1.55),
+                  code:
+                      (viewData.mobile
+                              ? theme.textTheme.bodyMedium
+                              : theme.textTheme.bodySmall)
+                          ?.copyWith(
+                            fontFamily: 'monospace',
+                            backgroundColor: theme
+                                .colorScheme
+                                .surfaceContainerHighest
+                                .withValues(alpha: 0.6),
+                          ),
+                  codeblockDecoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceContainerHighest.withValues(
+                      alpha: 0.6,
                     ),
-            codeblockDecoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest.withValues(
-                alpha: 0.6,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  blockquoteDecoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceContainerHigh.withValues(
+                      alpha: 0.5,
+                    ),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
               ),
-              borderRadius: BorderRadius.circular(8),
             ),
-            blockquoteDecoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHigh.withValues(
-                alpha: 0.5,
+          if (message.text.trim().isNotEmpty)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: _MessageActionButton(
+                key: ValueKey('agent-assistant-message-copy-$messageIndex'),
+                tooltip: context.l10n.common_copy,
+                icon: Icons.copy_all_outlined,
+                largeHitArea: viewData.mobile,
+                onPressed: () => commands.copyAssistantMessage(message),
               ),
-              borderRadius: BorderRadius.circular(8),
             ),
-          ),
-        ),
+        ],
       );
     }
     if (message is ToolResultMessage) {
@@ -575,7 +679,8 @@ class AgentChatMessages extends StatelessWidget {
         .where((activity) => activity.status == AgentToolActivityStatus.running)
         .toList();
     final hasActivities = runningActivities.isNotEmpty;
-    final hasStreaming = state.streamingText.isNotEmpty;
+    final streaming = state.streamingMessage;
+    final hasStreaming = streaming != null;
     final running = state.status == AgentChatRunStatus.running;
     if (!hasActivities && !hasStreaming && !running) {
       return const SizedBox.shrink();
@@ -585,20 +690,35 @@ class AgentChatMessages extends StatelessWidget {
       children: [
         for (final activity in runningActivities)
           AgentChatToolActivityTile(activity: activity),
-        if (hasStreaming)
-          Container(
-            width: double.infinity,
-            margin: const EdgeInsets.only(bottom: 10, right: 12),
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-            child: Text(
-              state.streamingText,
-              style:
-                  (viewData.mobile
-                          ? theme.textTheme.bodyMedium
-                          : theme.textTheme.bodySmall)
-                      ?.copyWith(height: 1.55),
+        if (streaming != null) ...[
+          if (streaming.content
+              .whereType<AssistantThinkingContent>()
+              .map((content) => content.thinking)
+              .join()
+              .trim()
+              .isNotEmpty)
+            AgentChatReasoningTile(
+              thinking: streaming.content
+                  .whereType<AssistantThinkingContent>()
+                  .map((content) => content.thinking)
+                  .join(),
+              live: streaming.text.isEmpty,
             ),
-          ),
+          if (streaming.text.isNotEmpty)
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: 10, right: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+              child: Text(
+                streaming.text,
+                style:
+                    (viewData.mobile
+                            ? theme.textTheme.bodyMedium
+                            : theme.textTheme.bodySmall)
+                        ?.copyWith(height: 1.55),
+              ),
+            ),
+        ],
         if (running && !hasStreaming && !hasActivities)
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
@@ -645,11 +765,13 @@ class _MessageActionButton extends StatelessWidget {
     required this.tooltip,
     required this.icon,
     required this.onPressed,
+    this.largeHitArea = false,
   });
 
   final String tooltip;
   final IconData icon;
   final VoidCallback? onPressed;
+  final bool largeHitArea;
 
   @override
   Widget build(BuildContext context) {
@@ -660,11 +782,11 @@ class _MessageActionButton extends StatelessWidget {
       waitDuration: const Duration(milliseconds: 400),
       child: InkResponse(
         onTap: onPressed,
-        radius: 14,
+        radius: largeHitArea ? 24 : 14,
         containedInkWell: true,
         highlightShape: BoxShape.rectangle,
         child: SizedBox.square(
-          dimension: 22,
+          dimension: largeHitArea ? 44 : 22,
           child: Center(
             child: Icon(
               icon,
@@ -678,4 +800,27 @@ class _MessageActionButton extends StatelessWidget {
       ),
     );
   }
+}
+
+class _AgentTranscriptItem {
+  const _AgentTranscriptItem._({
+    required this.messageIndex,
+    this.message,
+    this.toolResults,
+  });
+
+  factory _AgentTranscriptItem.message(
+    Message message, {
+    required int messageIndex,
+  }) => _AgentTranscriptItem._(messageIndex: messageIndex, message: message);
+
+  factory _AgentTranscriptItem.toolResults(
+    List<ToolResultMessage> results, {
+    required int messageIndex,
+  }) =>
+      _AgentTranscriptItem._(messageIndex: messageIndex, toolResults: results);
+
+  final int messageIndex;
+  final Message? message;
+  final List<ToolResultMessage>? toolResults;
 }

@@ -35,8 +35,32 @@ void main() {
 
     expect(find.byType(Image), findsOneWidget);
   });
+
+  testWidgets('renders persisted generation files without a display tool', (
+    tester,
+  ) async {
+    final result = ToolResultMessage(
+      toolCallId: 'generate-1',
+      toolName: 'generate_image',
+      content: const [ToolResultTextContent('{"ok":true}')],
+      details: const {
+        'files': ['missing-generated-result.png'],
+      },
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(body: AgentChatToolResultTile(result: result)),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.textContaining('missing-generated-result.png'), findsOneWidget);
+  });
 }
 
 final _onePixelPng = base64Decode(
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO6qv0YAAAAASUVORK5CYII=',
 );

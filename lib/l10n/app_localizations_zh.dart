@@ -819,10 +819,71 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agentChat_queued => '已排队';
 
   @override
+  String get agentChat_queueSteering => '插入当前工作';
+
+  @override
+  String get agentChat_queueFollowUp => '当前任务后继续';
+
+  @override
   String get agentChat_thinking => '思考中…';
 
   @override
   String get agentChat_toolRunning => '调用工具中';
+
+  @override
+  String get agentChat_reasoning => '思考过程';
+
+  @override
+  String get agentChat_reasoningLevel => '推理强度';
+
+  @override
+  String get agentChat_reasoningOff => '关闭';
+
+  @override
+  String get agentChat_reasoningMinimal => '最少';
+
+  @override
+  String get agentChat_reasoningLow => '低';
+
+  @override
+  String get agentChat_reasoningMedium => '中';
+
+  @override
+  String get agentChat_reasoningHigh => '高';
+
+  @override
+  String get agentChat_reasoningXHigh => '极高';
+
+  @override
+  String get agentChat_reasoningMax => '最大';
+
+  @override
+  String get agentChat_jumpToLatest => '回到最新';
+
+  @override
+  String agentChat_toolGroupCount(int count) {
+    return '执行了 $count 项操作';
+  }
+
+  @override
+  String get agentChat_phasePreparing => '准备中';
+
+  @override
+  String get agentChat_phaseResponding => '回复中';
+
+  @override
+  String get agentChat_phaseAwaitingApproval => '等待确认';
+
+  @override
+  String get agentChat_phaseStopping => '正在停止';
+
+  @override
+  String agentChat_contextTokens(int count) {
+    return '上下文 $count tokens';
+  }
+
+  @override
+  String get agentChat_contextUnavailable => '上下文用量不可用';
 
   @override
   String get agentChat_toolGenerateImage => '生成图片';
@@ -13744,10 +13805,71 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get agentChat_queued => '已排隊';
 
   @override
+  String get agentChat_queueSteering => '插入目前工作';
+
+  @override
+  String get agentChat_queueFollowUp => '目前任務後繼續';
+
+  @override
   String get agentChat_thinking => '思考中…';
 
   @override
   String get agentChat_toolRunning => '呼叫工具中';
+
+  @override
+  String get agentChat_reasoning => '思考過程';
+
+  @override
+  String get agentChat_reasoningLevel => '推理強度';
+
+  @override
+  String get agentChat_reasoningOff => '關閉';
+
+  @override
+  String get agentChat_reasoningMinimal => '最少';
+
+  @override
+  String get agentChat_reasoningLow => '低';
+
+  @override
+  String get agentChat_reasoningMedium => '中';
+
+  @override
+  String get agentChat_reasoningHigh => '高';
+
+  @override
+  String get agentChat_reasoningXHigh => '極高';
+
+  @override
+  String get agentChat_reasoningMax => '最大';
+
+  @override
+  String get agentChat_jumpToLatest => '回到最新';
+
+  @override
+  String agentChat_toolGroupCount(int count) {
+    return '執行了 $count 項操作';
+  }
+
+  @override
+  String get agentChat_phasePreparing => '準備中';
+
+  @override
+  String get agentChat_phaseResponding => '回覆中';
+
+  @override
+  String get agentChat_phaseAwaitingApproval => '等待確認';
+
+  @override
+  String get agentChat_phaseStopping => '正在停止';
+
+  @override
+  String agentChat_contextTokens(int count) {
+    return '上下文 $count tokens';
+  }
+
+  @override
+  String get agentChat_contextUnavailable => '上下文用量不可用';
 
   @override
   String get agentChat_toolGenerateImage => '生成圖片';

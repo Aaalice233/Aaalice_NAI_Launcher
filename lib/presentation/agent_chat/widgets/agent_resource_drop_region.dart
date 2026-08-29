@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
-import '../../../../core/agent/resources/agent_chat_resource_drag_format.dart';
-import '../../../../core/agent/resources/agent_chat_resource_reference.dart';
-import '../../../../core/platform/platform_capabilities.dart';
-import '../../../../core/utils/localization_extension.dart';
+import '../../../core/agent/resources/agent_chat_resource_drag_format.dart';
+import '../../../core/agent/resources/agent_chat_resource_reference.dart';
+import '../../../core/platform/platform_capabilities.dart';
+import '../../../core/utils/localization_extension.dart';
 import '../providers/agent_chat_notifier.dart';
 
-export '../../../../core/agent/resources/agent_chat_resource_drag_format.dart';
+export '../../../core/agent/resources/agent_chat_resource_drag_format.dart';
 
 Future<void> showAddAgentResourceMenu({
   required BuildContext context,

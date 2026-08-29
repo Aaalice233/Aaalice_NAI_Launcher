@@ -1655,6 +1655,18 @@ abstract class AppLocalizations {
   /// **'Queued'**
   String get agentChat_queued;
 
+  /// No description provided for @agentChat_queueSteering.
+  ///
+  /// In en, this message translates to:
+  /// **'Steer current work'**
+  String get agentChat_queueSteering;
+
+  /// No description provided for @agentChat_queueFollowUp.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue after current task'**
+  String get agentChat_queueFollowUp;
+
   /// No description provided for @agentChat_thinking.
   ///
   /// In en, this message translates to:
@@ -1666,6 +1678,108 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Running tool'**
   String get agentChat_toolRunning;
+
+  /// No description provided for @agentChat_reasoning.
+  ///
+  /// In en, this message translates to:
+  /// **'Reasoning'**
+  String get agentChat_reasoning;
+
+  /// No description provided for @agentChat_reasoningLevel.
+  ///
+  /// In en, this message translates to:
+  /// **'Reasoning effort'**
+  String get agentChat_reasoningLevel;
+
+  /// No description provided for @agentChat_reasoningOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get agentChat_reasoningOff;
+
+  /// No description provided for @agentChat_reasoningMinimal.
+  ///
+  /// In en, this message translates to:
+  /// **'Minimal'**
+  String get agentChat_reasoningMinimal;
+
+  /// No description provided for @agentChat_reasoningLow.
+  ///
+  /// In en, this message translates to:
+  /// **'Low'**
+  String get agentChat_reasoningLow;
+
+  /// No description provided for @agentChat_reasoningMedium.
+  ///
+  /// In en, this message translates to:
+  /// **'Medium'**
+  String get agentChat_reasoningMedium;
+
+  /// No description provided for @agentChat_reasoningHigh.
+  ///
+  /// In en, this message translates to:
+  /// **'High'**
+  String get agentChat_reasoningHigh;
+
+  /// No description provided for @agentChat_reasoningXHigh.
+  ///
+  /// In en, this message translates to:
+  /// **'Extra high'**
+  String get agentChat_reasoningXHigh;
+
+  /// No description provided for @agentChat_reasoningMax.
+  ///
+  /// In en, this message translates to:
+  /// **'Maximum'**
+  String get agentChat_reasoningMax;
+
+  /// No description provided for @agentChat_jumpToLatest.
+  ///
+  /// In en, this message translates to:
+  /// **'Jump to latest'**
+  String get agentChat_jumpToLatest;
+
+  /// No description provided for @agentChat_toolGroupCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Ran {count} actions'**
+  String agentChat_toolGroupCount(int count);
+
+  /// No description provided for @agentChat_phasePreparing.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing'**
+  String get agentChat_phasePreparing;
+
+  /// No description provided for @agentChat_phaseResponding.
+  ///
+  /// In en, this message translates to:
+  /// **'Responding'**
+  String get agentChat_phaseResponding;
+
+  /// No description provided for @agentChat_phaseAwaitingApproval.
+  ///
+  /// In en, this message translates to:
+  /// **'Awaiting approval'**
+  String get agentChat_phaseAwaitingApproval;
+
+  /// No description provided for @agentChat_phaseStopping.
+  ///
+  /// In en, this message translates to:
+  /// **'Stopping'**
+  String get agentChat_phaseStopping;
+
+  /// No description provided for @agentChat_contextTokens.
+  ///
+  /// In en, this message translates to:
+  /// **'Context {count} tokens'**
+  String agentChat_contextTokens(int count);
+
+  /// No description provided for @agentChat_contextUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Context usage unavailable'**
+  String get agentChat_contextUnavailable;
 
   /// No description provided for @agentChat_toolGenerateImage.
   ///

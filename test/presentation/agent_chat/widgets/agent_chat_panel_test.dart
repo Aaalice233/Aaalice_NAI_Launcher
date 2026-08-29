@@ -254,6 +254,21 @@ void main() {
             'files': [imageFile.path],
           },
         ),
+        AssistantMessage(
+          content: const [
+            ToolCallContent(
+              id: 'search-next',
+              name: 'web_search',
+              arguments: {},
+            ),
+          ],
+          stopReason: StopReason.toolUse,
+        ),
+        ToolResultMessage(
+          toolCallId: 'search-next',
+          toolName: 'web_search',
+          content: const [ToolResultTextContent('Search completed')],
+        ),
       ]);
 
       await tester.pumpWidget(
@@ -272,6 +287,8 @@ void main() {
       await tester.pump();
 
       expect(find.byType(md.MarkdownBody), findsNothing);
+      expect(find.byType(ExpansionTile), findsOneWidget);
+      expect(find.text('Ran 2 actions'), findsOneWidget);
       final resultIcon = tester.widget<Icon>(
         find.descendant(
           of: find.byKey(const ValueKey('agent-tool-result-icon-read-image')),
@@ -519,6 +536,82 @@ void main() {
     );
   });
 
+  testWidgets('jump to latest settles at the end of a long lazy transcript', (
+    tester,
+  ) async {
+    final tempDir = Directory.systemTemp.createTempSync(
+      'agent_chat_panel_long_transcript_test_',
+    );
+    late ProviderContainer container;
+    addTearDown(() {
+      container.dispose();
+      if (tempDir.existsSync()) {
+        tempDir.deleteSync(recursive: true);
+      }
+    });
+    container = ProviderContainer(
+      overrides: [
+        localStorageServiceProvider.overrideWithValue(_MemoryLocalStorage()),
+        agentChatNotifierProvider.overrideWith((ref) {
+          return _TestAgentChatNotifier(
+            ref,
+            supportDir: tempDir,
+            workspaceDir: tempDir,
+          );
+        }),
+      ],
+    );
+    await tester.runAsync(() async {
+      container.read(agentChatNotifierProvider);
+      await _waitForInitialized(container);
+    });
+    final notifier =
+        container.read(agentChatNotifierProvider.notifier)
+            as _TestAgentChatNotifier;
+    notifier.setRouteReady(true);
+    notifier.setMessages([
+      for (var index = 0; index < 60; index++) ...[
+        UserMessage.text('user $index'),
+        AssistantMessage(
+          content: [
+            AssistantTextContent(
+              index == 59
+                  ? 'final transcript marker'
+                  : 'response $index ${'details ' * (index % 4 + 1)}',
+            ),
+          ],
+          stopReason: StopReason.stop,
+        ),
+      ],
+    ]);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(
+          locale: Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: SizedBox(width: 360, height: 720, child: AgentChatPanel()),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('final transcript marker'), findsOneWidget);
+
+    await tester.drag(find.byType(ListView), const Offset(0, 500));
+    await tester.pumpAndSettle();
+    final jumpButton = find.byKey(const ValueKey('agent-chat-jump-to-latest'));
+    expect(jumpButton, findsOneWidget);
+
+    await tester.tap(jumpButton);
+    await tester.pumpAndSettle();
+    expect(jumpButton, findsNothing);
+    expect(find.text('final transcript marker'), findsOneWidget);
+  });
+
   testWidgets('mobile panel stays usable at phone drawer width', (
     tester,
   ) async {
@@ -622,8 +715,23 @@ void main() {
     await tester.pump();
     expect(errorDismiss, findsNothing);
 
+    notifier.setRunningActivity(
+      const AgentToolActivity(
+        toolCallId: 'mobile-running',
+        toolName: 'read',
+        args: {},
+      ),
+    );
+    notifier.setQueuedMessages(20);
     await tester.pumpWidget(buildPanel(420));
     await tester.pump();
+    expect(find.byKey(const ValueKey('agent-chat-stop')), findsOneWidget);
+    expect(
+      tester.getSize(find.byKey(const ValueKey('agent-chat-stop'))).width,
+      greaterThanOrEqualTo(48),
+    );
+    await tester.tap(find.byKey(const ValueKey('agent-chat-queue')));
+    await tester.pump(const Duration(milliseconds: 300));
     final layoutError = tester.takeException();
     expect(
       layoutError,
@@ -1068,6 +1176,19 @@ class _TestAgentChatNotifier extends AgentChatNotifier {
     state = state.copyWith(
       status: AgentChatRunStatus.running,
       activities: [activity],
+    );
+  }
+
+  void setQueuedMessages(int count) {
+    state = state.copyWith(
+      queuedMessages: [
+        for (var index = 0; index < count; index++)
+          AgentQueuedMessage(
+            kind: AgentQueuedMessageKind.steering,
+            id: index,
+            message: UserMessage.text('queued $index'),
+          ),
+      ],
     );
   }
 

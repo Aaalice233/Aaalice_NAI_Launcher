@@ -24,9 +24,12 @@ class AssistantTextContent extends AssistantContent {
 }
 
 class AssistantThinkingContent extends AssistantContent {
-  const AssistantThinkingContent(this.thinking);
+  const AssistantThinkingContent(this.thinking, {this.signature});
 
   final String thinking;
+
+  /// Provider proof required to replay signed reasoning blocks (Anthropic).
+  final String? signature;
 }
 
 /// 助手消息里的工具调用块（AgentToolCall；属于 AssistantContent 联合）。
@@ -234,10 +237,8 @@ class UserMessage extends Message {
   @override
   String get role => 'user';
 
-  String get text => content
-      .whereType<UserTextContent>()
-      .map((c) => c.text)
-      .join();
+  String get text =>
+      content.whereType<UserTextContent>().map((c) => c.text).join();
 
   List<ImageContent> get images =>
       content.whereType<UserImageContent>().map((c) => c.image).toList();
@@ -272,10 +273,8 @@ class AssistantMessage extends Message {
 
   String? model;
 
-  String get text => content
-      .whereType<AssistantTextContent>()
-      .map((c) => c.text)
-      .join();
+  String get text =>
+      content.whereType<AssistantTextContent>().map((c) => c.text).join();
 
   List<ToolCallContent> get toolCalls =>
       content.whereType<ToolCallContent>().toList();
@@ -340,10 +339,8 @@ class ToolResultMessage extends Message {
   List<String>? addedToolNames;
   bool isError;
 
-  String get text => content
-      .whereType<ToolResultTextContent>()
-      .map((c) => c.text)
-      .join();
+  String get text =>
+      content.whereType<ToolResultTextContent>().map((c) => c.text).join();
 }
 
 /// 应用自定义消息开放基类。
@@ -374,7 +371,11 @@ class Tool {
 }
 
 class Context {
-  const Context({required this.systemPrompt, required this.messages, this.tools});
+  const Context({
+    required this.systemPrompt,
+    required this.messages,
+    this.tools,
+  });
 
   final String systemPrompt;
   final List<Message> messages;
@@ -429,13 +430,21 @@ class AmTextStart extends AssistantMessageEvent {
 }
 
 class AmTextDelta extends AssistantMessageEvent {
-  const AmTextDelta({required super.partial, required this.delta, required this.contentIndex});
+  const AmTextDelta({
+    required super.partial,
+    required this.delta,
+    required this.contentIndex,
+  });
   final String delta;
   final int contentIndex;
 }
 
 class AmTextEnd extends AssistantMessageEvent {
-  const AmTextEnd({required super.partial, required this.content, required this.contentIndex});
+  const AmTextEnd({
+    required super.partial,
+    required this.content,
+    required this.contentIndex,
+  });
   final String content;
   final int contentIndex;
 }
@@ -446,13 +455,21 @@ class AmThinkingStart extends AssistantMessageEvent {
 }
 
 class AmThinkingDelta extends AssistantMessageEvent {
-  const AmThinkingDelta({required super.partial, required this.delta, required this.contentIndex});
+  const AmThinkingDelta({
+    required super.partial,
+    required this.delta,
+    required this.contentIndex,
+  });
   final String delta;
   final int contentIndex;
 }
 
 class AmThinkingEnd extends AssistantMessageEvent {
-  const AmThinkingEnd({required super.partial, required this.content, required this.contentIndex});
+  const AmThinkingEnd({
+    required super.partial,
+    required this.content,
+    required this.contentIndex,
+  });
   final String content;
   final int contentIndex;
 }
@@ -470,13 +487,21 @@ class AmToolCallStart extends AssistantMessageEvent {
 }
 
 class AmToolCallDelta extends AssistantMessageEvent {
-  const AmToolCallDelta({required super.partial, required this.delta, required this.contentIndex});
+  const AmToolCallDelta({
+    required super.partial,
+    required this.delta,
+    required this.contentIndex,
+  });
   final String delta;
   final int contentIndex;
 }
 
 class AmToolCallEnd extends AssistantMessageEvent {
-  const AmToolCallEnd({required super.partial, required this.toolCall, required this.contentIndex});
+  const AmToolCallEnd({
+    required super.partial,
+    required this.toolCall,
+    required this.contentIndex,
+  });
   final ToolCallContent toolCall;
   final int contentIndex;
 }
@@ -491,7 +516,8 @@ class AmError extends AssistantMessageEvent {
 }
 
 /// AssistantMessageEventStream 的别名形态。
-typedef AssistantMessageEventStream = EventStream<AssistantMessageEvent, AssistantMessage>;
+typedef AssistantMessageEventStream =
+    EventStream<AssistantMessageEvent, AssistantMessage>;
 
 // ---------------------------------------------------------------------------
 // 简化流选项

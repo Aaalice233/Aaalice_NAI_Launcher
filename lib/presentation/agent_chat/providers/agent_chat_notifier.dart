@@ -38,6 +38,7 @@ import '../services/agent_api_client.dart';
 import '../services/agent_chat_draft_controller.dart';
 import '../services/agent_chat_event_controller.dart';
 import '../services/agent_chat_session_controller.dart';
+import '../services/agent_chat_model_capability.dart';
 import '../services/agent_stream_bridge.dart';
 import '../services/agent_system_prompt.dart';
 import '../services/agent_resource_resolver.dart';
@@ -132,6 +133,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
   bool _usesPresetSkills = false;
   bool _runtimeReady = false;
   Future<void> _settingsRefresh = Future<void>.value();
+  Future<void> _sendDispatch = Future<void>.value();
   bool _settingsApplyPending = false;
   bool _preparingRun = false;
   AgentPermissionMode? _activePermissionMode;
@@ -218,8 +220,14 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       estimateAnlas: _estimatePreparedAnlas,
       onApprovalChanged: (request) {
         state = request == null
-            ? state.copyWith(clearApprovalRequest: true)
-            : state.copyWith(approvalRequest: request);
+            ? state.copyWith(
+                clearApprovalRequest: true,
+                workPhase: AgentChatWorkPhase.usingTools,
+              )
+            : state.copyWith(
+                approvalRequest: request,
+                workPhase: AgentChatWorkPhase.awaitingApproval,
+              );
       },
       isMounted: () => mounted,
     );
@@ -265,6 +273,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     _runtimeReady = true;
     _refreshRoute();
     await _sessionController.restoreLastSession();
+    _refreshRoute();
     state = state.copyWith(
       initialized: true,
       skills: _skills.values.toList(growable: false),
@@ -278,10 +287,12 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
         .chat
         .permissionMode;
     final fullAccess = permissionMode == AgentPermissionMode.fullAccess;
+    final capability = _modelCapability(_routeCache);
     final agent = Agent(
       AgentOptions(
         streamFn: _streamFn,
         initialSystemPrompt: await _buildSystemPrompt(),
+        initialModel: capability.model,
         // 提示词工具（含 read_skill）+ 只读文件工具 + 生成/反推/队列工具
         // + 标签检索工具。
         initialTools: _buildTools(fullAccess: fullAccess),
@@ -471,7 +482,8 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       if (route == null || session == null || messages.length <= 8) {
         return messages;
       }
-      final contextWindow = _contextWindowFor(route.$1);
+      final contextWindow = _modelCapability(route).model.contextWindow;
+      if (contextWindow <= 0) return messages;
       final estimate = estimateContextTokens(messages);
       const settings = defaultCompactionSettings;
       if (!force && !shouldCompact(estimate.tokens, contextWindow, settings)) {
@@ -587,6 +599,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
         ],
         apiKey: route.$3,
         maxOutputTokens: options?.maxTokens,
+        reasoning: options?.reasoning,
       );
       final wireEvents =
           _completeRequest?.call(request) ?? _client.complete(request);
@@ -594,7 +607,11 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       if (signal is AbortSignal) {
         signal.addListener((_) => _client.cancel('agent_chat'));
       }
-      return agentWireEventStream(wireEvents);
+      return agentWireEventStream(
+        wireEvents,
+        provider: request.provider.id,
+        model: request.model,
+      );
     } catch (e) {
       return _errorStream(e.toString());
     }
@@ -643,28 +660,12 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     return (provider, model, null);
   }
 
-  int _contextWindowFor(ProviderConfig provider) {
-    switch (provider.preset) {
-      case ProviderPreset.anthropic:
-        return 200000;
-      case ProviderPreset.gemini:
-        return 1000000;
-      case ProviderPreset.openaiChat:
-      case ProviderPreset.openaiResponses:
-      case ProviderPreset.openaiCompatibleChat:
-      case ProviderPreset.openaiCompatibleResponses:
-        return 128000;
-      case ProviderPreset.deepseek:
-        return 64000;
-      case ProviderPreset.ollama:
-      case ProviderPreset.lmStudioChat:
-      case ProviderPreset.lmStudioResponses:
-        return 8192;
-      case ProviderPreset.pollinations:
-        return 32000;
-      case null:
-        return 32768;
-    }
+  AgentChatModelCapability _modelCapability(
+    (ProviderConfig, String, String?)? route,
+  ) {
+    return route == null
+        ? AgentChatModelCapability.unavailable
+        : AgentChatModelCapability.resolve(route.$1, route.$2);
   }
 
   Future<String> _buildSystemPrompt({
@@ -736,14 +737,55 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
             ? 'The chat task has no usable model. Pick a model in Settings.'
             : 'No LLM provider configured. Add one in Settings > '
                   'Integrations.',
+        clearContextWindow: true,
+        availableThinkingLevels: const [],
+        thinkingLevel: ThinkingLevel.off,
       );
       return;
+    }
+    final capability = _modelCapability(_routeCache);
+    final currentLevel = capability.levels.contains(state.thinkingLevel)
+        ? state.thinkingLevel
+        : capability.levels.firstOrNull ?? ThinkingLevel.off;
+    final agent = _sessionControllerValue?.agent;
+    if (agent != null) {
+      agent.state.model = capability.model;
+      agent.state.thinkingLevel = currentLevel;
     }
     state = state.copyWith(
       routeReady: true,
       routeLabel: '${_routeCache!.$1.name} / ${_routeCache!.$2}',
       routeError: '',
+      contextWindow: capability.model.contextWindow > 0
+          ? capability.model.contextWindow
+          : null,
+      clearContextWindow: capability.model.contextWindow <= 0,
+      availableThinkingLevels: capability.levels,
+      thinkingLevel: currentLevel,
     );
+  }
+
+  Future<void> setThinkingLevel(ThinkingLevel level) async {
+    if (!canManageAgentChatSessions(state) ||
+        !state.availableThinkingLevels.contains(level)) {
+      return;
+    }
+    final agent = _sessionControllerValue?.agent;
+    final session = _sessionControllerValue?.session;
+    if (agent == null ||
+        session == null ||
+        agent.state.thinkingLevel == level) {
+      return;
+    }
+    agent.state.thinkingLevel = level;
+    await session.appendEntry(
+      session_types.ThinkingLevelEntry(
+        id: session.idGenerator(),
+        thinkingLevel: level.name,
+      ),
+      'main',
+    );
+    if (mounted) state = state.copyWith(thinkingLevel: level);
   }
 
   // -------------------------------------------------------------------------
@@ -836,10 +878,15 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     return _draftController.resolveResourcePreview(reference);
   }
 
-  Future<void> newSession() => _sessionController.newSession();
+  Future<void> newSession() async {
+    await _sessionController.newSession();
+    _refreshRoute();
+  }
 
-  Future<void> switchSession(String sessionId) =>
-      _sessionController.switchSession(sessionId);
+  Future<void> switchSession(String sessionId) async {
+    await _sessionController.switchSession(sessionId);
+    _refreshRoute();
+  }
 
   /// 将主分支回退到最后一条用户消息之前，并返回该消息供输入框恢复。
   ///
@@ -892,7 +939,10 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
   }
 
   /// 发送已按输入位置排列的文本与图片内容块。
-  Future<void> sendContent(List<UserContent> content) async {
+  Future<void> sendContent(
+    List<UserContent> content, {
+    bool followUp = false,
+  }) async {
     final normalized = <UserContent>[
       for (final block in content)
         if (block is! UserTextContent || block.text.trim().isNotEmpty) block,
@@ -900,53 +950,80 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     if (normalized.isEmpty) {
       return;
     }
-    await _sendMessage(UserMessage(content: normalized));
+    await _sendMessage(UserMessage(content: normalized), followUp: followUp);
   }
 
-  Future<void> _sendMessage(UserMessage message) async {
+  Future<void> _sendMessage(
+    UserMessage message, {
+    bool followUp = false,
+  }) async {
     if (state.sessionTransitioning) {
       return;
     }
     await _initializing;
-    if (!await validatePendingResourcesForSend()) return;
-    final agent = _sessionController.agent;
-    if (agent == null) {
-      state = state.copyWith(
-        error: 'Agent chat is still initializing. Try again in a moment.',
-      );
-      return;
-    }
-    final attachedResources = List<AgentChatResourceReference>.of(
-      state.pendingResources,
-    );
-    final promptMessage = attachedResources.isEmpty
-        ? message
-        : _draftController.resourcePromptMessage(message, attachedResources);
+    final previousDispatch = _sendDispatch;
+    final dispatchDone = Completer<void>();
+    _sendDispatch = dispatchDone.future;
+    Future<void>? run;
+    Agent? runAgent;
+    var ownsRun = false;
 
-    if (state.status == AgentChatRunStatus.running) {
-      agent.steer(promptMessage);
-      await _draftController.consumePendingResources(attachedResources);
-      state = state.copyWith(queuedCount: _queuedCount(agent));
-      return;
-    }
-    await _settingsRefresh;
-    if (_settingsApplyPending) await _applyAgentSettings();
-    _refreshRoute();
-    if (!state.routeReady) {
-      state = state.copyWith(
-        error: state.routeError.isNotEmpty
-            ? state.routeError
-            : 'No LLM provider configured. Open Settings to add one.',
-      );
-      return;
-    }
-    _preparingRun = true;
     try {
+      await previousDispatch;
+      if (state.sessionTransitioning ||
+          !await validatePendingResourcesForSend()) {
+        return;
+      }
+      final agent = _sessionController.agent;
+      if (agent == null) {
+        state = state.copyWith(
+          error: 'Agent chat is still initializing. Try again in a moment.',
+        );
+        return;
+      }
+      final attachedResources = List<AgentChatResourceReference>.of(
+        state.pendingResources,
+      );
+      final promptMessage = attachedResources.isEmpty
+          ? message
+          : _draftController.resourcePromptMessage(message, attachedResources);
+
+      if (_runActive) {
+        if (followUp) {
+          agent.followUp(promptMessage);
+        } else {
+          agent.steer(promptMessage);
+        }
+        await _draftController.consumePendingResources(attachedResources);
+        state = state.copyWith(queuedMessages: _queuedMessages(agent));
+        return;
+      }
+
+      ownsRun = true;
+      _preparingRun = true;
+      await _settingsRefresh;
+      if (_settingsApplyPending) await _applyAgentSettings();
+      _refreshRoute();
+      if (!state.routeReady) {
+        state = state.copyWith(
+          error: state.routeError.isNotEmpty
+              ? state.routeError
+              : 'No LLM provider configured. Open Settings to add one.',
+        );
+        _preparingRun = false;
+        return;
+      }
       final agentSettings = _ref.read(agentSettingsProvider).settings;
       final permissionMode = agentSettings.chat.permissionMode;
       _activeAgentSettings = agentSettings;
       _activePermissionMode = permissionMode;
       _activeRoute = _routeCache;
+      final capability = _modelCapability(_activeRoute);
+      agent.state.model = capability.model;
+      if (!capability.levels.contains(agent.state.thinkingLevel)) {
+        agent.state.thinkingLevel =
+            capability.levels.firstOrNull ?? ThinkingLevel.off;
+      }
       agent.state.tools = _buildTools(
         fullAccess: permissionMode == AgentPermissionMode.fullAccess,
       );
@@ -957,30 +1034,81 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
         status: AgentChatRunStatus.running,
         error: '',
         activities: const [],
-        streamingText: '',
+        clearStreamingMessage: true,
+        workPhase: AgentChatWorkPhase.preparing,
       );
-      final run = agent.prompt(promptMessage);
+      run = agent.prompt(promptMessage);
+      runAgent = agent;
+      _preparingRun = false;
       await _draftController.consumePendingResources(attachedResources);
+    } catch (e) {
+      _preparingRun = false;
+      if (ownsRun && run == null) {
+        _activePermissionMode = null;
+        _activeAgentSettings = null;
+        _activeRoute = null;
+      }
+      state = state.copyWith(error: e.toString());
+      if (ownsRun && run == null && _settingsApplyPending) {
+        _queueSettingsRefresh();
+      }
+    } finally {
+      if (!dispatchDone.isCompleted) dispatchDone.complete();
+    }
+
+    if (run == null || runAgent == null) return;
+    try {
       await run;
     } catch (e) {
       state = state.copyWith(error: e.toString());
     } finally {
-      _preparingRun = false;
       _activePermissionMode = null;
       _activeAgentSettings = null;
       _activeRoute = null;
       if (mounted) {
         state = state.copyWith(
           status: AgentChatRunStatus.idle,
-          streamingText: '',
-          queuedCount: _queuedCount(agent),
+          clearStreamingMessage: true,
+          queuedMessages: _queuedMessages(runAgent),
+          workPhase: AgentChatWorkPhase.idle,
         );
       }
       if (_settingsApplyPending) _queueSettingsRefresh();
     }
   }
 
-  int _queuedCount(Agent agent) => agent.hasQueuedMessages() ? 1 : 0;
+  List<AgentQueuedMessage> _queuedMessages(Agent agent) => [
+    for (final entry in agent.steeringQueue)
+      AgentQueuedMessage(
+        kind: AgentQueuedMessageKind.steering,
+        id: entry.id,
+        message: entry.message,
+      ),
+    for (final entry in agent.followUpQueue)
+      AgentQueuedMessage(
+        kind: AgentQueuedMessageKind.followUp,
+        id: entry.id,
+        message: entry.message,
+      ),
+  ];
+
+  AgentMessage? removeQueuedMessage(AgentQueuedMessage queued) {
+    final agent = _sessionController.agent;
+    if (agent == null) return null;
+    final message = switch (queued.kind) {
+      AgentQueuedMessageKind.steering => agent.removeSteeringById(queued.id),
+      AgentQueuedMessageKind.followUp => agent.removeFollowUpById(queued.id),
+    };
+    state = state.copyWith(queuedMessages: _queuedMessages(agent));
+    return message;
+  }
+
+  void clearQueuedMessages() {
+    final agent = _sessionController.agent;
+    if (agent == null) return;
+    agent.clearAllQueues();
+    state = state.copyWith(queuedMessages: const []);
+  }
 
   /// 组装用户消息：文本在前，图片附件随后（与 agent.prompt 的
   /// 字符串+images 归一化结果一致）。
@@ -1003,6 +1131,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     if (agent == null) {
       return;
     }
+    state = state.copyWith(workPhase: AgentChatWorkPhase.stopping);
     agent.abort();
     resolveToolApproval(false);
     _client.cancel('agent_chat');
