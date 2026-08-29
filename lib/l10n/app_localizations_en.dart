@@ -13045,21 +13045,21 @@ class AppLocalizationsEn extends AppLocalizations {
       'Use the image button to choose a preview';
 
   @override
-  String get cloudSync_title => 'Sync & Backup';
+  String get cloudSync_title => 'Backup & Restore';
 
   @override
   String get cloudSync_description =>
-      'Save settings, prompts, and more to your own WebDAV or GitHub storage and keep them in sync across devices.';
+      'Push settings, prompts, and more to your own WebDAV or GitHub storage, or pull a cloud backup onto this device.';
 
   @override
   String get cloudSync_disconnected => 'Not connected';
 
   @override
   String get cloudSync_oneClickDescription =>
-      'Choose a storage service and enter your account details. Saving checks for an existing backup and starts the first sync.';
+      'Choose a storage service and enter your account details. Saving only verifies and remembers the connection; it does not push or pull data.';
 
   @override
-  String get cloudSync_saveAndSync => 'Save and sync';
+  String get cloudSync_saveConnection => 'Save connection';
 
   @override
   String get cloudSync_fillRequiredFields =>
@@ -13113,18 +13113,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cloudSync_testFailed => 'Connection test failed';
 
   @override
-  String get cloudSync_manualBackupOnly => 'Manual backup only';
+  String get cloudSync_manualBackupOnly => 'Manual push and pull only';
 
   @override
   String get cloudSync_manualBackupOnlyDescription =>
-      'This service cannot reliably handle changes from multiple devices at once. To prevent overwrites, it only supports manual uploads here.';
+      'This service cannot reliably handle changes from multiple devices at once. Nothing is merged or overwritten automatically; data moves only when you choose push or pull.';
 
   @override
   String get cloudSync_dataScope => 'Choose what to save';
 
   @override
   String get cloudSync_dataScopeDescription =>
-      'Choose what to back up and sync. Accounts, passwords, and API keys are never uploaded.';
+      'Choose what to push and pull. Accounts, passwords, and API keys are never uploaded.';
 
   @override
   String get cloudSync_kindSettings => 'Settings';
@@ -13194,7 +13194,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cloudSync_connectedDescription =>
-      'The connection is working and ready to back up or sync.';
+      'The connection is working. You can push a local backup or pull cloud data.';
+
+  @override
+  String get cloudSync_providerWarning => 'Storage service notice';
 
   @override
   String get cloudSync_maintenanceWarning => 'Needs attention';
@@ -13211,16 +13214,16 @@ class AppLocalizationsEn extends AppLocalizations {
       'Older GitHub commits still use repository space after you delete the cloud backup. Create a new repository on GitHub if you need to remove everything.';
 
   @override
-  String get cloudSync_upToDate => 'Up to date';
+  String get cloudSync_upToDate => 'Connected';
 
   @override
-  String get cloudSync_syncing => 'Syncing';
+  String get cloudSync_syncing => 'Transferring';
 
   @override
   String get cloudSync_paused => 'Paused';
 
   @override
-  String get cloudSync_syncControls => 'Backup and sync';
+  String get cloudSync_syncControls => 'Push and pull';
 
   @override
   String get cloudSync_pushLocal => 'Push to cloud';
@@ -13313,11 +13316,11 @@ class AppLocalizationsEn extends AppLocalizations {
       'Check what will be added, changed, or removed. Nothing changes until you confirm.';
 
   @override
-  String get cloudSync_mergePreviewTitle => 'Review the first sync';
+  String get cloudSync_mergePreviewTitle => 'Review merged content';
 
   @override
   String get cloudSync_mergePreviewDescription =>
-      'The devices contain different data. Review the changes and choose what to keep. Nothing changes until you confirm.';
+      'This device and the cloud contain different data. Review the changes and choose what to keep. Nothing changes until you confirm.';
 
   @override
   String get cloudSync_previewAwaitingConfirmation =>
@@ -13345,7 +13348,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cloudSync_previewNoChanges => 'There are no changes to apply.';
 
   @override
-  String get cloudSync_confirmMerge => 'Confirm sync';
+  String get cloudSync_confirmMerge => 'Apply changes';
 
   @override
   String get cloudSync_confirmRestore => 'Confirm restore';
@@ -13380,7 +13383,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cloudSync_disconnectDescription =>
-      'Stops backup and sync on this device while keeping existing cloud backups.';
+      'Removes the saved storage connection from this device while keeping existing cloud backups.';
 
   @override
   String get cloudSync_disconnectConfirm =>
@@ -13401,13 +13404,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cloudSync_deferredConflictWarning =>
-      'Some content still needs a choice before sync can continue.';
+      'Some content still needs a choice before you can continue.';
 
   @override
   String get cloudSync_applyAll => 'Choose for all:';
 
   @override
-  String get cloudSync_base => 'Last sync';
+  String get cloudSync_base => 'Last saved';
 
   @override
   String get cloudSync_local => 'This device';

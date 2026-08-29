@@ -18,7 +18,7 @@ import 'package:nai_launcher/presentation/providers/cloud_sync/cloud_sync_ui_pro
 import '../../core/cloud_sync/coordinator_test_backend.dart';
 
 void main() {
-  test('new connection writes a plain v2 snapshot without KEY.json', () async {
+  test('new connection only saves configuration and does not upload', () async {
     final fixture = await _Fixture.create();
     addTearDown(fixture.dispose);
 
@@ -33,64 +33,64 @@ void main() {
       fixture.states.last.connectionStatus,
       CloudSyncConnectionStatus.connected,
     );
+    expect(fixture.backend.head, isNull);
     expect(fixture.backend.keyEnvelope, isNull);
-    final head = SnapshotHead.decode(fixture.backend.head!.bytes);
-    expect(head.encoding, CloudSnapshotEncoding.plain);
-    expect(head.version, cloudSyncPlainSnapshotVersion);
     expect(fixture.codecEncoding, CloudSnapshotEncoding.plain);
     expect(fixture.secure.credentials, contains('provider-secret'));
     expect(fixture.local.values[StorageKeys.cloudSyncConfiguration], isNotNull);
   });
 
-  test('legacy encrypted HEAD is ignored and replaced by plain v2', () async {
-    final backend = _ApplicationBackend();
-    backend.head = CloudHeadRead(
-      bytes: Uint8List.fromList(
-        SnapshotHead(
-          snapshotId: 'legacy-encrypted-snapshot',
-          manifestSha256:
-              'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-          updatedAt: DateTime.utc(2025),
-          encoding: CloudSnapshotEncoding.encrypted,
-        ).encode(),
-      ),
-      revision: 'legacy-head',
-    );
-    final fixture = await _Fixture.create(backend: backend);
-    addTearDown(fixture.dispose);
-    const legacyOperationId = 'legacy-pending-operation';
-    await fixture.source.stage(legacyOperationId, fixture.source.snapshot);
-    await fixture.journal.write(
-      SyncJournal(
-        operationId: legacyOperationId,
-        operation: JournalOperation.uploadLocal,
-        phase: JournalPhase.prepared,
-        updatedAt: DateTime.now().toUtc(),
-        snapshotId: 'legacy-pending-snapshot',
-        targetFingerprint: await fixture.source.stagedFingerprint(
-          legacyOperationId,
+  test(
+    'legacy encrypted HEAD is ignored without replacing remote data',
+    () async {
+      final backend = _ApplicationBackend();
+      backend.head = CloudHeadRead(
+        bytes: Uint8List.fromList(
+          SnapshotHead(
+            snapshotId: 'legacy-encrypted-snapshot',
+            manifestSha256:
+                'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+            updatedAt: DateTime.utc(2025),
+            encoding: CloudSnapshotEncoding.encrypted,
+          ).encode(),
         ),
-        expectedRevision: 'legacy-head',
-        uploadRequired: true,
-      ),
-    );
+        revision: 'legacy-head',
+      );
+      final fixture = await _Fixture.create(backend: backend);
+      addTearDown(fixture.dispose);
+      const legacyOperationId = 'legacy-pending-operation';
+      await fixture.source.stage(legacyOperationId, fixture.source.snapshot);
+      await fixture.journal.write(
+        SyncJournal(
+          operationId: legacyOperationId,
+          operation: JournalOperation.uploadLocal,
+          phase: JournalPhase.prepared,
+          updatedAt: DateTime.now().toUtc(),
+          snapshotId: 'legacy-pending-snapshot',
+          targetFingerprint: await fixture.source.stagedFingerprint(
+            legacyOperationId,
+          ),
+          expectedRevision: 'legacy-head',
+          uploadRequired: true,
+        ),
+      );
 
-    await fixture.service.connect(
-      const CloudSyncConnectRequest(
-        connection: _draft,
-        dataKinds: {CloudSyncDataKind.settings},
-      ),
-    );
+      await fixture.service.connect(
+        const CloudSyncConnectRequest(
+          connection: _draft,
+          dataKinds: {CloudSyncDataKind.settings},
+        ),
+      );
 
-    final head = SnapshotHead.decode(backend.head!.bytes);
-    expect(head.snapshotId, isNot('legacy-encrypted-snapshot'));
-    expect(head.snapshotId, isNot('legacy-pending-snapshot'));
-    expect(head.encoding, CloudSnapshotEncoding.plain);
-    expect(await fixture.journal.read(), isNull);
-    expect(fixture.source.stages, isEmpty);
-    expect(fixture.states.last.remoteExists, isTrue);
-    expect(fixture.codecEncoding, CloudSnapshotEncoding.plain);
-  });
+      final head = SnapshotHead.decode(backend.head!.bytes);
+      expect(head.snapshotId, 'legacy-encrypted-snapshot');
+      expect(head.encoding, CloudSnapshotEncoding.encrypted);
+      expect(await fixture.journal.read(), isNull);
+      expect(fixture.source.stages, isEmpty);
+      expect(fixture.states.last.remoteExists, isFalse);
+      expect(fixture.codecEncoding, CloudSnapshotEncoding.plain);
+    },
+  );
 
   test(
     'recovered initial upload is not followed by a duplicate snapshot',
@@ -158,7 +158,7 @@ void main() {
   );
 
   test(
-    'existing matching snapshot is detected and synchronized automatically',
+    'second device connection detects backup without changing remote data',
     () async {
       final first = await _Fixture.create();
       addTearDown(first.dispose);
@@ -168,34 +168,9 @@ void main() {
           dataKinds: {CloudSyncDataKind.settings},
         ),
       );
-      final second = await _Fixture.create(backend: first.backend);
-      addTearDown(second.dispose);
-
-      await second.service.connect(
-        const CloudSyncConnectRequest(
-          connection: _draft,
-          dataKinds: {CloudSyncDataKind.settings},
-        ),
-      );
-
-      expect(first.backend.capabilityChecks, 2);
-      expect(second.states.last.conflicts, isEmpty);
-      expect(second.states.last.pendingPreview, isNull);
-      expect(second.states.last.lastSync, isNotNull);
-    },
-  );
-
-  test(
-    'existing conflicting snapshot remains in preview for resolution',
-    () async {
-      final first = await _Fixture.create();
-      addTearDown(first.dispose);
-      await first.service.connect(
-        const CloudSyncConnectRequest(
-          connection: _draft,
-          dataKinds: {CloudSyncDataKind.settings},
-        ),
-      );
+      await first.service.pushNow();
+      final remoteBefore = Uint8List.fromList(first.backend.head!.bytes);
+      final revisionBefore = first.backend.head!.revision;
       final second = await _Fixture.create(
         backend: first.backend,
         theme: 'light',
@@ -209,8 +184,12 @@ void main() {
         ),
       );
 
-      expect(second.states.last.conflicts, isNotEmpty);
-      expect(second.states.last.pendingPreview, isNotNull);
+      expect(first.backend.capabilityChecks, 2);
+      expect(second.backend.head!.bytes, remoteBefore);
+      expect(second.backend.head!.revision, revisionBefore);
+      expect(second.states.last.remoteExists, isTrue);
+      expect(second.states.last.conflicts, isEmpty);
+      expect(second.states.last.pendingPreview, isNull);
       expect(second.states.last.lastSync, isNull);
     },
   );

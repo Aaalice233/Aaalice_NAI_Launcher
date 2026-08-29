@@ -86,7 +86,7 @@ void main() {
     storage = _MemoryLocalStorage();
   });
 
-  testWidgets('设置页导航为 11 个稳定分类并包含同步与备份', (tester) async {
+  testWidgets('设置页导航为 11 个稳定分类并包含备份与恢复', (tester) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.windows;
     await tester.binding.setSurfaceSize(const Size(1280, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -151,7 +151,7 @@ void main() {
       '生成',
       '智能体',
       '数据与存储',
-      '同步与备份',
+      '备份与恢复',
       '安全与分享',
       '网络',
       '快捷键',

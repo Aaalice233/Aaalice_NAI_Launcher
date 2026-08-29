@@ -2,14 +2,18 @@ import 'cloud_sync_data_adapter.dart';
 import 'portable_sync_record.dart';
 
 class CloudSyncDataAdapterRegistry {
-  CloudSyncDataAdapterRegistry(Iterable<CloudSyncDataAdapter> adapters)
-    : _adapters = {for (final adapter in adapters) adapter.id: adapter} {
+  CloudSyncDataAdapterRegistry(
+    Iterable<CloudSyncDataAdapter> adapters, {
+    Future<void> Function(Set<String> adapterIds)? afterApply,
+  }) : _afterApply = afterApply,
+       _adapters = {for (final adapter in adapters) adapter.id: adapter} {
     if (_adapters.length != adapters.length) {
       throw ArgumentError('Cloud sync adapter IDs must be unique');
     }
   }
 
   final Map<String, CloudSyncDataAdapter> _adapters;
+  final Future<void> Function(Set<String> adapterIds)? _afterApply;
 
   List<CloudSyncDataAdapter> get adapters =>
       List.unmodifiable(_adapters.values);
@@ -56,6 +60,9 @@ class CloudSyncDataAdapterRegistry {
     }
     for (final entry in grouped.entries) {
       await _adapters[entry.key]!.apply(entry.value);
+    }
+    if (grouped.isNotEmpty) {
+      await _afterApply?.call(Set.unmodifiable(grouped.keys.toSet()));
     }
   }
 }

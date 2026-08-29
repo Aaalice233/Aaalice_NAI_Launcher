@@ -47,10 +47,10 @@ void main() {
 
       expect(selection.includeAgentSystemPrompt, isTrue);
       expect(selection.includeSkills, isFalse);
-      expect(find.text('智能体自定义系统提示词'), findsOneWidget);
+      expect(find.text('自定义系统提示词'), findsOneWidget);
       expect(find.text('搜索 Skill'), findsNothing);
 
-      await tester.tap(find.widgetWithText(SwitchListTile, '备份 Skill'));
+      await tester.tap(find.widgetWithText(SwitchListTile, '备份已选 Skill'));
       await tester.pumpAndSettle();
       expect(selection.includeSkills, isTrue);
       expect(selection.selectedSkillIds, isEmpty);

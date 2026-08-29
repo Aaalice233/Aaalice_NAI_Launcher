@@ -165,7 +165,7 @@ class _CloudSyncSetupState extends ConsumerState<CloudSyncSetup> {
         Align(
           alignment: Alignment.centerRight,
           child: FilledButton.icon(
-            key: const ValueKey('cloud-sync-save-and-sync'),
+            key: const ValueKey('cloud-sync-save-connection'),
             onPressed: _busy ? null : _connect,
             style: FilledButton.styleFrom(minimumSize: const Size(0, 48)),
             icon: _busy
@@ -174,7 +174,7 @@ class _CloudSyncSetupState extends ConsumerState<CloudSyncSetup> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.sync),
-            label: Text(context.l10n.cloudSync_saveAndSync),
+            label: Text(context.l10n.cloudSync_saveConnection),
           ),
         ),
       ],

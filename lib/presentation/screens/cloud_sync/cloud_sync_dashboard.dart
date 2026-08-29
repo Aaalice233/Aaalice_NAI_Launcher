@@ -38,6 +38,15 @@ class CloudSyncDashboard extends ConsumerWidget {
             message: context.l10n.cloudSync_githubHistoryRetentionDescription,
           ),
         ],
+        for (final warning in state.capabilityWarnings) ...[
+          const SizedBox(height: 12),
+          CloudSyncStatusBanner(
+            icon: Icons.privacy_tip_outlined,
+            title: context.l10n.cloudSync_providerWarning,
+            message: warning,
+            warning: true,
+          ),
+        ],
         if (state.maintenanceWarning != null) ...[
           const SizedBox(height: 12),
           CloudSyncStatusBanner(

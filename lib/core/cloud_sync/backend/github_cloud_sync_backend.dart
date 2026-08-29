@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
@@ -56,127 +55,15 @@ class GitHubCloudSyncBackend
       );
     }
     await _api.ensureBranch(repository, _root);
-    await _probeRepositoryCapabilities();
-    return const CloudBackendCapability(
+    final isPrivate = repository['private'] == true;
+    return CloudBackendCapability(
       mode: CloudBackendMode.bidirectional,
-      message: 'GitHub 已验证认证、读写、非强制条件更新、历史、删除与 4 MiB 对象限制。',
+      message: 'GitHub 连接正常，可以推送和拉取备份。',
       supportsHistory: true,
       supportsDelete: true,
-      warnings: [
-        'Git 会保留历史；删除仅移除当前 namespace，不会回收仓库历史空间。',
-        '不使用 Git LFS 或 Releases；大二进制频繁变化会快速膨胀仓库历史。',
-      ],
+      warnings: [if (!isPrivate) '当前 GitHub 仓库是公开仓库，备份内容会公开；建议改用私有仓库。'],
     );
   }
-
-  Future<void> _probeRepositoryCapabilities() async {
-    final id =
-        '.capability-${DateTime.now().microsecondsSinceEpoch}-${Random.secure().nextInt(1 << 32)}';
-    final path = '$_root/$id';
-    try {
-      final maximum = Uint8List(maxCloudObjectResponseBytes);
-      maximum[0] = 1;
-      maximum[maximum.length - 1] = 2;
-      final firstBlob = await _api.createBlob(maximum, action: '写入大小探针');
-      final initial = await _api.readTreeBase();
-      final firstCommit = await _api.commitTree(
-        base: initial,
-        entries: [_blobEntry(path, firstBlob)],
-        message: 'cloud-sync: capability create',
-      );
-      final read = await _api.readPath(
-        path,
-        ref: firstCommit,
-        maxBytes: maxCloudObjectResponseBytes,
-      );
-      if (read == null ||
-          read.bytes.length != maximum.length ||
-          read.bytes.first != 1 ||
-          read.bytes.last != 2) {
-        throw const CloudBackendException(
-          CloudBackendErrorKind.invalidResponse,
-          'GitHub 无法完整读回大小探针。',
-        );
-      }
-
-      final updateBase = await _api.readTreeBase();
-      final secondBlob = await _api.createBlob(
-        Uint8List.fromList(const [3]),
-        action: '写入条件更新探针',
-      );
-      await _api.commitTree(
-        base: updateBase,
-        entries: [_blobEntry(path, secondBlob)],
-        message: 'cloud-sync: capability update',
-      );
-      final historical = await _api.readPath(
-        path,
-        ref: firstCommit,
-        maxBytes: maxCloudObjectResponseBytes,
-      );
-      if (historical == null || historical.bytes.length != maximum.length) {
-        throw const CloudBackendException(
-          CloudBackendErrorKind.invalidResponse,
-          'GitHub 无法读取探针历史版本。',
-        );
-      }
-      var staleRejected = false;
-      try {
-        await _api.commitTree(
-          base: updateBase,
-          entries: [_blobEntry(path, secondBlob)],
-          message: 'cloud-sync: capability stale update',
-        );
-      } on CloudBackendException catch (error) {
-        if (error.kind != CloudBackendErrorKind.conflict) rethrow;
-        staleRejected = true;
-      }
-      if (!staleRejected) {
-        throw const CloudBackendException(
-          CloudBackendErrorKind.invalidResponse,
-          'GitHub 未拒绝基于旧 revision 的条件更新。',
-        );
-      }
-      final deleteBase = await _api.readTreeBase();
-      await _api.commitTree(
-        base: deleteBase,
-        entries: [
-          {'path': path, 'mode': '100644', 'type': 'blob', 'sha': null},
-        ],
-        message: 'cloud-sync: capability delete',
-      );
-      if (await _api.readPath(path, maxBytes: maxCloudObjectResponseBytes) !=
-          null) {
-        throw const CloudBackendException(
-          CloudBackendErrorKind.invalidResponse,
-          'GitHub 删除探针后仍可读取该文件。',
-        );
-      }
-    } finally {
-      final base = await _api.readTreeBase();
-      final leftover = await _api.readPath(
-        path,
-        ref: base.commit,
-        maxBytes: maxCloudObjectResponseBytes,
-      );
-      if (leftover != null) {
-        await _api.commitTree(
-          base: base,
-          entries: [
-            {'path': path, 'mode': '100644', 'type': 'blob', 'sha': null},
-          ],
-          message: 'cloud-sync: cleanup capability probe',
-        );
-      }
-    }
-  }
-
-  static Map<String, Object?> _blobEntry(String path, String sha) => {
-    'path': path,
-    'mode': '100644',
-    'type': 'blob',
-    'sha': sha,
-  };
 
   @override
   Future<CloudHeadRead?> readHead() async {

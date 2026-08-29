@@ -7,7 +7,10 @@ import 'package:dio/dio.dart';
 import 'backend_test_support.dart';
 
 class FakeGitHubApi implements HttpClientAdapter {
-  FakeGitHubApi({Map<String, Uint8List>? initialFiles}) {
+  FakeGitHubApi({
+    Map<String, Uint8List>? initialFiles,
+    this.repositoryPrivate = true,
+  }) {
     final files = Map<String, Uint8List>.from(initialFiles ?? {});
     _commits['c0'] = files;
     _trees['t0'] = files;
@@ -15,6 +18,7 @@ class FakeGitHubApi implements HttpClientAdapter {
     _trees['4b825dc642cb6eb9a060e54bf8d69288fbee4904'] = {};
   }
 
+  final bool repositoryPrivate;
   final List<RequestOptions> requests = [];
   final Map<String, Uint8List> blobs = {};
   final Map<String, Map<String, Uint8List>> _commits = {};
@@ -53,6 +57,7 @@ class FakeGitHubApi implements HttpClientAdapter {
         200,
         jsonBody({
           'size': 1,
+          'private': repositoryPrivate,
           'permissions': {'push': true},
         }),
       );

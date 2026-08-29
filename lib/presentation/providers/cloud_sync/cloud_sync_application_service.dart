@@ -12,7 +12,7 @@ import 'cloud_sync_ui_provider.dart';
 import 'cloud_sync_factories.dart';
 import 'cloud_sync_error_reporter.dart';
 import 'cloud_sync_flight_gate.dart';
-import 'cloud_sync_lifecycle_policy.dart';
+import 'cloud_sync_head_reader.dart';
 import 'cloud_sync_maintenance.dart';
 import 'cloud_sync_operation_runner.dart';
 import 'cloud_sync_progress_mapper.dart';
@@ -196,34 +196,17 @@ class CloudSyncApplicationService implements CloudSyncUiPort {
           clearError: true,
         ),
       );
-      if (_state.remoteExists != true ||
-          _state.capabilityMode == CloudSyncCapabilityMode.manualBackupOnly) {
-        await _operations.runSync(
-          operation,
-          direction: CloudSyncInitialAction.upload,
-        );
-      } else {
-        await _operations.previewInitial();
-        if (_state.conflicts.isEmpty) {
-          await _operations.runSync(operation);
-        }
-      }
     } catch (error) {
       if (_state.error != '$error') _errorReporter.record(error);
       rethrow;
     }
   }
 
-  Future<bool> restorePersisted({bool synchronize = false}) =>
-      _gate.tryRunLifecycle(
-        (operation) =>
-            _restorePersisted(synchronize: synchronize, operation: operation),
-      );
+  Future<bool> restorePersisted() => _gate.tryRunLifecycle(
+    (operation) => _restorePersisted(operation: operation),
+  );
 
-  Future<void> _restorePersisted({
-    required bool synchronize,
-    required OperationToken operation,
-  }) async {
+  Future<void> _restorePersisted({required OperationToken operation}) async {
     try {
       await initialize();
       final persisted = await _connectionStore.load();
@@ -268,16 +251,6 @@ class CloudSyncApplicationService implements CloudSyncUiPort {
           clearProgress: true,
         ),
       );
-      if (shouldRunLifecycleSync(
-        synchronize,
-        _state.capabilityMode,
-        knownRevision,
-        currentRevision,
-        hasPendingJournal,
-      )) {
-        _state.ensureNoPendingPreview();
-        await _operations.runSync(operation);
-      }
     } catch (error) {
       _errorReporter.record(error);
       rethrow;

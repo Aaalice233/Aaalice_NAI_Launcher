@@ -53,6 +53,28 @@ void main() {
     expect(first.mutations, 0);
   });
 
+  test(
+    'registry refreshes applied adapter state after every mutation',
+    () async {
+      final first = _TrackingAdapter('first');
+      final second = _TrackingAdapter('second');
+      Set<String>? refreshed;
+      final registry = CloudSyncDataAdapterRegistry([
+        first,
+        second,
+      ], afterApply: (adapterIds) async => refreshed = adapterIds);
+
+      await registry.apply([
+        PortableSyncRecord(adapterId: 'first', id: 'a', kind: 'item'),
+        PortableSyncRecord(adapterId: 'second', id: 'b', kind: 'item'),
+      ]);
+
+      expect(refreshed, {'first', 'second'});
+      expect(first.mutations, 1);
+      expect(second.mutations, 1);
+    },
+  );
+
   test('secret-looking fields are rejected recursively', () async {
     final adapter = _TrackingAdapter('safe');
     final record = PortableSyncRecord(

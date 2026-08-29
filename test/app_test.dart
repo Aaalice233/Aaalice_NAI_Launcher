@@ -129,7 +129,7 @@ void main() {
               backgroundRefresh: backgroundRefreshProvider,
               kritaBridge: kritaBridgeProvider,
               cooccurrenceDataPack: cooccurrenceDataPackProvider,
-              cloudSyncLifecycle: (_) async {},
+              cloudSyncLifecycle: () async {},
               child: Builder(
                 builder: (context) {
                   buildCount++;
@@ -163,8 +163,8 @@ void main() {
       expect(buildCount, 1);
     });
 
-    testWidgets('AppBootstrapEffects 在启动和 resumed 触发云同步检查', (tester) async {
-      final calls = <bool>[];
+    testWidgets('AppBootstrapEffects 在启动和 resumed 恢复云备份连接', (tester) async {
+      var calls = 0;
       final inert = StateProvider<int>((ref) => 0);
       await tester.pumpWidget(
         ProviderScope(
@@ -174,8 +174,8 @@ void main() {
               backgroundRefresh: inert,
               kritaBridge: inert,
               cooccurrenceDataPack: inert,
-              cloudSyncLifecycle: (synchronize) async {
-                calls.add(synchronize);
+              cloudSyncLifecycle: () async {
+                calls++;
               },
               child: const SizedBox.shrink(),
             ),
@@ -183,14 +183,14 @@ void main() {
         ),
       );
       await tester.pump();
-      expect(calls, [true]);
+      expect(calls, 1);
 
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
       await tester.pump();
-      expect(calls, [true, true]);
+      expect(calls, 2);
     });
 
-    testWidgets('云同步生命周期检查未完成时保守跳过 resumed', (tester) async {
+    testWidgets('云备份连接恢复未完成时跳过重复 resumed', (tester) async {
       final release = Completer<void>();
       var calls = 0;
       final inert = StateProvider<int>((ref) => 0);
@@ -202,7 +202,7 @@ void main() {
               backgroundRefresh: inert,
               kritaBridge: inert,
               cooccurrenceDataPack: inert,
-              cloudSyncLifecycle: (_) async {
+              cloudSyncLifecycle: () async {
                 calls++;
                 await release.future;
               },

@@ -15,17 +15,17 @@ void main() {
       await tester.pumpWidget(_subject());
       await tester.pumpAndSettle();
 
-      expect(find.text('同步与备份'), findsWidgets);
+      expect(find.text('备份与恢复'), findsWidgets);
       expect(find.text('尚未连接'), findsOneWidget);
       expect(find.text('WebDAV'), findsOneWidget);
       expect(find.text('GitHub'), findsOneWidget);
-      expect(find.text('保存并同步'), findsOneWidget);
+      expect(find.text('保存连接'), findsOneWidget);
       expect(tester.takeException(), isNull, reason: 'width=$width');
     }
     await tester.binding.setSurfaceSize(null);
   });
 
-  testWidgets('WebDAV 只填写服务商字段即可保存并同步', (tester) async {
+  testWidgets('WebDAV 只填写服务商字段即可保存连接', (tester) async {
     await tester.binding.setSurfaceSize(const Size(390, 844));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final port = _FakePort();
@@ -54,7 +54,7 @@ void main() {
     expect(find.textContaining('后端'), findsNothing);
     expect(find.text('设置加密密码'), findsNothing);
     expect(find.text('生成一次性恢复密钥'), findsNothing);
-    final save = find.byKey(const ValueKey('cloud-sync-save-and-sync'));
+    final save = find.byKey(const ValueKey('cloud-sync-save-connection'));
     await tester.scrollUntilVisible(save, 180, scrollable: _pageScrollable);
     expect(tester.widget<FilledButton>(save).onPressed, isNotNull);
     await tester.tap(save);
@@ -84,7 +84,7 @@ void main() {
     await tester.enterText(tokenField, 'github-sensitive-token');
     await tester.enterText(_fieldWithLabel('GitHub 用户或组织'), 'alice');
     await tester.enterText(_fieldWithLabel('仓库'), 'backup');
-    final save = find.byKey(const ValueKey('cloud-sync-save-and-sync'));
+    final save = find.byKey(const ValueKey('cloud-sync-save-connection'));
     await tester.scrollUntilVisible(save, 180, scrollable: _pageScrollable);
     expect(tester.widget<FilledButton>(save).onPressed, isNotNull);
     await tester.tap(save);
@@ -101,13 +101,13 @@ void main() {
       await tester.pumpWidget(_subject(state: state, port: port));
       await tester.pumpAndSettle();
 
-      expect(find.text('只支持手动备份'), findsOneWidget);
+      expect(find.text('只支持手动推送与拉取'), findsOneWidget);
       expect(find.text('GitHub 空间说明'), findsOneWidget);
       expect(find.text('需要注意'), findsOneWidget);
       expect(find.text('云端空间暂时无法自动整理。现有备份不受影响，稍后会自动重试。'), findsOneWidget);
       expect(find.text('cleanup delayed'), findsNothing);
       expect(find.text('请选择要保留的内容'), findsWidgets);
-      expect(find.text('已是最新'), findsNothing);
+      expect(find.text('已连接'), findsNothing);
       expect(find.text('settings.json'), findsNothing);
       expect(find.text('2 / 5'), findsOneWidget);
       expect(find.text('正在上传'), findsOneWidget);
@@ -191,9 +191,9 @@ void main() {
     await tester.pumpWidget(_subject(state: state, port: port));
     await tester.pumpAndSettle();
 
-    expect(find.text('首次同步确认'), findsOneWidget);
+    expect(find.text('合并内容确认'), findsOneWidget);
     expect(find.text('新增 2 · 修改 3 · 删除 1'), findsOneWidget);
-    expect(find.text('已是最新'), findsNothing);
+    expect(find.text('已连接'), findsNothing);
     expect(find.textContaining('词库文件不会通过云端传输'), findsOneWidget);
     final restorePreview = tester.widget<TextButton>(
       find.widgetWithText(TextButton, '查看并恢复'),
@@ -224,7 +224,23 @@ void main() {
     expect(bulk.onPressed, isNull);
   });
 
-  testWidgets('推送和拉取使用独立按钮并在执行前确认方向', (tester) async {
+  testWidgets('存储服务警告会直接显示在已连接页面', (tester) async {
+    final state = _connectedState(
+      activityStatus: CloudSyncActivityStatus.idle,
+      capabilityMode: CloudSyncCapabilityMode.bidirectional,
+    ).copyWith(
+      capabilityWarnings: const ['当前 GitHub 仓库是公开仓库'],
+      clearProgress: true,
+    );
+
+    await tester.pumpWidget(_subject(state: state, port: _FakePort()));
+    await tester.pumpAndSettle();
+
+    expect(find.text('存储服务提示'), findsOneWidget);
+    expect(find.text('当前 GitHub 仓库是公开仓库'), findsOneWidget);
+  });
+
+  testWidgets('推送和拉取使用独立按钮并在执行前二次确认方向', (tester) async {
     final port = _FakePort();
     final state = _connectedState(
       activityStatus: CloudSyncActivityStatus.idle,

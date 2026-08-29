@@ -12718,21 +12718,21 @@ class AppLocalizationsJa extends AppLocalizations {
   String get vibeDetail_choosePreviewImage => '画像ボタンからプレビューを選択してください';
 
   @override
-  String get cloudSync_title => '同期とバックアップ';
+  String get cloudSync_title => 'バックアップと復元';
 
   @override
   String get cloudSync_description =>
-      '設定やプロンプトなどを自分の WebDAV または GitHub に保存し、デバイス間で同期します。';
+      '設定やプロンプトなどを自分の WebDAV または GitHub へプッシュするか、クラウドのバックアップをこのデバイスへプルします。';
 
   @override
   String get cloudSync_disconnected => '未接続';
 
   @override
   String get cloudSync_oneClickDescription =>
-      '保存先を選び、アカウント情報を入力します。保存すると既存のバックアップを確認し、初回同期を開始します。';
+      '保存先とアカウント情報を入力します。保存は接続の確認と記憶だけを行い、データのプッシュやプルは行いません。';
 
   @override
-  String get cloudSync_saveAndSync => '保存して同期';
+  String get cloudSync_saveConnection => '接続を保存';
 
   @override
   String get cloudSync_fillRequiredFields => 'このプロバイダーの必須接続情報を入力してください。';
@@ -12785,18 +12785,18 @@ class AppLocalizationsJa extends AppLocalizations {
   String get cloudSync_testFailed => '接続テストに失敗しました';
 
   @override
-  String get cloudSync_manualBackupOnly => '手動バックアップのみ';
+  String get cloudSync_manualBackupOnly => '手動プッシュとプルのみ';
 
   @override
   String get cloudSync_manualBackupOnlyDescription =>
-      'このサービスでは複数デバイスからの同時変更を安全に処理できません。上書きを防ぐため、手動アップロードのみ利用できます。';
+      'このサービスでは複数デバイスからの同時変更を安全に処理できません。自動的な統合や上書きは行わず、選択したプッシュまたはプルだけを実行します。';
 
   @override
   String get cloudSync_dataScope => '保存する内容を選択';
 
   @override
   String get cloudSync_dataScopeDescription =>
-      'バックアップと同期の対象を選択します。アカウント、パスワード、API キーはアップロードされません。';
+      'プッシュとプルの対象を選択します。アカウント、パスワード、API キーはアップロードされません。';
 
   @override
   String get cloudSync_kindSettings => '設定';
@@ -12864,7 +12864,11 @@ class AppLocalizationsJa extends AppLocalizations {
   String get cloudSync_lastSync => '最終完了';
 
   @override
-  String get cloudSync_connectedDescription => '接続は正常です。バックアップと同期を開始できます。';
+  String get cloudSync_connectedDescription =>
+      '接続は正常です。ローカルバックアップのプッシュまたはクラウドデータのプルを実行できます。';
+
+  @override
+  String get cloudSync_providerWarning => '保存サービスからのお知らせ';
 
   @override
   String get cloudSync_maintenanceWarning => '確認が必要です';
@@ -12881,16 +12885,16 @@ class AppLocalizationsJa extends AppLocalizations {
       'クラウドバックアップを削除しても、GitHub の以前のコミットはリポジトリ容量を使用します。完全に消去するには GitHub で新しいリポジトリを作成してください。';
 
   @override
-  String get cloudSync_upToDate => '最新です';
+  String get cloudSync_upToDate => '接続済み';
 
   @override
-  String get cloudSync_syncing => '同期中';
+  String get cloudSync_syncing => '転送中';
 
   @override
   String get cloudSync_paused => '一時停止中';
 
   @override
-  String get cloudSync_syncControls => 'バックアップと同期';
+  String get cloudSync_syncControls => 'プッシュとプル';
 
   @override
   String get cloudSync_pushLocal => 'クラウドへプッシュ';
@@ -12983,11 +12987,11 @@ class AppLocalizationsJa extends AppLocalizations {
       '追加・変更・削除される内容を確認します。確定するまで現在のデータは変更されません。';
 
   @override
-  String get cloudSync_mergePreviewTitle => '初回同期の確認';
+  String get cloudSync_mergePreviewTitle => '統合内容の確認';
 
   @override
   String get cloudSync_mergePreviewDescription =>
-      'デバイス間でデータが異なります。変更内容と残すバージョンを確認してください。確定するまでデータは変更されません。';
+      'このデバイスとクラウドのデータが異なります。変更内容と残すバージョンを確認してください。確定するまでデータは変更されません。';
 
   @override
   String get cloudSync_previewAwaitingConfirmation => '先に以下の変更内容を確認してください。';
@@ -13013,7 +13017,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get cloudSync_previewNoChanges => '適用する変更はありません。';
 
   @override
-  String get cloudSync_confirmMerge => '同期を確定';
+  String get cloudSync_confirmMerge => '変更を適用';
 
   @override
   String get cloudSync_confirmRestore => '復元を確定';
@@ -13048,7 +13052,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get cloudSync_disconnectDescription =>
-      'このデバイスのバックアップと同期を停止し、クラウドの既存バックアップは保持します。';
+      'このデバイスに保存した接続を削除し、クラウドの既存バックアップは保持します。';
 
   @override
   String get cloudSync_disconnectConfirm =>
@@ -13068,14 +13072,13 @@ class AppLocalizationsJa extends AppLocalizations {
   String get cloudSync_needsConflictResolution => '残す内容を選択してください';
 
   @override
-  String get cloudSync_deferredConflictWarning =>
-      '未選択の内容があります。すべて選ぶと同期を続行できます。';
+  String get cloudSync_deferredConflictWarning => '未選択の内容があります。すべて選ぶと続行できます。';
 
   @override
   String get cloudSync_applyAll => 'すべて選択：';
 
   @override
-  String get cloudSync_base => '前回の同期';
+  String get cloudSync_base => '前回の保存';
 
   @override
   String get cloudSync_local => 'このデバイス';

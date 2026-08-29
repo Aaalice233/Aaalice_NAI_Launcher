@@ -23,6 +23,7 @@ import '../../../data/services/vibe_library_storage_service.dart';
 import '../online_gallery_local_favorites_provider.dart';
 import '../../agent_settings/providers/agent_settings_provider.dart';
 import 'cloud_sync_application_service.dart';
+import 'cloud_sync_runtime_refresh.dart';
 import 'cloud_sync_ui_provider.dart';
 
 final cloudSyncApplicationStateProvider = StateProvider<CloudSyncUiState>(
@@ -87,6 +88,8 @@ final cloudSyncApplicationServiceProvider =
                 contentSelection,
               ),
             ),
+            afterApply: (adapterIds) =>
+                refreshCloudSyncRuntime(ref, adapterIds),
           );
           final support = await getApplicationSupportDirectory();
           final root = Directory('${support.path}/cloud-sync');

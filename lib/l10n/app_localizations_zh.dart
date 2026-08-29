@@ -12502,21 +12502,21 @@ class AppLocalizationsZh extends AppLocalizations {
   String get vibeDetail_choosePreviewImage => '点击图片按钮选择预览图';
 
   @override
-  String get cloudSync_title => '同步与备份';
+  String get cloudSync_title => '备份与恢复';
 
   @override
   String get cloudSync_description =>
-      '将设置、提示词等内容保存到你自己的 WebDAV 或 GitHub，并在设备之间同步。';
+      '将设置、提示词等内容推送到你自己的 WebDAV 或 GitHub，或从云端备份拉取到当前设备。';
 
   @override
   String get cloudSync_disconnected => '尚未连接';
 
   @override
   String get cloudSync_oneClickDescription =>
-      '选择存储服务并填写账号信息。保存后会自动检查已有备份并开始第一次同步。';
+      '选择存储服务并填写账号信息。保存只会验证并记住连接，不会推送或拉取数据。';
 
   @override
-  String get cloudSync_saveAndSync => '保存并同步';
+  String get cloudSync_saveConnection => '保存连接';
 
   @override
   String get cloudSync_fillRequiredFields => '请填写当前服务商的必填连接信息。';
@@ -12568,18 +12568,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cloudSync_testFailed => '连接测试失败';
 
   @override
-  String get cloudSync_manualBackupOnly => '只支持手动备份';
+  String get cloudSync_manualBackupOnly => '只支持手动推送与拉取';
 
   @override
   String get cloudSync_manualBackupOnlyDescription =>
-      '此服务无法可靠处理多台设备同时修改。为避免覆盖数据，这里只提供手动上传备份。';
+      '此服务无法可靠处理多台设备同时修改。这里不会自动合并或覆盖，只按你的选择推送或拉取。';
 
   @override
   String get cloudSync_dataScope => '选择要保存的内容';
 
   @override
   String get cloudSync_dataScopeDescription =>
-      '选择要备份和同步的内容。账号、密码和 API Key 不会上传。';
+      '选择要推送和拉取的内容。账号、密码和 API Key 不会上传。';
 
   @override
   String get cloudSync_kindSettings => '设置';
@@ -12647,7 +12647,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cloudSync_lastSync => '上次完成';
 
   @override
-  String get cloudSync_connectedDescription => '连接正常，可以开始备份与同步。';
+  String get cloudSync_connectedDescription => '连接正常，可以推送本机备份或拉取云端数据。';
+
+  @override
+  String get cloudSync_providerWarning => '存储服务提示';
 
   @override
   String get cloudSync_maintenanceWarning => '需要注意';
@@ -12664,16 +12667,16 @@ class AppLocalizationsZh extends AppLocalizations {
       '删除云端备份后，GitHub 的旧提交仍会占用仓库空间。需要彻底清理时，请在 GitHub 中新建仓库。';
 
   @override
-  String get cloudSync_upToDate => '已是最新';
+  String get cloudSync_upToDate => '已连接';
 
   @override
-  String get cloudSync_syncing => '正在同步';
+  String get cloudSync_syncing => '正在传输';
 
   @override
   String get cloudSync_paused => '已暂停';
 
   @override
-  String get cloudSync_syncControls => '备份与同步';
+  String get cloudSync_syncControls => '推送与拉取';
 
   @override
   String get cloudSync_pushLocal => '推送到云端';
@@ -12705,7 +12708,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cloudSync_cancel => '取消';
 
   @override
-  String get cloudSync_progress => '同步进度';
+  String get cloudSync_progress => '传输进度';
 
   @override
   String get cloudSync_stage => '当前进度';
@@ -12766,11 +12769,11 @@ class AppLocalizationsZh extends AppLocalizations {
       '检查恢复后会新增、更新或删除哪些内容。确认前不会修改当前数据。';
 
   @override
-  String get cloudSync_mergePreviewTitle => '首次同步确认';
+  String get cloudSync_mergePreviewTitle => '合并内容确认';
 
   @override
   String get cloudSync_mergePreviewDescription =>
-      '两台设备的数据不同。请检查变化并选择要保留的内容。确认前不会修改数据。';
+      '本机和云端的数据不同。请检查变化并选择要保留的内容。确认前不会修改数据。';
 
   @override
   String get cloudSync_previewAwaitingConfirmation => '请先确认下方变化。';
@@ -12796,7 +12799,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cloudSync_previewNoChanges => '没有需要应用的变化。';
 
   @override
-  String get cloudSync_confirmMerge => '确认同步';
+  String get cloudSync_confirmMerge => '确认应用';
 
   @override
   String get cloudSync_confirmRestore => '确认恢复';
@@ -12828,7 +12831,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cloudSync_disconnect => '断开连接';
 
   @override
-  String get cloudSync_disconnectDescription => '停止此设备的备份与同步，云端已有备份会保留。';
+  String get cloudSync_disconnectDescription => '移除此设备保存的存储连接，云端已有备份会保留。';
 
   @override
   String get cloudSync_disconnectConfirm => '确定断开此设备吗？云端已有备份会保留。';
@@ -12846,13 +12849,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cloudSync_needsConflictResolution => '请选择要保留的内容';
 
   @override
-  String get cloudSync_deferredConflictWarning => '还有内容没有选择，完成后才能继续同步。';
+  String get cloudSync_deferredConflictWarning => '还有内容没有选择，完成后才能继续。';
 
   @override
   String get cloudSync_applyAll => '全部选择：';
 
   @override
-  String get cloudSync_base => '上次同步';
+  String get cloudSync_base => '上次保存';
 
   @override
   String get cloudSync_local => '此设备';
@@ -25647,21 +25650,21 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get vibeDetail_choosePreviewImage => '點選圖片按鈕選擇預覽圖';
 
   @override
-  String get cloudSync_title => '同步與備份';
+  String get cloudSync_title => '備份與還原';
 
   @override
   String get cloudSync_description =>
-      '將設定、提示詞等內容儲存到你自己的 WebDAV 或 GitHub，並在裝置之間同步。';
+      '將設定、提示詞等內容推送到你自己的 WebDAV 或 GitHub，或從雲端備份拉取到目前裝置。';
 
   @override
   String get cloudSync_disconnected => '尚未連線';
 
   @override
   String get cloudSync_oneClickDescription =>
-      '選擇儲存服務並填寫帳號資訊。儲存後會自動檢查已有備份並開始第一次同步。';
+      '選擇儲存服務並填寫帳號資訊。儲存只會驗證並記住連線，不會推送或拉取資料。';
 
   @override
-  String get cloudSync_saveAndSync => '儲存並同步';
+  String get cloudSync_saveConnection => '儲存連線';
 
   @override
   String get cloudSync_fillRequiredFields => '請填寫目前服務商的必填連線資訊。';
@@ -25713,18 +25716,18 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get cloudSync_testFailed => '連線測試失敗';
 
   @override
-  String get cloudSync_manualBackupOnly => '只支援手動備份';
+  String get cloudSync_manualBackupOnly => '只支援手動推送與拉取';
 
   @override
   String get cloudSync_manualBackupOnlyDescription =>
-      '此服務無法可靠處理多台裝置同時修改。為避免覆蓋資料，這裡只提供手動上傳備份。';
+      '此服務無法可靠處理多台裝置同時修改。這裡不會自動合併或覆蓋，只按你的選擇推送或拉取。';
 
   @override
   String get cloudSync_dataScope => '選擇要儲存的內容';
 
   @override
   String get cloudSync_dataScopeDescription =>
-      '選擇要備份和同步的內容。帳號、密碼和 API Key 不會上傳。';
+      '選擇要推送和拉取的內容。帳號、密碼和 API Key 不會上傳。';
 
   @override
   String get cloudSync_kindSettings => '設定';
@@ -25792,7 +25795,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get cloudSync_lastSync => '上次完成';
 
   @override
-  String get cloudSync_connectedDescription => '連線正常，可以開始備份與同步。';
+  String get cloudSync_connectedDescription => '連線正常，可以推送本機備份或拉取雲端資料。';
+
+  @override
+  String get cloudSync_providerWarning => '儲存服務提示';
 
   @override
   String get cloudSync_maintenanceWarning => '需要注意';
@@ -25809,16 +25815,16 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
       '刪除雲端備份後，GitHub 的舊提交仍會佔用儲存庫空間。需要徹底清理時，請在 GitHub 中建立新儲存庫。';
 
   @override
-  String get cloudSync_upToDate => '已是最新';
+  String get cloudSync_upToDate => '已連線';
 
   @override
-  String get cloudSync_syncing => '正在同步';
+  String get cloudSync_syncing => '正在傳輸';
 
   @override
   String get cloudSync_paused => '已暫停';
 
   @override
-  String get cloudSync_syncControls => '備份與同步';
+  String get cloudSync_syncControls => '推送與拉取';
 
   @override
   String get cloudSync_pushLocal => '推送到雲端';
@@ -25850,7 +25856,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get cloudSync_cancel => '取消';
 
   @override
-  String get cloudSync_progress => '同步進度';
+  String get cloudSync_progress => '傳輸進度';
 
   @override
   String get cloudSync_stage => '目前進度';
@@ -25911,11 +25917,11 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
       '檢查恢復後會新增、更新或刪除哪些內容。確認前不會修改目前資料。';
 
   @override
-  String get cloudSync_mergePreviewTitle => '首次同步確認';
+  String get cloudSync_mergePreviewTitle => '合併內容確認';
 
   @override
   String get cloudSync_mergePreviewDescription =>
-      '兩台裝置的資料不同。請檢查變化並選擇要保留的內容。確認前不會修改資料。';
+      '本機和雲端的資料不同。請檢查變化並選擇要保留的內容。確認前不會修改資料。';
 
   @override
   String get cloudSync_previewAwaitingConfirmation => '請先確認下方變化。';
@@ -25941,7 +25947,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get cloudSync_previewNoChanges => '沒有需要套用的變更。';
 
   @override
-  String get cloudSync_confirmMerge => '確認同步';
+  String get cloudSync_confirmMerge => '確認套用';
 
   @override
   String get cloudSync_confirmRestore => '確認恢復';
@@ -25973,7 +25979,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get cloudSync_disconnect => '中斷連線';
 
   @override
-  String get cloudSync_disconnectDescription => '停止此裝置的備份與同步，雲端已有備份會保留。';
+  String get cloudSync_disconnectDescription => '移除此裝置儲存的儲存連線，雲端已有備份會保留。';
 
   @override
   String get cloudSync_disconnectConfirm => '確定中斷此裝置嗎？雲端已有備份會保留。';
@@ -25991,13 +25997,13 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get cloudSync_needsConflictResolution => '請選擇要保留的內容';
 
   @override
-  String get cloudSync_deferredConflictWarning => '還有內容沒有選擇，完成後才能繼續同步。';
+  String get cloudSync_deferredConflictWarning => '還有內容沒有選擇，完成後才能繼續。';
 
   @override
   String get cloudSync_applyAll => '全部選擇：';
 
   @override
-  String get cloudSync_base => '上次同步';
+  String get cloudSync_base => '上次儲存';
 
   @override
   String get cloudSync_local => '此裝置';

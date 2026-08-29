@@ -22709,13 +22709,13 @@ abstract class AppLocalizations {
   /// No description provided for @cloudSync_title.
   ///
   /// In en, this message translates to:
-  /// **'Sync & Backup'**
+  /// **'Backup & Restore'**
   String get cloudSync_title;
 
   /// No description provided for @cloudSync_description.
   ///
   /// In en, this message translates to:
-  /// **'Save settings, prompts, and more to your own WebDAV or GitHub storage and keep them in sync across devices.'**
+  /// **'Push settings, prompts, and more to your own WebDAV or GitHub storage, or pull a cloud backup onto this device.'**
   String get cloudSync_description;
 
   /// No description provided for @cloudSync_disconnected.
@@ -22727,14 +22727,14 @@ abstract class AppLocalizations {
   /// No description provided for @cloudSync_oneClickDescription.
   ///
   /// In en, this message translates to:
-  /// **'Choose a storage service and enter your account details. Saving checks for an existing backup and starts the first sync.'**
+  /// **'Choose a storage service and enter your account details. Saving only verifies and remembers the connection; it does not push or pull data.'**
   String get cloudSync_oneClickDescription;
 
-  /// No description provided for @cloudSync_saveAndSync.
+  /// No description provided for @cloudSync_saveConnection.
   ///
   /// In en, this message translates to:
-  /// **'Save and sync'**
-  String get cloudSync_saveAndSync;
+  /// **'Save connection'**
+  String get cloudSync_saveConnection;
 
   /// No description provided for @cloudSync_fillRequiredFields.
   ///
@@ -22835,13 +22835,13 @@ abstract class AppLocalizations {
   /// No description provided for @cloudSync_manualBackupOnly.
   ///
   /// In en, this message translates to:
-  /// **'Manual backup only'**
+  /// **'Manual push and pull only'**
   String get cloudSync_manualBackupOnly;
 
   /// No description provided for @cloudSync_manualBackupOnlyDescription.
   ///
   /// In en, this message translates to:
-  /// **'This service cannot reliably handle changes from multiple devices at once. To prevent overwrites, it only supports manual uploads here.'**
+  /// **'This service cannot reliably handle changes from multiple devices at once. Nothing is merged or overwritten automatically; data moves only when you choose push or pull.'**
   String get cloudSync_manualBackupOnlyDescription;
 
   /// No description provided for @cloudSync_dataScope.
@@ -22853,7 +22853,7 @@ abstract class AppLocalizations {
   /// No description provided for @cloudSync_dataScopeDescription.
   ///
   /// In en, this message translates to:
-  /// **'Choose what to back up and sync. Accounts, passwords, and API keys are never uploaded.'**
+  /// **'Choose what to push and pull. Accounts, passwords, and API keys are never uploaded.'**
   String get cloudSync_dataScopeDescription;
 
   /// No description provided for @cloudSync_kindSettings.
@@ -22973,8 +22973,14 @@ abstract class AppLocalizations {
   /// No description provided for @cloudSync_connectedDescription.
   ///
   /// In en, this message translates to:
-  /// **'The connection is working and ready to back up or sync.'**
+  /// **'The connection is working. You can push a local backup or pull cloud data.'**
   String get cloudSync_connectedDescription;
+
+  /// No description provided for @cloudSync_providerWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Storage service notice'**
+  String get cloudSync_providerWarning;
 
   /// No description provided for @cloudSync_maintenanceWarning.
   ///
@@ -23003,13 +23009,13 @@ abstract class AppLocalizations {
   /// No description provided for @cloudSync_upToDate.
   ///
   /// In en, this message translates to:
-  /// **'Up to date'**
+  /// **'Connected'**
   String get cloudSync_upToDate;
 
   /// No description provided for @cloudSync_syncing.
   ///
   /// In en, this message translates to:
-  /// **'Syncing'**
+  /// **'Transferring'**
   String get cloudSync_syncing;
 
   /// No description provided for @cloudSync_paused.
@@ -23021,7 +23027,7 @@ abstract class AppLocalizations {
   /// No description provided for @cloudSync_syncControls.
   ///
   /// In en, this message translates to:
-  /// **'Backup and sync'**
+  /// **'Push and pull'**
   String get cloudSync_syncControls;
 
   /// No description provided for @cloudSync_pushLocal.
@@ -23195,13 +23201,13 @@ abstract class AppLocalizations {
   /// No description provided for @cloudSync_mergePreviewTitle.
   ///
   /// In en, this message translates to:
-  /// **'Review the first sync'**
+  /// **'Review merged content'**
   String get cloudSync_mergePreviewTitle;
 
   /// No description provided for @cloudSync_mergePreviewDescription.
   ///
   /// In en, this message translates to:
-  /// **'The devices contain different data. Review the changes and choose what to keep. Nothing changes until you confirm.'**
+  /// **'This device and the cloud contain different data. Review the changes and choose what to keep. Nothing changes until you confirm.'**
   String get cloudSync_mergePreviewDescription;
 
   /// No description provided for @cloudSync_previewAwaitingConfirmation.
@@ -23237,7 +23243,7 @@ abstract class AppLocalizations {
   /// No description provided for @cloudSync_confirmMerge.
   ///
   /// In en, this message translates to:
-  /// **'Confirm sync'**
+  /// **'Apply changes'**
   String get cloudSync_confirmMerge;
 
   /// No description provided for @cloudSync_confirmRestore.
@@ -23297,7 +23303,7 @@ abstract class AppLocalizations {
   /// No description provided for @cloudSync_disconnectDescription.
   ///
   /// In en, this message translates to:
-  /// **'Stops backup and sync on this device while keeping existing cloud backups.'**
+  /// **'Removes the saved storage connection from this device while keeping existing cloud backups.'**
   String get cloudSync_disconnectDescription;
 
   /// No description provided for @cloudSync_disconnectConfirm.
@@ -23333,7 +23339,7 @@ abstract class AppLocalizations {
   /// No description provided for @cloudSync_deferredConflictWarning.
   ///
   /// In en, this message translates to:
-  /// **'Some content still needs a choice before sync can continue.'**
+  /// **'Some content still needs a choice before you can continue.'**
   String get cloudSync_deferredConflictWarning;
 
   /// No description provided for @cloudSync_applyAll.
@@ -23345,7 +23351,7 @@ abstract class AppLocalizations {
   /// No description provided for @cloudSync_base.
   ///
   /// In en, this message translates to:
-  /// **'Last sync'**
+  /// **'Last saved'**
   String get cloudSync_base;
 
   /// No description provided for @cloudSync_local.

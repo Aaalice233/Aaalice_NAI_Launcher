@@ -11,24 +11,29 @@ import 'backend_test_support.dart';
 import 'github_fake_api.dart';
 
 void main() {
+  test('connection check does not create probe commits', () async {
+    final api = FakeGitHubApi();
+
+    final capability = await _backend(api).testCapability();
+
+    expect(capability.mode, CloudBackendMode.bidirectional);
+    expect(capability.supportsHistory, isTrue);
+    expect(capability.supportsDelete, isTrue);
+    expect(
+      api.files.keys.any((path) => path.contains('.capability-')),
+      isFalse,
+    );
+    expect(api.requests.where((request) => request.method == 'PATCH'), isEmpty);
+  });
+
   test(
-    'capability probe verifies history, stale CAS, size and cleanup',
+    'public repositories get a privacy warning without blocking use',
     () async {
-      final api = FakeGitHubApi();
+      final capability = await _backend(
+        FakeGitHubApi(repositoryPrivate: false),
+      ).testCapability();
 
-      final capability = await _backend(api).testCapability();
-
-      expect(capability.mode, CloudBackendMode.bidirectional);
-      expect(capability.supportsHistory, isTrue);
-      expect(capability.supportsDelete, isTrue);
-      expect(
-        api.files.keys.any((path) => path.contains('.capability-')),
-        isFalse,
-      );
-      expect(
-        api.requests.where((request) => request.method == 'PATCH').length,
-        greaterThanOrEqualTo(3),
-      );
+      expect(capability.warnings, contains(contains('公开仓库')));
     },
   );
 

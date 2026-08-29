@@ -38,7 +38,7 @@ class AppBootstrapEffects extends ConsumerStatefulWidget {
   final ProviderListenable<dynamic>? backgroundRefresh;
   final ProviderListenable<dynamic>? kritaBridge;
   final ProviderListenable<dynamic>? cooccurrenceDataPack;
-  final Future<void> Function(bool synchronize)? cloudSyncLifecycle;
+  final Future<void> Function()? cloudSyncLifecycle;
 
   const AppBootstrapEffects({
     super.key,
@@ -89,7 +89,7 @@ class _AppBootstrapEffectsState extends ConsumerState<AppBootstrapEffects>
         widget.cooccurrenceDataPack ?? cooccurrenceDataPackStartupProvider,
         (_, __) {},
       );
-      unawaited(_runCloudSyncLifecycle(synchronize: true));
+      unawaited(_restoreCloudBackupConnection());
     });
   }
 
@@ -104,7 +104,7 @@ class _AppBootstrapEffectsState extends ConsumerState<AppBootstrapEffects>
 
     if (state == AppLifecycleState.resumed) {
       unawaited(_resumeQueueAfterBackground());
-      unawaited(_runCloudSyncLifecycle(synchronize: true));
+      unawaited(_restoreCloudBackupConnection());
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.hidden ||
         state == AppLifecycleState.detached) {
@@ -136,20 +136,21 @@ class _AppBootstrapEffectsState extends ConsumerState<AppBootstrapEffects>
     await ref.read(queueExecutionNotifierProvider.notifier).resume();
   }
 
-  Future<void> _runCloudSyncLifecycle({required bool synchronize}) async {
+  Future<void> _restoreCloudBackupConnection() async {
     if (_cloudSyncLifecycleRunning) return;
     _cloudSyncLifecycleRunning = true;
     try {
       final override = widget.cloudSyncLifecycle;
       if (override != null) {
-        await override(synchronize);
+        await override();
       } else {
-        await ref
-            .read(cloudSyncApplicationServiceProvider)
-            .restorePersisted(synchronize: synchronize);
+        await ref.read(cloudSyncApplicationServiceProvider).restorePersisted();
       }
     } catch (error) {
-      AppLogger.w('Cloud sync lifecycle check failed: $error', 'CloudSync');
+      AppLogger.w(
+        'Cloud backup connection restore failed: $error',
+        'CloudSync',
+      );
     } finally {
       _cloudSyncLifecycleRunning = false;
     }
