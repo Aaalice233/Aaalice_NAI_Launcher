@@ -6,6 +6,7 @@ import '../../../core/network/nai_api_endpoint.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../providers/account_manager_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/generation/generation_settings_notifiers.dart';
 import '../common/floating_label_input.dart';
 
 /// 第三方 NAI-compatible API 登录卡片。
@@ -27,6 +28,15 @@ class _ThirdPartyApiLoginCardState
   final _tokenController = TextEditingController();
   final _nicknameController = TextEditingController();
   bool _obscureToken = true;
+  late bool _useStreamingGeneration;
+
+  @override
+void initState() {
+  super.initState();
+  _useStreamingGeneration = ref.read(
+    generationStreamPreviewSettingsProvider,
+  );
+}
 
   @override
   void dispose() {
@@ -130,8 +140,23 @@ class _ThirdPartyApiLoginCardState
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
-          const SizedBox(height: 16),
-          FilledButton.icon(
+         const SizedBox(height: 12),
+SwitchListTile(
+  contentPadding: EdgeInsets.zero,
+  secondary: const Icon(Icons.preview_outlined),
+  title: Text(l10n.settings_generationStreamPreview),
+  subtitle: Text(l10n.settings_generationStreamPreviewSubtitle),
+  value: _useStreamingGeneration,
+  onChanged: authState.isLoading
+      ? null
+      : (value) {
+          setState(() {
+            _useStreamingGeneration = value;
+          });
+        },
+),
+const SizedBox(height: 8),
+FilledButton.icon(
             onPressed: authState.isLoading ? null : _handleLogin,
             icon: authState.isLoading
                 ? const SizedBox(
@@ -237,6 +262,10 @@ class _ThirdPartyApiLoginCardState
     );
 
     if (!success) return;
+
+    await ref
+    .read(generationStreamPreviewSettingsProvider.notifier)
+    .set(_useStreamingGeneration);
 
     final account = await accountNotifier.addAccount(
       identifier: endpoint.mainBaseUrl,
