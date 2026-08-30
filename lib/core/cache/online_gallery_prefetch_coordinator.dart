@@ -66,6 +66,7 @@ class OnlineGalleryPrefetchCoordinator extends ChangeNotifier {
   int _generation = 0;
   int _active = 0;
   int _interactiveStreak = 0;
+  bool _notificationScheduled = false;
   bool _disposed = false;
   int debugRequestCount = 0;
   int debugDeduplicatedCount = 0;
@@ -116,7 +117,7 @@ class OnlineGalleryPrefetchCoordinator extends ChangeNotifier {
     if (_disposed) return;
     _generation++;
     _cancelWhere((_) => true, reason: 'generation-rotated');
-    notifyListeners();
+    _scheduleNotification();
   }
 
   void setScrolling(bool scrolling) => _setPause(
@@ -151,10 +152,26 @@ class OnlineGalleryPrefetchCoordinator extends ChangeNotifier {
   /// Downloads already handed to the image pipeline are allowed to finish so
   /// the shared disk cache is not left with a partially consumed response.
   void cancelPending(GalleryImageRequest request) {
-    final task = _pending.remove(request.stableRequestKey);
+    final task = _pending[request.stableRequestKey];
     if (task == null) return;
+    task.coordinatorOwned = false;
+    if (task.consumers.isNotEmpty) return;
+    _pending.remove(request.stableRequestKey);
     _removeFromQueue(task);
     _completeCancelled(task);
+    _scheduleNotification();
+  }
+
+  /// Releases one widget's interest without cancelling a request still used
+  /// by another card or by the moving prefetch window.
+  void releasePending(GalleryImageRequest request, Object consumer) {
+    final task = _pending[request.stableRequestKey];
+    if (task == null || !task.consumers.remove(consumer)) return;
+    if (task.coordinatorOwned || task.consumers.isNotEmpty) return;
+    _pending.remove(request.stableRequestKey);
+    _removeFromQueue(task);
+    _completeCancelled(task);
+    _scheduleNotification();
   }
 
   /// Keeps the moving thumbnail window bounded while a user scrolls through
@@ -168,20 +185,31 @@ class OnlineGalleryPrefetchCoordinator extends ChangeNotifier {
               !stableRequestKeys.contains(task.request.stableRequestKey),
         )
         .toList(growable: false);
+    var cancelled = false;
     for (final task in stale) {
+      task.coordinatorOwned = false;
+      if (task.consumers.isNotEmpty) continue;
       _pending.remove(task.request.stableRequestKey);
       _removeFromQueue(task);
       _completeCancelled(task);
+      cancelled = true;
     }
+    if (cancelled) _scheduleNotification();
   }
 
   Future<bool> submit(
     GalleryImageRequest request, {
     required GalleryImagePriority priority,
     bool retry = false,
+    Object? consumer,
   }) {
     if (_disposed || !_accepts(priority)) return Future.value(false);
-    if (retry) _failures.remove(request.stableRequestKey);
+    if (retry) {
+      final key = request.stableRequestKey;
+      _failures.remove(key);
+      _completedThumbnails.remove(key);
+      _completedSamples.remove(key);
+    }
     if (!retry && isNegativelyCached(request)) {
       debugNegativeCacheHitCount++;
       return Future.value(false);
@@ -192,6 +220,11 @@ class OnlineGalleryPrefetchCoordinator extends ChangeNotifier {
     final key = request.stableRequestKey;
     final existing = _pending[key] ?? _inFlight[key];
     if (existing != null && !existing.cancelled) {
+      if (consumer == null) {
+        existing.coordinatorOwned = true;
+      } else {
+        existing.consumers.add(consumer);
+      }
       debugDeduplicatedCount++;
       if (_pending[key] != null && priority.index < existing.priority.index) {
         _queues[existing.priority]!.remove(existing);
@@ -209,7 +242,9 @@ class OnlineGalleryPrefetchCoordinator extends ChangeNotifier {
       request: request,
       priority: priority,
       generation: _generation,
+      coordinatorOwned: consumer == null,
     );
+    if (consumer != null) task.consumers.add(consumer);
     _pending[key] = task;
     _queues[priority]!.add(task);
     _pump();
@@ -260,7 +295,7 @@ class OnlineGalleryPrefetchCoordinator extends ChangeNotifier {
     } else {
       _pump();
     }
-    notifyListeners();
+    _scheduleNotification();
     AppLogger.d(
       'Gallery prefetch ${paused ? 'paused' : 'resumed'}: '
           'reason=${reason.name}, queue=$queueDepth, active=$activeCount, '
@@ -384,6 +419,7 @@ class OnlineGalleryPrefetchCoordinator extends ChangeNotifier {
       if (_inFlight[key] == task) _inFlight.remove(key);
       _active--;
       _pump();
+      _scheduleNotification();
     }
   }
 
@@ -392,6 +428,7 @@ class OnlineGalleryPrefetchCoordinator extends ChangeNotifier {
     required String reason,
   }) {
     var cancelled = 0;
+    var pendingCapacityChanged = false;
     for (final task in _pending.values.toList()) {
       if (!predicate(task)) continue;
       _pending.remove(task.request.stableRequestKey);
@@ -399,6 +436,7 @@ class OnlineGalleryPrefetchCoordinator extends ChangeNotifier {
       task.cancelled = true;
       _completeCancelled(task);
       cancelled++;
+      pendingCapacityChanged = true;
     }
     for (final task in _inFlight.values.toList()) {
       if (!predicate(task) || task.cancelled) continue;
@@ -409,12 +447,22 @@ class OnlineGalleryPrefetchCoordinator extends ChangeNotifier {
     }
     if (cancelled > 0) {
       debugCancelledCount += cancelled;
+      if (pendingCapacityChanged) _scheduleNotification();
       AppLogger.d(
         'Gallery prefetch cancelled: reason=$reason, count=$cancelled, '
             'queue=$queueDepth, active=$activeCount',
         'GalleryPrefetch',
       );
     }
+  }
+
+  void _scheduleNotification() {
+    if (_disposed || _notificationScheduled) return;
+    _notificationScheduled = true;
+    scheduleMicrotask(() {
+      _notificationScheduled = false;
+      if (!_disposed) notifyListeners();
+    });
   }
 
   void _rememberCompleted(GalleryImageRequest request) {
@@ -437,11 +485,14 @@ class _PrefetchTask {
     required this.request,
     required this.priority,
     required this.generation,
+    required this.coordinatorOwned,
   });
 
   final GalleryImageRequest request;
   GalleryImagePriority priority;
   final int generation;
+  bool coordinatorOwned;
+  final Set<Object> consumers = {};
   final Completer<bool> completer = Completer<bool>();
   GalleryImagePreloadOperation? operation;
   bool cancelled = false;

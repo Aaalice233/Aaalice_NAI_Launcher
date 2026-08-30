@@ -62,6 +62,31 @@ void main() {
     expect(transition.duration, const Duration(milliseconds: 120));
   });
 
+  testWidgets('unrelated completion does not duplicate an active sample wait', (
+    tester,
+  ) async {
+    final gates = <String, Completer<void>>{};
+    final coordinator = OnlineGalleryPrefetchCoordinator(
+      preloader: (request) {
+        final gate = Completer<void>();
+        gates[request.url] = gate;
+        return GalleryImagePreloadOperation.fromFuture(gate.future);
+      },
+    );
+    addTearDown(coordinator.dispose);
+
+    await tester.pumpWidget(_app(coordinator));
+    expect(gates.keys, containsAll([_thumbnail.url, _sample.url]));
+    expect(coordinator.debugDeduplicatedCount, 0);
+
+    gates[_thumbnail.url]!.complete();
+    await tester.pump();
+    expect(coordinator.debugDeduplicatedCount, 0);
+
+    gates[_sample.url]!.complete();
+    await tester.pump();
+  });
+
   testWidgets('reduced motion promotes the sample immediately', (tester) async {
     final gate = Completer<void>();
     final coordinator = OnlineGalleryPrefetchCoordinator(
@@ -153,6 +178,134 @@ void main() {
     expect(sampleStarts, 2);
   });
 
+  testWidgets(
+    'queue rejection retries when cancellation frees pending capacity',
+    (tester) async {
+      final gates = <Completer<void>>[];
+      final starts = <String>[];
+      final coordinator = OnlineGalleryPrefetchCoordinator(
+        maxConcurrent: 1,
+        maxQueued: 1,
+        preloader: (request) {
+          starts.add(request.url);
+          final gate = Completer<void>();
+          gates.add(gate);
+          return GalleryImagePreloadOperation.fromFuture(gate.future);
+        },
+      );
+      addTearDown(coordinator.dispose);
+      final blocker = coordinator.submit(
+        const GalleryImageRequest(
+          sourceId: 'test',
+          url: 'https://example.test/blocker.jpg',
+          tier: GalleryImageTier.original,
+        ),
+        priority: GalleryImagePriority.interactiveDetail,
+      );
+      final queued = coordinator.submit(
+        const GalleryImageRequest(
+          sourceId: 'test',
+          url: 'https://example.test/queued.jpg',
+          tier: GalleryImageTier.original,
+        ),
+        priority: GalleryImagePriority.interactiveDetail,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: CoordinatedGalleryImage(
+            request: _thumbnail,
+            coordinator: coordinator,
+            placeholder: const Text('waiting'),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(starts, ['https://example.test/blocker.jpg']);
+      expect(find.text('waiting'), findsOneWidget);
+
+      coordinator.cancelPending(
+        const GalleryImageRequest(
+          sourceId: 'test',
+          url: 'https://example.test/queued.jpg',
+          tier: GalleryImageTier.original,
+        ),
+      );
+      expect(await queued, isFalse);
+      await tester.pump();
+      expect(coordinator.queueDepth, 1);
+
+      gates[0].complete();
+      expect(await blocker, isTrue);
+      await tester.pump();
+      expect(starts.last, _thumbnail.url);
+      gates[1].complete();
+      await tester.pump();
+      await tester.pump();
+      expect(find.byType(Image), findsOneWidget);
+    },
+  );
+
+  testWidgets('cancelled offscreen request resumes only when enabled again', (
+    tester,
+  ) async {
+    final blockerGate = Completer<void>();
+    final starts = <String>[];
+    final coordinator = OnlineGalleryPrefetchCoordinator(
+      maxConcurrent: 1,
+      preloader: (request) {
+        starts.add(request.url);
+        return GalleryImagePreloadOperation.fromFuture(
+          request.url.endsWith('blocker.jpg')
+              ? blockerGate.future
+              : Future<void>.value(),
+        );
+      },
+    );
+    addTearDown(coordinator.dispose);
+    final blocker = coordinator.submit(
+      const GalleryImageRequest(
+        sourceId: 'test',
+        url: 'https://example.test/blocker.jpg',
+        tier: GalleryImageTier.original,
+      ),
+      priority: GalleryImagePriority.interactiveDetail,
+    );
+    var enabled = true;
+    late StateSetter update;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: StatefulBuilder(
+          builder: (context, setState) {
+            update = setState;
+            return CoordinatedGalleryImage(
+              request: _thumbnail,
+              coordinator: coordinator,
+              enabled: enabled,
+              placeholder: const Text('waiting'),
+            );
+          },
+        ),
+      ),
+    );
+    expect(coordinator.queueDepth, 1);
+
+    update(() => enabled = false);
+    await tester.pump();
+    expect(coordinator.queueDepth, 0);
+    blockerGate.complete();
+    expect(await blocker, isTrue);
+    await tester.pump();
+    expect(starts, ['https://example.test/blocker.jpg']);
+
+    update(() => enabled = true);
+    await tester.pump();
+    await tester.pump();
+    expect(starts.last, _thumbnail.url);
+    expect(find.byType(Image), findsOneWidget);
+  });
+
   testWidgets('failed coordinated download renders a stable error state', (
     tester,
   ) async {
@@ -177,6 +330,46 @@ void main() {
 
     expect(find.text('failed'), findsOneWidget);
     expect(find.text('waiting'), findsNothing);
+  });
+
+  testWidgets('explicit retry clears failure and starts a fresh request', (
+    tester,
+  ) async {
+    var attempts = 0;
+    final coordinator = OnlineGalleryPrefetchCoordinator(
+      preloader: (_) => GalleryImagePreloadOperation.fromFuture(
+        Future<void>.sync(() {
+          attempts++;
+          if (attempts == 1) throw StateError('temporary failure');
+        }),
+      ),
+    );
+    addTearDown(coordinator.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CoordinatedGalleryImage(
+          request: _thumbnail,
+          coordinator: coordinator,
+          placeholder: const Text('waiting'),
+          errorBuilder: (_, retry) => TextButton(
+            key: const ValueKey('retry-image'),
+            onPressed: retry,
+            child: const Text('retry image'),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.byKey(const ValueKey('retry-image')), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('retry-image')));
+    await tester.pump();
+    await tester.pump();
+
+    expect(attempts, 2);
+    expect(find.byKey(const ValueKey('retry-image')), findsNothing);
+    expect(find.byType(Image), findsOneWidget);
   });
 
   testWidgets('request replacement clears a stale failure', (tester) async {

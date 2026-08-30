@@ -505,7 +505,13 @@ void main() {
         if (request.uri.path == '/api/work/503') {
           return {
             'work': _aiWork(503),
-            'images': [_aiImage('503 p0')],
+            'images': [
+              {
+                ..._aiImage('503 p0?#'),
+                'image_type': 'Comfy UI/β',
+                'author_id': 'author name',
+              },
+            ],
           };
         }
         throw StateError('Unexpected request ${request.uri}');
@@ -520,10 +526,13 @@ void main() {
 
       expect(
         detail.media.single.previewUrl,
-        'https://cdn.example/root/SD/9/503%20p0.webp',
+        'https://cdn.example/root/Comfy%20UI%2F%CE%B2/author%20name/'
+        '503%20p0%3F%23.webp',
       );
+      expect(detail.media.single.displayUrl, detail.media.single.previewUrl);
+      expect(detail.media.single.downloadUrl, detail.media.single.previewUrl);
       expect(detail.media.single.previewUrl, isNot(contains('pximg.net')));
-      expect(detail.media.single.id, '503 p0');
+      expect(detail.media.single.id, '503 p0?#');
     });
 
     test('rejects non-HTTPS AI TAG asset bases', () async {

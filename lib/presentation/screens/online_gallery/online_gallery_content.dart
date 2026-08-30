@@ -323,6 +323,7 @@ class _OnlineGalleryContentPresenter {
             width, {
             required layoutAspectRatio,
             required loadMedia,
+            required mediaRequestActive,
             detail,
           }) => _buildResolvedPostCard(
             state,
@@ -330,6 +331,7 @@ class _OnlineGalleryContentPresenter {
             width,
             layoutAspectRatio: layoutAspectRatio,
             loadMedia: loadMedia,
+            mediaRequestActive: mediaRequestActive,
             detail: detail,
           ),
     );
@@ -341,6 +343,7 @@ class _OnlineGalleryContentPresenter {
     double itemWidth, {
     required double layoutAspectRatio,
     required bool loadMedia,
+    required bool mediaRequestActive,
     GalleryDetail? detail,
   }) {
     final capabilities = gallerySourceCapabilities[post.sourceId]!;
@@ -418,6 +421,7 @@ class _OnlineGalleryContentPresenter {
           itemWidth: itemWidth,
           layoutAspectRatio: layoutAspectRatio,
           loadMedia: loadMedia,
+          mediaRequestActive: mediaRequestActive,
           isFavorited: isFavorited,
           isFavoriteLoading: favoriteState.$3,
           showFavoriteAction: canWriteFavorite,

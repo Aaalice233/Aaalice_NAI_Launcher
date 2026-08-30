@@ -58,6 +58,7 @@ class GalleryGridItem extends StatefulWidget {
     double itemWidth, {
     required double layoutAspectRatio,
     required bool loadMedia,
+    required bool mediaRequestActive,
     GalleryDetail? detail,
   })
   buildCard;
@@ -105,7 +106,7 @@ class _GalleryGridItemState extends State<GalleryGridItem> {
       setState(() {
         _detailFuture = _loadDetail();
       });
-    } else if (visibilityChanged && _needsDetail) {
+    } else if (visibilityChanged) {
       setState(() {});
     }
   }
@@ -125,6 +126,7 @@ class _GalleryGridItemState extends State<GalleryGridItem> {
     GalleryItem item,
     double layoutAspectRatio, {
     required bool loadMedia,
+    required bool mediaRequestActive,
     GalleryDetail? detail,
   }) {
     return AgentResourceDragSource(
@@ -146,6 +148,7 @@ class _GalleryGridItemState extends State<GalleryGridItem> {
         widget.itemWidth,
         layoutAspectRatio: layoutAspectRatio,
         loadMedia: loadMedia,
+        mediaRequestActive: mediaRequestActive,
         detail: detail,
       ),
     );
@@ -171,6 +174,7 @@ class _GalleryGridItemState extends State<GalleryGridItem> {
               post,
               layoutAspectRatio,
               loadMedia: hasBeenVisible || isVisible,
+              mediaRequestActive: isVisible,
             );
           }
           if (!hasBeenVisible) {
@@ -252,6 +256,7 @@ class _GalleryGridItemState extends State<GalleryGridItem> {
                   resolved,
                   resolvedAspectRatio,
                   loadMedia: true,
+                  mediaRequestActive: isVisible,
                   detail: detail,
                 );
               },

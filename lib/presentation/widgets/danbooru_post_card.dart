@@ -75,6 +75,7 @@ class DanbooruPostCard extends StatefulWidget {
   final VoidCallback? onHoverDismiss;
   final OnlineGalleryPrefetchCoordinator? imageCoordinator;
   final bool loadMedia;
+  final bool mediaRequestActive;
 
   const DanbooruPostCard({
     super.key,
@@ -108,6 +109,7 @@ class DanbooruPostCard extends StatefulWidget {
     this.onHoverDismiss,
     this.imageCoordinator,
     this.loadMedia = true,
+    this.mediaRequestActive = true,
   });
 
   @override
@@ -444,9 +446,12 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                               placeholder: const OnlineGalleryImagePlaceholder(
                                 loading: true,
                               ),
-                              errorWidget: const OnlineGalleryImagePlaceholder(
-                                failed: true,
-                              ),
+                              enabled: widget.mediaRequestActive,
+                              errorBuilder: (context, retry) =>
+                                  OnlineGalleryImagePlaceholder(
+                                    failed: true,
+                                    onRetry: retry,
+                                  ),
                             )
                           else
                             CachedNetworkImage(

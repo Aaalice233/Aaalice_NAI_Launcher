@@ -236,6 +236,105 @@ void main() {
     expect(await low, isFalse);
   });
 
+  test(
+    'capacity notification follows same-turn queue rejection callbacks',
+    () async {
+      final blockerGate = Completer<void>();
+      final coordinator = OnlineGalleryPrefetchCoordinator(
+        maxConcurrent: 1,
+        maxQueued: 1,
+        preloader: (request) => _operation(
+          request.url.endsWith('/0.jpg')
+              ? blockerGate.future
+              : Future<void>.value(),
+        ),
+      );
+      final blocker = coordinator.submit(
+        _request(0),
+        priority: GalleryImagePriority.interactiveDetail,
+      );
+      final queued = coordinator.submit(
+        _request(1),
+        priority: GalleryImagePriority.interactiveDetail,
+      );
+      var requesting = true;
+      Future<bool>? retried;
+      coordinator.addListener(() {
+        if (!requesting && retried == null) {
+          retried = coordinator.submit(
+            _request(2),
+            priority: GalleryImagePriority.visible,
+          );
+        }
+      });
+      coordinator
+          .submit(_request(2), priority: GalleryImagePriority.visible)
+          .then((_) => requesting = false);
+
+      coordinator.cancelPending(_request(1));
+      expect(await queued, isFalse);
+      await Future<void>.delayed(Duration.zero);
+      expect(requesting, isFalse);
+      expect(retried, isNotNull);
+      expect(coordinator.queueDepth, 1);
+
+      blockerGate.complete();
+      expect(await blocker, isTrue);
+      expect(await retried, isTrue);
+    },
+  );
+
+  test(
+    'pending request stays queued until every card consumer releases it',
+    () async {
+      final blockerGate = Completer<void>();
+      final coordinator = OnlineGalleryPrefetchCoordinator(
+        maxConcurrent: 1,
+        preloader: (request) => _operation(
+          request.url.endsWith('/0.jpg')
+              ? blockerGate.future
+              : Future<void>.value(),
+        ),
+      );
+      final blocker = coordinator.submit(
+        _request(0),
+        priority: GalleryImagePriority.interactiveDetail,
+      );
+      final firstConsumer = Object();
+      final secondConsumer = Object();
+      final prefetch = coordinator.submit(
+        _request(1),
+        priority: GalleryImagePriority.lookahead,
+      );
+      final first = coordinator.submit(
+        _request(1),
+        priority: GalleryImagePriority.visible,
+        consumer: firstConsumer,
+      );
+      final second = coordinator.submit(
+        _request(1),
+        priority: GalleryImagePriority.visible,
+        consumer: secondConsumer,
+      );
+
+      coordinator.retainThumbnailWindow({});
+      expect(coordinator.queueDepth, 1);
+      coordinator.cancelPending(_request(1));
+      expect(coordinator.queueDepth, 1);
+      coordinator.releasePending(_request(1), firstConsumer);
+      expect(coordinator.queueDepth, 1);
+      coordinator.releasePending(_request(1), secondConsumer);
+      expect(coordinator.queueDepth, 0);
+      expect(
+        await Future.wait([prefetch, first, second]),
+        everyElement(isFalse),
+      );
+
+      blockerGate.complete();
+      expect(await blocker, isTrue);
+    },
+  );
+
   test('moving thumbnail window cancels stale queued requests', () async {
     final gate = Completer<void>();
     final coordinator = OnlineGalleryPrefetchCoordinator(
@@ -256,9 +355,13 @@ void main() {
       _request(2),
       priority: GalleryImagePriority.lookahead,
     );
+    var notifications = 0;
+    coordinator.addListener(() => notifications++);
 
     coordinator.retainThumbnailWindow({_request(2).stableRequestKey});
     expect(await stale, isFalse);
+    await Future<void>.delayed(Duration.zero);
+    expect(notifications, 1);
     expect(coordinator.queueDepth, 1);
 
     gate.complete();
@@ -605,6 +708,39 @@ void main() {
       expect(coordinator.isNegativelyCached(request), isFalse);
     },
   );
+
+  test('explicit retry invalidates a completed transfer', () async {
+    var attempts = 0;
+    final request = _request(1);
+    final coordinator = OnlineGalleryPrefetchCoordinator(
+      preloader: (_) => _operation(
+        Future<void>.sync(() {
+          attempts++;
+        }),
+      ),
+    );
+    addTearDown(coordinator.dispose);
+
+    expect(
+      await coordinator.submit(request, priority: GalleryImagePriority.visible),
+      isTrue,
+    );
+    expect(
+      await coordinator.submit(request, priority: GalleryImagePriority.visible),
+      isTrue,
+    );
+    expect(attempts, 1);
+
+    expect(
+      await coordinator.submit(
+        request,
+        priority: GalleryImagePriority.visible,
+        retry: true,
+      ),
+      isTrue,
+    );
+    expect(attempts, 2);
+  });
 
   test('cancels one hover request without cancelling visible work', () async {
     final gates = <String, Completer<void>>{};
