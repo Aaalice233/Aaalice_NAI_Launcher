@@ -3065,6 +3065,7 @@
   "promptAssistant_cancelCurrentTask": "取消當前任務",
   "promptAssistant_collapseAssistant": "收起助手",
   "promptAssistant_expandAssistant": "展開助手",
+  "promptAssistant_assistant": "助手",
   "promptAssistant_history": "歷史",
   "promptAssistant_undo": "撤銷",
   "promptAssistant_redo": "重做",

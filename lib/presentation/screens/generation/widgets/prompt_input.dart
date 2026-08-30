@@ -234,8 +234,8 @@ class _FullPromptInput extends ConsumerWidget {
             )
           : null,
       assistantExpanded: assistantExpanded,
-      assistantCollapsedWidth: assistantVisible
-          ? PromptAssistantOverlay.inlineCollapsedWidth
+      assistantToolbarHeight: assistantVisible
+          ? PromptAssistantOverlay.inlineToolbarHeight
           : 0,
     );
     return LayoutBuilder(
@@ -328,9 +328,7 @@ class _CompactPromptInput extends ConsumerWidget {
                       expandInPlace: false,
                     )
                   : null,
-              assistantCollapsedWidth: assistantVisible
-                  ? PromptAssistantOverlay.inlineCollapsedWidth
-                  : 0,
+              assistantToolbarHeight: assistantVisible ? 48 : 0,
             ),
         ],
       );

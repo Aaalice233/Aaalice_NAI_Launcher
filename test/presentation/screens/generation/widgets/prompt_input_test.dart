@@ -540,6 +540,7 @@ void main() {
     final transparent = find.byKey(
       const ValueKey('generation_transparent_background_toggle'),
     );
+    final footer = find.byKey(const ValueKey('generation_prompt_footer'));
     final count = find.byKey(const ValueKey('generation_prompt_footer_count'));
     final assistant = find.byKey(
       const ValueKey('generation_prompt_footer_assistant'),
@@ -556,6 +557,13 @@ void main() {
     expect(transparent, findsOneWidget);
     expect(count, findsOneWidget);
     expect(find.text('259 / 1471'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: assistant,
+        matching: find.byIcon(Icons.auto_awesome_rounded),
+      ),
+      findsOneWidget,
+    );
     expect(assistant, findsOneWidget);
     expect(toolbar, findsOneWidget);
     expect(textField.decoration?.contentPadding, const EdgeInsets.all(12));
@@ -581,6 +589,7 @@ void main() {
     );
     expect(tester.getSize(toolbar).width, greaterThanOrEqualTo(48));
     expect(tester.getSize(toolbar).height, 48);
+    final collapsedFooterHeight = tester.getSize(footer).height;
 
     await tester.tap(
       find.descendant(
@@ -593,18 +602,19 @@ void main() {
 
     expect(count, findsNothing);
     expect(find.text('259 / 1471'), findsNothing);
+    expect(
+      find.descendant(
+        of: assistant,
+        matching: find.byIcon(Icons.auto_awesome_rounded),
+      ),
+      findsNothing,
+    );
+    expect(transparent, findsNothing);
     expect(assistant, findsOneWidget);
+    expect(tester.getSize(footer).height, collapsedFooterHeight);
     expect(
       tester.getRect(assistant).top,
       greaterThanOrEqualTo(tester.getRect(input).bottom),
-    );
-    expect(
-      tester.getCenter(transparent).dy,
-      closeTo(tester.getCenter(assistant).dy, 0.1),
-    );
-    expect(
-      tester.getRect(transparent).right,
-      lessThanOrEqualTo(tester.getRect(assistant).left),
     );
     for (final icon in [
       Icons.translate,
@@ -641,8 +651,17 @@ void main() {
     expect(count, findsOneWidget);
     expect(find.text('259 / 1471'), findsOneWidget);
     expect(
-      tester.getRect(count).right,
-      lessThanOrEqualTo(tester.getRect(assistant).left),
+      find.descendant(
+        of: assistant,
+        matching: find.byIcon(Icons.auto_awesome_rounded),
+      ),
+      findsOneWidget,
+    );
+    expect(transparent, findsOneWidget);
+    expect(tester.getSize(footer).height, collapsedFooterHeight);
+    expect(
+      tester.getRect(assistant).left - tester.getRect(count).right,
+      greaterThanOrEqualTo(8),
     );
     expect(tester.takeException(), isNull);
   });

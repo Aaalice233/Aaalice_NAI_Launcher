@@ -11795,6 +11795,12 @@ abstract class AppLocalizations {
   /// **'Expand Assistant'**
   String get promptAssistant_expandAssistant;
 
+  /// No description provided for @promptAssistant_assistant.
+  ///
+  /// In en, this message translates to:
+  /// **'Assistant'**
+  String get promptAssistant_assistant;
+
   /// No description provided for @promptAssistant_history.
   ///
   /// In en, this message translates to:

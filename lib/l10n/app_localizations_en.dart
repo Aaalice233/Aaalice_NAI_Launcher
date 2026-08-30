@@ -6628,6 +6628,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get promptAssistant_expandAssistant => 'Expand Assistant';
 
   @override
+  String get promptAssistant_assistant => 'Assistant';
+
+  @override
   String get promptAssistant_history => 'History';
 
   @override

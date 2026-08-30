@@ -27,9 +27,9 @@ class PromptAssistantOverlay extends ConsumerStatefulWidget {
   static double get contentBottomClearance =>
       PlatformCapabilities.current.hasTouchInput ? 68 : 56;
 
-  /// Width of the collapsed inline toolbar, including its horizontal padding.
-  static double get inlineCollapsedWidth =>
-      PlatformCapabilities.current.hasTouchInput ? 50 : 34;
+  /// Shared inline toolbar height for both collapsed and expanded states.
+  static double get inlineToolbarHeight =>
+      PlatformCapabilities.current.hasTouchInput ? 48 : 32;
 
   const PromptAssistantOverlay({
     super.key,
@@ -612,18 +612,26 @@ class _PromptAssistantOverlayState
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (!isExpanded)
-                  _miniButton(
-                    icon: Icons.auto_awesome_rounded,
-                    tooltip: widget.expandInPlace
-                        ? context.l10n.promptAssistant_expandAssistant
-                        : context.l10n.promptAssistant_menu,
-                    onPressed: widget.expandInPlace
-                        ? () => notifier.setExpanded(widget.sessionId, true)
-                        : () => _showMenu(),
-                    iconColor: Theme.of(
-                      context,
-                    ).colorScheme.onSurface.withValues(alpha: 0.78),
-                  ),
+                  if (widget.expandInPlace && _isDesktop)
+                    _collapsedInlineButton(
+                      label: context.l10n.promptAssistant_assistant,
+                      tooltip: context.l10n.promptAssistant_expandAssistant,
+                      onPressed: () =>
+                          notifier.setExpanded(widget.sessionId, true),
+                    )
+                  else
+                    _miniButton(
+                      icon: Icons.auto_awesome_rounded,
+                      tooltip: widget.expandInPlace
+                          ? context.l10n.promptAssistant_expandAssistant
+                          : context.l10n.promptAssistant_menu,
+                      onPressed: widget.expandInPlace
+                          ? () => notifier.setExpanded(widget.sessionId, true)
+                          : () => _showMenu(),
+                      iconColor: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.78),
+                    ),
                 if (isExpanded && !_isDesktop) ...[
                   _miniButton(
                     icon: Icons.translate,
@@ -728,6 +736,44 @@ class _PromptAssistantOverlayState
       right: 8,
       bottom: 8,
       child: Align(alignment: Alignment.bottomRight, child: child),
+    );
+  }
+
+  Widget _collapsedInlineButton({
+    required String label,
+    required String tooltip,
+    required VoidCallback onPressed,
+  }) {
+    final foregroundColor = Theme.of(
+      context,
+    ).colorScheme.onSurface.withValues(alpha: 0.78);
+    return Tooltip(
+      message: tooltip,
+      waitDuration: const Duration(milliseconds: 180),
+      showDuration: const Duration(milliseconds: 1200),
+      verticalOffset: 12,
+      preferBelow: false,
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.88),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      textStyle: const TextStyle(color: Colors.white, fontSize: 12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 1),
+        child: TextButton.icon(
+          key: const ValueKey('prompt_assistant_collapsed_button'),
+          onPressed: onPressed,
+          icon: Icon(Icons.auto_awesome_rounded, size: _isDesktop ? 17 : 20),
+          label: Text(label, maxLines: 1),
+          style: TextButton.styleFrom(
+            foregroundColor: foregroundColor,
+            minimumSize: Size(0, _isDesktop ? 32 : 48),
+            padding: EdgeInsets.symmetric(horizontal: _isDesktop ? 8 : 12),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            textStyle: TextStyle(fontSize: _isDesktop ? 12 : 14),
+          ),
+        ),
+      ),
     );
   }
 

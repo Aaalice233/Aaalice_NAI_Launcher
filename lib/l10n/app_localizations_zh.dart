@@ -6366,6 +6366,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get promptAssistant_expandAssistant => '展开助手';
 
   @override
+  String get promptAssistant_assistant => '助手';
+
+  @override
   String get promptAssistant_history => '历史';
 
   @override
@@ -19514,6 +19517,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get promptAssistant_expandAssistant => '展開助手';
+
+  @override
+  String get promptAssistant_assistant => '助手';
 
   @override
   String get promptAssistant_history => '歷史';

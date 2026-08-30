@@ -6474,6 +6474,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get promptAssistant_expandAssistant => 'アシスタントを展開';
 
   @override
+  String get promptAssistant_assistant => 'アシスタント';
+
+  @override
   String get promptAssistant_history => '履歴';
 
   @override

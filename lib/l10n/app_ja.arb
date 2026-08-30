@@ -2978,6 +2978,7 @@
   "promptAssistant_cancelCurrentTask": "現在のタスクをキャンセル",
   "promptAssistant_collapseAssistant": "アシスタントを折りたたむ",
   "promptAssistant_expandAssistant": "アシスタントを展開",
+  "promptAssistant_assistant": "アシスタント",
   "promptAssistant_history": "履歴",
   "promptAssistant_undo": "元に戻す",
   "promptAssistant_redo": "やり直し",

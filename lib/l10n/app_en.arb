@@ -3028,6 +3028,7 @@
   "promptAssistant_cancelCurrentTask": "Cancel Current Task",
   "promptAssistant_collapseAssistant": "Collapse Assistant",
   "promptAssistant_expandAssistant": "Expand Assistant",
+  "promptAssistant_assistant": "Assistant",
   "promptAssistant_history": "History",
   "promptAssistant_undo": "Undo",
   "promptAssistant_redo": "Redo",
