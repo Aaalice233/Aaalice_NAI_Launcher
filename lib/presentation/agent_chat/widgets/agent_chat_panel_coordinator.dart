@@ -105,6 +105,7 @@ class AgentChatPanelCoordinator {
     final images = _controller.pendingImages;
     final content = _controller.buildInlineUserContent(text, images);
     if (content.isEmpty) return;
+    _controller.followLatest();
     _controller.takePendingImages();
     await _notifier.clearComposerText();
     await _notifier.sendContent(content, followUp: followUp);
@@ -250,6 +251,7 @@ class AgentChatPanelCoordinator {
   Future<void> _retryLastMessage() async {
     final message = await _notifier.rewindLastUserMessage();
     if (message == null || !_isMounted()) return;
+    _controller.followLatest();
     await _notifier.sendContent(message.content);
   }
 

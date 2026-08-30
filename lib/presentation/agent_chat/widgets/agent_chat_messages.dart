@@ -146,7 +146,7 @@ class AgentChatMessages extends StatelessWidget {
             bottom: 10,
             child: FilledButton.tonalIcon(
               key: const ValueKey('agent-chat-jump-to-latest'),
-              onPressed: () => controller.scrollToBottom(force: true),
+              onPressed: controller.followLatest,
               icon: const Icon(Icons.arrow_downward_rounded, size: 16),
               label: Text(context.l10n.agentChat_jumpToLatest),
               style: FilledButton.styleFrom(

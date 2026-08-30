@@ -57,7 +57,6 @@ class _AgentChatThreadViewportState extends State<AgentChatThreadViewport> {
   static const _historyPageSize = 8;
   static const _overscanExtent = 900.0;
   static const _estimatedTurnHeight = 180.0;
-  static final Map<String, double> _sessionOffsets = {};
 
   final Map<Object, GlobalKey> _turnKeys = {};
   final Map<Object, double> _measuredHeights = {};
@@ -74,7 +73,6 @@ class _AgentChatThreadViewportState extends State<AgentChatThreadViewport> {
   void didUpdateWidget(covariant AgentChatThreadViewport oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.sessionId != widget.sessionId) {
-      _saveOffset(oldWidget.sessionId);
       _visibleTurnCount = _initialVisibleCount;
       _turnKeys.clear();
       _measuredHeights.clear();
@@ -103,21 +101,12 @@ class _AgentChatThreadViewportState extends State<AgentChatThreadViewport> {
   int get _hiddenCount => widget.turns.length - _visibleTurnCount;
 
   void _saveOffset(String sessionId) {
-    final scroll = widget.controller.scrollController;
-    if (sessionId.isEmpty || !scroll.hasClients) return;
-    _sessionOffsets.remove(sessionId);
-    _sessionOffsets[sessionId] = scroll.offset;
-    while (_sessionOffsets.length > 32) {
-      _sessionOffsets.remove(_sessionOffsets.keys.first);
-    }
+    widget.controller.saveSessionOffset(sessionId);
   }
 
   void _restoreOffset() {
-    final scroll = widget.controller.scrollController;
-    if (!mounted || !scroll.hasClients) return;
-    final saved = _sessionOffsets[widget.sessionId];
-    if (saved == null) return;
-    scroll.jumpTo(saved.clamp(0, scroll.position.maxScrollExtent));
+    if (!mounted) return;
+    widget.controller.restoreSessionOffset(widget.sessionId);
   }
 
   Object _identityFor(AgentChatTurnModel turn) =>
@@ -127,6 +116,13 @@ class _AgentChatThreadViewportState extends State<AgentChatThreadViewport> {
       _turnKeys.putIfAbsent(_identityFor(turn), GlobalKey.new);
 
   Future<void> _jumpTo(AgentChatTurnModel turn) async {
+    final index = widget.turns.indexOf(turn);
+    if (index < 0) return;
+    if (index == widget.turns.length - 1) {
+      widget.controller.followLatest();
+      return;
+    }
+    widget.controller.pauseFollowingLatest();
     final context = _keyFor(turn).currentContext;
     if (context != null) {
       await Scrollable.ensureVisible(
@@ -138,8 +134,7 @@ class _AgentChatThreadViewportState extends State<AgentChatThreadViewport> {
       return;
     }
     final scroll = widget.controller.scrollController;
-    final index = widget.turns.indexOf(turn);
-    if (!scroll.hasClients || index < 0) return;
+    if (!scroll.hasClients) return;
     var estimatedOffset = 0.0;
     for (var later = widget.turns.length - 1; later > index; later--) {
       estimatedOffset +=
@@ -170,7 +165,7 @@ class _AgentChatThreadViewportState extends State<AgentChatThreadViewport> {
     // Keep the exact pixel anchor if the framework performs any correction.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (before == null || !scroll.hasClients) return;
-      scroll.jumpTo(before.clamp(0, scroll.position.maxScrollExtent));
+      widget.controller.jumpToPreservingFollow(before);
     });
   }
 
@@ -192,79 +187,97 @@ class _AgentChatThreadViewportState extends State<AgentChatThreadViewport> {
       children: [
         NotificationListener<ScrollNotification>(
           onNotification: widget.controller.handleScrollNotification,
-          child: CustomScrollView(
-            key: PageStorageKey('agent-chat-thread-${widget.sessionId}'),
-            controller: widget.controller.scrollController,
-            reverse: true,
-            scrollCacheExtent: const ScrollCacheExtent.pixels(_overscanExtent),
-            slivers: [
-              SliverPadding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: widget.horizontalPadding,
-                  vertical: 12,
+          // Keyboard and scrollbar track moves are driven scroll activities,
+          // so arm their user intent before notifications change the offset.
+          child: Focus(
+            onKeyEvent: widget.controller.handleViewportKeyEvent,
+            child: Listener(
+              onPointerDown: (_) =>
+                  widget.controller.beginPotentialUserScroll(),
+              onPointerUp: (_) => widget.controller.cancelPotentialUserScroll(),
+              onPointerCancel: (_) =>
+                  widget.controller.cancelPotentialUserScroll(),
+              child: CustomScrollView(
+                key: PageStorageKey('agent-chat-thread-${widget.sessionId}'),
+                controller: widget.controller.scrollController,
+                reverse: true,
+                scrollCacheExtent: const ScrollCacheExtent.pixels(
+                  _overscanExtent,
                 ),
-                sliver: SliverList.builder(
-                  itemCount: itemCount,
-                  itemBuilder: (context, index) {
-                    if (index == 0) {
-                      return _bounded(widget.live);
-                    }
-                    final reverseTurnIndex = index - 1;
-                    if (reverseTurnIndex < _visibleTurnCount) {
-                      final turnIndex =
-                          widget.turns.length - 1 - reverseTurnIndex;
-                      final turn = widget.turns[turnIndex];
-                      final identity = _identityFor(turn);
-                      return _MeasureSize(
-                        key: _keyFor(turn),
-                        onChange: (size) =>
-                            _measuredHeights[identity] = size.height,
-                        child: RepaintBoundary(
-                          key: ValueKey(
-                            'agent-turn-${turn.timeline?.id ?? turnIndex}',
-                          ),
-                          child: _bounded(
-                            widget.turnBuilder(
-                              context,
-                              turn,
-                              turnIndex == widget.turns.length - 1,
+                slivers: [
+                  SliverPadding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: widget.horizontalPadding,
+                      vertical: 12,
+                    ),
+                    sliver: SliverList.builder(
+                      itemCount: itemCount,
+                      itemBuilder: (context, index) {
+                        if (index == 0) {
+                          return _bounded(widget.live);
+                        }
+                        final reverseTurnIndex = index - 1;
+                        if (reverseTurnIndex < _visibleTurnCount) {
+                          final turnIndex =
+                              widget.turns.length - 1 - reverseTurnIndex;
+                          final turn = widget.turns[turnIndex];
+                          final identity = _identityFor(turn);
+                          return _MeasureSize(
+                            key: _keyFor(turn),
+                            onChange: (size) =>
+                                _measuredHeights[identity] = size.height,
+                            child: RepaintBoundary(
+                              key: ValueKey(
+                                'agent-turn-${turn.timeline?.id ?? turnIndex}',
+                              ),
+                              child: _bounded(
+                                widget.turnBuilder(
+                                  context,
+                                  turn,
+                                  turnIndex == widget.turns.length - 1,
+                                ),
+                              ),
+                            ),
+                          );
+                        }
+                        return _bounded(
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            child: TextButton.icon(
+                              key: const ValueKey(
+                                'agent-chat-earlier-messages',
+                              ),
+                              onPressed: widget.historyLoading
+                                  ? null
+                                  : _showEarlier,
+                              icon: widget.historyLoading
+                                  ? const SizedBox.square(
+                                      dimension: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 1.7,
+                                      ),
+                                    )
+                                  : const Icon(Icons.history_rounded, size: 17),
+                              label: Text(
+                                widget.historyLoading
+                                    ? context.l10n.common_loading
+                                    : _hiddenCount > 0
+                                    ? context.l10n.agentChat_earlierMessages(
+                                        _hiddenCount,
+                                      )
+                                    : context
+                                          .l10n
+                                          .agentChat_loadEarlierMessages,
+                              ),
                             ),
                           ),
-                        ),
-                      );
-                    }
-                    return _bounded(
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        child: TextButton.icon(
-                          key: const ValueKey('agent-chat-earlier-messages'),
-                          onPressed: widget.historyLoading
-                              ? null
-                              : _showEarlier,
-                          icon: widget.historyLoading
-                              ? const SizedBox.square(
-                                  dimension: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 1.7,
-                                  ),
-                                )
-                              : const Icon(Icons.history_rounded, size: 17),
-                          label: Text(
-                            widget.historyLoading
-                                ? context.l10n.common_loading
-                                : _hiddenCount > 0
-                                ? context.l10n.agentChat_earlierMessages(
-                                    _hiddenCount,
-                                  )
-                                : context.l10n.agentChat_loadEarlierMessages,
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
         if (!widget.mobile &&
