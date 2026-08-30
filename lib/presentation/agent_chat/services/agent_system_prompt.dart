@@ -58,6 +58,11 @@ String buildAgentSystemPrompt({
         'compatibility tool also requires its returned estimate to be '
         'confirmed in a second call.',
     '- get_generation_status reports generation progress and queue stats.',
+    '- Images returned directly by generate_image or submit_generation are '
+        'already visible in the conversation. Do not call get_recent_images, '
+        'read, preview_generated_image, or display_images merely to inspect or '
+        'repeat that same output. Only retrieve it again when the user '
+        'explicitly asks to reopen, compare, inspect, or analyze the image.',
     '- get_recent_images returns each saved image\'s read-safe relative path '
         'and stable resource_ref. Never derive a filename or extension from a '
         'resource_ref/resourceId; use the returned path with read, or pass the '

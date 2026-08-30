@@ -244,6 +244,53 @@ void main() {
     expect(find.byType(Image), findsOneWidget);
   });
 
+  testWidgets('read image results never create transcript previews', (
+    tester,
+  ) async {
+    final result = ToolResultMessage(
+      toolCallId: 'read-image-1',
+      toolName: 'read',
+      content: [
+        ToolResultImageContent(
+          ImageContent(
+            source: ImageSource.base64(
+              mimeType: 'image/png',
+              base64Data: base64Encode(_onePixelPng),
+            ),
+          ),
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          shortcutConfigNotifierProvider.overrideWith(
+            _TestShortcutConfigNotifier.new,
+          ),
+        ],
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: Column(
+              children: [
+                AgentChatToolResultTile(result: result),
+                AgentChatToolResultMedia(result: result),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byType(Image), findsNothing);
+    expect(
+      find.byKey(const ValueKey('agent-tool-media-read-image-1')),
+      findsNothing,
+    );
+  });
+
   testWidgets('local files take precedence over inline images and open', (
     tester,
   ) async {

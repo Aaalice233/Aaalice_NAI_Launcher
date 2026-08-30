@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/agent/agent_media_display_policy.dart';
 import '../../../core/agent/agent_types.dart';
 import '../../../core/agent/agent_tool_presentation.dart';
 import '../../../core/windowing/agent_chat_shared_widgets.dart';
@@ -265,7 +266,9 @@ class _AgentChatToolResultTileState extends State<AgentChatToolResultTile> {
     final statusColor = result.isError
         ? theme.colorScheme.error
         : agentToolSuccessColor(theme);
-    final files = _extractImageFiles(result);
+    final showMedia =
+        widget.showMedia && agentToolDisplaysMedia(result.toolName);
+    final files = showMedia ? _extractImageFiles(result) : const <String>[];
     final preferFileImages = files.isNotEmpty;
     final inlineImages = preferFileImages
         ? const <Uint8List>[]
@@ -292,8 +295,7 @@ class _AgentChatToolResultTileState extends State<AgentChatToolResultTile> {
         unpairedInlineImages.isNotEmpty ||
         remoteImages.isNotEmpty ||
         resourceReferences.isNotEmpty;
-    final hasExpandedContent =
-        detailText.isNotEmpty || (widget.showMedia && hasMedia);
+    final hasExpandedContent = detailText.isNotEmpty || (showMedia && hasMedia);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -329,7 +331,7 @@ class _AgentChatToolResultTileState extends State<AgentChatToolResultTile> {
             key: ValueKey('agent-tool-result-details-${result.toolCallId}'),
             text: detailText,
           ),
-        if (_expanded && widget.showMedia && hasMedia)
+        if (_expanded && showMedia && hasMedia)
           Padding(
             padding: const EdgeInsets.fromLTRB(32, 0, 8, 8),
             child: AgentChatResourceGallery(
@@ -375,6 +377,9 @@ class AgentChatToolResultMedia extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (!agentToolDisplaysMedia(result.toolName)) {
+      return const SizedBox.shrink();
+    }
     final files = _extractImageFiles(result);
     final preferFileImages = files.isNotEmpty;
     final inlineImages = preferFileImages

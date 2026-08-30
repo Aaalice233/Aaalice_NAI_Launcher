@@ -66,6 +66,7 @@ class AgentChatPanelController extends ChangeNotifier {
   bool _programmaticScrollActive = false;
   double? _lastUserScrollPixels;
   bool _scrollToBottomScheduled = false;
+  int _viewportInteractionRevision = 0;
   int _lastScrollMessageCount = -1;
   String _lastScrollSessionId = '';
   AssistantMessage? _lastStreamingMessage;
@@ -83,6 +84,8 @@ class AgentChatPanelController extends ChangeNotifier {
   int? get editingUserMessageIndex => _editingUserMessageIndex;
   bool get isEditingUserMessage => _editingUserMessageIndex != null;
   bool get showJumpToLatest => !_autoScroll;
+  bool get followingLatest => _autoScroll;
+  int get viewportInteractionRevision => _viewportInteractionRevision;
 
   void setHoveredUserMessageIndex(int? value) {
     if (_hoveredUserMessageIndex == value) return;
@@ -101,13 +104,18 @@ class AgentChatPanelController extends ChangeNotifier {
   void observe(AgentChatState state) {
     final previousSessionId = _lastScrollSessionId;
     final sessionChanged = state.activeSessionId != previousSessionId;
+    final messagesChanged = state.messages.length != _lastScrollMessageCount;
+    final streamingChanged = !identical(
+      state.streamingMessage,
+      _lastStreamingMessage,
+    );
+    final activitiesChanged = !identical(state.activities, _lastActivities);
     final contentChanged =
-        state.messages.length != _lastScrollMessageCount ||
-        !identical(state.streamingMessage, _lastStreamingMessage) ||
-        !identical(state.activities, _lastActivities);
+        messagesChanged || streamingChanged || activitiesChanged;
     if (sessionChanged && previousSessionId.isNotEmpty) {
       saveSessionOffset(previousSessionId);
       _endUserScroll();
+      _viewportInteractionRevision++;
     }
     _lastScrollSessionId = state.activeSessionId;
     _lastScrollMessageCount = state.messages.length;
@@ -121,7 +129,7 @@ class AgentChatPanelController extends ChangeNotifier {
       _composerTextBeforeEdit = null;
       _composerImagesBeforeEdit = null;
       scrollToBottom(force: true);
-    } else if (contentChanged) {
+    } else if (contentChanged && _autoScroll) {
       scrollToBottom();
     }
   }
@@ -473,9 +481,11 @@ class AgentChatPanelController extends ChangeNotifier {
         ? scrollDelta ?? 0
         : metrics.pixels - previousPixels;
     _lastUserScrollPixels = metrics.pixels;
-    if (delta > _scrollMovementTolerance) {
+    if (delta.abs() <= _scrollMovementTolerance) return;
+    _viewportInteractionRevision++;
+    if (delta > 0) {
       _setAutoScroll(false);
-    } else if (delta < -_scrollMovementTolerance && _isNearBottom(metrics)) {
+    } else if (_isNearBottom(metrics)) {
       _setAutoScroll(true);
     }
   }
@@ -576,6 +586,28 @@ class AgentChatPanelController extends ChangeNotifier {
         _programmaticScrollActive = false;
       }
     });
+  }
+
+  /// Keeps a historical message at the same screen position while the live
+  /// edge changes size in a reversed transcript.
+  void restorePausedViewportAnchor({
+    required double visualDelta,
+    required int expectedInteractionRevision,
+  }) {
+    if (_autoScroll ||
+        _userScrollActive ||
+        _potentialUserScroll ||
+        expectedInteractionRevision != _viewportInteractionRevision ||
+        !scrollController.hasClients ||
+        visualDelta.abs() < 0.5) {
+      return;
+    }
+    final position = scrollController.position;
+    if (!position.hasPixels || !position.hasContentDimensions) return;
+    final target = (position.pixels - visualDelta)
+        .clamp(position.minScrollExtent, position.maxScrollExtent)
+        .toDouble();
+    jumpToPreservingFollow(target);
   }
 
   @override

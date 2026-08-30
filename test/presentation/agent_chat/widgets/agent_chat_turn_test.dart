@@ -259,6 +259,7 @@ void main() {
         ]).turns.single;
 
     expect(buildTurn('get_recent_images').mediaResults, isEmpty);
+    expect(buildTurn('read').mediaResults, isEmpty);
     expect(buildTurn('search_local_gallery').mediaResults, isEmpty);
     expect(buildTurn('display_images').mediaResults, hasLength(1));
     expect(buildTurn('preview_generated_image').mediaResults, hasLength(1));
