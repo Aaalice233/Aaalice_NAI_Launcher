@@ -2,9 +2,13 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/agent/agent_types.dart';
+import '../../../core/constants/model_capabilities.dart';
 import '../../../core/services/anlas_calculator.dart';
+import '../../../core/services/character_conversion_service.dart';
 import '../../../core/utils/nai_resolution_adapter.dart';
 import '../../../data/models/image/image_params.dart';
+import '../../../data/services/alias_resolver_service.dart';
+import '../../providers/character_prompt_provider.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/precise_ref_library_provider.dart';
 import '../../providers/replication_queue_provider.dart';
@@ -12,6 +16,7 @@ import '../../providers/vibe_library_provider.dart';
 import 'agent_resource_resolver.dart';
 import 'defined_agent_tool.dart';
 import 'generation_anlas_estimator.dart';
+import 'generation_character_orchestration.dart';
 import 'generation_preparation_runtime.dart';
 import 'generation_workspace_path_resolver.dart';
 
@@ -107,6 +112,7 @@ class GenerationPreparationService {
     GenerationPreparationKind kind,
     Map<String, dynamic> args, {
     ImageParams? baseOverride,
+    ImageParams? characterSnapshotOverride,
   }) async {
     final prompt = (args['prompt'] as String?)?.trim() ?? '';
     if (prompt.isEmpty) {
@@ -296,23 +302,57 @@ class GenerationPreparationService {
         return agentToolError('invalid_resource_ref', '$error');
       }
     }
-    final characters = <CharacterPrompt>[];
-    for (final value in args['characters'] as List? ?? const []) {
-      if (value is! Map || value['prompt'] is! String) {
+    final hasExplicitCharacters = args.containsKey('characters');
+    if (!hasExplicitCharacters && args.containsKey('character_layout_mode')) {
+      return agentToolError(
+        'character_layout_without_characters',
+        'character_layout_mode requires an explicit characters snapshot.',
+      );
+    }
+
+    late final List<CharacterPrompt> characters;
+    late final bool useCoords;
+    if (hasExplicitCharacters) {
+      try {
+        final snapshot = GenerationCharacterOrchestrator.normalizeExplicit(
+          rawCharacters: args['characters'],
+          rawLayoutMode: args['character_layout_mode'],
+          model: base.model,
+        );
+        characters = snapshot.characters;
+        useCoords = snapshot.useCoords;
+      } on GenerationCharacterValidationException catch (error) {
+        return agentToolError(error.code, error.message);
+      }
+    } else {
+      final override = characterSnapshotOverride;
+      if (override != null) {
+        characters = override.characters;
+        useCoords = override.useCoords;
+      } else {
+        final config = _ref.read(characterPromptNotifierProvider);
+        final conversion = CharacterConversionService(
+          aliasResolver: _ref
+              .read(aliasResolverServiceProvider.notifier)
+              .resolveAliases,
+        ).convert(config);
+        characters = conversion.characters;
+        useCoords = conversion.useCoords;
+      }
+      final limit = ModelCapabilityRegistry.of(base.model).maxCharacters;
+      if (characters.isNotEmpty && limit == 0) {
         return agentToolError(
-          'invalid_character',
-          'Each character requires a prompt.',
+          'model_character_unsupported',
+          'Model ${base.model} does not support character prompts.',
         );
       }
-      characters.add(
-        CharacterPrompt(
-          prompt: value['prompt'] as String,
-          negativePrompt: value['negative_prompt'] as String? ?? '',
-          position: value['position'] as String?,
-          positionX: (value['position_x'] as num?)?.toDouble(),
-          positionY: (value['position_y'] as num?)?.toDouble(),
-        ),
-      );
+      if (characters.length > limit) {
+        return agentToolError(
+          'model_character_limit',
+          'Model ${base.model} supports at most $limit characters; '
+              '${characters.length} enabled characters are configured.',
+        );
+      }
     }
 
     final params = base.copyWith(
@@ -332,7 +372,8 @@ class GenerationPreparationService {
       inpaintStrength: ratio('inpaint_strength', base.inpaintStrength),
       vibeReferencesV4: vibeReferences,
       preciseReferences: preciseReferences,
-      characters: characters.isEmpty ? base.characters : characters,
+      characters: characters,
+      useCoords: useCoords,
     );
     final batchSize = _anlasEstimator.currentBatchSize;
     final estimate = _anlasEstimator.estimate(
@@ -419,6 +460,7 @@ class GenerationPreparationService {
       current.kind,
       merged,
       baseOverride: current.baseParams,
+      characterSnapshotOverride: current.params,
     );
     if (!result.isError) _runtime.cancel(id);
     return result;

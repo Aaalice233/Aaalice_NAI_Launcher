@@ -185,7 +185,7 @@ void main() {
       // 正式站关闭端到端 ×2，并保留增强 max 档。
       expect(caps.supportsE2eUpscale, isFalse);
       expect(caps.supportsMaxEnhance, isTrue);
-      expect(caps.maxCharacters, 32);
+      expect(caps.maxCharacters, 22);
       expect(caps.supportsAutoText, isTrue);
       expect(
         ModelCapabilityRegistry.of(

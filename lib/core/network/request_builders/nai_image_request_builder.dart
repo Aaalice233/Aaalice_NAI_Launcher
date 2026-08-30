@@ -5,13 +5,12 @@ import 'dart:typed_data';
 import '../../constants/api_constants.dart';
 import '../../enums/precise_ref_type.dart';
 import '../../utils/app_logger.dart';
+import '../../utils/character_center_resolver.dart';
 import '../../utils/inpaint_mask_utils.dart';
 import '../../utils/nai_resolution_adapter.dart';
 import '../../utils/nai_api_utils.dart';
 import '../../utils/novelai_auto_text.dart';
 import '../../utils/prompt_semantics_utils.dart';
-import '../../../data/models/character/character_prompt.dart'
-    show CharacterPositionLayout;
 import '../../../data/models/image/image_params.dart';
 
 /// Variety+ sigma 缩放的基准潜空间体积：4 通道 × 104 × 152（832×1216 的潜空间）。
@@ -276,19 +275,11 @@ class NAIImageRequestBuilder {
   }
 
   ({double x, double y}) _resolveCharacterCenter(int index) {
-    final character = params.characters[index];
-    if (character.positionX != null && character.positionY != null) {
-      return (
-        x: character.positionX!.clamp(0.0, 1.0),
-        y: character.positionY!.clamp(0.0, 1.0),
-      );
-    }
-
-    final fallback = CharacterPositionLayout.positionForIndex(
-      index,
-      params.characters.length,
+    return CharacterCenterResolver.resolve(
+      params.characters[index],
+      index: index,
+      total: params.characters.length,
     );
-    return (x: fallback.column, y: fallback.row);
   }
 
   List<NovelAiAutoTextCharacter> _buildAutoTextCharacters() {
@@ -554,12 +545,40 @@ class NAIImageRequestBuilder {
     }
 
     final characterLimit = params.capabilities.maxCharacters;
-    if (characterLimit > 0 && params.characters.length > characterLimit) {
+    if (params.characters.isNotEmpty && characterLimit == 0) {
+      throw ArgumentError.value(
+        params.characters.length,
+        'characters',
+        'Model ${params.model} does not support character prompts',
+      );
+    }
+    if (params.characters.length > characterLimit) {
       throw ArgumentError.value(
         params.characters.length,
         'characters',
         'Model ${params.model} supports at most $characterLimit characters',
       );
+    }
+    if (params.useCoords) {
+      for (var index = 0; index < params.characters.length; index++) {
+        final character = params.characters[index];
+        final x = character.positionX;
+        final y = character.positionY;
+        if (x == null ||
+            y == null ||
+            !x.isFinite ||
+            !y.isFinite ||
+            x < 0 ||
+            x > 1 ||
+            y < 0 ||
+            y > 1) {
+          throw ArgumentError.value(
+            character,
+            'characters[$index]',
+            'Coordinate mode requires finite x/y centers between 0 and 1',
+          );
+        }
+      }
     }
 
     final seed = params.seed == -1 ? Random().nextInt(4294967295) : params.seed;

@@ -1,10 +1,8 @@
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/agent/agent_types.dart';
-import '../../../data/models/image/image_params.dart';
 import '../../../data/models/queue/replication_task.dart';
 import '../../../data/models/queue/replication_task_generation_snapshot.dart';
-import '../../providers/character_prompt_provider.dart';
 import '../../providers/queue_execution_provider.dart';
 import '../../providers/replication_queue_provider.dart';
 import 'defined_agent_tool.dart';
@@ -22,7 +20,7 @@ class GenerationQueueTaskService {
   final int _maxQueueSnapshotBytes;
   final int _maxPersistedQueueSnapshotBytes;
   Future<AgentToolResult> queueTask(
-    Map<String, dynamic> args, {
+    Map<String, dynamic> _, {
     required GenerationPreparation prepared,
   }) async {
     final base = prepared.params;
@@ -53,40 +51,20 @@ class GenerationQueueTaskService {
     final count = requestedCount;
     final autoStart = prepared.autoStart;
     final negativePrompt = base.negativePrompt;
-    final explicitCharacters = args['characters'] is List;
-    final characterPrompts = explicitCharacters
-        ? base.characters
-              .map(
-                (character) => ReplicationCharacterPromptSnapshot(
-                  prompt: character.prompt,
-                  negativePrompt: character.negativePrompt,
-                  positionX: character.positionX,
-                  positionY: character.positionY,
-                ),
-              )
-              .toList(growable: false)
-        : _ref
-              .read(characterPromptNotifierProvider)
-              .characters
-              .map(ReplicationCharacterPromptSnapshot.fromCharacterPrompt)
-              .toList(growable: false);
+    final characterPrompts = base.characters
+        .map(
+          (character) => ReplicationCharacterPromptSnapshot(
+            prompt: character.prompt,
+            negativePrompt: character.negativePrompt,
+            positionX: base.useCoords ? character.positionX : null,
+            positionY: base.useCoords ? character.positionY : null,
+          ),
+        )
+        .toList(growable: false);
     final queuedParams = base.copyWith(
       prompt: prompt,
       negativePrompt: negativePrompt,
       nSamples: 1,
-      characters: explicitCharacters
-          ? base.characters
-          : characterPrompts
-                .where((character) => character.enabled)
-                .map(
-                  (character) => CharacterPrompt(
-                    prompt: character.prompt,
-                    negativePrompt: character.negativePrompt,
-                    positionX: character.positionX,
-                    positionY: character.positionY,
-                  ),
-                )
-                .toList(growable: false),
     );
     final generationSnapshot = ReplicationTaskGenerationSnapshot.encode(
       queuedParams,

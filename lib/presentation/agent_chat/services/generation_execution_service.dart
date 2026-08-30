@@ -183,7 +183,11 @@ class GenerationExecutionService {
       var lastProgress = -1;
       final invocation = _ref
           .read(imageGenerationNotifierProvider.notifier)
-          .generate(params, batchSizeOverride: prepared.batchSize);
+          .generate(
+            params,
+            batchSizeOverride: prepared.batchSize,
+            preserveCharacterSnapshot: true,
+          );
       final finished = await _waitForCompletion(
         invocation: invocation,
         expectedImages: count,

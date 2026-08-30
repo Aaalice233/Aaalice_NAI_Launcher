@@ -197,7 +197,10 @@ AgentToolPermissionDescriptor describeAgentToolPermission(String toolName) {
     'set_negative_prompt' ||
     'add_character' ||
     'update_character' ||
-    'remove_character' => AgentPermissionDomain.prompt,
+    'remove_character' ||
+    'set_character_layout_mode' ||
+    'reorder_characters' ||
+    'clear_characters' => AgentPermissionDomain.prompt,
     'read_skill' ||
     'read_skill_resource' ||
     'reload_skills' ||

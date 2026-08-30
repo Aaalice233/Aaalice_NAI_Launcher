@@ -94,9 +94,17 @@ class GenerationPreparationResult {
 
 /// Produces request snapshots without reading Riverpod or writing UI state.
 class GenerationRequestPreparationService {
-  const GenerationRequestPreparationService(this.dependencies);
+  const GenerationRequestPreparationService(
+    this.dependencies, {
+    this.preserveCharacterSnapshot = false,
+  });
 
   final GenerationPreparationDependencies dependencies;
+
+  /// Agent confirmation and durable queue snapshots already contain the exact
+  /// normalized characters and layout mode. They must not be replaced from
+  /// the mutable character editor during execution.
+  final bool preserveCharacterSnapshot;
 
   Future<GenerationPreparationResult> prepareInitial(ImageParams params) async {
     final promptPreparation = dependencies.prompt;
@@ -123,7 +131,6 @@ class GenerationRequestPreparationService {
       negativePrompt: negativePromptWithFixedTags,
     );
     final presets = promptPreparation.resolvePresets(effective);
-    final characters = dependencies.characters.read(effective.model);
     effective = effective.copyWith(
       prompt: presets.prompt,
       negativePrompt: presets.negativePrompt,
@@ -131,9 +138,14 @@ class GenerationRequestPreparationService {
       ucPreset: presets.ucPreset,
       omitQualityTagHint: presets.omitQualityTagHint,
       omitUcPresetTagHint: presets.omitUcPresetTagHint,
-      characters: characters.characters,
-      useCoords: characters.useCoords,
     );
+    if (!preserveCharacterSnapshot) {
+      final characters = dependencies.characters.read(effective.model);
+      effective = effective.copyWith(
+        characters: characters.characters,
+        useCoords: characters.useCoords,
+      );
+    }
     effective = await dependencies.vibes.prepare(effective);
     return GenerationPreparationResult(
       params: effective,
@@ -161,6 +173,9 @@ class GenerationRequestPreparationService {
           currentParams.copyWith(prompt: preparedPrompt, negativePrompt: ''),
         )
         .prompt;
+    if (preserveCharacterSnapshot) {
+      return currentParams.copyWith(prompt: preparedPrompt);
+    }
     final characters = dependencies.characters.read(currentParams.model);
     return currentParams.copyWith(
       prompt: preparedPrompt,
