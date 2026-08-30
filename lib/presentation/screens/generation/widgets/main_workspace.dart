@@ -29,6 +29,18 @@ class MainWorkspace extends ConsumerWidget {
   static const double _promptAreaChromeHeight = 132.0;
   static const double _promptTextSafetyPadding = 24.0;
 
+  @visibleForTesting
+  static double resolveClassicPromptAreaHeight({
+    required double storedHeight,
+    required double adaptiveHeight,
+    required double heightCap,
+  }) {
+    final preferredHeight = storedHeight
+        .clamp(_minPromptAreaHeight, heightCap)
+        .toDouble();
+    return preferredHeight > adaptiveHeight ? preferredHeight : adaptiveHeight;
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
@@ -88,8 +100,8 @@ class MainWorkspace extends ConsumerWidget {
                 ),
               ),
 
-            // 角色行：紧贴提示词区下方（画布模式收起，画布内有芯片条）
-            if (!canvasOpen) const InlineCharacterRow(),
+            // 角色二级菜单：紧贴提示词区下方（画布模式收起，画布内有芯片条）
+            if (!canvasOpen) const ClassicCharacterSection(),
 
             // 提示词区域拖拽分隔条（最大化/画布模式隐藏）
             if (!isPromptMaximized && !canvasOpen)
@@ -98,8 +110,7 @@ class MainWorkspace extends ConsumerWidget {
                   final maxHeight = _resolvePromptAreaHeightCap(
                     constraints.maxHeight,
                   );
-                  // 拖动调整的是「高度上限」，以存储值为基准；
-                  // 若基于显示高度（内容少时贴内容），一拖就会把上限意外缩小
+                  // 存储值是用户设置的基础高度；内容超过该高度时仍会自然增高。
                   final storedHeight = ref
                       .read(layoutStateNotifierProvider)
                       .promptAreaHeight;
@@ -151,9 +162,13 @@ class MainWorkspace extends ConsumerWidget {
       negativePrompt,
     ).clamp(_minPromptAreaHeight, heightCap).toDouble();
 
-    // 内容自适应为主，用户拖动的高度作为上限：
-    // 内容少时框贴内容收缩（不再留大片空白），超过上限时框内滚动
-    return storedHeight < adaptiveHeight ? storedHeight : adaptiveHeight;
+    // 用户设置值是基础高度，避免空提示词时编辑器默认缩成窄条；
+    // 内容更多时仍允许区域自适应增高，但不会突破预览区安全上限。
+    return resolveClassicPromptAreaHeight(
+      storedHeight: storedHeight,
+      adaptiveHeight: adaptiveHeight,
+      heightCap: heightCap,
+    );
   }
 
   double _resolvePromptAreaHeightCap(double availableHeight) {

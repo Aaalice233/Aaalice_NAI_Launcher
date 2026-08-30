@@ -10,7 +10,10 @@ import 'fixed_tags_dialog.dart';
 /// 固定词按钮组件
 /// 显示当前启用的固定词数量，点击打开管理对话框
 class FixedTagsButton extends ConsumerStatefulWidget {
-  const FixedTagsButton({super.key});
+  const FixedTagsButton({super.key, this.compact = false});
+
+  /// 经典桌面提示词工具栏使用紧凑外观；触屏和独立入口保留标准命中高度。
+  final bool compact;
 
   @override
   ConsumerState<FixedTagsButton> createState() => _FixedTagsButtonState();
@@ -74,12 +77,15 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
                 .read(layoutStateNotifierProvider.notifier)
                 .toggleFixedTagsSidebar(),
             child: AnimatedContainer(
+              key: const Key('fixed-tags-button-surface'),
               duration: MediaQuery.disableAnimationsOf(context)
                   ? Duration.zero
                   : const Duration(milliseconds: 150),
-              constraints: const BoxConstraints(minHeight: 44),
-              alignment: Alignment.center,
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              constraints: BoxConstraints(minHeight: widget.compact ? 36 : 44),
+              padding: EdgeInsets.symmetric(
+                horizontal: widget.compact ? 8 : 10,
+                vertical: widget.compact ? 4 : 6,
+              ),
               decoration: BoxDecoration(
                 color: hasEnabled
                     ? theme.colorScheme.secondary.withValues(
@@ -95,7 +101,7 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
                 children: [
                   Icon(
                     hasEnabled ? Icons.push_pin : Icons.push_pin_outlined,
-                    size: 16,
+                    size: widget.compact ? 15 : 16,
                     color: hasEnabled
                         ? theme.colorScheme.secondary
                         : theme.colorScheme.onSurface.withValues(alpha: 0.5),
@@ -104,7 +110,7 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
                   Text(
                     context.l10n.fixedTags_label,
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: widget.compact ? 11 : 12,
                       fontWeight: hasEnabled
                           ? FontWeight.w600
                           : FontWeight.w500,

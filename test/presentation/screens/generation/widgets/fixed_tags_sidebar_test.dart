@@ -459,6 +459,39 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('FixedTagsButton 经典工具栏紧凑模式不会拉伸', (tester) async {
+    final storage = _SidebarTestStorage(
+      fixedEntries: const [],
+      categories: const [],
+      libraryEntries: const [],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: SizedBox(
+              width: 1000,
+              child: Align(
+                alignment: Alignment.topLeft,
+                child: FixedTagsButton(compact: true),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final surface = find.byKey(const Key('fixed-tags-button-surface'));
+    expect(tester.getSize(surface).height, 36);
+    expect(tester.getSize(surface).width, lessThan(100));
+  });
+
   testWidgets(
     'FixedTagsButton long press toggles sidebar and tap keeps it open',
     (tester) async {
