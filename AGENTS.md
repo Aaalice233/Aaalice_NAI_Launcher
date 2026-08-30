@@ -32,12 +32,13 @@ Aaalice_NAI_Launcher/
 
 项目使用 Flutter `>=3.35.0`、Dart `>=3.10.7`，当前 CI 固定 Flutter `3.44.2`。拉取仓库后必须安装 Git LFS，并获取唯一内置数据库 `assets/databases/tag_catalog.db`。Windows 构建还需要 Visual Studio 2022 的 Desktop development with C++、已加入 `PATH` 的 NuGet CLI；macOS 构建需要完整 Xcode 与 CocoaPods；Android 构建需要 JDK 17 和 Android SDK，最低运行版本为 Android 7.0（API 24）。
 
-`pubspec.lock` 中的 hosted package URL 必须保持为 `https://pub.dev`，与 GitHub CI 一致；本地可使用 `PUB_HOSTED_URL` 镜像下载，但不得提交镜像 URL 对 lockfile 的机械改写。
+`pubspec.lock` 中的 hosted package URL 必须保持为 `https://pub.dev`。禁止在用户级或系统级设置 `PUB_HOSTED_URL` 或 `FLUTTER_STORAGE_BASE_URL` 镜像，因为 `flutter pub get` 会据此重写 lockfile 或从非官方地址下载 SDK 资源。项目开发脚本与 GitHub Actions 固定使用官方源，提交、构建和发布前运行 `scripts/verify_flutter_sources.ps1`；发现镜像环境变量或非官方 lockfile URL 时必须失败，不得提交或发布。
 
 ```powershell
 git lfs install
 git lfs pull --include="assets/databases/tag_catalog.db"
-flutter pub get
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_flutter_sources.ps1
+flutter pub get --enforce-lockfile
 dart run build_runner build --delete-conflicting-outputs
 flutter run -d windows
 flutter run -d <android-device-id>
@@ -152,7 +153,15 @@ CI 与 Release checkout 不直接消耗 GitHub LFS 流量；`scripts/prepare_bun
 
 更新日志的差异审查、归类、撰写和完整性复核必须由当前主 Agent 亲自完成，禁止启动或委派任何子代理；这属于发布流程中的单一职责任务，不得为了并行分析而拆分。
 
-Changelog 条目应面向用户描述结果，不要只写内部实现名。常用分类为 `### ✨ 新增`、`### 🛠 改进`、`### 🐛 修复`，必要时才增加 `### ⚠️ 注意`。同一新功能开发期间的内部修复应合并描述最终结果，不要暴露用户从未使用过的中间损坏状态。不要在 `CHANGELOG.md` 中写发布文件列表；安装版、便携版、macOS 包说明由 `scripts/generate_release_metadata.ps1` 自动生成，避免 Release notes 重复。
+Changelog 条目遵守以下格式：
+
+- 每个 bullet 只描述一个功能主题或一个用户问题。
+- 同一功能的适用入口、交互方式和结果合并描述，不按操作细节机械拆分。
+- 不同功能或不同问题必须拆成多条，禁止为了减少行数强行塞进同一条。
+- 条目面向用户描述最终结果，不写类名、接口名或内部实现过程。
+- 同一新功能开发期间的内部修复合并到最终结果，不暴露用户从未使用过的中间状态。
+- 常用分类为 `### ✨ 新增`、`### 🛠 改进`、`### 🐛 修复`，只有确有必要时才增加 `### ⚠️ 注意`。
+- `CHANGELOG.md` 不写发布文件列表；安装包说明由 `scripts/generate_release_metadata.ps1` 自动生成。
 
 准备发布时需要检查：
 

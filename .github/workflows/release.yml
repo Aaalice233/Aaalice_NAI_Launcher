@@ -220,6 +220,10 @@ jobs:
         shell: pwsh
         run: choco install nsis -y --no-progress
 
+      - name: Verify official Flutter dependency sources
+        shell: pwsh
+        run: ./scripts/verify_flutter_sources.ps1
+
       - name: Resolve dependencies from cache
         if: steps.flutter.outputs.PUB-CACHE-HIT == 'true'
         run: flutter pub get --enforce-lockfile --offline
@@ -342,6 +346,10 @@ jobs:
       - name: Prepare CocoaPods
         run: pod --version
 
+      - name: Verify official Flutter dependency sources
+        shell: pwsh
+        run: ./scripts/verify_flutter_sources.ps1
+
       - name: Resolve dependencies
         run: flutter pub get --enforce-lockfile
 
@@ -414,6 +422,10 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
+
+      - name: Verify official Flutter dependency sources
+        shell: pwsh
+        run: ./scripts/verify_flutter_sources.ps1
 
       - name: Resolve dependencies
         run: flutter pub get --enforce-lockfile

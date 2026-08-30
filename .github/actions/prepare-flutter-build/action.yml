@@ -58,6 +58,10 @@ runs:
         restore-keys: |
           ${{ inputs.cache-namespace }}-windows-build-${{ runner.os }}-${{ inputs.flutter-version }}-${{ hashFiles('pubspec.lock', 'windows/**') }}-
 
+    - name: Verify official Flutter dependency sources
+      shell: pwsh
+      run: ./scripts/verify_flutter_sources.ps1
+
     - name: Resolve dependencies from cache
       if: steps.flutter.outputs.PUB-CACHE-HIT == 'true'
       shell: pwsh
