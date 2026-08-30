@@ -12422,6 +12422,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'Release to add style reference';
 
   @override
+  String get router_backAgainToExit => 'Swipe or press back again to exit';
+
+  @override
   String router_pageNotFound(String error) {
     return 'Page not found: $error';
   }

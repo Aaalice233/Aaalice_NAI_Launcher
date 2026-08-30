@@ -6320,6 +6320,7 @@
   },
   "onlineGallery_videoLoadFailed": "影片載入失敗",
   "vibe_releaseToAddStyleReference": "鬆開後新增風格參考",
+  "router_backAgainToExit": "再滑一次或按返回鍵退出應用",
   "router_pageNotFound": "頁面未找到: {error}",
   "@router_pageNotFound": {
     "placeholders": {

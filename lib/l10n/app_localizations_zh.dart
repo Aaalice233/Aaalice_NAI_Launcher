@@ -11920,6 +11920,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get vibe_releaseToAddStyleReference => '松开后添加风格参考';
 
   @override
+  String get router_backAgainToExit => '再滑一次或按返回键退出应用';
+
+  @override
   String router_pageNotFound(String error) {
     return '页面未找到: $error';
   }
@@ -25065,6 +25068,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get vibe_releaseToAddStyleReference => '鬆開後新增風格參考';
+
+  @override
+  String get router_backAgainToExit => '再滑一次或按返回鍵退出應用';
 
   @override
   String router_pageNotFound(String error) {
