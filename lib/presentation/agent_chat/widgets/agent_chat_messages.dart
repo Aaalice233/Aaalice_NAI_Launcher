@@ -436,62 +436,70 @@ class AgentChatMessages extends StatelessWidget {
                       bottomRight: Radius.circular(4),
                     ),
                   ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      if (message.images.isNotEmpty)
-                        Padding(
-                          padding: EdgeInsets.only(bottom: hasText ? 6 : 0),
-                          child: Wrap(
-                            spacing: 6,
-                            runSpacing: 6,
-                            alignment: WrapAlignment.end,
-                            children: [
-                              for (final image in message.images)
-                                _userImage(
-                                  theme,
-                                  image,
-                                  maxWidth: viewData.userBubbleMaxWidth - 24,
-                                ),
-                            ],
-                          ),
-                        ),
-                      if (hasText)
-                        Text(
-                          message.text,
-                          style:
-                              (viewData.mobile
-                                      ? theme.textTheme.bodyMedium
-                                      : theme.textTheme.bodySmall)
-                                  ?.copyWith(
-                                    color: theme.colorScheme.onPrimaryContainer,
-                                    height: 1.45,
+                  child: IntrinsicWidth(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (message.images.isNotEmpty)
+                          Padding(
+                            padding: EdgeInsets.only(bottom: hasText ? 6 : 0),
+                            child: Wrap(
+                              spacing: 6,
+                              runSpacing: 6,
+                              alignment: WrapAlignment.end,
+                              children: [
+                                for (final image in message.images)
+                                  _userImage(
+                                    theme,
+                                    image,
+                                    maxWidth: viewData.userBubbleMaxWidth - 24,
                                   ),
-                        ),
-                      const SizedBox(height: 4),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            sentAt,
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: theme.colorScheme.onPrimaryContainer
-                                  .withValues(alpha: 0.58),
-                              fontSize: 9,
-                              height: 1,
+                              ],
                             ),
                           ),
-                          const SizedBox(width: 3),
-                          Icon(
-                            Icons.done_all_rounded,
-                            size: 11,
-                            color: theme.colorScheme.onPrimaryContainer
-                                .withValues(alpha: 0.58),
+                        if (hasText)
+                          Text(
+                            message.text,
+                            key: ValueKey(
+                              'agent-user-message-text-$messageIndex',
+                            ),
+                            textAlign: TextAlign.center,
+                            style:
+                                (viewData.mobile
+                                        ? theme.textTheme.bodyMedium
+                                        : theme.textTheme.bodySmall)
+                                    ?.copyWith(
+                                      color:
+                                          theme.colorScheme.onPrimaryContainer,
+                                      height: 1.45,
+                                    ),
                           ),
-                        ],
-                      ),
-                    ],
+                        const SizedBox(height: 4),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              sentAt,
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: theme.colorScheme.onPrimaryContainer
+                                    .withValues(alpha: 0.58),
+                                fontSize: 9,
+                                height: 1,
+                              ),
+                            ),
+                            const SizedBox(width: 3),
+                            Icon(
+                              Icons.done_all_rounded,
+                              size: 11,
+                              color: theme.colorScheme.onPrimaryContainer
+                                  .withValues(alpha: 0.58),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 const SizedBox(height: 2),
