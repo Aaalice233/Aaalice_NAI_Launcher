@@ -94,7 +94,7 @@ class ImageParams with _$ImageParams {
     @Default('') String negativePrompt,
 
     /// 模型
-    @Default('nai-diffusion-4-full') String model,
+    @Default(ImageModels.animeDiffusionV5Full) String model,
 
     /// 图像宽度 (必须是64的倍数)
     @Default(832) int width,
@@ -106,7 +106,7 @@ class ImageParams with _$ImageParams {
     @Default(28) int steps,
 
     /// CFG Scale
-    @Default(5.0) double scale,
+    @Default(4.0) double scale,
 
     /// 采样器
     @Default('k_euler_ancestral') String sampler,

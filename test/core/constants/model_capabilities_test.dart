@@ -408,6 +408,18 @@ void main() {
     });
   });
 
+  group('V5 generation defaults', () {
+    for (final capabilities in [
+      ModelCapabilityRegistry.v5Full,
+      ModelCapabilityRegistry.v5Curated,
+    ]) {
+      test('${capabilities.id} uses 28 steps and CFG 4', () {
+        expect(capabilities.defaultSteps, 28);
+        expect(capabilities.defaultScale, 4.0);
+      });
+    }
+  });
+
   group('resolveModelSwitchFollowUps', () {
     final v4 = ModelCapabilityRegistry.of(ImageModels.animeDiffusionV4Full);
     final v45 = ModelCapabilityRegistry.of(ImageModels.animeDiffusionV45Full);
@@ -451,7 +463,7 @@ void main() {
       );
 
       expect(followUps.scale, v5.defaultScale);
-      expect(followUps.steps, isNull, reason: '两者步数默认值相同，不需要改动');
+      expect(followUps.steps, v5.defaultSteps);
     });
 
     test('keeps adjusted values when switching from V4.5 to V5', () {

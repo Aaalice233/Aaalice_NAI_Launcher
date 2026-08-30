@@ -10,7 +10,7 @@ part 'local_storage_service.g.dart';
 
 /// 本地存储服务 - 存储非敏感配置数据
 class LocalStorageService {
-  static const String _fallbackModel = ImageModels.animeDiffusionV45Full;
+  static const String _fallbackModel = ImageModels.animeDiffusionV5Full;
 
   /// 获取已打开的 settings box (在 main.dart 中预先打开)
   Box get _settingsBox => Hive.box(StorageKeys.settingsBox);
@@ -176,12 +176,13 @@ class LocalStorageService {
 
   /// 获取默认 Scale
   double getDefaultScale() {
+    final fallback = ModelCapabilityRegistry.of(getDefaultModel()).defaultScale;
     final value = getSetting(StorageKeys.defaultScale);
-    if (value == null) return 5.0;
+    if (value == null) return fallback;
     // 处理可能存储为 int 的情况
     if (value is int) return value.toDouble();
     if (value is double) return value;
-    return 5.0;
+    return fallback;
   }
 
   /// 保存默认 Scale

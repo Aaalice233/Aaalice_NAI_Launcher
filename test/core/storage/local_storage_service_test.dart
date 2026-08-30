@@ -26,24 +26,41 @@ void main() {
     }
   });
 
+  test('uses the V5 generation defaults when no preferences are stored', () {
+    final storage = LocalStorageService();
+
+    expect(storage.getDefaultModel(), ImageModels.animeDiffusionV5Full);
+    expect(storage.getDefaultSteps(), 28);
+    expect(storage.getDefaultScale(), 4.0);
+    expect(storage.getDefaultSampler(), Samplers.kEulerAncestral);
+  });
+
   test(
     'uses the selected model capability when steps are not stored',
     () async {
       final storage = LocalStorageService();
 
-      expect(storage.getDefaultModel(), ImageModels.animeDiffusionV45Full);
+      await storage.setDefaultModel(ImageModels.animeDiffusionV45Full);
       expect(storage.getDefaultSteps(), 23);
+      expect(storage.getDefaultScale(), 5.0);
 
       await storage.setDefaultModel(ImageModels.animeFull);
       expect(storage.getDefaultSteps(), 28);
+      expect(storage.getDefaultScale(), 10.0);
     },
   );
 
-  test('keeps an explicitly stored step count', () async {
+  test('keeps explicitly stored generation preferences', () async {
     final storage = LocalStorageService();
+    await storage.setDefaultModel(ImageModels.animeDiffusionV45Curated);
     await storage.setDefaultSteps(31);
+    await storage.setDefaultScale(6.5);
+    await storage.setDefaultSampler(Samplers.kDpmpp2sAncestral);
 
+    expect(storage.getDefaultModel(), ImageModels.animeDiffusionV45Curated);
     expect(storage.getDefaultSteps(), 31);
+    expect(storage.getDefaultScale(), 6.5);
+    expect(storage.getDefaultSampler(), Samplers.kDpmpp2sAncestral);
   });
 
   test('prerelease updates are disabled when no preference is stored', () {
