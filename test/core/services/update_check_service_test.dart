@@ -10,6 +10,7 @@ class _FakeGitHubApiService extends GitHubApiService {
   _FakeGitHubApiService(this.handler) : super(dio: Dio());
 
   final Future<VersionInfo> Function(String currentVersion) handler;
+  bool? lastIncludePrerelease;
 
   @override
   Future<VersionInfo> fetchLatestRelease({
@@ -19,6 +20,7 @@ class _FakeGitHubApiService extends GitHubApiService {
     String platform = 'windows',
     bool includePrerelease = false,
   }) {
+    lastIncludePrerelease = includePrerelease;
     return handler(currentVersion);
   }
 }
@@ -80,6 +82,7 @@ class _FakeUpdateStorage implements UpdateCheckStorage {
 void main() {
   late DateTime now;
   late _FakeUpdateStorage storage;
+  late _FakeGitHubApiService api;
 
   PackageInfo packageInfo() => PackageInfo(
     appName: 'NAI Launcher',
@@ -91,8 +94,9 @@ void main() {
   UpdateCheckService buildService(
     Future<VersionInfo> Function(String currentVersion) handler,
   ) {
+    api = _FakeGitHubApiService(handler);
     return UpdateCheckService(
-      gitHubApiService: _FakeGitHubApiService(handler),
+      gitHubApiService: api,
       packageInfo: packageInfo(),
       installationService: _FakeInstallationService(),
       checkStorage: storage,
@@ -103,6 +107,24 @@ void main() {
   setUp(() {
     now = DateTime.utc(2026, 3, 1, 8);
     storage = _FakeUpdateStorage();
+  });
+
+  test('passes the persisted prerelease preference to GitHub', () async {
+    final service = buildService(
+      (current) async => VersionInfo(
+        version: '1.0.0+1',
+        currentVersion: current,
+        isNewer: false,
+      ),
+    );
+
+    await service.checkForUpdates();
+    expect(api.lastIncludePrerelease, isFalse);
+
+    await service.setIncludePrerelease(true);
+    await service.checkForUpdates();
+    expect(api.lastIncludePrerelease, isTrue);
+    expect(storage.prerelease, isTrue);
   });
 
   test(

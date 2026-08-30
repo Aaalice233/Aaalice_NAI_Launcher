@@ -45,4 +45,27 @@ void main() {
 
     expect(storage.getDefaultSteps(), 31);
   });
+
+  test('prerelease updates are disabled when no preference is stored', () {
+    final storage = LocalStorageService();
+
+    expect(storage.getIncludePrereleaseUpdates(), isFalse);
+    expect(
+      Hive.box(
+        StorageKeys.settingsBox,
+      ).containsKey(StorageKeys.includePrereleaseUpdates),
+      isFalse,
+    );
+  });
+
+  test('keeps the stored prerelease update preference', () async {
+    final storage = LocalStorageService();
+
+    await storage.setIncludePrereleaseUpdates(true);
+    final restoredStorage = LocalStorageService();
+    expect(restoredStorage.getIncludePrereleaseUpdates(), isTrue);
+
+    await restoredStorage.setIncludePrereleaseUpdates(false);
+    expect(storage.getIncludePrereleaseUpdates(), isFalse);
+  });
 }
