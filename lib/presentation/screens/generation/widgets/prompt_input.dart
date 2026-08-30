@@ -19,10 +19,6 @@ import 'prompt_input_editor.dart';
 import 'prompt_input_footer.dart';
 import 'prompt_input_models.dart';
 import 'prompt_input_toolbar.dart';
-import 'prompt_type_switch.dart';
-
-bool usesRichPromptTypeTooltip(TargetPlatform platform) =>
-    shouldUseRichPromptTypeTooltip(platform);
 
 bool _isPromptAssistantVisible(WidgetRef ref) {
   final config = ref.watch(promptAssistantConfigProvider);
@@ -148,7 +144,6 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
       numericEmphasisEnabled: numericEmphasis,
     );
     final viewData = PromptInputViewData(
-      compact: widget.compact,
       autoGrow: widget.autoGrow,
       isMaximized: widget.isMaximized,
       showMaximizeButton: widget.showMaximizeButton,

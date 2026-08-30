@@ -339,7 +339,6 @@
   "@agentChat_imageTooLarge": {"placeholders":{"fileName":{"type":"String"},"maxSizeMB":{"type":"int"}}},
   "agentChat_enableWebAccess": "开启联网",
   "agentChat_disableWebAccess": "关闭联网",
-  "agentChat_webAccess": "联网访问",
   "agentChat_unsupportedImageFormat": "不支持的图片格式：{fileName}",
   "@agentChat_unsupportedImageFormat": {
     "placeholders": {
@@ -2032,19 +2031,6 @@
   "nav_generate": "生成",
   "nav_gallery": "图库",
   "nav_settings": "设置",
-
-  "download_completed": "{name}下载完成",
-  "@download_completed": {
-    "placeholders": {
-      "name": {}
-    }
-  },
-  "download_failed": "{name}下载失败",
-  "@download_failed": {
-    "placeholders": {
-      "name": {}
-    }
-  },
 
   "sync_preparing": "准备同步...",
   "sync_fetching": "正在获取 {category}...",
@@ -4293,12 +4279,6 @@
   "vibe_import_fileParseFailed": "解析文件失败",
   "vibe_import_fileSelectionFailed": "文件选择失败",
   "vibe_import_importFailed": "导入失败",
-  "vibe_import_failedWithError": "导入失败: {error}",
-  "@vibe_import_failedWithError": {
-    "placeholders": {
-      "error": {"type": "String"}
-    }
-  },
   "vibe_import_bundleTitle": "导入 Vibe Bundle",
   "vibe_import_bundleChooseMethod": "选择导入方式",
   "vibe_import_bundleAsWhole": "作为整体导入",
@@ -4362,7 +4342,6 @@
   },
   "vibe_saveToLibrary_tagHint": "输入标签后点击添加",
   "vibe_maxReached": "已达到最大数量 (16张)",
-  "vibe_maxReachedRemoveSome": "已达到最大数量 (16张)，请先移除一些 Vibe",
   "vibe_addedNamed": "已添加 Vibe: {name}",
   "@vibe_addedNamed": {
     "placeholders": {
@@ -4436,7 +4415,6 @@
   "settings_restartRequiredTitle": "需要重启应用",
   "settings_changePathConfirm": "更改数据存储路径后，需要重启应用才能生效。\\n\\n新路径将在下次启动时生效。是否继续？",
   "settings_resetPathConfirm": "重置数据存储路径后，需要重启应用才能生效。\\n\\n默认路径将在下次启动时生效。是否继续？",
-  "settings_kritaBridgeTitle": "Krita Bridge",
   "settings_kritaBridgeEnable": "启用 Krita 本地桥接",
   "settings_kritaBridgeDisabledText": "默认关闭；开启后只监听本机 127.0.0.1",
   "settings_kritaBridgeStartingText": "正在启动本地桥接服务...",

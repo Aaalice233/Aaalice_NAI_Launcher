@@ -13,21 +13,21 @@ void main() {
     'preferred generation panel width uses the shared responsive ceiling',
     () {
       expect(
-        WorkspaceSidePanelContract.constrainedWidth(
+        WorkspaceSidePanelContract.constrainedWorkspaceWidth(
           workspaceWidth: 1180,
           preferredWidth: 900,
         ),
         520,
       );
       expect(
-        WorkspaceSidePanelContract.constrainedWidth(
+        WorkspaceSidePanelContract.constrainedWorkspaceWidth(
           workspaceWidth: 2560,
           preferredWidth: 820,
         ),
         820,
       );
       expect(
-        WorkspaceSidePanelContract.constrainedWidth(
+        WorkspaceSidePanelContract.constrainedWorkspaceWidth(
           workspaceWidth: 3840,
           preferredWidth: 1200,
         ),

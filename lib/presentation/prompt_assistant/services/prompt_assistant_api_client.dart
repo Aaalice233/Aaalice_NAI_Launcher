@@ -61,11 +61,9 @@ class PromptAssistantApiClient {
         request,
         maxBytes: imageUploadMaxBytes,
       );
-      final content = await _adapterFor(uploadRequest.provider).complete(
-        dio: _dio,
-        request: uploadRequest,
-        cancelToken: cancelToken,
-      );
+      final content = await _adapterFor(
+        uploadRequest.provider,
+      ).complete(dio: _dio, request: uploadRequest, cancelToken: cancelToken);
       final trimmed = content.trim();
       if (trimmed.isEmpty) {
         throw StateError(
@@ -90,27 +88,6 @@ class PromptAssistantApiClient {
     }
   }
 
-  // Legacy wrapper kept so older tests/callers that already build OpenAI-style
-  // messages continue to work while the service layer migrates to typed parts.
-  Stream<StreamingChunk> streamChat({
-    required String sessionId,
-    required ProviderConfig provider,
-    required String model,
-    required List<Map<String, dynamic>> messages,
-    required String? apiKey,
-  }) {
-    return complete(
-      request: PromptAssistantRequest(
-        sessionId: sessionId,
-        provider: provider,
-        model: model,
-        systemPrompt: _extractSystemPrompt(messages),
-        userParts: _extractUserParts(messages),
-        apiKey: apiKey,
-      ),
-    );
-  }
-
   PromptAssistantProviderAdapter _adapterFor(ProviderConfig provider) {
     switch (provider.protocol) {
       case ProviderProtocol.openaiChatCompletions:
@@ -123,70 +100,6 @@ class PromptAssistantApiClient {
         return const GeminiGenerateContentAdapter();
       case ProviderProtocol.ollamaChatCompletions:
         return const OpenAiChatCompletionsAdapter(ollamaTagsFallback: true);
-    }
-  }
-
-  static String _extractSystemPrompt(List<Map<String, dynamic>> messages) {
-    for (final message in messages) {
-      if (message['role'] == 'system') {
-        return contentToText(message['content']);
-      }
-    }
-    return '';
-  }
-
-  static List<PromptAssistantContentPart> _extractUserParts(
-    List<Map<String, dynamic>> messages,
-  ) {
-    final parts = <PromptAssistantContentPart>[];
-    for (final message in messages) {
-      if (message['role'] != 'user') continue;
-      _appendContentParts(parts, message['content']);
-    }
-    return parts.isEmpty ? const [PromptAssistantTextPart('')] : parts;
-  }
-
-  static void _appendContentParts(
-    List<PromptAssistantContentPart> parts,
-    dynamic content,
-  ) {
-    if (content is String) {
-      parts.add(PromptAssistantTextPart(content));
-      return;
-    }
-    if (content is List) {
-      for (final item in content) {
-        if (item is Map<String, dynamic>) {
-          final type = item['type'];
-          if (type == 'text') {
-            parts.add(PromptAssistantTextPart(contentToText(item['text'])));
-          } else if (type == 'image_url') {
-            final imageUrl = item['image_url'];
-            final url = imageUrl is Map ? imageUrl['url'] : null;
-            if (url is String) {
-              final parsed = parseDataUriImage(url);
-              if (parsed != null) {
-                parts.add(
-                  PromptAssistantImagePart(
-                    bytes: parsed.bytes,
-                    mimeType: parsed.mimeType,
-                  ),
-                );
-              }
-            }
-          }
-        } else {
-          final text = contentToText(item);
-          if (text.isNotEmpty) {
-            parts.add(PromptAssistantTextPart(text));
-          }
-        }
-      }
-      return;
-    }
-    final text = contentToText(content);
-    if (text.isNotEmpty) {
-      parts.add(PromptAssistantTextPart(text));
     }
   }
 
@@ -205,7 +118,8 @@ class PromptAssistantApiClient {
     final response = error.response;
     final status = response?.statusCode;
     final target = _safeRequestTarget(response?.requestOptions);
-    final detail = _extractDioErrorDetail(response?.data) ??
+    final detail =
+        _extractDioErrorDetail(response?.data) ??
         error.message ??
         error.error?.toString();
 

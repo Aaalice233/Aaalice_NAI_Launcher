@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/presentation/providers/auth_provider.dart';
-import 'package:nai_launcher/presentation/router/app_router.dart';
+import 'package:nai_launcher/presentation/router/app_routes.dart';
 
 void main() {
   group('resolveAuthRedirect', () {

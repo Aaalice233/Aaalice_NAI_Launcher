@@ -38,16 +38,20 @@ void main() {
     expect(
       source,
       contains(
-        "'\${progress.current} / \${progress.total}',\n"
-        '                    style: const TextStyle(color: Colors.white),',
+        RegExp(
+          r"'\$\{progress\.current\} / \$\{progress\.total\}',\s+"
+          r'style: const TextStyle\(color: Colors\.white\)',
+        ),
       ),
       reason: '进度文本位于固定黑色遮罩上，不能只继承可能为黑色的主题文字样式',
     );
     expect(
       source,
       contains(
-        'progress.message,\n'
-        '                    style: const TextStyle(color: Colors.white70),',
+        RegExp(
+          r'progress\.message,\s+'
+          r'style: const TextStyle\(color: Colors\.white70\)',
+        ),
       ),
       reason: '导入消息位于固定黑色遮罩上，必须保留明确的高对比浅色前景',
     );

@@ -18,6 +18,7 @@ import 'package:nai_launcher/presentation/providers/character_prompt_provider.da
 import 'package:nai_launcher/presentation/providers/prompt_token_counter_provider.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/generation_toggle_button.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/prompt_input.dart';
+import 'package:nai_launcher/presentation/screens/generation/widgets/prompt_type_switch.dart';
 import 'package:nai_launcher/presentation/themes/core/input_surface_style.dart';
 import 'package:nai_launcher/presentation/widgets/common/input_surface_container.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
@@ -28,8 +29,8 @@ import 'package:nai_launcher/presentation/widgets/prompt/unified/unified_prompt_
 
 void main() {
   test('Windows 下提示词切换按钮不使用富文本 Tooltip', () {
-    expect(usesRichPromptTypeTooltip(TargetPlatform.windows), isFalse);
-    expect(usesRichPromptTypeTooltip(TargetPlatform.macOS), isTrue);
+    expect(shouldUseRichPromptTypeTooltip(TargetPlatform.windows), isFalse);
+    expect(shouldUseRichPromptTypeTooltip(TargetPlatform.macOS), isTrue);
   });
 
   testWidgets('冷启动时切换到负面提示词不会抛出异常', (tester) async {

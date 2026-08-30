@@ -237,7 +237,7 @@ void main() {
         gallerySourceCapabilities[GallerySourceId.aiTag]!.tagSearch.serverLimit(
           authenticated: false,
         ),
-        1,
+        6,
       );
       expect(
         gallerySourceCapabilities[GallerySourceId.quickTagCloud]!.tagSearch

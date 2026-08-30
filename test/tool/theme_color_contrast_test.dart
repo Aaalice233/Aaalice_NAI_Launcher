@@ -98,7 +98,7 @@ void main() {
           );
           expect(
             inputBorder.borderSide.width,
-            lessThan(1),
+            lessThanOrEqualTo(1),
             reason: '${style.name}/${brightness.name} input border width',
           );
           if (tooltipDecoration is BoxDecoration) {

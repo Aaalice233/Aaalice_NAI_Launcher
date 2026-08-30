@@ -48,6 +48,7 @@ Future<T> runWithVibeNameController<T>(
   }
 }
 
+@visibleForTesting
 Future<void> appendDroppedCharacterReference({
   required GenerationParamsNotifier notifier,
   required Uint8List image,

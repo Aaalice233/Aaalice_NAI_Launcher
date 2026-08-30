@@ -198,9 +198,7 @@ class OnlineGalleryGrid extends StatelessWidget {
                 ),
               ),
             ),
-            if (showFooterBeforeRunway && footerBuilder != null)
-              _buildFooterSliver(context, itemWidth, columnCount),
-            if (!showFooterBeforeRunway && footerBuilder != null)
+            if (footerBuilder != null)
               _buildFooterSliver(context, itemWidth, columnCount),
           ],
         );

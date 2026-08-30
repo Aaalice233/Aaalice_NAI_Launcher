@@ -892,9 +892,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agentChat_disableWebAccess => '关闭联网';
 
   @override
-  String get agentChat_webAccess => '联网访问';
-
-  @override
   String agentChat_unsupportedImageFormat(Object fileName) {
     return '不支持的图片格式：$fileName';
   }
@@ -4461,16 +4458,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get nav_settings => '设置';
-
-  @override
-  String download_completed(Object name) {
-    return '$name下载完成';
-  }
-
-  @override
-  String download_failed(Object name) {
-    return '$name下载失败';
-  }
 
   @override
   String get sync_preparing => '准备同步...';
@@ -8973,11 +8960,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get vibe_import_importFailed => '导入失败';
 
   @override
-  String vibe_import_failedWithError(String error) {
-    return '导入失败: $error';
-  }
-
-  @override
   String get vibe_import_bundleTitle => '导入 Vibe Bundle';
 
   @override
@@ -9068,9 +9050,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get vibe_maxReached => '已达到最大数量 (16张)';
-
-  @override
-  String get vibe_maxReachedRemoveSome => '已达到最大数量 (16张)，请先移除一些 Vibe';
 
   @override
   String vibe_addedNamed(String name) {
@@ -9231,9 +9210,6 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get settings_resetPathConfirm =>
       '重置数据存储路径后，需要重启应用才能生效。\\n\\n默认路径将在下次启动时生效。是否继续？';
-
-  @override
-  String get settings_kritaBridgeTitle => 'Krita Bridge';
 
   @override
   String get settings_kritaBridgeEnable => '启用 Krita 本地桥接';
@@ -14087,9 +14063,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get agentChat_disableWebAccess => '關閉聯網';
 
   @override
-  String get agentChat_webAccess => '聯網存取';
-
-  @override
   String agentChat_unsupportedImageFormat(Object fileName) {
     return '不支援的圖片格式：$fileName';
   }
@@ -17656,16 +17629,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get nav_settings => '設定';
-
-  @override
-  String download_completed(Object name) {
-    return '$name下載完成';
-  }
-
-  @override
-  String download_failed(Object name) {
-    return '$name下載失敗';
-  }
 
   @override
   String get sync_preparing => '準備同步...';
@@ -22168,11 +22131,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get vibe_import_importFailed => '匯入失敗';
 
   @override
-  String vibe_import_failedWithError(String error) {
-    return '匯入失敗: $error';
-  }
-
-  @override
   String get vibe_import_bundleTitle => '匯入 Vibe Bundle';
 
   @override
@@ -22263,9 +22221,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get vibe_maxReached => '已達到最大數量 (16張)';
-
-  @override
-  String get vibe_maxReachedRemoveSome => '已達到最大數量 (16張)，請先移除一些 Vibe';
 
   @override
   String vibe_addedNamed(String name) {
@@ -22426,9 +22381,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String get settings_resetPathConfirm =>
       '重置資料儲存路徑後，需要重啟應用才能生效。\\n\\n預設路徑將在下次啟動時生效。是否繼續？';
-
-  @override
-  String get settings_kritaBridgeTitle => 'Krita Bridge';
 
   @override
   String get settings_kritaBridgeEnable => '啟用 Krita 本地橋接';

@@ -9,7 +9,6 @@ export 'compact_icon_button.dart';
 export 'draggable_number_input.dart';
 export 'elevated_card.dart';
 export 'emoji_picker_dialog.dart';
-export 'floating_action_buttons.dart';
 export 'floating_label_input.dart';
 export 'hover_image_preview.dart';
 export 'hover_preview_card.dart';

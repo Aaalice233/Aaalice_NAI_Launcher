@@ -2,34 +2,12 @@ import 'dart:math';
 
 import '../agent_types.dart';
 
-/// LLM 类型层 助手的 Dart 等价物：contentText / uuidv7 / RetryPolicy /
+/// LLM 类型层助手的 Dart 等价物：uuidv7 / RetryPolicy /
 /// retryAssistantCall / completeSimple（经 StreamFn 收敛为一次性调用）。
-
-/// 提取消息内容块的文本部分。
-String contentText(List<dynamic> content, [String fallback = '']) {
-  final parts = <String>[];
-  for (final block in content) {
-    if (block is AssistantTextContent) {
-      parts.add(block.text);
-    } else if (block is ToolResultTextContent) {
-      parts.add(block.text);
-    } else if (block is UserTextContent) {
-      parts.add(block.text);
-    } else if (block is ToolCallContent) {
-      // LLM 类型层 contentText 不含 toolCall 文本；跳过。
-      continue;
-    }
-  }
-  final joined = parts.where((e) => e.isNotEmpty).join();
-  return joined.isEmpty ? fallback : joined;
-}
 
 /// 用户消息内容文本。
 String userContentText(List<UserContent> content) {
-  return content
-      .whereType<UserTextContent>()
-      .map((c) => c.text)
-      .join();
+  return content.whereType<UserTextContent>().map((c) => c.text).join();
 }
 
 int _uuidV7Counter = 0;
@@ -47,8 +25,7 @@ String uuidv7() {
   _uuidV7Counter++;
   final seq = (_uuidV7Counter & 0xFFFF) ^ rnd.nextInt(0x10000);
 
-  String hex(int v, int width) =>
-      v.toRadixString(16).padLeft(width, '0');
+  String hex(int v, int width) => v.toRadixString(16).padLeft(width, '0');
 
   return ''
       '${hex(ts, 12)}'
@@ -87,15 +64,16 @@ Future<AssistantMessage> retryAssistantCall(
   AbortSignal? signal, [
   RetryCallbacks? callbacks,
 ]) async {
-  final maxAttempts =
-      (retry?.enabled == true) ? 1 + (retry!.maxRetries) : 1;
+  final maxAttempts = (retry?.enabled == true) ? 1 + (retry!.maxRetries) : 1;
   var attempt = 0;
   while (true) {
     attempt++;
     final message = await call();
-    final transient = message.stopReason == StopReason.error &&
+    final transient =
+        message.stopReason == StopReason.error &&
         _isTransientError(message.errorMessage);
-    final aborted = message.stopReason == StopReason.aborted ||
+    final aborted =
+        message.stopReason == StopReason.aborted ||
         (signal != null && signal.aborted);
     if (!transient || aborted || attempt >= maxAttempts) {
       return message;
@@ -127,11 +105,12 @@ bool _isTransientError(String? message) {
 }
 
 /// Models.completeSimple 的函数形态（应用经 StreamFn 收敛提供）。
-typedef CompleteSimpleFn = Future<AssistantMessage> Function(
-  Model model,
-  Context context, [
-  SimpleStreamOptions? options,
-]);
+typedef CompleteSimpleFn =
+    Future<AssistantMessage> Function(
+      Model model,
+      Context context, [
+      SimpleStreamOptions? options,
+    ]);
 
 /// 经 StreamFn 实现 completeSimple：消费事件流、返回最终消息。
 /// 契约

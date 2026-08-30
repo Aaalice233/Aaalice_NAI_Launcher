@@ -1,18 +1,19 @@
 import 'dart:convert';
 
-
 /// 可失败操作的结果。预期失败以 `ok: false` 返回而不是抛出。
 sealed class HarnessResult<TValue, TError extends Object> {
   const HarnessResult();
 }
 
-class HarnessOk<TValue, TError extends Object> extends HarnessResult<TValue, TError> {
+class HarnessOk<TValue, TError extends Object>
+    extends HarnessResult<TValue, TError> {
   const HarnessOk(this.value);
 
   final TValue value;
 }
 
-class HarnessErr<TValue, TError extends Object> extends HarnessResult<TValue, TError> {
+class HarnessErr<TValue, TError extends Object>
+    extends HarnessResult<TValue, TError> {
   const HarnessErr(this.error);
 
   final TError error;
@@ -21,16 +22,14 @@ class HarnessErr<TValue, TError extends Object> extends HarnessResult<TValue, TE
 extension HarnessResultX<TValue, TError extends Object>
     on HarnessResult<TValue, TError> {
   /// 成功值；失败结果返回 null。
-  TValue? get valueOrNull =>
-      this is HarnessOk<TValue, TError>
-          ? (this as HarnessOk<TValue, TError>).value
-          : null;
+  TValue? get valueOrNull => this is HarnessOk<TValue, TError>
+      ? (this as HarnessOk<TValue, TError>).value
+      : null;
 
   /// 失败错误；成功结果返回 null。
-  TError? get errorOrNull =>
-      this is HarnessErr<TValue, TError>
-          ? (this as HarnessErr<TValue, TError>).error
-          : null;
+  TError? get errorOrNull => this is HarnessErr<TValue, TError>
+      ? (this as HarnessErr<TValue, TError>).error
+      : null;
 }
 
 /// 创建成功结果。
@@ -56,7 +55,7 @@ TValue getOrThrow<TValue, TError extends Object>(
   throw StateError('unreachable');
 }
 
-/// 返回成功值或 null。
+/// 返回成功值或 null。仅接受对象值，避免原始值的真假歧义。
 TValue? getOrUndefined<TValue extends Object, TError extends Object>(
   HarnessResult<TValue, TError> result,
 ) {
@@ -99,16 +98,4 @@ abstract class TaggedErrorBase implements Exception {
 
   @override
   String toString() => '$tag: $message';
-}
-
-/// 按 tag 对 TaggedError 分派。
-TValue matchTaggedError<TValue>(
-  TaggedErrorBase error,
-  Map<String, TValue Function(TaggedErrorBase error)> matchers,
-) {
-  final matcher = matchers[error.tag];
-  if (matcher == null) {
-    throw error;
-  }
-  return matcher(error);
 }

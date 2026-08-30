@@ -67,7 +67,7 @@ class _RightPanelState extends ConsumerState<RightPanel> {
     final width =
         widget.width ??
         (expanded
-            ? WorkspaceSidePanelContract.constrainedWidth(
+            ? WorkspaceSidePanelContract.constrainedWorkspaceWidth(
                 workspaceWidth: MediaQuery.sizeOf(context).width,
                 preferredWidth: layoutState.rightPanelWidth,
               )

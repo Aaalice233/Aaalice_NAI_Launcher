@@ -420,6 +420,7 @@ void main() {
       );
 
       final params = container.read(generationParamsNotifierProvider.notifier);
+      params.updateModel(ImageModels.animeDiffusionV4Full, persist: false);
       params.updateSize(1024, 1024, persist: false);
       params.updateSteps(28);
       params.updateSmea(false);
@@ -470,6 +471,7 @@ void main() {
 
       final rawImage = Uint8List.fromList([1, 2, 3]);
       final params = container.read(generationParamsNotifierProvider.notifier);
+      params.updateModel(ImageModels.animeDiffusionV4Full, persist: false);
       params.updateSize(512, 768, persist: false);
       params.updateSteps(28);
       params.setVibeReferences([
@@ -500,6 +502,7 @@ void main() {
       );
 
       final params = container.read(generationParamsNotifierProvider.notifier);
+      params.updateModel(ImageModels.animeDiffusionV4Full, persist: false);
       params.updateSize(512, 768, persist: false);
       params.updateSteps(28);
       params.setVibeReferences(

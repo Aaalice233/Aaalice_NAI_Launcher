@@ -18,11 +18,6 @@ class LocalStorageService {
   /// 获取已打开的 history box (在 main.dart 中预先打开)
   Box get _historyBox => Hive.box(StorageKeys.historyBox);
 
-  /// 初始化存储 (boxes 已在 main.dart 中打开，此方法保留兼容性)
-  Future<void> init() async {
-    // Boxes 已在 main.dart 中预先打开
-  }
-
   // ==================== Settings ====================
 
   /// 获取设置值
@@ -1128,7 +1123,5 @@ class LocalStorageService {
 /// LocalStorageService Provider
 @riverpod
 LocalStorageService localStorageService(Ref ref) {
-  final service = LocalStorageService();
-  // 注意：需要在应用启动时调用 init()
-  return service;
+  return LocalStorageService();
 }

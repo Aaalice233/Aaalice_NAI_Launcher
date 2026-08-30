@@ -354,7 +354,6 @@
   "@agentChat_imageTooLarge": {"placeholders":{"fileName":{"type":"String"},"maxSizeMB":{"type":"int"}}},
   "agentChat_enableWebAccess": "Enable web access",
   "agentChat_disableWebAccess": "Disable web access",
-  "agentChat_webAccess": "Web access",
   "agentChat_unsupportedImageFormat": "Unsupported image format: {fileName}",
   "@agentChat_unsupportedImageFormat": {
     "placeholders": {
@@ -2017,19 +2016,6 @@
   "nav_generate": "Generate",
   "nav_gallery": "Library",
   "nav_settings": "Settings",
-
-  "download_completed": "{name} download completed",
-  "@download_completed": {
-    "placeholders": {
-      "name": {}
-    }
-  },
-  "download_failed": "{name} download failed",
-  "@download_failed": {
-    "placeholders": {
-      "name": {}
-    }
-  },
 
   "sync_preparing": "Preparing to sync...",
   "sync_fetching": "Fetching {category}...",
@@ -4505,12 +4491,6 @@
   "vibe_import_fileParseFailed": "Failed to parse file",
   "vibe_import_fileSelectionFailed": "File selection failed",
   "vibe_import_importFailed": "Import failed",
-  "vibe_import_failedWithError": "Import failed: {error}",
-  "@vibe_import_failedWithError": {
-    "placeholders": {
-      "error": {"type": "String"}
-    }
-  },
   "vibe_import_bundleTitle": "Import Vibe Bundle",
   "vibe_import_bundleChooseMethod": "Choose import method",
   "vibe_import_bundleAsWhole": "Import as whole",
@@ -4574,7 +4554,6 @@
   },
   "vibe_saveToLibrary_tagHint": "Enter a tag, then press Add",
   "vibe_maxReached": "Maximum 16 vibes reached",
-  "vibe_maxReachedRemoveSome": "Maximum 16 vibes reached. Remove some vibes first.",
   "vibe_addedNamed": "Added Vibe: {name}",
   "@vibe_addedNamed": {
     "placeholders": {
@@ -4648,7 +4627,6 @@
   "settings_restartRequiredTitle": "Restart Required",
   "settings_changePathConfirm": "After changing the data storage path, the app needs to restart to take effect.\\n\\nThe new path will take effect on the next startup. Continue?",
   "settings_resetPathConfirm": "After resetting the data storage path, the app needs to restart to take effect.\\n\\nThe default path will take effect on the next startup. Continue?",
-  "settings_kritaBridgeTitle": "Krita Bridge",
   "settings_kritaBridgeEnable": "Enable Krita local bridge",
   "settings_kritaBridgeDisabledText": "Off by default; listens only on local 127.0.0.1 when enabled",
   "settings_kritaBridgeStartingText": "Starting local bridge service...",

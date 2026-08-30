@@ -21,18 +21,6 @@ abstract final class WorkspaceSidePanelContract {
   static double overlayWidth(double workspaceWidth) =>
       maximumFor(workspaceWidth);
 
-  static double constrainedWidth({
-    required double workspaceWidth,
-    required double preferredWidth,
-    double minimumWidth = 200,
-  }) {
-    return constrainedWorkspaceWidth(
-      workspaceWidth: workspaceWidth,
-      preferredWidth: preferredWidth,
-      minimumWidth: minimumWidth,
-    );
-  }
-
   static double constrainedWorkspaceWidth({
     required double workspaceWidth,
     required double preferredWidth,

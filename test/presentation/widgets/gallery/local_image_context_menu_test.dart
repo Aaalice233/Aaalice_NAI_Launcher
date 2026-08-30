@@ -26,6 +26,7 @@ void main() {
         .toList();
 
     expect(items.map((item) => item.value).toList(), const [
+      LocalImageContextAction.addToAgent,
       LocalImageContextAction.sendToTextToImage,
       LocalImageContextAction.sendToImg2Img,
       LocalImageContextAction.sendToReversePrompt,
@@ -38,7 +39,6 @@ void main() {
       LocalImageContextAction.importMetadata,
       LocalImageContextAction.copyPrompt,
       LocalImageContextAction.copySeed,
-      LocalImageContextAction.showInFolder,
       LocalImageContextAction.delete,
     ]);
     expect(find.text('Send to...'), findsNothing);

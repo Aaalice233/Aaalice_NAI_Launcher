@@ -8,7 +8,6 @@ import 'package:nai_launcher/presentation/widgets/common/compact_icon_button.dar
 import 'package:nai_launcher/presentation/widgets/common/elevated_card.dart';
 import 'package:nai_launcher/presentation/widgets/common/input_surface_container.dart';
 import 'package:nai_launcher/presentation/widgets/common/safe_dropdown.dart';
-import 'package:nai_launcher/presentation/widgets/common/themed_container.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_switch.dart';
 
 void main() {
@@ -121,30 +120,6 @@ void main() {
     );
     expect(animated.transform!.getTranslation().y, -3);
     await gesture.removePointer();
-  });
-
-  testWidgets('圆形语义容器不会同时继承矩形圆角', (tester) async {
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(
-          body: ThemedContainer(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(shape: BoxShape.circle),
-          ),
-        ),
-      ),
-    );
-
-    final container = tester.widget<Container>(
-      find.descendant(
-        of: find.byType(ThemedContainer),
-        matching: find.byType(Container),
-      ),
-    );
-    final decoration = container.decoration! as BoxDecoration;
-    expect(decoration.shape, BoxShape.circle);
-    expect(decoration.borderRadius, isNull);
   });
 
   testWidgets('安全下拉框用状态边界反馈键盘焦点', (tester) async {

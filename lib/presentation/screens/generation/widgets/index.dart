@@ -4,7 +4,6 @@
 
 // export 'batch_settings_sheet.dart';  // 文件不存在，暂时注释
 export 'collapsed_panel.dart';
-export 'drag_target_wrapper.dart';
 export 'empty_state_card.dart';
 export 'history_panel.dart';
 export 'image_preview.dart';

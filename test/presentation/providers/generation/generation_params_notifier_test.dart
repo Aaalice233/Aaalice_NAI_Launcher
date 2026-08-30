@@ -842,7 +842,7 @@ void main() {
   });
 
   test(
-    'addPreciseReferenceFromImage stores request-ready normalized PNG',
+    'addPreciseReferenceFromImage stages original bytes before normalization',
     () async {
       final container = ProviderContainer(
         overrides: [
@@ -857,13 +857,21 @@ void main() {
         generationParamsNotifierProvider.notifier,
       );
 
-      await notifier.addPreciseReferenceFromImage(
-        _validPngBytes(width: 8, height: 4),
+      final original = _validPngBytes(width: 8, height: 4);
+      final normalization = notifier.addPreciseReferenceFromImage(
+        original,
         type: PreciseRefType.character,
         strength: 0.7,
         fidelity: 0.9,
       );
 
+      final staged = container
+          .read(generationParamsNotifierProvider)
+          .preciseReferences
+          .single;
+      expect(identical(staged.image, original), isTrue);
+
+      await normalization;
       final reference = container
           .read(generationParamsNotifierProvider)
           .preciseReferences

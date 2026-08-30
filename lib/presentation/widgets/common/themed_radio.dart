@@ -43,8 +43,6 @@ class _ThemedRadioState<T> extends State<ThemedRadio<T>>
   late Animation<double> _scale;
 
   bool _isHovered = false;
-  // ignore: unused_field - used in GestureDetector callbacks for future press effects
-  bool _isPressed = false;
 
   bool get _isSelected => widget.value == widget.groupValue;
 
@@ -56,10 +54,7 @@ class _ThemedRadioState<T> extends State<ThemedRadio<T>>
       vsync: this,
       value: _isSelected ? 1.0 : 0.0,
     );
-    _scale = CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOutBack,
-    );
+    _scale = CurvedAnimation(parent: _controller, curve: Curves.easeOutBack);
   }
 
   @override
@@ -96,8 +91,8 @@ class _ThemedRadioState<T> extends State<ThemedRadio<T>>
     final borderColor = _isSelected
         ? activeColorBase
         : (_isHovered
-            ? theme.colorScheme.primary.withValues(alpha: 0.5)
-            : theme.colorScheme.outline.withValues(alpha: 0.5));
+              ? theme.colorScheme.primary.withValues(alpha: 0.5)
+              : theme.colorScheme.outline.withValues(alpha: 0.5));
 
     // 背景色
     final backgroundColor = isDark
@@ -108,14 +103,12 @@ class _ThemedRadioState<T> extends State<ThemedRadio<T>>
     final opacity = widget.enabled ? 1.0 : 0.5;
 
     return MouseRegion(
-      cursor:
-          widget.enabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
+      cursor: widget.enabled
+          ? SystemMouseCursors.click
+          : SystemMouseCursors.basic,
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
       child: GestureDetector(
-        onTapDown: (_) => setState(() => _isPressed = true),
-        onTapUp: (_) => setState(() => _isPressed = false),
-        onTapCancel: () => setState(() => _isPressed = false),
         onTap: _handleTap,
         child: Opacity(
           opacity: opacity,
@@ -126,10 +119,7 @@ class _ThemedRadioState<T> extends State<ThemedRadio<T>>
             decoration: BoxDecoration(
               color: backgroundColor,
               shape: BoxShape.circle,
-              border: Border.all(
-                color: borderColor,
-                width: 1.5,
-              ),
+              border: Border.all(color: borderColor, width: 1.5),
             ),
             child: _buildInnerDot(activeColorBase),
           ),
@@ -162,125 +152,6 @@ class _ThemedRadioState<T> extends State<ThemedRadio<T>>
           ),
         );
       },
-    );
-  }
-}
-
-/// 带标签的主题化单选框
-class ThemedRadioListTile<T> extends StatelessWidget {
-  final T value;
-  final T? groupValue;
-  final ValueChanged<T?>? onChanged;
-  final Widget title;
-  final Widget? subtitle;
-  final bool enabled;
-  final ListTileControlAffinity controlAffinity;
-  final EdgeInsetsGeometry? contentPadding;
-
-  const ThemedRadioListTile({
-    super.key,
-    required this.value,
-    required this.groupValue,
-    required this.onChanged,
-    required this.title,
-    this.subtitle,
-    this.enabled = true,
-    this.controlAffinity = ListTileControlAffinity.leading,
-    this.contentPadding,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return _SelectListTile(
-      control: ThemedRadio<T>(
-        value: value,
-        groupValue: groupValue,
-        onChanged: onChanged,
-        enabled: enabled,
-      ),
-      title: title,
-      subtitle: subtitle,
-      enabled: enabled,
-      controlAffinity: controlAffinity,
-      contentPadding: contentPadding,
-      onTap: enabled && onChanged != null ? () => onChanged!(value) : null,
-    );
-  }
-}
-
-/// 选择列表项基础组件
-class _SelectListTile extends StatelessWidget {
-  final Widget control;
-  final Widget title;
-  final Widget? subtitle;
-  final bool enabled;
-  final ListTileControlAffinity controlAffinity;
-  final EdgeInsetsGeometry? contentPadding;
-  final VoidCallback? onTap;
-
-  const _SelectListTile({
-    required this.control,
-    required this.title,
-    this.subtitle,
-    required this.enabled,
-    required this.controlAffinity,
-    this.contentPadding,
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: contentPadding ??
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Row(
-          children: [
-            if (controlAffinity == ListTileControlAffinity.leading) ...[
-              control,
-              const SizedBox(width: 12),
-            ],
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  DefaultTextStyle(
-                    style: Theme.of(context).textTheme.bodyLarge!.copyWith(
-                          color: enabled
-                              ? null
-                              : Theme.of(context)
-                                  .textTheme
-                                  .bodyLarge!
-                                  .color!
-                                  .withValues(alpha: 0.5),
-                        ),
-                    child: title,
-                  ),
-                  if (subtitle != null) ...[
-                    const SizedBox(height: 2),
-                    DefaultTextStyle(
-                      style: Theme.of(context).textTheme.bodySmall!.copyWith(
-                            color: Theme.of(context)
-                                .textTheme
-                                .bodySmall!
-                                .color!
-                                .withValues(alpha: enabled ? 0.7 : 0.4),
-                          ),
-                      child: subtitle!,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            if (controlAffinity == ListTileControlAffinity.trailing) ...[
-              const SizedBox(width: 12),
-              control,
-            ],
-          ],
-        ),
-      ),
     );
   }
 }

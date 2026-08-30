@@ -354,7 +354,7 @@ class _VibeCardState extends ConsumerState<VibeCard>
 
     // 单张居中显示
     if (count == 1) {
-      return Center(child: _buildSingleCard(previews[0], progress, 0));
+      return Center(child: _buildSingleCard(previews[0], progress));
     }
 
     // 多张扇形展开
@@ -369,7 +369,7 @@ class _VibeCardState extends ConsumerState<VibeCard>
   }
 
   /// 单张卡片
-  Widget _buildSingleCard(Uint8List preview, double progress, int index) {
+  Widget _buildSingleCard(Uint8List preview, double progress) {
     final cardWidth = widget.width * 0.65;
     final cardHeight = (widget.height ?? widget.width) * 0.75;
     final pixelRatio = MediaQuery.of(context).devicePixelRatio;
@@ -379,7 +379,7 @@ class _VibeCardState extends ConsumerState<VibeCard>
     // 从收起状态到展开状态的动画
     final scale = 0.8 + (0.2 * progress);
     final translateY = 20.0 * (1 - progress);
-    final rotate = (index % 2 == 0 ? -1 : 1) * 0.05 * progress;
+    final rotate = -0.05 * progress;
 
     return Transform(
       transform: Matrix4.identity()

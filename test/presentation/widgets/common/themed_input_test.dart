@@ -6,7 +6,7 @@ import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 void main() {
   group('ThemedInput 平面输入色面', () {
-    testWidgets('仅移除内发光，并以主题色外轮廓表达聚焦状态', (tester) async {
+    testWidgets('以不占布局的主题色外轮廓表达聚焦状态', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(body: ThemedInput(hintText: 'Prompt')),
@@ -36,7 +36,8 @@ void main() {
           .whereType<BoxDecoration>()
           .single;
       final unfocusedBorder = surfaceDecoration.border! as Border;
-      expect(unfocusedBorder.top.width, 0.55);
+      expect(unfocusedBorder.top.width, 1);
+      expect(unfocusedBorder.top.color, Colors.transparent);
       expect(
         tester.widget<TextField>(find.byType(TextField)).textAlignVertical,
         TextAlignVertical.center,
