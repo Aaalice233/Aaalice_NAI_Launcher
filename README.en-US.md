@@ -78,7 +78,6 @@ The screenshots below follow the workflow from “generate” to “organize”,
   </tr>
   <tr>
     <td><img src="docs/screenshots/generation-results.png" alt="Batch generation results" width="100%"></td>
-    <td><img src="docs/screenshots/image-copy-dialog.png" alt="Copy prompt categories" width="100%"></td>
   </tr>
 </table>
 

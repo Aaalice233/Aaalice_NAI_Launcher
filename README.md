@@ -78,7 +78,6 @@ NAI Launcher 面向长期使用 NovelAI 的创作者：生成图片、反复调�
   </tr>
   <tr>
     <td><img src="docs/screenshots/generation-results.png" alt="批量生成结果" width="100%"></td>
-    <td><img src="docs/screenshots/image-copy-dialog.png" alt="提示词分类复制" width="100%"></td>
   </tr>
 </table>
 
