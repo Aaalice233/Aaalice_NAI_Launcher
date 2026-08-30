@@ -6108,6 +6108,7 @@
 
   "onlineGallery_videoLoadFailed": "動画を読み込めませんでした",
   "vibe_releaseToAddStyleReference": "離すとスタイル参照を追加",
+  "router_backAgainToExit": "もう一度スワイプするか戻るボタンを押すと終了します",
   "router_pageNotFound": "ページが見つかりません: {error}",
   "@router_pageNotFound": {
     "placeholders": {

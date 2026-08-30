@@ -6083,6 +6083,7 @@
 
   "onlineGallery_videoLoadFailed": "Failed to load video",
   "vibe_releaseToAddStyleReference": "Release to add style reference",
+  "router_backAgainToExit": "Swipe or press back again to exit",
   "router_pageNotFound": "Page not found: {error}",
   "@router_pageNotFound": {
     "placeholders": {

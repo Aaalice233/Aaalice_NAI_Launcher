@@ -43,6 +43,7 @@ class MainShell extends ConsumerStatefulWidget {
 class _MainShellState extends ConsumerState<MainShell> {
   int? _previousIndex;
   bool _authPromptVisible = false;
+  final Map<int, bool> _branchCanHandlePop = <int, bool>{};
   ProviderSubscription<AuthPromptRequest?>? _authPromptSubscription;
 
   @override
@@ -113,12 +114,18 @@ class _MainShellState extends ConsumerState<MainShell> {
 
         // 分支根页面中的 PopScope 不能直接接收根 Router 的系统返回。
         // 由 Shell 把当前分支的返回能力提升到根路由，再交还对应 Navigator。
-        return NavigatorPopHandler<void>(
-          enabled: isActive,
-          onPopWithResult: (_) {
-            if (isActive) branchNavigator.currentState?.maybePop();
+        return NotificationListener<NavigationNotification>(
+          onNotification: (notification) {
+            _recordBranchCanHandlePop(index, notification.canHandlePop);
+            return false;
           },
-          child: branchContent,
+          child: NavigatorPopHandler<void>(
+            enabled: isActive,
+            onPopWithResult: (_) {
+              if (isActive) branchNavigator.currentState?.maybePop();
+            },
+            child: branchContent,
+          ),
         );
       }).toList(),
     );
@@ -161,10 +168,19 @@ class _MainShellState extends ConsumerState<MainShell> {
 
         return MobileShell(
           navigationShell: widget.navigationShell,
+          branchCanHandlePop: _branchCanHandlePop[currentIndex] ?? false,
           content: shortcutEnabledContent,
         );
       },
     );
+  }
+
+  void _recordBranchCanHandlePop(int index, bool canHandlePop) {
+    if (_branchCanHandlePop[index] == canHandlePop) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _branchCanHandlePop[index] == canHandlePop) return;
+      setState(() => _branchCanHandlePop[index] = canHandlePop);
+    });
   }
 
   Future<void> _showAuthPrompt(AuthPromptRequest request) async {

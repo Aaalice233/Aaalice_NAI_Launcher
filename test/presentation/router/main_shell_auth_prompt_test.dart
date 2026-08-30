@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nai_launcher/core/constants/app_version.dart';
+import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/core/shortcuts/shortcut_config.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/agent_chat/providers/agent_chat_notifier.dart';
@@ -437,6 +438,11 @@ void main() {
   });
 
   testWidgets('MainShell 将系统返回交给当前分支的 PopScope', (tester) async {
+    PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
+      TargetPlatform.android,
+    );
+    addTearDown(() => PlatformCapabilities.debugOverride = null);
+
     final container = ProviderContainer(
       overrides: [
         accountManagerNotifierProvider.overrideWith(
@@ -511,6 +517,16 @@ void main() {
 
     expect(find.text('分支详情'), findsNothing);
     expect(find.text('打开详情'), findsOneWidget);
+    expect(find.text('再滑一次或按返回键退出应用'), findsNothing);
+
+    await tester.binding.handlePopRoute();
+    await tester.pump();
+
+    expect(find.text('打开详情'), findsOneWidget);
+    expect(find.text('再滑一次或按返回键退出应用'), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pumpAndSettle();
   });
 }
 

@@ -12122,6 +12122,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get vibe_releaseToAddStyleReference => '離すとスタイル参照を追加';
 
   @override
+  String get router_backAgainToExit => 'もう一度スワイプするか戻るボタンを押すと終了します';
+
+  @override
   String router_pageNotFound(String error) {
     return 'ページが見つかりません: $error';
   }

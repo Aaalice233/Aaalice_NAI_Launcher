@@ -6152,6 +6152,7 @@
 
   "onlineGallery_videoLoadFailed": "视频加载失败",
   "vibe_releaseToAddStyleReference": "松开后添加风格参考",
+  "router_backAgainToExit": "再滑一次或按返回键退出应用",
   "router_pageNotFound": "页面未找到: {error}",
   "@router_pageNotFound": {
     "placeholders": {

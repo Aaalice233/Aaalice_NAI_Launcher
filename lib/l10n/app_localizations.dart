@@ -21688,6 +21688,12 @@ abstract class AppLocalizations {
   /// **'Release to add style reference'**
   String get vibe_releaseToAddStyleReference;
 
+  /// No description provided for @router_backAgainToExit.
+  ///
+  /// In en, this message translates to:
+  /// **'Swipe or press back again to exit'**
+  String get router_backAgainToExit;
+
   /// No description provided for @router_pageNotFound.
   ///
   /// In en, this message translates to:
