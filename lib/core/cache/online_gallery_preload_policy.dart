@@ -3,7 +3,9 @@ import 'dart:math';
 abstract final class OnlineGalleryPreloadPolicy {
   static const double _minimumLoadAheadDistance = 900;
   static const double _loadAheadScreens = 1.25;
-  static const double _cacheExtentScreens = 0.75;
+  // Keep a modest bidirectional layout runway. Larger extents multiply
+  // masonry child builds and image completion work on the UI isolate.
+  static const double _cacheExtentScreens = 1.25;
 
   static double loadAheadDistance(double viewportHeight) => max(
     _minimumLoadAheadDistance,

@@ -290,6 +290,8 @@ class _OnlineGalleryContentPresenter {
       controller: _controller,
       itemBuilder: (context, index, itemWidth, columnCount) =>
           _buildGridItem(theme, state, index, itemWidth, columnCount),
+      footerBuilder: (context, itemWidth, columnCount) =>
+          _buildLoadMoreIndicator(theme, state),
     );
   }
 
@@ -301,11 +303,6 @@ class _OnlineGalleryContentPresenter {
     double itemWidth,
     int columnCount,
   ) {
-    // 加载更多指示器/错误重试
-    if (index >= state.posts.length) {
-      return _buildLoadMoreIndicator(theme, state);
-    }
-
     final post = state.posts[index];
     return GalleryGridItem(
       key: ValueKey('grid-item:${post.stableKey}'),
@@ -314,6 +311,7 @@ class _OnlineGalleryContentPresenter {
       itemWidth: itemWidth,
       columnCount: columnCount,
       scrolling: _controller.scrolling,
+      initiallyLoadMedia: _controller.hasViewedItem(post.stableKey),
       anchorKey:
           (state.randomEnabled ? state.randomSession.cache : state.currentCache)
               .isPageBoundaryStart(index)
@@ -322,6 +320,11 @@ class _OnlineGalleryContentPresenter {
           ? _controller.anchorRestoreKey
           : null,
       onVisibilityChanged: _scrollCoordinator.handleCardVisibility,
+      onGeometryMeasured: _controller.recordGeometryRead,
+      onTileBuild: _controller.recordTileBuild,
+      onVisibilityTransition: _controller.recordVisibilityTransition,
+      onVisibilityDrivenRebuild: _controller.recordVisibilityDrivenRebuild,
+      viewportGeneration: _controller.viewportGeneration,
       detailRequestScope: (
         state.currentCacheKey,
         _galleryNotifier.detailRequestScopeRevision,

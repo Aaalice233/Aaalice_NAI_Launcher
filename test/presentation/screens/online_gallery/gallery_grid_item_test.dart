@@ -8,6 +8,7 @@ import 'package:nai_launcher/data/models/online_gallery/gallery_item.dart';
 import 'package:nai_launcher/data/models/online_gallery/gallery_source.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/screens/online_gallery/gallery_grid_item.dart';
+import 'package:nai_launcher/presentation/widgets/online_gallery/online_gallery_image_placeholder.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 void main() {
@@ -168,7 +169,7 @@ void main() {
     expect(find.text('Retry'), findsNothing);
   });
 
-  testWidgets('resolved cards stop and resume media requests with visibility', (
+  testWidgets('resolved cards do not rebuild for repeated visibility changes', (
     tester,
   ) async {
     final mediaRequestActiveValues = <bool>[];
@@ -198,6 +199,7 @@ void main() {
     );
     await tester.pump();
     expect(mediaRequestActiveValues.last, isTrue);
+    final buildsAfterFirstReveal = mediaRequestActiveValues.length;
 
     detector.onVisibilityChanged?.call(
       VisibilityInfo(
@@ -207,7 +209,6 @@ void main() {
       ),
     );
     await tester.pump();
-    expect(mediaRequestActiveValues.last, isFalse);
 
     detector.onVisibilityChanged?.call(
       VisibilityInfo(
@@ -217,7 +218,7 @@ void main() {
       ),
     );
     await tester.pump();
-    expect(mediaRequestActiveValues.last, isTrue);
+    expect(mediaRequestActiveValues.length, buildsAfterFirstReveal);
   });
 
   testWidgets(
@@ -241,8 +242,9 @@ void main() {
         ),
       );
 
-      expect(loadMediaValues, [isFalse]);
-      expect(find.byKey(const ValueKey('resolved-card')), findsOneWidget);
+      expect(loadMediaValues, isEmpty);
+      expect(find.byKey(const ValueKey('resolved-card')), findsNothing);
+      expect(find.byType(OnlineGalleryImagePlaceholder), findsOneWidget);
       expect(tester.getSize(find.byType(GalleryGridItem)).height, 200);
 
       final detector = tester.widget<VisibilityDetector>(
@@ -302,6 +304,7 @@ void main() {
     expect(mediaRequestActiveValues.last, isTrue);
     expect(layoutAspectRatios.last, 1.5);
 
+    final buildsAfterResolve = mediaRequestActiveValues.length;
     detector.onVisibilityChanged?.call(
       VisibilityInfo(
         key: detector.key!,
@@ -311,7 +314,7 @@ void main() {
     );
     await tester.pump();
     expect(loadMediaValues.last, isTrue);
-    expect(mediaRequestActiveValues.last, isFalse);
+    expect(mediaRequestActiveValues.last, isTrue);
 
     detector.onVisibilityChanged?.call(
       VisibilityInfo(
@@ -321,7 +324,7 @@ void main() {
       ),
     );
     await tester.pump();
-    expect(mediaRequestActiveValues.last, isTrue);
+    expect(mediaRequestActiveValues.length, buildsAfterResolve);
   });
 
   testWidgets('cancelled background detail stays quiet and scope resumes it', (
@@ -375,6 +378,47 @@ void main() {
     expect(calls, 2);
     expect(find.byKey(const ValueKey('resolved-card')), findsOneWidget);
   });
+
+  testWidgets('visibility scope remounts tracking for a reused post', (
+    tester,
+  ) async {
+    const post = GalleryItem(
+      id: 9,
+      workId: 'reused-post',
+      sourceId: GallerySourceId.danbooru,
+    );
+    Future<GalleryDetail> loadDetail(
+      GalleryItem item, {
+      required GalleryDetailPriority priority,
+      bool forceRefresh = false,
+    }) async => GalleryDetail(item: item, media: const []);
+
+    await tester.pumpWidget(
+      _app(
+        post: post,
+        viewportGeneration: 0,
+        detailRequestScope: 1,
+        loadDetail: loadDetail,
+      ),
+    );
+    final firstKey = tester
+        .widget<VisibilityDetector>(find.byType(VisibilityDetector))
+        .key;
+
+    await tester.pumpWidget(
+      _app(
+        post: post,
+        viewportGeneration: 1,
+        detailRequestScope: 1,
+        loadDetail: loadDetail,
+      ),
+    );
+    final secondKey = tester
+        .widget<VisibilityDetector>(find.byType(VisibilityDetector))
+        .key;
+
+    expect(secondKey, isNot(firstKey));
+  });
 }
 
 const _item = GalleryItem(
@@ -385,6 +429,7 @@ const _item = GalleryItem(
 
 Widget _app({
   GalleryItem post = _item,
+  int viewportGeneration = 0,
   required Object detailRequestScope,
   required Future<GalleryDetail> Function(
     GalleryItem item, {
@@ -411,7 +456,8 @@ Widget _app({
           columnCount: 1,
           scrolling: const AlwaysStoppedAnimation(false),
           anchorKey: null,
-          onVisibilityChanged: (_, __, ___, ____, _____, ______) {},
+          onVisibilityChanged: (_) {},
+          viewportGeneration: viewportGeneration,
           detailRequestScope: detailRequestScope,
           loadDetail: loadDetail,
           buildCard:

@@ -7,6 +7,7 @@ import '../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/online_gallery/danbooru_post.dart';
 import 'online_gallery_grid.dart';
+import 'online_gallery_viewport_tracker.dart';
 import '../../agent_chat/widgets/agent_resource_drop_region.dart';
 import '../../widgets/online_gallery/online_gallery_image_placeholder.dart';
 
@@ -23,8 +24,14 @@ class GalleryGridItem extends StatefulWidget {
     required this.itemWidth,
     required this.columnCount,
     required this.scrolling,
+    this.initiallyLoadMedia = false,
     required this.anchorKey,
     required this.onVisibilityChanged,
+    this.onGeometryMeasured,
+    this.onTileBuild,
+    this.onVisibilityTransition,
+    this.onVisibilityDrivenRebuild,
+    required this.viewportGeneration,
     required this.detailRequestScope,
     required this.loadDetail,
     required this.buildCard,
@@ -35,16 +42,14 @@ class GalleryGridItem extends StatefulWidget {
   final double itemWidth;
   final int columnCount;
   final ValueListenable<bool> scrolling;
+  final bool initiallyLoadMedia;
   final GlobalKey? anchorKey;
-  final void Function(
-    int index,
-    GalleryItem item,
-    double itemWidth,
-    int columnCount,
-    bool visible,
-    double visibleTop,
-  )
-  onVisibilityChanged;
+  final ValueChanged<OnlineGalleryViewportVisibilityEvent> onVisibilityChanged;
+  final ValueChanged<Duration>? onGeometryMeasured;
+  final VoidCallback? onTileBuild;
+  final VoidCallback? onVisibilityTransition;
+  final VoidCallback? onVisibilityDrivenRebuild;
+  final int viewportGeneration;
   final Object detailRequestScope;
   final Future<GalleryDetail> Function(
     GalleryItem item, {
@@ -68,6 +73,9 @@ class GalleryGridItem extends StatefulWidget {
 }
 
 class _GalleryGridItemState extends State<GalleryGridItem> {
+  static int _nextVisibilityTokenSequence = 0;
+
+  final int _visibilityTokenSequence = ++_nextVisibilityTokenSequence;
   Future<GalleryDetail>? _detailFuture;
   bool _isVisible = false;
 
@@ -90,24 +98,25 @@ class _GalleryGridItemState extends State<GalleryGridItem> {
     }
   }
 
-  void _handleVisibility(bool visible, double visibleTop) {
-    final visibilityChanged = _isVisible != visible;
+  void _handleVisibility(bool visible, double leadingScrollOffset, Object _) {
     _isVisible = visible;
     widget.onVisibilityChanged(
-      widget.index,
-      widget.post,
-      widget.itemWidth,
-      widget.columnCount,
-      visible,
-      visibleTop,
+      OnlineGalleryViewportVisibilityEvent(
+        index: widget.index,
+        item: widget.post,
+        itemWidth: widget.itemWidth,
+        columnCount: widget.columnCount,
+        visible: visible,
+        leadingScrollOffset: leadingScrollOffset,
+        viewportGeneration: widget.viewportGeneration,
+        tokenSequence: _visibilityTokenSequence,
+      ),
     );
     if (!mounted) return;
     if (visible && _needsDetail && _detailFuture == null) {
       setState(() {
         _detailFuture = _loadDetail();
       });
-    } else if (visibilityChanged) {
-      setState(() {});
     }
   }
 
@@ -154,8 +163,22 @@ class _GalleryGridItemState extends State<GalleryGridItem> {
     );
   }
 
+  Widget _buildDeferredCard(double layoutAspectRatio) {
+    return SizedBox(
+      height: (widget.itemWidth / layoutAspectRatio).clamp(
+        80.0,
+        widget.itemWidth * 2.5,
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: const OnlineGalleryImagePlaceholder(loading: true),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    widget.onTileBuild?.call();
     final post = widget.post;
     final layoutAspectRatio = post.width > 0 && post.height > 0
         ? post.width / post.height
@@ -164,29 +187,24 @@ class _GalleryGridItemState extends State<GalleryGridItem> {
       key: widget.anchorKey,
       child: OnlineGalleryVisibilityDrivenItem(
         key: ValueKey('visible:${post.stableKey}'),
-        visibilityKey: post.stableKey,
+        visibilityKey: (widget.viewportGeneration, post.stableKey),
         scrolling: widget.scrolling,
+        initiallyLoadMedia: widget.initiallyLoadMedia,
         onVisibilityChanged: _handleVisibility,
+        onGeometryMeasured: widget.onGeometryMeasured,
+        onVisibilityTransition: widget.onVisibilityTransition,
+        onVisibilityDrivenRebuild: widget.onVisibilityDrivenRebuild,
         builder: (context, hasBeenVisible, isScrolling, isVisible) {
+          if (!hasBeenVisible) {
+            return _buildDeferredCard(layoutAspectRatio);
+          }
           if (!_needsDetail) {
             return _buildResourceCard(
               context,
               post,
               layoutAspectRatio,
-              loadMedia: hasBeenVisible || isVisible,
-              mediaRequestActive: isVisible,
-            );
-          }
-          if (!hasBeenVisible) {
-            return SizedBox(
-              height: (widget.itemWidth / layoutAspectRatio).clamp(
-                80.0,
-                widget.itemWidth * 2.5,
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: const OnlineGalleryImagePlaceholder(loading: true),
-              ),
+              loadMedia: hasBeenVisible,
+              mediaRequestActive: hasBeenVisible,
             );
           }
           if (_detailFuture == null) {
@@ -198,47 +216,14 @@ class _GalleryGridItemState extends State<GalleryGridItem> {
               ),
             );
           }
-          return AnimatedSize(
-            duration: const Duration(milliseconds: 180),
-            curve: Curves.easeOutCubic,
-            child: FutureBuilder<GalleryDetail>(
-              key: ValueKey((post.detailStableKey, widget.detailRequestScope)),
-              future: _detailFuture,
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  final error = snapshot.error;
-                  if (error is DioException &&
-                      error.type == DioExceptionType.cancel) {
-                    return const AspectRatio(
-                      aspectRatio: 1,
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.all(Radius.circular(8)),
-                        child: OnlineGalleryImagePlaceholder(loading: true),
-                      ),
-                    );
-                  }
-                  return AspectRatio(
-                    aspectRatio: 1,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.surfaceContainerLow,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Center(
-                        child: TextButton.icon(
-                          onPressed: _retryDetail,
-                          icon: const Icon(Icons.refresh),
-                          label: Text(context.l10n.common_retry),
-                        ),
-                      ),
-                    ),
-                  );
-                }
-                final detail = snapshot.data;
-                final resolved = detail?.item;
-                if (resolved == null) {
+          return FutureBuilder<GalleryDetail>(
+            key: ValueKey((post.detailStableKey, widget.detailRequestScope)),
+            future: _detailFuture,
+            builder: (context, snapshot) {
+              if (snapshot.hasError) {
+                final error = snapshot.error;
+                if (error is DioException &&
+                    error.type == DioExceptionType.cancel) {
                   return const AspectRatio(
                     aspectRatio: 1,
                     child: ClipRRect(
@@ -247,20 +232,47 @@ class _GalleryGridItemState extends State<GalleryGridItem> {
                     ),
                   );
                 }
-                final resolvedAspectRatio =
-                    resolved.width > 0 && resolved.height > 0
-                    ? resolved.width / resolved.height
-                    : layoutAspectRatio;
-                return _buildResourceCard(
-                  context,
-                  resolved,
-                  resolvedAspectRatio,
-                  loadMedia: true,
-                  mediaRequestActive: isVisible,
-                  detail: detail,
+                return AspectRatio(
+                  aspectRatio: 1,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surfaceContainerLow,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Center(
+                      child: TextButton.icon(
+                        onPressed: _retryDetail,
+                        icon: const Icon(Icons.refresh),
+                        label: Text(context.l10n.common_retry),
+                      ),
+                    ),
+                  ),
                 );
-              },
-            ),
+              }
+              final detail = snapshot.data;
+              final resolved = detail?.item;
+              if (resolved == null) {
+                return const AspectRatio(
+                  aspectRatio: 1,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.all(Radius.circular(8)),
+                    child: OnlineGalleryImagePlaceholder(loading: true),
+                  ),
+                );
+              }
+              final resolvedAspectRatio =
+                  resolved.width > 0 && resolved.height > 0
+                  ? resolved.width / resolved.height
+                  : layoutAspectRatio;
+              return _buildResourceCard(
+                context,
+                resolved,
+                resolvedAspectRatio,
+                loadMedia: hasBeenVisible,
+                mediaRequestActive: hasBeenVisible,
+                detail: detail,
+              );
+            },
           );
         },
       ),

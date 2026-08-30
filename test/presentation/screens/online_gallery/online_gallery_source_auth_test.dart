@@ -22,6 +22,7 @@ import 'package:nai_launcher/presentation/providers/danbooru_suggestion_provider
 import 'package:nai_launcher/presentation/providers/online_gallery_provider.dart';
 import 'package:nai_launcher/presentation/providers/quick_tag_cloud_gallery_provider.dart';
 import 'package:nai_launcher/presentation/providers/replication_queue_provider.dart';
+import 'package:nai_launcher/presentation/screens/online_gallery/online_gallery_content.dart';
 import 'package:nai_launcher/presentation/screens/online_gallery/online_gallery_screen.dart';
 import 'package:nai_launcher/presentation/widgets/app_branch_visibility.dart';
 import 'package:nai_launcher/presentation/widgets/danbooru_post_card.dart';
@@ -858,7 +859,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('paused random miss requires an explicit continue action', (
+  testWidgets('paused random miss waits for explicit continuation', (
     tester,
   ) async {
     _PausedRandomGalleryNotifier.loadMoreCalls = 0;
@@ -882,10 +883,11 @@ void main() {
     await tester.pump();
 
     expect(_PausedRandomGalleryNotifier.loadMoreCalls, 0);
-    expect(find.text('Continue scanning'), findsOneWidget);
+    expect(find.text('Continue scanning'), findsWidgets);
 
-    await tester.tap(find.text('Continue scanning'));
+    await tester.tap(find.text('Continue scanning').first);
     await tester.pump();
+
     expect(_PausedRandomGalleryNotifier.loadMoreCalls, 1);
     expect(tester.takeException(), isNull);
   });
@@ -927,7 +929,10 @@ void main() {
     expect(container.read(onlineGalleryNotifierProvider).page, 2);
 
     final detector = tester.widget<VisibilityDetector>(
-      find.byKey(const ValueKey('gallery-visibility:danbooru:402')),
+      find.descendant(
+        of: find.byKey(const ValueKey('grid-item:danbooru:402')),
+        matching: find.byType(VisibilityDetector),
+      ),
     );
     detector.onVisibilityChanged?.call(
       VisibilityInfo(
@@ -945,6 +950,55 @@ void main() {
     );
     expect(secondPageCard.post.previewUrl, contains('page-2'));
     expect(secondPageCard.post.id, 402);
+  });
+
+  testWidgets('keeps lookahead prefetch paused across short scroll gaps', (
+    tester,
+  ) async {
+    await _setViewSize(tester, 1200);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          onlineGalleryNotifierProvider.overrideWith(
+            _ScrollableGalleryNotifier.new,
+          ),
+          danbooruAuthProvider.overrideWith(_LoggedOutDanbooruAuth.new),
+          gelbooruAuthProvider.overrideWith(_UnconfiguredGelbooruAuth.new),
+          danbooruSuggestionNotifierProvider.overrideWith(
+            _EmptyDanbooruSuggestionNotifier.new,
+          ),
+        ],
+        child: const _TestApp(),
+      ),
+    );
+    await tester.pump();
+
+    final controller = tester
+        .widget<OnlineGalleryContent>(find.byType(OnlineGalleryContent))
+        .controller;
+    expect(controller.scrollController.hasClients, isTrue);
+    expect(
+      controller.scrollController.position.maxScrollExtent,
+      greaterThan(300),
+    );
+
+    controller.scrollController.jumpTo(200);
+    await tester.pump();
+    expect(controller.isScrolling, isTrue);
+    expect(controller.prefetchCoordinator.isScrollingPaused, isTrue);
+
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(controller.isScrolling, isFalse);
+    expect(controller.prefetchCoordinator.isScrollingPaused, isTrue);
+
+    controller.scrollController.jumpTo(300);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 499));
+    expect(controller.prefetchCoordinator.isScrollingPaused, isTrue);
+
+    await tester.pump(const Duration(milliseconds: 2));
+    expect(controller.prefetchCoordinator.isScrollingPaused, isFalse);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('favorites source selector switches back to Danbooru', (
@@ -1886,7 +1940,50 @@ class _PausedRandomGalleryNotifier extends OnlineGalleryNotifier {
   @override
   Future<void> loadMore() async {
     loadMoreCalls++;
+    state = state.copyWith(
+      randomSession: state.randomSession.copyWith(
+        cache: state.randomSession.cache.copyWith(hasMore: false),
+        exhausted: true,
+      ),
+    );
   }
+}
+
+class _ScrollableGalleryNotifier extends OnlineGalleryNotifier {
+  @override
+  OnlineGalleryState build() {
+    final posts = List.generate(
+      80,
+      (index) => DanbooruPost(
+        id: 5000 + index,
+        site: 'danbooru',
+        width: 1200,
+        height: 800,
+        rating: 'g',
+        tagStringGeneral: 'solo',
+      ),
+      growable: false,
+    );
+    return OnlineGalleryState(
+      searchCache: ModeCache(
+        posts: posts,
+        hasMore: false,
+        nextCursor: null,
+        pageBoundaries: const [
+          GalleryPageBoundary(
+            page: 1,
+            cursor: '1',
+            startIndex: 0,
+            endIndex: 80,
+            rawItemCount: 80,
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Future<void> loadMore() async {}
 }
 
 class _PagedGalleryNotifier extends OnlineGalleryNotifier {

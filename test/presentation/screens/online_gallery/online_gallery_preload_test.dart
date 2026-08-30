@@ -8,8 +8,8 @@ void main() {
       expect(OnlineGalleryPreloadPolicy.loadAheadDistance(800), 1000);
     });
 
-    test('keeps three quarters of a viewport built ahead', () {
-      expect(OnlineGalleryPreloadPolicy.cacheExtent(800), 600);
+    test('keeps a bounded layout runway for direction reversal', () {
+      expect(OnlineGalleryPreloadPolicy.cacheExtent(800), 1000);
       expect(OnlineGalleryPreloadPolicy.cacheExtent(-1), 0);
     });
 
@@ -20,7 +20,7 @@ void main() {
           itemWidth: 165,
           columnCount: 2,
         ),
-        12,
+        13,
       );
       expect(
         OnlineGalleryPreloadPolicy.lookaheadItemCount(
@@ -28,7 +28,7 @@ void main() {
           itemWidth: 160,
           columnCount: 7,
         ),
-        32,
+        48,
       );
       expect(
         OnlineGalleryPreloadPolicy.lookaheadItemCount(

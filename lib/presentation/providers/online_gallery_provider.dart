@@ -116,8 +116,6 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
   OnlineGalleryDetailFavoriteService? _detailFavorites;
   OnlineGalleryLifecycleService? _lifecycleService;
   OnlineGalleryPaginationService? _paginationService;
-  String? _pendingRestoredCacheKey;
-  int? _pendingRestoredPage;
   Set<String> _localFavoriteKeys = const {};
   final Set<String> _remoteFavoriteKeys = <String>{};
   final OnlineGallerySearchService _search = OnlineGallerySearchService();
@@ -292,12 +290,6 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
       danbooruAuthScope: _lifecycle.currentDanbooruAuthScope,
       gelbooruAuthScope: _lifecycle.currentGelbooruAuthScope,
     );
-    if (!restored.randomEnabled &&
-        persistedSession != null &&
-        restored.currentCache.page > 1) {
-      _pendingRestoredCacheKey = restored.currentCacheKey;
-      _pendingRestoredPage = restored.currentCache.page;
-    }
     sessionRepository.seed(encodeOnlineGalleryBrowsingSession(restored));
     _commands.restoreRandomSnapshot(restored);
     listenSelf((previous, next) {
@@ -341,9 +333,14 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
         state.currentCacheKey == cacheKey;
   }
 
-  void updateVisibleItemIndex(int index) {
+  void updateVisibleItemIndex(int index, {String? expectedStableKey}) {
     if (state.randomEnabled) return;
     final cache = state.currentCache;
+    if (index < 0 || index >= cache.posts.length) return;
+    if (expectedStableKey != null &&
+        cache.posts[index].stableKey != expectedStableKey) {
+      return;
+    }
     final visiblePage = cache.pageForItemIndex(index);
     if (visiblePage == null || visiblePage == cache.page) return;
     state = state.updateCurrentCache(cache.copyWith(page: visiblePage));
@@ -907,12 +904,6 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
       return;
     }
     if (!refresh && (state.isLoading || state.isLoadingMore)) return;
-    final restoredPage =
-        !refresh && _pendingRestoredCacheKey == state.currentCacheKey
-        ? _pendingRestoredPage
-        : null;
-    _pendingRestoredCacheKey = null;
-    _pendingRestoredPage = null;
     switch (state.viewMode) {
       case GalleryViewMode.search:
       case GalleryViewMode.popular:
@@ -921,9 +912,6 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
       case GalleryViewMode.favorites:
         await _loadFavorites(refresh: refresh);
         break;
-    }
-    if (restoredPage != null && restoredPage > 1) {
-      await goToPage(restoredPage);
     }
   }
 
@@ -1158,8 +1146,13 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
                   ...cache.localFavoriteItemKeys,
                   ...localPage.items.map(onlineGalleryPostKey),
                 };
+          final latestViewCache = state.currentCache;
           cache = cache.copyWith(
             posts: posts,
+            page: latestViewCache.page,
+            scrollOffset: latestViewCache.scrollOffset,
+            anchorStableKey: latestViewCache.anchorStableKey,
+            anchorLocalOffset: latestViewCache.anchorLocalOffset,
             localFavoritesOffset:
                 cache.localFavoritesOffset + localPage.records.length,
             localFavoritesHasMore: localPage.hasMore,
@@ -1308,18 +1301,9 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
           clearRemoteFavoritesError: true,
         );
       }
-      if (isAppend &&
-          cache.localFavoritesHasMore &&
-          cache.localFavoriteItemKeys.length ==
-              previousCache.localFavoriteItemKeys.length) {
-        cache = cache.copyWith(localFavoritesHasMore: false);
-      }
-      if (isAppend &&
-          cache.remoteFavoritesHasMore &&
-          cache.remoteFavoriteItemKeys.length ==
-              previousCache.remoteFavoriteItemKeys.length) {
-        cache = cache.copyWith(remoteFavoritesHasMore: false);
-      }
+      // A filtered page can contribute no visible favorites while either
+      // branch still has later records. Only each branch's real cursor/EOF
+      // result may end it; deduplication is not an upstream end signal.
       final duplicatePage =
           isAppend &&
           posts.length == previousCache.posts.length &&
@@ -1370,13 +1354,18 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
                 ? '${pageNumber + 1}'
                 : null
           : boundaries.last.nextCursor;
+      final latestViewCache = state.currentCache;
       cache = cache.copyWith(
         posts: posts,
-        page: refresh ? pageNumber : previousCache.page,
+        page: refresh ? pageNumber : latestViewCache.page,
         pageBoundaries: boundaries,
         nextCursor: tailNextCursor,
         clearNextCursor: tailNextCursor == null,
         hasMore: tailHasMore && tailNextCursor != null,
+        scrollOffset: refresh ? 0 : latestViewCache.scrollOffset,
+        anchorStableKey: refresh ? null : latestViewCache.anchorStableKey,
+        clearAnchorStableKey: refresh,
+        anchorLocalOffset: refresh ? 0 : latestViewCache.anchorLocalOffset,
         endedByDuplicatePage: loadedTail
             ? duplicatePage
             : previousCache.endedByDuplicatePage,

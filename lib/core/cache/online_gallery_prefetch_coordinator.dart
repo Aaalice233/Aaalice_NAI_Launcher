@@ -77,30 +77,41 @@ class OnlineGalleryPrefetchCoordinator extends ChangeNotifier {
   int get activeCount => _active;
   int get queueDepth => _pending.length;
   bool get isPaused => _pauseReasons.isNotEmpty;
+  bool get isScrollingPaused =>
+      _pauseReasons.contains(GalleryPrefetchPauseReason.scrolling);
   bool get isDisposed => _disposed;
   Set<GalleryPrefetchPauseReason> get pauseReasons =>
       Set.unmodifiable(_pauseReasons);
 
+  String _completionKey(
+    GalleryImageRequest request, [
+    GalleryImageTier? tier,
+  ]) => '${request.transportKey}:${(tier ?? request.tier).name}';
+
+  String _taskKey(GalleryImageRequest request) =>
+      request.tier == GalleryImageTier.original
+      ? request.stableRequestKey
+      : _completionKey(request);
+
+  String retentionKeyFor(GalleryImageRequest request) => _taskKey(request);
+
   bool isSampleReady(GalleryImageRequest request) =>
-      _completedSamples.containsKey(request.stableRequestKey);
+      _completedSamples.containsKey(_completionKey(request));
 
   bool isReady(GalleryImageRequest request) => switch (request.tier) {
     GalleryImageTier.thumbnail => _completedThumbnails.containsKey(
-      request.stableRequestKey,
+      _completionKey(request),
     ),
     GalleryImageTier.sample => isSampleReady(request),
     GalleryImageTier.original => false,
   };
 
-  /// Forgets a transport completion whose cached bytes could not be decoded.
-  /// The next mount will pass through the normal bounded loader again instead
-  /// of repeatedly trusting the stale completion marker.
+  /// Forgets cached transport readiness after Flutter reports invalid bytes.
   void invalidateCompleted(GalleryImageRequest request) {
-    final transportPrefix = '${request.transportKey}:';
-    _completedThumbnails.removeWhere(
-      (key, _) => key.startsWith(transportPrefix),
+    _completedThumbnails.remove(
+      _completionKey(request, GalleryImageTier.thumbnail),
     );
-    _completedSamples.removeWhere((key, _) => key.startsWith(transportPrefix));
+    _completedSamples.remove(_completionKey(request, GalleryImageTier.sample));
   }
 
   bool isNegativelyCached(GalleryImageRequest request) {
@@ -123,7 +134,9 @@ class OnlineGalleryPrefetchCoordinator extends ChangeNotifier {
   void setScrolling(bool scrolling) => _setPause(
     GalleryPrefetchPauseReason.scrolling,
     scrolling,
-    cancelPriorities: const {GalleryImagePriority.lookahead},
+    // A running transfer is reusable disk-cache work. Scrolling only blocks
+    // new lookahead starts; the moving window may evict stale queued work.
+    cancelPriorities: const {},
   );
 
   void setPageVisible(bool visible) => _setPause(
@@ -152,11 +165,12 @@ class OnlineGalleryPrefetchCoordinator extends ChangeNotifier {
   /// Downloads already handed to the image pipeline are allowed to finish so
   /// the shared disk cache is not left with a partially consumed response.
   void cancelPending(GalleryImageRequest request) {
-    final task = _pending[request.stableRequestKey];
+    final key = _taskKey(request);
+    final task = _pending[key];
     if (task == null) return;
     task.coordinatorOwned = false;
     if (task.consumers.isNotEmpty) return;
-    _pending.remove(request.stableRequestKey);
+    _pending.remove(key);
     _removeFromQueue(task);
     _completeCancelled(task);
     _scheduleNotification();
@@ -165,10 +179,11 @@ class OnlineGalleryPrefetchCoordinator extends ChangeNotifier {
   /// Releases one widget's interest without cancelling a request still used
   /// by another card or by the moving prefetch window.
   void releasePending(GalleryImageRequest request, Object consumer) {
-    final task = _pending[request.stableRequestKey];
+    final key = _taskKey(request);
+    final task = _pending[key];
     if (task == null || !task.consumers.remove(consumer)) return;
     if (task.coordinatorOwned || task.consumers.isNotEmpty) return;
-    _pending.remove(request.stableRequestKey);
+    _pending.remove(key);
     _removeFromQueue(task);
     _completeCancelled(task);
     _scheduleNotification();
@@ -176,20 +191,21 @@ class OnlineGalleryPrefetchCoordinator extends ChangeNotifier {
 
   /// Keeps the moving thumbnail window bounded while a user scrolls through
   /// many rows faster than the network can consume them.
-  void retainThumbnailWindow(Set<String> stableRequestKeys) {
+  void retainThumbnailWindow(Set<String> retentionKeys) {
     final stale = _pending.values
         .where(
           (task) =>
+              task.request.tier == GalleryImageTier.thumbnail &&
               (task.priority == GalleryImagePriority.visible ||
                   task.priority == GalleryImagePriority.lookahead) &&
-              !stableRequestKeys.contains(task.request.stableRequestKey),
+              !retentionKeys.contains(_taskKey(task.request)),
         )
         .toList(growable: false);
     var cancelled = false;
     for (final task in stale) {
       task.coordinatorOwned = false;
       if (task.consumers.isNotEmpty) continue;
-      _pending.remove(task.request.stableRequestKey);
+      _pending.remove(_taskKey(task.request));
       _removeFromQueue(task);
       _completeCancelled(task);
       cancelled = true;
@@ -207,8 +223,8 @@ class OnlineGalleryPrefetchCoordinator extends ChangeNotifier {
     if (retry) {
       final key = request.stableRequestKey;
       _failures.remove(key);
-      _completedThumbnails.remove(key);
-      _completedSamples.remove(key);
+      _completedThumbnails.remove(_completionKey(request));
+      _completedSamples.remove(_completionKey(request));
     }
     if (!retry && isNegativelyCached(request)) {
       debugNegativeCacheHitCount++;
@@ -217,7 +233,7 @@ class OnlineGalleryPrefetchCoordinator extends ChangeNotifier {
     if (isReady(request)) {
       return Future.value(true);
     }
-    final key = request.stableRequestKey;
+    final key = _taskKey(request);
     final existing = _pending[key] ?? _inFlight[key];
     if (existing != null && !existing.cancelled) {
       if (consumer == null) {
@@ -257,10 +273,10 @@ class OnlineGalleryPrefetchCoordinator extends ChangeNotifier {
     String reason = 'request-cancelled',
   }) {
     if (_disposed) return;
-    final key = request.stableRequestKey;
+    final key = _taskKey(request);
     _cancelWhere(
       (task) =>
-          task.request.stableRequestKey == key &&
+          _taskKey(task.request) == key &&
           (priority == null || task.priority == priority),
       reason: reason,
     );
@@ -335,7 +351,7 @@ class OnlineGalleryPrefetchCoordinator extends ChangeNotifier {
       final queue = _queueFor(priority);
       if (queue.isEmpty) continue;
       final evicted = queue.removeLast();
-      _pending.remove(evicted.request.stableRequestKey);
+      _pending.remove(_taskKey(evicted.request));
       _completeCancelled(evicted);
       return true;
     }
@@ -373,7 +389,7 @@ class OnlineGalleryPrefetchCoordinator extends ChangeNotifier {
     while (_active < maxConcurrent) {
       final task = _takeNext();
       if (task == null) return;
-      final key = task.request.stableRequestKey;
+      final key = _taskKey(task.request);
       if (_pending.remove(key) != task || task.generation != _generation) {
         _completeCancelled(task);
         continue;
@@ -386,7 +402,8 @@ class OnlineGalleryPrefetchCoordinator extends ChangeNotifier {
   }
 
   Future<void> _run(_PrefetchTask task) async {
-    final key = task.request.stableRequestKey;
+    final taskKey = _taskKey(task.request);
+    final failureKey = task.request.stableRequestKey;
     try {
       final operation = _preloader(task.request);
       task.operation = operation;
@@ -402,8 +419,8 @@ class OnlineGalleryPrefetchCoordinator extends ChangeNotifier {
       if (!task.completer.isCompleted) task.completer.complete(true);
     } catch (error) {
       if (!task.cancelled && task.generation == _generation) {
-        _failures.remove(key);
-        _failures[key] = _now();
+        _failures.remove(failureKey);
+        _failures[failureKey] = _now();
         while (_failures.length > 500) {
           _failures.remove(_failures.keys.first);
         }
@@ -416,7 +433,7 @@ class OnlineGalleryPrefetchCoordinator extends ChangeNotifier {
       }
       if (!task.completer.isCompleted) task.completer.complete(false);
     } finally {
-      if (_inFlight[key] == task) _inFlight.remove(key);
+      if (_inFlight[taskKey] == task) _inFlight.remove(taskKey);
       _active--;
       _pump();
       _scheduleNotification();
@@ -431,7 +448,7 @@ class OnlineGalleryPrefetchCoordinator extends ChangeNotifier {
     var pendingCapacityChanged = false;
     for (final task in _pending.values.toList()) {
       if (!predicate(task)) continue;
-      _pending.remove(task.request.stableRequestKey);
+      _pending.remove(_taskKey(task.request));
       _queues[task.priority]!.remove(task);
       task.cancelled = true;
       _completeCancelled(task);
@@ -467,11 +484,11 @@ class OnlineGalleryPrefetchCoordinator extends ChangeNotifier {
 
   void _rememberCompleted(GalleryImageRequest request) {
     if (request.tier == GalleryImageTier.original) return;
-    final key = request.stableRequestKey;
+    final key = _completionKey(request);
     final completed = request.tier == GalleryImageTier.thumbnail
         ? _completedThumbnails
         : _completedSamples;
-    final limit = request.tier == GalleryImageTier.thumbnail ? 256 : 16;
+    final limit = request.tier == GalleryImageTier.thumbnail ? 1000 : 64;
     completed.remove(key);
     completed[key] = _now();
     while (completed.length > limit) {

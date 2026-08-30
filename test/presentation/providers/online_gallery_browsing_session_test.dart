@@ -14,7 +14,7 @@ import 'package:nai_launcher/presentation/providers/online_gallery_provider.dart
 import 'package:nai_launcher/presentation/providers/quick_tag_cloud_gallery_provider.dart';
 
 void main() {
-  test('browsing session round-trips choices and per-query position', () {
+  test('browsing session restores choices but resets viewport position', () {
     const base = OnlineGalleryState(
       viewMode: GalleryViewMode.popular,
       sourceId: GallerySourceId.gelbooru,
@@ -73,14 +73,17 @@ void main() {
     );
     expect(restored.randomEnabled, isTrue);
     expect(restored.artistHuntEnabled, isTrue);
-    expect(restored.currentCache.page, 7);
-    expect(restored.currentCache.nextCursor, '7');
-    expect(restored.currentCache.scrollOffset, 2048);
-    expect(restored.currentCache.anchorStableKey, 'ai_tag:42');
-    expect(restored.randomSession.cache.scrollOffset, 512);
+    expect(restored.currentCache.page, 1);
+    expect(restored.currentCache.nextCursor, '1');
+    expect(restored.currentCache.scrollOffset, 0);
+    expect(restored.currentCache.anchorStableKey, isNull);
+    expect(restored.randomSession.cache.scrollOffset, 0);
+    final encoded = encodeOnlineGalleryBrowsingSession(state);
+    expect(encoded, isNot(contains('positions')));
+    expect(encoded, isNot(contains('randomPosition')));
   });
 
-  test('legacy favorite scope is removed and its position is migrated', () {
+  test('legacy favorite position is ignored', () {
     final restored = decodeOnlineGalleryBrowsingSession(
       jsonEncode({
         'version': 1,
@@ -97,15 +100,15 @@ void main() {
     );
 
     expect(restored.viewMode, GalleryViewMode.favorites);
-    expect(restored.currentCache.page, 4);
-    expect(restored.currentCache.scrollOffset, 96);
+    expect(restored.currentCache.page, 1);
+    expect(restored.currentCache.scrollOffset, 0);
     expect(
       encodeOnlineGalleryBrowsingSession(restored),
       isNot(contains('favoritesScope')),
     );
   });
 
-  test('legacy favorite migration prefers the selected scope position', () {
+  test('all legacy favorite positions are ignored', () {
     final restored = decodeOnlineGalleryBrowsingSession(
       jsonEncode({
         'version': 1,
@@ -125,8 +128,8 @@ void main() {
       }),
     );
 
-    expect(restored.currentCache.page, 8);
-    expect(restored.currentCache.scrollOffset, 80);
+    expect(restored.currentCache.page, 1);
+    expect(restored.currentCache.scrollOffset, 0);
   });
 
   test('invalid or obsolete session safely falls back to defaults', () {
@@ -146,16 +149,25 @@ void main() {
     );
   });
 
-  test('restored page is re-fetched without losing its position', () async {
+  test('legacy persisted page always reloads from page one', () async {
     final storage = _MemoryStorage();
-    final initial = const OnlineGalleryState(
-      searchQuery: 'restored',
-    ).updateCurrentCache(const ModeCache(page: 3, scrollOffset: 120));
     await storage.setSetting(
       StorageKeys.onlineGalleryBrowsingSessionV1,
-      encodeOnlineGalleryBrowsingSession(initial),
+      jsonEncode({
+        'version': 2,
+        'searchQuery': 'restored',
+        'positions': {
+          'search:danbooru|restored|egqs|blacklist:0': {
+            'page': 19,
+            'scrollOffset': 12000,
+          },
+        },
+      }),
     );
-    final adapter = _CursorAdapter(GallerySourceId.danbooru);
+    final adapter = _CursorAdapter(
+      GallerySourceId.danbooru,
+      returnsItems: true,
+    );
     final container = ProviderContainer(
       overrides: [
         localStorageServiceProvider.overrideWithValue(storage),
@@ -169,12 +181,13 @@ void main() {
     );
     addTearDown(container.dispose);
 
-    await container.read(onlineGalleryNotifierProvider.notifier).loadPosts();
+    final notifier = container.read(onlineGalleryNotifierProvider.notifier);
+    await notifier.loadPosts();
 
     final restored = container.read(onlineGalleryNotifierProvider);
-    expect(adapter.lastSearchCursor, '3');
-    expect(restored.currentCache.page, 3);
-    expect(restored.currentCache.scrollOffset, 120);
+    expect(adapter.lastSearchCursor, '1');
+    expect(restored.currentCache.page, 1);
+    expect(restored.currentCache.scrollOffset, 0);
   });
 
   test(
@@ -295,7 +308,7 @@ void main() {
     expect(state.activeSourceId, GallerySourceId.gelbooru);
   });
 
-  test('notifier restores and persists location changes', () async {
+  test('notifier persists browsing intent but not location changes', () async {
     final storage = _MemoryStorage();
     final initial = const OnlineGalleryState(
       searchQuery: 'restored',
@@ -311,7 +324,7 @@ void main() {
 
     final restored = container.read(onlineGalleryNotifierProvider);
     expect(restored.searchQuery, 'restored');
-    expect(restored.currentCache.page, 3);
+    expect(restored.currentCache.page, 1);
 
     container
         .read(onlineGalleryNotifierProvider.notifier)
@@ -325,17 +338,18 @@ void main() {
     final persisted = decodeOnlineGalleryBrowsingSession(
       storage.getSetting<String>(StorageKeys.onlineGalleryBrowsingSessionV1),
     );
-    expect(persisted.currentCache.scrollOffset, 456);
-    expect(persisted.currentCache.anchorStableKey, 'danbooru:9');
-    expect(persisted.currentCache.anchorLocalOffset, 8);
+    expect(persisted.currentCache.scrollOffset, 0);
+    expect(persisted.currentCache.anchorStableKey, isNull);
+    expect(persisted.currentCache.anchorLocalOffset, 0);
   });
 }
 
 class _CursorAdapter extends GallerySourceAdapter {
-  _CursorAdapter(this.sourceId);
+  _CursorAdapter(this.sourceId, {this.returnsItems = false});
 
   @override
   final GallerySourceId sourceId;
+  final bool returnsItems;
 
   String? lastSearchCursor;
 
@@ -355,7 +369,9 @@ class _CursorAdapter extends GallerySourceAdapter {
   }) async => _emptyPage(request.cursor);
 
   GalleryPage _emptyPage(String cursor) => GalleryPage(
-    items: const [],
+    items: returnsItems
+        ? [GalleryItem(id: int.tryParse(cursor) ?? 1, sourceId: sourceId)]
+        : const [],
     cursor: cursor,
     nextCursor: null,
     hasMore: false,

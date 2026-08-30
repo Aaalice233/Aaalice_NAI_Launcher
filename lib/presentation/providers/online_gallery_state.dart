@@ -241,8 +241,10 @@ class ModeCache {
     bool clearNextCursor = false,
     bool? hasMore,
     int? total,
+    bool clearTotal = false,
     double? scrollOffset,
     String? anchorStableKey,
+    bool clearAnchorStableKey = false,
     double? anchorLocalOffset,
     OnlineGalleryErrorCode? appendErrorCode,
     bool clearAppendError = false,
@@ -274,9 +276,11 @@ class ModeCache {
       pageBoundaries: List.unmodifiable(pageBoundaries ?? this.pageBoundaries),
       nextCursor: clearNextCursor ? null : (nextCursor ?? this.nextCursor),
       hasMore: hasMore ?? this.hasMore,
-      total: total ?? this.total,
+      total: clearTotal ? null : (total ?? this.total),
       scrollOffset: scrollOffset ?? this.scrollOffset,
-      anchorStableKey: anchorStableKey ?? this.anchorStableKey,
+      anchorStableKey: clearAnchorStableKey
+          ? null
+          : (anchorStableKey ?? this.anchorStableKey),
       anchorLocalOffset: anchorLocalOffset ?? this.anchorLocalOffset,
       appendErrorCode: clearAppendError
           ? null
@@ -607,21 +611,9 @@ class OnlineGalleryState {
   }
 }
 
-/// Encodes only browsing intent and lightweight location metadata. Remote
-/// gallery rows are deliberately refreshed after restart so stale URLs and
-/// source-side favorite/ranking changes are not treated as durable data.
+/// Encodes browsing intent only. Page, scroll and remote rows deliberately
+/// restart from page one so stale layout state cannot corrupt a new viewport.
 String encodeOnlineGalleryBrowsingSession(OnlineGalleryState state) {
-  final positions = <String, dynamic>{};
-  for (final entry in state.caches.entries) {
-    positions[entry.key] = _encodeGalleryPosition(entry.value);
-  }
-  positions
-    ..remove(state.currentCacheKey)
-    ..[state.currentCacheKey] = _encodeGalleryPosition(state.currentCache);
-  while (positions.length > 12) {
-    positions.remove(positions.keys.first);
-  }
-
   return jsonEncode({
     'version': 2,
     'viewMode': state.viewMode.name,
@@ -643,9 +635,7 @@ String encodeOnlineGalleryBrowsingSession(OnlineGalleryState state) {
     'dateRangeStart': state.dateRangeStart?.toIso8601String(),
     'dateRangeEnd': state.dateRangeEnd?.toIso8601String(),
     'randomEnabled': state.randomEnabled,
-    'randomPosition': _encodeGalleryPosition(state.randomSession.cache),
     'artistHuntEnabled': state.artistHuntEnabled,
-    'positions': positions,
   });
 }
 
@@ -718,41 +708,8 @@ OnlineGalleryState decodeOnlineGalleryBrowsingSession(String? encoded) {
       artistHuntEnabled: json['artistHuntEnabled'] == true,
     );
 
-    final caches = <String, ModeCache>{};
-    final cachePriorities = <String, int>{};
-    final legacyFavoritesScope = json['favoritesScope'];
-    final rawPositions = json['positions'];
-    if (rawPositions is Map) {
-      for (final entry in rawPositions.entries.take(12)) {
-        final rawKey = entry.key;
-        if (rawKey is! String || rawKey.isEmpty || rawKey.length > 4096) {
-          continue;
-        }
-        final key = _migrateFavoritesCacheKey(rawKey);
-        final position = _decodeGalleryPosition(entry.value);
-        if (position == null) continue;
-        final legacyMatch = _legacyFavoritesCacheKeyPattern.firstMatch(rawKey);
-        final priority = legacyMatch == null
-            ? 3
-            : legacyMatch.group(2) == legacyFavoritesScope
-            ? 2
-            : 1;
-        if (priority > (cachePriorities[key] ?? 0)) {
-          caches[key] = position;
-          cachePriorities[key] = priority;
-        }
-      }
-    }
-    var restored = base.copyWith(caches: caches);
-    final randomPosition =
-        _decodeGalleryPosition(json['randomPosition']) ?? const ModeCache();
-    final randomEnabled =
-        json['randomEnabled'] == true && restored.supportsRandom;
-    restored = restored.copyWith(
-      randomEnabled: randomEnabled,
-      randomSession: RandomGallerySession(cache: randomPosition),
-    );
-    return restored;
+    final randomEnabled = json['randomEnabled'] == true && base.supportsRandom;
+    return base.copyWith(randomEnabled: randomEnabled);
   } catch (error, stack) {
     AppLogger.w(
       'Ignored invalid online gallery browsing session',
@@ -761,47 +718,6 @@ OnlineGalleryState decodeOnlineGalleryBrowsingSession(String? encoded) {
     AppLogger.d('$error\n$stack', 'OnlineGallery');
     return const OnlineGalleryState();
   }
-}
-
-Map<String, dynamic> _encodeGalleryPosition(ModeCache cache) => {
-  'page': cache.page,
-  'scrollOffset': cache.scrollOffset,
-  if (cache.anchorStableKey != null) 'anchorStableKey': cache.anchorStableKey,
-  'anchorLocalOffset': cache.anchorLocalOffset,
-};
-
-ModeCache? _decodeGalleryPosition(Object? raw) {
-  if (raw is! Map) return null;
-  final pageValue = raw['page'];
-  final offsetValue = raw['scrollOffset'] ?? raw['offset'];
-  final localOffsetValue = raw['anchorLocalOffset'];
-  final page = pageValue is num
-      ? pageValue.toInt().clamp(1, 1000000).toInt()
-      : 1;
-  final offset = offsetValue is num && offsetValue.isFinite
-      ? offsetValue.toDouble().clamp(0, double.maxFinite).toDouble()
-      : 0.0;
-  final localOffset = localOffsetValue is num && localOffsetValue.isFinite
-      ? localOffsetValue.toDouble().clamp(0, double.maxFinite).toDouble()
-      : 0.0;
-  final anchor = raw['anchorStableKey'];
-  return ModeCache(
-    page: page,
-    nextCursor: '$page',
-    scrollOffset: offset,
-    anchorStableKey: anchor is String && anchor.length <= 256 ? anchor : null,
-    anchorLocalOffset: localOffset,
-  );
-}
-
-final _legacyFavoritesCacheKeyPattern = RegExp(
-  r'^favorites:(danbooru|safebooru|gelbooru|ai_tag|quick_tag_cloud):(local|remote)\|',
-);
-
-String _migrateFavoritesCacheKey(String key) {
-  final match = _legacyFavoritesCacheKeyPattern.firstMatch(key);
-  if (match == null) return key;
-  return 'favorites:${match.group(1)}|${key.substring(match.end)}';
 }
 
 GallerySourceId _decodeGallerySource(Object? value) {

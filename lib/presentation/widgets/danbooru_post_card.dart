@@ -447,6 +447,7 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                                 loading: true,
                               ),
                               enabled: widget.mediaRequestActive,
+                              fadeIn: false,
                               errorBuilder: (context, retry) =>
                                   OnlineGalleryImagePlaceholder(
                                     failed: true,
