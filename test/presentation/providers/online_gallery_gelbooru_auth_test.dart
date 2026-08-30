@@ -784,6 +784,43 @@ void main() {
     expect(gelbooruApi.favoritePids, [0, 1]);
   });
 
+  test('sparse favorite jumps preserve real page order', () async {
+    final hiveDirectory = await Directory.systemTemp.createTemp(
+      'online-gallery-favorites-sparse-pages-',
+    );
+    Hive.init(hiveDirectory.path);
+    await Hive.openBox<dynamic>(StorageKeys.settingsBox);
+    await Hive.openBox<dynamic>(StorageKeys.localFavoritesBox);
+    addTearDown(() async {
+      await Hive.close();
+      await hiveDirectory.delete(recursive: true);
+    });
+
+    final gelbooruApi = _FakeGelbooruApiService(
+      favoritesByPid: {
+        0: GelbooruPostPage(posts: [_gelbooruPost(1)], rawCount: 1),
+        6: GelbooruPostPage(posts: [_gelbooruPost(7)], rawCount: 1),
+        2: GelbooruPostPage(posts: [_gelbooruPost(3)], rawCount: 1),
+      },
+    );
+    final container = createContainer(
+      storedCredentials: stored(credentials),
+      gelbooruApi: gelbooruApi,
+    );
+    addTearDown(container.dispose);
+    final notifier = container.read(onlineGalleryNotifierProvider.notifier);
+
+    await notifier.setFavoritesSource(GallerySourceId.gelbooru);
+    await notifier.switchToFavorites();
+    await notifier.goToPage(7);
+    await notifier.goToPage(3);
+
+    final cache = container.read(onlineGalleryNotifierProvider).currentCache;
+    expect(gelbooruApi.favoritePids, [0, 6, 2]);
+    expect(cache.posts.map((item) => item.id), [1, 3, 7]);
+    expect(cache.pageBoundaries.map((boundary) => boundary.page), [1, 3, 7]);
+  });
+
   test('favorite caches retain independent scroll and pagination state', () {
     final danbooruCache = ModeCache(
       posts: [_danbooruPost(1)],
@@ -840,11 +877,14 @@ void main() {
 
   test('Gelbooru page navigation uses zero-based DAPI pid', () async {
     final gelbooruApi = _FakeGelbooruApiService(
-      searchResult: GelbooruPostPage(posts: [_gelbooruPost(505)], rawCount: 40),
-      favoritesResult: GelbooruPostPage(
-        posts: [_gelbooruPost(506)],
-        rawCount: 40,
-      ),
+      searchByPid: {
+        0: GelbooruPostPage(posts: [_gelbooruPost(505)], rawCount: 40),
+        3: GelbooruPostPage(posts: [_gelbooruPost(507)], rawCount: 40),
+      },
+      favoritesByPid: {
+        0: GelbooruPostPage(posts: [_gelbooruPost(506)], rawCount: 40),
+        2: GelbooruPostPage(posts: [_gelbooruPost(508)], rawCount: 40),
+      },
     );
     final container = createContainer(
       storedCredentials: stored(credentials),
@@ -922,6 +962,7 @@ class _FakeDanbooruCredentialVerifier extends DanbooruCredentialVerifier {
 class _FakeGelbooruApiService extends GelbooruApiService {
   _FakeGelbooruApiService({
     this.searchResult = const GelbooruPostPage(posts: [], rawCount: 0),
+    this.searchByPid,
     this.favoritesResult = const GelbooruPostPage(posts: [], rawCount: 0),
     this.favoritesByPid,
     this.favoritesLoader,
@@ -929,6 +970,7 @@ class _FakeGelbooruApiService extends GelbooruApiService {
   }) : super(Dio());
 
   final GelbooruPostPage searchResult;
+  final Map<int, GelbooruPostPage>? searchByPid;
   final GelbooruPostPage favoritesResult;
   final Map<int, GelbooruPostPage>? favoritesByPid;
   final Future<GelbooruPostPage> Function(int pid)? favoritesLoader;
@@ -950,7 +992,7 @@ class _FakeGelbooruApiService extends GelbooruApiService {
     searchCalls++;
     searchPids.add(pid);
     if (searchError != null) throw searchError!;
-    return searchResult;
+    return searchByPid?[pid] ?? searchResult;
   }
 
   @override

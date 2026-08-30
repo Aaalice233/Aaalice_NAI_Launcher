@@ -129,13 +129,25 @@ class OnlineGalleryCommandService {
     await _loadIfMissing();
   }
 
-  Future<void> setSource(Object source) async {
+  Future<void> setSource(
+    Object source, {
+    String? draftQuery,
+    String? draftPrompt,
+  }) async {
     final sourceId = normalizeSource(source);
     if (sourceId == null || !sourceId.capabilities.supportsSearch) return;
-    if (state.sourceId == sourceId) return;
+    final normalizedQuery = (draftQuery ?? state.searchQuery).trim();
+    final normalizedPrompt = (draftPrompt ?? state.promptQuery).trim();
+    if (state.sourceId == sourceId &&
+        state.searchQuery == normalizedQuery &&
+        state.promptQuery == normalizedPrompt) {
+      return;
+    }
     _cancelCurrentRequest();
     state = state.copyWith(
       sourceId: sourceId,
+      searchQuery: normalizedQuery,
+      promptQuery: normalizedPrompt,
       popularSourceId: sourceId.capabilities.supportsRanking
           ? sourceId
           : state.popularSourceId,
@@ -149,17 +161,35 @@ class OnlineGalleryCommandService {
       clearDateRange: true,
       clearError: true,
     );
-    await _loadIfMissing();
+    if (!GalleryTagQueryParser.parse(normalizedQuery).isValid) {
+      state = state.copyWith(
+        errorCode: OnlineGalleryErrorCode.tooManySearchTags,
+      );
+      return;
+    }
+    await _loadPosts(refresh: true);
   }
 
-  Future<void> setPopularSource(Object source) async {
+  Future<void> setPopularSource(
+    Object source, {
+    String? draftQuery,
+    String? draftPrompt,
+  }) async {
     final sourceId = normalizeSource(source);
     if (sourceId == null || !sourceId.capabilities.supportsRanking) return;
-    if (state.popularSourceId == sourceId) return;
+    final normalizedQuery = (draftQuery ?? state.popularQuery).trim();
+    final normalizedPrompt = (draftPrompt ?? state.popularPromptQuery).trim();
+    if (state.popularSourceId == sourceId &&
+        state.popularQuery == normalizedQuery &&
+        state.popularPromptQuery == normalizedPrompt) {
+      return;
+    }
     _cancelCurrentRequest();
     state = state.copyWith(
       sourceId: sourceId,
       popularSourceId: sourceId,
+      popularQuery: normalizedQuery,
+      popularPromptQuery: normalizedPrompt,
       favoritesSourceId: sourceId.capabilities.supportsLocalFavorites
           ? sourceId
           : state.favoritesSourceId,
@@ -167,27 +197,40 @@ class OnlineGalleryCommandService {
       clearDateRange: true,
       clearError: true,
     );
-    if (state.viewMode == GalleryViewMode.popular) await _loadIfMissing();
+    if (!GalleryTagQueryParser.parse(normalizedQuery).isValid) {
+      state = state.copyWith(
+        errorCode: OnlineGalleryErrorCode.tooManySearchTags,
+      );
+      return;
+    }
+    if (state.viewMode == GalleryViewMode.popular) {
+      await _loadPosts(refresh: true);
+    }
   }
 
-  Future<void> setFavoritesSource(Object source) async {
+  Future<void> setFavoritesSource(Object source, {String? draftQuery}) async {
     final sourceId = normalizeSource(source);
     if (sourceId == null || !sourceId.capabilities.supportsLocalFavorites) {
       return;
     }
-    if (state.favoritesSourceId == sourceId) return;
+    final normalizedQuery = (draftQuery ?? state.favoriteSearchQuery).trim();
+    if (state.favoritesSourceId == sourceId &&
+        state.favoriteSearchQuery == normalizedQuery) {
+      return;
+    }
+    _cancelCurrentRequest();
     final generation = _continuationGeneration;
     if (sourceId == GallerySourceId.gelbooru) {
       await _ref.read(gelbooruAuthProvider.notifier).ensureInitialized();
       if (!_isCurrentContinuation(generation)) return;
     }
-    _cancelCurrentRequest();
     state = state.copyWith(
       sourceId: sourceId,
       popularSourceId: sourceId.capabilities.supportsRanking
           ? sourceId
           : state.popularSourceId,
       favoritesSourceId: sourceId,
+      favoriteSearchQuery: normalizedQuery,
       quickTagCloudFilterKey: sourceId == GallerySourceId.quickTagCloud
           ? _ref.read(quickTagCloudFilterProvider).stableKey
           : state.quickTagCloudFilterKey,
@@ -203,10 +246,6 @@ class OnlineGalleryCommandService {
 
   Future<void> searchFavorites(String query) async {
     final normalized = query.trim();
-    if (state.favoriteSearchQuery == normalized &&
-        state.viewMode == GalleryViewMode.favorites) {
-      return;
-    }
     _cancelCurrentRequest();
     state = state.copyWith(
       favoriteSearchQuery: normalized,
@@ -301,6 +340,52 @@ class OnlineGalleryCommandService {
       await _loadRandom(replace: true, restart: true);
     } else if (state.currentCache.posts.isEmpty) {
       await _loadPosts(refresh: true);
+    }
+  }
+
+  Future<void> refreshWithDraft({
+    required String query,
+    required String prompt,
+  }) async {
+    if (state.randomEnabled) {
+      final normalized = query.trim();
+      final parsed = GalleryTagQueryParser.parse(normalized);
+      _cancelCurrentRequest();
+      state = switch (state.viewMode) {
+        GalleryViewMode.search => state.copyWith(
+          searchQuery: normalized,
+          promptQuery: prompt.trim(),
+          clearError: true,
+        ),
+        GalleryViewMode.popular => state.copyWith(
+          popularQuery: normalized,
+          popularPromptQuery: prompt.trim(),
+          clearError: true,
+        ),
+        GalleryViewMode.favorites => state.copyWith(
+          favoriteSearchQuery: normalized,
+          clearError: true,
+        ),
+      };
+      if (state.viewMode != GalleryViewMode.favorites && !parsed.isValid) {
+        state = state.copyWith(
+          errorCode: OnlineGalleryErrorCode.tooManySearchTags,
+        );
+        return;
+      }
+      await _loadRandom(replace: true, restart: true);
+      return;
+    }
+    switch (state.viewMode) {
+      case GalleryViewMode.search:
+        await searchWithPrompt(query, prompt: prompt);
+        break;
+      case GalleryViewMode.popular:
+        await searchPopular(query: query, prompt: prompt);
+        break;
+      case GalleryViewMode.favorites:
+        await searchFavorites(query);
+        break;
     }
   }
 

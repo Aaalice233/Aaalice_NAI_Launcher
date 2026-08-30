@@ -268,7 +268,7 @@ void main() {
     expect(find.byType(OnlineGalleryPendingCard), findsWidgets);
     expect(
       find.descendant(
-        of: find.byType(SliverGrid),
+        of: find.byType(SliverMasonryGrid),
         matching: find.byType(OnlineGalleryPendingCard),
       ),
       findsWidgets,
@@ -316,6 +316,85 @@ void main() {
     expect(find.byType(OnlineGalleryPendingCard), findsNothing);
     expect(find.byKey(const ValueKey('completed-0')), findsOneWidget);
   });
+
+  testWidgets(
+    'keeps twenty-one loaded pages reachable after append placeholders change',
+    (tester) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(840, 700);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetPhysicalSize);
+      final controller = OnlineGalleryScreenController(
+        prefetchCoordinator: OnlineGalleryPrefetchCoordinator(
+          preloader: (_) =>
+              GalleryImagePreloadOperation.fromFuture(Future<void>.value()),
+        ),
+      );
+      addTearDown(controller.dispose);
+      final initialItems = List.generate(
+        21 * 60,
+        (index) => GalleryItem(
+          id: index,
+          workId: 'post-$index',
+          sourceId: GallerySourceId.danbooru,
+          width: 1,
+          height: 1,
+        ),
+      );
+
+      Widget subject(List<GalleryItem> items, {bool loadingMore = false}) {
+        return MaterialApp(
+          home: Scaffold(
+            body: OnlineGalleryGrid(
+              state: OnlineGalleryState(
+                isLoadingMore: loadingMore,
+                searchCache: ModeCache(posts: items, hasMore: loadingMore),
+              ),
+              controller: controller,
+              itemBuilder: (context, index, itemWidth, columnCount) =>
+                  SizedBox(key: ValueKey('post-$index'), height: 100),
+            ),
+          ),
+        );
+      }
+
+      await tester.pumpWidget(subject(initialItems));
+      controller.scrollController.jumpTo(
+        controller.scrollController.position.maxScrollExtent,
+      );
+      await tester.pump();
+      final bottomOffset = controller.scrollController.offset;
+      expect(bottomOffset, greaterThan(1000));
+
+      await tester.pumpWidget(subject(initialItems, loadingMore: true));
+      await tester.pump();
+      expect(controller.scrollController.offset, greaterThan(1000));
+
+      final appendedItems = [
+        ...initialItems,
+        for (
+          var index = initialItems.length;
+          index < initialItems.length + 60;
+          index++
+        )
+          GalleryItem(
+            id: index,
+            workId: 'post-$index',
+            sourceId: GallerySourceId.danbooru,
+            width: 1,
+            height: 1,
+          ),
+      ];
+      await tester.pumpWidget(subject(appendedItems));
+      await tester.pump();
+      expect(controller.scrollController.offset, greaterThan(1000));
+
+      controller.scrollController.jumpTo(0);
+      await tester.pump();
+      expect(find.byKey(const ValueKey('post-0')), findsOneWidget);
+      expect(appendedItems, hasLength(1320));
+    },
+  );
 
   testWidgets(
     'derives column count from grid width rather than viewport height',

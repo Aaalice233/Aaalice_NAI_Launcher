@@ -625,24 +625,15 @@ class _OnlineGalleryToolbarPresenter {
         ref.invalidate(quickTagCloudCodexProvider(query.codexId));
       }
     }
-    if (activeSource == GallerySourceId.aiTag &&
-        state.viewMode == GalleryViewMode.search) {
-      unawaited(
-        _galleryNotifier.searchWithPrompt(
-          _controller.searchController.text,
-          prompt: _controller.promptSearchController.text,
-        ),
-      );
-    } else if (activeSource == GallerySourceId.aiTag && isPopular) {
-      unawaited(
-        _galleryNotifier.searchPopular(
-          query: _controller.popularSearchController.text,
-          prompt: _controller.popularPromptSearchController.text,
-        ),
-      );
-    } else {
-      unawaited(_galleryNotifier.refresh());
-    }
+    final query = switch (state.viewMode) {
+      GalleryViewMode.search => _controller.searchController.text,
+      GalleryViewMode.popular => _controller.popularSearchController.text,
+      GalleryViewMode.favorites => _controller.favoriteSearchController.text,
+    };
+    final prompt = isPopular
+        ? _controller.popularPromptSearchController.text
+        : _controller.promptSearchController.text;
+    unawaited(_galleryNotifier.refreshWithDraft(query: query, prompt: prompt));
     if (state.randomEnabled && _controller.scrollController.hasClients) {
       _controller.scrollController.jumpTo(0);
     }

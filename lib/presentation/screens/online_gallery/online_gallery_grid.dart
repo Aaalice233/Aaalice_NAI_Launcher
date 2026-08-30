@@ -5,6 +5,7 @@ import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 import '../../../core/cache/online_gallery_preload_policy.dart';
+import '../../../data/models/online_gallery/chunked_gallery_items.dart';
 import '../../providers/online_gallery_provider.dart';
 import '../../widgets/online_gallery/online_gallery_image_placeholder.dart';
 import 'online_gallery_screen_controller.dart';
@@ -74,6 +75,22 @@ class OnlineGalleryGrid extends StatelessWidget {
             ? 'random:${state.randomSession.scopeKey}'
             : 'normal';
         final placeholderCount = _placeholderCount();
+        final masonryChildCount = state.posts.length + placeholderCount;
+        int? findPostIndex(Key key) {
+          if (key is! ValueKey<String>) return null;
+          const prefix = 'grid-item:';
+          if (!key.value.startsWith(prefix)) return null;
+          final stableKey = key.value.substring(prefix.length);
+          final posts = state.posts;
+          if (posts is ChunkedGalleryItems) {
+            return posts.indexOfStableKey(stableKey);
+          }
+          for (var index = 0; index < posts.length; index++) {
+            if (posts[index].stableKey == stableKey) return index;
+          }
+          return null;
+        }
+
         return CustomScrollView(
           key: PageStorageKey<String>(
             'online_gallery_$storageScope:${state.currentCacheKey}',
@@ -88,43 +105,37 @@ class OnlineGalleryGrid extends StatelessWidget {
                 12,
                 12,
                 12,
-                state.posts.isEmpty ? 0 : 6,
+                masonryChildCount == 0 ? 0 : 6,
               ),
-              sliver: SliverMasonryGrid.count(
-                crossAxisCount: columnCount,
+              sliver: SliverMasonryGrid(
+                gridDelegate: SliverSimpleGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: columnCount,
+                ),
                 mainAxisSpacing: spacing,
                 crossAxisSpacing: spacing,
-                childCount: state.posts.length,
-                itemBuilder: (context, index) =>
-                    itemBuilder(context, index, itemWidth, columnCount),
-              ),
-            ),
-            if (placeholderCount > 0)
-              SliverPadding(
-                padding: EdgeInsets.fromLTRB(
-                  12,
-                  state.posts.isEmpty ? 12 : 0,
-                  12,
-                  0,
-                ),
-                sliver: SliverGrid(
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: columnCount,
-                    mainAxisSpacing: spacing,
-                    crossAxisSpacing: spacing,
-                  ),
-                  delegate: SliverChildBuilderDelegate(
-                    (context, placeholderIndex) => OnlineGalleryPendingCard(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                    if (index < state.posts.length) {
+                      return itemBuilder(
+                        context,
+                        index,
+                        itemWidth,
+                        columnCount,
+                      );
+                    }
+                    return OnlineGalleryPendingCard(
                       key: ValueKey(
                         'online-gallery-pending:'
-                        '${state.currentCacheKey}:$placeholderIndex',
+                        '${state.currentCacheKey}:$index',
                       ),
                       itemWidth: itemWidth,
-                    ),
-                    childCount: placeholderCount,
-                  ),
+                    );
+                  },
+                  childCount: masonryChildCount,
+                  findChildIndexCallback: findPostIndex,
                 ),
               ),
+            ),
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(12, 6, 12, 12),
               sliver: SliverList(

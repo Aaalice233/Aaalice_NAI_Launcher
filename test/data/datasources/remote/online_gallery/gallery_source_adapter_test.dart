@@ -51,6 +51,57 @@ void main() {
       },
     );
 
+    test(
+      'keeps a short Safebooru response pageable and sends an empty query',
+      () async {
+        final http = _RecordingHttpAdapter((request) {
+          expect(request.uri.host, 'safebooru.donmai.us');
+          expect(request.queryParameters['tags'], '');
+          expect(request.queryParameters['limit'], 60);
+          expect(request.queryParameters['page'], '1');
+          return [for (var id = 100; id > 80; id--) _donmaiPost(id)];
+        });
+        final adapter = DonmaiGallerySourceAdapter(
+          sourceId: GallerySourceId.safebooru,
+          dio: Dio()..httpClientAdapter = http,
+        );
+
+        final page = await adapter.search(
+          const GallerySearchRequest(cursor: '1', pageSize: 60, query: ''),
+        );
+
+        expect(page.rawItemCount, 20);
+        expect(page.hasMore, isTrue);
+        expect(page.nextCursor, 'b81');
+      },
+    );
+
+    test(
+      'advances from the last raw ID when trailing media is unusable',
+      () async {
+        final unusable = <String, dynamic>{
+          ..._donmaiPost(80),
+          'file_url': null,
+          'large_file_url': null,
+          'preview_file_url': null,
+        };
+        final http = _RecordingHttpAdapter((_) => [_donmaiPost(81), unusable]);
+        final adapter = DonmaiGallerySourceAdapter(
+          sourceId: GallerySourceId.safebooru,
+          dio: Dio()..httpClientAdapter = http,
+        );
+
+        final page = await adapter.search(
+          const GallerySearchRequest(cursor: '1', pageSize: 60),
+        );
+
+        expect(page.items.map((item) => item.id), [81]);
+        expect(page.rawItemCount, 2);
+        expect(page.nextCursor, 'b80');
+        expect(page.hasMore, isTrue);
+      },
+    );
+
     test('sends real scale, date, and page to Safebooru ranking', () async {
       final http = _RecordingHttpAdapter((request) {
         expect(request.uri.host, 'safebooru.donmai.us');

@@ -42,6 +42,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
   late final OnlineGalleryScreenCommands _commands;
   late final ProviderSubscription<OnlineGalleryState> _gallerySubscription;
   bool _appForeground = true;
+  int _pageJumpRevision = 0;
 
   @override
   bool get wantKeepAlive => true;
@@ -178,6 +179,27 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       state == AppLifecycleState.resumed ||
       state == AppLifecycleState.inactive;
 
+  Future<void> _goToPage(int page) async {
+    final revision = ++_pageJumpRevision;
+    final cacheKey = ref.read(onlineGalleryNotifierProvider).currentCacheKey;
+    _scrollCoordinator.beginPageJump();
+    try {
+      final target = await _galleryNotifier.goToPage(page);
+      bool isCurrent() {
+        return mounted &&
+            revision == _pageJumpRevision &&
+            ref.read(onlineGalleryNotifierProvider).currentCacheKey == cacheKey;
+      }
+
+      if (target == null || !isCurrent()) return;
+      await _scrollCoordinator.jumpToPageTarget(target, isCurrent: isCurrent);
+    } finally {
+      if (mounted && revision == _pageJumpRevision) {
+        _scrollCoordinator.endPageJump();
+      }
+    }
+  }
+
   void _handleGalleryStateChanged(OnlineGalleryState state) {
     final browsingContextChanged =
         (_controller.lastViewMode != null &&
@@ -198,6 +220,11 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         state.posts.isNotEmpty &&
         !state.isLoading;
     if (browsingContextChanged || randomDrawChanged || initialPositionReady) {
+      if (browsingContextChanged) {
+        _pageJumpRevision++;
+        _scrollCoordinator.endPageJump();
+        _controller.synchronizeQueries(state);
+      }
       _controller.hoverController.dismiss();
       _controller.visibleItems.clear();
       _controller.prefetchCoordinator.rotateGeneration();
@@ -218,6 +245,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
 
   @override
   void dispose() {
+    _pageJumpRevision++;
     WidgetsBinding.instance.removeObserver(this);
     CriticalNetworkActivityCoordinator.instance.removeListener(
       _handleCriticalNetworkActivity,
@@ -340,6 +368,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
               state: state,
               controller: _controller,
               notifier: _galleryNotifier,
+              onGoToPage: _goToPage,
             ),
           ],
         ),

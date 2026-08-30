@@ -128,6 +128,50 @@ class ChunkedGalleryItems extends ListBase<GalleryItem> {
     );
   }
 
+  /// Inserts unseen rows at a real page boundary and combines duplicates.
+  ///
+  /// Normal pagination uses [appendPage]. This path intentionally rebuilds the
+  /// index because a sparse page jump can insert a response before a later
+  /// boundary and every following stable-key offset must move atomically.
+  ChunkedGalleryItems insertPage(
+    int index,
+    Iterable<GalleryItem> page, {
+    GalleryItem Function(GalleryItem current, GalleryItem incoming)?
+    mergeDuplicate,
+  }) {
+    RangeError.checkValueInInterval(index, 0, length, 'index');
+    if (index == length) {
+      return mergePage(page, mergeDuplicate: mergeDuplicate);
+    }
+
+    final rows = toList(growable: true);
+    final indices = <String, int>{
+      for (var rowIndex = 0; rowIndex < rows.length; rowIndex++)
+        rows[rowIndex].stableKey: rowIndex,
+    };
+    final inserted = <GalleryItem>[];
+    for (final item in page) {
+      final existingIndex = indices[item.stableKey];
+      if (existingIndex != null) {
+        final current = rows[existingIndex];
+        rows[existingIndex] = mergeDuplicate?.call(current, item) ?? current;
+        continue;
+      }
+      final pendingIndex = inserted.indexWhere(
+        (pending) => pending.stableKey == item.stableKey,
+      );
+      if (pendingIndex >= 0) {
+        final current = inserted[pendingIndex];
+        inserted[pendingIndex] = mergeDuplicate?.call(current, item) ?? current;
+      } else {
+        inserted.add(item);
+      }
+    }
+    if (inserted.isEmpty) return ChunkedGalleryItems.from(rows);
+    rows.insertAll(index, inserted);
+    return ChunkedGalleryItems.from(rows);
+  }
+
   /// Removes rows without copying chunks that contain no matching keys.
   ChunkedGalleryItems removeStableKeys(Set<String> stableKeys) {
     if (stableKeys.isEmpty ||
