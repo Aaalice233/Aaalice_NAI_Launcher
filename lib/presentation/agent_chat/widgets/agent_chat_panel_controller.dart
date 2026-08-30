@@ -2,6 +2,9 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show ScrollDirection;
+import 'package:flutter/services.dart'
+    show KeyDownEvent, KeyEvent, KeyRepeatEvent, KeyUpEvent, LogicalKeyboardKey;
 
 import '../../../core/agent/agent_types.dart';
 import '../../../core/utils/nai_resolution_adapter.dart';
@@ -32,7 +35,19 @@ class AgentChatPanelController extends ChangeNotifier {
     scrollController.addListener(_handleScrollPositionChanged);
   }
 
-  static const double _bottomTolerance = 2.0;
+  static const double _atBottomTolerance = 2.0;
+  static const double _nearBottomTolerance = 48.0;
+  static const double _scrollMovementTolerance = 0.01;
+  static const int _retainedSessionOffsetCount = 32;
+  static final Set<LogicalKeyboardKey> _viewportScrollKeys = {
+    LogicalKeyboardKey.arrowUp,
+    LogicalKeyboardKey.arrowDown,
+    LogicalKeyboardKey.pageUp,
+    LogicalKeyboardKey.pageDown,
+    LogicalKeyboardKey.home,
+    LogicalKeyboardKey.end,
+    LogicalKeyboardKey.space,
+  };
 
   late final AgentChatInputController inputController;
   final ScrollController scrollController = ScrollController();
@@ -41,10 +56,15 @@ class AgentChatPanelController extends ChangeNotifier {
   final Map<ImageSource, Uint8List> messageImageBytes = {};
   final Map<ImageSource, Size> messageImageSizes = {};
   final Map<String, Uint8List> markdownDataImageBytes = {};
+  final Map<String, ({double offset, bool autoScroll})> _sessionOffsets = {};
 
   OverlayEntry? _inlineImagePreview;
   BuildContext? _overlayContext;
   bool _autoScroll = true;
+  bool _userScrollActive = false;
+  bool _potentialUserScroll = false;
+  bool _programmaticScrollActive = false;
+  double? _lastUserScrollPixels;
   bool _scrollToBottomScheduled = false;
   int _lastScrollMessageCount = -1;
   String _lastScrollSessionId = '';
@@ -66,11 +86,16 @@ class AgentChatPanelController extends ChangeNotifier {
   void attachOverlayContext(BuildContext context) => _overlayContext = context;
 
   void observe(AgentChatState state) {
-    final sessionChanged = state.activeSessionId != _lastScrollSessionId;
+    final previousSessionId = _lastScrollSessionId;
+    final sessionChanged = state.activeSessionId != previousSessionId;
     final contentChanged =
         state.messages.length != _lastScrollMessageCount ||
         !identical(state.streamingMessage, _lastStreamingMessage) ||
         !identical(state.activities, _lastActivities);
+    if (sessionChanged && previousSessionId.isNotEmpty) {
+      saveSessionOffset(previousSessionId);
+      _endUserScroll();
+    }
     _lastScrollSessionId = state.activeSessionId;
     _lastScrollMessageCount = state.messages.length;
     _lastStreamingMessage = state.streamingMessage;
@@ -321,36 +346,175 @@ class AgentChatPanelController extends ChangeNotifier {
   }
 
   void _handleScrollPositionChanged() {
-    if (!scrollController.hasClients) return;
+    if (!scrollController.hasClients || _programmaticScrollActive) return;
     final position = scrollController.position;
     if (!position.hasPixels || !position.hasContentDimensions) return;
-    if (position.pixels <= position.minScrollExtent + _bottomTolerance &&
-        !_autoScroll) {
-      _autoScroll = true;
-      notifyListeners();
+    if (_isAtBottom(position) && !_autoScroll) {
+      _setAutoScroll(true);
     }
   }
 
   bool handleScrollNotification(ScrollNotification notification) {
-    if (notification case ScrollUpdateNotification(
-      :final dragDetails,
-    ) when dragDetails != null) {
-      final atBottom =
-          notification.metrics.pixels <=
-          notification.metrics.minScrollExtent + _bottomTolerance;
-      if (_autoScroll != atBottom) {
-        _autoScroll = atBottom;
-        notifyListeners();
-      }
+    if (notification.depth != 0 || _programmaticScrollActive) return false;
+
+    switch (notification) {
+      case UserScrollNotification(:final direction):
+        if (direction == ScrollDirection.idle) {
+          _endUserScroll();
+        } else {
+          _beginUserScroll(notification.metrics);
+        }
+      case ScrollStartNotification(:final dragDetails)
+          when dragDetails != null || _potentialUserScroll:
+        _beginUserScroll(notification.metrics);
+      case ScrollUpdateNotification(:final dragDetails, :final scrollDelta)
+          when dragDetails != null || _userScrollActive || _potentialUserScroll:
+        _beginUserScroll(notification.metrics, preserveBaseline: true);
+        _updateUserScrollIntent(notification.metrics, scrollDelta: scrollDelta);
+      case ScrollEndNotification():
+        _endUserScroll();
+      default:
+        break;
     }
     return false;
   }
 
-  void scrollToBottom({bool force = false}) {
-    if (force && !_autoScroll) {
-      _autoScroll = true;
-      notifyListeners();
+  void beginPotentialUserScroll() {
+    if (_programmaticScrollActive) return;
+    _potentialUserScroll = true;
+    if (scrollController.hasClients) {
+      _lastUserScrollPixels = scrollController.position.pixels;
     }
+  }
+
+  void cancelPotentialUserScroll() {
+    _potentialUserScroll = false;
+    if (!_userScrollActive) _lastUserScrollPixels = null;
+  }
+
+  KeyEventResult handleViewportKeyEvent(FocusNode _, KeyEvent event) {
+    if (!_viewportScrollKeys.contains(event.logicalKey)) {
+      return KeyEventResult.ignored;
+    }
+    if (event is KeyDownEvent || event is KeyRepeatEvent) {
+      beginPotentialUserScroll();
+    } else if (event is KeyUpEvent) {
+      cancelPotentialUserScroll();
+    }
+    return KeyEventResult.ignored;
+  }
+
+  void _beginUserScroll(
+    ScrollMetrics metrics, {
+    bool preserveBaseline = false,
+  }) {
+    if (!_userScrollActive &&
+        (!preserveBaseline || _lastUserScrollPixels == null)) {
+      _lastUserScrollPixels = metrics.pixels;
+    }
+    _potentialUserScroll = false;
+    _userScrollActive = true;
+  }
+
+  void _endUserScroll() {
+    _potentialUserScroll = false;
+    _userScrollActive = false;
+    _lastUserScrollPixels = null;
+  }
+
+  void _updateUserScrollIntent(ScrollMetrics metrics, {double? scrollDelta}) {
+    final previousPixels = _lastUserScrollPixels;
+    final delta = previousPixels == null
+        ? scrollDelta ?? 0
+        : metrics.pixels - previousPixels;
+    _lastUserScrollPixels = metrics.pixels;
+    if (delta > _scrollMovementTolerance) {
+      _setAutoScroll(false);
+    } else if (delta < -_scrollMovementTolerance && _isNearBottom(metrics)) {
+      _setAutoScroll(true);
+    }
+  }
+
+  bool _isAtBottom(ScrollMetrics metrics) =>
+      metrics.pixels <= metrics.minScrollExtent + _atBottomTolerance;
+
+  bool _isNearBottom(ScrollMetrics metrics) =>
+      metrics.pixels <= metrics.minScrollExtent + _nearBottomTolerance;
+
+  void _setAutoScroll(bool value) {
+    if (_autoScroll == value) return;
+    _autoScroll = value;
+    notifyListeners();
+  }
+
+  void saveSessionOffset(String sessionId) {
+    if (sessionId.isEmpty ||
+        sessionId != _lastScrollSessionId ||
+        !scrollController.hasClients) {
+      return;
+    }
+    _sessionOffsets.remove(sessionId);
+    _sessionOffsets[sessionId] = (
+      offset: scrollController.offset,
+      autoScroll: _autoScroll,
+    );
+    while (_sessionOffsets.length > _retainedSessionOffsetCount) {
+      _sessionOffsets.remove(_sessionOffsets.keys.first);
+    }
+  }
+
+  void restoreSessionOffset(String sessionId) {
+    final saved = _sessionOffsets[sessionId];
+    if (sessionId != _lastScrollSessionId ||
+        saved == null ||
+        !scrollController.hasClients) {
+      return;
+    }
+    final target = saved.offset
+        .clamp(
+          scrollController.position.minScrollExtent,
+          scrollController.position.maxScrollExtent,
+        )
+        .toDouble();
+    _setAutoScroll(saved.autoScroll);
+    jumpToPreservingFollow(target);
+  }
+
+  void pauseFollowingLatest() {
+    _endUserScroll();
+    _setAutoScroll(false);
+  }
+
+  void jumpToPreservingFollow(double offset) {
+    if (!scrollController.hasClients) return;
+    _endUserScroll();
+    final target = offset
+        .clamp(
+          scrollController.position.minScrollExtent,
+          scrollController.position.maxScrollExtent,
+        )
+        .toDouble();
+    _programmaticScrollActive = true;
+    try {
+      scrollController.jumpTo(target);
+    } finally {
+      _programmaticScrollActive = false;
+    }
+  }
+
+  void followLatest() {
+    _setAutoScroll(true);
+    if (scrollController.hasClients) {
+      final position = scrollController.position;
+      if (position.hasPixels && position.hasContentDimensions) {
+        jumpToPreservingFollow(position.minScrollExtent);
+      }
+    }
+    scrollToBottom();
+  }
+
+  void scrollToBottom({bool force = false}) {
+    if (force) _setAutoScroll(true);
     if (!_autoScroll || _scrollToBottomScheduled) return;
     _scrollToBottomScheduled = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -359,8 +523,12 @@ class AgentChatPanelController extends ChangeNotifier {
       final position = scrollController.position;
       if (!position.hasPixels || !position.hasContentDimensions) return;
       final target = position.minScrollExtent;
-      if (target.isFinite && (target - position.pixels).abs() >= 0.5) {
+      if (!target.isFinite || (target - position.pixels).abs() < 0.5) return;
+      _programmaticScrollActive = true;
+      try {
         scrollController.jumpTo(target);
+      } finally {
+        _programmaticScrollActive = false;
       }
     });
   }
