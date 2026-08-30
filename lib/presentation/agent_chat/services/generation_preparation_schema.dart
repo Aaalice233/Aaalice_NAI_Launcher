@@ -41,21 +41,24 @@ Map<String, dynamic> generationPreparationProperties({
   'character_layout_mode': {
     'type': 'string',
     'enum': ['ai_choice', 'custom'],
+    'default': 'ai_choice',
     'description':
-        'Layout for an explicitly provided characters snapshot. ai_choice '
-        'lets NovelAI place every character and forbids coordinates. custom '
-        'uses continuous centers where x is left-to-right and y is '
-        'top-to-bottom, both 0..1. Omit to infer custom when any character '
-        'has a position, otherwise ai_choice.',
+        'Layout for an explicitly provided characters snapshot. Omit or use '
+        'ai_choice by default so NovelAI places every character; coordinates '
+        'are forbidden in that mode. Use custom only when the user explicitly '
+        'requests manual placement, and then provide every character position. '
+        'Coordinates use x left-to-right and y top-to-bottom, both 0..1.',
   },
   'characters': {
     'type': 'array',
     'description':
         'Complete ordered character snapshot for this call. Omit to inherit '
-        'the current character editor state. In custom mode, a complete x/y '
-        'pair or legacy A1-E5 position is accepted; characters with neither '
-        'receive stable non-overlapping defaults. Single-axis coordinates are '
-        'rejected. Legacy grid values map to continuous cell centers.',
+        'the current character editor state. Characters without positions use '
+        'NovelAI AI placement. Only when the user explicitly requests manual '
+        'placement may you provide a complete x/y pair or legacy A1-E5 '
+        'position for every character; never estimate coordinates proactively. '
+        'Single-axis or incomplete custom layouts are rejected. Legacy grid '
+        'values map to continuous cell centers.',
     'items': {
       'type': 'object',
       'additionalProperties': false,

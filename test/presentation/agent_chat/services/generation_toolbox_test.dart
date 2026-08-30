@@ -530,6 +530,75 @@ void main() {
   );
 
   test(
+    'positionless multi-character preparation stays AI through submission',
+    () async {
+      final fake = _FakeImageGenerationNotifier();
+      final container = ProviderContainer(
+        overrides: [
+          imageGenerationNotifierProvider.overrideWith(() => fake),
+          generationParamsNotifierProvider.overrideWith(
+            _TestV5GenerationParamsNotifier.new,
+          ),
+          characterPromptNotifierProvider.overrideWith(
+            _TestCharacterPromptNotifier.new,
+          ),
+          subscriptionNotifierProvider.overrideWith(
+            _TestSubscriptionNotifier.new,
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      final tools = GenerationToolbox(_makeRef(container)).tools();
+      final prepare = tools.firstWhere(
+        (tool) => tool.name == 'prepare_generation',
+      );
+      final submit = tools.firstWhere(
+        (tool) => tool.name == 'submit_generation',
+      );
+      final layoutSchema =
+          (prepare.parameters['properties']
+                  as Map<String, dynamic>)['character_layout_mode']
+              as Map<String, dynamic>;
+      expect(layoutSchema['default'], 'ai_choice');
+
+      final prepared = _json(
+        await prepare.execute('prepare-ai-characters', const {
+          'operation': 'generate',
+          'prompt': 'two friends',
+          'characters': [
+            {'prompt': 'hero, black hair'},
+            {'prompt': 'companion, blonde hair'},
+          ],
+        }),
+      );
+      expect(prepared['parameters']['character_layout_mode'], 'ai_choice');
+      expect(
+        prepared['parameters']['characters'][0],
+        isNot(contains('center')),
+      );
+      expect(
+        prepared['parameters']['characters'][1],
+        isNot(contains('center')),
+      );
+
+      final submitted = await submit.execute('submit-ai-characters', {
+        'preparation_id': prepared['preparation_id'],
+        'confirmed': true,
+      });
+      expect(submitted.isError, isFalse);
+      expect(fake.params?.useCoords, isFalse);
+      expect(fake.params?.characters, hasLength(2));
+
+      final request = await NAIImageRequestBuilder(
+        params: fake.params!,
+        encodeVibe: _fakeEncodeVibe,
+      ).build(sampler: Samplers.kEulerAncestral);
+      expect(request.requestParameters['use_coords'], isFalse);
+      expect(request.requestParameters['v4_prompt']['use_coords'], isFalse);
+    },
+  );
+
+  test(
     'Agent custom characters reach the final request as one immutable scene',
     () async {
       final fake = _FakeImageGenerationNotifier();

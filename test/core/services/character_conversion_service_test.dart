@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/services/character_conversion_service.dart';
 import 'package:nai_launcher/data/models/character/character_prompt.dart'
@@ -30,6 +32,54 @@ void main() {
 
       expect(character.prompt, 'girl, blue eyes');
       expect(character.negativePrompt, 'red hair, glasses');
+    });
+
+    test('uses AI placement by default and custom only in manual layout', () {
+      final automatic = const ui_character.CharacterPromptConfig()
+          .addCharacter(prompt: 'girl')
+          .characters
+          .single;
+      final manual = const ui_character.CharacterPromptConfig(
+        globalAiChoice: false,
+      ).addCharacter(prompt: 'girl').characters.single;
+
+      expect(
+        automatic.positionMode,
+        ui_character.CharacterPositionMode.aiChoice,
+      );
+      expect(automatic.customPosition, isNull);
+      expect(manual.positionMode, ui_character.CharacterPositionMode.custom);
+      expect(manual.customPosition, isNotNull);
+    });
+
+    test('serializes AI/custom enums and defaults missing mode to AI', () {
+      const automatic = ui_character.CharacterPrompt(
+        id: 'automatic',
+        name: 'Automatic',
+      );
+      const manual = ui_character.CharacterPrompt(
+        id: 'manual',
+        name: 'Manual',
+        positionMode: ui_character.CharacterPositionMode.custom,
+        customPosition: ui_character.CharacterPosition(
+          mode: ui_character.CharacterPositionMode.custom,
+          row: 0.25,
+          column: 0.75,
+        ),
+      );
+
+      final automaticJson =
+          jsonDecode(jsonEncode(automatic)) as Map<String, dynamic>;
+      final manualJson = jsonDecode(jsonEncode(manual)) as Map<String, dynamic>;
+      expect(automaticJson['positionMode'], 'aiChoice');
+      expect(manualJson['positionMode'], 'custom');
+      final withoutMode = Map<String, dynamic>.from(automaticJson)
+        ..remove('positionMode');
+      expect(
+        ui_character.CharacterPrompt.fromJson(withoutMode).positionMode,
+        ui_character.CharacterPositionMode.aiChoice,
+      );
+      expect(ui_character.CharacterPrompt.fromJson(manualJson), manual);
     });
   });
 

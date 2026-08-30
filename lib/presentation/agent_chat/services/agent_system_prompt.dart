@@ -138,9 +138,12 @@ String buildAgentSystemPrompt({
         'weights tags near the start more heavily.',
     '- Character prompts exist only on V4+: put per-character appearance '
         'and actions in the character list via add_character, never into '
-        'the main prompt. V4.5 supports up to 6 characters with '
-        'interaction tags source# / target# / mutual#; V5 allows many '
-        'more (20+) with free canvas positioning.',
+        'the main prompt. Keep NovelAI AI character placement by default and '
+        'never estimate coordinates yourself. Switch to custom positioning '
+        'only when the user explicitly asks for manual placement or concrete '
+        'coordinates; preserve existing explicit positions when editing other '
+        'fields. V4.5 supports up to 6 characters with interaction tags '
+        'source# / target# / mutual#; V5 allows many more (20+).',
     '- V4/V4.5 share a ~512 T5 token budget across base + character '
         'prompts; V5 allows noticeably longer prompts. Avoid emoji / '
         'non-ASCII in V4 prompts.',

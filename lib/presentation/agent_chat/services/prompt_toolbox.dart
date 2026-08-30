@@ -144,11 +144,13 @@ class PromptToolbox {
         label: 'Update Character',
         description:
             'Update one character matched by stable id or case-insensitive '
-            'name. Only provided fields change. position_mode ai_choice '
-            'keeps any saved custom point but lets AI choose while the global '
-            'layout is AI. position_mode custom may reuse the saved point or '
-            'accept both position_x and position_y. x is left-to-right and y '
-            'is top-to-bottom; both must be finite values from 0 to 1.',
+            'name. Only provided fields change, so omitting position fields '
+            'preserves an existing explicit manual position. Keep ai_choice '
+            'unless the user explicitly requests manual placement or concrete '
+            'coordinates. ai_choice preserves any saved custom point for later '
+            'restoration. custom accepts both position_x and position_y, or '
+            'reuses an existing saved point; it never invents a new point. x '
+            'is left-to-right and y is top-to-bottom, finite 0..1 values.',
         parameters: const {
           'type': 'object',
           'properties': {
@@ -168,6 +170,9 @@ class PromptToolbox {
             'position_mode': {
               'type': 'string',
               'enum': ['ai_choice', 'custom'],
+              'description':
+                  'Omit to preserve the current mode. Use custom only when '
+                  'the user explicitly requests manual placement.',
             },
             'position_x': {
               'type': 'number',
@@ -190,9 +195,11 @@ class PromptToolbox {
         name: 'add_character',
         label: 'Add Character',
         description:
-            'Add one ordered character using the current model limit. Optional '
-            'custom coordinates require both axes (x left-to-right, y '
-            'top-to-bottom, finite 0..1). ai_choice conflicts with coordinates.',
+            'Add one ordered character using the current model limit. NovelAI '
+            'AI placement is the default; do not estimate coordinates. Use '
+            'custom only when the user explicitly requests manual placement, '
+            'with both axes (x left-to-right, y top-to-bottom, finite 0..1). '
+            'ai_choice conflicts with coordinates.',
         parameters: const {
           'type': 'object',
           'properties': {
@@ -208,6 +215,10 @@ class PromptToolbox {
             'position_mode': {
               'type': 'string',
               'enum': ['ai_choice', 'custom'],
+              'default': 'ai_choice',
+              'description':
+                  'Default ai_choice. Use custom only for an explicit user '
+                  'request and provide both coordinates.',
             },
             'position_x': {'type': 'number', 'minimum': 0, 'maximum': 1},
             'position_y': {'type': 'number', 'minimum': 0, 'maximum': 1},
@@ -221,8 +232,9 @@ class PromptToolbox {
         label: 'Set Character Layout Mode',
         description:
             'Switch the whole scene between NovelAI AI placement and custom '
-            'continuous coordinates. Switching to custom assigns stable, '
-            'non-overlapping defaults only where needed. Switching to AI '
+            'continuous coordinates. Keep AI placement by default. Call custom '
+            'only when the user explicitly requests manual placement; it '
+            'assigns stable defaults only where needed. Switching to AI '
             'preserves every saved custom point for later restoration.',
         parameters: const {
           'type': 'object',
@@ -468,6 +480,24 @@ class PromptToolbox {
         'Character not found. Call get_prompt_state for stable IDs.',
       );
     }
+    if (positionChange.mode == CharacterPositionMode.custom &&
+        positionChange.x == null &&
+        target.customPosition == null) {
+      return agentToolError(
+        'missing_character_coordinates',
+        'position_mode custom requires both coordinates when the character '
+            'has no saved manual position.',
+      );
+    }
+
+    final requestedPositionMode = positionChange.mode;
+    if (requestedPositionMode != null) {
+      _ref
+          .read(characterPromptNotifierProvider.notifier)
+          .setGlobalAiChoice(
+            requestedPositionMode == CharacterPositionMode.aiChoice,
+          );
+    }
 
     var updated = target;
     final newName = (args['new_name'] as String?)?.trim();
@@ -556,6 +586,13 @@ class PromptToolbox {
       );
     }
     final positionMode = positionChange.mode ?? CharacterPositionMode.aiChoice;
+    if (positionMode == CharacterPositionMode.custom &&
+        positionChange.x == null) {
+      return agentToolError(
+        'missing_character_coordinates',
+        'A new custom character requires both position_x and position_y.',
+      );
+    }
     final customPosition = positionChange.x == null
         ? null
         : CharacterPosition(
@@ -563,6 +600,11 @@ class PromptToolbox {
             row: positionChange.y!,
             column: positionChange.x!,
           );
+    if (positionChange.mode != null) {
+      notifier.setGlobalAiChoice(
+        positionChange.mode == CharacterPositionMode.aiChoice,
+      );
+    }
     final result = await notifier.addCharacterPersisted(
       _parseGender(args['gender']) ?? CharacterGender.female,
       name: name,
@@ -704,14 +746,13 @@ class PromptToolbox {
     if (change.mode == CharacterPositionMode.aiChoice) {
       return character.copyWith(positionMode: CharacterPositionMode.aiChoice);
     }
-    final config = _ref.read(characterPromptNotifierProvider);
     final position = change.x != null
         ? CharacterPosition(
             mode: CharacterPositionMode.custom,
             row: change.y!,
             column: change.x!,
           )
-        : character.customPosition ?? config.resolvePosition(character);
+        : character.customPosition!;
     return character.copyWith(
       positionMode: CharacterPositionMode.custom,
       customPosition: position,

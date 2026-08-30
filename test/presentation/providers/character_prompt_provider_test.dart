@@ -89,6 +89,33 @@ void main() {
       expect(container.read(characterLimitReachedProvider), isTrue);
     });
 
+    test('new characters follow the active AI or manual layout mode', () {
+      final notifier = container.read(characterPromptNotifierProvider.notifier);
+      notifier.clearAllCharacters();
+
+      notifier.addCharacter(CharacterGender.female, name: 'Automatic');
+      var config = container.read(characterPromptNotifierProvider);
+      expect(config.globalAiChoice, isTrue);
+      expect(
+        config.characters.single.positionMode,
+        CharacterPositionMode.aiChoice,
+      );
+      expect(config.characters.single.customPosition, isNull);
+
+      notifier.setGlobalAiChoice(false);
+      notifier.addCharacter(CharacterGender.male, name: 'Manual');
+      config = container.read(characterPromptNotifierProvider);
+      expect(config.globalAiChoice, isFalse);
+      expect(
+        config.characters.every(
+          (character) =>
+              character.positionMode == CharacterPositionMode.custom &&
+              character.customPosition != null,
+        ),
+        isTrue,
+      );
+    });
+
     test('reports the limit as reachable again after removals', () {
       final notifier = container.read(characterPromptNotifierProvider.notifier);
       container
