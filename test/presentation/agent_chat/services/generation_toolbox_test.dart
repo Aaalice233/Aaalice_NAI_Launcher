@@ -14,6 +14,7 @@ import 'package:nai_launcher/core/services/anlas_calculator.dart';
 import 'package:nai_launcher/core/enums/precise_ref_type.dart';
 import 'package:nai_launcher/data/models/agent/agent_settings.dart';
 import 'package:nai_launcher/data/models/character/character_prompt.dart';
+import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_entry.dart';
 import 'package:nai_launcher/data/models/image/image_params.dart'
     show
         ImageGenerationAction,
@@ -23,12 +24,14 @@ import 'package:nai_launcher/data/models/image/image_params.dart'
 import 'package:nai_launcher/data/models/queue/replication_task.dart';
 import 'package:nai_launcher/data/models/queue/replication_task_generation_snapshot.dart';
 import 'package:nai_launcher/data/models/user/user_subscription.dart';
+import 'package:nai_launcher/presentation/agent_chat/services/execution_toolbox.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/generation_toolbox.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/generation_preparation_runtime.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/agent_resource_resolver.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/queue_toolbox.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/models/prompt_assistant_models.dart';
 import 'package:nai_launcher/presentation/providers/character_prompt_provider.dart';
+import 'package:nai_launcher/presentation/providers/fixed_tags_provider.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/providers/replication_queue_provider.dart';
 import 'package:nai_launcher/presentation/providers/subscription_provider.dart';
@@ -355,7 +358,7 @@ void main() {
       );
       final toolbox = GenerationToolbox(
         _makeRef(container),
-        resourceResolver: _TestResourceResolver(_makeRef(container), reference),
+        resourceResolver: _TestResourceResolver(_makeRef(container)),
       );
       final tool = toolbox.tools().firstWhere(
         (candidate) => candidate.name == 'queue_image_task',
@@ -409,6 +412,16 @@ void main() {
         source: 'fixed_tags',
         resourceId: 'positive',
       );
+      final positiveAlias = AgentChatResourceReference(
+        kind: AgentChatResourceKind.fixedTag,
+        source: 'legacy_fixed_tags',
+        resourceId: 'positive-alias',
+      );
+      final positiveCopy = AgentChatResourceReference(
+        kind: AgentChatResourceKind.tagLibraryEntry,
+        source: 'tag_library',
+        resourceId: 'positive-copy',
+      );
       final negative = AgentChatResourceReference(
         kind: AgentChatResourceKind.tagLibraryEntry,
         source: 'tag_library',
@@ -418,19 +431,23 @@ void main() {
         _makeRef(container),
         resourceResolver: _TestResourceResolver(
           _makeRef(container),
-          positive,
           textByResourceId: const {
-            'positive': 'blue eyes',
+            'positive': '{{{masterpiece, best_quality, year_2024}}}',
+            'positive-alias': '{{{masterpiece, best_quality, year_2024}}}',
+            'positive-copy': '{{{masterpiece, best_quality, year_2024}}}',
             'negative': 'bad anatomy',
           },
+          canonicalByResourceId: {'positive-alias': positive},
         ),
       ).tools().firstWhere((candidate) => candidate.name == 'queue_image_task');
 
       final prepared = await tool.execute('prepare-prompt-refs', {
-        'prompt': '1girl',
+        'prompt': '1girl, {{{masterpiece, best_quality, year_2024}}}',
         'negative_prompt': 'lowres',
         'prompt_refs': [
           AgentChatResourceReferenceCodec.encodeJsonMap(positive),
+          AgentChatResourceReferenceCodec.encodeJsonMap(positiveAlias),
+          AgentChatResourceReferenceCodec.encodeJsonMap(positiveCopy),
         ],
         'negative_prompt_refs': [
           AgentChatResourceReferenceCodec.encodeJsonMap(negative),
@@ -447,13 +464,138 @@ void main() {
           .read(replicationQueueNotifierProvider)
           .tasks
           .single;
-      expect(task.prompt, '1girl, blue eyes');
+      expect(
+        task.prompt,
+        '1girl, {{{masterpiece, best_quality, year_2024}}}, '
+        '{{{masterpiece, best_quality, year_2024}}}, '
+        '{{{masterpiece, best_quality, year_2024}}}',
+      );
       expect(task.negativePrompt, 'lowres, bad anatomy');
       final restored = ReplicationTaskGenerationSnapshot.decode(
         task.generationSnapshot!,
       );
       expect(restored.prompt, task.prompt);
       expect(restored.negativePrompt, task.negativePrompt);
+    },
+  );
+
+  test(
+    'enabled fixed-tag references are left to fixed-tag application',
+    () async {
+      final fixedEntry = FixedTagEntry.create(
+        name: 'quality',
+        content: 'masterpiece',
+      );
+      final container = ProviderContainer(
+        overrides: [
+          fixedTagsNotifierProvider.overrideWith(
+            () => _TestFixedTagsNotifier(fixedEntry),
+          ),
+          characterPromptNotifierProvider.overrideWith(
+            _TestCharacterPromptNotifier.new,
+          ),
+          subscriptionNotifierProvider.overrideWith(
+            _TestSubscriptionNotifier.new,
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      final reference = AgentChatResourceReference(
+        kind: AgentChatResourceKind.fixedTag,
+        source: 'fixed_tags',
+        resourceId: fixedEntry.id,
+      );
+      final tool =
+          GenerationToolbox(
+            _makeRef(container),
+            resourceResolver: _TestResourceResolver(
+              _makeRef(container),
+              textByResourceId: {fixedEntry.id: fixedEntry.weightedContent},
+            ),
+          ).tools().firstWhere(
+            (candidate) => candidate.name == 'prepare_generation',
+          );
+
+      final prepared = _json(
+        await tool.execute('prepare-fixed-ref', {
+          'operation': 'generate',
+          'prompt': '1girl',
+          'prompt_refs': [
+            AgentChatResourceReferenceCodec.encodeJsonMap(reference),
+          ],
+        }),
+      );
+
+      expect(prepared['parameters']['prompt'], '1girl');
+    },
+  );
+
+  test(
+    'positionless multi-character preparation stays AI through submission',
+    () async {
+      final fake = _FakeImageGenerationNotifier();
+      final container = ProviderContainer(
+        overrides: [
+          imageGenerationNotifierProvider.overrideWith(() => fake),
+          generationParamsNotifierProvider.overrideWith(
+            _TestV5GenerationParamsNotifier.new,
+          ),
+          characterPromptNotifierProvider.overrideWith(
+            _TestCharacterPromptNotifier.new,
+          ),
+          subscriptionNotifierProvider.overrideWith(
+            _TestSubscriptionNotifier.new,
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      final tools = GenerationToolbox(_makeRef(container)).tools();
+      final prepare = tools.firstWhere(
+        (tool) => tool.name == 'prepare_generation',
+      );
+      final submit = tools.firstWhere(
+        (tool) => tool.name == 'submit_generation',
+      );
+      final layoutSchema =
+          (prepare.parameters['properties']
+                  as Map<String, dynamic>)['character_layout_mode']
+              as Map<String, dynamic>;
+      expect(layoutSchema['default'], 'ai_choice');
+
+      final prepared = _json(
+        await prepare.execute('prepare-ai-characters', const {
+          'operation': 'generate',
+          'prompt': 'two friends',
+          'characters': [
+            {'prompt': 'hero, black hair'},
+            {'prompt': 'companion, blonde hair'},
+          ],
+        }),
+      );
+      expect(prepared['parameters']['character_layout_mode'], 'ai_choice');
+      expect(
+        prepared['parameters']['characters'][0],
+        isNot(contains('center')),
+      );
+      expect(
+        prepared['parameters']['characters'][1],
+        isNot(contains('center')),
+      );
+
+      final submitted = await submit.execute('submit-ai-characters', {
+        'preparation_id': prepared['preparation_id'],
+        'confirmed': true,
+      });
+      expect(submitted.isError, isFalse);
+      expect(fake.params?.useCoords, isFalse);
+      expect(fake.params?.characters, hasLength(2));
+
+      final request = await NAIImageRequestBuilder(
+        params: fake.params!,
+        encodeVibe: _fakeEncodeVibe,
+      ).build(sampler: Samplers.kEulerAncestral);
+      expect(request.requestParameters['use_coords'], isFalse);
+      expect(request.requestParameters['v4_prompt']['use_coords'], isFalse);
     },
   );
 
@@ -552,9 +694,21 @@ void main() {
   );
 
   test(
-    'prepare lifecycle estimates before fake generation provider is called',
+    'prepare lifecycle returns a path that read accepts without translation',
     () async {
-      final fake = _FakeImageGenerationNotifier();
+      final workspace = await Directory.systemTemp.createTemp(
+        'generation-submit-contract-',
+      );
+      addTearDown(() => workspace.delete(recursive: true));
+      final savedFile = File(
+        '${workspace.path}${Platform.pathSeparator}dated'
+        '${Platform.pathSeparator}actual-name.png',
+      );
+      await savedFile.create(recursive: true);
+      await savedFile.writeAsBytes(
+        image_lib.encodePng(image_lib.Image(width: 1, height: 1)),
+      );
+      final fake = _FakeImageGenerationNotifier(savedFile.path);
       final container = ProviderContainer(
         overrides: [
           imageGenerationNotifierProvider.overrideWith(() => fake),
@@ -571,7 +725,10 @@ void main() {
         ],
       );
       addTearDown(container.dispose);
-      final tools = GenerationToolbox(_makeRef(container)).tools();
+      final tools = GenerationToolbox(
+        _makeRef(container),
+        workspaceDir: workspace.path,
+      ).tools();
       final prepare = tools.firstWhere(
         (tool) => tool.name == 'prepare_generation',
       );
@@ -628,7 +785,26 @@ void main() {
           .source;
       expect(imageSource.mimeType, 'image/png');
       expect(imageSource.base64Data, isNotEmpty);
-      expect(submitted.details['files'], ['saved.png']);
+      expect(submitted.details['files'], [savedFile.path]);
+      final submittedJson = _json(submitted);
+      expect(submittedJson['images'], hasLength(1));
+      final generated = (submittedJson['images'] as List).single as Map;
+      expect(
+        generated['path'],
+        'dated${Platform.pathSeparator}actual-name.png',
+      );
+      expect(generated['resource_ref']['resourceId'], 'generated-1');
+      expect(generated['path'], isNot(contains('generated-1')));
+
+      final read = ExecutionToolbox(workspace.path).tools().single;
+      final readResult = await read.execute('read-generated', {
+        'path': generated['path'],
+      });
+      expect(readResult.isError, isFalse);
+      expect(
+        readResult.content.whereType<ToolResultImageContent>(),
+        hasLength(1),
+      );
 
       final replayed = await submit.execute('submit-replayed', {
         'preparation_id': payload['preparation_id'],
@@ -660,7 +836,6 @@ void main() {
       _makeRef(container),
       resourceResolver: _TestResourceResolver(
         _makeRef(container),
-        reference,
         textByResourceId: const {'blue-hair': 'blue hair'},
       ),
     ).tools();
@@ -753,16 +928,19 @@ void main() {
       'generation-history-',
     );
     addTearDown(() => workspace.delete(recursive: true));
+    final imageBytes = Uint8List.fromList(
+      image_lib.encodePng(image_lib.Image(width: 1, height: 1)),
+    );
     final history = [
       for (var index = 0; index < 25; index++)
         GeneratedImage(
           id: 'image-$index',
-          bytes: Uint8List(0),
+          bytes: imageBytes,
           width: 832,
           height: 1216,
           filePath: (await File(
             '${workspace.path}/image-$index.png',
-          ).writeAsBytes(const [])).path,
+          ).writeAsBytes(imageBytes)).path,
         ),
       GeneratedImage(
         id: 'unsaved',
@@ -812,6 +990,15 @@ void main() {
     expect(
       jsonEncode(requestedResult.details),
       isNot(contains(workspace.path)),
+    );
+
+    final readResult = await ExecutionToolbox(
+      workspace.path,
+    ).tools().single.execute('read-recent', {'path': images.first['path']});
+    expect(readResult.isError, isFalse);
+    expect(
+      readResult.content.whereType<ToolResultImageContent>(),
+      hasLength(1),
     );
   });
 
@@ -990,6 +1177,9 @@ class _TestImageGenerationNotifier extends ImageGenerationNotifier {
 }
 
 class _FakeImageGenerationNotifier extends ImageGenerationNotifier {
+  _FakeImageGenerationNotifier([this.savedPath = 'saved.png']);
+
+  final String savedPath;
   int generateCalls = 0;
   int? batchSize;
   ImageParams? params;
@@ -1018,11 +1208,20 @@ class _FakeImageGenerationNotifier extends ImageGenerationNotifier {
           ),
           width: 1,
           height: 1,
-          filePath: 'saved.png',
+          filePath: savedPath,
         ),
       ],
     );
   }
+}
+
+class _TestFixedTagsNotifier extends FixedTagsNotifier {
+  _TestFixedTagsNotifier(this.entry);
+
+  final FixedTagEntry entry;
+
+  @override
+  FixedTagsState build() => FixedTagsState(entries: [entry]);
 }
 
 class _TestSubscriptionNotifier extends SubscriptionNotifier {
@@ -1033,19 +1232,19 @@ class _TestSubscriptionNotifier extends SubscriptionNotifier {
 
 class _TestResourceResolver extends AgentResourceResolver {
   _TestResourceResolver(
-    super.ref,
-    this.reference, {
+    super.ref, {
     this.textByResourceId = const {},
+    this.canonicalByResourceId = const {},
   });
 
-  final AgentChatResourceReference reference;
   final Map<String, String> textByResourceId;
+  final Map<String, AgentChatResourceReference> canonicalByResourceId;
 
   @override
   Future<ResolvedAgentResource?> resolve(
     AgentChatResourceReference requested,
   ) async => ResolvedAgentResource(
-    reference: reference,
+    reference: canonicalByResourceId[requested.resourceId] ?? requested,
     label: 'source',
     bytes: Uint8List.fromList([1, 2, 3, 4]),
     text: textByResourceId[requested.resourceId],

@@ -13,6 +13,7 @@ import 'agent_chat_messages.dart';
 import 'agent_chat_panel_controller.dart';
 import 'agent_chat_panel_coordinator.dart';
 import 'agent_chat_panel_view_data.dart';
+import 'agent_chat_reading_preferences.dart';
 import 'agent_resource_drop_region.dart';
 import 'agent_chat_status.dart';
 
@@ -137,10 +138,13 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
                   controller: _controller,
                 ),
         );
-        return SafeArea(
-          top: widget.mobile,
-          bottom: widget.mobile,
-          child: panel,
+        return AgentChatReadingPreferences(
+          config: agentSettings.settings.chat,
+          child: SafeArea(
+            top: widget.mobile,
+            bottom: widget.mobile,
+            child: panel,
+          ),
         );
       },
     );

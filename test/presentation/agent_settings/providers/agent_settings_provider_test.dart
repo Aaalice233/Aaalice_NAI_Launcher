@@ -231,6 +231,39 @@ void main() {
     expect(persisted.chat.customSystemPrompt, 'Replacement prompt');
   });
 
+  test('persists Agent reading preferences', () async {
+    final storage = _MemoryStorage();
+    storage.values[StorageKeys.agentSettingsJson] = const AgentSettings()
+        .encode();
+    final container = ProviderContainer(
+      overrides: [
+        localStorageServiceProvider.overrideWithValue(storage),
+        secureStorageServiceProvider.overrideWithValue(_MemorySecureStorage()),
+        agentSettingsProvider.overrideWith(
+          (ref) => AgentSettingsNotifier(
+            ref,
+            supportDirectory: temp,
+            workspaceDirectory: temp,
+            environment: const {},
+          ),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    await _waitUntilInitialized(container);
+
+    final notifier = container.read(agentSettingsProvider.notifier);
+    await notifier.setReadingTextScale(1.3);
+    await notifier.setChatDensity(AgentChatDensity.compact);
+
+    final persisted = AgentSettings.decode(
+      storage.values[StorageKeys.agentSettingsJson]! as String,
+    );
+    expect(persisted.chat.readingTextScale, 1.3);
+    expect(persisted.chat.density, AgentChatDensity.compact);
+    await expectLater(notifier.setReadingTextScale(1.1), throwsFormatException);
+  });
+
   test(
     'builds the editable built-in prompt from current workspace and Skills',
     () async {

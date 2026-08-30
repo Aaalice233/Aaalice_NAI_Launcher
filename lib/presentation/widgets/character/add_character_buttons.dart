@@ -19,9 +19,10 @@ class AddCharacterButtons extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
+    final hasScaledText = MediaQuery.textScalerOf(context).scale(14) > 14;
 
     return Wrap(
-      spacing: 4,
+      spacing: compact && hasScaledText ? 2 : 4,
       runSpacing: 4,
       children: [
         _GenderButton(

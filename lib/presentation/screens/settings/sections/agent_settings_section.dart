@@ -96,6 +96,7 @@ class _AgentSettingsSectionState extends ConsumerState<AgentSettingsSection> {
       actions: const AgentProfileActions(),
       children: [
         _ModelCard(settings: state.settings, promptConfig: promptConfig),
+        _ReadingPreferencesCard(settings: state.settings),
         _PermissionCard(settings: state.settings),
         _WebAccessCard(settings: state.settings),
         if (_selectedPanel == 0)
@@ -190,6 +191,90 @@ class _ModelCard extends ConsumerWidget {
           .map((provider) => provider.name)
           .firstOrNull ??
       id;
+}
+
+class _ReadingPreferencesCard extends ConsumerWidget {
+  const _ReadingPreferencesCard({required this.settings});
+
+  final AgentSettings settings;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final chat = settings.chat;
+    return SettingsCard(
+      title: context.l10n.agentSettings_readingAppearance,
+      icon: Icons.chrome_reader_mode_outlined,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            context.l10n.agentSettings_readingTextSize,
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            context.l10n.agentSettings_readingTextSizeDescription,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 12),
+          SegmentedButton<double>(
+            key: const ValueKey('agent-reading-text-scale'),
+            segments: [
+              for (final scale in AgentChatConfig.supportedReadingTextScales)
+                ButtonSegment(
+                  value: scale,
+                  label: Text('${(scale * 100).round()}%'),
+                ),
+            ],
+            selected: {chat.readingTextScale},
+            showSelectedIcon: false,
+            onSelectionChanged: (selection) => _reportAgentSettingFailure(
+              context,
+              ref
+                  .read(agentSettingsProvider.notifier)
+                  .setReadingTextScale(selection.single),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            context.l10n.agentSettings_density,
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            context.l10n.agentSettings_densityDescription,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 12),
+          SegmentedButton<AgentChatDensity>(
+            key: const ValueKey('agent-chat-density'),
+            segments: [
+              ButtonSegment(
+                value: AgentChatDensity.comfortable,
+                label: Text(context.l10n.agentSettings_densityComfortable),
+              ),
+              ButtonSegment(
+                value: AgentChatDensity.compact,
+                label: Text(context.l10n.agentSettings_densityCompact),
+              ),
+            ],
+            selected: {chat.density},
+            showSelectedIcon: false,
+            onSelectionChanged: (selection) => _reportAgentSettingFailure(
+              context,
+              ref
+                  .read(agentSettingsProvider.notifier)
+                  .setChatDensity(selection.single),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _PermissionCard extends ConsumerWidget {

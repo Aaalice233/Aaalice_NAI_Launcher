@@ -7,11 +7,12 @@ import 'package:nai_launcher/core/cache/online_gallery_prefetch_coordinator.dart
 GalleryImageRequest _request(
   int id, {
   GalleryImageTier tier = GalleryImageTier.thumbnail,
+  int targetDecodeWidth = 320,
 }) => GalleryImageRequest(
   sourceId: 'danbooru',
   url: 'https://example.com/$id.jpg',
   tier: tier,
-  targetDecodeWidth: 320,
+  targetDecodeWidth: targetDecodeWidth,
 );
 
 GalleryImagePreloadOperation _operation(Future<void> future) =>
@@ -155,6 +156,141 @@ void main() {
     },
   );
 
+  test('deduplicates in-flight transport across decode widths', () async {
+    final gate = Completer<void>();
+    var starts = 0;
+    final coordinator = OnlineGalleryPrefetchCoordinator(
+      preloader: (_) {
+        starts++;
+        return _operation(gate.future);
+      },
+    );
+    addTearDown(coordinator.dispose);
+
+    final narrow = coordinator.submit(
+      _request(1, targetDecodeWidth: 320),
+      priority: GalleryImagePriority.visible,
+    );
+    final wide = coordinator.submit(
+      _request(1, targetDecodeWidth: 640),
+      priority: GalleryImagePriority.visible,
+    );
+    expect(starts, 1);
+    expect(coordinator.debugDeduplicatedCount, 1);
+
+    gate.complete();
+    expect(await narrow, isTrue);
+    expect(await wide, isTrue);
+  });
+
+  test('cancels a deduplicated request from another decode width', () async {
+    final blocker = Completer<void>();
+    final coordinator = OnlineGalleryPrefetchCoordinator(
+      maxConcurrent: 1,
+      preloader: (request) => request.url.endsWith('/99.jpg')
+          ? _operation(blocker.future)
+          : _operation(Future<void>.value()),
+    );
+    addTearDown(coordinator.dispose);
+
+    final running = coordinator.submit(
+      _request(99),
+      priority: GalleryImagePriority.visible,
+    );
+    final queued = coordinator.submit(
+      _request(1, targetDecodeWidth: 320),
+      priority: GalleryImagePriority.hover,
+    );
+    coordinator.cancel(
+      _request(1, targetDecodeWidth: 640),
+      priority: GalleryImagePriority.hover,
+    );
+
+    expect(await queued, isFalse);
+    expect(coordinator.queueDepth, 0);
+    blocker.complete();
+    expect(await running, isTrue);
+  });
+
+  test('retains a pending transport across decode width changes', () async {
+    final blocker = Completer<void>();
+    final coordinator = OnlineGalleryPrefetchCoordinator(
+      maxConcurrent: 1,
+      preloader: (request) => request.url.endsWith('/99.jpg')
+          ? _operation(blocker.future)
+          : _operation(Future<void>.value()),
+    );
+    addTearDown(coordinator.dispose);
+
+    final running = coordinator.submit(
+      _request(99),
+      priority: GalleryImagePriority.visible,
+    );
+    final queued = coordinator.submit(
+      _request(1, targetDecodeWidth: 320),
+      priority: GalleryImagePriority.lookahead,
+    );
+    coordinator.retainThumbnailWindow({
+      coordinator.retentionKeyFor(_request(1, targetDecodeWidth: 640)),
+    });
+
+    expect(coordinator.queueDepth, 1);
+    blocker.complete();
+    expect(await running, isTrue);
+    expect(await queued, isTrue);
+  });
+
+  test('thumbnail window retention leaves sample work untouched', () async {
+    final blocker = Completer<void>();
+    final coordinator = OnlineGalleryPrefetchCoordinator(
+      maxConcurrent: 1,
+      preloader: (request) => request.url.endsWith('/99.jpg')
+          ? _operation(blocker.future)
+          : _operation(Future<void>.value()),
+    );
+    addTearDown(coordinator.dispose);
+
+    final running = coordinator.submit(
+      _request(99),
+      priority: GalleryImagePriority.visible,
+    );
+    final sample = coordinator.submit(
+      _request(1, tier: GalleryImageTier.sample),
+      priority: GalleryImagePriority.lookahead,
+    );
+    coordinator.retainThumbnailWindow({});
+
+    expect(coordinator.queueDepth, 1);
+    blocker.complete();
+    expect(await running, isTrue);
+    expect(await sample, isTrue);
+  });
+
+  test(
+    'scroll start does not cancel reusable in-flight transport work',
+    () async {
+      final gate = Completer<void>();
+      var cancels = 0;
+      final coordinator = OnlineGalleryPrefetchCoordinator(
+        preloader: (_) => GalleryImagePreloadOperation(
+          future: gate.future,
+          cancel: () => cancels++,
+        ),
+      );
+      addTearDown(coordinator.dispose);
+
+      final running = coordinator.submit(
+        _request(1),
+        priority: GalleryImagePriority.lookahead,
+      );
+      coordinator.setScrolling(true);
+      gate.complete();
+
+      expect(await running, isTrue);
+      expect(cancels, 0);
+    },
+  );
+
   test('invalidated decode completion uses the bounded loader again', () async {
     var starts = 0;
     final request = _request(1);
@@ -219,6 +355,7 @@ void main() {
           _operation(Future<void>.sync(() => started.add(request.url))),
     );
     coordinator.setScrolling(true);
+    expect(coordinator.isScrollingPaused, isTrue);
 
     final low = coordinator.submit(
       _request(1),
@@ -233,6 +370,7 @@ void main() {
     expect(started, ['https://example.com/2.jpg']);
     expect(await hover, isTrue);
     coordinator.setScrolling(false);
+    expect(coordinator.isScrollingPaused, isFalse);
     expect(await low, isFalse);
   });
 
@@ -358,7 +496,9 @@ void main() {
     var notifications = 0;
     coordinator.addListener(() => notifications++);
 
-    coordinator.retainThumbnailWindow({_request(2).stableRequestKey});
+    coordinator.retainThumbnailWindow({
+      coordinator.retentionKeyFor(_request(2)),
+    });
     expect(await stale, isFalse);
     await Future<void>.delayed(Duration.zero);
     expect(notifications, 1);
@@ -413,13 +553,13 @@ void main() {
   });
 
   test(
-    'completed sample LRU retains only the latest sixteen requests',
+    'completed sample LRU retains only the latest sixty-four requests',
     () async {
       final coordinator = OnlineGalleryPrefetchCoordinator(
         preloader: (_) => _operation(Future<void>.value()),
       );
 
-      for (var index = 0; index < 17; index++) {
+      for (var index = 0; index < 65; index++) {
         await coordinator.submit(
           _request(index, tier: GalleryImageTier.sample),
           priority: GalleryImagePriority.hover,
@@ -431,7 +571,7 @@ void main() {
         isFalse,
       );
       expect(
-        coordinator.isSampleReady(_request(16, tier: GalleryImageTier.sample)),
+        coordinator.isSampleReady(_request(64, tier: GalleryImageTier.sample)),
         isTrue,
       );
     },

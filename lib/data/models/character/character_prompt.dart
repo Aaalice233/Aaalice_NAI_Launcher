@@ -475,15 +475,16 @@ class CharacterPromptConfig with _$CharacterPromptConfig {
           CharacterGender.other => '',
         };
 
-    // 获取默认位置
-    final defaultPosition = _getNextDefaultPosition();
+    final defaultPosition = globalAiChoice ? null : _getNextDefaultPosition();
 
     final newCharacter = CharacterPrompt.create(
       name: name ?? getNextCharacterName(),
       gender: gender,
       prompt: initialPrompt,
       negativePrompt: negativePrompt ?? 'lowres, aliasing, ',
-      positionMode: CharacterPositionMode.custom,
+      positionMode: globalAiChoice
+          ? CharacterPositionMode.aiChoice
+          : CharacterPositionMode.custom,
       customPosition: defaultPosition,
       thumbnailPath: thumbnailPath,
     );

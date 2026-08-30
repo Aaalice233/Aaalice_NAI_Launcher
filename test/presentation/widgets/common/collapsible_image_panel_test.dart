@@ -11,6 +11,7 @@ void main() {
     required VoidCallback onToggle,
     bool disableAnimations = false,
     bool showSummary = true,
+    bool hasData = false,
     WidgetBuilder? childBuilder,
   }) {
     return MaterialApp(
@@ -29,6 +30,7 @@ void main() {
                 icon: Icons.people_outline,
                 isExpanded: expanded,
                 onToggle: onToggle,
+                hasData: hasData,
                 summary: showSummary
                     ? const Text(
                         '3 个启用 · Alice +2',
@@ -185,5 +187,19 @@ void main() {
       tester.getTopRight(header).dx - tester.getCenter(chevron).dx,
       lessThanOrEqualTo(24),
     );
+  });
+
+  testWidgets('浅色主题下有数据但无背景图时不使用白色前景', (tester) async {
+    await tester.pumpWidget(
+      buildSubject(width: 416, expanded: false, hasData: true, onToggle: () {}),
+    );
+    await tester.pump();
+
+    final title = tester.widget<Text>(find.text('角色'));
+    final chevron = tester.widget<Icon>(
+      find.byKey(const Key('collapsible-chevron-角色')),
+    );
+    expect(title.style?.color, isNot(Colors.white));
+    expect(chevron.color, isNot(Colors.white));
   });
 }

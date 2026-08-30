@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/agent/agent_media_display_policy.dart';
 import '../../../core/agent/agent_types.dart';
 import '../../../core/agent/agent_tool_presentation.dart';
 import '../../../core/windowing/agent_chat_shared_widgets.dart';
@@ -265,7 +266,9 @@ class _AgentChatToolResultTileState extends State<AgentChatToolResultTile> {
     final statusColor = result.isError
         ? theme.colorScheme.error
         : agentToolSuccessColor(theme);
-    final files = _extractImageFiles(result);
+    final showMedia =
+        widget.showMedia && agentToolDisplaysMedia(result.toolName);
+    final files = showMedia ? _extractImageFiles(result) : const <String>[];
     final preferFileImages = files.isNotEmpty;
     final inlineImages = preferFileImages
         ? const <Uint8List>[]
@@ -292,8 +295,7 @@ class _AgentChatToolResultTileState extends State<AgentChatToolResultTile> {
         unpairedInlineImages.isNotEmpty ||
         remoteImages.isNotEmpty ||
         resourceReferences.isNotEmpty;
-    final hasExpandedContent =
-        detailText.isNotEmpty || (widget.showMedia && hasMedia);
+    final hasExpandedContent = detailText.isNotEmpty || (showMedia && hasMedia);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -329,7 +331,7 @@ class _AgentChatToolResultTileState extends State<AgentChatToolResultTile> {
             key: ValueKey('agent-tool-result-details-${result.toolCallId}'),
             text: detailText,
           ),
-        if (_expanded && widget.showMedia && hasMedia)
+        if (_expanded && showMedia && hasMedia)
           Padding(
             padding: const EdgeInsets.fromLTRB(32, 0, 8, 8),
             child: AgentChatResourceGallery(
@@ -375,6 +377,9 @@ class AgentChatToolResultMedia extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (!agentToolDisplaysMedia(result.toolName)) {
+      return const SizedBox.shrink();
+    }
     final files = _extractImageFiles(result);
     final preferFileImages = files.isNotEmpty;
     final inlineImages = preferFileImages
@@ -1106,11 +1111,9 @@ class _ToolResultResourcePreviewState
   Widget _buildPreview(Uint8List bytes) {
     final isOnlineGallery =
         widget.reference.kind == AgentChatResourceKind.onlineGalleryMedia;
-    final image = Image.memory(
-      bytes,
+    final image = _AgentChatMemoryThumbnail(
+      bytes: bytes,
       fit: isOnlineGallery ? BoxFit.cover : BoxFit.contain,
-      alignment: Alignment.center,
-      gaplessPlayback: true,
       errorBuilder: (_, _, _) => const _AgentResourceUnavailableImage(),
     );
     if (isOnlineGallery) {
@@ -1281,14 +1284,48 @@ class _ToolResultInlineImage extends StatelessWidget {
       image: GeneratedImageDetailData(imageBytes: bytes),
       showMetadataPanel: true,
     ),
-    child: Image.memory(
-      bytes,
+    child: _AgentChatMemoryThumbnail(
+      bytes: bytes,
       fit: BoxFit.contain,
-      alignment: Alignment.center,
-      gaplessPlayback: true,
       errorBuilder: (_, _, _) => const SizedBox.shrink(),
     ),
   );
+}
+
+class _AgentChatMemoryThumbnail extends StatelessWidget {
+  const _AgentChatMemoryThumbnail({
+    required this.bytes,
+    required this.fit,
+    required this.errorBuilder,
+  });
+
+  final Uint8List bytes;
+  final BoxFit fit;
+  final ImageErrorWidgetBuilder errorBuilder;
+
+  @override
+  Widget build(BuildContext context) {
+    final pixelRatio = MediaQuery.devicePixelRatioOf(context);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth.isFinite
+            ? (constraints.maxWidth * pixelRatio).ceil()
+            : null;
+        final height = constraints.maxHeight.isFinite
+            ? (constraints.maxHeight * pixelRatio).ceil()
+            : null;
+        return Image.memory(
+          bytes,
+          fit: fit,
+          alignment: Alignment.center,
+          gaplessPlayback: true,
+          cacheWidth: width,
+          cacheHeight: height,
+          errorBuilder: errorBuilder,
+        );
+      },
+    );
+  }
 }
 
 class _ToolResultNetworkImage extends StatelessWidget {

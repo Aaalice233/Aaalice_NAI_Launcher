@@ -77,29 +77,38 @@ class _AgentChatSessionPickerState extends State<AgentChatSessionPicker> {
               padding: EdgeInsets.symmetric(
                 horizontal: widget.compactTitle ? 8 : 12,
               ),
-              child: Row(
-                children: [
-                  if (!widget.compactTitle) ...[
-                    const Icon(Icons.forum_outlined, size: 18),
-                    const SizedBox(width: 8),
-                  ],
-                  Expanded(
-                    child: Text(
-                      title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final showLeading =
+                      !widget.compactTitle && constraints.maxWidth >= 64;
+                  final showChevron = constraints.maxWidth >= 28;
+                  return Row(
+                    children: [
+                      if (showLeading) ...[
+                        const Icon(Icons.forum_outlined, size: 18),
+                        const SizedBox(width: 8),
+                      ],
+                      Expanded(
+                        child: Text(
+                          title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Icon(
-                    Icons.expand_more_rounded,
-                    size: 20,
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ],
+                      if (showChevron) ...[
+                        const SizedBox(width: 4),
+                        Icon(
+                          Icons.expand_more_rounded,
+                          size: 20,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ],
+                    ],
+                  );
+                },
               ),
             ),
           ),

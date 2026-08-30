@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 ///
 /// 用于左右面板之间的宽度调整，提供视觉指示器和拖拽交互。
 class ResizeHandle extends StatelessWidget {
+  static const double defaultWidth = 8.0;
+
   final void Function(double delta) onDrag;
   final VoidCallback? onDragStart;
   final VoidCallback? onDragEnd;
@@ -14,7 +16,7 @@ class ResizeHandle extends StatelessWidget {
     required this.onDrag,
     this.onDragStart,
     this.onDragEnd,
-    this.width = 8.0,
+    this.width = defaultWidth,
   });
 
   @override

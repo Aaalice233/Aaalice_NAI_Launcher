@@ -59,6 +59,17 @@ void main() {
     );
   });
 
+  test('read never guesses a typographic filename variant', () async {
+    await File(
+      '${tmp.path}${Platform.pathSeparator}model’s image.png',
+    ).writeAsBytes(const [1, 2, 3]);
+
+    await expectLater(
+      tool('read').execute('t6-exact', {'path': "model's image.png"}),
+      throwsA(isA<Object>()),
+    );
+  });
+
   test('read rejects parent traversal outside the workspace', () async {
     final outside = File(
       '${tmp.parent.path}${Platform.pathSeparator}outside-${tmp.path.hashCode}.txt',

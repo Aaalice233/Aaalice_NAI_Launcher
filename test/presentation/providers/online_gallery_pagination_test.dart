@@ -49,6 +49,40 @@ void main() {
   );
 
   test(
+    'append completion preserves the viewport-settled page indicator',
+    () async {
+      final thirdPage = Completer<GalleryPage>();
+      final adapter = _FakeGalleryAdapter(
+        GallerySourceId.danbooru,
+        onSearch: (request, _) => switch (request.cursor) {
+          '1' => Future.value(
+            _page('1', [_item(1), _item(2)], nextCursor: '2'),
+          ),
+          '2' => Future.value(
+            _page('2', [_item(3), _item(4)], nextCursor: '3'),
+          ),
+          _ => thirdPage.future,
+        },
+      );
+      final container = _container(danbooru: adapter);
+      addTearDown(container.dispose);
+      final notifier = container.read(onlineGalleryNotifierProvider.notifier);
+      await notifier.loadPosts();
+      await notifier.loadMore();
+
+      final append = notifier.loadMore();
+      await Future<void>.delayed(Duration.zero);
+      notifier.updateVisibleItemIndex(2);
+      expect(container.read(onlineGalleryNotifierProvider).page, 2);
+
+      thirdPage.complete(_page('3', [_item(5)], nextCursor: null));
+      await append;
+
+      expect(container.read(onlineGalleryNotifierProvider).page, 2);
+    },
+  );
+
+  test(
     'background pause cancels and automatically resumes page traffic',
     () async {
       final started = Completer<void>();
@@ -386,9 +420,17 @@ void main() {
         hasLength(42),
       );
 
-      notifier.updateVisibleItemIndex(40);
+      notifier.updateVisibleItemIndex(
+        40,
+        expectedStableKey: state.posts[40].stableKey,
+      );
       expect(container.read(onlineGalleryNotifierProvider).page, 21);
-      notifier.updateVisibleItemIndex(0);
+      notifier.updateVisibleItemIndex(0, expectedStableKey: 'stale:item');
+      expect(container.read(onlineGalleryNotifierProvider).page, 21);
+      notifier.updateVisibleItemIndex(
+        0,
+        expectedStableKey: state.posts[0].stableKey,
+      );
       state = container.read(onlineGalleryNotifierProvider);
       expect(state.page, 1);
       expect(state.posts, hasLength(42));

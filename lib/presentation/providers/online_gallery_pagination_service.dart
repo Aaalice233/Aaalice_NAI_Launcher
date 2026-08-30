@@ -293,10 +293,11 @@ class OnlineGalleryPaginationService {
                     ? merged.appendPage(items)
                     : merged.insertPage(insertAt, items);
               }
+              final latestCache = state.currentCache;
               state = state.updateCurrentCache(
-                cache.copyWith(
+                latestCache.copyWith(
                   posts: merged,
-                  scrollOffset: refresh ? 0 : cache.scrollOffset,
+                  scrollOffset: refresh ? 0 : latestCache.scrollOffset,
                   artistHuntCandidateCount: candidateCount,
                   artistHuntResolvedCount: resolvedCount,
                   artistHuntFailureCount: failureCount,
@@ -374,13 +375,14 @@ class OnlineGalleryPaginationService {
             pagesFetched >= _residualScanPageBudget;
         if (!shouldContinue || scanBudgetReached) break;
         requestCursor = nextCursor;
+        final latestCache = state.currentCache;
         state = state.updateCurrentCache(
-          cache.copyWith(
+          latestCache.copyWith(
             posts: merged,
             pageBoundaries: pageBoundaries,
             nextCursor: nextCursor,
             hasMore: true,
-            scrollOffset: refresh ? 0 : cache.scrollOffset,
+            scrollOffset: refresh ? 0 : latestCache.scrollOffset,
             queryRequestCount: queryRequestCount,
             queryCandidateCount: queryCandidateCount,
             queryFilterMicros: queryFilterMicros,
@@ -398,7 +400,10 @@ class OnlineGalleryPaginationService {
         (boundary) => boundary.endIndex > boundary.startIndex,
         orElse: () => pageBoundaries.first,
       );
-      final visiblePage = resetsQuery ? firstVisibleBoundary.page : cache.page;
+      final latestCache = state.currentCache;
+      final visiblePage = resetsQuery
+          ? firstVisibleBoundary.page
+          : latestCache.page;
       final tailBoundary = pageBoundaries.last;
       final responsePredecessor = pageBoundaries
           .where((boundary) => boundary.nextCursor == page.cursor)
@@ -413,23 +418,23 @@ class OnlineGalleryPaginationService {
       final tailNextCursor = loadedTail && endedByDuplicate
           ? null
           : tailBoundary.nextCursor;
-      final nextCache = ModeCache(
+      final nextCache = latestCache.copyWith(
         posts: merged,
         page: visiblePage,
         pageBoundaries: pageBoundaries,
         nextCursor: tailNextCursor,
-        total: artistHuntActive
-            ? null
-            : loadedTail
-            ? page.total
-            : cache.total,
+        clearNextCursor: tailNextCursor == null,
+        total: loadedTail ? page.total : latestCache.total,
+        clearTotal: artistHuntActive,
         hasMore: loadedTail
             ? !endedByDuplicate && page.hasMore && tailNextCursor != null
-            : cache.hasMore && tailNextCursor != null,
-        scrollOffset: refresh ? 0 : cache.scrollOffset,
+            : latestCache.hasMore && tailNextCursor != null,
+        scrollOffset: refresh ? 0 : latestCache.scrollOffset,
+        clearAnchorStableKey: refresh,
+        anchorLocalOffset: refresh ? 0 : latestCache.anchorLocalOffset,
         endedByDuplicatePage: loadedTail
             ? endedByDuplicate
-            : cache.endedByDuplicatePage,
+            : latestCache.endedByDuplicatePage,
         artistHuntCandidateCount: candidateCount,
         artistHuntResolvedCount: resolvedCount,
         artistHuntFailureCount: failureCount,
@@ -439,8 +444,10 @@ class OnlineGalleryPaginationService {
         queryDetailFailureCount: detailFailureCount,
         lastRawPageIdentity: loadedTail
             ? previousRawIdentity
-            : cache.lastRawPageIdentity,
+            : latestCache.lastRawPageIdentity,
+        clearLastRawPageIdentity: loadedTail && previousRawIdentity == null,
         queryScanPaused: scanBudgetReached,
+        clearAppendError: true,
       );
       final invalidGelbooru =
           sourceId == GallerySourceId.gelbooru &&

@@ -1,5 +1,6 @@
+import 'package:flutter/gestures.dart' show PointerScrollEvent;
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart' show ScrollCacheExtent;
+import 'package:flutter/rendering.dart' show RenderBox, ScrollCacheExtent;
 
 import '../../../core/utils/localization_extension.dart';
 import 'agent_chat_panel_controller.dart';
@@ -61,6 +62,7 @@ class _AgentChatThreadViewportState extends State<AgentChatThreadViewport> {
   final Map<Object, GlobalKey> _turnKeys = {};
   final Map<Object, double> _measuredHeights = {};
   late int _visibleTurnCount;
+  int _anchorRestoreGeneration = 0;
 
   @override
   void initState() {
@@ -71,27 +73,35 @@ class _AgentChatThreadViewportState extends State<AgentChatThreadViewport> {
 
   @override
   void didUpdateWidget(covariant AgentChatThreadViewport oldWidget) {
+    final sameSession = oldWidget.sessionId == widget.sessionId;
+    final anchors = sameSession && !widget.controller.followingLatest
+        ? _captureVisibleAnchors()
+        : const <_ViewportAnchor>[];
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.sessionId != widget.sessionId) {
+    if (!sameSession) {
+      _anchorRestoreGeneration++;
       _visibleTurnCount = _initialVisibleCount;
       _turnKeys.clear();
       _measuredHeights.clear();
       WidgetsBinding.instance.addPostFrameCallback((_) => _restoreOffset());
-    } else if (widget.turns.length < _visibleTurnCount) {
-      _visibleTurnCount = widget.turns.length;
-    } else if (widget.turns.length > oldWidget.turns.length &&
-        _visibleTurnCount >= oldWidget.turns.length) {
-      final added = widget.turns.length - oldWidget.turns.length;
-      final prepended =
-          widget.prependAnchorEntryId != null &&
-          widget.prependAnchorEntryId != oldWidget.prependAnchorEntryId;
-      final revealCount = prepended && added > _historyPageSize
-          ? _historyPageSize
-          : added;
-      _visibleTurnCount = (_visibleTurnCount + revealCount).clamp(
-        0,
-        widget.turns.length,
-      );
+    } else {
+      if (widget.turns.length < _visibleTurnCount) {
+        _visibleTurnCount = widget.turns.length;
+      } else if (widget.turns.length > oldWidget.turns.length &&
+          _visibleTurnCount >= oldWidget.turns.length) {
+        final added = widget.turns.length - oldWidget.turns.length;
+        final prepended =
+            widget.prependAnchorEntryId != null &&
+            widget.prependAnchorEntryId != oldWidget.prependAnchorEntryId;
+        final revealCount = prepended && added > _historyPageSize
+            ? _historyPageSize
+            : added;
+        _visibleTurnCount = (_visibleTurnCount + revealCount).clamp(
+          0,
+          widget.turns.length,
+        );
+      }
+      if (anchors.isNotEmpty) _scheduleAnchorRestore(anchors);
     }
   }
 
@@ -114,6 +124,64 @@ class _AgentChatThreadViewportState extends State<AgentChatThreadViewport> {
 
   GlobalKey _keyFor(AgentChatTurnModel turn) =>
       _turnKeys.putIfAbsent(_identityFor(turn), GlobalKey.new);
+
+  List<_ViewportAnchor> _captureVisibleAnchors() {
+    final viewport = context.findRenderObject();
+    if (viewport is! RenderBox || !viewport.attached || !viewport.hasSize) {
+      return const [];
+    }
+    final viewportTop = viewport.localToGlobal(Offset.zero).dy;
+    final viewportBottom = viewportTop + viewport.size.height;
+    final anchors = <_ViewportAnchor>[];
+    for (final key in _turnKeys.values) {
+      final anchorContext = key.currentContext;
+      final renderObject = anchorContext?.findRenderObject();
+      if (renderObject is! RenderBox ||
+          !renderObject.attached ||
+          !renderObject.hasSize) {
+        continue;
+      }
+      final top = renderObject.localToGlobal(Offset.zero).dy;
+      final bottom = top + renderObject.size.height;
+      if (bottom <= viewportTop || top >= viewportBottom) continue;
+      anchors.add(_ViewportAnchor(key: key, top: top));
+    }
+    anchors.sort((a, b) {
+      final aDistance = (a.top - viewportTop).abs();
+      final bDistance = (b.top - viewportTop).abs();
+      return aDistance.compareTo(bDistance);
+    });
+    return anchors;
+  }
+
+  void _scheduleAnchorRestore(List<_ViewportAnchor> anchors) {
+    final generation = ++_anchorRestoreGeneration;
+    final interactionRevision = widget.controller.viewportInteractionRevision;
+    final sessionId = widget.sessionId;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted ||
+          generation != _anchorRestoreGeneration ||
+          widget.sessionId != sessionId ||
+          widget.controller.followingLatest) {
+        return;
+      }
+      for (final anchor in anchors) {
+        final anchorContext = anchor.key.currentContext;
+        final renderObject = anchorContext?.findRenderObject();
+        if (renderObject is! RenderBox ||
+            !renderObject.attached ||
+            !renderObject.hasSize) {
+          continue;
+        }
+        final currentTop = renderObject.localToGlobal(Offset.zero).dy;
+        widget.controller.restorePausedViewportAnchor(
+          visualDelta: currentTop - anchor.top,
+          expectedInteractionRevision: interactionRevision,
+        );
+        return;
+      }
+    });
+  }
 
   Future<void> _jumpTo(AgentChatTurnModel turn) async {
     final index = widget.turns.indexOf(turn);
@@ -194,6 +262,11 @@ class _AgentChatThreadViewportState extends State<AgentChatThreadViewport> {
             child: Listener(
               onPointerDown: (_) =>
                   widget.controller.beginPotentialUserScroll(),
+              onPointerSignal: (event) {
+                if (event is PointerScrollEvent) {
+                  widget.controller.beginPotentialUserScroll();
+                }
+              },
               onPointerUp: (_) => widget.controller.cancelPotentialUserScroll(),
               onPointerCancel: (_) =>
                   widget.controller.cancelPotentialUserScroll(),
@@ -357,6 +430,13 @@ class _TurnGutter extends StatelessWidget {
     if (text.isEmpty) return '…';
     return text.length <= 36 ? text : '${text.substring(0, 36)}…';
   }
+}
+
+class _ViewportAnchor {
+  const _ViewportAnchor({required this.key, required this.top});
+
+  final GlobalKey key;
+  final double top;
 }
 
 class _MeasureSize extends StatefulWidget {

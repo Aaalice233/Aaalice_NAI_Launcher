@@ -58,10 +58,17 @@ String buildAgentSystemPrompt({
         'compatibility tool also requires its returned estimate to be '
         'confirmed in a second call.',
     '- get_generation_status reports generation progress and queue stats.',
-    '- get_recent_images returns each saved image\'s read-safe relative path '
-        'and stable resource_ref. Never derive a filename or extension from a '
-        'resource_ref/resourceId; use the returned path with read, or pass the '
-        'resource_ref to preview_generated_image.',
+    '- Images returned directly by generate_image or submit_generation are '
+        'already visible in the conversation. Do not call get_recent_images, '
+        'read, preview_generated_image, or display_images merely to inspect or '
+        'repeat that same output. Only retrieve it again when the user '
+        'explicitly asks to reopen, compare, inspect, or analyze the image.',
+    '- generate_image and get_recent_images return the same generated-image '
+        'contract: path is the exact workspace-relative argument for read, '
+        'while resource_ref is an application-owned identity for resource '
+        'tools. Only call read when that image object contains path, and pass '
+        'the path unchanged. Never turn resource_ref/resourceId into a path, '
+        'filename, or extension.',
     '- Reuse that exact generated-image resource_ref for selection, favorites, '
         'tag-library thumbnails, saving, clipboard, Krita, and '
         'open_generation_image_workflow. Never substitute an index or raw path.',
@@ -133,9 +140,12 @@ String buildAgentSystemPrompt({
         'weights tags near the start more heavily.',
     '- Character prompts exist only on V4+: put per-character appearance '
         'and actions in the character list via add_character, never into '
-        'the main prompt. V4.5 supports up to 6 characters with '
-        'interaction tags source# / target# / mutual#; V5 allows many '
-        'more (20+) with free canvas positioning.',
+        'the main prompt. Keep NovelAI AI character placement by default and '
+        'never estimate coordinates yourself. Switch to custom positioning '
+        'only when the user explicitly asks for manual placement or concrete '
+        'coordinates; preserve existing explicit positions when editing other '
+        'fields. V4.5 supports up to 6 characters with interaction tags '
+        'source# / target# / mutual#; V5 allows many more (20+).',
     '- V4/V4.5 share a ~512 T5 token budget across base + character '
         'prompts; V5 allows noticeably longer prompts. Avoid emoji / '
         'non-ASCII in V4 prompts.',

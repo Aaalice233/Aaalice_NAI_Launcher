@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import '../../../core/constants/api_constants.dart';
 import '../../../core/enums/precise_ref_type.dart';
+import '../../../core/utils/nai_prompt_parser.dart';
 import '../../../core/utils/portable_logger.dart';
 import '../image/image_params.dart';
 import 'nai_image_metadata.dart';
@@ -28,13 +29,11 @@ class NaiMetadataPromptProjection {
 
   bool get hasRecordedTransparentBackgroundTag =>
       metadata.transparentBackground == true &&
-      metadata.prompt
-          .split(',')
-          .any(
-            (tag) =>
-                tag.trim().toLowerCase() ==
-                QualityTags.transparentBackgroundTag.toLowerCase(),
-          );
+      NaiPromptParser.splitSegments(metadata.prompt).any(
+        (tag) =>
+            tag.trim().toLowerCase() ==
+            QualityTags.transparentBackgroundTag.toLowerCase(),
+      );
 
   bool get hasCharacters => metadata.characterPrompts.isNotEmpty;
 
@@ -216,11 +215,8 @@ class NaiMetadataPromptProjection {
     };
   }
 
-  static List<String> _splitPromptSegments(String text) => text
-      .split(',')
-      .map((tag) => tag.trim())
-      .where((tag) => tag.isNotEmpty)
-      .toList();
+  static List<String> _splitPromptSegments(String text) =>
+      NaiPromptParser.splitSegments(text);
 
   static List<String> _splitPromptEntries(List<String> entries) =>
       entries.expand(_splitPromptSegments).toList();

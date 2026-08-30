@@ -383,7 +383,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           controller: _contentScrollController,
           padding: padding,
           child: Align(
-            alignment: Alignment.topLeft,
+            alignment: Alignment.topCenter,
             child: SizedBox(
               width: constraints.maxWidth > 960 ? 960 : constraints.maxWidth,
               child: section,

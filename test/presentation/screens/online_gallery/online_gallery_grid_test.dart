@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/cache/online_gallery_prefetch_coordinator.dart';
 import 'package:nai_launcher/data/models/online_gallery/gallery_item.dart';
 import 'package:nai_launcher/data/models/online_gallery/gallery_source.dart';
 import 'package:nai_launcher/presentation/providers/online_gallery_provider.dart';
 import 'package:nai_launcher/presentation/screens/online_gallery/online_gallery_grid.dart';
+import 'package:nai_launcher/presentation/screens/online_gallery/online_gallery_masonry_layout.dart';
 import 'package:nai_launcher/presentation/screens/online_gallery/online_gallery_screen_controller.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
@@ -31,9 +31,7 @@ void main() {
     expect(scrollingNotifications, 2);
   });
 
-  testWidgets('only unseen items rebuild when scrolling starts', (
-    tester,
-  ) async {
+  testWidgets('unseen items reveal once after scrolling stops', (tester) async {
     final previousUpdateInterval =
         VisibilityDetectorController.instance.updateInterval;
     VisibilityDetectorController.instance.updateInterval = Duration.zero;
@@ -54,7 +52,7 @@ void main() {
           child: OnlineGalleryVisibilityDrivenItem(
             visibilityKey: 'post-1',
             scrolling: scrolling,
-            onVisibilityChanged: (_, __) {},
+            onVisibilityChanged: (_, __, ___) {},
             builder: (context, hasBeenVisible, isScrolling, isVisible) {
               builds++;
               lastHasBeenVisible = hasBeenVisible;
@@ -70,7 +68,7 @@ void main() {
 
     scrolling.value = true;
     await tester.pump();
-    expect((builds, lastHasBeenVisible, lastIsScrolling), (2, false, true));
+    expect((builds, lastHasBeenVisible, lastIsScrolling), (1, false, false));
 
     final detector = tester.widget<VisibilityDetector>(
       find.byType(VisibilityDetector, skipOffstage: false),
@@ -85,16 +83,37 @@ void main() {
     await tester.pump();
     expect(
       (builds, lastHasBeenVisible, lastIsScrolling, lastIsVisible),
-      (3, false, true, true),
+      (1, false, false, false),
     );
 
     scrolling.value = false;
     await tester.pump();
-    expect((builds, lastHasBeenVisible, lastIsScrolling), (4, true, false));
+    expect(
+      (builds, lastHasBeenVisible, lastIsScrolling, lastIsVisible),
+      (2, true, false, true),
+    );
 
     scrolling.value = true;
     await tester.pump();
-    expect(builds, 4);
+    expect(builds, 2);
+  });
+
+  test('scroll restore revisions reject stale post-frame work', () {
+    final controller = OnlineGalleryScreenController(
+      prefetchCoordinator: OnlineGalleryPrefetchCoordinator(
+        preloader: (_) =>
+            GalleryImagePreloadOperation.fromFuture(Future<void>.value()),
+      ),
+    );
+    addTearDown(controller.dispose);
+
+    final first = controller.beginScrollRestore();
+    final second = controller.beginScrollRestore();
+
+    expect(controller.isCurrentScrollRestore(first), isFalse);
+    expect(controller.isCurrentScrollRestore(second), isTrue);
+    controller.invalidateScrollRestore();
+    expect(controller.isCurrentScrollRestore(second), isFalse);
   });
 
   test('repeated visibility updates only enter the viewport once', () {
@@ -110,26 +129,35 @@ void main() {
       workId: 'post-1',
       sourceId: GallerySourceId.danbooru,
     );
-
     expect(
-      controller.recordVisibleItem(
+      controller.viewportTracker.recordVisibleItem(
         index: 0,
         item: item,
         itemWidth: 200,
-        visibleTop: 12,
+        leadingScrollOffset: 12,
+        viewportGeneration: controller.viewportGeneration,
+        tokenSequence: 1,
       ),
       isTrue,
     );
     expect(
-      controller.recordVisibleItem(
+      controller.viewportTracker.recordVisibleItem(
         index: 0,
         item: item,
         itemWidth: 200,
-        visibleTop: -24,
+        leadingScrollOffset: -24,
+        viewportGeneration: controller.viewportGeneration,
+        tokenSequence: 1,
       ),
       isFalse,
     );
-    expect(controller.visibleItems[0]?.visibleTop, -24);
+    expect(
+      controller.viewportTracker
+          .resolveVisibleItems(const [item])
+          .single
+          .leadingScrollOffset,
+      -24,
+    );
   });
 
   testWidgets('lazily builds only the viewport and cache neighborhood', (
@@ -184,6 +212,84 @@ void main() {
       greaterThan(initialLastIndex),
     );
     expect(builtIndices.length, lessThan(400));
+  });
+
+  test('precomputed masonry finds only geometry intersecting an offset', () {
+    final snapshot = OnlineGalleryMasonryLayoutSnapshot(
+      aspectRatios: const [1, 2, 0.5, 1, 1, 1],
+      placeholderCount: 0,
+      columnCount: 2,
+      itemWidth: 100,
+      mainAxisSpacing: 6,
+      crossAxisSpacing: 6,
+    );
+
+    expect(snapshot.placementFor(0).scrollOffset, 0);
+    expect(snapshot.placementFor(1).scrollOffset, 0);
+    expect(snapshot.placementFor(2).scrollOffset, 86);
+    expect(snapshot.placementFor(2).mainAxisExtent, 200);
+    expect(snapshot.minIndexForScrollOffset(120), 2);
+    expect(snapshot.maxIndexForScrollOffset(120), 3);
+    expect(snapshot.maxScrollExtent, 392);
+  });
+
+  testWidgets('far jumps build only the destination cache neighborhood', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1200, 800);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    final controller = OnlineGalleryScreenController(
+      prefetchCoordinator: OnlineGalleryPrefetchCoordinator(
+        preloader: (_) =>
+            GalleryImagePreloadOperation.fromFuture(Future<void>.value()),
+      ),
+    );
+    addTearDown(controller.dispose);
+    final items = List.generate(
+      2000,
+      (index) => GalleryItem(
+        id: index,
+        workId: 'post-$index',
+        sourceId: GallerySourceId.danbooru,
+        width: 100 + index % 5 * 20,
+        height: 100 + index % 7 * 30,
+      ),
+    );
+    final builtIndices = <int>{};
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: OnlineGalleryGrid(
+            state: OnlineGalleryState(searchCache: ModeCache(posts: items)),
+            controller: controller,
+            itemBuilder: (context, index, itemWidth, columnCount) {
+              builtIndices.add(index);
+              return const SizedBox.expand();
+            },
+          ),
+        ),
+      ),
+    );
+
+    builtIndices.clear();
+    final middle = controller.scrollController.position.maxScrollExtent / 2;
+    controller.scrollController.jumpTo(middle);
+    await tester.pump();
+
+    expect(builtIndices, isNotEmpty);
+    expect(builtIndices.length, lessThan(150));
+    expect(builtIndices.reduce((a, b) => a < b ? a : b), greaterThan(500));
+
+    builtIndices.clear();
+    controller.scrollController.jumpTo(0);
+    await tester.pump();
+
+    expect(builtIndices, isNotEmpty);
+    expect(builtIndices.length, lessThan(150));
+    expect(builtIndices.reduce((a, b) => a > b ? a : b), lessThan(150));
   });
 
   testWidgets('initial loading creates a scrollable batch of empty cards', (
@@ -268,14 +374,14 @@ void main() {
     expect(find.byType(OnlineGalleryPendingCard), findsWidgets);
     expect(
       find.descendant(
-        of: find.byType(SliverMasonryGrid),
+        of: find.byType(SliverGrid),
         matching: find.byType(OnlineGalleryPendingCard),
       ),
       findsWidgets,
     );
     expect(
       find.descendant(
-        of: find.byType(SliverMasonryGrid),
+        of: find.byType(SliverGrid),
         matching: find.byKey(const ValueKey('loaded-0')),
       ),
       findsOneWidget,
@@ -288,6 +394,7 @@ void main() {
       controller.scrollController.position.maxScrollExtent,
       greaterThan(0),
     );
+    final loadingExtent = controller.scrollController.position.maxScrollExtent;
 
     final completedItems = List.generate(
       8,
@@ -302,7 +409,7 @@ void main() {
         home: Scaffold(
           body: OnlineGalleryGrid(
             state: OnlineGalleryState(
-              searchCache: ModeCache(posts: completedItems, hasMore: false),
+              searchCache: ModeCache(posts: completedItems),
             ),
             controller: controller,
             itemBuilder: (context, index, itemWidth, columnCount) =>
@@ -313,9 +420,89 @@ void main() {
     );
     await tester.pump();
 
+    final completedExtent =
+        controller.scrollController.position.maxScrollExtent;
+    expect(completedExtent, greaterThanOrEqualTo(loadingExtent));
+    controller.scrollController.jumpTo(completedExtent);
+    await tester.pump();
+    expect(find.byType(OnlineGalleryPendingCard), findsWidgets);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: OnlineGalleryGrid(
+            state: OnlineGalleryState(
+              searchCache: ModeCache(posts: completedItems, hasMore: false),
+            ),
+            controller: controller,
+            itemBuilder: (context, index, itemWidth, columnCount) =>
+                SizedBox(key: ValueKey('completed-$index'), height: itemWidth),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
     expect(find.byType(OnlineGalleryPendingCard), findsNothing);
-    expect(find.byKey(const ValueKey('completed-0')), findsOneWidget);
+    expect(find.byKey(const ValueKey('completed-7')), findsOneWidget);
   });
+
+  testWidgets(
+    'does not snap back when posts replace a deep placeholder runway',
+    (tester) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(840, 700);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetPhysicalSize);
+      final controller = OnlineGalleryScreenController(
+        prefetchCoordinator: OnlineGalleryPrefetchCoordinator(
+          preloader: (_) =>
+              GalleryImagePreloadOperation.fromFuture(Future<void>.value()),
+        ),
+      );
+      addTearDown(controller.dispose);
+
+      Widget subject(int postCount) {
+        final items = List.generate(
+          postCount,
+          (index) => GalleryItem(
+            id: index,
+            workId: 'post-$index',
+            sourceId: GallerySourceId.danbooru,
+            width: 1,
+            height: 1,
+          ),
+        );
+        return MaterialApp(
+          home: Scaffold(
+            body: OnlineGalleryGrid(
+              state: OnlineGalleryState(
+                isLoadingMore: true,
+                searchCache: ModeCache(posts: items),
+              ),
+              controller: controller,
+              itemBuilder: (context, index, itemWidth, columnCount) =>
+                  SizedBox(key: ValueKey('loaded-$index'), height: itemWidth),
+            ),
+          ),
+        );
+      }
+
+      await tester.pumpWidget(subject(108));
+      final deepRunwayOffset =
+          controller.scrollController.position.maxScrollExtent - 300;
+      expect(deepRunwayOffset, greaterThan(3000));
+      controller.scrollController.jumpTo(deepRunwayOffset);
+      await tester.pump();
+      expect(find.byType(OnlineGalleryPendingCard), findsWidgets);
+
+      await tester.pumpWidget(subject(168));
+      await tester.pump();
+
+      expect(controller.scrollController.offset, closeTo(deepRunwayOffset, 1));
+      expect(controller.scrollController.offset, greaterThan(3000));
+    },
+  );
 
   testWidgets(
     'keeps twenty-one loaded pages reachable after append placeholders change',
@@ -351,8 +538,10 @@ void main() {
                 searchCache: ModeCache(posts: items, hasMore: loadingMore),
               ),
               controller: controller,
-              itemBuilder: (context, index, itemWidth, columnCount) =>
-                  SizedBox(key: ValueKey('post-$index'), height: 100),
+              itemBuilder: (context, index, itemWidth, columnCount) => SizedBox(
+                key: ValueKey('grid-item:${items[index].stableKey}'),
+                height: 100,
+              ),
             ),
           ),
         );
@@ -363,6 +552,8 @@ void main() {
         controller.scrollController.position.maxScrollExtent,
       );
       await tester.pump();
+      final initialMaxScrollExtent =
+          controller.scrollController.position.maxScrollExtent;
       final bottomOffset = controller.scrollController.offset;
       expect(bottomOffset, greaterThan(1000));
 
@@ -388,10 +579,26 @@ void main() {
       await tester.pumpWidget(subject(appendedItems));
       await tester.pump();
       expect(controller.scrollController.offset, greaterThan(1000));
+      expect(
+        controller.scrollController.position.maxScrollExtent,
+        greaterThan(initialMaxScrollExtent),
+      );
+
+      controller.scrollController.jumpTo(
+        controller.scrollController.position.maxScrollExtent,
+      );
+      await tester.pump();
+      expect(
+        find.byKey(ValueKey('grid-item:${appendedItems.last.stableKey}')),
+        findsOneWidget,
+      );
 
       controller.scrollController.jumpTo(0);
       await tester.pump();
-      expect(find.byKey(const ValueKey('post-0')), findsOneWidget);
+      expect(
+        find.byKey(ValueKey('grid-item:${initialItems.first.stableKey}')),
+        findsOneWidget,
+      );
       expect(appendedItems, hasLength(1320));
     },
   );
@@ -422,7 +629,17 @@ void main() {
                 width: width,
                 height: height,
                 child: OnlineGalleryGrid(
-                  state: const OnlineGalleryState(),
+                  state: const OnlineGalleryState(
+                    searchCache: ModeCache(
+                      posts: [
+                        GalleryItem(
+                          id: 1,
+                          workId: 'column-probe',
+                          sourceId: GallerySourceId.danbooru,
+                        ),
+                      ],
+                    ),
+                  ),
                   controller: controller,
                   itemBuilder: (context, index, itemWidth, columnCount) {
                     builtColumnCount = columnCount;

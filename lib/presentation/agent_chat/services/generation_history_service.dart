@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/agent/agent_types.dart';
@@ -10,22 +9,22 @@ import '../../../core/utils/display_thumbnail_utils.dart';
 import '../../providers/image_generation_provider.dart';
 import 'agent_resource_resolver.dart';
 import 'defined_agent_tool.dart';
+import 'generation_image_read_contract.dart';
 import 'generation_image_resource.dart';
 import 'generation_tool_results.dart';
-import 'generation_workspace_path_resolver.dart';
 
 class GenerationHistoryService {
   GenerationHistoryService(
     this._ref, {
     required AgentResourceResolver resourceResolver,
-    required GenerationWorkspacePathResolver pathResolver,
+    required GenerationImageReadContract imageReadContract,
     required int maxRecentImageLimit,
   }) : _resourceResolver = resourceResolver,
-       _pathResolver = pathResolver,
+       _imageReadContract = imageReadContract,
        _maxRecentImageLimit = maxRecentImageLimit;
   final Ref _ref;
   final AgentResourceResolver _resourceResolver;
-  final GenerationWorkspacePathResolver _pathResolver;
+  final GenerationImageReadContract _imageReadContract;
   final int _maxRecentImageLimit;
   Future<AgentToolResult> recentImages(Map<String, dynamic> args) async {
     final rawLimit = args['limit'];
@@ -48,18 +47,9 @@ class GenerationHistoryService {
     final report = <Map<String, dynamic>>[];
     for (final image in history) {
       if (image.isFailedStreamSnapshot) continue;
-      final filePath = image.filePath;
-      if (filePath == null || !await File(filePath).exists()) continue;
-      final readablePath = _pathResolver.readableRelativePath(filePath);
-      if (readablePath == null) continue;
-      report.add({
-        'seed': image.metadata?.seed,
-        'size': '${image.width}x${image.height}',
-        'path': readablePath,
-        'resource_ref': AgentChatResourceReferenceCodec.encodeJsonMap(
-          generatedImageReference(image.id),
-        ),
-      });
+      final descriptor = await _imageReadContract.describe(image);
+      if (descriptor.readPath == null) continue;
+      report.add(descriptor.toModelJson());
       if (report.length == limit) break;
     }
     if (report.isEmpty) {
@@ -137,7 +127,4 @@ class GenerationHistoryService {
       details: details,
     );
   }
-
-  AgentChatResourceReference generatedImageReference(String imageId) =>
-      generationImageResourceReference(imageId);
 }

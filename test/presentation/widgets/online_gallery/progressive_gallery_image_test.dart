@@ -146,6 +146,39 @@ void main() {
     },
   );
 
+  testWidgets('completed visible image waits for scroll idle before decoding', (
+    tester,
+  ) async {
+    final gate = Completer<void>();
+    final coordinator = OnlineGalleryPrefetchCoordinator(
+      preloader: (_) => GalleryImagePreloadOperation.fromFuture(gate.future),
+    );
+    addTearDown(coordinator.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CoordinatedGalleryImage(
+          request: _thumbnail,
+          coordinator: coordinator,
+          placeholder: const Text('waiting'),
+          fadeIn: false,
+        ),
+      ),
+    );
+    coordinator.setScrolling(true);
+    gate.complete();
+    await tester.pump();
+
+    expect(find.text('waiting'), findsOneWidget);
+    expect(find.byType(Image), findsNothing);
+
+    coordinator.setScrolling(false);
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.byType(Image), findsOneWidget);
+  });
+
   testWidgets('cancelled sample preload resumes with the coordinator', (
     tester,
   ) async {

@@ -184,13 +184,25 @@ void main() {
   });
 
   group('CharacterPromptConfig 默认位置', () {
-    test('addCharacter 产生的默认位置均为 0-1 百分比', () {
+    test('AI 布局新增角色不预填手动坐标', () {
       var config = const CharacterPromptConfig();
       for (var i = 0; i < 6; i++) {
         config = config.addCharacter(gender: CharacterGender.female);
       }
       for (final character in config.characters) {
+        expect(character.positionMode, CharacterPositionMode.aiChoice);
+        expect(character.customPosition, isNull);
+      }
+    });
+
+    test('自定义布局新增角色会分配有效手动坐标', () {
+      var config = const CharacterPromptConfig(globalAiChoice: false);
+      for (var i = 0; i < 6; i++) {
+        config = config.addCharacter(gender: CharacterGender.female);
+      }
+      for (final character in config.characters) {
         final position = character.customPosition;
+        expect(character.positionMode, CharacterPositionMode.custom);
         expect(position, isNotNull);
         expect(position!.row, inInclusiveRange(0.0, 1.0));
         expect(position.column, inInclusiveRange(0.0, 1.0));

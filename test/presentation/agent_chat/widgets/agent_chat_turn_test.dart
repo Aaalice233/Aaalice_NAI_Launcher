@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/agent/agent_types.dart';
+import 'package:nai_launcher/core/agent/harness/harness_messages.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/agent_chat/models/agent_chat_turn_timeline.dart';
 import 'package:nai_launcher/presentation/agent_chat/providers/agent_chat_notifier.dart';
@@ -258,13 +259,14 @@ void main() {
         ]).turns.single;
 
     expect(buildTurn('get_recent_images').mediaResults, isEmpty);
+    expect(buildTurn('read').mediaResults, isEmpty);
     expect(buildTurn('search_local_gallery').mediaResults, isEmpty);
     expect(buildTurn('display_images').mediaResults, hasLength(1));
     expect(buildTurn('preview_generated_image').mediaResults, hasLength(1));
   });
 
   testWidgets(
-    'display image media stays visible outside collapsed work details',
+    'display image media is complete without a nested vertical viewport',
     (tester) async {
       final controller = AgentChatPanelController();
       addTearDown(controller.dispose);
@@ -290,15 +292,16 @@ void main() {
               toolCallId: 'display-image-1',
               toolName: 'display_images',
               content: [
-                const ToolResultTextContent('{"count":1}'),
-                ToolResultImageContent(
-                  ImageContent(
-                    source: ImageSource.base64(
-                      mimeType: 'image/png',
-                      base64Data: base64Encode(_onePixelPng),
+                const ToolResultTextContent('{"count":4}'),
+                for (var index = 0; index < 4; index++)
+                  ToolResultImageContent(
+                    ImageContent(
+                      source: ImageSource.base64(
+                        mimeType: 'image/png',
+                        base64Data: base64Encode(_onePixelPng),
+                      ),
                     ),
                   ),
-                ),
               ],
             ),
             AssistantMessage(
@@ -315,7 +318,15 @@ void main() {
         find.byKey(const ValueKey('agent-tool-media-display-image-1')),
         findsOneWidget,
       );
-      expect(find.byType(Image), findsOneWidget);
+      expect(find.byType(Image), findsNWidgets(4));
+      expect(find.byType(Scrollbar), findsNothing);
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('agent-chat-resource-gallery')),
+          matching: find.byType(Scrollable),
+        ),
+        findsNothing,
+      );
       expect(find.text('Here is the latest image.'), findsOneWidget);
 
       await tester.tap(find.byKey(const ValueKey('agent-turn-work-header-0')));
@@ -325,9 +336,123 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.byType(Image), findsOneWidget);
+      expect(find.byType(Image), findsNWidgets(4));
+      expect(find.byType(Scrollbar), findsNothing);
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('agent-chat-resource-gallery')),
+          matching: find.byType(Scrollable),
+        ),
+        findsNothing,
+      );
     },
   );
+
+  testWidgets('resource prompt edit preserves the original message details', (
+    tester,
+  ) async {
+    final controller = AgentChatPanelController();
+    addTearDown(controller.dispose);
+    _editedSource = null;
+    controller.setHoveredUserMessageIndex(0);
+    const source = HarnessCustomMessage(
+      customType: 'agentResourcePrompt',
+      display: true,
+      timestamp: 1,
+      blockContent: [
+        UserTextContent('resource marker'),
+        UserTextContent('edit me'),
+      ],
+      details: {
+        'references': [
+          {
+            'version': 1,
+            'kind': 'generatedImage',
+            'source': 'generation_history',
+            'resourceId': 'image-1',
+          },
+        ],
+      },
+    );
+    await _pump(
+      tester,
+      controller: controller,
+      state: const AgentChatState(
+        initialized: true,
+        routeReady: true,
+        messages: [source],
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('agent-user-message-edit-0')));
+    expect(identical(_editedSource, source), isTrue);
+    expect((_editedSource as HarnessCustomMessage).details, source.details);
+  });
+
+  testWidgets('only the last safely editable user message has an edit entry', (
+    tester,
+  ) async {
+    final controller = AgentChatPanelController();
+    addTearDown(controller.dispose);
+    await _pump(
+      tester,
+      controller: controller,
+      state: AgentChatState(
+        initialized: true,
+        routeReady: true,
+        messages: [
+          UserMessage.text('old request'),
+          AssistantMessage(
+            content: const [AssistantTextContent('old answer')],
+            stopReason: StopReason.stop,
+          ),
+          UserMessage.text('latest request'),
+          AssistantMessage(
+            content: const [AssistantTextContent('latest answer')],
+            stopReason: StopReason.stop,
+          ),
+        ],
+      ),
+    );
+
+    expect(
+      find.byKey(const ValueKey('agent-user-message-edit-0')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey('agent-user-message-edit-2')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('message actions fit narrow mobile at 200 percent text scale', (
+    tester,
+  ) async {
+    final controller = AgentChatPanelController();
+    addTearDown(controller.dispose);
+    await _pump(
+      tester,
+      controller: controller,
+      width: 320,
+      mobile: true,
+      textScale: 2,
+      state: AgentChatState(
+        initialized: true,
+        routeReady: true,
+        messages: [UserMessage.text('latest request')],
+      ),
+    );
+
+    expect(
+      find.byKey(const ValueKey('agent-user-message-edit-0')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('agent-user-message-copy-0')),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('failed tool keeps error and arguments folded by default', (
     tester,
@@ -587,7 +712,10 @@ Future<void> _pump(
   WidgetTester tester, {
   required AgentChatPanelController controller,
   required AgentChatState state,
+  double width = 600,
   double height = 800,
+  bool mobile = false,
+  double textScale = 1,
 }) {
   return tester.pumpWidget(
     MaterialApp(
@@ -595,26 +723,32 @@ Future<void> _pump(
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       home: Scaffold(
-        body: SizedBox(
-          width: 600,
-          height: height,
-          child: AgentChatMessages(
-            viewData: AgentChatPanelViewData(
-              state: state,
-              config: PromptAssistantConfigState.defaults(),
-              agentSettings: const AgentSettingsState(initialized: true),
-              webAccess: const WebAccessConfigState(initialized: true),
-              mobile: false,
-              fullScreen: false,
-              compactMobile: false,
-              width: 600,
-              height: height,
-              onClose: null,
-              onOpenSettings: null,
-              mobileHeaderWrapper: null,
+        body: MediaQuery(
+          data: MediaQueryData(
+            size: Size(width, height),
+            textScaler: TextScaler.linear(textScale),
+          ),
+          child: SizedBox(
+            width: width,
+            height: height,
+            child: AgentChatMessages(
+              viewData: AgentChatPanelViewData(
+                state: state,
+                config: PromptAssistantConfigState.defaults(),
+                agentSettings: const AgentSettingsState(initialized: true),
+                webAccess: const WebAccessConfigState(initialized: true),
+                mobile: mobile,
+                fullScreen: false,
+                compactMobile: false,
+                width: width,
+                height: height,
+                onClose: null,
+                onOpenSettings: null,
+                mobileHeaderWrapper: null,
+              ),
+              commands: _commands,
+              controller: controller,
             ),
-            commands: _commands,
-            controller: controller,
           ),
         ),
       ),
@@ -625,6 +759,8 @@ Future<void> _pump(
 final _onePixelPng = base64Decode(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO6qv0YAAAAASUVORK5CYII=',
 );
+
+Message? _editedSource;
 
 final _commands = AgentChatPanelCommands(
   collapse: () {},
@@ -650,6 +786,8 @@ final _commands = AgentChatPanelCommands(
   resolveApproval: (_, __) => false,
   useSuggestion: (_) {},
   copyUserMessage: (_) async {},
+  editUserMessage: (message, _) async => _editedSource = message,
+  cancelUserMessageEdit: () {},
   copyAssistantMessage: (_) async {},
   editQueuedMessage: (_) async {},
   removeQueuedMessage: (_) {},

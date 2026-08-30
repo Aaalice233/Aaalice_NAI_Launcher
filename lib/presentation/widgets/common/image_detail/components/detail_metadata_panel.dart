@@ -9,6 +9,7 @@ import 'package:timeago/timeago.dart' as timeago;
 import '../../../../../core/platform/platform_capabilities.dart';
 import '../../../../../core/utils/app_logger.dart';
 import '../../../../../core/utils/localization_extension.dart';
+import '../../../../../core/utils/nai_prompt_parser.dart';
 import '../../../../../core/utils/nai_resolution_adapter.dart';
 import '../../../../../data/models/fixed_tag/fixed_tag_entry.dart';
 import '../../../../../data/models/gallery/nai_image_metadata.dart';
@@ -638,11 +639,7 @@ class _MetadataContent extends StatelessWidget {
   /// 从提示词文本提取标签列表
   List<String> _extractTags(String prompt) {
     if (prompt.isEmpty) return [];
-    return prompt
-        .split(',')
-        .map((t) => t.trim())
-        .where((t) => t.isNotEmpty)
-        .toList();
+    return NaiPromptParser.splitSegments(prompt);
   }
 
   Future<void> _copyPositivePrompt(

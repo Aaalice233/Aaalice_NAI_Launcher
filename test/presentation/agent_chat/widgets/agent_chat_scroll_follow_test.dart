@@ -4,7 +4,9 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/agent/agent_types.dart';
 import 'package:nai_launcher/presentation/agent_chat/providers/agent_chat_notifier.dart';
+import 'package:nai_launcher/presentation/agent_chat/widgets/agent_chat_history.dart';
 import 'package:nai_launcher/presentation/agent_chat/widgets/agent_chat_panel_controller.dart';
+import 'package:nai_launcher/presentation/agent_chat/widgets/agent_chat_turn.dart';
 
 void main() {
   testWidgets('streaming follows while the viewport remains at the bottom', (
@@ -73,6 +75,68 @@ void main() {
       await _pumpTranscript(tester, controller, state, heights);
       await tester.pump();
       expect(controller.scrollController.offset, closeTo(userOffset, 0.01));
+      expect(controller.showJumpToLatest, isTrue);
+    },
+  );
+
+  testWidgets(
+    'streaming growth preserves the visible turn anchor while follow is paused',
+    (tester) async {
+      final controller = AgentChatPanelController();
+      addTearDown(controller.dispose);
+      final turns = List.generate(
+        6,
+        (index) => AgentChatTurnModel(
+          ordinal: index,
+          userMessage: UserMessage.text('turn $index'),
+          userMessageIndex: index,
+        ),
+      );
+
+      Future<void> pumpViewport(double liveHeight) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: SizedBox(
+                height: 300,
+                child: AgentChatThreadViewport(
+                  sessionId: 'a',
+                  turns: turns,
+                  controller: controller,
+                  horizontalPadding: 0,
+                  maxWidth: 600,
+                  mobile: true,
+                  hasEarlier: false,
+                  historyLoading: false,
+                  prependAnchorEntryId: null,
+                  onLoadEarlier: null,
+                  live: SizedBox(height: liveHeight),
+                  turnBuilder: (context, turn, current) => SizedBox(
+                    height: 100,
+                    child: Text('turn ${turn.ordinal}'),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      }
+
+      await pumpViewport(80);
+      await tester.pump();
+      final transcript = find.byType(CustomScrollView);
+      await tester.drag(transcript, const Offset(0, 240));
+      await tester.pumpAndSettle();
+      expect(controller.showJumpToLatest, isTrue);
+
+      final anchor = find.byKey(const ValueKey('agent-turn-3'));
+      expect(anchor, findsOneWidget);
+      final anchorTop = tester.getTopLeft(anchor).dy;
+
+      await pumpViewport(200);
+      await tester.pump();
+
+      expect(tester.getTopLeft(anchor).dy, closeTo(anchorTop, 0.01));
       expect(controller.showJumpToLatest, isTrue);
     },
   );

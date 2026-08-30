@@ -1,4 +1,7 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
+import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_entry.dart';
 import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_link.dart';
 import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_prompt_type.dart';
@@ -26,6 +29,31 @@ void main() {
       expect(
         state.applyToPrompt('1girl'),
         'masterpiece, 1girl, cinematic lighting',
+      );
+    });
+
+    test('preserves user repeats and separate entries with equal content', () {
+      final entries = [
+        FixedTagEntry.create(
+          name: 'first',
+          content: 'masterpiece',
+          sortOrder: 0,
+        ),
+        FixedTagEntry.create(
+          name: 'second',
+          content: 'masterpiece',
+          sortOrder: 1,
+        ),
+      ];
+      final state = FixedTagsState(entries: entries);
+
+      expect(
+        state.applyToPrompt('masterpiece, portrait, masterpiece'),
+        'masterpiece, masterpiece, masterpiece, portrait, masterpiece',
+      );
+      expect(
+        entries.applyToPrompt('masterpiece, portrait, masterpiece'),
+        state.applyToPrompt('masterpiece, portrait, masterpiece'),
       );
     });
 
@@ -105,6 +133,67 @@ void main() {
       expect(state.linkedPositivesOf(negative.id), [positive]);
       expect(state.isMismatched(link), isTrue);
       expect(FixedTagLink.fromJson(link.toJson()).negativeEntryId, negative.id);
+    });
+  });
+
+  group('FixedTagsNotifier.addEntry identity', () {
+    test('is idempotent per source, prompt type, and position', () async {
+      final storage = _MockLocalStorageService();
+      when(storage.getFixedTagsJson).thenReturn(null);
+      when(storage.getFixedTagLinksJson).thenReturn(null);
+      when(storage.getFixedTagsNegativePanelExpanded).thenReturn(true);
+      when(() => storage.setFixedTagsJson(any())).thenAnswer((_) async {});
+      final container = ProviderContainer(
+        overrides: [localStorageServiceProvider.overrideWithValue(storage)],
+      );
+      addTearDown(container.dispose);
+      final notifier = container.read(fixedTagsNotifierProvider.notifier);
+
+      final positivePrefix = await notifier.addEntry(
+        name: 'source',
+        content: 'same',
+        sourceEntryId: 'library-entry',
+      );
+      final repeated = await notifier.addEntry(
+        name: 'source again',
+        content: 'changed payload from the same import',
+        sourceEntryId: 'library-entry',
+      );
+      final negativePrefix = await notifier.addEntry(
+        name: 'negative',
+        content: 'same',
+        sourceEntryId: 'library-entry',
+        promptType: FixedTagPromptType.negative,
+      );
+      final positiveSuffix = await notifier.addEntry(
+        name: 'suffix',
+        content: 'same',
+        sourceEntryId: 'library-entry',
+        position: FixedTagPosition.suffix,
+      );
+
+      expect(repeated.id, positivePrefix.id);
+      expect(negativePrefix.id, isNot(positivePrefix.id));
+      expect(positiveSuffix.id, isNot(positivePrefix.id));
+      expect(container.read(fixedTagsNotifierProvider).entries, hasLength(3));
+    });
+
+    test('does not merge independent entries by prompt text', () async {
+      final storage = _MockLocalStorageService();
+      when(storage.getFixedTagsJson).thenReturn(null);
+      when(storage.getFixedTagLinksJson).thenReturn(null);
+      when(storage.getFixedTagsNegativePanelExpanded).thenReturn(true);
+      when(() => storage.setFixedTagsJson(any())).thenAnswer((_) async {});
+      final container = ProviderContainer(
+        overrides: [localStorageServiceProvider.overrideWithValue(storage)],
+      );
+      addTearDown(container.dispose);
+      final notifier = container.read(fixedTagsNotifierProvider.notifier);
+
+      await notifier.addEntry(name: 'one', content: 'same');
+      await notifier.addEntry(name: 'two', content: 'same');
+
+      expect(container.read(fixedTagsNotifierProvider).entries, hasLength(2));
     });
   });
 
@@ -320,3 +409,5 @@ void main() {
     });
   });
 }
+
+class _MockLocalStorageService extends Mock implements LocalStorageService {}

@@ -172,8 +172,10 @@ class GenerationToolDefinitions {
             'text-to-image regardless of the generation page img2img '
             'state. '
             'If a generation is already running, this waits up to 300s and '
-            'runs in order. Returns the saved file paths plus thumbnails, '
-            'which appear in the chat. For normal "draw/generate" requests '
+            'runs in order. Each saved image returns path as the exact '
+            'workspace-relative argument for read plus an application-owned '
+            'resource_ref; never derive one from the other. Thumbnails appear '
+            'in the chat. For normal "draw/generate" requests '
             'always use this tool instead of queue_image_task.',
         parameters: const {
           'type': 'object',
@@ -338,9 +340,11 @@ class GenerationToolDefinitions {
         label: 'Get Recent Images',
         description:
             'Return the newest saved generation-history images (including '
-            'queue outputs) with read-safe workspace-relative paths and '
-            'stable resource references. Never derive a filename from a '
-            'resource ID. "limit" is required on every call. When the user '
+            'queue outputs) using the same contract as generate_image: path '
+            'is the exact workspace-relative argument for read and '
+            'resource_ref is the application-owned identity for resource '
+            'tools. Never derive one from the other. "limit" is required on '
+            'every call. When the user '
             'requests a specific number, pass that exact number.',
         parameters: const {
           'type': 'object',

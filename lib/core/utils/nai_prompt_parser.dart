@@ -26,6 +26,41 @@ class NaiPromptParser {
     return tags;
   }
 
+  /// 按 NAI 语法边界拆分提示词，并保留每个片段的原始权重语法。
+  ///
+  /// 逗号仅在所有括号和 `||` 语法之外作为分隔符，因此
+  /// `{{{masterpiece, best_quality}}}` 会保持为一个片段。
+  static List<String> splitSegments(String prompt) =>
+      _splitByDelimiters(prompt);
+
+  /// 返回用于完整片段身份比较的稳定形式。
+  ///
+  /// 这里只规范化大小写和空白，不剥离权重，也不做 substring 匹配。
+  static String normalizeSegment(String segment) => segment
+      .trim()
+      .toLowerCase()
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .replaceAll(RegExp(r'\s*,\s*'), ',');
+
+  /// 判断 [prompt] 是否包含完整且连续的 [fragment] 语义片段。
+  static bool containsFragment(String prompt, String fragment) {
+    final source = splitSegments(prompt).map(normalizeSegment).toList();
+    final expected = splitSegments(fragment).map(normalizeSegment).toList();
+    if (expected.isEmpty || expected.length > source.length) return false;
+
+    for (var start = 0; start <= source.length - expected.length; start++) {
+      var matches = true;
+      for (var offset = 0; offset < expected.length; offset++) {
+        if (source[start + offset] != expected[offset]) {
+          matches = false;
+          break;
+        }
+      }
+      if (matches) return true;
+    }
+    return false;
+  }
+
   /// 仅剥离单个片段上的权重语法，尽量保留其他字符。
   static String stripWeightSyntax(String segment) {
     final trimmed = segment.trim();
@@ -48,18 +83,28 @@ class NaiPromptParser {
     for (var i = 0; i < prompt.length; i++) {
       final char = prompt[i];
 
-      // 跟踪括号深度
+      // 反斜杠只转义紧随其后的一个字符。成对反斜杠会互相转义，
+      // 因此只有奇数个连续反斜杠才能保护后面的语法字符。
+      if (char == '\\' && i + 1 < prompt.length) {
+        buffer
+          ..write(char)
+          ..write(prompt[i + 1]);
+        i++;
+        continue;
+      }
+
+      // 不平衡的闭括号不能把深度降为负数，否则后续顶层逗号会失效。
       if (char == '{') {
         braceDepth++;
-      } else if (char == '}') {
+      } else if (char == '}' && braceDepth > 0) {
         braceDepth--;
       } else if (char == '[') {
         bracketDepth++;
-      } else if (char == ']') {
+      } else if (char == ']' && bracketDepth > 0) {
         bracketDepth--;
       } else if (char == '(') {
         parenDepth++;
-      } else if (char == ')') {
+      } else if (char == ')' && parenDepth > 0) {
         parenDepth--;
       }
 
@@ -127,8 +172,9 @@ class NaiPromptParser {
 
     // 1. 先处理 NAI 数值权重语法: weight::text::
     // 匹配: 数字::内容:: 或 数字::内容
-    final naiWeightMatch =
-        RegExp(r'^(-?\d+\.?\d*)::(.+?)(?:::)?$').firstMatch(text);
+    final naiWeightMatch = RegExp(
+      r'^(-?\d+\.?\d*)::(.+?)(?:::)?$',
+    ).firstMatch(text);
     if (naiWeightMatch != null) {
       final weightValue = double.tryParse(naiWeightMatch.group(1)!);
       if (weightValue != null) {
@@ -183,8 +229,12 @@ class NaiPromptParser {
     }
 
     // 计算有效的括号层数（取开闭括号的最小值）
-    final effectiveBraces = braceCount < closeBraceCount ? braceCount : closeBraceCount;
-    final effectiveBrackets = bracketCount < closeBracketCount ? bracketCount : closeBracketCount;
+    final effectiveBraces = braceCount < closeBraceCount
+        ? braceCount
+        : closeBraceCount;
+    final effectiveBrackets = bracketCount < closeBracketCount
+        ? bracketCount
+        : closeBracketCount;
 
     // 计算权重并移除括号
     if (effectiveBraces > 0) {

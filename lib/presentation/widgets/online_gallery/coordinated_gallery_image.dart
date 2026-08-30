@@ -51,14 +51,17 @@ class _CoordinatedGalleryImageState extends State<CoordinatedGalleryImage> {
   bool _failed = false;
   bool _requesting = false;
   bool _showImmediately = false;
+  bool _completionPending = false;
   Future<void> _failedImageEviction = Future<void>.value();
   int _revision = 0;
 
   @override
   void initState() {
     super.initState();
-    _ready = widget.coordinator.isReady(widget.request);
-    _showImmediately = _ready;
+    final available = widget.coordinator.isReady(widget.request);
+    _completionPending = available && widget.coordinator.isPaused;
+    _ready = available && !_completionPending;
+    _showImmediately = available;
     widget.coordinator.addListener(_handleCoordinatorChanged);
   }
 
@@ -90,8 +93,10 @@ class _CoordinatedGalleryImageState extends State<CoordinatedGalleryImage> {
       _revision += 1;
       _requesting = false;
       if (requestChanged) {
-        _ready = widget.coordinator.isReady(widget.request);
-        _showImmediately = _ready;
+        final available = widget.coordinator.isReady(widget.request);
+        _completionPending = available && widget.coordinator.isPaused;
+        _ready = available && !_completionPending;
+        _showImmediately = available;
         _failed = false;
         _failedImageEviction = Future<void>.value();
       } else if (!_ready && widget.enabled) {
@@ -112,9 +117,16 @@ class _CoordinatedGalleryImageState extends State<CoordinatedGalleryImage> {
   }
 
   void _handleCoordinatorChanged() {
-    if (!mounted || !widget.enabled || _ready || widget.coordinator.isPaused) {
+    if (!mounted || !widget.enabled || widget.coordinator.isPaused) return;
+    if (_completionPending) {
+      setState(() {
+        _completionPending = false;
+        _ready = widget.coordinator.isReady(widget.request);
+        _failed = widget.coordinator.isNegativelyCached(widget.request);
+      });
       return;
     }
+    if (_ready) return;
     if (_failed && !widget.coordinator.isNegativelyCached(widget.request)) {
       setState(() => _failed = false);
     }
@@ -143,8 +155,15 @@ class _CoordinatedGalleryImageState extends State<CoordinatedGalleryImage> {
           final negativelyCached = widget.coordinator.isNegativelyCached(
             widget.request,
           );
+          _requesting = false;
+          if (loaded && widget.coordinator.isPaused) {
+            // Downloading may finish while a fling is active. Publishing the
+            // provider immediately would decode and rebuild image tiles in the
+            // same frames that must process pointer/scroll input.
+            _completionPending = true;
+            return;
+          }
           setState(() {
-            _requesting = false;
             _ready = loaded;
             _failed = negativelyCached;
           });

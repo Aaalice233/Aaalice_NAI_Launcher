@@ -1,6 +1,4 @@
 import '../../../core/constants/model_capabilities.dart';
-import '../../../data/models/character/character_prompt.dart'
-    show CharacterPositionLayout;
 import '../../../data/models/image/image_params.dart';
 
 enum GenerationCharacterLayoutMode { aiChoice, custom }
@@ -147,21 +145,31 @@ abstract final class GenerationCharacterOrchestrator {
       );
     }
 
-    final defaults = layoutMode == GenerationCharacterLayoutMode.custom
-        ? CharacterPositionLayout.positionsForCount(parsed.length)
-        : const [];
+    if (layoutMode == GenerationCharacterLayoutMode.custom) {
+      final missingPosition = parsed.indexWhere(
+        (character) => character.x == null || character.y == null,
+      );
+      if (missingPosition >= 0) {
+        throw GenerationCharacterValidationException(
+          'missing_character_coordinates',
+          'Character ${missingPosition + 1} requires both position_x and '
+              'position_y in custom layout.',
+        );
+      }
+    }
+
     return GenerationCharacterSnapshot(
       layoutMode: layoutMode,
       characters: [
-        for (var index = 0; index < parsed.length; index++)
+        for (final character in parsed)
           CharacterPrompt(
-            prompt: parsed[index].prompt,
-            negativePrompt: parsed[index].negativePrompt,
+            prompt: character.prompt,
+            negativePrompt: character.negativePrompt,
             positionX: layoutMode == GenerationCharacterLayoutMode.custom
-                ? parsed[index].x ?? defaults[index].column
+                ? character.x
                 : null,
             positionY: layoutMode == GenerationCharacterLayoutMode.custom
-                ? parsed[index].y ?? defaults[index].row
+                ? character.y
                 : null,
           ),
       ],

@@ -13,19 +13,31 @@ class GenerationWorkspacePathResolver {
          p.absolute(workspaceDir ?? Directory.current.path),
        ),
        _fileEnv = DartIoExecutionEnv(
-         workingDirectory: workspaceDir,
+         workingDirectory: p.normalize(
+           p.absolute(workspaceDir ?? Directory.current.path),
+         ),
          allowOutsideWorkingDirectory: allowOutsideWorkspace,
        );
 
   final String _workspaceDir;
   final DartIoExecutionEnv _fileEnv;
 
-  String? readableRelativePath(String filePath) {
-    final absolutePath = p.normalize(
-      p.isAbsolute(filePath) ? filePath : p.join(_workspaceDir, filePath),
-    );
+  /// Returns the exact relative argument accepted by the `read` tool, but
+  /// only after the same execution environment proves that the existing file
+  /// resolves back to that path inside the configured workspace.
+  Future<String?> readPathForExistingFile(String filePath) async {
+    final absoluteResult = await _fileEnv.absolutePath(filePath);
+    final absolutePath = absoluteResult.valueOrNull;
+    if (absolutePath == null || !await File(absolutePath).exists()) return null;
     if (!p.isWithin(_workspaceDir, absolutePath)) return null;
-    return p.relative(absolutePath, from: _workspaceDir);
+
+    final relativePath = p.relative(absolutePath, from: _workspaceDir);
+    final roundTripResult = await _fileEnv.absolutePath(relativePath);
+    final roundTripPath = roundTripResult.valueOrNull;
+    if (roundTripPath == null || !p.equals(roundTripPath, absolutePath)) {
+      return null;
+    }
+    return relativePath;
   }
 
   Future<String> resolveLocalImagePath(String rawPath) async {

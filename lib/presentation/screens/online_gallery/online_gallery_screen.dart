@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -5,6 +6,7 @@ import '../../../core/cache/cancellable_gallery_image_loader.dart';
 import '../../../core/cache/gallery_image_request.dart';
 import '../../../core/cache/online_gallery_prefetch_coordinator.dart';
 import '../../../core/network/critical_network_activity.dart';
+import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/services/danbooru_auth_service.dart';
 import '../../../data/services/gelbooru_auth_service.dart';
@@ -120,7 +122,6 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       _controller.lastFavoritesSource = state.favoritesSourceId;
       _controller.lastCacheKey = state.currentCacheKey;
       _controller.lastRandomEnabled = state.randomEnabled;
-      _controller.lastRandomDrawRevision = state.randomSession.drawRevision;
       _scrollCoordinator.scheduleAutoLoadIfUnderfilled(state);
     });
   }
@@ -137,10 +138,14 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     });
     if (!visible) {
       _controller.hoverController.dismiss();
-      _controller.scheduledAutoLoadCacheKey = null;
+      _controller.scrollStopTimer?.cancel();
+      _controller.prefetchResumeTimer?.cancel();
+      _controller.setScrolling(false);
+      _controller.prefetchCoordinator.setScrolling(false);
     } else {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
+        if (!mounted || !_controller.branchVisible) return;
+        _scrollCoordinator.scheduleVisiblePrefetch();
         _scrollCoordinator.scheduleAutoLoadIfUnderfilled(
           ref.read(onlineGalleryNotifierProvider),
         );
@@ -172,6 +177,15 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     _appForeground = _isForegroundLifecycleState(state);
     _controller.prefetchCoordinator.setAppForeground(_appForeground);
     _syncBackgroundNetworkActivity();
+    if (_appForeground && _controller.branchVisible) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_controller.branchVisible) return;
+        _scrollCoordinator.scheduleVisiblePrefetch();
+        _scrollCoordinator.scheduleAutoLoadIfUnderfilled(
+          ref.read(onlineGalleryNotifierProvider),
+        );
+      });
+    }
   }
 
   bool _isForegroundLifecycleState(AppLifecycleState? state) =>
@@ -181,10 +195,28 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
 
   Future<void> _goToPage(int page) async {
     final revision = ++_pageJumpRevision;
-    final cacheKey = ref.read(onlineGalleryNotifierProvider).currentCacheKey;
+    final initialState = ref.read(onlineGalleryNotifierProvider);
+    final cacheKey = initialState.currentCacheKey;
+    final stopwatch = kDebugMode ? (Stopwatch()..start()) : null;
+    if (kDebugMode) {
+      AppLogger.i(
+        'pageJump start requested=$page current=${initialState.page} '
+            'posts=${initialState.posts.length} cache=${cacheKey.hashCode}',
+        'GalleryPerf',
+      );
+    }
     _scrollCoordinator.beginPageJump();
     try {
       final target = await _galleryNotifier.goToPage(page);
+      if (kDebugMode) {
+        final loadedState = ref.read(onlineGalleryNotifierProvider);
+        AppLogger.i(
+          'pageJump target requested=$page targetIndex=${target?.itemIndex} '
+              'posts=${loadedState.posts.length} page=${loadedState.page} '
+              'loadMs=${stopwatch?.elapsedMilliseconds}',
+          'GalleryPerf',
+        );
+      }
       bool isCurrent() {
         return mounted &&
             revision == _pageJumpRevision &&
@@ -196,6 +228,20 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     } finally {
       if (mounted && revision == _pageJumpRevision) {
         _scrollCoordinator.endPageJump();
+      }
+      if (stopwatch != null) {
+        stopwatch.stop();
+        final position = _controller.scrollController.hasClients
+            ? _controller.scrollController.position
+            : null;
+        AppLogger.i(
+          'pageJump end requested=$page elapsedMs=${stopwatch.elapsedMilliseconds} '
+              'offset=${position?.pixels.toStringAsFixed(1)} '
+              'maxExtent=${position?.maxScrollExtent.toStringAsFixed(1)} '
+              'columns=${_controller.currentColumnCount} '
+              'itemWidth=${_controller.currentItemWidth?.toStringAsFixed(1)}',
+          'GalleryPerf',
+        );
       }
     }
   }
@@ -211,22 +257,34 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             _controller.lastFavoritesSource != state.favoritesSourceId) ||
         (_controller.lastRandomEnabled != null &&
             _controller.lastRandomEnabled != state.randomEnabled);
-    final randomDrawChanged =
+    final randomReplaceStarted =
         state.randomEnabled &&
-        _controller.lastRandomDrawRevision != null &&
-        _controller.lastRandomDrawRevision != state.randomSession.drawRevision;
+        state.isLoading &&
+        !state.isLoadingMore &&
+        !_controller.randomReplacePending;
+    if (randomReplaceStarted) _controller.randomReplacePending = true;
+    if (!state.randomEnabled || (!state.isLoading && !state.isLoadingMore)) {
+      _controller.randomReplacePending = false;
+    }
     final initialPositionReady =
         _controller.restoreInitialPositionPending &&
         state.posts.isNotEmpty &&
         !state.isLoading;
-    if (browsingContextChanged || randomDrawChanged || initialPositionReady) {
+    if (browsingContextChanged ||
+        randomReplaceStarted ||
+        initialPositionReady) {
       if (browsingContextChanged) {
         _pageJumpRevision++;
         _scrollCoordinator.endPageJump();
         _controller.synchronizeQueries(state);
       }
       _controller.hoverController.dismiss();
-      _controller.visibleItems.clear();
+      _controller.resetViewportTracking();
+      _controller.paginationDemand.resetScope(
+        state.randomEnabled
+            ? 'random:${state.randomSession.scopeKey}'
+            : state.currentCacheKey,
+      );
       _controller.prefetchCoordinator.rotateGeneration();
       if (browsingContextChanged || initialPositionReady) {
         _scrollCoordinator.restoreScrollOffset(
@@ -239,7 +297,6 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     _controller.lastFavoritesSource = state.favoritesSourceId;
     _controller.lastCacheKey = state.currentCacheKey;
     _controller.lastRandomEnabled = state.randomEnabled;
-    _controller.lastRandomDrawRevision = state.randomSession.drawRevision;
     _scrollCoordinator.scheduleAutoLoadIfUnderfilled(state);
   }
 

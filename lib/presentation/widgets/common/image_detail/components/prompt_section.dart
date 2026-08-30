@@ -5,6 +5,7 @@ import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../../../core/autocomplete/tag_translation_lookup.dart';
 import '../../../../../core/platform/platform_capabilities.dart';
+import '../../../../../core/utils/nai_prompt_parser.dart';
 import '../../app_toast.dart';
 import 'selection_copy_shortcuts.dart';
 
@@ -78,11 +79,7 @@ class _PromptSectionState extends State<PromptSection> {
   List<String> get _displayTags {
     if (widget.tags != null) return widget.tags!;
     if (widget.content.isEmpty) return [];
-    return widget.content
-        .split(',')
-        .map((t) => t.trim())
-        .where((t) => t.isNotEmpty)
-        .toList();
+    return NaiPromptParser.splitSegments(widget.content);
   }
 
   int get _tagCount {
@@ -307,12 +304,12 @@ class _TagChipGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final normalizedFixedTags = fixedTags
-        .expand((entry) => entry.split(','))
+        .expand(NaiPromptParser.splitSegments)
         .map(_normalizePromptTag)
         .where((tag) => tag.isNotEmpty)
         .toSet();
     final normalizedCharacterTags = characterTags
-        .expand((entry) => entry.split(','))
+        .expand(NaiPromptParser.splitSegments)
         .map(_normalizePromptTag)
         .where((tag) => tag.isNotEmpty)
         .toSet();
