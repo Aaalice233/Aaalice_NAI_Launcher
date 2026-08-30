@@ -26,23 +26,59 @@ void main() {
       );
     });
 
-    test('normalizes legacy grid and deterministic custom defaults', () {
+    test('defaults multiple positionless characters to NovelAI AI layout', () {
+      final snapshot = GenerationCharacterOrchestrator.normalizeExplicit(
+        model: ImageModels.animeDiffusionV5Curated,
+        rawLayoutMode: null,
+        rawCharacters: const [
+          {'prompt': 'hero'},
+          {'prompt': 'companion'},
+        ],
+      );
+
+      expect(snapshot.layoutMode, GenerationCharacterLayoutMode.aiChoice);
+      expect(snapshot.useCoords, isFalse);
+      expect(snapshot.characters.first.positionX, isNull);
+      expect(snapshot.characters.first.positionY, isNull);
+      expect(snapshot.characters.last.positionX, isNull);
+      expect(snapshot.characters.last.positionY, isNull);
+    });
+
+    test('normalizes complete explicit manual positions', () {
       final snapshot = GenerationCharacterOrchestrator.normalizeExplicit(
         model: ImageModels.animeDiffusionV5Curated,
         rawLayoutMode: 'custom',
         rawCharacters: const [
           {'prompt': 'hero', 'position': 'B3'},
-          {'prompt': 'companion'},
+          {'prompt': 'companion', 'position_x': 0.8, 'position_y': 0.25},
         ],
       );
 
       expect(snapshot.useCoords, isTrue);
       expect(snapshot.characters.first.positionX, 0.3);
       expect(snapshot.characters.first.positionY, 0.5);
-      expect(snapshot.characters.last.positionX, isNotNull);
-      expect(snapshot.characters.last.positionY, isNotNull);
-      expect(snapshot.characters.last.positionX, inInclusiveRange(0, 1));
-      expect(snapshot.characters.last.positionY, inInclusiveRange(0, 1));
+      expect(snapshot.characters.last.positionX, 0.8);
+      expect(snapshot.characters.last.positionY, 0.25);
+    });
+
+    test('custom layout never invents missing character coordinates', () {
+      expect(
+        () => GenerationCharacterOrchestrator.normalizeExplicit(
+          model: ImageModels.animeDiffusionV5Curated,
+          rawLayoutMode: 'custom',
+          rawCharacters: const [
+            {'prompt': 'hero', 'position_x': 0.2, 'position_y': 0.5},
+            {'prompt': 'companion'},
+          ],
+        ),
+        throwsA(
+          isA<GenerationCharacterValidationException>().having(
+            (error) => error.code,
+            'code',
+            'missing_character_coordinates',
+          ),
+        ),
+      );
     });
 
     test('AI layout rejects coordinates instead of silently ignoring them', () {

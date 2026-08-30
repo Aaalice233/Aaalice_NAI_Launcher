@@ -157,6 +157,29 @@ void main() {
       expect(initial['characters'][0]['order'], 0);
       expect(initial['characters'][0]['position_x'], 0.2);
 
+      final preserved = await tool('update_character').execute(
+        'preserve-position',
+        const {'id': 'first', 'prompt': 'updated hero'},
+      );
+      expect(preserved.isError, isFalse);
+      final preservedCharacter = container
+          .read(characterPromptNotifierProvider)
+          .characters
+          .firstWhere((character) => character.id == 'first');
+      expect(preservedCharacter.positionMode, CharacterPositionMode.aiChoice);
+      expect(preservedCharacter.customPosition?.column, 0.2);
+      expect(preservedCharacter.customPosition?.row, 0.4);
+
+      final missingCustom = await tool('update_character').execute(
+        'missing-custom',
+        const {'id': 'second', 'position_mode': 'custom'},
+      );
+      expect(missingCustom.isError, isTrue);
+      expect(
+        _resultText(missingCustom),
+        contains('missing_character_coordinates'),
+      );
+
       final partial = await tool(
         'update_character',
       ).execute('partial', const {'id': 'second', 'position_x': 0.5});
@@ -172,6 +195,10 @@ void main() {
       expect(
         jsonDecode(_resultText(updated))['character']['position_mode'],
         'custom',
+      );
+      expect(
+        container.read(characterPromptNotifierProvider).globalAiChoice,
+        isFalse,
       );
 
       await tool(
@@ -289,6 +316,26 @@ void main() {
     expect(characters.first.negativePrompt, 'old negative');
     expect(characters.last.negativePrompt, 'red hair');
     expect(characters.last.positionMode, CharacterPositionMode.aiChoice);
+    expect(characters.last.customPosition, isNull);
+
+    final customWithoutCoordinates = await tool.execute(
+      'add-custom-without-coordinates',
+      const {
+        'name': 'Manual',
+        'prompt': 'green hair',
+        'position_mode': 'custom',
+      },
+    );
+    expect(customWithoutCoordinates.isError, isTrue);
+    expect(
+      _resultText(customWithoutCoordinates),
+      contains('missing_character_coordinates'),
+    );
+
+    final positionModeSchema =
+        (tool.parameters['properties'] as Map<String, dynamic>)['position_mode']
+            as Map<String, dynamic>;
+    expect(positionModeSchema['default'], 'ai_choice');
   });
 }
 
