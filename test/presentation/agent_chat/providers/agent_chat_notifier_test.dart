@@ -409,6 +409,102 @@ User instructions.
       },
     );
 
+    test('temporary route loss preserves the session thinking level', () async {
+      final configNotifier = container.read(
+        promptAssistantConfigProvider.notifier,
+      );
+      await configNotifier.upsertProvider(
+        ProviderPreset.deepseek.createConfig(),
+      );
+      await configNotifier.upsertModel(
+        const ModelConfig(
+          providerId: 'deepseek',
+          name: 'deepseek-v4-pro',
+          displayName: 'DeepSeek V4 Pro',
+          forTask: AssistantTaskType.chat,
+        ),
+      );
+      await container
+          .read(agentSettingsProvider.notifier)
+          .setModelReference(
+            const AgentModelReference(
+              providerId: 'deepseek',
+              model: 'deepseek-v4-pro',
+            ),
+          );
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+
+      final notifier = container.read(provider.notifier);
+      await notifier.setThinkingLevel(ThinkingLevel.high);
+      final deepSeek = container
+          .read(promptAssistantConfigProvider)
+          .providers
+          .firstWhere((item) => item.id == 'deepseek');
+
+      await configNotifier.upsertProvider(deepSeek.copyWith(enabled: false));
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      expect(container.read(provider).routeReady, isFalse);
+      expect(container.read(provider).thinkingLevel, ThinkingLevel.high);
+
+      await configNotifier.upsertProvider(deepSeek.copyWith(enabled: true));
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      expect(container.read(provider).routeReady, isTrue);
+      expect(container.read(provider).thinkingLevel, ThinkingLevel.high);
+
+      await notifier.send('still reason');
+      expect(requests.single.reasoning, 'high');
+    });
+
+    test(
+      'new sessions inherit and persist the current thinking level',
+      () async {
+        final configNotifier = container.read(
+          promptAssistantConfigProvider.notifier,
+        );
+        await configNotifier.upsertProvider(
+          ProviderPreset.deepseek.createConfig(),
+        );
+        await configNotifier.upsertModel(
+          const ModelConfig(
+            providerId: 'deepseek',
+            name: 'deepseek-v4-pro',
+            displayName: 'DeepSeek V4 Pro',
+            forTask: AssistantTaskType.chat,
+          ),
+        );
+        await container
+            .read(agentSettingsProvider.notifier)
+            .setModelReference(
+              const AgentModelReference(
+                providerId: 'deepseek',
+                model: 'deepseek-v4-pro',
+              ),
+            );
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+
+        final notifier = container.read(provider.notifier);
+        await notifier.setThinkingLevel(ThinkingLevel.high);
+        final previousSessionId = container.read(provider).activeSessionId;
+
+        await notifier.newSession();
+
+        final nextState = container.read(provider);
+        expect(nextState.activeSessionId, isNot(previousSessionId));
+        expect(nextState.thinkingLevel, ThinkingLevel.high);
+        final metadata = (await sessionRepo.list()).firstWhere(
+          (item) => item.id == nextState.activeSessionId,
+        );
+        final session = await sessionRepo.open(metadata);
+        final entries = await session.findEntriesOnBranch(
+          const EntryQuery(order: EntryOrder.oldestFirst),
+        );
+        expect(
+          entries.whereType<ThinkingLevelEntry>().last.thinkingLevel,
+          'high',
+        );
+      },
+    );
+
     test('resumes a suspended operation instead of starting another', () async {
       final configNotifier = container.read(
         promptAssistantConfigProvider.notifier,

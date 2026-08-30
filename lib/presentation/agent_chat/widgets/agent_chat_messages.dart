@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 
 import '../../../core/agent/agent_types.dart';
 import '../../../core/agent/harness/harness_messages.dart';
+import '../../../core/agent/resources/agent_chat_resource_reference.dart';
+import '../../../core/agent/resources/agent_chat_resource_reference_codec.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../core/windowing/agent_chat_layout_contract.dart';
 import '../../../core/windowing/agent_chat_shared_widgets.dart';
@@ -12,6 +14,7 @@ import '../providers/agent_chat_notifier.dart';
 import 'agent_chat_panel_controller.dart';
 import 'agent_chat_panel_view_data.dart';
 import 'agent_chat_history.dart';
+import 'agent_chat_resource_widgets.dart';
 import 'agent_chat_tool_widgets.dart';
 import 'agent_chat_turn.dart';
 
@@ -114,6 +117,12 @@ class AgentChatMessages extends StatelessWidget {
           hasEarlier: state.hasEarlierTurns,
           historyLoading: state.historyLoading,
           prependAnchorEntryId: state.prependAnchorEntryId,
+          geometryRevision: (
+            state.messages,
+            state.streamingMessage,
+            state.activities,
+            state.turns,
+          ),
           onLoadEarlier: commands.loadEarlierHistory,
           live: const SizedBox.shrink(),
           turnBuilder: (context, turn, current) => Column(
@@ -372,6 +381,7 @@ class AgentChatMessages extends StatelessWidget {
     bool showReasoning = true,
     bool canEditUserMessage = false,
     Message? editSourceMessage,
+    List<AgentChatResourceReference> resourceReferences = const [],
   }) {
     if (message is HarnessCustomMessage &&
         message.customType == 'agentResourcePrompt') {
@@ -387,6 +397,7 @@ class AgentChatMessages extends StatelessWidget {
         showReasoning: showReasoning,
         canEditUserMessage: canEditUserMessage,
         editSourceMessage: message,
+        resourceReferences: _decodeResourceReferences(message.details),
       );
     }
     if (message is UserMessage) {
@@ -441,6 +452,60 @@ class AgentChatMessages extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
+                        if (resourceReferences.isNotEmpty)
+                          Padding(
+                            padding: EdgeInsets.only(
+                              bottom: message.images.isNotEmpty || hasText
+                                  ? 6
+                                  : 0,
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                for (
+                                  var rowStart = 0;
+                                  rowStart < resourceReferences.length;
+                                  rowStart += 2
+                                )
+                                  Padding(
+                                    padding: EdgeInsets.only(
+                                      bottom:
+                                          rowStart + 2 <
+                                              resourceReferences.length
+                                          ? 4
+                                          : 0,
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        for (
+                                          var index = rowStart;
+                                          index < resourceReferences.length &&
+                                              index < rowStart + 2;
+                                          index++
+                                        ) ...[
+                                          if (index > rowStart)
+                                            const SizedBox(width: 5),
+                                          AgentChatSentResourceCard(
+                                            key: ValueKey(
+                                              'agent-user-message-resource-'
+                                              '$messageIndex-$index',
+                                            ),
+                                            reference:
+                                                resourceReferences[index],
+                                            loadPreview: () =>
+                                                commands.resolveResourcePreview(
+                                                  resourceReferences[index],
+                                                ),
+                                            touchOptimized: viewData.mobile,
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
                         if (message.images.isNotEmpty)
                           Padding(
                             padding: EdgeInsets.only(bottom: hasText ? 6 : 0),
@@ -614,6 +679,24 @@ class AgentChatMessages extends StatelessWidget {
     return const SizedBox.shrink();
   }
 
+  List<AgentChatResourceReference> _decodeResourceReferences(Object? details) {
+    if (details is! Map || details['references'] is! List) return const [];
+    final references = <AgentChatResourceReference>[];
+    for (final value in details['references'] as List) {
+      if (value is! Map) continue;
+      try {
+        references.add(
+          AgentChatResourceReferenceCodec.decodeJsonMap(
+            Map<String, dynamic>.from(value),
+          ),
+        );
+      } on FormatException {
+        continue;
+      }
+    }
+    return references;
+  }
+
   Widget _userImage(
     ThemeData theme,
     ImageContent image, {
@@ -684,7 +767,6 @@ class AgentChatMessages extends StatelessWidget {
   }
 
   Widget _assistantMarkdown(String text) => AgentChatMarkdownContent(
-    key: ValueKey('agent-assistant-markdown-${text.hashCode}'),
     text: text,
     touchOptimized: viewData.mobile,
     imageBuilder: (uri, _, alt) => _markdownImage(uri, alt),

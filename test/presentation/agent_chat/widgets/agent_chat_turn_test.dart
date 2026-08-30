@@ -500,7 +500,7 @@ void main() {
     final turnTheme = Theme.of(tester.element(turnFinder));
     expect(
       (turn.decoration! as BoxDecoration).color,
-      turnTheme.colorScheme.surfaceContainerLow,
+      turnTheme.colorScheme.secondaryContainer.withValues(alpha: 0.48),
     );
     expect(find.byIcon(Icons.error_outline_rounded), findsNothing);
 

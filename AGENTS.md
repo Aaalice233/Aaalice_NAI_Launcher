@@ -69,6 +69,7 @@ Windows release 产物位于 `build/windows/x64/runner/Release/`。macOS 使用 
 - 主 Runner 必须在 `WM_SIZE` 和 `WM_WINDOWPOSCHANGED` 后排队重新对齐 Flutter child view；不得只依赖 `WM_SIZE`。否则外层主 HWND 恢复后，内部 `FLUTTERVIEW` 可能仍停在 Windows 最小化哨兵坐标 `-32000,-32000`，表现为旧画面冻结、按钮 hover 不消失、点击无响应或出现调整尺寸光标。
 - 调试“窗口可见但无法操作”时必须分别检查顶层 `FLUTTER_RUNNER_WIN32_WINDOW` 与其 `FLUTTERVIEW` 子窗口的 rect、enabled、capture 和 hit-test；不能只根据 Flutter 日志或外层 HWND 状态判断。
 - 修改插件版本或 Windows C++ 后必须完整重建。Orca 会话显示 `running` 或留有 PID 不等于构建成功；应确认控制台出现原生构建成功/启动标记、真实 `nai_launcher` 进程存在，依赖变化时再核对插件 DLL 时间戳，然后才让用户复现。
+- Windows 最小化会让窗口 constraints 短暂归零，响应式布局可能因此销毁并重建面板子树；滚动位置、是否跟随最新内容等必须跨 Widget/Controller 生命周期的 viewport 状态应由更高层稳定 owner 按会话保存。重建 ScrollController 时必须用保存值设置 `initialScrollOffset`，在首帧直接呈现原位置；不得先渲染默认位置再通过 post-frame `jumpTo` 恢复，否则会出现跳到底部后拉回的闪烁。
 
 用户明确要求自动化运行验收时，两个 runner 通过 `--dart-define=ENABLE_FLUTTER_DRIVER=true` 启用仅限开发会话的 Flutter Driver extension，供官方 Dart and Flutter MCP server 在不抢占用户键鼠和桌面焦点的情况下截图、点击、输入、滚动与检查运行中 Flutter UI。禁止使用 Computer Use。稳定场景应固化为 `integration_test`；Android 系统界面场景使用 ADB。Android 项目 emulator 首次使用无 Quick Boot 快照、host GPU、无设备外框的干净启动，之后默认保留并复用暖机实例；复用前停止旧 App 并返回 Home，显式传 `-StopEmulatorOnExit` 时才跟随会话关闭。`-DeviceId` 仅用于明确复用外部设备。
 

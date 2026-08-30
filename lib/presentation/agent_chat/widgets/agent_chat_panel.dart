@@ -17,6 +17,10 @@ import 'agent_chat_reading_preferences.dart';
 import 'agent_resource_drop_region.dart';
 import 'agent_chat_status.dart';
 
+final _agentChatViewportStoreProvider = Provider<AgentChatViewportStore>(
+  (ref) => AgentChatViewportStore(),
+);
+
 /// Stable shell for the AI chat workspace.
 ///
 /// Ephemeral editing, focus, scrolling, image and preview resources live in
@@ -50,7 +54,10 @@ class _AgentChatPanelState extends ConsumerState<AgentChatPanel> {
   @override
   void initState() {
     super.initState();
-    _controller = AgentChatPanelController()..addListener(_refresh);
+    _controller = AgentChatPanelController(
+      viewportStore: ref.read(_agentChatViewportStoreProvider),
+      initialSessionId: ref.read(agentChatNotifierProvider).activeSessionId,
+    )..addListener(_refresh);
     _controller.inputController.addListener(_syncComposerDraft);
     _coordinator = AgentChatPanelCoordinator(
       ref: ref,

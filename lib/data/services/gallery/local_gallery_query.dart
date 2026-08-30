@@ -6,6 +6,7 @@ import '../../models/gallery/local_image_record.dart';
 import 'gallery_filter_service.dart';
 import 'gallery_path_utils.dart';
 import 'local_gallery_repository.dart';
+import 'local_gallery_service.dart';
 
 bool isFavoriteOnlyFastFilter(FilterCriteria criteria) {
   return criteria.showFavoritesOnly &&
@@ -46,6 +47,7 @@ class LocalGalleryQuery {
   List<File> _filteredFiles = [];
   FilterCriteria _currentFilter = const FilterCriteria();
   int _filterGeneration = 0;
+  int _independentQueryGeneration = 0;
   String? _activeFilterOperationId;
   int _pageSize = 50;
 
@@ -151,6 +153,53 @@ class LocalGalleryQuery {
     final start = page * effectivePageSize;
     final end = min(start + effectivePageSize, effectiveFiles.length);
     return _repository.loadRecords(effectiveFiles.sublist(start, end));
+  }
+
+  Future<LocalGalleryQueryPage> queryPage({
+    required int page,
+    required int pageSize,
+    String searchQuery = '',
+  }) async {
+    if (page < 0) throw RangeError.range(page, 0, null, 'page');
+    if (pageSize <= 0) throw RangeError.range(pageSize, 1, null, 'pageSize');
+
+    final filesSnapshot = List<File>.unmodifiable(_allFiles);
+    final normalizedQuery = searchQuery.trim();
+    var matchingFiles = filesSnapshot;
+    if (normalizedQuery.isNotEmpty) {
+      final queryGeneration = ++_independentQueryGeneration;
+      final result = await _filterService.applyFilters(
+        filesSnapshot,
+        FilterCriteria(searchQuery: normalizedQuery),
+        operationId: 'local_gallery_query_$queryGeneration',
+      );
+      final databaseMatches = {
+        for (final file in result.files) galleryFilePathKey(file.path),
+      };
+      final normalizedText = normalizedQuery.toLowerCase();
+      matchingFiles = filesSnapshot
+          .where(
+            (file) =>
+                databaseMatches.contains(galleryFilePathKey(file.path)) ||
+                file.path.toLowerCase().contains(normalizedText),
+          )
+          .toList(growable: false);
+    }
+
+    final start = page * pageSize;
+    final pageFiles = start >= matchingFiles.length
+        ? const <File>[]
+        : matchingFiles.sublist(
+            min(start, matchingFiles.length),
+            min(start + pageSize, matchingFiles.length),
+          );
+    final records = await _repository.loadRecords(pageFiles);
+    return LocalGalleryQueryPage(
+      records: records,
+      page: page,
+      pageSize: pageSize,
+      totalCount: matchingFiles.length,
+    );
   }
 
   Future<List<LocalImageRecord>> getRecordsByPaths(List<String> paths) async {

@@ -1,6 +1,7 @@
 import 'package:flutter/gestures.dart' show PointerScrollEvent;
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart' show RenderBox, ScrollCacheExtent;
+import 'package:flutter/rendering.dart'
+    show RenderBox, RenderProxyBox, ScrollCacheExtent;
 
 import '../../../core/utils/localization_extension.dart';
 import 'agent_chat_panel_controller.dart';
@@ -30,6 +31,7 @@ class AgentChatThreadViewport extends StatefulWidget {
     required this.hasEarlier,
     required this.historyLoading,
     required this.prependAnchorEntryId,
+    required this.geometryRevision,
     required this.onLoadEarlier,
     required this.live,
     required this.turnBuilder,
@@ -44,6 +46,7 @@ class AgentChatThreadViewport extends StatefulWidget {
   final bool hasEarlier;
   final bool historyLoading;
   final String? prependAnchorEntryId;
+  final Object geometryRevision;
   final Future<void> Function()? onLoadEarlier;
   final Widget live;
   final AgentChatTurnBuilder turnBuilder;
@@ -74,7 +77,18 @@ class _AgentChatThreadViewportState extends State<AgentChatThreadViewport> {
   @override
   void didUpdateWidget(covariant AgentChatThreadViewport oldWidget) {
     final sameSession = oldWidget.sessionId == widget.sessionId;
-    final anchors = sameSession && !widget.controller.followingLatest
+    final geometryChanged =
+        oldWidget.geometryRevision != widget.geometryRevision ||
+        oldWidget.maxWidth != widget.maxWidth ||
+        oldWidget.horizontalPadding != widget.horizontalPadding ||
+        oldWidget.mobile != widget.mobile ||
+        oldWidget.prependAnchorEntryId != widget.prependAnchorEntryId;
+    final anchors =
+        sameSession &&
+            geometryChanged &&
+            oldWidget.maxWidth > 0 &&
+            widget.maxWidth > 0 &&
+            !widget.controller.followingLatest
         ? _captureVisibleAnchors()
         : const <_ViewportAnchor>[];
     super.didUpdateWidget(oldWidget);
@@ -120,7 +134,7 @@ class _AgentChatThreadViewportState extends State<AgentChatThreadViewport> {
   }
 
   Object _identityFor(AgentChatTurnModel turn) =>
-      turn.timeline?.id ?? turn.userMessage ?? turn;
+      turn.timeline?.id ?? turn.ordinal;
 
   GlobalKey _keyFor(AgentChatTurnModel turn) =>
       _turnKeys.putIfAbsent(_identityFor(turn), GlobalKey.new);
@@ -132,8 +146,13 @@ class _AgentChatThreadViewportState extends State<AgentChatThreadViewport> {
     }
     final viewportTop = viewport.localToGlobal(Offset.zero).dy;
     final viewportBottom = viewportTop + viewport.size.height;
+    final stableHistoricalKeys = widget.turns
+        .take(widget.turns.length > 1 ? widget.turns.length - 1 : 0)
+        .map(_identityFor)
+        .map((identity) => _turnKeys[identity])
+        .whereType<GlobalKey>();
     final anchors = <_ViewportAnchor>[];
-    for (final key in _turnKeys.values) {
+    for (final key in stableHistoricalKeys) {
       final anchorContext = key.currentContext;
       final renderObject = anchorContext?.findRenderObject();
       if (renderObject is! RenderBox ||
@@ -253,102 +272,111 @@ class _AgentChatThreadViewportState extends State<AgentChatThreadViewport> {
         .toList(growable: false);
     return Stack(
       children: [
-        NotificationListener<ScrollNotification>(
-          onNotification: widget.controller.handleScrollNotification,
-          // Keyboard and scrollbar track moves are driven scroll activities,
-          // so arm their user intent before notifications change the offset.
-          child: Focus(
-            onKeyEvent: widget.controller.handleViewportKeyEvent,
-            child: Listener(
-              onPointerDown: (_) =>
-                  widget.controller.beginPotentialUserScroll(),
-              onPointerSignal: (event) {
-                if (event is PointerScrollEvent) {
-                  widget.controller.beginPotentialUserScroll();
-                }
-              },
-              onPointerUp: (_) => widget.controller.cancelPotentialUserScroll(),
-              onPointerCancel: (_) =>
-                  widget.controller.cancelPotentialUserScroll(),
-              child: CustomScrollView(
-                key: PageStorageKey('agent-chat-thread-${widget.sessionId}'),
-                controller: widget.controller.scrollController,
-                reverse: true,
-                scrollCacheExtent: const ScrollCacheExtent.pixels(
-                  _overscanExtent,
-                ),
-                slivers: [
-                  SliverPadding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: widget.horizontalPadding,
-                      vertical: 12,
-                    ),
-                    sliver: SliverList.builder(
-                      itemCount: itemCount,
-                      itemBuilder: (context, index) {
-                        if (index == 0) {
-                          return _bounded(widget.live);
-                        }
-                        final reverseTurnIndex = index - 1;
-                        if (reverseTurnIndex < _visibleTurnCount) {
-                          final turnIndex =
-                              widget.turns.length - 1 - reverseTurnIndex;
-                          final turn = widget.turns[turnIndex];
-                          final identity = _identityFor(turn);
-                          return _MeasureSize(
-                            key: _keyFor(turn),
-                            onChange: (size) =>
-                                _measuredHeights[identity] = size.height,
-                            child: RepaintBoundary(
-                              key: ValueKey(
-                                'agent-turn-${turn.timeline?.id ?? turnIndex}',
+        NotificationListener<ScrollMetricsNotification>(
+          onNotification: widget.controller.handleScrollMetricsNotification,
+          child: NotificationListener<ScrollNotification>(
+            onNotification: widget.controller.handleScrollNotification,
+            // Keyboard and scrollbar track moves are driven scroll activities,
+            // so arm their user intent before notifications change the offset.
+            child: Focus(
+              onKeyEvent: widget.controller.handleViewportKeyEvent,
+              child: Listener(
+                onPointerDown: (_) =>
+                    widget.controller.beginPotentialUserScroll(),
+                onPointerSignal: (event) {
+                  if (event is PointerScrollEvent) {
+                    widget.controller.beginPotentialUserScroll();
+                  }
+                },
+                onPointerUp: (_) =>
+                    widget.controller.cancelPotentialUserScroll(),
+                onPointerCancel: (_) =>
+                    widget.controller.cancelPotentialUserScroll(),
+                child: CustomScrollView(
+                  key: ValueKey('agent-chat-thread-${widget.sessionId}'),
+                  controller: widget.controller.scrollController,
+                  reverse: true,
+                  scrollCacheExtent: const ScrollCacheExtent.pixels(
+                    _overscanExtent,
+                  ),
+                  slivers: [
+                    SliverPadding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: widget.horizontalPadding,
+                        vertical: 12,
+                      ),
+                      sliver: SliverList.builder(
+                        itemCount: itemCount,
+                        itemBuilder: (context, index) {
+                          if (index == 0) {
+                            return _bounded(widget.live);
+                          }
+                          final reverseTurnIndex = index - 1;
+                          if (reverseTurnIndex < _visibleTurnCount) {
+                            final turnIndex =
+                                widget.turns.length - 1 - reverseTurnIndex;
+                            final turn = widget.turns[turnIndex];
+                            final identity = _identityFor(turn);
+                            return _RetainedTurn(
+                              child: _MeasureSize(
+                                key: _keyFor(turn),
+                                onChange: (size) =>
+                                    _measuredHeights[identity] = size.height,
+                                child: RepaintBoundary(
+                                  key: ValueKey(
+                                    'agent-turn-${turn.timeline?.id ?? turn.ordinal}',
+                                  ),
+                                  child: _bounded(
+                                    widget.turnBuilder(
+                                      context,
+                                      turn,
+                                      turnIndex == widget.turns.length - 1,
+                                    ),
+                                  ),
+                                ),
                               ),
-                              child: _bounded(
-                                widget.turnBuilder(
-                                  context,
-                                  turn,
-                                  turnIndex == widget.turns.length - 1,
+                            );
+                          }
+                          return _bounded(
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              child: TextButton.icon(
+                                key: const ValueKey(
+                                  'agent-chat-earlier-messages',
+                                ),
+                                onPressed: widget.historyLoading
+                                    ? null
+                                    : _showEarlier,
+                                icon: widget.historyLoading
+                                    ? const SizedBox.square(
+                                        dimension: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 1.7,
+                                        ),
+                                      )
+                                    : const Icon(
+                                        Icons.history_rounded,
+                                        size: 17,
+                                      ),
+                                label: Text(
+                                  widget.historyLoading
+                                      ? context.l10n.common_loading
+                                      : _hiddenCount > 0
+                                      ? context.l10n.agentChat_earlierMessages(
+                                          _hiddenCount,
+                                        )
+                                      : context
+                                            .l10n
+                                            .agentChat_loadEarlierMessages,
                                 ),
                               ),
                             ),
                           );
-                        }
-                        return _bounded(
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            child: TextButton.icon(
-                              key: const ValueKey(
-                                'agent-chat-earlier-messages',
-                              ),
-                              onPressed: widget.historyLoading
-                                  ? null
-                                  : _showEarlier,
-                              icon: widget.historyLoading
-                                  ? const SizedBox.square(
-                                      dimension: 16,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 1.7,
-                                      ),
-                                    )
-                                  : const Icon(Icons.history_rounded, size: 17),
-                              label: Text(
-                                widget.historyLoading
-                                    ? context.l10n.common_loading
-                                    : _hiddenCount > 0
-                                    ? context.l10n.agentChat_earlierMessages(
-                                        _hiddenCount,
-                                      )
-                                    : context
-                                          .l10n
-                                          .agentChat_loadEarlierMessages,
-                              ),
-                            ),
-                          ),
-                        );
-                      },
+                        },
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -432,6 +460,27 @@ class _TurnGutter extends StatelessWidget {
   }
 }
 
+class _RetainedTurn extends StatefulWidget {
+  const _RetainedTurn({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_RetainedTurn> createState() => _RetainedTurnState();
+}
+
+class _RetainedTurnState extends State<_RetainedTurn>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return widget.child;
+  }
+}
+
 class _ViewportAnchor {
   const _ViewportAnchor({required this.key, required this.top});
 
@@ -439,29 +488,37 @@ class _ViewportAnchor {
   final double top;
 }
 
-class _MeasureSize extends StatefulWidget {
-  const _MeasureSize({super.key, required this.onChange, required this.child});
+class _MeasureSize extends SingleChildRenderObjectWidget {
+  const _MeasureSize({super.key, required this.onChange, required super.child});
 
   final ValueChanged<Size> onChange;
-  final Widget child;
 
   @override
-  State<_MeasureSize> createState() => _MeasureSizeState();
+  RenderObject createRenderObject(BuildContext context) =>
+      _MeasureSizeRenderObject(onChange);
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    covariant _MeasureSizeRenderObject renderObject,
+  ) {
+    renderObject.onChange = onChange;
+  }
 }
 
-class _MeasureSizeState extends State<_MeasureSize> {
-  Size? _oldSize;
+class _MeasureSizeRenderObject extends RenderProxyBox {
+  _MeasureSizeRenderObject(this._onChange);
+
+  ValueChanged<Size> _onChange;
+  Size? _reportedSize;
+
+  set onChange(ValueChanged<Size> value) => _onChange = value;
 
   @override
-  Widget build(BuildContext context) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final size = context.size;
-      if (size != null && size != _oldSize) {
-        _oldSize = size;
-        widget.onChange(size);
-      }
-    });
-    return widget.child;
+  void performLayout() {
+    super.performLayout();
+    if (size == _reportedSize) return;
+    _reportedSize = size;
+    _onChange(size);
   }
 }

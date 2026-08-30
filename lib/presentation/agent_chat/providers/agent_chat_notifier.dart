@@ -790,7 +790,6 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
           contextWindow: null,
         ),
         availableThinkingLevels: const [],
-        thinkingLevel: ThinkingLevel.off,
       );
       return;
     }
@@ -930,8 +929,13 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
   }
 
   Future<void> newSession() async {
+    final inheritedThinkingLevel = state.thinkingLevel;
     await _sessionController.newSession();
     _refreshRoute();
+    if (state.availableThinkingLevels.contains(inheritedThinkingLevel) &&
+        state.thinkingLevel != inheritedThinkingLevel) {
+      await setThinkingLevel(inheritedThinkingLevel);
+    }
   }
 
   Future<void> switchSession(String sessionId) async {

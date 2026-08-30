@@ -7,6 +7,7 @@ import 'package:flutter/services.dart'
     show KeyDownEvent, KeyEvent, KeyRepeatEvent, KeyUpEvent, LogicalKeyboardKey;
 
 import '../../../core/agent/agent_types.dart';
+import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/nai_resolution_adapter.dart';
 import '../providers/agent_chat_notifier.dart';
 import 'agent_chat_input_controller.dart';
@@ -24,18 +25,32 @@ class PendingAgentChatImage {
   final String mimeType;
 }
 
+/// Keeps viewport ownership across responsive panel reconstruction.
+class AgentChatViewportStore {
+  final Map<String, ({double offset, bool autoScroll})> sessionOffsets = {};
+}
+
 /// Owns all ephemeral panel resources so the widget shell only coordinates
 /// provider state and immutable view data.
 class AgentChatPanelController extends ChangeNotifier {
-  AgentChatPanelController() {
+  AgentChatPanelController({
+    AgentChatViewportStore? viewportStore,
+    String initialSessionId = '',
+  }) : _viewportStore = viewportStore ?? AgentChatViewportStore() {
+    final savedViewport = _sessionOffsets[initialSessionId];
+    _lastScrollSessionId = initialSessionId;
+    _autoScroll = savedViewport?.autoScroll ?? true;
     inputController = AgentChatInputController(
       onImageEnter: showInlineImagePreview,
       onImageExit: hideInlineImagePreview,
     );
-    scrollController.addListener(_handleScrollPositionChanged);
+    scrollController = _AgentChatScrollController(
+      initialScrollOffset: savedViewport?.offset ?? 0,
+      onAttachPosition: _handleScrollPositionAttached,
+      onDetachPosition: _handleScrollPositionDetached,
+    );
   }
 
-  static const double _atBottomTolerance = 2.0;
   static const double _nearBottomTolerance = 48.0;
   static const double _scrollMovementTolerance = 0.01;
   static const int _retainedSessionOffsetCount = 32;
@@ -50,13 +65,17 @@ class AgentChatPanelController extends ChangeNotifier {
   };
 
   late final AgentChatInputController inputController;
-  final ScrollController scrollController = ScrollController();
+  late final ScrollController scrollController;
   final FocusNode inputFocus = FocusNode();
   final List<PendingAgentChatImage> _pendingImages = [];
   final Map<ImageSource, Uint8List> messageImageBytes = {};
   final Map<ImageSource, Size> messageImageSizes = {};
   final Map<String, Uint8List> markdownDataImageBytes = {};
-  final Map<String, ({double offset, bool autoScroll})> _sessionOffsets = {};
+  final AgentChatViewportStore _viewportStore;
+  final Map<ScrollPosition, String> _positionSessionIds = {};
+
+  Map<String, ({double offset, bool autoScroll})> get _sessionOffsets =>
+      _viewportStore.sessionOffsets;
 
   OverlayEntry? _inlineImagePreview;
   BuildContext? _overlayContext;
@@ -66,6 +85,9 @@ class AgentChatPanelController extends ChangeNotifier {
   bool _programmaticScrollActive = false;
   double? _lastUserScrollPixels;
   bool _scrollToBottomScheduled = false;
+  bool _viewportRestoreScheduled = false;
+  bool _needsViewportRestore = false;
+  int _viewportRestoreGeneration = 0;
   int _viewportInteractionRevision = 0;
   int _lastScrollMessageCount = -1;
   String _lastScrollSessionId = '';
@@ -112,6 +134,14 @@ class AgentChatPanelController extends ChangeNotifier {
     final activitiesChanged = !identical(state.activities, _lastActivities);
     final contentChanged =
         messagesChanged || streamingChanged || activitiesChanged;
+    if (sessionChanged) {
+      _logViewport(
+        'observe.sessionChanged',
+        detail:
+            'from=${_sessionLabel(previousSessionId)} '
+            'to=${_sessionLabel(state.activeSessionId)}',
+      );
+    }
     if (sessionChanged && previousSessionId.isNotEmpty) {
       saveSessionOffset(previousSessionId);
       _endUserScroll();
@@ -128,7 +158,13 @@ class AgentChatPanelController extends ChangeNotifier {
       _editingUserMessageIndex = null;
       _composerTextBeforeEdit = null;
       _composerImagesBeforeEdit = null;
-      scrollToBottom(force: true);
+      final savedViewport = _sessionOffsets[state.activeSessionId];
+      if (savedViewport == null) {
+        scrollToBottom(force: true);
+      } else {
+        _autoScroll = savedViewport.autoScroll;
+        _needsViewportRestore = true;
+      }
     } else if (contentChanged && _autoScroll) {
       scrollToBottom();
     }
@@ -398,15 +434,6 @@ class AgentChatPanelController extends ChangeNotifier {
     _inlineImagePreview = null;
   }
 
-  void _handleScrollPositionChanged() {
-    if (!scrollController.hasClients || _programmaticScrollActive) return;
-    final position = scrollController.position;
-    if (!position.hasPixels || !position.hasContentDimensions) return;
-    if (_isAtBottom(position) && !_autoScroll) {
-      _setAutoScroll(true);
-    }
-  }
-
   bool handleScrollNotification(ScrollNotification notification) {
     if (notification.depth != 0 || _programmaticScrollActive) return false;
 
@@ -428,6 +455,26 @@ class AgentChatPanelController extends ChangeNotifier {
         _endUserScroll();
       default:
         break;
+    }
+    _rememberValidViewport(notification.metrics);
+    return false;
+  }
+
+  bool handleScrollMetricsNotification(ScrollMetricsNotification notification) {
+    if (notification.depth != 0) return false;
+    final metrics = notification.metrics;
+    if (!_hasUsableViewport(metrics)) {
+      if (!_needsViewportRestore) {
+        _logViewport('metrics.invalid', metrics: metrics);
+      }
+      _needsViewportRestore = true;
+      return false;
+    }
+    if (_needsViewportRestore) {
+      _logViewport('metrics.validAfterInvalid', metrics: metrics);
+      _scheduleViewportRestore();
+    } else {
+      _rememberValidViewport(metrics);
     }
     return false;
   }
@@ -484,14 +531,17 @@ class AgentChatPanelController extends ChangeNotifier {
     if (delta.abs() <= _scrollMovementTolerance) return;
     _viewportInteractionRevision++;
     if (delta > 0) {
+      if (_autoScroll) {
+        _logViewport('userScroll.pauseFollow', metrics: metrics);
+      }
       _setAutoScroll(false);
     } else if (_isNearBottom(metrics)) {
+      if (!_autoScroll) {
+        _logViewport('userScroll.resumeFollow', metrics: metrics);
+      }
       _setAutoScroll(true);
     }
   }
-
-  bool _isAtBottom(ScrollMetrics metrics) =>
-      metrics.pixels <= metrics.minScrollExtent + _atBottomTolerance;
 
   bool _isNearBottom(ScrollMetrics metrics) =>
       metrics.pixels <= metrics.minScrollExtent + _nearBottomTolerance;
@@ -499,22 +549,132 @@ class AgentChatPanelController extends ChangeNotifier {
   void _setAutoScroll(bool value) {
     if (_autoScroll == value) return;
     _autoScroll = value;
+    _updateSavedFollowIntent();
     notifyListeners();
+  }
+
+  bool _hasUsableViewport(ScrollMetrics metrics) =>
+      metrics.hasPixels &&
+      metrics.hasContentDimensions &&
+      metrics.viewportDimension > 0 &&
+      metrics.pixels.isFinite;
+
+  void _rememberValidViewport(ScrollMetrics metrics) {
+    final sessionId = _lastScrollSessionId;
+    if (sessionId.isEmpty || !_hasUsableViewport(metrics)) return;
+    _storeSessionViewport(sessionId, metrics.pixels, _autoScroll);
+  }
+
+  void _updateSavedFollowIntent() {
+    final sessionId = _lastScrollSessionId;
+    if (sessionId.isEmpty) return;
+    final saved = _sessionOffsets[sessionId];
+    if (saved != null) {
+      _storeSessionViewport(sessionId, saved.offset, _autoScroll);
+    } else if (scrollController.hasClients) {
+      _rememberValidViewport(scrollController.position);
+    }
+  }
+
+  void _storeSessionViewport(String sessionId, double offset, bool autoScroll) {
+    _sessionOffsets.remove(sessionId);
+    _sessionOffsets[sessionId] = (offset: offset, autoScroll: autoScroll);
+    while (_sessionOffsets.length > _retainedSessionOffsetCount) {
+      _sessionOffsets.remove(_sessionOffsets.keys.first);
+    }
+  }
+
+  void _handleScrollPositionAttached(ScrollPosition position) {
+    _positionSessionIds[position] = _lastScrollSessionId;
+    _needsViewportRestore = true;
+    _logViewport('position.attach', metrics: position);
+    _scheduleViewportRestore();
+  }
+
+  void _handleScrollPositionDetached(ScrollPosition position) {
+    final sessionId = _positionSessionIds.remove(position);
+    _logViewport(
+      'position.detach',
+      metrics: position,
+      detail: 'positionSession=${_sessionLabel(sessionId ?? '')}',
+    );
+    if (sessionId != null &&
+        sessionId.isNotEmpty &&
+        _hasUsableViewport(position)) {
+      final saved = _sessionOffsets[sessionId];
+      _storeSessionViewport(
+        sessionId,
+        position.pixels,
+        saved?.autoScroll ?? _autoScroll,
+      );
+    }
+    _needsViewportRestore = true;
+    _viewportRestoreGeneration++;
+    _viewportRestoreScheduled = false;
+  }
+
+  void _scheduleViewportRestore() {
+    if (_viewportRestoreScheduled) return;
+    _viewportRestoreScheduled = true;
+    final generation = ++_viewportRestoreGeneration;
+    _logViewport('restore.schedule', detail: 'generation=$generation');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _viewportRestoreScheduled = false;
+      if (generation != _viewportRestoreGeneration ||
+          !_needsViewportRestore ||
+          !scrollController.hasClients) {
+        _logViewport(
+          'restore.skip',
+          detail:
+              'generation=$generation current=$_viewportRestoreGeneration '
+              'needs=$_needsViewportRestore',
+        );
+        return;
+      }
+      final position = scrollController.position;
+      if (!_hasUsableViewport(position)) {
+        _logViewport('restore.waitForUsableViewport', metrics: position);
+        return;
+      }
+      _needsViewportRestore = false;
+      final saved = _sessionOffsets[_lastScrollSessionId];
+      if (saved == null) {
+        _logViewport('restore.noSavedViewport', metrics: position);
+        if (_autoScroll) scrollToBottom();
+        return;
+      }
+      _logViewport(
+        'restore.apply',
+        metrics: position,
+        detail:
+            'target=${saved.offset.toStringAsFixed(1)} '
+            'savedFollow=${saved.autoScroll}',
+      );
+      _setAutoScroll(saved.autoScroll);
+      if (saved.autoScroll) {
+        scrollToBottom();
+      } else {
+        jumpToPreservingFollow(saved.offset);
+      }
+    });
   }
 
   void saveSessionOffset(String sessionId) {
     if (sessionId.isEmpty ||
         sessionId != _lastScrollSessionId ||
         !scrollController.hasClients) {
+      _logViewport(
+        'session.saveSkipped',
+        detail: 'requested=${_sessionLabel(sessionId)}',
+      );
       return;
     }
-    _sessionOffsets.remove(sessionId);
-    _sessionOffsets[sessionId] = (
-      offset: scrollController.offset,
-      autoScroll: _autoScroll,
-    );
-    while (_sessionOffsets.length > _retainedSessionOffsetCount) {
-      _sessionOffsets.remove(_sessionOffsets.keys.first);
+    final position = scrollController.position;
+    if (_hasUsableViewport(position)) {
+      _storeSessionViewport(sessionId, position.pixels, _autoScroll);
+      _logViewport('session.saved', metrics: position);
+    } else {
+      _logViewport('session.saveInvalidViewport', metrics: position);
     }
   }
 
@@ -523,6 +683,11 @@ class AgentChatPanelController extends ChangeNotifier {
     if (sessionId != _lastScrollSessionId ||
         saved == null ||
         !scrollController.hasClients) {
+      _logViewport(
+        'session.restoreSkipped',
+        detail:
+            'requested=${_sessionLabel(sessionId)} hasSaved=${saved != null}',
+      );
       return;
     }
     final target = saved.offset
@@ -531,6 +696,13 @@ class AgentChatPanelController extends ChangeNotifier {
           scrollController.position.maxScrollExtent,
         )
         .toDouble();
+    _logViewport(
+      'session.restoreRequested',
+      metrics: scrollController.position,
+      detail:
+          'target=${target.toStringAsFixed(1)} '
+          'savedFollow=${saved.autoScroll}',
+    );
     _setAutoScroll(saved.autoScroll);
     jumpToPreservingFollow(target);
   }
@@ -552,6 +724,7 @@ class AgentChatPanelController extends ChangeNotifier {
     _programmaticScrollActive = true;
     try {
       scrollController.jumpTo(target);
+      _rememberValidViewport(scrollController.position);
     } finally {
       _programmaticScrollActive = false;
     }
@@ -569,19 +742,32 @@ class AgentChatPanelController extends ChangeNotifier {
   }
 
   void scrollToBottom({bool force = false}) {
-    if (force) _setAutoScroll(true);
+    if (force) {
+      _logViewport('scrollToBottom.forceRequested');
+      _setAutoScroll(true);
+    }
     if (!_autoScroll || _scrollToBottomScheduled) return;
     _scrollToBottomScheduled = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scrollToBottomScheduled = false;
       if (!_autoScroll || !scrollController.hasClients) return;
       final position = scrollController.position;
-      if (!position.hasPixels || !position.hasContentDimensions) return;
+      if (!position.hasPixels ||
+          !position.hasContentDimensions ||
+          position.viewportDimension <= 0) {
+        return;
+      }
       final target = position.minScrollExtent;
       if (!target.isFinite || (target - position.pixels).abs() < 0.5) return;
+      _logViewport(
+        'scrollToBottom.apply',
+        metrics: position,
+        detail: 'target=${target.toStringAsFixed(1)}',
+      );
       _programmaticScrollActive = true;
       try {
         scrollController.jumpTo(target);
+        _rememberValidViewport(scrollController.position);
       } finally {
         _programmaticScrollActive = false;
       }
@@ -603,20 +789,76 @@ class AgentChatPanelController extends ChangeNotifier {
       return;
     }
     final position = scrollController.position;
-    if (!position.hasPixels || !position.hasContentDimensions) return;
+    if (!_hasUsableViewport(position)) return;
     final target = (position.pixels - visualDelta)
         .clamp(position.minScrollExtent, position.maxScrollExtent)
         .toDouble();
+    _logViewport(
+      'anchor.restore',
+      metrics: position,
+      detail:
+          'delta=${visualDelta.toStringAsFixed(1)} '
+          'target=${target.toStringAsFixed(1)}',
+    );
     jumpToPreservingFollow(target);
+  }
+
+  void _logViewport(String event, {ScrollMetrics? metrics, String? detail}) {
+    final saved = _sessionOffsets[_lastScrollSessionId];
+    final metricsText = metrics == null
+        ? 'metrics=none'
+        : 'pixels=${metrics.hasPixels ? metrics.pixels.toStringAsFixed(1) : 'na'} '
+              'min=${metrics.hasContentDimensions ? metrics.minScrollExtent.toStringAsFixed(1) : 'na'} '
+              'max=${metrics.hasContentDimensions ? metrics.maxScrollExtent.toStringAsFixed(1) : 'na'} '
+              'viewport=${metrics.hasContentDimensions ? metrics.viewportDimension.toStringAsFixed(1) : 'na'} '
+              'hasContent=${metrics.hasContentDimensions}';
+    final savedText = saved == null
+        ? 'saved=none'
+        : 'savedOffset=${saved.offset.toStringAsFixed(1)} '
+              'savedFollow=${saved.autoScroll}';
+    AppLogger.d(
+      '$event session=${_sessionLabel(_lastScrollSessionId)} '
+          'follow=$_autoScroll needsRestore=$_needsViewportRestore '
+          'clients=${scrollController.hasClients} $metricsText $savedText'
+          '${detail == null ? '' : ' $detail'}',
+      'AgentChatScroll',
+    );
+  }
+
+  String _sessionLabel(String sessionId) {
+    if (sessionId.isEmpty) return 'none';
+    return sessionId.length <= 8 ? sessionId : sessionId.substring(0, 8);
   }
 
   @override
   void dispose() {
     hideInlineImagePreview();
     inputController.dispose();
-    scrollController.removeListener(_handleScrollPositionChanged);
     scrollController.dispose();
     inputFocus.dispose();
     super.dispose();
+  }
+}
+
+class _AgentChatScrollController extends ScrollController {
+  _AgentChatScrollController({
+    required super.initialScrollOffset,
+    required this.onAttachPosition,
+    required this.onDetachPosition,
+  }) : super(keepScrollOffset: false);
+
+  final ValueChanged<ScrollPosition> onAttachPosition;
+  final ValueChanged<ScrollPosition> onDetachPosition;
+
+  @override
+  void attach(ScrollPosition position) {
+    super.attach(position);
+    onAttachPosition(position);
+  }
+
+  @override
+  void detach(ScrollPosition position) {
+    onDetachPosition(position);
+    super.detach(position);
   }
 }

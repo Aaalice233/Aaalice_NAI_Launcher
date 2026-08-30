@@ -220,6 +220,58 @@ void main() {
         expect(await service.getFavoriteCount(), 1);
       },
     );
+
+    test(
+      'independent query pages and searches the complete gallery without changing the active view',
+      () async {
+        final newest = File(p.join(galleryRoot.path, 'newest.png'));
+        final middle = File(p.join(galleryRoot.path, 'middle.png'));
+        final archived = File(p.join(galleryRoot.path, 'archived-needle.png'));
+        for (final file in [newest, middle, archived]) {
+          await file.writeAsBytes(<int>[137, 80, 78, 71]);
+        }
+        await newest.setLastModified(DateTime(2026, 3));
+        await middle.setLastModified(DateTime(2026, 2));
+        await archived.setLastModified(DateTime(2026, 1));
+        for (final file in [newest, middle, archived]) {
+          final stat = await file.stat();
+          await dataSource.upsertImage(
+            filePath: file.path,
+            fileName: p.basename(file.path),
+            fileSize: stat.size,
+            createdAt: stat.modified,
+            modifiedAt: stat.modified,
+          );
+        }
+
+        await service.initialize();
+        await service.setSearchQuery('newest');
+        final activePageBefore = await service.getPage(0);
+
+        final historicalPage = await service.queryPage(page: 2, pageSize: 1);
+        final searchPage = await service.queryPage(
+          page: 0,
+          pageSize: 10,
+          searchQuery: 'needle',
+        );
+
+        expect(historicalPage.records.map((record) => record.path), [
+          archived.path,
+        ]);
+        expect(historicalPage.totalCount, 3);
+        expect(historicalPage.hasMore, isFalse);
+        expect(searchPage.records.map((record) => record.path), [
+          archived.path,
+        ]);
+        expect(searchPage.totalCount, 1);
+        expect(await service.getImageIdByPath(archived.path), isNotNull);
+        expect(service.currentFilter.searchQuery, 'newest');
+        expect(
+          (await service.getPage(0)).map((record) => record.path),
+          activePageBefore.map((record) => record.path),
+        );
+      },
+    );
   });
 }
 
