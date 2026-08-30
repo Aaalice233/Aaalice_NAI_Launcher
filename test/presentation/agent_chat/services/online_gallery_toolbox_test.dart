@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -24,11 +26,15 @@ void main() {
 
   AgentTool tool(String name) => tools.singleWhere((tool) => tool.name == name);
 
-  test('browse contract defines bounded tags and random sample limit', () {
+  test('browse contract defines bounded tags and danbooru default', () {
     final browse = tool('browse_online_gallery');
     final properties = browse.parameters['properties'] as Map;
+    final required = browse.parameters['required'] as List;
 
     expect(browse.description, contains('at most 6 ordinary tags'));
+    expect(browse.description, contains('source is omitted'));
+    expect(required, isNot(contains('source')));
+    expect(properties['source']['description'], contains('danbooru'));
     expect(browse.description, contains('random=true, limit=N'));
     expect(browse.description, contains('display_images'));
     expect(properties['query']['description'], contains('at most 6'));
@@ -117,7 +123,257 @@ void main() {
     expect((result.details['items'] as List), hasLength(1));
     expect(adapter.queries, ['blue_archive']);
   });
+
+  test(
+    'screenshot AI TAG parameters complete with one configured load',
+    () async {
+      final aiTag = _ScriptedGalleryAdapter(
+        GallerySourceId.aiTag,
+        (request, _) async => _page(request, [
+          _item(GallerySourceId.aiTag, 101, const ['ibuki', 'blue', 'archive']),
+        ]),
+      );
+      final danbooru = _ScriptedGalleryAdapter(
+        GallerySourceId.danbooru,
+        (request, _) async => _page(request, const []),
+      );
+      final harness = _createHarness({
+        GallerySourceId.aiTag: aiTag,
+        GallerySourceId.danbooru: danbooru,
+      });
+      addTearDown(harness.container.dispose);
+
+      final result = await harness.browse.execute('screenshot', {
+        'source': 'ai_tag',
+        'mode': 'search',
+        'query': 'ibuki blue archive',
+        'ratings': ['s'],
+        'limit': 6,
+      });
+
+      expect(result.isError, isFalse);
+      expect(result.details['source'], 'ai_tag');
+      expect(result.details['requested_limit'], 6);
+      expect(result.details['items'], hasLength(1));
+      expect(aiTag.requests, hasLength(1));
+      expect(aiTag.requests.single.query, 'archive blue ibuki');
+      expect(
+        harness.container.read(onlineGalleryNotifierProvider).searchQuery,
+        'ibuki blue archive',
+      );
+      expect(danbooru.requests, isEmpty);
+    },
+  );
+
+  test('omitted source uses danbooru adapter', () async {
+    final danbooru = _ScriptedGalleryAdapter(
+      GallerySourceId.danbooru,
+      (request, _) async => _page(request, const []),
+    );
+    final aiTag = _ScriptedGalleryAdapter(
+      GallerySourceId.aiTag,
+      (request, _) async => _page(request, const []),
+    );
+    final harness = _createHarness({
+      GallerySourceId.danbooru: danbooru,
+      GallerySourceId.aiTag: aiTag,
+    });
+    addTearDown(harness.container.dispose);
+
+    final result = await harness.browse.execute('default-source', {
+      'mode': 'search',
+      'query': 'ibuki',
+    });
+
+    expect(result.isError, isFalse);
+    expect(result.details['source'], 'danbooru');
+    expect(danbooru.requests, hasLength(1));
+    expect(aiTag.requests, isEmpty);
+  });
+
+  test(
+    'explicit source selects its adapter and empty results complete',
+    () async {
+      final gelbooru = _ScriptedGalleryAdapter(
+        GallerySourceId.gelbooru,
+        (request, _) async => _page(request, const []),
+      );
+      final danbooru = _ScriptedGalleryAdapter(
+        GallerySourceId.danbooru,
+        (request, _) async => _page(request, const []),
+      );
+      final harness = _createHarness({
+        GallerySourceId.gelbooru: gelbooru,
+        GallerySourceId.danbooru: danbooru,
+      });
+      addTearDown(harness.container.dispose);
+
+      final result = await harness.browse.execute('explicit-source', {
+        'source': 'gelbooru',
+        'mode': 'search',
+        'query': 'nothing',
+      });
+
+      expect(result.isError, isFalse);
+      expect(result.details['source'], 'gelbooru');
+      expect(result.details['items'], isEmpty);
+      expect(gelbooru.requests, hasLength(1));
+      expect(danbooru.requests, isEmpty);
+    },
+  );
+
+  test('network and parse errors complete with diagnostic result', () async {
+    for (final code in [
+      GallerySourceErrorCode.network,
+      GallerySourceErrorCode.malformedResponse,
+    ]) {
+      final adapter = _ScriptedGalleryAdapter(
+        GallerySourceId.aiTag,
+        (_, __) => throw GallerySourceException(
+          code,
+          source: GallerySourceId.aiTag,
+          message: 'diagnostic ${code.name}',
+        ),
+      );
+      final harness = _createHarness({GallerySourceId.aiTag: adapter});
+      addTearDown(harness.container.dispose);
+
+      final result = await harness.browse.execute('error-${code.name}', {
+        'source': 'ai_tag',
+        'mode': 'search',
+        'query': 'ibuki',
+      });
+
+      expect(result.isError, isTrue);
+      expect(result.details['code'], code.name);
+    }
+  });
+
+  test('stop cancels network, exits loading, and permits a new call', () async {
+    final adapter = _CancellableGalleryAdapter();
+    final harness = _createHarness({GallerySourceId.aiTag: adapter});
+    addTearDown(harness.container.dispose);
+    final firstAbort = AbortController();
+
+    final first = harness.browse.execute('cancel-first', {
+      'source': 'ai_tag',
+      'mode': 'search',
+      'query': 'ibuki blue archive',
+    }, firstAbort.signal);
+    await adapter.firstStarted.future;
+    firstAbort.abort('user stopped');
+
+    await expectLater(first, throwsA(anything));
+    expect(adapter.cancelledRequests, 1);
+    expect(
+      harness.container.read(onlineGalleryNotifierProvider).isLoading,
+      isFalse,
+    );
+
+    final second = await harness.browse.execute('after-stop', {
+      'source': 'ai_tag',
+      'mode': 'search',
+      'query': 'second',
+    });
+    expect(second.isError, isFalse);
+    expect((second.details['items'] as List).single['work_id'], '202');
+
+    adapter.completeLateFirst();
+    await Future<void>.delayed(Duration.zero);
+    final state = harness.container.read(onlineGalleryNotifierProvider);
+    expect(state.posts.single.id, 202);
+  });
+
+  test(
+    'duplicate append page terminates and other source remains usable',
+    () async {
+      final item = _item(GallerySourceId.gelbooru, 303, const ['ibuki']);
+      final adapter = _ScriptedGalleryAdapter(
+        GallerySourceId.gelbooru,
+        (request, _) async => GalleryPage(
+          items: [item],
+          cursor: request.cursor,
+          nextCursor: '${int.parse(request.cursor) + 1}',
+          hasMore: true,
+          total: 10,
+          rawItemCount: 1,
+        ),
+      );
+      final harness = _createHarness({GallerySourceId.gelbooru: adapter});
+      addTearDown(harness.container.dispose);
+
+      final first = await harness.browse.execute('duplicate-first', {
+        'source': 'gelbooru',
+        'mode': 'search',
+        'query': 'ibuki',
+      });
+      final second = await harness.browse.execute('duplicate-next', {
+        'source': 'gelbooru',
+        'mode': 'search',
+        'query': 'ibuki',
+        'load_more': true,
+      });
+
+      expect(first.isError, isFalse);
+      expect(second.isError, isFalse);
+      expect(second.details['has_more'], isFalse);
+      expect(adapter.requests, hasLength(2));
+    },
+  );
 }
+
+({ProviderContainer container, AgentTool browse}) _createHarness(
+  Map<GallerySourceId, GallerySourceAdapter> overrides,
+) {
+  final container = ProviderContainer(
+    overrides: [
+      localStorageServiceProvider.overrideWithValue(_MemoryStorage()),
+      onlineGalleryTagMetadataLoaderProvider.overrideWithValue(
+        (_) async => const {},
+      ),
+      onlineGallerySourceAdaptersProvider.overrideWithValue({
+        for (final source in GallerySourceId.values)
+          source: overrides[source] ?? _EmptyGalleryAdapter(source),
+      }),
+    ],
+  );
+  final browse = OnlineGalleryToolbox(
+    container.read(_refProvider),
+  ).tools().singleWhere((tool) => tool.name == 'browse_online_gallery');
+  return (container: container, browse: browse);
+}
+
+GalleryPage _page(GallerySearchRequest request, List<GalleryItem> items) =>
+    GalleryPage(
+      items: items,
+      cursor: request.cursor,
+      nextCursor: null,
+      hasMore: false,
+      total: items.length,
+      rawItemCount: items.length,
+    );
+
+GalleryItem _item(GallerySourceId source, int id, List<String> tags) =>
+    GalleryItem(
+      id: id,
+      sourceId: source,
+      createdAt: '2026-08-30',
+      uploaderId: 1,
+      width: 768,
+      height: 1024,
+      rating: 'g',
+      tags: tags,
+      tagsComplete: true,
+      cover: GalleryMedia(
+        id: '$id',
+        previewUrl: 'https://example.test/$id-preview.webp',
+        displayUrl: 'https://example.test/$id.webp',
+        downloadUrl: 'https://example.test/$id.webp',
+        width: 768,
+        height: 1024,
+        extension: 'webp',
+      ),
+    );
 
 class _MemoryStorage extends LocalStorageService {
   final Map<String, Object?> _values = {};
@@ -174,6 +430,67 @@ class _ToolGalleryAdapter extends GallerySourceAdapter {
       nextCursor: null,
       hasMore: false,
       rawItemCount: 1,
+    );
+  }
+}
+
+class _ScriptedGalleryAdapter extends GallerySourceAdapter {
+  _ScriptedGalleryAdapter(this.sourceId, this.handler);
+
+  @override
+  final GallerySourceId sourceId;
+  final FutureOr<GalleryPage> Function(
+    GallerySearchRequest request,
+    CancelToken? cancelToken,
+  )
+  handler;
+  final List<GallerySearchRequest> requests = [];
+
+  @override
+  Future<GalleryPage> search(
+    GallerySearchRequest request, {
+    CancelToken? cancelToken,
+  }) async {
+    requests.add(request);
+    return handler(request, cancelToken);
+  }
+}
+
+class _CancellableGalleryAdapter extends GallerySourceAdapter {
+  final firstStarted = Completer<void>();
+  final Completer<GalleryPage> _lateFirst = Completer<GalleryPage>();
+  int calls = 0;
+  int cancelledRequests = 0;
+
+  @override
+  GallerySourceId get sourceId => GallerySourceId.aiTag;
+
+  @override
+  Future<GalleryPage> search(
+    GallerySearchRequest request, {
+    CancelToken? cancelToken,
+  }) async {
+    calls++;
+    if (calls > 1) {
+      return _page(request, [
+        _item(sourceId, 202, const ['second']),
+      ]);
+    }
+    firstStarted.complete();
+    return Future.any([
+      _lateFirst.future,
+      cancelToken!.whenCancel.then<GalleryPage>((error) {
+        cancelledRequests++;
+        throw error;
+      }),
+    ]);
+  }
+
+  void completeLateFirst() {
+    _lateFirst.complete(
+      _page(const GallerySearchRequest(cursor: '1', pageSize: 60), [
+        _item(sourceId, 201, const ['ibuki', 'blue', 'archive']),
+      ]),
     );
   }
 }

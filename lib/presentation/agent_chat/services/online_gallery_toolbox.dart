@@ -50,6 +50,7 @@ class OnlineGalleryToolbox {
     label: 'Browse Online Gallery',
     description:
         'Browse an online gallery and return structured stable resource_ref objects only; this tool never displays images. '
+        'When source is omitted, the request uses danbooru; an explicit valid source is always respected. '
         'A query may contain at most 6 ordinary tags globally. Sources can enforce lower server limits, so the client pushes down a supported seed and applies remaining tags as residual local filters. '
         'When random=true, limit=N means randomly sample exactly N items from the matching feed (when available); never fetch a larger page and choose items yourself. '
         'To show returned media, pass 1-12 resource_ref objects to display_images.',
@@ -58,6 +59,8 @@ class OnlineGalleryToolbox {
         'source': {
           'type': 'string',
           'enum': GallerySourceId.values.map((value) => value.key).toList(),
+          'description':
+              'Defaults to danbooru when omitted; explicit valid values select their matching adapter.',
         },
         'mode': {
           'type': 'string',
@@ -100,44 +103,58 @@ class OnlineGalleryToolbox {
               'Maximum returned items. With random=true this is the requested random sample size, not a candidate-page size.',
         },
       },
-      required: const ['source', 'mode'],
+      required: const ['mode'],
     ),
-    executeFn: (_, params) async {
-      final source = _source(params['source']);
-      if (source == null) {
-        return agentToolError('unknown_source', 'Unknown gallery source.');
-      }
-      final mode = params['mode'] as String;
-      final capabilities = source.capabilities;
-      if ((mode == 'ranking' && !capabilities.supportsRanking) ||
-          (mode == 'favorites' && !capabilities.supportsFavorites)) {
-        return agentToolError(
-          'unsupported_mode',
-          '${source.label} does not support $mode.',
-        );
-      }
-      final query = GalleryTagQueryParser.parse(
-        params['query'] as String? ?? '',
+    executeWithControl: (_, params, signal, __) =>
+        _executeBrowse(params, signal),
+  );
+
+  Future<AgentToolResult> _executeBrowse(
+    Map<String, dynamic> params,
+    AbortSignal? signal,
+  ) async {
+    final source = _browseSource(params['source']);
+    if (source == null) {
+      return agentToolError('unknown_source', 'Unknown gallery source.');
+    }
+    final mode = params['mode'] as String;
+    final capabilities = source.capabilities;
+    if ((mode == 'ranking' && !capabilities.supportsRanking) ||
+        (mode == 'favorites' && !capabilities.supportsFavorites)) {
+      return agentToolError(
+        'unsupported_mode',
+        '${source.label} does not support $mode.',
       );
-      if (!query.isValid) {
-        return agentToolError(
-          'too_many_query_tags',
-          'Online gallery queries support at most $maxGallerySearchTags ordinary tags; received ${query.ordinaryTagCount}.',
-        );
-      }
-      final feed = switch (mode) {
-        'ranking' => GalleryFeedKind.ranking,
-        'favorites' => GalleryFeedKind.favorites,
-        _ => GalleryFeedKind.search,
-      };
-      if (params['random'] == true && !capabilities.supportsRandomFeed(feed)) {
-        return agentToolError(
-          'unsupported_random_feed',
-          '${source.label} does not support random ${feed.name} results.',
-        );
-      }
-      final notifier = _ref.read(onlineGalleryNotifierProvider.notifier);
-      return notifier.runWithExplicitNetworkAccess(() async {
+    }
+    final query = GalleryTagQueryParser.parse(params['query'] as String? ?? '');
+    if (!query.isValid) {
+      return agentToolError(
+        'too_many_query_tags',
+        'Online gallery queries support at most $maxGallerySearchTags ordinary tags; received ${query.ordinaryTagCount}.',
+      );
+    }
+    final feed = switch (mode) {
+      'ranking' => GalleryFeedKind.ranking,
+      'favorites' => GalleryFeedKind.favorites,
+      _ => GalleryFeedKind.search,
+    };
+    if (params['random'] == true && !capabilities.supportsRandomFeed(feed)) {
+      return agentToolError(
+        'unsupported_random_feed',
+        '${source.label} does not support random ${feed.name} results.',
+      );
+    }
+
+    final notifier = _ref.read(onlineGalleryNotifierProvider.notifier);
+    void abortGallery(String? reason) => notifier.cancelActiveRequests(
+      reason: reason ?? 'Agent gallery tool cancelled',
+      cancelDetails: true,
+    );
+
+    signal?.addListener(abortGallery);
+    try {
+      throwIfAborted(signal);
+      return await notifier.runWithExplicitNetworkAccess(() async {
         final limit = (params['limit'] as int? ?? 30).clamp(1, 100);
         if (params['load_more'] == true) {
           final state = _ref.read(onlineGalleryNotifierProvider);
@@ -149,8 +166,9 @@ class OnlineGalleryToolbox {
           }
           await notifier.loadMore();
         } else {
-          await _configureBrowse(notifier, source, mode, params);
+          await _configureBrowse(notifier, source, mode, params, signal);
         }
+        throwIfAborted(signal);
         var state = _ref.read(onlineGalleryNotifierProvider);
         if (state.errorCode != null || state.error != null) {
           return agentToolError(
@@ -162,6 +180,7 @@ class OnlineGalleryToolbox {
           while (state.posts.length < limit && state.hasMore) {
             final previousCount = state.posts.length;
             await notifier.loadMore();
+            throwIfAborted(signal);
             state = _ref.read(onlineGalleryNotifierProvider);
             if (state.errorCode != null || state.error != null) {
               return agentToolError(
@@ -183,6 +202,7 @@ class OnlineGalleryToolbox {
             );
           }
         }
+        throwIfAborted(signal);
         return agentToolJsonResult({
           'ok': true,
           'source': source.key,
@@ -197,27 +217,31 @@ class OnlineGalleryToolbox {
           ],
         });
       });
-    },
-  );
+    } finally {
+      signal?.removeListener(abortGallery);
+    }
+  }
 
   DefinedAgentTool _searchCompatibility() => DefinedAgentTool(
     name: 'search_online_gallery',
     label: 'Search Online Gallery',
     description:
-        'Compatibility search entry point; use browse_online_gallery for all modes and filters.',
+        'Compatibility search entry point; source defaults to danbooru when omitted. Use browse_online_gallery for all modes and filters.',
     parameters: toolboxObject(
       properties: {
         'source': {
           'type': 'string',
           'enum': GallerySourceId.values.map((value) => value.key).toList(),
+          'description':
+              'Defaults to danbooru when omitted; explicit valid values select their matching adapter.',
         },
         'query': {'type': 'string'},
         'limit': {'type': 'integer', 'minimum': 1, 'maximum': 100},
       },
-      required: const ['source', 'query'],
+      required: const ['query'],
     ),
-    executeFn: (id, params) =>
-        _browse().execute(id, {...params, 'mode': 'search'}),
+    executeWithControl: (id, params, signal, onUpdate) =>
+        _browse().execute(id, {...params, 'mode': 'search'}, signal, onUpdate),
   );
 
   DefinedAgentTool _detail() => DefinedAgentTool(
@@ -226,7 +250,7 @@ class OnlineGalleryToolbox {
     description:
         'Load complete metadata and character prompts for a currently browsed stable work.',
     parameters: _identitySchema,
-    executeFn: (_, params) async {
+    executeWithControl: (_, params, signal, __) async {
       final item = _find(params);
       if (item == null) {
         return agentToolError(
@@ -235,38 +259,47 @@ class OnlineGalleryToolbox {
         );
       }
       final notifier = _ref.read(onlineGalleryNotifierProvider.notifier);
-      return notifier.runWithExplicitNetworkAccess(() async {
-        final detail = await notifier.loadDetail(item);
-        return agentToolJsonResult({
-          'ok': true,
-          'item': _itemJson(detail.item),
-          'prompt': detail.prompt,
-          'negative_prompt': detail.negativePrompt,
-          'description': detail.description,
-          'tags': detail.rawTags,
-          'character_prompts': [
-            for (final value in detail.characterPrompts)
-              {
-                'label': value.label,
-                'prompt': value.prompt,
-                'negative_prompt': value.negativePrompt,
-              },
-          ],
-          'contributors': [
-            for (final contributor in detail.contributors)
-              {'name': contributor.name, 'role': contributor.role},
-          ],
-          'media': [
-            for (final media in detail.media)
-              _mediaJson(
-                media,
-                source: detail.item.sourceId,
-                workId: detail.item.sourceWorkId,
-                title: detail.item.title,
-              ),
-          ],
+      void abortDetail(String? _) => notifier.cancelDetail(item);
+
+      signal?.addListener(abortDetail);
+      try {
+        throwIfAborted(signal);
+        return await notifier.runWithExplicitNetworkAccess(() async {
+          final detail = await notifier.loadDetail(item);
+          throwIfAborted(signal);
+          return agentToolJsonResult({
+            'ok': true,
+            'item': _itemJson(detail.item),
+            'prompt': detail.prompt,
+            'negative_prompt': detail.negativePrompt,
+            'description': detail.description,
+            'tags': detail.rawTags,
+            'character_prompts': [
+              for (final value in detail.characterPrompts)
+                {
+                  'label': value.label,
+                  'prompt': value.prompt,
+                  'negative_prompt': value.negativePrompt,
+                },
+            ],
+            'contributors': [
+              for (final contributor in detail.contributors)
+                {'name': contributor.name, 'role': contributor.role},
+            ],
+            'media': [
+              for (final media in detail.media)
+                _mediaJson(
+                  media,
+                  source: detail.item.sourceId,
+                  workId: detail.item.sourceWorkId,
+                  title: detail.item.title,
+                ),
+            ],
+          });
         });
-      });
+      } finally {
+        signal?.removeListener(abortDetail);
+      }
     },
   );
 
@@ -390,52 +423,57 @@ class OnlineGalleryToolbox {
     GallerySourceId source,
     String mode,
     Map<String, dynamic> params,
+    AbortSignal? signal,
   ) async {
     final ratings = toolboxStrings(params['ratings']);
     final random = params['random'] as bool? ?? false;
-    // A prior random session belongs to its original query and source. Leave it
-    // before configuring a new request so enabling random always resamples.
-    await notifier.setRandomEnabled(false);
-    await notifier.setRatings(ratings.toSet());
-    await notifier.setFuzzySearchEnabled(params['fuzzy'] as bool? ?? false);
-    if (mode == 'ranking') {
-      await notifier.setPopularSource(source);
-      await notifier.switchToPopular();
-      final scaleName = params['ranking_scale'] as String?;
-      if (scaleName != null) {
-        await notifier.setPopularScale(
-          PopularScale.values.firstWhere((value) => value.name == scaleName),
+    await notifier.runWithDeferredLoading(() async {
+      // A prior random session belongs to its original query and source. Leave
+      // it before configuring a new request so enabling random resamples.
+      await notifier.setRandomEnabled(false);
+      await notifier.setRatings(ratings.toSet());
+      await notifier.setFuzzySearchEnabled(params['fuzzy'] as bool? ?? false);
+      if (mode == 'ranking') {
+        await notifier.setPopularSource(source);
+        await notifier.switchToPopular();
+        final scaleName = params['ranking_scale'] as String?;
+        if (scaleName != null) {
+          await notifier.setPopularScale(
+            PopularScale.values.firstWhere((value) => value.name == scaleName),
+          );
+        }
+        final date = params['ranking_date'] as String?;
+        if (date != null) await notifier.setPopularDate(DateTime.parse(date));
+        if (params['ai_tag_period'] case final String period) {
+          await notifier.setAiTagPopularPeriod(period);
+        }
+        await notifier.searchPopular(
+          query: params['query'] as String? ?? '',
+          prompt: params['prompt'] as String? ?? '',
         );
-      }
-      final date = params['ranking_date'] as String?;
-      if (date != null) await notifier.setPopularDate(DateTime.parse(date));
-      if (params['ai_tag_period'] case final String period) {
-        await notifier.setAiTagPopularPeriod(period);
-      }
-      await notifier.searchPopular(
-        query: params['query'] as String? ?? '',
-        prompt: params['prompt'] as String? ?? '',
-      );
-    } else if (mode == 'favorites') {
-      await notifier.setFavoritesSource(source);
-      await notifier.switchToFavorites();
-      await notifier.searchFavorites(params['query'] as String? ?? '');
-    } else {
-      await notifier.setSource(source);
-      await notifier.switchToSearch();
-      if (params['ai_tag_time_range'] case final String range) {
-        await notifier.setAiTagTimeRange(range);
-      }
-      if ((params['prompt'] as String? ?? '').isNotEmpty) {
-        await notifier.searchWithPrompt(
-          params['query'] as String? ?? '',
-          prompt: params['prompt'] as String,
-        );
+      } else if (mode == 'favorites') {
+        await notifier.setFavoritesSource(source);
+        await notifier.switchToFavorites();
+        await notifier.searchFavorites(params['query'] as String? ?? '');
       } else {
-        await notifier.search(params['query'] as String? ?? '');
+        await notifier.setSource(source);
+        await notifier.switchToSearch();
+        if (params['ai_tag_time_range'] case final String range) {
+          await notifier.setAiTagTimeRange(range);
+        }
+        if ((params['prompt'] as String? ?? '').isNotEmpty) {
+          await notifier.searchWithPrompt(
+            params['query'] as String? ?? '',
+            prompt: params['prompt'] as String,
+          );
+        } else {
+          await notifier.search(params['query'] as String? ?? '');
+        }
       }
-    }
-    if (random) await notifier.setRandomEnabled(true);
+      if (random) await notifier.setRandomEnabled(true);
+    });
+    throwIfAborted(signal);
+    await notifier.loadPosts(refresh: true);
   }
 
   GalleryItem? _find(Map<String, dynamic> params) {
@@ -449,6 +487,9 @@ class OnlineGalleryToolbox {
         .firstOrNull;
   }
 }
+
+GallerySourceId? _browseSource(dynamic value) =>
+    value == null ? GallerySourceId.danbooru : _source(value);
 
 GallerySourceId? _source(dynamic value) =>
     GallerySourceId.values.where((source) => source.key == value).firstOrNull;

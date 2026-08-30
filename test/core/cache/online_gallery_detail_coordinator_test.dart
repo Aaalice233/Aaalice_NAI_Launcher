@@ -235,6 +235,38 @@ void main() {
   );
 
   test(
+    'cancelVisible stops active visible detail and keeps retryable',
+    () async {
+      final item = _item(8);
+      var calls = 0;
+      var loaderCancelled = false;
+      final coordinator = OnlineGalleryDetailCoordinator(
+        loader: (requested, cancelToken) async {
+          calls++;
+          if (calls == 1) {
+            final error = await cancelToken.whenCancel;
+            loaderCancelled = true;
+            throw error;
+          }
+          return _detail(requested, 'after-cancel');
+        },
+      );
+
+      final active = coordinator.request(
+        item,
+        priority: GalleryDetailPriority.visible,
+      );
+      coordinator.cancelVisible(reason: 'agent stopped');
+
+      await expectLater(active, throwsA(isA<DioException>()));
+      await Future<void>.delayed(Duration.zero);
+      expect(loaderCancelled, isTrue);
+      expect((await coordinator.request(item)).description, 'after-cancel');
+      expect(calls, 2);
+    },
+  );
+
+  test(
     'obsolete force-refresh failure cannot remove the newer request',
     () async {
       final item = _item(1);

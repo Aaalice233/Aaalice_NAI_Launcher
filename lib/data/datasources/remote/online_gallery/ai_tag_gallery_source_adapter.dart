@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:isolate';
 import 'dart:math';
@@ -310,8 +311,10 @@ class AiTagGallerySourceAdapter implements GallerySourceAdapter {
       // Some works contain many embedded metadata blobs. Keep JSON metadata
       // parsing off the UI isolate so a completed detail request cannot stall
       // an active masonry-grid fling.
-      final parsedBatch = await Isolate.run(
-        () => _parseAiTagMediaRows(copiedImageRows, config.assetBaseUrl),
+      final parsedBatch = await _parseAiTagMediaRowsCancellable(
+        copiedImageRows,
+        config.assetBaseUrl,
+        cancelToken,
       );
       if (cancelToken?.isCancelled ?? false) {
         throw DioException.requestCancelled(
@@ -881,6 +884,85 @@ String? _normalizeAiTagAssetBaseUrl(String raw) {
     port: uri.hasPort ? uri.port : null,
     pathSegments: pathSegments,
   ).toString();
+}
+
+Future<_ParsedAiTagMediaBatch> _parseAiTagMediaRowsCancellable(
+  List<Map<String, dynamic>> rows,
+  String assetBaseUrl,
+  CancelToken? cancelToken,
+) async {
+  if (cancelToken?.isCancelled ?? false) {
+    throw DioException.requestCancelled(
+      requestOptions: RequestOptions(path: '/api/work'),
+      reason: cancelToken?.cancelError,
+    );
+  }
+
+  final resultPort = ReceivePort();
+  final errorPort = ReceivePort();
+  final exitPort = ReceivePort();
+  final completer = Completer<_ParsedAiTagMediaBatch>();
+  final resultSubscription = resultPort.listen((message) {
+    if (!completer.isCompleted && message is _ParsedAiTagMediaBatch) {
+      completer.complete(message);
+    }
+  });
+  final errorSubscription = errorPort.listen((message) {
+    if (completer.isCompleted) return;
+    final values = message is List ? message : const [];
+    completer.completeError(
+      RemoteError(
+        values.isNotEmpty ? values.first.toString() : 'AI TAG parse failed',
+        values.length > 1 ? values[1].toString() : '',
+      ),
+    );
+  });
+  final exitSubscription = exitPort.listen((_) {
+    scheduleMicrotask(() {
+      if (!completer.isCompleted) {
+        completer.completeError(
+          StateError('AI TAG metadata parser exited without a result'),
+        );
+      }
+    });
+  });
+  Isolate? isolate;
+  try {
+    isolate = await Isolate.spawn<List<Object?>>(
+      _parseAiTagMediaRowsEntry,
+      [resultPort.sendPort, rows, assetBaseUrl],
+      onError: errorPort.sendPort,
+      onExit: exitPort.sendPort,
+      errorsAreFatal: true,
+    );
+    if (cancelToken != null) {
+      final activeIsolate = isolate;
+      unawaited(
+        cancelToken.whenCancel.then((error) {
+          if (!completer.isCompleted) {
+            activeIsolate.kill(priority: Isolate.immediate);
+            completer.completeError(error);
+          }
+        }),
+      );
+    }
+    return await completer.future;
+  } finally {
+    isolate?.kill(priority: Isolate.immediate);
+    await resultSubscription.cancel();
+    await errorSubscription.cancel();
+    await exitSubscription.cancel();
+    resultPort.close();
+    errorPort.close();
+    exitPort.close();
+  }
+}
+
+void _parseAiTagMediaRowsEntry(List<Object?> message) {
+  final port = message[0] as SendPort;
+  final rows = (message[1] as List).cast<Map<String, dynamic>>();
+  final assetBaseUrl = message[2] as String;
+  port.send(_parseAiTagMediaRows(rows, assetBaseUrl));
 }
 
 _ParsedAiTagMediaBatch _parseAiTagMediaRows(

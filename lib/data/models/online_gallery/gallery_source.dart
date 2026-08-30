@@ -244,7 +244,7 @@ gallerySourceCapabilities = {
     randomFeeds: {GalleryFeedKind.search, GalleryFeedKind.ranking},
     tagSearch: GalleryTagSearchCapabilities(
       strategy: GalleryTagSearchStrategy.fixedSeedResidual,
-      anonymousLimit: 1,
+      anonymousLimit: 6,
       listTagsComplete: false,
       supportsNegativePushdown: false,
       rankingAppliesOrdinaryQuery: true,

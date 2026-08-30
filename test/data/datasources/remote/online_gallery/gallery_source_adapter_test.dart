@@ -723,6 +723,53 @@ void main() {
       expect(detail.item.tagsComplete, isFalse);
     });
 
+    test('cancels a detail while media metadata is being decoded', () async {
+      final cancelToken = CancelToken();
+      final http = _RecordingHttpAdapter((request) {
+        if (request.uri.path == '/api/config') return _configJson;
+        if (request.uri.path == '/api/work/503') {
+          Timer(
+            const Duration(milliseconds: 5),
+            () => cancelToken.cancel('Agent stopped'),
+          );
+          return {
+            'work': _aiWork(503),
+            'images': [
+              for (var index = 0; index < 10000; index++)
+                _aiImage('503_p$index'),
+            ],
+          };
+        }
+        throw StateError('Unexpected request ${request.uri}');
+      });
+      final adapter = AiTagGallerySourceAdapter(
+        dio: Dio()..httpClientAdapter = http,
+      );
+      const item = GalleryItem(
+        id: 503,
+        sourceId: GallerySourceId.aiTag,
+        createdAt: '',
+        uploaderId: 9,
+        cover: GalleryMedia(
+          id: 'pending',
+          previewUrl: '',
+          displayUrl: '',
+          downloadUrl: '',
+        ),
+      );
+
+      await expectLater(
+        adapter.detail(item, cancelToken: cancelToken),
+        throwsA(
+          isA<DioException>().having(
+            (error) => error.type,
+            'type',
+            DioExceptionType.cancel,
+          ),
+        ),
+      );
+    });
+
     test(
       'normalizes NovelAI and SD prompt weights into searchable tags',
       () async {

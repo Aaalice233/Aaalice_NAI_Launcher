@@ -113,6 +113,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
   int _loadMoreClaimRevision = 0;
   bool _backgroundNetworkPaused = false;
   int _explicitNetworkAccessCount = 0;
+  int _deferredLoadCount = 0;
   bool _resumeInitialLoadAfterBackgroundPause = false;
   bool _resumeAppendAfterBackgroundPause = false;
 
@@ -136,6 +137,31 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
       if (_explicitNetworkAccessCount == 0) {
         _detailCoordinator?.setBackgroundPaused(_backgroundNetworkPaused);
       }
+    }
+  }
+
+  Future<T> runWithDeferredLoading<T>(Future<T> Function() action) async {
+    _deferredLoadCount++;
+    try {
+      return await action();
+    } finally {
+      _deferredLoadCount--;
+    }
+  }
+
+  void cancelActiveRequests({
+    String reason = 'Gallery request cancelled',
+    bool cancelDetails = false,
+  }) {
+    _loadCoordinator.cancel(reason);
+    _loadMoreClaimRevision++;
+    _loadMoreClaimed = false;
+    _detailRequestScopeRevision++;
+    if (cancelDetails) {
+      _detailCoordinator?.cancelVisible(reason: reason);
+    }
+    if (state.isLoading || state.isLoadingMore) {
+      state = state.copyWith(isLoading: false, isLoadingMore: false);
     }
   }
 
@@ -379,6 +405,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     bool restart = false,
   }) async {
     if (_networkRequestsPaused ||
+        _deferredLoadCount > 0 ||
         !state.randomEnabled ||
         !state.supportsRandom) {
       return;
@@ -831,7 +858,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
   }
 
   Future<void> loadPosts({bool refresh = false}) async {
-    if (_networkRequestsPaused) return;
+    if (_networkRequestsPaused || _deferredLoadCount > 0) return;
     if (state.randomEnabled) {
       await _loadRandom(replace: refresh);
       return;
