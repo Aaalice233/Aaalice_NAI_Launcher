@@ -1,3 +1,4 @@
+import '../../core/utils/nai_prompt_parser.dart';
 import '../../data/models/character/character_prompt.dart' as char;
 import '../../data/models/fixed_tag/fixed_tag_entry.dart';
 import '../../data/models/fixed_tag/fixed_tag_prompt_type.dart';
@@ -97,6 +98,27 @@ class MetadataImportCoordinator {
         if (content.isEmpty) {
           continue;
         }
+
+        final normalizedContent = NaiPromptParser.normalizeSegment(content);
+        final matchingEntries = read(fixedTagsNotifierProvider).entries
+            .where((entry) {
+              return entry.position == position &&
+                  entry.promptType == promptType &&
+                  NaiPromptParser.normalizeSegment(entry.content) ==
+                      normalizedContent;
+            })
+            .toList(growable: false);
+        final existing = matchingEntries.isEmpty ? null : matchingEntries.first;
+        if (existing != null) {
+          if (!existing.enabled) {
+            await fixedTagsNotifier.updateEntry(
+              existing.copyWith(enabled: true, updatedAt: DateTime.now()),
+            );
+            added++;
+          }
+          continue;
+        }
+
         await fixedTagsNotifier.addEntry(
           name: buildName(content),
           content: content,

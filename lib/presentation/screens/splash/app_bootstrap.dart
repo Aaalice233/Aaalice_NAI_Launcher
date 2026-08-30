@@ -11,6 +11,7 @@ import '../../../core/utils/first_launch_detector.dart';
 import '../../providers/locale_provider.dart';
 import '../../providers/update_provider.dart';
 import '../../providers/warmup_provider.dart';
+import '../../widgets/common/desktop_window_frame.dart';
 import 'splash_screen.dart';
 
 typedef AutomaticUpdateCheckRunner = Future<void> Function(WidgetRef ref);
@@ -106,6 +107,7 @@ class _AppBootstrapState extends ConsumerState<AppBootstrap> {
       locale: locale,
       supportedLocales: AppLocalizations.supportedLocales,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
+      builder: (context, child) => DesktopWindowFrame(child: child!),
       home: const SplashScreen(key: ValueKey('splash')),
     );
   }

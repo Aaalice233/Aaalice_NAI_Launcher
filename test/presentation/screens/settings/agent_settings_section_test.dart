@@ -185,6 +185,51 @@ void main() {
       );
       expect(find.byType(TabBar), findsNothing);
       expect(tester.widget<SegmentedButton<int>>(panelSelector).selected, {0});
+
+      final textScaleControl = find.byKey(
+        const ValueKey('agent-reading-text-scale'),
+      );
+      final densityControl = find.byKey(const ValueKey('agent-chat-density'));
+      expect(textScaleControl, findsOneWidget);
+      expect(densityControl, findsOneWidget);
+      expect(
+        tester.widget<SegmentedButton<double>>(textScaleControl).selected,
+        {1.0},
+      );
+      expect(
+        tester
+            .widget<SegmentedButton<AgentChatDensity>>(densityControl)
+            .selected,
+        {AgentChatDensity.comfortable},
+      );
+      tester
+          .widget<SegmentedButton<double>>(textScaleControl)
+          .onSelectionChanged!({1.15});
+      await tester.pumpAndSettle();
+      tester
+          .widget<SegmentedButton<AgentChatDensity>>(densityControl)
+          .onSelectionChanged!({AgentChatDensity.compact});
+      await tester.runAsync(() async {
+        for (var attempt = 0; attempt < 50; attempt++) {
+          final chat = container.read(agentSettingsProvider).settings.chat;
+          if (chat.readingTextScale == 1.15 &&
+              chat.density == AgentChatDensity.compact) {
+            return;
+          }
+          await Future<void>.delayed(const Duration(milliseconds: 10));
+        }
+      });
+      await tester.pumpAndSettle();
+      expect(
+        container.read(agentSettingsProvider).settings.chat.readingTextScale,
+        1.15,
+      );
+      expect(
+        container.read(agentSettingsProvider).settings.chat.density,
+        AgentChatDensity.compact,
+      );
+      expect(tester.takeException(), isNull);
+
       final skillsTab = find.descendant(
         of: panelSelector,
         matching: find.text('Skills'),

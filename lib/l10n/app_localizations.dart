@@ -113,6 +113,30 @@ abstract class AppLocalizations {
   /// **'NovelAI Third-party Client'**
   String get app_subtitle;
 
+  /// No description provided for @desktopWindow_minimize.
+  ///
+  /// In en, this message translates to:
+  /// **'Minimize'**
+  String get desktopWindow_minimize;
+
+  /// No description provided for @desktopWindow_maximize.
+  ///
+  /// In en, this message translates to:
+  /// **'Maximize'**
+  String get desktopWindow_maximize;
+
+  /// No description provided for @desktopWindow_restore.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore'**
+  String get desktopWindow_restore;
+
+  /// No description provided for @desktopWindow_close.
+  ///
+  /// In en, this message translates to:
+  /// **'Close window'**
+  String get desktopWindow_close;
+
   /// No description provided for @common_cancel.
   ///
   /// In en, this message translates to:
@@ -23413,6 +23437,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Manage the chat model, tool permissions, web access, system prompt, and Skills.'**
   String get agentSettings_subtitle;
+
+  /// No description provided for @agentSettings_readingAppearance.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading and density'**
+  String get agentSettings_readingAppearance;
+
+  /// No description provided for @agentSettings_readingTextSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading text size'**
+  String get agentSettings_readingTextSize;
+
+  /// No description provided for @agentSettings_readingTextSizeDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Applies only to Agent panels and combines with the global text scale.'**
+  String get agentSettings_readingTextSizeDescription;
+
+  /// No description provided for @agentSettings_density.
+  ///
+  /// In en, this message translates to:
+  /// **'Interface density'**
+  String get agentSettings_density;
+
+  /// No description provided for @agentSettings_densityDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Comfortable preserves touch targets and spacing; compact fits more on desktop.'**
+  String get agentSettings_densityDescription;
+
+  /// No description provided for @agentSettings_densityComfortable.
+  ///
+  /// In en, this message translates to:
+  /// **'Comfortable'**
+  String get agentSettings_densityComfortable;
+
+  /// No description provided for @agentSettings_densityCompact.
+  ///
+  /// In en, this message translates to:
+  /// **'Compact'**
+  String get agentSettings_densityCompact;
 
   /// No description provided for @agentSettings_chatModel.
   ///

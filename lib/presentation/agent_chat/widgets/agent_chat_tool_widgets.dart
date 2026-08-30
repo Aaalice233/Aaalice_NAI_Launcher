@@ -1106,11 +1106,9 @@ class _ToolResultResourcePreviewState
   Widget _buildPreview(Uint8List bytes) {
     final isOnlineGallery =
         widget.reference.kind == AgentChatResourceKind.onlineGalleryMedia;
-    final image = Image.memory(
-      bytes,
+    final image = _AgentChatMemoryThumbnail(
+      bytes: bytes,
       fit: isOnlineGallery ? BoxFit.cover : BoxFit.contain,
-      alignment: Alignment.center,
-      gaplessPlayback: true,
       errorBuilder: (_, _, _) => const _AgentResourceUnavailableImage(),
     );
     if (isOnlineGallery) {
@@ -1281,14 +1279,48 @@ class _ToolResultInlineImage extends StatelessWidget {
       image: GeneratedImageDetailData(imageBytes: bytes),
       showMetadataPanel: true,
     ),
-    child: Image.memory(
-      bytes,
+    child: _AgentChatMemoryThumbnail(
+      bytes: bytes,
       fit: BoxFit.contain,
-      alignment: Alignment.center,
-      gaplessPlayback: true,
       errorBuilder: (_, _, _) => const SizedBox.shrink(),
     ),
   );
+}
+
+class _AgentChatMemoryThumbnail extends StatelessWidget {
+  const _AgentChatMemoryThumbnail({
+    required this.bytes,
+    required this.fit,
+    required this.errorBuilder,
+  });
+
+  final Uint8List bytes;
+  final BoxFit fit;
+  final ImageErrorWidgetBuilder errorBuilder;
+
+  @override
+  Widget build(BuildContext context) {
+    final pixelRatio = MediaQuery.devicePixelRatioOf(context);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth.isFinite
+            ? (constraints.maxWidth * pixelRatio).ceil()
+            : null;
+        final height = constraints.maxHeight.isFinite
+            ? (constraints.maxHeight * pixelRatio).ceil()
+            : null;
+        return Image.memory(
+          bytes,
+          fit: fit,
+          alignment: Alignment.center,
+          gaplessPlayback: true,
+          cacheWidth: width,
+          cacheHeight: height,
+          errorBuilder: errorBuilder,
+        );
+      },
+    );
+  }
 }
 
 class _ToolResultNetworkImage extends StatelessWidget {

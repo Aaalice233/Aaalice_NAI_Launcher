@@ -1,3 +1,4 @@
+import '../../core/utils/nai_prompt_parser.dart';
 import '../../data/models/fixed_tag/fixed_tag_entry.dart';
 import '../../data/models/gallery/nai_image_metadata.dart';
 
@@ -96,11 +97,8 @@ String _normalizeEntry(String entry) =>
   return (prefix: prefix, suffix: suffix);
 }
 
-List<String> _extractTags(String prompt) => prompt
-    .split(',')
-    .map((tag) => tag.trim())
-    .where((tag) => tag.isNotEmpty)
-    .toList();
+List<String> _extractTags(String prompt) =>
+    NaiPromptParser.splitSegments(prompt);
 
 String _normalizeTag(String tag) {
   var result = tag.trim().toLowerCase();

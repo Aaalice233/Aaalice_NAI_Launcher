@@ -644,6 +644,16 @@ class _PromptAssistantOverlayState
                     onPressed: isProcessing ? null : _runOptimize,
                   ),
                   _miniButton(
+                    icon: Icons.tune_rounded,
+                    tooltip: context.l10n.promptAssistant_custom,
+                    onPressed: isProcessing ? null : _runCustom,
+                  ),
+                  _miniButton(
+                    icon: Icons.manage_accounts_rounded,
+                    tooltip: context.l10n.promptAssistant_characterReplace,
+                    onPressed: isProcessing ? null : _runCharacterReplace,
+                  ),
+                  _miniButton(
                     icon: isProcessing ? Icons.stop_circle : Icons.more_horiz,
                     tooltip: isProcessing
                         ? context.l10n.promptAssistant_cancelTask

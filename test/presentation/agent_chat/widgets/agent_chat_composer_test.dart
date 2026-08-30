@@ -156,6 +156,42 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('very narrow desktop splits controls without overflow', (
+    tester,
+  ) async {
+    await _pumpComposer(tester, width: 265, mobile: false);
+
+    final toolbar = tester.getRect(
+      find.byKey(const ValueKey('agent-chat-message-actions')),
+    );
+    final settings = tester.getRect(
+      find.byKey(const ValueKey('agent-chat-session-controls')),
+    );
+    expect(toolbar, settings);
+    expect(toolbar.height, greaterThan(40));
+
+    final model = tester.getRect(
+      find.byKey(const ValueKey('agent-chat-model-selector')),
+    );
+    final permission = tester.getRect(
+      find.byKey(const ValueKey('agent-chat-permission-mode')),
+    );
+    expect(model.bottom, lessThanOrEqualTo(permission.top));
+    for (final key in const [
+      'agent-chat-more-actions',
+      'agent-chat-model-selector',
+      'agent-chat-permission-mode',
+      'agent-chat-web-access-toggle',
+      'agent-chat-context-target',
+      'agent-chat-send',
+    ]) {
+      final control = tester.getRect(find.byKey(ValueKey(key)));
+      expect(control.left, greaterThanOrEqualTo(toolbar.left));
+      expect(control.right, lessThanOrEqualTo(toolbar.right));
+    }
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('desktop model selector shows the complete model name', (
     tester,
   ) async {
@@ -599,6 +635,34 @@ void main() {
     expect(sends, 1);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('message edit fills the composer and cancel restores its draft', (
+    tester,
+  ) async {
+    final controller = AgentChatPanelController();
+    addTearDown(controller.dispose);
+    controller.inputController.text = 'unfinished draft';
+    controller.beginEditingUserMessage(2, 'correct this request', const []);
+
+    await _pumpComposer(tester, width: 420, controller: controller);
+
+    expect(controller.inputController.text, 'correct this request');
+    expect(
+      find.byKey(const ValueKey('agent-chat-message-edit-header')),
+      findsOneWidget,
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('agent-chat-cancel-message-edit')),
+    );
+    await tester.pump();
+
+    expect(controller.isEditingUserMessage, isFalse);
+    expect(controller.inputController.text, 'unfinished draft');
+    expect(
+      find.byKey(const ValueKey('agent-chat-message-edit-header')),
+      findsNothing,
+    );
+  });
 }
 
 const _readyState = AgentChatState(
@@ -739,6 +803,8 @@ class _ComposerHarnessState extends State<_ComposerHarness> {
       resolveApproval: (_, _) => true,
       useSuggestion: (_) {},
       copyUserMessage: (_) async {},
+      editUserMessage: (_, __) async {},
+      cancelUserMessageEdit: controller.cancelEditingUserMessage,
       copyAssistantMessage: (_) async {},
       editQueuedMessage: (_) async {},
       removeQueuedMessage: (_) {},

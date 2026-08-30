@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/shortcuts/default_shortcuts.dart';
 import '../../../core/utils/app_logger.dart';
+import '../../../core/windowing/workspace_side_panel_contract.dart';
 import '../../../data/models/queue/replication_task.dart';
 import '../../providers/character_prompt_provider.dart';
 import '../../providers/image_generation_provider.dart';
@@ -23,6 +24,7 @@ import 'handlers/generation_action_handlers.dart';
 import 'widgets/resize_handle.dart';
 import 'widgets/left_panel.dart';
 import 'widgets/fixed_tags_sidebar_slot.dart';
+import 'widgets/generation_workspace_row.dart';
 import 'widgets/main_workspace.dart';
 import 'widgets/right_panel.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
@@ -42,7 +44,6 @@ class _DesktopGenerationLayoutState
   static const double _leftPanelMinWidth = 250;
   static const double _leftPanelMaxWidth = 450;
   static const double _rightPanelMinWidth = 200;
-  static const double _rightPanelMaxWidth = 400;
 
   // 拖拽状态（拖拽时禁用动画以避免粘滞感）
   bool _isResizingLeft = false;
@@ -130,18 +131,26 @@ class _DesktopGenerationLayoutState
       // 已移除 Space 全屏预览快捷键，避免在提示词输入时误触发预览
     };
 
-    return Row(
-      children: [
-        // 左侧栏 - 参数面板
-        LeftPanel(isResizing: _isResizingLeft),
+    final leftWidth = layoutState.leftPanelExpanded
+        ? layoutState.leftPanelWidth
+        : 40.0;
+    final fixedTagsWidth = layoutState.fixedTagsSidebarExpanded
+        ? layoutState.fixedTagsSidebarWidth + ResizeHandle.defaultWidth
+        : 0.0;
+    final occupiedLeadingWidth =
+        leftWidth +
+        (layoutState.leftPanelExpanded ? ResizeHandle.defaultWidth : 0.0) +
+        fixedTagsWidth;
 
-        // 左侧拖拽分隔条
+    return GenerationWorkspaceRow(
+      occupiedLeadingWidth: occupiedLeadingWidth,
+      leading: [
+        LeftPanel(isResizing: _isResizingLeft),
         if (layoutState.leftPanelExpanded)
           ResizeHandle(
             onDragStart: () => setState(() => _isResizingLeft = true),
             onDragEnd: () => setState(() => _isResizingLeft = false),
             onDrag: (dx) {
-              // 读取最新的宽度值，避免闭包捕获旧值导致不跟手
               final currentWidth = ref
                   .read(layoutStateNotifierProvider)
                   .leftPanelWidth;
@@ -154,42 +163,37 @@ class _DesktopGenerationLayoutState
                   .setLeftPanelWidth(newWidth);
             },
           ),
-
         const FixedTagsSidebarSlot(),
-
-        // 中间 - 主工作区（包裹在 ShortcutAwareWidget 中，确保整个区域都支持快捷键）
-        Expanded(
-          child: ShortcutAwareWidget(
-            contextType: ShortcutContext.generation,
-            shortcuts: shortcuts,
-            autofocus: true,
-            child: MainWorkspace(onToggleMaximize: _togglePromptMaximize),
-          ),
-        ),
-
-        // 右侧拖拽分隔条
-        if (layoutState.rightPanelExpanded)
-          ResizeHandle(
-            onDragStart: () => setState(() => _isResizingRight = true),
-            onDragEnd: () => setState(() => _isResizingRight = false),
-            onDrag: (dx) {
-              // 读取最新的宽度值，避免闭包捕获旧值导致不跟手
-              final currentWidth = ref
-                  .read(layoutStateNotifierProvider)
-                  .rightPanelWidth;
-              final newWidth = (currentWidth - dx).clamp(
-                _rightPanelMinWidth,
-                _rightPanelMaxWidth,
-              );
-              ref
-                  .read(layoutStateNotifierProvider.notifier)
-                  .setRightPanelWidth(newWidth);
-            },
-          ),
-
-        // 右侧栏 - 历史面板
-        RightPanel(isResizing: _isResizingRight),
       ],
+      main: ShortcutAwareWidget(
+        contextType: ShortcutContext.generation,
+        shortcuts: shortcuts,
+        autofocus: true,
+        child: MainWorkspace(onToggleMaximize: _togglePromptMaximize),
+      ),
+      rightPanelExpanded: layoutState.rightPanelExpanded,
+      preferredRightPanelWidth: layoutState.rightPanelWidth,
+      rightHandle: ResizeHandle(
+        onDragStart: () => setState(() => _isResizingRight = true),
+        onDragEnd: () => setState(() => _isResizingRight = false),
+        onDrag: (dx) {
+          final currentWidth = ref
+              .read(layoutStateNotifierProvider)
+              .rightPanelWidth;
+          final newWidth = (currentWidth - dx).clamp(
+            _rightPanelMinWidth,
+            WorkspaceSidePanelContract.maximumWidth,
+          );
+          ref
+              .read(layoutStateNotifierProvider.notifier)
+              .setRightPanelWidth(newWidth);
+        },
+      ),
+      rightPanelBuilder: (width, expanded) => RightPanel(
+        isResizing: _isResizingRight,
+        width: width,
+        expanded: expanded,
+      ),
     );
   }
 }

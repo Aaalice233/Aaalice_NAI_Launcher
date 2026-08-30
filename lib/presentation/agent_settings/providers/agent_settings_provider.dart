@@ -253,6 +253,24 @@ class AgentSettingsNotifier extends StateNotifier<AgentSettingsState> {
     ),
   );
 
+  Future<void> setReadingTextScale(double scale) {
+    if (!AgentChatConfig.supportedReadingTextScales.contains(scale)) {
+      return Future.error(
+        const FormatException('Agent reading text scale is out of range.'),
+      );
+    }
+    return _update(
+      (current) => current.copyWith(
+        chat: current.chat.copyWith(readingTextScale: scale),
+      ),
+    );
+  }
+
+  Future<void> setChatDensity(AgentChatDensity density) => _update(
+    (current) =>
+        current.copyWith(chat: current.chat.copyWith(density: density)),
+  );
+
   String buildDefaultSystemPrompt() {
     final workspaceDirectory =
         _providedWorkspaceDirectory ??

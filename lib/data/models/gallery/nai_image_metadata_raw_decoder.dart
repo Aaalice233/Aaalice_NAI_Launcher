@@ -3,6 +3,7 @@ import 'dart:convert';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/constants/model_capabilities.dart';
 import '../../../core/enums/precise_ref_type.dart';
+import '../../../core/utils/nai_prompt_parser.dart';
 import '../../../core/utils/novelai_auto_text.dart';
 import '../../../core/utils/portable_logger.dart';
 import '../vibe/vibe_reference.dart';
@@ -314,11 +315,7 @@ class NaiImageMetadataRawDecoder {
 
     for (final tags in candidates) {
       if (trimmed == tags || trimmed.endsWith(', $tags')) {
-        return tags
-            .split(',')
-            .map((tag) => tag.trim())
-            .where((tag) => tag.isNotEmpty)
-            .toList(growable: false);
+        return NaiPromptParser.splitSegments(tags).toList(growable: false);
       }
     }
     return const [];
@@ -1036,11 +1033,7 @@ class NaiImageMetadataRawDecoder {
 
     if (prompt.isEmpty) return result;
 
-    final tags = prompt
-        .split(',')
-        .map((t) => t.trim())
-        .where((t) => t.isNotEmpty)
-        .toList();
+    final tags = NaiPromptParser.splitSegments(prompt);
 
     // 识别固定前缀词（通常位于开头）
     var prefixEnd = 0;

@@ -201,6 +201,8 @@ final _commands = AgentChatPanelCommands(
   resolveApproval: (_, __) => false,
   useSuggestion: (_) {},
   copyUserMessage: (_) async {},
+  editUserMessage: (_, __) async {},
+  cancelUserMessageEdit: () {},
   copyAssistantMessage: (_) async {},
   editQueuedMessage: (_) async {},
   removeQueuedMessage: (_) {},

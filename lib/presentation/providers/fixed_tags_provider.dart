@@ -147,52 +147,13 @@ class FixedTagsState {
   /// 应用固定词到提示词
   ///
   /// 将所有启用的固定词按位置应用到用户提示词
-  String applyToPrompt(String userPrompt) {
-    final enabledPrefixContents = enabledPrefixes
-        .sortedByOrder()
-        .map((e) => e.weightedContent)
-        .where((c) => c.isNotEmpty)
-        .toList();
-
-    final enabledSuffixContents = enabledSuffixes
-        .sortedByOrder()
-        .map((e) => e.weightedContent)
-        .where((c) => c.isNotEmpty)
-        .toList();
-
-    final parts = <String>[
-      ...enabledPrefixContents,
-      userPrompt,
-      ...enabledSuffixContents,
-    ].where((s) => s.isNotEmpty).toList();
-
-    return parts.join(', ');
-  }
+  String applyToPrompt(String userPrompt) => entries.applyToPrompt(userPrompt);
 
   /// 应用负向固定词到负向提示词。
   ///
   /// 语义与正向固定词一致：前缀 + 用户主体 + 后缀。
-  String applyToNegativePrompt(String userNegativePrompt) {
-    final enabledPrefixContents = negativeEnabledPrefixes
-        .sortedByOrder()
-        .map((e) => e.weightedContent)
-        .where((c) => c.isNotEmpty)
-        .toList();
-
-    final enabledSuffixContents = negativeEnabledSuffixes
-        .sortedByOrder()
-        .map((e) => e.weightedContent)
-        .where((c) => c.isNotEmpty)
-        .toList();
-
-    final parts = <String>[
-      ...enabledPrefixContents,
-      userNegativePrompt,
-      ...enabledSuffixContents,
-    ].where((s) => s.isNotEmpty).toList();
-
-    return parts.join(', ');
-  }
+  String applyToNegativePrompt(String userNegativePrompt) =>
+      entries.applyToNegativePrompt(userNegativePrompt);
 
   /// 获取某个正向固定词联动的负向固定词。
   List<FixedTagEntry> linkedNegativesOf(String positiveId) {
@@ -618,6 +579,29 @@ class FixedTagsNotifier extends _$FixedTagsNotifier {
     String? sourceEntryId, // 【新增】来源词库条目ID
     String? categoryId,
   }) async {
+    final duplicateIndex = sourceEntryId == null || sourceEntryId.isEmpty
+        ? -1
+        : state.entries.indexWhere(
+            (entry) =>
+                entry.sourceEntryId == sourceEntryId &&
+                entry.promptType == promptType &&
+                entry.position == position,
+          );
+    if (duplicateIndex >= 0) {
+      final duplicate = state.entries[duplicateIndex];
+      if (enabled && !duplicate.enabled) {
+        final reenabled = duplicate.copyWith(
+          enabled: true,
+          updatedAt: DateTime.now(),
+        );
+        final entries = [...state.entries]..[duplicateIndex] = reenabled;
+        _commitState(state.copyWith(entries: entries));
+        await _saveEntries();
+        return reenabled;
+      }
+      return duplicate;
+    }
+
     final entry = FixedTagEntry.create(
       name: name,
       content: content,

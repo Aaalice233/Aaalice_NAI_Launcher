@@ -380,9 +380,13 @@ class AgentResourceResolver {
         .firstOrNull;
     if (entry == null) return null;
     return ResolvedAgentResource(
-      reference: reference,
+      reference: AgentChatResourceReference(
+        kind: AgentChatResourceKind.fixedTag,
+        source: 'fixed_tags',
+        resourceId: entry.id,
+      ),
       label: entry.displayName,
-      text: entry.content,
+      text: entry.weightedContent,
     );
   }
 
@@ -396,7 +400,11 @@ class AgentResourceResolver {
         .firstOrNull;
     if (entry == null) return null;
     return ResolvedAgentResource(
-      reference: reference,
+      reference: AgentChatResourceReference(
+        kind: AgentChatResourceKind.tagLibraryEntry,
+        source: 'tag_library',
+        resourceId: entry.id,
+      ),
       label: entry.name,
       text: entry.content,
     );

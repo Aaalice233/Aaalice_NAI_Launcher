@@ -124,6 +124,48 @@ void main() {
     },
   );
 
+  testWidgets('keeps a comma inside nested weights as one detail chip', (
+    tester,
+  ) async {
+    const fragment = '{{{blue_eyes, long_hair}}}';
+    final image = img.Image(width: 1, height: 1);
+    final detail = GeneratedImageDetailData(
+      imageBytes: Uint8List.fromList(img.encodePng(image)),
+      metadata: const NaiImageMetadata(prompt: '$fragment, city'),
+    );
+    final fixedEntry = FixedTagEntry.create(
+      name: 'weighted group',
+      content: fragment,
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          fixedTagsNotifierProvider.overrideWith(
+            () => _FakeFixedTagsNotifier(fixedEntry),
+          ),
+        ],
+        child: MaterialApp(
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: DetailMetadataPanel(currentImage: detail, expandedWidth: 600),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final section = tester.widget<PromptSection>(find.byType(PromptSection));
+    expect(section.tags, const [fragment, 'city']);
+    expect(section.fixedTags, contains(fragment));
+    expect(find.textContaining(fragment), findsOneWidget);
+    expect(find.text('{{{blue_eyes'), findsNothing);
+    expect(find.text('long_hair}}}'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
     'Ctrl+C copies selected metadata text before the viewer shortcut',
     (tester) async {

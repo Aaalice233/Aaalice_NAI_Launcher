@@ -15,6 +15,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get app_subtitle => 'NovelAI 第三方客户端';
 
   @override
+  String get desktopWindow_minimize => '最小化';
+
+  @override
+  String get desktopWindow_maximize => '最大化';
+
+  @override
+  String get desktopWindow_restore => '还原';
+
+  @override
+  String get desktopWindow_close => '关闭窗口';
+
+  @override
   String get common_cancel => '取消';
 
   @override
@@ -12888,6 +12900,27 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agentSettings_subtitle => '管理聊天模型、工具权限、联网、系统提示词与 Skills。';
 
   @override
+  String get agentSettings_readingAppearance => '阅读与密度';
+
+  @override
+  String get agentSettings_readingTextSize => '阅读字号';
+
+  @override
+  String get agentSettings_readingTextSizeDescription => '仅调整智能体面板，并叠加全局字体缩放。';
+
+  @override
+  String get agentSettings_density => '界面密度';
+
+  @override
+  String get agentSettings_densityDescription => '舒适模式优先保证触控与留白；紧凑模式适合桌面高信息密度。';
+
+  @override
+  String get agentSettings_densityComfortable => '舒适';
+
+  @override
+  String get agentSettings_densityCompact => '紧凑';
+
+  @override
   String get agentSettings_chatModel => '聊天模型';
 
   @override
@@ -13166,6 +13199,18 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get app_subtitle => 'NovelAI 第三方客戶端';
+
+  @override
+  String get desktopWindow_minimize => '最小化';
+
+  @override
+  String get desktopWindow_maximize => '最大化';
+
+  @override
+  String get desktopWindow_restore => '還原';
+
+  @override
+  String get desktopWindow_close => '關閉視窗';
 
   @override
   String get common_cancel => '取消';
@@ -26040,6 +26085,27 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get agentSettings_subtitle => '管理聊天模型、工具權限、連網、系統提示詞與 Skills。';
+
+  @override
+  String get agentSettings_readingAppearance => '閱讀與密度';
+
+  @override
+  String get agentSettings_readingTextSize => '閱讀字級';
+
+  @override
+  String get agentSettings_readingTextSizeDescription => '僅調整智慧體面板，並疊加全域字體縮放。';
+
+  @override
+  String get agentSettings_density => '介面密度';
+
+  @override
+  String get agentSettings_densityDescription => '舒適模式優先保證觸控與留白；緊湊模式適合桌面高資訊密度。';
+
+  @override
+  String get agentSettings_densityComfortable => '舒適';
+
+  @override
+  String get agentSettings_densityCompact => '緊湊';
 
   @override
   String get agentSettings_chatModel => '聊天模型';

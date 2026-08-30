@@ -390,7 +390,10 @@ Future<_DesktopWindowConfiguration?> _prepareDesktopWindow() async {
         center: fillBounds == null && (savedX == null || savedY == null),
         backgroundColor: const Color(0xFF121212),
         skipTaskbar: false,
-        titleBarStyle: TitleBarStyle.normal,
+        titleBarStyle: Platform.isWindows
+            ? TitleBarStyle.hidden
+            : TitleBarStyle.normal,
+        windowButtonVisibility: !Platform.isWindows,
         title: 'NAI Launcher',
       ),
       width: width,

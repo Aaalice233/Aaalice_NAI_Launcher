@@ -2,13 +2,16 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/agent/agent_types.dart';
+import '../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../../core/constants/model_capabilities.dart';
 import '../../../core/services/anlas_calculator.dart';
 import '../../../core/services/character_conversion_service.dart';
 import '../../../core/utils/nai_resolution_adapter.dart';
+import '../../../data/models/fixed_tag/fixed_tag_prompt_type.dart';
 import '../../../data/models/image/image_params.dart';
 import '../../../data/services/alias_resolver_service.dart';
 import '../../providers/character_prompt_provider.dart';
+import '../../providers/fixed_tags_provider.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/precise_ref_library_provider.dart';
 import '../../providers/replication_queue_provider.dart';
@@ -163,11 +166,13 @@ class GenerationPreparationService {
     final promptRefError = await _appendTextReferences(
       args['prompt_refs'],
       promptParts,
+      promptType: FixedTagPromptType.positive,
     );
     if (promptRefError != null) return promptRefError;
     final negativeRefError = await _appendTextReferences(
       args['negative_prompt_refs'],
       negativePromptParts,
+      promptType: FixedTagPromptType.negative,
     );
     if (negativeRefError != null) return negativeRefError;
 
@@ -410,19 +415,42 @@ class GenerationPreparationService {
 
   Future<AgentToolResult?> _appendTextReferences(
     dynamic rawReferences,
-    List<String> target,
-  ) async {
+    List<String> target, {
+    required FixedTagPromptType promptType,
+  }) async {
+    final appendedResources =
+        <
+          ({
+            AgentChatResourceKind kind,
+            String source,
+            String id,
+            String? media,
+          })
+        >{};
     for (final value in rawReferences as List? ?? const []) {
       try {
         final resolved = await _resourceResolver.resolve(
           _resourceResolver.decode(value),
         );
         final text = resolved?.text?.trim();
-        if (text == null || text.isEmpty) {
+        if (resolved == null || text == null || text.isEmpty) {
           return agentToolError(
             'resource_unavailable',
             'A prompt resource is unavailable or has no text.',
           );
+        }
+        final reference = resolved.reference;
+        final identity = (
+          kind: reference.kind,
+          source: reference.source,
+          id: reference.resourceId,
+          media: reference.mediaId,
+        );
+        if (!appendedResources.add(identity)) continue;
+
+        if (reference.kind == AgentChatResourceKind.fixedTag &&
+            _isEnabledFixedTag(reference.resourceId, promptType)) {
+          continue;
         }
         target.add(text);
       } on FormatException catch (error) {
@@ -431,6 +459,14 @@ class GenerationPreparationService {
     }
     return null;
   }
+
+  bool _isEnabledFixedTag(String id, FixedTagPromptType promptType) => _ref
+      .read(fixedTagsNotifierProvider)
+      .entries
+      .any(
+        (entry) =>
+            entry.id == id && entry.enabled && entry.promptType == promptType,
+      );
 
   Future<AgentToolResult> inspectPreparation(Map<String, dynamic> args) async {
     final preparation = _runtime.get(args['preparation_id'] as String? ?? '');

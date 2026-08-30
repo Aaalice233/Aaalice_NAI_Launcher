@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/shortcuts/default_shortcuts.dart';
+import '../../../core/windowing/workspace_side_panel_contract.dart';
 import '../../../data/models/queue/replication_task.dart';
 import '../../providers/character_prompt_provider.dart';
 import '../../providers/image_generation_provider.dart';
@@ -20,6 +21,7 @@ import '../../widgets/common/app_toast.dart';
 import '../../widgets/shortcuts/shortcut_aware_widget.dart';
 import 'handlers/generation_action_handlers.dart';
 import 'widgets/fixed_tags_sidebar_slot.dart';
+import 'widgets/generation_workspace_row.dart';
 import 'widgets/image_preview.dart';
 import 'widgets/resize_handle.dart';
 import 'widgets/right_panel.dart';
@@ -39,7 +41,6 @@ class _WebStyleGenerationLayoutState
   static const double _leftPanelMinWidth = 320;
   static const double _leftPanelMaxWidth = 560;
   static const double _rightPanelMinWidth = 200;
-  static const double _rightPanelMaxWidth = 400;
 
   final _negativeModeNotifier = ValueNotifier<bool>(false);
 
@@ -116,18 +117,28 @@ class _WebStyleGenerationLayoutState
       },
     };
 
+    final leftWidth = layoutState.webLeftPanelExpanded
+        ? layoutState.webLeftPanelWidth
+        : 40.0;
+    final fixedTagsWidth = layoutState.fixedTagsSidebarExpanded
+        ? layoutState.fixedTagsSidebarWidth + ResizeHandle.defaultWidth
+        : 0.0;
+    final occupiedLeadingWidth =
+        leftWidth +
+        (layoutState.webLeftPanelExpanded ? ResizeHandle.defaultWidth : 0.0) +
+        fixedTagsWidth;
+
     return ShortcutAwareWidget(
       contextType: ShortcutContext.generation,
       shortcuts: shortcuts,
       autofocus: true,
-      child: Row(
-        children: [
-          // 最左栏 - 提示词与设置
+      child: GenerationWorkspaceRow(
+        occupiedLeadingWidth: occupiedLeadingWidth,
+        leading: [
           WebLeftPanel(
             negativeModeNotifier: _negativeModeNotifier,
             isResizing: _isResizingLeft,
           ),
-
           if (layoutState.webLeftPanelExpanded)
             ResizeHandle(
               onDragStart: () => setState(() => _isResizingLeft = true),
@@ -145,34 +156,32 @@ class _WebStyleGenerationLayoutState
                     .setWebLeftPanelWidth(newWidth.toDouble());
               },
             ),
-
-          // 固定标签侧栏（两种布局共享的插槽组件）
           const FixedTagsSidebarSlot(),
-
-          // 中间 - 纯图像预览
-          const Expanded(child: ImagePreviewWidget()),
-
-          if (layoutState.rightPanelExpanded)
-            ResizeHandle(
-              onDragStart: () => setState(() => _isResizingRight = true),
-              onDragEnd: () => setState(() => _isResizingRight = false),
-              onDrag: (dx) {
-                final currentWidth = ref
-                    .read(layoutStateNotifierProvider)
-                    .rightPanelWidth;
-                final newWidth = (currentWidth - dx).clamp(
-                  _rightPanelMinWidth,
-                  _rightPanelMaxWidth,
-                );
-                ref
-                    .read(layoutStateNotifierProvider.notifier)
-                    .setRightPanelWidth(newWidth);
-              },
-            ),
-
-          // 右侧栏 - 历史面板
-          RightPanel(isResizing: _isResizingRight),
         ],
+        main: const ImagePreviewWidget(),
+        rightPanelExpanded: layoutState.rightPanelExpanded,
+        preferredRightPanelWidth: layoutState.rightPanelWidth,
+        rightHandle: ResizeHandle(
+          onDragStart: () => setState(() => _isResizingRight = true),
+          onDragEnd: () => setState(() => _isResizingRight = false),
+          onDrag: (dx) {
+            final currentWidth = ref
+                .read(layoutStateNotifierProvider)
+                .rightPanelWidth;
+            final newWidth = (currentWidth - dx).clamp(
+              _rightPanelMinWidth,
+              WorkspaceSidePanelContract.maximumWidth,
+            );
+            ref
+                .read(layoutStateNotifierProvider.notifier)
+                .setRightPanelWidth(newWidth);
+          },
+        ),
+        rightPanelBuilder: (width, expanded) => RightPanel(
+          isResizing: _isResizingRight,
+          width: width,
+          expanded: expanded,
+        ),
       ),
     );
   }

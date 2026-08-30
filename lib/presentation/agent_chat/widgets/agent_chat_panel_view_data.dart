@@ -98,6 +98,8 @@ class AgentChatPanelCommands {
     required this.resolveApproval,
     required this.useSuggestion,
     required this.copyUserMessage,
+    required this.editUserMessage,
+    required this.cancelUserMessageEdit,
     required this.copyAssistantMessage,
     required this.editQueuedMessage,
     required this.removeQueuedMessage,
@@ -133,6 +135,9 @@ class AgentChatPanelCommands {
   final bool Function(String toolCallId, bool approved) resolveApproval;
   final void Function(String suggestion) useSuggestion;
   final Future<void> Function(UserMessage message) copyUserMessage;
+  final Future<void> Function(Message message, int messageIndex)
+  editUserMessage;
+  final VoidCallback cancelUserMessageEdit;
   final Future<void> Function(AssistantMessage message) copyAssistantMessage;
   final Future<void> Function(AgentQueuedMessage message) editQueuedMessage;
   final void Function(AgentQueuedMessage message) removeQueuedMessage;

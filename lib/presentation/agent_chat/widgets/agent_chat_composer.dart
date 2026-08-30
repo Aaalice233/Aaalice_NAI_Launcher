@@ -61,6 +61,8 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
           children: [
             if (!viewData.mobile && viewData.state.queuedMessages.isNotEmpty)
               _queuedMessages(theme, l10n),
+            if (controller.isEditingUserMessage)
+              _messageEditHeader(theme, l10n),
             _editor(context, theme, l10n),
             if (viewData.state.pendingResources.isNotEmpty ||
                 controller.pendingImages.isNotEmpty)
@@ -78,6 +80,33 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _messageEditHeader(ThemeData theme, AppLocalizations l10n) {
+    return Padding(
+      key: const ValueKey('agent-chat-message-edit-header'),
+      padding: const EdgeInsets.fromLTRB(12, 8, 6, 0),
+      child: Row(
+        children: [
+          Icon(Icons.edit_outlined, size: 16, color: theme.colorScheme.primary),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              l10n.common_edit,
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: theme.colorScheme.primary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          TextButton(
+            key: const ValueKey('agent-chat-cancel-message-edit'),
+            onPressed: commands.cancelUserMessageEdit,
+            child: Text(l10n.common_cancel),
+          ),
+        ],
       ),
     );
   }
@@ -221,6 +250,44 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
           touchOptimized: viewData.mobile,
           onSend: commands.send,
         );
+
+        final minimumSingleRowWidth = target + compactTarget * 5 + gap * 4;
+        if (constraints.maxWidth < minimumSingleRowWidth) {
+          return SizedBox(
+            key: const ValueKey('agent-chat-session-controls'),
+            width: double.infinity,
+            child: Column(
+              key: const ValueKey('agent-chat-message-actions'),
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  height: target,
+                  child: Row(
+                    children: [
+                      _attachmentSourceButton(theme, l10n),
+                      const SizedBox(width: gap),
+                      Expanded(
+                        child: _modelSelector(theme, l10n, iconOnly: false),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: gap),
+                Wrap(
+                  alignment: WrapAlignment.end,
+                  spacing: gap,
+                  runSpacing: gap,
+                  children: [
+                    _permissionModeButton(theme, l10n),
+                    _webAccessToggle(theme, l10n),
+                    _contextIndicator(theme, l10n),
+                    primaryAction,
+                  ],
+                ),
+              ],
+            ),
+          );
+        }
 
         return SizedBox(
           key: const ValueKey('agent-chat-session-controls'),
@@ -492,7 +559,7 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
   Widget _attachmentCards() {
     final imageCount = controller.pendingImages.length;
     return SizedBox(
-      height: viewData.mobile ? 58 : 48,
+      height: viewData.mobile ? 60 : 52,
       child: ListView.separated(
         padding: const EdgeInsets.fromLTRB(10, 8, 10, 2),
         scrollDirection: Axis.horizontal,

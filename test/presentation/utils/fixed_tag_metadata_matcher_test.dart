@@ -41,6 +41,25 @@ void main() {
     },
   );
 
+  test('matches a weighted comma group as one complete fixed fragment', () {
+    const fragment = '{{{masterpiece, best_quality, year_2024}}}';
+    final result = matchMetadataFixedTags(
+      metadata: const NaiImageMetadata(prompt: '$fragment, 1girl, $fragment'),
+      positiveEntries: [
+        FixedTagEntry.create(name: 'prefix', content: fragment),
+        FixedTagEntry.create(
+          name: 'suffix',
+          content: fragment,
+          position: FixedTagPosition.suffix,
+        ),
+      ],
+      negativeEntries: const [],
+    );
+
+    expect(result.fixedPrefixTags, [fragment]);
+    expect(result.fixedSuffixTags, [fragment]);
+  });
+
   test('keeps recorded fields and supplements additional current matches', () {
     final libraryEntry = FixedTagEntry.create(
       name: 'new',

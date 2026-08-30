@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/storage_keys.dart';
 import '../../../../core/storage/local_storage_service.dart';
 import '../../../../core/utils/localization_extension.dart';
+import '../../../../core/windowing/workspace_side_panel_contract.dart';
 import '../../../agent_chat/widgets/agent_chat_panel.dart';
 import '../../../providers/layout_state_provider.dart';
 import 'collapsed_panel.dart';
@@ -15,8 +16,15 @@ import 'history_panel.dart';
 /// 展开态顶部仅保留折叠按钮，页面内不再混合 Tab。当前视图持久化。
 class RightPanel extends ConsumerStatefulWidget {
   final bool isResizing;
+  final double? width;
+  final bool? expanded;
 
-  const RightPanel({super.key, this.isResizing = false});
+  const RightPanel({
+    super.key,
+    this.isResizing = false,
+    this.width,
+    this.expanded,
+  });
 
   @override
   ConsumerState<RightPanel> createState() => _RightPanelState();
@@ -54,17 +62,23 @@ class _RightPanelState extends ConsumerState<RightPanel> {
     final theme = Theme.of(context);
     final l10n = context.l10n;
     final layoutState = ref.watch(layoutStateNotifierProvider);
+    final expanded = widget.expanded ?? layoutState.rightPanelExpanded;
 
-    final width = layoutState.rightPanelExpanded
-        ? layoutState.rightPanelWidth
-        : 40.0;
+    final width =
+        widget.width ??
+        (expanded
+            ? WorkspaceSidePanelContract.constrainedWidth(
+                workspaceWidth: MediaQuery.sizeOf(context).width,
+                preferredWidth: layoutState.rightPanelWidth,
+              )
+            : 40.0);
     final decoration = BoxDecoration(
       color: theme.colorScheme.surface,
       border: Border(left: BorderSide(color: theme.dividerColor, width: 1)),
     );
 
     final Widget child;
-    if (layoutState.rightPanelExpanded) {
+    if (expanded) {
       // 每页唯一一行 header：聊天页的会话行内含折叠按钮与标题
       // （见 AgentChatPanel），历史页用 HistoryPanel 自带 header。
       child = _activeView == 0

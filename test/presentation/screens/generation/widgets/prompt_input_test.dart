@@ -619,6 +619,8 @@ void main() {
     for (final icon in [
       Icons.translate,
       Icons.auto_fix_high,
+      Icons.tune_rounded,
+      Icons.manage_accounts_rounded,
       Icons.more_horiz,
       Icons.keyboard_arrow_down_rounded,
     ]) {

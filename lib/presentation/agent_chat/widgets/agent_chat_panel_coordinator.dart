@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
@@ -18,6 +19,7 @@ import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/themed_confirm_dialog.dart';
 import '../../widgets/common/themed_input_dialog.dart';
 import '../providers/agent_chat_notifier.dart';
+import '../services/agent_chat_session_controller.dart';
 import 'agent_chat_panel_controller.dart';
 import 'agent_chat_panel_view_data.dart';
 import 'agent_chat_resource_widgets.dart';
@@ -82,6 +84,9 @@ class AgentChatPanelCoordinator {
       resolveApproval: _notifier.resolveToolApproval,
       useSuggestion: _controller.setSuggestion,
       copyUserMessage: (message) => _copyUserMessage(context, message),
+      editUserMessage: (message, messageIndex) =>
+          _editUserMessage(state, message, messageIndex),
+      cancelUserMessageEdit: _cancelUserMessageEdit,
       copyAssistantMessage: (message) =>
           _copyAssistantMessage(context, message),
       editQueuedMessage: _editQueuedMessage,
@@ -105,11 +110,34 @@ class AgentChatPanelCoordinator {
     final images = _controller.pendingImages;
     final content = _controller.buildInlineUserContent(text, images);
     if (content.isEmpty) return;
+    final editingMessageIndex = _controller.editingUserMessageIndex;
+    AgentChatRewindCheckpoint? checkpoint;
+    if (editingMessageIndex != null) {
+      if (!await _notifier.prepareEditedSend()) return;
+      checkpoint = await _notifier.beginEditedMessageRewind();
+      if (checkpoint == null || !_isMounted()) return;
+    }
     _controller.followLatest();
-    _controller.takePendingImages();
-    await _notifier.clearComposerText();
-    await _notifier.sendContent(content, followUp: followUp);
-    if (_isMounted()) _controller.inputFocus.requestFocus();
+    var accepted = false;
+    final sent = await _notifier.sendContent(
+      content,
+      followUp: followUp,
+      onAccepted: () async {
+        accepted = true;
+        if (!_isMounted()) return;
+        _controller.takePendingImages();
+        await _notifier.clearComposerText();
+      },
+    );
+    if (!_isMounted()) return;
+    if (!accepted && !sent && checkpoint != null) {
+      await _notifier.restoreEditedMessageRewind(checkpoint);
+      if (!_isMounted()) return;
+      _controller.restoreDraft(text, images);
+    } else if (accepted) {
+      _controller.finishEditingUserMessage();
+    }
+    _controller.inputFocus.requestFocus();
   }
 
   Future<void> _pickImages(BuildContext context) async {
@@ -203,6 +231,67 @@ class AgentChatPanelCoordinator {
     if (_isMounted() && context.mounted) {
       AppToast.info(context, context.l10n.common_copied);
     }
+  }
+
+  Future<void> _editUserMessage(
+    AgentChatState state,
+    Message sourceMessage,
+    int messageIndex,
+  ) async {
+    final lastUserIndex = state.messages.lastIndexWhere(
+      (candidate) =>
+          candidate is UserMessage ||
+          candidate is HarnessCustomMessage &&
+              candidate.customType == 'agentResourcePrompt',
+    );
+    final safe =
+        state.status != AgentChatRunStatus.running &&
+        !state.sessionTransitioning &&
+        state.queuedMessages.isEmpty &&
+        state.pendingResources.isEmpty &&
+        messageIndex == lastUserIndex;
+    if (!safe) return;
+    final UserMessage message;
+    final references = <AgentChatResourceReference>[];
+    if (sourceMessage is UserMessage) {
+      message = sourceMessage;
+    } else if (sourceMessage is HarnessCustomMessage &&
+        sourceMessage.customType == 'agentResourcePrompt') {
+      message = UserMessage(
+        content: sourceMessage.content.skip(1).toList(growable: false),
+        timestamp: sourceMessage.timestamp,
+      );
+      final encoded = sourceMessage.details is Map
+          ? (sourceMessage.details as Map)['references']
+          : null;
+      if (encoded is List) {
+        for (final value in encoded) {
+          if (value is Map) {
+            references.add(
+              AgentChatResourceReferenceCodec.decodeJsonMap(
+                Map<String, dynamic>.from(value),
+              ),
+            );
+          }
+        }
+      }
+    } else {
+      return;
+    }
+    final draft = _draftForUserMessage(message);
+    if (draft == null || !_isMounted()) return;
+    for (final reference in references) {
+      await _notifier.addPendingResource(reference);
+    }
+    await _notifier.validatePendingResourcesForSend();
+    if (!_isMounted()) return;
+    _controller.beginEditingUserMessage(messageIndex, draft.text, draft.images);
+    _controller.inputFocus.requestFocus();
+  }
+
+  void _cancelUserMessageEdit() {
+    _controller.cancelEditingUserMessage();
+    unawaited(_notifier.clearPendingResources());
   }
 
   Future<void> _editQueuedMessage(AgentQueuedMessage queued) async {

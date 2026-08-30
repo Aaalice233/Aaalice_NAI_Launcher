@@ -13,6 +13,7 @@ import 'package:nai_launcher/data/models/metadata/metadata_import_options.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 import 'package:nai_launcher/l10n/app_localizations_en.dart';
 import 'package:nai_launcher/presentation/providers/character_prompt_provider.dart';
+import 'package:nai_launcher/presentation/providers/fixed_tags_provider.dart';
 import 'package:nai_launcher/presentation/providers/generation/generation_params_notifier.dart';
 import 'package:nai_launcher/presentation/utils/metadata_import_coordinator.dart';
 
@@ -155,6 +156,42 @@ void main() {
       expect(characters.characters.single.customPosition?.row, 0.2);
     },
   );
+
+  test('reimporting the same weighted comma fixed tag stays unique', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    const fragment = '{{{masterpiece, best_quality, year_2024}}}';
+    const metadata = NaiImageMetadata(fixedPrefixTags: [fragment]);
+    const options = MetadataImportOptions(
+      importPrompt: false,
+      importNegativePrompt: false,
+      importFixedTags: true,
+      importFixedPrefix: true,
+      importFixedSuffix: false,
+      importQualityTags: false,
+      importCharacterPrompts: false,
+      importVibeReferences: false,
+      importPreciseReferences: false,
+    );
+
+    await MetadataImportCoordinator.apply(
+      read: container.read,
+      metadata: metadata,
+      options: options,
+      l10n: AppLocalizationsEn(),
+    );
+    await MetadataImportCoordinator.apply(
+      read: container.read,
+      metadata: metadata,
+      options: options,
+      l10n: AppLocalizationsEn(),
+    );
+
+    final fixedTags = container.read(fixedTagsNotifierProvider).entries;
+    expect(fixedTags, hasLength(1));
+    expect(fixedTags.single.content, fragment);
+    expect(fixedTags.single.enabled, isTrue);
+  });
 
   test('model import preserves the image guidance value', () async {
     final container = ProviderContainer();

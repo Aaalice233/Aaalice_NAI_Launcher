@@ -510,7 +510,9 @@ void main() {
     },
   );
 
-  testWidgets('user message actions only copy locally', (tester) async {
+  testWidgets('latest user message actions expose copy and edit', (
+    tester,
+  ) async {
     final tempDir = Directory.systemTemp.createTempSync(
       'agent_chat_panel_message_actions_test_',
     );
@@ -630,7 +632,7 @@ void main() {
     );
     expect(
       find.byKey(const ValueKey('agent-user-message-edit-2')),
-      findsNothing,
+      findsOneWidget,
     );
 
     final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);

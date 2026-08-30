@@ -175,6 +175,8 @@ Widget _app({
     resolveApproval: (_, _) => false,
     useSuggestion: (_) {},
     copyUserMessage: (_) async {},
+    editUserMessage: (_, __) async {},
+    cancelUserMessageEdit: () {},
     copyAssistantMessage: (_) async {},
     editQueuedMessage: (_) async {},
     removeQueuedMessage: (_) {},
