@@ -41,6 +41,9 @@ class WebLeftPanel extends ConsumerStatefulWidget {
 
 class _WebLeftPanelState extends ConsumerState<WebLeftPanel>
     with SingleTickerProviderStateMixin {
+  // 320px 的面板最小宽度包含右侧 1px 分隔线。
+  static const double _expandedContentMinWidth = 319;
+
   /// 参数二级菜单是否挂载（动画收起完毕后卸载）。
   bool _paramsMenuMounted = false;
 
@@ -129,15 +132,30 @@ class _WebLeftPanelState extends ConsumerState<WebLeftPanel>
       border: Border(right: BorderSide(color: theme.dividerColor, width: 1)),
     );
 
-    final child = layoutState.webLeftPanelExpanded
-        ? _buildExpanded(context, theme)
-        : CollapsedPanel(
-            icon: Icons.edit_note,
-            label: context.l10n.generation_params,
-            onTap: () => ref
-                .read(layoutStateNotifierProvider.notifier)
-                .setWebLeftPanelExpanded(true),
+    final child = LayoutBuilder(
+      builder: (context, constraints) {
+        // AnimatedContainer 会先切换业务状态，再逐帧过渡实际宽度。
+        // 只有当前帧真正容得下完整内容时才构建展开态，避免其内部所有
+        // Row 在 40px 附近仍按桌面侧栏排版。
+        final showExpandedContent =
+            layoutState.webLeftPanelExpanded &&
+            constraints.maxWidth >= _expandedContentMinWidth;
+        if (showExpandedContent) {
+          return KeyedSubtree(
+            key: const ValueKey('web-left-panel-expanded-content'),
+            child: _buildExpanded(context, theme),
           );
+        }
+        return CollapsedPanel(
+          key: const ValueKey('web-left-panel-compact-content'),
+          icon: Icons.edit_note,
+          label: context.l10n.generation_params,
+          onTap: () => ref
+              .read(layoutStateNotifierProvider.notifier)
+              .setWebLeftPanelExpanded(true),
+        );
+      },
+    );
 
     // 拖拽时不使用动画，避免粘滞感（与经典布局 LeftPanel 一致）
     if (widget.isResizing) {
