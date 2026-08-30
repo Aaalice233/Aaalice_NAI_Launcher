@@ -8,6 +8,9 @@ import '../../../core/cache/online_gallery_prefetch_coordinator.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../themes/theme_extension.dart';
 
+typedef GalleryImageErrorBuilder =
+    Widget Function(BuildContext context, VoidCallback retry);
+
 /// Routes gallery image downloads through the shared network QoS coordinator.
 ///
 /// Already decoded pixels remain visible while critical requests pause gallery
@@ -22,6 +25,8 @@ class CoordinatedGalleryImage extends StatefulWidget {
     this.alignment = Alignment.center,
     this.placeholder,
     this.errorWidget,
+    this.errorBuilder,
+    this.enabled = true,
     this.fadeIn = true,
   });
 
@@ -32,6 +37,8 @@ class CoordinatedGalleryImage extends StatefulWidget {
   final AlignmentGeometry alignment;
   final Widget? placeholder;
   final Widget? errorWidget;
+  final GalleryImageErrorBuilder? errorBuilder;
+  final bool enabled;
   final bool fadeIn;
 
   @override
@@ -44,6 +51,7 @@ class _CoordinatedGalleryImageState extends State<CoordinatedGalleryImage> {
   bool _failed = false;
   bool _requesting = false;
   bool _showImmediately = false;
+  Future<void> _failedImageEviction = Future<void>.value();
   int _revision = 0;
 
   @override
@@ -69,18 +77,24 @@ class _CoordinatedGalleryImageState extends State<CoordinatedGalleryImage> {
     );
     final requestChanged =
         oldWidget.request.stableRequestKey != widget.request.stableRequestKey;
+    final enabledChanged = oldWidget.enabled != widget.enabled;
     if (coordinatorChanged) {
       oldWidget.coordinator.removeListener(_handleCoordinatorChanged);
       widget.coordinator.addListener(_handleCoordinatorChanged);
     }
-    if (coordinatorChanged || requestChanged) {
+    if (oldWidget.enabled &&
+        (coordinatorChanged || requestChanged || !widget.enabled)) {
+      oldWidget.coordinator.releasePending(oldWidget.request, this);
+    }
+    if (coordinatorChanged || requestChanged || enabledChanged) {
       _revision += 1;
       _requesting = false;
       if (requestChanged) {
         _ready = widget.coordinator.isReady(widget.request);
         _showImmediately = _ready;
         _failed = false;
-      } else if (!_ready) {
+        _failedImageEviction = Future<void>.value();
+      } else if (!_ready && widget.enabled) {
         _failed = false;
       }
       _requestImage();
@@ -91,34 +105,74 @@ class _CoordinatedGalleryImageState extends State<CoordinatedGalleryImage> {
   void dispose() {
     _revision += 1;
     widget.coordinator.removeListener(_handleCoordinatorChanged);
+    if (widget.enabled) {
+      widget.coordinator.releasePending(widget.request, this);
+    }
     super.dispose();
   }
 
   void _handleCoordinatorChanged() {
-    if (!mounted || _ready || widget.coordinator.isPaused) return;
+    if (!mounted || !widget.enabled || _ready || widget.coordinator.isPaused) {
+      return;
+    }
     if (_failed && !widget.coordinator.isNegativelyCached(widget.request)) {
       setState(() => _failed = false);
     }
     if (!_failed) _requestImage();
   }
 
-  void _requestImage() {
-    if (_ready || _failed || _requesting || widget.request.url.isEmpty) return;
+  void _requestImage({bool retry = false}) {
+    if (!widget.enabled ||
+        _ready ||
+        _failed ||
+        _requesting ||
+        widget.request.url.isEmpty) {
+      return;
+    }
     _requesting = true;
     final revision = ++_revision;
-    widget.coordinator.submit(widget.request, priority: widget.priority).then((
-      loaded,
-    ) {
-      if (!mounted || revision != _revision) return;
-      final negativelyCached = widget.coordinator.isNegativelyCached(
-        widget.request,
-      );
-      setState(() {
-        _requesting = false;
-        _ready = loaded;
-        _failed = negativelyCached;
-      });
+    widget.coordinator
+        .submit(
+          widget.request,
+          priority: widget.priority,
+          retry: retry,
+          consumer: this,
+        )
+        .then((loaded) {
+          if (!mounted || revision != _revision) return;
+          final negativelyCached = widget.coordinator.isNegativelyCached(
+            widget.request,
+          );
+          setState(() {
+            _requesting = false;
+            _ready = loaded;
+            _failed = negativelyCached;
+          });
+        });
+  }
+
+  void _retryImage() {
+    if (_requesting) return;
+    final revision = ++_revision;
+    setState(() {
+      _failed = false;
+      _ready = false;
+      _requesting = true;
     });
+    unawaited(_retryAfterFailedImageEviction(revision));
+  }
+
+  Future<void> _retryAfterFailedImageEviction(int revision) async {
+    await _failedImageEviction;
+    if (!mounted || revision != _revision) return;
+    _requesting = false;
+    _requestImage(retry: true);
+  }
+
+  Widget _buildError(BuildContext context) {
+    final builder = widget.errorBuilder;
+    if (builder != null) return builder(context, _retryImage);
+    return widget.errorWidget ?? const SizedBox.shrink();
   }
 
   Future<void> _evictFailedImage(
@@ -148,7 +202,7 @@ class _CoordinatedGalleryImageState extends State<CoordinatedGalleryImage> {
 
   @override
   Widget build(BuildContext context) {
-    if (_failed) return widget.errorWidget ?? const SizedBox.shrink();
+    if (_failed) return _buildError(context);
     if (!_ready) return widget.placeholder ?? const SizedBox.shrink();
     final placeholder = widget.placeholder ?? const SizedBox.shrink();
     final disableAnimations = MediaQuery.disableAnimationsOf(context);
@@ -196,14 +250,19 @@ class _CoordinatedGalleryImageState extends State<CoordinatedGalleryImage> {
         if (!_failed) {
           _failed = true;
           _ready = false;
-          unawaited(_evictFailedImage(imageProvider, request, coordinator));
+          _failedImageEviction = _evictFailedImage(
+            imageProvider,
+            request,
+            coordinator,
+          );
+          unawaited(_failedImageEviction);
           AppLogger.w(
             'Gallery image decode failed after coordinated preload: '
                 'source=${request.sourceKey}, errorType=${error.runtimeType}',
             'GalleryImage',
           );
         }
-        return widget.errorWidget ?? const SizedBox.shrink();
+        return _buildError(context);
       },
     );
   }

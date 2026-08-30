@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/cache/gallery_image_request.dart';
+import 'package:nai_launcher/data/models/online_gallery/gallery_source.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -243,6 +244,45 @@ void main() {
       expect(request1.hashCode, equals(request2.hashCode));
       expect(request1, isNot(equals(request3)));
     });
+
+    test(
+      'source URLs retain their transport identity and header contracts',
+      () {
+        const cases = <(GallerySourceId, String)>[
+          (GallerySourceId.danbooru, 'https://cdn.donmai.us/a.jpg'),
+          (GallerySourceId.safebooru, 'https://safebooru.org/a.jpg'),
+          (GallerySourceId.gelbooru, 'https://img4.gelbooru.com/a.jpg'),
+          (GallerySourceId.quickTagCloud, 'https://codex.example/a.webp'),
+        ];
+        for (final (sourceId, url) in cases) {
+          final request = GalleryImageRequest.forUrl(
+            sourceId: sourceId,
+            url: url,
+            tier: GalleryImageTier.thumbnail,
+            targetDecodeWidth: 320,
+          );
+          expect(request.sourceId, sourceId);
+          expect(request.url, url);
+          if (sourceId == GallerySourceId.gelbooru) {
+            expect(request.headers['Referer'], 'https://gelbooru.com/');
+            expect(request.cacheKey, 'gelbooru-image-v2:$url');
+          } else {
+            expect(request.headers, isEmpty);
+            expect(request.cacheKey, isNull);
+          }
+        }
+
+        final aiTag = GalleryImageRequest.forUrl(
+          sourceId: GallerySourceId.aiTag,
+          url: 'https://ai-img.10118899.xyz/NAI/1/work.webp',
+          tier: GalleryImageTier.thumbnail,
+          targetDecodeWidth: 320,
+        );
+        expect(aiTag.headers['Referer'], 'https://aitag.win/');
+        expect(aiTag.headers['Accept'], contains('image/webp'));
+        expect(aiTag.cacheKey, isNull);
+      },
+    );
 
     test('creates Gelbooru requests with correct headers and cache keys', () {
       const gelbooruUrl =

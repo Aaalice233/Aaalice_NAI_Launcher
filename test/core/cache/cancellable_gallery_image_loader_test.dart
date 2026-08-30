@@ -324,6 +324,63 @@ void main() {
     },
   );
 
+  test(
+    '404 and 403 responses settle as failures without publishing cache',
+    () async {
+      for (final status in [HttpStatus.notFound, HttpStatus.forbidden]) {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) async {
+          request.response.statusCode = status;
+          await request.response.close();
+        });
+        final cache = _RecordingCacheManager();
+        final loader = CancellableGalleryImageLoader(cacheManager: cache);
+        final operation = loader.start(
+          GalleryImageRequest(
+            sourceId: 'ai_tag',
+            url: 'http://${server.address.host}:${server.port}/$status.webp',
+            tier: GalleryImageTier.thumbnail,
+          ),
+        );
+
+        await expectLater(
+          operation.future.timeout(const Duration(seconds: 2)),
+          throwsA(isA<Exception>()),
+        );
+        expect(cache.putCalled, isFalse);
+        loader.dispose();
+        await server.close(force: true);
+      }
+    },
+  );
+
+  test(
+    'connection failure settles without leaving the operation pending',
+    () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      final url = 'http://${server.address.host}:${server.port}/offline.webp';
+      await server.close(force: true);
+      final cache = _RecordingCacheManager();
+      final loader = CancellableGalleryImageLoader(cacheManager: cache);
+      addTearDown(loader.dispose);
+
+      await expectLater(
+        loader
+            .start(
+              GalleryImageRequest(
+                sourceId: 'ai_tag',
+                url: url,
+                tier: GalleryImageTier.thumbnail,
+              ),
+            )
+            .future
+            .timeout(const Duration(seconds: 2)),
+        throwsA(isA<Exception>()),
+      );
+      expect(cache.putCalled, isFalse);
+    },
+  );
+
   test('non-image responses are rejected without publishing cache', () async {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     addTearDown(() => server.close(force: true));

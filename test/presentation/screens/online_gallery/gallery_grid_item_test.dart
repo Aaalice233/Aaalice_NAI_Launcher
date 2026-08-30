@@ -168,6 +168,58 @@ void main() {
     expect(find.text('Retry'), findsNothing);
   });
 
+  testWidgets('resolved cards stop and resume media requests with visibility', (
+    tester,
+  ) async {
+    final mediaRequestActiveValues = <bool>[];
+    final post = _item.copyWith(
+      sourceId: GallerySourceId.danbooru,
+      previewFileUrl: 'https://example.test/resolved.jpg',
+    );
+    await tester.pumpWidget(
+      _app(
+        post: post,
+        detailRequestScope: 1,
+        loadDetail: (_, {required priority, forceRefresh = false}) =>
+            Future.value(GalleryDetail(item: post, media: const [])),
+        onMediaRequestActive: mediaRequestActiveValues.add,
+      ),
+    );
+    final detector = tester.widget<VisibilityDetector>(
+      find.byType(VisibilityDetector),
+    );
+
+    detector.onVisibilityChanged?.call(
+      VisibilityInfo(
+        key: detector.key!,
+        size: const Size(200, 200),
+        visibleBounds: const Rect.fromLTWH(0, 0, 200, 200),
+      ),
+    );
+    await tester.pump();
+    expect(mediaRequestActiveValues.last, isTrue);
+
+    detector.onVisibilityChanged?.call(
+      VisibilityInfo(
+        key: detector.key!,
+        size: const Size(200, 200),
+        visibleBounds: Rect.zero,
+      ),
+    );
+    await tester.pump();
+    expect(mediaRequestActiveValues.last, isFalse);
+
+    detector.onVisibilityChanged?.call(
+      VisibilityInfo(
+        key: detector.key!,
+        size: const Size(200, 200),
+        visibleBounds: const Rect.fromLTWH(0, 0, 200, 200),
+      ),
+    );
+    await tester.pump();
+    expect(mediaRequestActiveValues.last, isTrue);
+  });
+
   testWidgets(
     'missing dimensions keep stable geometry and reveal on visibility',
     (tester) async {
@@ -220,6 +272,7 @@ void main() {
       previewFileUrl: 'https://example.test/ai-tag-resolved.jpg',
     );
     final loadMediaValues = <bool>[];
+    final mediaRequestActiveValues = <bool>[];
     final layoutAspectRatios = <double>[];
     await tester.pumpWidget(
       _app(
@@ -227,6 +280,7 @@ void main() {
         loadDetail: (_, {required priority, forceRefresh = false}) =>
             Future.value(GalleryDetail(item: resolved, media: const [])),
         onBuildCard: loadMediaValues.add,
+        onMediaRequestActive: mediaRequestActiveValues.add,
         onLayoutAspectRatio: layoutAspectRatios.add,
       ),
     );
@@ -245,7 +299,29 @@ void main() {
     await tester.pump();
 
     expect(loadMediaValues.last, isTrue);
+    expect(mediaRequestActiveValues.last, isTrue);
     expect(layoutAspectRatios.last, 1.5);
+
+    detector.onVisibilityChanged?.call(
+      VisibilityInfo(
+        key: detector.key!,
+        size: const Size(200, 200),
+        visibleBounds: Rect.zero,
+      ),
+    );
+    await tester.pump();
+    expect(loadMediaValues.last, isTrue);
+    expect(mediaRequestActiveValues.last, isFalse);
+
+    detector.onVisibilityChanged?.call(
+      VisibilityInfo(
+        key: detector.key!,
+        size: const Size(200, 200),
+        visibleBounds: const Rect.fromLTWH(0, 0, 200, 200),
+      ),
+    );
+    await tester.pump();
+    expect(mediaRequestActiveValues.last, isTrue);
   });
 
   testWidgets('cancelled background detail stays quiet and scope resumes it', (
@@ -317,6 +393,7 @@ Widget _app({
   })
   loadDetail,
   ValueChanged<bool>? onBuildCard,
+  ValueChanged<bool>? onMediaRequestActive,
   ValueChanged<double>? onLayoutAspectRatio,
 }) {
   return MaterialApp(
@@ -344,9 +421,11 @@ Widget _app({
                 itemWidth, {
                 required layoutAspectRatio,
                 required loadMedia,
+                required mediaRequestActive,
                 detail,
               }) {
                 onBuildCard?.call(loadMedia);
+                onMediaRequestActive?.call(mediaRequestActive);
                 onLayoutAspectRatio?.call(layoutAspectRatio);
                 return SizedBox(
                   key: const ValueKey('resolved-card'),

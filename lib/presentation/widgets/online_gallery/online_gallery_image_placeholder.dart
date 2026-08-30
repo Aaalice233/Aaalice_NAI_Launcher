@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/utils/localization_extension.dart';
+
 /// Stable, low-contrast surface used while gallery media is unavailable.
 class OnlineGalleryImagePlaceholder extends StatelessWidget {
   const OnlineGalleryImagePlaceholder({
     super.key,
     this.failed = false,
     this.loading = false,
+    this.onRetry,
   });
 
   final bool failed;
   final bool loading;
+  final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -18,10 +22,19 @@ class OnlineGalleryImagePlaceholder extends StatelessWidget {
       color: colors.surfaceContainerLow,
       child: failed
           ? Center(
-              child: Icon(
-                Icons.image_not_supported_outlined,
-                color: colors.onSurfaceVariant.withValues(alpha: 0.38),
-              ),
+              child: onRetry == null
+                  ? Icon(
+                      Icons.image_not_supported_outlined,
+                      color: colors.onSurfaceVariant.withValues(alpha: 0.38),
+                    )
+                  : IconButton(
+                      onPressed: onRetry,
+                      tooltip: context.l10n.common_retry,
+                      icon: Icon(
+                        Icons.refresh_rounded,
+                        color: colors.onSurfaceVariant.withValues(alpha: 0.62),
+                      ),
+                    ),
             )
           : loading
           ? Center(

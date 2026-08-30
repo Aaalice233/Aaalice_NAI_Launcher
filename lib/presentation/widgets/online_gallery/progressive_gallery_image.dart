@@ -28,6 +28,7 @@ class ProgressiveGalleryImage extends StatefulWidget {
 
 class _ProgressiveGalleryImageState extends State<ProgressiveGalleryImage> {
   bool _sampleReady = false;
+  bool _sampleRequesting = false;
   bool _showSampleImmediately = false;
   int _revision = 0;
 
@@ -66,6 +67,7 @@ class _ProgressiveGalleryImageState extends State<ProgressiveGalleryImage> {
     }
     if (coordinatorChanged || sampleChanged) {
       _revision++;
+      _sampleRequesting = false;
       _sampleReady = widget.coordinator.isSampleReady(widget.sample);
       _showSampleImmediately = _sampleReady;
       _requestSample();
@@ -77,12 +79,15 @@ class _ProgressiveGalleryImageState extends State<ProgressiveGalleryImage> {
   }
 
   void _requestSample() {
-    if (_sampleReady || widget.sample.url.isEmpty) return;
+    if (_sampleReady || _sampleRequesting || widget.sample.url.isEmpty) return;
+    _sampleRequesting = true;
     final revision = ++_revision;
     widget.coordinator
         .submit(widget.sample, priority: GalleryImagePriority.hover)
         .then((loaded) {
-          if (!mounted || revision != _revision || !loaded) return;
+          if (!mounted || revision != _revision) return;
+          _sampleRequesting = false;
+          if (!loaded) return;
           setState(() {
             _sampleReady = true;
             _showSampleImmediately = false;
@@ -98,9 +103,14 @@ class _ProgressiveGalleryImageState extends State<ProgressiveGalleryImage> {
       priority: GalleryImagePriority.visible,
       fit: widget.fit,
       alignment: widget.alignment,
-      errorWidget: const ColoredBox(
+      errorBuilder: (_, retry) => ColoredBox(
         color: Colors.black12,
-        child: Center(child: Icon(Icons.broken_image_outlined)),
+        child: Center(
+          child: IconButton(
+            onPressed: retry,
+            icon: const Icon(Icons.refresh_rounded),
+          ),
+        ),
       ),
     );
     if (!_sampleReady ||
