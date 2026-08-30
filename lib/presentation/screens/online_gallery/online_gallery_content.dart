@@ -91,6 +91,18 @@ class _OnlineGalleryContentPresenter {
     return _buildPageContent(theme, state);
   }
 
+  Future<void> _refreshFromVisibleDraft(OnlineGalleryState state) {
+    final query = switch (state.viewMode) {
+      GalleryViewMode.search => _controller.searchController.text,
+      GalleryViewMode.popular => _controller.popularSearchController.text,
+      GalleryViewMode.favorites => _controller.favoriteSearchController.text,
+    };
+    final prompt = state.viewMode == GalleryViewMode.popular
+        ? _controller.popularPromptSearchController.text
+        : _controller.promptSearchController.text;
+    return _galleryNotifier.refreshWithDraft(query: query, prompt: prompt);
+  }
+
   /// 构建错误状态
   Widget _buildErrorState(ThemeData theme, OnlineGalleryState state) {
     final message = state.error ?? _localizedError(state.errorCode);
@@ -117,7 +129,7 @@ class _OnlineGalleryContentPresenter {
           FilledButton.icon(
             onPressed: needsGelbooruCredentials
                 ? () => _showGelbooruCredentialsDialog(context)
-                : _galleryNotifier.refresh,
+                : () => _refreshFromVisibleDraft(state),
             icon: Icon(
               needsGelbooruCredentials ? Icons.key_outlined : Icons.refresh,
               size: 18,
@@ -244,7 +256,7 @@ class _OnlineGalleryContentPresenter {
             ),
             const SizedBox(height: 8),
             TextButton.icon(
-              onPressed: _galleryNotifier.refresh,
+              onPressed: () => _refreshFromVisibleDraft(state),
               icon: const Icon(Icons.refresh, size: 18),
               label: Text(context.l10n.common_retry),
             ),
@@ -261,7 +273,7 @@ class _OnlineGalleryContentPresenter {
             ),
             const SizedBox(height: 8),
             TextButton.icon(
-              onPressed: _galleryNotifier.refresh,
+              onPressed: () => _refreshFromVisibleDraft(state),
               icon: const Icon(Icons.refresh, size: 18),
               label: Text(context.l10n.common_retry),
             ),
@@ -302,7 +314,11 @@ class _OnlineGalleryContentPresenter {
       itemWidth: itemWidth,
       columnCount: columnCount,
       scrolling: _controller.scrolling,
-      anchorKey: post.stableKey == _controller.pendingAnchorStableKey
+      anchorKey:
+          (state.randomEnabled ? state.randomSession.cache : state.currentCache)
+              .isPageBoundaryStart(index)
+          ? _controller.pageAnchorKey(post.stableKey)
+          : post.stableKey == _controller.pendingAnchorStableKey
           ? _controller.anchorRestoreKey
           : null,
       onVisibilityChanged: _scrollCoordinator.handleCardVisibility,
@@ -557,7 +573,7 @@ class _OnlineGalleryContentPresenter {
     if (activeCache.queryDetailFailureCount > 0) {
       return Center(
         child: TextButton.icon(
-          onPressed: _galleryNotifier.refresh,
+          onPressed: () => _refreshFromVisibleDraft(state),
           icon: Icon(Icons.refresh, color: theme.colorScheme.error),
           label: Text(
             context.l10n.onlineGallery_tagDetailsIncomplete,
@@ -674,7 +690,7 @@ class _OnlineGalleryContentPresenter {
                   TextButton(
                     onPressed: state.isLoading
                         ? null
-                        : _galleryNotifier.refresh,
+                        : () => _refreshFromVisibleDraft(state),
                     child: Text(context.l10n.common_retry),
                   ),
                 ],

@@ -26,6 +26,9 @@ class OnlineGalleryScrollPrefetchCoordinator {
   final WidgetRef ref;
   final OnlineGalleryScreenController controller;
   final OnlineGalleryNotifier notifier;
+  bool _visiblePageUpdateScheduled = false;
+  bool _pageJumpInProgress = false;
+  int _visiblePageUpdateRevision = 0;
 
   OnlineGalleryState readState() => ref.read(onlineGalleryNotifierProvider);
   bool isMounted() => context.mounted;
@@ -164,6 +167,89 @@ class OnlineGalleryScrollPrefetchCoordinator {
     });
   }
 
+  void beginPageJump() {
+    _pageJumpInProgress = true;
+    _visiblePageUpdateRevision++;
+    controller.visibleItems.clear();
+  }
+
+  void endPageJump() {
+    final wasInProgress = _pageJumpInProgress;
+    _pageJumpInProgress = false;
+    _visiblePageUpdateRevision++;
+    if (wasInProgress) {
+      _scheduleVisiblePageUpdate();
+      if (controller.visibleItems.isNotEmpty) scheduleVisiblePrefetch();
+    }
+  }
+
+  Future<void> jumpToPageTarget(
+    GalleryPageJumpTarget target, {
+    required bool Function() isCurrent,
+  }) async {
+    if (!isCurrent() || !controller.scrollController.hasClients) return;
+    final state = readState();
+    final cache = state.currentCache;
+    if (target.itemIndex >= cache.posts.length ||
+        cache.posts[target.itemIndex].stableKey != target.stableKey) {
+      return;
+    }
+
+    final viewportWidth =
+        context.size?.width ?? MediaQuery.sizeOf(context).width;
+    const horizontalPadding = 24.0;
+    const spacing = 6.0;
+    final availableWidth = (viewportWidth - horizontalPadding).clamp(
+      0.0,
+      double.infinity,
+    );
+    final columnCount =
+        controller.currentColumnCount ??
+        ((availableWidth + spacing) / (160 + spacing)).floor().clamp(1, 8);
+    final itemWidth =
+        controller.currentItemWidth ??
+        (availableWidth - (columnCount - 1) * spacing) / columnCount;
+    final columnEnds = List<double>.filled(columnCount, 12);
+    for (var index = 0; index < target.itemIndex; index++) {
+      var column = 0;
+      for (var candidate = 1; candidate < columnEnds.length; candidate++) {
+        if (columnEnds[candidate] < columnEnds[column]) column = candidate;
+      }
+      final item = cache.posts[index];
+      final ratio = item.width > 0 && item.height > 0
+          ? item.width / item.height
+          : 1.0;
+      final height = (itemWidth / ratio).clamp(80.0, itemWidth * 2.5);
+      columnEnds[column] += height + spacing;
+    }
+    final estimatedOffset = columnEnds.reduce(
+      (left, right) => left < right ? left : right,
+    );
+    final position = controller.scrollController.position;
+    controller.scrollController.jumpTo(
+      estimatedOffset.clamp(position.minScrollExtent, position.maxScrollExtent),
+    );
+
+    await WidgetsBinding.instance.endOfFrame;
+    if (!isMounted() || !isCurrent()) return;
+    final latestCache = readState().currentCache;
+    if (target.itemIndex >= latestCache.posts.length ||
+        latestCache.posts[target.itemIndex].stableKey != target.stableKey) {
+      return;
+    }
+    final anchorContext = controller
+        .pageAnchorKey(target.stableKey)
+        .currentContext;
+    if (anchorContext == null || !anchorContext.mounted || !isCurrent()) {
+      return;
+    }
+    await Scrollable.ensureVisible(
+      anchorContext,
+      alignment: 0,
+      duration: Duration.zero,
+    );
+  }
+
   void handleCardVisibility(
     int index,
     GalleryItem item,
@@ -182,6 +268,7 @@ class OnlineGalleryScrollPrefetchCoordinator {
           controller.prefetchCoordinator.cancelPending(request);
         }
       }
+      _scheduleVisiblePageUpdate();
       return;
     }
     final thumbnailRequest = !item.mediaCapability.canPrefetchPreview
@@ -199,6 +286,7 @@ class OnlineGalleryScrollPrefetchCoordinator {
       visibleTop: visibleTop,
       thumbnailRequest: thumbnailRequest,
     );
+    _scheduleVisiblePageUpdate();
     if (controller.scrollController.hasClients) {
       final position = controller.scrollController.position;
       if (controller.updateLookaheadMetrics(
@@ -231,6 +319,26 @@ class OnlineGalleryScrollPrefetchCoordinator {
         },
       );
     }
+  }
+
+  void _scheduleVisiblePageUpdate() {
+    if (_visiblePageUpdateScheduled || _pageJumpInProgress) return;
+    _visiblePageUpdateScheduled = true;
+    final revision = _visiblePageUpdateRevision;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _visiblePageUpdateScheduled = false;
+      if (!isMounted() ||
+          _pageJumpInProgress ||
+          revision != _visiblePageUpdateRevision ||
+          controller.visibleItems.isEmpty) {
+        return;
+      }
+      notifier.updateVisibleItemIndex(
+        controller.visibleItems.keys.reduce(
+          (left, right) => left < right ? left : right,
+        ),
+      );
+    });
   }
 
   void scheduleVisiblePrefetch() {

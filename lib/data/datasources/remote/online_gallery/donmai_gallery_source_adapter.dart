@@ -105,12 +105,21 @@ class DonmaiGallerySourceAdapter implements GallerySourceAdapter {
         request.ratings,
         request.blacklistTags,
       );
-      final nextCursor = parsed.isEmpty ? null : 'b${parsed.last.id}';
+      Object? lastRawId;
+      for (final value in raw.reversed) {
+        if (value is Map && value['id'] != null) {
+          lastRawId = value['id'];
+          break;
+        }
+      }
+      final nextCursor = lastRawId == null ? null : 'b$lastRawId';
       return GalleryPage(
         items: filtered,
         cursor: request.cursor,
         nextCursor: nextCursor,
-        hasMore: raw.length >= request.pageSize && nextCursor != null,
+        // The endpoint may enforce a smaller page than requested and exposes no
+        // total. A non-empty ID-cursor page is therefore not proof of EOF.
+        hasMore: raw.isNotEmpty && nextCursor != null,
         rawItemCount: raw.length,
         rawPageIdentity: raw
             .map((value) => value is Map ? value['id'] : null)

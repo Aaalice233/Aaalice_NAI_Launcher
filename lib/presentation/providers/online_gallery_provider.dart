@@ -64,6 +64,7 @@ export 'online_gallery_dependencies.dart'
         quickTagCloudGallerySourceAdapterProvider;
 export 'online_gallery_state.dart'
     show
+        GalleryPageBoundary,
         GallerySourceIdCapabilities,
         GalleryViewMode,
         ModeCache,
@@ -81,6 +82,18 @@ export 'online_gallery_state.dart'
 part 'online_gallery_provider.g.dart';
 
 const int onlineGalleryPageSize = 60;
+
+class GalleryPageJumpTarget {
+  const GalleryPageJumpTarget({
+    required this.page,
+    required this.itemIndex,
+    required this.stableKey,
+  });
+
+  final int page;
+  final int itemIndex;
+  final String stableKey;
+}
 
 @riverpod
 class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
@@ -111,6 +124,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
   int _detailRequestScopeRevision = 0;
   bool _loadMoreClaimed = false;
   int _loadMoreClaimRevision = 0;
+  int _pageJumpRevision = 0;
   bool _backgroundNetworkPaused = false;
   int _explicitNetworkAccessCount = 0;
   int _deferredLoadCount = 0;
@@ -312,6 +326,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
   void _cancelCurrentRequest() {
     _loadCoordinator.cancel('Superseded by a gallery state change');
     _loadMoreClaimRevision++;
+    _pageJumpRevision++;
     _loadMoreClaimed = false;
     _detailRequestScopeRevision++;
     _detailCoordinator?.cancelQueuedVisible();
@@ -324,6 +339,14 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
   bool _isCurrentRequest(OnlineGalleryRequestHandle request, String cacheKey) {
     return _loadCoordinator.isCurrent(request, cacheKey: cacheKey) &&
         state.currentCacheKey == cacheKey;
+  }
+
+  void updateVisibleItemIndex(int index) {
+    if (state.randomEnabled) return;
+    final cache = state.currentCache;
+    final visiblePage = cache.pageForItemIndex(index);
+    if (visiblePage == null || visiblePage == cache.page) return;
+    state = state.updateCurrentCache(cache.copyWith(page: visiblePage));
   }
 
   void saveScrollOffset(
@@ -342,13 +365,28 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
 
   Future<void> switchToFavorites() => _commands.switchToFavorites();
 
-  Future<void> setSource(Object source) => _commands.setSource(source);
+  Future<void> setSource(
+    Object source, {
+    String? draftQuery,
+    String? draftPrompt,
+  }) => _commands.setSource(
+    source,
+    draftQuery: draftQuery,
+    draftPrompt: draftPrompt,
+  );
 
-  Future<void> setPopularSource(Object source) =>
-      _commands.setPopularSource(source);
+  Future<void> setPopularSource(
+    Object source, {
+    String? draftQuery,
+    String? draftPrompt,
+  }) => _commands.setPopularSource(
+    source,
+    draftQuery: draftQuery,
+    draftPrompt: draftPrompt,
+  );
 
-  Future<void> setFavoritesSource(Object source) =>
-      _commands.setFavoritesSource(source);
+  Future<void> setFavoritesSource(Object source, {String? draftQuery}) =>
+      _commands.setFavoritesSource(source, draftQuery: draftQuery);
 
   Future<void> searchFavorites(String query) =>
       _commands.searchFavorites(query);
@@ -373,6 +411,11 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
 
   Future<void> setArtistHuntEnabled(bool enabled) =>
       _commands.setArtistHuntEnabled(enabled);
+
+  Future<void> refreshWithDraft({
+    required String query,
+    required String prompt,
+  }) => _commands.refreshWithDraft(query: query, prompt: prompt);
 
   Future<void> search(String query) => _commands.search(query);
 
@@ -873,14 +916,14 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     switch (state.viewMode) {
       case GalleryViewMode.search:
       case GalleryViewMode.popular:
-        await _loadAdapterPage(
-          refresh: refresh,
-          initialCursor: restoredPage == null ? null : '$restoredPage',
-        );
-        return;
+        await _loadAdapterPage(refresh: refresh);
+        break;
       case GalleryViewMode.favorites:
-        await _loadFavorites(refresh: refresh, targetPage: restoredPage);
-        return;
+        await _loadFavorites(refresh: refresh);
+        break;
+    }
+    if (restoredPage != null && restoredPage > 1) {
+      await goToPage(restoredPage);
     }
   }
 
@@ -924,18 +967,51 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     await loadPosts();
   }
 
-  Future<void> goToPage(int page) async {
-    if (_networkRequestsPaused ||
-        page < 1 ||
-        state.isLoading ||
-        state.isLoadingMore) {
-      return;
+  Future<GalleryPageJumpTarget?> goToPage(int page) async {
+    if (_networkRequestsPaused || page < 1 || state.randomEnabled) return null;
+
+    _cancelCurrentRequest();
+    final jumpRevision = ++_pageJumpRevision;
+    var cache = state.currentCache;
+
+    // Legacy/restored caches can contain records without response boundaries.
+    // Rebuild from page 1 rather than manufacturing an index from pageSize.
+    if (cache.posts.isNotEmpty && cache.pageBoundaries.isEmpty) {
+      await loadPosts(refresh: true);
+      if (jumpRevision != _pageJumpRevision) return null;
+      cache = state.currentCache;
     }
-    if (state.viewMode == GalleryViewMode.favorites) {
-      await _loadFavorites(refresh: true, targetPage: page);
-      return;
+
+    if (cache.boundaryForPage(page) == null &&
+        page != cache.lastLoadedPage + 1) {
+      if (state.viewMode == GalleryViewMode.favorites) {
+        await _loadFavorites(refresh: false, targetPage: page);
+      } else {
+        await _loadAdapterPage(refresh: false, initialCursor: '$page');
+      }
+      if (jumpRevision != _pageJumpRevision) return null;
+      cache = state.currentCache;
     }
-    await _loadAdapterPage(refresh: true, initialCursor: '$page');
+
+    while (cache.boundaryForPage(page) == null &&
+        cache.lastLoadedPage < page &&
+        cache.hasMore) {
+      await loadPosts();
+      if (jumpRevision != _pageJumpRevision) return null;
+      cache = state.currentCache;
+    }
+
+    final boundary = cache.boundaryForPage(page);
+    if (boundary == null || boundary.startIndex >= cache.posts.length) {
+      return null;
+    }
+    final item = cache.posts[boundary.startIndex];
+    state = state.updateCurrentCache(cache.copyWith(page: page));
+    return GalleryPageJumpTarget(
+      page: page,
+      itemIndex: boundary.startIndex,
+      stableKey: item.stableKey,
+    );
   }
 
   Future<void> _loadAdapterPage({
@@ -961,25 +1037,59 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
   Future<void> _loadFavorites({required bool refresh, int? targetPage}) async {
     final sourceId = state.favoritesSourceId;
     final previousCache = state.currentCache;
-    final pageNumber = targetPage ?? (refresh ? 1 : previousCache.page + 1);
+    final pageNumber =
+        targetPage ?? (refresh ? 1 : previousCache.lastLoadedPage + 1);
     final generation = _beginRequest();
     final cacheKey = state.currentCacheKey;
-    final resetBranches = refresh || targetPage != null;
+    final resetBranches = refresh;
     final isAppend = !resetBranches && previousCache.posts.isNotEmpty;
     var cache = resetBranches
         ? ModeCache(
             posts: previousCache.posts,
-            page: pageNumber,
-            localFavoritesOffset: (pageNumber - 1) * _pageSize,
-            remoteFavoritesPage: pageNumber,
+            page: 1,
+            localFavoritesOffset: 0,
+            remoteFavoritesPage: 1,
             localFavoriteItemKeys: previousCache.localFavoriteItemKeys,
             remoteFavoriteItemKeys: previousCache.remoteFavoriteItemKeys,
-            scrollOffset: refresh ? 0 : previousCache.scrollOffset,
+          )
+        : targetPage != null
+        ? previousCache.copyWith(
+            localFavoritesOffset: (targetPage - 1) * _pageSize,
+            remoteFavoritesPage: targetPage,
+            localFavoritesHasMore: true,
+            remoteFavoritesHasMore: true,
           )
         : previousCache;
     var posts = cache.posts is ChunkedGalleryItems
         ? cache.posts as ChunkedGalleryItems
         : ChunkedGalleryItems.from(cache.posts);
+    final laterBoundaryIndex = resetBranches
+        ? -1
+        : previousCache.pageBoundaries.indexWhere(
+            (boundary) => boundary.page > pageNumber,
+          );
+    final pageStartIndex = resetBranches
+        ? 0
+        : laterBoundaryIndex < 0
+        ? posts.length
+        : previousCache.pageBoundaries[laterBoundaryIndex].startIndex;
+    final itemCountBeforePage = posts.length;
+    void mergePageItems(Iterable<GalleryItem> items) {
+      if (resetBranches) {
+        posts = posts.mergePage(items, mergeDuplicate: _favorites.mergeItem);
+        return;
+      }
+      final insertAt = pageStartIndex + (posts.length - itemCountBeforePage);
+      posts = insertAt == posts.length
+          ? posts.mergePage(items, mergeDuplicate: _favorites.mergeItem)
+          : posts.insertPage(
+              insertAt,
+              items,
+              mergeDuplicate: _favorites.mergeItem,
+            );
+    }
+
+    var rawItemCount = 0;
     state = state.copyWith(
       isLoading: !isAppend,
       isLoadingMore: isAppend,
@@ -1028,6 +1138,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
               limit: _pageSize,
             ),
           );
+          rawItemCount += localPage.records.length;
           final loadedLocalItemKeys = localPage.items
               .map(onlineGalleryPostKey)
               .toSet();
@@ -1040,10 +1151,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
               retainedByOtherBranch: cache.remoteFavoriteItemKeys,
             );
           }
-          posts = posts.mergePage(
-            localPage.items,
-            mergeDuplicate: _favorites.mergeItem,
-          );
+          mergePageItems(localPage.items);
           final localItemKeys = resetBranches
               ? loadedLocalItemKeys
               : {
@@ -1093,6 +1201,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
             );
           }
           if (!_isCurrentRequest(generation, cacheKey)) return;
+          rawItemCount += remotePage.rawCount;
           final matching = _query
               .filterLocal(
                 items: remotePage.items,
@@ -1128,10 +1237,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
             );
             _remoteFavoriteKeys.removeAll(cache.remoteFavoriteItemKeys);
           }
-          posts = posts.mergePage(
-            remoteItems,
-            mergeDuplicate: _favorites.mergeItem,
-          );
+          mergePageItems(remoteItems);
           final remoteItemKeys = resetBranches
               ? loadedRemoteItemKeys
               : {
@@ -1221,12 +1327,71 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
           !cache.remoteFavoritesHasMore;
       final hasMore =
           cache.localFavoritesHasMore || cache.remoteFavoritesHasMore;
+      final insertedItemCount = resetBranches
+          ? posts.length
+          : posts.length - itemCountBeforePage;
+      final boundaries = <GalleryPageBoundary>[
+        if (!refresh) ...previousCache.pageBoundaries,
+      ];
+      if (!refresh && insertedItemCount > 0 && laterBoundaryIndex >= 0) {
+        for (
+          var boundaryIndex = laterBoundaryIndex;
+          boundaryIndex < boundaries.length;
+          boundaryIndex++
+        ) {
+          final boundary = boundaries[boundaryIndex];
+          boundaries[boundaryIndex] = GalleryPageBoundary(
+            page: boundary.page,
+            cursor: boundary.cursor,
+            startIndex: boundary.startIndex + insertedItemCount,
+            endIndex: boundary.endIndex + insertedItemCount,
+            rawItemCount: boundary.rawItemCount,
+            nextCursor: boundary.nextCursor,
+          );
+        }
+      }
+      final pageBoundary = GalleryPageBoundary(
+        page: pageNumber,
+        cursor: '$pageNumber',
+        startIndex: pageStartIndex,
+        endIndex: pageStartIndex + insertedItemCount,
+        rawItemCount: rawItemCount,
+        nextCursor: hasMore ? '${pageNumber + 1}' : null,
+      );
+      if (refresh || laterBoundaryIndex < 0) {
+        boundaries.add(pageBoundary);
+      } else {
+        boundaries.insert(laterBoundaryIndex, pageBoundary);
+      }
+      final loadedTail = boundaries.last.page == pageNumber;
+      final tailHasMore = loadedTail ? hasMore : previousCache.hasMore;
+      final tailNextCursor = loadedTail
+          ? hasMore
+                ? '${pageNumber + 1}'
+                : null
+          : boundaries.last.nextCursor;
       cache = cache.copyWith(
         posts: posts,
-        page: pageNumber,
-        nextCursor: hasMore ? '${pageNumber + 1}' : null,
-        hasMore: hasMore,
-        endedByDuplicatePage: duplicatePage,
+        page: refresh ? pageNumber : previousCache.page,
+        pageBoundaries: boundaries,
+        nextCursor: tailNextCursor,
+        clearNextCursor: tailNextCursor == null,
+        hasMore: tailHasMore && tailNextCursor != null,
+        endedByDuplicatePage: loadedTail
+            ? duplicatePage
+            : previousCache.endedByDuplicatePage,
+        localFavoritesOffset: loadedTail
+            ? cache.localFavoritesOffset
+            : previousCache.localFavoritesOffset,
+        remoteFavoritesPage: loadedTail
+            ? cache.remoteFavoritesPage
+            : previousCache.remoteFavoritesPage,
+        localFavoritesHasMore: loadedTail
+            ? cache.localFavoritesHasMore
+            : previousCache.localFavoritesHasMore,
+        remoteFavoritesHasMore: loadedTail
+            ? cache.remoteFavoritesHasMore
+            : previousCache.remoteFavoritesHasMore,
         appendErrorCode: allAvailableBranchesFailed && isAppend
             ? _errorCode(remoteError ?? localError)
             : null,

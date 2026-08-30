@@ -12,11 +12,13 @@ class OnlineGalleryPagination extends StatelessWidget {
     required this.state,
     required this.controller,
     required this.notifier,
+    required this.onGoToPage,
   });
 
   final OnlineGalleryState state;
   final OnlineGalleryScreenController controller;
   final OnlineGalleryNotifier notifier;
+  final Future<void> Function(int page) onGoToPage;
 
   @override
   Widget build(BuildContext context) {
@@ -81,9 +83,7 @@ class OnlineGalleryPagination extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           IconButton(
-            onPressed: state.page > 1 && !state.isLoading
-                ? () => notifier.goToPage(state.page - 1)
-                : null,
+            onPressed: state.page > 1 ? () => onGoToPage(state.page - 1) : null,
             icon: const Icon(Icons.chevron_left, size: 24),
             tooltip: context.l10n.onlineGallery_previousPage,
           ),
@@ -93,8 +93,10 @@ class OnlineGalleryPagination extends StatelessWidget {
               : _buildPageDisplay(context, theme),
           SizedBox(width: isCompact ? 4 : 8),
           IconButton(
-            onPressed: state.hasMore && !state.isLoading
-                ? () => notifier.goToPage(state.page + 1)
+            onPressed:
+                (state.currentCache.boundaryForPage(state.page + 1) != null ||
+                    state.hasMore)
+                ? () => onGoToPage(state.page + 1)
                 : null,
             icon: const Icon(Icons.chevron_right, size: 24),
             tooltip: context.l10n.onlineGallery_nextPage,
@@ -140,9 +142,7 @@ class OnlineGalleryPagination extends StatelessWidget {
 
   Widget _buildPageDisplay(BuildContext context, ThemeData theme) {
     return InkWell(
-      onTap: !state.isLoading
-          ? () => controller.beginPageEditing(state.page)
-          : null,
+      onTap: () => controller.beginPageEditing(state.page),
       borderRadius: BorderRadius.circular(16),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -150,33 +150,24 @@ class OnlineGalleryPagination extends StatelessWidget {
           color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
           borderRadius: BorderRadius.circular(16),
         ),
-        child: state.isLoading && state.posts.isNotEmpty
-            ? SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: theme.colorScheme.primary,
-                ),
-              )
-            : Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    context.l10n.onlineGallery_pageN(state.page.toString()),
-                    style: theme.textTheme.labelLarge?.copyWith(
-                      color: theme.colorScheme.onSurface,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Icon(
-                    Icons.edit,
-                    size: 12,
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
-                  ),
-                ],
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              context.l10n.onlineGallery_pageN(state.page.toString()),
+              style: theme.textTheme.labelLarge?.copyWith(
+                color: theme.colorScheme.onSurface,
+                fontWeight: FontWeight.w500,
               ),
+            ),
+            const SizedBox(width: 4),
+            Icon(
+              Icons.edit,
+              size: 12,
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -206,7 +197,7 @@ class OnlineGalleryPagination extends StatelessWidget {
         ],
         onSubmitted: (_) {
           final page = controller.finishPageEditing();
-          if (page != null && page != state.page) notifier.goToPage(page);
+          if (page != null && page != state.page) onGoToPage(page);
         },
       ),
     );

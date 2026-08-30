@@ -171,7 +171,11 @@ class OnlineGalleryToolbarSourceControls {
         expandLabel: expandLabel,
         onChanged: (source) {
           bindings.commands.saveScrollOffset();
-          _galleryNotifier.setSource(source);
+          _galleryNotifier.setSource(
+            source,
+            draftQuery: _controller.searchController.text,
+            draftPrompt: _controller.promptSearchController.text,
+          );
         },
       ),
       GalleryViewMode.popular => OnlineGallerySourceDropdown(
@@ -186,7 +190,11 @@ class OnlineGalleryToolbarSourceControls {
         expandLabel: expandLabel,
         onChanged: (source) {
           bindings.commands.saveScrollOffset();
-          _galleryNotifier.setPopularSource(source);
+          _galleryNotifier.setPopularSource(
+            source,
+            draftQuery: _controller.popularSearchController.text,
+            draftPrompt: _controller.popularPromptSearchController.text,
+          );
         },
       ),
       GalleryViewMode.favorites => OnlineGallerySourceDropdown(
@@ -204,7 +212,10 @@ class OnlineGalleryToolbarSourceControls {
         expandLabel: expandLabel,
         onChanged: (source) {
           bindings.commands.saveScrollOffset();
-          _galleryNotifier.setFavoritesSource(source);
+          _galleryNotifier.setFavoritesSource(
+            source,
+            draftQuery: _controller.favoriteSearchController.text,
+          );
         },
       ),
     };
@@ -490,7 +501,12 @@ class OnlineGalleryToolbarSourceControls {
           Text(message),
           IconButton(
             tooltip: context.l10n.common_retry,
-            onPressed: state.isLoading ? null : _galleryNotifier.refresh,
+            onPressed: state.isLoading
+                ? null
+                : () => _galleryNotifier.refreshWithDraft(
+                    query: _controller.favoriteSearchController.text,
+                    prompt: '',
+                  ),
             icon: const Icon(Icons.refresh_rounded, size: 17),
             visualDensity: PlatformCapabilities.current.isMobile
                 ? VisualDensity.standard

@@ -73,6 +73,28 @@ enum OnlineGalleryNotice {
 
 String onlineGalleryPostKey(GalleryItem item) => item.stableKey;
 
+/// Maps one upstream response to the exact records it contributed after
+/// filtering and stable-key deduplication.
+class GalleryPageBoundary {
+  const GalleryPageBoundary({
+    required this.page,
+    required this.cursor,
+    required this.startIndex,
+    required this.endIndex,
+    required this.rawItemCount,
+    this.nextCursor,
+  });
+
+  final int page;
+  final String cursor;
+  final int startIndex;
+  final int endIndex;
+  final int rawItemCount;
+  final String? nextCursor;
+
+  bool containsItem(int index) => startIndex <= index && index < endIndex;
+}
+
 class RandomGallerySession {
   const RandomGallerySession({
     this.scopeKey = '',
@@ -123,6 +145,7 @@ class ModeCache {
   const ModeCache({
     this.posts = const [],
     this.page = 1,
+    this.pageBoundaries = const [],
     this.nextCursor = '1',
     this.hasMore = true,
     this.total,
@@ -151,8 +174,37 @@ class ModeCache {
   });
 
   final List<GalleryItem> posts;
+
+  /// Page containing the first visible record, not the last fetched page.
   final int page;
+  final List<GalleryPageBoundary> pageBoundaries;
   final String? nextCursor;
+
+  int get lastLoadedPage => pageBoundaries.isEmpty
+      ? (posts.isEmpty ? 0 : page)
+      : pageBoundaries.last.page;
+
+  GalleryPageBoundary? boundaryForPage(int targetPage) {
+    for (final boundary in pageBoundaries) {
+      if (boundary.page == targetPage &&
+          boundary.endIndex > boundary.startIndex) {
+        return boundary;
+      }
+    }
+    return null;
+  }
+
+  int? pageForItemIndex(int index) {
+    for (final boundary in pageBoundaries.reversed) {
+      if (boundary.containsItem(index)) return boundary.page;
+    }
+    return null;
+  }
+
+  bool isPageBoundaryStart(int index) => pageBoundaries.any(
+    (boundary) =>
+        boundary.startIndex == index && boundary.endIndex > boundary.startIndex,
+  );
   final bool hasMore;
   final int? total;
   final double scrollOffset;
@@ -184,7 +236,9 @@ class ModeCache {
   ModeCache copyWith({
     List<GalleryItem>? posts,
     int? page,
+    List<GalleryPageBoundary>? pageBoundaries,
     String? nextCursor,
+    bool clearNextCursor = false,
     bool? hasMore,
     int? total,
     double? scrollOffset,
@@ -217,7 +271,8 @@ class ModeCache {
     return ModeCache(
       posts: posts ?? this.posts,
       page: page ?? this.page,
-      nextCursor: nextCursor ?? this.nextCursor,
+      pageBoundaries: List.unmodifiable(pageBoundaries ?? this.pageBoundaries),
+      nextCursor: clearNextCursor ? null : (nextCursor ?? this.nextCursor),
       hasMore: hasMore ?? this.hasMore,
       total: total ?? this.total,
       scrollOffset: scrollOffset ?? this.scrollOffset,
@@ -518,7 +573,6 @@ class OnlineGalleryState {
     final updated = LinkedHashMap<String, ModeCache>.of(caches)
       ..remove(currentCacheKey)
       ..[currentCacheKey] = cache;
-    _trimCaches(updated, currentCacheKey);
     switch (viewMode) {
       case GalleryViewMode.search:
         return copyWith(caches: updated, searchCache: cache);
@@ -538,22 +592,7 @@ class OnlineGalleryState {
     final updated = LinkedHashMap<String, ModeCache>.of(caches)
       ..remove(key)
       ..[key] = cache;
-    _trimCaches(updated, currentCacheKey);
     return copyWith(caches: updated);
-  }
-
-  static void _trimCaches(
-    LinkedHashMap<String, ModeCache> caches,
-    String protectedKey,
-  ) {
-    while (caches.length > 12) {
-      final oldestEvictable = caches.keys.cast<String?>().firstWhere(
-        (key) => key != protectedKey,
-        orElse: () => null,
-      );
-      if (oldestEvictable == null) return;
-      caches.remove(oldestEvictable);
-    }
   }
 
   String _authScopeFor(GallerySourceId sourceId) => switch (sourceId) {

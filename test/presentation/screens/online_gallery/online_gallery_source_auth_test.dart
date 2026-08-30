@@ -890,7 +890,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('page replacement renders the second page URL with stable keys', (
+  testWidgets('page jump preserves the first page and targets stable keys', (
     tester,
   ) async {
     await _setViewSize(tester, 1200);
@@ -921,6 +921,11 @@ void main() {
     await tester.tap(find.byIcon(Icons.chevron_right));
     await tester.pump();
 
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(OnlineGalleryScreen)),
+    );
+    expect(container.read(onlineGalleryNotifierProvider).page, 2);
+
     final detector = tester.widget<VisibilityDetector>(
       find.byKey(const ValueKey('gallery-visibility:danbooru:402')),
     );
@@ -933,19 +938,13 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.byKey(const ValueKey('danbooru:401')), findsNothing);
+    expect(find.byKey(const ValueKey('danbooru:401')), findsOneWidget);
     expect(find.byKey(const ValueKey('danbooru:402')), findsOneWidget);
-    expect(
-      tester
-          .widget<DanbooruPostCard>(find.byType(DanbooruPostCard))
-          .post
-          .previewUrl,
-      contains('page-2'),
+    final secondPageCard = tester.widget<DanbooruPostCard>(
+      find.byKey(const ValueKey('danbooru:402')),
     );
-    expect(
-      tester.widget<DanbooruPostCard>(find.byType(DanbooruPostCard)).post.id,
-      402,
-    );
+    expect(secondPageCard.post.previewUrl, contains('page-2'));
+    expect(secondPageCard.post.id, 402);
   });
 
   testWidgets('favorites source selector switches back to Danbooru', (
@@ -1601,7 +1600,11 @@ class _QuickTagCloudGalleryNotifier extends OnlineGalleryNotifier {
   }
 
   @override
-  Future<void> setSource(Object source) async {
+  Future<void> setSource(
+    Object source, {
+    String? draftQuery,
+    String? draftPrompt,
+  }) async {
     selectedSource = source as GallerySourceId;
   }
 }
@@ -1898,14 +1901,36 @@ class _PagedGalleryNotifier extends OnlineGalleryNotifier {
   Future<void> loadMore() async {}
 
   @override
-  Future<void> goToPage(int page) async {
+  Future<GalleryPageJumpTarget?> goToPage(int page) async {
     state = const OnlineGalleryState(
       searchCache: ModeCache(
-        posts: [_pageTwoPost],
+        posts: [_pageOnePost, _pageTwoPost],
         page: 2,
         nextCursor: null,
         hasMore: false,
+        pageBoundaries: [
+          GalleryPageBoundary(
+            page: 1,
+            cursor: '1',
+            startIndex: 0,
+            endIndex: 1,
+            rawItemCount: 1,
+            nextCursor: '2',
+          ),
+          GalleryPageBoundary(
+            page: 2,
+            cursor: '2',
+            startIndex: 1,
+            endIndex: 2,
+            rawItemCount: 1,
+          ),
+        ],
       ),
+    );
+    return const GalleryPageJumpTarget(
+      page: 2,
+      itemIndex: 1,
+      stableKey: 'danbooru:402',
     );
   }
 }

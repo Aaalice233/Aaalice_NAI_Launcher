@@ -41,7 +41,8 @@ void main() {
       expect(adapter.searchCursors, ['1', '2']);
       expect(adapter.searchPageSizes, [60, 60]);
       expect(state.posts.map((item) => item.id), [1, 2, 3]);
-      expect(state.page, 2);
+      expect(state.page, 1);
+      expect(state.currentCache.boundaryForPage(2)?.startIndex, 2);
       expect(state.currentCache.nextCursor, '3');
       expect(state.isLoadingMore, isFalse);
     },
@@ -146,7 +147,7 @@ void main() {
         () => container.read(onlineGalleryNotifierProvider).posts.length == 2,
       );
       expect(adapter.searchCursors, ['1', '2', '2']);
-      expect(container.read(onlineGalleryNotifierProvider).page, 2);
+      expect(container.read(onlineGalleryNotifierProvider).page, 1);
     },
   );
 
@@ -294,7 +295,7 @@ void main() {
   );
 
   test(
-    'jumping to a page requests that page and replaces the visible page',
+    'jumping to an unloaded page requests its real boundary and preserves records',
     () async {
       final adapter = _FakeGalleryAdapter(
         GallerySourceId.danbooru,
@@ -311,39 +312,386 @@ void main() {
 
       final state = container.read(onlineGalleryNotifierProvider);
       expect(adapter.searchCursors, ['1', '5']);
-      expect(state.posts.single.id, 5);
+      expect(state.posts.map((item) => item.id), [1, 5]);
+      expect(state.currentCache.boundaryForPage(5)?.startIndex, 1);
       expect(state.page, 5);
     },
   );
 
+  test('sparse unloaded jumps insert records by real page order', () async {
+    final adapter = _FakeGalleryAdapter(
+      GallerySourceId.danbooru,
+      onSearch: (request, _) async {
+        final page = int.parse(request.cursor);
+        return _page(request.cursor, [_item(page)], nextCursor: '${page + 1}');
+      },
+    );
+    final container = _container(danbooru: adapter);
+    addTearDown(container.dispose);
+    final notifier = container.read(onlineGalleryNotifierProvider.notifier);
+
+    await notifier.loadPosts();
+    await notifier.goToPage(7);
+    await notifier.goToPage(3);
+
+    final cache = container.read(onlineGalleryNotifierProvider).currentCache;
+    expect(adapter.searchCursors, ['1', '7', '3']);
+    expect(cache.posts.map((item) => item.id), [1, 3, 7]);
+    expect(cache.pageBoundaries.map((boundary) => boundary.page), [1, 3, 7]);
+    expect(cache.pageBoundaries.map((boundary) => boundary.startIndex), [
+      0,
+      1,
+      2,
+    ]);
+    expect(cache.nextCursor, '8');
+  });
+
   test(
-    'source caches are isolated and restored without a repeated request',
+    'twenty-one response boundaries preserve every ordered record',
+    () async {
+      final adapter = _FakeGalleryAdapter(
+        GallerySourceId.danbooru,
+        onSearch: (request, _) async {
+          final page = int.parse(request.cursor);
+          final firstId = page == 1 ? 1 : page * 2 - 2;
+          return _page(request.cursor, [
+            _item(firstId),
+            _item(page * 2 - 1),
+            _item(page * 2),
+          ], nextCursor: page < 21 ? '${page + 1}' : null);
+        },
+      );
+      final container = _container(danbooru: adapter);
+      addTearDown(container.dispose);
+      final notifier = container.read(onlineGalleryNotifierProvider.notifier);
+
+      await notifier.loadPosts();
+      for (var page = 2; page <= 21; page++) {
+        await notifier.loadMore();
+      }
+
+      var state = container.read(onlineGalleryNotifierProvider);
+      expect(adapter.searchCursors, [
+        for (var page = 1; page <= 21; page++) '$page',
+      ]);
+      expect(state.posts.map((item) => item.id), [
+        for (var id = 1; id <= 42; id++) id,
+      ]);
+      expect(state.currentCache.pageBoundaries, hasLength(21));
+      expect(state.currentCache.boundaryForPage(21)?.startIndex, 40);
+
+      notifier.clearDetailCache();
+      expect(
+        container.read(onlineGalleryNotifierProvider).posts,
+        hasLength(42),
+      );
+
+      notifier.updateVisibleItemIndex(40);
+      expect(container.read(onlineGalleryNotifierProvider).page, 21);
+      notifier.updateVisibleItemIndex(0);
+      state = container.read(onlineGalleryNotifierProvider);
+      expect(state.page, 1);
+      expect(state.posts, hasLength(42));
+    },
+  );
+
+  test('query cache retention never evicts loaded business records', () {
+    var state = const OnlineGalleryState();
+    for (var queryIndex = 0; queryIndex < 20; queryIndex++) {
+      state = state.copyWith(searchQuery: 'query$queryIndex');
+      state = state.updateCurrentCache(
+        ModeCache(
+          posts: [_item(queryIndex)],
+          pageBoundaries: [
+            const GalleryPageBoundary(
+              page: 1,
+              cursor: '1',
+              startIndex: 0,
+              endIndex: 1,
+              rawItemCount: 1,
+              nextCursor: null,
+            ),
+          ],
+          hasMore: false,
+          nextCursor: null,
+        ),
+      );
+    }
+
+    expect(state.caches, hasLength(20));
+    final restored = state.copyWith(searchQuery: 'query0').currentCache;
+    expect(restored.posts.single.id, 0);
+    expect(restored.boundaryForPage(1)?.startIndex, 0);
+  });
+
+  test(
+    'a loaded jump resolves its stable boundary without requesting',
+    () async {
+      final adapter = _FakeGalleryAdapter(
+        GallerySourceId.danbooru,
+        onSearch: (request, _) async {
+          final page = int.parse(request.cursor);
+          return _page(request.cursor, [
+            _item(page * 10),
+            _item(page * 10 + 1),
+          ], nextCursor: page < 7 ? '${page + 1}' : null);
+        },
+      );
+      final container = _container(danbooru: adapter);
+      addTearDown(container.dispose);
+      final notifier = container.read(onlineGalleryNotifierProvider.notifier);
+      await notifier.loadPosts();
+      for (var page = 2; page <= 7; page++) {
+        await notifier.loadMore();
+      }
+      final requestsBeforeJump = adapter.searchCursors.length;
+
+      final target = await notifier.goToPage(4);
+
+      expect(adapter.searchCursors, hasLength(requestsBeforeJump));
+      expect(target?.page, 4);
+      expect(target?.itemIndex, 6);
+      expect(
+        target?.stableKey,
+        container.read(onlineGalleryNotifierProvider).posts[6].stableKey,
+      );
+    },
+  );
+
+  test('a newer page jump cancels and replaces an unloaded jump', () async {
+    final firstPageTwoStarted = Completer<void>();
+    var pageTwoCalls = 0;
+    final adapter = _FakeGalleryAdapter(
+      GallerySourceId.danbooru,
+      onSearch: (request, cancelToken) async {
+        if (request.cursor == '1') {
+          return _page('1', [_item(1)], nextCursor: '2');
+        }
+        if (request.cursor == '5' && pageTwoCalls++ == 0) {
+          firstPageTwoStarted.complete();
+          throw await cancelToken!.whenCancel;
+        }
+        final page = int.parse(request.cursor);
+        return _page(request.cursor, [
+          _item(page),
+        ], nextCursor: page < 5 ? '${page + 1}' : null);
+      },
+    );
+    final container = _container(danbooru: adapter);
+    addTearDown(container.dispose);
+    final notifier = container.read(onlineGalleryNotifierProvider.notifier);
+    await notifier.loadPosts();
+
+    final staleJump = notifier.goToPage(5);
+    await firstPageTwoStarted.future;
+    final currentJump = notifier.goToPage(3);
+
+    expect(await staleJump, isNull);
+    final target = await currentJump;
+    expect(target?.page, 3);
+    expect(container.read(onlineGalleryNotifierProvider).page, 3);
+    expect(
+      container
+          .read(onlineGalleryNotifierProvider)
+          .posts
+          .map((item) => item.id),
+      [1, 3],
+    );
+  });
+
+  test('source switches start a fresh generation at page 1', () async {
+    final danbooru = _FakeGalleryAdapter(
+      GallerySourceId.danbooru,
+      onSearch: (request, _) async =>
+          _page(request.cursor, [_item(11)], nextCursor: null),
+    );
+    final safebooru = _FakeGalleryAdapter(
+      GallerySourceId.safebooru,
+      onSearch: (request, _) async => _page(request.cursor, [
+        _item(22, source: GallerySourceId.safebooru),
+      ], nextCursor: null),
+    );
+    final container = _container(danbooru: danbooru, safebooru: safebooru);
+    addTearDown(container.dispose);
+    final notifier = container.read(onlineGalleryNotifierProvider.notifier);
+
+    await notifier.loadPosts();
+    await notifier.setSource(GallerySourceId.safebooru);
+    expect(container.read(onlineGalleryNotifierProvider).posts.single.id, 22);
+    await notifier.setSource(GallerySourceId.danbooru);
+
+    expect(container.read(onlineGalleryNotifierProvider).posts.single.id, 11);
+    expect(danbooru.searchCursors, ['1', '1']);
+    expect(safebooru.searchCursors, ['1']);
+  });
+
+  test(
+    'refresh commits an empty visible draft before requesting page 1',
+    () async {
+      final adapter = _FakeGalleryAdapter(
+        GallerySourceId.danbooru,
+        onSearch: (request, _) async => _page(request.cursor, [
+          _item(request.query.isEmpty ? 2 : 1, tags: [request.query]),
+        ], nextCursor: null),
+      );
+      final container = _container(danbooru: adapter);
+      addTearDown(container.dispose);
+      final notifier = container.read(onlineGalleryNotifierProvider.notifier);
+
+      await notifier.search('foo');
+      await notifier.refreshWithDraft(query: '', prompt: '');
+      await notifier.search('x');
+      await notifier.refreshWithDraft(query: '', prompt: '');
+
+      final state = container.read(onlineGalleryNotifierProvider);
+      expect(adapter.searchQueries, ['foo', '', 'x', '']);
+      expect(adapter.searchCursors, ['1', '1', '1', '1']);
+      expect(state.searchQuery, '');
+      expect(state.page, 1);
+      expect(state.posts.single.id, 2);
+    },
+  );
+
+  test('late tagged results cannot overwrite an empty draft refresh', () async {
+    final taggedStarted = Completer<void>();
+    final taggedResult = Completer<GalleryPage>();
+    final adapter = _FakeGalleryAdapter(
+      GallerySourceId.danbooru,
+      onSearch: (request, _) async {
+        if (request.query == 'foo') {
+          taggedStarted.complete();
+          return taggedResult.future;
+        }
+        return _page(request.cursor, [
+          _item(2, tags: const ['empty']),
+        ], nextCursor: null);
+      },
+    );
+    final container = _container(danbooru: adapter);
+    addTearDown(container.dispose);
+    final notifier = container.read(onlineGalleryNotifierProvider.notifier);
+
+    final taggedSearch = notifier.search('foo');
+    await taggedStarted.future;
+    await notifier.refreshWithDraft(query: '', prompt: '');
+    taggedResult.complete(
+      _page('1', [
+        _item(1, tags: const ['foo']),
+      ], nextCursor: null),
+    );
+    await taggedSearch;
+
+    final state = container.read(onlineGalleryNotifierProvider);
+    expect(state.searchQuery, '');
+    expect(state.posts.single.id, 2);
+  });
+
+  test(
+    'Safebooru source switch and refresh both use the empty draft',
     () async {
       final danbooru = _FakeGalleryAdapter(
         GallerySourceId.danbooru,
         onSearch: (request, _) async =>
-            _page(request.cursor, [_item(11)], nextCursor: null),
+            _page(request.cursor, [_item(1)], nextCursor: null),
       );
       final safebooru = _FakeGalleryAdapter(
         GallerySourceId.safebooru,
         onSearch: (request, _) async => _page(request.cursor, [
-          _item(22, source: GallerySourceId.safebooru),
+          _item(20, source: GallerySourceId.safebooru, tags: const ['safe']),
         ], nextCursor: null),
       );
       final container = _container(danbooru: danbooru, safebooru: safebooru);
       addTearDown(container.dispose);
       final notifier = container.read(onlineGalleryNotifierProvider.notifier);
 
-      await notifier.loadPosts();
-      await notifier.setSource(GallerySourceId.safebooru);
-      expect(container.read(onlineGalleryNotifierProvider).posts.single.id, 22);
-      await notifier.setSource(GallerySourceId.danbooru);
+      await notifier.search('foo');
+      await notifier.setSource(
+        GallerySourceId.safebooru,
+        draftQuery: '',
+        draftPrompt: '',
+      );
+      await notifier.refreshWithDraft(query: '', prompt: '');
 
-      expect(container.read(onlineGalleryNotifierProvider).posts.single.id, 11);
-      expect(danbooru.searchCursors, ['1']);
-      expect(safebooru.searchCursors, ['1']);
+      final state = container.read(onlineGalleryNotifierProvider);
+      expect(safebooru.searchQueries, ['', '']);
+      expect(safebooru.searchCursors, ['1', '1']);
+      expect(state.searchQuery, '');
+      expect(state.page, 1);
+      expect(state.posts.single.sourceId, GallerySourceId.safebooru);
     },
   );
+
+  test('popular source switch commits the visible empty draft', () async {
+    final danbooru = _FakeGalleryAdapter(
+      GallerySourceId.danbooru,
+      onSearch: (request, _) async =>
+          _page(request.cursor, [_item(1)], nextCursor: null),
+    );
+    final safebooru = _FakeGalleryAdapter(
+      GallerySourceId.safebooru,
+      onSearch: (request, _) async => _page(request.cursor, [
+        _item(2, source: GallerySourceId.safebooru),
+      ], nextCursor: null),
+    );
+    final container = _container(danbooru: danbooru, safebooru: safebooru);
+    addTearDown(container.dispose);
+    final notifier = container.read(onlineGalleryNotifierProvider.notifier);
+
+    await notifier.switchToPopular();
+    await notifier.searchPopular(query: 'foo', prompt: 'old prompt');
+    await notifier.setPopularSource(
+      GallerySourceId.safebooru,
+      draftQuery: '',
+      draftPrompt: '',
+    );
+
+    final state = container.read(onlineGalleryNotifierProvider);
+    expect(safebooru.searchQueries, ['']);
+    expect(state.popularQuery, '');
+    expect(state.popularPromptQuery, '');
+    expect(state.page, 1);
+    expect(state.posts.single.sourceId, GallerySourceId.safebooru);
+  });
+
+  test('Safebooru twenty-item responses continue across pages', () async {
+    final safebooru = _FakeGalleryAdapter(
+      GallerySourceId.safebooru,
+      onSearch: (request, _) async {
+        final page = int.parse(request.cursor);
+        return _page(
+          request.cursor,
+          [
+            for (var index = 0; index < 20; index++)
+              _item(
+                (page - 1) * 20 + index + 1,
+                source: GallerySourceId.safebooru,
+              ),
+          ],
+          nextCursor: '${page + 1}',
+          rawItemCount: 20,
+        );
+      },
+    );
+    final container = _container(
+      danbooru: _FakeGalleryAdapter(
+        GallerySourceId.danbooru,
+        onSearch: (request, _) async =>
+            _page(request.cursor, const [], nextCursor: null),
+      ),
+      safebooru: safebooru,
+    );
+    addTearDown(container.dispose);
+    final notifier = container.read(onlineGalleryNotifierProvider.notifier);
+
+    await notifier.setSource(GallerySourceId.safebooru, draftQuery: '');
+    await notifier.loadMore();
+
+    final state = container.read(onlineGalleryNotifierProvider);
+    expect(safebooru.searchCursors, ['1', '2']);
+    expect(state.posts, hasLength(40));
+    expect(state.hasMore, isTrue);
+    expect(state.currentCache.boundaryForPage(2)?.startIndex, 20);
+  });
 
   test(
     'switching to a cached source clears loading from the cancelled request',
@@ -374,8 +722,7 @@ void main() {
 
       await notifier.loadPosts();
       await notifier.setSource(GallerySourceId.safebooru);
-      await notifier.setSource(GallerySourceId.danbooru);
-      final refresh = notifier.refresh();
+      final pendingSwitch = notifier.setSource(GallerySourceId.danbooru);
       await Future<void>.delayed(Duration.zero);
       expect(container.read(onlineGalleryNotifierProvider).isLoading, isTrue);
 
@@ -386,7 +733,7 @@ void main() {
       expect(state.isLoading, isFalse);
       expect(state.isLoadingMore, isFalse);
       pendingRefresh.complete(_page('1', [_item(99)], nextCursor: null));
-      await refresh;
+      await pendingSwitch;
       state = container.read(onlineGalleryNotifierProvider);
       expect(state.posts.single.id, 22);
       expect(state.isLoading, isFalse);
@@ -428,7 +775,8 @@ void main() {
     state = container.read(onlineGalleryNotifierProvider);
     expect(adapter.searchCursors, ['1', 'b900', 'b800']);
     expect(state.posts.map((item) => item.id), [2, 3]);
-    expect(state.page, 3);
+    expect(state.page, 2);
+    expect(state.currentCache.boundaryForPage(3)?.startIndex, 1);
     expect(state.currentCache.nextCursor, 'b700');
   });
 
@@ -1502,7 +1850,14 @@ class _FakeGalleryAdapter implements GallerySourceAdapter {
     CancelToken? cancelToken,
   }) {
     return search(
-      GallerySearchRequest(cursor: request.cursor, pageSize: request.pageSize),
+      GallerySearchRequest(
+        cursor: request.cursor,
+        pageSize: request.pageSize,
+        query: request.query,
+        prompt: request.prompt,
+        ratings: request.ratings,
+        blacklistTags: request.blacklistTags,
+      ),
       cancelToken: cancelToken,
     );
   }

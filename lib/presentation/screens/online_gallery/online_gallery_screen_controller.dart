@@ -33,6 +33,7 @@ class OnlineGalleryScreenController extends ChangeNotifier {
   final anchorRestoreKey = GlobalKey();
   final primarySearchRevealKey = GlobalKey();
   final scrolling = ValueNotifier<bool>(false);
+  final Map<String, GlobalKey> _pageAnchorKeys = <String, GlobalKey>{};
 
   final Map<
     int,
@@ -60,6 +61,11 @@ class OnlineGalleryScreenController extends ChangeNotifier {
   double? _lookaheadItemWidth;
   int? _lookaheadColumnCount;
   bool get isScrolling => scrolling.value;
+  double? get currentItemWidth => _lookaheadItemWidth;
+  int? get currentColumnCount => _lookaheadColumnCount;
+  GlobalKey pageAnchorKey(String stableKey) =>
+      _pageAnchorKeys.putIfAbsent(stableKey, () => GlobalKey());
+
   bool isEditingPage = false;
   GalleryViewMode? lastViewMode;
   GallerySourceId? lastFavoritesSource;
@@ -188,6 +194,7 @@ class OnlineGalleryScreenController extends ChangeNotifier {
     pageController.dispose();
     pageFocusNode.dispose();
     scrolling.dispose();
+    _pageAnchorKeys.clear();
     super.dispose();
   }
 }

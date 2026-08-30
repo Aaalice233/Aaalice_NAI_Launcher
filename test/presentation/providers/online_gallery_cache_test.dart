@@ -4,7 +4,7 @@ import 'package:nai_launcher/data/models/online_gallery/gallery_source.dart';
 import 'package:nai_launcher/presentation/providers/online_gallery_provider.dart';
 
 void main() {
-  test('ordinary query cache retains at most 12 most-recent queries', () {
+  test('ordinary query cache never evicts loaded business records', () {
     var state = const OnlineGalleryState();
 
     for (var index = 0; index < 14; index++) {
@@ -14,16 +14,16 @@ void main() {
       );
     }
 
-    expect(state.caches, hasLength(12));
+    expect(state.caches, hasLength(14));
     expect(state.currentCache.posts.single.id, 13);
     expect(state.currentCache.page, 14);
     expect(
       state.caches.values.expand((cache) => cache.posts).map((item) => item.id),
-      isNot(contains(0)),
+      containsAll(<int>[0, 13]),
     );
   });
 
-  test('background cache updates never evict the active query', () {
+  test('background cache updates retain every query cache', () {
     const base = OnlineGalleryState(searchQuery: 'keep-me');
     final caches = <String, ModeCache>{
       base.currentCacheKey: const ModeCache(page: 9),
@@ -38,7 +38,7 @@ void main() {
           const ModeCache(page: 2),
         );
 
-    expect(state.caches, hasLength(12));
+    expect(state.caches, hasLength(13));
     expect(state.caches, contains(base.currentCacheKey));
     expect(state.currentCache.page, 9);
   });
