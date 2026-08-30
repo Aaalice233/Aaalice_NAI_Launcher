@@ -16,50 +16,41 @@ import '../../providers/vibe_library_provider.dart';
 import '../services/agent_resource_resolver.dart';
 import 'agent_chat_panel_controller.dart';
 
-/// Keeps tool-produced attachments in one bounded vertical region so large or
-/// numerous resources cannot widen the transcript or cover following content.
-class AgentChatResourceGallery extends StatefulWidget {
-  const AgentChatResourceGallery({
-    super.key,
-    required this.children,
-    this.maxHeight = 360,
-  });
+/// Displays every tool-produced attachment while leaving vertical scrolling to
+/// the transcript. Multiple images use a responsive thumbnail grid so a large
+/// generation batch remains compact without introducing a competing viewport.
+class AgentChatResourceGallery extends StatelessWidget {
+  const AgentChatResourceGallery({super.key, required this.children});
 
   final List<Widget> children;
-  final double maxHeight;
-
-  @override
-  State<AgentChatResourceGallery> createState() =>
-      _AgentChatResourceGalleryState();
-}
-
-class _AgentChatResourceGalleryState extends State<AgentChatResourceGallery> {
-  final ScrollController _scrollController = ScrollController();
-
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
-    if (widget.children.isEmpty) return const SizedBox.shrink();
-    return Container(
-      key: const ValueKey('agent-chat-resource-gallery'),
-      margin: const EdgeInsets.only(top: 5),
-      constraints: BoxConstraints(maxHeight: widget.maxHeight),
-      child: Scrollbar(
-        controller: _scrollController,
-        child: SingleChildScrollView(
-          controller: _scrollController,
-          primary: false,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: widget.children,
+    if (children.isEmpty) return const SizedBox.shrink();
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const spacing = 8.0;
+        final availableWidth = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : 360.0;
+        final int columns = children.length == 1
+            ? 1
+            : (availableWidth / 220).floor().clamp(2, 3).toInt();
+        final double itemWidth =
+            (availableWidth - spacing * (columns - 1)) / columns;
+        return Container(
+          key: const ValueKey('agent-chat-resource-gallery'),
+          margin: const EdgeInsets.only(top: 5),
+          child: Wrap(
+            spacing: spacing,
+            runSpacing: spacing,
+            children: [
+              for (final child in children)
+                SizedBox(width: itemWidth, child: child),
+            ],
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
@@ -81,14 +72,14 @@ class AgentChatPendingImageCard extends StatelessWidget {
     final theme = Theme.of(context);
     return Container(
       key: const ValueKey('agent-chat-pending-image-card'),
-      constraints: BoxConstraints(maxWidth: touchOptimized ? 190 : 220),
+      width: touchOptimized ? 190 : 220,
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.7),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisSize: MainAxisSize.max,
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(7),
@@ -104,7 +95,7 @@ class AgentChatPendingImageCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          Flexible(
+          Expanded(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -187,7 +178,7 @@ class _AgentChatPendingResourceCardState
         context.l10n.agentChat_reference;
     return Container(
       key: const ValueKey('agent-chat-pending-resource-card'),
-      constraints: BoxConstraints(maxWidth: widget.touchOptimized ? 210 : 240),
+      width: widget.touchOptimized ? 210 : 240,
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
         color: widget.unavailable
@@ -196,7 +187,7 @@ class _AgentChatPendingResourceCardState
         borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisSize: MainAxisSize.max,
         children: [
           FutureBuilder<ResolvedAgentResource?>(
             future: _preview,
@@ -210,6 +201,10 @@ class _AgentChatPendingResourceCardState
                     width: widget.touchOptimized ? 42 : 34,
                     height: widget.touchOptimized ? 42 : 34,
                     fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => SizedBox.square(
+                      dimension: widget.touchOptimized ? 42 : 34,
+                      child: const Icon(Icons.broken_image_outlined, size: 18),
+                    ),
                   ),
                 );
               }
@@ -228,7 +223,7 @@ class _AgentChatPendingResourceCardState
             },
           ),
           const SizedBox(width: 8),
-          Flexible(
+          Expanded(
             child: Text(
               widget.unavailable
                   ? '$label · ${context.l10n.agentChat_resourceUnavailable}'

@@ -21,6 +21,20 @@ import '../providers/agent_chat_state.dart';
 import '../models/agent_chat_turn_timeline.dart';
 import 'agent_chat_draft_controller.dart';
 
+class AgentChatRewindCheckpoint {
+  const AgentChatRewindCheckpoint({
+    required this.sessionId,
+    required this.originalLeafId,
+    required this.message,
+    required this.resources,
+  });
+
+  final String sessionId;
+  final String? originalLeafId;
+  final UserMessage message;
+  final List<AgentChatResourceReference> resources;
+}
+
 class AgentChatSessionController {
   static const sessionSummaryLimit = 100;
   static const recentHistoryEntryLimit = 200;
@@ -507,8 +521,9 @@ class AgentChatSessionController {
     return _runTransition(() => activateSession(sessionId), loadsContent: true);
   }
 
-  Future<UserMessage?> rewindLastUserMessage() async {
-    UserMessage? rewoundMessage;
+  Future<AgentChatRewindCheckpoint?> beginRewindLastUserMessage() async {
+    AgentChatRewindCheckpoint? pendingCheckpoint;
+    AgentChatRewindCheckpoint? completedCheckpoint;
     try {
       await _runTransition(() async {
         final currentSession = session;
@@ -519,6 +534,10 @@ class AgentChatSessionController {
             order: session_types.EntryOrder.oldestFirst,
           ),
         );
+        final originalLeafId = (await currentSession.getLanes())
+            .where((lane) => lane.lane == 'main')
+            .firstOrNull
+            ?.leafId;
         session_types.MessageEntry? target;
         for (final entry in entries.reversed) {
           if (entry is session_types.MessageEntry &&
@@ -533,6 +552,7 @@ class AgentChatSessionController {
         if (target == null) return;
         final restoredResources = <AgentChatResourceReference>[];
         final targetMessage = target.message;
+        late final UserMessage rewoundMessage;
         if (targetMessage is UserMessage) {
           rewoundMessage = targetMessage;
         } else if (targetMessage is HarnessCustomMessage) {
@@ -553,23 +573,62 @@ class AgentChatSessionController {
             }
           }
         }
+        pendingCheckpoint = AgentChatRewindCheckpoint(
+          sessionId: sessionId,
+          originalLeafId: originalLeafId,
+          message: rewoundMessage,
+          resources: restoredResources,
+        );
         await currentSession.moveLane('main', target.parentId);
         await activateSession(sessionId);
-        if (restoredResources.isNotEmpty) {
-          _writeState(
-            _readState().copyWith(pendingResources: restoredResources),
-          );
-          await _draftController.savePendingResources(
-            sessionId,
-            restoredResources,
-          );
-          await _draftController.refreshPendingResourceAvailability();
-        }
+        await _restorePendingResources(sessionId, restoredResources);
+        completedCheckpoint = pendingCheckpoint;
       }, loadsContent: true);
     } catch (error) {
+      final rollbackCheckpoint = pendingCheckpoint;
+      if (rollbackCheckpoint != null) {
+        try {
+          await restoreRewindCheckpoint(rollbackCheckpoint);
+        } catch (rollbackError) {
+          AppLogger.w(
+            'rewind rollback failed after $error: $rollbackError',
+            'AgentChat',
+          );
+        }
+      }
       AppLogger.w('rewind last user message failed: $error', 'AgentChat');
     }
-    return rewoundMessage;
+    return completedCheckpoint;
+  }
+
+  Future<UserMessage?> rewindLastUserMessage() async =>
+      (await beginRewindLastUserMessage())?.message;
+
+  Future<void> restoreRewindCheckpoint(
+    AgentChatRewindCheckpoint checkpoint,
+  ) async {
+    await _runTransition(() async {
+      final currentSession = session;
+      if (currentSession == null ||
+          _readState().activeSessionId != checkpoint.sessionId) {
+        return;
+      }
+      await currentSession.moveLane('main', checkpoint.originalLeafId);
+      await activateSession(checkpoint.sessionId);
+      await _restorePendingResources(
+        checkpoint.sessionId,
+        checkpoint.resources,
+      );
+    }, loadsContent: true);
+  }
+
+  Future<void> _restorePendingResources(
+    String sessionId,
+    List<AgentChatResourceReference> resources,
+  ) async {
+    _writeState(_readState().copyWith(pendingResources: resources));
+    await _draftController.savePendingResources(sessionId, resources);
+    await _draftController.refreshPendingResourceAvailability();
   }
 
   Future<void> deleteSession(String sessionId) {

@@ -104,6 +104,58 @@ void main() {
     },
   );
 
+  test(
+    'rewind activation failure restores the branch and returns no checkpoint',
+    () async {
+      final directory = await Directory.systemTemp.createTemp(
+        'agent-chat-rewind-rollback-',
+      );
+      addTearDown(() => directory.delete(recursive: true));
+      final repository = JsonlSessionRepo(directory);
+      final session = await repository.create(
+        const SessionCreateOptions(id: 'session'),
+      );
+      await session.appendMessage(UserMessage.text('first request'));
+      await session.appendMessage(UserMessage.text('edit this request'));
+      var state = const AgentChatState(activeSessionId: 'session');
+      final localStorage = LocalStorageService();
+      final draftController = AgentChatDraftController(
+        resourceStore: AgentChatResourceDraftStore(
+          File('${directory.path}/drafts.json'),
+        ),
+        localStorage: localStorage,
+        readState: () => state,
+        writeState: (next) => state = next,
+        createResourceResolver: () => throw UnimplementedError(),
+        isMounted: () => true,
+      );
+      final controller = AgentChatSessionController(
+        repository: repository,
+        localStorage: localStorage,
+        draftController: draftController,
+        workspaceDir: directory.path,
+        buildAgent: () => throw StateError('activation failed'),
+        buildSystemPrompt: () async => '',
+        readState: () => state,
+        writeState: (next) => state = next,
+        isMounted: () => true,
+      )..session = session;
+
+      final checkpoint = await controller.beginRewindLastUserMessage();
+
+      expect(checkpoint, isNull);
+      expect(
+        (await session.findEntriesOnBranch(
+          const EntryQuery(order: EntryOrder.oldestFirst),
+        )).whereType<MessageEntry>().map(
+          (entry) => (entry.message as UserMessage).text,
+        ),
+        ['first request', 'edit this request'],
+      );
+      expect(state.sessionTransitioning, isFalse);
+    },
+  );
+
   test('TurnEnd and AgentEnd persist only one finish record', () async {
     final directory = await Directory.systemTemp.createTemp(
       'agent-chat-event-lifecycle-',

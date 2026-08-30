@@ -136,6 +136,30 @@ void main() {
       );
     });
 
+    test(
+      'projection preserves a weighted comma group as one fixed fragment',
+      () {
+        const fragment = '{{{masterpiece, best_quality, year_2024}}}';
+        const metadata = NaiImageMetadata(
+          prompt: '$fragment, 1girl, blue eyes, $fragment',
+          fixedPrefixTags: [fragment],
+          fixedSuffixTags: [fragment],
+        );
+
+        expect(metadata.mainPrompt, '1girl, blue eyes');
+        expect(metadata.promptWithoutFixedTags, '1girl, blue eyes');
+        expect(
+          metadata.buildPositivePromptSelection(
+            includeMainPrompt: true,
+            includeCharacterPrompts: false,
+            includeQualityTags: false,
+            includeFixedTags: true,
+          ),
+          '$fragment, 1girl, blue eyes, $fragment',
+        );
+      },
+    );
+
     test('copy categories preserve a recorded transparent background tag', () {
       const metadata = NaiImageMetadata(
         prompt:

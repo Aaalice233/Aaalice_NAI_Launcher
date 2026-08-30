@@ -15,6 +15,8 @@ class MobileGenerationWorkspace extends StatelessWidget {
     required this.data,
   });
 
+  static const double _minimumHorizontalWorkspaceHeight = 320;
+
   final MobileGenerationController controller;
   final MobileGenerationViewData data;
 
@@ -70,8 +72,14 @@ class MobileGenerationWorkspace extends StatelessWidget {
                   child: LayoutBuilder(
                     key: const ValueKey('generation-workspace'),
                     builder: (context, constraints) {
+                      final textScale = MediaQuery.textScalerOf(
+                        context,
+                      ).scale(1);
+                      final minimumHorizontalWidth = 640 * textScale;
                       final useHorizontalLayout =
-                          constraints.maxWidth >= 640 &&
+                          constraints.maxWidth >= minimumHorizontalWidth &&
+                          constraints.maxHeight >=
+                              _minimumHorizontalWorkspaceHeight &&
                           constraints.maxWidth > constraints.maxHeight * 1.15;
                       if (useHorizontalLayout) {
                         return Row(

@@ -521,39 +521,86 @@ User instructions.
       });
     });
 
-    test('rewinds the main lane before the latest user message', () async {
+    test(
+      'edited resend forks before the old user message in main context',
+      () async {
+        final notifier = container.read(provider.notifier);
+        final repo = JsonlSessionRepo(tempDir);
+        final firstId = container.read(provider).activeSessionId;
+        final firstMetadata = (await repo.list()).single;
+        final firstSession = await repo.open(firstMetadata);
+        await firstSession.appendMessage(UserMessage.text('first request'));
+        await firstSession.appendMessage(_assistant(const Usage()));
+        await firstSession.appendMessage(UserMessage.text('second request'));
+        await firstSession.appendMessage(_assistant(const Usage()));
+
+        await notifier.newSession();
+        await notifier.switchSession(firstId);
+        expect(container.read(provider).messages, hasLength(4));
+
+        final rewound = await notifier.rewindLastUserMessage();
+
+        expect(rewound?.text, 'second request');
+        expect(
+          container.read(provider).messages.map((message) => message.role),
+          ['user', 'assistant'],
+        );
+        expect(container.read(provider).sessionTransitioning, isFalse);
+
+        final reopenedRepo = JsonlSessionRepo(tempDir);
+        final reopenedMetadata = (await reopenedRepo.list()).firstWhere(
+          (metadata) => metadata.id == firstId,
+        );
+        final reopened = await reopenedRepo.open(reopenedMetadata);
+        await reopened.appendMessage(UserMessage.text('corrected request'));
+        final mainBranch = await reopened.findEntriesOnBranch();
+        final allEntries = await reopened.findEntries();
+        final mainContextMessages = mainBranch
+            .whereType<MessageEntry>()
+            .map((entry) => entry.message)
+            .toList(growable: false);
+        expect(
+          mainContextMessages.whereType<UserMessage>().map(
+            (message) => message.text,
+          ),
+          ['corrected request', 'first request'],
+        );
+        expect(
+          mainContextMessages.whereType<UserMessage>().map(
+            (message) => message.text,
+          ),
+          isNot(contains('second request')),
+        );
+        expect(mainBranch.whereType<MessageEntry>(), hasLength(3));
+        expect(allEntries.whereType<MessageEntry>(), hasLength(5));
+      },
+    );
+
+    test('failed edited send can restore the original main lane', () async {
       final notifier = container.read(provider.notifier);
       final repo = JsonlSessionRepo(tempDir);
-      final firstId = container.read(provider).activeSessionId;
-      final firstMetadata = (await repo.list()).single;
-      final firstSession = await repo.open(firstMetadata);
-      await firstSession.appendMessage(UserMessage.text('first request'));
-      await firstSession.appendMessage(_assistant(const Usage()));
-      await firstSession.appendMessage(UserMessage.text('second request'));
-      await firstSession.appendMessage(_assistant(const Usage()));
+      final sessionId = container.read(provider).activeSessionId;
+      final metadata = (await repo.list()).single;
+      final session = await repo.open(metadata);
+      await session.appendMessage(UserMessage.text('keep this request'));
+      await session.appendMessage(_assistant(const Usage()));
 
       await notifier.newSession();
-      await notifier.switchSession(firstId);
-      expect(container.read(provider).messages, hasLength(4));
+      await notifier.switchSession(sessionId);
+      final checkpoint = await notifier.beginEditedMessageRewind();
+      expect(checkpoint, isNotNull);
+      final rewind = checkpoint!;
+      expect(rewind.resources, isEmpty);
+      expect(container.read(provider).messages, isEmpty);
 
-      final rewound = await notifier.rewindLastUserMessage();
+      await notifier.restoreEditedMessageRewind(rewind);
 
-      expect(rewound?.text, 'second request');
       expect(container.read(provider).messages.map((message) => message.role), [
         'user',
         'assistant',
       ]);
-      expect(container.read(provider).sessionTransitioning, isFalse);
-
-      final reopenedRepo = JsonlSessionRepo(tempDir);
-      final reopenedMetadata = (await reopenedRepo.list()).firstWhere(
-        (metadata) => metadata.id == firstId,
-      );
-      final reopened = await reopenedRepo.open(reopenedMetadata);
-      final mainBranch = await reopened.findEntriesOnBranch();
-      final allEntries = await reopened.findEntries();
-      expect(mainBranch.whereType<MessageEntry>(), hasLength(2));
-      expect(allEntries.whereType<MessageEntry>(), hasLength(4));
+      final reopened = await JsonlSessionRepo(tempDir).open(metadata);
+      expect(reopened.findEntriesOnBranch(), completion(hasLength(2)));
     });
 
     test('serializes concurrent session creation', () async {

@@ -8,6 +8,8 @@ const String legacyDefaultAgentChatPrompt =
 
 enum AgentSystemPromptMode { append, override }
 
+enum AgentChatDensity { comfortable, compact }
+
 class AgentModelReference {
   const AgentModelReference({this.providerId = '', this.model = ''});
 
@@ -126,7 +128,11 @@ class AgentChatConfig {
     this.systemPromptMode = AgentSystemPromptMode.append,
     this.customSystemPrompt = '',
     this.migratedChatRules = const [],
+    this.readingTextScale = 1.0,
+    this.density = AgentChatDensity.comfortable,
   });
+
+  static const supportedReadingTextScales = [0.9, 1.0, 1.15, 1.3];
 
   final AgentModelReference modelReference;
   final AgentPermissionMode permissionMode;
@@ -134,6 +140,8 @@ class AgentChatConfig {
   final AgentSystemPromptMode systemPromptMode;
   final String customSystemPrompt;
   final List<AgentMigratedChatRule> migratedChatRules;
+  final double readingTextScale;
+  final AgentChatDensity density;
 
   String behaviorInstructions({
     String? customPromptOverride,
@@ -161,6 +169,8 @@ class AgentChatConfig {
     AgentSystemPromptMode? systemPromptMode,
     String? customSystemPrompt,
     List<AgentMigratedChatRule>? migratedChatRules,
+    double? readingTextScale,
+    AgentChatDensity? density,
   }) {
     return AgentChatConfig(
       modelReference: modelReference ?? this.modelReference,
@@ -169,6 +179,8 @@ class AgentChatConfig {
       systemPromptMode: systemPromptMode ?? this.systemPromptMode,
       customSystemPrompt: customSystemPrompt ?? this.customSystemPrompt,
       migratedChatRules: migratedChatRules ?? this.migratedChatRules,
+      readingTextScale: readingTextScale ?? this.readingTextScale,
+      density: density ?? this.density,
     );
   }
 
@@ -179,6 +191,8 @@ class AgentChatConfig {
     'systemPromptMode': systemPromptMode.name,
     'customSystemPrompt': customSystemPrompt,
     'migratedChatRules': [for (final rule in migratedChatRules) rule.toJson()],
+    'readingTextScale': readingTextScale,
+    'density': density.name,
   };
 
   factory AgentChatConfig.fromJson(
@@ -197,13 +211,15 @@ class AgentChatConfig {
         customPrompt is! String) {
       throw const FormatException('chat contains invalid field types.');
     }
-    _rejectUnknownFields(value, const {
+    _rejectUnknownFields(value, {
       'modelReference',
       'permissionMode',
       'webAccessEnabled',
       'systemPromptMode',
       'customSystemPrompt',
       'migratedChatRules',
+      'readingTextScale',
+      'density',
     }, 'chat');
     final permissionMode = AgentPermissionMode.values
         .cast<AgentPermissionMode?>()
@@ -247,6 +263,25 @@ class AgentChatConfig {
     if (migratedLength > AgentSettings.maxCustomPromptLength) {
       throw const FormatException('migratedChatRules content is too large.');
     }
+    final readingTextScale = schemaVersion < 5
+        ? 1.0
+        : switch (value['readingTextScale']) {
+            final num scale
+                when supportedReadingTextScales.contains(scale.toDouble()) =>
+              scale.toDouble(),
+            _ => throw const FormatException(
+              'readingTextScale is not a supported value.',
+            ),
+          };
+    final density = schemaVersion < 5
+        ? AgentChatDensity.comfortable
+        : AgentChatDensity.values.cast<AgentChatDensity?>().firstWhere(
+            (item) => item?.name == value['density'],
+            orElse: () => null,
+          );
+    if (density == null) {
+      throw FormatException('Unknown Agent chat density: ${value['density']}');
+    }
     return AgentChatConfig(
       modelReference: AgentModelReference.fromJson(value['modelReference']),
       permissionMode: permissionMode,
@@ -254,6 +289,8 @@ class AgentChatConfig {
       systemPromptMode: systemPromptMode,
       customSystemPrompt: customPrompt,
       migratedChatRules: List.unmodifiable(migratedRules),
+      readingTextScale: readingTextScale,
+      density: density,
     );
   }
 }
@@ -265,7 +302,7 @@ class AgentSettings {
     this.skillEnabledOverrides = const {},
   });
 
-  static const int currentSchemaVersion = 4;
+  static const int currentSchemaVersion = 5;
   static const int maxCustomPromptLength = 50000;
   static const int maxSkillPreferences = 5000;
   static const int maxMigratedChatRules = 100;

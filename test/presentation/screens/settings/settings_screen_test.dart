@@ -136,11 +136,22 @@ void main() {
       find.ancestor(of: sectionScrollView, matching: find.byType(SafeArea)),
       findsOneWidget,
     );
-    final scrollRect = tester.getRect(sectionScrollView);
-    final pageRect = tester.getRect(pageLayout);
-    expect(pageRect.width, lessThanOrEqualTo(960));
-    expect(pageRect.left, moreOrLessEquals(scrollRect.left + 24));
-    expect(pageRect.top, moreOrLessEquals(scrollRect.top + 24));
+    for (final width in [700.0, 840.0, 1180.0, 1600.0, 3840.0]) {
+      await tester.binding.setSurfaceSize(Size(width, 900));
+      await tester.pumpAndSettle();
+      final scrollRect = tester.getRect(sectionScrollView);
+      final pageRect = tester.getRect(pageLayout);
+      final availableWidth = scrollRect.width - 48;
+      final expectedWidth = availableWidth.clamp(0, 960).toDouble();
+      final expectedLeft =
+          scrollRect.left + 24 + (availableWidth - expectedWidth) / 2;
+      expect(pageRect.width, moreOrLessEquals(expectedWidth));
+      expect(pageRect.left, moreOrLessEquals(expectedLeft));
+      expect(pageRect.top, moreOrLessEquals(scrollRect.top + 24));
+      expect(tester.takeException(), isNull);
+    }
+    await tester.binding.setSurfaceSize(const Size(1280, 900));
+    await tester.pumpAndSettle();
 
     final labels = rail.destinations
         .map((destination) => (destination.label as Text).data)

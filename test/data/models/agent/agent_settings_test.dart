@@ -17,6 +17,8 @@ void main() {
           systemPromptMode: AgentSystemPromptMode.override,
           permissionMode: AgentPermissionMode.safe,
           webAccessEnabled: false,
+          readingTextScale: 1.15,
+          density: AgentChatDensity.compact,
         ),
         skillEnabledOverrides: {'demo': false, 'global-demo': true},
       );
@@ -25,6 +27,8 @@ void main() {
       expect(decoded.chat.modelReference, settings.chat.modelReference);
       expect(decoded.chat.customSystemPrompt, settings.chat.customSystemPrompt);
       expect(decoded.chat.systemPromptMode, AgentSystemPromptMode.override);
+      expect(decoded.chat.readingTextScale, 1.15);
+      expect(decoded.chat.density, AgentChatDensity.compact);
       expect(decoded.skillEnabledOverrides, settings.skillEnabledOverrides);
       expect(
         settings.toJson()['schemaVersion'],
@@ -53,7 +57,10 @@ void main() {
         chat: AgentChatConfig(customSystemPrompt: 'Keep this behavior.'),
       ).toJson();
       raw['schemaVersion'] = 3;
-      (raw['chat']! as Map<String, dynamic>).remove('systemPromptMode');
+      (raw['chat']! as Map<String, dynamic>)
+        ..remove('systemPromptMode')
+        ..remove('readingTextScale')
+        ..remove('density');
       raw['disabledSkillIds'] = const <String>[];
       raw.remove('skillEnabledOverrides');
 
@@ -61,6 +68,26 @@ void main() {
 
       expect(decoded.chat.systemPromptMode, AgentSystemPromptMode.append);
       expect(decoded.chat.customSystemPrompt, 'Keep this behavior.');
+      expect(decoded.chat.readingTextScale, 1.0);
+      expect(decoded.chat.density, AgentChatDensity.comfortable);
+    });
+
+    test('rejects unsupported Agent reading preferences', () {
+      final raw = const AgentSettings().toJson();
+      final chat = raw['chat']! as Map<String, dynamic>;
+
+      chat['readingTextScale'] = 1.1;
+      expect(
+        () => AgentSettings.decode(jsonEncode(raw)),
+        throwsFormatException,
+      );
+
+      chat['readingTextScale'] = 1.0;
+      chat['density'] = 'dense';
+      expect(
+        () => AgentSettings.decode(jsonEncode(raw)),
+        throwsFormatException,
+      );
     });
 
     test('override excludes migrated legacy rules from final user content', () {

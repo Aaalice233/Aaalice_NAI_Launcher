@@ -1,8 +1,7 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/windowing/workspace_side_panel_contract.dart';
 import '../agent_chat/widgets/agent_chat_panel.dart';
 import '../widgets/queue/queue_management_page.dart';
 
@@ -127,7 +126,11 @@ class _ShellPanelsOverlayState extends State<ShellPanelsOverlay> {
                   duration: duration,
                   curve: Curves.easeOutCubic,
                   width: widget.desktop
-                      ? math.min(showingAgent ? 520 : 460, constraints.maxWidth)
+                      ? showingAgent
+                            ? WorkspaceSidePanelContract.overlayWidth(
+                                constraints.maxWidth,
+                              )
+                            : 460.0.clamp(0, constraints.maxWidth).toDouble()
                       : constraints.maxWidth,
                   height: widget.desktop
                       ? constraints.maxHeight

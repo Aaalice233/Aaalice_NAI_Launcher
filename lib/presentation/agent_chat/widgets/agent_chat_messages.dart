@@ -58,6 +58,17 @@ class AgentChatMessages extends StatelessWidget {
           message.stopReason != StopReason.toolUse &&
           message.text.trim().isNotEmpty,
     );
+    final lastUserMessageIndex = state.messages.lastIndexWhere(
+      (message) =>
+          message is UserMessage ||
+          message is HarnessCustomMessage &&
+              message.customType == 'agentResourcePrompt',
+    );
+    final canEditLastUserMessage =
+        !viewData.running &&
+        !state.sessionTransitioning &&
+        state.queuedMessages.isEmpty &&
+        state.pendingResources.isEmpty;
     final thread = AgentChatThreadModel.fromMessages(
       state.messages,
       timeline: state.turns,
@@ -116,6 +127,9 @@ class AgentChatMessages extends StatelessWidget {
                   turn.userMessage!,
                   messageIndex: turn.userMessageIndex,
                   isLastAssistantMessage: false,
+                  canEditUserMessage:
+                      canEditLastUserMessage &&
+                      turn.userMessageIndex == lastUserMessageIndex,
                 ),
               AgentChatWorkTrail(
                 turn: turn,
@@ -356,6 +370,8 @@ class AgentChatMessages extends StatelessWidget {
     required int messageIndex,
     required bool isLastAssistantMessage,
     bool showReasoning = true,
+    bool canEditUserMessage = false,
+    Message? editSourceMessage,
   }) {
     if (message is HarnessCustomMessage &&
         message.customType == 'agentResourcePrompt') {
@@ -369,11 +385,14 @@ class AgentChatMessages extends StatelessWidget {
         messageIndex: messageIndex,
         isLastAssistantMessage: isLastAssistantMessage,
         showReasoning: showReasoning,
+        canEditUserMessage: canEditUserMessage,
+        editSourceMessage: message,
       );
     }
     if (message is UserMessage) {
       final hasText = message.text.trim().isNotEmpty;
       final hovered = controller.hoveredUserMessageIndex == messageIndex;
+      final actionsFocused = controller.focusedUserMessageIndex == messageIndex;
       final sentAt = MaterialLocalizations.of(context).formatTimeOfDay(
         TimeOfDay.fromDateTime(
           DateTime.fromMillisecondsSinceEpoch(message.timestamp),
@@ -476,19 +495,40 @@ class AgentChatMessages extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 2),
-                SizedBox(
-                  height: viewData.mobile ? 48 : 22,
-                  child: AnimatedOpacity(
-                    key: ValueKey('agent-user-message-actions-$messageIndex'),
-                    opacity: viewData.mobile || hovered ? 1 : 0,
-                    duration: const Duration(milliseconds: 120),
-                    child: IgnorePointer(
-                      ignoring: !viewData.mobile && !hovered,
-                      child: ExcludeSemantics(
-                        excluding: !viewData.mobile && !hovered,
+                Focus(
+                  onFocusChange: (focused) =>
+                      controller.setFocusedUserMessageIndex(
+                        focused ? messageIndex : null,
+                      ),
+                  child: SizedBox(
+                    height: viewData.mobile ? 48 : 32,
+                    child: AnimatedOpacity(
+                      key: ValueKey('agent-user-message-actions-$messageIndex'),
+                      opacity: viewData.mobile || hovered || actionsFocused
+                          ? 1
+                          : 0,
+                      duration: const Duration(milliseconds: 120),
+                      child: IgnorePointer(
+                        ignoring:
+                            !viewData.mobile && !hovered && !actionsFocused,
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
+                            if (canEditUserMessage)
+                              _MessageActionButton(
+                                key: ValueKey(
+                                  'agent-user-message-edit-$messageIndex',
+                                ),
+                                tooltip: context.l10n.common_edit,
+                                icon: Icons.edit_outlined,
+                                largeHitArea: viewData.mobile,
+                                onPressed: controller.isEditingUserMessage
+                                    ? null
+                                    : () => commands.editUserMessage(
+                                        editSourceMessage ?? message,
+                                        messageIndex,
+                                      ),
+                              ),
                             _MessageActionButton(
                               key: ValueKey(
                                 'agent-user-message-copy-$messageIndex',
@@ -794,28 +834,17 @@ class _MessageActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final enabled = onPressed != null;
-    return Tooltip(
-      message: tooltip,
-      waitDuration: const Duration(milliseconds: 400),
-      child: InkResponse(
-        onTap: onPressed,
-        radius: largeHitArea ? 24 : 14,
-        containedInkWell: true,
-        highlightShape: BoxShape.rectangle,
-        child: SizedBox.square(
-          dimension: largeHitArea ? 48 : 22,
-          child: Center(
-            child: Icon(
-              icon,
-              size: 15,
-              color: theme.colorScheme.onSurfaceVariant.withValues(
-                alpha: enabled ? 0.72 : 0.28,
-              ),
-            ),
-          ),
-        ),
-      ),
+    final dimension = largeHitArea ? 48.0 : 32.0;
+    return IconButton(
+      tooltip: tooltip,
+      onPressed: onPressed,
+      icon: Icon(icon, size: 16),
+      color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.72),
+      disabledColor: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.28),
+      constraints: BoxConstraints.tightFor(width: dimension, height: dimension),
+      padding: EdgeInsets.zero,
+      // Agent density changes spacing, not accessible pointer target sizes.
+      visualDensity: VisualDensity.standard,
     );
   }
 }

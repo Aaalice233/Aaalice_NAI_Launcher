@@ -26,6 +26,7 @@ import 'presentation/providers/queue_execution_provider.dart';
 import 'presentation/providers/subscription_provider.dart'
     hide anlasBalanceProvider;
 import 'presentation/themes/app_theme.dart';
+import 'presentation/widgets/common/desktop_window_frame.dart';
 import 'presentation/widgets/shortcuts/shortcut_aware_widget.dart';
 import 'presentation/widgets/shortcuts/shortcut_help_dialog.dart';
 
@@ -309,7 +310,9 @@ class NAILauncherApp extends ConsumerWidget {
                 data: mediaQuery.copyWith(
                   textScaler: TextScaler.linear(effectiveScale),
                 ),
-                child: LargestDisplayFeatureSubScreen(child: child!),
+                child: DesktopWindowFrame(
+                  child: LargestDisplayFeatureSubScreen(child: child!),
+                ),
               ),
             );
           },

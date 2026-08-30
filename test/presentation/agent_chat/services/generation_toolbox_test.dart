@@ -14,6 +14,7 @@ import 'package:nai_launcher/core/services/anlas_calculator.dart';
 import 'package:nai_launcher/core/enums/precise_ref_type.dart';
 import 'package:nai_launcher/data/models/agent/agent_settings.dart';
 import 'package:nai_launcher/data/models/character/character_prompt.dart';
+import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_entry.dart';
 import 'package:nai_launcher/data/models/image/image_params.dart'
     show
         ImageGenerationAction,
@@ -29,6 +30,7 @@ import 'package:nai_launcher/presentation/agent_chat/services/agent_resource_res
 import 'package:nai_launcher/presentation/agent_chat/services/queue_toolbox.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/models/prompt_assistant_models.dart';
 import 'package:nai_launcher/presentation/providers/character_prompt_provider.dart';
+import 'package:nai_launcher/presentation/providers/fixed_tags_provider.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/providers/replication_queue_provider.dart';
 import 'package:nai_launcher/presentation/providers/subscription_provider.dart';
@@ -355,7 +357,7 @@ void main() {
       );
       final toolbox = GenerationToolbox(
         _makeRef(container),
-        resourceResolver: _TestResourceResolver(_makeRef(container), reference),
+        resourceResolver: _TestResourceResolver(_makeRef(container)),
       );
       final tool = toolbox.tools().firstWhere(
         (candidate) => candidate.name == 'queue_image_task',
@@ -409,6 +411,16 @@ void main() {
         source: 'fixed_tags',
         resourceId: 'positive',
       );
+      final positiveAlias = AgentChatResourceReference(
+        kind: AgentChatResourceKind.fixedTag,
+        source: 'legacy_fixed_tags',
+        resourceId: 'positive-alias',
+      );
+      final positiveCopy = AgentChatResourceReference(
+        kind: AgentChatResourceKind.tagLibraryEntry,
+        source: 'tag_library',
+        resourceId: 'positive-copy',
+      );
       final negative = AgentChatResourceReference(
         kind: AgentChatResourceKind.tagLibraryEntry,
         source: 'tag_library',
@@ -418,19 +430,23 @@ void main() {
         _makeRef(container),
         resourceResolver: _TestResourceResolver(
           _makeRef(container),
-          positive,
           textByResourceId: const {
-            'positive': 'blue eyes',
+            'positive': '{{{masterpiece, best_quality, year_2024}}}',
+            'positive-alias': '{{{masterpiece, best_quality, year_2024}}}',
+            'positive-copy': '{{{masterpiece, best_quality, year_2024}}}',
             'negative': 'bad anatomy',
           },
+          canonicalByResourceId: {'positive-alias': positive},
         ),
       ).tools().firstWhere((candidate) => candidate.name == 'queue_image_task');
 
       final prepared = await tool.execute('prepare-prompt-refs', {
-        'prompt': '1girl',
+        'prompt': '1girl, {{{masterpiece, best_quality, year_2024}}}',
         'negative_prompt': 'lowres',
         'prompt_refs': [
           AgentChatResourceReferenceCodec.encodeJsonMap(positive),
+          AgentChatResourceReferenceCodec.encodeJsonMap(positiveAlias),
+          AgentChatResourceReferenceCodec.encodeJsonMap(positiveCopy),
         ],
         'negative_prompt_refs': [
           AgentChatResourceReferenceCodec.encodeJsonMap(negative),
@@ -447,13 +463,69 @@ void main() {
           .read(replicationQueueNotifierProvider)
           .tasks
           .single;
-      expect(task.prompt, '1girl, blue eyes');
+      expect(
+        task.prompt,
+        '1girl, {{{masterpiece, best_quality, year_2024}}}, '
+        '{{{masterpiece, best_quality, year_2024}}}, '
+        '{{{masterpiece, best_quality, year_2024}}}',
+      );
       expect(task.negativePrompt, 'lowres, bad anatomy');
       final restored = ReplicationTaskGenerationSnapshot.decode(
         task.generationSnapshot!,
       );
       expect(restored.prompt, task.prompt);
       expect(restored.negativePrompt, task.negativePrompt);
+    },
+  );
+
+  test(
+    'enabled fixed-tag references are left to fixed-tag application',
+    () async {
+      final fixedEntry = FixedTagEntry.create(
+        name: 'quality',
+        content: 'masterpiece',
+      );
+      final container = ProviderContainer(
+        overrides: [
+          fixedTagsNotifierProvider.overrideWith(
+            () => _TestFixedTagsNotifier(fixedEntry),
+          ),
+          characterPromptNotifierProvider.overrideWith(
+            _TestCharacterPromptNotifier.new,
+          ),
+          subscriptionNotifierProvider.overrideWith(
+            _TestSubscriptionNotifier.new,
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      final reference = AgentChatResourceReference(
+        kind: AgentChatResourceKind.fixedTag,
+        source: 'fixed_tags',
+        resourceId: fixedEntry.id,
+      );
+      final tool =
+          GenerationToolbox(
+            _makeRef(container),
+            resourceResolver: _TestResourceResolver(
+              _makeRef(container),
+              textByResourceId: {fixedEntry.id: fixedEntry.weightedContent},
+            ),
+          ).tools().firstWhere(
+            (candidate) => candidate.name == 'prepare_generation',
+          );
+
+      final prepared = _json(
+        await tool.execute('prepare-fixed-ref', {
+          'operation': 'generate',
+          'prompt': '1girl',
+          'prompt_refs': [
+            AgentChatResourceReferenceCodec.encodeJsonMap(reference),
+          ],
+        }),
+      );
+
+      expect(prepared['parameters']['prompt'], '1girl');
     },
   );
 
@@ -660,7 +732,6 @@ void main() {
       _makeRef(container),
       resourceResolver: _TestResourceResolver(
         _makeRef(container),
-        reference,
         textByResourceId: const {'blue-hair': 'blue hair'},
       ),
     ).tools();
@@ -1025,6 +1096,15 @@ class _FakeImageGenerationNotifier extends ImageGenerationNotifier {
   }
 }
 
+class _TestFixedTagsNotifier extends FixedTagsNotifier {
+  _TestFixedTagsNotifier(this.entry);
+
+  final FixedTagEntry entry;
+
+  @override
+  FixedTagsState build() => FixedTagsState(entries: [entry]);
+}
+
 class _TestSubscriptionNotifier extends SubscriptionNotifier {
   @override
   SubscriptionState build() =>
@@ -1033,19 +1113,19 @@ class _TestSubscriptionNotifier extends SubscriptionNotifier {
 
 class _TestResourceResolver extends AgentResourceResolver {
   _TestResourceResolver(
-    super.ref,
-    this.reference, {
+    super.ref, {
     this.textByResourceId = const {},
+    this.canonicalByResourceId = const {},
   });
 
-  final AgentChatResourceReference reference;
   final Map<String, String> textByResourceId;
+  final Map<String, AgentChatResourceReference> canonicalByResourceId;
 
   @override
   Future<ResolvedAgentResource?> resolve(
     AgentChatResourceReference requested,
   ) async => ResolvedAgentResource(
-    reference: reference,
+    reference: canonicalByResourceId[requested.resourceId] ?? requested,
     label: 'source',
     bytes: Uint8List.fromList([1, 2, 3, 4]),
     text: textByResourceId[requested.resourceId],

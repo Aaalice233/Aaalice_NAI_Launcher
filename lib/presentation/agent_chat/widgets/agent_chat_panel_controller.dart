@@ -71,15 +71,28 @@ class AgentChatPanelController extends ChangeNotifier {
   AssistantMessage? _lastStreamingMessage;
   List<AgentToolActivity>? _lastActivities;
   int? _hoveredUserMessageIndex;
+  int? _focusedUserMessageIndex;
+  int? _editingUserMessageIndex;
+  String? _composerTextBeforeEdit;
+  List<PendingAgentChatImage>? _composerImagesBeforeEdit;
 
   List<PendingAgentChatImage> get pendingImages =>
       List.unmodifiable(_pendingImages);
   int? get hoveredUserMessageIndex => _hoveredUserMessageIndex;
+  int? get focusedUserMessageIndex => _focusedUserMessageIndex;
+  int? get editingUserMessageIndex => _editingUserMessageIndex;
+  bool get isEditingUserMessage => _editingUserMessageIndex != null;
   bool get showJumpToLatest => !_autoScroll;
 
   void setHoveredUserMessageIndex(int? value) {
     if (_hoveredUserMessageIndex == value) return;
     _hoveredUserMessageIndex = value;
+    notifyListeners();
+  }
+
+  void setFocusedUserMessageIndex(int? value) {
+    if (_focusedUserMessageIndex == value) return;
+    _focusedUserMessageIndex = value;
     notifyListeners();
   }
 
@@ -104,6 +117,9 @@ class AgentChatPanelController extends ChangeNotifier {
       messageImageBytes.clear();
       messageImageSizes.clear();
       markdownDataImageBytes.clear();
+      _editingUserMessageIndex = null;
+      _composerTextBeforeEdit = null;
+      _composerImagesBeforeEdit = null;
       scrollToBottom(force: true);
     } else if (contentChanged) {
       scrollToBottom();
@@ -168,6 +184,35 @@ class AgentChatPanelController extends ChangeNotifier {
     );
     inputController.imageCount = images.length;
     _hoveredUserMessageIndex = null;
+    notifyListeners();
+  }
+
+  void beginEditingUserMessage(
+    int messageIndex,
+    String text,
+    List<PendingAgentChatImage> images,
+  ) {
+    if (!isEditingUserMessage) {
+      _composerTextBeforeEdit = inputController.text;
+      _composerImagesBeforeEdit = List.of(_pendingImages);
+    }
+    _editingUserMessageIndex = messageIndex;
+    restoreDraft(text, images);
+  }
+
+  void cancelEditingUserMessage() {
+    if (!isEditingUserMessage) return;
+    final text = _composerTextBeforeEdit ?? '';
+    final images = _composerImagesBeforeEdit ?? const <PendingAgentChatImage>[];
+    finishEditingUserMessage();
+    restoreDraft(text, images);
+  }
+
+  void finishEditingUserMessage() {
+    if (!isEditingUserMessage) return;
+    _editingUserMessageIndex = null;
+    _composerTextBeforeEdit = null;
+    _composerImagesBeforeEdit = null;
     notifyListeners();
   }
 

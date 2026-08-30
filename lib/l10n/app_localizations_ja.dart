@@ -15,6 +15,18 @@ class AppLocalizationsJa extends AppLocalizations {
   String get app_subtitle => 'NovelAI サードパーティ クライアント';
 
   @override
+  String get desktopWindow_minimize => '最小化';
+
+  @override
+  String get desktopWindow_maximize => '最大化';
+
+  @override
+  String get desktopWindow_restore => '元に戻す';
+
+  @override
+  String get desktopWindow_close => 'ウィンドウを閉じる';
+
+  @override
   String get common_cancel => 'キャンセル';
 
   @override
@@ -13111,6 +13123,29 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String get agentSettings_subtitle =>
       'チャットモデル、ツール権限、Web 接続、システムプロンプト、Skills を管理します。';
+
+  @override
+  String get agentSettings_readingAppearance => '読みやすさと密度';
+
+  @override
+  String get agentSettings_readingTextSize => '閲覧文字サイズ';
+
+  @override
+  String get agentSettings_readingTextSizeDescription =>
+      'エージェントパネルだけに適用し、全体の文字倍率に重ねて調整します。';
+
+  @override
+  String get agentSettings_density => '表示密度';
+
+  @override
+  String get agentSettings_densityDescription =>
+      '快適はタッチ領域と余白を保ち、コンパクトはデスクトップで多くの情報を表示します。';
+
+  @override
+  String get agentSettings_densityComfortable => '快適';
+
+  @override
+  String get agentSettings_densityCompact => 'コンパクト';
 
   @override
   String get agentSettings_chatModel => 'チャットモデル';
