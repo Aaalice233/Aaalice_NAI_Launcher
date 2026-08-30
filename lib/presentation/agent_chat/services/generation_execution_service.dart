@@ -5,13 +5,12 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/agent/agent_types.dart';
 import '../../../core/agent/harness/tools/image.dart';
-import '../../../core/agent/resources/agent_chat_resource_reference.dart';
-import '../../../core/agent/resources/agent_chat_resource_reference_codec.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/display_thumbnail_utils.dart';
 import '../../../core/utils/nai_resolution_adapter.dart';
 import '../../../data/models/image/image_params.dart';
 import '../../providers/image_generation_provider.dart';
+import 'generation_image_read_contract.dart';
 import 'generation_preparation_runtime.dart';
 import 'generation_tool_results.dart';
 import 'generation_workspace_path_resolver.dart';
@@ -20,17 +19,15 @@ class GenerationExecutionService {
   GenerationExecutionService(
     this._ref, {
     required GenerationWorkspacePathResolver pathResolver,
+    required GenerationImageReadContract imageReadContract,
     required int maxGenerateCount,
-    required AgentChatResourceReference Function(String imageId)
-    generatedImageReference,
   }) : _pathResolver = pathResolver,
-       _maxGenerateCount = maxGenerateCount,
-       _generatedImageReference = generatedImageReference;
+       _imageReadContract = imageReadContract,
+       _maxGenerateCount = maxGenerateCount;
   final Ref _ref;
   final GenerationWorkspacePathResolver _pathResolver;
+  final GenerationImageReadContract _imageReadContract;
   final int _maxGenerateCount;
-  final AgentChatResourceReference Function(String imageId)
-  _generatedImageReference;
   Future<AgentToolResult> generate(
     String toolCallId,
     Map<String, dynamic> args, [
@@ -255,16 +252,11 @@ class GenerationExecutionService {
       final savedFiles = <String>[];
       for (final image
           in _ref.read(imageGenerationNotifierProvider).currentImages) {
-        final reference = _generatedImageReference(image.id);
-        if (image.filePath case final path?) savedFiles.add(path);
-        report.add({
-          'seed': image.metadata?.seed,
-          'size': '${image.width}x${image.height}',
-          'saved': image.filePath != null,
-          'resource_ref': AgentChatResourceReferenceCodec.encodeJsonMap(
-            reference,
-          ),
-        });
+        final descriptor = await _imageReadContract.describe(image);
+        if (descriptor.saved) {
+          if (image.filePath case final path?) savedFiles.add(path);
+        }
+        report.add(descriptor.toModelJson());
       }
       final content = <ToolResultContent>[
         ToolResultTextContent(jsonEncode({'ok': true, 'images': report})),

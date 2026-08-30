@@ -63,10 +63,12 @@ String buildAgentSystemPrompt({
         'read, preview_generated_image, or display_images merely to inspect or '
         'repeat that same output. Only retrieve it again when the user '
         'explicitly asks to reopen, compare, inspect, or analyze the image.',
-    '- get_recent_images returns each saved image\'s read-safe relative path '
-        'and stable resource_ref. Never derive a filename or extension from a '
-        'resource_ref/resourceId; use the returned path with read, or pass the '
-        'resource_ref to preview_generated_image.',
+    '- generate_image and get_recent_images return the same generated-image '
+        'contract: path is the exact workspace-relative argument for read, '
+        'while resource_ref is an application-owned identity for resource '
+        'tools. Only call read when that image object contains path, and pass '
+        'the path unchanged. Never turn resource_ref/resourceId into a path, '
+        'filename, or extension.',
     '- Reuse that exact generated-image resource_ref for selection, favorites, '
         'tag-library thumbnails, saving, clipboard, Krita, and '
         'open_generation_image_workflow. Never substitute an index or raw path.',
