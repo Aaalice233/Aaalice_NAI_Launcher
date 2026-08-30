@@ -5,7 +5,6 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pub_semver/pub_semver.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:xml/xml.dart';
 
 import '../../models/version/release_asset_info.dart';
 import '../../models/version/version_info.dart';
@@ -45,6 +44,7 @@ class GitHubApiService {
   static const String defaultBaseUrl = 'https://github.com';
 
   static const String _githubWebBaseUrl = 'https://github.com';
+  static const String _githubApiBaseUrl = 'https://api.github.com';
 
   /// 连接超时时间
   static const Duration connectTimeout = Duration(seconds: 10);
@@ -72,7 +72,7 @@ class GitHubApiService {
   }) async {
     try {
       final tag = includePrerelease
-          ? await _fetchLatestApplicationTagFromFeed(owner, repo)
+          ? await _fetchLatestApplicationTagFromReleases(owner, repo)
           : null;
       return await _fetchReleaseManifest(
         owner: owner,
@@ -137,61 +137,48 @@ class GitHubApiService {
     );
   }
 
-  Future<String?> _fetchLatestApplicationTagFromFeed(
+  Future<String?> _fetchLatestApplicationTagFromReleases(
     String owner,
     String repo,
   ) async {
-    final response = await _dio.get<String>(
-      '$_githubWebBaseUrl/$owner/$repo/releases.atom',
-      options: Options(
-        responseType: ResponseType.plain,
-        connectTimeout: connectTimeout,
-        receiveTimeout: receiveTimeout,
-        headers: {'Accept': 'application/atom+xml'},
-      ),
-    );
-    final body = response.data;
-    if (body == null || body.trim().isEmpty) {
-      throw GitHubApiException(
-        'Release feed is empty for $owner/$repo',
-        type: GitHubReleaseErrorType.invalidResponse,
+    const pageSize = 100;
+    for (var page = 1; ; page++) {
+      final response = await _dio.get<Object?>(
+        '$_githubApiBaseUrl/repos/$owner/$repo/releases',
+        queryParameters: {'per_page': pageSize, 'page': page},
+        options: Options(
+          connectTimeout: connectTimeout,
+          receiveTimeout: receiveTimeout,
+          headers: const {
+            'Accept': 'application/vnd.github+json',
+            'X-GitHub-Api-Version': '2022-11-28',
+            'User-Agent': 'Aaalice-NAI-Launcher',
+          },
+        ),
       );
-    }
+      final responseData = response.data;
+      if (responseData is! List<dynamic>) {
+        throw GitHubApiException(
+          'Release list has an invalid response for $owner/$repo',
+          type: GitHubReleaseErrorType.invalidResponse,
+        );
+      }
+      final releases = responseData;
 
-    final document = XmlDocument.parse(body);
-    Version? latestVersion;
-    String? latestTag;
-    final entries = document.descendants.whereType<XmlElement>().where(
-      (element) => element.name.local == 'entry',
-    );
-    for (final entry in entries) {
-      final links = entry.descendants.whereType<XmlElement>().where(
-        (element) => element.name.local == 'link',
-      );
-      for (final link in links) {
-        final href = link.getAttribute('href');
-        final uri = href == null ? null : Uri.tryParse(href);
-        if (uri == null) continue;
-        final tagIndex = uri.pathSegments.indexOf('tag');
-        if (tagIndex < 0 || tagIndex + 1 >= uri.pathSegments.length) continue;
-        final tag = uri.pathSegments[tagIndex + 1];
-        if (!_isApplicationTag(tag)) continue;
-        Version version;
-        try {
-          version = Version.parse(tag.substring(1));
-        } on FormatException {
+      // 保留 GitHub Release 的顺序，直接使用第一个非草稿应用版本，
+      // 不再根据 tag 的 SemVer 对发布顺序做二次重排。
+      for (final release in releases) {
+        if (release is! Map<String, dynamic> || release['draft'] == true) {
           continue;
         }
-        if (latestVersion == null || version > latestVersion) {
-          latestVersion = version;
-          latestTag = tag;
-        }
+        final tag = release['tag_name'];
+        if (tag is String && _isApplicationTag(tag)) return tag;
       }
+      if (releases.length < pageSize) break;
     }
 
-    // GitHub feed 仅保留最近若干条，独立数据包可能挤掉应用版本。
-    // 此时退回 stable 的 latest manifest，至少不会漏掉正式更新。
-    return latestTag;
+    // 仓库可能暂时只有独立数据包 Release；此时仍检查最新正式版。
+    return null;
   }
 
   Options _releaseAssetOptions() {
@@ -403,9 +390,17 @@ class GitHubApiService {
   }
 
   static bool _isApplicationTag(String tag) {
-    return RegExp(
+    if (!RegExp(
       r'^v\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$',
-    ).hasMatch(tag);
+    ).hasMatch(tag)) {
+      return false;
+    }
+    try {
+      Version.parse(tag.substring(1));
+      return true;
+    } on FormatException {
+      return false;
+    }
   }
 }
 

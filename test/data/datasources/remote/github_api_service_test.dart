@@ -87,9 +87,10 @@ void main() {
     );
   });
 
-  test('prerelease lookup skips malformed and non-v data releases', () async {
+  test('prerelease lookup follows the GitHub release list contract', () async {
+    final adapter = _MixedReleaseDioAdapter();
     final dio = Dio(BaseOptions(baseUrl: GitHubApiService.defaultBaseUrl))
-      ..httpClientAdapter = _MixedReleaseDioAdapter();
+      ..httpClientAdapter = adapter;
     final service = GitHubApiService(dio: dio);
 
     final info = await service.fetchLatestRelease(
@@ -99,19 +100,67 @@ void main() {
       includePrerelease: true,
     );
 
-    expect(info.version, '1.8.2-beta.1');
+    expect(info.version, '1.8.2-beta.1+33');
     expect(info.primaryAsset?.type, ReleaseAssetType.windowsPortable);
+    expect(adapter.releaseListRequests, 1);
+    expect(adapter.atomRequests, 0);
+  });
+
+  test('prerelease lookup continues past a full data release page', () async {
+    final adapter = _PaginatedReleaseDioAdapter();
+    final dio = Dio(BaseOptions(baseUrl: GitHubApiService.defaultBaseUrl))
+      ..httpClientAdapter = adapter;
+    final service = GitHubApiService(dio: dio);
+
+    final info = await service.fetchLatestRelease(
+      owner: 'Aaalice233',
+      repo: 'Aaalice_NAI_Launcher',
+      currentVersion: '1.8.0',
+      includePrerelease: true,
+    );
+
+    expect(info.version, '1.8.2-beta.1+33');
+    expect(adapter.requestedPages, [1, 2]);
+  });
+
+  test('prerelease lookup rejects a non-list API response', () async {
+    final dio = Dio(BaseOptions(baseUrl: GitHubApiService.defaultBaseUrl))
+      ..httpClientAdapter = _InvalidReleaseListDioAdapter();
+    final service = GitHubApiService(dio: dio);
+
+    await expectLater(
+      service.fetchLatestRelease(
+        owner: 'Aaalice233',
+        repo: 'Aaalice_NAI_Launcher',
+        currentVersion: '1.8.0',
+        includePrerelease: true,
+      ),
+      throwsA(
+        isA<GitHubApiException>().having(
+          (error) => error.type,
+          'type',
+          GitHubReleaseErrorType.invalidResponse,
+        ),
+      ),
+    );
   });
 
   test(
-    'prerelease lookup falls back to stable when feed has only data packs',
+    'prerelease lookup falls back to stable when list has only data packs',
     () async {
       final adapter = _StableReleaseDioAdapter(
-        feedBody: '''<?xml version="1.0" encoding="UTF-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom">
-  <entry><link href="https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases/tag/autocomplete-data-one" /></entry>
-  <entry><link href="https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases/tag/autocomplete-data-two" /></entry>
-</feed>''',
+        releases: const [
+          {
+            'tag_name': 'autocomplete-data-one',
+            'draft': false,
+            'prerelease': true,
+          },
+          {
+            'tag_name': 'autocomplete-data-two',
+            'draft': false,
+            'prerelease': true,
+          },
+        ],
       );
       final dio = Dio(BaseOptions(baseUrl: GitHubApiService.defaultBaseUrl))
         ..httpClientAdapter = adapter;
@@ -130,7 +179,7 @@ void main() {
   );
 
   test(
-    'prerelease manifest must match the tag selected from the feed',
+    'prerelease manifest must match the tag selected from the release list',
     () async {
       final dio = Dio(BaseOptions(baseUrl: GitHubApiService.defaultBaseUrl))
         ..httpClientAdapter = _MismatchedPrereleaseDioAdapter();
@@ -168,10 +217,10 @@ class _StableReleaseDioAdapter implements HttpClientAdapter {
   static const setupSha256 =
       '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 
-  _StableReleaseDioAdapter({this.manifestOverride, this.feedBody});
+  _StableReleaseDioAdapter({this.manifestOverride, this.releases});
 
   final Map<String, dynamic>? manifestOverride;
-  final String? feedBody;
+  final List<dynamic>? releases;
   RequestOptions? manifestRequest;
   int apiRequests = 0;
 
@@ -181,12 +230,13 @@ class _StableReleaseDioAdapter implements HttpClientAdapter {
     Stream<Uint8List>? requestStream,
     Future<void>? cancelFuture,
   ) async {
-    if (options.uri.path.endsWith('/releases.atom') && feedBody != null) {
+    if (options.uri.host == 'api.github.com' && releases != null) {
+      apiRequests++;
       return ResponseBody.fromString(
-        feedBody!,
+        jsonEncode(releases),
         200,
         headers: {
-          Headers.contentTypeHeader: ['application/atom+xml'],
+          Headers.contentTypeHeader: ['application/json'],
         },
       );
     }
@@ -260,31 +310,45 @@ class _MixedReleaseDioAdapter implements HttpClientAdapter {
       'https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases/'
       'download/$betaTag/NAI_Launcher_Windows_Beta_Portable.zip';
 
+  int releaseListRequests = 0;
+  int atomRequests = 0;
+
   @override
   Future<ResponseBody> fetch(
     RequestOptions options,
     Stream<Uint8List>? requestStream,
     Future<void>? cancelFuture,
   ) async {
-    if (options.uri.path.endsWith('/releases.atom')) {
+    if (options.uri.host == 'api.github.com' &&
+        options.uri.path.endsWith('/releases')) {
+      releaseListRequests++;
+      expect(options.uri.queryParameters['per_page'], '100');
+      expect(options.uri.queryParameters['page'], '1');
+      expect(options.headers['Accept'], 'application/vnd.github+json');
+      expect(options.headers['User-Agent'], 'Aaalice-NAI-Launcher');
       return ResponseBody.fromString(
-        '''<?xml version="1.0" encoding="UTF-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom">
-  <entry><link href="https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases/tag/autocomplete-data-cooccurrence-2dadc5bf-v2" /></entry>
-  <entry><link href="https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases/tag/v1.8.2-.." /></entry>
-  <entry><link href="https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases/tag/$betaTag" /></entry>
-  <entry><link href="https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases/tag/v1.8.1" /></entry>
-</feed>''',
+        jsonEncode([
+          {
+            'tag_name': 'autocomplete-data-cooccurrence-2dadc5bf-v2',
+            'draft': false,
+            'prerelease': true,
+          },
+          {'tag_name': 'v1.8.2-..', 'draft': false, 'prerelease': true},
+          {'tag_name': 'v1.8.3-beta.1', 'draft': true, 'prerelease': true},
+          {'tag_name': betaTag, 'draft': false, 'prerelease': true},
+          {'tag_name': 'v1.8.1', 'draft': false, 'prerelease': false},
+        ]),
         200,
         headers: {
-          Headers.contentTypeHeader: ['application/atom+xml'],
+          Headers.contentTypeHeader: ['application/json'],
         },
       );
     }
+    if (options.uri.path.endsWith('/releases.atom')) atomRequests++;
     if (options.uri.toString() == betaManifestUrl) {
       return ResponseBody.fromString(
         jsonEncode({
-          'version': '1.8.2-beta.1',
+          'version': '1.8.2-beta.1+33',
           'tag': betaTag,
           'name': 'NAI Launcher $betaTag',
           'publishedAt': '2026-08-22T00:00:00Z',
@@ -307,7 +371,68 @@ class _MixedReleaseDioAdapter implements HttpClientAdapter {
         },
       );
     }
-    return ResponseBody.fromString('not found', 404);
+    throw StateError('Unexpected prerelease request: ${options.uri}');
+  }
+
+  @override
+  void close({bool force = false}) {}
+}
+
+class _PaginatedReleaseDioAdapter extends _MixedReleaseDioAdapter {
+  final List<int> requestedPages = [];
+
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    if (options.uri.host == 'api.github.com' &&
+        options.uri.path.endsWith('/releases')) {
+      final page = int.parse(options.uri.queryParameters['page']!);
+      requestedPages.add(page);
+      final releases = page == 1
+          ? List.generate(
+              100,
+              (index) => {
+                'tag_name': 'autocomplete-data-$index',
+                'draft': false,
+                'prerelease': true,
+              },
+            )
+          : [
+              {
+                'tag_name': _MixedReleaseDioAdapter.betaTag,
+                'draft': false,
+                'prerelease': true,
+              },
+            ];
+      return ResponseBody.fromString(
+        jsonEncode(releases),
+        200,
+        headers: {
+          Headers.contentTypeHeader: ['application/json'],
+        },
+      );
+    }
+    return super.fetch(options, requestStream, cancelFuture);
+  }
+}
+
+class _InvalidReleaseListDioAdapter implements HttpClientAdapter {
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    return ResponseBody.fromString(
+      jsonEncode({'message': 'unexpected object'}),
+      200,
+      headers: {
+        Headers.contentTypeHeader: ['application/json'],
+      },
+    );
   }
 
   @override
@@ -324,18 +449,23 @@ class _MismatchedPrereleaseDioAdapter implements HttpClientAdapter {
     Stream<Uint8List>? requestStream,
     Future<void>? cancelFuture,
   ) async {
-    if (options.uri.path.endsWith('/releases.atom')) {
+    if (options.uri.host == 'api.github.com' &&
+        options.uri.path.endsWith('/releases')) {
       return ResponseBody.fromString(
-        '''<?xml version="1.0" encoding="UTF-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom">
-  <entry><link href="https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases/tag/$selectedTag" /></entry>
-</feed>''',
+        jsonEncode([
+          {'tag_name': selectedTag, 'draft': false, 'prerelease': true},
+        ]),
         200,
         headers: {
-          Headers.contentTypeHeader: ['application/atom+xml'],
+          Headers.contentTypeHeader: ['application/json'],
         },
       );
     }
+    expect(
+      options.uri.toString(),
+      'https://github.com/Aaalice233/Aaalice_NAI_Launcher/'
+      'releases/download/$selectedTag/release_manifest.json',
+    );
     return ResponseBody.fromString(
       jsonEncode({
         'version': '1.8.3-beta.1',
