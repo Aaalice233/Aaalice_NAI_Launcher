@@ -169,6 +169,171 @@ print('updated');
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('uses a compact action grid on a narrow Android-sized view', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(360, 640);
+    tester.view.devicePixelRatio = 1;
+    tester.view.padding = const FakeViewPadding(top: 24, bottom: 24);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPadding);
+
+    const info = VersionInfo(
+      version: '2.0.0',
+      currentVersion: '1.0.0',
+      isNewer: true,
+      htmlUrl: 'https://example.com/release',
+      downloadUrl: 'https://example.com/update.apk',
+      releaseNotes: '''
+## 新機能
+
+- 長い更新内容でも独立してスクロールできます。
+- 操作ボタンはすべて表示されたままです。
+- 狭い画面でも更新履歴を読みやすくします。
+- セーフエリアとタッチ操作に対応します。
+- 追加のリリースノートです。
+- さらに長いリリースノートです。
+''',
+    );
+    const state = UpdateState(
+      status: UpdateStatus.available,
+      versionInfo: info,
+      notificationVisible: true,
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          updateStateNotifierProvider.overrideWith(
+            () => _DialogUpdateNotifier(state),
+          ),
+        ],
+        child: MaterialApp(
+          locale: const Locale('ja'),
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: Center(
+                child: FilledButton(
+                  onPressed: () => UpdateCheckDialog.show(context),
+                  child: const Text('show'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('show'));
+    await tester.pumpAndSettle();
+
+    const labels = ['4時間後に通知', 'このバージョンをスキップ', 'Release を表示', 'ダウンロードに移動'];
+    for (final label in labels) {
+      expect(find.text(label), findsOneWidget);
+      expect(find.text(label).hitTestable(), findsOneWidget);
+    }
+
+    Rect buttonRect(String label) => tester.getRect(
+      find.ancestor(
+        of: find.text(label),
+        matching: find.byWidgetPredicate(
+          (widget) => widget is ButtonStyleButton,
+        ),
+      ),
+    );
+
+    final firstRowLeft = buttonRect(labels[0]);
+    final firstRowRight = buttonRect(labels[1]);
+    final secondRowLeft = buttonRect(labels[2]);
+    final secondRowRight = buttonRect(labels[3]);
+    expect(firstRowLeft.top, closeTo(firstRowRight.top, 0.1));
+    expect(secondRowLeft.top, closeTo(secondRowRight.top, 0.1));
+    expect(firstRowLeft.left, lessThan(firstRowRight.left));
+    expect(secondRowLeft.left, lessThan(secondRowRight.left));
+    expect(firstRowLeft.height, greaterThanOrEqualTo(48));
+    expect(secondRowLeft.height, greaterThanOrEqualTo(48));
+
+    final actionRect = tester.getRect(
+      find.byKey(const ValueKey('update-dialog-actions')),
+    );
+    final notesRect = tester.getRect(
+      find.byKey(const ValueKey('update-release-notes-region')),
+    );
+    expect(actionRect.height, lessThanOrEqualTo(144));
+    expect(notesRect.height, greaterThan(actionRect.height));
+    expect(
+      find.byKey(const ValueKey('update-release-notes-scroll-view')),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('keeps desktop update actions horizontally grouped', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    const info = VersionInfo(
+      version: '2.0.0',
+      currentVersion: '1.0.0',
+      isNewer: true,
+      htmlUrl: 'https://example.com/release',
+      downloadUrl: 'https://example.com/update.zip',
+      releaseNotes: '- Desktop release note',
+    );
+    const state = UpdateState(
+      status: UpdateStatus.available,
+      versionInfo: info,
+      notificationVisible: true,
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          updateStateNotifierProvider.overrideWith(
+            () => _DialogUpdateNotifier(state),
+          ),
+        ],
+        child: const MaterialApp(
+          locale: Locale('en'),
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          home: Scaffold(body: UpdateCheckDialog()),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final actionButtons = find.descendant(
+      of: find.byKey(const ValueKey('update-dialog-actions')),
+      matching: find.byWidgetPredicate((widget) => widget is ButtonStyleButton),
+    );
+    expect(actionButtons, findsNWidgets(4));
+    final buttonRects = [
+      for (var index = 0; index < 4; index++)
+        tester.getRect(actionButtons.at(index)),
+    ];
+    final rowTops = buttonRects.map((rect) => rect.top).toSet();
+    expect(rowTops.length, lessThanOrEqualTo(2));
+    expect(
+      buttonRects.any(
+        (left) => buttonRects.any(
+          (right) =>
+              left != right &&
+              (left.top - right.top).abs() < 0.1 &&
+              left.left < right.left,
+        ),
+      ),
+      isTrue,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('shows changelog content without release download sections', (
     tester,
   ) async {
