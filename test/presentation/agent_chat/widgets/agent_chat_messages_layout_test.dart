@@ -107,6 +107,70 @@ void main() {
     });
   }
 
+  testWidgets(
+    'user message text stays centered while metadata and actions keep alignment',
+    (tester) async {
+      final controller = AgentChatPanelController();
+      addTearDown(controller.dispose);
+      final messages = [
+        UserMessage.text(
+          '嗯',
+          timestamp: DateTime(2025, 5, 16, 16, 19).millisecondsSinceEpoch,
+        ),
+        UserMessage.text(
+          'This is a deliberately long user message that wraps across '
+          'multiple lines without changing its centered alignment.',
+          timestamp: DateTime(2025, 5, 16, 16, 20).millisecondsSinceEpoch,
+        ),
+      ];
+      for (final width in [360.0, 840.0]) {
+        final textHeights = <double>[];
+        for (final message in messages) {
+          await _pumpMessages(
+            tester,
+            width: width,
+            controller: controller,
+            state: AgentChatState(
+              initialized: true,
+              routeReady: true,
+              messages: [message],
+            ),
+          );
+
+          final bubble = find.byKey(
+            const ValueKey('agent-user-message-bubble-0'),
+          );
+          final textFinder = find.byKey(
+            const ValueKey('agent-user-message-text-0'),
+          );
+          final text = tester.widget<Text>(textFinder);
+          final bubbleRect = tester.getRect(bubble);
+          final textRect = tester.getRect(textFinder);
+          final statusIcon = find.descendant(
+            of: bubble,
+            matching: find.byIcon(Icons.done_all_rounded),
+          );
+
+          textHeights.add(textRect.height);
+          expect(text.textAlign, TextAlign.center);
+          expect(textRect.center.dx, closeTo(bubbleRect.center.dx, 0.01));
+          expect(
+            tester.getRect(statusIcon).right,
+            closeTo(bubbleRect.right - 12, 0.01),
+          );
+          expect(
+            tester.getSize(
+              find.byKey(const ValueKey('agent-user-message-copy-0')),
+            ),
+            Size(48, width < 600 ? 48 : 32),
+          );
+        }
+        expect(textHeights.last, greaterThan(textHeights.first));
+      }
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('streaming response exposes a live responding status', (
     tester,
   ) async {
