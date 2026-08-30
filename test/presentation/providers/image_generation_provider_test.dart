@@ -602,7 +602,155 @@ void main() {
         expect(image.comparisonSource, isNotNull);
         expect(image.comparisonSource!.bytes, orderedEquals(source));
         expect(image.comparisonSource!.bytes, isNot(same(source)));
+        expect(
+          () => image.comparisonSource!.bytes[0] = 0,
+          throwsA(isA<UnsupportedError>()),
+        );
         expect(image.canCompareWithSource, isTrue);
+      },
+    );
+
+    test(
+      'consecutive external transforms reuse the same comparison source',
+      () async {
+        final notifier = container.read(
+          imageGenerationNotifierProvider.notifier,
+        );
+        final params = container.read(generationParamsNotifierProvider);
+        final source = _validImageBytes(width: 64, height: 96, colorValue: 1);
+        final result = _validImageBytes(width: 128, height: 192);
+
+        await notifier.registerExternalImage(
+          result,
+          params: params,
+          comparisonSourceImage: source,
+        );
+        await notifier.registerExternalImage(
+          result,
+          params: params,
+          comparisonSourceImage: Uint8List.fromList(source),
+        );
+
+        final history = container.read(imageGenerationNotifierProvider).history;
+        expect(history, hasLength(2));
+        expect(
+          history.first.comparisonSource,
+          same(history.last.comparisonSource),
+        );
+      },
+    );
+
+    test('different sources are never reused across transforms', () async {
+      final notifier = container.read(imageGenerationNotifierProvider.notifier);
+      final params = container.read(generationParamsNotifierProvider);
+      final result = _validImageBytes(width: 128, height: 192);
+
+      await notifier.registerExternalImage(
+        result,
+        params: params,
+        comparisonSourceImage: _validImageBytes(
+          width: 64,
+          height: 96,
+          colorValue: 1,
+        ),
+      );
+      await notifier.registerExternalImage(
+        result,
+        params: params,
+        comparisonSourceImage: _validImageBytes(
+          width: 64,
+          height: 96,
+          colorValue: 2,
+        ),
+      );
+
+      final history = container.read(imageGenerationNotifierProvider).history;
+      expect(history, hasLength(2));
+      expect(
+        history.first.comparisonSource,
+        isNot(same(history.last.comparisonSource)),
+      );
+    });
+
+    test(
+      'evicted and cleared histories do not retain comparison sources',
+      () async {
+        final notifier = container.read(
+          imageGenerationNotifierProvider.notifier,
+        );
+        final params = container.read(generationParamsNotifierProvider);
+        final result = _validImageBytes(width: 128, height: 192);
+        final originalSourceBytes = _validImageBytes(
+          width: 64,
+          height: 96,
+          colorValue: 1,
+        );
+
+        await notifier.registerExternalImage(
+          result,
+          params: params,
+          comparisonSourceImage: originalSourceBytes,
+          embedNaiMetadata: false,
+        );
+        final evictedSource = container
+            .read(imageGenerationNotifierProvider)
+            .history
+            .single
+            .comparisonSource;
+
+        for (
+          var index = 0;
+          index < GenerationResultLifecycleService.historyLimit;
+          index++
+        ) {
+          await notifier.registerExternalImage(
+            result,
+            params: params,
+            comparisonSourceImage: _validImageBytes(
+              width: 64,
+              height: 96,
+              colorValue: index + 2,
+            ),
+            embedNaiMetadata: false,
+          );
+        }
+
+        expect(
+          container.read(imageGenerationNotifierProvider).history,
+          hasLength(GenerationResultLifecycleService.historyLimit),
+        );
+        await notifier.registerExternalImage(
+          result,
+          params: params,
+          comparisonSourceImage: originalSourceBytes,
+          embedNaiMetadata: false,
+        );
+        final sourceAfterEviction = container
+            .read(imageGenerationNotifierProvider)
+            .history
+            .first
+            .comparisonSource;
+        expect(sourceAfterEviction, isNot(same(evictedSource)));
+
+        notifier.clearHistory();
+        final clearedState = container.read(imageGenerationNotifierProvider);
+        expect(clearedState.currentImages, isEmpty);
+        expect(clearedState.history, isEmpty);
+        expect(clearedState.displayImages, isEmpty);
+
+        await notifier.registerExternalImage(
+          result,
+          params: params,
+          comparisonSourceImage: originalSourceBytes,
+          embedNaiMetadata: false,
+        );
+        final sourceAfterClear = container
+            .read(imageGenerationNotifierProvider)
+            .history
+            .single
+            .comparisonSource;
+        expect(sourceAfterClear, isNot(same(sourceAfterEviction)));
+        await notifier.flushGenerationHistory();
       },
     );
 
@@ -1365,10 +1513,23 @@ void main() {
   });
 }
 
-Uint8List _validImageBytes({required int width, required int height}) {
-  return Uint8List.fromList(
-    img.encodePng(img.Image(width: width, height: height)),
-  );
+Uint8List _validImageBytes({
+  required int width,
+  required int height,
+  int? colorValue,
+}) {
+  final image = img.Image(width: width, height: height);
+  if (colorValue != null) {
+    img.fill(
+      image,
+      color: img.ColorRgb8(
+        colorValue % 256,
+        (colorValue * 3) % 256,
+        (colorValue * 7) % 256,
+      ),
+    );
+  }
+  return Uint8List.fromList(img.encodePng(image));
 }
 
 Uint8List _validMaskBytes({required int width, required int height}) {

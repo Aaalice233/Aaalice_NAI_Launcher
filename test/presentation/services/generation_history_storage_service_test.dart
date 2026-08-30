@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
+import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/presentation/providers/generation/generation_models.dart';
 import 'package:nai_launcher/presentation/services/generation_history_storage_service.dart';
@@ -63,6 +64,37 @@ void main() {
       expect(restored.first.preserveOriginalBytesOnSave, isTrue);
     },
   );
+
+  test('comparison source is not persisted or restored with history', () async {
+    final sourceBytes = Uint8List.fromList(
+      img.encodePng(img.Image(width: 32, height: 48)),
+    );
+    final comparisonSource = ImageComparisonSource.fromBytes(sourceBytes);
+    final persisted = GeneratedImage(
+      id: 'comparison',
+      bytes: Uint8List.fromList([1, 2, 3]),
+      width: 64,
+      height: 96,
+      comparisonSource: comparisonSource,
+    );
+    final service = GenerationHistoryStorageService();
+
+    await service.persistImages(
+      changedImages: [persisted],
+      order: [persisted.id],
+    );
+    await service.flush();
+
+    final raw = Map<dynamic, dynamic>.from(
+      historyBox.get('generation_history_v1_record_comparison') as Map,
+    );
+    expect(raw, isNot(contains('comparisonSource')));
+    expect(raw, isNot(contains('comparisonSourceBytes')));
+
+    final restored = await GenerationHistoryStorageService().load();
+    expect(restored, hasLength(1));
+    expect(restored.single.comparisonSource, isNull);
+  });
 
   test('serializes overlapping writes and removes evicted records', () async {
     final service = GenerationHistoryStorageService();
