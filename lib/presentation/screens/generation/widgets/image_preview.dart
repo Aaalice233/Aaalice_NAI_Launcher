@@ -1037,9 +1037,11 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
         ref.read(historyClickBehaviorNotifierProvider) ==
             HistoryClickBehavior.selectPreview &&
         ref.read(generationPreviewSelectionProvider) == selectedImage.id;
-    final sequence = linkedSelection
-        ? state.detailSequenceFor(selectedImage)
-        : state.displayImages;
+    final sequence = _detailSequenceForPreviewTap(
+      state,
+      selectedImage,
+      linkedSelection: linkedSelection,
+    );
     if (sequence.isEmpty) return;
     final selectedIndex = sequence.indexWhere(
       (image) => image.id == selectedImage.id,
@@ -1294,4 +1296,20 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
       }
     }
   }
+}
+
+List<GeneratedImage> _detailSequenceForPreviewTap(
+  ImageGenerationState state,
+  GeneratedImage selectedImage, {
+  required bool linkedSelection,
+}) {
+  if (linkedSelection) return state.detailSequenceFor(selectedImage);
+
+  if (state.displayImages.any((image) => image.id == selectedImage.id)) {
+    return state.displayImages;
+  }
+  if (state.currentImages.any((image) => image.id == selectedImage.id)) {
+    return state.currentImages;
+  }
+  return state.detailSequenceFor(selectedImage);
 }

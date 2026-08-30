@@ -12,6 +12,7 @@ import 'package:nai_launcher/presentation/providers/image_generation_provider.da
 import 'package:nai_launcher/presentation/providers/shortcuts_provider.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/image_comparison_view.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/image_preview.dart';
+import 'package:nai_launcher/presentation/widgets/common/image_detail/image_detail_viewer.dart';
 import 'package:nai_launcher/presentation/widgets/common/selectable_image_card.dart';
 
 class _SelectionImageGenerationNotifier extends ImageGenerationNotifier {
@@ -126,6 +127,62 @@ void main() {
     );
     expect(card.isGenerating, isTrue);
   });
+
+  testWidgets(
+    'completed card opened during batch generation uses current batch images',
+    (tester) async {
+      final oldDisplay = _image('old-display', 20);
+      final currentA = _image('current-a', 80);
+      final currentB = _image('current-b', 120);
+      final container = ProviderContainer(
+        overrides: [
+          imageGenerationNotifierProvider.overrideWith(
+            () => _SelectionImageGenerationNotifier(
+              ImageGenerationState(
+                status: GenerationStatus.generating,
+                currentImages: [currentA, currentB],
+                displayImages: [oldDisplay],
+                currentImage: 3,
+                totalImages: 3,
+                batchWidth: 4,
+                batchHeight: 4,
+              ),
+            ),
+          ),
+          historyClickBehaviorNotifierProvider.overrideWith(
+            _LinkedHistoryBehaviorNotifier.new,
+          ),
+          shortcutConfigNotifierProvider.overrideWith(
+            _DefaultShortcutConfigNotifier.new,
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(_app(container));
+      await tester.pump();
+
+      final currentBCard = find.byWidgetPredicate(
+        (widget) =>
+            widget is SelectableImageCard &&
+            identical(widget.imageBytes, currentB.bytes),
+      );
+      expect(currentBCard, findsOneWidget);
+
+      await tester.tap(currentBCard);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
+
+      final viewer = tester.widget<ImageDetailViewer>(
+        find.byType(ImageDetailViewer),
+      );
+      expect(
+        viewer.images.map((image) => image.identifier),
+        orderedEquals(['current-a', 'current-b']),
+      );
+      expect(viewer.initialIndex, 1);
+    },
+  );
 
   testWidgets('compatible sourced result exposes and toggles comparison', (
     tester,
