@@ -141,6 +141,27 @@ void main() {
         tester.getSize(find.byKey(const ValueKey('desktop-window-header'))),
         const Size(800, desktopWindowHeaderHeight),
       );
+      final projectIcon = tester.widget<Image>(
+        find.byKey(const ValueKey('desktop-window-project-icon')),
+      );
+      expect(projectIcon.image, isA<AssetImage>());
+      expect(
+        (projectIcon.image as AssetImage).assetName,
+        'assets/icons/Icon.png',
+      );
+      expect(
+        tester.getSize(
+          find.byKey(const ValueKey('desktop-window-project-icon')),
+        ),
+        const Size.square(24),
+      );
+      final divider = tester.widget<DecoratedBox>(
+        find.byKey(const ValueKey('desktop-window-header-divider')),
+      );
+      final decoration = divider.decoration as BoxDecoration;
+      expect(decoration.border, isA<Border>());
+      expect((decoration.border! as Border).bottom.width, 1);
+      expect((decoration.border! as Border).bottom.color.a, greaterThan(0));
       for (final key in [
         'desktop-window-minimize',
         'desktop-window-maximize',

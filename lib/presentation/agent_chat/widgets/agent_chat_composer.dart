@@ -200,8 +200,9 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
             child: editor,
           ),
           Positioned(
-            top: 2,
+            top: _editorExpanded ? 2 : 0,
             right: 4,
+            bottom: _editorExpanded ? null : 0,
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [

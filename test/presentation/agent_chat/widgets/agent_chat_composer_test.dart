@@ -569,14 +569,20 @@ void main() {
     await _pumpComposer(
       tester,
       width: 320,
+      mobile: false,
       state: _readyState.copyWith(status: AgentChatRunStatus.running),
     );
 
+    final editor = tester.getRect(
+      find.byKey(const ValueKey('agent-chat-composer-editor')),
+    );
     final stop = tester.getRect(find.byKey(const ValueKey('agent-chat-stop')));
     final expand = tester.getRect(
       find.byKey(const ValueKey('agent-chat-composer-expand')),
     );
     expect(stop.overlaps(expand), isFalse);
+    expect(stop.center.dy, closeTo(editor.center.dy, 0.01));
+    expect(expand.center.dy, closeTo(editor.center.dy, 0.01));
     expect(find.bySemanticsLabel('Stop'), findsOneWidget);
     expect(find.bySemanticsLabel(RegExp('^Expand')), findsOneWidget);
     expect(tester.takeException(), isNull);

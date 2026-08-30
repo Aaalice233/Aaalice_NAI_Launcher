@@ -138,34 +138,61 @@ class _DesktopWindowHeaderState extends State<DesktopWindowHeader>
     return Material(
       key: const ValueKey('desktop-window-header'),
       color: colors.surfaceContainerLow,
-      child: SizedBox(
-        height: desktopWindowHeaderHeight,
-        child: Row(
-          children: [
-            Expanded(
-              child: GestureDetector(
-                key: const ValueKey('desktop-window-drag-region'),
-                behavior: HitTestBehavior.translucent,
-                onPanStart: (_) {
-                  unawaited(widget.controller.startDragging());
-                },
-                onDoubleTap: _toggleMaximized,
-                child: SizedBox.expand(
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Semantics(
-                        header: true,
-                        child: MediaQuery.withClampedTextScaling(
-                          maxScaleFactor: 1.3,
-                          child: Text(
-                            'NAI Launcher',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.labelLarge?.copyWith(
-                              color: colors.onSurfaceVariant,
-                              fontWeight: FontWeight.w600,
+      child: DecoratedBox(
+        key: const ValueKey('desktop-window-header-divider'),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(
+              color: colors.onSurface.withValues(alpha: 0.10),
+            ),
+          ),
+        ),
+        child: SizedBox(
+          height: desktopWindowHeaderHeight,
+          child: Row(
+            children: [
+              Expanded(
+                child: GestureDetector(
+                  key: const ValueKey('desktop-window-drag-region'),
+                  behavior: HitTestBehavior.translucent,
+                  onPanStart: (_) {
+                    unawaited(widget.controller.startDragging());
+                  },
+                  onDoubleTap: _toggleMaximized,
+                  child: SizedBox.expand(
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: Semantics(
+                          header: true,
+                          child: MediaQuery.withClampedTextScaling(
+                            maxScaleFactor: 1.3,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Image.asset(
+                                  'assets/icons/Icon.png',
+                                  key: const ValueKey(
+                                    'desktop-window-project-icon',
+                                  ),
+                                  width: 24,
+                                  height: 24,
+                                  filterQuality: FilterQuality.none,
+                                ),
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: Text(
+                                    'NAI Launcher',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: theme.textTheme.labelLarge?.copyWith(
+                                      color: colors.onSurfaceVariant,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
@@ -174,29 +201,29 @@ class _DesktopWindowHeaderState extends State<DesktopWindowHeader>
                   ),
                 ),
               ),
-            ),
-            _CaptionButton(
-              key: const ValueKey('desktop-window-minimize'),
-              tooltip: l10n.desktopWindow_minimize,
-              icon: Icons.remove,
-              onPressed: widget.controller.minimize,
-            ),
-            _CaptionButton(
-              key: const ValueKey('desktop-window-maximize'),
-              tooltip: _isMaximized
-                  ? l10n.desktopWindow_restore
-                  : l10n.desktopWindow_maximize,
-              icon: _isMaximized ? Icons.filter_none : Icons.crop_square,
-              onPressed: _toggleMaximized,
-            ),
-            _CaptionButton(
-              key: const ValueKey('desktop-window-close'),
-              tooltip: l10n.desktopWindow_close,
-              icon: Icons.close,
-              danger: true,
-              onPressed: widget.controller.close,
-            ),
-          ],
+              _CaptionButton(
+                key: const ValueKey('desktop-window-minimize'),
+                tooltip: l10n.desktopWindow_minimize,
+                icon: Icons.remove,
+                onPressed: widget.controller.minimize,
+              ),
+              _CaptionButton(
+                key: const ValueKey('desktop-window-maximize'),
+                tooltip: _isMaximized
+                    ? l10n.desktopWindow_restore
+                    : l10n.desktopWindow_maximize,
+                icon: _isMaximized ? Icons.filter_none : Icons.crop_square,
+                onPressed: _toggleMaximized,
+              ),
+              _CaptionButton(
+                key: const ValueKey('desktop-window-close'),
+                tooltip: l10n.desktopWindow_close,
+                icon: Icons.close,
+                danger: true,
+                onPressed: widget.controller.close,
+              ),
+            ],
+          ),
         ),
       ),
     );
