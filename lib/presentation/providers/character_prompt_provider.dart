@@ -31,6 +31,7 @@ CharacterPromptConfig limitCharacterConfigForModel(
 @Riverpod(keepAlive: true)
 class CharacterPromptNotifier extends _$CharacterPromptNotifier {
   late final CharacterPromptRepository _repository;
+  Future<void> _saveTail = Future<void>.value();
 
   @override
   CharacterPromptConfig build() {
@@ -39,14 +40,95 @@ class CharacterPromptNotifier extends _$CharacterPromptNotifier {
     final loaded = _repository.load();
     final normalized = loaded.normalizeCustomPositions();
     if (normalized != loaded) {
-      unawaited(_repository.save(normalized));
+      unawaited(_saveSnapshot(normalized));
     }
     return normalized;
   }
 
-  /// 保存配置到本地存储
-  Future<void> _saveConfig() async {
-    await _repository.save(state);
+  Future<bool> _saveSnapshot(CharacterPromptConfig snapshot) {
+    final operation = _saveTail.then((_) => _repository.save(snapshot));
+    _saveTail = operation.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace __) {},
+    );
+    return operation;
+  }
+
+  /// 保存按调用顺序串行落盘，避免较旧快照在较新快照之后完成。
+  Future<bool> _saveConfig() => _saveSnapshot(state);
+
+  /// Agent 入口使用可等待的原子修改，避免先报告成功再异步写盘失败。
+  Future<bool> updateCharacterPersisted(CharacterPrompt character) {
+    state = state.updateCharacter(character).normalizeCustomPositions();
+    return _saveConfig();
+  }
+
+  Future<bool> removeCharacterPersisted(String id) {
+    state = state.removeCharacter(id);
+    return _saveConfig();
+  }
+
+  Future<bool> clearAllCharactersPersisted() {
+    state = state.clearAllCharacters();
+    return _saveConfig();
+  }
+
+  Future<bool> setGlobalAiChoicePersisted(bool value) {
+    var newState = state.copyWith(globalAiChoice: value);
+    if (!value) newState = newState.normalizeCustomPositions();
+    state = newState;
+    return _saveConfig();
+  }
+
+  Future<bool> setCharacterOrderPersisted(List<String> orderedIds) {
+    final currentById = {
+      for (final character in state.characters) character.id: character,
+    };
+    if (orderedIds.length != currentById.length ||
+        orderedIds.toSet().length != orderedIds.length ||
+        !orderedIds.every(currentById.containsKey)) {
+      throw const FormatException(
+        'orderedIds must contain every current character ID exactly once',
+      );
+    }
+    state = state.copyWith(
+      characters: [for (final id in orderedIds) currentById[id]!],
+    );
+    return _saveConfig();
+  }
+
+  Future<({CharacterPrompt character, bool persisted})?> addCharacterPersisted(
+    CharacterGender gender, {
+    required String name,
+    required String prompt,
+    String? negativePrompt,
+    required bool enabled,
+    required CharacterPositionMode positionMode,
+    CharacterPosition? customPosition,
+  }) async {
+    if (isAtCharacterLimit || characterLimit == 0) return null;
+    final existingIds = state.characters
+        .map((character) => character.id)
+        .toSet();
+    state = state.addCharacter(
+      gender: gender,
+      name: name,
+      prompt: prompt,
+      negativePrompt: negativePrompt,
+    );
+    var created = state.characters.firstWhere(
+      (character) => !existingIds.contains(character.id),
+    );
+    created = created.copyWith(
+      enabled: enabled,
+      positionMode: positionMode,
+      customPosition: customPosition,
+    );
+    state = state.updateCharacter(created).normalizeCustomPositions();
+    final applied = state.characters.firstWhere(
+      (character) => character.id == created.id,
+    );
+    return (character: applied, persisted: await _saveConfig());
   }
 
   /// 添加新角色
@@ -66,7 +148,7 @@ class CharacterPromptNotifier extends _$CharacterPromptNotifier {
     String? thumbnailPath,
   }) {
     if (isAtCharacterLimit) {
-      // 官方上限：V5 为 32、V4/V4.5 为 6。到顶后静默拒绝，
+      // 官方上限：V5 为 22、V4/V4.5 为 6。到顶后静默拒绝，
       // 添加入口会按同一判定禁用并给出提示。
       AppLogger.w(
         'Character limit reached ($characterLimit), ignoring addCharacter',
@@ -81,7 +163,7 @@ class CharacterPromptNotifier extends _$CharacterPromptNotifier {
       negativePrompt: negativePrompt,
       thumbnailPath: thumbnailPath,
     );
-    _saveConfig();
+    unawaited(_saveConfig());
   }
 
   /// 当前模型的官方角色数量上限。
@@ -103,7 +185,7 @@ class CharacterPromptNotifier extends _$CharacterPromptNotifier {
   /// Requirements: 4.2
   void removeCharacter(String id) {
     state = state.removeCharacter(id);
-    _saveConfig();
+    unawaited(_saveConfig());
   }
 
   /// 更新角色
@@ -113,7 +195,7 @@ class CharacterPromptNotifier extends _$CharacterPromptNotifier {
   /// Requirements: 2.2, 2.3, 2.4, 2.5
   void updateCharacter(CharacterPrompt character) {
     state = state.updateCharacter(character).normalizeCustomPositions();
-    _saveConfig();
+    unawaited(_saveConfig());
   }
 
   /// 重新排序角色
@@ -124,7 +206,25 @@ class CharacterPromptNotifier extends _$CharacterPromptNotifier {
   /// Requirements: 4.1, 4.3
   void reorderCharacters(int oldIndex, int newIndex) {
     state = state.reorderCharacters(oldIndex, newIndex);
-    _saveConfig();
+    unawaited(_saveConfig());
+  }
+
+  /// 按稳定角色 ID 设置完整顺序。
+  void setCharacterOrder(List<String> orderedIds) {
+    final currentById = {
+      for (final character in state.characters) character.id: character,
+    };
+    if (orderedIds.length != currentById.length ||
+        orderedIds.toSet().length != orderedIds.length ||
+        !orderedIds.every(currentById.containsKey)) {
+      throw const FormatException(
+        'orderedIds must contain every current character ID exactly once',
+      );
+    }
+    state = state.copyWith(
+      characters: [for (final id in orderedIds) currentById[id]!],
+    );
+    unawaited(_saveConfig());
   }
 
   /// 设置全局AI选择位置
@@ -141,7 +241,7 @@ class CharacterPromptNotifier extends _$CharacterPromptNotifier {
     }
 
     state = newState;
-    _saveConfig();
+    unawaited(_saveConfig());
   }
 
   /// 清空所有角色
@@ -149,7 +249,7 @@ class CharacterPromptNotifier extends _$CharacterPromptNotifier {
   /// Requirements: 4.4
   void clearAllCharacters() {
     state = state.clearAllCharacters();
-    _saveConfig();
+    unawaited(_saveConfig());
   }
 
   /// 清空所有角色（别名）
@@ -172,7 +272,7 @@ class CharacterPromptNotifier extends _$CharacterPromptNotifier {
         'CharacterPrompt',
       );
     }
-    _saveConfig();
+    unawaited(_saveConfig());
   }
 
   /// 向上移动角色
@@ -246,7 +346,7 @@ int enabledCharacterCount(Ref ref) {
   return config.characters.where((c) => c.enabled).length;
 }
 
-/// 是否已达到当前模型的官方角色上限（V5 为 32、V4/V4.5 为 6）。
+/// 是否已达到当前模型的官方角色上限（V5 为 22、V4/V4.5 为 6）。
 @riverpod
 bool characterLimitReached(Ref ref) {
   final model = ref.watch(

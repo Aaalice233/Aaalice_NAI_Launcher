@@ -171,6 +171,9 @@ class ModelCapabilities {
 class ModelCapabilityRegistry {
   ModelCapabilityRegistry._();
 
+  /// JSON Schema 等无法按当前模型动态变化的入口使用的全局安全上限。
+  static const int maximumCharacterCount = 22;
+
   static const ModelCapabilities v1 = ModelCapabilities(
     id: ImageModels.animeFull,
     promptStructure: PromptStructure.legacy,
@@ -306,7 +309,7 @@ class ModelCapabilityRegistry {
     defaultScale: 4.0,
     defaultSteps: 28,
     randomPromptProfile: RandomPromptProfile.characterPrompts,
-    maxCharacters: 32,
+    maxCharacters: maximumCharacterCount,
     supportsImg2ImgInpainting: true,
     supportsTransparentBackground: true,
     supportsMaxEnhance: true,
@@ -332,7 +335,7 @@ class ModelCapabilityRegistry {
     defaultScale: 4.0,
     defaultSteps: 28,
     randomPromptProfile: RandomPromptProfile.characterPrompts,
-    maxCharacters: 32,
+    maxCharacters: maximumCharacterCount,
     supportsImg2ImgInpainting: true,
     supportsTransparentBackground: true,
     supportsMaxEnhance: true,

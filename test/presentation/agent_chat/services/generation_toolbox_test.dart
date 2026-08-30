@@ -8,6 +8,8 @@ import 'package:image/image.dart' as image_lib;
 import 'package:nai_launcher/core/agent/agent_types.dart';
 import 'package:nai_launcher/core/agent/resources/agent_chat_resource_reference.dart';
 import 'package:nai_launcher/core/agent/resources/agent_chat_resource_reference_codec.dart';
+import 'package:nai_launcher/core/constants/api_constants.dart';
+import 'package:nai_launcher/core/network/request_builders/nai_image_request_builder.dart';
 import 'package:nai_launcher/core/services/anlas_calculator.dart';
 import 'package:nai_launcher/core/enums/precise_ref_type.dart';
 import 'package:nai_launcher/data/models/agent/agent_settings.dart';
@@ -38,6 +40,12 @@ Ref _makeRef(ProviderContainer container) => container.read(_refProvider);
 Map<String, dynamic> _json(AgentToolResult result) =>
     jsonDecode(result.content.whereType<ToolResultTextContent>().single.text)
         as Map<String, dynamic>;
+
+Future<String> _fakeEncodeVibe(
+  Uint8List image, {
+  required String model,
+  double informationExtracted = 1.0,
+}) async => 'encoded-vibe';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -450,6 +458,100 @@ void main() {
   );
 
   test(
+    'Agent custom characters reach the final request as one immutable scene',
+    () async {
+      final fake = _FakeImageGenerationNotifier();
+      final container = ProviderContainer(
+        overrides: [
+          imageGenerationNotifierProvider.overrideWith(() => fake),
+          generationParamsNotifierProvider.overrideWith(
+            _TestV5GenerationParamsNotifier.new,
+          ),
+          characterPromptNotifierProvider.overrideWith(
+            _TestCharacterPromptNotifier.new,
+          ),
+          subscriptionNotifierProvider.overrideWith(
+            _TestSubscriptionNotifier.new,
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      final tools = GenerationToolbox(_makeRef(container)).tools();
+      final prepare = tools.firstWhere(
+        (tool) => tool.name == 'prepare_generation',
+      );
+      final submit = tools.firstWhere(
+        (tool) => tool.name == 'submit_generation',
+      );
+
+      final prepared = await prepare.execute('prepare-characters', const {
+        'operation': 'generate',
+        'prompt': 'two friends',
+        'character_layout_mode': 'custom',
+        'characters': [
+          {
+            'prompt': 'hero, black hair',
+            'negative_prompt': 'red hair',
+            'position_x': 0.2,
+            'position_y': 0.75,
+          },
+          {
+            'prompt': 'companion, blonde hair',
+            'negative_prompt': 'black hair',
+            'position': 'E1',
+          },
+        ],
+      });
+      expect(prepared.isError, isFalse);
+      final payload = _json(prepared);
+      final preparedParams = payload['parameters'] as Map<String, dynamic>;
+      expect(preparedParams['character_layout_mode'], 'custom');
+      expect(preparedParams['character_count'], 2);
+      expect(preparedParams['characters'][0]['center'], {'x': 0.2, 'y': 0.75});
+      expect(preparedParams['characters'][1]['center'], {'x': 0.9, 'y': 0.1});
+
+      container
+          .read(characterPromptNotifierProvider.notifier)
+          .clearAllCharacters();
+      final submitted = await submit.execute('submit-characters', {
+        'preparation_id': payload['preparation_id'],
+        'confirmed': true,
+      });
+      expect(submitted.isError, isFalse);
+      expect(fake.preserveCharacterSnapshot, isTrue);
+      final params = fake.params!;
+      expect(params.useCoords, isTrue);
+      expect(params.characters.map((character) => character.prompt), [
+        'hero, black hair',
+        'companion, blonde hair',
+      ]);
+
+      final request = await NAIImageRequestBuilder(
+        params: params,
+        encodeVibe: _fakeEncodeVibe,
+      ).build(sampler: Samplers.kEulerAncestral);
+      final parameters = request.requestParameters;
+      expect(parameters['use_coords'], isTrue);
+      expect(parameters['v4_prompt']['use_coords'], isTrue);
+      expect(parameters['characterPrompts'][0]['center'], {
+        'x': 0.2,
+        'y': 0.75,
+      });
+      expect(parameters['characterPrompts'][1]['center'], {'x': 0.9, 'y': 0.1});
+      expect(
+        parameters['v4_prompt']['caption']['char_captions'][1]['centers'],
+        [
+          {'x': 0.9, 'y': 0.1},
+        ],
+      );
+      expect(
+        parameters['v4_negative_prompt']['caption']['char_captions'][0]['char_caption'],
+        'red hair',
+      );
+    },
+  );
+
+  test(
     'prepare lifecycle estimates before fake generation provider is called',
     () async {
       final fake = _FakeImageGenerationNotifier();
@@ -459,6 +561,9 @@ void main() {
           imagesPerRequestProvider.overrideWith(_TestImagesPerRequest.new),
           generationParamsNotifierProvider.overrideWith(
             _TestGenerationParamsNotifier.new,
+          ),
+          characterPromptNotifierProvider.overrideWith(
+            _TestCharacterPromptNotifier.new,
           ),
           subscriptionNotifierProvider.overrideWith(
             _TestSubscriptionNotifier.new,
@@ -537,6 +642,9 @@ void main() {
   test('update and cancel keep preparation lifecycle structured', () async {
     final container = ProviderContainer(
       overrides: [
+        characterPromptNotifierProvider.overrideWith(
+          _TestCharacterPromptNotifier.new,
+        ),
         subscriptionNotifierProvider.overrideWith(
           _TestSubscriptionNotifier.new,
         ),
@@ -608,6 +716,9 @@ void main() {
     () async {
       final container = ProviderContainer(
         overrides: [
+          characterPromptNotifierProvider.overrideWith(
+            _TestCharacterPromptNotifier.new,
+          ),
           subscriptionNotifierProvider.overrideWith(
             _TestSubscriptionNotifier.new,
           ),
@@ -832,6 +943,14 @@ class _TestGenerationParamsNotifier extends GenerationParamsNotifier {
   ImageParams build() => const ImageParams(negativePrompt: 'page negative');
 }
 
+class _TestV5GenerationParamsNotifier extends GenerationParamsNotifier {
+  @override
+  ImageParams build() => const ImageParams(
+    model: ImageModels.animeDiffusionV5Curated,
+    negativePrompt: 'page negative',
+  );
+}
+
 class _TestImagesPerRequest extends ImagesPerRequest {
   @override
   int build() => 2;
@@ -854,6 +973,11 @@ class _TestCharacterPromptNotifier extends CharacterPromptNotifier {
       ),
     ],
   );
+
+  @override
+  void clearAllCharacters() {
+    state = state.copyWith(characters: const []);
+  }
 }
 
 class _TestImageGenerationNotifier extends ImageGenerationNotifier {
@@ -868,14 +992,22 @@ class _TestImageGenerationNotifier extends ImageGenerationNotifier {
 class _FakeImageGenerationNotifier extends ImageGenerationNotifier {
   int generateCalls = 0;
   int? batchSize;
+  ImageParams? params;
+  bool? preserveCharacterSnapshot;
 
   @override
   ImageGenerationState build() => const ImageGenerationState();
 
   @override
-  Future<void> generate(ImageParams params, {int? batchSizeOverride}) async {
+  Future<void> generate(
+    ImageParams params, {
+    int? batchSizeOverride,
+    bool preserveCharacterSnapshot = false,
+  }) async {
     generateCalls++;
     batchSize = batchSizeOverride;
+    this.params = params;
+    this.preserveCharacterSnapshot = preserveCharacterSnapshot;
     state = ImageGenerationState(
       status: GenerationStatus.completed,
       currentImages: [

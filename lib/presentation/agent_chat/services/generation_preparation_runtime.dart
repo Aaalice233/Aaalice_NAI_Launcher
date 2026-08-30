@@ -57,6 +57,21 @@ class GenerationPreparation {
       'scale': params.scale,
       'seed': params.seed,
       'action': params.action.value,
+      'character_layout_mode': params.useCoords ? 'custom' : 'ai_choice',
+      'character_count': params.characters.length,
+      'characters': [
+        for (var index = 0; index < params.characters.length; index++)
+          {
+            'order': index,
+            'prompt': params.characters[index].prompt,
+            'negative_prompt': params.characters[index].negativePrompt,
+            if (params.useCoords)
+              'center': {
+                'x': params.characters[index].positionX,
+                'y': params.characters[index].positionY,
+              },
+          },
+      ],
       if (sourceImage != null) 'has_source_image': true,
       if (maskImage != null) 'has_mask_image': true,
     },

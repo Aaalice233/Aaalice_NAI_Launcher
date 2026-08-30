@@ -372,11 +372,11 @@ void main() {
     });
 
     test(
-      'should keep explicit centers and give all six characters a fallback',
+      'should keep complete centers in AI layout while coordinates stay off',
       () async {
         final params = ImageParams(
           model: ImageModels.animeDiffusionV45Full,
-          useCoords: true,
+          useCoords: false,
           characters: [
             const CharacterPrompt(
               prompt: 'explicit',
@@ -405,6 +405,7 @@ void main() {
 
         expect(explicitCenter.single, equals({'x': 0.37, 'y': 0.64}));
         expect(lastCenter.single, equals({'x': 0.8, 'y': 0.75}));
+        expect(v4Prompt['use_coords'], isFalse);
         expect(
           result
               .requestParameters['v4_negative_prompt']['caption']['char_captions'][0]['centers'][0],
@@ -412,6 +413,79 @@ void main() {
         );
       },
     );
+
+    test('should replace malformed centers in AI layout', () async {
+      const params = ImageParams(
+        model: ImageModels.animeDiffusionV45Full,
+        useCoords: false,
+        characters: [
+          CharacterPrompt(
+            prompt: 'stale center',
+            positionX: double.nan,
+            positionY: 2,
+          ),
+        ],
+      );
+
+      final result = await NAIImageRequestBuilder(
+        params: params,
+        encodeVibe: _fakeEncodeVibe,
+      ).build(sampler: 'k_euler');
+      final center = result
+          .requestParameters['v4_prompt']['caption']['char_captions'][0]['centers'][0];
+
+      expect(center, equals({'x': 0.5, 'y': 0.5}));
+      expect(result.requestParameters['v4_prompt']['use_coords'], isFalse);
+    });
+
+    test('should reject incomplete centers in custom layout', () async {
+      const params = ImageParams(
+        model: ImageModels.animeDiffusionV45Full,
+        useCoords: true,
+        characters: [
+          CharacterPrompt(prompt: 'complete', positionX: 0.2, positionY: 0.8),
+          CharacterPrompt(prompt: 'missing'),
+        ],
+      );
+
+      await expectLater(
+        NAIImageRequestBuilder(
+          params: params,
+          encodeVibe: _fakeEncodeVibe,
+        ).build(sampler: 'k_euler'),
+        throwsA(
+          isA<ArgumentError>().having(
+            (error) => error.message,
+            'message',
+            contains('finite x/y centers'),
+          ),
+        ),
+      );
+    });
+
+    test('should reject V5 character counts above twenty-two', () async {
+      final params = ImageParams(
+        model: ImageModels.animeDiffusionV5Full,
+        characters: List<CharacterPrompt>.generate(
+          23,
+          (index) => CharacterPrompt(prompt: 'character $index'),
+        ),
+      );
+
+      await expectLater(
+        NAIImageRequestBuilder(
+          params: params,
+          encodeVibe: _fakeEncodeVibe,
+        ).build(sampler: 'k_euler'),
+        throwsA(
+          isA<ArgumentError>().having(
+            (error) => error.message,
+            'message',
+            contains('at most 22 characters'),
+          ),
+        ),
+      );
+    });
 
     test(
       'should apply native quality and UC presets only at request boundary',

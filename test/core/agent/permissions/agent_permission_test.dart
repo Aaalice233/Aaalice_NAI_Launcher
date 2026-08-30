@@ -15,6 +15,20 @@ void main() {
       describeAgentToolPermission('delete_tag_library_category').operation,
       AgentPermissionOperation.delete,
     );
+    for (final toolName in [
+      'set_character_layout_mode',
+      'reorder_characters',
+      'clear_characters',
+    ]) {
+      expect(
+        describeAgentToolPermission(toolName).domain,
+        AgentPermissionDomain.prompt,
+      );
+    }
+    expect(
+      describeAgentToolPermission('clear_characters').operation,
+      AgentPermissionOperation.delete,
+    );
   });
 
   group('AgentPermissionPolicy', () {

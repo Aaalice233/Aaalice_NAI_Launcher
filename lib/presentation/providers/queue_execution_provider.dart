@@ -407,13 +407,20 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
 
     final characterPrompts = task.characterPrompts;
     if (characterPrompts != null) {
-      ref.read(characterPromptNotifierProvider.notifier).replaceAll([
+      final notifier = ref.read(characterPromptNotifierProvider.notifier);
+      notifier.replaceAll([
         for (var index = 0; index < characterPrompts.length; index++)
           characterPrompts[index].toCharacterPrompt(
             id: '${task.id}-character-$index',
             index: index,
           ),
       ]);
+      notifier.setGlobalAiChoice(
+        !characterPrompts.any(
+          (character) =>
+              character.positionX != null && character.positionY != null,
+        ),
+      );
     }
   }
 
@@ -487,6 +494,7 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
       await generationNotifier.generate(
         params,
         batchSizeOverride: batchSizeOverride,
+        preserveCharacterSnapshot: snapshot != null,
       );
     } on FormatException catch (error, stackTrace) {
       final taskId = state.currentTaskId;

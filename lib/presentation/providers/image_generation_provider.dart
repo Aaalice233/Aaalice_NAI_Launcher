@@ -11,6 +11,7 @@ import '../../core/services/android_generation_foreground_service.dart';
 import '../../core/services/anlas_calculator.dart';
 import '../../core/services/character_conversion_service.dart';
 import '../../core/utils/app_logger.dart';
+import '../../core/utils/character_center_resolver.dart';
 import '../../core/utils/image_save_utils.dart';
 import '../../core/utils/image_share_sanitizer.dart';
 import '../../core/utils/inpaint_mask_utils.dart';
@@ -231,7 +232,11 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
   Future<void> waitUntilGenerationInvocationSettled() =>
       _generationInvocationSettled?.future ?? Future<void>.value();
 
-  Future<void> generate(ImageParams params, {int? batchSizeOverride}) async {
+  Future<void> generate(
+    ImageParams params, {
+    int? batchSizeOverride,
+    bool preserveCharacterSnapshot = false,
+  }) async {
     if (_isDisposed || _generationInvocationStarting || state.isGenerating) {
       return;
     }
@@ -299,7 +304,9 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         return;
       }
 
-      final preparation = _preparationService();
+      final preparation = _preparationService(
+        preserveCharacterSnapshot: preserveCharacterSnapshot,
+      );
       late final GenerationPreparationResult prepared;
       try {
         prepared = await preparation.prepareInitial(effectiveParams);
@@ -390,7 +397,9 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     }
   }
 
-  GenerationRequestPreparationService _preparationService() {
+  GenerationRequestPreparationService _preparationService({
+    bool preserveCharacterSnapshot = false,
+  }) {
     var queueExecuting = false;
     try {
       final queue = ref.read(queueExecutionNotifierProvider);
@@ -413,12 +422,9 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
           resolvePresets: _resolvePromptPresets,
         ),
         characters: GenerationCharacterPreparation(
-          read: (model) {
+          read: (_) {
             final config = ref.read(characterPromptNotifierProvider);
-            final characters = _convertCharactersToApiFormat(
-              config,
-              model: model,
-            );
+            final characters = _convertCharactersToApiFormat(config);
             return CharacterPreparationSnapshot(
               characters: characters,
               useCoords: characters.isNotEmpty && !config.globalAiChoice,
@@ -437,6 +443,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         ),
         vibes: GenerationVibePreparation(prepare: _prepareVibesForGeneration),
       ),
+      preserveCharacterSnapshot: preserveCharacterSnapshot,
     );
   }
 
@@ -847,7 +854,6 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       return GenerationSaveResult(images, const []);
     }
     final fixed = ref.read(fixedTagsNotifierProvider);
-    final config = ref.read(characterPromptNotifierProvider);
     final lifecycle = _lifecycle();
     final result = await lifecycle.saveImages(
       images,
@@ -873,7 +879,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
             .map((entry) => entry.weightedContent)
             .where((content) => content.isNotEmpty)
             .toList(),
-        useCoords: !config.globalAiChoice,
+        useCoords: params.useCoords,
       ),
       directoryPath: directoryPath,
       syncToGalleryIndex: syncToGalleryIndex,
@@ -962,22 +968,13 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
   }
 
   List<CharacterPrompt> _convertCharactersToApiFormat(
-    ui_character.CharacterPromptConfig config, {
-    required String model,
-  }) {
-    final limited = limitCharacterConfigForModel(config, model);
-    if (limited.characters.length != config.characters.length) {
-      AppLogger.w(
-        'Character request truncated from ${config.characters.length} to '
-            '${limited.characters.length} for $model',
-        'CharacterPrompt',
-      );
-    }
+    ui_character.CharacterPromptConfig config,
+  ) {
     return CharacterConversionService(
       aliasResolver: ref
           .read(aliasResolverServiceProvider.notifier)
           .resolveAliases,
-    ).convert(limited).characters;
+    ).convert(config).characters;
   }
 
   Future<String> generateAndApplyRandomPrompt({
@@ -1029,13 +1026,16 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     final effective = params.copyWith(width: outputWidth, height: outputHeight);
     final charCaptions = <Map<String, dynamic>>[];
     final charNegCaptions = <Map<String, dynamic>>[];
-    for (final character in effective.characters) {
-      final positioned =
-          effective.useCoords &&
-          character.positionX != null &&
-          character.positionY != null;
-      final x = positioned ? character.positionX!.clamp(0.0, 1.0) : 0.5;
-      final y = positioned ? character.positionY!.clamp(0.0, 1.0) : 0.5;
+    for (var index = 0; index < effective.characters.length; index++) {
+      final character = effective.characters[index];
+      final center = CharacterCenterResolver.resolve(
+        character,
+        index: index,
+        total: effective.characters.length,
+        useCoords: effective.useCoords,
+      );
+      final x = center.x;
+      final y = center.y;
       charCaptions.add({
         'char_caption': character.prompt,
         'centers': [

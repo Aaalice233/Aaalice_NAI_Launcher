@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,6 +7,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:nai_launcher/core/constants/api_constants.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/data/models/character/character_prompt.dart';
+import 'package:nai_launcher/data/repositories/character_prompt_repository.dart';
 import 'package:nai_launcher/presentation/providers/character_prompt_provider.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 
@@ -65,7 +67,7 @@ void main() {
       expect(container.read(characterLimitReachedProvider), isTrue);
     });
 
-    test('allows up to 32 characters on V5', () {
+    test('allows up to 22 characters on V5', () {
       final notifier = container.read(characterPromptNotifierProvider.notifier);
       container
           .read(generationParamsNotifierProvider.notifier)
@@ -82,7 +84,7 @@ void main() {
 
       expect(
         container.read(characterPromptNotifierProvider).characters.length,
-        32,
+        22,
       );
       expect(container.read(characterLimitReachedProvider), isTrue);
     });
@@ -146,7 +148,7 @@ void main() {
     test('limits V5 character state for V4.5 without mutating the source', () {
       final v5Config = CharacterPromptConfig(
         characters: List<CharacterPrompt>.generate(
-          32,
+          22,
           (index) => CharacterPrompt(
             id: 'character-$index',
             name: 'Character $index',
@@ -160,9 +162,62 @@ void main() {
         ImageModels.animeDiffusionV45Curated,
       );
 
-      expect(v5Config.characters, hasLength(32));
+      expect(v5Config.characters, hasLength(22));
       expect(limited.characters, hasLength(6));
       expect(limited.characters.last.id, 'character-5');
     });
+
+    test('serializes persistence snapshots in mutation order', () async {
+      final repository = _ControlledCharacterPromptRepository();
+      final controlledContainer = ProviderContainer(
+        overrides: [
+          characterPromptRepositoryProvider.overrideWithValue(repository),
+        ],
+      );
+      addTearDown(controlledContainer.dispose);
+      final notifier = controlledContainer.read(
+        characterPromptNotifierProvider.notifier,
+      );
+
+      final addFuture = notifier.addCharacterPersisted(
+        CharacterGender.female,
+        name: 'Alice',
+        prompt: '1girl',
+        enabled: true,
+        positionMode: CharacterPositionMode.aiChoice,
+      );
+      await Future<void>.delayed(Duration.zero);
+      final clearFuture = notifier.clearAllCharactersPersisted();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(repository.snapshots, hasLength(1));
+      expect(repository.snapshots.single.characters, hasLength(1));
+
+      repository.pendingSaves[0].complete();
+      await addFuture;
+      await Future<void>.delayed(Duration.zero);
+      expect(repository.snapshots, hasLength(2));
+      expect(repository.snapshots.last.characters, isEmpty);
+
+      repository.pendingSaves[1].complete();
+      expect(await clearFuture, isTrue);
+    });
   });
+}
+
+class _ControlledCharacterPromptRepository extends CharacterPromptRepository {
+  final snapshots = <CharacterPromptConfig>[];
+  final pendingSaves = <Completer<void>>[];
+
+  @override
+  CharacterPromptConfig load() => const CharacterPromptConfig();
+
+  @override
+  Future<bool> save(CharacterPromptConfig config) async {
+    snapshots.add(config);
+    final completer = Completer<void>();
+    pendingSaves.add(completer);
+    await completer.future;
+    return true;
+  }
 }

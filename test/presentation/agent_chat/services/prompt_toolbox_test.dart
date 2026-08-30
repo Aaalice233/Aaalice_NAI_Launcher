@@ -131,6 +131,132 @@ void main() {
     expect(_resultText(result), isNot(contains('C:/skills')));
   });
 
+  test(
+    'character tools expose, position, switch, and reorder full state',
+    () async {
+      final container = ProviderContainer(
+        overrides: [
+          generationParamsNotifierProvider.overrideWith(
+            _TestGenerationParamsNotifier.new,
+          ),
+          characterPromptNotifierProvider.overrideWith(
+            _OrchestrationCharacterNotifier.new,
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      final tools = PromptToolbox(container.read(_refProvider)).tools();
+      AgentTool tool(String name) =>
+          tools.firstWhere((candidate) => candidate.name == name);
+
+      final initial = jsonDecode(
+        _resultText(await tool('get_prompt_state').execute('read', const {})),
+      );
+      expect(initial['character_layout_mode'], 'ai_choice');
+      expect(initial['characters'][0]['id'], 'first');
+      expect(initial['characters'][0]['order'], 0);
+      expect(initial['characters'][0]['position_x'], 0.2);
+
+      final partial = await tool(
+        'update_character',
+      ).execute('partial', const {'id': 'second', 'position_x': 0.5});
+      expect(partial.isError, isTrue);
+      expect(_resultText(partial), contains('partial_character_coordinates'));
+
+      final updated = await tool('update_character').execute('position', const {
+        'id': 'second',
+        'position_x': 0.8,
+        'position_y': 0.3,
+      });
+      expect(updated.isError, isFalse);
+      expect(
+        jsonDecode(_resultText(updated))['character']['position_mode'],
+        'custom',
+      );
+
+      await tool(
+        'set_character_layout_mode',
+      ).execute('custom', const {'mode': 'custom'});
+      final reordered = await tool('reorder_characters').execute(
+        'reorder',
+        const {
+          'ordered_ids': ['second', 'first'],
+        },
+      );
+      expect(reordered.isError, isFalse);
+      expect(
+        jsonDecode(_resultText(reordered))['characters'][0]['id'],
+        'second',
+      );
+
+      await tool(
+        'set_character_layout_mode',
+      ).execute('ai', const {'mode': 'ai_choice'});
+      final config = container.read(characterPromptNotifierProvider);
+      expect(config.globalAiChoice, isTrue);
+      expect(config.characters.first.customPosition?.column, 0.8);
+      expect(config.characters.first.customPosition?.row, 0.3);
+    },
+  );
+
+  test('rejects ambiguous or conflicting character selectors', () async {
+    final container = ProviderContainer(
+      overrides: [
+        generationParamsNotifierProvider.overrideWith(
+          _TestGenerationParamsNotifier.new,
+        ),
+        characterPromptNotifierProvider.overrideWith(
+          _DuplicateNameCharacterNotifier.new,
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    final tools = PromptToolbox(container.read(_refProvider)).tools();
+    AgentTool tool(String name) =>
+        tools.firstWhere((candidate) => candidate.name == name);
+    await tool(
+      'add_character',
+    ).execute('duplicate', const {'name': 'Alice', 'prompt': 'blue hair'});
+
+    final ambiguous = await tool(
+      'update_character',
+    ).execute('ambiguous', const {'name': 'Alice', 'prompt': 'changed'});
+    expect(ambiguous.isError, isTrue);
+    expect(_resultText(ambiguous), contains('invalid_character_selector'));
+
+    final conflicting = await tool('remove_character').execute(
+      'conflicting',
+      const {'id': 'old-character', 'name': 'Different'},
+    );
+    expect(conflicting.isError, isTrue);
+    expect(_resultText(conflicting), contains('invalid_character_selector'));
+
+    final missingId = await tool(
+      'remove_character',
+    ).execute('missing-id', const {'id': 'missing', 'name': 'Alice'});
+    expect(missingId.isError, isTrue);
+    expect(_resultText(missingId), contains('character_not_found'));
+
+    final invalidGender = await tool('update_character').execute(
+      'invalid-gender',
+      const {'id': 'old-character', 'gender': 'robot'},
+    );
+    expect(invalidGender.isError, isTrue);
+    expect(_resultText(invalidGender), contains('invalid_character_gender'));
+
+    final invalidPrompt = await tool(
+      'add_character',
+    ).execute('invalid-prompt', const {'name': 'Bob', 'prompt': 42});
+    expect(invalidPrompt.isError, isTrue);
+    expect(_resultText(invalidPrompt), contains('invalid_character_field'));
+
+    final invalidSelector = await tool(
+      'remove_character',
+    ).execute('invalid-selector', const {'id': 42});
+    expect(invalidSelector.isError, isTrue);
+    expect(_resultText(invalidSelector), contains('invalid_character_field'));
+  });
+
   test('add_character updates the newly created duplicate name', () async {
     final container = ProviderContainer(
       overrides: [
@@ -162,12 +288,59 @@ void main() {
     expect(characters, hasLength(2));
     expect(characters.first.negativePrompt, 'old negative');
     expect(characters.last.negativePrompt, 'red hair');
+    expect(characters.last.positionMode, CharacterPositionMode.aiChoice);
   });
 }
 
 class _TestGenerationParamsNotifier extends GenerationParamsNotifier {
   @override
   ImageParams build() => const ImageParams();
+}
+
+class _OrchestrationCharacterNotifier extends CharacterPromptNotifier {
+  @override
+  CharacterPromptConfig build() => const CharacterPromptConfig(
+    globalAiChoice: true,
+    characters: [
+      CharacterPrompt(
+        id: 'first',
+        name: 'First',
+        prompt: 'hero',
+        positionMode: CharacterPositionMode.aiChoice,
+        customPosition: CharacterPosition(
+          mode: CharacterPositionMode.custom,
+          row: 0.4,
+          column: 0.2,
+        ),
+      ),
+      CharacterPrompt(id: 'second', name: 'Second', prompt: 'companion'),
+    ],
+  );
+
+  @override
+  Future<bool> updateCharacterPersisted(CharacterPrompt character) async {
+    state = state.updateCharacter(character).normalizeCustomPositions();
+    return true;
+  }
+
+  @override
+  Future<bool> setGlobalAiChoicePersisted(bool value) async {
+    var next = state.copyWith(globalAiChoice: value);
+    if (!value) next = next.normalizeCustomPositions();
+    state = next;
+    return true;
+  }
+
+  @override
+  Future<bool> setCharacterOrderPersisted(List<String> orderedIds) async {
+    final byId = {
+      for (final character in state.characters) character.id: character,
+    };
+    state = state.copyWith(
+      characters: [for (final id in orderedIds) byId[id]!],
+    );
+    return true;
+  }
 }
 
 class _DuplicateNameCharacterNotifier extends CharacterPromptNotifier {
@@ -203,6 +376,30 @@ class _DuplicateNameCharacterNotifier extends CharacterPromptNotifier {
         ),
       ],
     );
+  }
+
+  @override
+  Future<({CharacterPrompt character, bool persisted})?> addCharacterPersisted(
+    CharacterGender gender, {
+    required String name,
+    required String prompt,
+    String? negativePrompt,
+    required bool enabled,
+    required CharacterPositionMode positionMode,
+    CharacterPosition? customPosition,
+  }) async {
+    final created = CharacterPrompt(
+      id: 'new-character',
+      name: name,
+      prompt: prompt,
+      negativePrompt: negativePrompt ?? '',
+      gender: gender,
+      enabled: enabled,
+      positionMode: positionMode,
+      customPosition: customPosition,
+    );
+    state = state.copyWith(characters: [...state.characters, created]);
+    return (character: created, persisted: true);
   }
 
   @override

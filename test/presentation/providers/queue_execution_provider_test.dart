@@ -658,7 +658,11 @@ class _ControlledImageGenerationNotifier extends ImageGenerationNotifier {
       _activeInvocation?.settled.future ?? Future<void>.value();
 
   @override
-  Future<void> generate(ImageParams params, {int? batchSizeOverride}) async {
+  Future<void> generate(
+    ImageParams params, {
+    int? batchSizeOverride,
+    bool preserveCharacterSnapshot = false,
+  }) async {
     if (_activeInvocation != null) return;
     final invocation = _ControlledGenerationInvocation();
     _activeInvocation = invocation;
@@ -740,14 +744,22 @@ class _TestImageGenerationNotifier extends ImageGenerationNotifier {
   ImageGenerationState build() => const ImageGenerationState();
 
   @override
-  Future<void> generate(ImageParams params, {int? batchSizeOverride}) async {}
+  Future<void> generate(
+    ImageParams params, {
+    int? batchSizeOverride,
+    bool preserveCharacterSnapshot = false,
+  }) async {}
 }
 
 class _CapturingImageGenerationNotifier extends _TestImageGenerationNotifier {
   ImageParams? generated;
 
   @override
-  Future<void> generate(ImageParams params, {int? batchSizeOverride}) async {
+  Future<void> generate(
+    ImageParams params, {
+    int? batchSizeOverride,
+    bool preserveCharacterSnapshot = false,
+  }) async {
     generated = params;
   }
 }
@@ -770,6 +782,11 @@ class _TestCharacterPromptNotifier extends CharacterPromptNotifier {
   @override
   void replaceAll(List<CharacterPrompt> characters) {
     state = state.copyWith(characters: characters);
+  }
+
+  @override
+  void setGlobalAiChoice(bool value) {
+    state = state.copyWith(globalAiChoice: value);
   }
 }
 
