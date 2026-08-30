@@ -1,10 +1,20 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/constants/api_constants.dart';
 import 'package:nai_launcher/core/enums/precise_ref_type.dart';
 import 'package:nai_launcher/data/models/image/image_params.dart';
 
 void main() {
+  test('uses the default V5 generation parameters', () {
+    const params = ImageParams();
+
+    expect(params.model, ImageModels.animeDiffusionV5Full);
+    expect(params.steps, 28);
+    expect(params.scale, 4.0);
+    expect(params.sampler, Samplers.kEulerAncestral);
+  });
+
   group('ImageParams preciseReference getters', () {
     test('preciseReferenceCount should return 0 when no references', () {
       const params = ImageParams();

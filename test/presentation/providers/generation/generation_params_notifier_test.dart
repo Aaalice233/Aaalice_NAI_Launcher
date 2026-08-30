@@ -46,8 +46,52 @@ void main() {
     await Hive.box(StorageKeys.historyBox).clear();
   });
 
+  test('build should use the V5 generation defaults on first use', () {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    final params = container.read(generationParamsNotifierProvider);
+
+    expect(params.model, ImageModels.animeDiffusionV5Full);
+    expect(params.steps, 28);
+    expect(params.scale, 4.0);
+    expect(params.sampler, Samplers.kEulerAncestral);
+  });
+
+  test('build should preserve stored generation preferences', () async {
+    final storage = LocalStorageService();
+    await storage.setDefaultModel(ImageModels.animeDiffusionV45Curated);
+    await storage.setDefaultSteps(31);
+    await storage.setDefaultScale(6.5);
+    await storage.setDefaultSampler(Samplers.kDpmpp2sAncestral);
+
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final notifier = container.read(generationParamsNotifierProvider.notifier);
+    var params = container.read(generationParamsNotifierProvider);
+
+    expect(params.model, ImageModels.animeDiffusionV45Curated);
+    expect(params.steps, 31);
+    expect(params.scale, 6.5);
+    expect(params.sampler, Samplers.kDpmpp2sAncestral);
+
+    notifier.updateModel(
+      ImageModels.animeDiffusionV5Full,
+      persist: false,
+      followDefaults: false,
+    );
+    notifier.reset();
+    params = container.read(generationParamsNotifierProvider);
+
+    expect(params.model, ImageModels.animeDiffusionV45Curated);
+    expect(params.steps, 31);
+    expect(params.scale, 6.5);
+    expect(params.sampler, Samplers.kDpmpp2sAncestral);
+  });
+
   test('build should restore persisted variety plus state', () async {
     final storage = LocalStorageService();
+    await storage.setDefaultModel(ImageModels.animeDiffusionV45Full);
     await storage.setLastVarietyPlus(true);
 
     final container = ProviderContainer();
@@ -311,6 +355,9 @@ void main() {
   });
 
   test('信息提取切回已有缓存值时，会直接恢复缓存编码', () async {
+    await LocalStorageService().setDefaultModel(
+      ImageModels.animeDiffusionV45Full,
+    );
     final container = ProviderContainer();
     addTearDown(container.dispose);
 
@@ -361,6 +408,9 @@ void main() {
   });
 
   test('导入时自带的预编码 Vibe 会自动记住原始编码参数', () async {
+    await LocalStorageService().setDefaultModel(
+      ImageModels.animeDiffusionV45Full,
+    );
     final container = ProviderContainer();
     addTearDown(container.dispose);
 
@@ -526,6 +576,9 @@ void main() {
   });
 
   test('显式保存参数时，可重新编码的 Vibe 会生成持久化编码', () async {
+    await LocalStorageService().setDefaultModel(
+      ImageModels.animeDiffusionV45Full,
+    );
     final apiService = _FakeEnhancementApiService();
     final container = ProviderContainer(
       overrides: [
@@ -861,8 +914,8 @@ void main() {
 
       final params = container.read(generationParamsNotifierProvider);
       expect(params.model, ImageModels.v5StagingKey);
-      // 正式版 V5 的出厂默认 CFG 是 7（测试期是 10）。
-      expect(params.scale, 7.0);
+      expect(params.scale, 4.0);
+      expect(params.steps, 28);
     });
 
     test('should keep a scale the user adjusted', () async {
