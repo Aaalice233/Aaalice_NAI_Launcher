@@ -576,8 +576,8 @@ void main() {
       lessThanOrEqualTo(tester.getRect(count).left),
     );
     expect(
-      tester.getRect(count).right,
-      lessThanOrEqualTo(tester.getRect(assistant).left),
+      tester.getRect(assistant).left - tester.getRect(count).right,
+      greaterThanOrEqualTo(8),
     );
     expect(tester.getSize(toolbar).width, greaterThanOrEqualTo(48));
     expect(tester.getSize(toolbar).height, 48);

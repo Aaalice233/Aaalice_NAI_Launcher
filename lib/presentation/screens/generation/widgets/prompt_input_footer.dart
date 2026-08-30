@@ -119,7 +119,7 @@ class PromptInputFooter extends ConsumerWidget {
                 alignment: Alignment.centerRight,
                 children: [
                   Positioned.fill(
-                    right: assistantCollapsedWidth + 4,
+                    right: assistantCollapsedWidth + 8,
                     child: Offstage(
                       offstage: assistantExpanded,
                       child: tokenCount,
