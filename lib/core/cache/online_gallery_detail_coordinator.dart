@@ -100,8 +100,12 @@ class OnlineGalleryDetailCoordinator {
     _cancelVisibleTasks(includeActive: false);
   }
 
-  void cancelVisible() {
-    _cancelVisibleTasks(includeActive: true);
+  void cancelVisible({String reason = 'Gallery scope changed'}) {
+    _cancelTasks(
+      (task) => task.priority == GalleryDetailPriority.visible,
+      includeActive: true,
+      reason: reason,
+    );
   }
 
   void cancelLookahead() {
@@ -131,6 +135,7 @@ class OnlineGalleryDetailCoordinator {
   void _cancelTasks(
     bool Function(_DetailTask task) predicate, {
     required bool includeActive,
+    String reason = 'Gallery scope changed',
   }) {
     final tasks = _tasks.values
         .where((task) => predicate(task) && (includeActive || !task.started))
@@ -143,10 +148,10 @@ class OnlineGalleryDetailCoordinator {
         _tasks.remove(task.item.detailStableKey);
       }
       if (!task.cancelToken.isCancelled) {
-        task.cancelToken.cancel('Gallery scope changed');
+        task.cancelToken.cancel(reason);
       }
       if (!task.completer.isCompleted) {
-        task.completer.completeError(_cancelled(task.item, 'Gallery paused'));
+        task.completer.completeError(_cancelled(task.item, reason));
       }
     }
     _pump();
