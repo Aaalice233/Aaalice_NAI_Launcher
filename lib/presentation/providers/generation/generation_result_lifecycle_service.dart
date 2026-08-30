@@ -99,6 +99,7 @@ class GenerationResultLifecycleService {
     required ImageParams params,
     int? width,
     int? height,
+    ImageComparisonSource? comparisonSource,
     required bool embedNaiMetadata,
   }) async {
     final size =
@@ -121,6 +122,7 @@ class GenerationResultLifecycleService {
         normalized,
         width: size.$1,
         height: size.$2,
+        comparisonSource: comparisonSource,
         preserveOriginalBytesOnSave: !embedNaiMetadata,
       ),
       params: effectiveParams,

@@ -1303,6 +1303,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get generation_previewApplySeed => '使用当前图片的种子';
 
   @override
+  String get generation_imageComparison => '对比';
+
+  @override
+  String get generation_imageComparisonHint => '对比生成图与本次结果的来源图';
+
+  @override
+  String get generation_imageComparisonDivider => '图像对比分割线';
+
+  @override
   String get generation_transparencyBackgroundTitle => '透明部分显示';
 
   @override
@@ -14487,6 +14496,15 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get generation_previewApplySeed => '使用當前圖片的種子';
+
+  @override
+  String get generation_imageComparison => '對比';
+
+  @override
+  String get generation_imageComparisonHint => '對比生成圖與本次結果的來源圖';
+
+  @override
+  String get generation_imageComparisonDivider => '圖像對比分隔線';
 
   @override
   String get generation_transparencyBackgroundTitle => '透明部分顯示';

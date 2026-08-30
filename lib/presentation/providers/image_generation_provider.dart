@@ -95,6 +95,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
   final Map<String, String?> _persistedHistoryFilePaths = <String, String?>{};
   final Map<String, _RememberedStreamPreview> _streamPreviews = {};
   final Set<String> _failedSnapshotKeys = {};
+  ImageComparisonSource? _activeComparisonSource;
   bool _isDisposed = false;
   int _lifecycleEpoch = 0;
 
@@ -451,6 +452,14 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     if (!_isCurrentLifecycle(epoch) || event.runId != _activeRunId) return;
     switch (event) {
       case GenerationStarted(:final params, :final totalImages):
+        final sourceImage = params.sourceImage;
+        // Generate may still carry canvas data, but only image transformations
+        // have a source that represents the visual input to the result.
+        _activeComparisonSource =
+            sourceImage != null &&
+                params.action != ImageGenerationAction.generate
+            ? ImageComparisonSource.fromBytes(sourceImage)
+            : null;
         state = state.copyWith(
           currentImages: [],
           status: GenerationStatus.generating,
@@ -534,6 +543,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
                 bytes,
                 width: params.width,
                 height: params.height,
+                comparisonSource: _activeComparisonSource,
               ),
             )
             .toList();
@@ -783,11 +793,16 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     );
   }
 
+  /// Registers a result produced outside the normal generation stream.
+  ///
+  /// [comparisonSourceImage] is supplied by single-source transformations such
+  /// as NovelAI upscale and local upscale so their result can be compared.
   Future<String?> registerExternalImage(
     Uint8List imageBytes, {
     required ImageParams params,
     int? width,
     int? height,
+    Uint8List? comparisonSourceImage,
     bool saveToLocal = false,
     String? saveDirectoryPath,
     bool syncToGalleryIndex = true,
@@ -804,6 +819,9 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       params: params,
       width: width,
       height: height,
+      comparisonSource: comparisonSourceImage == null
+          ? null
+          : ImageComparisonSource.fromBytes(comparisonSourceImage),
       embedNaiMetadata: embedNaiMetadata,
     );
     if (!_isCurrentLifecycle(epoch)) return null;

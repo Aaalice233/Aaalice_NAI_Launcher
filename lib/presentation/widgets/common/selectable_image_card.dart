@@ -62,6 +62,7 @@ class SelectableImageCard extends ConsumerStatefulWidget {
     this.isFavorite = false,
     this.onFavoriteToggle,
     this.underlay,
+    this.imageContent,
     this.isGenerating = false,
     this.progress,
     this.currentImage,
@@ -119,6 +120,7 @@ class SelectableImageCard extends ConsumerStatefulWidget {
   final bool isFavorite;
   final VoidCallback? onFavoriteToggle;
   final Widget? underlay;
+  final Widget? imageContent;
   final bool isGenerating;
   final double? progress;
   final int? currentImage;
@@ -150,6 +152,7 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
     completionPlaceholderBytes: widget.completionPlaceholderBytes,
     isFavorite: widget.isFavorite,
     underlay: widget.underlay,
+    imageContent: widget.imageContent,
     isGenerating: widget.isGenerating,
     progress: widget.progress,
     currentImage: widget.currentImage,

@@ -69,6 +69,7 @@ class NovelAiUpscaleTaskNotifier extends Notifier<NovelAiUpscaleTaskState> {
           .registerExternalImage(
             result,
             params: params,
+            comparisonSourceImage: sourceImage,
             saveToLocal: saveSettings.autoSave,
             replaceCurrentDisplay: true,
           );

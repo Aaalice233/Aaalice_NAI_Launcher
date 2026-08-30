@@ -1340,6 +1340,16 @@ class AppLocalizationsEn extends AppLocalizations {
       'Use the seed of the displayed image';
 
   @override
+  String get generation_imageComparison => 'Compare';
+
+  @override
+  String get generation_imageComparisonHint =>
+      'Compare the generated image with its source image';
+
+  @override
+  String get generation_imageComparisonDivider => 'Image comparison divider';
+
+  @override
   String get generation_transparencyBackgroundTitle =>
       'Transparency Background';
 

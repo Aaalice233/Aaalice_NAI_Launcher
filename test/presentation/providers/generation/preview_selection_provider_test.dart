@@ -161,6 +161,48 @@ void main() {
       expect(notifier, isNotNull);
     });
 
+    test('new display result clears a stale history selection', () {
+      final notifier = container.read(
+        generationPreviewSelectionProvider.notifier,
+      )..select('c');
+      final result = _image('x');
+
+      generationNotifier.replace(
+        ImageGenerationState(
+          currentImages: [result],
+          history: [result, _image('c')],
+          displayImages: [result],
+        ),
+      );
+
+      expect(container.read(generationPreviewSelectionProvider), isNull);
+      expect(notifier, isNotNull);
+    });
+
+    test('unrelated updates preserve the selected history image', () {
+      container.read(generationPreviewSelectionProvider.notifier).select('c');
+      final current = container.read(imageGenerationNotifierProvider);
+
+      generationNotifier.replace(current.copyWith(progress: 0.5));
+
+      expect(container.read(generationPreviewSelectionProvider), 'c');
+    });
+
+    test('display replacement preserves a selection it still contains', () {
+      container.read(generationPreviewSelectionProvider.notifier).select('c');
+      final selected = _image('c');
+
+      generationNotifier.replace(
+        ImageGenerationState(
+          currentImages: [selected],
+          history: [selected],
+          displayImages: [selected],
+        ),
+      );
+
+      expect(container.read(generationPreviewSelectionProvider), 'c');
+    });
+
     test(
       'switching to classic clears selection and linked mode can resume',
       () {
