@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
@@ -20,6 +21,7 @@ import '../providers/agent_chat_session_view.dart';
 import '../providers/agent_chat_state.dart';
 import '../models/agent_chat_turn_timeline.dart';
 import 'agent_chat_draft_controller.dart';
+import 'agent_chat_session_recovery.dart';
 
 class AgentChatRewindCheckpoint {
   const AgentChatRewindCheckpoint({
@@ -77,11 +79,19 @@ class AgentChatSessionController {
   final List<session_types.LaneRecord> _visibleRecords = [];
   String? _activeTurnId;
   String? _activeAssistantEntryId;
+  session_types.OperationStartedRecord? _openOperation;
+  AgentMessage? _pendingRunPrompt;
   final Set<String> _finishedTurnIds = {};
   final Set<String> _finishingTurnIds = {};
+  final Set<String> _endingTurnIds = {};
+  final Map<Message, String> _pendingAcceptedMessageEntryIds = Map.identity();
   final Map<String, String> _pendingToolResultEntryIds = {};
+  Future<void> _operationMutation = Future.value();
 
   String? get activeTurnId => _activeTurnId;
+  bool get hasSuspendedRun =>
+      _activeTurnId == null &&
+      _openOperation?.intent.kind == session_types.RunIntentKind.run;
 
   Future<void> restoreLastSession() async {
     final sessions = await listSessions();
@@ -119,19 +129,22 @@ class AgentChatSessionController {
 
   Future<void> activateSession(String sessionId) async {
     await agent?.waitForIdle();
-    final metadata = (await _repository.list()).firstWhere(
-      (item) => item.id == sessionId,
-      orElse: () => session_types.SessionMetadata(
-        id: sessionId,
-        createdAt: DateTime.now().millisecondsSinceEpoch,
-      ),
+    final metadata = (await _repository.list())
+        .where((item) => item.id == sessionId)
+        .firstOrNull;
+    final nextSession = metadata == null
+        ? await _repository.create(
+            session_types.SessionCreateOptions(id: sessionId),
+          )
+        : await _repository.open(metadata);
+    final suspendedOperations = await nextSession.findOpenOperations(
+      'main',
+      limit: 2,
     );
-    Session nextSession;
-    try {
-      nextSession = await _repository.open(metadata);
-    } catch (_) {
-      nextSession = await _repository.create(
-        session_types.SessionCreateOptions(id: sessionId),
+    if (suspendedOperations.length > 1) {
+      throw session_types.SessionError(
+        session_types.SessionErrorCode.storage,
+        'Lane main has at least two open operations',
       );
     }
     final nextAgent = await _buildAgent();
@@ -181,6 +194,8 @@ class AgentChatSessionController {
       ..addAll(recentRecords);
     _activeTurnId = null;
     _activeAssistantEntryId = null;
+    _openOperation = suspendedOperations.firstOrNull;
+    _pendingRunPrompt = null;
     _finishedTurnIds
       ..clear()
       ..addAll(
@@ -189,6 +204,8 @@ class AgentChatSessionController {
         ),
       );
     _finishingTurnIds.clear();
+    _endingTurnIds.clear();
+    _pendingAcceptedMessageEntryIds.clear();
     _pendingToolResultEntryIds.clear();
     final timelinePage = _buildVisibleTimelinePage(
       hasEarlier: entries.length > recentEntries.length,
@@ -321,21 +338,161 @@ class AgentChatSessionController {
     }
   }
 
-  Future<String?> startTurn() async {
+  void prepareRunPrompt(AgentMessage prompt) {
+    final openOperation = _openOperation;
+    if (openOperation != null) {
+      throw session_types.SessionError(
+        session_types.SessionErrorCode.storage,
+        'Cannot start a chat run while ${openOperation.intent.kind.name} '
+        'operation ${openOperation.id} is suspended',
+      );
+    }
+    _pendingRunPrompt = prompt;
+  }
+
+  Future<AgentChatSuspendedRecovery> restoreSuspendedRun() async {
+    final currentSession = session;
+    final operation = _openOperation;
+    if (currentSession == null ||
+        operation == null ||
+        operation.intent.kind != session_types.RunIntentKind.run) {
+      return const AgentChatSuspendedRecovery();
+    }
+    final recovery = await AgentChatSessionRecovery.restore(
+      session: currentSession,
+      operation: operation,
+    );
+    for (final entry in recovery.transcriptEntries) {
+      _pendingAcceptedMessageEntryIds.remove(entry.message);
+      _visibleEntries.add(entry);
+    }
+    for (final queued in [
+      ...recovery.steeringMessages,
+      ...recovery.followUpMessages,
+    ]) {
+      _pendingAcceptedMessageEntryIds[queued.message] = queued.entryId;
+    }
+    if (recovery.transcriptEntries.isNotEmpty) {
+      _publishVisibleTimeline();
+    }
+    return recovery;
+  }
+
+  Future<void> acceptQueuedPrompt(
+    AgentMessage prompt,
+    session_types.QueueKind queue, {
+    required void Function() enqueue,
+  }) => _mutateOperation(() async {
+    final currentSession = session;
+    final operation = _openOperation;
+    if (currentSession == null ||
+        operation == null ||
+        operation.intent.kind != session_types.RunIntentKind.run) {
+      throw StateError('No open chat run can accept queued input');
+    }
+    if (_endingTurnIds.contains(operation.id)) {
+      throw StateError('The chat run is already ending');
+    }
+    final record = await AgentChatSessionRecovery.acceptPrompt(
+      session: currentSession,
+      operation: operation,
+      prompt: prompt,
+      queue: queue,
+    );
+    _visibleRecords.add(record);
+    if (_endingTurnIds.contains(operation.id)) {
+      final cancellation = await currentSession.appendRecord(
+        session_types.QueueCancelledRecord(
+          id: currentSession.idGenerator(),
+          lane: 'main',
+          entryId: record.target.id,
+          runId: operation.id,
+        ),
+      );
+      _visibleRecords.add(cancellation);
+      _publishVisibleTimeline();
+      throw StateError('The chat run ended before queued input was accepted');
+    }
+    _pendingAcceptedMessageEntryIds[prompt] = record.target.id;
+    enqueue();
+    _publishVisibleTimeline();
+  });
+
+  Future<void> cancelQueuedPrompt(AgentMessage prompt) =>
+      _mutateOperation(() async {
+        final currentSession = session;
+        final operation = _openOperation;
+        final entryId = _pendingAcceptedMessageEntryIds[prompt];
+        if (currentSession == null || operation == null || entryId == null) {
+          return;
+        }
+        final record = await currentSession.appendRecord(
+          session_types.QueueCancelledRecord(
+            id: currentSession.idGenerator(),
+            lane: 'main',
+            entryId: entryId,
+            runId: operation.id,
+          ),
+        );
+        _pendingAcceptedMessageEntryIds.remove(prompt);
+        _visibleRecords.add(record);
+        _publishVisibleTimeline();
+      });
+
+  Future<String?> startTurn() => _mutateOperation(_startTurn);
+
+  Future<String?> _startTurn() async {
     final currentSession = session;
     if (currentSession == null) return null;
+    final activeTurnId = _activeTurnId;
+    if (activeTurnId != null) return activeTurnId;
+
+    // Pi restore semantics treat one unfinished operation as suspended, and
+    // resume continues that operation instead of accepting a second start.
+    final openOperation = _openOperation;
+    if (openOperation != null) {
+      if (openOperation.intent.kind != session_types.RunIntentKind.run) {
+        throw session_types.SessionError(
+          session_types.SessionErrorCode.storage,
+          'Cannot resume ${openOperation.intent.kind.name} as a chat run',
+        );
+      }
+      _activeTurnId = openOperation.id;
+      _activeAssistantEntryId = null;
+      _publishVisibleTimeline();
+      return openOperation.id;
+    }
+
     final id = currentSession.idGenerator();
     final sourceLeafId = await currentSession.getLeafId();
-    final record = await currentSession.appendRecord(
-      session_types.OperationStartedRecord(
-        id: id,
-        lane: 'main',
-        sourceLeafId: sourceLeafId,
-        intent: const session_types.RunIntent(
-          kind: session_types.RunIntentKind.run,
-        ),
-      ),
-    );
+    final prompt = _pendingRunPrompt;
+    _pendingRunPrompt = null;
+    final initialMessages = prompt == null
+        ? const <session_types.MessageEntry>[]
+        : <session_types.MessageEntry>[
+            session_types.MessageEntry(
+              id: currentSession.idGenerator(),
+              message: prompt,
+            ),
+          ];
+    final record =
+        await currentSession.appendRecord(
+              session_types.OperationStartedRecord(
+                id: id,
+                lane: 'main',
+                sourceLeafId: sourceLeafId,
+                intent: session_types.RunIntent(
+                  kind: session_types.RunIntentKind.run,
+                  originalPrompt: prompt == null ? const [] : [prompt],
+                  initialMessages: initialMessages,
+                ),
+              ),
+            )
+            as session_types.OperationStartedRecord;
+    for (final entry in initialMessages) {
+      _pendingAcceptedMessageEntryIds[entry.message] = entry.id;
+    }
+    _openOperation = record;
     _activeTurnId = id;
     _activeAssistantEntryId = null;
     _visibleRecords.add(record);
@@ -344,6 +501,17 @@ class AgentChatSessionController {
   }
 
   Future<void> finishTurn({
+    required String turnId,
+    required session_types.OperationOutcomeKind outcome,
+    String? error,
+  }) {
+    _endingTurnIds.add(turnId);
+    return _mutateOperation(
+      () => _finishTurn(turnId: turnId, outcome: outcome, error: error),
+    ).whenComplete(() => _endingTurnIds.remove(turnId));
+  }
+
+  Future<void> _finishTurn({
     required String turnId,
     required session_types.OperationOutcomeKind outcome,
     String? error,
@@ -373,6 +541,10 @@ class AgentChatSessionController {
           _activeTurnId = null;
           _activeAssistantEntryId = null;
         }
+        if (_openOperation?.id == turnId) {
+          _openOperation = null;
+          _pendingAcceptedMessageEntryIds.clear();
+        }
         _publishVisibleTimeline();
         return;
       }
@@ -390,6 +562,10 @@ class AgentChatSessionController {
       if (_activeTurnId == turnId) {
         _activeTurnId = null;
         _activeAssistantEntryId = null;
+      }
+      if (_openOperation?.id == turnId) {
+        _openOperation = null;
+        _pendingAcceptedMessageEntryIds.clear();
       }
       _publishVisibleTimeline();
     } finally {
@@ -482,6 +658,18 @@ class AgentChatSessionController {
     final created = await _repository.create();
     final metadata = await created.getMetadata();
     await activateSession(metadata.id);
+  }
+
+  Future<T> _mutateOperation<T>(Future<T> Function() action) async {
+    final previous = _operationMutation;
+    final released = Completer<void>();
+    _operationMutation = released.future;
+    await previous;
+    try {
+      return await action();
+    } finally {
+      released.complete();
+    }
   }
 
   Future<void> _runTransition(
@@ -755,9 +943,11 @@ class AgentChatSessionController {
       return null;
     }
     try {
-      final preferredId = message is ToolResultMessage
-          ? _pendingToolResultEntryIds.remove(message.toolCallId)
-          : null;
+      final preferredId =
+          _pendingAcceptedMessageEntryIds.remove(message) ??
+          (message is ToolResultMessage
+              ? _pendingToolResultEntryIds.remove(message.toolCallId)
+              : null);
       final entry =
           await currentSession.appendEntry(
                 session_types.MessageEntry(

@@ -76,6 +76,10 @@ Windows release 产物位于 `build/windows/x64/runner/Release/`。macOS 使用 
 
 遵循 `analysis_options.yaml` 和 Dart 默认格式化规则，使用两个空格缩进。变量和方法使用 `lowerCamelCase`，类型使用 `UpperCamelCase`。Riverpod provider 命名应以 `Provider` 或 `NotifierProvider` 结尾。新增功能优先复用现有 service、provider、widget 和 utility，保持 `core`、`data`、`presentation` 的职责边界清晰。
 
+### Pi Harness 上游对齐
+
+`lib/core/agent/harness/` 及其持久会话协议以 Pi 官方实现为唯一事实来源。排查 Harness 问题时必须先查看本机已安装的 `@earendil-works/pi-agent-core` 源码及 `https://github.com/earendil-works/pi` 对应实现，并以官方行为为准定位和修复；修改 Harness 的类型、记录格式、状态归约、恢复/续跑、队列、回放、错误语义或存储约束时，能够移植的直接等价移植，并同步相关 conformance/regression tests，不得自行发明替代协议、额外 outcome 或自动修复语义。Launcher 特有的 UI 和业务适配放在 Harness 边界之外；若 Pi 尚未实现某项能力，应明确保留边界，不在 Harness 内创建第二套事实来源。
+
 ### Dart / Flutter 代码组织约定
 
 1. **关注文件规模**：行数是职责和可维护性的风险信号，不是强制拆分门槛。业务代码接近 800 行时关注职责、可读性和后续扩展成本；超过 1000 行时必须仔细评估是否应按职责拆分。若文件仍保持单一职责和高内聚，或拆分会制造更差的跨文件耦合，可以保留并说明理由；不得仅为满足行数机械拆分。生成代码、大型枚举和静态常量表不参与规模判断。

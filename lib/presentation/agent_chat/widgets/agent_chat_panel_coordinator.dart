@@ -90,7 +90,9 @@ class AgentChatPanelCoordinator {
       copyAssistantMessage: (message) =>
           _copyAssistantMessage(context, message),
       editQueuedMessage: _editQueuedMessage,
-      removeQueuedMessage: _notifier.removeQueuedMessage,
+      removeQueuedMessage: (message) async {
+        await _notifier.removeQueuedMessage(message);
+      },
       clearQueuedMessages: _notifier.clearQueuedMessages,
       addPendingResource: _notifier.addPendingResource,
       removePendingResource: _notifier.removePendingResource,
@@ -295,7 +297,7 @@ class AgentChatPanelCoordinator {
   }
 
   Future<void> _editQueuedMessage(AgentQueuedMessage queued) async {
-    final removed = _notifier.removeQueuedMessage(queued);
+    final removed = await _notifier.removeQueuedMessage(queued);
     if (removed == null || !_isMounted()) return;
     UserMessage? userMessage;
     if (removed is UserMessage) {

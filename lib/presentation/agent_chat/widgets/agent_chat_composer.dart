@@ -521,7 +521,9 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
                           ),
                           IconButton(
                             tooltip: l10n.common_delete,
-                            onPressed: () => commands.removeQueuedMessage(item),
+                            onPressed: () async {
+                              await commands.removeQueuedMessage(item);
+                            },
                             icon: const Icon(Icons.close, size: 16),
                             constraints: BoxConstraints.tightFor(
                               width: viewData.mobile ? 44 : 32,
@@ -544,7 +546,9 @@ class _AgentChatComposerState extends State<AgentChatComposer> {
                       label: Text(l10n.agentChat_queueFollowUp),
                     ),
                     TextButton(
-                      onPressed: commands.clearQueuedMessages,
+                      onPressed: () async {
+                        await commands.clearQueuedMessages();
+                      },
                       child: Text(l10n.common_clear),
                     ),
                   ],

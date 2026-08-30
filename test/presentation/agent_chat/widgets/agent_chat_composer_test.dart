@@ -813,8 +813,8 @@ class _ComposerHarnessState extends State<_ComposerHarness> {
       cancelUserMessageEdit: controller.cancelEditingUserMessage,
       copyAssistantMessage: (_) async {},
       editQueuedMessage: (_) async {},
-      removeQueuedMessage: (_) {},
-      clearQueuedMessages: () {},
+      removeQueuedMessage: (_) async {},
+      clearQueuedMessages: () async {},
       addPendingResource: (_) async {},
       removePendingResource: (_) async {},
     );
