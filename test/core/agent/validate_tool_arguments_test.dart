@@ -40,6 +40,51 @@ void main() {
       {'value': 5},
     );
   });
+
+  test('rejects unknown properties for strict objects recursively', () {
+    expect(
+      () => validateToolArguments(
+        tool,
+        const ToolCallContent(
+          id: 'top-level-extra',
+          name: 'bounded',
+          arguments: {'value': 5, 'unexpected': true},
+        ),
+      ),
+      throwsFormatException,
+    );
+    expect(
+      () => validateToolArguments(
+        tool,
+        const ToolCallContent(
+          id: 'nested-extra',
+          name: 'bounded',
+          arguments: {
+            'value': 5,
+            'options': {'enabled': true, 'unexpected': true},
+          },
+        ),
+      ),
+      throwsFormatException,
+    );
+    expect(
+      validateToolArguments(
+        tool,
+        const ToolCallContent(
+          id: 'strict-valid',
+          name: 'bounded',
+          arguments: {
+            'value': 5,
+            'options': {'enabled': true},
+          },
+        ),
+      ),
+      {
+        'value': 5,
+        'options': {'enabled': true},
+      },
+    );
+  });
 }
 
 class _BoundedTool extends AgentTool {
@@ -52,8 +97,16 @@ class _BoundedTool extends AgentTool {
           'type': 'object',
           'properties': {
             'value': {'type': 'number', 'minimum': 1, 'maximum': 10},
+            'options': {
+              'type': 'object',
+              'properties': {
+                'enabled': {'type': 'boolean'},
+              },
+              'additionalProperties': false,
+            },
           },
           'required': ['value'],
+          'additionalProperties': false,
         },
       );
 

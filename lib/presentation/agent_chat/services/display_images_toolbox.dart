@@ -7,21 +7,31 @@ import '../../../core/agent/resources/agent_chat_resource_reference_codec.dart';
 import '../../../core/utils/display_thumbnail_utils.dart';
 import 'agent_resource_resolver.dart';
 import 'defined_agent_tool.dart';
+import 'generation_image_resource.dart';
 
 typedef DisplayImageResourceResolver =
     Future<ResolvedAgentResource?> Function(
       AgentChatResourceReference reference,
     );
+typedef DisplayImageResourceValidator =
+    Future<void> Function(AgentChatResourceReference reference);
 
 /// Resolves stable application-owned image references into bounded previews.
 class DisplayImagesService {
-  DisplayImagesService({required DisplayImageResourceResolver resolve})
-    : _resolve = resolve;
+  DisplayImagesService({
+    required DisplayImageResourceResolver resolve,
+    DisplayImageResourceValidator? validate,
+  }) : _resolve = resolve,
+       _validate = validate;
 
   factory DisplayImagesService.fromResolver(AgentResourceResolver resolver) =>
-      DisplayImagesService(resolve: resolver.resolve);
+      DisplayImagesService(
+        resolve: resolver.resolve,
+        validate: resolver.validateForDisplay,
+      );
 
   final DisplayImageResourceResolver _resolve;
+  final DisplayImageResourceValidator? _validate;
 
   Future<AgentToolResult> display(Map<String, dynamic> args) async {
     final values = args['resource_refs'];
@@ -67,7 +77,10 @@ class DisplayImagesService {
     for (var index = 0; index < references.length; index++) {
       final ResolvedAgentResource? resolved;
       try {
+        await _validate?.call(references[index]);
         resolved = await _resolve(references[index]);
+      } on GenerationImageResourceException catch (error) {
+        return agentToolError(error.code, error.message);
       } on Exception {
         return agentToolError(
           'resource_resolution_failed',
@@ -98,7 +111,7 @@ class DisplayImagesService {
         );
       }
       previews.add((
-        reference: references[index],
+        reference: resolved.reference,
         label: resolved.label,
         mime: mime,
         data: base64Encode(thumbnail),

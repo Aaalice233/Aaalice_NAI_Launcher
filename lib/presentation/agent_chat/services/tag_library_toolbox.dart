@@ -1,22 +1,59 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/agent/agent_types.dart';
 import '../../../core/agent/harness/tools/image.dart';
+import '../../../core/agent/resources/agent_chat_resource_reference.dart';
+import '../../../core/agent/resources/agent_chat_resource_reference_codec.dart';
+import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/display_thumbnail_utils.dart';
 import '../../../data/models/tag_library/tag_library_category.dart';
 import '../../../data/models/tag_library/tag_library_entry.dart';
+import '../../../data/services/tag_library_portable_thumbnail_store.dart';
 import '../../providers/tag_library_page_provider.dart';
+import 'agent_resource_resolver.dart';
 import 'defined_agent_tool.dart';
+import 'generation_image_resource.dart';
 import 'toolbox_json.dart';
+
+typedef TagLibraryImageResourceLoader =
+    Future<ResolvedAgentResource?> Function(
+      AgentChatResourceReference reference,
+    );
 
 /// Production tools for the reusable tag library and its category tree.
 class TagLibraryToolbox {
-  TagLibraryToolbox(this._ref);
+  TagLibraryToolbox(
+    Ref ref, {
+    AgentResourceResolver? resourceResolver,
+    TagLibraryImageResourceLoader? resourceLoader,
+    TagLibraryPortableThumbnailStore thumbnailStore =
+        const TagLibraryPortableThumbnailStore(),
+  }) : assert(
+         resourceResolver == null || resourceLoader == null,
+         'Provide either resourceResolver or resourceLoader',
+       ),
+       _ref = ref,
+       _resourceLoader =
+           resourceLoader ??
+           _validatedResourceLoader(
+             resourceResolver ?? AgentResourceResolver(ref),
+           ),
+       _thumbnailStore = thumbnailStore;
 
   final Ref _ref;
+  final TagLibraryImageResourceLoader _resourceLoader;
+  final TagLibraryPortableThumbnailStore _thumbnailStore;
+
+  static TagLibraryImageResourceLoader _validatedResourceLoader(
+    AgentResourceResolver resolver,
+  ) => (reference) async {
+    await resolver.validateForDisplay(reference);
+    return resolver.resolve(reference);
+  };
 
   List<AgentTool> tools() => [
     _listEntries(),
@@ -51,8 +88,11 @@ class TagLibraryToolbox {
       final query = (params['query'] as String? ?? '').trim().toLowerCase();
       final categoryId = params['category_id'] as String?;
       final favoriteOnly = params['favorite_only'] as bool? ?? false;
-      final offset = (params['offset'] as int? ?? 0).clamp(0, 1 << 30);
-      final limit = (params['limit'] as int? ?? 50).clamp(1, 200);
+      final offset = ((params['offset'] as num?)?.toInt() ?? 0).clamp(
+        0,
+        1 << 30,
+      );
+      final limit = ((params['limit'] as num?)?.toInt() ?? 50).clamp(1, 200);
       final matching = state.entries
           .where((entry) {
             return (query.isEmpty ||
@@ -143,27 +183,196 @@ class TagLibraryToolbox {
   DefinedAgentTool _createEntry() => DefinedAgentTool(
     name: 'create_tag_library_entry',
     label: 'Create Tag Library Entry',
-    description: 'Create a persisted reusable prompt entry.',
+    description:
+        'Create a persisted reusable prompt entry. An optional generated-image '
+        'thumbnail must be supplied as thumbnail.resource_ref.',
     parameters: toolboxObject(
-      properties: _entryMutationProperties,
+      properties: {
+        ..._entryMutationProperties,
+        'thumbnail': {
+          'type': 'object',
+          'description':
+              'Optional thumbnail source. resource_ref is required and must '
+              'identify an available generated image.',
+          'properties': {
+            'resource_ref': {
+              'type': 'object',
+              'description': 'Stable generated-image resource reference.',
+            },
+          },
+          'required': ['resource_ref'],
+          'additionalProperties': false,
+        },
+      },
       required: const ['name', 'content'],
     ),
     executeFn: (_, params) async {
       final categoryError = _validateCategory(params['category_id'] as String?);
       if (categoryError != null) return categoryError;
-      final entry = await _ref
-          .read(tagLibraryPageNotifierProvider.notifier)
-          .addEntry(
-            name: params['name'] as String,
-            content: params['content'] as String,
-            tags: toolboxStrings(params['tags']),
-            categoryId: params['category_id'] as String?,
-            isFavorite: params['favorite'] as bool? ?? false,
-            failOnPersistenceError: true,
-          );
-      return agentToolJsonResult({'ok': true, 'entry': _entryJson(entry)});
+      final thumbnail = params['thumbnail'];
+      if (thumbnail == null) return _createEntryWithoutThumbnail(params);
+      if (thumbnail is! Map || !thumbnail.containsKey('resource_ref')) {
+        return agentToolError(
+          'invalid_resource_ref',
+          'thumbnail.resource_ref is required.',
+        );
+      }
+
+      final AgentChatResourceReference reference;
+      try {
+        final value = thumbnail['resource_ref'];
+        if (value is! Map) {
+          throw const FormatException('resource_ref must be an object');
+        }
+        reference = AgentChatResourceReferenceCodec.decodeJsonMap(
+          Map<String, dynamic>.from(value),
+        );
+      } on FormatException catch (error) {
+        return agentToolError(
+          'invalid_resource_ref',
+          'thumbnail.resource_ref is invalid: ${error.message}',
+        );
+      }
+      if (reference.kind != AgentChatResourceKind.generatedImage) {
+        return agentToolError(
+          'wrong_resource_kind',
+          'thumbnail.resource_ref must identify a generated image.',
+        );
+      }
+      final ResolvedAgentResource? resolved;
+      try {
+        resolved = await _resourceLoader(reference);
+      } on GenerationImageResourceException catch (error) {
+        return agentToolError(
+          error.code,
+          'create_tag_library_entry: ${error.message}',
+        );
+      } on Object catch (error) {
+        return agentToolError(
+          'resource_resolution_failed',
+          'create_tag_library_entry: generated image '
+              '${reference.resourceId} failed during thumbnail resource '
+              'resolution (${error.runtimeType}).',
+        );
+      }
+      final bytes = resolved?.bytes;
+      if (resolved == null || bytes == null || bytes.isEmpty) {
+        return agentToolError(
+          'resource_unavailable',
+          'create_tag_library_entry: generated image '
+              '${reference.resourceId} is unavailable.',
+        );
+      }
+      final extension = _thumbnailExtension(bytes);
+      if (extension == null) {
+        return agentToolError(
+          'unsupported_thumbnail',
+          'create_tag_library_entry: generated image '
+              '${reference.resourceId} is not a supported thumbnail format.',
+        );
+      }
+      return _createEntryWithThumbnail(params, reference, bytes, extension);
     },
   );
+
+  Future<AgentToolResult> _createEntryWithoutThumbnail(
+    Map<String, dynamic> params,
+  ) async {
+    final entry = await _addEntry(params);
+    return agentToolJsonResult({'ok': true, 'entry': _entryJson(entry)});
+  }
+
+  Future<AgentToolResult> _createEntryWithThumbnail(
+    Map<String, dynamic> params,
+    AgentChatResourceReference reference,
+    Uint8List bytes,
+    String extension,
+  ) async {
+    final notifier = _ref.read(tagLibraryPageNotifierProvider.notifier);
+    TagLibraryEntry? entry;
+    PortableThumbnailMutation? mutation;
+    var step = 'create_entry';
+    try {
+      entry = await _addEntry(params);
+      step = 'stage_thumbnail';
+      mutation = await _thumbnailStore.stage(
+        entry.id,
+        extension: extension,
+        bytes: Stream<List<int>>.value(bytes),
+      );
+      final persisted = entry.copyWith(
+        thumbnail: mutation.path,
+        updatedAt: DateTime.now(),
+      );
+      step = 'persist_thumbnail_link';
+      await notifier.updateEntry(persisted, failOnPersistenceError: true);
+      step = 'commit_thumbnail';
+      await mutation.commit();
+      return agentToolJsonResult({'ok': true, 'entry': _entryJson(persisted)});
+    } on Object catch (error, stackTrace) {
+      AppLogger.e(
+        'Agent tag-library thumbnail failed: entryId=${entry?.id}, step=$step',
+        error,
+        stackTrace,
+        'AgentTagLibrary',
+      );
+      final cleanupFailures = <String>[];
+      var entryRollbackFailed = false;
+      if (entry != null) {
+        try {
+          await notifier.deleteEntry(entry.id, failOnPersistenceError: true);
+        } on Object catch (deleteError, deleteStackTrace) {
+          AppLogger.e(
+            'Agent tag-library entry rollback failed: entryId=${entry.id}',
+            deleteError,
+            deleteStackTrace,
+            'AgentTagLibrary',
+          );
+          entryRollbackFailed = true;
+          cleanupFailures.add('entry rollback: ${_safeFailure(deleteError)}');
+        }
+      }
+      // A commit-stage failure may leave persistence pointing at the target.
+      // Keep that target if entry rollback also failed, rather than creating a
+      // broken persisted thumbnail reference.
+      if (!(entryRollbackFailed && step == 'commit_thumbnail')) {
+        try {
+          await mutation?.rollback();
+        } on Object catch (rollbackError, rollbackStackTrace) {
+          AppLogger.e(
+            'Agent tag-library thumbnail rollback failed: entryId=${entry?.id}',
+            rollbackError,
+            rollbackStackTrace,
+            'AgentTagLibrary',
+          );
+          cleanupFailures.add(
+            'thumbnail rollback: ${_safeFailure(rollbackError)}',
+          );
+        }
+      }
+      final cleanup = cleanupFailures.isEmpty
+          ? ''
+          : ' Cleanup also failed (${cleanupFailures.join('; ')}).';
+      return agentToolError(
+        cleanupFailures.isEmpty ? 'write_failed' : 'rollback_failed',
+        'create_tag_library_entry: generated image ${reference.resourceId} '
+        'thumbnail failed at $step (${_safeFailure(error)}).$cleanup',
+      );
+    }
+  }
+
+  String _safeFailure(Object error) => error.runtimeType.toString();
+
+  Future<TagLibraryEntry> _addEntry(Map<String, dynamic> params) => _ref
+      .read(tagLibraryPageNotifierProvider.notifier)
+      .addEntry(
+        name: params['name'] as String,
+        content: params['content'] as String,
+        tags: toolboxStrings(params['tags']),
+        categoryId: params['category_id'] as String?,
+        isFavorite: params['favorite'] as bool? ?? false,
+        failOnPersistenceError: true,
+      );
 
   DefinedAgentTool _updateEntry() => DefinedAgentTool(
     name: 'update_tag_library_entry',
@@ -374,6 +583,16 @@ const _idSchema = <String, dynamic>{
   },
   'required': ['entry_id'],
 };
+
+String? _thumbnailExtension(Uint8List bytes) =>
+    switch (detectSupportedImageMimeType(bytes)) {
+      'image/png' => '.png',
+      'image/jpeg' => '.jpg',
+      'image/webp' => '.webp',
+      'image/gif' => '.gif',
+      'image/bmp' => '.bmp',
+      _ => null,
+    };
 
 const _entryMutationProperties = <String, dynamic>{
   'name': {'type': 'string'},

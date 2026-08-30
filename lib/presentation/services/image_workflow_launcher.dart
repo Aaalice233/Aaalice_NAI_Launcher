@@ -23,6 +23,8 @@ import '../utils/prompt_preset_import_utils.dart';
 import '../widgets/common/app_toast.dart';
 import '../widgets/image_editor/image_editor_screen.dart';
 
+typedef _ImageWorkflowRead = T Function<T>(ProviderListenable<T> provider);
+
 class ImageWorkflowLauncher {
   const ImageWorkflowLauncher._();
 
@@ -39,16 +41,40 @@ class ImageWorkflowLauncher {
     Uint8List imageBytes, {
     required ImageEditorMode mode,
   }) async {
-    final workflowNotifier = ref.read(imageWorkflowControllerProvider.notifier);
-    final workflow = ref.read(imageWorkflowControllerProvider);
+    await _openEditor(context, ref.read, imageBytes, mode: mode);
+  }
+
+  static Future<bool> openEditorFromRef(
+    BuildContext context,
+    Ref ref,
+    Uint8List imageBytes, {
+    required ImageEditorMode mode,
+    bool Function()? isCurrent,
+  }) => _openEditor(
+    context,
+    ref.read,
+    imageBytes,
+    mode: mode,
+    isCurrent: isCurrent,
+  );
+
+  static Future<bool> _openEditor(
+    BuildContext context,
+    _ImageWorkflowRead read,
+    Uint8List imageBytes, {
+    required ImageEditorMode mode,
+    bool Function()? isCurrent,
+  }) async {
+    final workflowNotifier = read(imageWorkflowControllerProvider.notifier);
+    final workflow = read(imageWorkflowControllerProvider);
 
     if (mode == ImageEditorMode.edit) {
       workflowNotifier.enterBaseMode(clearMask: true);
-    } else if (ref.read(imageWorkflowControllerProvider).isEnhance) {
+    } else if (read(imageWorkflowControllerProvider).isEnhance) {
       workflowNotifier.enterBaseMode(clearMask: false);
     }
 
-    final params = ref.read(generationParamsNotifierProvider);
+    final params = read(generationParamsNotifierProvider);
     final result = await ImageEditorScreen.show(
       context,
       initialImage: imageBytes,
@@ -67,21 +93,19 @@ class ImageWorkflowLauncher {
               model: params.model,
               steps: params.steps,
               batchCount: params.nSamples,
-              batchSize: ref.read(imagesPerRequestProvider),
+              batchSize: read(imagesPerRequestProvider),
               smea: params.effectiveSmea,
               smeaDyn: params.effectiveSmeaDyn,
               strength: params.inpaintStrength,
               subscriptionTier:
-                  ref.read(subscriptionNotifierProvider).subscription?.isOpus ==
+                  read(subscriptionNotifierProvider).subscription?.isOpus ==
                       true
                   ? AnlasCalculator.opusTier
                   : 0,
               opusQuotaExhausted:
-                  ref
-                      .read(subscriptionNotifierProvider)
-                      .subscription
-                      ?.usage
-                      ?.isNegative ??
+                  read(
+                    subscriptionNotifierProvider,
+                  ).subscription?.usage?.isNegative ??
                   false,
               extraPerSampleCost:
                   AnlasCalculator.resolvePreciseReferenceExtraCost(params),
@@ -94,8 +118,10 @@ class ImageWorkflowLauncher {
           : context.l10n.img2img_inpaint,
     );
 
-    if (result == null || !context.mounted) {
-      return;
+    if (result == null ||
+        !context.mounted ||
+        (isCurrent != null && !isCurrent())) {
+      return false;
     }
 
     AppLogger.d(
@@ -130,8 +156,9 @@ class ImageWorkflowLauncher {
         );
         workflowNotifier.setPanelExpanded(true);
         AppToast.success(context, context.l10n.img2img_editApplied);
+        return true;
       }
-      return;
+      return false;
     }
 
     final effectiveMask =
@@ -162,10 +189,17 @@ class ImageWorkflowLauncher {
     } else if (result.maskImage != null) {
       AppToast.warning(context, context.l10n.toast_noValidMaskIgnored);
     }
+    return true;
   }
 
-  static void openEnhance(WidgetRef ref, Uint8List imageBytes) {
-    final workflowNotifier = ref.read(imageWorkflowControllerProvider.notifier);
+  static void openEnhance(WidgetRef ref, Uint8List imageBytes) =>
+      _openEnhance(ref.read, imageBytes);
+
+  static void openEnhanceFromRef(Ref ref, Uint8List imageBytes) =>
+      _openEnhance(ref.read, imageBytes);
+
+  static void _openEnhance(_ImageWorkflowRead read, Uint8List imageBytes) {
+    final workflowNotifier = read(imageWorkflowControllerProvider.notifier);
     workflowNotifier.replaceSourceImage(imageBytes);
     workflowNotifier.enterEnhanceMode();
     workflowNotifier.setPanelExpanded(true);
@@ -183,8 +217,14 @@ class ImageWorkflowLauncher {
   }
 
   /// 打开图生图「超分」子面板（内嵌，非弹窗）
-  static void openUpscale(WidgetRef ref, Uint8List imageBytes) {
-    final workflowNotifier = ref.read(imageWorkflowControllerProvider.notifier);
+  static void openUpscale(WidgetRef ref, Uint8List imageBytes) =>
+      _openUpscale(ref.read, imageBytes);
+
+  static void openUpscaleFromRef(Ref ref, Uint8List imageBytes) =>
+      _openUpscale(ref.read, imageBytes);
+
+  static void _openUpscale(_ImageWorkflowRead read, Uint8List imageBytes) {
+    final workflowNotifier = read(imageWorkflowControllerProvider.notifier);
     workflowNotifier.replaceSourceImage(imageBytes);
     workflowNotifier.enterUpscaleMode();
     workflowNotifier.setPanelExpanded(true);
@@ -195,17 +235,86 @@ class ImageWorkflowLauncher {
     WidgetRef ref,
     Uint8List imageBytes,
   ) async {
+    await _openDirectorTools(context, ref.read, imageBytes);
+  }
+
+  static Future<bool> openDirectorToolsFromRef(
+    BuildContext context,
+    Ref ref,
+    Uint8List imageBytes, {
+    bool Function()? isCurrent,
+  }) => _openDirectorTools(context, ref.read, imageBytes, isCurrent: isCurrent);
+
+  static Future<bool> _openDirectorTools(
+    BuildContext context,
+    _ImageWorkflowRead read,
+    Uint8List imageBytes, {
+    bool Function()? isCurrent,
+  }) async {
     final result = await DirectorToolsScreen.show(
       context,
       sourceImage: imageBytes,
     );
-    if (result != null && context.mounted) {
-      final workflowNotifier = ref.read(
-        imageWorkflowControllerProvider.notifier,
-      );
+    if (result != null &&
+        context.mounted &&
+        (isCurrent == null || isCurrent())) {
+      final workflowNotifier = read(imageWorkflowControllerProvider.notifier);
       workflowNotifier.replaceSourceImage(result);
       workflowNotifier.setPanelExpanded(true);
       AppToast.success(context, context.l10n.img2img_directorApplied);
+      return true;
+    }
+    return false;
+  }
+
+  /// Prepares variation source and settings without starting generation.
+  static Future<void> prepareVariations(
+    BuildContext context,
+    WidgetRef ref,
+    Uint8List imageBytes,
+  ) => _prepareVariations(context, ref.read, imageBytes);
+
+  static Future<void> prepareVariationsFromRef(
+    BuildContext context,
+    Ref ref,
+    Uint8List imageBytes, {
+    bool Function()? isCurrent,
+  }) => _prepareVariations(context, ref.read, imageBytes, isCurrent: isCurrent);
+
+  static Future<void> _prepareVariations(
+    BuildContext context,
+    _ImageWorkflowRead read,
+    Uint8List imageBytes, {
+    bool Function()? isCurrent,
+  }) async {
+    final workflowNotifier = read(imageWorkflowControllerProvider.notifier);
+    final paramsNotifier = read(generationParamsNotifierProvider.notifier);
+    void prepareSource() {
+      workflowNotifier.replaceSourceImage(imageBytes);
+      workflowNotifier.enterBaseMode(clearMask: true);
+      workflowNotifier.setPanelExpanded(true);
+    }
+
+    // Existing UI callers expect the source panel to update immediately. Agent
+    // callers defer every mutation until the stable resource is still current.
+    if (isCurrent == null) prepareSource();
+    final metadata = await ImageMetadataService().getMetadataFromBytes(
+      imageBytes,
+    );
+    if (!context.mounted || (isCurrent != null && !isCurrent())) return;
+    if (isCurrent != null) prepareSource();
+
+    if (metadata != null && metadata.hasData) {
+      _applyVariationMetadata(
+        metadata,
+        read,
+        paramsNotifier,
+        fallbackModel: read(generationParamsNotifierProvider).model,
+      );
+    } else {
+      paramsNotifier.randomizeSeed();
+      paramsNotifier.updateStrength(0.45);
+      paramsNotifier.updateNoise(0.0);
     }
   }
 
@@ -214,33 +323,7 @@ class ImageWorkflowLauncher {
     WidgetRef ref,
     Uint8List imageBytes,
   ) async {
-    final workflowNotifier = ref.read(imageWorkflowControllerProvider.notifier);
-    final paramsNotifier = ref.read(generationParamsNotifierProvider.notifier);
-
-    workflowNotifier.replaceSourceImage(imageBytes);
-    workflowNotifier.enterBaseMode(clearMask: true);
-    workflowNotifier.setPanelExpanded(true);
-
-    final metadata = await ImageMetadataService().getMetadataFromBytes(
-      imageBytes,
-    );
-    if (!context.mounted) {
-      return;
-    }
-
-    if (metadata != null && metadata.hasData) {
-      _applyVariationMetadata(
-        metadata,
-        ref,
-        paramsNotifier,
-        fallbackModel: ref.read(generationParamsNotifierProvider).model,
-      );
-    } else {
-      paramsNotifier.randomizeSeed();
-      paramsNotifier.updateStrength(0.45);
-      paramsNotifier.updateNoise(0.0);
-    }
-
+    await prepareVariations(context, ref, imageBytes);
     if (!context.mounted) return;
     if (PlatformCapabilities.current.supportsKritaBridge &&
         ref.read(kritaBridgeNotifierProvider).isBridgeGenerating) {
@@ -265,7 +348,7 @@ class ImageWorkflowLauncher {
 
   static void _applyVariationMetadata(
     NaiImageMetadata metadata,
-    WidgetRef ref,
+    _ImageWorkflowRead read,
     GenerationParamsNotifier notifier, {
     required String fallbackModel,
   }) {
@@ -291,14 +374,14 @@ class ImageWorkflowLauncher {
         updateCfgRescale: notifier.updateCfgRescale,
         updateQualityToggle: (value) {
           notifier.updateQualityToggle(value);
-          applyImportedQualityToggle(ref.read, value);
+          applyImportedQualityToggle(read, value);
         },
         updateQualityTier: (value) {
-          ref.read(qualityPresetNotifierProvider.notifier).setNaiTier(value);
+          read(qualityPresetNotifierProvider.notifier).setNaiTier(value);
         },
         updateUcPreset: (value) {
           notifier.updateUcPreset(value);
-          applyImportedUcPreset(ref.read, value);
+          applyImportedUcPreset(read, value);
         },
         updateTransparentBackground: notifier.updateTransparentBackground,
       ),

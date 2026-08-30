@@ -46,6 +46,23 @@ void main() {
       expect(await pending, isNull);
     });
 
+    test('invalid negative estimate is blocked without approval', () async {
+      AgentToolApprovalRequest? approval;
+      final controller = _controller(
+        mode: AgentAccessMode.allowWrite,
+        estimate: -3,
+        onApproval: (value) => approval = value,
+      );
+
+      final result = await controller.beforeToolCall(
+        _context('invalid-cost'),
+        null,
+      );
+
+      expect(result?.block, isTrue);
+      expect(approval, isNull);
+    });
+
     test('ask mode still asks for a zero-cost mutation', () async {
       AgentToolApprovalRequest? approval;
       final controller = _controller(

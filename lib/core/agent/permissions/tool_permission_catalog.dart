@@ -44,10 +44,13 @@ class AgentToolPermissionCatalog {
       descriptor.operation,
     );
     if (ordinaryDecision == AgentPermissionDecision.block ||
-        !descriptor.mayConsumeAnlas ||
-        (estimatedAnlas != null && estimatedAnlas <= 0)) {
+        !descriptor.mayConsumeAnlas) {
       return ordinaryDecision;
     }
+    if (estimatedAnlas != null && estimatedAnlas < 0) {
+      return AgentPermissionDecision.block;
+    }
+    if (estimatedAnlas == 0) return ordinaryDecision;
     return AgentPermissionDecision.confirmCharge;
   }
 
@@ -165,7 +168,12 @@ AgentToolPermissionDescriptor describeAgentToolPermission(String toolName) {
 
   final domain = switch (toolName) {
     'get_application_context' ||
-    'navigate_application' => AgentPermissionDomain.appNavigation,
+    'navigate_application' ||
+    'select_generated_image' => AgentPermissionDomain.appNavigation,
+    'set_generated_image_favorite' => AgentPermissionDomain.localGallery,
+    'save_generated_image' => AgentPermissionDomain.file,
+    'copy_generated_image_to_clipboard' ||
+    'send_generated_image_to_krita' => AgentPermissionDomain.externalActions,
     String()
         when toolName.contains('fixed_tag') ||
             toolName.contains('tag_library') =>
@@ -225,15 +233,19 @@ AgentToolPermissionDescriptor describeAgentToolPermission(String toolName) {
       toolName.startsWith('remove_') ||
       toolName.startsWith('clear_') ||
       toolName.startsWith('cancel_');
-  final operation = isDelete
-      ? AgentPermissionOperation.delete
-      : isRead
-      ? AgentPermissionOperation.read
-      : toolName.startsWith('create_') || toolName.startsWith('prepare_')
-      ? AgentPermissionOperation.create
-      : toolName == 'navigate_application'
-      ? AgentPermissionOperation.execute
-      : AgentPermissionOperation.update;
+  final operation = switch (toolName) {
+    'save_generated_image' => AgentPermissionOperation.create,
+    'navigate_application' ||
+    'select_generated_image' ||
+    'open_generation_image_workflow' ||
+    'copy_generated_image_to_clipboard' ||
+    'send_generated_image_to_krita' => AgentPermissionOperation.execute,
+    _ when isDelete => AgentPermissionOperation.delete,
+    _ when isRead => AgentPermissionOperation.read,
+    _ when toolName.startsWith('create_') || toolName.startsWith('prepare_') =>
+      AgentPermissionOperation.create,
+    _ => AgentPermissionOperation.update,
+  };
   return AgentToolPermissionDescriptor(
     toolName: toolName,
     domain: domain,

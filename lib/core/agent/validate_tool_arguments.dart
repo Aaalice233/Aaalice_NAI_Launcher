@@ -1,7 +1,8 @@
 import 'agent_types.dart';
 
 /// 工具参数校验
-/// 子集实现：type/properties/required/enum/items/minimum/maximum。校验失败抛出
+/// 子集实现：type/properties/required/additionalProperties/enum/items/
+/// minimum/maximum。校验失败抛出
 /// [FormatException]，由 loop 捕获并转为错误工具结果让模型重试。
 Map<String, dynamic> validateToolArguments(
   AgentTool tool,
@@ -47,6 +48,16 @@ void _validateAgainstSchema(
       }
     }
     final properties = schema['properties'];
+    if (schema['additionalProperties'] == false) {
+      final allowed = properties is Map<String, dynamic>
+          ? properties.keys.toSet()
+          : const <String>{};
+      for (final key in value.keys) {
+        if (!allowed.contains(key)) {
+          throw FormatException('$path: unknown property "$key"');
+        }
+      }
+    }
     if (properties is Map<String, dynamic>) {
       for (final entry in properties.entries) {
         if (value.containsKey(entry.key) &&
