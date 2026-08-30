@@ -17,6 +17,7 @@ import '../../providers/online_gallery_provider.dart';
 import '../../providers/precise_ref_library_provider.dart';
 import '../../providers/tag_library_page_provider.dart';
 import '../../providers/vibe_library_provider.dart';
+import 'generation_image_resource.dart';
 
 final class ResolvedAgentResource {
   const ResolvedAgentResource({
@@ -64,6 +65,17 @@ class AgentResourceResolver {
     );
   }
 
+  Future<void> validateForDisplay(AgentChatResourceReference reference) async {
+    if (reference.kind != AgentChatResourceKind.generatedImage) return;
+    await _ref
+        .read(imageGenerationNotifierProvider.notifier)
+        .ensureGenerationHistoryRestored();
+    requireAvailableGenerationImage(
+      _ref.read(imageGenerationNotifierProvider),
+      generationImageResourceReference(reference.resourceId),
+    );
+  }
+
   Future<ResolvedAgentResource?> resolve(
     AgentChatResourceReference reference,
   ) async {
@@ -100,10 +112,13 @@ class AgentResourceResolver {
             !record.isDeleted &&
             await File(record.filePath).exists();
       case AgentChatResourceKind.generatedImage:
-        return _ref
-                .read(imageGenerationNotifierProvider)
-                .findImageById(reference.resourceId) !=
-            null;
+        await _ref
+            .read(imageGenerationNotifierProvider.notifier)
+            .ensureGenerationHistoryRestored();
+        final image = _ref
+            .read(imageGenerationNotifierProvider)
+            .findImageById(reference.resourceId);
+        return image != null && !image.isFailedStreamSnapshot;
       case AgentChatResourceKind.onlineGalleryMedia:
         return _onlineExists(reference);
       case AgentChatResourceKind.inpaintDraft:
@@ -251,15 +266,18 @@ class AgentResourceResolver {
     );
   }
 
-  ResolvedAgentResource? _resolveGenerated(
+  Future<ResolvedAgentResource?> _resolveGenerated(
     AgentChatResourceReference reference,
-  ) {
+  ) async {
+    await _ref
+        .read(imageGenerationNotifierProvider.notifier)
+        .ensureGenerationHistoryRestored();
     final image = _ref
         .read(imageGenerationNotifierProvider)
         .findImageById(reference.resourceId);
-    if (image == null) return null;
+    if (image == null || image.isFailedStreamSnapshot) return null;
     return ResolvedAgentResource(
-      reference: reference,
+      reference: generationImageResourceReference(image.id),
       label: reference.display['label'] ?? 'Generated image',
       bytes: image.bytes,
       filePath: image.filePath,

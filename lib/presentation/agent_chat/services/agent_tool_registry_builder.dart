@@ -1,19 +1,30 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/agent/agent.dart';
+import '../../../core/agent/harness/env/dart_io_execution_env.dart';
 import '../../../core/agent/harness/harness_types.dart';
 import '../../../core/agent/harness/skills.dart';
 import '../../../core/agent/permissions/permissions.dart';
 import '../../agent_settings/providers/agent_settings_provider.dart';
 import '../../prompt_assistant/models/prompt_assistant_models.dart';
 import '../../prompt_assistant/providers/web_access_provider.dart';
+import '../../providers/krita/krita_bridge_notifier.dart';
+import '../../router/app_router_config.dart';
+import '../../router/app_routes.dart';
 import 'agent_resource_resolver.dart';
 import 'application_toolbox.dart';
 import 'display_images_toolbox.dart';
 import 'execution_toolbox.dart';
 import 'gallery_toolbox.dart';
+import 'generation_image_favorite_toolbox.dart';
+import 'generation_image_workflow_launcher_adapter.dart';
+import 'generation_image_workflow_service.dart';
+import 'generation_image_workflow_toolbox.dart';
 import 'generation_preparation_runtime.dart';
+import 'generation_resource_toolbox.dart';
 import 'generation_toolbox.dart';
+import 'image_resource_action_service.dart';
+import 'image_resource_action_toolbox.dart';
 import 'manual_inpaint_toolbox.dart';
 import 'prompt_toolbox.dart';
 import 'queue_toolbox.dart';
@@ -44,6 +55,8 @@ class AgentToolRegistryBuilder {
     required GenerationPreparationRuntime generationRuntime,
     required QueueControlRuntime queueRuntime,
     required ManualInpaintToolbox manualInpaintToolbox,
+    required String Function() activeSessionId,
+    required bool Function() isMounted,
   }) : _ref = ref,
        _workspaceDir = workspaceDir,
        _skills = skills,
@@ -51,7 +64,9 @@ class AgentToolRegistryBuilder {
        _reloadSkills = reloadSkills,
        _generationRuntime = generationRuntime,
        _queueRuntime = queueRuntime,
-       _manualInpaintToolbox = manualInpaintToolbox;
+       _manualInpaintToolbox = manualInpaintToolbox,
+       _activeSessionId = activeSessionId,
+       _isMounted = isMounted;
 
   final Ref _ref;
   final String _workspaceDir;
@@ -61,6 +76,8 @@ class AgentToolRegistryBuilder {
   final GenerationPreparationRuntime _generationRuntime;
   final QueueControlRuntime _queueRuntime;
   final ManualInpaintToolbox _manualInpaintToolbox;
+  final String Function() _activeSessionId;
+  final bool Function() _isMounted;
 
   AgentToolRegistry build({
     required bool fullAccess,
@@ -80,6 +97,49 @@ class AgentToolRegistryBuilder {
       loadInpaintDraftImage: _manualInpaintToolbox.loadDraftImage,
     );
     _manualInpaintToolbox.configureResourceResolver(resourceResolver);
+    final workflowService = GenerationImageWorkflowService(
+      loadResource: generationWorkflowResourceLoader(_ref),
+      activeSessionId: _activeSessionId,
+      isMounted: _isMounted,
+      launcher: ApplicationGenerationImageWorkflowLauncher(
+        ref: _ref,
+        navigator: () => _ref
+            .read(appRouterProvider)
+            .routerDelegate
+            .navigatorKey
+            .currentState,
+        openGeneration: () async =>
+            _ref.read(appRouterProvider).go(AppRoutes.generation),
+        manualInpaintToolbox: _manualInpaintToolbox,
+      ),
+    );
+    final imageActionService = ImageResourceActionService(
+      resolve: (reference) async {
+        await resourceResolver.validateForDisplay(reference);
+        final resolved = await resourceResolver.resolve(reference);
+        final bytes = resolved?.bytes;
+        return resolved == null || bytes == null
+            ? null
+            : ResolvedImageResourceActionSource(
+                label: resolved.label,
+                bytes: bytes,
+              );
+      },
+      env: DartIoExecutionEnv(
+        workingDirectory: _workspaceDir,
+        allowOutsideWorkingDirectory: fullAccess,
+      ),
+      readKritaBridgeState: () {
+        final state = _ref.read(kritaBridgeNotifierProvider);
+        return ImageResourceKritaBridgeState(
+          configured: state.enabled,
+          connected: state.status == KritaBridgeStatus.connected,
+        );
+      },
+      sendToKrita: (bytes, {required name}) => _ref
+          .read(kritaBridgeNotifierProvider.notifier)
+          .sendImageToKrita(bytes, name: name),
+    );
     final tools = <AgentTool>[
       ...PromptToolbox(
         _ref,
@@ -104,10 +164,15 @@ class AgentToolRegistryBuilder {
       ...ApplicationToolbox(
         _ref,
         loadDrafts: _manualInpaintToolbox.listDraftSummaries,
+        resourceResolver: resourceResolver,
       ).tools(),
       ...GalleryToolbox(_ref).tools(),
       ...ReferenceLibraryToolbox(_ref, resourceResolver).tools(),
       ...DisplayImagesToolbox(resourceResolver).tools(),
+      ...GenerationResourceToolbox(_ref).tools(),
+      ...GenerationImageWorkflowToolbox(workflowService).tools(),
+      ...GenerationImageFavoriteToolbox(_ref).tools(),
+      ...ImageResourceActionToolbox(imageActionService).tools(),
       if (webAccessEnabled)
         ...WebAccessToolbox(
           config: _ref

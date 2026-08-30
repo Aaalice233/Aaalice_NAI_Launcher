@@ -245,6 +245,8 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       generationRuntime: _generationPreparationRuntime,
       queueRuntime: _queueControlRuntime,
       manualInpaintToolbox: _manualInpaintToolbox,
+      activeSessionId: () => state.activeSessionId,
+      isMounted: () => mounted,
     );
     _sessionControllerValue = AgentChatSessionController(
       repository: sessionRepository,

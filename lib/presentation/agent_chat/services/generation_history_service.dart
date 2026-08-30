@@ -10,6 +10,7 @@ import '../../../core/utils/display_thumbnail_utils.dart';
 import '../../providers/image_generation_provider.dart';
 import 'agent_resource_resolver.dart';
 import 'defined_agent_tool.dart';
+import 'generation_image_resource.dart';
 import 'generation_tool_results.dart';
 import 'generation_workspace_path_resolver.dart';
 
@@ -40,9 +41,13 @@ class GenerationHistoryService {
         'Parameter "limit" must be between 1 and $_maxRecentImageLimit.',
       );
     }
+    await _ref
+        .read(imageGenerationNotifierProvider.notifier)
+        .ensureGenerationHistoryRestored();
     final history = _ref.read(imageGenerationNotifierProvider).history;
     final report = <Map<String, dynamic>>[];
     for (final image in history) {
+      if (image.isFailedStreamSnapshot) continue;
       final filePath = image.filePath;
       if (filePath == null || !await File(filePath).exists()) continue;
       final readablePath = _pathResolver.readableRelativePath(filePath);
@@ -69,23 +74,37 @@ class GenerationHistoryService {
   Future<AgentToolResult> previewGeneratedImage(
     Map<String, dynamic> args,
   ) async {
-    AgentChatResourceReference reference;
+    await _ref
+        .read(imageGenerationNotifierProvider.notifier)
+        .ensureGenerationHistoryRestored();
+    final AgentChatResourceReference reference;
     try {
-      reference = _resourceResolver.decode(args['resource_ref']);
-    } on FormatException catch (error) {
-      return agentToolError('invalid_resource_ref', '$error');
-    }
-    if (reference.kind != AgentChatResourceKind.generatedImage) {
+      reference = parseGenerationImageResource(args);
+      requireAvailableGenerationImage(
+        _ref.read(imageGenerationNotifierProvider),
+        reference,
+      );
+    } on GenerationImageResourceException catch (error) {
       return agentToolError(
-        'wrong_resource_kind',
-        'resource_ref must identify a generated image.',
+        error.code,
+        'preview_generated_image: ${error.message}',
       );
     }
-    final resolved = await _resourceResolver.resolve(reference);
+    final ResolvedAgentResource? resolved;
+    try {
+      resolved = await _resourceResolver.resolve(reference);
+    } on Object catch (error) {
+      return agentToolError(
+        'resource_resolution_failed',
+        'preview_generated_image: generated image ${reference.resourceId} '
+            'failed during resource resolution (${error.runtimeType}).',
+      );
+    }
     if (resolved?.bytes == null) {
       return agentToolError(
         'resource_unavailable',
-        'Generated image is unavailable.',
+        'preview_generated_image: generated image ${reference.resourceId} '
+            'has no available bytes.',
       );
     }
     final thumbnail = await DisplayThumbnailUtils.normalize(resolved!.bytes!);
@@ -95,7 +114,8 @@ class GenerationHistoryService {
     if (thumbnail == null || mime == null) {
       return agentToolError(
         'preview_invalid',
-        'Generated image preview is invalid.',
+        'preview_generated_image: generated image ${reference.resourceId} '
+            'could not be normalized for preview.',
       );
     }
     final details = <String, dynamic>{
@@ -119,10 +139,5 @@ class GenerationHistoryService {
   }
 
   AgentChatResourceReference generatedImageReference(String imageId) =>
-      AgentChatResourceReference(
-        kind: AgentChatResourceKind.generatedImage,
-        source: 'generation_history',
-        resourceId: imageId,
-        display: {'title': imageId},
-      );
+      generationImageResourceReference(imageId);
 }

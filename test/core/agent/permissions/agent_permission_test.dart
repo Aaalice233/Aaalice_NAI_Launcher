@@ -29,6 +29,99 @@ void main() {
       describeAgentToolPermission('clear_characters').operation,
       AgentPermissionOperation.delete,
     );
+    expect(
+      describeAgentToolPermission('select_generated_image'),
+      isA<AgentToolPermissionDescriptor>()
+          .having(
+            (value) => value.domain,
+            'domain',
+            AgentPermissionDomain.appNavigation,
+          )
+          .having(
+            (value) => value.operation,
+            'operation',
+            AgentPermissionOperation.execute,
+          ),
+    );
+    expect(
+      describeAgentToolPermission('open_generation_image_workflow'),
+      isA<AgentToolPermissionDescriptor>()
+          .having(
+            (value) => value.domain,
+            'domain',
+            AgentPermissionDomain.generation,
+          )
+          .having(
+            (value) => value.operation,
+            'operation',
+            AgentPermissionOperation.execute,
+          )
+          .having((value) => value.mayConsumeAnlas, 'mayConsumeAnlas', isFalse),
+    );
+    expect(
+      describeAgentToolPermission('set_generated_image_favorite').domain,
+      AgentPermissionDomain.localGallery,
+    );
+    expect(
+      describeAgentToolPermission('save_generated_image'),
+      isA<AgentToolPermissionDescriptor>()
+          .having((value) => value.domain, 'domain', AgentPermissionDomain.file)
+          .having(
+            (value) => value.operation,
+            'operation',
+            AgentPermissionOperation.create,
+          ),
+    );
+    for (final toolName in const [
+      'copy_generated_image_to_clipboard',
+      'send_generated_image_to_krita',
+    ]) {
+      expect(
+        describeAgentToolPermission(toolName).domain,
+        AgentPermissionDomain.externalActions,
+      );
+    }
+  });
+
+  test('image mutations follow safe, ask, and full-access policies', () {
+    const toolNames = [
+      'select_generated_image',
+      'open_generation_image_workflow',
+      'set_generated_image_favorite',
+      'save_generated_image',
+      'copy_generated_image_to_clipboard',
+      'send_generated_image_to_krita',
+    ];
+    final descriptors = [
+      for (final name in toolNames) describeAgentToolPermission(name),
+    ];
+    final catalog = AgentToolPermissionCatalog(
+      toolNames: toolNames,
+      descriptors: descriptors,
+    );
+
+    for (final mode in const {
+      AgentAccessMode.readOnly,
+      AgentAccessMode.askBeforeWrite,
+      AgentAccessMode.allowWrite,
+    }) {
+      final policy = AgentPermissionPolicy({
+        for (final domain in AgentPermissionDomain.values) domain: mode,
+      });
+      final expected = switch (mode) {
+        AgentAccessMode.readOnly => AgentPermissionDecision.block,
+        AgentAccessMode.askBeforeWrite => AgentPermissionDecision.ask,
+        AgentAccessMode.allowWrite => AgentPermissionDecision.allow,
+        AgentAccessMode.blocked => AgentPermissionDecision.block,
+      };
+      for (final name in toolNames) {
+        expect(
+          catalog.decide(toolName: name, policy: policy),
+          expected,
+          reason: '$mode/$name',
+        );
+      }
+    }
   });
 
   group('AgentPermissionPolicy', () {
@@ -133,6 +226,14 @@ void main() {
       expect(
         catalog.decide(toolName: 'generate', policy: policy, estimatedAnlas: 0),
         AgentPermissionDecision.allow,
+      );
+      expect(
+        catalog.decide(
+          toolName: 'generate',
+          policy: policy,
+          estimatedAnlas: -3,
+        ),
+        AgentPermissionDecision.block,
       );
       expect(() => catalog.descriptorFor('unknown'), throwsStateError);
     });

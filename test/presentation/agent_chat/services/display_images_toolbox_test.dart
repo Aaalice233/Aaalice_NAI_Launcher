@@ -7,6 +7,7 @@ import 'package:nai_launcher/core/agent/resources/agent_chat_resource_reference.
 import 'package:nai_launcher/core/agent/resources/agent_chat_resource_reference_codec.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/agent_resource_resolver.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/display_images_toolbox.dart';
+import 'package:nai_launcher/presentation/agent_chat/services/generation_image_resource.dart';
 
 void main() {
   final references = [_reference('first'), _reference('second')];
@@ -29,6 +30,33 @@ void main() {
     expect(result.isError, isFalse);
     expect(result.content.whereType<ToolResultImageContent>(), hasLength(2));
     expect(result.details, containsPair('count', 2));
+  });
+
+  test('display_images emits the owner-normalized reference', () async {
+    final service = DisplayImagesService(
+      resolve: (reference) async => ResolvedAgentResource(
+        reference: generationImageResourceReference(reference.resourceId),
+        label: reference.resourceId,
+        bytes: _onePixelPng,
+      ),
+    );
+
+    final result = await service.display({
+      'resource_refs': [
+        AgentChatResourceReferenceCodec.encodeJsonMap(
+          AgentChatResourceReference(
+            kind: AgentChatResourceKind.generatedImage,
+            source: 'legacy_source',
+            resourceId: 'first',
+          ),
+        ),
+      ],
+    });
+
+    final images = result.details['images'] as List;
+    final resourceRef = images.single['resource_ref'] as Map<String, dynamic>;
+    expect(resourceRef['source'], generationImageResourceSource);
+    expect(resourceRef['resourceId'], 'first');
   });
 
   test('display_images rejects an invalid stable reference', () async {

@@ -182,6 +182,44 @@ void main() {
     expect((await repository.get(id))!.status, InpaintDraftStatus.cancelled);
   });
 
+  test(
+    'session switch stops resource-backed draft before editor launch',
+    () async {
+      var sessionId = 'session-a';
+      final pendingSource = Completer<Uint8List?>();
+      var editorLaunches = 0;
+      final reference = AgentChatResourceReference(
+        kind: AgentChatResourceKind.generatedImage,
+        source: 'generation_history',
+        resourceId: 'generated-1',
+      );
+      final toolbox = ManualInpaintToolbox(
+        container.read(_refProvider),
+        supportDirectory: root,
+        anlasEstimator: (_, _) => 0,
+        repository: repository,
+        resourceLoader: (_) => pendingSource.future,
+        activeSessionId: () => sessionId,
+        editorLauncher: (_, __, ___) {
+          editorLaunches += 1;
+          return ManualInpaintEditorSession(
+            result: Future<ImageEditorResult?>.value(),
+            close: () {},
+          );
+        },
+      );
+
+      final resultFuture = toolbox.createDraftFromResource(reference);
+      sessionId = 'session-b';
+      pendingSource.complete(_png());
+
+      final result = await resultFuture;
+      expect(result.details['code'], 'session_switched');
+      expect(editorLaunches, 0);
+      expect(await repository.list(), isEmpty);
+    },
+  );
+
   test('create resolves and persists a stable source reference', () async {
     final source = _png(value: 72);
     final editorResult = Completer<ImageEditorResult?>();

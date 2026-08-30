@@ -154,6 +154,18 @@ class ManualInpaintToolbox {
     for (final draft in await _repository.list()) manualInpaintDraftJson(draft),
   ];
 
+  /// Opens the same persisted manual draft flow used by the Agent inpaint
+  /// tools, without submitting it.
+  Future<AgentToolResult> createDraftFromResource(
+    AgentChatResourceReference reference,
+  ) {
+    final prompt = _ref.read(generationParamsNotifierProvider).prompt.trim();
+    return _create({
+      'source_ref': AgentChatResourceReferenceCodec.encodeJsonMap(reference),
+      'prompt': prompt.isEmpty ? 'Edit the selected area' : prompt,
+    }, expectedSessionId: _activeSessionId?.call());
+  }
+
   Future<Uint8List?> loadDraftImage(
     String draftId, {
     required bool mask,
@@ -220,7 +232,12 @@ class ManualInpaintToolbox {
     }
   }
 
-  Future<AgentToolResult> _create(Map<String, dynamic> args) async {
+  Future<AgentToolResult> _create(
+    Map<String, dynamic> args, {
+    String? expectedSessionId,
+  }) async {
+    final sessionId = expectedSessionId ?? _activeSessionId?.call();
+    bool isCurrentSession() => _activeSessionId?.call() == sessionId;
     final prompt = (args['prompt'] as String?)?.trim() ?? '';
     if (prompt.isEmpty) {
       return agentToolError('invalid_prompt', 'prompt must not be empty.');
@@ -245,6 +262,12 @@ class ManualInpaintToolbox {
           return agentToolError(
             'resource_unavailable',
             'Source image resource is unavailable.',
+          );
+        }
+        if (!isCurrentSession()) {
+          return agentToolError(
+            'session_switched',
+            'The Agent session changed before the inpaint draft was prepared.',
           );
         }
         source = resolved;
@@ -288,8 +311,23 @@ class ManualInpaintToolbox {
         ),
       );
       createdDraftId = prepared.id;
-      _draftSessionIds[prepared.id] = _activeSessionId?.call() ?? '';
+      if (!isCurrentSession()) {
+        await _repository.cancel(prepared.id);
+        return agentToolError(
+          'session_switched',
+          'The Agent session changed before the inpaint editor was opened.',
+        );
+      }
+      _draftSessionIds[prepared.id] = sessionId ?? '';
       final editing = await _repository.beginEditing(prepared.id);
+      if (!isCurrentSession()) {
+        await _repository.cancel(editing.id);
+        _draftSessionIds.remove(editing.id);
+        return agentToolError(
+          'session_switched',
+          'The Agent session changed before the inpaint editor was opened.',
+        );
+      }
       final session = (_editorLauncher ?? _openEditor)(
         editing.id,
         source,
@@ -384,6 +422,13 @@ class ManualInpaintToolbox {
         return agentToolError(
           'not_ready',
           'Draft status is ${draft.status.name}; ready is required.',
+        );
+      }
+      if (draft.estimatedAnlas < 0) {
+        return agentToolError(
+          'invalid_cost_estimate',
+          'The inpaint draft does not have a valid Anlas estimate and cannot '
+              'be submitted.',
         );
       }
       final source = await _repository.readSource(id);

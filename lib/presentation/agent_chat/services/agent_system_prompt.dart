@@ -62,6 +62,13 @@ String buildAgentSystemPrompt({
         'and stable resource_ref. Never derive a filename or extension from a '
         'resource_ref/resourceId; use the returned path with read, or pass the '
         'resource_ref to preview_generated_image.',
+    '- Reuse that exact generated-image resource_ref for selection, favorites, '
+        'tag-library thumbnails, saving, clipboard, Krita, and '
+        'open_generation_image_workflow. Never substitute an index or raw path.',
+    '- open_generation_image_workflow only prepares or opens edit, inpaint, '
+        'variations, director, enhance, or upscale in the real application. It '
+        'never submits or spends Anlas; report its next_step and let the user '
+        'edit/review before any separately confirmed paid submission.',
     '- Image retrieval tools such as get_recent_images and gallery searches '
         'return metadata and stable resource_ref objects; they do not display '
         'their media automatically. Always pass the required get_recent_images '

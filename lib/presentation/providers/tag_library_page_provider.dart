@@ -364,11 +364,22 @@ class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
   }
 
   /// 删除条目
-  Future<void> deleteEntry(String entryId) async {
-    final newEntries =
-        state.entries.where((e) => e.id != entryId).toList().reindex();
+  Future<void> deleteEntry(
+    String entryId, {
+    bool failOnPersistenceError = false,
+  }) async {
+    final previousEntries = state.entries;
+    final newEntries = previousEntries
+        .where((entry) => entry.id != entryId)
+        .toList()
+        .reindex();
     state = state.copyWith(entries: newEntries);
-    await _saveEntries();
+    try {
+      await _saveEntries(rethrowError: failOnPersistenceError);
+    } catch (_) {
+      state = state.copyWith(entries: previousEntries);
+      rethrow;
+    }
   }
 
   /// 切换收藏状态

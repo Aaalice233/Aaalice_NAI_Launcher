@@ -15,6 +15,7 @@ enum AgentPermissionDomain {
   skills,
   web,
   file,
+  externalActions,
 }
 
 /// Access granted to tools in one [AgentPermissionDomain].
