@@ -28,11 +28,30 @@ class UpdateCheckDialog extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(updateStateProvider);
+    final actions = _buildActions(context, ref, state);
+    final compact = MediaQuery.sizeOf(context).width < 600;
 
     return AlertDialog(
+      insetPadding: compact
+          ? const EdgeInsets.symmetric(horizontal: 16, vertical: 12)
+          : null,
+      contentPadding: compact
+          ? const EdgeInsets.fromLTRB(20, 12, 20, 12)
+          : null,
+      actionsPadding: compact ? const EdgeInsets.fromLTRB(16, 0, 16, 12) : null,
       title: Text(_getTitle(context, state)),
       content: SizedBox(width: 620, child: _buildContent(context, ref, state)),
-      actions: _buildActions(context, ref, state),
+      actions: actions.isEmpty
+          ? null
+          : [
+              SizedBox(
+                width: double.infinity,
+                child: _ResponsiveDialogActions(
+                  compact: compact,
+                  children: actions,
+                ),
+              ),
+            ],
     );
   }
 
@@ -97,68 +116,80 @@ class UpdateCheckDialog extends ConsumerWidget {
     final releaseNotesBackground = theme.colorScheme.surfaceContainerLowest;
     final releaseNotesForeground = _readableForeground(releaseNotesBackground);
 
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // 版本信息
-          Row(
-            children: [
-              Expanded(
-                child: _buildVersionInfoTile(
-                  context,
-                  label: context.l10n.currentVersion,
-                  value: versionInfo.displayCurrentVersion,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildVersionInfoTile(
-                  context,
-                  label: context.l10n.latestVersion,
-                  value: versionInfo.displayVersion,
-                  isHighlighted: true,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          if (versionInfo.primaryAsset != null) ...[
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Icon(
-                versionInfo.supportsInAppInstall
-                    ? Icons.system_update_alt
-                    : Icons.open_in_new,
-              ),
-              title: Text(
-                versionInfo.primaryAsset!.label ?? context.l10n.common_download,
-              ),
-              subtitle: Text(
-                versionInfo.primaryAsset!.description ??
-                    context.l10n.updatePortableManualHint,
+    final versionSummary = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _buildVersionInfoTile(
+                context,
+                label: context.l10n.currentVersion,
+                value: versionInfo.displayCurrentVersion,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildVersionInfoTile(
+                context,
+                label: context.l10n.latestVersion,
+                value: versionInfo.displayVersion,
+                isHighlighted: true,
+              ),
+            ),
           ],
-          // 更新日志
-          if (releaseNotes.isNotEmpty) ...[
-            Text(
-              context.l10n.releaseNotes,
-              style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+        ),
+        if (versionInfo.primaryAsset != null) ...[
+          const SizedBox(height: 8),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(
+              versionInfo.supportsInAppInstall
+                  ? Icons.system_update_alt
+                  : Icons.open_in_new,
             ),
-            const SizedBox(height: 8),
-            Container(
-              constraints: const BoxConstraints(maxHeight: 380),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: releaseNotesBackground,
-                borderRadius: BorderRadius.circular(8),
-              ),
+            title: Text(
+              versionInfo.primaryAsset!.label ?? context.l10n.common_download,
+            ),
+            subtitle: Text(
+              versionInfo.primaryAsset!.description ??
+                  context.l10n.updatePortableManualHint,
+            ),
+          ),
+        ],
+      ],
+    );
+
+    if (releaseNotes.isEmpty) {
+      return SingleChildScrollView(child: versionSummary);
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        versionSummary,
+        const SizedBox(height: 12),
+        Text(
+          context.l10n.releaseNotes,
+          style: theme.textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Flexible(
+          child: Container(
+            key: const ValueKey('update-release-notes-region'),
+            constraints: const BoxConstraints(maxHeight: 380),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: releaseNotesBackground,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Scrollbar(
               child: SingleChildScrollView(
+                key: const ValueKey('update-release-notes-scroll-view'),
                 child: _buildReleaseNotes(
                   context,
                   versionInfo,
@@ -168,9 +199,9 @@ class UpdateCheckDialog extends ConsumerWidget {
                 ),
               ),
             ),
-          ],
-        ],
-      ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -766,6 +797,79 @@ class UpdateCheckDialog extends ConsumerWidget {
       context: context,
       barrierDismissible: false,
       builder: (context) => const UpdateCheckDialog(),
+    );
+  }
+}
+
+class _ResponsiveDialogActions extends StatelessWidget {
+  const _ResponsiveDialogActions({
+    required this.compact,
+    required this.children,
+  });
+
+  final bool compact;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    const spacing = 8.0;
+    if (!compact || children.length <= 2) {
+      return Wrap(
+        key: const ValueKey('update-dialog-actions'),
+        alignment: WrapAlignment.end,
+        runAlignment: WrapAlignment.end,
+        spacing: spacing,
+        runSpacing: spacing,
+        children: children,
+      );
+    }
+
+    final theme = Theme.of(context);
+    ButtonStyle withTouchHeight(ButtonStyle? style) =>
+        (style ?? const ButtonStyle()).copyWith(
+          minimumSize: const WidgetStatePropertyAll(Size(0, 48)),
+        );
+
+    return Theme(
+      data: theme.copyWith(
+        textButtonTheme: TextButtonThemeData(
+          style: withTouchHeight(theme.textButtonTheme.style),
+        ),
+        outlinedButtonTheme: OutlinedButtonThemeData(
+          style: withTouchHeight(theme.outlinedButtonTheme.style),
+        ),
+        filledButtonTheme: FilledButtonThemeData(
+          style: withTouchHeight(theme.filledButtonTheme.style),
+        ),
+      ),
+      child: Column(
+        key: const ValueKey('update-dialog-actions'),
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _ActionRow(children: children.take(2).toList()),
+          const SizedBox(height: spacing),
+          _ActionRow(children: children.skip(2).toList()),
+        ],
+      ),
+    );
+  }
+}
+
+class _ActionRow extends StatelessWidget {
+  const _ActionRow({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (var index = 0; index < children.length; index++) ...[
+          if (index > 0) const SizedBox(width: 8),
+          Expanded(child: children[index]),
+        ],
+      ],
     );
   }
 }
