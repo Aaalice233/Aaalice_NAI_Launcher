@@ -140,8 +140,8 @@ class AgentChatPanelCommands {
   final VoidCallback cancelUserMessageEdit;
   final Future<void> Function(AssistantMessage message) copyAssistantMessage;
   final Future<void> Function(AgentQueuedMessage message) editQueuedMessage;
-  final void Function(AgentQueuedMessage message) removeQueuedMessage;
-  final VoidCallback clearQueuedMessages;
+  final Future<void> Function(AgentQueuedMessage message) removeQueuedMessage;
+  final Future<void> Function() clearQueuedMessages;
   final Future<void> Function(AgentChatResourceReference reference)
   addPendingResource;
   final Future<void> Function(int index) removePendingResource;

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -266,14 +267,24 @@ User instructions.
     late _MemoryLocalStorage storage;
     late ProviderContainer container;
     late StateNotifierProvider<AgentChatNotifier, AgentChatState> provider;
+    late JsonlSessionRepo sessionRepo;
     late List<AgentChatRequest> requests;
+    late AgentWireCompletion wireCompletion;
 
     setUp(() async {
       tempDir = await Directory.systemTemp.createTemp(
         'agent_chat_notifier_test_',
       );
       storage = _MemoryLocalStorage();
+      sessionRepo = JsonlSessionRepo(tempDir);
       requests = [];
+      wireCompletion = (request) {
+        requests.add(request);
+        return Stream<AgentWireEvent>.fromIterable(const [
+          AgentWireTextDelta('done'),
+          AgentWireFinish(stopReason: StopReason.stop),
+        ]);
+      };
       provider = StateNotifierProvider<AgentChatNotifier, AgentChatState>((
         ref,
       ) {
@@ -282,13 +293,8 @@ User instructions.
           supportDir: tempDir,
           workspaceDir: tempDir,
           presetSkills: const [],
-          completeRequest: (request) {
-            requests.add(request);
-            return Stream<AgentWireEvent>.fromIterable(const [
-              AgentWireTextDelta('done'),
-              AgentWireFinish(stopReason: StopReason.stop),
-            ]);
-          },
+          sessionRepo: sessionRepo,
+          completeRequest: (request) => wireCompletion(request),
         );
       });
       container = ProviderContainer(
@@ -402,6 +408,167 @@ User instructions.
         );
       },
     );
+
+    test('resumes a suspended operation instead of starting another', () async {
+      final configNotifier = container.read(
+        promptAssistantConfigProvider.notifier,
+      );
+      await configNotifier.upsertProvider(
+        ProviderPreset.deepseek.createConfig(),
+      );
+      await configNotifier.upsertModel(
+        const ModelConfig(
+          providerId: 'deepseek',
+          name: 'deepseek-chat',
+          displayName: 'DeepSeek Chat',
+          forTask: AssistantTaskType.chat,
+        ),
+      );
+      await container
+          .read(agentSettingsProvider.notifier)
+          .setModelReference(
+            const AgentModelReference(
+              providerId: 'deepseek',
+              model: 'deepseek-chat',
+            ),
+          );
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+
+      final notifier = container.read(provider.notifier);
+      final suspendedSessionId = container.read(provider).activeSessionId;
+      await notifier.newSession();
+      final metadata = (await sessionRepo.list()).firstWhere(
+        (item) => item.id == suspendedSessionId,
+      );
+      final suspendedSession = await sessionRepo.open(metadata);
+      const suspendedRunId = 'suspended-run';
+      await suspendedSession.appendRecord(
+        OperationStartedRecord(
+          id: suspendedRunId,
+          lane: 'main',
+          sourceLeafId: null,
+          intent: const RunIntent(kind: RunIntentKind.run),
+        ),
+      );
+      await suspendedSession.appendMessage(UserMessage.text('original task'));
+      await suspendedSession.appendMessage(
+        AssistantMessage(
+          content: const [AssistantTextContent('partial answer')],
+          stopReason: StopReason.stop,
+        ),
+      );
+
+      await notifier.switchSession(suspendedSessionId);
+      expect(container.read(provider).turns.single.status.name, 'interrupted');
+
+      await notifier.send('continue the task');
+
+      expect(container.read(provider).error, isEmpty);
+      expect(requests, hasLength(1));
+      expect(
+        requests.single.messages.whereType<UserMessage>().map(
+          (message) => message.text,
+        ),
+        ['original task', 'continue the task'],
+      );
+      final reopened = await sessionRepo.open(metadata);
+      expect(await reopened.findOpenOperations('main'), isEmpty);
+      expect(
+        (await reopened.findRecords()).whereType<OperationStartedRecord>(),
+        hasLength(1),
+      );
+    });
+
+    test('persists steering and follow-up input before delivery', () async {
+      final configNotifier = container.read(
+        promptAssistantConfigProvider.notifier,
+      );
+      await configNotifier.upsertProvider(
+        ProviderPreset.deepseek.createConfig(),
+      );
+      await configNotifier.upsertModel(
+        const ModelConfig(
+          providerId: 'deepseek',
+          name: 'deepseek-chat',
+          displayName: 'DeepSeek Chat',
+          forTask: AssistantTaskType.chat,
+        ),
+      );
+      await container
+          .read(agentSettingsProvider.notifier)
+          .setModelReference(
+            const AgentModelReference(
+              providerId: 'deepseek',
+              model: 'deepseek-chat',
+            ),
+          );
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+
+      final stream = StreamController<AgentWireEvent>();
+      wireCompletion = (request) {
+        requests.add(request);
+        if (requests.length == 1) return stream.stream;
+        return Stream<AgentWireEvent>.value(
+          const AgentWireFinish(stopReason: StopReason.stop),
+        );
+      };
+      final notifier = container.read(provider.notifier);
+      final firstSend = notifier.send('start');
+      await _waitForCondition(
+        () => requests.isNotEmpty,
+        'Agent run did not reach the provider',
+      );
+
+      await notifier.send('steer now');
+      expect(
+        await notifier.sendContent(const [
+          UserTextContent('follow later'),
+        ], followUp: true),
+        isTrue,
+      );
+
+      final activeSessionId = container.read(provider).activeSessionId;
+      final metadata = (await sessionRepo.list()).firstWhere(
+        (item) => item.id == activeSessionId,
+      );
+      final activeSession = await sessionRepo.open(metadata);
+      final queueRecords = (await activeSession.findRecords(
+        const RecordQuery(
+          type: 'queue_enqueued',
+          order: EntryOrder.oldestFirst,
+        ),
+      )).whereType<QueueEnqueuedRecord>().toList();
+      expect(queueRecords.map((record) => record.queue), [
+        QueueKind.steer,
+        QueueKind.followUp,
+      ]);
+      expect(await activeSession.getEntry(queueRecords[0].target.id), isNull);
+      expect(await activeSession.getEntry(queueRecords[1].target.id), isNull);
+
+      stream.add(const AgentWireFinish(stopReason: StopReason.stop));
+      await stream.close();
+      await firstSend;
+
+      expect(requests, hasLength(3));
+      final completedSession = await sessionRepo.open(metadata);
+      final completedRecords = await completedSession.findRecords();
+      expect(
+        completedRecords.whereType<OperationStartedRecord>(),
+        hasLength(1),
+      );
+      expect(
+        completedRecords.whereType<OperationFinishedRecord>(),
+        hasLength(1),
+      );
+      expect(
+        (await completedSession.getEntry(queueRecords[0].target.id))?.id,
+        queueRecords[0].target.id,
+      );
+      expect(
+        (await completedSession.getEntry(queueRecords[1].target.id))?.id,
+        queueRecords[1].target.id,
+      );
+    });
 
     test(
       'override is the exact outbound prompt for new and restored sessions',
@@ -677,6 +844,17 @@ Future<void> _waitForInitialized(
     await Future<void>.delayed(const Duration(milliseconds: 10));
   }
   fail('AgentChatNotifier did not initialize');
+}
+
+Future<void> _waitForCondition(
+  bool Function() condition,
+  String failureMessage,
+) async {
+  for (var attempt = 0; attempt < 200; attempt++) {
+    if (condition()) return;
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+  }
+  fail(failureMessage);
 }
 
 Future<void> _waitForSkill(

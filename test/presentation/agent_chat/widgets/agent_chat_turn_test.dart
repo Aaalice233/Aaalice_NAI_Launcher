@@ -790,8 +790,8 @@ final _commands = AgentChatPanelCommands(
   cancelUserMessageEdit: () {},
   copyAssistantMessage: (_) async {},
   editQueuedMessage: (_) async {},
-  removeQueuedMessage: (_) {},
-  clearQueuedMessages: () {},
+  removeQueuedMessage: (_) async {},
+  clearQueuedMessages: () async {},
   addPendingResource: (_) async {},
   removePendingResource: (_) async {},
 );

@@ -1,12 +1,14 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hive/hive.dart';
 import 'package:nai_launcher/core/agent/agent.dart';
 import 'package:nai_launcher/core/agent/audit/audit_sink.dart';
 import 'package:nai_launcher/core/agent/harness/session/session.dart';
 import 'package:nai_launcher/core/agent/harness/session/session_jsonl.dart';
 import 'package:nai_launcher/core/agent/harness/session/session_memory.dart';
 import 'package:nai_launcher/core/agent/resources/agent_chat_resource_draft_store.dart';
+import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/presentation/agent_chat/providers/agent_chat_state.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/agent_chat_draft_controller.dart';
@@ -15,6 +17,23 @@ import 'package:nai_launcher/presentation/agent_chat/services/agent_chat_session
 import 'package:nai_launcher/presentation/agent_chat/services/agent_tool_permission_controller.dart';
 
 void main() {
+  late Directory hiveDirectory;
+
+  setUpAll(() async {
+    hiveDirectory = await Directory.systemTemp.createTemp(
+      'agent-chat-session-controller-hive-',
+    );
+    Hive.init(hiveDirectory.path);
+    await Hive.openBox(StorageKeys.settingsBox);
+  });
+
+  tearDownAll(() async {
+    await Hive.close();
+    if (hiveDirectory.existsSync()) {
+      hiveDirectory.deleteSync(recursive: true);
+    }
+  });
+
   test(
     'finish is idempotent and a stale end cannot finish the new turn',
     () async {
@@ -52,7 +71,17 @@ void main() {
         isMounted: () => true,
       )..session = session;
 
+      final acceptedPrompt = UserMessage.text('persist before execution');
+      controller.prepareRunPrompt(acceptedPrompt);
       final oldTurnId = (await controller.startTurn())!;
+      final started = (await session.findRecords())
+          .whereType<OperationStartedRecord>()
+          .single;
+      expect(started.intent.originalPrompt, [acceptedPrompt]);
+      expect(started.intent.initialMessages, hasLength(1));
+      final persistedPrompt = await controller.persistMessage(acceptedPrompt);
+      expect(persistedPrompt?.id, started.intent.initialMessages.single.id);
+
       await controller.finishTurn(
         turnId: oldTurnId,
         outcome: OperationOutcomeKind.completed,
@@ -74,11 +103,31 @@ void main() {
       expect(oldFinishes.single.outcome, OperationOutcomeKind.completed);
       expect(controller.activeTurnId, newTurnId);
 
-      await controller.finishTurn(
+      var queuedInMemory = false;
+      final queuedPrompt = UserMessage.text('queued at run completion');
+      final accepting = controller.acceptQueuedPrompt(
+        queuedPrompt,
+        QueueKind.steer,
+        enqueue: () => queuedInMemory = true,
+      );
+      final finishing = controller.finishTurn(
         turnId: newTurnId,
         outcome: OperationOutcomeKind.completed,
       );
+      await expectLater(accepting, throwsStateError);
+      await finishing;
+      expect(queuedInMemory, isFalse);
       expect(controller.activeTurnId, isNull);
+      final serializedRecords = await session.findRecords(
+        const RecordQuery(order: EntryOrder.oldestFirst),
+      );
+      expect(serializedRecords.whereType<QueueEnqueuedRecord>(), isEmpty);
+      expect(
+        serializedRecords.whereType<OperationFinishedRecord>().where(
+          (record) => record.runId == newTurnId,
+        ),
+        hasLength(1),
+      );
 
       final reloadedController = AgentChatSessionController(
         repository: JsonlSessionRepo(directory),
@@ -103,6 +152,213 @@ void main() {
       );
     },
   );
+
+  test('reopening preserves and resumes the suspended operation', () async {
+    final directory = await Directory.systemTemp.createTemp(
+      'agent-chat-suspended-operation-',
+    );
+    addTearDown(() => directory.delete(recursive: true));
+    final repository = JsonlSessionRepo(directory);
+    final session = await repository.create(
+      const SessionCreateOptions(id: 'session'),
+    );
+    const suspendedTurnId = 'suspended-turn';
+    await session.appendRecord(
+      OperationStartedRecord(
+        id: suspendedTurnId,
+        lane: 'main',
+        sourceLeafId: null,
+        intent: const RunIntent(kind: RunIntentKind.run),
+      ),
+    );
+    await session.appendMessage(UserMessage.text('keep this request'));
+    final partialAssistant = await session.appendMessage(
+      AssistantMessage(
+        content: const [
+          AssistantTextContent('keep this partial response'),
+          ToolCallContent(
+            id: 'tool-call',
+            name: 'read',
+            arguments: {'path': 'unfinished.txt'},
+          ),
+        ],
+        stopReason: StopReason.toolUse,
+      ),
+    );
+    const interruptedResultId = 'interrupted-result';
+    await session.appendRecord(
+      ToolStartedRecord(
+        id: 'tool-started',
+        lane: 'main',
+        runId: suspendedTurnId,
+        assistantEntryId: partialAssistant,
+        toolIndex: 0,
+        toolCallId: 'tool-call',
+        toolName: 'read',
+        effectiveArgs: const {'path': 'unfinished.txt'},
+        resultEntryId: interruptedResultId,
+        replay: ReplayMode.never,
+      ),
+    );
+    final pendingSteer = MessageEntry(
+      id: 'pending-steer',
+      message: UserMessage.text('persisted steering'),
+    );
+    final pendingFollowUp = MessageEntry(
+      id: 'pending-follow-up',
+      message: UserMessage.text('persisted follow-up'),
+    );
+    final cancelledSteer = MessageEntry(
+      id: 'cancelled-steer',
+      message: UserMessage.text('cancelled steering'),
+    );
+    await session.appendRecord(
+      QueueEnqueuedRecord(
+        id: 'steer-queued',
+        lane: 'main',
+        queue: QueueKind.steer,
+        target: pendingSteer,
+        runId: suspendedTurnId,
+      ),
+    );
+    await session.appendRecord(
+      QueueEnqueuedRecord(
+        id: 'follow-up-queued',
+        lane: 'main',
+        queue: QueueKind.followUp,
+        target: pendingFollowUp,
+        runId: suspendedTurnId,
+      ),
+    );
+    await session.appendRecord(
+      QueueEnqueuedRecord(
+        id: 'cancelled-queued',
+        lane: 'main',
+        queue: QueueKind.steer,
+        target: cancelledSteer,
+        runId: suspendedTurnId,
+      ),
+    );
+    await session.appendRecord(
+      QueueCancelledRecord(
+        id: 'queue-cancelled',
+        lane: 'main',
+        entryId: cancelledSteer.id,
+        runId: suspendedTurnId,
+      ),
+    );
+
+    var state = const AgentChatState();
+    final localStorage = LocalStorageService();
+    final draftController = AgentChatDraftController(
+      resourceStore: AgentChatResourceDraftStore(
+        File('${directory.path}/drafts.json'),
+      ),
+      localStorage: localStorage,
+      readState: () => state,
+      writeState: (next) => state = next,
+      createResourceResolver: () => throw UnimplementedError(),
+      isMounted: () => true,
+    );
+    final controller = AgentChatSessionController(
+      repository: repository,
+      localStorage: localStorage,
+      draftController: draftController,
+      workspaceDir: directory.path,
+      buildAgent: () async => Agent(
+        AgentOptions(
+          streamFn: (model, context, [options]) => throw UnimplementedError(),
+        ),
+      ),
+      buildSystemPrompt: () async => '',
+      readState: () => state,
+      writeState: (next) => state = next,
+      isMounted: () => true,
+    );
+
+    await controller.activateSession('session');
+    final restoredSession = controller.session!;
+
+    expect(
+      (await restoredSession.findOpenOperations('main')).single.id,
+      suspendedTurnId,
+    );
+    expect(state.turns.single.status.name, 'interrupted');
+    expect(state.messages, hasLength(2));
+    expect((state.messages[0] as UserMessage).text, 'keep this request');
+    expect(
+      (state.messages[1] as AssistantMessage).text,
+      'keep this partial response',
+    );
+
+    final resumedPrompt = UserMessage.text('continue this task');
+    await controller.acceptQueuedPrompt(
+      resumedPrompt,
+      QueueKind.steer,
+      enqueue: () {},
+    );
+    final queueRecord = (await restoredSession.findRecords())
+        .whereType<QueueEnqueuedRecord>()
+        .where(
+          (record) =>
+              record.target is MessageEntry &&
+              (record.target as MessageEntry).message == resumedPrompt,
+        )
+        .single;
+
+    final recovery = await controller.restoreSuspendedRun();
+    final resumedTurnId = await controller.startTurn();
+
+    expect(recovery.transcriptEntries, hasLength(1));
+    final interruptedResult = recovery.transcriptEntries.single.message;
+    expect(interruptedResult, isA<ToolResultMessage>());
+    expect((interruptedResult as ToolResultMessage).toolCallId, 'tool-call');
+    expect(interruptedResult.isError, isTrue);
+    expect(
+      recovery.steeringMessages.map(
+        (queued) => (queued.message as UserMessage).text,
+      ),
+      ['persisted steering', 'continue this task'],
+    );
+    expect(
+      recovery.followUpMessages.map(
+        (queued) => (queued.message as UserMessage).text,
+      ),
+      ['persisted follow-up'],
+    );
+    expect(
+      (await restoredSession.getEntry(interruptedResultId))?.id,
+      interruptedResultId,
+    );
+    expect(await restoredSession.getEntry(queueRecord.target.id), isNull);
+    for (final queued in [
+      ...recovery.steeringMessages,
+      ...recovery.followUpMessages,
+    ]) {
+      await controller.persistMessage(queued.message);
+    }
+    expect(
+      (await restoredSession.getEntry(queueRecord.target.id))?.id,
+      queueRecord.target.id,
+    );
+    expect(await restoredSession.getEntry(pendingSteer.id), isNotNull);
+    expect(await restoredSession.getEntry(pendingFollowUp.id), isNotNull);
+    expect(await restoredSession.getEntry(cancelledSteer.id), isNull);
+    expect(resumedTurnId, suspendedTurnId);
+    expect(controller.activeTurnId, suspendedTurnId);
+    expect(state.turns.single.status.name, 'running');
+    expect(
+      (await restoredSession.findRecords()).whereType<OperationStartedRecord>(),
+      hasLength(1),
+    );
+    expect(await restoredSession.findOpenOperations('main'), hasLength(1));
+
+    await controller.finishTurn(
+      turnId: resumedTurnId!,
+      outcome: OperationOutcomeKind.completed,
+    );
+    expect(await restoredSession.findOpenOperations('main'), isEmpty);
+  });
 
   test(
     'rewind activation failure restores the branch and returns no checkpoint',
@@ -190,6 +446,8 @@ void main() {
       writeState: (next) => state = next,
       isMounted: () => true,
     )..session = session;
+    final agent = Agent(const AgentOptions(streamFn: _unusedStream));
+    sessionController.agent = agent;
     final eventController = AgentChatEventController(
       sessionController: sessionController,
       permissionController: AgentToolPermissionController(
@@ -209,6 +467,14 @@ void main() {
     );
 
     await eventController.handle(const AgentEventAgentStart(), signal);
+    final unconsumedPrompt = UserMessage.text('too late for the final poll');
+    await sessionController.acceptQueuedPrompt(
+      unconsumedPrompt,
+      QueueKind.steer,
+      enqueue: () => agent.steer(unconsumedPrompt),
+    );
+    expect(agent.steeringQueue, hasLength(1));
+
     await eventController.handle(
       AgentEventTurnEnd(message: assistant, toolResults: const []),
       signal,
@@ -222,8 +488,16 @@ void main() {
       (await session.findRecords()).whereType<OperationFinishedRecord>(),
       hasLength(1),
     );
+    expect(agent.steeringQueue, isEmpty);
+    expect(agent.followUpQueue, isEmpty);
   });
 }
+
+AssistantMessageEventStream _unusedStream(
+  Model model,
+  Context context, [
+  SimpleStreamOptions? options,
+]) => AssistantMessageEventStream();
 
 String Function() _ids() {
   var next = 0;

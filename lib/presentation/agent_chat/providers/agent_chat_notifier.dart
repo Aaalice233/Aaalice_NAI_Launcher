@@ -39,6 +39,7 @@ import '../services/agent_api_client.dart';
 import '../services/agent_chat_draft_controller.dart';
 import '../services/agent_chat_event_controller.dart';
 import '../services/agent_chat_session_controller.dart';
+import '../services/agent_chat_session_recovery.dart';
 import '../services/agent_chat_model_capability.dart';
 import '../services/agent_stream_bridge.dart';
 import '../services/agent_system_prompt.dart';
@@ -1046,8 +1047,11 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
 
     try {
       await previousDispatch;
+      if (state.sessionTransitioning) return false;
+      final dispatchSessionId = state.activeSessionId;
+      if (!await validatePendingResourcesForSend()) return false;
       if (state.sessionTransitioning ||
-          !await validatePendingResourcesForSend()) {
+          state.activeSessionId != dispatchSessionId) {
         return false;
       }
       final agent = _sessionController.agent;
@@ -1065,11 +1069,19 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
           : _draftController.resourcePromptMessage(message, attachedResources);
 
       if (_runActive) {
-        if (followUp) {
-          agent.followUp(promptMessage);
-        } else {
-          agent.steer(promptMessage);
-        }
+        await _sessionController.acceptQueuedPrompt(
+          promptMessage,
+          followUp
+              ? session_types.QueueKind.followUp
+              : session_types.QueueKind.steer,
+          enqueue: () {
+            if (followUp) {
+              agent.followUp(promptMessage);
+            } else {
+              agent.steer(promptMessage);
+            }
+          },
+        );
         await _draftController.consumePendingResources(attachedResources);
         state = state.copyWith(queuedMessages: _queuedMessages(agent));
         await onAccepted?.call();
@@ -1078,6 +1090,13 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
 
       ownsRun = true;
       _preparingRun = true;
+      state = state.copyWith(
+        status: AgentChatRunStatus.running,
+        error: '',
+        activities: const [],
+        clearStreamingMessage: true,
+        workPhase: AgentChatWorkPhase.preparing,
+      );
       await _settingsRefresh;
       if (_settingsApplyPending) await _applyAgentSettings();
       _refreshRoute();
@@ -1088,6 +1107,10 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
               : 'No LLM provider configured. Open Settings to add one.',
         );
         _preparingRun = false;
+        state = state.copyWith(
+          status: AgentChatRunStatus.idle,
+          workPhase: AgentChatWorkPhase.idle,
+        );
         return false;
       }
       final agentSettings = _ref.read(agentSettingsProvider).settings;
@@ -1107,14 +1130,42 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       agent.setSystemPrompt(
         await _buildSystemPrompt(settingsOverride: agentSettings),
       );
-      state = state.copyWith(
-        status: AgentChatRunStatus.running,
-        error: '',
-        activities: const [],
-        clearStreamingMessage: true,
-        workPhase: AgentChatWorkPhase.preparing,
-      );
-      run = agent.prompt(promptMessage);
+      final resumeSuspendedRun = _sessionController.hasSuspendedRun;
+      AgentChatSuspendedRecovery? recovery;
+      if (resumeSuspendedRun) {
+        recovery = await _sessionController.restoreSuspendedRun();
+        agent.state.messages.addAll(
+          recovery.transcriptEntries.map((entry) => entry.message),
+        );
+        await _sessionController.acceptQueuedPrompt(
+          promptMessage,
+          session_types.QueueKind.steer,
+          enqueue: () {},
+        );
+      } else {
+        _sessionController.prepareRunPrompt(promptMessage);
+        await _sessionController.startTurn();
+      }
+      if (!resumeSuspendedRun) {
+        run = agent.prompt(promptMessage);
+      } else if (agent.state.messages.isEmpty) {
+        for (final queued in recovery!.followUpMessages) {
+          agent.followUp(queued.message);
+        }
+        run = agent.prompt([
+          ...recovery.steeringMessages.map((queued) => queued.message),
+          promptMessage,
+        ]);
+      } else {
+        for (final queued in recovery!.steeringMessages) {
+          agent.steer(queued.message);
+        }
+        for (final queued in recovery.followUpMessages) {
+          agent.followUp(queued.message);
+        }
+        agent.steer(promptMessage);
+        run = agent.continueRun();
+      }
       runAgent = agent;
       _preparingRun = false;
       await _draftController.consumePendingResources(attachedResources);
@@ -1177,9 +1228,10 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       ),
   ];
 
-  AgentMessage? removeQueuedMessage(AgentQueuedMessage queued) {
+  Future<AgentMessage?> removeQueuedMessage(AgentQueuedMessage queued) async {
     final agent = _sessionController.agent;
     if (agent == null) return null;
+    await _sessionController.cancelQueuedPrompt(queued.message);
     final message = switch (queued.kind) {
       AgentQueuedMessageKind.steering => agent.removeSteeringById(queued.id),
       AgentQueuedMessageKind.followUp => agent.removeFollowUpById(queued.id),
@@ -1188,9 +1240,12 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     return message;
   }
 
-  void clearQueuedMessages() {
+  Future<void> clearQueuedMessages() async {
     final agent = _sessionController.agent;
     if (agent == null) return;
+    for (final queued in _queuedMessages(agent)) {
+      await _sessionController.cancelQueuedPrompt(queued.message);
+    }
     agent.clearAllQueues();
     state = state.copyWith(queuedMessages: const []);
   }
