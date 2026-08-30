@@ -108,6 +108,7 @@ class PromptInputEditor extends ConsumerWidget {
       minLines: viewData.autoGrow ? 4 : null,
       expands: !viewData.autoGrow,
       fitContent: viewData.autoGrow,
+      enableAssistant: false,
       onComfyuiImport: negative ? null : commands.importComfyuiPrompt,
       onChanged: negative
           ? commands.updateNegativePrompt

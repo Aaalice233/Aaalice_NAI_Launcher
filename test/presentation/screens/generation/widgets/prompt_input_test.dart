@@ -5,10 +5,12 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/core/services/prompt_token_counter_service.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/data/models/character/character_prompt.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/prompt_assistant/providers/prompt_assistant_history_provider.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/providers/prompt_assistant_state_provider.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/widgets/prompt_assistant_overlay.dart';
 import 'package:nai_launcher/presentation/providers/character_position_canvas_provider.dart';
@@ -487,6 +489,164 @@ void main() {
     expect(toggle, findsNothing);
   });
 
+  testWidgets('手机提示词助手在 footer 同栏展开且不侵占编辑区', (tester) async {
+    PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
+      TargetPlatform.android,
+    );
+    addTearDown(() => PlatformCapabilities.debugOverride = null);
+
+    final storage = _TestLocalStorageService(
+      defaultModel: 'nai-diffusion-5-curated',
+      lastPrompt: List.filled(24, 'long_prompt_tag').join(', '),
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          localStorageServiceProvider.overrideWith((ref) => storage),
+          characterPromptNotifierProvider.overrideWith(
+            _TestCharacterPromptNotifier.new,
+          ),
+          promptTokenUsageProvider(
+            PromptTokenCountTarget.positive,
+          ).overrideWith(
+            (ref) async => const PromptTokenUsage(usedTokens: 259, limit: 1471),
+          ),
+          promptTokenUsageProvider(
+            PromptTokenCountTarget.negative,
+          ).overrideWith(
+            (ref) async => const PromptTokenUsage(usedTokens: 0, limit: 1471),
+          ),
+        ],
+        child: const MaterialApp(
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          home: Scaffold(
+            body: SizedBox(
+              width: 320,
+              height: 420,
+              child: PromptInputWidget(isMaximized: true),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    final input = find.byKey(
+      const ValueKey('generation_prompt_positive_input'),
+    );
+    final transparent = find.byKey(
+      const ValueKey('generation_transparent_background_toggle'),
+    );
+    final count = find.byKey(const ValueKey('generation_prompt_footer_count'));
+    final assistant = find.byKey(
+      const ValueKey('generation_prompt_footer_assistant'),
+    );
+    final toolbar = find.byKey(
+      const ValueKey(
+        'prompt_assistant_toolbar_${PromptHistorySessionIds.generationPrompt}',
+      ),
+    );
+    final textField = tester.widget<TextField>(
+      find.descendant(of: input, matching: find.byType(TextField)).first,
+    );
+
+    expect(transparent, findsOneWidget);
+    expect(count, findsOneWidget);
+    expect(find.text('259 / 1471'), findsOneWidget);
+    expect(assistant, findsOneWidget);
+    expect(toolbar, findsOneWidget);
+    expect(textField.decoration?.contentPadding, const EdgeInsets.all(12));
+    expect(
+      tester.getRect(transparent).top,
+      greaterThanOrEqualTo(tester.getRect(input).bottom),
+    );
+    expect(
+      tester.getRect(count).top,
+      greaterThanOrEqualTo(tester.getRect(input).bottom),
+    );
+    expect(
+      tester.getRect(assistant).top,
+      greaterThanOrEqualTo(tester.getRect(input).bottom),
+    );
+    expect(
+      tester.getRect(transparent).right,
+      lessThanOrEqualTo(tester.getRect(count).left),
+    );
+    expect(
+      tester.getRect(count).right,
+      lessThanOrEqualTo(tester.getRect(assistant).left),
+    );
+    expect(tester.getSize(toolbar).width, greaterThanOrEqualTo(48));
+    expect(tester.getSize(toolbar).height, 48);
+
+    await tester.tap(
+      find.descendant(
+        of: assistant,
+        matching: find.byIcon(Icons.auto_awesome_rounded),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 160));
+
+    expect(count, findsNothing);
+    expect(find.text('259 / 1471'), findsNothing);
+    expect(assistant, findsOneWidget);
+    expect(
+      tester.getRect(assistant).top,
+      greaterThanOrEqualTo(tester.getRect(input).bottom),
+    );
+    expect(
+      tester.getCenter(transparent).dy,
+      closeTo(tester.getCenter(assistant).dy, 0.1),
+    );
+    expect(
+      tester.getRect(transparent).right,
+      lessThanOrEqualTo(tester.getRect(assistant).left),
+    );
+    for (final icon in [
+      Icons.translate,
+      Icons.auto_fix_high,
+      Icons.more_horiz,
+      Icons.keyboard_arrow_down_rounded,
+    ]) {
+      final action = find.widgetWithIcon(IconButton, icon);
+      expect(action, findsOneWidget);
+      expect(tester.getSize(action), const Size(48, 48));
+      await tester.ensureVisible(action);
+      await tester.pump();
+      expect(
+        tester.getRect(action).top,
+        greaterThanOrEqualTo(tester.getRect(input).bottom),
+      );
+      expect(
+        tester.getRect(action).left,
+        greaterThanOrEqualTo(tester.getRect(assistant).left),
+      );
+      expect(
+        tester.getRect(action).right,
+        lessThanOrEqualTo(tester.getRect(assistant).right),
+      );
+    }
+
+    await tester.tap(
+      find.descendant(
+        of: assistant,
+        matching: find.byIcon(Icons.keyboard_arrow_down_rounded),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 160));
+    expect(count, findsOneWidget);
+    expect(find.text('259 / 1471'), findsOneWidget);
+    expect(
+      tester.getRect(count).right,
+      lessThanOrEqualTo(tester.getRect(assistant).left),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('Ctrl+F 搜索选中命中且编辑提示词不重置光标', (tester) async {
     const prompt = 'alpha, beta, Alpha';
     debugDefaultTargetPlatformOverride = TargetPlatform.windows;
@@ -877,10 +1037,12 @@ class _TestLocalStorageService extends LocalStorageService {
   _TestLocalStorageService({
     this.enablePromptWeightScroll = true,
     this.defaultModel = 'nai-diffusion-4-5-full',
+    this.lastPrompt = '',
   });
 
   final bool enablePromptWeightScroll;
   final String defaultModel;
+  final String lastPrompt;
   bool? savedTransparentBackground;
 
   @override
@@ -902,7 +1064,7 @@ class _TestLocalStorageService extends LocalStorageService {
   bool getEnableCooccurrenceRecommendation() => false;
 
   @override
-  String getLastPrompt() => '';
+  String getLastPrompt() => lastPrompt;
 
   @override
   Future<void> setLastPrompt(String prompt) async {}

@@ -77,11 +77,30 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
 
-    expect(
-      find.byKey(const ValueKey('generation_transparent_background_toggle')),
-      findsOneWidget,
+    final input = find.byKey(const ValueKey('generation_prompt_compact_input'));
+    final transparent = find.byKey(
+      const ValueKey('generation_transparent_background_toggle'),
     );
+    final count = find.byKey(const ValueKey('generation_prompt_footer_count'));
+    final assistant = find.byKey(
+      const ValueKey('generation_prompt_footer_assistant'),
+    );
+
+    expect(transparent, findsOneWidget);
     expect(find.text('12 / 703'), findsOneWidget);
+    expect(assistant, findsOneWidget);
+    expect(
+      tester.getRect(transparent).top,
+      greaterThanOrEqualTo(tester.getRect(input).bottom),
+    );
+    expect(
+      tester.getRect(transparent).right,
+      lessThanOrEqualTo(tester.getRect(count).left),
+    );
+    expect(
+      tester.getRect(count).right,
+      lessThanOrEqualTo(tester.getRect(assistant).left),
+    );
     expect(tester.takeException(), isNull);
   });
 

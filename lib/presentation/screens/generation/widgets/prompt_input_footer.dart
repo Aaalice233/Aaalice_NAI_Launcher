@@ -16,11 +16,17 @@ class PromptInputFooter extends ConsumerWidget {
     required this.target,
     required this.topPadding,
     this.leading,
+    this.assistant,
+    this.assistantExpanded = false,
+    this.assistantCollapsedWidth = 0,
   });
 
   final PromptTokenCountTarget target;
   final double topPadding;
   final Widget? leading;
+  final Widget? assistant;
+  final bool assistantExpanded;
+  final double assistantCollapsedWidth;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -38,11 +44,16 @@ class PromptInputFooter extends ConsumerWidget {
         target == PromptTokenCountTarget.positive &&
         transparentBackground.supported;
 
+    final tokenCount = RepaintBoundary(
+      key: const ValueKey('generation_prompt_footer_count'),
+      child: PromptTokenCountAsyncBar(usage: tokenUsage),
+    );
+
     return Padding(
+      key: const ValueKey('generation_prompt_footer'),
       padding: EdgeInsets.only(top: topPadding),
       child: Row(
         children: [
-          if (leading != null) ...[leading!, const SizedBox(width: 4)],
           if (showTransparentBackground) ...[
             Tooltip(
               richMessage: WidgetSpan(
@@ -99,11 +110,31 @@ class PromptInputFooter extends ConsumerWidget {
             ),
             const SizedBox(width: 8),
           ],
-          Expanded(
-            child: RepaintBoundary(
-              child: PromptTokenCountAsyncBar(usage: tokenUsage),
+          if (leading != null) ...[leading!, const SizedBox(width: 4)],
+          if (assistant == null)
+            Expanded(child: tokenCount)
+          else
+            Expanded(
+              child: Stack(
+                alignment: Alignment.centerRight,
+                children: [
+                  Positioned.fill(
+                    right: assistantCollapsedWidth + 4,
+                    child: Offstage(
+                      offstage: assistantExpanded,
+                      child: tokenCount,
+                    ),
+                  ),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: KeyedSubtree(
+                      key: const ValueKey('generation_prompt_footer_assistant'),
+                      child: assistant!,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
         ],
       ),
     );

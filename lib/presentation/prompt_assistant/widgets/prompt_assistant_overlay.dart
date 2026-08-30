@@ -27,6 +27,10 @@ class PromptAssistantOverlay extends ConsumerStatefulWidget {
   static double get contentBottomClearance =>
       PlatformCapabilities.current.hasTouchInput ? 68 : 56;
 
+  /// Width of the collapsed inline toolbar, including its horizontal padding.
+  static double get inlineCollapsedWidth =>
+      PlatformCapabilities.current.hasTouchInput ? 50 : 34;
+
   const PromptAssistantOverlay({
     super.key,
     required this.sessionId,
@@ -603,7 +607,7 @@ class _PromptAssistantOverlayState
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             reverse: isExpanded,
-            clipBehavior: Clip.none,
+            clipBehavior: widget.floatOverEditor ? Clip.none : Clip.hardEdge,
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [

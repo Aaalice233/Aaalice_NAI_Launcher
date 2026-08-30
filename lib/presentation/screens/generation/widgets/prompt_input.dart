@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/api_constants.dart';
+import '../../../../core/platform/platform_capabilities.dart';
 import '../../../../core/utils/localization_extension.dart';
+import '../../../prompt_assistant/providers/prompt_assistant_config_provider.dart';
 import '../../../prompt_assistant/providers/prompt_assistant_history_provider.dart';
+import '../../../prompt_assistant/providers/prompt_assistant_state_provider.dart';
 import '../../../prompt_assistant/widgets/prompt_assistant_overlay.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/pending_prompt_provider.dart';
@@ -20,6 +23,13 @@ import 'prompt_type_switch.dart';
 
 bool usesRichPromptTypeTooltip(TargetPlatform platform) =>
     shouldUseRichPromptTypeTooltip(platform);
+
+bool _isPromptAssistantVisible(WidgetRef ref) {
+  final config = ref.watch(promptAssistantConfigProvider);
+  return config.enabled &&
+      (!PlatformCapabilities.current.hasPrecisePointer ||
+          config.desktopOverlayEnabled);
+}
 
 class PromptInputWidget extends ConsumerStatefulWidget {
   const PromptInputWidget({
@@ -175,7 +185,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
   }
 }
 
-class _FullPromptInput extends StatelessWidget {
+class _FullPromptInput extends ConsumerWidget {
   const _FullPromptInput({
     required this.controller,
     required this.commands,
@@ -187,17 +197,46 @@ class _FullPromptInput extends StatelessWidget {
   final PromptInputViewData viewData;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final negative = controller.isNegativeMode;
+    final assistantSessionId = negative
+        ? PromptHistorySessionIds.generationNegative
+        : PromptHistorySessionIds.generationPrompt;
+    final assistantVisible = _isPromptAssistantVisible(ref);
+    final assistantExpanded =
+        assistantVisible &&
+        ref.watch(
+          promptAssistantStateProvider.select(
+            (states) => states[assistantSessionId]?.expanded ?? false,
+          ),
+        );
     final editor = PromptInputEditor(
       controller: controller,
       commands: commands,
       viewData: viewData,
     );
     final footer = PromptInputFooter(
-      target: controller.isNegativeMode
+      target: negative
           ? PromptTokenCountTarget.negative
           : PromptTokenCountTarget.positive,
       topPadding: 6,
+      assistant: assistantVisible
+          ? PromptAssistantOverlay(
+              sessionId: assistantSessionId,
+              controller: negative
+                  ? controller.negativeController
+                  : controller.promptController,
+              onChanged: negative
+                  ? commands.updateNegativePrompt
+                  : commands.updatePrompt,
+              onOpenSettings: commands.openAssistantSettings,
+              floatOverEditor: false,
+            )
+          : null,
+      assistantExpanded: assistantExpanded,
+      assistantCollapsedWidth: assistantVisible
+          ? PromptAssistantOverlay.inlineCollapsedWidth
+          : 0,
     );
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -230,7 +269,7 @@ class _FullPromptInput extends StatelessWidget {
   }
 }
 
-class _CompactPromptInput extends StatelessWidget {
+class _CompactPromptInput extends ConsumerWidget {
   const _CompactPromptInput({
     required this.controller,
     required this.commands,
@@ -242,8 +281,9 @@ class _CompactPromptInput extends StatelessWidget {
   final PromptInputViewData viewData;
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
+  Widget build(BuildContext context, WidgetRef ref) => LayoutBuilder(
     builder: (context, constraints) {
+      final assistantVisible = _isPromptAssistantVisible(ref);
       final showFooter = constraints.maxHeight >= 112;
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -264,13 +304,6 @@ class _CompactPromptInput extends StatelessWidget {
                 key: const ValueKey('generation_prompt_compact_actions'),
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  PromptAssistantOverlay(
-                    sessionId: PromptHistorySessionIds.generationPrompt,
-                    controller: controller.promptController,
-                    onOpenSettings: commands.openAssistantSettings,
-                    floatOverEditor: false,
-                    expandInPlace: false,
-                  ),
                   if (viewData.showMaximizeButton)
                     IconButton(
                       icon: const Icon(Icons.fullscreen),
@@ -285,6 +318,19 @@ class _CompactPromptInput extends StatelessWidget {
                     ),
                 ],
               ),
+              assistant: assistantVisible
+                  ? PromptAssistantOverlay(
+                      sessionId: PromptHistorySessionIds.generationPrompt,
+                      controller: controller.promptController,
+                      onChanged: commands.updatePrompt,
+                      onOpenSettings: commands.openAssistantSettings,
+                      floatOverEditor: false,
+                      expandInPlace: false,
+                    )
+                  : null,
+              assistantCollapsedWidth: assistantVisible
+                  ? PromptAssistantOverlay.inlineCollapsedWidth
+                  : 0,
             ),
         ],
       );
