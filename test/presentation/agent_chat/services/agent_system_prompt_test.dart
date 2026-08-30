@@ -23,5 +23,19 @@ void main() {
         'compare, inspect, or analyze the image.',
       ),
     );
+    expect(
+      prompt,
+      contains(
+        'path is the exact workspace-relative argument for read, while '
+        'resource_ref is an application-owned identity',
+      ),
+    );
+    expect(
+      prompt,
+      contains(
+        'Never turn resource_ref/resourceId into a path, filename, or '
+        'extension.',
+      ),
+    );
   });
 }

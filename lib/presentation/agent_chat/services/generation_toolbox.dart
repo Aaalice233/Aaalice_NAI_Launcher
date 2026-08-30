@@ -7,6 +7,7 @@ import 'agent_resource_resolver.dart';
 import 'generation_anlas_estimator.dart';
 import 'generation_execution_service.dart';
 import 'generation_history_service.dart';
+import 'generation_image_read_contract.dart';
 import 'generation_interrogation_service.dart';
 import 'generation_preparation_runtime.dart';
 import 'generation_preparation_service.dart';
@@ -35,17 +36,18 @@ class GenerationToolbox {
       workspaceDir: workspaceDir,
       allowOutsideWorkspace: allowOutsideWorkspace,
     );
+    final imageReadContract = GenerationImageReadContract(pathResolver);
     final history = GenerationHistoryService(
       ref,
       resourceResolver: resolver,
-      pathResolver: pathResolver,
+      imageReadContract: imageReadContract,
       maxRecentImageLimit: maxRecentImageLimit,
     );
     final execution = GenerationExecutionService(
       ref,
       pathResolver: pathResolver,
+      imageReadContract: imageReadContract,
       maxGenerateCount: maxGenerateCount,
-      generatedImageReference: history.generatedImageReference,
     );
     final queue = GenerationQueueTaskService(
       ref,
@@ -67,7 +69,7 @@ class GenerationToolbox {
       preparation: preparation,
       status: GenerationStatusService(
         ref,
-        generatedImageReference: history.generatedImageReference,
+        generatedImageReference: imageReadContract.resourceReference,
       ),
       settings: GenerationSettingsService(ref),
       history: history,

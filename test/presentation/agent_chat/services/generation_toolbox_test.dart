@@ -24,6 +24,7 @@ import 'package:nai_launcher/data/models/image/image_params.dart'
 import 'package:nai_launcher/data/models/queue/replication_task.dart';
 import 'package:nai_launcher/data/models/queue/replication_task_generation_snapshot.dart';
 import 'package:nai_launcher/data/models/user/user_subscription.dart';
+import 'package:nai_launcher/presentation/agent_chat/services/execution_toolbox.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/generation_toolbox.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/generation_preparation_runtime.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/agent_resource_resolver.dart';
@@ -693,9 +694,21 @@ void main() {
   );
 
   test(
-    'prepare lifecycle estimates before fake generation provider is called',
+    'prepare lifecycle returns a path that read accepts without translation',
     () async {
-      final fake = _FakeImageGenerationNotifier();
+      final workspace = await Directory.systemTemp.createTemp(
+        'generation-submit-contract-',
+      );
+      addTearDown(() => workspace.delete(recursive: true));
+      final savedFile = File(
+        '${workspace.path}${Platform.pathSeparator}dated'
+        '${Platform.pathSeparator}actual-name.png',
+      );
+      await savedFile.create(recursive: true);
+      await savedFile.writeAsBytes(
+        image_lib.encodePng(image_lib.Image(width: 1, height: 1)),
+      );
+      final fake = _FakeImageGenerationNotifier(savedFile.path);
       final container = ProviderContainer(
         overrides: [
           imageGenerationNotifierProvider.overrideWith(() => fake),
@@ -712,7 +725,10 @@ void main() {
         ],
       );
       addTearDown(container.dispose);
-      final tools = GenerationToolbox(_makeRef(container)).tools();
+      final tools = GenerationToolbox(
+        _makeRef(container),
+        workspaceDir: workspace.path,
+      ).tools();
       final prepare = tools.firstWhere(
         (tool) => tool.name == 'prepare_generation',
       );
@@ -769,7 +785,26 @@ void main() {
           .source;
       expect(imageSource.mimeType, 'image/png');
       expect(imageSource.base64Data, isNotEmpty);
-      expect(submitted.details['files'], ['saved.png']);
+      expect(submitted.details['files'], [savedFile.path]);
+      final submittedJson = _json(submitted);
+      expect(submittedJson['images'], hasLength(1));
+      final generated = (submittedJson['images'] as List).single as Map;
+      expect(
+        generated['path'],
+        'dated${Platform.pathSeparator}actual-name.png',
+      );
+      expect(generated['resource_ref']['resourceId'], 'generated-1');
+      expect(generated['path'], isNot(contains('generated-1')));
+
+      final read = ExecutionToolbox(workspace.path).tools().single;
+      final readResult = await read.execute('read-generated', {
+        'path': generated['path'],
+      });
+      expect(readResult.isError, isFalse);
+      expect(
+        readResult.content.whereType<ToolResultImageContent>(),
+        hasLength(1),
+      );
 
       final replayed = await submit.execute('submit-replayed', {
         'preparation_id': payload['preparation_id'],
@@ -893,16 +928,19 @@ void main() {
       'generation-history-',
     );
     addTearDown(() => workspace.delete(recursive: true));
+    final imageBytes = Uint8List.fromList(
+      image_lib.encodePng(image_lib.Image(width: 1, height: 1)),
+    );
     final history = [
       for (var index = 0; index < 25; index++)
         GeneratedImage(
           id: 'image-$index',
-          bytes: Uint8List(0),
+          bytes: imageBytes,
           width: 832,
           height: 1216,
           filePath: (await File(
             '${workspace.path}/image-$index.png',
-          ).writeAsBytes(const [])).path,
+          ).writeAsBytes(imageBytes)).path,
         ),
       GeneratedImage(
         id: 'unsaved',
@@ -952,6 +990,15 @@ void main() {
     expect(
       jsonEncode(requestedResult.details),
       isNot(contains(workspace.path)),
+    );
+
+    final readResult = await ExecutionToolbox(
+      workspace.path,
+    ).tools().single.execute('read-recent', {'path': images.first['path']});
+    expect(readResult.isError, isFalse);
+    expect(
+      readResult.content.whereType<ToolResultImageContent>(),
+      hasLength(1),
     );
   });
 
@@ -1130,6 +1177,9 @@ class _TestImageGenerationNotifier extends ImageGenerationNotifier {
 }
 
 class _FakeImageGenerationNotifier extends ImageGenerationNotifier {
+  _FakeImageGenerationNotifier([this.savedPath = 'saved.png']);
+
+  final String savedPath;
   int generateCalls = 0;
   int? batchSize;
   ImageParams? params;
@@ -1158,7 +1208,7 @@ class _FakeImageGenerationNotifier extends ImageGenerationNotifier {
           ),
           width: 1,
           height: 1,
-          filePath: 'saved.png',
+          filePath: savedPath,
         ),
       ],
     );
