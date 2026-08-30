@@ -316,6 +316,47 @@ void main() {
     );
 
     test(
+      'compositeGeneratedImage should clear old pixels for transparent focused results',
+      () {
+        final source = img.Image(width: 400, height: 300);
+        img.fill(source, color: img.ColorRgb8(16, 32, 64));
+        final mask = img.Image(width: 400, height: 300);
+        img.fill(mask, color: img.ColorRgb8(0, 0, 0));
+        img.fillRect(
+          mask,
+          x1: 150,
+          y1: 120,
+          x2: 189,
+          y2: 159,
+          color: img.ColorRgb8(255, 255, 255),
+        );
+        final request = FocusedInpaintUtils.prepareRequest(
+          sourceImage: Uint8List.fromList(img.encodePng(source)),
+          maskImage: Uint8List.fromList(img.encodePng(mask)),
+          minContextMegaPixels: 40,
+        )!;
+        final generated = img.Image(
+          width: request.targetWidth,
+          height: request.targetHeight,
+          numChannels: 4,
+        );
+        img.fill(generated, color: img.ColorRgba8(255, 255, 255, 0));
+
+        final result = request.compositeGeneratedImage(
+          Uint8List.fromList(img.encodePng(generated)),
+        );
+        final decoded = img.decodeImage(result)!;
+
+        expect(decoded.numChannels, equals(4));
+        expect(decoded.getPixel(170, 140).a.toInt(), equals(0));
+        expect(decoded.getPixel(110, 80).a.toInt(), equals(255));
+        expect(decoded.getPixel(110, 80).r.toInt(), equals(16));
+        expect(decoded.getPixel(110, 80).g.toInt(), equals(32));
+        expect(decoded.getPixel(110, 80).b.toInt(), equals(64));
+      },
+    );
+
+    test(
       'compositeGeneratedImage should use a soft edge and preserve distant pixels',
       () {
         final source = img.Image(width: 400, height: 300);
