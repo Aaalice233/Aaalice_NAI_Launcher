@@ -252,7 +252,10 @@ class _CollapsibleImagePanelState extends State<CollapsibleImagePanel>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final showBackground = widget.hasData && !widget.isExpanded;
+    // 白色前景只用于确实存在深色图片遮罩的折叠态。角色等纯色面板
+    // 即使有数据也必须继续使用主题前景色，否则浅色主题会变成白底白字。
+    final showBackground =
+        widget.hasData && !widget.isExpanded && widget.backgroundImage != null;
     final highContrast = MediaQuery.highContrastOf(context);
 
     return Card(

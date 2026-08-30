@@ -186,7 +186,7 @@ class PromptInputToolbar extends ConsumerWidget {
               runSpacing: 6,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                const FixedTagsButton(),
+                const FixedTagsButton(compact: true),
                 QualityTagsSelector(model: model),
                 UcPresetSelector(model: model),
                 const CharacterPromptButton(),
