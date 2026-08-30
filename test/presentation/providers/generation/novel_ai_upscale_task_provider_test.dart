@@ -50,6 +50,10 @@ void main() {
 
       expect(state.status, NovelAiUpscaleTaskStatus.completed);
       expect(imageGeneration.registeredBytes, Uint8List.fromList([9, 8, 7]));
+      expect(
+        imageGeneration.registeredComparisonSourceImage,
+        Uint8List.fromList([1, 2, 3]),
+      );
       expect(imageGeneration.registeredParams?.width, 640);
       expect(imageGeneration.saveToLocal, isFalse);
       expect(imageGeneration.replaceCurrentDisplay, isTrue);
@@ -166,6 +170,7 @@ class _BlockingEnhancementApiService extends NAIImageEnhancementApiService {
 
 class _RecordingImageGenerationNotifier extends ImageGenerationNotifier {
   Uint8List? registeredBytes;
+  Uint8List? registeredComparisonSourceImage;
   ImageParams? registeredParams;
   bool? saveToLocal;
   bool? replaceCurrentDisplay;
@@ -179,6 +184,7 @@ class _RecordingImageGenerationNotifier extends ImageGenerationNotifier {
     required ImageParams params,
     int? width,
     int? height,
+    Uint8List? comparisonSourceImage,
     bool saveToLocal = false,
     String? saveDirectoryPath,
     bool syncToGalleryIndex = true,
@@ -187,6 +193,7 @@ class _RecordingImageGenerationNotifier extends ImageGenerationNotifier {
     bool embedNaiMetadata = true,
   }) async {
     registeredBytes = imageBytes;
+    registeredComparisonSourceImage = comparisonSourceImage;
     registeredParams = params;
     this.saveToLocal = saveToLocal;
     this.replaceCurrentDisplay = replaceCurrentDisplay;

@@ -10,17 +10,25 @@ import '../../../widgets/image_editor/widgets/color_picker.dart';
 
 /// 预览图下方的信息条（对齐官网结果区底部的 display/save 工具条）
 ///
-/// 自左向右：分辨率胶囊 → 分隔线 → 透明底色入口 → 种子胶囊。
+/// 自左向右：分辨率胶囊 → 透明底色入口 → 可选对比开关 → 种子胶囊。
 /// 透明底色入口向上弹出档位浮层。
 class PreviewInfoBar extends ConsumerWidget {
   final GeneratedImage image;
+  final bool comparisonEnabled;
+  final ValueChanged<bool>? onComparisonChanged;
 
-  const PreviewInfoBar({super.key, required this.image});
+  const PreviewInfoBar({
+    super.key,
+    required this.image,
+    this.comparisonEnabled = false,
+    this.onComparisonChanged,
+  });
 
-  static const double barHeight = 30;
+  static const double barHeight = 44;
 
   /// 低于该宽度就收起分辨率胶囊（官网在窄容器下同样隐藏它）
   static const double _resolutionMinWidth = 300;
+  static const double _comparisonResolutionMinWidth = 400;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -34,9 +42,12 @@ class PreviewInfoBar extends ConsumerWidget {
       height: barHeight,
       child: LayoutBuilder(
         builder: (context, constraints) {
+          final resolutionMinWidth = onComparisonChanged == null
+              ? _resolutionMinWidth
+              : _comparisonResolutionMinWidth;
           final showResolution =
               !constraints.maxWidth.isFinite ||
-              constraints.maxWidth >= _resolutionMinWidth;
+              constraints.maxWidth >= resolutionMinWidth;
 
           return ClipRect(
             child: Row(
@@ -59,6 +70,13 @@ class PreviewInfoBar extends ConsumerWidget {
                   const _PillDivider(),
                 ],
                 const _TransparencyBackgroundButton(),
+                if (onComparisonChanged != null) ...[
+                  const _PillDivider(),
+                  _ComparisonToggle(
+                    enabled: comparisonEnabled,
+                    onChanged: onComparisonChanged!,
+                  ),
+                ],
                 if (seed != null && seed >= 0) ...[
                   const SizedBox(width: 6),
                   Flexible(child: _SeedPill(seed: seed)),
@@ -77,36 +95,51 @@ class _InfoPill extends StatelessWidget {
   final Widget child;
   final VoidCallback? onTap;
   final String? tooltip;
+  final bool selected;
 
-  const _InfoPill({required this.child, this.onTap, this.tooltip});
+  const _InfoPill({
+    required this.child,
+    this.onTap,
+    this.tooltip,
+    this.selected = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     Widget pill = Material(
-      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
+      color: selected
+          ? theme.colorScheme.primaryContainer
+          : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
       borderRadius: BorderRadius.circular(6),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          // widthFactor 让胶囊按内容收窄：种子胶囊在 Flexible 里拿到的是有界宽度，
-          // 普通 Center 会撑满剩余空间，把胶囊拉成一条长条
-          child: Align(
-            alignment: Alignment.center,
-            widthFactor: 1,
-            child: DefaultTextStyle.merge(
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.85),
-                fontFeatures: const [FontFeature.tabularFigures()],
-              ),
-              child: IconTheme.merge(
-                data: IconThemeData(
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 44),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            // widthFactor 让胶囊按内容收窄：种子胶囊在 Flexible 里拿到的是有界宽度，
+            // 普通 Center 会撑满剩余空间，把胶囊拉成一条长条
+            child: Align(
+              alignment: Alignment.center,
+              widthFactor: 1,
+              child: DefaultTextStyle.merge(
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: selected
+                      ? theme.colorScheme.onPrimaryContainer
+                      : theme.colorScheme.onSurface.withValues(alpha: 0.85),
+                  fontFeatures: const [FontFeature.tabularFigures()],
                 ),
-                child: child,
+                child: IconTheme.merge(
+                  data: IconThemeData(
+                    color: selected
+                        ? theme.colorScheme.onPrimaryContainer
+                        : theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                  ),
+                  child: child,
+                ),
               ),
             ),
           ),
@@ -122,6 +155,36 @@ class _InfoPill extends StatelessWidget {
       );
     }
     return pill;
+  }
+}
+
+class _ComparisonToggle extends StatelessWidget {
+  const _ComparisonToggle({required this.enabled, required this.onChanged});
+
+  final bool enabled;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = context.l10n.generation_imageComparison;
+    return Semantics(
+      button: true,
+      toggled: enabled,
+      label: label,
+      child: _InfoPill(
+        selected: enabled,
+        tooltip: context.l10n.generation_imageComparisonHint,
+        onTap: () => onChanged(!enabled),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.compare_rounded, size: 14),
+            const SizedBox(width: 6),
+            Text(label),
+          ],
+        ),
+      ),
+    );
   }
 }
 

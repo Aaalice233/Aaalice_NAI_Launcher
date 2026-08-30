@@ -192,6 +192,7 @@ final class Img2ImgUpscaleCoordinator {
     await _register(
       bytes,
       params,
+      source,
       width,
       height,
       embedNaiMetadata: settings.seedvr2EmbedNaiMetadata,
@@ -240,7 +241,7 @@ final class Img2ImgUpscaleCoordinator {
     final decoded = img.decodeImage(bytes);
     final outputWidth = decoded?.width ?? width;
     final outputHeight = decoded?.height ?? height;
-    await _register(bytes, params, outputWidth, outputHeight);
+    await _register(bytes, params, source, outputWidth, outputHeight);
     return Img2ImgUpscaleSuccess(
       kind: Img2ImgUpscaleKind.regular,
       width: outputWidth,
@@ -274,7 +275,7 @@ final class Img2ImgUpscaleCoordinator {
     final height =
         decoded?.height ??
         math.max(8, ((decodedSource.height * scale) / 8).round() * 8);
-    await _register(bytes, params, width, height);
+    await _register(bytes, params, source, width, height);
     return Img2ImgUpscaleSuccess(
       kind: Img2ImgUpscaleKind.rtx,
       width: width,
@@ -300,6 +301,7 @@ final class Img2ImgUpscaleCoordinator {
   Future<void> _register(
     Uint8List bytes,
     ImageParams params,
+    Uint8List source,
     int width,
     int height, {
     bool embedNaiMetadata = false,
@@ -312,6 +314,7 @@ final class Img2ImgUpscaleCoordinator {
           params: params,
           width: width,
           height: height,
+          comparisonSourceImage: source,
           saveToLocal: saveSettings.autoSave,
           replaceCurrentDisplay: true,
           embedNaiMetadata: embedNaiMetadata,

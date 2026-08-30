@@ -1309,6 +1309,15 @@ class AppLocalizationsJa extends AppLocalizations {
   String get generation_previewApplySeed => '表示中の画像のシードを使う';
 
   @override
+  String get generation_imageComparison => '比較';
+
+  @override
+  String get generation_imageComparisonHint => '生成画像と今回の結果の元画像を比較します';
+
+  @override
+  String get generation_imageComparisonDivider => '画像比較の分割線';
+
+  @override
   String get generation_transparencyBackgroundTitle => '透過部分の表示';
 
   @override

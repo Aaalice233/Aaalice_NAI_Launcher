@@ -2,11 +2,55 @@ import 'dart:typed_data';
 
 import 'package:uuid/uuid.dart';
 
+import '../../../core/constants/api_constants.dart';
 import '../../../core/utils/nai_resolution_adapter.dart';
 import '../../../data/models/gallery/nai_image_metadata.dart';
 import '../../../data/models/image/image_stream_chunk.dart';
 
 enum GeneratedImageKind { completed, failedStreamSnapshot }
+
+/// A session-only source image used to compare transformed results.
+///
+/// Sources are captured for img2img, inpaint, NovelAI upscale, and local
+/// upscale. Pure text-to-image has no comparison source. One request shares a
+/// single instance across its results; restored history cannot compare because
+/// these bytes are intentionally not persisted.
+class ImageComparisonSource {
+  const ImageComparisonSource._({
+    required this.bytes,
+    required this.width,
+    required this.height,
+  });
+
+  final Uint8List bytes;
+  final int width;
+  final int height;
+
+  static ImageComparisonSource? fromBytes(Uint8List bytes) {
+    if (bytes.isEmpty) return null;
+    final size = NaiResolutionAdapter.readImageSize(bytes);
+    if (size == null || size.$1 <= 0 || size.$2 <= 0) return null;
+    return ImageComparisonSource._(
+      bytes: Uint8List.fromList(bytes),
+      width: size.$1,
+      height: size.$2,
+    );
+  }
+
+  /// Accepts an exact aspect ratio or NovelAI Enhance's per-edge grid rounding.
+  bool isCompatibleWithDimensions(int targetWidth, int targetHeight) {
+    if (targetWidth <= 0 || targetHeight <= 0) return false;
+    if (width * targetHeight == height * targetWidth) return true;
+
+    // Enhance rounds each target edge independently to the nearest 64 pixels.
+    const grid = ApiConstants.dimensionGrid;
+    if (targetWidth % grid != 0 || targetHeight % grid != 0) return false;
+    const halfGrid = grid ~/ 2;
+    return (targetWidth - halfGrid) * height <=
+            (targetHeight + halfGrid) * width &&
+        (targetHeight - halfGrid) * width <= (targetWidth + halfGrid) * height;
+  }
+}
 
 /// 生成的图像（带唯一ID）
 class GeneratedImage {
@@ -17,6 +61,11 @@ class GeneratedImage {
   final int height;
   final GeneratedImageKind kind;
   final NaiImageMetadata? metadata;
+
+  /// Source captured for a supported current-session transformation.
+  ///
+  /// [canCompareWithSource] also rejects results with incompatible geometry.
+  final ImageComparisonSource? comparisonSource;
 
   /// 保存时跳过启动器的 PNG 元数据补写，保持接收到的文件字节不变。
   final bool preserveOriginalBytesOnSave;
@@ -33,6 +82,7 @@ class GeneratedImage {
     DateTime? createdAt,
     this.kind = GeneratedImageKind.completed,
     this.metadata,
+    this.comparisonSource,
     this.preserveOriginalBytesOnSave = false,
     this.filePath,
   }) : createdAt = createdAt ?? DateTime.now();
@@ -44,6 +94,7 @@ class GeneratedImage {
     required int height,
     GeneratedImageKind kind = GeneratedImageKind.completed,
     NaiImageMetadata? metadata,
+    ImageComparisonSource? comparisonSource,
     bool preserveOriginalBytesOnSave = false,
   }) {
     final encodedSize = NaiResolutionAdapter.readImageSize(bytes);
@@ -54,6 +105,7 @@ class GeneratedImage {
       height: encodedSize?.$2 ?? height,
       kind: kind,
       metadata: metadata,
+      comparisonSource: comparisonSource,
       preserveOriginalBytesOnSave: preserveOriginalBytesOnSave,
     );
   }
@@ -68,6 +120,7 @@ class GeneratedImage {
       createdAt: createdAt,
       kind: kind,
       metadata: metadata,
+      comparisonSource: comparisonSource,
       preserveOriginalBytesOnSave: preserveOriginalBytesOnSave,
       filePath: path,
     );
@@ -88,6 +141,10 @@ class GeneratedImage {
   bool get canBulkSelect => kind == GeneratedImageKind.completed;
 
   bool get canDrag => kind == GeneratedImageKind.completed;
+
+  bool get canCompareWithSource =>
+      kind == GeneratedImageKind.completed &&
+      comparisonSource?.isCompatibleWithDimensions(width, height) == true;
 
   @override
   bool operator ==(Object other) =>

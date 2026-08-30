@@ -111,14 +111,16 @@ class ImageCardSurface extends StatelessWidget {
                 children: [
                   if (data.underlay != null) data.underlay!,
                   RepaintBoundary(
-                    child: DecodedMemoryImage(
-                      key: const ValueKey('selectable-image-content'),
-                      bytes: controller.displayedImageBytes!,
-                      fit: BoxFit.cover,
-                      frameBuilder: controller.showCompletionPlaceholder
-                          ? null
-                          : controller.completedImageFrameBuilder,
-                    ),
+                    child:
+                        data.imageContent ??
+                        DecodedMemoryImage(
+                          key: const ValueKey('selectable-image-content'),
+                          bytes: controller.displayedImageBytes!,
+                          fit: BoxFit.cover,
+                          frameBuilder: controller.showCompletionPlaceholder
+                              ? null
+                              : controller.completedImageFrameBuilder,
+                        ),
                   ),
                   _DragPreparationOverlay(data: data, controller: controller),
                   if (controller.isHovering && capabilities.enableGlossEffect)

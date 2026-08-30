@@ -10,6 +10,7 @@ import 'package:nai_launcher/presentation/providers/generation/preview_selection
 import 'package:nai_launcher/presentation/providers/history_click_behavior_provider.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/providers/shortcuts_provider.dart';
+import 'package:nai_launcher/presentation/screens/generation/widgets/image_comparison_view.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/image_preview.dart';
 import 'package:nai_launcher/presentation/widgets/common/selectable_image_card.dart';
 
@@ -125,6 +126,98 @@ void main() {
     );
     expect(card.isGenerating, isTrue);
   });
+
+  testWidgets('compatible sourced result exposes and toggles comparison', (
+    tester,
+  ) async {
+    final result = _comparisonImage(
+      id: 'compatible',
+      resultWidth: 4,
+      resultHeight: 4,
+      sourceWidth: 8,
+      sourceHeight: 8,
+    );
+    final container = ProviderContainer(
+      overrides: [
+        imageGenerationNotifierProvider.overrideWith(
+          () => _SelectionImageGenerationNotifier(
+            ImageGenerationState(displayImages: [result]),
+          ),
+        ),
+        historyClickBehaviorNotifierProvider.overrideWith(
+          _LinkedHistoryBehaviorNotifier.new,
+        ),
+        shortcutConfigNotifierProvider.overrideWith(
+          _DefaultShortcutConfigNotifier.new,
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(_app(container));
+    await tester.pumpAndSettle();
+    final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+
+    expect(find.text(l10n.generation_imageComparison), findsOneWidget);
+    expect(find.byType(ImageComparisonView), findsNothing);
+    final comparisonInkWell = find.ancestor(
+      of: find.text(l10n.generation_imageComparison),
+      matching: find.byType(InkWell),
+    );
+    expect(tester.getSize(comparisonInkWell).height, greaterThanOrEqualTo(44));
+
+    await tester.tap(find.text(l10n.generation_imageComparison));
+    await tester.pump();
+
+    expect(find.byType(ImageComparisonView), findsOneWidget);
+    expect(
+      tester
+          .widget<SelectableImageCard>(find.byType(SelectableImageCard))
+          .imageContent,
+      isA<ImageComparisonView>(),
+    );
+  });
+
+  testWidgets('missing or mismatched source keeps final-only preview', (
+    tester,
+  ) async {
+    final mismatch = _comparisonImage(
+      id: 'mismatch',
+      resultWidth: 4,
+      resultHeight: 4,
+      sourceWidth: 8,
+      sourceHeight: 4,
+    );
+    final container = ProviderContainer(
+      overrides: [
+        imageGenerationNotifierProvider.overrideWith(
+          () => _SelectionImageGenerationNotifier(
+            ImageGenerationState(displayImages: [mismatch]),
+          ),
+        ),
+        historyClickBehaviorNotifierProvider.overrideWith(
+          _LinkedHistoryBehaviorNotifier.new,
+        ),
+        shortcutConfigNotifierProvider.overrideWith(
+          _DefaultShortcutConfigNotifier.new,
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(_app(container));
+    await tester.pumpAndSettle();
+    final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+
+    expect(find.text(l10n.generation_imageComparison), findsNothing);
+    expect(find.byType(ImageComparisonView), findsNothing);
+    expect(
+      tester
+          .widget<SelectableImageCard>(find.byType(SelectableImageCard))
+          .imageContent,
+      isNull,
+    );
+  });
 }
 
 Widget _app(ProviderContainer container) {
@@ -148,5 +241,27 @@ GeneratedImage _image(String id, int red) {
     bytes: Uint8List.fromList(img.encodePng(image)),
     width: 4,
     height: 4,
+  );
+}
+
+GeneratedImage _comparisonImage({
+  required String id,
+  required int resultWidth,
+  required int resultHeight,
+  required int sourceWidth,
+  required int sourceHeight,
+}) {
+  final result = img.Image(width: resultWidth, height: resultHeight)
+    ..clear(img.ColorRgba8(180, 20, 30, 255));
+  final source = img.Image(width: sourceWidth, height: sourceHeight)
+    ..clear(img.ColorRgba8(20, 180, 30, 255));
+  return GeneratedImage(
+    id: id,
+    bytes: Uint8List.fromList(img.encodePng(result)),
+    width: resultWidth,
+    height: resultHeight,
+    comparisonSource: ImageComparisonSource.fromBytes(
+      Uint8List.fromList(img.encodePng(source)),
+    ),
   );
 }

@@ -149,6 +149,40 @@ void main() {
       },
     );
 
+    test('image comparison source accepts enhance grid rounding only', () {
+      final sourceBytes = _validImageBytes(width: 832, height: 1216);
+      final source = ImageComparisonSource.fromBytes(sourceBytes);
+
+      expect(source, isNotNull);
+      expect(source!.bytes, orderedEquals(sourceBytes));
+      expect(source.bytes, isNot(same(sourceBytes)));
+      expect(source.isCompatibleWithDimensions(1664, 2432), isTrue);
+      expect(source.isCompatibleWithDimensions(1280, 1792), isTrue);
+      expect(source.isCompatibleWithDimensions(1280, 1856), isTrue);
+      expect(source.isCompatibleWithDimensions(1792, 1792), isFalse);
+      expect(source.isCompatibleWithDimensions(1280, 2048), isFalse);
+
+      final compatible = GeneratedImage.create(
+        _validImageBytes(width: 1280, height: 1792),
+        width: 1280,
+        height: 1792,
+        comparisonSource: source,
+      );
+      final incompatible = GeneratedImage.create(
+        _validImageBytes(width: 1280, height: 2048),
+        width: 1280,
+        height: 2048,
+        comparisonSource: source,
+      );
+
+      expect(compatible.canCompareWithSource, isTrue);
+      expect(incompatible.canCompareWithSource, isFalse);
+      expect(
+        compatible.copyWithFilePath('C:/tmp/result.png').comparisonSource,
+        same(source),
+      );
+    });
+
     test('failed stream snapshot images should be read-only', () {
       const metadata = NaiImageMetadata(
         prompt: '1girl',
@@ -353,7 +387,7 @@ void main() {
     );
 
     test(
-      'imagesPerRequest sends one multi-sample request per repeat',
+      'imagesPerRequest sends multi-sample requests without comparison sources',
       () async {
         final mockApiService = MockNAIImageGenerationApiService();
         final firstImage = _validImageBytes(width: 512, height: 768);
@@ -436,12 +470,93 @@ void main() {
         expect(state.status, GenerationStatus.completed);
         expect(state.currentImages, hasLength(6));
         expect(state.displayImages, hasLength(6));
+        expect(
+          state.currentImages.every((image) => image.comparisonSource == null),
+          isTrue,
+        );
         final subscriptionNotifier =
             container.read(subscriptionNotifierProvider.notifier)
                 as TestSubscriptionNotifier;
         expect(subscriptionNotifier.refreshBalanceCallCount, 1);
       },
     );
+
+    test('img2img batch results share one comparison source', () async {
+      final mockApiService = MockNAIImageGenerationApiService();
+      final source = _validImageBytes(width: 640, height: 960);
+      final firstImage = _validImageBytes(width: 640, height: 960);
+      final secondImage = _validImageBytes(width: 640, height: 960);
+
+      when(
+        () => mockApiService.generateImage(
+          any(),
+          onProgress: any(named: 'onProgress'),
+          focusedInpaintEnabled: any(named: 'focusedInpaintEnabled'),
+          minimumContextMegaPixels: any(named: 'minimumContextMegaPixels'),
+          focusedSelectionRect: any(named: 'focusedSelectionRect'),
+        ),
+      ).thenAnswer((_) async => fail('img2img batch should use stream'));
+      when(
+        () => mockApiService.generateImageCancellable(
+          any(),
+          onProgress: any(named: 'onProgress'),
+          focusedInpaintEnabled: any(named: 'focusedInpaintEnabled'),
+          minimumContextMegaPixels: any(named: 'minimumContextMegaPixels'),
+          focusedSelectionRect: any(named: 'focusedSelectionRect'),
+        ),
+      ).thenAnswer((_) async => fail('img2img batch should use stream'));
+      when(
+        () => mockApiService.generateImageStream(
+          any(),
+          focusedInpaintEnabled: any(named: 'focusedInpaintEnabled'),
+          minimumContextMegaPixels: any(named: 'minimumContextMegaPixels'),
+          focusedSelectionRect: any(named: 'focusedSelectionRect'),
+        ),
+      ).thenAnswer(
+        (_) => Stream<ImageStreamChunk>.fromIterable([
+          ImageStreamChunk.complete(firstImage, sampleIndex: 0),
+          ImageStreamChunk.complete(secondImage, sampleIndex: 1),
+        ]),
+      );
+
+      container.dispose();
+      container = _createAuthenticatedContainer(
+        overrides: [
+          naiImageGenerationApiServiceProvider.overrideWithValue(
+            mockApiService,
+          ),
+          subscriptionNotifierProvider.overrideWith(
+            TestSubscriptionNotifier.new,
+          ),
+        ],
+      );
+      await container
+          .read(notificationSettingsNotifierProvider.notifier)
+          .setSoundEnabled(false);
+      await container
+          .read(imageSaveSettingsNotifierProvider.notifier)
+          .setAutoSave(false);
+      container.read(imagesPerRequestProvider.notifier).set(2);
+      container
+          .read(imageWorkflowControllerProvider.notifier)
+          .replaceSourceImage(source);
+
+      final params = container.read(generationParamsNotifierProvider);
+      expect(params.action, ImageGenerationAction.img2img);
+      await container
+          .read(imageGenerationNotifierProvider.notifier)
+          .generate(params.copyWith(nSamples: 1));
+
+      final images = container
+          .read(imageGenerationNotifierProvider)
+          .currentImages;
+      expect(images, hasLength(2));
+      expect(images.first.comparisonSource, isNotNull);
+      expect(images.last.comparisonSource, same(images.first.comparisonSource));
+      expect(images.first.comparisonSource!.bytes, orderedEquals(source));
+      expect(images.every((image) => image.canCompareWithSource), isTrue);
+    });
+
     test(
       'registerExternalImage should prepend external result to history',
       () async {
@@ -462,6 +577,32 @@ void main() {
         expect(state.history.first.height, equals(960));
         expect(state.currentImages, isEmpty);
         expect(state.displayImages, isEmpty);
+      },
+    );
+
+    test(
+      'registerExternalImage should attach comparison source to transforms',
+      () async {
+        final notifier = container.read(
+          imageGenerationNotifierProvider.notifier,
+        );
+        final params = container.read(generationParamsNotifierProvider);
+        final source = _validImageBytes(width: 640, height: 960);
+
+        await notifier.registerExternalImage(
+          _validImageBytes(width: 1280, height: 1920),
+          params: params,
+          comparisonSourceImage: source,
+        );
+
+        final image = container
+            .read(imageGenerationNotifierProvider)
+            .history
+            .single;
+        expect(image.comparisonSource, isNotNull);
+        expect(image.comparisonSource!.bytes, orderedEquals(source));
+        expect(image.comparisonSource!.bytes, isNot(same(source)));
+        expect(image.canCompareWithSource, isTrue);
       },
     );
 
@@ -801,7 +942,7 @@ void main() {
     });
 
     test(
-      'focused inpaint batch should use stream instead of direct fallback',
+      'focused inpaint batch should use stream and share comparison source',
       () async {
         final mockApiService = MockNAIImageGenerationApiService();
         final originalSource = _validImageBytes(width: 640, height: 960);
@@ -893,6 +1034,16 @@ void main() {
         expect(requestSampleCounts, equals([2]));
         expect(state.status, GenerationStatus.completed);
         expect(state.currentImages, hasLength(2));
+        final comparisonSources = state.currentImages
+            .map((image) => image.comparisonSource)
+            .toList();
+        expect(comparisonSources, everyElement(isNotNull));
+        expect(comparisonSources.last, same(comparisonSources.first));
+        expect(comparisonSources.first!.bytes, orderedEquals(originalSource));
+        expect(
+          state.currentImages.every((image) => image.canCompareWithSource),
+          isTrue,
+        );
 
         verify(
           () => mockApiService.generateImageStream(

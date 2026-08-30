@@ -2525,6 +2525,24 @@ abstract class AppLocalizations {
   /// **'Use the seed of the displayed image'**
   String get generation_previewApplySeed;
 
+  /// No description provided for @generation_imageComparison.
+  ///
+  /// In en, this message translates to:
+  /// **'Compare'**
+  String get generation_imageComparison;
+
+  /// No description provided for @generation_imageComparisonHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Compare the generated image with its source image'**
+  String get generation_imageComparisonHint;
+
+  /// No description provided for @generation_imageComparisonDivider.
+  ///
+  /// In en, this message translates to:
+  /// **'Image comparison divider'**
+  String get generation_imageComparisonDivider;
+
   /// No description provided for @generation_transparencyBackgroundTitle.
   ///
   /// In en, this message translates to:

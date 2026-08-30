@@ -15,6 +15,20 @@ class GenerationPreviewSelection extends _$GenerationPreviewSelection {
       if (previous?.status != GenerationStatus.generating &&
           next.status == GenerationStatus.generating) {
         state = null;
+        return;
+      }
+
+      final selectedId = state;
+      if (selectedId == null || next.displayImages.isEmpty) return;
+      final previousDisplayIds = previous?.displayImages
+          .map((image) => image.id)
+          .toList(growable: false);
+      final nextDisplayIds = next.displayImages
+          .map((image) => image.id)
+          .toList(growable: false);
+      if (!_sameIds(previousDisplayIds, nextDisplayIds) &&
+          !nextDisplayIds.contains(selectedId)) {
+        state = null;
       }
     });
     ref.listen(historyClickBehaviorNotifierProvider, (previous, next) {
@@ -47,6 +61,14 @@ class GenerationPreviewSelection extends _$GenerationPreviewSelection {
     final targetIndex = (currentIndex + delta).clamp(0, images.length - 1);
     state = images[targetIndex].id;
   }
+}
+
+bool _sameIds(List<String>? previous, List<String> next) {
+  if (previous == null || previous.length != next.length) return false;
+  for (var index = 0; index < next.length; index++) {
+    if (previous[index] != next[index]) return false;
+  }
+  return true;
 }
 
 @Riverpod(keepAlive: true)

@@ -121,7 +121,7 @@ void main() {
 
     expect(
       tester.getSize(find.byType(PreviewInfoBar)).width,
-      lessThan(350),
+      lessThan(400),
     );
   });
 

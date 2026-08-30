@@ -58,6 +58,7 @@ import '../../../utils/image_detail_opener.dart';
 import '../../../utils/krita_send_helper.dart';
 import '../../../utils/precise_ref_library_import_helper.dart';
 import '../../tag_library_page/widgets/entry_add_dialog.dart';
+import 'image_comparison_view.dart';
 import 'preview_info_bar.dart';
 
 class PreviewNavShortcuts extends ConsumerWidget {
@@ -120,6 +121,8 @@ class ImagePreviewWidget extends ConsumerStatefulWidget {
 }
 
 class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
+  bool _comparisonEnabled = false;
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(imageGenerationNotifierProvider);
@@ -588,6 +591,8 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
     ThemeData theme,
   ) {
     const gap = 8.0;
+    final comparisonAvailable = image.canCompareWithSource;
+    final comparisonEnabled = comparisonAvailable && _comparisonEnabled;
 
     // 信息条紧贴图片下沿并与图片左对齐（官网 bottom.start 口径），
     // 因此先扣掉信息条高度再按比例算卡片尺寸，避免二者互相挤压。
@@ -612,6 +617,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
                 ref: ref,
                 image: image,
                 showIndex: false,
+                comparisonEnabled: comparisonEnabled,
               ),
             ),
             const SizedBox(height: gap),
@@ -619,7 +625,14 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
               width: cardSize.width,
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: PreviewInfoBar(image: image),
+                child: PreviewInfoBar(
+                  image: image,
+                  comparisonEnabled: comparisonEnabled,
+                  onComparisonChanged: comparisonAvailable
+                      ? (enabled) =>
+                            setState(() => _comparisonEnabled = enabled)
+                      : null,
+                ),
               ),
             ),
           ],
@@ -634,6 +647,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
     required GeneratedImage image,
     required bool showIndex,
     int? index,
+    bool comparisonEnabled = false,
   }) {
     final imageBytes = image.bytes;
     final canUseAsInput = image.canUseAsGenerationInput;
@@ -649,6 +663,15 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
       underlay: TransparencyBackgroundLayer(
         style: ref.watch(previewTransparencyNotifierProvider),
       ),
+      imageContent: comparisonEnabled
+          ? ImageComparisonView(
+              key: ValueKey('generation-image-comparison-${image.id}'),
+              sourceImageBytes: image.comparisonSource!.bytes,
+              generatedImageBytes: imageBytes,
+            )
+          : null,
+      hoverEffectsEnabled: !comparisonEnabled,
+      enableHoverScale: !comparisonEnabled,
       enableSelection: false,
       enableSaveAction: image.canSave,
       enableCopyAction: image.canSave,
@@ -739,6 +762,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
       feedbackFormat: 'PNG',
       fileName: _previewImageFileName(image),
       sourceFilePath: image.filePath,
+      enabled: !comparisonEnabled,
       child: card,
     );
   }
