@@ -24,7 +24,7 @@ compatibility: 项目的 PC热重载与安卓热重载会话已启动。
 
 ## 2. 修改后验证顺序
 
-1. 先运行与改动范围匹配的格式化、affected tests 和 scoped analyze。
+1. 默认先运行与改动范围匹配的格式化、affected tests 和 scoped analyze；用户明确要求立即启动/刷新时跳过此步，先完成会话启动或 reload/restart，再补最小验证。纯 Dart/UI 改动不得把 `build_runner` 当作验证；只有生成输入变化或 Runner 预检明确阻塞时才按 `aaalice-dev-sessions` 执行一次性环境准备。
 2. 从 `tool/.tmp/windows_hot_reload_session.json` 与 `tool/.tmp/android_hot_reload_session.json` 读取 `terminalHandle`。
 3. 对每个目标运行 `orca terminal read --terminal <handle> --json`，记录返回的 `latestCursor`，作为本次日志基线。
 4. 触发动作但不读取历史 tail：

@@ -61,6 +61,8 @@ Windows release 产物位于 `build/windows/x64/runner/Release/`。macOS 使用 
 
 项目热重载与按需运行验收由 `.pi/skills/` 中的三个项目 skill 管理：`aaalice-dev-sessions` 负责通过 Orca 创建、复用和关闭唯一的 `PC热重载` / `安卓热重载` 终端；`aaalice-hot-reload` 负责判定并触发 `r`、`R` 或完整重建，随后按 Orca cursor 增量读取两端日志；`aaalice-runtime-verify` 在用户明确要求自动化验收时负责真实 UI 自动化与布局检查。Agent 不得另开第二个 `flutter run` 或 `flutter attach`，仓库 `scripts/` 下不再保留项目热重载入口。
 
+`build_runner` 不是常规测试或纯 Dart/UI 改动的默认验证步骤。只有改动了 Riverpod/Freezed/JSON/Drift 等生成输入，或开发 Runner 预检明确报告生成文件缺失/过期时才运行；针对性测试直接运行相关测试文件，不得为此先扫描全仓库生成代码。用户要求立即启动热重载时先执行会话状态检查和 Runner 预检，不得先跑测试或生成器；若预检阻塞且必须全量生成，应明确说明这是一次性环境准备及预计耗时，让命令完整结束后立即继续启动，不得称其为“最小验证”或反复中断重跑。生成命令中断后必须检查并恢复被删除但未重新生成的已有输出。
+
 为本项目创建 Orca worktree 会话时，用户未明确指定 Agent 则默认使用 `pi`；仅在用户明确要求时改用其他 Agent。
 
 普通 Dart 方法、Widget 布局、样式和文案使用 `Reload`；状态字段、`initState`、Provider/依赖注入、路由/启动流程、静态缓存或生成 Dart 代码使用 `Restart`；依赖、Windows C++/插件注册、Android Kotlin/Manifest/Gradle/插件注册变化必须重建受影响会话。共享代码默认作用于 `All`，平台实现只作用于对应端。
