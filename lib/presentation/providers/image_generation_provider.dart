@@ -1032,6 +1032,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         character,
         index: index,
         total: effective.characters.length,
+        useCoords: effective.useCoords,
       );
       final x = center.x;
       final y = center.y;

@@ -279,6 +279,7 @@ class NAIImageRequestBuilder {
       params.characters[index],
       index: index,
       total: params.characters.length,
+      useCoords: params.useCoords,
     );
   }
 

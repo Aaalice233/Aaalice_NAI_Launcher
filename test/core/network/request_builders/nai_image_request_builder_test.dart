@@ -414,6 +414,30 @@ void main() {
       },
     );
 
+    test('should replace malformed centers in AI layout', () async {
+      const params = ImageParams(
+        model: ImageModels.animeDiffusionV45Full,
+        useCoords: false,
+        characters: [
+          CharacterPrompt(
+            prompt: 'stale center',
+            positionX: double.nan,
+            positionY: 2,
+          ),
+        ],
+      );
+
+      final result = await NAIImageRequestBuilder(
+        params: params,
+        encodeVibe: _fakeEncodeVibe,
+      ).build(sampler: 'k_euler');
+      final center = result
+          .requestParameters['v4_prompt']['caption']['char_captions'][0]['centers'][0];
+
+      expect(center, equals({'x': 0.5, 'y': 0.5}));
+      expect(result.requestParameters['v4_prompt']['use_coords'], isFalse);
+    });
+
     test('should reject incomplete centers in custom layout', () async {
       const params = ImageParams(
         model: ImageModels.animeDiffusionV45Full,
