@@ -374,6 +374,7 @@ class _RowEditorPanelState extends ConsumerState<_RowEditorPanel> {
     final iconColor = colorScheme.onSurfaceVariant;
 
     return TapRegion(
+      groupId: CharacterPromptEditor.tapRegionGroupId(widget.character.id),
       onTapOutside: (_) => _handleTapOutside(),
       child: Focus(
         focusNode: _panelFocusNode,

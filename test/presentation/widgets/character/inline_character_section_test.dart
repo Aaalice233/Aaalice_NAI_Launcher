@@ -3,11 +3,13 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/data/models/character/character_prompt.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/character_prompt_provider.dart';
 import 'package:nai_launcher/presentation/widgets/character/inline_character_card.dart';
+import 'package:nai_launcher/presentation/widgets/character/inline_character_editor.dart';
 import 'package:nai_launcher/presentation/widgets/character/inline_character_row.dart';
 import 'package:nai_launcher/presentation/widgets/character/inline_character_section.dart';
 
@@ -336,6 +338,282 @@ void main() {
     await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.byKey(const Key('character-hover-preview')), findsNothing);
+  });
+
+  testWidgets('角色提示词可拖拽调整高度且正负输入分别保留尺寸', (tester) async {
+    PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
+      TargetPlatform.windows,
+    );
+    addTearDown(() => PlatformCapabilities.debugOverride = null);
+    final container = createContainer();
+
+    await tester.pumpWidget(
+      subject(
+        container,
+        420,
+        child: const Padding(
+          padding: EdgeInsets.all(12),
+          child: CharacterPromptEditor(
+            character: CharacterPrompt(
+              id: 'alice',
+              name: 'Alice',
+              prompt: 'girl, red hair',
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final positiveArea = find.byKey(
+      const ValueKey('character-prompt-editor-area-positive'),
+    );
+    final positiveHandle = find.byKey(
+      const ValueKey('character-prompt-resize-handle-positive'),
+    );
+    expect(tester.getSize(positiveArea).height, 112);
+
+    await tester.drag(positiveHandle, const Offset(0, 96));
+    await tester.pump();
+    final resizedPositiveHeight = tester.getSize(positiveArea).height;
+    expect(resizedPositiveHeight, greaterThan(112));
+
+    await tester.tap(find.text('负向提示词'));
+    await tester.pump();
+    final negativeArea = find.byKey(
+      const ValueKey('character-prompt-editor-area-negative'),
+    );
+    expect(tester.getSize(negativeArea).height, 112);
+
+    await tester.drag(
+      find.byKey(const ValueKey('character-prompt-resize-handle-negative')),
+      const Offset(0, 1000),
+    );
+    await tester.pump();
+    expect(tester.getSize(negativeArea).height, 300);
+
+    await tester.drag(
+      find.byKey(const ValueKey('character-prompt-resize-handle-negative')),
+      const Offset(0, -1000),
+    );
+    await tester.pump();
+    expect(tester.getSize(negativeArea).height, 112);
+
+    await tester.tap(find.text('正向提示词'));
+    await tester.pump();
+    expect(tester.getSize(positiveArea).height, resizedPositiveHeight);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('角色助手入口固定在切换区最右且展开到 root overlay', (tester) async {
+    PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
+      TargetPlatform.windows,
+    );
+    addTearDown(() => PlatformCapabilities.debugOverride = null);
+    final container = createContainer();
+
+    await tester.pumpWidget(
+      subject(
+        container,
+        420,
+        child: const Padding(
+          padding: EdgeInsets.all(12),
+          child: CharacterPromptEditor(
+            character: CharacterPrompt(
+              id: 'alice',
+              name: 'Alice',
+              prompt: 'girl, red hair',
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final slot = find.byKey(const ValueKey('character-prompt-assistant-slot'));
+    final collapsedToolbar = find.byKey(
+      const ValueKey(
+        'prompt_assistant_toolbar_generation_character_alice_prompt',
+      ),
+    );
+    final editor = find.byType(CharacterPromptEditor);
+    final slotRect = tester.getRect(slot);
+    final editorRect = tester.getRect(editor);
+    final areaTop = tester
+        .getRect(
+          find.byKey(const ValueKey('character-prompt-editor-area-positive')),
+        )
+        .top;
+
+    expect(slotRect.right, closeTo(editorRect.right, 0.1));
+    expect(slotRect.height, 32);
+    expect(
+      find.descendant(
+        of: collapsedToolbar,
+        matching: find.byIcon(Icons.auto_awesome_rounded),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('助手'), findsNothing);
+
+    await tester.tap(find.byIcon(Icons.auto_awesome_rounded));
+    await tester.pump();
+    await tester.pump();
+
+    final expandedToolbar = find.byKey(
+      const ValueKey(
+        'prompt_assistant_toolbar_generation_character_alice_prompt',
+      ),
+    );
+    expect(find.ancestor(of: expandedToolbar, matching: editor), findsNothing);
+    expect(tester.getRect(expandedToolbar).left, lessThan(slotRect.left));
+    expect(tester.getRect(expandedToolbar).top, closeTo(slotRect.top, 0.1));
+    for (final icon in [
+      Icons.undo,
+      Icons.redo,
+      Icons.translate,
+      Icons.auto_fix_high,
+      Icons.tune_rounded,
+      Icons.manage_accounts_rounded,
+      Icons.more_horiz,
+      Icons.keyboard_arrow_down_rounded,
+    ]) {
+      expect(
+        find.descendant(of: expandedToolbar, matching: find.byIcon(icon)),
+        findsOneWidget,
+      );
+    }
+    expect(tester.getRect(slot).height, 32);
+    expect(
+      tester
+          .getRect(
+            find.byKey(const ValueKey('character-prompt-editor-area-positive')),
+          )
+          .top,
+      areaTop,
+    );
+
+    await tester.tap(
+      find.descendant(
+        of: expandedToolbar,
+        matching: find.byIcon(Icons.keyboard_arrow_down_rounded),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    expect(find.byIcon(Icons.auto_awesome_rounded), findsOneWidget);
+    expect(tester.getRect(slot).height, 32);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('点击 root overlay 助手不会退出角色编辑态', (tester) async {
+    PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
+      TargetPlatform.windows,
+    );
+    addTearDown(() => PlatformCapabilities.debugOverride = null);
+    final container = createContainer();
+    const character = CharacterPrompt(
+      id: 'alice',
+      name: 'Alice',
+      prompt: 'girl, red hair',
+    );
+
+    await tester.pumpWidget(
+      subject(
+        container,
+        420,
+        child: const Padding(
+          padding: EdgeInsets.all(12),
+          child: InlineCharacterCard(character: character, index: 0, total: 1),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.tap(find.text('girl, red hair'));
+    await tester.pumpAndSettle();
+    expect(find.byType(CharacterPromptEditor), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.auto_awesome_rounded));
+    await tester.pump();
+    await tester.pump();
+    await tester.tap(find.byIcon(Icons.keyboard_arrow_down_rounded));
+    await tester.pump();
+    await tester.pump();
+
+    expect(container.read(selectedCharacterIdProvider), 'alice');
+    expect(find.byType(CharacterPromptEditor), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('窄屏角色助手完整显示且 resize 受视口上限约束', (tester) async {
+    PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
+      TargetPlatform.android,
+    );
+    addTearDown(() => PlatformCapabilities.debugOverride = null);
+    await tester.binding.setSurfaceSize(const Size(320, 640));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final container = createContainer();
+
+    await tester.pumpWidget(
+      subject(
+        container,
+        320,
+        child: const Padding(
+          padding: EdgeInsets.all(8),
+          child: CharacterPromptEditor(
+            character: CharacterPrompt(
+              id: 'alice',
+              name: 'Alice',
+              prompt: 'girl, red hair',
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final slot = find.byKey(const ValueKey('character-prompt-assistant-slot'));
+    expect(tester.getSize(slot), const Size(48, 48));
+    await tester.tap(find.byIcon(Icons.auto_awesome_rounded));
+    await tester.pump();
+    await tester.pump();
+
+    final toolbar = find.byKey(
+      const ValueKey(
+        'prompt_assistant_toolbar_generation_character_alice_prompt',
+      ),
+    );
+    final toolbarRect = tester.getRect(toolbar);
+    expect(toolbarRect.left, greaterThanOrEqualTo(8));
+    expect(toolbarRect.right, lessThanOrEqualTo(312));
+    for (final icon in [
+      Icons.translate,
+      Icons.auto_fix_high,
+      Icons.tune_rounded,
+      Icons.manage_accounts_rounded,
+      Icons.more_horiz,
+      Icons.keyboard_arrow_down_rounded,
+    ]) {
+      expect(
+        find.descendant(of: toolbar, matching: find.byIcon(icon)),
+        findsOneWidget,
+      );
+    }
+
+    await tester.drag(
+      find.byKey(const ValueKey('character-prompt-resize-handle-positive')),
+      const Offset(0, 1000),
+    );
+    await tester.pump();
+    expect(
+      tester
+          .getSize(
+            find.byKey(const ValueKey('character-prompt-editor-area-positive')),
+          )
+          .height,
+      300,
+    );
+    expect(tester.takeException(), isNull);
   });
 
   for (final width in [700.0, 840.0, 1180.0, 1600.0]) {

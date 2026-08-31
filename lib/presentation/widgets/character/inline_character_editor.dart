@@ -1,11 +1,16 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/platform/platform_capabilities.dart';
 import '../../../data/models/character/character_prompt.dart';
 import '../../prompt_assistant/providers/prompt_assistant_history_provider.dart';
+import '../../prompt_assistant/widgets/prompt_assistant_overlay.dart';
 import '../../providers/character_prompt_provider.dart';
 import '../../providers/image_generation_provider.dart';
+import '../common/vertical_resize_handle.dart';
 import '../prompt/toolbar/toolbar.dart';
 import '../prompt/unified/unified.dart';
 
@@ -14,6 +19,9 @@ import '../prompt/unified/unified.dart';
 /// 官网布局的卡内编辑与经典布局的全宽编辑面板共用。
 /// 挂载时自动把光标送进当前输入框；输入实时写回 provider。
 class CharacterPromptEditor extends ConsumerStatefulWidget {
+  static String tapRegionGroupId(String characterId) =>
+      'character-prompt-editor-$characterId';
+
   final CharacterPrompt character;
   final bool compact;
 
@@ -40,6 +48,8 @@ class _CharacterPromptEditorState extends ConsumerState<CharacterPromptEditor> {
 
   /// 0 = 正向提示词，1 = 负向提示词
   int _tabIndex = 0;
+  double? _positiveEditorHeight;
+  double? _negativeEditorHeight;
 
   @override
   void initState() {
@@ -105,22 +115,71 @@ class _CharacterPromptEditorState extends ConsumerState<CharacterPromptEditor> {
       children: [
         Row(
           children: [
-            _EditorTab(
-              label: l10n.prompt_positivePrompt,
-              selected: _tabIndex == 0,
-              onTap: () {
-                setState(() => _tabIndex = 0);
-                _focusCurrentTab();
-              },
+            Expanded(
+              child: Row(
+                children: [
+                  Flexible(
+                    child: _EditorTab(
+                      label: l10n.prompt_positivePrompt,
+                      selected: _tabIndex == 0,
+                      onTap: () {
+                        setState(() => _tabIndex = 0);
+                        _focusCurrentTab();
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: _EditorTab(
+                      label: l10n.prompt_negativePrompt,
+                      selected: _tabIndex == 1,
+                      onTap: () {
+                        setState(() => _tabIndex = 1);
+                        _focusCurrentTab();
+                      },
+                    ),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(width: 6),
-            _EditorTab(
-              label: l10n.prompt_negativePrompt,
-              selected: _tabIndex == 1,
-              onTap: () {
-                setState(() => _tabIndex = 1);
-                _focusCurrentTab();
-              },
+            const SizedBox(width: 8),
+            SizedBox.square(
+              key: const ValueKey('character-prompt-assistant-slot'),
+              dimension: PromptAssistantOverlay.inlineToolbarHeight,
+              child: PromptAssistantOverlay(
+                key: ValueKey(
+                  _tabIndex == 0
+                      ? PromptHistorySessionIds.characterPrompt(
+                          widget.character.id,
+                        )
+                      : PromptHistorySessionIds.characterNegative(
+                          widget.character.id,
+                        ),
+                ),
+                sessionId: _tabIndex == 0
+                    ? PromptHistorySessionIds.characterPrompt(
+                        widget.character.id,
+                      )
+                    : PromptHistorySessionIds.characterNegative(
+                        widget.character.id,
+                      ),
+                controller: _tabIndex == 0
+                    ? _promptController
+                    : _negativeController,
+                onChanged: _tabIndex == 0
+                    ? (value) => _updateCharacter(
+                        widget.character.copyWith(prompt: value),
+                      )
+                    : (value) => _updateCharacter(
+                        widget.character.copyWith(negativePrompt: value),
+                      ),
+                floatOverEditor: false,
+                iconOnly: true,
+                expandInRootOverlay: true,
+                tapRegionGroupId: CharacterPromptEditor.tapRegionGroupId(
+                  widget.character.id,
+                ),
+              ),
             ),
           ],
         ),
@@ -170,20 +229,66 @@ class _CharacterPromptEditorState extends ConsumerState<CharacterPromptEditor> {
       clearNeedsConfirm: true,
     );
 
-    return PromptEditorWithToolbar(
-      toolbarConfig: PromptEditorToolbarConfig.compactMode.copyWith(
-        showClearButton: false,
-      ),
-      inputConfig: inputConfig,
-      controller: controller,
-      focusNode: focusNode,
-      sessionId: _tabIndex == 0
-          ? PromptHistorySessionIds.characterPrompt(widget.character.id)
-          : PromptHistorySessionIds.characterNegative(widget.character.id),
-      onChanged: onChanged,
-      onCleared: () => onChanged(''),
-      minLines: widget.compact ? 1 : 2,
-      maxLines: widget.compact ? 4 : 6,
+    final isNegative = _tabIndex == 1;
+    final viewportHeight = MediaQuery.sizeOf(context).height;
+    final minimumHeight = widget.compact ? 88.0 : 112.0;
+    final maximumHeight = math.max(
+      minimumHeight,
+      math.min(viewportHeight * 0.5, widget.compact ? 360.0 : 480.0),
+    );
+    final storedHeight = isNegative
+        ? _negativeEditorHeight
+        : _positiveEditorHeight;
+    final editorHeight = (storedHeight ?? minimumHeight)
+        .clamp(minimumHeight, maximumHeight)
+        .toDouble();
+    final resizeHandleHeight = PlatformCapabilities.current.hasTouchInput
+        ? 40.0
+        : 20.0;
+    final fieldName = isNegative ? 'negative' : 'positive';
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          key: ValueKey('character-prompt-editor-area-$fieldName'),
+          height: editorHeight,
+          child: PromptEditorWithToolbar(
+            toolbarConfig: PromptEditorToolbarConfig.compactMode.copyWith(
+              showClearButton: false,
+            ),
+            inputConfig: inputConfig,
+            controller: controller,
+            focusNode: focusNode,
+            sessionId: isNegative
+                ? PromptHistorySessionIds.characterNegative(widget.character.id)
+                : PromptHistorySessionIds.characterPrompt(widget.character.id),
+            enableAssistant: false,
+            onChanged: onChanged,
+            onCleared: () => onChanged(''),
+            expands: true,
+          ),
+        ),
+        VerticalResizeHandle(
+          key: ValueKey('character-prompt-resize-handle-$fieldName'),
+          height: resizeHandleHeight,
+          onDrag: (delta) {
+            setState(() {
+              final currentHeight = isNegative
+                  ? (_negativeEditorHeight ?? editorHeight)
+                  : (_positiveEditorHeight ?? editorHeight);
+              final nextHeight = (currentHeight + delta)
+                  .clamp(minimumHeight, maximumHeight)
+                  .toDouble();
+              if (isNegative) {
+                _negativeEditorHeight = nextHeight;
+              } else {
+                _positiveEditorHeight = nextHeight;
+              }
+            });
+          },
+        ),
+      ],
     );
   }
 }
@@ -218,6 +323,8 @@ class _EditorTab extends StatelessWidget {
         ),
         child: Text(
           label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: theme.textTheme.labelSmall?.copyWith(
             color: selected
                 ? colorScheme.primary
