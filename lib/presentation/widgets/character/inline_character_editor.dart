@@ -158,9 +158,9 @@ class _CharacterPromptEditorState extends ConsumerState<CharacterPromptEditor> {
         : _negativeController;
     final showClearButton =
         !assistantExpanded && currentController.text.isNotEmpty;
-    const clearButtonWidth = 32.0;
+    final clearButtonSize = assistantToolbarHeight;
     final collapsedActionsWidth =
-        collapsedAssistantWidth + (showClearButton ? clearButtonWidth + 6 : 0);
+        collapsedAssistantWidth + (showClearButton ? clearButtonSize + 6 : 0);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -206,17 +206,17 @@ class _CharacterPromptEditorState extends ConsumerState<CharacterPromptEditor> {
                 Positioned(
                   right: collapsedAssistantWidth + 6,
                   top: 0,
-                  width: clearButtonWidth,
+                  width: clearButtonSize,
                   height: assistantToolbarHeight,
                   child: IconButton(
                     key: const ValueKey('character-prompt-clear-button'),
                     tooltip: l10n.toolbar_clear,
                     onPressed: _clearCurrentPrompt,
-                    icon: const Icon(Icons.clear, size: 17),
+                    icon: Icon(Icons.clear, size: assistantIconOnly ? 20 : 17),
                     padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints.tightFor(
-                      width: clearButtonWidth,
-                      height: 32,
+                    constraints: BoxConstraints.tightFor(
+                      width: clearButtonSize,
+                      height: assistantToolbarHeight,
                     ),
                     style: IconButton.styleFrom(
                       foregroundColor: colorScheme.onSurfaceVariant,

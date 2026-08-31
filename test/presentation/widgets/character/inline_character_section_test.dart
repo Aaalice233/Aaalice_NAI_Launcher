@@ -644,6 +644,14 @@ void main() {
 
     final slot = find.byKey(const ValueKey('character-prompt-assistant-slot'));
     expect(tester.getSize(slot), const Size(48, 48));
+    final clearButton = find.byKey(
+      const ValueKey('character-prompt-clear-button'),
+    );
+    expect(tester.getSize(clearButton), const Size(48, 48));
+    expect(
+      tester.getRect(clearButton).right,
+      lessThan(tester.getRect(slot).left),
+    );
     await tester.tap(find.byIcon(Icons.auto_awesome_rounded));
     await tester.pump();
     await tester.pump();
@@ -654,6 +662,7 @@ void main() {
       ),
     );
     final toolbarRect = tester.getRect(toolbar);
+    expect(clearButton, findsNothing);
     expect(toolbarRect.left, greaterThanOrEqualTo(8));
     expect(toolbarRect.right, lessThanOrEqualTo(312));
     for (final icon in [
