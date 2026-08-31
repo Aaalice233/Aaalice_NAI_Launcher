@@ -42,6 +42,7 @@ orca terminal create --worktree active --title "安卓热重载" --command "pwsh
 
 - Android 项目会话必须使用 `-EmulatorId Aaalice_API35`，不要使用 `-DeviceId emulator-5554`；后者只复用外部模拟器，会绕过项目的 GPU 和无设备外框启动参数。
 - 两个 runner 默认都复用现有依赖与生成文件，不运行 `pub get` / `build_runner`。纯 Dart/UI 改动及针对性测试不得预先运行生成器；依赖变化时显式传 `-RunPubGet`，Freezed/Riverpod 等生成源变化或 Runner 预检明确阻塞时才单独完成 `-RunBuildRunner`，不得与另一端 Flutter 构建并发。
+- Windows Runner 会把当前进程中已设置的 Google Drive / OneDrive Windows OAuth 环境变量作为 `--dart-define` 注入；OneDrive 本地注册也可通过 `-OneDriveClientId`、`-OneDriveRedirectUri`、`-OneDriveTenantId` 显式传入。不要把 access token、refresh token 或 client secret 传给 Runner。
 - 在 Orca 中直接创建项目终端；所有项目专用 runner/helper 都位于 `.pi/skills/`，不依赖仓库 `scripts/` 下的热重载入口。
 - 创建后轮询 `orca terminal read --terminal <handle> --json`。Windows 等待 `Starting Flutter in Windows debug mode`，Android 等待 `Starting Flutter in Android debug mode` 且应用启动完成。出现构建错误立即报告，不盲等。
 - Android runner 首次启动 emulator 时禁用 Quick Boot 快照、使用 host GPU、移除设备外框并等待系统完成启动；默认保留运行中的 emulator 作为下次会话的暖缓存。复用前会停止旧 App 并回到 Home，不会把旧界面当作本次启动结果。只有显式传 `-StopEmulatorOnExit` 才让 emulator 随会话关闭。
