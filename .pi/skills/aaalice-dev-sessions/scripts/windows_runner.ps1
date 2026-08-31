@@ -51,6 +51,18 @@ function Resolve-ToolCommand {
     return $command.Source
 }
 
+function Get-OAuthConfigValue {
+    param([Parameter(Mandatory = $true)][string]$Name)
+
+    foreach ($target in @('Process', 'User', 'Machine')) {
+        $value = [Environment]::GetEnvironmentVariable($Name, $target)
+        if (-not [string]::IsNullOrWhiteSpace($value)) {
+            return $value
+        }
+    }
+    return $null
+}
+
 function Get-OptionalOAuthDartDefines {
     $names = @(
         'GOOGLE_DRIVE_WINDOWS_CLIENT_ID',
@@ -61,7 +73,7 @@ function Get-OptionalOAuthDartDefines {
     )
     $defines = @()
     foreach ($name in $names) {
-        $value = [Environment]::GetEnvironmentVariable($name)
+        $value = Get-OAuthConfigValue -Name $name
         if (-not [string]::IsNullOrWhiteSpace($value)) {
             $defines += "--dart-define=$name=$value"
         }

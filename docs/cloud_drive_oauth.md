@@ -40,10 +40,11 @@ Google disconnect 在 Android 调用官方 SDK `disconnect`，在 macOS/Windows 
 
 ## Microsoft Entra 管理中心
 
-1. 在 [Microsoft Entra app registrations](https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade) 注册 public client/native application。选择组织租户、`organizations`、`common` 或 consumer 策略，并让 `ONEDRIVE_TENANT_ID` 与该策略一致；默认是 `common`。
+1. 在 [Microsoft Entra app registrations](https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade) 注册 public client/native application。正式发布的应用必须选择“任何组织目录中的帐户和个人 Microsoft 帐户”，其 manifest `signInAudience` 为 `AzureADandPersonalMicrosoftAccount`，并使用 `ONEDRIVE_TENANT_ID=common`。仅组织目录或单租户注册会让个人 OneDrive 登录返回 `unauthorized_client`，不能作为本项目的发布配置。
 2. 在 API permissions 中只添加委托权限 `Files.ReadWrite.AppFolder`。OIDC 的 `openid profile email offline_access` 用于登录身份和续期；不要添加 `Files.ReadWrite.All`、`User.ReadWrite.All` 或 `User.RevokeSessions.All`。按租户政策完成管理员同意和发布审核。
-3. Android/macOS 注册 redirect：`com.aaalice.nailauncher.oauth:/oauth2redirect/microsoft`。Android 的 AppAuth receiver scheme 和 macOS `CFBundleURLTypes` 已登记；redirect define 必须使用相同 scheme。
-4. Windows 在应用 manifest 的 `replyUrlsWithType` 中注册 `http://127.0.0.1/oauth2/callback`，类型为 `InstalledClient`；构建 define 仍填基值 `ONEDRIVE_WINDOWS_REDIRECT_URI=http://127.0.0.1`，运行时会追加随机端口和固定 `/oauth2/callback` 路径。Microsoft 官方说明 `127.0.0.1` 比 `localhost` 更不易受主机名/防火墙配置影响，但 Portal 的普通 Redirect URIs 文本框目前不能配置 HTTP IP loopback，必须编辑 manifest。参考 [Redirect URI 限制](https://learn.microsoft.com/en-us/entra/identity-platform/reply-url)。启用 public client flow，不创建 client secret。
+3. manifest 中把 `api.requestedAccessTokenVersion` 设为 `2`。当 `signInAudience` 包含个人 Microsoft 帐户时，Microsoft 要求访问令牌版本为 2。
+4. Android/macOS 注册 redirect：`com.aaalice.nailauncher.oauth:/oauth2redirect/microsoft`。Android 的 AppAuth receiver scheme 和 macOS `CFBundleURLTypes` 已登记；redirect define 必须使用相同 scheme。
+5. Windows 在应用 manifest 的 `replyUrlsWithType` 中注册 `http://127.0.0.1/oauth2/callback`，类型为 `InstalledClient`；构建 define 仍填基值 `ONEDRIVE_WINDOWS_REDIRECT_URI=http://127.0.0.1`，运行时会追加随机端口和固定 `/oauth2/callback` 路径。Microsoft 官方说明 `127.0.0.1` 比 `localhost` 更不易受主机名/防火墙配置影响，但 Portal 的普通 Redirect URIs 文本框目前不能配置 HTTP IP loopback，必须编辑 manifest。参考 [Redirect URI 限制](https://learn.microsoft.com/en-us/entra/identity-platform/reply-url)。启用 public client flow，不创建 client secret。
 
 Microsoft 没有适合本最小权限流程的单 token revoke 调用。断开只删除本地 secure-storage token，不申请或调用 `User.RevokeSessions.All`。如产品未来提供“退出浏览器中的 Microsoft 账号”，应作为明确可选操作打开 Microsoft logout endpoint；它会影响共享系统浏览器 SSO，不应与普通断开绑定。
 
@@ -56,7 +57,7 @@ Microsoft 没有适合本最小权限流程的单 token revoke 调用。断开�
 | Android | `GOOGLE_DRIVE_ANDROID_CLIENT_ID` | `ONEDRIVE_ANDROID_CLIENT_ID`、`ONEDRIVE_ANDROID_REDIRECT_URI` |
 | macOS | `GOOGLE_DRIVE_MACOS_CLIENT_ID`、`GOOGLE_DRIVE_MACOS_REDIRECT_URI` | `ONEDRIVE_MACOS_CLIENT_ID`、`ONEDRIVE_MACOS_REDIRECT_URI` |
 | Windows | `GOOGLE_DRIVE_WINDOWS_CLIENT_ID`、`GOOGLE_DRIVE_WINDOWS_REDIRECT_URI=http://127.0.0.1` | `ONEDRIVE_WINDOWS_CLIENT_ID`、`ONEDRIVE_WINDOWS_REDIRECT_URI=http://127.0.0.1` |
-| 全平台 OneDrive | — | `ONEDRIVE_TENANT_ID`（可选，默认 `common`） |
+| 全平台 OneDrive | — | `ONEDRIVE_TENANT_ID=common` |
 
 PowerShell 构建示例：
 
@@ -94,7 +95,7 @@ flutter analyze lib/core/cloud_sync/oauth lib/core/storage/secure_storage_servic
 
 真机诊断还必须分别检查：Google Android debug/release SHA 是否登记；macOS 构建产物 `Info.plist` 是否出现实际 reversed client ID scheme；OneDrive redirect 是否逐字符匹配 Entra；Windows 浏览器是否回到随机 `127.0.0.1` 端口。
 
-Release workflow 要求先设置 GitHub Actions repository variables：`GOOGLE_DRIVE_WINDOWS_CLIENT_ID`、`GOOGLE_DRIVE_MACOS_CLIENT_ID`、`GOOGLE_DRIVE_MACOS_REDIRECT_URI`、`GOOGLE_DRIVE_ANDROID_CLIENT_ID`、`ONEDRIVE_CLIENT_ID`、`ONEDRIVE_MACOS_REDIRECT_URI`、`ONEDRIVE_ANDROID_REDIRECT_URI`，以及可选 `ONEDRIVE_TENANT_ID`（默认 `common`）。正式发布缺少任一平台必需值时会在构建前失败，避免发布一个静默缺失云盘登录能力的安装包。这些值来自外部 Google/Entra 应用注册与审核，不在仓库中提供真实值。
+Release workflow 要求先设置 GitHub Actions repository variables：`GOOGLE_DRIVE_WINDOWS_CLIENT_ID`、`GOOGLE_DRIVE_MACOS_CLIENT_ID`、`GOOGLE_DRIVE_MACOS_REDIRECT_URI`、`GOOGLE_DRIVE_ANDROID_CLIENT_ID`、`ONEDRIVE_CLIENT_ID`、`ONEDRIVE_MACOS_REDIRECT_URI`、`ONEDRIVE_ANDROID_REDIRECT_URI`，以及 `ONEDRIVE_TENANT_ID=common`。正式发布缺少任一平台必需值时会在构建前失败，避免发布一个静默缺失云盘登录能力的安装包。这些值来自外部 Google/Entra 应用注册与审核，不在仓库中提供真实值。
 
 ## 数据、加密与账号隔离
 
