@@ -665,4 +665,174 @@ void main() {
       expect(builtColumnCount, 8);
     },
   );
+
+  testWidgets(
+    'restores a page seven anchor through zero constraints and column changes',
+    (tester) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(1400, 1000);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetPhysicalSize);
+      final controller = OnlineGalleryScreenController(
+        prefetchCoordinator: OnlineGalleryPrefetchCoordinator(
+          preloader: (_) =>
+              GalleryImagePreloadOperation.fromFuture(Future<void>.value()),
+        ),
+      );
+      addTearDown(controller.dispose);
+      final items = List.generate(
+        7 * 60,
+        (index) => GalleryItem(
+          id: index,
+          workId: 'page-seven-$index',
+          sourceId: GallerySourceId.danbooru,
+          width: 100 + index % 5 * 20,
+          height: 100 + index % 7 * 15,
+        ),
+      );
+      const anchorIndex = 365;
+      const localOffset = 18.0;
+      final state = OnlineGalleryState(
+        searchCache: ModeCache(
+          posts: items,
+          page: 7,
+          hasMore: false,
+          scrollOffset: 12000,
+          anchorStableKey: items[anchorIndex].stableKey,
+          anchorLocalOffset: localOffset,
+        ),
+      );
+
+      double expectedOffset(double width) {
+        const spacing = 6.0;
+        final availableWidth = width - 24;
+        final columns = ((availableWidth + spacing) / (160 + spacing))
+            .floor()
+            .clamp(1, 8);
+        final itemWidth = (availableWidth - (columns - 1) * spacing) / columns;
+        final layout = OnlineGalleryMasonryLayoutSnapshot(
+          aspectRatios: [for (final item in items) item.width / item.height],
+          placeholderCount: 0,
+          columnCount: columns,
+          itemWidth: itemWidth,
+          mainAxisSpacing: spacing,
+          crossAxisSpacing: spacing,
+        );
+        return 12 + layout.placementFor(anchorIndex).scrollOffset + localOffset;
+      }
+
+      Widget subject(double width, double height) => MaterialApp(
+        home: Scaffold(
+          body: Align(
+            alignment: Alignment.topLeft,
+            child: SizedBox(
+              width: width,
+              height: height,
+              child: OnlineGalleryGrid(
+                state: state,
+                controller: controller,
+                itemBuilder: (_, __, ___, ____) => const SizedBox.expand(),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpWidget(subject(840, 700));
+      expect(
+        controller.scrollController.offset,
+        closeTo(expectedOffset(840), 1),
+      );
+
+      final retainedOffset = controller.scrollController.offset;
+      await tester.pumpWidget(subject(840, 0));
+      expect(controller.scrollController.hasClients, isFalse);
+
+      await tester.pumpWidget(subject(840, 700));
+      expect(controller.scrollController.offset, closeTo(retainedOffset, 1));
+
+      await tester.pumpWidget(subject(1180, 700));
+      expect(
+        controller.scrollController.offset,
+        closeTo(expectedOffset(1180), 1),
+      );
+      expect(state.currentCache.page, 7);
+      expect(state.posts, hasLength(420));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('keeps viewport snapshots isolated by browsing scope', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(840, 700);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    final controller = OnlineGalleryScreenController(
+      prefetchCoordinator: OnlineGalleryPrefetchCoordinator(
+        preloader: (_) =>
+            GalleryImagePreloadOperation.fromFuture(Future<void>.value()),
+      ),
+    );
+    addTearDown(controller.dispose);
+    final items = List.generate(
+      180,
+      (index) => GalleryItem(
+        id: index,
+        workId: 'scope-$index',
+        sourceId: GallerySourceId.danbooru,
+        width: 1,
+        height: 1,
+      ),
+    );
+
+    OnlineGalleryState scopedState(String query, int anchorIndex) =>
+        OnlineGalleryState(
+          searchQuery: query,
+          searchCache: ModeCache(
+            posts: items,
+            page: 3,
+            hasMore: false,
+            anchorStableKey: items[anchorIndex].stableKey,
+            anchorLocalOffset: 10,
+          ),
+        );
+
+    Widget subject(OnlineGalleryState state, {double height = 700}) =>
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              height: height,
+              child: OnlineGalleryGrid(
+                state: state,
+                controller: controller,
+                itemBuilder: (_, __, ___, ____) => const SizedBox.expand(),
+              ),
+            ),
+          ),
+        );
+
+    final first = scopedState('first', 80);
+    final second = scopedState('second', 140);
+    await tester.pumpWidget(subject(first));
+    final firstOffset = controller.scrollController.offset;
+    controller.stageViewportRestore(
+      scope: second.currentCacheKey,
+      cache: second.currentCache,
+    );
+    await tester.pumpWidget(subject(second, height: 0));
+    await tester.pumpWidget(subject(second));
+    final secondOffset = controller.scrollController.offset;
+    expect(secondOffset, greaterThan(firstOffset));
+
+    controller.stageViewportRestore(
+      scope: first.currentCacheKey,
+      cache: first.currentCache,
+    );
+    await tester.pumpWidget(subject(first));
+    expect(controller.scrollController.offset, closeTo(firstOffset, 1));
+    expect(first.currentCache.page, 3);
+    expect(second.currentCache.page, 3);
+  });
 }

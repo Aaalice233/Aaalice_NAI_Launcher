@@ -610,6 +610,72 @@ void main() {
     await tester.binding.setSurfaceSize(null);
   });
 
+  testWidgets('桌面与紧凑布局切换保持当前设置浏览位置', (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+    await tester.binding.setSurfaceSize(const Size(1280, 700));
+    addTearDown(() {
+      debugDefaultTargetPlatformOverride = null;
+      return tester.binding.setSurfaceSize(null);
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          localStorageServiceProvider.overrideWithValue(storage),
+          secureStorageServiceProvider.overrideWithValue(
+            _MemorySecureStorage(),
+          ),
+          authNotifierProvider.overrideWith(_FakeAuthNotifier.new),
+          accountManagerNotifierProvider.overrideWith(
+            _FakeAccountManagerNotifier.new,
+          ),
+          subscriptionNotifierProvider.overrideWith(
+            _FakeSubscriptionNotifier.new,
+          ),
+        ],
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: SettingsScreen(initialSection: SettingsSection.integrations),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    Finder contentScrollable() => find.descendant(
+      of: find.byKey(const ValueKey('settings-section-scroll-view')),
+      matching: find.byWidgetPredicate(
+        (widget) =>
+            widget is Scrollable && widget.axisDirection == AxisDirection.down,
+      ),
+    );
+    await tester.drag(contentScrollable(), const Offset(0, -360));
+    await tester.pumpAndSettle();
+    final desktopOffset = tester
+        .state<ScrollableState>(contentScrollable())
+        .position
+        .pixels;
+    expect(desktopOffset, greaterThan(0));
+
+    await tester.binding.setSurfaceSize(const Size(390, 700));
+    await tester.pumpAndSettle();
+    expect(
+      tester.state<ScrollableState>(contentScrollable()).position.pixels,
+      closeTo(desktopOffset, 1),
+    );
+
+    await tester.binding.setSurfaceSize(const Size(1280, 700));
+    await tester.pumpAndSettle();
+    expect(
+      tester.state<ScrollableState>(contentScrollable()).position.pixels,
+      closeTo(desktopOffset, 1),
+    );
+    expect(tester.takeException(), isNull);
+    debugDefaultTargetPlatformOverride = null;
+    await tester.binding.setSurfaceSize(null);
+  });
+
   testWidgets('取消外部 section 切换会恢复 URL 与智能体页面', (tester) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.windows;
     await tester.binding.setSurfaceSize(const Size(1280, 900));

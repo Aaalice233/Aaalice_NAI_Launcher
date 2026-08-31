@@ -11,12 +11,14 @@ import 'category_header.dart';
 
 /// 分组视图 - 按类别分组显示条目
 class GroupedEntriesView extends ConsumerWidget {
+  final ScrollController? scrollController;
   final void Function(TagLibraryEntry) onEdit;
   final void Function(TagLibraryEntry) onDelete;
   final void Function(TagLibraryEntry) onSend;
 
   const GroupedEntriesView({
     super.key,
+    this.scrollController,
     required this.onEdit,
     required this.onDelete,
     required this.onSend,
@@ -42,6 +44,7 @@ class GroupedEntriesView extends ConsumerWidget {
     }
 
     return CustomScrollView(
+      controller: scrollController,
       slivers: [
         for (final group in nonEmptyGroups) ...[
           // 吸顶分类标题

@@ -18,6 +18,7 @@ import '../../providers/prompt_maximize_provider.dart';
 import '../../providers/replication_queue_provider.dart';
 import '../../router/app_routes.dart';
 import '../../widgets/common/app_toast.dart';
+import '../../widgets/common/owned_scroll_controller.dart';
 import '../../widgets/shortcuts/shortcut_aware_widget.dart';
 import '../../services/image_workflow_launcher.dart';
 import 'handlers/generation_action_handlers.dart';
@@ -31,7 +32,9 @@ import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 /// 桌面端三栏布局
 class DesktopGenerationLayout extends ConsumerStatefulWidget {
-  const DesktopGenerationLayout({super.key});
+  const DesktopGenerationLayout({super.key, required this.historyViewport});
+
+  final OwnedViewportOffset historyViewport;
 
   @override
   ConsumerState<DesktopGenerationLayout> createState() =>
@@ -193,6 +196,7 @@ class _DesktopGenerationLayoutState
         isResizing: _isResizingRight,
         width: width,
         expanded: expanded,
+        historyViewport: widget.historyViewport,
       ),
     );
   }
