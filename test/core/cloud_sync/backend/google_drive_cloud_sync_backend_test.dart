@@ -63,6 +63,19 @@ void main() {
     },
   );
 
+  test('namespace inspection sees every hidden provider artifact', () async {
+    final api = _FakeDriveApi();
+    final backend = _backend(api);
+
+    expect(await backend.isNamespaceEmpty(), isTrue);
+    api.addFile(
+      name: 'aaalice-cloud-sync-object-orphan.0',
+      type: 'object',
+      bytes: Uint8List.fromList([1]),
+    );
+    expect(await backend.isNamespaceEmpty(), isFalse);
+  });
+
   test('follows Drive list pagination for snapshot history', () async {
     final api = _FakeDriveApi(forceSingleItemPages: true)
       ..addFile(

@@ -70,6 +70,35 @@ void main() {
       );
     },
   );
+
+  test(
+    'OAuth session prefix can isolate a real E2E secure-storage run',
+    () async {
+      final backend = _Storage();
+      String? writtenKey;
+      when(
+        () => backend.write(
+          key: any(named: 'key'),
+          value: any(named: 'value'),
+        ),
+      ).thenAnswer((invocation) async {
+        writtenKey = invocation.namedArguments[#key]! as String;
+      });
+      final service = SecureStorageService(
+        storage: backend,
+        cloudDriveOAuthSessionPrefix: 'aaalice.e2e.run.',
+      );
+
+      await service.saveCloudDriveOAuthSession(
+        providerId: 'google_drive',
+        accountId: 'test-account',
+        encodedSession: 'encrypted-session-envelope',
+      );
+
+      expect(writtenKey, startsWith('aaalice.e2e.run.google_drive_'));
+      expect(writtenKey, isNot(contains('test-account')));
+    },
+  );
 }
 
 CloudDriveOAuthSession _session(

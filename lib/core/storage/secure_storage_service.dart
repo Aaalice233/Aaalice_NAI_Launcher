@@ -14,6 +14,7 @@ part 'secure_storage_service.g.dart';
 /// 使用内存缓存 + 持久化存储双重保障
 class SecureStorageService {
   final FlutterSecureStorage _storage;
+  final String _cloudDriveOAuthSessionPrefix;
 
   static final RegExp _bearerPrefixRegex = RegExp(
     r'^Bearer\s+',
@@ -24,19 +25,25 @@ class SecureStorageService {
   /// 内存缓存 - 解决 Windows 上 secure storage 写入后立即读取为 null 的问题
   static final Map<String, String> _memoryCache = {};
 
-  SecureStorageService({FlutterSecureStorage? storage})
-    : _storage =
-          storage ??
-          const FlutterSecureStorage(
-            aOptions: AndroidOptions(encryptedSharedPreferences: true),
-            lOptions: LinuxOptions(),
-            // Windows: 使用默认配置
-            wOptions: WindowsOptions(),
-            // macOS: 使用传统 login keychain（useDataProtectionKeyChain: false）。
-            // data protection keychain 需要 keychain-access-groups entitlement，
-            // 而该 entitlement 要求开发者证书签名，ad-hoc 无证书时无法构建。
-            mOptions: MacOsOptions(useDataProtectionKeyChain: false),
-          );
+  /// [cloudDriveOAuthSessionPrefix] is overridden only by the destructive
+  /// real-OAuth E2E so its credentials cannot collide with production keys.
+  SecureStorageService({
+    FlutterSecureStorage? storage,
+    String cloudDriveOAuthSessionPrefix =
+        StorageKeys.cloudDriveOAuthSessionPrefix,
+  }) : _cloudDriveOAuthSessionPrefix = cloudDriveOAuthSessionPrefix,
+       _storage =
+           storage ??
+           const FlutterSecureStorage(
+             aOptions: AndroidOptions(encryptedSharedPreferences: true),
+             lOptions: LinuxOptions(),
+             // Windows: 使用默认配置
+             wOptions: WindowsOptions(),
+             // macOS: 使用传统 login keychain（useDataProtectionKeyChain: false）。
+             // data protection keychain 需要 keychain-access-groups entitlement，
+             // 而该 entitlement 要求开发者证书签名，ad-hoc 无证书时无法构建。
+             mOptions: MacOsOptions(useDataProtectionKeyChain: false),
+           );
 
   // ==================== Access Token ====================
 
@@ -228,7 +235,7 @@ class SecureStorageService {
 
   String _cloudDriveOAuthSessionKey(String providerId, String accountId) =>
       _cloudDriveIdentityKey(
-        StorageKeys.cloudDriveOAuthSessionPrefix,
+        _cloudDriveOAuthSessionPrefix,
         providerId,
         accountId,
       );

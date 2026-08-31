@@ -106,6 +106,8 @@ final class CloudDriveOAuthConfig {
       'https://www.googleapis.com/auth/drive.appdata';
   static const oneDriveAppFolderScope = 'Files.ReadWrite.AppFolder';
   static const mobileCallbackScheme = 'com.aaalice.nailauncher.oauth';
+  static const oneDriveMobileCallbackUri =
+      '$mobileCallbackScheme:/oauth2redirect/microsoft';
 
   static const _googleScopes = <String>['openid', 'email', googleDriveScope];
   static const _oneDriveScopes = <String>[
@@ -234,8 +236,8 @@ final class CloudDriveOAuthConfig {
       return const [];
     }
     if (provider == CloudDriveOAuthProvider.oneDrive &&
-        redirect.scheme.toLowerCase() != mobileCallbackScheme) {
-      return ['$key scheme must be $mobileCallbackScheme'];
+        redirect.toString() != oneDriveMobileCallbackUri) {
+      return ['$key must be $oneDriveMobileCallbackUri'];
     }
     if (provider == CloudDriveOAuthProvider.googleDrive &&
         platform == CloudDriveOAuthPlatform.macos &&

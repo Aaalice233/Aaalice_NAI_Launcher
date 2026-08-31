@@ -1,6 +1,8 @@
 param(
     [ValidateSet('windows', 'macos', 'android')]
     [string]$Platform = 'windows',
+    [ValidateSet('google_drive', 'onedrive')]
+    [string]$Provider,
     [switch]$RequireConfigured
 )
 
@@ -21,6 +23,7 @@ foreach ($key in $keys) {
     }
 }
 $dartArgs += @('run', 'tool/cloud_drive_oauth_diagnostic.dart', "--platform=$Platform")
+if ($Provider) { $dartArgs += "--provider=$Provider" }
 if ($RequireConfigured) { $dartArgs += '--require-configured' }
 
 Push-Location $root

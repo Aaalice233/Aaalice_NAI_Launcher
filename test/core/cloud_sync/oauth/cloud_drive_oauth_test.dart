@@ -128,6 +128,27 @@ void main() {
       );
     });
 
+    test(
+      'rejects a OneDrive callback with the right scheme but wrong path',
+      () {
+        final config = CloudDriveOAuthConfig.forTesting(
+          platform: CloudDriveOAuthPlatform.macos,
+          values: const {
+            'ONEDRIVE_MACOS_CLIENT_ID': 'client-id',
+            'ONEDRIVE_MACOS_REDIRECT_URI':
+                'com.aaalice.nailauncher.oauth:/wrong-path',
+          },
+        );
+
+        final diagnostic = config.diagnose(CloudDriveOAuthProvider.oneDrive);
+        expect(diagnostic.isConfigured, isFalse);
+        expect(
+          diagnostic.reasons.single,
+          contains(CloudDriveOAuthConfig.oneDriveMobileCallbackUri),
+        );
+      },
+    );
+
     test('rejects a non-loopback Windows redirect', () {
       final config = CloudDriveOAuthConfig.forTesting(
         platform: CloudDriveOAuthPlatform.windows,

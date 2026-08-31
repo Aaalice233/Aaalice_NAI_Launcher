@@ -60,6 +60,15 @@ void main() {
     }
   });
 
+  test('namespace inspection sees orphaned provider artifacts', () async {
+    final api = _FakeOneDriveApi();
+    final backend = _backend(api);
+
+    expect(await backend.isNamespaceEmpty(), isTrue);
+    api.putFile('cloud/objects/orphan.0', [1]);
+    expect(await backend.isNamespaceEmpty(), isFalse);
+  });
+
   test('follows every children page before sorting and limiting', () async {
     final api = _FakeOneDriveApi()
       ..putFile('cloud/snapshots/2024.json', [1])

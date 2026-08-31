@@ -96,6 +96,12 @@ abstract interface class ConcurrentCloudObjectUploadBackend {
   int get maxConcurrentObjectUploads;
 }
 
+/// Optional inspection used by destructive maintenance to prove that no
+/// provider artifact remains after a namespace deletion.
+abstract interface class CloudNamespaceInspectionBackend {
+  Future<bool> isNamespaceEmpty();
+}
+
 abstract interface class CloudSyncBackend {
   Future<CloudBackendCapability> testCapability();
 
