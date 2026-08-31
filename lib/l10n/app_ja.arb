@@ -142,6 +142,7 @@
   "auth_thirdPartyNicknameHint": "例: 自己ホスト型サイト / ミラー サイト",
   "auth_thirdPartyTokenHint": "サードパーティ サイトから API トークンを入力してください",
   "auth_thirdPartyCompatibilityHint": "サードパーティ サイトは、NovelAI サブスクリプション API およびイメージ生成 API と互換性がある必要があります。トークンはベアラー トークンとして送信されます。",
+  "auth_thirdPartyStreamingHint": "サードパーティサイトがストリーミング生成に対応していない場合は、［設定］>［生成］>［画像出力］で［ストリーミングプレビュー］をオフにしてから生成してください。",
   "auth_thirdPartyApiSiteRequired": "サードパーティ API サイトの URL を入力してください",
   "auth_validateAndLogin": "検証してログイン",
   "auth_tokenGuide": "NovelAI 設定からトークンを取得します",
@@ -316,6 +317,8 @@
   "generation_emptyPromptHint": "プロンプトを入力し、「生成」をクリックします",
   "generation_imageWillShowHere": "ここに画像が表示されます",
   "generation_generationFailed": "生成に失敗しました",
+  "generation_streamingUnsupported": "このサイトはストリーミング生成に対応していません",
+  "generation_streamingUnsupportedHint": "［設定］>［生成］>［画像出力］で［ストリーミングプレビュー］をオフにしてから、もう一度お試しください。",
   "generation_progress": "生成中...{progress}%",
   "@generation_progress": {
     "placeholders": {

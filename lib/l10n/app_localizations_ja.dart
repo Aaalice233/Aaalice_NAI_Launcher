@@ -394,6 +394,10 @@ class AppLocalizationsJa extends AppLocalizations {
       'サードパーティ サイトは、NovelAI サブスクリプション API およびイメージ生成 API と互換性がある必要があります。トークンはベアラー トークンとして送信されます。';
 
   @override
+  String get auth_thirdPartyStreamingHint =>
+      'サードパーティサイトがストリーミング生成に対応していない場合は、［設定］>［生成］>［画像出力］で［ストリーミングプレビュー］をオフにしてから生成してください。';
+
+  @override
   String get auth_thirdPartyApiSiteRequired => 'サードパーティ API サイトの URL を入力してください';
 
   @override
@@ -829,6 +833,13 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get generation_generationFailed => '生成に失敗しました';
+
+  @override
+  String get generation_streamingUnsupported => 'このサイトはストリーミング生成に対応していません';
+
+  @override
+  String get generation_streamingUnsupportedHint =>
+      '［設定］>［生成］>［画像出力］で［ストリーミングプレビュー］をオフにしてから、もう一度お試しください。';
 
   @override
   String generation_progress(Object progress) {
