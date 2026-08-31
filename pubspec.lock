@@ -1650,7 +1650,7 @@ packages:
     source: hosted
     version: "0.9.1"
   super_native_extensions:
-    dependency: transitive
+    dependency: "direct dev"
     description:
       name: super_native_extensions
       sha256: b9611dcb68f1047d6f3ef11af25e4e68a21b1a705bbcc3eb8cb4e9f5c3148569

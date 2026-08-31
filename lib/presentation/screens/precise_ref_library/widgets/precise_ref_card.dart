@@ -55,13 +55,17 @@ class _PreciseRefCardState extends ConsumerState<PreciseRefCard> {
     if (_thumbnailRequested) return;
     _thumbnailRequested = true;
     final id = widget.entry.id;
-    ref
-        .read(preciseRefLibraryStorageServiceProvider)
-        .getDisplayThumbnail(id)
-        .then((bytes) {
-          if (!mounted || widget.entry.id != id) return;
-          setState(() => _thumbnail = bytes);
-        });
+    final storage = ref.read(preciseRefLibraryStorageServiceProvider);
+    // 内存缓存同步命中时直接赋值，让卡片重建后的首帧就有图
+    final cached = storage.peekDisplayThumbnail(id);
+    if (cached != null && cached.isNotEmpty) {
+      _thumbnail = cached;
+      return;
+    }
+    storage.getDisplayThumbnail(id).then((bytes) {
+      if (!mounted || widget.entry.id != id) return;
+      setState(() => _thumbnail = bytes);
+    });
   }
 
   String _typeDisplayName(BuildContext context) {

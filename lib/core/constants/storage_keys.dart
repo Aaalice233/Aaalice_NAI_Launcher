@@ -58,6 +58,9 @@ class StorageKeys {
   static const String watermarkDerivativeRegistryV1 =
       'watermark_derivative_registry_v1';
 
+  // Gallery album migration flag (图库相簿一次性导入标记)
+  static const String galleryAlbumImportDone = 'gallery_album_import_done_v1';
+
   // Window State Keys (窗口状态)
   static const String windowWidth = 'window_width';
   static const String windowHeight = 'window_height';

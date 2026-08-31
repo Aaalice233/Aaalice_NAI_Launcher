@@ -32,6 +32,7 @@ enum ImageCardActionId {
   viewDetail,
   save,
   copy,
+  addToAgent,
   shareDiscord,
   createWatermark,
   saveToLibrary,
@@ -75,6 +76,23 @@ class ImageCardAction {
   final bool isDanger;
 }
 
+class ImageCardActionScope extends InheritedWidget {
+  const ImageCardActionScope({
+    super.key,
+    required this.onAddToAgent,
+    required super.child,
+  });
+
+  final VoidCallback onAddToAgent;
+
+  static ImageCardActionScope? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<ImageCardActionScope>();
+
+  @override
+  bool updateShouldNotify(ImageCardActionScope oldWidget) =>
+      onAddToAgent != oldWidget.onAddToAgent;
+}
+
 class ImageCardActionCatalog {
   const ImageCardActionCatalog._();
 
@@ -83,6 +101,7 @@ class ImageCardActionCatalog {
     required ImageCardViewData data,
     required ImageCardCapabilities capabilities,
     required ImageCardActionCoordinator coordinator,
+    VoidCallback? onAddToAgent,
   }) {
     final l10n = AppLocalizations.of(context);
     if (l10n == null) return const <ImageCardAction>[];
@@ -143,6 +162,14 @@ class ImageCardActionCatalog {
         menuLabel: l10n.shortcut_action_copy_image,
       );
     }
+    add(
+      ImageCardActionId.addToAgent,
+      Icons.auto_awesome_outlined,
+      l10n.agentChat_addResource,
+      onAddToAgent,
+      group: 1,
+      hover: false,
+    );
     add(
       ImageCardActionId.shareDiscord,
       Icons.send_rounded,

@@ -382,11 +382,14 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get auth_thirdPartyCompatibilityHint =>
-      '第三方站点需兼容 NovelAI 的 /user/subscription 与图像生成相关 API；Token 将按 Bearer 方式发送。';
+      '第三方站点需兼容 NovelAI 图像生成 API；Token 将按 Bearer 方式发送。未实现 /user/subscription 的站点将跳过订阅信息。';
 
   @override
   String get auth_thirdPartyStreamingHint =>
       '如果第三方站点不支持流式生成，请前往「设置 > 生成 > 图像输出」，关闭「流式预览」后再生成。';
+
+  @override
+  String get anlas_thirdPartyUnavailable => '当前站点不提供 Anlas 余额信息';
 
   @override
   String get auth_thirdPartyApiSiteRequired => '请输入第三方 API 站点地址';
@@ -452,6 +455,10 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get auth_error_credentialsLoginUnavailable_hint =>
       'NovelAI 官网账号密码登录需要网页安全验证，客户端无法完成，请改用 Persistent API Token。';
+
+  @override
+  String get auth_error_endpointIncompatible =>
+      '该地址下未发现 NAI 兼容接口，请确认 API 地址是站点提供的服务根地址';
 
   @override
   String get auth_error_serverError => '服务器错误';
@@ -853,6 +860,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agentChat_inputHint => '给 AI 助手发消息…';
 
   @override
+  String get agentChat_inputHintWithSlash => '给 AI 助手发消息，输入 / 引用技能…';
+
+  @override
+  String get agentChat_slashMenu => '技能与会话命令';
+
+  @override
+  String get agentChat_slashSkills => '技能';
+
+  @override
+  String get agentChat_slashSession => '会话';
+
+  @override
   String get agentChat_addAttachment => '添加附件或引用';
 
   @override
@@ -1181,6 +1200,25 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get agentChat_compacting => '正在压缩上下文…';
+
+  @override
+  String agentChat_compactDone(String before, String after) {
+    return '已压缩上下文：$before → $after';
+  }
+
+  @override
+  String get agentChat_compactNotNeeded => '当前上下文无需压缩';
+
+  @override
+  String get agentChat_compactBusy => '正在生成回复，请稍后再压缩';
+
+  @override
+  String get agentChat_compactUnavailable => '上下文用量不可用，无法压缩';
+
+  @override
+  String agentChat_compactFailed(String error) {
+    return '压缩上下文失败：$error';
+  }
 
   @override
   String get agentChat_requestFailed => '请求失败，请重试。';
@@ -5198,9 +5236,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get localGallery_editMetadata => '编辑标签';
 
   @override
-  String get localGallery_addToCollection => '收藏';
-
-  @override
   String get localGallery_switchToGridView => '切换到网格视图';
 
   @override
@@ -5310,7 +5345,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String localGallery_protectedBulkMoveContent(Object count) {
-    return '将移动 $count 张本地图片文件到目标文件夹。请确认不是误操作。';
+    return '将移动 $count 张本地图片文件到目标分类。请确认不是误操作。';
   }
 
   @override
@@ -5748,10 +5783,63 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get localGallery_noFoldersAvailable => '暂无可用文件夹，请先创建文件夹';
+  String get localGallery_noCategoriesAvailable => '暂无可用分类，请先创建分类';
 
   @override
-  String get localGallery_moveToFolder => '移动到文件夹';
+  String get localGallery_moveToCategory => '移动到分类';
+
+  @override
+  String get localGallery_albumSectionTitle => '相簿';
+
+  @override
+  String get localGallery_folderSectionTitle => '文件夹';
+
+  @override
+  String get localGallery_albumEmptyHint => '还没有相簿，点击右侧按钮创建';
+
+  @override
+  String get localGallery_createAlbum => '新建相簿';
+
+  @override
+  String get localGallery_createSubAlbum => '新建子相簿';
+
+  @override
+  String get localGallery_moveAlbumToRoot => '移到根级';
+
+  @override
+  String get localGallery_createAlbumTitle => '新建相簿';
+
+  @override
+  String get localGallery_createSubAlbumTitle => '新建子相簿';
+
+  @override
+  String get localGallery_createAlbumHint => '输入相簿名称';
+
+  @override
+  String get localGallery_renameAlbumTitle => '重命名相簿';
+
+  @override
+  String get localGallery_deleteAlbumTitle => '删除相簿';
+
+  @override
+  String get localGallery_deleteAlbumContent => '将删除该相簿（图片文件不受影响），子相簿会提升到根级。';
+
+  @override
+  String get localGallery_addedToAlbum => '已加入相簿';
+
+  @override
+  String get localGallery_albumAddFailed => '加入相簿失败';
+
+  @override
+  String get localGallery_albumSelectTitle => '加入相簿';
+
+  @override
+  String get localGallery_addToAlbum => '加入相簿';
+
+  @override
+  String localGallery_addedToAlbumWithName(Object count, Object name) {
+    return '已将 $count 张图片加入「$name」';
+  }
 
   @override
   String localGallery_imageCount(Object count) {
@@ -5765,14 +5853,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get localGallery_moveImagesFailed => '移动图片失败';
-
-  @override
-  String localGallery_addedToCollection(Object count, Object name) {
-    return '已添加 $count 张图片到集合「$name」';
-  }
-
-  @override
-  String get localGallery_addToCollectionFailed => '添加图片到集合失败';
 
   @override
   String get brushPreset_selectHint => '双击选择此笔刷预设';
@@ -13044,6 +13124,27 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agentSettings_pendingMatch => '待匹配';
 
   @override
+  String get agentSettings_contextWindow => '上下文窗口（token）';
+
+  @override
+  String agentSettings_contextWindowKnown(String value) {
+    return '留空使用内置值 $value。第三方中转站或自定义部署的实际窗口不同时，在此填写覆盖。';
+  }
+
+  @override
+  String get agentSettings_contextWindowUnknown =>
+      '内置目录未收录该模型，无法自动判断窗口。不填写则无法显示上下文用量，也无法压缩上下文。';
+
+  @override
+  String get agentSettings_contextWindowUnknownHint => '例如 128000';
+
+  @override
+  String get agentSettings_contextWindowReset => '恢复为内置值';
+
+  @override
+  String get agentSettings_contextWindowInvalid => '请填写 1 到 20000000 之间的整数';
+
+  @override
   String get agentSettings_toolPermission => '工具权限';
 
   @override
@@ -13938,11 +14039,14 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get auth_thirdPartyCompatibilityHint =>
-      '第三方站點需相容 NovelAI 的 /user/subscription 與影象生成相關 API；Token 將按 Bearer 方式傳送。';
+      '第三方站點需相容 NovelAI 影像生成 API；Token 將按 Bearer 方式傳送。未實作 /user/subscription 的站點將略過訂閱資訊。';
 
   @override
   String get auth_thirdPartyStreamingHint =>
       '若第三方站點不支援串流生成，請前往「設定 > 生成 > 影象輸出」，關閉「串流預覽」後再生成。';
+
+  @override
+  String get anlas_thirdPartyUnavailable => '目前站點不提供 Anlas 餘額資訊';
 
   @override
   String get auth_thirdPartyApiSiteRequired => '請輸入第三方 API 站點地址';
@@ -14008,6 +14112,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String get auth_error_credentialsLoginUnavailable_hint =>
       'NovelAI 官網賬號密碼登入需要網頁安全驗證，客戶端無法完成，請改用 Persistent API Token。';
+
+  @override
+  String get auth_error_endpointIncompatible =>
+      '該地址下未發現 NAI 相容介面，請確認 API 地址是站點提供的服務根地址';
 
   @override
   String get auth_error_serverError => '伺服器錯誤';
@@ -14409,6 +14517,18 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get agentChat_inputHint => '給 AI 助手傳送訊息…';
 
   @override
+  String get agentChat_inputHintWithSlash => '給 AI 助手傳送訊息，輸入 / 引用技能…';
+
+  @override
+  String get agentChat_slashMenu => '技能與工作階段指令';
+
+  @override
+  String get agentChat_slashSkills => '技能';
+
+  @override
+  String get agentChat_slashSession => '工作階段';
+
+  @override
   String get agentChat_addAttachment => '新增附件或引用';
 
   @override
@@ -14737,6 +14857,25 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get agentChat_compacting => '正在壓縮上下文…';
+
+  @override
+  String agentChat_compactDone(String before, String after) {
+    return '已壓縮上下文：$before → $after';
+  }
+
+  @override
+  String get agentChat_compactNotNeeded => '目前上下文無需壓縮';
+
+  @override
+  String get agentChat_compactBusy => '正在產生回覆，請稍後再壓縮';
+
+  @override
+  String get agentChat_compactUnavailable => '上下文用量不可用，無法壓縮';
+
+  @override
+  String agentChat_compactFailed(String error) {
+    return '壓縮上下文失敗：$error';
+  }
 
   @override
   String get agentChat_requestFailed => '請求失敗，請重試。';
@@ -18754,9 +18893,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get localGallery_editMetadata => '編輯標籤';
 
   @override
-  String get localGallery_addToCollection => '收藏';
-
-  @override
   String get localGallery_switchToGridView => '切換到網格檢視';
 
   @override
@@ -18866,7 +19002,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String localGallery_protectedBulkMoveContent(Object count) {
-    return '將移動 $count 張本地圖片檔案到目標資料夾。請確認不是誤操作。';
+    return '將移動 $count 張本地圖片檔案到目標分類。請確認不是誤操作。';
   }
 
   @override
@@ -19304,10 +19440,63 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
-  String get localGallery_noFoldersAvailable => '暫無可用資料夾，請先建立資料夾';
+  String get localGallery_noCategoriesAvailable => '暫無可用分類，請先建立分類';
 
   @override
-  String get localGallery_moveToFolder => '移動到資料夾';
+  String get localGallery_moveToCategory => '移動到分類';
+
+  @override
+  String get localGallery_albumSectionTitle => '相簿';
+
+  @override
+  String get localGallery_folderSectionTitle => '資料夾';
+
+  @override
+  String get localGallery_albumEmptyHint => '還沒有相簿，點擊右側按鈕建立';
+
+  @override
+  String get localGallery_createAlbum => '新建相簿';
+
+  @override
+  String get localGallery_createSubAlbum => '新建子相簿';
+
+  @override
+  String get localGallery_moveAlbumToRoot => '移到根級';
+
+  @override
+  String get localGallery_createAlbumTitle => '新建相簿';
+
+  @override
+  String get localGallery_createSubAlbumTitle => '新建子相簿';
+
+  @override
+  String get localGallery_createAlbumHint => '輸入相簿名稱';
+
+  @override
+  String get localGallery_renameAlbumTitle => '重新命名相簿';
+
+  @override
+  String get localGallery_deleteAlbumTitle => '刪除相簿';
+
+  @override
+  String get localGallery_deleteAlbumContent => '將刪除該相簿（圖片檔案不受影響），子相簿會提升到根級。';
+
+  @override
+  String get localGallery_addedToAlbum => '已加入相簿';
+
+  @override
+  String get localGallery_albumAddFailed => '加入相簿失敗';
+
+  @override
+  String get localGallery_albumSelectTitle => '加入相簿';
+
+  @override
+  String get localGallery_addToAlbum => '加入相簿';
+
+  @override
+  String localGallery_addedToAlbumWithName(Object count, Object name) {
+    return '已將 $count 張圖片加入「$name」';
+  }
 
   @override
   String localGallery_imageCount(Object count) {
@@ -19321,14 +19510,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get localGallery_moveImagesFailed => '移動圖片失敗';
-
-  @override
-  String localGallery_addedToCollection(Object count, Object name) {
-    return '已新增 $count 張圖片到集合「$name」';
-  }
-
-  @override
-  String get localGallery_addToCollectionFailed => '新增圖片到集合失敗';
 
   @override
   String get brushPreset_selectHint => '雙擊選擇此筆刷預設';
@@ -26599,6 +26780,27 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get agentSettings_pendingMatch => '待配對';
+
+  @override
+  String get agentSettings_contextWindow => '上下文視窗（token）';
+
+  @override
+  String agentSettings_contextWindowKnown(String value) {
+    return '留空則使用內建值 $value。第三方中轉站或自訂部署的實際視窗不同時，可在此填寫覆寫。';
+  }
+
+  @override
+  String get agentSettings_contextWindowUnknown =>
+      '內建目錄未收錄此模型，無法自動判斷視窗。未填寫則無法顯示上下文用量，也無法壓縮上下文。';
+
+  @override
+  String get agentSettings_contextWindowUnknownHint => '例如 128000';
+
+  @override
+  String get agentSettings_contextWindowReset => '還原為內建值';
+
+  @override
+  String get agentSettings_contextWindowInvalid => '請填寫 1 到 20000000 之間的整數';
 
   @override
   String get agentSettings_toolPermission => '工具權限';

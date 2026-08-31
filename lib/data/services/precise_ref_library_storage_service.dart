@@ -7,6 +7,7 @@ import 'package:path/path.dart' as p;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../core/database/utils/lru_cache.dart';
 import '../../core/enums/precise_ref_type.dart';
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/display_thumbnail_utils.dart';
@@ -48,6 +49,9 @@ class PreciseRefLibraryStorageService {
   Future<void>? _initFuture;
   final Map<String, Future<Uint8List?>> _thumbnailLoadsById = {};
   final Set<String> _deletingIds = {};
+
+  // 缩略图 ≤256px/64KB，256 条上限最多约 16MB
+  final LRUCache<String, Uint8List> _memoryThumbnails = LRUCache(maxSize: 256);
 
   /// 初始化（注册 Adapter、打开 box 并修复中断操作留下的暂存文件）。
   Future<void> init() {
@@ -148,6 +152,7 @@ class PreciseRefLibraryStorageService {
     } catch (e) {
       AppLogger.w('保存精准参考缩略图失败: $e', _tag);
     }
+    _memoryThumbnails.put(id, thumbnail);
 
     AppLogger.i('精准参考入库: ${entry.name} ($id)', _tag);
     return entry;
@@ -198,6 +203,8 @@ class PreciseRefLibraryStorageService {
     if (!_managedImageFileName.hasMatch('$id.png')) {
       throw const FormatException('Invalid precise reference stable ID');
     }
+    // 便携导入使用稳定 id，可能覆盖同 id 旧图
+    _memoryThumbnails.remove(id);
     return PreciseRefPortableImporter(
       entries: _entriesBox!,
       thumbnails: _thumbnailCacheBox!,
@@ -253,6 +260,7 @@ class PreciseRefLibraryStorageService {
     if (entry == null) return false;
 
     _deletingIds.add(id);
+    _memoryThumbnails.remove(id);
     String? tombstonePath;
     try {
       if (await _fileSystem.exists(entry.imagePath)) {
@@ -309,14 +317,26 @@ class PreciseRefLibraryStorageService {
     return updated;
   }
 
-  /// 获取展示缩略图（LazyBox 缓存优先，未命中时生成并回写）。
+  /// 同步读取内存缓存的展示缩略图；未命中返回 null。
+  ///
+  /// 卡片重建时先走这里，避免异步读盘期间渲染占位符造成闪烁。
+  Uint8List? peekDisplayThumbnail(String id) {
+    if (_deletingIds.contains(id)) return null;
+    return _memoryThumbnails.get(id);
+  }
+
+  /// 获取展示缩略图（内存 → LazyBox 缓存，未命中时生成并回写）。
   Future<Uint8List?> getDisplayThumbnail(String id) async {
     try {
       await init();
       if (_deletingIds.contains(id)) return null;
 
+      final memory = _memoryThumbnails.get(id);
+      if (memory != null) return memory;
+
       final cached = await _thumbnailCacheBox!.get(id);
       if (cached != null && cached.isNotEmpty) {
+        _memoryThumbnails.put(id, cached);
         return cached;
       }
 
@@ -348,6 +368,10 @@ class PreciseRefLibraryStorageService {
       return null;
     }
     await _thumbnailCacheBox!.put(id, thumbnail);
+    // put 的 await 间隙内条目可能已被删除，复查后再写内存
+    if (!_deletingIds.contains(id) && _entriesBox!.get(id) != null) {
+      _memoryThumbnails.put(id, thumbnail);
+    }
     return thumbnail;
   }
 
@@ -485,6 +509,7 @@ class PreciseRefLibraryStorageService {
     _initFuture = null;
     _thumbnailLoadsById.clear();
     _deletingIds.clear();
+    _memoryThumbnails.clear();
   }
 }
 

@@ -21,12 +21,11 @@ import '../../../core/utils/zip_utils.dart';
 import '../../../core/watermark/watermark_derivative_registry.dart';
 import '../../../data/models/gallery/local_image_record.dart';
 import '../../../data/models/gallery/nai_image_metadata.dart';
-import '../../../data/repositories/gallery_folder_repository.dart';
 import '../../providers/bulk_operation_provider.dart';
 import '../../agent_chat/providers/agent_chat_notifier.dart';
-import '../../providers/collection_provider.dart';
 import '../../providers/fixed_tags_provider.dart';
-import '../../providers/gallery_folder_provider.dart';
+import '../../providers/gallery_album_provider.dart';
+import '../../providers/gallery_category_provider.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/krita/krita_bridge_notifier.dart';
 import '../../providers/local_gallery_provider.dart';
@@ -35,6 +34,7 @@ import '../../providers/reverse_prompt_provider.dart';
 import '../../providers/selection_mode_provider.dart';
 import '../../router/app_routes.dart';
 import '../watermark/watermark_editor_launcher.dart';
+import 'local_gallery_move_target.dart';
 import '../../services/image_workflow_launcher.dart';
 import '../../utils/asset_protection_guard.dart';
 import '../../utils/fixed_tag_metadata_matcher.dart';
@@ -44,7 +44,7 @@ import '../../utils/local_gallery_reference_factory.dart';
 import '../../utils/metadata_import_coordinator.dart';
 import '../../utils/precise_ref_library_import_helper.dart';
 import '../../widgets/bulk_metadata_edit_dialog.dart';
-import '../../widgets/collection_select_dialog.dart';
+import '../../widgets/gallery/album_select_dialog.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/image_detail/components/prompt_copy_dialog.dart';
 import '../../widgets/common/precise_reference_type_dialog.dart';
@@ -346,44 +346,21 @@ class LocalGalleryActionCoordinator {
     }
   }
 
-  Future<void> moveSelectedToFolder() async {
+  Future<void> moveSelectedToCategory() async {
     final l10n = _context().l10n;
     final selectedImages = await _selectedImages();
     if (selectedImages.isEmpty || !_mounted()) return;
-    final folders = _ref.read(galleryFolderNotifierProvider).folders;
-    if (folders.isEmpty) {
-      AppToast.info(_context(), l10n.localGallery_noFoldersAvailable);
+    final categoryState = _ref.read(galleryCategoryNotifierProvider);
+    final moveTargets = buildLocalGalleryMoveTargets(categoryState.categories);
+    if (moveTargets.isEmpty) {
+      AppToast.info(_context(), l10n.localGallery_noCategoriesAvailable);
       return;
     }
-    final selectedFolder = await showDialog<String>(
+    final selectedCategoryId = await showLocalGalleryMoveTargetDialog(
       context: _context(),
-      builder: (dialogContext) => AlertDialog(
-        title: Text(l10n.localGallery_moveToFolder),
-        content: SizedBox(
-          width: 300,
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: folders.length,
-            itemBuilder: (context, index) {
-              final folder = folders[index];
-              return ListTile(
-                leading: const Icon(Icons.folder),
-                title: Text(folder.name),
-                subtitle: Text(l10n.localGallery_imageCount(folder.imageCount)),
-                onTap: () => Navigator.of(dialogContext).pop(folder.path),
-              );
-            },
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: Text(l10n.common_cancel),
-          ),
-        ],
-      ),
+      targets: moveTargets,
     );
-    if (selectedFolder == null || !_mounted()) return;
+    if (selectedCategoryId == null || !_mounted()) return;
     final protected = await AssetProtectionGuard.confirmDangerousAction(
       context: _context(),
       ref: _ref,
@@ -397,8 +374,9 @@ class LocalGalleryActionCoordinator {
     if (!protected || !_mounted()) return;
     var movedCount = 0;
     for (final image in selectedImages) {
-      final newPath = await GalleryFolderRepository.instance
-          .moveImageToFolderPath(image.path, selectedFolder);
+      final newPath = await _ref
+          .read(galleryCategoryNotifierProvider.notifier)
+          .moveImageToCategory(image.path, selectedCategoryId);
       if (newPath == null) continue;
       await _watermarkRegistry.relocatePath(
         oldPath: image.path,
@@ -414,41 +392,38 @@ class LocalGalleryActionCoordinator {
       );
       _ref.read(localGallerySelectionNotifierProvider.notifier).exit();
       _ref.read(localGalleryNotifierProvider.notifier).refresh();
-      _ref.read(galleryFolderNotifierProvider.notifier).refresh();
+      // 物理移动改变了成员文件路径，立即刷新 sidecar 保持跨设备引用有效
+      unawaited(
+        _ref.read(galleryAlbumNotifierProvider.notifier).exportSidecarNow(),
+      );
     } else {
       AppToast.info(_context(), _context().l10n.localGallery_moveImagesFailed);
     }
   }
 
-  Future<void> addSelectedToCollection() async {
+  Future<void> addSelectedToAlbum() async {
     final selectedImages = await _selectedImages();
     if (selectedImages.isEmpty || !_mounted()) return;
-    final result = await CollectionSelectDialog.show(
-      _context(),
-      theme: Theme.of(_context()),
-    );
-    if (result == null) return;
+    final result = await AlbumSelectDialog.show(_context());
+    if (result == null || !_mounted()) return;
     final addedCount = await _ref
-        .read(collectionNotifierProvider.notifier)
-        .addImagesToCollection(
-          result.collectionId,
+        .read(galleryAlbumNotifierProvider.notifier)
+        .addImagesByPaths(
+          result.albumId,
           selectedImages.map((image) => image.path).toList(),
         );
     if (!_mounted()) return;
     if (addedCount > 0) {
       AppToast.success(
         _context(),
-        _context().l10n.localGallery_addedToCollection(
+        _context().l10n.localGallery_addedToAlbumWithName(
           addedCount,
-          result.collectionName,
+          result.albumName,
         ),
       );
       _ref.read(localGallerySelectionNotifierProvider.notifier).exit();
     } else {
-      AppToast.info(
-        _context(),
-        _context().l10n.localGallery_addToCollectionFailed,
-      );
+      AppToast.info(_context(), _context().l10n.localGallery_albumAddFailed);
     }
   }
 

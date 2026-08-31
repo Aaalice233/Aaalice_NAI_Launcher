@@ -391,11 +391,14 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get auth_thirdPartyCompatibilityHint =>
-      'サードパーティ サイトは、NovelAI サブスクリプション API およびイメージ生成 API と互換性がある必要があります。トークンはベアラー トークンとして送信されます。';
+      'サードパーティ サイトは NovelAI のイメージ生成 API と互換性がある必要があります。トークンはベアラー トークンとして送信されます。/user/subscription 未実装のサイトではサブスクリプション情報を省略してログインします。';
 
   @override
   String get auth_thirdPartyStreamingHint =>
       'サードパーティサイトがストリーミング生成に対応していない場合は、［設定］>［生成］>［画像出力］で［ストリーミングプレビュー］をオフにしてから生成してください。';
+
+  @override
+  String get anlas_thirdPartyUnavailable => 'このサイトは Anlas 残高情報を提供していません';
 
   @override
   String get auth_thirdPartyApiSiteRequired => 'サードパーティ API サイトの URL を入力してください';
@@ -462,6 +465,10 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String get auth_error_credentialsLoginUnavailable_hint =>
       'NovelAI ではメールアドレス/パスワードログインに Web の安全確認が必要になりました。代わりに Persistent API Token を使用してください。';
+
+  @override
+  String get auth_error_endpointIncompatible =>
+      'このアドレスで NAI 互換 API が見つかりません。API アドレスがサイトのサービスルート URL か確認してください。';
 
   @override
   String get auth_error_serverError => 'サーバーエラー';
@@ -868,6 +875,18 @@ class AppLocalizationsJa extends AppLocalizations {
   String get agentChat_inputHint => 'AI アシスタントにメッセージを送る…';
 
   @override
+  String get agentChat_inputHintWithSlash => 'AI アシスタントにメッセージを送る。/ でスキル…';
+
+  @override
+  String get agentChat_slashMenu => 'スキルとセッションコマンド';
+
+  @override
+  String get agentChat_slashSkills => 'スキル';
+
+  @override
+  String get agentChat_slashSession => 'セッション';
+
+  @override
   String get agentChat_addAttachment => '添付または参照を追加';
 
   @override
@@ -1197,6 +1216,25 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get agentChat_compacting => 'コンテキストを圧縮中…';
+
+  @override
+  String agentChat_compactDone(String before, String after) {
+    return 'コンテキストを圧縮しました：$before → $after';
+  }
+
+  @override
+  String get agentChat_compactNotNeeded => '現在のコンテキストは圧縮の必要がありません';
+
+  @override
+  String get agentChat_compactBusy => '応答の生成中です。完了後に圧縮してください';
+
+  @override
+  String get agentChat_compactUnavailable => 'コンテキスト使用量が取得できず、圧縮できません';
+
+  @override
+  String agentChat_compactFailed(String error) {
+    return 'コンテキストの圧縮に失敗しました：$error';
+  }
 
   @override
   String get agentChat_requestFailed => 'リクエストに失敗しました。もう一度お試しください。';
@@ -5290,9 +5328,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get localGallery_editMetadata => 'タグを編集';
 
   @override
-  String get localGallery_addToCollection => 'コレクションに追加';
-
-  @override
   String get localGallery_switchToGridView => 'グリッド ビューに切り替える';
 
   @override
@@ -5405,7 +5440,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String localGallery_protectedBulkMoveContent(Object count) {
-    return 'これにより、$count ローカル画像ファイルがターゲット フォルダに移動されます。これが間違いではないことを確認してください。';
+    return 'これにより、$count ローカル画像ファイルがターゲット カテゴリに移動されます。これが間違いではないことを確認してください。';
   }
 
   @override
@@ -5845,11 +5880,65 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get localGallery_noFoldersAvailable =>
-      '使用可能なフォルダーがありません。最初にフォルダーを作成してください。';
+  String get localGallery_noCategoriesAvailable =>
+      '利用可能なカテゴリがありません。先にカテゴリを作成してください。';
 
   @override
-  String get localGallery_moveToFolder => 'フォルダーに移動';
+  String get localGallery_moveToCategory => 'カテゴリに移動';
+
+  @override
+  String get localGallery_albumSectionTitle => 'アルバム';
+
+  @override
+  String get localGallery_folderSectionTitle => 'フォルダー';
+
+  @override
+  String get localGallery_albumEmptyHint => 'アルバムがありません。右のボタンで作成できます';
+
+  @override
+  String get localGallery_createAlbum => 'アルバムを作成';
+
+  @override
+  String get localGallery_createSubAlbum => 'サブアルバムを作成';
+
+  @override
+  String get localGallery_moveAlbumToRoot => 'ルートへ移動';
+
+  @override
+  String get localGallery_createAlbumTitle => 'アルバムを作成';
+
+  @override
+  String get localGallery_createSubAlbumTitle => 'サブアルバムを作成';
+
+  @override
+  String get localGallery_createAlbumHint => 'アルバム名を入力';
+
+  @override
+  String get localGallery_renameAlbumTitle => 'アルバムの名前を変更';
+
+  @override
+  String get localGallery_deleteAlbumTitle => 'アルバムを削除';
+
+  @override
+  String get localGallery_deleteAlbumContent =>
+      'このアルバムを削除します（画像ファイルには影響しません）。サブアルバムはルートに移動します。';
+
+  @override
+  String get localGallery_addedToAlbum => 'アルバムに追加しました';
+
+  @override
+  String get localGallery_albumAddFailed => 'アルバムへの追加に失敗しました';
+
+  @override
+  String get localGallery_albumSelectTitle => 'アルバムに追加';
+
+  @override
+  String get localGallery_addToAlbum => 'アルバムに追加';
+
+  @override
+  String localGallery_addedToAlbumWithName(Object count, Object name) {
+    return '$count 枚の画像を「$name」に追加しました';
+  }
 
   @override
   String localGallery_imageCount(Object count) {
@@ -5863,14 +5952,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get localGallery_moveImagesFailed => '画像の移動に失敗しました';
-
-  @override
-  String localGallery_addedToCollection(Object count, Object name) {
-    return '$count 画像をコレクション「$name」に追加しました';
-  }
-
-  @override
-  String get localGallery_addToCollectionFailed => '画像をコレクションに追加できませんでした';
 
   @override
   String get brushPreset_selectHint => 'ダブルタップしてこのブラシ プリセットを選択します';
@@ -13270,6 +13351,28 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get agentSettings_pendingMatch => '照合待ち';
+
+  @override
+  String get agentSettings_contextWindow => 'コンテキストウィンドウ（トークン）';
+
+  @override
+  String agentSettings_contextWindowKnown(String value) {
+    return '空欄なら内蔵値 $value を使用します。中継サービスや独自デプロイで実際の値が異なる場合はここで上書きしてください。';
+  }
+
+  @override
+  String get agentSettings_contextWindowUnknown =>
+      'このモデルは内蔵カタログに未収録のため、ウィンドウを自動判定できません。未入力のままではコンテキスト使用量を表示できず、圧縮も実行できません。';
+
+  @override
+  String get agentSettings_contextWindowUnknownHint => '例：128000';
+
+  @override
+  String get agentSettings_contextWindowReset => '内蔵値に戻す';
+
+  @override
+  String get agentSettings_contextWindowInvalid =>
+      '1 から 20000000 までの整数を入力してください';
 
   @override
   String get agentSettings_toolPermission => 'ツール権限';

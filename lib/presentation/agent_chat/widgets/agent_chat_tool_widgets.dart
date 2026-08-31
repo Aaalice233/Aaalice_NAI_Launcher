@@ -1564,7 +1564,7 @@ class _ToolResultImageState extends ConsumerState<_ToolResultImage> {
     );
   }
 
-  void _showSendMenu(TapDownDetails details) {
+  void _showSendMenu(TapUpDetails details) {
     unawaited(
       _showAgentChatImageSendMenu(
         context: context,
@@ -1609,7 +1609,7 @@ class _ToolResultImageState extends ConsumerState<_ToolResultImage> {
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onTap: _openDetail,
-                  onSecondaryTapDown: _showSendMenu,
+                  onSecondaryTapUp: _showSendMenu,
                   child: ImageCardHoverMotion(
                     hovered: _isHovering,
                     child: AnimatedContainer(

@@ -206,7 +206,127 @@ void main() {
       expect(controller.syntaxErrors, contains('negative(...) 块不能为空'));
     });
   });
+
+  group('IME composing', () {
+    late BuildContext hostContext;
+
+    Future<void> pumpHost(WidgetTester tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) {
+              hostContext = context;
+              return const SizedBox.shrink();
+            },
+          ),
+        ),
+      );
+    }
+
+    List<TextSpan> render(
+      NaiSyntaxController controller, {
+      bool withComposing = true,
+    }) => controller
+        .buildTextSpan(
+          context: hostContext,
+          style: const TextStyle(fontSize: 14),
+          withComposing: withComposing,
+        )
+        .children!
+        .cast<TextSpan>()
+        .toList();
+
+    NaiSyntaxController compose(String text, TextRange composing) {
+      final controller = NaiSyntaxController(text: text);
+      addTearDown(controller.dispose);
+      controller.value = controller.value.copyWith(composing: composing);
+      return controller;
+    }
+
+    testWidgets('underlines the pre-edit text without dropping colouring', (
+      tester,
+    ) async {
+      await pumpHost(tester);
+      // '2::stomach::, plain' — the IME is composing over the trailing word.
+      final controller = compose(
+        '2::stomach::, plain',
+        const TextRange(start: 14, end: 19),
+      );
+
+      expect(_describe(render(controller)), const [
+        ('2::stomach', true, false),
+        ('::', true, false),
+        (', ', false, false),
+        ('plain', false, true),
+      ]);
+    });
+
+    testWidgets('keeps the background when composing inside a coloured span', (
+      tester,
+    ) async {
+      await pumpHost(tester);
+      final controller = compose(
+        '2::stomach::, plain',
+        const TextRange(start: 3, end: 8),
+      );
+
+      expect(_describe(render(controller)), const [
+        ('2::', true, false),
+        ('stoma', true, true),
+        ('ch', true, false),
+        ('::', true, false),
+        (', plain', false, false),
+      ]);
+    });
+
+    testWidgets('adds no underline when composing is not requested', (
+      tester,
+    ) async {
+      await pumpHost(tester);
+      final controller = compose(
+        '2::stomach::, plain',
+        const TextRange(start: 14, end: 19),
+      );
+
+      expect(_describe(render(controller, withComposing: false)), const [
+        ('2::stomach', true, false),
+        ('::', true, false),
+        (', plain', false, false),
+      ]);
+    });
+
+    testWidgets('a moving pre-edit range does not re-parse the text', (
+      tester,
+    ) async {
+      await pumpHost(tester);
+      final controller = compose(
+        '2::stomach::, plain',
+        const TextRange(start: 14, end: 19),
+      );
+      render(controller);
+
+      final first = render(controller);
+      controller.value = controller.value.copyWith(
+        composing: const TextRange(start: 15, end: 19),
+      );
+      final second = render(controller);
+
+      // Spans outside the pre-edit range are handed through untouched, so a
+      // rebuilt identity here would mean composing had entered the cache key.
+      expect(identical(second.first, first.first), isTrue);
+      expect(_describe(second).last, const ('lain', false, true));
+    });
+  });
 }
+
+List<(String, bool, bool)> _describe(List<TextSpan> spans) => [
+  for (final span in spans)
+    (
+      span.text!,
+      span.style?.backgroundColor != null,
+      span.style?.decoration == TextDecoration.underline,
+    ),
+];
 
 Future<List<TextSpan>> _buildTextSpanChildren(
   WidgetTester tester,

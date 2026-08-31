@@ -254,6 +254,7 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
             data: data,
             capabilities: capabilities,
             coordinator: coordinator,
+            onAddToAgent: ImageCardActionScope.maybeOf(context)?.onAddToAgent,
           )
         : const <ImageCardAction>[];
     return ImageCardSurface(

@@ -6,6 +6,8 @@ abstract final class GalleryTables {
   static const imageTags = 'gallery_image_tags';
   static const scanLogs = 'gallery_scan_logs';
   static const ftsIndex = 'gallery_fts_index';
+  static const albums = 'gallery_albums';
+  static const albumImages = 'gallery_album_images';
 
   static const all = <String>{
     images,
@@ -15,5 +17,7 @@ abstract final class GalleryTables {
     imageTags,
     scanLogs,
     ftsIndex,
+    albums,
+    albumImages,
   };
 }

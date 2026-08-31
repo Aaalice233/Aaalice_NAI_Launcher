@@ -205,8 +205,61 @@ class AgentChatModelCatalog {
         thinkingLevels: [],
       );
     }
-    return AgentChatModelMetadata.unknown;
+    return _resolveByModelName(provider.protocol, model);
   }
+
+  /// 中转站与自建网关的 baseUrl 不在 host 白名单里，认不出服务商，但模型名
+  /// 通常原样透传，按名跨服务商回退能救回窗口。
+  ///
+  /// 同名窗口不一致时取最小值：低估只会提前压缩，高估会撑爆上下文。
+  static AgentChatModelMetadata _resolveByModelName(
+    ProviderProtocol protocol,
+    String model,
+  ) {
+    final candidates = _rulesByModelName[model.trim().toLowerCase()];
+    if (candidates == null) return AgentChatModelMetadata.unknown;
+
+    AgentReasoningModelRule? compatible;
+    AgentReasoningModelRule? fallback;
+    for (final rule in candidates) {
+      if (fallback == null || rule.contextWindow < fallback.contextWindow) {
+        fallback = rule;
+      }
+      if (_protocolSupports(protocol, rule.api) &&
+          (compatible == null ||
+              rule.contextWindow < compatible.contextWindow)) {
+        compatible = rule;
+      }
+    }
+    if (compatible != null) {
+      return AgentChatModelMetadata(
+        contextWindow: compatible.contextWindow,
+        maxOutputTokens: compatible.maxOutputTokens,
+        thinkingLevels: compatible.levels,
+        reasoningRule: compatible,
+      );
+    }
+    // 协议对不上就只借窗口和最大输出，不借推理配置——否则会按这个网关并不
+    // 支持的 API 形状发请求。
+    return AgentChatModelMetadata(
+      contextWindow: fallback!.contextWindow,
+      maxOutputTokens: fallback.maxOutputTokens,
+      thinkingLevels: const [],
+    );
+  }
+
+  /// 目录按模型名反查索引；窗口为 0 的条目不参与，命中即可用。
+  static final Map<String, List<AgentReasoningModelRule>> _rulesByModelName =
+      () {
+        final index = <String, List<AgentReasoningModelRule>>{};
+        for (final models in piReasoningModelCatalog.values) {
+          for (final entry in models.entries) {
+            if (entry.value.contextWindow <= 0) continue;
+            (index[entry.key.toLowerCase()] ??= []).add(entry.value);
+          }
+        }
+        return index;
+      }();
 
   static String? _resolvePiProvider(ProviderConfig provider, String model) {
     switch (provider.preset) {
@@ -325,10 +378,13 @@ class AgentChatModelCapability {
   AgentReasoningRequest? resolveReasoningRequest(String? selectedLevel) =>
       metadata.resolveReasoningRequest(selectedLevel);
 
+  /// [contextWindowOverride] 是用户手填值，优先于目录推断；目录认不出的模型
+  /// 只能靠它拿到窗口。
   static AgentChatModelCapability resolve(
     ProviderConfig provider,
-    String modelId,
-  ) {
+    String modelId, {
+    int? contextWindowOverride,
+  }) {
     final metadata = AgentChatModelCatalog.resolveProvider(
       provider: provider,
       model: modelId,
@@ -340,7 +396,7 @@ class AgentChatModelCapability {
         api: provider.protocol.name,
         provider: provider.id,
         baseUrl: provider.baseUrl,
-        contextWindow: metadata.contextWindow,
+        contextWindow: contextWindowOverride ?? metadata.contextWindow,
         maxTokens: metadata.maxOutputTokens,
         reasoning: metadata.reasoning,
       ),

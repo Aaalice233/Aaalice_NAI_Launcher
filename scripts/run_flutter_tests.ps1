@@ -12,6 +12,33 @@ $ErrorActionPreference = 'Stop'
 $env:PUB_HOSTED_URL = 'https://pub.dev'
 $env:FLUTTER_STORAGE_BASE_URL = $null
 
+# $IsWindows only exists in PowerShell 6+, so Windows PowerShell 5.1 reads it as
+# $null and would take the non-Windows branch; 5.1 itself only ships on Windows.
+$script:onWindows = $PSVersionTable.PSVersion.Major -lt 6 -or $IsWindows
+
+function Stop-ProcessTree {
+    param([System.Diagnostics.Process]$Target)
+
+    if ($null -eq $Target -or $Target.HasExited) {
+        return
+    }
+
+    try {
+        if ($script:onWindows) {
+            & taskkill.exe /PID $Target.Id /T /F | Out-Null
+        }
+        else {
+            # Kill(bool) needs .NET Core 3.0+, which only PowerShell 6+ runs on.
+            $Target.Kill($true)
+        }
+        $Target.WaitForExit(5000) | Out-Null
+    }
+    catch {
+        # Never let cleanup mask the timeout or exit code the caller cares about.
+        Write-Warning "Failed to terminate process tree $($Target.Id): $_"
+    }
+}
+
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $flutterCommand = Get-Command flutter -ErrorAction Stop
 $testPaths = @(
@@ -42,13 +69,7 @@ try {
         -PassThru
 
     if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
-        if ($IsWindows) {
-            & taskkill.exe /PID $process.Id /T /F | Out-Host
-        }
-        else {
-            $process.Kill($true)
-            $process.WaitForExit()
-        }
+        Stop-ProcessTree -Target $process
         throw "Flutter tests exceeded the hard limit of $TimeoutSeconds seconds; the entire process tree was terminated."
     }
 
@@ -57,13 +78,6 @@ try {
     }
 }
 finally {
-    if ($null -ne $process -and -not $process.HasExited) {
-        if ($IsWindows) {
-            & taskkill.exe /PID $process.Id /T /F | Out-Null
-        }
-        else {
-            $process.Kill($true)
-        }
-    }
+    Stop-ProcessTree -Target $process
     Pop-Location
 }

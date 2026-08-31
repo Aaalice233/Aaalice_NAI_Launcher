@@ -399,11 +399,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get auth_thirdPartyCompatibilityHint =>
-      'The third-party site must be compatible with NovelAI subscription and image-generation APIs. The token will be sent as a Bearer token.';
+      'The third-party site must be compatible with the NovelAI image-generation API; the token will be sent as a Bearer token. Sites without /user/subscription log in without subscription info.';
 
   @override
   String get auth_thirdPartyStreamingHint =>
       'If the third-party site does not support streaming generation, go to Settings > Generation > Image Output and turn off Streaming preview before generating.';
+
+  @override
+  String get anlas_thirdPartyUnavailable =>
+      'This site does not provide Anlas balance info';
 
   @override
   String get auth_thirdPartyApiSiteRequired => 'Enter third-party API site URL';
@@ -470,6 +474,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get auth_error_credentialsLoginUnavailable_hint =>
       'NovelAI now requires a web safety check for email/password login. Please use a Persistent API Token instead.';
+
+  @override
+  String get auth_error_endpointIncompatible =>
+      'No NAI-compatible API found at this address. Make sure the API address is the site\'s service root URL.';
 
   @override
   String get auth_error_serverError => 'Server error';
@@ -881,6 +889,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get agentChat_inputHint => 'Message the AI agent…';
 
   @override
+  String get agentChat_inputHintWithSlash =>
+      'Message the AI agent, / for skills…';
+
+  @override
+  String get agentChat_slashMenu => 'Skills and session commands';
+
+  @override
+  String get agentChat_slashSkills => 'Skills';
+
+  @override
+  String get agentChat_slashSession => 'Session';
+
+  @override
   String get agentChat_addAttachment => 'Add attachment or reference';
 
   @override
@@ -1212,6 +1233,28 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get agentChat_compacting => 'Compacting context…';
+
+  @override
+  String agentChat_compactDone(String before, String after) {
+    return 'Context compacted: $before → $after';
+  }
+
+  @override
+  String get agentChat_compactNotNeeded =>
+      'Context does not need compacting yet';
+
+  @override
+  String get agentChat_compactBusy =>
+      'Still responding — try compacting afterwards';
+
+  @override
+  String get agentChat_compactUnavailable =>
+      'Context usage unavailable, cannot compact';
+
+  @override
+  String agentChat_compactFailed(String error) {
+    return 'Failed to compact context: $error';
+  }
 
   @override
   String get agentChat_requestFailed => 'Request failed. Please try again.';
@@ -5418,9 +5461,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get localGallery_editMetadata => 'Edit Tags';
 
   @override
-  String get localGallery_addToCollection => 'Collect';
-
-  @override
   String get localGallery_switchToGridView => 'Switch to grid view';
 
   @override
@@ -5538,7 +5578,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String localGallery_protectedBulkMoveContent(Object count) {
-    return 'This will move $count local image files to the target folder. Confirm this is not a mistake.';
+    return 'This will move $count local image files to the target category. Confirm this is not a mistake.';
   }
 
   @override
@@ -5983,11 +6023,66 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get localGallery_noFoldersAvailable =>
-      'No folders available, please create a folder first';
+  String get localGallery_noCategoriesAvailable =>
+      'No categories available, please create a category first';
 
   @override
-  String get localGallery_moveToFolder => 'Move to Folder';
+  String get localGallery_moveToCategory => 'Move to Category';
+
+  @override
+  String get localGallery_albumSectionTitle => 'Albums';
+
+  @override
+  String get localGallery_folderSectionTitle => 'Folders';
+
+  @override
+  String get localGallery_albumEmptyHint =>
+      'No albums yet. Create one with the button on the right.';
+
+  @override
+  String get localGallery_createAlbum => 'New Album';
+
+  @override
+  String get localGallery_createSubAlbum => 'New Sub-album';
+
+  @override
+  String get localGallery_moveAlbumToRoot => 'Move to Root';
+
+  @override
+  String get localGallery_createAlbumTitle => 'New Album';
+
+  @override
+  String get localGallery_createSubAlbumTitle => 'New Sub-album';
+
+  @override
+  String get localGallery_createAlbumHint => 'Enter album name';
+
+  @override
+  String get localGallery_renameAlbumTitle => 'Rename Album';
+
+  @override
+  String get localGallery_deleteAlbumTitle => 'Delete Album';
+
+  @override
+  String get localGallery_deleteAlbumContent =>
+      'This deletes the album; image files are not affected and sub-albums are promoted to root.';
+
+  @override
+  String get localGallery_addedToAlbum => 'Added to album';
+
+  @override
+  String get localGallery_albumAddFailed => 'Failed to add to album';
+
+  @override
+  String get localGallery_albumSelectTitle => 'Add to Album';
+
+  @override
+  String get localGallery_addToAlbum => 'Add to Album';
+
+  @override
+  String localGallery_addedToAlbumWithName(Object count, Object name) {
+    return 'Added $count images to \'$name\'';
+  }
 
   @override
   String localGallery_imageCount(Object count) {
@@ -6001,15 +6096,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get localGallery_moveImagesFailed => 'Failed to move images';
-
-  @override
-  String localGallery_addedToCollection(Object count, Object name) {
-    return 'Added $count images to collection \"$name\"';
-  }
-
-  @override
-  String get localGallery_addToCollectionFailed =>
-      'Failed to add images to collection';
 
   @override
   String get brushPreset_selectHint => 'Double tap to select this brush preset';
@@ -13609,6 +13695,28 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get agentSettings_pendingMatch => 'pending match';
+
+  @override
+  String get agentSettings_contextWindow => 'Context window (tokens)';
+
+  @override
+  String agentSettings_contextWindowKnown(String value) {
+    return 'Leave empty to use the built-in value $value. Override it when a relay or custom deployment exposes a different window.';
+  }
+
+  @override
+  String get agentSettings_contextWindowUnknown =>
+      'This model is not in the built-in catalog, so its window cannot be detected. Without a value, context usage stays hidden and compaction is unavailable.';
+
+  @override
+  String get agentSettings_contextWindowUnknownHint => 'e.g. 128000';
+
+  @override
+  String get agentSettings_contextWindowReset => 'Restore the built-in value';
+
+  @override
+  String get agentSettings_contextWindowInvalid =>
+      'Enter a whole number between 1 and 20000000';
 
   @override
   String get agentSettings_toolPermission => 'Tool permissions';

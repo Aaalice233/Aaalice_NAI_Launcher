@@ -8,6 +8,20 @@ $archivePath = Join-Path $testRoot 'bundle.zip'
 $packagerRoot = Join-Path $testRoot 'packager'
 $version = '9.8.7'
 
+# Path.GetRelativePath needs .NET Core 2.0+, so Windows PowerShell 5.1 has no
+# such method. Callers always pass a descendant, making a prefix cut exact.
+function Get-PathRelativeTo {
+  param([string]$BasePath, [string]$FullPath)
+
+  $separator = [IO.Path]::DirectorySeparatorChar
+  $base = [IO.Path]::GetFullPath($BasePath).TrimEnd($separator)
+  $full = [IO.Path]::GetFullPath($FullPath)
+  if (-not $full.StartsWith($base + $separator, [StringComparison]::OrdinalIgnoreCase)) {
+    throw "'$FullPath' is not inside '$BasePath'."
+  }
+  return $full.Substring($base.Length + 1)
+}
+
 function Write-TestFile {
   param(
     [string]$RelativePath,
@@ -24,7 +38,7 @@ function Write-FixtureManifest {
     Get-ChildItem -LiteralPath $fixturePath -File -Recurse |
       Where-Object { $_.Name -ne 'app_files_manifest.json' } |
       ForEach-Object {
-        [IO.Path]::GetRelativePath($fixturePath, $_.FullName).Replace('\', '/')
+        (Get-PathRelativeTo $fixturePath $_.FullName).Replace('\', '/')
       } |
       Sort-Object
   )
@@ -101,7 +115,9 @@ function Assert-Rejected {
     if ($null -eq $failure) {
       throw "$Name should fail for $target input, but passed."
     }
-    if (-not $failure.Contains($ExpectedError, [StringComparison]::OrdinalIgnoreCase)) {
+    # String.Contains(String, StringComparison) needs .NET Core 2.1+;
+    # IndexOf carries the same overload back to .NET Framework.
+    if ($failure.IndexOf($ExpectedError, [StringComparison]::OrdinalIgnoreCase) -lt 0) {
       throw "$Name failed for $target input with an unexpected error: $failure"
     }
   }
@@ -135,10 +151,10 @@ function Assert-PackagerChecksRuntimeBeforeReplacingManifest {
   if ($null -eq $failure) {
     throw 'Packager should reject a bundle with a missing runtime file.'
   }
-  if (-not $failure.Contains(
+  if ($failure.IndexOf(
       'Windows Flutter runtime file was not found:',
       [StringComparison]::OrdinalIgnoreCase
-    )) {
+    ) -lt 0) {
     throw "Packager failed with an unexpected error: $failure"
   }
   if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {

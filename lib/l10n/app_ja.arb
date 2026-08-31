@@ -141,8 +141,9 @@
   "auth_imageApiSiteHint": "同じサードパーティ API サイトを使用する場合は空のままにしてください",
   "auth_thirdPartyNicknameHint": "例: 自己ホスト型サイト / ミラー サイト",
   "auth_thirdPartyTokenHint": "サードパーティ サイトから API トークンを入力してください",
-  "auth_thirdPartyCompatibilityHint": "サードパーティ サイトは、NovelAI サブスクリプション API およびイメージ生成 API と互換性がある必要があります。トークンはベアラー トークンとして送信されます。",
+  "auth_thirdPartyCompatibilityHint": "サードパーティ サイトは NovelAI のイメージ生成 API と互換性がある必要があります。トークンはベアラー トークンとして送信されます。/user/subscription 未実装のサイトではサブスクリプション情報を省略してログインします。",
   "auth_thirdPartyStreamingHint": "サードパーティサイトがストリーミング生成に対応していない場合は、［設定］>［生成］>［画像出力］で［ストリーミングプレビュー］をオフにしてから生成してください。",
+  "anlas_thirdPartyUnavailable": "このサイトは Anlas 残高情報を提供していません",
   "auth_thirdPartyApiSiteRequired": "サードパーティ API サイトの URL を入力してください",
   "auth_validateAndLogin": "検証してログイン",
   "auth_tokenGuide": "NovelAI 設定からトークンを取得します",
@@ -173,6 +174,7 @@
   "auth_error_authFailed": "認証に失敗しました",
   "auth_error_credentialsLoginUnavailable": "メールアドレス/パスワードでのログインは現在利用できません",
   "auth_error_credentialsLoginUnavailable_hint": "NovelAI ではメールアドレス/パスワードログインに Web の安全確認が必要になりました。代わりに Persistent API Token を使用してください。",
+  "auth_error_endpointIncompatible": "このアドレスで NAI 互換 API が見つかりません。API アドレスがサイトのサービスルート URL か確認してください。",
   "auth_error_serverError": "サーバーエラー",
   "auth_error_unknown": "不明なエラー",
   "auth_autoLogin": "自動ログイン",
@@ -332,6 +334,10 @@
   "agentChat_tab": "チャット",
   "nav_agent": "エージェント",
   "agentChat_inputHint": "AI アシスタントにメッセージを送る…",
+  "agentChat_inputHintWithSlash": "AI アシスタントにメッセージを送る。/ でスキル…",
+  "agentChat_slashMenu": "スキルとセッションコマンド",
+  "agentChat_slashSkills": "スキル",
+  "agentChat_slashSession": "セッション",
   "agentChat_addAttachment": "添付または参照を追加",
   "agentChat_photoLibrary": "写真",
   "agentChat_currentCanvas": "現在のキャンバス",
@@ -450,6 +456,13 @@
   "agentChat_moreActions": "操作メニュー",
   "agentChat_compact": "コンテキスト圧縮",
   "agentChat_compacting": "コンテキストを圧縮中…",
+  "agentChat_compactDone": "コンテキストを圧縮しました：{before} → {after}",
+  "@agentChat_compactDone": {"placeholders":{"before":{"type":"String"},"after":{"type":"String"}}},
+  "agentChat_compactNotNeeded": "現在のコンテキストは圧縮の必要がありません",
+  "agentChat_compactBusy": "応答の生成中です。完了後に圧縮してください",
+  "agentChat_compactUnavailable": "コンテキスト使用量が取得できず、圧縮できません",
+  "agentChat_compactFailed": "コンテキストの圧縮に失敗しました：{error}",
+  "@agentChat_compactFailed": {"placeholders":{"error":{"type":"String"}}},
   "agentChat_requestFailed": "リクエストに失敗しました。もう一度お試しください。",
   "agentChat_errorDetails": "エラーの詳細",
   "agentChat_model": "モデルを選択",
@@ -2327,7 +2340,6 @@
   "localGallery_moveSelected": "移動",
   "localGallery_packSelected": "パック",
   "localGallery_editMetadata": "タグを編集",
-  "localGallery_addToCollection": "コレクションに追加",
   "localGallery_switchToGridView": "グリッド ビューに切り替える",
   "localGallery_switchToDateGroupedView": "日付グループ化ビューに切り替える",
   "localGallery_openFilterPanel": "フィルター パネルを開く",
@@ -2381,7 +2393,7 @@
     }
   },
   "localGallery_protectedBulkMoveTitle": "保護モード: 一括移動の確認",
-  "localGallery_protectedBulkMoveContent": "これにより、{count} ローカル画像ファイルがターゲット フォルダに移動されます。これが間違いではないことを確認してください。",
+  "localGallery_protectedBulkMoveContent": "これにより、{count} ローカル画像ファイルがターゲット カテゴリに移動されます。これが間違いではないことを確認してください。",
   "@localGallery_protectedBulkMoveContent": {
     "placeholders": {
       "count": {}
@@ -2622,8 +2634,31 @@
       "count": {}
     }
   },
-  "localGallery_noFoldersAvailable": "使用可能なフォルダーがありません。最初にフォルダーを作成してください。",
-  "localGallery_moveToFolder": "フォルダーに移動",
+  "localGallery_noCategoriesAvailable": "利用可能なカテゴリがありません。先にカテゴリを作成してください。",
+  "localGallery_moveToCategory": "カテゴリに移動",
+  "@localGallery_addedToAlbumWithName": {
+    "placeholders": {
+      "count": {},
+      "name": {}
+    }
+  },
+  "localGallery_albumSectionTitle": "アルバム",
+  "localGallery_folderSectionTitle": "フォルダー",
+  "localGallery_albumEmptyHint": "アルバムがありません。右のボタンで作成できます",
+  "localGallery_createAlbum": "アルバムを作成",
+  "localGallery_createSubAlbum": "サブアルバムを作成",
+  "localGallery_moveAlbumToRoot": "ルートへ移動",
+  "localGallery_createAlbumTitle": "アルバムを作成",
+  "localGallery_createSubAlbumTitle": "サブアルバムを作成",
+  "localGallery_createAlbumHint": "アルバム名を入力",
+  "localGallery_renameAlbumTitle": "アルバムの名前を変更",
+  "localGallery_deleteAlbumTitle": "アルバムを削除",
+  "localGallery_deleteAlbumContent": "このアルバムを削除します（画像ファイルには影響しません）。サブアルバムはルートに移動します。",
+  "localGallery_addedToAlbum": "アルバムに追加しました",
+  "localGallery_albumAddFailed": "アルバムへの追加に失敗しました",
+  "localGallery_albumSelectTitle": "アルバムに追加",
+  "localGallery_addToAlbum": "アルバムに追加",
+  "localGallery_addedToAlbumWithName": "{count} 枚の画像を「{name}」に追加しました",
   "localGallery_imageCount": "{count} 画像",
   "@localGallery_imageCount": {
     "placeholders": {
@@ -2637,14 +2672,6 @@
     }
   },
   "localGallery_moveImagesFailed": "画像の移動に失敗しました",
-  "localGallery_addedToCollection": "{count} 画像をコレクション「{name}」に追加しました",
-  "@localGallery_addedToCollection": {
-    "placeholders": {
-      "count": {},
-      "name": {}
-    }
-  },
-  "localGallery_addToCollectionFailed": "画像をコレクションに追加できませんでした",
   "brushPreset_selectHint": "ダブルタップしてこのブラシ プリセットを選択します",
   "brushPreset_pencil": "鉛筆",
   "brushPreset_fine": "細筆",
@@ -6470,6 +6497,13 @@
   "agentSettings_modelManagedInIntegrations": "プロバイダー、API キー、モデル検出は引き続き「連携」で一元管理されます。",
   "agentSettings_noModel": "利用可能なチャットモデルがありません。先に「連携」でプロバイダーを追加し、モデルを検出してください。",
   "agentSettings_pendingMatch": "照合待ち",
+  "agentSettings_contextWindow": "コンテキストウィンドウ（トークン）",
+  "agentSettings_contextWindowKnown": "空欄なら内蔵値 {value} を使用します。中継サービスや独自デプロイで実際の値が異なる場合はここで上書きしてください。",
+  "@agentSettings_contextWindowKnown": {"placeholders":{"value":{"type":"String"}}},
+  "agentSettings_contextWindowUnknown": "このモデルは内蔵カタログに未収録のため、ウィンドウを自動判定できません。未入力のままではコンテキスト使用量を表示できず、圧縮も実行できません。",
+  "agentSettings_contextWindowUnknownHint": "例：128000",
+  "agentSettings_contextWindowReset": "内蔵値に戻す",
+  "agentSettings_contextWindowInvalid": "1 から 20000000 までの整数を入力してください",
   "agentSettings_toolPermission": "ツール権限",
   "agentSettings_permissionSafe": "安全",
   "agentSettings_permissionSafeDescription": "読み取り専用および低リスクの操作だけを実行します。",

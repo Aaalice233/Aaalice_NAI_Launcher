@@ -10,6 +10,32 @@ import '../providers/agent_chat_notifier.dart';
 
 export '../../../core/agent/resources/agent_chat_resource_drag_format.dart';
 
+Future<void> addAgentResourceToComposer({
+  required BuildContext context,
+  required WidgetRef ref,
+  required AgentChatResourceReference reference,
+}) async {
+  if (!context.mounted) return;
+  try {
+    await ref
+        .read(agentChatNotifierProvider.notifier)
+        .addPendingResource(reference);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.agentChat_resourceAdded)),
+      );
+    }
+  } on Object catch (error) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(context.l10n.agentChat_addResourceFailed('$error')),
+        ),
+      );
+    }
+  }
+}
+
 Future<void> showAddAgentResourceMenu({
   required BuildContext context,
   required WidgetRef ref,
@@ -38,24 +64,11 @@ Future<void> showAddAgentResourceMenu({
     ],
   );
   if (selected != true || !context.mounted) return;
-  try {
-    await ref
-        .read(agentChatNotifierProvider.notifier)
-        .addPendingResource(reference);
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.agentChat_resourceAdded)),
-      );
-    }
-  } on Object catch (error) {
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(context.l10n.agentChat_addResourceFailed('$error')),
-        ),
-      );
-    }
-  }
+  await addAgentResourceToComposer(
+    context: context,
+    ref: ref,
+    reference: reference,
+  );
 }
 
 class AgentResourceDropRegion extends StatelessWidget {
@@ -92,10 +105,12 @@ class AgentResourceDragSource extends ConsumerWidget {
     super.key,
     required this.reference,
     required this.child,
+    this.enableAddToAgentMenu = true,
   });
 
   final AgentChatResourceReference reference;
   final Widget child;
+  final bool enableAddToAgentMenu;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -113,12 +128,15 @@ class AgentResourceDragSource extends ConsumerWidget {
       },
       child: GestureDetector(
         behavior: HitTestBehavior.deferToChild,
-        onSecondaryTapDown: (details) => showAddAgentResourceMenu(
-          context: context,
-          ref: ref,
-          position: details.globalPosition,
-          reference: reference,
-        ),
+        // 必须抬起后弹菜单：按住时 push 会合成 touch 取消事件，令 DraggableWidget 整批重建闪烁
+        onSecondaryTapUp: enableAddToAgentMenu
+            ? (details) => showAddAgentResourceMenu(
+                context: context,
+                ref: ref,
+                position: details.globalPosition,
+                reference: reference,
+              )
+            : null,
         child: DraggableWidget(child: child),
       ),
     );

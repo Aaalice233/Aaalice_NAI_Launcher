@@ -34,6 +34,10 @@ class AnlasBalanceChip extends ConsumerWidget {
         compact,
       ),
       error: (state) => _buildError(context, ref, theme, compact),
+      unsupported: (_) => Tooltip(
+        message: context.l10n.anlas_thirdPartyUnavailable,
+        child: _buildPlaceholder(theme, compact),
+      ),
     );
   }
 

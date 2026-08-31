@@ -1086,6 +1086,34 @@ void main() {
     expect(fileStorage.singleFileLoadCalls, 1);
     expect(fileStorage.bundleParseCalls, 1);
   });
+
+  test('展示缩略图内存缓存：读取后同步命中，条目更新或删除后失效', () async {
+    final entry = VibeLibraryEntry(
+      id: 'thumbnail-cache-entry',
+      name: 'cache vibe',
+      vibeDisplayName: 'Cache Vibe',
+      vibeEncoding: 'encoded-payload',
+      thumbnail: _validPngBytes(),
+      sourceTypeIndex: VibeSourceType.naiv4vibe.index,
+      createdAt: DateTime(2026, 1, 1),
+      filePath: r'G:\AIdarw\vibes\cache-probe.naiv4vibe',
+    );
+    await storage.saveEntry(entry);
+    expect(storage.peekDisplayThumbnail(entry.id), isNull);
+
+    final loaded = await storage.getDisplayThumbnail(entry.id);
+    expect(loaded, isNotNull);
+    expect(storage.peekDisplayThumbnail(entry.id), loaded);
+
+    await storage.saveEntry(entry.copyWith(name: 'renamed'));
+    expect(storage.peekDisplayThumbnail(entry.id), isNull);
+
+    final reloaded = await storage.getDisplayThumbnail(entry.id);
+    expect(storage.peekDisplayThumbnail(entry.id), reloaded);
+
+    await storage.deleteEntry(entry.id);
+    expect(storage.peekDisplayThumbnail(entry.id), isNull);
+  });
 }
 
 class _ThrowingVibeFileStorageService extends VibeFileStorageService {

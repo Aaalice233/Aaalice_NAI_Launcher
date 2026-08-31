@@ -9,6 +9,38 @@ import '../../../core/utils/app_logger.dart';
 
 part 'nai_auth_api_service.g.dart';
 
+/// Token 验证结果。
+///
+/// 第三方 NAI 兼容站点普遍只实现生成端点而缺失 `/user/subscription`，
+/// 此时 [subscriptionInfo] 为 null 且 [subscriptionUnsupported] 为 true。
+class TokenValidationResult {
+  final Map<String, dynamic>? subscriptionInfo;
+  final bool subscriptionUnsupported;
+
+  const TokenValidationResult.subscribed(Map<String, dynamic> info)
+    : subscriptionInfo = info,
+      subscriptionUnsupported = false;
+
+  const TokenValidationResult.withoutSubscription()
+    : subscriptionInfo = null,
+      subscriptionUnsupported = true;
+}
+
+/// 第三方站点在所填地址下未暴露 NAI 兼容接口。
+class NaiEndpointIncompatibleException implements Exception {
+  final String probedUrl;
+  final int? statusCode;
+
+  const NaiEndpointIncompatibleException({
+    required this.probedUrl,
+    this.statusCode,
+  });
+
+  @override
+  String toString() =>
+      'NaiEndpointIncompatibleException(status: $statusCode, url: $probedUrl)';
+}
+
 /// NovelAI Authentication API 服务
 class NAIAuthApiService {
   static const Duration _timeout = Duration(seconds: 30);
@@ -23,7 +55,10 @@ class NAIAuthApiService {
   NAIAuthApiService(this._dio);
 
   /// 验证 API Token 是否有效
-  Future<Map<String, dynamic>> validateToken(
+  ///
+  /// 第三方端点缺失 `/user/subscription` 时改用生成端点做鉴权探测，
+  /// 探测通过则返回无订阅信息的成功结果，登录不再因 404 失败。
+  Future<TokenValidationResult> validateToken(
     String token, {
     NaiApiEndpointConfig endpoint = NaiApiEndpointConfig.official,
     bool allowAnyTokenFormat = false,
@@ -71,9 +106,33 @@ class NAIAuthApiService {
         ),
       );
 
+      final data = response.data;
+      if (data is! Map<String, dynamic>) {
+        // 站点把未知路径兜底成网页时会 200 返回 HTML，视同缺失订阅端点。
+        if (endpoint.isThirdParty) {
+          AppLogger.w(
+            'Third-party /user/subscription returned non-JSON body, '
+            'falling back to image endpoint probe',
+            'NAIAuth',
+          );
+          return _probeThirdPartyImageAuth(endpoint, authHeader);
+        }
+        throw StateError(
+          'Unexpected /user/subscription payload: ${data.runtimeType}',
+        );
+      }
+
       AppLogger.i('Token validation successful', 'NAIAuth');
-      return response.data as Map<String, dynamic>;
+      return TokenValidationResult.subscribed(data);
     } on DioException catch (e) {
+      if (endpoint.isThirdParty && e.response?.statusCode == 404) {
+        AppLogger.w(
+          'Third-party site has no /user/subscription, '
+          'falling back to image endpoint probe',
+          'NAIAuth',
+        );
+        return _probeThirdPartyImageAuth(endpoint, authHeader);
+      }
       if (e.response?.statusCode == 400) {
         final responseData = e.response?.data;
         final message = responseData is Map ? responseData['message'] : null;
@@ -96,6 +155,71 @@ class NAIAuthApiService {
       }
       rethrow;
     }
+  }
+
+  /// 用生成端点对第三方 Token 做鉴权探测。
+  ///
+  /// 空请求体在鉴权通过后才会走到参数校验，不会真正生成：
+  /// 401/403 说明 Key 无效，404/405 说明该地址下没有 NAI 兼容接口，
+  /// 其余 4xx（参数校验类）与 2xx 都证明 Key 已被站点接受。
+  Future<TokenValidationResult> _probeThirdPartyImageAuth(
+    NaiApiEndpointConfig endpoint,
+    String authHeader,
+  ) async {
+    final probeUrl = endpoint.imageUrl(ApiConstants.generateImageEndpoint);
+    AppLogger.i('Probing third-party auth via $probeUrl', 'NAIAuth');
+
+    final response = await _dio.post<dynamic>(
+      probeUrl,
+      data: const <String, dynamic>{},
+      options: Options(
+        headers: {'Authorization': authHeader},
+        receiveTimeout: _timeout,
+        sendTimeout: _timeout,
+        validateStatus: (_) => true,
+      ),
+    );
+
+    final status = response.statusCode ?? 0;
+    if (status == 401 || status == 403) {
+      AppLogger.w('Third-party auth probe rejected: $status', 'NAIAuth');
+      throw DioException(
+        requestOptions: response.requestOptions,
+        response: response,
+        type: DioExceptionType.badResponse,
+        error: 'Third-party token rejected by image endpoint probe',
+      );
+    }
+    if (status >= 500) {
+      AppLogger.w('Third-party auth probe server error: $status', 'NAIAuth');
+      throw DioException(
+        requestOptions: response.requestOptions,
+        response: response,
+        type: DioExceptionType.badResponse,
+        error: 'Third-party image endpoint probe failed with $status',
+      );
+    }
+
+    final routeExists =
+        (status >= 200 && status < 300) ||
+        (status >= 400 && status != 404 && status != 405);
+    if (!routeExists) {
+      AppLogger.w(
+        'No NAI-compatible image endpoint at $probeUrl (status=$status)',
+        'NAIAuth',
+      );
+      throw NaiEndpointIncompatibleException(
+        probedUrl: probeUrl,
+        statusCode: response.statusCode,
+      );
+    }
+
+    AppLogger.i(
+      'Third-party auth probe passed (status=$status), '
+      'logging in without subscription info',
+      'NAIAuth',
+    );
+    return const TokenValidationResult.withoutSubscription();
   }
 
   /// 使用 Access Key 登录

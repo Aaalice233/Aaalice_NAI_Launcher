@@ -56,6 +56,17 @@ class _HydratedAuthNotifier extends AuthNotifier {
   }
 }
 
+class _ThirdPartyUnsupportedAuthNotifier extends AuthNotifier {
+  @override
+  AuthState build() {
+    return const AuthState(
+      status: AuthStatus.authenticated,
+      accountId: 'third-party-account',
+      subscriptionUnsupported: true,
+    );
+  }
+}
+
 class _TestableSubscriptionNotifier extends SubscriptionNotifier {
   @override
   SubscriptionState build() {
@@ -477,6 +488,44 @@ void main() {
 
     expect(requestCount, 1);
     expect(container.read(subscriptionNotifierProvider).balance, 70);
+  });
+
+  test('subscription-unsupported session never hits the endpoint', () async {
+    final apiService = _MockNAIUserInfoApiService();
+    when(
+      () => apiService.getUserSubscription(
+        receiveTimeout: any(named: 'receiveTimeout'),
+        cancelToken: any(named: 'cancelToken'),
+      ),
+    ).thenAnswer((_) async => _subscriptionJson(balance: 70));
+
+    final container = ProviderContainer(
+      overrides: [
+        authNotifierProvider.overrideWith(
+          _ThirdPartyUnsupportedAuthNotifier.new,
+        ),
+        naiUserInfoApiServiceProvider.overrideWithValue(apiService),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final state = container.read(subscriptionNotifierProvider);
+    expect(state.isUnsupported, isTrue);
+    expect(state.balance, isNull);
+
+    final notifier = container.read(subscriptionNotifierProvider.notifier);
+    await notifier.fetchSubscription();
+    expect(await notifier.refreshBalance(), isFalse);
+    notifier.schedulePostBillingRefresh(delay: Duration.zero);
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+
+    expect(container.read(subscriptionNotifierProvider).isUnsupported, isTrue);
+    verifyNever(
+      () => apiService.getUserSubscription(
+        receiveTimeout: any(named: 'receiveTimeout'),
+        cancelToken: any(named: 'cancelToken'),
+      ),
+    );
   });
 }
 

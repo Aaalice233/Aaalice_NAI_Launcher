@@ -103,6 +103,8 @@ class Win32Window {
   // window handle for hosted content.
   HWND child_content_ = nullptr;
   bool child_resize_pending_ = false;
+  RECT last_valid_client_rect_{};
+  bool has_last_valid_client_rect_ = false;
 };
 
 #endif  // RUNNER_WIN32_WINDOW_H_

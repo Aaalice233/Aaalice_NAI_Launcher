@@ -5,16 +5,32 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/agent/harness/session/session_jsonl.dart';
 import 'package:nai_launcher/core/agent/agent_types.dart' show ThinkingLevel;
+import 'package:nai_launcher/core/agent/harness/harness_types.dart';
 import 'package:nai_launcher/core/agent/harness/session/session_types.dart';
 import 'package:nai_launcher/core/agent/llm_types.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/core/storage/secure_storage_service.dart';
 import 'package:nai_launcher/data/models/agent/agent_settings.dart';
+import 'package:nai_launcher/presentation/agent_chat/models/agent_chat_compaction_outcome.dart';
 import 'package:nai_launcher/presentation/agent_chat/providers/agent_chat_notifier.dart';
 import 'package:nai_launcher/presentation/agent_settings/providers/agent_settings_provider.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/models/agent_protocol.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/models/prompt_assistant_models.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/providers/prompt_assistant_config_provider.dart';
+
+const _testSkill = HarnessSkill(
+  name: 'test-skill',
+  description: 'A skill used by the slash command tests',
+  content: 'SKILL BODY',
+  filePath: '/skills/test-skill/SKILL.md',
+);
+
+const _mixedCaseSkill = HarnessSkill(
+  name: 'Mixed-Case',
+  description: 'A skill whose directory name carries capitals',
+  content: 'MIXED BODY',
+  filePath: '/skills/Mixed-Case/SKILL.md',
+);
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -292,7 +308,7 @@ User instructions.
           ref,
           supportDir: tempDir,
           workspaceDir: tempDir,
-          presetSkills: const [],
+          presetSkills: const [_testSkill, _mixedCaseSkill],
           sessionRepo: sessionRepo,
           completeRequest: (request) => wireCompletion(request),
         );
@@ -866,6 +882,123 @@ User instructions.
       expect(reopened.findEntriesOnBranch(), completion(hasLength(2)));
     });
 
+    test('a leading skill command injects the skill instructions', () async {
+      final notifier = container.read(provider.notifier);
+      await _selectChatModel(container);
+
+      await notifier.send('/test-skill draw a cat');
+
+      // The skill body leads and the typed text closes the message, so the
+      // model reads the instructions before the request.
+      final sent = requests.single.messages.whereType<UserMessage>().single;
+      expect(sent.text, contains('<skill name="test-skill"'));
+      expect(sent.text, contains('SKILL BODY'));
+      expect(sent.text, endsWith('/test-skill draw a cat'));
+    });
+
+    test('a bare skill command still carries the instructions', () async {
+      final notifier = container.read(provider.notifier);
+      await _selectChatModel(container);
+
+      await notifier.send('/test-skill');
+
+      final sent = requests.single.messages.whereType<UserMessage>().single;
+      expect(sent.text, contains('SKILL BODY'));
+      expect(sent.text, endsWith('/test-skill'));
+    });
+
+    test('a skill command ignores the case of the directory name', () async {
+      final notifier = container.read(provider.notifier);
+      await _selectChatModel(container);
+
+      await notifier.send('/mixed-case draw a cat');
+
+      final sent = requests.single.messages.whereType<UserMessage>().single;
+      expect(sent.text, contains('<skill name="Mixed-Case"'));
+      expect(sent.text, contains('MIXED BODY'));
+    });
+
+    test('an unknown command is sent as plain text', () async {
+      final notifier = container.read(provider.notifier);
+      await _selectChatModel(container);
+
+      await notifier.send('/not-a-skill hello');
+
+      final sent = requests.single.messages.whereType<UserMessage>().single;
+      expect(sent.text, '/not-a-skill hello');
+      expect(sent.text, isNot(contains('SKILL BODY')));
+    });
+
+    test(
+      'manual compaction reports that a short session has nothing to fold',
+      () async {
+        final notifier = container.read(provider.notifier);
+        await _selectChatModel(container);
+        await notifier.send('draw a cat');
+        requests.clear();
+
+        final outcome = await notifier.compactNow();
+
+        expect(outcome, isA<AgentChatCompactionSkipped>());
+        expect(
+          (outcome as AgentChatCompactionSkipped).reason,
+          AgentChatCompactionSkipReason.nothingToCompact,
+        );
+        // The whole point of the guard: summarizing an empty history would burn a
+        // request and then overwrite the context with the result.
+        expect(requests, isEmpty);
+        expect(container.read(provider).compacting, isFalse);
+      },
+    );
+
+    test('a manual context window unlocks an unplaceable model', () async {
+      final notifier = container.read(provider.notifier);
+      final configNotifier = container.read(
+        promptAssistantConfigProvider.notifier,
+      );
+      await configNotifier.upsertProvider(
+        const ProviderConfig(
+          id: 'relay',
+          name: 'Relay station',
+          protocol: ProviderProtocol.openaiChatCompletions,
+          baseUrl: 'https://api.my-relay.test/v1',
+        ),
+      );
+      await configNotifier.upsertModel(
+        const ModelConfig(
+          providerId: 'relay',
+          name: 'private-v9',
+          displayName: 'Private v9',
+          forTask: AssistantTaskType.chat,
+        ),
+      );
+      final settings = container.read(agentSettingsProvider.notifier);
+      await settings.setModelReference(
+        const AgentModelReference(providerId: 'relay', model: 'private-v9'),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+
+      // Neither the host nor the model name is in the catalog, so nothing can
+      // infer a window and compaction has to refuse.
+      expect(container.read(provider).contextUsage.available, isFalse);
+      final refused = await notifier.compactNow();
+      expect(
+        (refused as AgentChatCompactionSkipped).reason,
+        AgentChatCompactionSkipReason.unavailable,
+      );
+
+      await settings.setContextWindowOverride(
+        providerId: 'relay',
+        model: 'private-v9',
+        window: 64000,
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+
+      final usage = container.read(provider).contextUsage;
+      expect(usage.contextWindow, 64000);
+      expect(usage.available, isTrue);
+    });
+
     test('serializes concurrent session creation', () async {
       final notifier = container.read(provider.notifier);
       final before = container.read(provider).sessions.length;
@@ -896,6 +1029,28 @@ User instructions.
       expect((await file.readAsLines()).first, contains('"op":"header"'));
     });
   });
+}
+
+Future<void> _selectChatModel(ProviderContainer container) async {
+  final configNotifier = container.read(promptAssistantConfigProvider.notifier);
+  await configNotifier.upsertProvider(ProviderPreset.deepseek.createConfig());
+  await configNotifier.upsertModel(
+    const ModelConfig(
+      providerId: 'deepseek',
+      name: 'deepseek-chat',
+      displayName: 'DeepSeek Chat',
+      forTask: AssistantTaskType.chat,
+    ),
+  );
+  await container
+      .read(agentSettingsProvider.notifier)
+      .setModelReference(
+        const AgentModelReference(
+          providerId: 'deepseek',
+          model: 'deepseek-chat',
+        ),
+      );
+  await Future<void>.delayed(const Duration(milliseconds: 10));
 }
 
 Future<void> _writeProjectSkill(Directory project, String name) async {

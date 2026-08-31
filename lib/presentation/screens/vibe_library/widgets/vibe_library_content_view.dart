@@ -123,6 +123,7 @@ class _VibeLibraryContentViewState
         final isSelected = selectionState.selectedIds.contains(entry.id);
 
         return AgentResourceDragSource(
+          enableAddToAgentMenu: false,
           reference: AgentChatResourceReference(
             kind: AgentChatResourceKind.vibeLibraryEntry,
             source: 'vibe_library',
@@ -151,7 +152,7 @@ class _VibeLibraryContentViewState
                     .enterAndSelect(entry.id);
               }
             },
-            onSecondaryTapDown: (details) {
+            onSecondaryTapUp: (details) {
               _showContextMenu(context, entry, details.globalPosition);
             },
             onFavoriteToggle: () {

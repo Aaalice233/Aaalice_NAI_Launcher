@@ -94,27 +94,92 @@ class NaiSyntaxController extends TextEditingController {
     final colors = NaiSyntaxColors.fromTheme(theme);
 
     // 检查缓存是否有效（文本未变化且主题未变化）
+    final List<TextSpan> resolvedSpans;
     if (_cachedText == text &&
         _cachedColorSignature == colors.cacheSignature &&
         _cachedSpans != null) {
-      return TextSpan(style: baseStyle, children: _cachedSpans);
+      resolvedSpans = _cachedSpans!;
+    } else {
+      // 官网的竖线提示独立于“高亮强调”开关，搜索高亮也需要继续叠加。
+      final spans = _parseAndHighlight(
+        text,
+        baseStyle,
+        colors,
+        includeEmphasis: highlightEnabled,
+      );
+      resolvedSpans = _applySearchHighlights(spans, baseStyle, colors);
+
+      // 更新缓存
+      _cachedText = text;
+      _cachedColorSignature = colors.cacheSignature;
+      _cachedSpans = resolvedSpans;
     }
 
-    // 官网的竖线提示独立于“高亮强调”开关，搜索高亮也需要继续叠加。
-    final spans = _parseAndHighlight(
-      text,
-      baseStyle,
-      colors,
-      includeEmphasis: highlightEnabled,
+    // 预编辑区叠加在缓存之后：它每敲一下就变，进缓存键等于每帧重新解析全文。
+    return TextSpan(
+      style: baseStyle,
+      children: _applyComposingUnderline(
+        resolvedSpans,
+        baseStyle,
+        withComposing,
+      ),
     );
-    final resolvedSpans = _applySearchHighlights(spans, baseStyle, colors);
+  }
 
-    // 更新缓存
-    _cachedText = text;
-    _cachedColorSignature = colors.cacheSignature;
-    _cachedSpans = resolvedSpans;
+  /// 给输入法预编辑区加下划线，语法着色照旧，只标出尚未上屏的部分。
+  List<TextSpan> _applyComposingUnderline(
+    List<TextSpan> spans,
+    TextStyle baseStyle,
+    bool withComposing,
+  ) {
+    if (!withComposing || !value.isComposingRangeValid) {
+      return spans;
+    }
+    final composing = value.composing;
 
-    return TextSpan(style: baseStyle, children: resolvedSpans);
+    final underlined = <TextSpan>[];
+    var globalOffset = 0;
+
+    for (final span in spans) {
+      final spanText = span.text;
+      if (spanText == null || spanText.isEmpty) {
+        underlined.add(span);
+        continue;
+      }
+
+      final spanStart = globalOffset;
+      final spanEnd = spanStart + spanText.length;
+      globalOffset = spanEnd;
+      if (composing.end <= spanStart || composing.start >= spanEnd) {
+        underlined.add(span);
+        continue;
+      }
+
+      // 预编辑区可能横跨任意着色片段，按它的边界再切一次，避免下划线漫延。
+      final spanStyle = span.style ?? baseStyle;
+      final cuts = <int>[
+        spanStart,
+        if (composing.start > spanStart && composing.start < spanEnd)
+          composing.start,
+        if (composing.end > spanStart && composing.end < spanEnd) composing.end,
+        spanEnd,
+      ];
+      for (var i = 0; i + 1 < cuts.length; i++) {
+        final start = cuts[i];
+        final end = cuts[i + 1];
+        final composed = start >= composing.start && end <= composing.end;
+        underlined.add(
+          TextSpan(
+            text: spanText.substring(start - spanStart, end - spanStart),
+            style: composed
+                ? spanStyle.copyWith(decoration: TextDecoration.underline)
+                : spanStyle,
+          ),
+        );
+      }
+    }
+
+    return underlined;
   }
 
   List<TextSpan> _applySearchHighlights(

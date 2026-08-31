@@ -6,6 +6,46 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/widgets/common/desktop_window_frame.dart';
 import 'package:window_manager/window_manager.dart';
 
+class _ProbeLifecycle {
+  int initCalls = 0;
+  int disposeCalls = 0;
+  int tapCalls = 0;
+}
+
+class _StatefulProbe extends StatefulWidget {
+  const _StatefulProbe(this.lifecycle);
+
+  final _ProbeLifecycle lifecycle;
+
+  @override
+  State<_StatefulProbe> createState() => _StatefulProbeState();
+}
+
+class _StatefulProbeState extends State<_StatefulProbe> {
+  @override
+  void initState() {
+    super.initState();
+    widget.lifecycle.initCalls++;
+  }
+
+  @override
+  void dispose() {
+    widget.lifecycle.disposeCalls++;
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: FilledButton(
+        key: const ValueKey('stateful-window-content'),
+        onPressed: () => widget.lifecycle.tapCalls++,
+        child: const Text('content'),
+      ),
+    );
+  }
+}
+
 class _FakeDesktopWindowController implements DesktopWindowController {
   WindowListener? listener;
   bool maximized = false;
@@ -100,35 +140,71 @@ void main() {
     );
   });
 
-  testWidgets('minimized Flutter surface does not lay out the caption', (
-    tester,
-  ) async {
-    final controller = _FakeDesktopWindowController();
+  testWidgets(
+    'transient minimized surfaces preserve child state and suspend activity',
+    (tester) async {
+      final controller = _FakeDesktopWindowController();
+      final lifecycle = _ProbeLifecycle();
+      final viewport = ValueNotifier(const Size(800, 600));
+      addTearDown(viewport.dispose);
 
-    await tester.pumpWidget(
-      MaterialApp(
-        locale: const Locale('zh'),
-        supportedLocales: AppLocalizations.supportedLocales,
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        home: Align(
-          alignment: Alignment.topLeft,
-          child: SizedBox(
-            width: 144,
-            height: 19,
-            child: DesktopWindowFrame(
-              enabled: true,
-              controller: controller,
-              child: const ColoredBox(color: Colors.black),
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('zh'),
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          home: Align(
+            alignment: Alignment.topLeft,
+            child: ValueListenableBuilder<Size>(
+              valueListenable: viewport,
+              builder: (context, size, child) => SizedBox.fromSize(
+                size: size,
+                child: DesktopWindowFrame(
+                  enabled: true,
+                  controller: controller,
+                  child: child!,
+                ),
+              ),
+              child: _StatefulProbe(lifecycle),
             ),
           ),
         ),
-      ),
-    );
-    await tester.pump();
+      );
+      await tester.pump();
 
-    expect(tester.takeException(), isNull);
-    expect(find.byKey(const ValueKey('desktop-window-header')), findsNothing);
-  });
+      expect(lifecycle.initCalls, 1);
+      expect(lifecycle.disposeCalls, 0);
+
+      for (final minimizedSize in [Size.zero, const Size(144, 19)]) {
+        viewport.value = minimizedSize;
+        await tester.pump();
+
+        expect(lifecycle.initCalls, 1);
+        expect(lifecycle.disposeCalls, 0);
+        expect(
+          find.byKey(const ValueKey('desktop-window-header')),
+          findsOneWidget,
+        );
+        expect(
+          tester
+              .widgetList<IgnorePointer>(find.byType(IgnorePointer))
+              .any((widget) => widget.ignoring),
+          isTrue,
+        );
+        expect(tester.takeException(), isNull);
+      }
+
+      viewport.value = const Size(800, 600);
+      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('stateful-window-content')));
+      await tester.pump();
+
+      expect(lifecycle.initCalls, 1);
+      expect(lifecycle.disposeCalls, 0);
+      expect(lifecycle.tapCalls, 1);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets(
     'Windows header exposes localized controls with desktop hit areas',

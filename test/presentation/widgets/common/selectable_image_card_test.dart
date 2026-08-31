@@ -17,6 +17,7 @@ import 'package:nai_launcher/presentation/providers/watermark_settings_provider.
 import 'package:nai_launcher/presentation/screens/generation/widgets/history_panel.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/image_preview.dart';
 import 'package:nai_launcher/presentation/widgets/common/draggable_memory_image.dart';
+import 'package:nai_launcher/presentation/widgets/common/image_card_actions.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_card_hover_motion.dart';
 import 'package:nai_launcher/presentation/widgets/common/pro_context_menu.dart';
 import 'package:nai_launcher/presentation/widgets/common/selectable_image_card.dart';
@@ -256,6 +257,26 @@ void main() {
       expect(find.text('风格迁移'), findsOneWidget);
       expect(find.text('精准参考'), findsOneWidget);
       expect(find.text('创建水印副本…'), findsOneWidget);
+      expect(find.text('添加到 Agent'), findsOneWidget);
+      expect(find.byType(ProContextMenu), findsOneWidget);
+      expect(
+        find.byType(PopupMenuItem<bool>, skipOffstage: false),
+        findsNothing,
+      );
+
+      final menu = tester.widget<ProContextMenu>(find.byType(ProContextMenu));
+      final itemIds = menu.items
+          .where((item) => !item.isDivider)
+          .map((item) => item.id)
+          .toList();
+      final addToAgentIndex = itemIds.indexOf(
+        ImageCardActionId.addToAgent.name,
+      );
+      final shareDiscordIndex = itemIds.indexOf(
+        ImageCardActionId.shareDiscord.name,
+      );
+      expect(addToAgentIndex, greaterThanOrEqualTo(0));
+      expect(shareDiscordIndex, addToAgentIndex + 1);
     },
   );
 

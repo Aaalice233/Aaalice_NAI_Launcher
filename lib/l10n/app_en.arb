@@ -148,8 +148,9 @@
   "auth_imageApiSiteHint": "Leave empty to use the same third-party API site",
   "auth_thirdPartyNicknameHint": "For example: self-hosted site / mirror site",
   "auth_thirdPartyTokenHint": "Enter the API token from the third-party site",
-  "auth_thirdPartyCompatibilityHint": "The third-party site must be compatible with NovelAI subscription and image-generation APIs. The token will be sent as a Bearer token.",
+  "auth_thirdPartyCompatibilityHint": "The third-party site must be compatible with the NovelAI image-generation API; the token will be sent as a Bearer token. Sites without /user/subscription log in without subscription info.",
   "auth_thirdPartyStreamingHint": "If the third-party site does not support streaming generation, go to Settings > Generation > Image Output and turn off Streaming preview before generating.",
+  "anlas_thirdPartyUnavailable": "This site does not provide Anlas balance info",
   "auth_thirdPartyApiSiteRequired": "Enter third-party API site URL",
   "auth_validateAndLogin": "Validate & Login",
   "auth_tokenGuide": "Get Token from NovelAI settings",
@@ -180,6 +181,7 @@
   "auth_error_authFailed": "Authentication failed",
   "auth_error_credentialsLoginUnavailable": "Email/password login is currently unavailable",
   "auth_error_credentialsLoginUnavailable_hint": "NovelAI now requires a web safety check for email/password login. Please use a Persistent API Token instead.",
+  "auth_error_endpointIncompatible": "No NAI-compatible API found at this address. Make sure the API address is the site's service root URL.",
   "auth_error_serverError": "Server error",
   "auth_error_unknown": "Unknown error",
   "auth_autoLogin": "Auto login",
@@ -340,6 +342,10 @@
   "agentChat_tab": "Chat",
   "nav_agent": "Agent",
   "agentChat_inputHint": "Message the AI agent…",
+  "agentChat_inputHintWithSlash": "Message the AI agent, / for skills…",
+  "agentChat_slashMenu": "Skills and session commands",
+  "agentChat_slashSkills": "Skills",
+  "agentChat_slashSession": "Session",
   "agentChat_addAttachment": "Add attachment or reference",
   "agentChat_photoLibrary": "Photos",
   "agentChat_currentCanvas": "Current canvas",
@@ -458,6 +464,13 @@
   "agentChat_moreActions": "More actions",
   "agentChat_compact": "Compact context",
   "agentChat_compacting": "Compacting context…",
+  "agentChat_compactDone": "Context compacted: {before} → {after}",
+  "@agentChat_compactDone": {"placeholders":{"before":{"type":"String"},"after":{"type":"String"}}},
+  "agentChat_compactNotNeeded": "Context does not need compacting yet",
+  "agentChat_compactBusy": "Still responding — try compacting afterwards",
+  "agentChat_compactUnavailable": "Context usage unavailable, cannot compact",
+  "agentChat_compactFailed": "Failed to compact context: {error}",
+  "@agentChat_compactFailed": {"placeholders":{"error":{"type":"String"}}},
   "agentChat_requestFailed": "Request failed. Please try again.",
   "agentChat_errorDetails": "Error details",
   "agentChat_model": "Select model",
@@ -2364,7 +2377,6 @@
   "localGallery_moveSelected": "Move",
   "localGallery_packSelected": "Pack",
   "localGallery_editMetadata": "Edit Tags",
-  "localGallery_addToCollection": "Collect",
   "localGallery_switchToGridView": "Switch to grid view",
   "localGallery_switchToDateGroupedView": "Switch to date grouped view",
   "localGallery_openFilterPanel": "Open filter panel",
@@ -2418,7 +2430,7 @@
     }
   },
   "localGallery_protectedBulkMoveTitle": "Protected Mode: Confirm Bulk Move",
-  "localGallery_protectedBulkMoveContent": "This will move {count} local image files to the target folder. Confirm this is not a mistake.",
+  "localGallery_protectedBulkMoveContent": "This will move {count} local image files to the target category. Confirm this is not a mistake.",
   "@localGallery_protectedBulkMoveContent": {
     "placeholders": {
       "count": {}
@@ -2663,8 +2675,31 @@
       "count": {}
     }
   },
-  "localGallery_noFoldersAvailable": "No folders available, please create a folder first",
-  "localGallery_moveToFolder": "Move to Folder",
+  "localGallery_noCategoriesAvailable": "No categories available, please create a category first",
+  "localGallery_moveToCategory": "Move to Category",
+  "@localGallery_addedToAlbumWithName": {
+    "placeholders": {
+      "count": {},
+      "name": {}
+    }
+  },
+  "localGallery_albumSectionTitle": "Albums",
+  "localGallery_folderSectionTitle": "Folders",
+  "localGallery_albumEmptyHint": "No albums yet. Create one with the button on the right.",
+  "localGallery_createAlbum": "New Album",
+  "localGallery_createSubAlbum": "New Sub-album",
+  "localGallery_moveAlbumToRoot": "Move to Root",
+  "localGallery_createAlbumTitle": "New Album",
+  "localGallery_createSubAlbumTitle": "New Sub-album",
+  "localGallery_createAlbumHint": "Enter album name",
+  "localGallery_renameAlbumTitle": "Rename Album",
+  "localGallery_deleteAlbumTitle": "Delete Album",
+  "localGallery_deleteAlbumContent": "This deletes the album; image files are not affected and sub-albums are promoted to root.",
+  "localGallery_addedToAlbum": "Added to album",
+  "localGallery_albumAddFailed": "Failed to add to album",
+  "localGallery_albumSelectTitle": "Add to Album",
+  "localGallery_addToAlbum": "Add to Album",
+  "localGallery_addedToAlbumWithName": "Added {count} images to '{name}'",
   "localGallery_imageCount": "{count} images",
   "@localGallery_imageCount": {
     "placeholders": {
@@ -2678,14 +2713,6 @@
     }
   },
   "localGallery_moveImagesFailed": "Failed to move images",
-  "localGallery_addedToCollection": "Added {count} images to collection \"{name}\"",
-  "@localGallery_addedToCollection": {
-    "placeholders": {
-      "count": {},
-      "name": {}
-    }
-  },
-  "localGallery_addToCollectionFailed": "Failed to add images to collection",
 
   "brushPreset_selectHint": "Double tap to select this brush preset",
   "brushPreset_pencil": "Pencil",
@@ -6447,6 +6474,13 @@
   "agentSettings_modelManagedInIntegrations": "Providers, API keys, and model discovery remain centrally managed in Integrations.",
   "agentSettings_noModel": "No chat model is available. Add a provider and discover models in Integrations first.",
   "agentSettings_pendingMatch": "pending match",
+  "agentSettings_contextWindow": "Context window (tokens)",
+  "agentSettings_contextWindowKnown": "Leave empty to use the built-in value {value}. Override it when a relay or custom deployment exposes a different window.",
+  "@agentSettings_contextWindowKnown": {"placeholders":{"value":{"type":"String"}}},
+  "agentSettings_contextWindowUnknown": "This model is not in the built-in catalog, so its window cannot be detected. Without a value, context usage stays hidden and compaction is unavailable.",
+  "agentSettings_contextWindowUnknownHint": "e.g. 128000",
+  "agentSettings_contextWindowReset": "Restore the built-in value",
+  "agentSettings_contextWindowInvalid": "Enter a whole number between 1 and 20000000",
   "agentSettings_toolPermission": "Tool permissions",
   "agentSettings_permissionSafe": "Safe",
   "agentSettings_permissionSafeDescription": "Run read-only and low-risk operations only, without sensitive-action prompts.",

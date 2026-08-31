@@ -1,27 +1,47 @@
 import 'dart:convert';
 
+import 'package:nai_launcher/core/database/datasources/gallery_data_source.dart';
+
 import '../../core/constants/storage_keys.dart';
 import '../../core/shortcuts/shortcut_config.dart';
 import '../../core/storage/local_storage_service.dart';
+import '../models/gallery/gallery_album.dart';
 import '../models/prompt/prompt_config.dart';
 import '../models/prompt/random_preset.dart';
 import '../models/prompt/tag_favorite.dart';
 import '../models/prompt/tag_template.dart';
+import '../repositories/gallery_folder_repository.dart';
 import '../services/precise_ref_library_storage_service.dart';
 import '../services/tag_library_io_service.dart';
 import '../services/vibe_library_storage_service.dart';
 import '../repositories/online_gallery_local_favorites_repository.dart';
 import '../repositories/online_gallery_blacklist_repository.dart';
+import '../services/gallery/gallery_album_sidecar_service.dart';
 import 'cloud_sync_data_adapter.dart';
 import 'cloud_sync_data_adapter_registry.dart';
 import 'agent_cloud_sync_adapters.dart';
 import 'ffdkj_install_intent_adapter.dart';
+import 'gallery_album_cloud_sync_adapter.dart';
 import 'online_favorites_cloud_sync_adapter.dart';
 import 'portable_sync_record.dart';
 import 'precise_ref_cloud_sync_adapter.dart';
 import 'strict_hive_cloud_sync_adapter.dart';
 import 'vibe_library_cloud_sync_adapter.dart';
 import 'user_tag_library_cloud_sync_adapter.dart';
+
+GalleryAlbum galleryAlbumFromRecord(GalleryAlbumRecord record) {
+  return GalleryAlbum(
+    id: record.id,
+    name: record.name,
+    description: record.description,
+    parentId: record.parentId,
+    sortOrder: record.sortOrder,
+    coverPath: record.coverPath,
+    pendingPaths: record.pendingPaths,
+    createdAt: record.createdAt,
+    updatedAt: record.updatedAt,
+  );
+}
 
 CloudSyncDataAdapterRegistry createAppCloudSyncAdapterRegistry({
   required LocalStorageService localStorage,
@@ -33,6 +53,10 @@ CloudSyncDataAdapterRegistry createAppCloudSyncAdapterRegistry({
   required Future<void> Function() recordPendingFfdkjInstallIntent,
   AgentSkillsCloudSyncAdapter? agentSkills,
 }) {
+  final galleryDataSource = GalleryDataSource();
+  Future<List<GalleryAlbumRecord>> galleryAlbumRecords() =>
+      galleryDataSource.albums.getAlbums();
+
   return CloudSyncDataAdapterRegistry([
     SettingsCloudSyncAdapter(localStorage),
     AgentSystemPromptCloudSyncAdapter(localStorage),
@@ -81,6 +105,79 @@ CloudSyncDataAdapterRegistry createAppCloudSyncAdapterRegistry({
     ),
     PromptAssistantProfileCloudSyncAdapter(localStorage),
     OnlineFavoritesCloudSyncAdapter(onlineFavorites),
+    GalleryAlbumCloudSyncAdapter(
+      readAlbums: () async => [
+        for (final record in await galleryAlbumRecords())
+          galleryAlbumFromRecord(record),
+      ],
+      readMemberPaths: galleryDataSource.albums.getAllAlbumMemberPaths,
+      applyAlbums: (imports, deletedAlbumIds) async {
+        final rootPath = await GalleryFolderRepository.instance.getRootPath();
+        final absolutePathByRelative = <String, String>{};
+        if (rootPath != null && rootPath.isNotEmpty) {
+          for (final import in imports) {
+            for (final path in import.imagePaths) {
+              absolutePathByRelative[path] =
+                  GalleryAlbumSidecarService.toAbsolutePath(rootPath, path);
+            }
+          }
+        }
+        final idMap = absolutePathByRelative.isEmpty
+            ? const <String, int?>{}
+            : await galleryDataSource.getImageIdsByPaths(
+                absolutePathByRelative.values.toList(growable: false),
+              );
+
+        final albums = <GalleryAlbumRecord>[];
+        final imageIdsByAlbumId = <String, List<int>>{};
+        final pendingPathsByAlbumId = <String, List<String>>{};
+        for (final import in imports) {
+          final imageIds = <int>[];
+          final pendingPaths = <String>[];
+          for (final path in import.imagePaths) {
+            final absolutePath = absolutePathByRelative[path];
+            final imageId = absolutePath == null ? null : idMap[absolutePath];
+            if (imageId != null) {
+              imageIds.add(imageId);
+            } else {
+              pendingPaths.add(path);
+            }
+          }
+          final album = import.album;
+          albums.add(
+            GalleryAlbumRecord(
+              id: album.id,
+              name: album.name,
+              description: album.description,
+              parentId: album.parentId,
+              sortOrder: album.sortOrder,
+              coverPath:
+                  album.coverPath == null ||
+                      rootPath == null ||
+                      rootPath.isEmpty
+                  ? album.coverPath
+                  : GalleryAlbumSidecarService.toAbsolutePath(
+                      rootPath,
+                      album.coverPath!,
+                    ),
+              pendingPaths: pendingPaths,
+              createdAt: album.createdAt,
+              updatedAt: album.updatedAt,
+            ),
+          );
+          imageIdsByAlbumId[album.id] = imageIds;
+          pendingPathsByAlbumId[album.id] = pendingPaths;
+        }
+
+        await galleryDataSource.albums.applyCloudSyncAlbums(
+          albums,
+          imageIdsByAlbumId,
+          pendingPathsByAlbumId: pendingPathsByAlbumId,
+          deletedAlbumIds: deletedAlbumIds,
+        );
+      },
+      getRootPath: GalleryFolderRepository.instance.getRootPath,
+    ),
     VibeLibraryCloudSyncAdapter(vibeLibrary),
     PreciseRefCloudSyncAdapter(preciseRefLibrary),
     FfdkjInstallIntentAdapter(

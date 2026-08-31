@@ -303,7 +303,30 @@ void Win32Window::ResizeChildContent() {
   if (window_handle_ == nullptr || child_content_ == nullptr) {
     return;
   }
+
+  // The top-level message has already passed through HandleTopLevelWindowProc,
+  // so Flutter still receives its hidden lifecycle event. Keep the child HWND
+  // at its last bounds while iconic instead of forwarding minimize geometry.
+  if (IsIconic(window_handle_)) {
+    return;
+  }
+
   RECT frame = GetClientArea();
+  const LONG width = frame.right - frame.left;
+  const LONG height = frame.bottom - frame.top;
+  if (width > 0 && height > 0) {
+    last_valid_client_rect_ = frame;
+    has_last_valid_client_rect_ = true;
+  } else {
+    // Restore can briefly expose an empty client area before the real client
+    // rect arrives. Reuse the last valid bounds until the queued resize from
+    // WM_SIZE or WM_WINDOWPOSCHANGED aligns the child to the restored window.
+    if (!has_last_valid_client_rect_) {
+      return;
+    }
+    frame = last_valid_client_rect_;
+  }
+
   MoveWindow(child_content_, frame.left, frame.top, frame.right - frame.left,
              frame.bottom - frame.top, TRUE);
 }

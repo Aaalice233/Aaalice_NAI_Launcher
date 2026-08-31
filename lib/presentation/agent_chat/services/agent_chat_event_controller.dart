@@ -2,9 +2,9 @@ import 'dart:collection';
 
 import '../../../core/agent/agent.dart';
 import '../../../core/agent/context_usage.dart';
-import '../../../core/agent/harness/harness_messages.dart';
 import '../../../core/agent/harness/session/session_types.dart'
     as session_types;
+import '../models/agent_chat_prompt_envelope.dart';
 import '../providers/agent_chat_state.dart';
 import 'agent_chat_session_controller.dart';
 import 'agent_tool_permission_controller.dart';
@@ -96,9 +96,7 @@ class AgentChatEventController {
             ),
           );
           await _sessionController.persistMessage(message);
-          if (message is UserMessage ||
-              (message is HarnessCustomMessage &&
-                  message.customType == 'agentResourcePrompt')) {
+          if (isVisualUserMessage(message)) {
             await _sessionController.autoNameSession(message);
           }
         }

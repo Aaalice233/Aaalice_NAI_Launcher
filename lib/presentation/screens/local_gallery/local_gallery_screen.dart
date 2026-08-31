@@ -7,6 +7,7 @@ import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/shortcuts/default_shortcuts.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../providers/bulk_operation_provider.dart';
+import '../../providers/gallery_album_provider.dart';
 import '../../providers/gallery_category_provider.dart';
 import '../../providers/local_gallery_provider.dart';
 import '../../providers/selection_mode_provider.dart';
@@ -140,6 +141,7 @@ class _LocalGalleryShell extends ConsumerWidget {
             controller.buildCategoryPanel(
               galleryState: gallery,
               categoryState: viewModel.categories,
+              albumState: ref.watch(galleryAlbumNotifierProvider),
             ),
           Expanded(
             child: Column(
@@ -184,13 +186,13 @@ class _LocalGalleryShell extends ConsumerWidget {
       onUndo: bulk.canUndo ? actions.undo : null,
       onRedo: bulk.canRedo ? actions.redo : null,
       groupedGridViewKey: groupedGridViewKey,
-      onAddToCollection: actions.addSelectedToCollection,
+      onAddToAlbum: actions.addSelectedToAlbum,
       onDeleteSelected: actions.deleteSelectedImages,
       onPackSelected: viewModel.isPackingImages
           ? null
           : () => unawaited(controller.runPacking(actions.packSelectedImages)),
       onEditMetadata: actions.editSelectedMetadata,
-      onMoveToFolder: actions.moveSelectedToFolder,
+      onMoveToCategory: actions.moveSelectedToCategory,
       showCategoryPanel: viewModel.showPersistentCategories,
       onToggleCategoryPanel: viewModel.usePersistentCategories
           ? controller.toggleCategoryPanel

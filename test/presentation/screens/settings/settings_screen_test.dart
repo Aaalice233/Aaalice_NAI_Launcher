@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/core/storage/secure_storage_service.dart';
 import 'package:nai_launcher/core/agent/skill_catalog.dart';
+import 'package:nai_launcher/core/windowing/desktop_window_controller.dart';
 import 'package:nai_launcher/data/models/user/user_subscription.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/account_manager_provider.dart';
@@ -22,6 +23,34 @@ import 'package:nai_launcher/presentation/screens/settings/sections/integrations
 import 'package:nai_launcher/presentation/screens/settings/sections/prompt_assistant_settings_section.dart';
 import 'package:nai_launcher/presentation/screens/settings/settings_screen.dart';
 import 'package:nai_launcher/presentation/screens/settings/settings_section.dart';
+import 'package:nai_launcher/presentation/widgets/common/desktop_window_frame.dart';
+import 'package:window_manager/window_manager.dart';
+
+class _NoopDesktopWindowController implements DesktopWindowController {
+  @override
+  void addListener(WindowListener listener) {}
+
+  @override
+  void removeListener(WindowListener listener) {}
+
+  @override
+  Future<bool> isMaximized() async => false;
+
+  @override
+  Future<void> startDragging() async {}
+
+  @override
+  Future<void> minimize() async {}
+
+  @override
+  Future<void> maximize() async {}
+
+  @override
+  Future<void> unmaximize() async {}
+
+  @override
+  Future<void> close() async {}
+}
 
 class _MemoryLocalStorage extends LocalStorageService {
   final Map<String, Object?> _values = {};
@@ -633,11 +662,18 @@ void main() {
             _FakeSubscriptionNotifier.new,
           ),
         ],
-        child: const MaterialApp(
-          locale: Locale('zh'),
+        child: MaterialApp(
+          locale: const Locale('zh'),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
-          home: SettingsScreen(initialSection: SettingsSection.integrations),
+          builder: (context, child) => DesktopWindowFrame(
+            enabled: true,
+            controller: _NoopDesktopWindowController(),
+            child: child!,
+          ),
+          home: const SettingsScreen(
+            initialSection: SettingsSection.integrations,
+          ),
         ),
       ),
     );
@@ -658,6 +694,28 @@ void main() {
         .pixels;
     expect(desktopOffset, greaterThan(0));
 
+    for (final minimizedSize in [Size.zero, const Size(144, 19)]) {
+      await tester.binding.setSurfaceSize(minimizedSize);
+      await tester.pump();
+      expect(find.byType(NavigationRail), findsOneWidget);
+      expect(find.byType(IntegrationsSettingsSection), findsOneWidget);
+      expect(
+        tester.state<ScrollableState>(contentScrollable()).position.pixels,
+        closeTo(desktopOffset, 1),
+      );
+      expect(tester.takeException(), isNull);
+    }
+
+    await tester.binding.setSurfaceSize(const Size(1280, 700));
+    await tester.pump();
+    expect(find.byType(NavigationRail), findsOneWidget);
+    expect(find.byType(IntegrationsSettingsSection), findsOneWidget);
+    expect(
+      tester.state<ScrollableState>(contentScrollable()).position.pixels,
+      closeTo(desktopOffset, 1),
+    );
+
+    // A real manual resize still crosses the responsive breakpoint normally.
     await tester.binding.setSurfaceSize(const Size(390, 700));
     await tester.pumpAndSettle();
     expect(
