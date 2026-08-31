@@ -6,6 +6,7 @@ import 'package:nai_launcher/presentation/providers/auth_provider.dart';
 import 'package:nai_launcher/presentation/themes/core/input_surface_style.dart';
 import 'package:nai_launcher/presentation/widgets/auth/auth_mode_switcher.dart';
 import 'package:nai_launcher/presentation/widgets/auth/login_form_container.dart';
+import 'package:nai_launcher/presentation/widgets/auth/third_party_api_login_card.dart';
 import 'package:nai_launcher/presentation/widgets/common/floating_label_input.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -125,6 +126,31 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  for (final locale in AppLocalizations.supportedLocales) {
+    testWidgets(
+      'third-party streaming hint keeps the exact settings path on narrow layouts for $locale',
+      (tester) async {
+        await _pumpThirdPartyCard(tester, locale);
+
+        final hintFinder = find.byKey(const Key('third_party_streaming_hint'));
+        final l10n = AppLocalizations.of(tester.element(hintFinder))!;
+        final hint = l10n.auth_thirdPartyStreamingHint;
+
+        expect(find.text(hint), findsOneWidget);
+        expect(hint, contains(l10n.settings_title));
+        expect(hint, contains(l10n.settings_generation));
+        expect(hint, contains(l10n.settings_generationOutputSection));
+        expect(hint, contains(l10n.settings_generationStreamPreview));
+
+        final hintRect = tester.getRect(hintFinder);
+        final cardRect = tester.getRect(find.byType(ThirdPartyApiLoginCard));
+        expect(hintRect.left, greaterThanOrEqualTo(cardRect.left));
+        expect(hintRect.right, lessThanOrEqualTo(cardRect.right));
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
 }
 
 Future<void> _pumpLoginForm(
@@ -151,6 +177,32 @@ Future<void> _pumpLoginForm(
             child: SizedBox(
               width: 402,
               child: SingleChildScrollView(child: LoginFormContainer()),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
+
+Future<void> _pumpThirdPartyCard(WidgetTester tester, Locale locale) async {
+  await tester.binding.setSurfaceSize(const Size(360, 1000));
+  addTearDown(() => tester.binding.setSurfaceSize(null));
+
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [authNotifierProvider.overrideWith(_FakeAuthNotifier.new)],
+      child: MaterialApp(
+        locale: locale,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: const MediaQuery(
+          data: MediaQueryData(textScaler: TextScaler.linear(2)),
+          child: Scaffold(
+            body: SingleChildScrollView(
+              padding: EdgeInsets.all(20),
+              child: ThirdPartyApiLoginCard(),
             ),
           ),
         ),

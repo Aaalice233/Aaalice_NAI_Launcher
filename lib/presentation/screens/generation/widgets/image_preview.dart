@@ -27,6 +27,7 @@ import '../../../../data/models/image/image_stream_chunk.dart';
 import '../../../../data/repositories/gallery_folder_repository.dart';
 import '../../../../data/services/alias_resolver_service.dart';
 import '../../../../data/services/image_metadata_service.dart';
+import '../../../providers/generation/generation_error_classifier.dart';
 import '../../../providers/generation/generation_params_selectors.dart';
 import '../../../providers/generation/preview_selection_provider.dart';
 import '../../../providers/history_click_behavior_provider.dart';
@@ -507,6 +508,13 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
   (String, String?) _parseApiError(String? message, BuildContext context) {
     if (message == null || message.isEmpty) {
       return (context.l10n.generation_generationFailed, null);
+    }
+
+    if (isStreamingGenerationUnsupportedError(message)) {
+      return (
+        context.l10n.generation_streamingUnsupported,
+        context.l10n.generation_streamingUnsupportedHint,
+      );
     }
 
     // 取消操作

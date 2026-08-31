@@ -402,6 +402,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'The third-party site must be compatible with NovelAI subscription and image-generation APIs. The token will be sent as a Bearer token.';
 
   @override
+  String get auth_thirdPartyStreamingHint =>
+      'If the third-party site does not support streaming generation, go to Settings > Generation > Image Output and turn off Streaming preview before generating.';
+
+  @override
   String get auth_thirdPartyApiSiteRequired => 'Enter third-party API site URL';
 
   @override
@@ -841,6 +845,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get generation_generationFailed => 'Generation failed';
+
+  @override
+  String get generation_streamingUnsupported =>
+      'This site does not support streaming generation';
+
+  @override
+  String get generation_streamingUnsupportedHint =>
+      'Go to Settings > Generation > Image Output, turn off Streaming preview, and try again.';
 
   @override
   String generation_progress(Object progress) {

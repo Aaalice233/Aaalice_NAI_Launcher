@@ -275,6 +275,37 @@ void main() {
       isNull,
     );
   });
+
+  testWidgets('streaming unsupported error explains how to retry', (
+    tester,
+  ) async {
+    final container = ProviderContainer(
+      overrides: [
+        imageGenerationNotifierProvider.overrideWith(
+          () => _SelectionImageGenerationNotifier(
+            const ImageGenerationState(
+              status: GenerationStatus.error,
+              errorMessage:
+                  'API_ERROR_400|Streaming is not supported by this site',
+            ),
+          ),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(_app(container));
+    await tester.pumpAndSettle();
+    final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+
+    expect(find.text(l10n.generation_streamingUnsupported), findsOneWidget);
+    expect(find.text(l10n.generation_streamingUnsupportedHint), findsOneWidget);
+    expect(
+      l10n.generation_streamingUnsupportedHint,
+      contains(l10n.settings_generationStreamPreview),
+    );
+    expect(tester.takeException(), isNull);
+  });
 }
 
 Widget _app(ProviderContainer container) {
