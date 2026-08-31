@@ -198,7 +198,10 @@ void main() {
           ),
         );
 
-        final imageIds = await dataSource.batchUpsertImages(imageRecords);
+        final imageIds = await dataSource.batchUpsertImages(
+          imageRecords,
+          batchSize: totalImages,
+        );
         expect(imageIds.length, equals(totalImages));
 
         await dataSource.batchUpsertMetadata([
@@ -211,7 +214,7 @@ void main() {
                 seed: i,
               ),
             ),
-        ]);
+        ], batchSize: totalImages);
 
         final filterService = GalleryFilterService(dataSource);
         final result = await filterService.applyFilters([

@@ -633,13 +633,30 @@ void main() {
 
 void _expectSamePixels(img.Image actual, img.Image expected) {
   expect((actual.width, actual.height), (expected.width, expected.height));
+  // image's integer source-over path can differ from rounded replacement
+  // compositing by up to two RGB levels; alpha remains an exact contract.
+  const maxRgbQuantizationDelta = 2;
   for (var y = 0; y < actual.height; y++) {
     for (var x = 0; x < actual.width; x++) {
+      final actualPixel = _rgbaAt(actual, x, y);
+      final expectedPixel = _rgbaAt(expected, x, y);
+      final reason = 'Pixel mismatch at $x,$y';
       expect(
-        _rgbaAt(actual, x, y),
-        _rgbaAt(expected, x, y),
-        reason: 'Pixel mismatch at $x,$y',
+        (actualPixel.r - expectedPixel.r).abs(),
+        lessThanOrEqualTo(maxRgbQuantizationDelta),
+        reason: reason,
       );
+      expect(
+        (actualPixel.g - expectedPixel.g).abs(),
+        lessThanOrEqualTo(maxRgbQuantizationDelta),
+        reason: reason,
+      );
+      expect(
+        (actualPixel.b - expectedPixel.b).abs(),
+        lessThanOrEqualTo(maxRgbQuantizationDelta),
+        reason: reason,
+      );
+      expect(actualPixel.a, expectedPixel.a, reason: reason);
     }
   }
 }

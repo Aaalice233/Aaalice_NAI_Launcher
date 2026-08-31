@@ -1284,15 +1284,30 @@ class _PendingRequest {
 
 void _expectSameImagePixels(img.Image actual, img.Image expected) {
   expect((actual.width, actual.height), (expected.width, expected.height));
+  // image's integer source-over path can differ from rounded replacement
+  // compositing by up to two RGB levels; alpha remains an exact contract.
+  const maxRgbQuantizationDelta = 2;
   for (var y = 0; y < actual.height; y++) {
     for (var x = 0; x < actual.width; x++) {
       final a = actual.getPixel(x, y);
       final b = expected.getPixel(x, y);
+      final reason = 'Pixel mismatch at $x,$y';
       expect(
-        (a.r.toInt(), a.g.toInt(), a.b.toInt(), a.a.toInt()),
-        (b.r.toInt(), b.g.toInt(), b.b.toInt(), b.a.toInt()),
-        reason: 'Pixel mismatch at $x,$y',
+        (a.r.toInt() - b.r.toInt()).abs(),
+        lessThanOrEqualTo(maxRgbQuantizationDelta),
+        reason: reason,
       );
+      expect(
+        (a.g.toInt() - b.g.toInt()).abs(),
+        lessThanOrEqualTo(maxRgbQuantizationDelta),
+        reason: reason,
+      );
+      expect(
+        (a.b.toInt() - b.b.toInt()).abs(),
+        lessThanOrEqualTo(maxRgbQuantizationDelta),
+        reason: reason,
+      );
+      expect(a.a.toInt(), b.a.toInt(), reason: reason);
     }
   }
 }
