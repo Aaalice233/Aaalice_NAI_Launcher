@@ -471,8 +471,12 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
         ),
       );
 
-      // 刷新当前页
-      await loadPage(state.currentPage, showLoading: false);
+      if (state.isGroupedView) {
+        await _loadGroupedImages();
+      } else {
+        // 刷新当前页
+        await loadPage(state.currentPage, showLoading: false);
+      }
     } on GalleryScanException catch (e) {
       _setState(
         state.copyWith(
