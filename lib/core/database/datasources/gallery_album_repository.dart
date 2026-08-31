@@ -71,6 +71,17 @@ abstract interface class GalleryAlbumRepository {
     Map<String, List<String>> pendingPathsByAlbumId = const {},
   });
 
+  /// 在单一事务中应用云端相簿快照变更。
+  ///
+  /// 云端成员列表是权威快照；导入相簿的旧成员会先清除，再写入已解析
+  /// 成员和待绑定路径。删除、父子图校验和拓扑写入必须全部成功才提交。
+  Future<void> applyCloudSyncAlbums(
+    List<GalleryAlbumRecord> albums,
+    Map<String, List<int>> imageIdsByAlbumId, {
+    Map<String, List<String>> pendingPathsByAlbumId = const {},
+    Set<String> deletedAlbumIds = const {},
+  });
+
   /// 把 pending 成员路径批量解析并绑定。
   ///
   /// [resolve] 接收相对路径列表，返回 相对路径 -> imageId 映射
@@ -497,6 +508,101 @@ class SqliteGalleryAlbumRepository implements GalleryAlbumRepository {
     context.markDataChanged();
   }
 
+  @override
+  Future<void> applyCloudSyncAlbums(
+    List<GalleryAlbumRecord> albums,
+    Map<String, List<int>> imageIdsByAlbumId, {
+    Map<String, List<String>> pendingPathsByAlbumId = const {},
+    Set<String> deletedAlbumIds = const {},
+  }) async {
+    if (albums.isEmpty && deletedAlbumIds.isEmpty) return;
+    final now = _now();
+
+    await gateway.executeTransaction('applyCloudSyncAlbums', (txn) async {
+      final existingRows = await txn.rawQuery(
+        'SELECT id, parent_id FROM ${GalleryTables.albums}',
+      );
+      final parentOf = <String, String?>{
+        for (final row in existingRows)
+          row['id'] as String: row['parent_id'] as String?,
+      };
+
+      for (final deletedId in deletedAlbumIds) {
+        parentOf.remove(deletedId);
+      }
+      for (final entry in parentOf.entries.toList()) {
+        if (entry.value != null && deletedAlbumIds.contains(entry.value)) {
+          parentOf[entry.key] = null;
+        }
+      }
+      for (final album in albums) {
+        parentOf[album.id] = album.parentId;
+      }
+      _validateAlbumParentGraph(parentOf, parentOf.keys.toSet());
+      final ordered = _topoSortAlbums(albums, parentOf);
+
+      final batch = txn.batch();
+      for (final deletedId in deletedAlbumIds) {
+        batch.update(
+          GalleryTables.albums,
+          {'parent_id': null, 'updated_at': now},
+          where: 'parent_id = ?',
+          whereArgs: [deletedId],
+        );
+        batch.delete(
+          GalleryTables.albums,
+          where: 'id = ?',
+          whereArgs: [deletedId],
+        );
+      }
+      for (final album in ordered) {
+        final pending = _mergePending(
+          pendingPathsByAlbumId[album.id],
+          album.pendingPaths,
+        );
+        batch.execute(
+          'INSERT INTO ${GalleryTables.albums} '
+          '(id, name, description, parent_id, sort_order, cover_path, '
+          ' pending_paths, created_at, updated_at) '
+          'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) '
+          'ON CONFLICT(id) DO UPDATE SET '
+          '  name = excluded.name, '
+          '  description = excluded.description, '
+          '  parent_id = excluded.parent_id, '
+          '  sort_order = excluded.sort_order, '
+          '  cover_path = excluded.cover_path, '
+          '  pending_paths = excluded.pending_paths, '
+          '  updated_at = excluded.updated_at',
+          [
+            album.id,
+            album.name,
+            album.description,
+            album.parentId,
+            album.sortOrder,
+            album.coverPath,
+            jsonEncode(pending),
+            album.createdAt.millisecondsSinceEpoch,
+            album.updatedAt.millisecondsSinceEpoch,
+          ],
+        );
+        batch.delete(
+          GalleryTables.albumImages,
+          where: 'album_id = ?',
+          whereArgs: [album.id],
+        );
+        for (final imageId in imageIdsByAlbumId[album.id] ?? const <int>[]) {
+          batch.insert(GalleryTables.albumImages, {
+            'album_id': album.id,
+            'image_id': imageId,
+            'added_at': now,
+          }, conflictAlgorithm: ConflictAlgorithm.ignore);
+        }
+      }
+      await batch.commit(noResult: true);
+    });
+    context.markDataChanged();
+  }
+
   /// 合并调用方传入的 pending 与记录自带的 pending（去重）
   static List<String> _mergePending(List<String>? a, List<String>? b) {
     if (a == null || a.isEmpty) return b ?? const [];
@@ -584,39 +690,65 @@ class SqliteGalleryAlbumRepository implements GalleryAlbumRepository {
       if (pending.isEmpty) continue;
 
       final resolved = await resolve(pending);
-      final stillPending = <String>[];
-      final boundIds = <int>[];
-      for (final path in pending) {
-        final imageId = resolved[path];
-        if (imageId != null) {
-          boundIds.add(imageId);
-        } else {
-          stillPending.add(path);
-        }
-      }
+      // 解析期间云恢复可能替换相簿快照；只绑定事务开始时仍处于 pending 的路径。
+      final outcome = await gateway.executeTransaction(
+        'rebindPendingPaths.apply',
+        (txn) async {
+          final currentRows = await txn.query(
+            GalleryTables.albums,
+            columns: const ['pending_paths'],
+            where: 'id = ?',
+            whereArgs: [albumId],
+            limit: 1,
+          );
+          if (currentRows.isEmpty) return (bound: 0, remaining: 0);
 
-      await gateway.execute('rebindPendingPaths.apply', (db) async {
-        final batch = db.batch();
-        for (final imageId in boundIds) {
-          batch.insert(GalleryTables.albumImages, {
-            'album_id': albumId,
-            'image_id': imageId,
-            'added_at': _now(),
-          }, conflictAlgorithm: ConflictAlgorithm.ignore);
-        }
-        batch.update(
-          GalleryTables.albums,
-          {'pending_paths': jsonEncode(stillPending)},
-          where: 'id = ?',
-          whereArgs: [albumId],
-        );
-        await batch.commit(noResult: true);
-      });
+          List<String> currentPending;
+          try {
+            final decoded = jsonDecode(
+              currentRows.single['pending_paths'] as String? ?? '[]',
+            );
+            currentPending = decoded is List
+                ? decoded.whereType<String>().toList()
+                : const [];
+          } catch (_) {
+            currentPending = const [];
+          }
 
-      if (boundIds.isNotEmpty) {
+          final stillPending = <String>[];
+          final boundIds = <int>[];
+          for (final path in currentPending) {
+            final imageId = resolved[path];
+            if (imageId != null) {
+              boundIds.add(imageId);
+            } else {
+              stillPending.add(path);
+            }
+          }
+
+          final batch = txn.batch();
+          for (final imageId in boundIds) {
+            batch.insert(
+              GalleryTables.albumImages,
+              {'album_id': albumId, 'image_id': imageId, 'added_at': _now()},
+              conflictAlgorithm: ConflictAlgorithm.ignore,
+            );
+          }
+          batch.update(
+            GalleryTables.albums,
+            {'pending_paths': jsonEncode(stillPending)},
+            where: 'id = ?',
+            whereArgs: [albumId],
+          );
+          await batch.commit(noResult: true);
+          return (bound: boundIds.length, remaining: stillPending.length);
+        },
+      );
+
+      if (outcome.bound > 0) {
         context.markDataChanged();
       }
-      remaining += stillPending.length;
+      remaining += outcome.remaining;
     }
     return remaining;
   }

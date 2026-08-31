@@ -29,6 +29,20 @@ import 'strict_hive_cloud_sync_adapter.dart';
 import 'vibe_library_cloud_sync_adapter.dart';
 import 'user_tag_library_cloud_sync_adapter.dart';
 
+GalleryAlbum galleryAlbumFromRecord(GalleryAlbumRecord record) {
+  return GalleryAlbum(
+    id: record.id,
+    name: record.name,
+    description: record.description,
+    parentId: record.parentId,
+    sortOrder: record.sortOrder,
+    coverPath: record.coverPath,
+    pendingPaths: record.pendingPaths,
+    createdAt: record.createdAt,
+    updatedAt: record.updatedAt,
+  );
+}
+
 CloudSyncDataAdapterRegistry createAppCloudSyncAdapterRegistry({
   required LocalStorageService localStorage,
   required VibeLibraryStorageService vibeLibrary,
@@ -94,64 +108,73 @@ CloudSyncDataAdapterRegistry createAppCloudSyncAdapterRegistry({
     GalleryAlbumCloudSyncAdapter(
       readAlbums: () async => [
         for (final record in await galleryAlbumRecords())
-          GalleryAlbum(
-            id: record.id,
-            name: record.name,
-            description: record.description,
-            parentId: record.parentId,
-            sortOrder: record.sortOrder,
-            coverPath: record.coverPath,
-            createdAt: record.createdAt,
-            updatedAt: record.updatedAt,
-          ),
+          galleryAlbumFromRecord(record),
       ],
       readMemberPaths: galleryDataSource.albums.getAllAlbumMemberPaths,
-      upsertAlbum: (album, imagePaths, extraPendingPaths) async {
+      applyAlbums: (imports, deletedAlbumIds) async {
         final rootPath = await GalleryFolderRepository.instance.getRootPath();
-        // 相对路径优先解析为已索引图片；新设备尚未扫描完成时解析失败
-        // 的引用进入 pending，由扫描协调器补绑，不丢弃成员
-        final idMap = rootPath == null || rootPath.isEmpty
-            ? const <String, int?>{}
-            : await galleryDataSource.getImageIdsByPaths([
-                for (final path in imagePaths)
-                  GalleryAlbumSidecarService.toAbsolutePath(rootPath, path),
-              ]);
-        final imageIds = <int>[];
-        final pendingPaths = [...extraPendingPaths];
-        for (var i = 0; i < imagePaths.length; i++) {
-          final absolutePath = rootPath == null || rootPath.isEmpty
-              ? imagePaths[i]
-              : GalleryAlbumSidecarService.toAbsolutePath(
-                  rootPath,
-                  imagePaths[i],
-                );
-          final imageId = idMap[absolutePath];
-          if (imageId != null) {
-            imageIds.add(imageId);
-          } else {
-            pendingPaths.add(imagePaths[i]);
+        final absolutePathByRelative = <String, String>{};
+        if (rootPath != null && rootPath.isNotEmpty) {
+          for (final import in imports) {
+            for (final path in import.imagePaths) {
+              absolutePathByRelative[path] =
+                  GalleryAlbumSidecarService.toAbsolutePath(rootPath, path);
+            }
           }
         }
-        await galleryDataSource.albums.importAlbums(
-          [
+        final idMap = absolutePathByRelative.isEmpty
+            ? const <String, int?>{}
+            : await galleryDataSource.getImageIdsByPaths(
+                absolutePathByRelative.values.toList(growable: false),
+              );
+
+        final albums = <GalleryAlbumRecord>[];
+        final imageIdsByAlbumId = <String, List<int>>{};
+        final pendingPathsByAlbumId = <String, List<String>>{};
+        for (final import in imports) {
+          final imageIds = <int>[];
+          final pendingPaths = <String>[];
+          for (final path in import.imagePaths) {
+            final absolutePath = absolutePathByRelative[path];
+            final imageId = absolutePath == null ? null : idMap[absolutePath];
+            if (imageId != null) {
+              imageIds.add(imageId);
+            } else {
+              pendingPaths.add(path);
+            }
+          }
+          final album = import.album;
+          albums.add(
             GalleryAlbumRecord(
               id: album.id,
               name: album.name,
               description: album.description,
               parentId: album.parentId,
               sortOrder: album.sortOrder,
-              coverPath: album.coverPath,
+              coverPath:
+                  album.coverPath == null ||
+                      rootPath == null ||
+                      rootPath.isEmpty
+                  ? album.coverPath
+                  : GalleryAlbumSidecarService.toAbsolutePath(
+                      rootPath,
+                      album.coverPath!,
+                    ),
               pendingPaths: pendingPaths,
               createdAt: album.createdAt,
               updatedAt: album.updatedAt,
             ),
-          ],
-          {album.id: imageIds},
-          pendingPathsByAlbumId: {album.id: pendingPaths},
+          );
+          imageIdsByAlbumId[album.id] = imageIds;
+          pendingPathsByAlbumId[album.id] = pendingPaths;
+        }
+
+        await galleryDataSource.albums.applyCloudSyncAlbums(
+          albums,
+          imageIdsByAlbumId,
+          pendingPathsByAlbumId: pendingPathsByAlbumId,
+          deletedAlbumIds: deletedAlbumIds,
         );
-      },
-      deleteAlbum: (albumId) async {
-        await galleryDataSource.albums.deleteAlbum(albumId);
       },
       getRootPath: GalleryFolderRepository.instance.getRootPath,
     ),

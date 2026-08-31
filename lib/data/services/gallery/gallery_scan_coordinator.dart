@@ -105,29 +105,31 @@ class GalleryScanCoordinator {
   }) async {
     final files = await _repository.findGalleryFiles();
     await onFilesLoaded(files);
-    if (!shouldRunRefreshIndexScan(
+    if (shouldRunRefreshIndexScan(
       scanRequested: scan,
       isBackgroundScanning: _isBackgroundScanning,
     )) {
+      final countChanged = files.length != previousCount;
+      if (countChanged && (files.length - previousCount).abs() > 100) {
+        AppLogger.i(
+          'File count changed significantly '
+              '($previousCount -> ${files.length}), performing full scan',
+          'LocalGalleryService',
+        );
+        await _performScan(files, full: true);
+      } else {
+        await _performScan(files, full: false);
+      }
+    } else {
       AppLogger.d(
         'Refresh updated file list without starting index scan: '
             'scanRequested=$scan, backgroundScanning=$_isBackgroundScanning',
         'LocalGalleryService',
       );
-      return;
     }
 
-    final countChanged = files.length != previousCount;
-    if (countChanged && (files.length - previousCount).abs() > 100) {
-      AppLogger.i(
-        'File count changed significantly '
-            '($previousCount -> ${files.length}), performing full scan',
-        'LocalGalleryService',
-      );
-      await _performScan(files, full: true);
-    } else {
-      await _performScan(files, full: false);
-    }
+    // 云恢复可能发生在启动扫描之后；每次刷新都重试已可解析的成员。
+    await _rebindAlbumPendingPaths();
   }
 
   Future<void> _initializeIndexInBackground(List<File> files) async {

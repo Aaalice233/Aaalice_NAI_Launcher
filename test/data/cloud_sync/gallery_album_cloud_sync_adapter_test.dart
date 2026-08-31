@@ -2,7 +2,9 @@ import 'package:crypto/crypto.dart' as crypto;
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:nai_launcher/core/database/datasources/gallery_data_source.dart';
 import 'package:nai_launcher/core/utils/app_logger.dart';
+import 'package:nai_launcher/data/cloud_sync/app_cloud_sync_adapters.dart';
 import 'package:nai_launcher/data/cloud_sync/cloud_sync_data_adapter.dart';
 import 'package:nai_launcher/data/cloud_sync/gallery_album_cloud_sync_adapter.dart';
 import 'package:nai_launcher/data/cloud_sync/portable_sync_record.dart';
@@ -25,6 +27,26 @@ GalleryAlbum _album({
   );
 }
 
+PortableSyncRecord _record({
+  required String albumId,
+  String? parentId,
+  List<String> images = const [],
+  bool deleted = false,
+}) {
+  return PortableSyncRecord(
+    adapterId: 'gallery-albums',
+    id: 'album-${crypto.sha256.convert(utf8.encode(albumId)).toString()}',
+    kind: 'album',
+    deleted: deleted,
+    data: {
+      'albumId': albumId,
+      'name': albumId,
+      'parentId': parentId,
+      'images': images,
+    },
+  );
+}
+
 void main() {
   setUpAll(() async {
     await AppLogger.initialize(isTestEnvironment: true);
@@ -38,11 +60,22 @@ void main() {
     return GalleryAlbumCloudSyncAdapter(
       readAlbums: () async => albums,
       readMemberPaths: () async => memberPaths,
-      upsertAlbum: (album, imagePaths, pendingPaths) async {},
-      deleteAlbum: (albumId) async {},
+      applyAlbums: (imports, deletedAlbumIds) async {},
       getRootPath: () async => rootPath,
     );
   }
+
+  test('production record mapping preserves pending paths', () {
+    final record = GalleryAlbumRecord(
+      id: 'pending',
+      name: 'pending',
+      pendingPaths: const ['waiting.png'],
+      createdAt: DateTime(2025),
+      updatedAt: DateTime(2025),
+    );
+
+    expect(galleryAlbumFromRecord(record).pendingPaths, ['waiting.png']);
+  });
 
   test(
     'export skips paths outside gallery root and never uploads absolutes',
@@ -125,6 +158,67 @@ void main() {
 
       // 合法相对路径通过
       adapter.validateRecord(recordWith('2025/08/img.png'));
+    },
+  );
+
+  test(
+    'preflight validates the complete parent graph independent of order',
+    () async {
+      final adapter = build();
+
+      await adapter.preflight([
+        _record(albumId: 'child', parentId: 'parent'),
+        _record(albumId: 'parent'),
+      ]);
+
+      await expectLater(
+        adapter.preflight([_record(albumId: 'orphan', parentId: 'missing')]),
+        throwsA(isA<CloudSyncPreflightException>()),
+      );
+      await expectLater(
+        adapter.preflight([
+          _record(albumId: 'a', parentId: 'b'),
+          _record(albumId: 'b', parentId: 'a'),
+        ]),
+        throwsA(isA<CloudSyncPreflightException>()),
+      );
+    },
+  );
+
+  test(
+    'apply sends reverse-ordered albums and deletions as one batch',
+    () async {
+      late List<GalleryAlbumCloudImport> appliedImports;
+      late Set<String> appliedDeletes;
+      var applyCount = 0;
+      final adapter = GalleryAlbumCloudSyncAdapter(
+        readAlbums: () async => const [],
+        readMemberPaths: () async => const {},
+        applyAlbums: (imports, deletedAlbumIds) async {
+          applyCount++;
+          appliedImports = imports;
+          appliedDeletes = deletedAlbumIds;
+        },
+        getRootPath: () async => null,
+      );
+
+      await adapter.apply([
+        _record(
+          albumId: 'child',
+          parentId: 'parent',
+          images: const ['waiting.png'],
+        ),
+        _record(albumId: 'parent'),
+        _record(albumId: 'deleted', deleted: true),
+      ]);
+
+      expect(applyCount, 1);
+      expect(appliedImports.map((entry) => entry.album.id), [
+        'child',
+        'parent',
+      ]);
+      expect(appliedImports.first.imagePaths, ['waiting.png']);
+      expect(appliedDeletes, {'deleted'});
     },
   );
 

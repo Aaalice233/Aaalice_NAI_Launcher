@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -228,54 +229,58 @@ void main() {
     expect(map[b], ['gallery/b.png']);
   });
 
-  test('importAlbums accepts out-of-order input (child before parent)',
-      () async {
-    final parent = GalleryAlbumRecord(
-      id: 'p1',
-      name: '父',
-      createdAt: DateTime(2025),
-      updatedAt: DateTime(2025),
-    );
-    final child = GalleryAlbumRecord(
-      id: 'c1',
-      name: '子',
-      parentId: 'p1',
-      createdAt: DateTime(2025),
-      updatedAt: DateTime(2025),
-    );
+  test(
+    'importAlbums accepts out-of-order input (child before parent)',
+    () async {
+      final parent = GalleryAlbumRecord(
+        id: 'p1',
+        name: '父',
+        createdAt: DateTime(2025),
+        updatedAt: DateTime(2025),
+      );
+      final child = GalleryAlbumRecord(
+        id: 'c1',
+        name: '子',
+        parentId: 'p1',
+        createdAt: DateTime(2025),
+        updatedAt: DateTime(2025),
+      );
 
-    // 子相簿排在父相簿之前，拓扑排序应保证父先写入
-    await dataSource.albums.importAlbums([child, parent], const {});
+      // 子相簿排在父相簿之前，拓扑排序应保证父先写入
+      await dataSource.albums.importAlbums([child, parent], const {});
 
-    final albums = await dataSource.albums.getAlbums();
-    expect(albums.map((a) => a.id).toList(), ['p1', 'c1']);
-    expect(albums[1].parentId, 'p1');
-  });
+      final albums = await dataSource.albums.getAlbums();
+      expect(albums.map((a) => a.id).toList(), ['p1', 'c1']);
+      expect(albums[1].parentId, 'p1');
+    },
+  );
 
-  test('importAlbums re-import keeps parent links (regression for REPLACE)',
-      () async {
-    final root = GalleryAlbumRecord(
-      id: 'root',
-      name: 'root',
-      createdAt: DateTime(2025),
-      updatedAt: DateTime(2025),
-    );
-    final child = GalleryAlbumRecord(
-      id: 'child',
-      name: 'child',
-      parentId: 'root',
-      createdAt: DateTime(2025),
-      updatedAt: DateTime(2025),
-    );
-    await dataSource.albums.importAlbums([root, child], const {});
+  test(
+    'importAlbums re-import keeps parent links (regression for REPLACE)',
+    () async {
+      final root = GalleryAlbumRecord(
+        id: 'root',
+        name: 'root',
+        createdAt: DateTime(2025),
+        updatedAt: DateTime(2025),
+      );
+      final child = GalleryAlbumRecord(
+        id: 'child',
+        name: 'child',
+        parentId: 'root',
+        createdAt: DateTime(2025),
+        updatedAt: DateTime(2025),
+      );
+      await dataSource.albums.importAlbums([root, child], const {});
 
-    // 重复导入父相簿：REPLACE 语义曾会经 ON DELETE SET NULL 清空父子关系
-    await dataSource.albums.importAlbums([root], const {});
+      // 重复导入父相簿：REPLACE 语义曾会经 ON DELETE SET NULL 清空父子关系
+      await dataSource.albums.importAlbums([root], const {});
 
-    final albums = await dataSource.albums.getAlbums();
-    final childRecord = albums.firstWhere((a) => a.id == 'child');
-    expect(childRecord.parentId, 'root');
-  });
+      final albums = await dataSource.albums.getAlbums();
+      final childRecord = albums.firstWhere((a) => a.id == 'child');
+      expect(childRecord.parentId, 'root');
+    },
+  );
 
   test('importAlbums rejects cycles and missing parents', () async {
     final a = GalleryAlbumRecord(
@@ -311,43 +316,165 @@ void main() {
     );
   });
 
-  test('pendingPaths persist and rebindPendingPaths binds resolved ones',
-      () async {
-    final imageId = await seedImage('gallery/a.png');
-    final album = GalleryAlbumRecord(
-      id: 'pa',
-      name: 'A',
-      createdAt: DateTime(2025),
-      updatedAt: DateTime(2025),
-    );
-    await dataSource.albums.importAlbums(
-      [album],
-      const {},
-      pendingPathsByAlbumId: const {
-        'pa': ['gallery/a.png', 'gallery/missing.png'],
-      },
-    );
+  test(
+    'applyCloudSyncAlbums restores reverse-ordered hierarchy and replaces members',
+    () async {
+      final oldImageId = await seedImage('gallery/old.png');
+      final newImageId = await seedImage('gallery/new.png');
+      final parent = GalleryAlbumRecord(
+        id: 'cloud-parent',
+        name: '父',
+        createdAt: DateTime(2025),
+        updatedAt: DateTime(2025),
+      );
+      final child = GalleryAlbumRecord(
+        id: 'cloud-child',
+        name: '子',
+        parentId: parent.id,
+        createdAt: DateTime(2025),
+        updatedAt: DateTime(2025),
+      );
+      await dataSource.albums.importAlbums(
+        [parent],
+        {
+          parent.id: [oldImageId],
+        },
+      );
 
-    var readBack = (await dataSource.albums.getAlbums()).single;
-    expect(readBack.pendingPaths, ['gallery/a.png', 'gallery/missing.png']);
+      await dataSource.albums.applyCloudSyncAlbums(
+        [child, parent],
+        {
+          parent.id: [newImageId],
+        },
+        pendingPathsByAlbumId: const {
+          'cloud-child': ['gallery/waiting.png'],
+        },
+      );
 
-    // 模拟扫描完成后补绑：可解析的绑定，仍缺的保留在 pending
-    final remaining = await dataSource.albums.rebindPendingPaths(
-      resolve: (paths) async {
-        final ids = await dataSource.getImageIdsByPaths([
-          'gallery/a.png',
-          'gallery/missing.png',
-        ]);
-        return {
-          for (final path in paths) path: ids[path],
-        };
-      },
-    );
+      final albums = await dataSource.albums.getAlbums();
+      expect(albums.map((album) => album.id), [parent.id, child.id]);
+      expect(albums.last.parentId, parent.id);
+      expect(albums.last.pendingPaths, ['gallery/waiting.png']);
+      expect(
+        await dataSource.albums.getAlbumFilePathsWithDescendants(parent.id),
+        ['gallery/new.png'],
+      );
+    },
+  );
 
-    expect(remaining, 1);
-    readBack = (await dataSource.albums.getAlbums()).single;
-    expect(readBack.pendingPaths, ['gallery/missing.png']);
-    expect(readBack.imageCount, 1);
-    expect(imageId, greaterThan(0));
-  });
+  test(
+    'applyCloudSyncAlbums rejects an invalid graph before deleting data',
+    () async {
+      final existing = GalleryAlbumRecord(
+        id: 'existing',
+        name: 'existing',
+        createdAt: DateTime(2025),
+        updatedAt: DateTime(2025),
+      );
+      await dataSource.albums.importAlbums([existing], const {});
+      final orphan = GalleryAlbumRecord(
+        id: 'orphan',
+        name: 'orphan',
+        parentId: 'missing',
+        createdAt: DateTime(2025),
+        updatedAt: DateTime(2025),
+      );
+
+      await expectLater(
+        dataSource.albums.applyCloudSyncAlbums(
+          [orphan],
+          const {},
+          deletedAlbumIds: const {'existing'},
+        ),
+        throwsA(isA<Exception>()),
+      );
+
+      expect((await dataSource.albums.getAlbums()).single.id, existing.id);
+    },
+  );
+
+  test(
+    'pendingPaths persist and rebindPendingPaths binds resolved ones',
+    () async {
+      final imageId = await seedImage('gallery/a.png');
+      final album = GalleryAlbumRecord(
+        id: 'pa',
+        name: 'A',
+        createdAt: DateTime(2025),
+        updatedAt: DateTime(2025),
+      );
+      await dataSource.albums.importAlbums(
+        [album],
+        const {},
+        pendingPathsByAlbumId: const {
+          'pa': ['gallery/a.png', 'gallery/missing.png'],
+        },
+      );
+
+      var readBack = (await dataSource.albums.getAlbums()).single;
+      expect(readBack.pendingPaths, ['gallery/a.png', 'gallery/missing.png']);
+
+      // 模拟扫描完成后补绑：可解析的绑定，仍缺的保留在 pending
+      final remaining = await dataSource.albums.rebindPendingPaths(
+        resolve: (paths) async {
+          final ids = await dataSource.getImageIdsByPaths([
+            'gallery/a.png',
+            'gallery/missing.png',
+          ]);
+          return {for (final path in paths) path: ids[path]};
+        },
+      );
+
+      expect(remaining, 1);
+      readBack = (await dataSource.albums.getAlbums()).single;
+      expect(readBack.pendingPaths, ['gallery/missing.png']);
+      expect(readBack.imageCount, 1);
+      expect(imageId, greaterThan(0));
+    },
+  );
+
+  test(
+    'rebindPendingPaths does not overwrite a concurrent cloud snapshot',
+    () async {
+      final staleImageId = await seedImage('gallery/stale.png');
+      final album = GalleryAlbumRecord(
+        id: 'race',
+        name: 'race',
+        createdAt: DateTime(2025),
+        updatedAt: DateTime(2025),
+      );
+      await dataSource.albums.importAlbums(
+        [album],
+        const {},
+        pendingPathsByAlbumId: const {
+          'race': ['gallery/stale.png'],
+        },
+      );
+
+      final resolveStarted = Completer<void>();
+      final continueResolve = Completer<void>();
+      final rebind = dataSource.albums.rebindPendingPaths(
+        resolve: (paths) async {
+          resolveStarted.complete();
+          await continueResolve.future;
+          return {'gallery/stale.png': staleImageId};
+        },
+      );
+      await resolveStarted.future;
+
+      await dataSource.albums.applyCloudSyncAlbums(
+        [album],
+        const {},
+        pendingPathsByAlbumId: const {
+          'race': ['gallery/current.png'],
+        },
+      );
+      continueResolve.complete();
+      await rebind;
+
+      final restored = (await dataSource.albums.getAlbums()).single;
+      expect(restored.pendingPaths, ['gallery/current.png']);
+      expect(restored.imageCount, 0);
+    },
+  );
 }

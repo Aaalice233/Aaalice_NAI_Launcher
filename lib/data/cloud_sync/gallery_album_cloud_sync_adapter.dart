@@ -7,6 +7,17 @@ import '../services/gallery/gallery_album_sidecar_service.dart';
 import 'cloud_sync_data_adapter.dart';
 import 'portable_sync_record.dart';
 
+/// 单次云恢复中的相簿定义与相对成员路径。
+class GalleryAlbumCloudImport {
+  const GalleryAlbumCloudImport({
+    required this.album,
+    required this.imagePaths,
+  });
+
+  final GalleryAlbum album;
+  final List<String> imagePaths;
+}
+
 /// 图库相簿云同步适配器
 ///
 /// 同步相簿定义与成员引用（相对图库根目录的路径），不同步图片本体；
@@ -16,20 +27,17 @@ class GalleryAlbumCloudSyncAdapter extends ValidatingCloudSyncDataAdapter {
   GalleryAlbumCloudSyncAdapter({
     required this.readAlbums,
     required this.readMemberPaths,
-    required this.upsertAlbum,
-    required this.deleteAlbum,
+    required this.applyAlbums,
     required this.getRootPath,
   });
 
   final Future<List<GalleryAlbum>> Function() readAlbums;
   final Future<Map<String, List<String>>> Function() readMemberPaths;
   final Future<void> Function(
-    GalleryAlbum album,
-    List<String> imagePaths,
-    List<String> pendingPaths,
+    List<GalleryAlbumCloudImport> imports,
+    Set<String> deletedAlbumIds,
   )
-  upsertAlbum;
-  final Future<void> Function(String albumId) deleteAlbum;
+  applyAlbums;
   final Future<String?> Function() getRootPath;
 
   @override
@@ -113,39 +121,79 @@ class GalleryAlbumCloudSyncAdapter extends ValidatingCloudSyncDataAdapter {
   }
 
   @override
+  Future<void> preflight(List<PortableSyncRecord> records) async {
+    await super.preflight(records);
+
+    final activeAlbums = <String, String?>{};
+    for (final record in records) {
+      if (record.deleted) continue;
+      final albumId = record.data['albumId']! as String;
+      final parentId = record.data['parentId'];
+      if (parentId != null && parentId is! String) {
+        throw const CloudSyncPreflightException(
+          'Album parentId must be a string',
+        );
+      }
+      activeAlbums[albumId] = parentId as String?;
+    }
+
+    for (final entry in activeAlbums.entries) {
+      final parentId = entry.value;
+      if (parentId != null && !activeAlbums.containsKey(parentId)) {
+        throw CloudSyncPreflightException(
+          'Album parent does not exist: $parentId',
+        );
+      }
+      final seen = <String>{};
+      String? current = entry.key;
+      while (current != null) {
+        if (!seen.add(current)) {
+          throw CloudSyncPreflightException(
+            'Album parent graph contains a cycle at ${entry.key}',
+          );
+        }
+        current = activeAlbums[current];
+      }
+    }
+  }
+
+  @override
   Future<void> apply(List<PortableSyncRecord> records) async {
+    final imports = <GalleryAlbumCloudImport>[];
+    final deletedAlbumIds = <String>{};
     for (final record in records) {
       final albumId = record.data['albumId']! as String;
       if (record.deleted) {
-        await deleteAlbum(albumId);
+        deletedAlbumIds.add(albumId);
         continue;
       }
 
-      final images = (record.data['images']! as List)
-          .whereType<String>()
-          .toList();
-      // 图片尚可解析的成员先记录待绑定：新设备图库未完成扫描时不丢引用
-      await upsertAlbum(
-        GalleryAlbum(
-          id: albumId,
-          name: record.data['name']! as String,
-          description: record.data['description'] as String?,
-          parentId: record.data['parentId'] as String?,
-          sortOrder: (record.data['sortOrder'] as num?)?.toInt() ?? 0,
-          coverPath: record.data['coverPath'] as String?,
-          createdAt: DateTime.fromMillisecondsSinceEpoch(
-            (record.data['createdAt'] as num?)?.toInt() ??
-                DateTime.now().millisecondsSinceEpoch,
+      imports.add(
+        GalleryAlbumCloudImport(
+          album: GalleryAlbum(
+            id: albumId,
+            name: record.data['name']! as String,
+            description: record.data['description'] as String?,
+            parentId: record.data['parentId'] as String?,
+            sortOrder: (record.data['sortOrder'] as num?)?.toInt() ?? 0,
+            coverPath: record.data['coverPath'] as String?,
+            createdAt: DateTime.fromMillisecondsSinceEpoch(
+              (record.data['createdAt'] as num?)?.toInt() ??
+                  DateTime.now().millisecondsSinceEpoch,
+            ),
+            updatedAt: DateTime.fromMillisecondsSinceEpoch(
+              (record.data['updatedAt'] as num?)?.toInt() ??
+                  DateTime.now().millisecondsSinceEpoch,
+            ),
           ),
-          updatedAt: DateTime.fromMillisecondsSinceEpoch(
-            (record.data['updatedAt'] as num?)?.toInt() ??
-                DateTime.now().millisecondsSinceEpoch,
-          ),
+          imagePaths: (record.data['images']! as List)
+              .whereType<String>()
+              .toList(growable: false),
         ),
-        images,
-        const [],
       );
     }
+
+    await applyAlbums(imports, deletedAlbumIds);
   }
 
   String _portableId(String albumId) {
