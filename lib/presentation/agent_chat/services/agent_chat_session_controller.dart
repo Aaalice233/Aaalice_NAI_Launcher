@@ -17,6 +17,7 @@ import '../../../core/constants/storage_keys.dart';
 import '../../../core/storage/local_storage_service.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../data/models/inpaint/inpaint_draft.dart';
+import '../models/agent_chat_prompt_envelope.dart';
 import '../providers/agent_chat_session_view.dart';
 import '../providers/agent_chat_state.dart';
 import '../models/agent_chat_turn_timeline.dart';
@@ -729,10 +730,7 @@ class AgentChatSessionController {
         session_types.MessageEntry? target;
         for (final entry in entries.reversed) {
           if (entry is session_types.MessageEntry &&
-              (entry.message is UserMessage ||
-                  (entry.message is HarnessCustomMessage &&
-                      (entry.message as HarnessCustomMessage).customType ==
-                          'agentResourcePrompt'))) {
+              isVisualUserMessage(entry.message)) {
             target = entry;
             break;
           }
@@ -740,14 +738,9 @@ class AgentChatSessionController {
         if (target == null) return;
         final restoredResources = <AgentChatResourceReference>[];
         final targetMessage = target.message;
-        late final UserMessage rewoundMessage;
-        if (targetMessage is UserMessage) {
-          rewoundMessage = targetMessage;
-        } else if (targetMessage is HarnessCustomMessage) {
-          rewoundMessage = UserMessage(
-            content: targetMessage.content.skip(1).toList(growable: false),
-            timestamp: targetMessage.timestamp,
-          );
+        // target selected by isVisualUserMessage, so this always resolves.
+        final rewoundMessage = visibleUserMessage(targetMessage)!;
+        if (targetMessage is HarnessCustomMessage) {
           final details = targetMessage.details;
           if (details is Map && details['references'] is List) {
             for (final value in details['references'] as List) {
@@ -909,15 +902,7 @@ class AgentChatSessionController {
 
   Future<void> autoNameSession(Message message) async {
     final currentSession = session;
-    final userMessage = switch (message) {
-      UserMessage() => message,
-      HarnessCustomMessage() when message.customType == 'agentResourcePrompt' =>
-        UserMessage(
-          content: message.content.skip(1).toList(growable: false),
-          timestamp: message.timestamp,
-        ),
-      _ => null,
-    };
+    final userMessage = visibleUserMessage(message);
     if (currentSession == null || userMessage == null) return;
     try {
       final existing = await currentSession.getName();

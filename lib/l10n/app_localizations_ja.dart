@@ -875,6 +875,18 @@ class AppLocalizationsJa extends AppLocalizations {
   String get agentChat_inputHint => 'AI アシスタントにメッセージを送る…';
 
   @override
+  String get agentChat_inputHintWithSlash => 'AI アシスタントにメッセージを送る。/ でスキル…';
+
+  @override
+  String get agentChat_slashMenu => 'スキルとセッションコマンド';
+
+  @override
+  String get agentChat_slashSkills => 'スキル';
+
+  @override
+  String get agentChat_slashSession => 'セッション';
+
+  @override
   String get agentChat_addAttachment => '添付または参照を追加';
 
   @override
@@ -1204,6 +1216,25 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get agentChat_compacting => 'コンテキストを圧縮中…';
+
+  @override
+  String agentChat_compactDone(String before, String after) {
+    return 'コンテキストを圧縮しました：$before → $after';
+  }
+
+  @override
+  String get agentChat_compactNotNeeded => '現在のコンテキストは圧縮の必要がありません';
+
+  @override
+  String get agentChat_compactBusy => '応答の生成中です。完了後に圧縮してください';
+
+  @override
+  String get agentChat_compactUnavailable => 'コンテキスト使用量が取得できず、圧縮できません';
+
+  @override
+  String agentChat_compactFailed(String error) {
+    return 'コンテキストの圧縮に失敗しました：$error';
+  }
 
   @override
   String get agentChat_requestFailed => 'リクエストに失敗しました。もう一度お試しください。';
@@ -13205,6 +13236,28 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get agentSettings_pendingMatch => '照合待ち';
+
+  @override
+  String get agentSettings_contextWindow => 'コンテキストウィンドウ（トークン）';
+
+  @override
+  String agentSettings_contextWindowKnown(String value) {
+    return '空欄なら内蔵値 $value を使用します。中継サービスや独自デプロイで実際の値が異なる場合はここで上書きしてください。';
+  }
+
+  @override
+  String get agentSettings_contextWindowUnknown =>
+      'このモデルは内蔵カタログに未収録のため、ウィンドウを自動判定できません。未入力のままではコンテキスト使用量を表示できず、圧縮も実行できません。';
+
+  @override
+  String get agentSettings_contextWindowUnknownHint => '例：128000';
+
+  @override
+  String get agentSettings_contextWindowReset => '内蔵値に戻す';
+
+  @override
+  String get agentSettings_contextWindowInvalid =>
+      '1 から 20000000 までの整数を入力してください';
 
   @override
   String get agentSettings_toolPermission => 'ツール権限';

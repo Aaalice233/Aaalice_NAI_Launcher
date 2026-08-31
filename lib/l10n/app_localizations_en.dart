@@ -889,6 +889,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get agentChat_inputHint => 'Message the AI agent…';
 
   @override
+  String get agentChat_inputHintWithSlash =>
+      'Message the AI agent, / for skills…';
+
+  @override
+  String get agentChat_slashMenu => 'Skills and session commands';
+
+  @override
+  String get agentChat_slashSkills => 'Skills';
+
+  @override
+  String get agentChat_slashSession => 'Session';
+
+  @override
   String get agentChat_addAttachment => 'Add attachment or reference';
 
   @override
@@ -1220,6 +1233,28 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get agentChat_compacting => 'Compacting context…';
+
+  @override
+  String agentChat_compactDone(String before, String after) {
+    return 'Context compacted: $before → $after';
+  }
+
+  @override
+  String get agentChat_compactNotNeeded =>
+      'Context does not need compacting yet';
+
+  @override
+  String get agentChat_compactBusy =>
+      'Still responding — try compacting afterwards';
+
+  @override
+  String get agentChat_compactUnavailable =>
+      'Context usage unavailable, cannot compact';
+
+  @override
+  String agentChat_compactFailed(String error) {
+    return 'Failed to compact context: $error';
+  }
 
   @override
   String get agentChat_requestFailed => 'Request failed. Please try again.';
@@ -13542,6 +13577,28 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get agentSettings_pendingMatch => 'pending match';
+
+  @override
+  String get agentSettings_contextWindow => 'Context window (tokens)';
+
+  @override
+  String agentSettings_contextWindowKnown(String value) {
+    return 'Leave empty to use the built-in value $value. Override it when a relay or custom deployment exposes a different window.';
+  }
+
+  @override
+  String get agentSettings_contextWindowUnknown =>
+      'This model is not in the built-in catalog, so its window cannot be detected. Without a value, context usage stays hidden and compaction is unavailable.';
+
+  @override
+  String get agentSettings_contextWindowUnknownHint => 'e.g. 128000';
+
+  @override
+  String get agentSettings_contextWindowReset => 'Restore the built-in value';
+
+  @override
+  String get agentSettings_contextWindowInvalid =>
+      'Enter a whole number between 1 and 20000000';
 
   @override
   String get agentSettings_toolPermission => 'Tool permissions';

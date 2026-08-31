@@ -271,6 +271,35 @@ class AgentSettingsNotifier extends StateNotifier<AgentSettingsState> {
         current.copyWith(chat: current.chat.copyWith(density: density)),
   );
 
+  /// [window] 传 null 清除覆盖，让模型退回目录推断出的窗口。
+  Future<void> setContextWindowOverride({
+    required String providerId,
+    required String model,
+    required int? window,
+  }) {
+    if (window != null &&
+        (window < 1 || window > AgentSettings.maxContextWindowTokens)) {
+      throw const FormatException('Context window is out of range.');
+    }
+    final key = AgentChatConfig.contextWindowKey(providerId, model);
+    return _update((current) {
+      final overrides = Map<String, int>.from(
+        current.chat.contextWindowOverrides,
+      );
+      if (window == null) {
+        overrides.remove(key);
+      } else {
+        overrides[key] = window;
+      }
+      if (overrides.length > AgentSettings.maxContextWindows) {
+        throw const FormatException('Too many context window overrides.');
+      }
+      return current.copyWith(
+        chat: current.chat.copyWith(contextWindowOverrides: overrides),
+      );
+    });
+  }
+
   String buildDefaultSystemPrompt() {
     final workspaceDirectory =
         _providedWorkspaceDirectory ??

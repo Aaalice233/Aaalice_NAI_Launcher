@@ -1,6 +1,6 @@
 import '../../../core/agent/agent.dart';
-import '../../../core/agent/harness/harness_messages.dart';
 import '../../../core/agent/harness/session/session_types.dart';
+import 'agent_chat_prompt_envelope.dart';
 
 enum AgentChatTurnStatus { running, completed, failed, aborted, interrupted }
 
@@ -129,7 +129,7 @@ AgentChatTimelinePage buildAgentChatTimelinePage({
       startIndex++;
     }
     final operation = startIndex < 0 ? null : starts[startIndex];
-    if (operation == null && _isUserBoundary(entry.message)) {
+    if (operation == null && isVisualUserMessage(entry.message)) {
       legacyTurnId = 'legacy:${entry.id}';
     }
     final turnId = operation?.id ?? legacyTurnId ?? 'legacy:${entry.id}';
@@ -164,10 +164,6 @@ AgentChatTimelinePage buildAgentChatTimelinePage({
   );
 }
 
-bool _isUserBoundary(Message message) =>
-    message is UserMessage ||
-    message is HarnessCustomMessage &&
-        message.customType == 'agentResourcePrompt';
 
 class _TurnBuilder {
   _TurnBuilder({

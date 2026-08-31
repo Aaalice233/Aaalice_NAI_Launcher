@@ -860,6 +860,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agentChat_inputHint => '给 AI 助手发消息…';
 
   @override
+  String get agentChat_inputHintWithSlash => '给 AI 助手发消息，输入 / 引用技能…';
+
+  @override
+  String get agentChat_slashMenu => '技能与会话命令';
+
+  @override
+  String get agentChat_slashSkills => '技能';
+
+  @override
+  String get agentChat_slashSession => '会话';
+
+  @override
   String get agentChat_addAttachment => '添加附件或引用';
 
   @override
@@ -1188,6 +1200,25 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get agentChat_compacting => '正在压缩上下文…';
+
+  @override
+  String agentChat_compactDone(String before, String after) {
+    return '已压缩上下文：$before → $after';
+  }
+
+  @override
+  String get agentChat_compactNotNeeded => '当前上下文无需压缩';
+
+  @override
+  String get agentChat_compactBusy => '正在生成回复，请稍后再压缩';
+
+  @override
+  String get agentChat_compactUnavailable => '上下文用量不可用，无法压缩';
+
+  @override
+  String agentChat_compactFailed(String error) {
+    return '压缩上下文失败：$error';
+  }
 
   @override
   String get agentChat_requestFailed => '请求失败，请重试。';
@@ -12980,6 +13011,27 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agentSettings_pendingMatch => '待匹配';
 
   @override
+  String get agentSettings_contextWindow => '上下文窗口（token）';
+
+  @override
+  String agentSettings_contextWindowKnown(String value) {
+    return '留空使用内置值 $value。第三方中转站或自定义部署的实际窗口不同时，在此填写覆盖。';
+  }
+
+  @override
+  String get agentSettings_contextWindowUnknown =>
+      '内置目录未收录该模型，无法自动判断窗口。不填写则无法显示上下文用量，也无法压缩上下文。';
+
+  @override
+  String get agentSettings_contextWindowUnknownHint => '例如 128000';
+
+  @override
+  String get agentSettings_contextWindowReset => '恢复为内置值';
+
+  @override
+  String get agentSettings_contextWindowInvalid => '请填写 1 到 20000000 之间的整数';
+
+  @override
   String get agentSettings_toolPermission => '工具权限';
 
   @override
@@ -14352,6 +14404,18 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get agentChat_inputHint => '給 AI 助手傳送訊息…';
 
   @override
+  String get agentChat_inputHintWithSlash => '給 AI 助手傳送訊息，輸入 / 引用技能…';
+
+  @override
+  String get agentChat_slashMenu => '技能與工作階段指令';
+
+  @override
+  String get agentChat_slashSkills => '技能';
+
+  @override
+  String get agentChat_slashSession => '工作階段';
+
+  @override
   String get agentChat_addAttachment => '新增附件或引用';
 
   @override
@@ -14680,6 +14744,25 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get agentChat_compacting => '正在壓縮上下文…';
+
+  @override
+  String agentChat_compactDone(String before, String after) {
+    return '已壓縮上下文：$before → $after';
+  }
+
+  @override
+  String get agentChat_compactNotNeeded => '目前上下文無需壓縮';
+
+  @override
+  String get agentChat_compactBusy => '正在產生回覆，請稍後再壓縮';
+
+  @override
+  String get agentChat_compactUnavailable => '上下文用量不可用，無法壓縮';
+
+  @override
+  String agentChat_compactFailed(String error) {
+    return '壓縮上下文失敗：$error';
+  }
 
   @override
   String get agentChat_requestFailed => '請求失敗，請重試。';
@@ -26471,6 +26554,27 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get agentSettings_pendingMatch => '待配對';
+
+  @override
+  String get agentSettings_contextWindow => '上下文視窗（token）';
+
+  @override
+  String agentSettings_contextWindowKnown(String value) {
+    return '留空則使用內建值 $value。第三方中轉站或自訂部署的實際視窗不同時，可在此填寫覆寫。';
+  }
+
+  @override
+  String get agentSettings_contextWindowUnknown =>
+      '內建目錄未收錄此模型，無法自動判斷視窗。未填寫則無法顯示上下文用量，也無法壓縮上下文。';
+
+  @override
+  String get agentSettings_contextWindowUnknownHint => '例如 128000';
+
+  @override
+  String get agentSettings_contextWindowReset => '還原為內建值';
+
+  @override
+  String get agentSettings_contextWindowInvalid => '請填寫 1 到 20000000 之間的整數';
 
   @override
   String get agentSettings_toolPermission => '工具權限';

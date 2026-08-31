@@ -244,5 +244,72 @@ void main() {
       expect(roundTrip.chat.migratedChatRules.single.enabled, isFalse);
       expect(roundTrip.chat.migratedChatRules.single.name, 'Disabled rule');
     });
+
+    test('round-trips manual context windows', () {
+      const settings = AgentSettings(
+        chat: AgentChatConfig(
+          contextWindowOverrides: {'relay/private-v9': 65536},
+        ),
+      );
+
+      final decoded = AgentSettings.decode(settings.encode());
+
+      expect(
+        decoded.chat.contextWindowOverrideFor('relay', 'private-v9'),
+        65536,
+      );
+      expect(decoded.chat.contextWindowOverrideFor('relay', 'other'), isNull);
+    });
+
+    test('keys a model name that contains slashes unambiguously', () {
+      expect(
+        AgentChatConfig.contextWindowKey('relay', 'anthropic/claude-opus-4.1'),
+        'relay/anthropic/claude-opus-4.1',
+      );
+      const settings = AgentChatConfig(
+        contextWindowOverrides: {'relay/anthropic/claude-opus-4.1': 200000},
+      );
+      expect(
+        settings.contextWindowOverrideFor('relay', 'anthropic/claude-opus-4.1'),
+        200000,
+      );
+    });
+
+    test('omits the empty map so older builds still accept the document', () {
+      final encoded =
+          const AgentSettings().toJson()['chat']! as Map<String, dynamic>;
+      expect(encoded, isNot(contains('contextWindowOverrides')));
+    });
+
+    test('rejects manual context windows stored before schema 6', () {
+      final raw = const AgentSettings(
+        chat: AgentChatConfig(contextWindowOverrides: {'relay/x': 1000}),
+      ).toJson();
+      raw['schemaVersion'] = 5;
+
+      expect(
+        () => AgentSettings.decode(jsonEncode(raw)),
+        throwsFormatException,
+      );
+    });
+
+    test('rejects out-of-range and malformed context windows', () {
+      for (final broken in <Object>[
+        {'relay/x': 0},
+        {'relay/x': -1},
+        {'relay/x': AgentSettings.maxContextWindowTokens + 1},
+        {'relay/x': '128000'},
+        {'': 1000},
+      ]) {
+        final raw = const AgentSettings().toJson();
+        (raw['chat']! as Map<String, dynamic>)['contextWindowOverrides'] =
+            broken;
+        expect(
+          () => AgentSettings.decode(jsonEncode(raw)),
+          throwsFormatException,
+          reason: '$broken',
+        );
+      }
+    });
   });
 }

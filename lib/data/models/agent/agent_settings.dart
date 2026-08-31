@@ -130,6 +130,7 @@ class AgentChatConfig {
     this.migratedChatRules = const [],
     this.readingTextScale = 1.0,
     this.density = AgentChatDensity.comfortable,
+    this.contextWindowOverrides = const {},
   });
 
   static const supportedReadingTextScales = [0.9, 1.0, 1.15, 1.3];
@@ -142,6 +143,18 @@ class AgentChatConfig {
   final List<AgentMigratedChatRule> migratedChatRules;
   final double readingTextScale;
   final AgentChatDensity density;
+
+  /// 用户手填的上下文窗口，键为 [contextWindowKey]。内置目录认不出的模型
+  /// （中转站、自建网关、目录未收录的新旧模型）只能靠这里拿到窗口。
+  final Map<String, int> contextWindowOverrides;
+
+  /// 模型名可能自带 `/`（如 `anthropic/claude-opus-4.1`），服务商 id 不会，
+  /// 所以首个 `/` 之前一定是服务商，键不会歧义。
+  static String contextWindowKey(String providerId, String model) =>
+      '$providerId/${model.trim()}';
+
+  int? contextWindowOverrideFor(String providerId, String model) =>
+      contextWindowOverrides[contextWindowKey(providerId, model)];
 
   String behaviorInstructions({
     String? customPromptOverride,
@@ -171,6 +184,7 @@ class AgentChatConfig {
     List<AgentMigratedChatRule>? migratedChatRules,
     double? readingTextScale,
     AgentChatDensity? density,
+    Map<String, int>? contextWindowOverrides,
   }) {
     return AgentChatConfig(
       modelReference: modelReference ?? this.modelReference,
@@ -181,6 +195,8 @@ class AgentChatConfig {
       migratedChatRules: migratedChatRules ?? this.migratedChatRules,
       readingTextScale: readingTextScale ?? this.readingTextScale,
       density: density ?? this.density,
+      contextWindowOverrides:
+          contextWindowOverrides ?? this.contextWindowOverrides,
     );
   }
 
@@ -193,6 +209,12 @@ class AgentChatConfig {
     'migratedChatRules': [for (final rule in migratedChatRules) rule.toJson()],
     'readingTextScale': readingTextScale,
     'density': density.name,
+    // 空表不落盘：旧版本的字段白名单里没有这个键，写出去会让降级后的解码整体失败。
+    if (contextWindowOverrides.isNotEmpty)
+      'contextWindowOverrides': Map.fromEntries(
+        contextWindowOverrides.entries.toList()
+          ..sort((a, b) => a.key.compareTo(b.key)),
+      ),
   };
 
   factory AgentChatConfig.fromJson(
@@ -211,16 +233,32 @@ class AgentChatConfig {
         customPrompt is! String) {
       throw const FormatException('chat contains invalid field types.');
     }
-    _rejectUnknownFields(value, {
-      'modelReference',
-      'permissionMode',
-      'webAccessEnabled',
-      'systemPromptMode',
-      'customSystemPrompt',
-      'migratedChatRules',
-      'readingTextScale',
-      'density',
-    }, 'chat');
+    _rejectUnknownFields(
+      value,
+      schemaVersion >= 6
+          ? const {
+              'modelReference',
+              'permissionMode',
+              'webAccessEnabled',
+              'systemPromptMode',
+              'customSystemPrompt',
+              'migratedChatRules',
+              'readingTextScale',
+              'density',
+              'contextWindowOverrides',
+            }
+          : const {
+              'modelReference',
+              'permissionMode',
+              'webAccessEnabled',
+              'systemPromptMode',
+              'customSystemPrompt',
+              'migratedChatRules',
+              'readingTextScale',
+              'density',
+            },
+      'chat',
+    );
     final permissionMode = AgentPermissionMode.values
         .cast<AgentPermissionMode?>()
         .firstWhere((mode) => mode?.name == permission, orElse: () => null);
@@ -291,7 +329,38 @@ class AgentChatConfig {
       migratedChatRules: List.unmodifiable(migratedRules),
       readingTextScale: readingTextScale,
       density: density,
+      contextWindowOverrides: Map.unmodifiable(
+        schemaVersion < 6
+            ? const <String, int>{}
+            : _decodeContextWindowOverrides(value['contextWindowOverrides']),
+      ),
     );
+  }
+
+  static Map<String, int> _decodeContextWindowOverrides(Object? value) {
+    if (value == null) return const {};
+    if (value is! Map || value.length > AgentSettings.maxContextWindows) {
+      throw const FormatException(
+        'contextWindowOverrides must be a bounded object.',
+      );
+    }
+    final decoded = <String, int>{};
+    for (final entry in value.entries) {
+      final key = entry.key;
+      final window = entry.value;
+      if (key is! String || key.isEmpty || window is! int) {
+        throw const FormatException(
+          'contextWindowOverrides contains invalid entries.',
+        );
+      }
+      if (window < 1 || window > AgentSettings.maxContextWindowTokens) {
+        throw FormatException(
+          'contextWindowOverrides value out of range: $window',
+        );
+      }
+      decoded[key] = window;
+    }
+    return decoded;
   }
 }
 
@@ -302,10 +371,12 @@ class AgentSettings {
     this.skillEnabledOverrides = const {},
   });
 
-  static const int currentSchemaVersion = 5;
+  static const int currentSchemaVersion = 6;
   static const int maxCustomPromptLength = 50000;
   static const int maxSkillPreferences = 5000;
   static const int maxMigratedChatRules = 100;
+  static const int maxContextWindows = 500;
+  static const int maxContextWindowTokens = 20000000;
   static const int maxEncodedBytes = 1024 * 1024;
 
   final int schemaVersion;

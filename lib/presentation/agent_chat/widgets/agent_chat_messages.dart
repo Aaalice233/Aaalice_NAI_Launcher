@@ -3,13 +3,13 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
 import '../../../core/agent/agent_types.dart';
-import '../../../core/agent/harness/harness_messages.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference_codec.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../core/windowing/agent_chat_layout_contract.dart';
 import '../../../core/windowing/agent_chat_shared_widgets.dart';
 import '../../widgets/common/draggable_memory_image.dart';
+import '../models/agent_chat_prompt_envelope.dart';
 import '../providers/agent_chat_notifier.dart';
 import 'agent_chat_panel_controller.dart';
 import 'agent_chat_panel_view_data.dart';
@@ -62,10 +62,7 @@ class AgentChatMessages extends StatelessWidget {
           message.text.trim().isNotEmpty,
     );
     final lastUserMessageIndex = state.messages.lastIndexWhere(
-      (message) =>
-          message is UserMessage ||
-          message is HarnessCustomMessage &&
-              message.customType == 'agentResourcePrompt',
+      isVisualUserMessage,
     );
     final canEditLastUserMessage =
         !viewData.running &&
@@ -383,21 +380,18 @@ class AgentChatMessages extends StatelessWidget {
     Message? editSourceMessage,
     List<AgentChatResourceReference> resourceReferences = const [],
   }) {
-    if (message is HarnessCustomMessage &&
-        message.customType == 'agentResourcePrompt') {
+    final envelope = asAgentPromptEnvelope(message);
+    if (envelope != null) {
       return _messageTile(
         context,
         theme,
-        UserMessage(
-          content: message.content.skip(1).toList(growable: false),
-          timestamp: message.timestamp,
-        ),
+        visibleUserMessage(message)!,
         messageIndex: messageIndex,
         isLastAssistantMessage: isLastAssistantMessage,
         showReasoning: showReasoning,
         canEditUserMessage: canEditUserMessage,
         editSourceMessage: message,
-        resourceReferences: _decodeResourceReferences(message.details),
+        resourceReferences: _decodeResourceReferences(envelope.details),
       );
     }
     if (message is UserMessage) {
