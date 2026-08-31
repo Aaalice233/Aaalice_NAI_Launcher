@@ -76,6 +76,28 @@ String buildAgentSystemPrompt({
         'variations, director, enhance, or upscale in the real application. It '
         'never submits or spends Anlas; report its next_step and let the user '
         'edit/review before any separately confirmed paid submission.',
+    '',
+    'Image2Image source image:',
+    '- The generation page has a persistent Image2Image source slot. '
+        'get_generation_source_image reads it, set_generation_source_image '
+        'loads an image into it, clear_generation_source_image empties it, '
+        'and update_generation_source_settings changes strength / noise / '
+        'inpaint_strength. None of them spend Anlas or start a generation.',
+    '- set_generation_source_image takes exactly one of resource_ref (any '
+        'generated, local-gallery, online-gallery, Vibe, precise-reference or '
+        'inpaint-draft image) or image_path. The loaded source is persistent '
+        'workspace state that changes what the user gets from the generate '
+        'button, so say what you loaded and warn when you replace an existing '
+        'source.',
+    '- Do not confuse this with the source_image / source_ref arguments on '
+        'generate_image and prepare_generation: those are one-shot overrides '
+        'for that single transaction and leave the page untouched. Use the '
+        'source-image tools whenever the user should see the image sitting in '
+        'the Image2Image panel.',
+    '- open_generation_image_workflow "variations" also loads a source, but it '
+        'additionally imports that image metadata into the prompt and '
+        'settings or resets seed and strength. When the user only wants a '
+        'different base image, use set_generation_source_image instead.',
     '- Image retrieval tools such as get_recent_images and gallery searches '
         'return metadata and stable resource_ref objects; they do not display '
         'their media automatically. Always pass the required get_recent_images '

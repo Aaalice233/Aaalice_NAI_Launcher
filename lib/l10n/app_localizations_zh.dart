@@ -1075,6 +1075,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agentChat_toolUpdateGenerationSettings => '更新生成设置';
 
   @override
+  String get agentChat_toolGetGenerationSourceImage => '查看图生图源图';
+
+  @override
+  String get agentChat_toolSetGenerationSourceImage => '载入图生图源图';
+
+  @override
+  String get agentChat_toolClearGenerationSourceImage => '清除图生图源图';
+
+  @override
+  String get agentChat_toolUpdateGenerationSourceSettings => '调整图生图强度';
+
+  @override
   String get agentChat_toolPromptState => '查看提示词状态';
 
   @override
@@ -14659,6 +14671,18 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get agentChat_toolUpdateGenerationSettings => '更新生成設定';
+
+  @override
+  String get agentChat_toolGetGenerationSourceImage => '檢視圖生圖來源圖';
+
+  @override
+  String get agentChat_toolSetGenerationSourceImage => '載入圖生圖來源圖';
+
+  @override
+  String get agentChat_toolClearGenerationSourceImage => '清除圖生圖來源圖';
+
+  @override
+  String get agentChat_toolUpdateGenerationSourceSettings => '調整圖生圖強度';
 
   @override
   String get agentChat_toolPromptState => '檢視提示詞狀態';

@@ -2123,6 +2123,30 @@ abstract class AppLocalizations {
   /// **'Update generation settings'**
   String get agentChat_toolUpdateGenerationSettings;
 
+  /// No description provided for @agentChat_toolGetGenerationSourceImage.
+  ///
+  /// In en, this message translates to:
+  /// **'View Image2Image source'**
+  String get agentChat_toolGetGenerationSourceImage;
+
+  /// No description provided for @agentChat_toolSetGenerationSourceImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Load Image2Image source'**
+  String get agentChat_toolSetGenerationSourceImage;
+
+  /// No description provided for @agentChat_toolClearGenerationSourceImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear Image2Image source'**
+  String get agentChat_toolClearGenerationSourceImage;
+
+  /// No description provided for @agentChat_toolUpdateGenerationSourceSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Adjust Image2Image strength'**
+  String get agentChat_toolUpdateGenerationSourceSettings;
+
   /// No description provided for @agentChat_toolPromptState.
   ///
   /// In en, this message translates to:
