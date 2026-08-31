@@ -471,10 +471,14 @@ class GalleryCategoryRepository {
       if (await File(targetPath).exists()) {
         final baseName = p.basenameWithoutExtension(fileName);
         final ext = p.extension(fileName);
-        targetPath = p.join(
-          targetDir,
-          '${baseName}_${DateTime.now().millisecondsSinceEpoch}$ext',
-        );
+        final conflictStem =
+            '${baseName}_${DateTime.now().millisecondsSinceEpoch}';
+        targetPath = p.join(targetDir, '$conflictStem$ext');
+        var suffix = 2;
+        while (await File(targetPath).exists()) {
+          targetPath = p.join(targetDir, '$conflictStem-$suffix$ext');
+          suffix++;
+        }
       }
 
       await file.rename(targetPath);
