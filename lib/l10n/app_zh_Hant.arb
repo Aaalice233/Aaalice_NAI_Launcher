@@ -2386,7 +2386,6 @@
   "localGallery_moveSelected": "移動",
   "localGallery_packSelected": "打包",
   "localGallery_editMetadata": "編輯標籤",
-  "localGallery_addToCollection": "收藏",
   "localGallery_switchToGridView": "切換到網格檢視",
   "localGallery_switchToDateGroupedView": "切換到日期分組檢視",
   "localGallery_openFilterPanel": "開啟篩選面板",
@@ -2733,14 +2732,6 @@
     }
   },
   "localGallery_moveImagesFailed": "移動圖片失敗",
-  "localGallery_addedToCollection": "已新增 {count} 張圖片到集合「{name}」",
-  "@localGallery_addedToCollection": {
-    "placeholders": {
-      "count": {},
-      "name": {}
-    }
-  },
-  "localGallery_addToCollectionFailed": "新增圖片到集合失敗",
   "brushPreset_selectHint": "雙擊選擇此筆刷預設",
   "brushPreset_pencil": "鉛筆",
   "brushPreset_fine": "細筆",

@@ -2364,7 +2364,6 @@
   "localGallery_moveSelected": "Move",
   "localGallery_packSelected": "Pack",
   "localGallery_editMetadata": "Edit Tags",
-  "localGallery_addToCollection": "Collect",
   "localGallery_switchToGridView": "Switch to grid view",
   "localGallery_switchToDateGroupedView": "Switch to date grouped view",
   "localGallery_openFilterPanel": "Open filter panel",
@@ -2701,14 +2700,6 @@
     }
   },
   "localGallery_moveImagesFailed": "Failed to move images",
-  "localGallery_addedToCollection": "Added {count} images to collection \"{name}\"",
-  "@localGallery_addedToCollection": {
-    "placeholders": {
-      "count": {},
-      "name": {}
-    }
-  },
-  "localGallery_addToCollectionFailed": "Failed to add images to collection",
 
   "brushPreset_selectHint": "Double tap to select this brush preset",
   "brushPreset_pencil": "Pencil",

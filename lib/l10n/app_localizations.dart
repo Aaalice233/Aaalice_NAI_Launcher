@@ -9697,12 +9697,6 @@ abstract class AppLocalizations {
   /// **'Edit Tags'**
   String get localGallery_editMetadata;
 
-  /// No description provided for @localGallery_addToCollection.
-  ///
-  /// In en, this message translates to:
-  /// **'Collect'**
-  String get localGallery_addToCollection;
-
   /// No description provided for @localGallery_switchToGridView.
   ///
   /// In en, this message translates to:
@@ -10818,18 +10812,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Failed to move images'**
   String get localGallery_moveImagesFailed;
-
-  /// No description provided for @localGallery_addedToCollection.
-  ///
-  /// In en, this message translates to:
-  /// **'Added {count} images to collection \"{name}\"'**
-  String localGallery_addedToCollection(Object count, Object name);
-
-  /// No description provided for @localGallery_addToCollectionFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to add images to collection'**
-  String get localGallery_addToCollectionFailed;
 
   /// No description provided for @brushPreset_selectHint.
   ///

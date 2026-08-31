@@ -2370,7 +2370,6 @@
   "localGallery_moveSelected": "移动",
   "localGallery_packSelected": "打包",
   "localGallery_editMetadata": "编辑标签",
-  "localGallery_addToCollection": "收藏",
   "localGallery_switchToGridView": "切换到网格视图",
   "localGallery_switchToDateGroupedView": "切换到日期分组视图",
   "localGallery_openFilterPanel": "打开筛选面板",
@@ -2724,14 +2723,6 @@
     }
   },
   "localGallery_moveImagesFailed": "移动图片失败",
-  "localGallery_addedToCollection": "已添加 {count} 张图片到集合「{name}」",
-  "@localGallery_addedToCollection": {
-    "placeholders": {
-      "count": {},
-      "name": {}
-    }
-  },
-  "localGallery_addToCollectionFailed": "添加图片到集合失败",
 
   "brushPreset_selectHint": "双击选择此笔刷预设",
   "brushPreset_pencil": "铅笔",

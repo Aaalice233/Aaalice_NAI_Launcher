@@ -85,6 +85,7 @@ class GalleryAlbumNotifier extends _$GalleryAlbumNotifier {
               parentId: record.parentId,
               sortOrder: record.sortOrder,
               coverPath: record.coverPath,
+              pendingPaths: record.pendingPaths,
               imageCount: record.imageCount,
               createdAt: record.createdAt,
               updatedAt: record.updatedAt,
@@ -242,15 +243,30 @@ class GalleryAlbumNotifier extends _$GalleryAlbumNotifier {
       final memberPaths = await _albums.getAllAlbumMemberPaths();
       final albums = [
         for (final album in state.albums)
-          album.copyWith(imageCount: 0), // sidecar 不持久化派生计数
+          album.copyWith(
+            imageCount: 0, // sidecar 不持久化派生计数
+            // 封面同样以相对路径存储；不在图库内则清除，避免泄露设备路径
+            coverPath: album.coverPath == null
+                ? null
+                : GalleryAlbumSidecarService.toRelativePath(
+                    rootPath,
+                    album.coverPath!,
+                  ),
+          ),
       ];
       final imagePathsByAlbumId = <String, List<String>>{};
       for (final album in albums) {
-        final paths = memberPaths[album.id] ?? const <String>[];
-        imagePathsByAlbumId[album.id] = [
-          for (final path in paths)
-            GalleryAlbumSidecarService.toRelativePath(rootPath, path) ?? path,
+        final exported = <String>[
+          // 已解析成员转为相对路径；不在图库根目录内的路径跳过并记录，
+          // 绝不原样回写设备绝对路径
+          for (final path in memberPaths[album.id] ?? const <String>[])
+            if (GalleryAlbumSidecarService.toRelativePath(rootPath, path)
+                case final relative?)
+              relative,
+          // 尚未绑定的成员路径原样保留，等待图库索引就绪后补绑
+          ...album.pendingPaths,
         ];
+        imagePathsByAlbumId[album.id] = exported;
       }
       await _sidecarService.write(
         rootPath,
@@ -262,5 +278,12 @@ class GalleryAlbumNotifier extends _$GalleryAlbumNotifier {
     } catch (e) {
       AppLogger.e('导出相簿 sidecar 失败', e, null, 'GalleryAlbum');
     }
+  }
+
+  /// 立即导出 sidecar（取消节流），供图片物理移动等改变成员路径的
+  /// 流程在完成后调用，保证跨设备恢复时引用仍然有效。
+  Future<void> exportSidecarNow() async {
+    _sidecarExportTimer?.cancel();
+    await exportSidecar();
   }
 }

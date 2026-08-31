@@ -392,6 +392,10 @@ class LocalGalleryActionCoordinator {
       );
       _ref.read(localGallerySelectionNotifierProvider.notifier).exit();
       _ref.read(localGalleryNotifierProvider.notifier).refresh();
+      // 物理移动改变了成员文件路径，立即刷新 sidecar 保持跨设备引用有效
+      unawaited(
+        _ref.read(galleryAlbumNotifierProvider.notifier).exportSidecarNow(),
+      );
     } else {
       AppToast.info(_context(), _context().l10n.localGallery_moveImagesFailed);
     }

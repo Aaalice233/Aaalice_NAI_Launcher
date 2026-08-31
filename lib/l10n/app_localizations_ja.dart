@@ -5290,9 +5290,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get localGallery_editMetadata => 'タグを編集';
 
   @override
-  String get localGallery_addToCollection => 'コレクションに追加';
-
-  @override
   String get localGallery_switchToGridView => 'グリッド ビューに切り替える';
 
   @override
@@ -5917,14 +5914,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get localGallery_moveImagesFailed => '画像の移動に失敗しました';
-
-  @override
-  String localGallery_addedToCollection(Object count, Object name) {
-    return '$count 画像をコレクション「$name」に追加しました';
-  }
-
-  @override
-  String get localGallery_addToCollectionFailed => '画像をコレクションに追加できませんでした';
 
   @override
   String get brushPreset_selectHint => 'ダブルタップしてこのブラシ プリセットを選択します';

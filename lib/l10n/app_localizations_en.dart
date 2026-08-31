@@ -5418,9 +5418,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get localGallery_editMetadata => 'Edit Tags';
 
   @override
-  String get localGallery_addToCollection => 'Collect';
-
-  @override
   String get localGallery_switchToGridView => 'Switch to grid view';
 
   @override
@@ -6056,15 +6053,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get localGallery_moveImagesFailed => 'Failed to move images';
-
-  @override
-  String localGallery_addedToCollection(Object count, Object name) {
-    return 'Added $count images to collection \"$name\"';
-  }
-
-  @override
-  String get localGallery_addToCollectionFailed =>
-      'Failed to add images to collection';
 
   @override
   String get brushPreset_selectHint => 'Double tap to select this brush preset';

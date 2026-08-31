@@ -23,7 +23,11 @@ class GalleryAlbumCloudSyncAdapter extends ValidatingCloudSyncDataAdapter {
 
   final Future<List<GalleryAlbum>> Function() readAlbums;
   final Future<Map<String, List<String>>> Function() readMemberPaths;
-  final Future<void> Function(GalleryAlbum album, List<String> imagePaths)
+  final Future<void> Function(
+    GalleryAlbum album,
+    List<String> imagePaths,
+    List<String> pendingPaths,
+  )
   upsertAlbum;
   final Future<void> Function(String albumId) deleteAlbum;
   final Future<String?> Function() getRootPath;
@@ -42,13 +46,21 @@ class GalleryAlbumCloudSyncAdapter extends ValidatingCloudSyncDataAdapter {
     final rootPath = await getRootPath();
 
     for (final album in albums) {
+      // 只上传图库根目录内的规范化相对路径；无法相对化的路径跳过并记录，
+      // 绝不上传设备绝对路径（可能泄露盘符、用户名）
       final images = [
         for (final path in memberPaths[album.id] ?? const <String>[])
-          rootPath == null || rootPath.isEmpty
-              ? path
-              : GalleryAlbumSidecarService.toRelativePath(rootPath, path) ??
-                    path,
-      ];
+          if (rootPath != null && rootPath.isNotEmpty)
+            GalleryAlbumSidecarService.toRelativePath(rootPath, path),
+        ...album.pendingPaths,
+      ].whereType<String>().toList();
+      final coverPath =
+          album.coverPath == null || rootPath == null || rootPath.isEmpty
+          ? null
+          : GalleryAlbumSidecarService.toRelativePath(
+              rootPath,
+              album.coverPath!,
+            );
       yield PortableSyncRecord(
         adapterId: id,
         id: _portableId(album.id),
@@ -59,7 +71,7 @@ class GalleryAlbumCloudSyncAdapter extends ValidatingCloudSyncDataAdapter {
           'description': album.description,
           'parentId': album.parentId,
           'sortOrder': album.sortOrder,
-          'coverPath': album.coverPath,
+          'coverPath': coverPath,
           'createdAt': album.createdAt.millisecondsSinceEpoch,
           'updatedAt': album.updatedAt.millisecondsSinceEpoch,
           'images': images,
@@ -83,6 +95,21 @@ class GalleryAlbumCloudSyncAdapter extends ValidatingCloudSyncDataAdapter {
     if (record.data['images'] is! List) {
       throw const CloudSyncPreflightException('Album record lacks images');
     }
+    final images = (record.data['images']! as List).whereType<String>();
+    for (final imagePath in images) {
+      if (!GalleryAlbumSidecarService.isValidRelativeMemberPath(imagePath)) {
+        throw CloudSyncPreflightException(
+          'Album member path is not a normalized relative path: $imagePath',
+        );
+      }
+    }
+    final coverPath = record.data['coverPath'];
+    if (coverPath is String &&
+        !GalleryAlbumSidecarService.isValidRelativeMemberPath(coverPath)) {
+      throw const CloudSyncPreflightException(
+        'Album cover path is not a normalized relative path',
+      );
+    }
   }
 
   @override
@@ -97,6 +124,7 @@ class GalleryAlbumCloudSyncAdapter extends ValidatingCloudSyncDataAdapter {
       final images = (record.data['images']! as List)
           .whereType<String>()
           .toList();
+      // 图片尚可解析的成员先记录待绑定：新设备图库未完成扫描时不丢引用
       await upsertAlbum(
         GalleryAlbum(
           id: albumId,
@@ -115,6 +143,7 @@ class GalleryAlbumCloudSyncAdapter extends ValidatingCloudSyncDataAdapter {
           ),
         ),
         images,
+        const [],
       );
     }
   }

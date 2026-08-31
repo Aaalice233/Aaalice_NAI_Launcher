@@ -2327,7 +2327,6 @@
   "localGallery_moveSelected": "移動",
   "localGallery_packSelected": "パック",
   "localGallery_editMetadata": "タグを編集",
-  "localGallery_addToCollection": "コレクションに追加",
   "localGallery_switchToGridView": "グリッド ビューに切り替える",
   "localGallery_switchToDateGroupedView": "日付グループ化ビューに切り替える",
   "localGallery_openFilterPanel": "フィルター パネルを開く",
@@ -2660,14 +2659,6 @@
     }
   },
   "localGallery_moveImagesFailed": "画像の移動に失敗しました",
-  "localGallery_addedToCollection": "{count} 画像をコレクション「{name}」に追加しました",
-  "@localGallery_addedToCollection": {
-    "placeholders": {
-      "count": {},
-      "name": {}
-    }
-  },
-  "localGallery_addToCollectionFailed": "画像をコレクションに追加できませんでした",
   "brushPreset_selectHint": "ダブルタップしてこのブラシ プリセットを選択します",
   "brushPreset_pencil": "鉛筆",
   "brushPreset_fine": "細筆",

@@ -106,16 +106,32 @@ CloudSyncDataAdapterRegistry createAppCloudSyncAdapterRegistry({
           ),
       ],
       readMemberPaths: galleryDataSource.albums.getAllAlbumMemberPaths,
-      upsertAlbum: (album, imagePaths) async {
+      upsertAlbum: (album, imagePaths, extraPendingPaths) async {
         final rootPath = await GalleryFolderRepository.instance.getRootPath();
-        final absolutePaths = [
-          for (final path in imagePaths)
-            rootPath == null || rootPath.isEmpty
-                ? path
-                : GalleryAlbumSidecarService.toAbsolutePath(rootPath, path),
-        ];
-        final idMap = await galleryDataSource.getImageIdsByPaths(absolutePaths);
-        final imageIds = idMap.values.whereType<int>().toList();
+        // 相对路径优先解析为已索引图片；新设备尚未扫描完成时解析失败
+        // 的引用进入 pending，由扫描协调器补绑，不丢弃成员
+        final idMap = rootPath == null || rootPath.isEmpty
+            ? const <String, int?>{}
+            : await galleryDataSource.getImageIdsByPaths([
+                for (final path in imagePaths)
+                  GalleryAlbumSidecarService.toAbsolutePath(rootPath, path),
+              ]);
+        final imageIds = <int>[];
+        final pendingPaths = [...extraPendingPaths];
+        for (var i = 0; i < imagePaths.length; i++) {
+          final absolutePath = rootPath == null || rootPath.isEmpty
+              ? imagePaths[i]
+              : GalleryAlbumSidecarService.toAbsolutePath(
+                  rootPath,
+                  imagePaths[i],
+                );
+          final imageId = idMap[absolutePath];
+          if (imageId != null) {
+            imageIds.add(imageId);
+          } else {
+            pendingPaths.add(imagePaths[i]);
+          }
+        }
         await galleryDataSource.albums.importAlbums(
           [
             GalleryAlbumRecord(
@@ -125,11 +141,13 @@ CloudSyncDataAdapterRegistry createAppCloudSyncAdapterRegistry({
               parentId: album.parentId,
               sortOrder: album.sortOrder,
               coverPath: album.coverPath,
+              pendingPaths: pendingPaths,
               createdAt: album.createdAt,
               updatedAt: album.updatedAt,
             ),
           ],
           {album.id: imageIds},
+          pendingPathsByAlbumId: {album.id: pendingPaths},
         );
       },
       deleteAlbum: (albumId) async {

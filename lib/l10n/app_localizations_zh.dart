@@ -5198,9 +5198,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get localGallery_editMetadata => '编辑标签';
 
   @override
-  String get localGallery_addToCollection => '收藏';
-
-  @override
   String get localGallery_switchToGridView => '切换到网格视图';
 
   @override
@@ -5818,14 +5815,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get localGallery_moveImagesFailed => '移动图片失败';
-
-  @override
-  String localGallery_addedToCollection(Object count, Object name) {
-    return '已添加 $count 张图片到集合「$name」';
-  }
-
-  @override
-  String get localGallery_addToCollectionFailed => '添加图片到集合失败';
 
   @override
   String get brushPreset_selectHint => '双击选择此笔刷预设';
@@ -18736,9 +18725,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get localGallery_editMetadata => '編輯標籤';
 
   @override
-  String get localGallery_addToCollection => '收藏';
-
-  @override
   String get localGallery_switchToGridView => '切換到網格檢視';
 
   @override
@@ -19356,14 +19342,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get localGallery_moveImagesFailed => '移動圖片失敗';
-
-  @override
-  String localGallery_addedToCollection(Object count, Object name) {
-    return '已新增 $count 張圖片到集合「$name」';
-  }
-
-  @override
-  String get localGallery_addToCollectionFailed => '新增圖片到集合失敗';
 
   @override
   String get brushPreset_selectHint => '雙擊選擇此筆刷預設';
