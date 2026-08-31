@@ -3768,6 +3768,9 @@
       }
     }
   },
+  "metadataImport_readImageMetadata": "讀取圖片後設資料",
+  "metadataImport_readFailed": "無法讀取所選圖片",
+  "metadataImport_processFailed": "無法處理所選圖片",
   "metadataImport_noDataFound": "未找到 NovelAI 後設資料",
   "metadataImport_noParamsSelected": "未選擇任何要應用的引數",
   "metadataImport_appliedCount": "已應用 {count} 項引數",

@@ -7657,6 +7657,15 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get metadataImport_readImageMetadata => '读取图片元数据';
+
+  @override
+  String get metadataImport_readFailed => '无法读取所选图片';
+
+  @override
+  String get metadataImport_processFailed => '无法处理所选图片';
+
+  @override
   String get metadataImport_noDataFound => '未找到 NovelAI 元数据';
 
   @override
@@ -20826,6 +20835,15 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String metadataImport_selectedCount(int count) {
     return '已選擇 $count 項';
   }
+
+  @override
+  String get metadataImport_readImageMetadata => '讀取圖片後設資料';
+
+  @override
+  String get metadataImport_readFailed => '無法讀取所選圖片';
+
+  @override
+  String get metadataImport_processFailed => '無法處理所選圖片';
 
   @override
   String get metadataImport_noDataFound => '未找到 NovelAI 後設資料';

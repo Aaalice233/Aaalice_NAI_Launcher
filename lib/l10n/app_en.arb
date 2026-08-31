@@ -3736,6 +3736,9 @@
       "count": {"type": "int"}
     }
   },
+  "metadataImport_readImageMetadata": "Read Image Metadata",
+  "metadataImport_readFailed": "Couldn't read the selected image",
+  "metadataImport_processFailed": "Couldn't process the selected image",
   "metadataImport_noDataFound": "No NovelAI metadata found",
   "metadataImport_noParamsSelected": "No parameters selected",
   "metadataImport_appliedCount": "Applied {count} parameters",

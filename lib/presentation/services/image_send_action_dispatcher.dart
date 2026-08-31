@@ -17,13 +17,12 @@ import '../router/app_routes.dart';
 import '../utils/fixed_tag_metadata_matcher.dart';
 import '../utils/krita_send_helper.dart';
 import '../utils/local_gallery_reference_factory.dart';
-import '../utils/metadata_import_coordinator.dart';
 import '../utils/precise_ref_library_import_helper.dart';
 import '../widgets/common/app_toast.dart';
 import '../widgets/common/precise_reference_type_dialog.dart';
 import '../widgets/discord_share/discord_share_dialog.dart';
 import '../widgets/gallery/local_image_context_menu.dart';
-import '../widgets/metadata/metadata_import_dialog.dart';
+import 'image_metadata_import_workflow.dart';
 import 'image_workflow_launcher.dart';
 
 /// Dispatches the reusable "send image to..." actions shared by image menus.
@@ -106,34 +105,12 @@ class ImageSendActionDispatcher {
     BuildContext context,
     WidgetRef ref,
     Uint8List bytes,
-  ) async {
-    final metadata = await ImageMetadataService().getMetadataFromBytes(bytes);
-    if (!context.mounted) return;
-    if (metadata == null || !metadata.hasData) {
-      AppToast.warning(context, context.l10n.metadataImport_noDataFound);
-      return;
-    }
-    final options = await MetadataImportDialog.show(
-      context,
-      metadata: metadata,
-    );
-    if (options == null || !context.mounted) return;
-    final appliedCount = await MetadataImportCoordinator.apply(
+  ) {
+    return ImageMetadataImportWorkflow.shared.run(
+      context: context,
       read: ref.read,
-      metadata: metadata,
-      options: options,
-      l10n: context.l10n,
+      bytes: bytes,
     );
-    if (!context.mounted) return;
-    if (appliedCount == 0) {
-      AppToast.warning(context, context.l10n.metadataImport_noParamsSelected);
-      return;
-    }
-    AppToast.success(
-      context,
-      context.l10n.metadataImport_appliedCount(appliedCount),
-    );
-    context.go(AppRoutes.home);
   }
 
   static void _sendToStyleTransfer(

@@ -7955,6 +7955,16 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get metadataImport_readImageMetadata => 'Read Image Metadata';
+
+  @override
+  String get metadataImport_readFailed => 'Couldn\'t read the selected image';
+
+  @override
+  String get metadataImport_processFailed =>
+      'Couldn\'t process the selected image';
+
+  @override
   String get metadataImport_noDataFound => 'No NovelAI metadata found';
 
   @override

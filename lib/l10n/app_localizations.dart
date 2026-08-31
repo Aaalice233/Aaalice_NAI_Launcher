@@ -14110,6 +14110,24 @@ abstract class AppLocalizations {
   /// **'{count} selected'**
   String metadataImport_selectedCount(int count);
 
+  /// No description provided for @metadataImport_readImageMetadata.
+  ///
+  /// In en, this message translates to:
+  /// **'Read Image Metadata'**
+  String get metadataImport_readImageMetadata;
+
+  /// No description provided for @metadataImport_readFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t read the selected image'**
+  String get metadataImport_readFailed;
+
+  /// No description provided for @metadataImport_processFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t process the selected image'**
+  String get metadataImport_processFailed;
+
   /// No description provided for @metadataImport_noDataFound.
   ///
   /// In en, this message translates to:
