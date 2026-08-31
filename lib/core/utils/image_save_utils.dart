@@ -608,11 +608,12 @@ class ImageSaveUtils {
     return null;
   }
 
-  /// 原子保存图片到日期分类目录：<根目录>/yyyy-MM-dd/HH-mm-ss-<seed>.png
+  /// 原子保存图片到日期分类目录：<根目录>/yyyy-MM-dd/<文件名>.png
   ///
   /// 所有图库保存入口必须走这里：路径选择、独占防冲突、写入、
   /// 失败清理都在一个方法内完成，调用方无需感知占位文件。
-  /// - [seed] 为 null 或小于 0（未确定）时用毫秒时间戳代替，保证文件名唯一
+  /// - [preferredFileName] 存在时使用清理后的文件名；适用于水印等派生副本
+  /// - 否则 [seed] 为 null 或小于 0 时用毫秒时间戳代替，保证文件名唯一
   /// - 独占创建原子保留路径，并发保存不会拿到同一路径后相互覆盖
   /// - 写入失败时删除占位文件后重新抛出，不留空 PNG 进图库扫描
   /// - 仅名称冲突（候选已存在）才追加 -2、-3 序号；目录只读、磁盘满等
@@ -621,6 +622,7 @@ class ImageSaveUtils {
     required String rootPath,
     required Uint8List bytes,
     int? seed,
+    String? preferredFileName,
     DateTime? now,
   }) async {
     final time = now ?? DateTime.now();
@@ -630,11 +632,18 @@ class ImageSaveUtils {
     if (!await dir.exists()) {
       await dir.create(recursive: true);
     }
+    final preferredStem = preferredFileName == null
+        ? ''
+        : p
+              .basenameWithoutExtension(p.basename(preferredFileName))
+              .replaceAll(RegExp(r'[<>:"/\\|?*\x00-\x1F]'), '_')
+              .trim();
     final seedPart = (seed != null && seed >= 0)
         ? '$seed'
         : '${time.millisecondsSinceEpoch}';
-    final baseName =
-        '${two(time.hour)}-${two(time.minute)}-${two(time.second)}-$seedPart';
+    final baseName = preferredStem.isNotEmpty
+        ? preferredStem
+        : '${two(time.hour)}-${two(time.minute)}-${two(time.second)}-$seedPart';
     var candidate = p.join(dir.path, '$baseName.png');
     var suffix = 2;
     File file;

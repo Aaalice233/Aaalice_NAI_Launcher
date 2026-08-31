@@ -24025,6 +24025,516 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Agent profile imported'**
   String get agentSettings_profileImported;
+
+  /// No description provided for @settings_watermarkTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Watermark'**
+  String get settings_watermarkTitle;
+
+  /// No description provided for @settings_watermarkSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Create local watermarked copies without changing the original'**
+  String get settings_watermarkSubtitle;
+
+  /// No description provided for @settings_watermarkEnable.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable watermark tool'**
+  String get settings_watermarkEnable;
+
+  /// No description provided for @settings_watermarkPreserveMetadata.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep metadata in watermark copies'**
+  String get settings_watermarkPreserveMetadata;
+
+  /// No description provided for @settings_watermarkPreserveMetadataHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Off removes PNG text, EXIF, NovelAI stealth data, prompts, and seeds. On safely writes supported source metadata into the new PNG.'**
+  String get settings_watermarkPreserveMetadataHint;
+
+  /// No description provided for @settings_watermarkEditDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit default watermark'**
+  String get settings_watermarkEditDefault;
+
+  /// No description provided for @settings_watermarkCreateFromImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose an image and create a watermarked copy…'**
+  String get settings_watermarkCreateFromImage;
+
+  /// No description provided for @settings_watermarkLayoutByOrientation.
+  ///
+  /// In en, this message translates to:
+  /// **'Remember layouts by image orientation'**
+  String get settings_watermarkLayoutByOrientation;
+
+  /// No description provided for @settings_watermarkLayoutByOrientationHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Share text and style, but keep separate portrait, square, and landscape placement.'**
+  String get settings_watermarkLayoutByOrientationHint;
+
+  /// No description provided for @settings_watermarkConfigMigrated.
+  ///
+  /// In en, this message translates to:
+  /// **'Older watermark settings were migrated for review. Save to confirm the current default.'**
+  String get settings_watermarkConfigMigrated;
+
+  /// No description provided for @settings_watermarkConfigCorrupted.
+  ///
+  /// In en, this message translates to:
+  /// **'The watermark settings could not be read. Safe defaults are shown; save to replace the damaged data.'**
+  String get settings_watermarkConfigCorrupted;
+
+  /// No description provided for @watermark_actionCreate.
+  ///
+  /// In en, this message translates to:
+  /// **'Create watermarked copy…'**
+  String get watermark_actionCreate;
+
+  /// No description provided for @watermark_actionRegenerate.
+  ///
+  /// In en, this message translates to:
+  /// **'Recreate watermarked copy…'**
+  String get watermark_actionRegenerate;
+
+  /// No description provided for @watermark_actionDownloadCreate.
+  ///
+  /// In en, this message translates to:
+  /// **'Download and add watermark…'**
+  String get watermark_actionDownloadCreate;
+
+  /// No description provided for @watermark_editorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Watermark editor'**
+  String get watermark_editorTitle;
+
+  /// No description provided for @watermark_textLayer.
+  ///
+  /// In en, this message translates to:
+  /// **'Text'**
+  String get watermark_textLayer;
+
+  /// No description provided for @watermark_logoLayer.
+  ///
+  /// In en, this message translates to:
+  /// **'Logo'**
+  String get watermark_logoLayer;
+
+  /// No description provided for @watermark_enableLayer.
+  ///
+  /// In en, this message translates to:
+  /// **'Show layer'**
+  String get watermark_enableLayer;
+
+  /// No description provided for @watermark_text.
+  ///
+  /// In en, this message translates to:
+  /// **'Watermark text'**
+  String get watermark_text;
+
+  /// No description provided for @watermark_alignment.
+  ///
+  /// In en, this message translates to:
+  /// **'Text alignment'**
+  String get watermark_alignment;
+
+  /// No description provided for @editor_colorHex.
+  ///
+  /// In en, this message translates to:
+  /// **'Hex color value'**
+  String get editor_colorHex;
+
+  /// No description provided for @editor_colorSaturationBrightness.
+  ///
+  /// In en, this message translates to:
+  /// **'Color saturation and brightness'**
+  String get editor_colorSaturationBrightness;
+
+  /// No description provided for @editor_colorHue.
+  ///
+  /// In en, this message translates to:
+  /// **'Color hue'**
+  String get editor_colorHue;
+
+  /// No description provided for @watermark_alignLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'Align left'**
+  String get watermark_alignLeft;
+
+  /// No description provided for @watermark_alignCenter.
+  ///
+  /// In en, this message translates to:
+  /// **'Align center'**
+  String get watermark_alignCenter;
+
+  /// No description provided for @watermark_alignRight.
+  ///
+  /// In en, this message translates to:
+  /// **'Align right'**
+  String get watermark_alignRight;
+
+  /// No description provided for @watermark_font.
+  ///
+  /// In en, this message translates to:
+  /// **'Font'**
+  String get watermark_font;
+
+  /// No description provided for @watermark_chooseLogo.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose logo'**
+  String get watermark_chooseLogo;
+
+  /// No description provided for @watermark_replaceLogo.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace logo'**
+  String get watermark_replaceLogo;
+
+  /// No description provided for @watermark_logoMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'The saved logo is missing. Choose it again before saving.'**
+  String get watermark_logoMissing;
+
+  /// No description provided for @watermark_logoImportFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The logo could not be imported. Choose a valid, static PNG, JPEG, or WebP image within the supported size.'**
+  String get watermark_logoImportFailed;
+
+  /// No description provided for @watermark_opacity.
+  ///
+  /// In en, this message translates to:
+  /// **'Opacity'**
+  String get watermark_opacity;
+
+  /// No description provided for @watermark_size.
+  ///
+  /// In en, this message translates to:
+  /// **'Size'**
+  String get watermark_size;
+
+  /// No description provided for @watermark_letterSpacing.
+  ///
+  /// In en, this message translates to:
+  /// **'Letter spacing'**
+  String get watermark_letterSpacing;
+
+  /// No description provided for @watermark_stroke.
+  ///
+  /// In en, this message translates to:
+  /// **'Outline'**
+  String get watermark_stroke;
+
+  /// No description provided for @watermark_shadow.
+  ///
+  /// In en, this message translates to:
+  /// **'Soft shadow'**
+  String get watermark_shadow;
+
+  /// No description provided for @watermark_margin.
+  ///
+  /// In en, this message translates to:
+  /// **'Edge margin'**
+  String get watermark_margin;
+
+  /// No description provided for @watermark_anchor.
+  ///
+  /// In en, this message translates to:
+  /// **'Anchor'**
+  String get watermark_anchor;
+
+  /// No description provided for @watermark_anchorTopLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'Top left'**
+  String get watermark_anchorTopLeft;
+
+  /// No description provided for @watermark_anchorTopCenter.
+  ///
+  /// In en, this message translates to:
+  /// **'Top center'**
+  String get watermark_anchorTopCenter;
+
+  /// No description provided for @watermark_anchorTopRight.
+  ///
+  /// In en, this message translates to:
+  /// **'Top right'**
+  String get watermark_anchorTopRight;
+
+  /// No description provided for @watermark_anchorCenterLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'Center left'**
+  String get watermark_anchorCenterLeft;
+
+  /// No description provided for @watermark_anchorCenter.
+  ///
+  /// In en, this message translates to:
+  /// **'Center'**
+  String get watermark_anchorCenter;
+
+  /// No description provided for @watermark_anchorCenterRight.
+  ///
+  /// In en, this message translates to:
+  /// **'Center right'**
+  String get watermark_anchorCenterRight;
+
+  /// No description provided for @watermark_anchorBottomLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'Bottom left'**
+  String get watermark_anchorBottomLeft;
+
+  /// No description provided for @watermark_anchorBottomCenter.
+  ///
+  /// In en, this message translates to:
+  /// **'Bottom center'**
+  String get watermark_anchorBottomCenter;
+
+  /// No description provided for @watermark_anchorBottomRight.
+  ///
+  /// In en, this message translates to:
+  /// **'Bottom right'**
+  String get watermark_anchorBottomRight;
+
+  /// No description provided for @watermark_layerArrangement.
+  ///
+  /// In en, this message translates to:
+  /// **'Layer arrangement'**
+  String get watermark_layerArrangement;
+
+  /// No description provided for @watermark_arrangementIndependent.
+  ///
+  /// In en, this message translates to:
+  /// **'Independent'**
+  String get watermark_arrangementIndependent;
+
+  /// No description provided for @watermark_arrangementHorizontal.
+  ///
+  /// In en, this message translates to:
+  /// **'Group horizontally'**
+  String get watermark_arrangementHorizontal;
+
+  /// No description provided for @watermark_arrangementVertical.
+  ///
+  /// In en, this message translates to:
+  /// **'Group vertically'**
+  String get watermark_arrangementVertical;
+
+  /// No description provided for @watermark_zOrder.
+  ///
+  /// In en, this message translates to:
+  /// **'Bring selected layer forward'**
+  String get watermark_zOrder;
+
+  /// No description provided for @watermark_ratioOriginal.
+  ///
+  /// In en, this message translates to:
+  /// **'Original'**
+  String get watermark_ratioOriginal;
+
+  /// No description provided for @watermark_ratioPortrait.
+  ///
+  /// In en, this message translates to:
+  /// **'Portrait'**
+  String get watermark_ratioPortrait;
+
+  /// No description provided for @watermark_ratioSquare.
+  ///
+  /// In en, this message translates to:
+  /// **'Square'**
+  String get watermark_ratioSquare;
+
+  /// No description provided for @watermark_ratioLandscape.
+  ///
+  /// In en, this message translates to:
+  /// **'Landscape'**
+  String get watermark_ratioLandscape;
+
+  /// No description provided for @watermark_layoutUniversal.
+  ///
+  /// In en, this message translates to:
+  /// **'Universal layout'**
+  String get watermark_layoutUniversal;
+
+  /// No description provided for @watermark_layoutPortrait.
+  ///
+  /// In en, this message translates to:
+  /// **'Portrait layout'**
+  String get watermark_layoutPortrait;
+
+  /// No description provided for @watermark_layoutSquare.
+  ///
+  /// In en, this message translates to:
+  /// **'Square layout'**
+  String get watermark_layoutSquare;
+
+  /// No description provided for @watermark_layoutLandscape.
+  ///
+  /// In en, this message translates to:
+  /// **'Landscape layout'**
+  String get watermark_layoutLandscape;
+
+  /// No description provided for @watermark_metadataRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Metadata will be removed according to Safety & Sharing settings.'**
+  String get watermark_metadataRemoved;
+
+  /// No description provided for @watermark_metadataPreserved.
+  ///
+  /// In en, this message translates to:
+  /// **'Supported source metadata will be written into the new copy.'**
+  String get watermark_metadataPreserved;
+
+  /// No description provided for @watermark_setDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Set as default'**
+  String get watermark_setDefault;
+
+  /// No description provided for @watermark_defaultSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Default watermark updated'**
+  String get watermark_defaultSaved;
+
+  /// No description provided for @watermark_saveCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Save copy'**
+  String get watermark_saveCopy;
+
+  /// No description provided for @watermark_saving.
+  ///
+  /// In en, this message translates to:
+  /// **'Rendering full-resolution image…'**
+  String get watermark_saving;
+
+  /// No description provided for @watermark_saved.
+  ///
+  /// In en, this message translates to:
+  /// **'Watermarked copy saved'**
+  String get watermark_saved;
+
+  /// No description provided for @watermark_share.
+  ///
+  /// In en, this message translates to:
+  /// **'Share'**
+  String get watermark_share;
+
+  /// No description provided for @watermark_open.
+  ///
+  /// In en, this message translates to:
+  /// **'Open'**
+  String get watermark_open;
+
+  /// No description provided for @watermark_undo.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo'**
+  String get watermark_undo;
+
+  /// No description provided for @watermark_reset.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset'**
+  String get watermark_reset;
+
+  /// No description provided for @watermark_noLayer.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable text or logo before saving.'**
+  String get watermark_noLayer;
+
+  /// No description provided for @watermark_cancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Watermark rendering cancelled'**
+  String get watermark_cancelled;
+
+  /// No description provided for @watermark_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not create watermark copy: {error}'**
+  String watermark_failed(Object error);
+
+  /// No description provided for @watermark_failedGeneric.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not create the watermarked copy. Check the image and try again.'**
+  String get watermark_failedGeneric;
+
+  /// No description provided for @watermark_systemGalleryExportFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The copy was saved in Aaalice, but could not be added to the system gallery.'**
+  String get watermark_systemGalleryExportFailed;
+
+  /// No description provided for @watermark_galleryRefreshFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The copy was saved, but the gallery could not refresh. Reopen the gallery to retry.'**
+  String get watermark_galleryRefreshFailed;
+
+  /// No description provided for @watermark_sourceMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'The original image is missing. Choose it again to recreate the watermark.'**
+  String get watermark_sourceMissing;
+
+  /// No description provided for @watermark_chooseOriginal.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose original image'**
+  String get watermark_chooseOriginal;
+
+  /// No description provided for @watermark_dragHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Drag the selected layer. Arrow keys move precisely; hold Shift for larger steps.'**
+  String get watermark_dragHint;
+
+  /// No description provided for @watermark_moveLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'Move layer left'**
+  String get watermark_moveLeft;
+
+  /// No description provided for @watermark_moveRight.
+  ///
+  /// In en, this message translates to:
+  /// **'Move layer right'**
+  String get watermark_moveRight;
+
+  /// No description provided for @watermark_moveUp.
+  ///
+  /// In en, this message translates to:
+  /// **'Move layer up'**
+  String get watermark_moveUp;
+
+  /// No description provided for @watermark_moveDown.
+  ///
+  /// In en, this message translates to:
+  /// **'Move layer down'**
+  String get watermark_moveDown;
+
+  /// No description provided for @watermark_sourceLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'This image could not be opened. Check that it is a valid, static PNG, JPEG, WebP, or BMP image, then try again.'**
+  String get watermark_sourceLoadFailed;
 }
 
 class _AppLocalizationsDelegate

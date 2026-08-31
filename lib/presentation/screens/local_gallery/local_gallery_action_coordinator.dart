@@ -13,10 +13,12 @@ import '../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../../core/database/database_providers.dart';
 import '../../../core/services/android_media_store_service.dart';
 import '../../../core/services/file_export_service.dart';
+import '../../../core/storage/local_storage_service.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/file_explorer_utils.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../core/utils/zip_utils.dart';
+import '../../../core/watermark/watermark_derivative_registry.dart';
 import '../../../data/models/gallery/local_image_record.dart';
 import '../../../data/models/gallery/nai_image_metadata.dart';
 import '../../../data/repositories/gallery_folder_repository.dart';
@@ -28,9 +30,11 @@ import '../../providers/gallery_folder_provider.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/krita/krita_bridge_notifier.dart';
 import '../../providers/local_gallery_provider.dart';
+import '../../providers/watermark_settings_provider.dart';
 import '../../providers/reverse_prompt_provider.dart';
 import '../../providers/selection_mode_provider.dart';
 import '../../router/app_routes.dart';
+import '../watermark/watermark_editor_launcher.dart';
 import '../../services/image_workflow_launcher.dart';
 import '../../utils/asset_protection_guard.dart';
 import '../../utils/fixed_tag_metadata_matcher.dart';
@@ -79,6 +83,9 @@ class LocalGalleryActionCoordinator {
   final WidgetRef _ref;
   final BuildContext Function() _context;
   final bool Function() _mounted;
+
+  WatermarkDerivativeRegistry get _watermarkRegistry =>
+      WatermarkDerivativeRegistry(_ref.read(localStorageServiceProvider));
 
   Future<List<LocalImageRecord>> _selectedImages() async {
     final selectedIds = _ref
@@ -143,6 +150,7 @@ class LocalGalleryActionCoordinator {
         final file = File(image.path);
         if (await file.exists()) {
           await file.delete();
+          await _watermarkRegistry.remove(image.path);
           deletedCount++;
         }
       } catch (_) {
@@ -387,11 +395,17 @@ class LocalGalleryActionCoordinator {
       icon: Icons.drive_file_move_outline,
     );
     if (!protected || !_mounted()) return;
-    final movedCount = await GalleryFolderRepository.instance
-        .moveImagesToFolder(
-          selectedImages.map((image) => image.path).toList(),
-          selectedFolder,
-        );
+    var movedCount = 0;
+    for (final image in selectedImages) {
+      final newPath = await GalleryFolderRepository.instance
+          .moveImageToFolderPath(image.path, selectedFolder);
+      if (newPath == null) continue;
+      await _watermarkRegistry.relocatePath(
+        oldPath: image.path,
+        newPath: newPath,
+      );
+      movedCount++;
+    }
     if (!_mounted()) return;
     if (movedCount > 0) {
       AppToast.info(
@@ -453,6 +467,13 @@ class LocalGalleryActionCoordinator {
           PlatformCapabilities.current.supportsKritaBridge &&
           _ref.read(kritaBridgeNotifierProvider).status ==
               KritaBridgeStatus.connected,
+      watermarkEnabled: _ref
+          .read(watermarkSettingsProvider)
+          .configuration
+          .enabled,
+      isWatermarkDerivative: WatermarkDerivativeRegistry(
+        _ref.read(localStorageServiceProvider),
+      ).isDerivative(record.path),
     );
     if (action == null || !_mounted()) return;
     await routeImageAction(
@@ -489,6 +510,11 @@ class LocalGalleryActionCoordinator {
         await _sendToUpscale(record);
       case LocalImageContextAction.shareToDiscord:
         await _shareLocalImageToDiscord(record);
+      case LocalImageContextAction.createWatermark:
+        await WatermarkEditorLauncher.openForLocalPath(
+          context: _context(),
+          path: record.path,
+        );
       case LocalImageContextAction.copyPrompt:
         await _copyPrompt(record, availableMetadata);
       case LocalImageContextAction.copySeed:
@@ -900,6 +926,7 @@ class LocalGalleryActionCoordinator {
       final file = File(record.path);
       if (!await file.exists()) return;
       await file.delete();
+      await _watermarkRegistry.remove(record.path);
       await _ref.read(localGalleryNotifierProvider.notifier).refresh();
       if (_mounted()) {
         AppToast.success(_context(), _context().l10n.localGallery_imageDeleted);

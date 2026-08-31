@@ -173,3 +173,21 @@ flutter:
     - family: LXGW ZhenKai GB
       fonts:
         - asset: fonts/LXGWZhenKaiGB-Regular.ttf
+    - family: Great Vibes
+      fonts:
+        - asset: fonts/watermark/GreatVibes-Regular.ttf
+    - family: Caveat
+      fonts:
+        - asset: fonts/watermark/Caveat-VariableFont_wght.ttf
+    - family: Allura
+      fonts:
+        - asset: fonts/watermark/Allura-Regular.ttf
+    - family: Ma Shan Zheng
+      fonts:
+        - asset: fonts/watermark/MaShanZheng-Regular.ttf
+    - family: Zhi Mang Xing
+      fonts:
+        - asset: fonts/watermark/ZhiMangXing-Regular.ttf
+    - family: Long Cang
+      fonts:
+        - asset: fonts/watermark/LongCang-Regular.ttf

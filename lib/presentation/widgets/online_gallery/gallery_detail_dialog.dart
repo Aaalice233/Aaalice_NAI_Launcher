@@ -32,6 +32,7 @@ class GalleryDetailDialog extends ConsumerStatefulWidget {
     required this.onAddToQueue,
     required this.onDownloadCurrentOriginal,
     required this.onTagSearch,
+    this.onDownloadAndWatermark,
     required this.onBlacklistChanged,
     this.onDownloadAll,
     this.onSendToReverse,
@@ -52,6 +53,7 @@ class GalleryDetailDialog extends ConsumerStatefulWidget {
   final void Function(GalleryMedia? media) onSendToGenerate;
   final Future<void> Function(GalleryMedia? media) onAddToQueue;
   final Future<void> Function(GalleryMedia media) onDownloadCurrentOriginal;
+  final Future<void> Function(GalleryMedia media)? onDownloadAndWatermark;
   final ValueChanged<String> onTagSearch;
   final VoidCallback onBlacklistChanged;
   final Future<void> Function(List<GalleryMedia> media)? onDownloadAll;
@@ -157,6 +159,11 @@ class _GalleryDetailDialogState extends ConsumerState<GalleryDetailDialog> {
           _controller.addToQueue(() => widget.onAddToQueue(media)),
       downloadCurrentOriginal: (media) =>
           _controller.download(() => widget.onDownloadCurrentOriginal(media)),
+      downloadAndWatermark: widget.onDownloadAndWatermark == null
+          ? null
+          : (media) => _controller.download(
+              () => widget.onDownloadAndWatermark!(media),
+            ),
       searchTag: _searchTag,
       showTagMenu: _showTagMenu,
       downloadAll: widget.onDownloadAll == null

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -22,11 +23,13 @@ import '../../providers/online_gallery_prompt_tag_settings_provider.dart';
 import '../../providers/online_gallery_provider.dart';
 import '../../providers/replication_queue_provider.dart';
 import '../../providers/reverse_prompt_provider.dart';
+import '../../providers/watermark_settings_provider.dart';
 import '../../services/gallery_prompt_projection_service.dart';
 import '../../services/generation_prompt_transfer_service.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/online_gallery/gallery_detail_dialog.dart';
 import '../../widgets/online_gallery/gallery_prompt_copy_dialog.dart';
+import '../watermark/watermark_editor_launcher.dart';
 import 'online_gallery_screen_controller.dart';
 import 'online_gallery_utils.dart';
 
@@ -140,6 +143,7 @@ class OnlineGalleryDetailLauncher {
             downloadOriginal: item.sourceId == GallerySourceId.quickTagCloud
                 ? l10n.onlineGallery_codexDownloadOriginal
                 : l10n.common_download,
+            downloadAndWatermark: l10n.watermark_actionDownloadCreate,
             previousImage: l10n.onlineGallery_previousPage,
             nextImage: l10n.onlineGallery_nextPage,
             close: l10n.common_close,
@@ -178,6 +182,10 @@ class OnlineGalleryDetailLauncher {
           ),
           onDownloadCurrentOriginal: (media) =>
               _downloadCodexMedia(context, item, media),
+          onDownloadAndWatermark:
+              ref.read(watermarkSettingsProvider).configuration.enabled
+              ? (media) => _downloadAndWatermark(context, item, media)
+              : null,
           onTagSearch: (tag) {
             controller?.searchController.text = tag;
             _galleryNotifier.search(tag);
@@ -573,26 +581,15 @@ class OnlineGalleryDetailLauncher {
     GalleryItem item,
     GalleryMedia media,
   ) async {
-    final url = media.downloadUrl;
     try {
-      final file = await OnlineGalleryImageCacheManager.instance.getSingleFile(
-        url,
-        key: onlineGalleryImageCacheKeyForUrl(url),
-        headers: onlineGalleryImageHeadersForUrl(url),
-      );
+      final download = await _resolveDownloadedMedia(item, media);
       if (!dialogContext.mounted) return;
-      final safeWorkId = item.sourceWorkId.replaceAll(
-        RegExp(r'[^A-Za-z0-9._-]+'),
-        '_',
-      );
-      final extension = resolveGalleryDownloadExtension(media, url);
-      final safeMediaId = media.id.replaceAll(RegExp(r'[^A-Za-z0-9._-]+'), '_');
       final savedLocation = await FileExportService.saveFileFromPath(
-        sourcePath: file.path,
-        fileName: '${item.sourceId.key}_${safeWorkId}_$safeMediaId.$extension',
+        sourcePath: download.file.path,
+        fileName: download.fileName,
         dialogTitle: dialogContext.l10n.onlineGallery_chooseDownloadDirectory,
-        mimeType: mediaMimeTypeForExtension(extension),
-        allowedExtensions: [extension],
+        mimeType: mediaMimeTypeForExtension(download.extension),
+        allowedExtensions: [download.extension],
       );
       if (savedLocation == null) return;
       if (dialogContext.mounted) {
@@ -609,6 +606,57 @@ class OnlineGalleryDetailLauncher {
         );
       }
     }
+  }
+
+  Future<void> _downloadAndWatermark(
+    BuildContext dialogContext,
+    GalleryItem item,
+    GalleryMedia media,
+  ) async {
+    try {
+      final download = await _resolveDownloadedMedia(item, media);
+      final bytes = await download.file.readAsBytes();
+      if (!dialogContext.mounted) return;
+      await WatermarkEditorLauncher.open(
+        context: dialogContext,
+        sourceBytes: bytes,
+        sourceFileName: download.fileName,
+        sourcePath: download.file.path,
+      );
+    } catch (error) {
+      if (dialogContext.mounted) {
+        AppToast.error(
+          dialogContext,
+          dialogContext.l10n.onlineGallery_downloadFailed(error.toString()),
+        );
+      }
+    }
+  }
+
+  Future<({File file, String fileName, String extension})>
+  _resolveDownloadedMedia(GalleryItem item, GalleryMedia media) async {
+    final url = media.downloadUrl.isNotEmpty
+        ? media.downloadUrl
+        : (media.displayUrl.isNotEmpty ? media.displayUrl : media.previewUrl);
+    if (url.isEmpty) {
+      throw StateError('No downloadable media URL is available.');
+    }
+    final file = await OnlineGalleryImageCacheManager.instance.getSingleFile(
+      url,
+      key: onlineGalleryImageCacheKeyForUrl(url),
+      headers: onlineGalleryImageHeadersForUrl(url),
+    );
+    final safeWorkId = item.sourceWorkId.replaceAll(
+      RegExp(r'[^A-Za-z0-9._-]+'),
+      '_',
+    );
+    final safeMediaId = media.id.replaceAll(RegExp(r'[^A-Za-z0-9._-]+'), '_');
+    final extension = resolveGalleryDownloadExtension(media, url);
+    return (
+      file: file,
+      fileName: '${item.sourceId.key}_${safeWorkId}_$safeMediaId.$extension',
+      extension: extension,
+    );
   }
 
   /// 处理收藏切换

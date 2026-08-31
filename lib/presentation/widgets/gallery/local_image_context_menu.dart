@@ -14,6 +14,7 @@ enum LocalImageContextAction {
   sendToKrita,
   upscale,
   shareToDiscord,
+  createWatermark,
   importMetadata,
   copyPrompt,
   copySeed,
@@ -32,16 +33,13 @@ class LocalImageContextMenu {
     required bool hasPrompt,
     required bool hasSeed,
     required bool isKritaConnected,
+    bool watermarkEnabled = false,
+    bool isWatermarkDerivative = false,
   }) {
     return showMenu<LocalImageContextAction>(
       context: context,
       constraints: const BoxConstraints(minWidth: 320, maxWidth: 420),
-      position: RelativeRect.fromLTRB(
-        position.dx,
-        position.dy,
-        position.dx + 1,
-        position.dy + 1,
-      ),
+      position: _relativePosition(context, position),
       popUpAnimationStyle: AnimationStyle.noAnimation,
       items: buildEntries(
         context,
@@ -49,6 +47,8 @@ class LocalImageContextMenu {
         hasPrompt: hasPrompt,
         hasSeed: hasSeed,
         isKritaConnected: isKritaConnected,
+        watermarkEnabled: watermarkEnabled,
+        isWatermarkDerivative: isWatermarkDerivative,
       ),
     );
   }
@@ -57,18 +57,29 @@ class LocalImageContextMenu {
     BuildContext context, {
     required Offset position,
     required bool isKritaConnected,
+    bool watermarkEnabled = false,
+    bool isWatermarkDerivative = false,
   }) {
     return showMenu<LocalImageContextAction>(
       context: context,
       constraints: const BoxConstraints(minWidth: 320, maxWidth: 420),
-      position: RelativeRect.fromLTRB(
-        position.dx,
-        position.dy,
-        position.dx + 1,
-        position.dy + 1,
-      ),
+      position: _relativePosition(context, position),
       popUpAnimationStyle: AnimationStyle.noAnimation,
-      items: buildSendEntries(context, isKritaConnected: isKritaConnected),
+      items: buildSendEntries(
+        context,
+        isKritaConnected: isKritaConnected,
+        watermarkEnabled: watermarkEnabled,
+        isWatermarkDerivative: isWatermarkDerivative,
+      ),
+    );
+  }
+
+  static RelativeRect _relativePosition(BuildContext context, Offset position) {
+    final overlay =
+        Overlay.of(context).context.findRenderObject()! as RenderBox;
+    return RelativeRect.fromRect(
+      Rect.fromLTWH(position.dx, position.dy, 1, 1),
+      Offset.zero & overlay.size,
     );
   }
 
@@ -78,6 +89,8 @@ class LocalImageContextMenu {
     required bool hasPrompt,
     required bool hasSeed,
     required bool isKritaConnected,
+    bool watermarkEnabled = false,
+    bool isWatermarkDerivative = false,
   }) {
     final hasImageInfoActions = hasImportableMetadata || hasPrompt || hasSeed;
 
@@ -90,6 +103,15 @@ class LocalImageContextMenu {
       ),
       const PopupMenuDivider(),
       ...buildSendEntries(context, isKritaConnected: isKritaConnected),
+      if (watermarkEnabled)
+        _item(
+          context,
+          value: LocalImageContextAction.createWatermark,
+          icon: Icons.branding_watermark_outlined,
+          label: isWatermarkDerivative
+              ? context.l10n.watermark_actionRegenerate
+              : context.l10n.watermark_actionCreate,
+        ),
       if (hasImageInfoActions) const PopupMenuDivider(),
       if (hasImportableMetadata)
         _item(
@@ -140,6 +162,8 @@ class LocalImageContextMenu {
   static List<PopupMenuEntry<LocalImageContextAction>> buildSendEntries(
     BuildContext context, {
     required bool isKritaConnected,
+    bool watermarkEnabled = false,
+    bool isWatermarkDerivative = false,
   }) {
     return [
       _item(
@@ -197,6 +221,16 @@ class LocalImageContextMenu {
         icon: Icons.send_rounded,
         label: context.l10n.discordShare_action,
       ),
+      if (watermarkEnabled) const PopupMenuDivider(),
+      if (watermarkEnabled)
+        _item(
+          context,
+          value: LocalImageContextAction.createWatermark,
+          icon: Icons.branding_watermark_outlined,
+          label: isWatermarkDerivative
+              ? context.l10n.watermark_actionRegenerate
+              : context.l10n.watermark_actionCreate,
+        ),
     ];
   }
 

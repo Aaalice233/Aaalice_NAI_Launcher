@@ -13797,4 +13797,280 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get agentSettings_profileImported => 'Agent profile imported';
+
+  @override
+  String get settings_watermarkTitle => 'Watermark';
+
+  @override
+  String get settings_watermarkSubtitle =>
+      'Create local watermarked copies without changing the original';
+
+  @override
+  String get settings_watermarkEnable => 'Enable watermark tool';
+
+  @override
+  String get settings_watermarkPreserveMetadata =>
+      'Keep metadata in watermark copies';
+
+  @override
+  String get settings_watermarkPreserveMetadataHint =>
+      'Off removes PNG text, EXIF, NovelAI stealth data, prompts, and seeds. On safely writes supported source metadata into the new PNG.';
+
+  @override
+  String get settings_watermarkEditDefault => 'Edit default watermark';
+
+  @override
+  String get settings_watermarkCreateFromImage =>
+      'Choose an image and create a watermarked copy…';
+
+  @override
+  String get settings_watermarkLayoutByOrientation =>
+      'Remember layouts by image orientation';
+
+  @override
+  String get settings_watermarkLayoutByOrientationHint =>
+      'Share text and style, but keep separate portrait, square, and landscape placement.';
+
+  @override
+  String get settings_watermarkConfigMigrated =>
+      'Older watermark settings were migrated for review. Save to confirm the current default.';
+
+  @override
+  String get settings_watermarkConfigCorrupted =>
+      'The watermark settings could not be read. Safe defaults are shown; save to replace the damaged data.';
+
+  @override
+  String get watermark_actionCreate => 'Create watermarked copy…';
+
+  @override
+  String get watermark_actionRegenerate => 'Recreate watermarked copy…';
+
+  @override
+  String get watermark_actionDownloadCreate => 'Download and add watermark…';
+
+  @override
+  String get watermark_editorTitle => 'Watermark editor';
+
+  @override
+  String get watermark_textLayer => 'Text';
+
+  @override
+  String get watermark_logoLayer => 'Logo';
+
+  @override
+  String get watermark_enableLayer => 'Show layer';
+
+  @override
+  String get watermark_text => 'Watermark text';
+
+  @override
+  String get watermark_alignment => 'Text alignment';
+
+  @override
+  String get editor_colorHex => 'Hex color value';
+
+  @override
+  String get editor_colorSaturationBrightness =>
+      'Color saturation and brightness';
+
+  @override
+  String get editor_colorHue => 'Color hue';
+
+  @override
+  String get watermark_alignLeft => 'Align left';
+
+  @override
+  String get watermark_alignCenter => 'Align center';
+
+  @override
+  String get watermark_alignRight => 'Align right';
+
+  @override
+  String get watermark_font => 'Font';
+
+  @override
+  String get watermark_chooseLogo => 'Choose logo';
+
+  @override
+  String get watermark_replaceLogo => 'Replace logo';
+
+  @override
+  String get watermark_logoMissing =>
+      'The saved logo is missing. Choose it again before saving.';
+
+  @override
+  String get watermark_logoImportFailed =>
+      'The logo could not be imported. Choose a valid, static PNG, JPEG, or WebP image within the supported size.';
+
+  @override
+  String get watermark_opacity => 'Opacity';
+
+  @override
+  String get watermark_size => 'Size';
+
+  @override
+  String get watermark_letterSpacing => 'Letter spacing';
+
+  @override
+  String get watermark_stroke => 'Outline';
+
+  @override
+  String get watermark_shadow => 'Soft shadow';
+
+  @override
+  String get watermark_margin => 'Edge margin';
+
+  @override
+  String get watermark_anchor => 'Anchor';
+
+  @override
+  String get watermark_anchorTopLeft => 'Top left';
+
+  @override
+  String get watermark_anchorTopCenter => 'Top center';
+
+  @override
+  String get watermark_anchorTopRight => 'Top right';
+
+  @override
+  String get watermark_anchorCenterLeft => 'Center left';
+
+  @override
+  String get watermark_anchorCenter => 'Center';
+
+  @override
+  String get watermark_anchorCenterRight => 'Center right';
+
+  @override
+  String get watermark_anchorBottomLeft => 'Bottom left';
+
+  @override
+  String get watermark_anchorBottomCenter => 'Bottom center';
+
+  @override
+  String get watermark_anchorBottomRight => 'Bottom right';
+
+  @override
+  String get watermark_layerArrangement => 'Layer arrangement';
+
+  @override
+  String get watermark_arrangementIndependent => 'Independent';
+
+  @override
+  String get watermark_arrangementHorizontal => 'Group horizontally';
+
+  @override
+  String get watermark_arrangementVertical => 'Group vertically';
+
+  @override
+  String get watermark_zOrder => 'Bring selected layer forward';
+
+  @override
+  String get watermark_ratioOriginal => 'Original';
+
+  @override
+  String get watermark_ratioPortrait => 'Portrait';
+
+  @override
+  String get watermark_ratioSquare => 'Square';
+
+  @override
+  String get watermark_ratioLandscape => 'Landscape';
+
+  @override
+  String get watermark_layoutUniversal => 'Universal layout';
+
+  @override
+  String get watermark_layoutPortrait => 'Portrait layout';
+
+  @override
+  String get watermark_layoutSquare => 'Square layout';
+
+  @override
+  String get watermark_layoutLandscape => 'Landscape layout';
+
+  @override
+  String get watermark_metadataRemoved =>
+      'Metadata will be removed according to Safety & Sharing settings.';
+
+  @override
+  String get watermark_metadataPreserved =>
+      'Supported source metadata will be written into the new copy.';
+
+  @override
+  String get watermark_setDefault => 'Set as default';
+
+  @override
+  String get watermark_defaultSaved => 'Default watermark updated';
+
+  @override
+  String get watermark_saveCopy => 'Save copy';
+
+  @override
+  String get watermark_saving => 'Rendering full-resolution image…';
+
+  @override
+  String get watermark_saved => 'Watermarked copy saved';
+
+  @override
+  String get watermark_share => 'Share';
+
+  @override
+  String get watermark_open => 'Open';
+
+  @override
+  String get watermark_undo => 'Undo';
+
+  @override
+  String get watermark_reset => 'Reset';
+
+  @override
+  String get watermark_noLayer => 'Enable text or logo before saving.';
+
+  @override
+  String get watermark_cancelled => 'Watermark rendering cancelled';
+
+  @override
+  String watermark_failed(Object error) {
+    return 'Could not create watermark copy: $error';
+  }
+
+  @override
+  String get watermark_failedGeneric =>
+      'Could not create the watermarked copy. Check the image and try again.';
+
+  @override
+  String get watermark_systemGalleryExportFailed =>
+      'The copy was saved in Aaalice, but could not be added to the system gallery.';
+
+  @override
+  String get watermark_galleryRefreshFailed =>
+      'The copy was saved, but the gallery could not refresh. Reopen the gallery to retry.';
+
+  @override
+  String get watermark_sourceMissing =>
+      'The original image is missing. Choose it again to recreate the watermark.';
+
+  @override
+  String get watermark_chooseOriginal => 'Choose original image';
+
+  @override
+  String get watermark_dragHint =>
+      'Drag the selected layer. Arrow keys move precisely; hold Shift for larger steps.';
+
+  @override
+  String get watermark_moveLeft => 'Move layer left';
+
+  @override
+  String get watermark_moveRight => 'Move layer right';
+
+  @override
+  String get watermark_moveUp => 'Move layer up';
+
+  @override
+  String get watermark_moveDown => 'Move layer down';
+
+  @override
+  String get watermark_sourceLoadFailed =>
+      'This image could not be opened. Check that it is a valid, static PNG, JPEG, WebP, or BMP image, then try again.';
 }

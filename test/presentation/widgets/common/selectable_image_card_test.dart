@@ -10,8 +10,10 @@ import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/data/models/image/image_stream_chunk.dart';
+import 'package:nai_launcher/data/models/watermark/watermark_settings.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
+import 'package:nai_launcher/presentation/providers/watermark_settings_provider.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/history_panel.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/image_preview.dart';
 import 'package:nai_launcher/presentation/widgets/common/draggable_memory_image.dart';
@@ -230,7 +232,9 @@ void main() {
   testWidgets(
     'generation preview context menu exposes history destination shortcuts',
     (tester) async {
-      final container = _createContainerWithPreviewImage();
+      final container = _createContainerWithPreviewImage(
+        watermarkEnabled: true,
+      );
       addTearDown(container.dispose);
 
       await tester.pumpWidget(_buildPreviewApp(container));
@@ -251,6 +255,7 @@ void main() {
       expect(find.text('图生图'), findsOneWidget);
       expect(find.text('风格迁移'), findsOneWidget);
       expect(find.text('精准参考'), findsOneWidget);
+      expect(find.text('创建水印副本…'), findsOneWidget);
     },
   );
 
@@ -563,13 +568,25 @@ void main() {
 
 void _noop() {}
 
+class _EnabledWatermarkSettingsNotifier extends WatermarkSettingsNotifier {
+  @override
+  WatermarkSettingsState build() => const WatermarkSettingsState(
+    configuration: WatermarkSettings(enabled: true),
+  );
+}
+
 ProviderContainer _createContainerWithPreviewImage({
   ImageClipboardWriter? clipboardWriter,
+  bool watermarkEnabled = false,
 }) {
   final container = ProviderContainer(
     overrides: [
       if (clipboardWriter != null)
         imageClipboardWriterProvider.overrideWithValue(clipboardWriter),
+      if (watermarkEnabled)
+        watermarkSettingsProvider.overrideWith(
+          _EnabledWatermarkSettingsNotifier.new,
+        ),
     ],
   );
   final bytes = Uint8List.fromList(

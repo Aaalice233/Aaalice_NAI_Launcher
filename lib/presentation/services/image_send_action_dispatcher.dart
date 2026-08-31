@@ -15,6 +15,7 @@ import '../providers/fixed_tags_provider.dart';
 import '../providers/image_generation_provider.dart';
 import '../providers/reverse_prompt_provider.dart';
 import '../router/app_routes.dart';
+import '../screens/watermark/watermark_editor_launcher.dart';
 import '../utils/fixed_tag_metadata_matcher.dart';
 import '../utils/krita_send_helper.dart';
 import '../utils/local_gallery_reference_factory.dart';
@@ -83,6 +84,12 @@ class ImageSendActionDispatcher {
           AppToast.info(context, context.l10n.gallery_upscalePanelLoaded);
         case LocalImageContextAction.shareToDiscord:
           await _shareToDiscord(context, ref, bytes, fileName);
+        case LocalImageContextAction.createWatermark:
+          await WatermarkEditorLauncher.open(
+            context: context,
+            sourceBytes: bytes,
+            sourceFileName: fileName,
+          );
         case LocalImageContextAction.saveToSystemGallery:
           await _saveToSystemGallery(context, bytes, fileName);
         case LocalImageContextAction.copyPrompt:

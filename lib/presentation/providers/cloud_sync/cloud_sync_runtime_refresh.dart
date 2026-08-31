@@ -33,6 +33,7 @@ import '../theme_provider.dart';
 import '../uc_preset_provider.dart';
 import '../vibe_library_category_provider.dart';
 import '../vibe_library_provider.dart';
+import '../watermark_settings_provider.dart';
 
 Future<void> refreshCloudSyncRuntime(Ref ref, Set<String> adapterIds) async {
   if (adapterIds.contains('portable-settings')) {
@@ -42,6 +43,7 @@ Future<void> refreshCloudSyncRuntime(Ref ref, Set<String> adapterIds) async {
     ref.invalidate(fontNotifierProvider);
     ref.invalidate(fontScaleNotifierProvider);
     ref.invalidate(localeNotifierProvider);
+    ref.invalidate(watermarkSettingsProvider);
     ref.invalidate(historyClickBehaviorNotifierProvider);
     ref.invalidate(previewTransparencyNotifierProvider);
     ref.invalidate(compositionGuideNotifierProvider);

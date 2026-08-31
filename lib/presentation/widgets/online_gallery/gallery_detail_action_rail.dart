@@ -77,6 +77,11 @@ class _GalleryDetailActionRailState extends State<GalleryDetailActionRail> {
         media.capability.isFlutterImage &&
         media.capability.imageDisplayUrl.isNotEmpty &&
         actions.sendToReverse != null;
+    final canWatermark =
+        media != null &&
+        canDownload &&
+        media.capability.isFlutterImage &&
+        actions.downloadAndWatermark != null;
     final entries = <_RailActionEntry>[
       _RailActionEntry(
         id: 'copy',
@@ -96,6 +101,16 @@ class _GalleryDetailActionRailState extends State<GalleryDetailActionRail> {
             ? () => actions.downloadCurrentOriginal(media)
             : null,
       ),
+      if (canWatermark)
+        _RailActionEntry(
+          id: 'watermark',
+          icon: Icons.branding_watermark_outlined,
+          label: viewModel.labels.downloadAndWatermark,
+          loading: viewModel.downloadActionPending,
+          onPressed: viewModel.downloadActionPending
+              ? null
+              : () => actions.downloadAndWatermark!(media),
+        ),
       if (canReverse)
         _RailActionEntry(
           id: 'reverse',

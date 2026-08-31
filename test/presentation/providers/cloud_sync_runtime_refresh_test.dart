@@ -12,8 +12,10 @@ import 'package:nai_launcher/presentation/providers/locale_provider.dart';
 import 'package:nai_launcher/presentation/providers/online_gallery_output_filter_provider.dart';
 import 'package:nai_launcher/presentation/providers/random_mode_provider.dart';
 import 'package:nai_launcher/presentation/providers/tag_library_page_provider.dart';
+import 'package:nai_launcher/presentation/providers/watermark_settings_provider.dart';
 import 'package:nai_launcher/data/models/prompt/random_prompt_result.dart';
 import 'package:nai_launcher/data/models/tag_library/tag_library_entry.dart';
+import 'package:nai_launcher/data/models/watermark/watermark_settings.dart';
 
 final _refreshInvokerProvider = NotifierProvider<_RefreshInvoker, void>(
   _RefreshInvoker.new,
@@ -48,6 +50,10 @@ void main() {
       StorageKeys.onlineGalleryOutputFilterTags,
       <String>['old_tag'],
     );
+    await storage.setSetting(
+      StorageKeys.watermarkConfigV1,
+      const WatermarkSettings(enabled: false).encode(),
+    );
 
     final container = ProviderContainer(
       overrides: [localStorageServiceProvider.overrideWithValue(storage)],
@@ -64,6 +70,10 @@ void main() {
       RandomGenerationMode.naiOfficial,
     );
     expect(container.read(onlineGalleryOutputFilterProvider).tags, {'old_tag'});
+    expect(
+      container.read(watermarkSettingsProvider).configuration.enabled,
+      isFalse,
+    );
 
     await storage.setSetting(StorageKeys.locale, 'ja');
     await storage.setSetting(
@@ -74,6 +84,10 @@ void main() {
     await storage.setSetting(
       StorageKeys.onlineGalleryOutputFilterTags,
       <String>['new_tag'],
+    );
+    await storage.setSetting(
+      StorageKeys.watermarkConfigV1,
+      const WatermarkSettings(enabled: true).encode(),
     );
 
     await container.read(_refreshInvokerProvider.notifier).invoke(const {
@@ -90,6 +104,10 @@ void main() {
       RandomGenerationMode.custom,
     );
     expect(container.read(onlineGalleryOutputFilterProvider).tags, {'new_tag'});
+    expect(
+      container.read(watermarkSettingsProvider).configuration.enabled,
+      isTrue,
+    );
 
     expect(container.read(tagLibraryPageNotifierProvider).entries, isEmpty);
     final now = DateTime.utc(2026, 8, 30);
