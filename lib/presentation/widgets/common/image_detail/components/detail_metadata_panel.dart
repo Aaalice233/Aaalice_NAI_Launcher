@@ -13,11 +13,13 @@ import '../../../../../core/utils/nai_prompt_parser.dart';
 import '../../../../../core/utils/nai_resolution_adapter.dart';
 import '../../../../../data/models/fixed_tag/fixed_tag_entry.dart';
 import '../../../../../data/models/gallery/nai_image_metadata.dart';
+import '../../../../../data/models/gallery/nai_prompt_export_codec.dart';
 import '../../../../../data/models/vibe/vibe_reference.dart';
 import '../../../../providers/fixed_tags_provider.dart';
 import '../../../../utils/fixed_tag_metadata_matcher.dart';
 import '../../add_to_library_dialog.dart';
 import '../../app_toast.dart';
+import '../../prompt_copy_split_button.dart';
 import '../../save_as_preset_dialog.dart';
 import '../../save_vibe_dialog.dart';
 import '../../themed_divider.dart';
@@ -809,8 +811,24 @@ class _ActionButtons extends StatelessWidget {
 
   Future<void> _copyPositivePrompt(BuildContext context) async {
     final prompt = await PromptCopyDialog.show(context, metadata: metadata);
-    if (prompt == null || !context.mounted) return;
+    if (!context.mounted) return;
+    await _writePrompt(context, prompt);
+  }
 
+  Future<void> _copyAllTags(BuildContext context) =>
+      _writePrompt(context, NaiPromptExportCodec.encode(metadata));
+
+  Future<void> _customCopyTags(BuildContext context) async {
+    final prompt = await PromptCopyDialog.showExport(
+      context,
+      metadata: metadata,
+    );
+    if (!context.mounted) return;
+    await _writePrompt(context, prompt);
+  }
+
+  Future<void> _writePrompt(BuildContext context, String? prompt) async {
+    if (prompt == null || prompt.trim().isEmpty || !context.mounted) return;
     await Clipboard.setData(ClipboardData(text: prompt));
     if (context.mounted) {
       AppToast.success(context, context.l10n.gallery_promptCopied);
@@ -828,12 +846,26 @@ class _ActionButtons extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: _ActionButton(
-                  icon: Icons.copy,
-                  label: context.l10n.detail_copyLabel(
-                    context.l10n.prompt_positivePrompt,
-                  ),
-                  onPressed: () => _copyPositivePrompt(context),
+                child: PromptCopySplitButton(
+                  primaryLabel: context.l10n.onlineGallery_copyAllTags,
+                  menuTooltip: context.l10n.common_copy,
+                  onPressed: () => _copyAllTags(context),
+                  menuChildren: [
+                    MenuItemButton(
+                      onPressed: () => _customCopyTags(context),
+                      leadingIcon: const Icon(Icons.tune, size: 18),
+                      child: Text(context.l10n.onlineGallery_customCopyTags),
+                    ),
+                    MenuItemButton(
+                      onPressed: () => _copyPositivePrompt(context),
+                      leadingIcon: const Icon(Icons.shield_outlined, size: 18),
+                      child: Text(
+                        context.l10n.detail_copyLabel(
+                          context.l10n.prompt_positivePrompt,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(width: 8),

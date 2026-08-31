@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../data/models/online_gallery/gallery_item.dart';
+import '../common/prompt_copy_split_button.dart';
 import 'gallery_detail_models.dart';
 
 class GalleryDetailActionPanel extends StatelessWidget {
@@ -28,7 +29,7 @@ class GalleryDetailActionPanel extends StatelessWidget {
     final canDownloadAll =
         actions.downloadAll != null && viewModel.media.length > 1;
     const actionStyle = ButtonStyle(
-      minimumSize: WidgetStatePropertyAll(Size.fromHeight(42)),
+      minimumSize: WidgetStatePropertyAll(Size.fromHeight(48)),
       padding: WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 12)),
     );
 
@@ -121,78 +122,62 @@ class GalleryDetailActionPanel extends StatelessWidget {
   Widget _copyActionsButton(GalleryMedia? media, ButtonStyle style) {
     final hasArtistChain =
         media != null && actions.hasArtistChain?.call(media) == true;
-    final hasCopyActions =
-        viewModel.hasPrompt ||
-        viewModel.hasNegativePrompt ||
-        (actions.copyFullPrompt == null && viewModel.hasCopyableContent) ||
-        (media != null &&
-            (actions.copyMetadata != null ||
-                actions.copyArtistChain != null ||
-                actions.copyFullPrompt != null ||
-                actions.copyRawArtistFragments != null));
-
-    return MenuAnchor(
-      menuChildren: [
-        if (media != null && actions.copyArtistChain != null)
-          MenuItemButton(
-            onPressed: hasArtistChain
-                ? () => actions.copyArtistChain!(media)
-                : null,
-            leadingIcon: const Icon(Icons.brush_outlined, size: 18),
-            child: Text(
-              hasArtistChain
-                  ? viewModel.labels.copyArtistChain
-                  : viewModel.labels.noArtistChain,
-            ),
-          ),
-        if (media != null && actions.copyFullPrompt != null)
-          MenuItemButton(
-            onPressed: () => actions.copyFullPrompt!(media),
-            leadingIcon: const Icon(Icons.copy_all, size: 18),
-            child: Text(viewModel.labels.copyFullPrompt),
-          ),
-        if (media != null && actions.copyRawArtistFragments != null)
-          MenuItemButton(
-            onPressed: hasArtistChain
-                ? () => actions.copyRawArtistFragments!(media)
-                : null,
-            leadingIcon: const Icon(Icons.code, size: 18),
-            child: Text(viewModel.labels.copyRawArtistFragments),
-          ),
-        if (actions.copyFullPrompt == null && viewModel.hasCopyableContent)
-          MenuItemButton(
-            onPressed: actions.copyAll,
-            leadingIcon: const Icon(Icons.copy_all_outlined, size: 18),
-            child: Text(viewModel.labels.copyAll),
-          ),
-        if (media != null && actions.copyMetadata != null)
-          MenuItemButton(
-            onPressed: () => actions.copyMetadata!(media),
-            leadingIcon: const Icon(Icons.data_object, size: 18),
-            child: Text(viewModel.labels.copyMetadata),
-          ),
-      ],
-      builder: (context, controller, child) => OutlinedButton.icon(
-        style: style,
-        onPressed: hasCopyActions
-            ? () => controller.isOpen ? controller.close() : controller.open()
-            : null,
-        icon: const Icon(Icons.content_copy_outlined, size: 18),
-        label: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Flexible(
-              child: Text(
-                viewModel.labels.copyActions,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            const SizedBox(width: 2),
-            const Icon(Icons.arrow_drop_down, size: 18),
-          ],
+    final menuChildren = <Widget>[
+      if (actions.customCopyTags != null)
+        MenuItemButton(
+          onPressed: () => actions.customCopyTags!(media),
+          leadingIcon: const Icon(Icons.tune, size: 18),
+          child: Text(viewModel.labels.customCopyTags),
         ),
-      ),
+      if (media != null && actions.copyArtistChain != null)
+        MenuItemButton(
+          onPressed: hasArtistChain
+              ? () => actions.copyArtistChain!(media)
+              : null,
+          leadingIcon: const Icon(Icons.brush_outlined, size: 18),
+          child: Text(
+            hasArtistChain
+                ? viewModel.labels.copyArtistChain
+                : viewModel.labels.noArtistChain,
+          ),
+        ),
+      if (media != null && actions.copyFullPrompt != null)
+        MenuItemButton(
+          onPressed: () => actions.copyFullPrompt!(media),
+          leadingIcon: const Icon(Icons.copy_all, size: 18),
+          child: Text(viewModel.labels.copyFullPrompt),
+        ),
+      if (media != null && actions.copyRawArtistFragments != null)
+        MenuItemButton(
+          onPressed: hasArtistChain
+              ? () => actions.copyRawArtistFragments!(media)
+              : null,
+          leadingIcon: const Icon(Icons.code, size: 18),
+          child: Text(viewModel.labels.copyRawArtistFragments),
+        ),
+      if (actions.copyFullPrompt == null && viewModel.hasCopyableContent)
+        MenuItemButton(
+          onPressed: actions.copyAll,
+          leadingIcon: const Icon(Icons.copy_all_outlined, size: 18),
+          child: Text(viewModel.labels.copyAll),
+        ),
+      if (media != null && actions.copyMetadata != null)
+        MenuItemButton(
+          onPressed: () => actions.copyMetadata!(media),
+          leadingIcon: const Icon(Icons.data_object, size: 18),
+          child: Text(viewModel.labels.copyMetadata),
+        ),
+    ];
+
+    return PromptCopySplitButton(
+      primaryLabel: viewModel.labels.copyAllTags,
+      menuTooltip: viewModel.labels.copyActions,
+      onPressed: actions.copyAllTags == null
+          ? null
+          : () => actions.copyAllTags!(media),
+      menuChildren: menuChildren,
+      style: style,
+      menuButtonKey: const ValueKey('gallery_detail_copy_menu'),
     );
   }
 }

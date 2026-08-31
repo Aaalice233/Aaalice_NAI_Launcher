@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -13,6 +12,8 @@ import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../core/utils/media_mime_type.dart';
 import '../../../data/models/character/character_prompt.dart';
+import '../../../data/models/gallery/nai_image_metadata.dart';
+import '../../../data/models/gallery/nai_prompt_export_codec.dart';
 import '../../../data/models/online_gallery/danbooru_post.dart';
 import '../../../data/models/online_gallery/gallery_prompt_projection.dart';
 import '../../../data/models/queue/replication_task.dart';
@@ -26,6 +27,7 @@ import '../../providers/reverse_prompt_provider.dart';
 import '../../services/gallery_prompt_projection_service.dart';
 import '../../services/generation_prompt_transfer_service.dart';
 import '../../widgets/common/app_toast.dart';
+import '../../widgets/common/image_detail/components/prompt_copy_dialog.dart';
 import '../../widgets/online_gallery/gallery_detail_dialog.dart';
 import 'online_gallery_screen_controller.dart';
 import 'online_gallery_utils.dart';
@@ -161,6 +163,8 @@ class OnlineGalleryDetailLauncher {
             rating: l10n.onlineGallery_ratingLabel,
             score: l10n.onlineGallery_score,
             copyMetadata: l10n.onlineGallery_copyFullMetadata,
+            copyAllTags: l10n.onlineGallery_copyAllTags,
+            customCopyTags: l10n.onlineGallery_customCopyTags,
             downloadAll: l10n.onlineGallery_downloadAllMedia,
             sendToReverse: l10n.onlineGallery_sendToReversePrompt,
             copyArtistChain: l10n.onlineGallery_copyArtistChain,
@@ -221,10 +225,23 @@ class OnlineGalleryDetailLauncher {
           onBlacklistChanged: () => _galleryNotifier.refresh(),
           onCopyMetadata: (media) => unawaited(
             _copyCodexText(
-              _galleryMediaMetadata(media),
+              const GalleryPromptProjectionService().sourceMetadataForCopy(
+                item: item,
+                media: media,
+              ),
               l10n.onlineGallery_copyFullMetadata,
             ),
           ),
+          onCopyAllTags: (media) => unawaited(
+            _copyCodexText(
+              NaiPromptExportCodec.encode(
+                _promptMetadataForCopy(item, detail, media),
+              ),
+              l10n.onlineGallery_copyAllTags,
+            ),
+          ),
+          onCustomCopyTags: (media) =>
+              unawaited(_showCustomPromptCopy(context, item, detail, media)),
           onDownloadAll: (media) =>
               _downloadGalleryMediaBatch(context, item, media),
           onSendToReverse: (media) =>
@@ -352,10 +369,29 @@ class OnlineGalleryDetailLauncher {
     }
   }
 
-  String _galleryMediaMetadata(GalleryMedia media) {
-    final raw = media.rawMetadata?.trim() ?? '';
-    if (raw.isNotEmpty) return raw;
-    return const JsonEncoder.withIndent('  ').convert(media.metadata);
+  NaiImageMetadata _promptMetadataForCopy(
+    GalleryItem item,
+    GalleryDetail detail,
+    GalleryMedia? media,
+  ) => const GalleryPromptProjectionService().metadataForCopy(
+    item: item,
+    detail: detail,
+    currentMedia: media,
+    promptTagSettings: ref.read(onlineGalleryPromptTagSettingsProvider),
+  );
+
+  Future<void> _showCustomPromptCopy(
+    BuildContext context,
+    GalleryItem item,
+    GalleryDetail detail,
+    GalleryMedia? media,
+  ) async {
+    final text = await PromptCopyDialog.showExport(
+      context,
+      metadata: _promptMetadataForCopy(item, detail, media),
+    );
+    if (text == null || !context.mounted) return;
+    await _copyCodexText(text, context.l10n.onlineGallery_customCopyTags);
   }
 
   Future<void> _sendGalleryMediaToReverse(

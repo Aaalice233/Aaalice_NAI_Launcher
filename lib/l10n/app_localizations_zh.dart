@@ -3695,6 +3695,43 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onlineGallery_copyFullMetadata => '复制完整元数据';
 
   @override
+  String get onlineGallery_copyAllTags => '复制全部 TAG';
+
+  @override
+  String get onlineGallery_customCopyTags => '自定义复制';
+
+  @override
+  String get promptCopy_exportTitle => '自定义复制 TAG';
+
+  @override
+  String get promptCopy_allPositive => '全部正面提示词';
+
+  @override
+  String get promptCopy_allNegative => '全部负面提示词';
+
+  @override
+  String get promptCopy_mainPositive => '主 / 全局正面提示词';
+
+  @override
+  String get promptCopy_mainNegative => '主 / 全局负面提示词';
+
+  @override
+  String get promptCopy_fixedPositive => '固定正面提示词';
+
+  @override
+  String get promptCopy_fixedNegative => '固定负面提示词';
+
+  @override
+  String promptCopy_characterPositive(int index) {
+    return '角色 $index 正面提示词';
+  }
+
+  @override
+  String promptCopy_characterNegative(int index) {
+    return '角色 $index 负面提示词';
+  }
+
+  @override
   String get onlineGallery_gelbooruReadOnly => '只读收藏';
 
   @override
@@ -16884,6 +16921,43 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get onlineGallery_copyFullMetadata => '複製完整後設資料';
+
+  @override
+  String get onlineGallery_copyAllTags => '複製全部 TAG';
+
+  @override
+  String get onlineGallery_customCopyTags => '自訂複製';
+
+  @override
+  String get promptCopy_exportTitle => '自訂複製 TAG';
+
+  @override
+  String get promptCopy_allPositive => '全部正面提示詞';
+
+  @override
+  String get promptCopy_allNegative => '全部負面提示詞';
+
+  @override
+  String get promptCopy_mainPositive => '主 / 全域正面提示詞';
+
+  @override
+  String get promptCopy_mainNegative => '主 / 全域負面提示詞';
+
+  @override
+  String get promptCopy_fixedPositive => '固定正面提示詞';
+
+  @override
+  String get promptCopy_fixedNegative => '固定負面提示詞';
+
+  @override
+  String promptCopy_characterPositive(int index) {
+    return '角色 $index 正面提示詞';
+  }
+
+  @override
+  String promptCopy_characterNegative(int index) {
+    return '角色 $index 負面提示詞';
+  }
 
   @override
   String get onlineGallery_gelbooruReadOnly => '只讀收藏';

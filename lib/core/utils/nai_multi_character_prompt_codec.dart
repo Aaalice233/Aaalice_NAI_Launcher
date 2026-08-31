@@ -32,20 +32,41 @@ class NaiMultiCharacterPromptCodec {
   static String encode({
     required String basePrompt,
     required Iterable<String> characterPrompts,
+  }) => _encode(
+    basePrompt: basePrompt,
+    characterPrompts: characterPrompts,
+    separator: '\n\n| ',
+    maxCharacters: maxCharacterCount,
+  );
+
+  /// Keeps the same importable pipe contract on one line for clipboard export.
+  static String encodeInline({
+    required String basePrompt,
+    required Iterable<String> characterPrompts,
+  }) => _encode(
+    basePrompt: basePrompt,
+    characterPrompts: characterPrompts,
+    separator: ' | ',
+  );
+
+  static String _encode({
+    required String basePrompt,
+    required Iterable<String> characterPrompts,
+    required String separator,
+    int? maxCharacters,
   }) {
     final base = basePrompt.trim();
-    final characters = characterPrompts
+    final availableCharacters = characterPrompts
         .map((prompt) => prompt.trim())
-        .where((prompt) => prompt.isNotEmpty)
-        .take(maxCharacterCount)
-        .toList(growable: false);
+        .where((prompt) => prompt.isNotEmpty);
+    final characters =
+        (maxCharacters == null
+                ? availableCharacters
+                : availableCharacters.take(maxCharacters))
+            .toList(growable: false);
     if (characters.isEmpty) return base;
-    final buffer = StringBuffer(base);
-    for (final character in characters) {
-      if (buffer.isNotEmpty) buffer.write('\n\n');
-      buffer.write('| $character');
-    }
-    return buffer.toString();
+    if (base.isEmpty) return '| ${characters.join(separator)}';
+    return '$base$separator${characters.join(separator)}';
   }
 
   static List<String> _splitSinglePipes(String text) {

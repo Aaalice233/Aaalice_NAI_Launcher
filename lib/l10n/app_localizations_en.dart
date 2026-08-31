@@ -3854,6 +3854,43 @@ class AppLocalizationsEn extends AppLocalizations {
   String get onlineGallery_copyFullMetadata => 'Copy full metadata';
 
   @override
+  String get onlineGallery_copyAllTags => 'Copy all TAGs';
+
+  @override
+  String get onlineGallery_customCopyTags => 'Custom copy';
+
+  @override
+  String get promptCopy_exportTitle => 'Custom TAG copy';
+
+  @override
+  String get promptCopy_allPositive => 'All positive prompts';
+
+  @override
+  String get promptCopy_allNegative => 'All negative prompts';
+
+  @override
+  String get promptCopy_mainPositive => 'Main / global positive prompt';
+
+  @override
+  String get promptCopy_mainNegative => 'Main / global negative prompt';
+
+  @override
+  String get promptCopy_fixedPositive => 'Fixed positive prompts';
+
+  @override
+  String get promptCopy_fixedNegative => 'Fixed negative prompts';
+
+  @override
+  String promptCopy_characterPositive(int index) {
+    return 'Character $index positive prompt';
+  }
+
+  @override
+  String promptCopy_characterNegative(int index) {
+    return 'Character $index negative prompt';
+  }
+
+  @override
   String get onlineGallery_gelbooruReadOnly => 'Read-only favorites';
 
   @override

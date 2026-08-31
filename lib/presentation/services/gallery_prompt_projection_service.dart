@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import '../../data/models/gallery/nai_image_metadata.dart';
 import '../../data/models/online_gallery/gallery_item.dart';
 import '../../data/models/online_gallery/gallery_prompt_projection.dart';
 import '../providers/online_gallery_output_filter_provider.dart';
@@ -7,6 +10,58 @@ import '../providers/online_gallery_prompt_tag_settings_provider.dart';
 /// one action-ready projection.
 class GalleryPromptProjectionService {
   const GalleryPromptProjectionService();
+
+  String sourceMetadataForCopy({
+    required GalleryItem item,
+    required GalleryMedia media,
+  }) {
+    final raw = media.rawMetadata?.trim() ?? '';
+    if (raw.isNotEmpty) return raw;
+    if (media.metadata.isNotEmpty) {
+      return const JsonEncoder.withIndent('  ').convert(media.metadata);
+    }
+    if (item.rawSourceMetadata.isNotEmpty) {
+      return const JsonEncoder.withIndent('  ').convert(item.rawSourceMetadata);
+    }
+    return '';
+  }
+
+  NaiImageMetadata metadataForCopy({
+    required GalleryItem item,
+    GalleryDetail? detail,
+    GalleryMedia? currentMedia,
+    required OnlineGalleryPromptTagSettings promptTagSettings,
+  }) {
+    final media = currentMedia ?? _resolveMedia(item, detail);
+    final sourceMetadata = media?.promptMetadata;
+    if (sourceMetadata != null) return sourceMetadata;
+
+    final projection = project(
+      item: item,
+      detail: detail,
+      currentMedia: media,
+      promptTagSettings: promptTagSettings,
+      outputFilter: const OnlineGalleryOutputFilterSettings(tags: {}),
+    );
+    return NaiImageMetadata(
+      prompt: projection.positivePrompt,
+      negativePrompt: projection.negativePrompt,
+      characterPrompts: [
+        for (final character in projection.characterPrompts) character.prompt,
+      ],
+      characterNegativePrompts: [
+        for (final character in projection.characterPrompts)
+          character.negativePrompt,
+      ],
+      characterInfos: [
+        for (final character in projection.characterPrompts)
+          CharacterPromptInfo(
+            prompt: character.prompt,
+            negativePrompt: character.negativePrompt,
+          ),
+      ],
+    );
+  }
 
   GalleryPromptProjection project({
     required GalleryItem item,

@@ -6872,6 +6872,72 @@ abstract class AppLocalizations {
   /// **'Copy full metadata'**
   String get onlineGallery_copyFullMetadata;
 
+  /// No description provided for @onlineGallery_copyAllTags.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy all TAGs'**
+  String get onlineGallery_copyAllTags;
+
+  /// No description provided for @onlineGallery_customCopyTags.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom copy'**
+  String get onlineGallery_customCopyTags;
+
+  /// No description provided for @promptCopy_exportTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom TAG copy'**
+  String get promptCopy_exportTitle;
+
+  /// No description provided for @promptCopy_allPositive.
+  ///
+  /// In en, this message translates to:
+  /// **'All positive prompts'**
+  String get promptCopy_allPositive;
+
+  /// No description provided for @promptCopy_allNegative.
+  ///
+  /// In en, this message translates to:
+  /// **'All negative prompts'**
+  String get promptCopy_allNegative;
+
+  /// No description provided for @promptCopy_mainPositive.
+  ///
+  /// In en, this message translates to:
+  /// **'Main / global positive prompt'**
+  String get promptCopy_mainPositive;
+
+  /// No description provided for @promptCopy_mainNegative.
+  ///
+  /// In en, this message translates to:
+  /// **'Main / global negative prompt'**
+  String get promptCopy_mainNegative;
+
+  /// No description provided for @promptCopy_fixedPositive.
+  ///
+  /// In en, this message translates to:
+  /// **'Fixed positive prompts'**
+  String get promptCopy_fixedPositive;
+
+  /// No description provided for @promptCopy_fixedNegative.
+  ///
+  /// In en, this message translates to:
+  /// **'Fixed negative prompts'**
+  String get promptCopy_fixedNegative;
+
+  /// No description provided for @promptCopy_characterPositive.
+  ///
+  /// In en, this message translates to:
+  /// **'Character {index} positive prompt'**
+  String promptCopy_characterPositive(int index);
+
+  /// No description provided for @promptCopy_characterNegative.
+  ///
+  /// In en, this message translates to:
+  /// **'Character {index} negative prompt'**
+  String promptCopy_characterNegative(int index);
+
   /// No description provided for @onlineGallery_gelbooruReadOnly.
   ///
   /// In en, this message translates to:
