@@ -43,9 +43,9 @@ class GalleryGrid extends StatefulWidget {
   final void Function(
     LocalImageRecord record,
     int index,
-    TapDownDetails details,
+    TapUpDetails details,
   )?
-  onSecondaryTapDown;
+  onSecondaryTapUp;
   final void Function(LocalImageRecord record, int index)? onFavoriteToggle;
   final Future<void> Function(
     LocalImageRecord record,
@@ -67,7 +67,7 @@ class GalleryGrid extends StatefulWidget {
     this.onTap,
     this.onDoubleTap,
     this.onLongPress,
-    this.onSecondaryTapDown,
+    this.onSecondaryTapUp,
     this.onFavoriteToggle,
     this.onSendAction,
     this.isKritaConnected = false,
@@ -226,8 +226,8 @@ class _GalleryGridState extends State<GalleryGrid> {
                       ? null
                       : () => widget.onDoubleTap!(record, index),
                   onLongPress: () => widget.onLongPress?.call(record, index),
-                  onSecondaryTapDown: (details) =>
-                      widget.onSecondaryTapDown?.call(record, index, details),
+                  onSecondaryTapUp: (details) =>
+                      widget.onSecondaryTapUp?.call(record, index, details),
                   onFavoriteToggle: widget.onFavoriteToggle != null
                       ? () => widget.onFavoriteToggle!(record, index)
                       : null,
@@ -294,7 +294,7 @@ class _GalleryImageCard extends StatefulWidget {
   final VoidCallback? onTap;
   final VoidCallback? onDoubleTap;
   final VoidCallback? onLongPress;
-  final void Function(TapDownDetails)? onSecondaryTapDown;
+  final void Function(TapUpDetails)? onSecondaryTapUp;
   final VoidCallback? onFavoriteToggle;
   final Future<void> Function(LocalImageContextAction action)? onSendAction;
   final bool isKritaConnected;
@@ -311,7 +311,7 @@ class _GalleryImageCard extends StatefulWidget {
     this.onTap,
     this.onDoubleTap,
     this.onLongPress,
-    this.onSecondaryTapDown,
+    this.onSecondaryTapUp,
     this.onFavoriteToggle,
     this.onSendAction,
     this.isKritaConnected = false,
@@ -334,7 +334,7 @@ class _GalleryImageCardState extends State<_GalleryImageCard> {
       onTap: widget.onTap,
       onDoubleTap: widget.onDoubleTap,
       onLongPress: widget.onLongPress,
-      onSecondaryTapDown: widget.onSecondaryTapDown,
+      onSecondaryTapUp: widget.onSecondaryTapUp,
       onFavoriteToggle: widget.onFavoriteToggle,
       onSendAction: widget.onSendAction,
       isKritaConnected: widget.isKritaConnected,

@@ -687,7 +687,7 @@ class _PromptAssistantOverlayState
         return KeyEventResult.ignored;
       },
       child: GestureDetector(
-        onSecondaryTapDown: _isDesktop
+        onSecondaryTapUp: _isDesktop
             ? (details) => _showMenu(details.globalPosition)
             : null,
         child: AnimatedContainer(

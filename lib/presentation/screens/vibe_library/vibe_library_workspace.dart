@@ -302,7 +302,7 @@ class _Toolbar extends StatelessWidget {
                     if (libraryState.entries.isNotEmpty) ...[
                       const SizedBox(width: 6),
                       GestureDetector(
-                        onSecondaryTapDown: controller.isBusy
+                        onSecondaryTapUp: controller.isBusy
                             ? null
                             : (details) => onCommand(
                                 ShowImportMenuCommand(details.globalPosition),

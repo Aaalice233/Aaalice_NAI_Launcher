@@ -310,7 +310,7 @@ class _GenericGalleryContentViewState<T>
                 widget.onEnterSelection?.call(record as T);
               }
             },
-            onSecondaryTapDown: widget.onContextMenu != null
+            onSecondaryTapUp: widget.onContextMenu != null
                 ? (details) =>
                       widget.onContextMenu!(record as T, details.globalPosition)
                 : null,
@@ -438,7 +438,7 @@ class _GenericGalleryContentViewState<T>
           widget.onLongPress?.call(state.currentImages[index], index);
         }
       },
-      onSecondaryTapDown: (record, index, details) {
+      onSecondaryTapUp: (record, index, details) {
         widget.onContextMenu?.call(
           state.currentImages[index],
           details.globalPosition,

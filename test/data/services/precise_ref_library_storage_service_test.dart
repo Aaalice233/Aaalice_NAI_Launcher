@@ -281,21 +281,23 @@ void main() {
   });
 
   test('删除与缩略图生成并发时不会重新写回孤立缓存', () async {
-    final delayed = _DelayedReadStorage(overrideDirectory: imageDir.path);
-    storage = delayed;
     final entry = await storage.importFromBytes(_pngBytes(), name: 'race');
     final cache = Hive.lazyBox<Uint8List>('precise_ref_library_thumbnails_v1');
     await cache.delete(entry.id);
 
-    final thumbnailLoad = storage.getDisplayThumbnail(entry.id);
+    // 用冷内存实例发起读取，绕开导入时预热的内存缓存，强制走生成路径
+    final delayed = _DelayedReadStorage(overrideDirectory: imageDir.path);
+    storage = delayed;
+    final thumbnailLoad = delayed.getDisplayThumbnail(entry.id);
     await delayed.readStarted.future;
-    final deletion = storage.deleteEntry(entry.id);
+    final deletion = delayed.deleteEntry(entry.id);
     await Future<void>.delayed(Duration.zero);
     delayed.continueRead.complete();
 
     expect(await deletion, isTrue);
     expect(await thumbnailLoad, isNull);
     expect(await cache.get(entry.id), isNull);
+    expect(delayed.peekDisplayThumbnail(entry.id), isNull);
   });
 
   test('启动对账恢复被中断的删除并清理孤立原图与缓存', () async {
@@ -347,6 +349,21 @@ void main() {
     final entry = await storage.importFromBytes(bytes, name: 'a');
     final thumbnail = await storage.getDisplayThumbnail(entry.id);
     expect(thumbnail, bytes);
+  });
+
+  test('peekDisplayThumbnail 入库或读取后同步命中，删除后失效', () async {
+    final entry = await storage.importFromBytes(_pngBytes(), name: 'a');
+    expect(storage.peekDisplayThumbnail(entry.id), isNotNull);
+
+    final other = PreciseRefLibraryStorageService(
+      overrideDirectory: imageDir.path,
+    );
+    expect(other.peekDisplayThumbnail(entry.id), isNull);
+    final loaded = await other.getDisplayThumbnail(entry.id);
+    expect(other.peekDisplayThumbnail(entry.id), loaded);
+
+    await storage.deleteEntry(entry.id);
+    expect(storage.peekDisplayThumbnail(entry.id), isNull);
   });
 
   test('readImageBytes 在原图文件被删除后返回 null', () async {

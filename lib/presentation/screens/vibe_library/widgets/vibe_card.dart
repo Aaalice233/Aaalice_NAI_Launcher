@@ -27,7 +27,7 @@ class VibeCard extends ConsumerStatefulWidget {
   final VoidCallback? onTap;
   final VoidCallback? onDoubleTap;
   final VoidCallback? onLongPress;
-  final void Function(TapDownDetails)? onSecondaryTapDown;
+  final void Function(TapUpDetails)? onSecondaryTapUp;
   final bool isSelected;
   final bool showFavoriteIndicator;
   final VoidCallback? onFavoriteToggle;
@@ -44,7 +44,7 @@ class VibeCard extends ConsumerStatefulWidget {
     this.onTap,
     this.onDoubleTap,
     this.onLongPress,
-    this.onSecondaryTapDown,
+    this.onSecondaryTapUp,
     this.isSelected = false,
     this.showFavoriteIndicator = true,
     this.onFavoriteToggle,
@@ -115,8 +115,14 @@ class _VibeCardState extends ConsumerState<VibeCard>
     }
 
     final entryId = widget.entry.id;
-    _thumbnailLoadFuture = ref
-        .read(vibeLibraryStorageServiceProvider)
+    final storage = ref.read(vibeLibraryStorageServiceProvider);
+    // 内存缓存同步命中时直接赋值，让卡片重建后的首帧就有图
+    final cached = storage.peekDisplayThumbnail(entryId);
+    if (cached != null && cached.isNotEmpty) {
+      _lazyThumbnailData = cached;
+      return;
+    }
+    _thumbnailLoadFuture = storage
         .getDisplayThumbnail(entryId)
         .then((thumbnail) {
           if (!mounted || widget.entry.id != entryId) {
@@ -204,7 +210,8 @@ class _VibeCardState extends ConsumerState<VibeCard>
           onTap: widget.onTap,
           onDoubleTap: widget.onDoubleTap,
           onLongPress: widget.onLongPress,
-          onSecondaryTapDown: widget.onSecondaryTapDown,
+          // 必须抬起后弹菜单：按住时 push 会合成 touch 取消事件，令 DraggableWidget 整批重建闪烁
+          onSecondaryTapUp: widget.onSecondaryTapUp,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 150),
             curve: Curves.easeOut,

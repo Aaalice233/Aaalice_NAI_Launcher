@@ -1,9 +1,11 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/agent/resources/agent_chat_resource_reference.dart';
 import 'package:nai_launcher/core/agent/resources/agent_chat_resource_reference_codec.dart';
+import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/agent_chat/widgets/agent_resource_drop_region.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
@@ -71,6 +73,36 @@ void main() {
     expect(disposals, 0);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('drag source can defer its context menu to the child', (
+    tester,
+  ) async {
+    var childMenuCalls = 0;
+    await tester.pumpWidget(
+      _app(
+        enableAddToAgentMenu: false,
+        child: GestureDetector(
+          key: const ValueKey('child-context-menu'),
+          behavior: HitTestBehavior.opaque,
+          onSecondaryTapDown: (_) => childMenuCalls++,
+          child: const ColoredBox(color: Colors.blue),
+        ),
+      ),
+    );
+
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.byKey(const ValueKey('child-context-menu'))),
+      kind: PointerDeviceKind.mouse,
+      buttons: kSecondaryMouseButton,
+    );
+    addTearDown(gesture.removePointer);
+    await tester.pump();
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    expect(childMenuCalls, 1);
+    expect(find.byType(PopupMenuItem<bool>, skipOffstage: false), findsNothing);
+  });
 }
 
 Widget _manySourcesApp() {
@@ -96,9 +128,16 @@ Widget _manySourcesApp() {
   );
 }
 
-Widget _app({double width = 100, Widget? child}) {
+Widget _app({
+  double width = 100,
+  Widget? child,
+  bool enableAddToAgentMenu = true,
+}) {
   return ProviderScope(
     child: MaterialApp(
+      locale: const Locale('en'),
+      supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
       home: Scaffold(
         body: Align(
           alignment: Alignment.topLeft,
@@ -106,6 +145,7 @@ Widget _app({double width = 100, Widget? child}) {
             width: width,
             height: 100,
             child: AgentResourceDragSource(
+              enableAddToAgentMenu: enableAddToAgentMenu,
               reference: AgentChatResourceReference(
                 kind: AgentChatResourceKind.onlineGalleryMedia,
                 source: 'danbooru',

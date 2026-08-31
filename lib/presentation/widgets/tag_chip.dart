@@ -12,7 +12,7 @@ class SimpleTagChip extends ConsumerStatefulWidget {
   final String tag;
   final Color? color;
   final VoidCallback? onTap;
-  final GestureTapDownCallback? onSecondaryTapDown;
+  final GestureTapUpCallback? onSecondaryTapUp;
   final String? translation;
   final bool autoTranslate;
   final int? category;
@@ -26,7 +26,7 @@ class SimpleTagChip extends ConsumerStatefulWidget {
     required this.tag,
     this.color,
     this.onTap,
-    this.onSecondaryTapDown,
+    this.onSecondaryTapUp,
     this.translation,
     this.autoTranslate = true,
     this.category,
@@ -92,7 +92,7 @@ class _SimpleTagChipState extends ConsumerState<SimpleTagChip> {
       onExit: (_) => setState(() => _isHovering = false),
       child: InkWell(
         onTap: widget.onTap,
-        onSecondaryTapDown: widget.onSecondaryTapDown,
+        onSecondaryTapUp: widget.onSecondaryTapUp,
         borderRadius: BorderRadius.circular(4),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),

@@ -33,7 +33,7 @@ class LocalImageCard3D extends ConsumerStatefulWidget {
   final VoidCallback? onTap;
   final VoidCallback? onDoubleTap;
   final VoidCallback? onLongPress;
-  final void Function(TapDownDetails)? onSecondaryTapDown;
+  final void Function(TapUpDetails)? onSecondaryTapUp;
   final bool isSelected;
   final bool showFavoriteIndicator;
   final VoidCallback? onFavoriteToggle;
@@ -54,7 +54,7 @@ class LocalImageCard3D extends ConsumerStatefulWidget {
     this.onTap,
     this.onDoubleTap,
     this.onLongPress,
-    this.onSecondaryTapDown,
+    this.onSecondaryTapUp,
     this.isSelected = false,
     this.showFavoriteIndicator = true,
     this.onFavoriteToggle,
@@ -233,7 +233,7 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
       onTapCancel: _handleCardTapCancel,
       onDoubleTap: widget.onDoubleTap,
       onLongPress: widget.onLongPress,
-      onSecondaryTapDown: widget.onSecondaryTapDown,
+      onSecondaryTapUp: widget.onSecondaryTapUp,
       child: ImageCardHoverMotion(
         hovered: _isHovered,
         enabled: interactive,

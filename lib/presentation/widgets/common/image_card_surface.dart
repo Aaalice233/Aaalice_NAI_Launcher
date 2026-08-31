@@ -74,7 +74,8 @@ class ImageCardSurface extends StatelessWidget {
                 }
               }
             : null,
-        onSecondaryTapDown: capabilities.enableContextMenu
+        // 必须抬起后弹菜单：按住时 push 会合成 touch 取消事件，令 DraggableWidget 整批重建闪烁
+        onSecondaryTapUp: capabilities.enableContextMenu
             ? (details) => unawaited(onShowContextMenu(details.globalPosition))
             : null,
         child: ImageCardHoverMotion(

@@ -144,6 +144,8 @@ dev_dependencies:
   hive_generator: ^2.0.1
   # Mock 测试
   mocktail: ^1.0.3
+  # 指针设备检测器回归测试直接引用（与 super_drag_and_drop 同版本锁定）
+  super_native_extensions: ^0.9.1
   # 文件缓存测试
   file: ^7.0.1
   # 集成测试
