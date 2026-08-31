@@ -18,6 +18,7 @@ enum LocalImageContextAction {
   importMetadata,
   copyPrompt,
   copySeed,
+  saveToSystemGallery,
   showInFolder,
   delete,
 }
@@ -134,6 +135,13 @@ class LocalImageContextMenu {
           label: context.l10n.localGallery_copySeed,
         ),
       const PopupMenuDivider(),
+      if (PlatformCapabilities.current.supportsSystemGalleryExport)
+        _item(
+          context,
+          value: LocalImageContextAction.saveToSystemGallery,
+          icon: Icons.save_alt_rounded,
+          label: context.l10n.localGallery_saveToSystemGallery,
+        ),
       if (PlatformCapabilities.current.supportsOpenFolder)
         _item(
           context,

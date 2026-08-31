@@ -71,11 +71,15 @@ class GlobalDropActionCoordinator {
     required this.context,
     required this.ref,
     DroppedImageInspector inspector = const DroppedImageInspector(),
+    this.openGenerationAfterAction = false,
+    this.respectCurrentRouteDropTarget = true,
   }) : _inspector = inspector;
 
   final BuildContext context;
   final WidgetRef ref;
   final DroppedImageInspector _inspector;
+  final bool openGenerationAfterAction;
+  final bool respectCurrentRouteDropTarget;
 
   static const Set<String> _plainImageExtensions = {
     '.png',
@@ -128,7 +132,8 @@ class GlobalDropActionCoordinator {
     final currentPath = GoRouter.of(
       context,
     ).routeInformationProvider.value.uri.path;
-    if (currentPath == AppRoutes.tagLibraryPage) {
+    if (respectCurrentRouteDropTarget &&
+        currentPath == AppRoutes.tagLibraryPage) {
       final originalBytes = await _resolveOriginalImageBytes(fileData);
       if (originalBytes == null || !context.mounted) return;
       await TagLibraryDropHandler.handle(
@@ -140,7 +145,8 @@ class GlobalDropActionCoordinator {
       return;
     }
 
-    if (currentPath == AppRoutes.preciseRefLibrary &&
+    if (respectCurrentRouteDropTarget &&
+        currentPath == AppRoutes.preciseRefLibrary &&
         _isPlainImageFile(fileName)) {
       final originalBytes = await _resolveOriginalImageBytes(fileData);
       if (originalBytes == null || !context.mounted) return;
@@ -178,7 +184,7 @@ class GlobalDropActionCoordinator {
       destinationBytes = originalBytes;
     }
 
-    await _handleDestination(
+    final actionCompleted = await _handleDestination(
       destination,
       fileName,
       destinationBytes,
@@ -188,6 +194,26 @@ class GlobalDropActionCoordinator {
       ref.read(generationParamsNotifierProvider.notifier),
       l10n,
     );
+    if (actionCompleted &&
+        openGenerationAfterAction &&
+        _isGenerationDestination(destination) &&
+        context.mounted) {
+      context.go(AppRoutes.home);
+    }
+  }
+
+  static bool _isGenerationDestination(ImageDestination destination) {
+    return switch (destination) {
+      ImageDestination.img2img ||
+      ImageDestination.reversePrompt ||
+      ImageDestination.vibeTransfer ||
+      ImageDestination.vibeTransferReuse ||
+      ImageDestination.vibeTransferRaw ||
+      ImageDestination.characterReference ||
+      ImageDestination.extractMetadata => true,
+      ImageDestination.saveToVibeLibrary ||
+      ImageDestination.addToQueue => false,
+    };
   }
 
   static bool _isPlainImageFile(String fileName) {
@@ -206,7 +232,7 @@ class GlobalDropActionCoordinator {
     return bytes;
   }
 
-  Future<void> _handleDestination(
+  Future<bool> _handleDestination(
     ImageDestination destination,
     String fileName,
     Uint8List bytes,
@@ -219,16 +245,17 @@ class GlobalDropActionCoordinator {
     switch (destination) {
       case ImageDestination.img2img:
         await _handleImg2Img(bytes, l10n);
+        return true;
       case ImageDestination.reversePrompt:
         await _handleReversePrompt(fileName, bytes, l10n);
+        return true;
       case ImageDestination.vibeTransfer:
-        await _handleVibeTransfer(fileName, bytes, notifier, l10n);
+        return _handleVibeTransfer(fileName, bytes, notifier, l10n);
       case ImageDestination.vibeTransferReuse:
-        if (detectedVibe != null) {
-          await _handleVibeReuse(detectedVibe, notifier, l10n);
-        }
+        if (detectedVibe == null) return false;
+        return _handleVibeReuse(detectedVibe, notifier, l10n);
       case ImageDestination.vibeTransferRaw:
-        await _handleVibeTransfer(
+        return _handleVibeTransfer(
           fileName,
           bytes,
           notifier,
@@ -239,12 +266,15 @@ class GlobalDropActionCoordinator {
         if (detectedVibes.isNotEmpty) {
           await _handleSaveToVibeLibrary(detectedVibes, l10n);
         }
+        return false;
       case ImageDestination.characterReference:
         await _handleCharacterReference(bytes, notifier, l10n);
+        return true;
       case ImageDestination.extractMetadata:
-        await _handleExtractMetadata(detectedMetadata, bytes, l10n);
+        return _handleExtractMetadata(detectedMetadata, bytes, l10n);
       case ImageDestination.addToQueue:
         await _handleAddToQueue(detectedMetadata, bytes, l10n);
+        return false;
     }
   }
 
@@ -268,7 +298,7 @@ class GlobalDropActionCoordinator {
     }
   }
 
-  Future<void> _handleVibeTransfer(
+  Future<bool> _handleVibeTransfer(
     String fileName,
     Uint8List bytes,
     GenerationParamsNotifier notifier,
@@ -287,7 +317,7 @@ class GlobalDropActionCoordinator {
             context.l10n.toast_styleReferenceLimit(maxCount),
           );
         }
-        return;
+        return false;
       }
       for (final vibe in vibes) {
         final vibeToAdd = forceRaw && vibe.vibeEncoding.isNotEmpty
@@ -305,11 +335,13 @@ class GlobalDropActionCoordinator {
           _buildVibeMessage(currentCount, vibes.length, l10n),
         );
       }
+      return true;
     } catch (error) {
       if (kDebugMode) {
         AppLogger.d('Error parsing vibe file: $error', 'DropHandler');
       }
       _showError(error.toString());
+      return false;
     }
   }
 
@@ -326,7 +358,7 @@ class GlobalDropActionCoordinator {
         : l10n.drop_addedMultipleToVibe(addedCount);
   }
 
-  Future<void> _handleVibeReuse(
+  Future<bool> _handleVibeReuse(
     VibeReference vibe,
     GenerationParamsNotifier notifier,
     AppLocalizations l10n,
@@ -340,7 +372,7 @@ class GlobalDropActionCoordinator {
           context.l10n.toast_styleReferenceLimit(maxCount),
         );
       }
-      return;
+      return false;
     }
     notifier.addVibeReference(vibe);
     if (context.mounted) {
@@ -349,6 +381,7 @@ class GlobalDropActionCoordinator {
           : l10n.toast_addedPreencodedVibe;
       AppToast.success(context, message);
     }
+    return true;
   }
 
   Future<void> _handleSaveToVibeLibrary(
@@ -461,7 +494,7 @@ class GlobalDropActionCoordinator {
     }
   }
 
-  Future<void> _handleExtractMetadata(
+  Future<bool> _handleExtractMetadata(
     NaiImageMetadata? detectedMetadata,
     Uint8List bytes,
     AppLocalizations l10n,
@@ -474,34 +507,36 @@ class GlobalDropActionCoordinator {
         if (context.mounted) {
           AppToast.warning(context, l10n.metadataImport_noDataFound);
         }
-        return;
+        return false;
       }
-      if (!context.mounted) return;
+      if (!context.mounted) return false;
       final options = await MetadataImportDialog.show(
         context,
         metadata: metadata,
       );
-      if (options == null || !context.mounted) return;
+      if (options == null || !context.mounted) return false;
       final appliedCount = await MetadataImportCoordinator.apply(
         read: ref.read,
         metadata: metadata,
         options: options,
         l10n: context.l10n,
       );
-      if (!context.mounted) return;
+      if (!context.mounted) return false;
       if (appliedCount > 0) {
         AppToast.success(
           context,
           l10n.metadataImport_appliedCount(appliedCount),
         );
-      } else {
-        AppToast.warning(context, l10n.metadataImport_noParamsSelected);
+        return true;
       }
+      AppToast.warning(context, l10n.metadataImport_noParamsSelected);
+      return false;
     } catch (error) {
       if (kDebugMode) {
         AppLogger.d('Error extracting metadata: $error', 'DropHandler');
       }
       _showError(l10n.toast_extractMetadataFailed(error.toString()));
+      return false;
     }
   }
 

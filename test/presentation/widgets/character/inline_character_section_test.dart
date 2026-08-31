@@ -405,7 +405,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('角色助手入口固定在切换区最右且展开到 root overlay', (tester) async {
+  testWidgets('角色助手收起时贴合切换区，展开后独占下一行', (tester) async {
     PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
       TargetPlatform.windows,
     );
@@ -437,16 +437,16 @@ void main() {
       ),
     );
     final editor = find.byType(CharacterPromptEditor);
-    final slotRect = tester.getRect(slot);
+    final collapsedSlotRect = tester.getRect(slot);
     final editorRect = tester.getRect(editor);
-    final areaTop = tester
+    final collapsedAreaTop = tester
         .getRect(
           find.byKey(const ValueKey('character-prompt-editor-area-positive')),
         )
         .top;
 
-    expect(slotRect.right, closeTo(editorRect.right, 0.1));
-    expect(slotRect.height, 32);
+    expect(collapsedSlotRect.right, closeTo(editorRect.right, 0.1));
+    expect(collapsedSlotRect.size, const Size(32, 32));
     expect(
       find.descendant(
         of: collapsedToolbar,
@@ -458,16 +458,25 @@ void main() {
 
     await tester.tap(find.byIcon(Icons.auto_awesome_rounded));
     await tester.pump();
-    await tester.pump();
 
     final expandedToolbar = find.byKey(
       const ValueKey(
         'prompt_assistant_toolbar_generation_character_alice_prompt',
       ),
     );
-    expect(find.ancestor(of: expandedToolbar, matching: editor), findsNothing);
-    expect(tester.getRect(expandedToolbar).left, lessThan(slotRect.left));
-    expect(tester.getRect(expandedToolbar).top, closeTo(slotRect.top, 0.1));
+    final expandedToolbarRect = tester.getRect(expandedToolbar);
+    final expandedSlotRect = tester.getRect(slot);
+    final tabBottom = tester.getRect(find.text('正向提示词')).bottom;
+    expect(
+      find.ancestor(of: expandedToolbar, matching: editor),
+      findsOneWidget,
+    );
+    expect(expandedSlotRect.left, closeTo(editorRect.left, 0.1));
+    expect(expandedSlotRect.right, closeTo(editorRect.right, 0.1));
+    expect(expandedSlotRect.height, 32);
+    expect(expandedToolbarRect.top, greaterThan(tabBottom));
+    expect(expandedToolbarRect.left, greaterThanOrEqualTo(editorRect.left));
+    expect(expandedToolbarRect.right, lessThanOrEqualTo(editorRect.right));
     for (final icon in [
       Icons.undo,
       Icons.redo,
@@ -483,14 +492,13 @@ void main() {
         findsOneWidget,
       );
     }
-    expect(tester.getRect(slot).height, 32);
     expect(
       tester
           .getRect(
             find.byKey(const ValueKey('character-prompt-editor-area-positive')),
           )
           .top,
-      areaTop,
+      closeTo(collapsedAreaTop + 38, 0.1),
     );
 
     await tester.tap(
@@ -500,13 +508,20 @@ void main() {
       ),
     );
     await tester.pump();
-    await tester.pump();
     expect(find.byIcon(Icons.auto_awesome_rounded), findsOneWidget);
-    expect(tester.getRect(slot).height, 32);
+    expect(tester.getRect(slot).size, const Size(32, 32));
+    expect(
+      tester
+          .getRect(
+            find.byKey(const ValueKey('character-prompt-editor-area-positive')),
+          )
+          .top,
+      closeTo(collapsedAreaTop, 0.1),
+    );
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('点击 root overlay 助手不会退出角色编辑态', (tester) async {
+  testWidgets('点击角色助手不会退出角色编辑态', (tester) async {
     PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
       TargetPlatform.windows,
     );

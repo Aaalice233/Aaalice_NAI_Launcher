@@ -1,13 +1,16 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/online_gallery/gallery_item.dart';
+import 'package:nai_launcher/data/models/online_gallery/gallery_prompt_projection.dart';
 import 'package:nai_launcher/data/models/online_gallery/gallery_source.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/widgets/online_gallery/gallery_detail_dialog.dart';
 import 'package:nai_launcher/presentation/widgets/online_gallery/gallery_detail_overview_card.dart';
+import 'package:nai_launcher/presentation/widgets/online_gallery/gallery_prompt_copy_dialog.dart';
 import 'package:nai_launcher/presentation/widgets/online_gallery/video_player_widget.dart';
 import 'package:nai_launcher/presentation/widgets/tag_chip.dart';
 
@@ -24,8 +27,6 @@ void main() {
 
       var favoriteSucceeds = false;
       var copyCount = 0;
-      var negativeCopyCount = 0;
-      var characterCopyCount = 0;
       var sentToGenerate = false;
       var addedToQueue = false;
       final item = GalleryItem(
@@ -81,15 +82,13 @@ void main() {
                 detail: detail,
                 isFavorited: false,
                 favoriteLoading: false,
+                canUseGenerationActions: true,
                 labels: _labels(),
-                onCopyPrompt: () => copyCount++,
-                onCopyNegativePrompt: () => negativeCopyCount++,
-                onCopyCharacter: (_) => characterCopyCount++,
-                onCopyAll: () {},
+                onCopyPrompt: (_) => copyCount++,
                 onToggleFavorite: () async => favoriteSucceeds,
                 onOpenSource: () {},
-                onSendToGenerate: () => sentToGenerate = true,
-                onAddToQueue: () async => addedToQueue = true,
+                onSendToGenerate: (_) => sentToGenerate = true,
+                onAddToQueue: (_) async => addedToQueue = true,
                 onDownloadCurrentOriginal: (_) async {},
                 onTagSearch: (_) {},
                 onBlacklistChanged: () {},
@@ -118,14 +117,9 @@ void main() {
         findsOneWidget,
       );
       final infoList = find.byKey(const ValueKey('gallery-detail-info-list'));
-      final copyPositive = find.descendant(
-        of: infoList,
-        matching: find.byTooltip('Copy positive'),
-      );
-      final infoScrollable = find.ancestor(
-        of: copyPositive,
-        matching: find.byType(Scrollable),
-      );
+      final infoScrollable = find
+          .descendant(of: infoList, matching: find.byType(Scrollable))
+          .first;
       await tester.scrollUntilVisible(
         find.text('Contributor · maintainer'),
         180,
@@ -153,35 +147,221 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byIcon(Icons.favorite), findsOneWidget);
 
-      await tester.scrollUntilVisible(
-        copyPositive,
-        -180,
-        scrollable: infoScrollable,
-      );
-      await tester.ensureVisible(copyPositive);
-      await tester.pumpAndSettle();
-      expect(copyPositive.hitTestable(), findsOneWidget);
-      await tester.tap(copyPositive);
-      await tester.tap(find.byTooltip('Copy negative'));
-      await tester.tap(find.byTooltip('Copy this character'));
-      await tester.tap(find.widgetWithText(FilledButton, 'Generate'));
-      await tester.tap(find.widgetWithText(OutlinedButton, 'Queue'));
+      expect(find.byTooltip('Copy positive'), findsNothing);
+      expect(find.byTooltip('Copy negative'), findsNothing);
+      expect(find.byTooltip('Copy this character'), findsNothing);
+      await tester.tap(find.byTooltip('Copy prompt'));
+      await tester.tap(find.byKey(const ValueKey('gallery-detail-generate')));
+      await tester.tap(find.byKey(const ValueKey('gallery-detail-queue')));
       await tester.pumpAndSettle();
       expect(copyCount, 1);
-      expect(negativeCopyCount, 1);
-      expect(characterCopyCount, 1);
       expect(sentToGenerate, isTrue);
       expect(addedToQueue, isTrue);
       expect(
         tester
-            .widget<OutlinedButton>(
-              find.widgetWithText(OutlinedButton, 'Download original'),
+            .widget<InkWell>(
+              find.byKey(const ValueKey('gallery-detail-action-download')),
             )
-            .onPressed,
+            .onTap,
         isNull,
       );
     },
   );
+
+  testWidgets(
+    'generation actions use projected capability for tags-only entries',
+    (tester) async {
+      tester.view.physicalSize = const Size(1280, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      const item = GalleryItem(
+        id: 42,
+        workId: '42',
+        sourceId: GallerySourceId.danbooru,
+        tags: ['1girl', 'solo'],
+        tagString: '1girl solo',
+      );
+      const detail = GalleryDetail(item: item, media: []);
+      final canUseGenerationActions = ValueNotifier(false);
+      addTearDown(canUseGenerationActions.dispose);
+      var sentToGenerate = false;
+      var addedToQueue = false;
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            home: Scaffold(
+              body: ValueListenableBuilder<bool>(
+                valueListenable: canUseGenerationActions,
+                builder: (context, canUseActions, _) => GalleryDetailDialog(
+                  item: item,
+                  detail: detail,
+                  isFavorited: false,
+                  favoriteLoading: false,
+                  canUseGenerationActions: canUseActions,
+                  labels: _labels(),
+                  onCopyPrompt: (_) {},
+                  onToggleFavorite: () async => true,
+                  onOpenSource: () {},
+                  onSendToGenerate: (_) => sentToGenerate = true,
+                  onAddToQueue: (_) async => addedToQueue = true,
+                  onDownloadCurrentOriginal: (_) async {},
+                  onTagSearch: (_) {},
+                  onBlacklistChanged: () {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final generateButton = find.byKey(
+        const ValueKey('gallery-detail-generate'),
+      );
+      final queueButton = find.byKey(const ValueKey('gallery-detail-queue'));
+      expect(tester.widget<FilledButton>(generateButton).onPressed, isNull);
+      expect(tester.widget<OutlinedButton>(queueButton).onPressed, isNull);
+
+      canUseGenerationActions.value = true;
+      await tester.pump();
+
+      expect(tester.widget<FilledButton>(generateButton).onPressed, isNotNull);
+      expect(tester.widget<OutlinedButton>(queueButton).onPressed, isNotNull);
+      await tester.tap(generateButton);
+      await tester.tap(queueButton);
+      await tester.pumpAndSettle();
+      expect(sentToGenerate, isTrue);
+      expect(addedToQueue, isTrue);
+    },
+  );
+
+  testWidgets('action rail expands only the focused action without relayout', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    const item = GalleryItem(
+      id: 43,
+      sourceId: GallerySourceId.danbooru,
+      tags: ['solo'],
+      tagStringGeneral: 'solo',
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            body: GalleryDetailDialog(
+              item: item,
+              detail: const GalleryDetail(
+                item: item,
+                media: [
+                  GalleryMedia(id: 'media-1'),
+                  GalleryMedia(id: 'media-2'),
+                ],
+              ),
+              isFavorited: false,
+              favoriteLoading: false,
+              canUseGenerationActions: true,
+              labels: _labels(),
+              onCopyPrompt: (_) {},
+              onToggleFavorite: () async => true,
+              onOpenSource: () {},
+              onSendToGenerate: (_) {},
+              onAddToQueue: (_) async {},
+              onDownloadCurrentOriginal: (_) async {},
+              onTagSearch: (_) {},
+              onBlacklistChanged: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final copyAction = find.byKey(const ValueKey('gallery-detail-action-copy'));
+    final viewerBefore = tester.getRect(find.byType(PageView));
+    final expandedLabel = find.byWidgetPredicate(
+      (widget) =>
+          widget is Text &&
+          widget.data == 'Copy prompt' &&
+          widget.style?.fontWeight == FontWeight.w600,
+    );
+    for (
+      var index = 0;
+      index < 8 && expandedLabel.evaluate().isEmpty;
+      index++
+    ) {
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump(const Duration(milliseconds: 180));
+    }
+
+    expect(copyAction, findsOneWidget);
+    expect(expandedLabel, findsOneWidget);
+    expect(find.text('Download original'), findsNothing);
+    expect(tester.getRect(find.byType(PageView)), viewerBefore);
+    final nextMedia = find.byKey(const ValueKey('gallery-detail-next-media'));
+    expect(
+      tester.getRect(nextMedia).right,
+      lessThanOrEqualTo(tester.getRect(copyAction).left),
+    );
+  });
+
+  testWidgets('narrow detail collapses actions without overflow', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    const item = GalleryItem(
+      id: 44,
+      sourceId: GallerySourceId.quickTagCloud,
+      tags: ['solo'],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            body: GalleryDetailDialog(
+              item: item,
+              detail: const GalleryDetail(item: item, media: []),
+              isFavorited: false,
+              favoriteLoading: false,
+              canUseGenerationActions: true,
+              labels: _labels(),
+              onCopyPrompt: (_) {},
+              onToggleFavorite: () async => true,
+              onOpenSource: () {},
+              onSendToGenerate: (_) {},
+              onAddToQueue: (_) async {},
+              onDownloadCurrentOriginal: (_) async {},
+              onTagSearch: (_) {},
+              onBlacklistChanged: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('gallery-detail-action-rail')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('gallery-detail-generate')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('gallery-detail-queue')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('conflicting video metadata renders a stable placeholder', (
     tester,
@@ -215,15 +395,13 @@ void main() {
               detail: detail,
               isFavorited: false,
               favoriteLoading: false,
+              canUseGenerationActions: false,
               labels: _labels(),
-              onCopyPrompt: () {},
-              onCopyNegativePrompt: () {},
-              onCopyCharacter: (_) {},
-              onCopyAll: () {},
+              onCopyPrompt: (_) {},
               onToggleFavorite: () async => true,
               onOpenSource: () {},
-              onSendToGenerate: () {},
-              onAddToQueue: () async {},
+              onSendToGenerate: (_) {},
+              onAddToQueue: (_) async {},
               onSendToReverse: (_) async {},
               onDownloadCurrentOriginal: (_) async {},
               onTagSearch: (_) {},
@@ -238,7 +416,7 @@ void main() {
     expect(find.byType(VideoPlayerWidget), findsNothing);
     expect(find.byType(CachedNetworkImage), findsNothing);
     expect(find.byIcon(Icons.play_circle_outline), findsOneWidget);
-    expect(find.widgetWithText(OutlinedButton, 'Reverse'), findsNothing);
+    expect(find.byTooltip('Reverse'), findsNothing);
   });
 
   testWidgets('tag context menu searches one normalized tag', (tester) async {
@@ -269,15 +447,13 @@ void main() {
               detail: const GalleryDetail(item: item, media: []),
               isFavorited: false,
               favoriteLoading: false,
+              canUseGenerationActions: true,
               labels: _labels(),
-              onCopyPrompt: () {},
-              onCopyNegativePrompt: () {},
-              onCopyCharacter: (_) {},
-              onCopyAll: () {},
+              onCopyPrompt: (_) {},
               onToggleFavorite: () async => true,
               onOpenSource: () {},
-              onSendToGenerate: () {},
-              onAddToQueue: () async {},
+              onSendToGenerate: (_) {},
+              onAddToQueue: (_) async {},
               onDownloadCurrentOriginal: (_) async {},
               onTagSearch: (tag) => searchedTag = tag,
               onBlacklistChanged: () {},
@@ -296,7 +472,7 @@ void main() {
     expect(find.text('Empty'), findsNothing);
     await tester.tap(find.text('{red hair}'), buttons: kSecondaryMouseButton);
     await tester.pumpAndSettle();
-    expect(find.text('Copy'), findsNWidgets(2));
+    expect(find.text('Copy'), findsOneWidget);
     expect(find.text('Search'), findsOneWidget);
 
     await tester.tap(find.text('Search'));
@@ -348,15 +524,13 @@ void main() {
             detail: GalleryDetail(item: item, media: [currentMedia]),
             isFavorited: false,
             favoriteLoading: false,
+            canUseGenerationActions: false,
             labels: _labels(),
-            onCopyPrompt: () {},
-            onCopyNegativePrompt: () {},
-            onCopyCharacter: (_) {},
-            onCopyAll: () {},
+            onCopyPrompt: (_) {},
             onToggleFavorite: () async => true,
             onOpenSource: () {},
-            onSendToGenerate: () {},
-            onAddToQueue: () async {},
+            onSendToGenerate: (_) {},
+            onAddToQueue: (_) async {},
             onDownloadCurrentOriginal: (_) async {},
             onDownloadAndWatermark: (selected) async {
               watermarkedMedia = selected;
@@ -375,13 +549,16 @@ void main() {
     expect(find.text('book/preview-only.webp'), findsOneWidget);
     expect(
       tester
-          .widget<OutlinedButton>(
-            find.widgetWithText(OutlinedButton, 'Download original'),
+          .widget<InkWell>(
+            find.byKey(const ValueKey('gallery-detail-action-download')),
           )
-          .onPressed,
+          .onTap,
       isNull,
     );
-    expect(find.text('Download and watermark'), findsNothing);
+    expect(
+      find.byKey(const ValueKey('gallery-detail-action-watermark')),
+      findsNothing,
+    );
 
     final originalMedia = GalleryMedia(
       id: 'original:0',
@@ -395,10 +572,79 @@ void main() {
     );
     await tester.pumpWidget(buildDialog(originalMedia));
     await tester.pump(const Duration(milliseconds: 100));
-    await tester.tap(find.text('Download and watermark'));
+    await tester.tap(
+      find.byKey(const ValueKey('gallery-detail-action-watermark')),
+    );
     await tester.pump();
 
     expect(watermarkedMedia?.id, originalMedia.id);
+  });
+
+  testWidgets('prompt copy dialog rejects an empty selection', (tester) async {
+    const projection = GalleryPromptCopyProjection(
+      mainPositive: 'main',
+      mainNegative: 'bad',
+      characterPrompts: [
+        GalleryCharacterPrompt(
+          label: 'Alice',
+          prompt: 'alice',
+          negativePrompt: 'glasses',
+        ),
+      ],
+    );
+    GalleryPromptCopySelection? result;
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Builder(
+          builder: (context) => TextButton(
+            onPressed: () async {
+              result = await GalleryPromptCopyDialog.show(
+                context,
+                projection: projection,
+                initialSelection: projection.defaultSelection(),
+              );
+            },
+            child: const Text('Open'),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+    expect(find.text('Main / global positive prompt'), findsOneWidget);
+    expect(find.text('Main / global negative prompt'), findsOneWidget);
+    expect(find.text('Character 1 positive prompt'), findsOneWidget);
+    expect(find.text('Character 1 negative prompt'), findsOneWidget);
+
+    final optionScroll = find
+        .descendant(
+          of: find.byType(AlertDialog),
+          matching: find.byType(Scrollable),
+        )
+        .first;
+    for (final label in [
+      'Main / global positive prompt',
+      'Main / global negative prompt',
+      'Character 1 positive prompt',
+      'Character 1 negative prompt',
+    ]) {
+      await tester.scrollUntilVisible(
+        find.text(label),
+        80,
+        scrollable: optionScroll,
+      );
+      await tester.tap(find.text(label));
+      await tester.pump();
+    }
+    final copyButton = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, 'Copy'),
+    );
+    expect(copyButton.onPressed, isNull);
+    expect(result, isNull);
   });
 
   testWidgets('moves to focused media when only focus changes', (tester) async {
@@ -437,15 +683,13 @@ void main() {
                 detail: detail,
                 isFavorited: false,
                 favoriteLoading: false,
+                canUseGenerationActions: false,
                 labels: _labels(),
-                onCopyPrompt: () {},
-                onCopyNegativePrompt: () {},
-                onCopyCharacter: (_) {},
-                onCopyAll: () {},
+                onCopyPrompt: (_) {},
                 onToggleFavorite: () async => true,
                 onOpenSource: () {},
-                onSendToGenerate: () {},
-                onAddToQueue: () async {},
+                onSendToGenerate: (_) {},
+                onAddToQueue: (_) async {},
                 onDownloadCurrentOriginal: (_) async {},
                 onTagSearch: (_) {},
                 onBlacklistChanged: () {},
@@ -494,11 +738,7 @@ GalleryDetailDialogLabels _labels() {
     imageLoadFailed: 'Image failed',
     retry: 'Retry',
     zoomHint: 'Zoom',
-    copyActions: 'Copy',
-    copyPositive: 'Copy positive',
-    copyNegative: 'Copy negative',
-    copyCharacter: 'Copy this character',
-    copyAll: 'Copy all',
+    copyPrompt: 'Copy prompt',
     addFavorite: 'Add favorite',
     removeFavorite: 'Remove favorite',
     openSource: 'Open source',
@@ -516,12 +756,7 @@ GalleryDetailDialogLabels _labels() {
     favoriteCount: 'Favorites',
     rating: 'Rating',
     score: 'Score',
-    copyMetadata: 'Copy metadata',
     downloadAll: 'Download all',
     sendToReverse: 'Reverse',
-    copyArtistChain: 'Copy artist chain',
-    copyFullPrompt: 'Copy full prompt',
-    copyRawArtistFragments: 'Copy raw artists',
-    noArtistChain: 'No artist chain',
   );
 }

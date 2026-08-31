@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../agent_chat/widgets/agent_chat_panel.dart';
+import '../../widgets/common/owned_scroll_controller.dart';
 import 'mobile_generation_chrome.dart';
 import 'mobile_generation_controller.dart';
 import 'mobile_generation_gestures.dart';
@@ -12,10 +13,12 @@ class MobileGenerationShell extends StatelessWidget {
     super.key,
     required this.controller,
     required this.data,
+    required this.historyViewport,
   });
 
   final MobileGenerationController controller;
   final MobileGenerationViewData data;
+  final OwnedViewportOffset historyViewport;
 
   @override
   Widget build(BuildContext context) {
@@ -27,6 +30,7 @@ class MobileGenerationShell extends StatelessWidget {
       child: MobileGenerationChrome(
         controller: controller,
         data: data,
+        historyViewport: historyViewport,
         body: Stack(
           key: const ValueKey('generation-mobile-primary-workspaces'),
           children: [

@@ -18,6 +18,7 @@ import '../../providers/replication_queue_provider.dart';
 import '../../router/app_routes.dart';
 import '../../services/image_workflow_launcher.dart';
 import '../../widgets/common/app_toast.dart';
+import '../../widgets/common/owned_scroll_controller.dart';
 import '../../widgets/shortcuts/shortcut_aware_widget.dart';
 import 'handlers/generation_action_handlers.dart';
 import 'widgets/fixed_tags_sidebar_slot.dart';
@@ -29,7 +30,9 @@ import 'widgets/web_left_panel.dart';
 
 /// 官网式布局：提示词与设置固定在最左栏，中间为纯预览区
 class WebStyleGenerationLayout extends ConsumerStatefulWidget {
-  const WebStyleGenerationLayout({super.key});
+  const WebStyleGenerationLayout({super.key, required this.historyViewport});
+
+  final OwnedViewportOffset historyViewport;
 
   @override
   ConsumerState<WebStyleGenerationLayout> createState() =>
@@ -181,6 +184,7 @@ class _WebStyleGenerationLayoutState
           isResizing: _isResizingRight,
           width: width,
           expanded: expanded,
+          historyViewport: widget.historyViewport,
         ),
       ),
     );

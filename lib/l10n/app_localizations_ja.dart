@@ -394,6 +394,10 @@ class AppLocalizationsJa extends AppLocalizations {
       'サードパーティ サイトは、NovelAI サブスクリプション API およびイメージ生成 API と互換性がある必要があります。トークンはベアラー トークンとして送信されます。';
 
   @override
+  String get auth_thirdPartyStreamingHint =>
+      'サードパーティサイトがストリーミング生成に対応していない場合は、［設定］>［生成］>［画像出力］で［ストリーミングプレビュー］をオフにしてから生成してください。';
+
+  @override
   String get auth_thirdPartyApiSiteRequired => 'サードパーティ API サイトの URL を入力してください';
 
   @override
@@ -829,6 +833,13 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get generation_generationFailed => '生成に失敗しました';
+
+  @override
+  String get generation_streamingUnsupported => 'このサイトはストリーミング生成に対応していません';
+
+  @override
+  String get generation_streamingUnsupportedHint =>
+      '［設定］>［生成］>［画像出力］で［ストリーミングプレビュー］をオフにしてから、もう一度お試しください。';
 
   @override
   String generation_progress(Object progress) {
@@ -3090,7 +3101,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get onlineGallery_promptTagCategoriesTooltip =>
-      'コピー、送信、キューへの追加時に含めるタグカテゴリを選択します';
+      '送信、キューへの追加時に含めるタグカテゴリを選択します';
 
   @override
   String get onlineGallery_keepOnePromptTagCategory =>
@@ -3591,25 +3602,10 @@ class AppLocalizationsJa extends AppLocalizations {
   String get onlineGallery_codexNegativePrompt => 'ネガティブプロンプト';
 
   @override
-  String get onlineGallery_negativePromptCopyHeading => 'ネガティブプロンプト';
-
-  @override
   String get onlineGallery_codexCharacterPrompts => 'キャラクタープロンプト';
 
   @override
   String get onlineGallery_codexNote => 'メモ';
-
-  @override
-  String get onlineGallery_codexCopyPositive => 'ポジティブをコピー';
-
-  @override
-  String get onlineGallery_codexCopyNegative => 'ネガティブをコピー';
-
-  @override
-  String get onlineGallery_codexCopyCharacter => 'このキャラクターをコピー';
-
-  @override
-  String get onlineGallery_codexCopyAll => 'すべてコピー';
 
   @override
   String get onlineGallery_codexSendToGeneration => '生成画面へ送る';
@@ -3661,13 +3657,17 @@ class AppLocalizationsJa extends AppLocalizations {
   String get onlineGallery_copyArtistChain => '絵師タグ列をコピー';
 
   @override
-  String get onlineGallery_copyFullPrompt => '完全な Prompt をコピー';
+  String get onlineGallery_copyPrompt => 'プロンプトをコピー';
 
   @override
-  String get onlineGallery_copyRawArtistFragments => '元の絵師タグ断片をコピー';
+  String get onlineGallery_promptCopyDescription =>
+      'コピーする元のプロンプト項目を選択します。ポジティブとネガティブはプレーンテキストのブロックに分けられます。';
 
   @override
-  String get onlineGallery_noArtistChain => 'コピー可能な絵師タグなし';
+  String get onlineGallery_promptCopyCategoryHint => 'このソースのタグカテゴリをコピー';
+
+  @override
+  String get onlineGallery_promptCopyStructuredHint => 'このプロンプト欄の元の内容をコピー';
 
   @override
   String onlineGallery_artistCount(Object count) {
@@ -3754,7 +3754,41 @@ class AppLocalizationsJa extends AppLocalizations {
   String get onlineGallery_downloadAllMedia => '作品の全画像をダウンロード';
 
   @override
-  String get onlineGallery_copyFullMetadata => '完全なメタデータをコピー';
+  String get onlineGallery_copyAllTags => 'すべての TAG をコピー';
+
+  @override
+  String get onlineGallery_customCopyTags => 'カスタムコピー';
+
+  @override
+  String get promptCopy_exportTitle => 'TAG のカスタムコピー';
+
+  @override
+  String get promptCopy_allPositive => 'すべてのポジティブプロンプト';
+
+  @override
+  String get promptCopy_allNegative => 'すべてのネガティブプロンプト';
+
+  @override
+  String get promptCopy_mainPositive => 'メイン / グローバルポジティブ';
+
+  @override
+  String get promptCopy_mainNegative => 'メイン / グローバルネガティブ';
+
+  @override
+  String get promptCopy_fixedPositive => '固定ポジティブプロンプト';
+
+  @override
+  String get promptCopy_fixedNegative => '固定ネガティブプロンプト';
+
+  @override
+  String promptCopy_characterPositive(int index) {
+    return 'キャラクター $index のポジティブ';
+  }
+
+  @override
+  String promptCopy_characterNegative(int index) {
+    return 'キャラクター $index のネガティブ';
+  }
 
   @override
   String get onlineGallery_gelbooruReadOnly => '読み取り専用のお気に入り';
@@ -7773,6 +7807,15 @@ class AppLocalizationsJa extends AppLocalizations {
   String metadataImport_selectedCount(int count) {
     return '$count が選択されました';
   }
+
+  @override
+  String get metadataImport_readImageMetadata => '画像メタデータを読み取る';
+
+  @override
+  String get metadataImport_readFailed => '選択した画像を読み込めませんでした';
+
+  @override
+  String get metadataImport_processFailed => '選択した画像を処理できませんでした';
 
   @override
   String get metadataImport_noDataFound => 'NovelAI メタデータが見つかりませんでした';
@@ -12629,6 +12672,14 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get image_savedToSystemGallery => 'システムギャラリーに保存しました';
+
+  @override
+  String get localGallery_saveToSystemGallery => 'システムギャラリーに保存';
+
+  @override
+  String localGallery_saveToSystemGalleryFailed(Object error) {
+    return 'システムギャラリーに保存できませんでした: $error';
+  }
 
   @override
   String image_savedAppOnly(Object error) {

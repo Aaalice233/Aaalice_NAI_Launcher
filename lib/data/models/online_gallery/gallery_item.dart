@@ -1,3 +1,4 @@
+import '../gallery/nai_image_metadata.dart';
 import 'artist_chain.dart';
 import 'gallery_media_capability.dart';
 import 'gallery_source.dart';
@@ -18,6 +19,7 @@ class GalleryMedia {
     this.negativePrompt,
     this.metadataFormat,
     this.metadataError,
+    this.promptMetadata,
     this.metadata = const {},
   });
 
@@ -35,6 +37,7 @@ class GalleryMedia {
   final String? negativePrompt;
   final String? metadataFormat;
   final String? metadataError;
+  final NaiImageMetadata? promptMetadata;
   final Map<String, dynamic> metadata;
 
   bool get hasKnownDimensions => width > 0 && height > 0;
@@ -76,6 +79,7 @@ class GalleryMedia {
       negativePrompt: negativePrompt,
       metadataFormat: metadataFormat,
       metadataError: metadataError,
+      promptMetadata: promptMetadata,
       metadata: metadata,
     );
   }
@@ -437,11 +441,17 @@ class GalleryCharacterPrompt {
     required this.label,
     required this.prompt,
     this.negativePrompt = '',
+    this.positionX,
+    this.positionY,
   });
 
   final String label;
   final String prompt;
   final String negativePrompt;
+  final double? positionX;
+  final double? positionY;
+
+  bool get hasCustomPosition => positionX != null && positionY != null;
 }
 
 class GalleryContributor {

@@ -833,6 +833,12 @@ abstract class AppLocalizations {
   /// **'The third-party site must be compatible with NovelAI subscription and image-generation APIs. The token will be sent as a Bearer token.'**
   String get auth_thirdPartyCompatibilityHint;
 
+  /// No description provided for @auth_thirdPartyStreamingHint.
+  ///
+  /// In en, this message translates to:
+  /// **'If the third-party site does not support streaming generation, go to Settings > Generation > Image Output and turn off Streaming preview before generating.'**
+  String get auth_thirdPartyStreamingHint;
+
   /// No description provided for @auth_thirdPartyApiSiteRequired.
   ///
   /// In en, this message translates to:
@@ -1654,6 +1660,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Generation failed'**
   String get generation_generationFailed;
+
+  /// No description provided for @generation_streamingUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'This site does not support streaming generation'**
+  String get generation_streamingUnsupported;
+
+  /// No description provided for @generation_streamingUnsupportedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Go to Settings > Generation > Image Output, turn off Streaming preview, and try again.'**
+  String get generation_streamingUnsupportedHint;
 
   /// No description provided for @generation_progress.
   ///
@@ -5712,7 +5730,7 @@ abstract class AppLocalizations {
   /// No description provided for @onlineGallery_promptTagCategoriesTooltip.
   ///
   /// In en, this message translates to:
-  /// **'Choose which tag categories are included when copying, sending, or adding to the queue'**
+  /// **'Choose which tag categories are included when sending or adding to the queue'**
   String get onlineGallery_promptTagCategoriesTooltip;
 
   /// No description provided for @onlineGallery_keepOnePromptTagCategory.
@@ -6560,12 +6578,6 @@ abstract class AppLocalizations {
   /// **'Negative prompt'**
   String get onlineGallery_codexNegativePrompt;
 
-  /// No description provided for @onlineGallery_negativePromptCopyHeading.
-  ///
-  /// In en, this message translates to:
-  /// **'Negative Prompt'**
-  String get onlineGallery_negativePromptCopyHeading;
-
   /// No description provided for @onlineGallery_codexCharacterPrompts.
   ///
   /// In en, this message translates to:
@@ -6577,30 +6589,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Notes'**
   String get onlineGallery_codexNote;
-
-  /// No description provided for @onlineGallery_codexCopyPositive.
-  ///
-  /// In en, this message translates to:
-  /// **'Copy positive'**
-  String get onlineGallery_codexCopyPositive;
-
-  /// No description provided for @onlineGallery_codexCopyNegative.
-  ///
-  /// In en, this message translates to:
-  /// **'Copy negative'**
-  String get onlineGallery_codexCopyNegative;
-
-  /// No description provided for @onlineGallery_codexCopyCharacter.
-  ///
-  /// In en, this message translates to:
-  /// **'Copy this character'**
-  String get onlineGallery_codexCopyCharacter;
-
-  /// No description provided for @onlineGallery_codexCopyAll.
-  ///
-  /// In en, this message translates to:
-  /// **'Copy all'**
-  String get onlineGallery_codexCopyAll;
 
   /// No description provided for @onlineGallery_codexSendToGeneration.
   ///
@@ -6692,23 +6680,29 @@ abstract class AppLocalizations {
   /// **'Copy artist chain'**
   String get onlineGallery_copyArtistChain;
 
-  /// No description provided for @onlineGallery_copyFullPrompt.
+  /// No description provided for @onlineGallery_copyPrompt.
   ///
   /// In en, this message translates to:
-  /// **'Copy full Prompt'**
-  String get onlineGallery_copyFullPrompt;
+  /// **'Copy prompt'**
+  String get onlineGallery_copyPrompt;
 
-  /// No description provided for @onlineGallery_copyRawArtistFragments.
+  /// No description provided for @onlineGallery_promptCopyDescription.
   ///
   /// In en, this message translates to:
-  /// **'Copy original artist fragments'**
-  String get onlineGallery_copyRawArtistFragments;
+  /// **'Choose the original prompt categories to copy. Positive and negative content is separated into plain-text blocks.'**
+  String get onlineGallery_promptCopyDescription;
 
-  /// No description provided for @onlineGallery_noArtistChain.
+  /// No description provided for @onlineGallery_promptCopyCategoryHint.
   ///
   /// In en, this message translates to:
-  /// **'No artist chain'**
-  String get onlineGallery_noArtistChain;
+  /// **'Copy tags from this source category'**
+  String get onlineGallery_promptCopyCategoryHint;
+
+  /// No description provided for @onlineGallery_promptCopyStructuredHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy the original content of this prompt field'**
+  String get onlineGallery_promptCopyStructuredHint;
 
   /// No description provided for @onlineGallery_artistCount.
   ///
@@ -6848,11 +6842,71 @@ abstract class AppLocalizations {
   /// **'Download all images in this work'**
   String get onlineGallery_downloadAllMedia;
 
-  /// No description provided for @onlineGallery_copyFullMetadata.
+  /// No description provided for @onlineGallery_copyAllTags.
   ///
   /// In en, this message translates to:
-  /// **'Copy full metadata'**
-  String get onlineGallery_copyFullMetadata;
+  /// **'Copy all TAGs'**
+  String get onlineGallery_copyAllTags;
+
+  /// No description provided for @onlineGallery_customCopyTags.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom copy'**
+  String get onlineGallery_customCopyTags;
+
+  /// No description provided for @promptCopy_exportTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom TAG copy'**
+  String get promptCopy_exportTitle;
+
+  /// No description provided for @promptCopy_allPositive.
+  ///
+  /// In en, this message translates to:
+  /// **'All positive prompts'**
+  String get promptCopy_allPositive;
+
+  /// No description provided for @promptCopy_allNegative.
+  ///
+  /// In en, this message translates to:
+  /// **'All negative prompts'**
+  String get promptCopy_allNegative;
+
+  /// No description provided for @promptCopy_mainPositive.
+  ///
+  /// In en, this message translates to:
+  /// **'Main / global positive prompt'**
+  String get promptCopy_mainPositive;
+
+  /// No description provided for @promptCopy_mainNegative.
+  ///
+  /// In en, this message translates to:
+  /// **'Main / global negative prompt'**
+  String get promptCopy_mainNegative;
+
+  /// No description provided for @promptCopy_fixedPositive.
+  ///
+  /// In en, this message translates to:
+  /// **'Fixed positive prompts'**
+  String get promptCopy_fixedPositive;
+
+  /// No description provided for @promptCopy_fixedNegative.
+  ///
+  /// In en, this message translates to:
+  /// **'Fixed negative prompts'**
+  String get promptCopy_fixedNegative;
+
+  /// No description provided for @promptCopy_characterPositive.
+  ///
+  /// In en, this message translates to:
+  /// **'Character {index} positive prompt'**
+  String promptCopy_characterPositive(int index);
+
+  /// No description provided for @promptCopy_characterNegative.
+  ///
+  /// In en, this message translates to:
+  /// **'Character {index} negative prompt'**
+  String promptCopy_characterNegative(int index);
 
   /// No description provided for @onlineGallery_gelbooruReadOnly.
   ///
@@ -14109,6 +14163,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count} selected'**
   String metadataImport_selectedCount(int count);
+
+  /// No description provided for @metadataImport_readImageMetadata.
+  ///
+  /// In en, this message translates to:
+  /// **'Read Image Metadata'**
+  String get metadataImport_readImageMetadata;
+
+  /// No description provided for @metadataImport_readFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t read the selected image'**
+  String get metadataImport_readFailed;
+
+  /// No description provided for @metadataImport_processFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t process the selected image'**
+  String get metadataImport_processFailed;
 
   /// No description provided for @metadataImport_noDataFound.
   ///
@@ -22585,6 +22657,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Saved to your photo gallery'**
   String get image_savedToSystemGallery;
+
+  /// No description provided for @localGallery_saveToSystemGallery.
+  ///
+  /// In en, this message translates to:
+  /// **'Save to photo gallery'**
+  String get localGallery_saveToSystemGallery;
+
+  /// No description provided for @localGallery_saveToSystemGalleryFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save to your photo gallery: {error}'**
+  String localGallery_saveToSystemGalleryFailed(Object error);
 
   /// No description provided for @image_savedAppOnly.
   ///

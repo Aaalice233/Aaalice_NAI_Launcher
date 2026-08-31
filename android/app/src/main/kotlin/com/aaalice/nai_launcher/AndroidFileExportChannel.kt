@@ -266,14 +266,17 @@ class AndroidFileExportChannel(
 
     @Suppress("DEPRECATION")
     private fun publishImage(source: File, fileName: String, mimeType: String): Uri {
+        val relativePath = "${Environment.DIRECTORY_PICTURES}/Aaalice NAI Launcher/"
+        val displayName = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            uniqueMediaStoreDisplayName(fileName, relativePath)
+        } else {
+            fileName
+        }
         val values = ContentValues().apply {
-            put(MediaStore.Images.Media.DISPLAY_NAME, fileName)
+            put(MediaStore.Images.Media.DISPLAY_NAME, displayName)
             put(MediaStore.Images.Media.MIME_TYPE, mimeType)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                put(
-                    MediaStore.Images.Media.RELATIVE_PATH,
-                    "${Environment.DIRECTORY_PICTURES}/Aaalice NAI Launcher",
-                )
+                put(MediaStore.Images.Media.RELATIVE_PATH, relativePath)
                 put(MediaStore.Images.Media.IS_PENDING, 1)
             } else {
                 val directory = File(
@@ -312,6 +315,29 @@ class AndroidFileExportChannel(
             throw error
         }
     }
+
+    private fun uniqueMediaStoreDisplayName(fileName: String, relativePath: String): String {
+        val extensionIndex = fileName.lastIndexOf('.')
+        val baseName = if (extensionIndex > 0) fileName.substring(0, extensionIndex) else fileName
+        val extension = if (extensionIndex > 0) fileName.substring(extensionIndex) else ""
+        var candidate = fileName
+        var suffix = 1
+        while (mediaStoreImageExists(candidate, relativePath)) {
+            candidate = "$baseName ($suffix)$extension"
+            suffix += 1
+        }
+        return candidate
+    }
+
+    private fun mediaStoreImageExists(displayName: String, relativePath: String): Boolean =
+        activity.contentResolver.query(
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+            arrayOf(MediaStore.Images.Media._ID),
+            "${MediaStore.Images.Media.DISPLAY_NAME} = ? AND " +
+                "${MediaStore.Images.Media.RELATIVE_PATH} = ?",
+            arrayOf(displayName, relativePath),
+            null,
+        )?.use { cursor -> cursor.moveToFirst() } ?: false
 
     private fun uniqueFile(directory: File, fileName: String): File {
         val requested = File(directory, fileName)

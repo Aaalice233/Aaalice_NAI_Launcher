@@ -7,6 +7,7 @@ import '../../themes/design_tokens.dart';
 import '../../widgets/anlas/anlas_balance_chip.dart';
 import '../../widgets/anlas/opus_usage_chip.dart';
 import '../../widgets/common/anlas_cost_badge.dart';
+import '../../widgets/common/owned_scroll_controller.dart';
 import '../../widgets/common/themed_button.dart';
 import '../../widgets/common/themed_scaffold.dart';
 import 'mobile_generation_controller.dart';
@@ -20,11 +21,13 @@ class MobileGenerationChrome extends ConsumerWidget {
     super.key,
     required this.controller,
     required this.data,
+    required this.historyViewport,
     required this.body,
   });
 
   final MobileGenerationController controller;
   final MobileGenerationViewData data;
+  final OwnedViewportOffset historyViewport;
   final Widget body;
 
   PreferredSizeWidget? _buildAppBar(BuildContext context) {
@@ -124,7 +127,10 @@ class MobileGenerationChrome extends ConsumerWidget {
       key: const ValueKey('generation-history-drawer'),
       width: MediaQuery.sizeOf(context).width * 0.9,
       child: SafeArea(
-        child: HistoryPanel(onClose: controller.closeHistoryDrawer),
+        child: HistoryPanel(
+          onClose: controller.closeHistoryDrawer,
+          viewportOffset: historyViewport,
+        ),
       ),
     );
   }

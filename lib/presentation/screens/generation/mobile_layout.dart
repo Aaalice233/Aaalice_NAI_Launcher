@@ -13,6 +13,7 @@ import '../../providers/krita/krita_bridge_notifier.dart';
 import '../../providers/prompt_maximize_provider.dart';
 import '../../providers/quality_preset_provider.dart';
 import '../../providers/uc_preset_provider.dart';
+import '../../widgets/common/owned_scroll_controller.dart';
 import 'mobile_generation_controller.dart';
 import 'mobile_generation_shell.dart';
 import 'mobile_generation_view_data.dart';
@@ -20,7 +21,9 @@ import 'mobile_generation_view_data.dart';
 /// Stable mobile generation entry point. Stateful interaction and rendering
 /// responsibilities live in dedicated controller and component classes.
 class MobileGenerationLayout extends ConsumerStatefulWidget {
-  const MobileGenerationLayout({super.key});
+  const MobileGenerationLayout({super.key, this.historyViewport});
+
+  final OwnedViewportOffset? historyViewport;
 
   @override
   ConsumerState<MobileGenerationLayout> createState() =>
@@ -30,11 +33,13 @@ class MobileGenerationLayout extends ConsumerStatefulWidget {
 class _MobileGenerationLayoutState
     extends ConsumerState<MobileGenerationLayout> {
   late final MobileGenerationController _controller;
+  late final OwnedViewportOffset _historyViewport;
 
   @override
   void initState() {
     super.initState();
     _controller = MobileGenerationController(ref);
+    _historyViewport = widget.historyViewport ?? OwnedViewportOffset();
   }
 
   @override
@@ -116,7 +121,11 @@ class _MobileGenerationLayoutState
           negativePresetLabel: negativePresetLabel,
           fixedTagCount: fixedTagCount,
         );
-        return MobileGenerationShell(controller: _controller, data: data);
+        return MobileGenerationShell(
+          controller: _controller,
+          data: data,
+          historyViewport: _historyViewport,
+        );
       },
     );
   }

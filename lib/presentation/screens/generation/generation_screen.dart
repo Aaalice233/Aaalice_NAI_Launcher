@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/platform/platform_capabilities.dart';
 import '../../providers/generation_layout_mode_provider.dart';
 import '../../providers/layout_state_provider.dart';
+import '../../widgets/common/owned_scroll_controller.dart';
 import '../../widgets/drop/global_drop_handler.dart';
 import 'desktop_layout.dart';
 import 'mobile_layout.dart';
@@ -13,11 +14,18 @@ import 'web_style_layout.dart';
 import 'widgets/fixed_tags_sidebar.dart';
 
 /// 图像生成页面
-class GenerationScreen extends ConsumerWidget {
+class GenerationScreen extends ConsumerStatefulWidget {
   const GenerationScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<GenerationScreen> createState() => _GenerationScreenState();
+}
+
+class _GenerationScreenState extends ConsumerState<GenerationScreen> {
+  final _historyViewport = OwnedViewportOffset();
+
+  @override
+  Widget build(BuildContext context) {
     final content = LayoutBuilder(
       builder: (context, constraints) {
         // 桌面端布局 (宽度 >= 1000)
@@ -25,12 +33,14 @@ class GenerationScreen extends ConsumerWidget {
             PlatformCapabilities.current.hasPrecisePointer) {
           final layoutMode = ref.watch(generationLayoutModeNotifierProvider);
           return layoutMode == GenerationLayoutMode.webStyle
-              ? const WebStyleGenerationLayout()
-              : const DesktopGenerationLayout();
+              ? WebStyleGenerationLayout(historyViewport: _historyViewport)
+              : DesktopGenerationLayout(historyViewport: _historyViewport);
         }
 
         final layoutState = ref.watch(layoutStateNotifierProvider);
-        const mobileLayout = MobileGenerationLayout();
+        final mobileLayout = MobileGenerationLayout(
+          historyViewport: _historyViewport,
+        );
         if (!layoutState.fixedTagsSidebarExpanded) {
           return mobileLayout;
         }
@@ -42,7 +52,7 @@ class GenerationScreen extends ConsumerWidget {
           );
           return Stack(
             children: [
-              const Positioned.fill(child: mobileLayout),
+              Positioned.fill(child: mobileLayout),
               Positioned.fill(
                 child: ModalBarrier(
                   key: const Key('generation-fixed-tags-barrier'),
@@ -79,7 +89,7 @@ class GenerationScreen extends ConsumerWidget {
 
         return Row(
           children: [
-            const Expanded(child: mobileLayout),
+            Expanded(child: mobileLayout),
             Container(
               width: sidebarWidth,
               decoration: BoxDecoration(

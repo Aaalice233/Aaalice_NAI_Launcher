@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 import 'package:nai_launcher/data/models/online_gallery/gallery_item.dart';
+import 'package:nai_launcher/data/models/online_gallery/gallery_prompt_projection.dart';
 import 'package:nai_launcher/data/models/online_gallery/gallery_source.dart';
 import 'package:nai_launcher/presentation/providers/online_gallery_output_filter_provider.dart';
 import 'package:nai_launcher/presentation/providers/online_gallery_prompt_tag_settings_provider.dart';
@@ -54,6 +56,24 @@ void main() {
       expect(result.positivePrompt, 'green_eyes');
     });
 
+    test('keeps unclassified Danbooru tags copyable as one field', () {
+      const item = GalleryItem(
+        id: 21,
+        sourceId: GallerySourceId.danbooru,
+        tags: ['solo', 'blue_hair'],
+      );
+
+      final result = service.project(
+        item: item,
+        promptTagSettings: defaultPromptSettings,
+        outputFilter: outputFilter,
+      );
+
+      expect(result.copy.availableCategories, isEmpty);
+      expect(result.copy.mainPositive, 'solo, blue_hair');
+      expect(result.copyText, 'solo, blue_hair');
+    });
+
     test('projects Gelbooru flat tags without categorized fields', () {
       const item = GalleryItem(
         id: 3,
@@ -103,10 +123,40 @@ void main() {
 
       expect(result.positivePrompt, 'current_prompt');
       expect(result.negativePrompt, '  current negative, watermark  ');
-      expect(
-        result.copyText,
-        'current_prompt\n\nNegative Prompt:\ncurrent negative, watermark',
+      expect(result.copyText, 'current_prompt\n\ncurrent negative, watermark');
+    });
+
+    test('preserves AI TAG character negatives and positions', () {
+      const item = GalleryItem(id: 12, sourceId: GallerySourceId.aiTag);
+      const media = GalleryMedia(
+        id: 'ai',
+        prompt: 'main',
+        negativePrompt: 'main bad',
+        promptMetadata: NaiImageMetadata(
+          characterPrompts: ['alice'],
+          characterNegativePrompts: ['glasses'],
+          characterInfos: [
+            CharacterPromptInfo(
+              prompt: 'alice',
+              negativePrompt: 'glasses',
+              centerX: 0.25,
+              centerY: 0.75,
+            ),
+          ],
+        ),
       );
+
+      final result = service.project(
+        item: item,
+        currentMedia: media,
+        promptTagSettings: defaultPromptSettings,
+        outputFilter: outputFilter,
+      );
+
+      expect(result.characterPrompts.single.prompt, 'alice');
+      expect(result.characterPrompts.single.negativePrompt, 'glasses');
+      expect(result.characterPrompts.single.positionX, 0.25);
+      expect(result.characterPrompts.single.positionY, 0.75);
     });
 
     test('projects QuickTagCloud item metadata without mutating it', () {
@@ -144,8 +194,7 @@ void main() {
       );
       expect(
         result.copyText,
-        'masterpiece\n\nNegative Prompt:\nlowres, watermark\n\n'
-        'Alice:\nalice\nNegative Prompt: bad hands, watermark',
+        'masterpiece | alice\n\nlowres, watermark | bad hands, watermark',
       );
       expect(rawMetadata['prompt'], 'masterpiece, watermark');
       expect((rawMetadata['characterPrompts'] as List).single, {
@@ -153,6 +202,97 @@ void main() {
         'prompt': 'alice, watermark',
         'negative': 'bad hands, watermark',
       });
+    });
+  });
+
+  group('copy selection', () {
+    test('selects Danbooru categories without changing generation policy', () {
+      const item = GalleryItem(
+        id: 10,
+        sourceId: GallerySourceId.danbooru,
+        tags: ['solo', 'alice', 'series', 'creator', 'watermark'],
+        tagStringGeneral: 'solo watermark',
+        tagStringCharacter: 'alice',
+        tagStringCopyright: 'series',
+        tagStringArtist: 'creator',
+      );
+      final result = service.project(
+        item: item,
+        promptTagSettings: defaultPromptSettings,
+        outputFilter: outputFilter,
+      );
+
+      final copied = result.copy.buildText(
+        const GalleryPromptCopySelection(
+          tagCategories: {
+            GalleryPromptCopyCategory.artist,
+            GalleryPromptCopyCategory.general,
+          },
+        ),
+      );
+
+      expect(copied, 'artist:creator, solo');
+      expect(result.positivePrompt, 'alice, series, solo');
+    });
+
+    test('Gelbooru exposes one complete flat-tag selection', () {
+      const item = GalleryItem(
+        id: 11,
+        sourceId: GallerySourceId.gelbooru,
+        tags: ['blue_hair', 'watermark'],
+      );
+      final result = service.project(
+        item: item,
+        promptTagSettings: defaultPromptSettings,
+        outputFilter: outputFilter,
+      );
+
+      expect(result.copy.availableCategories, isEmpty);
+      expect(result.copy.hasMainPositive, isTrue);
+      expect(
+        result.copy.buildText(
+          const GalleryPromptCopySelection(mainPositive: true),
+        ),
+        'blue_hair',
+      );
+    });
+
+    test('structured copy keeps pure NovelAI character blocks', () {
+      const item = GalleryItem(id: 13, sourceId: GallerySourceId.quickTagCloud);
+      const detail = GalleryDetail(
+        item: item,
+        media: [],
+        prompt: 'global',
+        negativePrompt: 'global bad',
+        characterPrompts: [
+          GalleryCharacterPrompt(
+            label: 'Alice',
+            prompt: 'alice',
+            negativePrompt: 'glasses',
+          ),
+        ],
+      );
+      final result = service.project(
+        item: item,
+        detail: detail,
+        promptTagSettings: defaultPromptSettings,
+        outputFilter: outputFilter,
+      );
+
+      expect(
+        result.copy.buildText(
+          const GalleryPromptCopySelection(
+            mainPositive: true,
+            mainNegative: true,
+            characterPositiveIndices: {0},
+            characterNegativeIndices: {0},
+          ),
+        ),
+        'global | alice\n\nglobal bad | glasses',
+      );
+      expect(result.copyText, isNot(contains('positive:')));
+      expect(result.copyText, isNot(contains('negative:')));
+      expect(result.copyText, isNot(contains('metadata:')));
     });
   });
 

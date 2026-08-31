@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/platform/platform_capabilities.dart';
 import '../../../data/models/character/character_prompt.dart';
 import '../../prompt_assistant/providers/prompt_assistant_history_provider.dart';
+import '../../prompt_assistant/providers/prompt_assistant_state_provider.dart';
 import '../../prompt_assistant/widgets/prompt_assistant_overlay.dart';
 import '../../providers/character_prompt_provider.dart';
 import '../../providers/image_generation_provider.dart';
@@ -108,80 +109,96 @@ class _CharacterPromptEditorState extends ConsumerState<CharacterPromptEditor> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final colorScheme = Theme.of(context).colorScheme;
+    final assistantSessionId = _tabIndex == 0
+        ? PromptHistorySessionIds.characterPrompt(widget.character.id)
+        : PromptHistorySessionIds.characterNegative(widget.character.id);
+    final assistantExpanded = ref.watch(
+      promptAssistantStateProvider.select(
+        (states) => states[assistantSessionId]?.expanded ?? false,
+      ),
+    );
+    final assistantToolbarHeight = PromptAssistantOverlay.inlineToolbarHeight;
+    final switcherHeight =
+        assistantToolbarHeight +
+        (assistantExpanded ? 6 + assistantToolbarHeight : 0);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Row(
-                children: [
-                  Flexible(
-                    child: _EditorTab(
-                      label: l10n.prompt_positivePrompt,
-                      selected: _tabIndex == 0,
-                      onTap: () {
-                        setState(() => _tabIndex = 0);
-                        _focusCurrentTab();
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Flexible(
-                    child: _EditorTab(
-                      label: l10n.prompt_negativePrompt,
-                      selected: _tabIndex == 1,
-                      onTap: () {
-                        setState(() => _tabIndex = 1);
-                        _focusCurrentTab();
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            SizedBox.square(
-              key: const ValueKey('character-prompt-assistant-slot'),
-              dimension: PromptAssistantOverlay.inlineToolbarHeight,
-              child: PromptAssistantOverlay(
-                key: ValueKey(
-                  _tabIndex == 0
-                      ? PromptHistorySessionIds.characterPrompt(
-                          widget.character.id,
-                        )
-                      : PromptHistorySessionIds.characterNegative(
-                          widget.character.id,
-                        ),
-                ),
-                sessionId: _tabIndex == 0
-                    ? PromptHistorySessionIds.characterPrompt(
-                        widget.character.id,
-                      )
-                    : PromptHistorySessionIds.characterNegative(
-                        widget.character.id,
+        SizedBox(
+          height: switcherHeight,
+          child: Stack(
+            children: [
+              Positioned(
+                left: 0,
+                right: assistantExpanded ? 0 : assistantToolbarHeight + 8,
+                top: 0,
+                height: assistantToolbarHeight,
+                child: Row(
+                  children: [
+                    Flexible(
+                      child: _EditorTab(
+                        label: l10n.prompt_positivePrompt,
+                        selected: _tabIndex == 0,
+                        onTap: () {
+                          setState(() => _tabIndex = 0);
+                          _focusCurrentTab();
+                        },
                       ),
-                controller: _tabIndex == 0
-                    ? _promptController
-                    : _negativeController,
-                onChanged: _tabIndex == 0
-                    ? (value) => _updateCharacter(
-                        widget.character.copyWith(prompt: value),
-                      )
-                    : (value) => _updateCharacter(
-                        widget.character.copyWith(negativePrompt: value),
+                    ),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: _EditorTab(
+                        label: l10n.prompt_negativePrompt,
+                        selected: _tabIndex == 1,
+                        onTap: () {
+                          setState(() => _tabIndex = 1);
+                          _focusCurrentTab();
+                        },
                       ),
-                floatOverEditor: false,
-                iconOnly: true,
-                expandInRootOverlay: true,
-                tapRegionGroupId: CharacterPromptEditor.tapRegionGroupId(
-                  widget.character.id,
+                    ),
+                  ],
                 ),
               ),
-            ),
-          ],
+              Positioned(
+                left: assistantExpanded ? 0 : null,
+                right: 0,
+                top: assistantExpanded ? assistantToolbarHeight + 6 : 0,
+                width: assistantExpanded ? null : assistantToolbarHeight,
+                height: assistantToolbarHeight,
+                child: ClipRRect(
+                  key: const ValueKey('character-prompt-assistant-slot'),
+                  borderRadius: BorderRadius.circular(6),
+                  child: ColoredBox(
+                    color: colorScheme.surfaceContainerHighest.withValues(
+                      alpha: assistantExpanded ? 0.72 : 0.52,
+                    ),
+                    child: PromptAssistantOverlay(
+                      key: ValueKey(assistantSessionId),
+                      sessionId: assistantSessionId,
+                      controller: _tabIndex == 0
+                          ? _promptController
+                          : _negativeController,
+                      onChanged: _tabIndex == 0
+                          ? (value) => _updateCharacter(
+                              widget.character.copyWith(prompt: value),
+                            )
+                          : (value) => _updateCharacter(
+                              widget.character.copyWith(negativePrompt: value),
+                            ),
+                      floatOverEditor: false,
+                      iconOnly: true,
+                      tapRegionGroupId: CharacterPromptEditor.tapRegionGroupId(
+                        widget.character.id,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: 6),
         if (_tabIndex == 0)

@@ -14,12 +14,12 @@ class GalleryDetailInfoPanel extends StatelessWidget {
     super.key,
     required this.viewModel,
     required this.actions,
-    required this.actionPanel,
+    required this.primaryActions,
   });
 
   final GalleryDetailViewModel viewModel;
   final GalleryDetailActions actions;
-  final Widget actionPanel;
+  final Widget primaryActions;
 
   @override
   Widget build(BuildContext context) {
@@ -116,10 +116,6 @@ class GalleryDetailInfoPanel extends StatelessWidget {
                     sectionLabel: promptIsRepresentedByTags
                         ? viewModel.labels.positivePrompt
                         : '',
-                    onCopySection: promptIsRepresentedByTags
-                        ? actions.copyPrompt
-                        : null,
-                    sectionCopyTooltip: viewModel.labels.copyPositive,
                   ),
                 ],
               ],
@@ -130,8 +126,6 @@ class GalleryDetailInfoPanel extends StatelessWidget {
                   label: viewModel.labels.positivePrompt,
                   prompt: viewModel.detail.prompt!.trim(),
                   color: TagColors.general,
-                  onCopy: actions.copyPrompt,
-                  copyTooltip: viewModel.labels.copyPositive,
                 ),
               ],
               if (!isQuickTagCloud && viewModel.hasNegativePrompt) ...[
@@ -141,8 +135,6 @@ class GalleryDetailInfoPanel extends StatelessWidget {
                   label: viewModel.labels.negativePrompt,
                   prompt: viewModel.detail.negativePrompt!.trim(),
                   color: theme.colorScheme.error,
-                  onCopy: actions.copyNegativePrompt,
-                  copyTooltip: viewModel.labels.copyNegative,
                 ),
               ],
               if (!isQuickTagCloud &&
@@ -222,10 +214,7 @@ class GalleryDetailInfoPanel extends StatelessWidget {
           ),
         ),
         Divider(height: 1, color: theme.dividerColor),
-        ConstrainedBox(
-          constraints: const BoxConstraints(maxHeight: 250),
-          child: SingleChildScrollView(child: actionPanel),
-        ),
+        primaryActions,
       ],
     );
   }
@@ -490,10 +479,6 @@ class GalleryDetailInfoPanel extends StatelessWidget {
       sectionLabel: character.label.trim().isEmpty
           ? '#${index + 1}'
           : character.label.trim(),
-      onCopySection: groups.isEmpty
-          ? null
-          : () => actions.copyCharacter(character),
-      sectionCopyTooltip: viewModel.labels.copyCharacter,
     );
   }
 
@@ -547,8 +532,6 @@ class GalleryDetailInfoPanel extends StatelessWidget {
           label: viewModel.labels.positivePrompt,
           prompt: positivePrompt,
           color: TagColors.general,
-          onCopy: actions.copyPrompt,
-          copyTooltip: viewModel.labels.copyPositive,
         ),
       );
     }
@@ -559,8 +542,6 @@ class GalleryDetailInfoPanel extends StatelessWidget {
           label: viewModel.labels.negativePrompt,
           prompt: viewModel.detail.negativePrompt!.trim(),
           color: theme.colorScheme.error,
-          onCopy: actions.copyNegativePrompt,
-          copyTooltip: viewModel.labels.copyNegative,
         ),
       );
     }

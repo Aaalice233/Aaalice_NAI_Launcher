@@ -402,6 +402,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'The third-party site must be compatible with NovelAI subscription and image-generation APIs. The token will be sent as a Bearer token.';
 
   @override
+  String get auth_thirdPartyStreamingHint =>
+      'If the third-party site does not support streaming generation, go to Settings > Generation > Image Output and turn off Streaming preview before generating.';
+
+  @override
   String get auth_thirdPartyApiSiteRequired => 'Enter third-party API site URL';
 
   @override
@@ -841,6 +845,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get generation_generationFailed => 'Generation failed';
+
+  @override
+  String get generation_streamingUnsupported =>
+      'This site does not support streaming generation';
+
+  @override
+  String get generation_streamingUnsupportedHint =>
+      'Go to Settings > Generation > Image Output, turn off Streaming preview, and try again.';
 
   @override
   String generation_progress(Object progress) {
@@ -3151,7 +3163,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get onlineGallery_promptTagCategoriesTooltip =>
-      'Choose which tag categories are included when copying, sending, or adding to the queue';
+      'Choose which tag categories are included when sending or adding to the queue';
 
   @override
   String get onlineGallery_keepOnePromptTagCategory =>
@@ -3668,25 +3680,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get onlineGallery_codexNegativePrompt => 'Negative prompt';
 
   @override
-  String get onlineGallery_negativePromptCopyHeading => 'Negative Prompt';
-
-  @override
   String get onlineGallery_codexCharacterPrompts => 'Character prompts';
 
   @override
   String get onlineGallery_codexNote => 'Notes';
-
-  @override
-  String get onlineGallery_codexCopyPositive => 'Copy positive';
-
-  @override
-  String get onlineGallery_codexCopyNegative => 'Copy negative';
-
-  @override
-  String get onlineGallery_codexCopyCharacter => 'Copy this character';
-
-  @override
-  String get onlineGallery_codexCopyAll => 'Copy all';
 
   @override
   String get onlineGallery_codexSendToGeneration => 'Send to Generate';
@@ -3740,14 +3737,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get onlineGallery_copyArtistChain => 'Copy artist chain';
 
   @override
-  String get onlineGallery_copyFullPrompt => 'Copy full Prompt';
+  String get onlineGallery_copyPrompt => 'Copy prompt';
 
   @override
-  String get onlineGallery_copyRawArtistFragments =>
-      'Copy original artist fragments';
+  String get onlineGallery_promptCopyDescription =>
+      'Choose the original prompt categories to copy. Positive and negative content is separated into plain-text blocks.';
 
   @override
-  String get onlineGallery_noArtistChain => 'No artist chain';
+  String get onlineGallery_promptCopyCategoryHint =>
+      'Copy tags from this source category';
+
+  @override
+  String get onlineGallery_promptCopyStructuredHint =>
+      'Copy the original content of this prompt field';
 
   @override
   String onlineGallery_artistCount(Object count) {
@@ -3839,7 +3841,41 @@ class AppLocalizationsEn extends AppLocalizations {
       'Download all images in this work';
 
   @override
-  String get onlineGallery_copyFullMetadata => 'Copy full metadata';
+  String get onlineGallery_copyAllTags => 'Copy all TAGs';
+
+  @override
+  String get onlineGallery_customCopyTags => 'Custom copy';
+
+  @override
+  String get promptCopy_exportTitle => 'Custom TAG copy';
+
+  @override
+  String get promptCopy_allPositive => 'All positive prompts';
+
+  @override
+  String get promptCopy_allNegative => 'All negative prompts';
+
+  @override
+  String get promptCopy_mainPositive => 'Main / global positive prompt';
+
+  @override
+  String get promptCopy_mainNegative => 'Main / global negative prompt';
+
+  @override
+  String get promptCopy_fixedPositive => 'Fixed positive prompts';
+
+  @override
+  String get promptCopy_fixedNegative => 'Fixed negative prompts';
+
+  @override
+  String promptCopy_characterPositive(int index) {
+    return 'Character $index positive prompt';
+  }
+
+  @override
+  String promptCopy_characterNegative(int index) {
+    return 'Character $index negative prompt';
+  }
 
   @override
   String get onlineGallery_gelbooruReadOnly => 'Read-only favorites';
@@ -7953,6 +7989,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String metadataImport_selectedCount(int count) {
     return '$count selected';
   }
+
+  @override
+  String get metadataImport_readImageMetadata => 'Read Image Metadata';
+
+  @override
+  String get metadataImport_readFailed => 'Couldn\'t read the selected image';
+
+  @override
+  String get metadataImport_processFailed =>
+      'Couldn\'t process the selected image';
 
   @override
   String get metadataImport_noDataFound => 'No NovelAI metadata found';
@@ -12953,6 +12999,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get image_savedToSystemGallery => 'Saved to your photo gallery';
+
+  @override
+  String get localGallery_saveToSystemGallery => 'Save to photo gallery';
+
+  @override
+  String localGallery_saveToSystemGalleryFailed(Object error) {
+    return 'Could not save to your photo gallery: $error';
+  }
 
   @override
   String image_savedAppOnly(Object error) {

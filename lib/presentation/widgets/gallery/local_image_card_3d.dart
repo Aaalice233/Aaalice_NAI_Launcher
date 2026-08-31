@@ -509,6 +509,13 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
                     : context.l10n.common_favorite,
                 color: widget.record.isFavorite ? Colors.redAccent : null,
               ),
+            if (widget.onSendAction != null &&
+                PlatformCapabilities.current.supportsSystemGalleryExport)
+              item(
+                value: LocalImageContextAction.saveToSystemGallery,
+                icon: Icons.save_alt_rounded,
+                label: context.l10n.localGallery_saveToSystemGallery,
+              ),
             item(
               value: _LocalCardAction.copyImage,
               icon: Icons.copy,

@@ -254,4 +254,68 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
   });
+
+  testWidgets('Android 卡片更多操作可保存到系统相册', (tester) async {
+    final tempDirectory = (await tester.runAsync(
+      () => Directory.systemTemp.createTemp('nai_local_card_menu_'),
+    ))!;
+    addTearDown(() async {
+      PlatformCapabilities.debugOverride = null;
+      LocalGalleryThumbnailMemoryCache.instance.clear();
+      await tempDirectory.delete(recursive: true);
+    });
+    PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
+      TargetPlatform.android,
+    );
+    final file = File('${tempDirectory.path}${Platform.pathSeparator}menu.png');
+    await tester.runAsync(
+      () => file.writeAsBytes(
+        img.encodePng(img.Image(width: 32, height: 32)),
+        flush: true,
+      ),
+    );
+    final stat = (await tester.runAsync(file.stat))!;
+    LocalImageContextAction? selected;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: Center(
+              child: LocalImageCard3D(
+                record: LocalImageRecord(
+                  path: file.path,
+                  size: stat.size,
+                  modifiedAt: stat.modified,
+                ),
+                width: 132,
+                height: 184,
+                onTap: () {},
+                onSendAction: (action) async => selected = action,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.byIcon(Icons.more_vert_rounded));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.text('保存到系统相册'), findsOneWidget);
+    final saveItem = find.byWidgetPredicate(
+      (widget) =>
+          widget is PopupMenuItem<Object> &&
+          widget.value == LocalImageContextAction.saveToSystemGallery,
+    );
+    expect(saveItem, findsOneWidget);
+
+    await tester.tap(saveItem);
+    await tester.pump();
+    expect(selected, LocalImageContextAction.saveToSystemGallery);
+  });
 }

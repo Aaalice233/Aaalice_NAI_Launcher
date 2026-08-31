@@ -1,9 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/widgets/gallery/local_image_context_menu.dart';
 
 void main() {
+  setUp(() {
+    PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
+      TargetPlatform.windows,
+    );
+  });
+
+  tearDown(() => PlatformCapabilities.debugOverride = null);
+
   testWidgets('shows direct send actions in the agreed order', (tester) async {
     LocalImageContextAction? selected;
 
@@ -39,6 +48,7 @@ void main() {
       LocalImageContextAction.importMetadata,
       LocalImageContextAction.copyPrompt,
       LocalImageContextAction.copySeed,
+      LocalImageContextAction.showInFolder,
       LocalImageContextAction.delete,
     ]);
     expect(find.text('Send to...'), findsNothing);
@@ -83,6 +93,28 @@ void main() {
         )
         .singleWhere(
           (item) => item.value == LocalImageContextAction.createWatermark,
+        );
+    expect(item.enabled, isTrue);
+  });
+
+  testWidgets('Android menu exposes system photo gallery export', (
+    tester,
+  ) async {
+    PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
+      TargetPlatform.android,
+    );
+    await tester.pumpWidget(const _MenuHarness(isKritaConnected: false));
+
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Save to photo gallery'), findsOneWidget);
+    final item = tester
+        .widgetList<PopupMenuItem<LocalImageContextAction>>(
+          find.byType(PopupMenuItem<LocalImageContextAction>),
+        )
+        .singleWhere(
+          (entry) => entry.value == LocalImageContextAction.saveToSystemGallery,
         );
     expect(item.enabled, isTrue);
   });

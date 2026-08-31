@@ -33,11 +33,7 @@ class GalleryDetailDialogLabels {
     required this.imageLoadFailed,
     required this.retry,
     required this.zoomHint,
-    required this.copyActions,
-    required this.copyPositive,
-    required this.copyNegative,
-    required this.copyCharacter,
-    required this.copyAll,
+    required this.copyPrompt,
     required this.addFavorite,
     required this.removeFavorite,
     required this.openSource,
@@ -55,13 +51,8 @@ class GalleryDetailDialogLabels {
     required this.favoriteCount,
     required this.rating,
     required this.score,
-    required this.copyMetadata,
     required this.downloadAll,
     required this.sendToReverse,
-    required this.copyArtistChain,
-    required this.copyFullPrompt,
-    required this.copyRawArtistFragments,
-    required this.noArtistChain,
   });
 
   final String sourceName;
@@ -90,11 +81,7 @@ class GalleryDetailDialogLabels {
   final String imageLoadFailed;
   final String retry;
   final String zoomHint;
-  final String copyActions;
-  final String copyPositive;
-  final String copyNegative;
-  final String copyCharacter;
-  final String copyAll;
+  final String copyPrompt;
   final String addFavorite;
   final String removeFavorite;
   final String openSource;
@@ -112,13 +99,8 @@ class GalleryDetailDialogLabels {
   final String favoriteCount;
   final String rating;
   final String score;
-  final String copyMetadata;
   final String downloadAll;
   final String sendToReverse;
-  final String copyArtistChain;
-  final String copyFullPrompt;
-  final String copyRawArtistFragments;
-  final String noArtistChain;
 }
 
 @immutable
@@ -132,8 +114,10 @@ class GalleryDetailViewModel {
     required this.isFavorited,
     required this.favoriteLoading,
     required this.favoriteActionPending,
+    required this.canUseGenerationActions,
     required this.queueActionPending,
     required this.downloadActionPending,
+    required this.reverseActionPending,
     required this.canToggleFavorite,
     required this.isOutputFiltered,
   });
@@ -146,8 +130,10 @@ class GalleryDetailViewModel {
   final bool isFavorited;
   final bool favoriteLoading;
   final bool favoriteActionPending;
+  final bool canUseGenerationActions;
   final bool queueActionPending;
   final bool downloadActionPending;
+  final bool reverseActionPending;
   final bool canToggleFavorite;
   final bool Function(String tag) isOutputFiltered;
 
@@ -187,22 +173,14 @@ class GalleryDetailActions {
     required this.toggleFavorite,
     required this.openSource,
     required this.copyPrompt,
-    required this.copyNegativePrompt,
-    required this.copyCharacter,
-    required this.copyAll,
     required this.sendToGenerate,
     required this.addToQueue,
     required this.downloadCurrentOriginal,
     required this.searchTag,
     this.downloadAndWatermark,
     required this.showTagMenu,
-    this.copyMetadata,
     this.downloadAll,
     this.sendToReverse,
-    this.copyArtistChain,
-    this.copyFullPrompt,
-    this.copyRawArtistFragments,
-    this.hasArtistChain,
   });
 
   final VoidCallback close;
@@ -211,23 +189,15 @@ class GalleryDetailActions {
   final Future<void> Function(GalleryMedia media) retryMedia;
   final Future<void> Function() toggleFavorite;
   final VoidCallback openSource;
-  final VoidCallback copyPrompt;
-  final VoidCallback copyNegativePrompt;
-  final void Function(GalleryCharacterPrompt character) copyCharacter;
-  final VoidCallback copyAll;
-  final VoidCallback sendToGenerate;
-  final Future<void> Function() addToQueue;
+  final void Function(GalleryMedia? media) copyPrompt;
+  final void Function(GalleryMedia? media) sendToGenerate;
+  final Future<void> Function(GalleryMedia? media) addToQueue;
   final Future<void> Function(GalleryMedia media) downloadCurrentOriginal;
   final Future<void> Function(GalleryMedia media)? downloadAndWatermark;
   final ValueChanged<String> searchTag;
   final void Function(String tag, TapDownDetails details) showTagMenu;
-  final void Function(GalleryMedia media)? copyMetadata;
   final Future<void> Function(List<GalleryMedia> media)? downloadAll;
   final Future<void> Function(GalleryMedia media)? sendToReverse;
-  final void Function(GalleryMedia media)? copyArtistChain;
-  final void Function(GalleryMedia media)? copyFullPrompt;
-  final void Function(GalleryMedia media)? copyRawArtistFragments;
-  final bool Function(GalleryMedia media)? hasArtistChain;
 }
 
 bool galleryMediaHasOriginal(GalleryMedia media) {

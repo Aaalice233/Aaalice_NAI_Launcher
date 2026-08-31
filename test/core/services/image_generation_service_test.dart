@@ -541,6 +541,10 @@ void main() {
             'streaming not allowed',
             'Stream is not allowed',
             'stream not allowed',
+            'Streaming is not supported by this site',
+            'This endpoint does not support streaming',
+            '当前站点不支持流式生成',
+            'このサイトはストリーミング生成に対応していません',
           ];
 
           for (final errorMsg in errorFormats) {
@@ -569,7 +573,37 @@ void main() {
         },
       );
 
-      test('should handle stream errors gracefully', () async {
+      test(
+        'should fall back when the stream throws an unsupported error',
+        () async {
+          const params = ImageParams(prompt: 'test prompt');
+          final imageBytes = Uint8List.fromList([1, 2, 3]);
+
+          when(() => mockApiService.generateImageStream(any())).thenAnswer(
+            (_) => Stream.error(
+              Exception('This endpoint does not support streaming'),
+            ),
+          );
+          when(
+            () => mockApiService.generateImage(
+              any(),
+              onProgress: any(named: 'onProgress'),
+            ),
+          ).thenAnswer((_) async => ([imageBytes], <int, String>{}));
+
+          final result = await service.generateSingle(params);
+
+          expect(result.isSuccess, isTrue);
+          verify(
+            () => mockApiService.generateImage(
+              any(),
+              onProgress: any(named: 'onProgress'),
+            ),
+          ).called(1);
+        },
+      );
+
+      test('should handle unrelated stream errors gracefully', () async {
         const params = ImageParams(prompt: 'test prompt');
 
         when(
@@ -580,6 +614,12 @@ void main() {
 
         expect(result.isSuccess, isFalse);
         expect(result.error, isNotNull);
+        verifyNever(
+          () => mockApiService.generateImage(
+            any(),
+            onProgress: any(named: 'onProgress'),
+          ),
+        );
       });
     });
 

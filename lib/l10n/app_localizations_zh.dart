@@ -385,6 +385,10 @@ class AppLocalizationsZh extends AppLocalizations {
       '第三方站点需兼容 NovelAI 的 /user/subscription 与图像生成相关 API；Token 将按 Bearer 方式发送。';
 
   @override
+  String get auth_thirdPartyStreamingHint =>
+      '如果第三方站点不支持流式生成，请前往「设置 > 生成 > 图像输出」，关闭「流式预览」后再生成。';
+
+  @override
   String get auth_thirdPartyApiSiteRequired => '请输入第三方 API 站点地址';
 
   @override
@@ -814,6 +818,13 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get generation_generationFailed => '生成失败';
+
+  @override
+  String get generation_streamingUnsupported => '站点不支持流式生成';
+
+  @override
+  String get generation_streamingUnsupportedHint =>
+      '请前往「设置 > 生成 > 图像输出」，关闭「流式预览」后重试。';
 
   @override
   String generation_progress(Object progress) {
@@ -3042,7 +3053,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onlineGallery_promptTagCategories => '提示词类别';
 
   @override
-  String get onlineGallery_promptTagCategoriesTooltip => '选择复制、发送或加入队列时包含的标签类别';
+  String get onlineGallery_promptTagCategoriesTooltip => '选择发送或加入队列时包含的标签类别';
 
   @override
   String get onlineGallery_keepOnePromptTagCategory => '至少保留一个提示词类别';
@@ -3528,25 +3539,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onlineGallery_codexNegativePrompt => '负向提示词';
 
   @override
-  String get onlineGallery_negativePromptCopyHeading => '负面提示词';
-
-  @override
   String get onlineGallery_codexCharacterPrompts => '角色提示词';
 
   @override
   String get onlineGallery_codexNote => '备注';
-
-  @override
-  String get onlineGallery_codexCopyPositive => '复制正向';
-
-  @override
-  String get onlineGallery_codexCopyNegative => '复制负向';
-
-  @override
-  String get onlineGallery_codexCopyCharacter => '复制此角色';
-
-  @override
-  String get onlineGallery_codexCopyAll => '复制全部';
 
   @override
   String get onlineGallery_codexSendToGeneration => '带入生成页';
@@ -3595,13 +3591,17 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onlineGallery_copyArtistChain => '复制画师串';
 
   @override
-  String get onlineGallery_copyFullPrompt => '复制完整 Prompt';
+  String get onlineGallery_copyPrompt => '复制提示词';
 
   @override
-  String get onlineGallery_copyRawArtistFragments => '复制原始画师片段';
+  String get onlineGallery_promptCopyDescription =>
+      '选择要复制的原始提示词类别。正向与负向内容会以纯文本块分隔。';
 
   @override
-  String get onlineGallery_noArtistChain => '无可复制画师串';
+  String get onlineGallery_promptCopyCategoryHint => '按来源提供的标签类别复制';
+
+  @override
+  String get onlineGallery_promptCopyStructuredHint => '复制该提示词字段的原始内容';
 
   @override
   String onlineGallery_artistCount(Object count) {
@@ -3681,7 +3681,41 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onlineGallery_downloadAllMedia => '下载作品全部图片';
 
   @override
-  String get onlineGallery_copyFullMetadata => '复制完整元数据';
+  String get onlineGallery_copyAllTags => '复制全部 TAG';
+
+  @override
+  String get onlineGallery_customCopyTags => '自定义复制';
+
+  @override
+  String get promptCopy_exportTitle => '自定义复制 TAG';
+
+  @override
+  String get promptCopy_allPositive => '全部正面提示词';
+
+  @override
+  String get promptCopy_allNegative => '全部负面提示词';
+
+  @override
+  String get promptCopy_mainPositive => '主 / 全局正面提示词';
+
+  @override
+  String get promptCopy_mainNegative => '主 / 全局负面提示词';
+
+  @override
+  String get promptCopy_fixedPositive => '固定正面提示词';
+
+  @override
+  String get promptCopy_fixedNegative => '固定负面提示词';
+
+  @override
+  String promptCopy_characterPositive(int index) {
+    return '角色 $index 正面提示词';
+  }
+
+  @override
+  String promptCopy_characterNegative(int index) {
+    return '角色 $index 负面提示词';
+  }
 
   @override
   String get onlineGallery_gelbooruReadOnly => '只读收藏';
@@ -7655,6 +7689,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String metadataImport_selectedCount(int count) {
     return '已选择 $count 项';
   }
+
+  @override
+  String get metadataImport_readImageMetadata => '读取图片元数据';
+
+  @override
+  String get metadataImport_readFailed => '无法读取所选图片';
+
+  @override
+  String get metadataImport_processFailed => '无法处理所选图片';
 
   @override
   String get metadataImport_noDataFound => '未找到 NovelAI 元数据';
@@ -12421,6 +12464,14 @@ class AppLocalizationsZh extends AppLocalizations {
   String get image_savedToSystemGallery => '已保存到系统相册';
 
   @override
+  String get localGallery_saveToSystemGallery => '保存到系统相册';
+
+  @override
+  String localGallery_saveToSystemGalleryFailed(Object error) {
+    return '无法保存到系统相册：$error';
+  }
+
+  @override
   String image_savedAppOnly(Object error) {
     return '已保存到应用图库，但无法导出到系统相册：$error';
   }
@@ -13819,6 +13870,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
       '第三方站點需相容 NovelAI 的 /user/subscription 與影象生成相關 API；Token 將按 Bearer 方式傳送。';
 
   @override
+  String get auth_thirdPartyStreamingHint =>
+      '若第三方站點不支援串流生成，請前往「設定 > 生成 > 影象輸出」，關閉「串流預覽」後再生成。';
+
+  @override
   String get auth_thirdPartyApiSiteRequired => '請輸入第三方 API 站點地址';
 
   @override
@@ -14248,6 +14303,13 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get generation_generationFailed => '生成失敗';
+
+  @override
+  String get generation_streamingUnsupported => '站點不支援串流生成';
+
+  @override
+  String get generation_streamingUnsupportedHint =>
+      '請前往「設定 > 生成 > 影象輸出」，關閉「串流預覽」後重試。';
 
   @override
   String generation_progress(Object progress) {
@@ -16476,7 +16538,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get onlineGallery_promptTagCategories => '提示詞類別';
 
   @override
-  String get onlineGallery_promptTagCategoriesTooltip => '選擇複製、傳送或加入佇列時包含的標籤類別';
+  String get onlineGallery_promptTagCategoriesTooltip => '選擇傳送或加入佇列時包含的標籤類別';
 
   @override
   String get onlineGallery_keepOnePromptTagCategory => '至少保留一個提示詞類別';
@@ -16962,25 +17024,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get onlineGallery_codexNegativePrompt => '負向提示詞';
 
   @override
-  String get onlineGallery_negativePromptCopyHeading => '負面提示詞';
-
-  @override
   String get onlineGallery_codexCharacterPrompts => '角色提示詞';
 
   @override
   String get onlineGallery_codexNote => '備註';
-
-  @override
-  String get onlineGallery_codexCopyPositive => '複製正向';
-
-  @override
-  String get onlineGallery_codexCopyNegative => '複製負向';
-
-  @override
-  String get onlineGallery_codexCopyCharacter => '複製此角色';
-
-  @override
-  String get onlineGallery_codexCopyAll => '複製全部';
 
   @override
   String get onlineGallery_codexSendToGeneration => '帶入生成頁';
@@ -17029,13 +17076,17 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get onlineGallery_copyArtistChain => '複製畫師串';
 
   @override
-  String get onlineGallery_copyFullPrompt => '複製完整 Prompt';
+  String get onlineGallery_copyPrompt => '複製提示詞';
 
   @override
-  String get onlineGallery_copyRawArtistFragments => '複製原始畫師片段';
+  String get onlineGallery_promptCopyDescription =>
+      '選擇要複製的原始提示詞類別。正向與負向內容會以純文字區塊分隔。';
 
   @override
-  String get onlineGallery_noArtistChain => '無可複製畫師串';
+  String get onlineGallery_promptCopyCategoryHint => '按來源提供的標籤類別複製';
+
+  @override
+  String get onlineGallery_promptCopyStructuredHint => '複製該提示詞欄位的原始內容';
 
   @override
   String onlineGallery_artistCount(Object count) {
@@ -17115,7 +17166,41 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get onlineGallery_downloadAllMedia => '下載作品全部圖片';
 
   @override
-  String get onlineGallery_copyFullMetadata => '複製完整後設資料';
+  String get onlineGallery_copyAllTags => '複製全部 TAG';
+
+  @override
+  String get onlineGallery_customCopyTags => '自訂複製';
+
+  @override
+  String get promptCopy_exportTitle => '自訂複製 TAG';
+
+  @override
+  String get promptCopy_allPositive => '全部正面提示詞';
+
+  @override
+  String get promptCopy_allNegative => '全部負面提示詞';
+
+  @override
+  String get promptCopy_mainPositive => '主 / 全域正面提示詞';
+
+  @override
+  String get promptCopy_mainNegative => '主 / 全域負面提示詞';
+
+  @override
+  String get promptCopy_fixedPositive => '固定正面提示詞';
+
+  @override
+  String get promptCopy_fixedNegative => '固定負面提示詞';
+
+  @override
+  String promptCopy_characterPositive(int index) {
+    return '角色 $index 正面提示詞';
+  }
+
+  @override
+  String promptCopy_characterNegative(int index) {
+    return '角色 $index 負面提示詞';
+  }
 
   @override
   String get onlineGallery_gelbooruReadOnly => '只讀收藏';
@@ -21089,6 +21174,15 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String metadataImport_selectedCount(int count) {
     return '已選擇 $count 項';
   }
+
+  @override
+  String get metadataImport_readImageMetadata => '讀取圖片後設資料';
+
+  @override
+  String get metadataImport_readFailed => '無法讀取所選圖片';
+
+  @override
+  String get metadataImport_processFailed => '無法處理所選圖片';
 
   @override
   String get metadataImport_noDataFound => '未找到 NovelAI 後設資料';
@@ -25853,6 +25947,14 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get image_savedToSystemGallery => '已儲存到系統相簿';
+
+  @override
+  String get localGallery_saveToSystemGallery => '儲存到系統相簿';
+
+  @override
+  String localGallery_saveToSystemGalleryFailed(Object error) {
+    return '無法儲存到系統相簿：$error';
+  }
 
   @override
   String image_savedAppOnly(Object error) {
