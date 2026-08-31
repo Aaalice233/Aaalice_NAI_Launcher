@@ -459,45 +459,51 @@ class _GalleryCategoryTreeViewState extends State<GalleryCategoryTreeView> {
   }
 
   /// 从 DataReader 中提取文件路径
-  Future<String?> _getFilePathFromUri(DataReader reader) async {
-    final completer = Completer<String?>();
+  Future<String?> _getFilePathFromUri(DataReader reader) =>
+      galleryFilePathFromDataReader(reader);
+}
 
-    final progress = reader.getValue(
-      Formats.fileUri,
-      (uri) {
-        if (!completer.isCompleted) {
-          if (uri == null) {
-            completer.complete(null);
-            return;
-          }
-          try {
-            final filePath = uri.toFilePath();
-            completer.complete(filePath);
-          } catch (e) {
-            completer.complete(null);
-          }
+/// 从拖放 [DataReader] 中提取文件路径（fileUri）。
+///
+/// 分类树与相簿树共用的系统级拖放辅助；读取失败或超时返回 null。
+Future<String?> galleryFilePathFromDataReader(DataReader reader) async {
+  final completer = Completer<String?>();
+
+  final progress = reader.getValue(
+    Formats.fileUri,
+    (uri) {
+      if (!completer.isCompleted) {
+        if (uri == null) {
+          completer.complete(null);
+          return;
         }
-      },
-      onError: (e) {
-        if (!completer.isCompleted) {
+        try {
+          final filePath = uri.toFilePath();
+          completer.complete(filePath);
+        } catch (e) {
           completer.complete(null);
         }
-      },
+      }
+    },
+    onError: (e) {
+      if (!completer.isCompleted) {
+        completer.complete(null);
+      }
+    },
+  );
+
+  if (progress == null) {
+    return null;
+  }
+
+  // 添加超时保护
+  try {
+    return await completer.future.timeout(
+      const Duration(seconds: 5),
+      onTimeout: () => null,
     );
-
-    if (progress == null) {
-      return null;
-    }
-
-    // 添加超时保护
-    try {
-      return await completer.future.timeout(
-        const Duration(seconds: 5),
-        onTimeout: () => null,
-      );
-    } catch (e) {
-      return null;
-    }
+  } catch (e) {
+    return null;
   }
 }
 

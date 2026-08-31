@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/gallery/gallery_album.dart';
 import '../../../data/models/gallery/local_image_record.dart';
+import 'gallery_category_tree_view.dart'
+    show galleryFilePathFromDataReader, galleryInternalDragPathFromLocalData;
 
 enum _AlbumAction { rename, addSubAlbum, moveToRoot, delete }
 
@@ -48,6 +52,7 @@ class GalleryAlbumTreeView extends StatefulWidget {
 
 class _GalleryAlbumTreeViewState extends State<GalleryAlbumTreeView> {
   final Set<String> _expandedIds = {};
+  final Set<String> _superDraggingAlbumIds = {};
 
   @override
   Widget build(BuildContext context) {
@@ -124,14 +129,18 @@ class _GalleryAlbumTreeViewState extends State<GalleryAlbumTreeView> {
       );
     }
 
-    return DragTarget<LocalImageRecord>(
+    // 内层：应用内卡片拖拽（Flutter 原生 Draggable/DragTarget 协议）
+    final dragTarget = DragTarget<LocalImageRecord>(
       onWillAcceptWithDetails: (details) => true,
       onAcceptWithDetails: (details) {
+        HapticFeedback.heavyImpact();
         widget.onImageDrop?.call(details.data.path, album.id);
       },
       builder: (context, candidate, rejected) {
-        final dragging = candidate.isNotEmpty;
-        return Container(
+        final dragging =
+            candidate.isNotEmpty || _superDraggingAlbumIds.contains(album.id);
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
           decoration: dragging
               ? BoxDecoration(
                   color: Theme.of(
@@ -146,6 +155,56 @@ class _GalleryAlbumTreeViewState extends State<GalleryAlbumTreeView> {
           ),
         );
       },
+    );
+
+    // 外层：系统级文件拖放（文件管理器拖图入相簿），与分类树同一协议；
+    // 不支持平台（如 Android 应用内拖动已由内层覆盖）保持内层即可
+    if (!PlatformCapabilities.current.supportsExternalFileDrop) {
+      return dragTarget;
+    }
+
+    return DropRegion(
+      formats: const [Formats.fileUri],
+      onDropOver: (event) {
+        if (event.session.allowedOperations.contains(DropOperation.copy)) {
+          if (!_superDraggingAlbumIds.contains(album.id)) {
+            setState(() => _superDraggingAlbumIds.add(album.id));
+          }
+          return DropOperation.copy;
+        }
+        return DropOperation.none;
+      },
+      onDropLeave: (event) {
+        if (_superDraggingAlbumIds.contains(album.id)) {
+          setState(() => _superDraggingAlbumIds.remove(album.id));
+        }
+      },
+      onPerformDrop: (event) async {
+        if (_superDraggingAlbumIds.contains(album.id)) {
+          setState(() => _superDraggingAlbumIds.remove(album.id));
+        }
+        for (final item in event.session.items) {
+          final internalPath = galleryInternalDragPathFromLocalData(
+            item.localData,
+          );
+          if (internalPath != null) {
+            HapticFeedback.heavyImpact();
+            widget.onImageDrop?.call(internalPath, album.id);
+            continue;
+          }
+
+          final reader = item.dataReader;
+          if (reader == null) continue;
+          if (reader.canProvide(Formats.fileUri)) {
+            final filePath = await galleryFilePathFromDataReader(reader);
+            if (filePath != null) {
+              HapticFeedback.heavyImpact();
+              widget.onImageDrop?.call(filePath, album.id);
+            }
+          }
+        }
+      },
+      child: dragTarget,
     );
   }
 
