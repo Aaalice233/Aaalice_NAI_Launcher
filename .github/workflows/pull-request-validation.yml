@@ -100,10 +100,30 @@ jobs:
       - name: Analyze
         run: flutter analyze
 
-  tests:
-    name: Test
+  test-shards:
+    name: Test / ${{ matrix.name }}
     runs-on: windows-2022
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: core-and-data
+            paths: >-
+              test/core,test/data,test/l10n,test/manual,test/tool,test/windows,
+              test/app_test.dart,test/first_launch_test.dart,
+              test/main_semantics_policy_test.dart,
+              test/windows_runner_single_instance_test.dart
+          - name: presentation-logic
+            paths: >-
+              test/presentation/adaptive,test/presentation/agent_chat,
+              test/presentation/agent_settings,test/presentation/prompt_assistant,
+              test/presentation/providers,test/presentation/services,
+              test/presentation/utils,test/presentation/idle_animation_test.dart
+          - name: presentation-ui
+            paths: >-
+              test/presentation/router,test/presentation/screens,
+              test/presentation/widgets
 
     steps:
       - name: Checkout without LFS payloads
@@ -116,6 +136,7 @@ jobs:
         run: ./scripts/prepare_bundled_database.ps1
 
       - name: Test Windows portable package verifier
+        if: matrix.name == 'core-and-data'
         shell: pwsh
         run: ./scripts/test_windows_portable_package_verifier.ps1
 
@@ -126,12 +147,32 @@ jobs:
           cache-namespace: nai-hosted
 
       - name: Validate bundled autocomplete databases
+        if: matrix.name == 'core-and-data'
         run: dart run tool/tag_catalog/verify_bundled_databases.dart
 
       - name: Run tests
         shell: pwsh
         timeout-minutes: 10
-        run: ./scripts/run_flutter_tests.ps1 -TimeoutSeconds 570
+        run: >-
+          ./scripts/run_flutter_tests.ps1
+          -Path "${{ matrix.paths }}"
+          -TimeoutSeconds 570
+
+  tests:
+    name: Test
+    runs-on: ubuntu-latest
+    if: always()
+    needs: test-shards
+
+    steps:
+      - name: Verify all test shards passed
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ('${{ needs.test-shards.result }}' -ne 'success') {
+            throw 'One or more test shards did not pass.'
+          }
+          Write-Host 'All test shards passed.'
 
   windows-build:
     name: Build Windows debug
