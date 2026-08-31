@@ -66,6 +66,27 @@ void main() {
     expect(selected, LocalImageContextAction.sendToStyleTransfer);
   });
 
+  testWidgets('shows the watermark command when the tool is enabled', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const _MenuHarness(isKritaConnected: true, watermarkEnabled: true),
+    );
+
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Create watermarked copy…'), findsOneWidget);
+    final item = tester
+        .widgetList<PopupMenuItem<LocalImageContextAction>>(
+          find.byType(PopupMenuItem<LocalImageContextAction>),
+        )
+        .singleWhere(
+          (item) => item.value == LocalImageContextAction.createWatermark,
+        );
+    expect(item.enabled, isTrue);
+  });
+
   testWidgets('opens without an expand animation', (tester) async {
     await tester.pumpWidget(const _MenuHarness(isKritaConnected: true));
 
@@ -149,6 +170,7 @@ class _MenuHarness extends StatelessWidget {
     this.hasSeed = true,
     required this.isKritaConnected,
     this.sendOnly = false,
+    this.watermarkEnabled = false,
     this.onSelected,
   });
 
@@ -157,6 +179,7 @@ class _MenuHarness extends StatelessWidget {
   final bool hasSeed;
   final bool isKritaConnected;
   final bool sendOnly;
+  final bool watermarkEnabled;
   final ValueChanged<LocalImageContextAction?>? onSelected;
 
   @override
@@ -182,6 +205,7 @@ class _MenuHarness extends StatelessWidget {
                       hasPrompt: hasPrompt,
                       hasSeed: hasSeed,
                       isKritaConnected: isKritaConnected,
+                      watermarkEnabled: watermarkEnabled,
                     );
               onSelected?.call(selected);
             },

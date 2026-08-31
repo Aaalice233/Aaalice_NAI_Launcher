@@ -12,10 +12,12 @@ import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../../core/database/database_providers.dart';
 import '../../../core/services/file_export_service.dart';
+import '../../../core/storage/local_storage_service.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/file_explorer_utils.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../core/utils/zip_utils.dart';
+import '../../../core/watermark/watermark_derivative_registry.dart';
 import '../../../data/models/gallery/local_image_record.dart';
 import '../../../data/models/gallery/nai_image_metadata.dart';
 import '../../../data/repositories/gallery_folder_repository.dart';
@@ -27,9 +29,11 @@ import '../../providers/gallery_folder_provider.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/krita/krita_bridge_notifier.dart';
 import '../../providers/local_gallery_provider.dart';
+import '../../providers/watermark_settings_provider.dart';
 import '../../providers/reverse_prompt_provider.dart';
 import '../../providers/selection_mode_provider.dart';
 import '../../router/app_routes.dart';
+import '../watermark/watermark_editor_launcher.dart';
 import '../../services/image_workflow_launcher.dart';
 import '../../utils/asset_protection_guard.dart';
 import '../../utils/fixed_tag_metadata_matcher.dart';
@@ -452,6 +456,15 @@ class LocalGalleryActionCoordinator {
           PlatformCapabilities.current.supportsKritaBridge &&
           _ref.read(kritaBridgeNotifierProvider).status ==
               KritaBridgeStatus.connected,
+      watermarkEnabled: _ref
+          .read(watermarkSettingsProvider)
+          .configuration
+          .enabled,
+      isWatermarkDerivative:
+          WatermarkDerivativeRegistry(
+            _ref.read(localStorageServiceProvider),
+          ).find(record.path) !=
+          null,
     );
     if (action == null || !_mounted()) return;
     await routeImageAction(
@@ -488,6 +501,11 @@ class LocalGalleryActionCoordinator {
         await _sendToUpscale(record);
       case LocalImageContextAction.shareToDiscord:
         await _shareLocalImageToDiscord(record);
+      case LocalImageContextAction.createWatermark:
+        await WatermarkEditorLauncher.openForLocalPath(
+          context: _context(),
+          path: record.path,
+        );
       case LocalImageContextAction.copyPrompt:
         await _copyPrompt(record, availableMetadata);
       case LocalImageContextAction.copySeed:

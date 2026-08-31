@@ -6,13 +6,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
 import '../../../core/platform/platform_capabilities.dart';
+import '../../../core/storage/local_storage_service.dart';
 import '../../../core/services/android_media_store_service.dart';
 import '../../../core/utils/image_save_utils.dart';
 import '../../../core/utils/image_share_sanitizer.dart';
 import '../../../core/utils/localization_extension.dart';
+import '../../../core/watermark/watermark_derivative_registry.dart';
 import '../../../data/repositories/gallery_folder_repository.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../providers/share_image_settings_provider.dart';
+import '../../providers/watermark_settings_provider.dart';
+import '../../screens/watermark/watermark_editor_launcher.dart';
 import '../../utils/clipboard_image.dart';
 import 'app_toast.dart';
 import 'image_card_controller.dart';
@@ -29,6 +33,7 @@ enum ImageCardActionId {
   save,
   copy,
   shareDiscord,
+  createWatermark,
   saveToLibrary,
   openFolder,
   reversePrompt,
@@ -146,6 +151,18 @@ class ImageCardActionCatalog {
       group: 1,
       hover: false,
     );
+    if (coordinator.watermarkEnabled && data.imageBytes != null) {
+      add(
+        ImageCardActionId.createWatermark,
+        Icons.branding_watermark_outlined,
+        coordinator.isWatermarkDerivative
+            ? l10n.watermark_actionRegenerate
+            : l10n.watermark_actionCreate,
+        coordinator.openWatermarkEditor,
+        group: 1,
+        hover: false,
+      );
+    }
     add(
       ImageCardActionId.saveToLibrary,
       Icons.bookmark_add_rounded,
@@ -262,6 +279,38 @@ class ImageCardActionCoordinator {
 
   ImageCardViewData get _data => controller.data;
   ImageCardCapabilities get _capabilities => controller.capabilities;
+
+  bool get watermarkEnabled =>
+      ref.read(watermarkSettingsProvider).configuration.enabled;
+
+  WatermarkDerivativeLink? get _watermarkLink {
+    final path = _data.sourceFilePath;
+    if (path == null || path.isEmpty) return null;
+    return WatermarkDerivativeRegistry(
+      ref.read(localStorageServiceProvider),
+    ).find(path);
+  }
+
+  bool get isWatermarkDerivative => _watermarkLink != null;
+
+  Future<void> openWatermarkEditor() async {
+    final bytes = _data.imageBytes;
+    if (bytes == null) return;
+    final sourcePath = _data.sourceFilePath;
+    if (sourcePath != null && sourcePath.isNotEmpty) {
+      await WatermarkEditorLauncher.openForLocalPath(
+        context: context,
+        path: sourcePath,
+        fallbackBytes: bytes,
+      );
+      return;
+    }
+    await WatermarkEditorLauncher.open(
+      context: context,
+      sourceBytes: bytes,
+      sourceFileName: 'image_${(_data.index ?? 0) + 1}.png',
+    );
+  }
 
   void warmShareTransferCache() {
     final stripMetadata = ref

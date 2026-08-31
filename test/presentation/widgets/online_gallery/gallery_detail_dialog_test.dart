@@ -339,32 +339,36 @@ void main() {
       metadata: const {'hasOriginal': false, 'path': 'book/preview-only.webp'},
     );
 
-    await tester.pumpWidget(
-      ProviderScope(
-        child: MaterialApp(
-          home: Scaffold(
-            body: GalleryDetailDialog(
-              item: item,
-              detail: GalleryDetail(item: item, media: [media]),
-              isFavorited: false,
-              favoriteLoading: false,
-              labels: _labels(),
-              onCopyPrompt: () {},
-              onCopyNegativePrompt: () {},
-              onCopyCharacter: (_) {},
-              onCopyAll: () {},
-              onToggleFavorite: () async => true,
-              onOpenSource: () {},
-              onSendToGenerate: () {},
-              onAddToQueue: () async {},
-              onDownloadCurrentOriginal: (_) async {},
-              onTagSearch: (_) {},
-              onBlacklistChanged: () {},
-            ),
+    GalleryMedia? watermarkedMedia;
+    Widget buildDialog(GalleryMedia currentMedia) => ProviderScope(
+      child: MaterialApp(
+        home: Scaffold(
+          body: GalleryDetailDialog(
+            item: item,
+            detail: GalleryDetail(item: item, media: [currentMedia]),
+            isFavorited: false,
+            favoriteLoading: false,
+            labels: _labels(),
+            onCopyPrompt: () {},
+            onCopyNegativePrompt: () {},
+            onCopyCharacter: (_) {},
+            onCopyAll: () {},
+            onToggleFavorite: () async => true,
+            onOpenSource: () {},
+            onSendToGenerate: () {},
+            onAddToQueue: () async {},
+            onDownloadCurrentOriginal: (_) async {},
+            onDownloadAndWatermark: (selected) async {
+              watermarkedMedia = selected;
+            },
+            onTagSearch: (_) {},
+            onBlacklistChanged: () {},
           ),
         ),
       ),
     );
+
+    await tester.pumpWidget(buildDialog(media));
     await tester.pump(const Duration(milliseconds: 100));
 
     expect(find.text('832 × 1216 · WEBP'), findsOneWidget);
@@ -377,6 +381,24 @@ void main() {
           .onPressed,
       isNull,
     );
+    expect(find.text('Download and watermark'), findsNothing);
+
+    final originalMedia = GalleryMedia(
+      id: 'original:0',
+      previewUrl: item.previewUrl,
+      displayUrl: item.previewUrl,
+      downloadUrl: 'https://example.invalid/original.png',
+      width: 832,
+      height: 1216,
+      extension: 'png',
+      metadata: const {'hasOriginal': true},
+    );
+    await tester.pumpWidget(buildDialog(originalMedia));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.tap(find.text('Download and watermark'));
+    await tester.pump();
+
+    expect(watermarkedMedia?.id, originalMedia.id);
   });
 
   testWidgets('moves to focused media when only focus changes', (tester) async {
@@ -483,6 +505,7 @@ GalleryDetailDialogLabels _labels() {
     sendToGenerate: 'Generate',
     addToQueue: 'Queue',
     downloadOriginal: 'Download original',
+    downloadAndWatermark: 'Download and watermark',
     previousImage: 'Previous',
     nextImage: 'Next',
     close: 'Close',

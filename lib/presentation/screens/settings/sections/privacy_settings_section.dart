@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/utils/localization_extension.dart';
+import '../../../../data/models/watermark/watermark_settings.dart';
 import '../../../providers/share_image_settings_provider.dart';
+import '../../../providers/watermark_settings_provider.dart';
+import '../../watermark/watermark_editor_launcher.dart';
 import '../../../widgets/online_gallery/blacklist_settings_panel.dart';
 import '../widgets/settings_card.dart';
 import '../widgets/settings_page_layout.dart';
@@ -118,6 +121,8 @@ class _PrivacySettingsSectionState
   @override
   Widget build(BuildContext context) {
     final shareSettings = ref.watch(shareImageSettingsProvider);
+    final watermarkState = ref.watch(watermarkSettingsProvider);
+    final watermarkSettings = watermarkState.configuration;
 
     return SettingsPageLayout(
       title: context.l10n.settings_privacySharing,
@@ -267,6 +272,114 @@ class _PrivacySettingsSectionState
                         shareSettings.limitGenerationInterval
                     ? _editGenerationInterval
                     : null,
+              ),
+            ],
+          ),
+        ),
+        SettingsCard(
+          title: context.l10n.settings_watermarkTitle,
+          icon: Icons.branding_watermark_outlined,
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(context.l10n.settings_watermarkSubtitle),
+                ),
+              ),
+              if (watermarkState.loadIssue != null)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        size: 18,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          watermarkState.loadIssue ==
+                                  WatermarkSettingsLoadIssue.corrupted
+                              ? context.l10n.settings_watermarkConfigCorrupted
+                              : context.l10n.settings_watermarkConfigMigrated,
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () => ref
+                            .read(watermarkSettingsProvider.notifier)
+                            .saveDefaults(),
+                        child: Text(context.l10n.common_save),
+                      ),
+                    ],
+                  ),
+                ),
+              SwitchListTile(
+                secondary: const Icon(Icons.toggle_on_outlined),
+                title: Text(context.l10n.settings_watermarkEnable),
+                value: watermarkSettings.enabled,
+                onChanged: (value) => ref
+                    .read(watermarkSettingsProvider.notifier)
+                    .updateConfiguration(
+                      watermarkSettings.copyWith(enabled: value),
+                    ),
+              ),
+              SwitchListTile(
+                secondary: const Icon(Icons.data_object_outlined),
+                title: Text(context.l10n.settings_watermarkPreserveMetadata),
+                subtitle: Text(
+                  context.l10n.settings_watermarkPreserveMetadataHint,
+                ),
+                value: watermarkSettings.preserveMetadata,
+                onChanged: (value) => ref
+                    .read(watermarkSettingsProvider.notifier)
+                    .updateConfiguration(
+                      watermarkSettings.copyWith(preserveMetadata: value),
+                    ),
+              ),
+              SwitchListTile(
+                secondary: const Icon(Icons.screen_rotation_alt_outlined),
+                title: Text(context.l10n.settings_watermarkLayoutByOrientation),
+                subtitle: Text(
+                  context.l10n.settings_watermarkLayoutByOrientationHint,
+                ),
+                value: watermarkSettings.rememberLayoutsByOrientation,
+                onChanged: (value) => ref
+                    .read(watermarkSettingsProvider.notifier)
+                    .updateConfiguration(
+                      watermarkSettings.copyWith(
+                        rememberLayoutsByOrientation: value,
+                      ),
+                    ),
+              ),
+              ListTile(
+                enabled: watermarkSettings.enabled,
+                leading: const Icon(Icons.add_photo_alternate_outlined),
+                title: Text(context.l10n.settings_watermarkCreateFromImage),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: watermarkSettings.enabled
+                    ? () => WatermarkEditorLauncher.pickSourceAndOpen(
+                        context: context,
+                      )
+                    : null,
+              ),
+              ListTile(
+                leading: const Icon(Icons.edit_outlined),
+                title: Text(context.l10n.settings_watermarkEditDefault),
+                subtitle: watermarkState.localLogoMissing
+                    ? Text(
+                        context.l10n.watermark_logoMissing,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      )
+                    : null,
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () =>
+                    WatermarkEditorLauncher.editDefaults(context: context),
               ),
             ],
           ),

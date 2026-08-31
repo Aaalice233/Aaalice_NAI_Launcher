@@ -83,6 +83,8 @@ class ImageSendActionDispatcher {
           AppToast.info(context, context.l10n.gallery_upscalePanelLoaded);
         case LocalImageContextAction.shareToDiscord:
           await _shareToDiscord(context, ref, bytes, fileName);
+        case LocalImageContextAction.createWatermark:
+          return;
         case LocalImageContextAction.copyPrompt:
         case LocalImageContextAction.copySeed:
         case LocalImageContextAction.showInFolder:

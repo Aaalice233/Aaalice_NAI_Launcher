@@ -7,11 +7,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/cache/local_gallery_thumbnail_provider.dart';
 import '../../../core/platform/platform_capabilities.dart';
+import '../../../core/storage/local_storage_service.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/image_share_sanitizer.dart';
 import '../../../core/utils/localization_extension.dart';
+import '../../../core/watermark/watermark_derivative_registry.dart';
 import '../../../data/models/gallery/local_image_record.dart';
 import '../../providers/share_image_settings_provider.dart';
+import '../../providers/watermark_settings_provider.dart';
 import '../../themes/theme_extension.dart';
 import '../../utils/clipboard_image.dart';
 import '../common/app_toast.dart';
@@ -440,6 +443,20 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
   }
 
   Widget _buildTouchActionMenu() {
+    final watermarkEnabled =
+        widget.onSendAction != null &&
+        ref.watch(
+          watermarkSettingsProvider.select(
+            (state) => state.configuration.enabled,
+          ),
+        );
+    final isWatermarkDerivative =
+        watermarkEnabled &&
+        WatermarkDerivativeRegistry(
+              ref.read(localStorageServiceProvider),
+            ).find(widget.record.path) !=
+            null;
+
     PopupMenuItem<Object> item({
       required Object value,
       required IconData icon,
@@ -498,6 +515,14 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
               icon: Icons.copy,
               label: context.l10n.shortcut_action_copy_image,
             ),
+            if (watermarkEnabled)
+              item(
+                value: LocalImageContextAction.createWatermark,
+                icon: Icons.branding_watermark_outlined,
+                label: isWatermarkDerivative
+                    ? context.l10n.watermark_actionRegenerate
+                    : context.l10n.watermark_actionCreate,
+              ),
             if (widget.onSendAction != null) ...[
               const PopupMenuDivider(),
               ...LocalImageContextMenu.buildSendEntries(

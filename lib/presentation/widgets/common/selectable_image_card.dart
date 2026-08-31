@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/models/image/image_stream_chunk.dart';
+import '../../providers/watermark_settings_provider.dart';
 import 'image_card_actions.dart';
 import 'image_card_context_menu.dart';
 import 'image_card_controller.dart';
@@ -238,6 +239,9 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
       return ImageCardGenerating(data: data, controller: _controller);
     }
     final capabilities = _capabilities;
+    ref.watch(
+      watermarkSettingsProvider.select((state) => state.configuration.enabled),
+    );
     final coordinator = ImageCardActionCoordinator(
       context: context,
       ref: ref,

@@ -93,6 +93,14 @@ class UnifiedMetadataParser {
     text,
   );
 
+  static Uint8List copySupportedMetadata({
+    required Uint8List source,
+    required Uint8List targetPng,
+  }) => ImageMetadataContainerCodec.copySupportedMetadata(
+    source: source,
+    targetPng: targetPng,
+  );
+
   static ParseStatistics get statistics => _service.statistics;
 
   static void resetStatistics() => _service.resetStatistics();

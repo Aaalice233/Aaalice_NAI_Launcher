@@ -13405,4 +13405,259 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get agentSettings_profileImported => 'エージェント設定をインポートしました';
+
+  @override
+  String get settings_watermarkTitle => 'ウォーターマーク';
+
+  @override
+  String get settings_watermarkSubtitle => '元画像を変更せず、ローカルで透かし入りコピーを作成します';
+
+  @override
+  String get settings_watermarkEnable => 'ウォーターマークツールを有効にする';
+
+  @override
+  String get settings_watermarkPreserveMetadata => '透かし入りコピーにメタデータを保持';
+
+  @override
+  String get settings_watermarkPreserveMetadataHint =>
+      'オフでは PNG テキスト、EXIF、NovelAI ステルス情報、プロンプト、シードを削除します。オンでは対応する元メタデータを新しい PNG に安全に書き戻します。';
+
+  @override
+  String get settings_watermarkEditDefault => '既定のウォーターマークを編集';
+
+  @override
+  String get settings_watermarkCreateFromImage => '画像を選択して透かし入りコピーを作成…';
+
+  @override
+  String get settings_watermarkLayoutByOrientation => '画像の向き別にレイアウトを記憶';
+
+  @override
+  String get settings_watermarkLayoutByOrientationHint =>
+      '文字とスタイルを共有し、縦・正方形・横の配置を個別に保存します。';
+
+  @override
+  String get settings_watermarkConfigMigrated =>
+      '古いウォーターマーク設定を確認用に移行しました。現在の既定値を保存して確定してください。';
+
+  @override
+  String get settings_watermarkConfigCorrupted =>
+      'ウォーターマーク設定を読み込めませんでした。安全な既定値を表示しています。保存すると破損データを置き換えます。';
+
+  @override
+  String get watermark_actionCreate => '透かし入りコピーを作成…';
+
+  @override
+  String get watermark_actionRegenerate => '透かし入りコピーを再作成…';
+
+  @override
+  String get watermark_actionDownloadCreate => 'ダウンロードして透かしを追加…';
+
+  @override
+  String get watermark_editorTitle => 'ウォーターマークエディター';
+
+  @override
+  String get watermark_textLayer => 'テキスト';
+
+  @override
+  String get watermark_logoLayer => 'ロゴ';
+
+  @override
+  String get watermark_enableLayer => 'レイヤーを表示';
+
+  @override
+  String get watermark_text => 'ウォーターマーク文字';
+
+  @override
+  String get watermark_alignment => '文字揃え';
+
+  @override
+  String get editor_colorHex => '16 進カラー値';
+
+  @override
+  String get editor_colorSaturationBrightness => '彩度と明度';
+
+  @override
+  String get editor_colorHue => '色相';
+
+  @override
+  String get watermark_alignLeft => '左揃え';
+
+  @override
+  String get watermark_alignCenter => '中央揃え';
+
+  @override
+  String get watermark_alignRight => '右揃え';
+
+  @override
+  String get watermark_font => 'フォント';
+
+  @override
+  String get watermark_chooseLogo => 'ロゴを選択';
+
+  @override
+  String get watermark_replaceLogo => 'ロゴを変更';
+
+  @override
+  String get watermark_logoMissing => '保存済みロゴが見つかりません。保存前に再選択してください。';
+
+  @override
+  String get watermark_logoImportFailed =>
+      'ロゴを読み込めませんでした。対応サイズ内の有効な静止 PNG、JPEG、または WebP 画像を選択してください。';
+
+  @override
+  String get watermark_opacity => '不透明度';
+
+  @override
+  String get watermark_size => 'サイズ';
+
+  @override
+  String get watermark_letterSpacing => '文字間隔';
+
+  @override
+  String get watermark_stroke => 'アウトライン';
+
+  @override
+  String get watermark_shadow => '柔らかい影';
+
+  @override
+  String get watermark_margin => '余白';
+
+  @override
+  String get watermark_anchor => 'アンカー';
+
+  @override
+  String get watermark_anchorTopLeft => '左上';
+
+  @override
+  String get watermark_anchorTopCenter => '上中央';
+
+  @override
+  String get watermark_anchorTopRight => '右上';
+
+  @override
+  String get watermark_anchorCenterLeft => '左中央';
+
+  @override
+  String get watermark_anchorCenter => '中央';
+
+  @override
+  String get watermark_anchorCenterRight => '右中央';
+
+  @override
+  String get watermark_anchorBottomLeft => '左下';
+
+  @override
+  String get watermark_anchorBottomCenter => '下中央';
+
+  @override
+  String get watermark_anchorBottomRight => '右下';
+
+  @override
+  String get watermark_layerArrangement => 'レイヤー配置';
+
+  @override
+  String get watermark_arrangementIndependent => '個別';
+
+  @override
+  String get watermark_arrangementHorizontal => '横にグループ化';
+
+  @override
+  String get watermark_arrangementVertical => '縦にグループ化';
+
+  @override
+  String get watermark_zOrder => '選択レイヤーを前面へ';
+
+  @override
+  String get watermark_ratioOriginal => '元画像';
+
+  @override
+  String get watermark_ratioPortrait => '縦';
+
+  @override
+  String get watermark_ratioSquare => '正方形';
+
+  @override
+  String get watermark_ratioLandscape => '横';
+
+  @override
+  String get watermark_layoutUniversal => '共通レイアウト';
+
+  @override
+  String get watermark_layoutPortrait => '縦画像レイアウト';
+
+  @override
+  String get watermark_layoutSquare => '正方形レイアウト';
+
+  @override
+  String get watermark_layoutLandscape => '横画像レイアウト';
+
+  @override
+  String get watermark_metadataRemoved => '「安全性と共有」の設定に従ってメタデータを削除します。';
+
+  @override
+  String get watermark_metadataPreserved => '対応する元メタデータを新しいコピーに書き込みます。';
+
+  @override
+  String get watermark_setDefault => '既定に設定';
+
+  @override
+  String get watermark_defaultSaved => '既定のウォーターマークを更新しました';
+
+  @override
+  String get watermark_saveCopy => 'コピーを保存';
+
+  @override
+  String get watermark_saving => '元の解像度でレンダリング中…';
+
+  @override
+  String get watermark_saved => '透かし入りコピーを保存しました';
+
+  @override
+  String get watermark_share => '共有';
+
+  @override
+  String get watermark_open => '開く';
+
+  @override
+  String get watermark_undo => '元に戻す';
+
+  @override
+  String get watermark_reset => 'リセット';
+
+  @override
+  String get watermark_noLayer => '保存前にテキストまたはロゴを有効にしてください。';
+
+  @override
+  String get watermark_cancelled => 'ウォーターマーク処理をキャンセルしました';
+
+  @override
+  String watermark_failed(Object error) {
+    return '透かし入りコピーを作成できませんでした：$error';
+  }
+
+  @override
+  String get watermark_sourceMissing => '元画像が見つかりません。再作成するには元画像を選び直してください。';
+
+  @override
+  String get watermark_chooseOriginal => '元画像を選択';
+
+  @override
+  String get watermark_dragHint =>
+      '選択したレイヤーをドラッグします。矢印キーで微調整し、Shift キーで大きく移動します。';
+
+  @override
+  String get watermark_moveLeft => 'レイヤーを左へ移動';
+
+  @override
+  String get watermark_moveRight => 'レイヤーを右へ移動';
+
+  @override
+  String get watermark_moveUp => 'レイヤーを上へ移動';
+
+  @override
+  String get watermark_moveDown => 'レイヤーを下へ移動';
+
+  @override
+  String get watermark_sourceLoadFailed =>
+      'この画像を開けませんでした。有効な静止 PNG、JPEG、WebP、または BMP 画像であることを確認して、もう一度お試しください。';
 }

@@ -12,6 +12,7 @@ import '../../../../core/utils/window_focus_tracker.dart';
 import '../../../../data/models/metadata/metadata_import_options.dart';
 import '../../../adaptive/adaptive_presenter.dart';
 import '../../../providers/share_image_settings_provider.dart';
+import '../../../screens/watermark/watermark_editor_launcher.dart';
 import '../../../utils/clipboard_image.dart';
 import '../../shortcuts/shortcuts.dart';
 import '../app_toast.dart';
@@ -567,6 +568,7 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
             onShare: PlatformCapabilities.current.supportsNativeShare
                 ? () => _shareImage(context)
                 : null,
+            onWatermark: () => _openWatermarkEditor(context),
             onSendToImg2Img: widget.callbacks?.onSendToImg2Img != null
                 ? () => widget.callbacks!.onSendToImg2Img!(_currentImage)
                 : null,
@@ -666,6 +668,24 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
         AppToast.error(context, l10n.image_copyFailed(e.toString()));
       }
     }
+  }
+
+  Future<void> _openWatermarkEditor(BuildContext context) async {
+    final fileInfo = _currentImage.fileInfo;
+    if (fileInfo != null) {
+      await WatermarkEditorLauncher.openForLocalPath(
+        context: context,
+        path: fileInfo.path,
+      );
+      return;
+    }
+    final bytes = await _currentImage.getImageBytes();
+    if (!context.mounted) return;
+    await WatermarkEditorLauncher.open(
+      context: context,
+      sourceBytes: bytes,
+      sourceFileName: 'image.png',
+    );
   }
 
   Future<void> _shareImage(BuildContext context) async {

@@ -1,5 +1,29 @@
 # Third-Party Notices
 
+## Bundled Watermark Fonts
+
+The watermark editor uses a curated, platform-independent font set so previews
+and exported images share the same shaping and glyph assets on Windows, macOS,
+and Android. The following fonts are bundled under the SIL Open Font License
+1.1:
+
+- [LXGW ZhenKai](https://github.com/lxgw/LxgwZhenKai) (`LXGW ZhenKai GB`),
+  by LXGW.
+- [Great Vibes](https://github.com/TypeSETit/GreatVibes), by Robert E. Leuschke.
+- [Caveat](https://github.com/googlefonts/caveat), by Pablo Impallari.
+- [Allura](https://github.com/TypeSETit/Allura), by Robert E. Leuschke.
+- [Ma Shan Zheng](https://github.com/googlefonts/mashanzheng), by Ma Shan Zheng.
+- [Zhi Mang Xing](https://github.com/googlefonts/zhimangxing), by Zhi Mang Xing.
+- [Long Cang](https://github.com/googlefonts/longcang), by Long Cang.
+
+The six newly curated files are redistributed from the
+[Google Fonts repository](https://github.com/google/fonts), which records each
+font's original upstream project and authorship. The exact upstream records and
+complete license texts are retained under `licenses/fonts/`. Font files are
+stored under `fonts/watermark/`; `LXGW ZhenKai GB` remains at its existing
+`fonts/` path. No font is downloaded at runtime and no platform system font is
+used as the primary watermark face.
+
 ## Danbooru/e621 Tag Data
 
 The bundled `assets/databases/tag_catalog.db` is generated from the complete

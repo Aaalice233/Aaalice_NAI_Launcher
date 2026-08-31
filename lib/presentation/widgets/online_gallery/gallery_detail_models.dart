@@ -44,6 +44,7 @@ class GalleryDetailDialogLabels {
     required this.sendToGenerate,
     required this.addToQueue,
     required this.downloadOriginal,
+    this.downloadAndWatermark = '',
     required this.previousImage,
     required this.nextImage,
     required this.close,
@@ -100,6 +101,7 @@ class GalleryDetailDialogLabels {
   final String sendToGenerate;
   final String addToQueue;
   final String downloadOriginal;
+  final String downloadAndWatermark;
   final String previousImage;
   final String nextImage;
   final String close;
@@ -192,6 +194,7 @@ class GalleryDetailActions {
     required this.addToQueue,
     required this.downloadCurrentOriginal,
     required this.searchTag,
+    this.downloadAndWatermark,
     required this.showTagMenu,
     this.copyMetadata,
     this.downloadAll,
@@ -215,6 +218,7 @@ class GalleryDetailActions {
   final VoidCallback sendToGenerate;
   final Future<void> Function() addToQueue;
   final Future<void> Function(GalleryMedia media) downloadCurrentOriginal;
+  final Future<void> Function(GalleryMedia media)? downloadAndWatermark;
   final ValueChanged<String> searchTag;
   final void Function(String tag, TapDownDetails details) showTagMenu;
   final void Function(GalleryMedia media)? copyMetadata;

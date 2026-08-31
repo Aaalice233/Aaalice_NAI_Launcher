@@ -25,6 +25,10 @@ class GalleryDetailActionPanel extends StatelessWidget {
         media.capability.isFlutterImage &&
         media.capability.imageDisplayUrl.isNotEmpty &&
         actions.sendToReverse != null;
+    final canWatermark =
+        canDownload &&
+        media.capability.isFlutterImage &&
+        actions.downloadAndWatermark != null;
     final canDownloadAll =
         actions.downloadAll != null && viewModel.media.length > 1;
     const actionStyle = ButtonStyle(
@@ -89,6 +93,17 @@ class GalleryDetailActionPanel extends StatelessWidget {
               label: label(viewModel.labels.downloadOriginal),
             ),
           ),
+          if (canWatermark) ...[
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              style: actionStyle,
+              onPressed: viewModel.downloadActionPending
+                  ? null
+                  : () => actions.downloadAndWatermark!(media),
+              icon: const Icon(Icons.branding_watermark_outlined, size: 18),
+              label: label(viewModel.labels.downloadAndWatermark),
+            ),
+          ],
           if (canReverse || canDownloadAll) ...[
             const SizedBox(height: 8),
             row(
